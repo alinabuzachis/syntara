@@ -39,14 +39,12 @@ router = NexusRouter(prefix="/executions", tags=["executions"])
 _exec_perm_read = PermissionChecker(
     "execution",
     "read",
-    roles=["admin", "auditor", "user", "project-admin", "project-user", "project-auditor"],
     resource_model=Execution,
     resource_id_param="execution_id",
 )
 _exec_perm_run = PermissionChecker(
     "execution",
     "run",
-    roles=["admin", "user", "project-admin", "project-user"],
     resource_model=Execution,
     resource_id_param="execution_id",
 )

@@ -9,29 +9,22 @@ When project_id is set the assignment is scoped to that project.
 Resolution chain:
 - Global: user → (direct roles + groups → roles) → policies
 - Project: user → project role assignments → roles → policies (with project scope)
+
+Roles are referenced by name (not FK) because built-in roles are not
+stored in the database — they exist only in ``role_conventions.py``.
 """
 
 from uuid import UUID
 
-from sqlalchemy import text
+from sqlalchemy import String, text
 from sqlmodel import Field, Index
 
+from nexus.core.constants import FieldLimits
 from nexus.core.models.base import BaseResource
-
-_FK_ROLES = "roles.id"
 
 
 class UserRoleAssignment(BaseResource, table=True):
-    """User-to-role assignment, optionally scoped to a project.
-
-    Attributes:
-        id: Primary key UUID (from BaseResource)
-        user_id: FK to users table
-        role_id: FK to roles table
-        project_id: FK to projects table (NULL = global)
-        created_at: When the assignment was created (from BaseResource)
-
-    """
+    """User-to-role assignment, optionally scoped to a project."""
 
     __tablename__ = "user_role_assignments"
 
@@ -41,9 +34,9 @@ class UserRoleAssignment(BaseResource, table=True):
         index=True,
     )
 
-    role_id: UUID = Field(
-        foreign_key=_FK_ROLES,
-        description="Role assigned to the user",
+    role_name: str = Field(
+        sa_type=String(FieldLimits.NAME_MAX_LENGTH),  # type: ignore[call-overload]
+        description="Name of the assigned role",
         index=True,
     )
 
@@ -58,14 +51,14 @@ class UserRoleAssignment(BaseResource, table=True):
         Index(
             "ix_ura_user_role_global",
             "user_id",
-            "role_id",
+            "role_name",
             unique=True,
             postgresql_where=text("project_id IS NULL"),
         ),
         Index(
             "ix_ura_user_role_project",
             "user_id",
-            "role_id",
+            "role_name",
             "project_id",
             unique=True,
             postgresql_where=text("project_id IS NOT NULL"),
@@ -74,7 +67,7 @@ class UserRoleAssignment(BaseResource, table=True):
 
     def __repr__(self) -> str:
         """Return string representation."""
-        return f"<UserRoleAssignment(user_id={self.user_id}, role_id={self.role_id}, project_id={self.project_id})>"
+        return f"<UserRoleAssignment(user_id={self.user_id}, role_name={self.role_name}, project_id={self.project_id})>"
 
 
 class GroupRoleAssignment(BaseResource, table=True):
@@ -82,14 +75,6 @@ class GroupRoleAssignment(BaseResource, table=True):
 
     All members of the group inherit the role.  When project_id is set,
     the role applies only within that project.
-
-    Attributes:
-        id: Primary key UUID (from BaseResource)
-        group_id: FK to groups table
-        role_id: FK to roles table
-        project_id: FK to projects table (NULL = global)
-        created_at: When the assignment was created (from BaseResource)
-
     """
 
     __tablename__ = "group_role_assignments"
@@ -100,9 +85,9 @@ class GroupRoleAssignment(BaseResource, table=True):
         index=True,
     )
 
-    role_id: UUID = Field(
-        foreign_key=_FK_ROLES,
-        description="Role assigned to the group",
+    role_name: str = Field(
+        sa_type=String(FieldLimits.NAME_MAX_LENGTH),  # type: ignore[call-overload]
+        description="Name of the assigned role",
         index=True,
     )
 
@@ -117,14 +102,14 @@ class GroupRoleAssignment(BaseResource, table=True):
         Index(
             "ix_gra_group_role_global",
             "group_id",
-            "role_id",
+            "role_name",
             unique=True,
             postgresql_where=text("project_id IS NULL"),
         ),
         Index(
             "ix_gra_group_role_project",
             "group_id",
-            "role_id",
+            "role_name",
             "project_id",
             unique=True,
             postgresql_where=text("project_id IS NOT NULL"),
@@ -133,4 +118,6 @@ class GroupRoleAssignment(BaseResource, table=True):
 
     def __repr__(self) -> str:
         """Return string representation."""
-        return f"<GroupRoleAssignment(group_id={self.group_id}, role_id={self.role_id}, project_id={self.project_id})>"
+        return (
+            f"<GroupRoleAssignment(group_id={self.group_id}, role_name={self.role_name}, project_id={self.project_id})>"
+        )

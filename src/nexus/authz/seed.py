@@ -1,10 +1,9 @@
-"""Seed built-in authz data (policies, roles, groups, default project, admin user).
+"""Seed built-in authz data (groups, default project, admin user).
 
-Used by tests to re-seed after table truncation.
-
-Policies and roles are replayed from the migration POLICY_OPS / ROLE_OPS lists
-via apply_policy_ops / apply_role_ops — the same ops the migrations run —
-so there is no separate reimplementation of what the migrations do.
+Built-in roles and policies are no longer stored in the database — they
+live in ``role_conventions.py`` and are resolved at runtime.  This seeder
+only creates groups, the default project, the admin user, and role
+assignments (which reference roles by name).
 """
 
 from pathlib import Path
@@ -15,10 +14,7 @@ from sqlalchemy import insert
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.auth.passwords import hash_password
-from nexus.authz.migration_ops import apply_policy_ops, apply_role_ops
-from nexus.authz.migration_scanner import scan_migrations, scan_role_migrations
-from nexus.authz.models import GroupRoleAssignment, Project, Role
+from nexus.authz.models import GroupRoleAssignment, Project
 from nexus.core.config.base import get_settings
 from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
@@ -29,62 +25,23 @@ logger = structlog.stdlib.get_logger(__name__)
 async def seed_groups_project_admin(session: AsyncSession) -> None:
     """Seed built-in groups, default project, and admin user.
 
-    Unlike seed_authz_data, this does NOT replay role/policy migration ops
-    (which require a sync connection). Use this at application startup where
-    migrations have already been applied via ``alembic upgrade head``.
-
-    If the roles table is empty (e.g. tables were truncated in tests),
-    groups and project are still created but role assignments are skipped.
+    Role assignments reference roles by name — no role rows need to
+    exist in the database.
     """
-    role_result = await session.exec(select(Role))
-    role_map = {r.name: r for r in role_result.all()}
-
-    required_roles = {"default", "admin", "project-user"}
-    missing = required_roles - role_map.keys()
-    if missing:
-        logger.warning(
-            "Skipping authz seed: required roles not found (run 'alembic upgrade head' first)",
-            missing_roles=sorted(missing),
-        )
-        return
-
     auth_group, admin_group, default_project = await _seed_groups_and_project(session)
     await session.flush()
-
-    required_roles = {"default", "admin", "project-user"}
-    if required_roles.issubset(role_map):
-        await _seed_assignments_and_admin(session, role_map, auth_group, admin_group, default_project)
-    else:
-        missing = required_roles - set(role_map)
-        logger.warning("Skipping role assignments: required roles not found", missing_roles=missing)
+    await _seed_assignments_and_admin(session, auth_group, admin_group, default_project)
     await session.commit()
 
 
 async def seed_authz_data(session: AsyncSession) -> None:
     """Seed all built-in authz data into the database.
 
-    Replays ROLE_OPS and POLICY_OPS from all existing migrations, then seeds
-    groups, the default project, and the admin user.
-
-    Args:
-        session: Database session.
-
+    This is the entry point used by tests after table truncation.
     """
-    # Run sync migration ops inside a greenlet via run_sync, since the asyncpg
-    # driver requires a greenlet context even for the sync_connection wrapper.
-    role_ops = scan_role_migrations()
-    policy_ops = scan_migrations()
-    async_conn = await session.connection()
-    await async_conn.run_sync(lambda sync_conn: apply_role_ops(role_ops, conn=sync_conn))
-    await async_conn.run_sync(lambda sync_conn: apply_policy_ops(policy_ops, conn=sync_conn))
-
-    # Build role_map from the rows now in the DB.
-    role_result = await session.exec(select(Role))
-    role_map = {r.name: r for r in role_result.all()}
-
     auth_group, admin_group, default_project = await _seed_groups_and_project(session)
     await session.flush()
-    await _seed_assignments_and_admin(session, role_map, auth_group, admin_group, default_project)
+    await _seed_assignments_and_admin(session, auth_group, admin_group, default_project)
     await session.commit()
 
 
@@ -93,7 +50,6 @@ async def _seed_groups_and_project(session: AsyncSession) -> tuple[Group, Group,
 
     Returns (auth_group, admin_group, default_project).
     """
-    # Default project (only consider non-deleted)
     existing_proj = await session.exec(
         select(Project).where(
             Project.name == "default",
@@ -105,7 +61,6 @@ async def _seed_groups_and_project(session: AsyncSession) -> tuple[Group, Group,
         default_project = Project(id=uuid4(), name="default", description="Default project", is_default=True, labels={})
         session.add(default_project)
 
-    # Authenticated group
     existing_auth = await session.exec(select(Group).where(Group.name == "authenticated"))
     auth_group = existing_auth.one_or_none()
     if not auth_group:
@@ -118,7 +73,6 @@ async def _seed_groups_and_project(session: AsyncSession) -> tuple[Group, Group,
         )
         session.add(auth_group)
 
-    # Admin group
     existing_admins = await session.exec(select(Group).where(Group.name == "admins"))
     admin_group = existing_admins.one_or_none()
     if not admin_group:
@@ -136,7 +90,6 @@ async def _seed_groups_and_project(session: AsyncSession) -> tuple[Group, Group,
 
 async def _seed_assignments_and_admin(
     session: AsyncSession,
-    role_map: dict[str, Role],
     auth_group: Group,
     admin_group: Group,
     default_project: Project,
@@ -146,30 +99,30 @@ async def _seed_assignments_and_admin(
     existing_auth_assignment = await session.exec(
         select(GroupRoleAssignment).where(
             GroupRoleAssignment.group_id == auth_group.id,
-            GroupRoleAssignment.role_id == role_map["default"].id,
+            GroupRoleAssignment.role_name == "default",
             GroupRoleAssignment.project_id.is_(None),  # type: ignore[union-attr]
         )
     )
     if not existing_auth_assignment.one_or_none():
-        session.add(GroupRoleAssignment(id=uuid4(), group_id=auth_group.id, role_id=role_map["default"].id, labels={}))
+        session.add(GroupRoleAssignment(id=uuid4(), group_id=auth_group.id, role_name="default", labels={}))
 
     # Assign "admin" role to the "admins" group (global)
     existing_admin_assignment = await session.exec(
         select(GroupRoleAssignment).where(
             GroupRoleAssignment.group_id == admin_group.id,
-            GroupRoleAssignment.role_id == role_map["admin"].id,
+            GroupRoleAssignment.role_name == "admin",
             GroupRoleAssignment.project_id.is_(None),  # type: ignore[union-attr]
         )
     )
     if not existing_admin_assignment.one_or_none():
-        session.add(GroupRoleAssignment(id=uuid4(), group_id=admin_group.id, role_id=role_map["admin"].id, labels={}))
+        session.add(GroupRoleAssignment(id=uuid4(), group_id=admin_group.id, role_name="admin", labels={}))
 
     # Assign "project-user" role to "authenticated" group on the default project
     existing_default_assignment = await session.exec(
         select(GroupRoleAssignment).where(
             GroupRoleAssignment.group_id == auth_group.id,
             GroupRoleAssignment.project_id == default_project.id,
-            GroupRoleAssignment.role_id == role_map["project-user"].id,
+            GroupRoleAssignment.role_name == "project-user",
         )
     )
     if not existing_default_assignment.one_or_none():
@@ -178,7 +131,7 @@ async def _seed_assignments_and_admin(
                 id=uuid4(),
                 group_id=auth_group.id,
                 project_id=default_project.id,
-                role_id=role_map["project-user"].id,
+                role_name="project-user",
                 labels={},
             )
         )
@@ -220,6 +173,8 @@ def _read_admin_password_hash() -> str | None:
     file is empty, so that the application can still start without a
     password file — the admin user just won't be able to log in locally.
     """
+    from nexus.auth.passwords import hash_password  # noqa: PLC0415
+
     settings = get_settings()
     password_path = settings.admin_password_path
     if not password_path:

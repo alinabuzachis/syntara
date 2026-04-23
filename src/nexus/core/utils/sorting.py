@@ -123,3 +123,24 @@ def apply_sorting(
 
     # Apply all sorting clauses to the query
     return query.order_by(*order_by_clauses)
+
+
+def sort_merged_resources[T](resources: list[T], sort: str | None) -> list[T]:
+    """Re-sort a merged list of in-memory + DB resources by the sort parameter.
+
+    None values sort to end regardless of direction.
+    """
+    if not sort or not resources:
+        return resources
+
+    descending = sort.startswith("-")
+    field = sort.lstrip("-")
+
+    def key_fn(r: T) -> tuple[int, Any]:
+        val = getattr(r, field, None)
+        if val is None:
+            return (0,) if descending else (1,)  # type: ignore[return-value]
+        return (1, val) if descending else (0, val)
+
+    resources.sort(key=key_fn, reverse=descending)
+    return resources

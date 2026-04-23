@@ -9,14 +9,43 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.exceptions import BuiltinProtectionError, RoleNameConflictError, RoleNotFoundError
 from nexus.authz.models.assignments import GroupRoleAssignment, UserRoleAssignment
-from nexus.authz.models.policy import Policy
-from nexus.authz.models.role import Role, RolePolicyLink
+from nexus.authz.models.role import Role
+from nexus.authz.role_conventions import (
+    BUILTIN_ROLES,
+    builtin_role_policy_names,
+    builtin_role_uuid,
+    get_builtin_role,
+    is_builtin_policy,
+    is_builtin_role,
+)
 from nexus.authz.schemas import RoleListResponse, RoleRead
 from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
 from nexus.core.services.base import BaseService
+from nexus.core.utils.filters import matches_query_param
+from nexus.core.utils.sorting import sort_merged_resources
 
 logger = structlog.stdlib.get_logger(__name__)
+
+
+def _builtin_role_to_read(name: str) -> RoleRead:
+    """Convert a builtin role name to a RoleRead schema."""
+    info = get_builtin_role(name)
+    if not info:
+        msg = f"Unknown builtin role: {name}"
+        raise ValueError(msg)
+    return RoleRead(
+        id=builtin_role_uuid(name),
+        name=info.name,
+        description=info.description,
+        policies=builtin_role_policy_names(name),
+        is_builtin=info.is_builtin,
+        project_id=None,
+        scope=info.scope,
+        labels={},
+        created_at=None,
+        updated_at=None,
+    )
 
 
 class RoleService(BaseService):
@@ -26,25 +55,16 @@ class RoleService(BaseService):
         """Initialize with database session and current user."""
         super().__init__(session, user)
 
-    async def _get_policy_names_for_role(self, role_id: UUID) -> list[str]:
-        """Load policy names linked to a role via the join table."""
-        result = await self.session.exec(
-            select(Policy.name)
-            .join(RolePolicyLink, RolePolicyLink.policy_id == Policy.id)  # type: ignore[arg-type]
-            .where(RolePolicyLink.role_id == role_id)
-        )
-        return list(result.all())
-
     async def to_role_read(self, role: Role) -> RoleRead:
-        """Convert a Role model to a RoleRead schema, loading policy names."""
-        policy_names = await self._get_policy_names_for_role(role.id)
+        """Convert a Role model to a RoleRead schema."""
         return RoleRead(
             id=role.id,
             name=role.name,
             description=role.description,
-            policies=policy_names,
+            policies=role.policy_names,
             is_builtin=role.is_builtin,
             project_id=role.project_id,
+            scope=role.scope,
             labels=role.labels,
             created_at=role.created_at,
             updated_at=role.updated_at,
@@ -59,23 +79,22 @@ class RoleService(BaseService):
         project_id: UUID | None = None,
     ) -> Role:
         """Create a custom role. Validates that all referenced policy names exist."""
+        if is_builtin_role(name):
+            msg = f"Role name '{name}' is reserved for a built-in role"
+            raise RoleNameConflictError(msg)
         await self._check_name_conflict(name, project_id)
-        policy_map = await self._resolve_policies(policies)
+        await self._validate_policy_names(policies)
 
         role = Role(
             name=name,
             description=description,
             is_builtin=False,
             project_id=project_id,
+            scope="project" if project_id else "system",
+            policy_names=policies,
             labels=labels or {},
         )
         self.session.add(role)
-        await self.session.flush()
-
-        # Create join table rows
-        for policy in policy_map.values():
-            self.session.add(RolePolicyLink(role_id=role.id, policy_id=policy.id))
-
         await self.session.commit()
         await self.session.refresh(role)
 
@@ -91,6 +110,186 @@ class RoleService(BaseService):
             raise RoleNotFoundError(msg)
         return role
 
+    def get_role_read(self, role_id: UUID) -> RoleRead | None:
+        """Get a builtin role by its deterministic UUID, or None."""
+        for r in BUILTIN_ROLES:
+            if builtin_role_uuid(r.name) == role_id:
+                return _builtin_role_to_read(r.name)
+        return None
+
+    async def get_role_or_builtin(self, role_id: UUID) -> RoleRead:
+        """Get a role by ID — checks builtins first, then DB."""
+        builtin = self.get_role_read(role_id)
+        if builtin:
+            return builtin
+        role = await self.get_role(role_id)
+        return await self.to_role_read(role)
+
+    @staticmethod
+    def _builtins_first(sort: str | None) -> bool:
+        if not sort:
+            return True
+        field = sort.lstrip("-")
+        if field == "is_builtin" and not sort.startswith("-"):
+            return False
+        return field != "project_id"
+
+    @staticmethod
+    def _db_sort(sort: str | None) -> str | None:
+        if not sort:
+            return None
+        field = sort.lstrip("-")
+        if field in ("is_builtin", "name", "scope"):
+            return None
+        return sort
+
+    async def _builtins_first_page(
+        self,
+        remaining_builtins: list[RoleRead],
+        builtin_offset: int,
+        limit: int,
+        db_cursor: str | None,
+        db_sort: str | None,
+        query_params_items: Iterable[tuple[str, str]] | None,
+        *,
+        include_total: bool,
+    ) -> RoleListResponse:
+        page_builtins = remaining_builtins[:limit]
+        db_limit = limit - len(page_builtins)
+        more_builtins = len(remaining_builtins) > limit
+
+        needs_db = db_limit > 0 or (not remaining_builtins and not db_cursor)
+        needs_total_only = not needs_db and include_total
+
+        if needs_db or needs_total_only:
+            db_response = await self.list_resources(
+                model=Role,
+                response_type=RoleListResponse,
+                response_type_converter=lambda r: self._role_to_read(r),
+                limit=max(db_limit, 1),
+                cursor=db_cursor,
+                sort=db_sort,
+                query_params_items=query_params_items,
+                include_total=include_total,
+            )
+            if not needs_db:
+                db_response.resources = []
+                db_response.next = None
+        else:
+            db_response = RoleListResponse(resources=[])
+
+        db_response.resources = [*page_builtins, *db_response.resources]
+        if more_builtins:
+            db_response.next = f"_b:{builtin_offset + limit}"
+        elif db_limit == 0 and not more_builtins and remaining_builtins:
+            db_response.next = f"_b:{builtin_offset + len(page_builtins)}"
+        return db_response
+
+    async def _builtins_last_page(
+        self,
+        all_builtins: list[RoleRead],
+        remaining_builtins: list[RoleRead],
+        builtin_offset: int,
+        limit: int,
+        db_cursor: str | None,
+        db_sort: str | None,
+        query_params_items: Iterable[tuple[str, str]] | None,
+        *,
+        include_total: bool,
+    ) -> RoleListResponse:
+        db_response = await self.list_resources(
+            model=Role,
+            response_type=RoleListResponse,
+            response_type_converter=lambda r: self._role_to_read(r),
+            limit=limit,
+            cursor=db_cursor,
+            sort=db_sort,
+            query_params_items=query_params_items,
+            include_total=include_total,
+        )
+        if not db_response.next and remaining_builtins:
+            slots = limit - len(db_response.resources)
+            new_offset = builtin_offset
+            if slots > 0:
+                fill = remaining_builtins[:slots]
+                db_response.resources.extend(fill)
+                new_offset += len(fill)
+            if new_offset < len(all_builtins):
+                db_response.next = f"_b:{new_offset}"
+        return db_response
+
+    async def _list_with_builtins(
+        self,
+        all_builtins: list[RoleRead],
+        limit: int,
+        cursor: str | None,
+        sort: str | None,
+        query_params_items: Iterable[tuple[str, str]] | None,
+        *,
+        include_total: bool,
+    ) -> RoleListResponse:
+        """Paginate builtins and DB items together, respecting ``limit``."""
+        sort_merged_resources(all_builtins, sort)
+        builtins_first = self._builtins_first(sort)
+        db_sort = self._db_sort(sort)
+
+        builtin_offset = 0
+        db_cursor: str | None = None
+
+        if cursor and cursor.startswith("_b:"):
+            builtin_offset = int(cursor[3:])
+            if not builtins_first:
+                remaining = all_builtins[builtin_offset:]
+                page = remaining[:limit]
+                nxt = f"_b:{builtin_offset + limit}" if len(remaining) > limit else None
+                total: int | None = None
+                if include_total:
+                    db_count_resp = await self.list_resources(
+                        model=Role,
+                        response_type=RoleListResponse,
+                        response_type_converter=lambda r: self._role_to_read(r),
+                        limit=1,
+                        query_params_items=query_params_items,
+                        include_total=True,
+                    )
+                    total = (db_count_resp.total or 0) + len(all_builtins)
+                return RoleListResponse(resources=page, next=nxt, total=total)
+        elif cursor:
+            db_cursor = cursor
+            if builtins_first:
+                builtin_offset = len(all_builtins)
+
+        remaining_builtins = all_builtins[builtin_offset:]
+
+        if builtins_first:
+            resp = await self._builtins_first_page(
+                remaining_builtins,
+                builtin_offset,
+                limit,
+                db_cursor,
+                db_sort,
+                query_params_items,
+                include_total=include_total,
+            )
+        else:
+            resp = await self._builtins_last_page(
+                all_builtins,
+                remaining_builtins,
+                builtin_offset,
+                limit,
+                db_cursor,
+                db_sort,
+                query_params_items,
+                include_total=include_total,
+            )
+
+        if include_total:
+            db_total = resp.total if resp.total is not None else 0
+            resp.total = db_total + len(all_builtins)
+
+        sort_merged_resources(resp.resources, sort)
+        return resp
+
     async def list_roles(
         self,
         limit: int = 20,
@@ -101,44 +300,48 @@ class RoleService(BaseService):
         include_total: bool = False,
     ) -> RoleListResponse:
         """List roles with filtering and pagination."""
-        # Batch-load policy names for all roles in the result via post_query_callback,
-        # then use a closure converter that reads from the pre-loaded dict.
-        policy_names_by_role: dict[UUID, list[str]] = {}
+        excluded_params = {"limit", "cursor", "sort", "include_total"}
+        query_params: dict[str, str] = {}
+        if query_params_items:
+            query_params = {k: v for k, v in query_params_items if k not in excluded_params}
 
-        async def _load_policies(roles: list[Role]) -> None:
-            role_ids = [r.id for r in roles]
-            if not role_ids:
-                return
-            links = await self.session.exec(
-                select(RolePolicyLink.role_id, Policy.name)
-                .join(Policy, Policy.id == RolePolicyLink.policy_id)  # type: ignore[arg-type]
-                .where(RolePolicyLink.role_id.in_(role_ids))  # type: ignore[attr-defined]
-            )
-            for role_id, policy_name in links.all():
-                policy_names_by_role.setdefault(role_id, []).append(policy_name)
+        all_builtins = self._filter_builtin_roles(query_params)
+        return await self._list_with_builtins(
+            all_builtins,
+            limit,
+            cursor,
+            sort,
+            query_params_items,
+            include_total=include_total,
+        )
 
-        def _convert(role: Role) -> RoleRead:
-            return RoleRead(
-                id=role.id,
-                name=role.name,
-                description=role.description,
-                policies=policy_names_by_role.get(role.id, []),
-                is_builtin=role.is_builtin,
-                project_id=role.project_id,
-                labels=role.labels,
-                created_at=role.created_at,
-                updated_at=role.updated_at,
-            )
+    async def list_project_roles(
+        self,
+        project_id: UUID,
+        limit: int = 20,
+        cursor: str | None = None,
+        sort: str | None = None,
+        query_params_items: Iterable[tuple[str, str]] | None = None,
+        *,
+        include_total: bool = False,
+    ) -> RoleListResponse:
+        """List roles visible within a project."""
+        excluded_params = {"limit", "cursor", "sort", "include_total"}
+        query_params: dict[str, str] = {}
+        if query_params_items:
+            query_params = {k: v for k, v in query_params_items if k not in excluded_params}
 
-        return await self.list_resources(
-            model=Role,
-            response_type=RoleListResponse,
-            response_type_converter=_convert,
-            post_query_callback=_load_policies,
-            limit=limit,
-            cursor=cursor,
-            sort=sort,
-            query_params_items=query_params_items,
+        all_builtins = self._filter_builtin_roles(query_params, scope_filter="project")
+        project_params: Iterable[tuple[str, str]] = [
+            *(query_params_items or []),
+            ("project_id", str(project_id)),
+        ]
+        return await self._list_with_builtins(
+            all_builtins,
+            limit,
+            cursor,
+            sort,
+            project_params,
             include_total=include_total,
         )
 
@@ -151,25 +354,28 @@ class RoleService(BaseService):
         labels: dict[str, str] | None = None,
     ) -> Role:
         """Update a role. Builtin roles cannot be updated."""
+        if self.get_role_read(role_id):
+            msg = "Cannot modify builtin role"
+            raise BuiltinProtectionError(msg)
+
         role = await self.get_role(role_id)
         if role.is_builtin:
             msg = "Cannot modify builtin role"
             raise BuiltinProtectionError(msg)
 
         if name is not None and name != role.name:
+            if is_builtin_role(name):
+                msg = f"Role name '{name}' is reserved for a built-in role"
+                raise RoleNameConflictError(msg)
             await self._check_name_conflict(name, role.project_id)
+            old_name = role.name
             role.name = name
+            await self._propagate_role_rename(old_name, name)
         if description is not None:
             role.description = description
         if policies is not None:
-            policy_map = await self._resolve_policies(policies)
-            # Replace join table rows: delete existing, add new
-            existing_links = await self.session.exec(select(RolePolicyLink).where(RolePolicyLink.role_id == role.id))
-            for link in existing_links.all():
-                await self.session.delete(link)
-            await self.session.flush()
-            for policy in policy_map.values():
-                self.session.add(RolePolicyLink(role_id=role.id, policy_id=policy.id))
+            await self._validate_policy_names(policies)
+            role.policy_names = policies
         if labels is not None:
             role.labels = labels
 
@@ -182,14 +388,17 @@ class RoleService(BaseService):
 
     async def delete_role(self, role_id: UUID) -> None:
         """Delete a role. Builtin roles cannot be deleted."""
+        if self.get_role_read(role_id):
+            msg = "Cannot delete builtin role"
+            raise BuiltinProtectionError(msg)
+
         role = await self.get_role(role_id)
         if role.is_builtin:
             msg = "Cannot delete builtin role"
             raise BuiltinProtectionError(msg)
 
-        # Delete all references to this role
-        for model in (RolePolicyLink, UserRoleAssignment, GroupRoleAssignment):
-            results = await self.session.exec(select(model).where(model.role_id == role.id))
+        for model in (UserRoleAssignment, GroupRoleAssignment):
+            results = await self.session.exec(select(model).where(model.role_name == role.name))
             for row in results.all():
                 await self.session.delete(row)
 
@@ -197,6 +406,14 @@ class RoleService(BaseService):
         await self.session.commit()
 
         logger.info("Deleted role", role_id=str(role_id))
+
+    async def _propagate_role_rename(self, old_name: str, new_name: str) -> None:
+        """Update all assignments that reference the old role name."""
+        for model in (UserRoleAssignment, GroupRoleAssignment):
+            results = await self.session.exec(select(model).where(model.role_name == old_name))
+            for row in results.all():
+                row.role_name = new_name
+                self.session.add(row)
 
     async def _check_name_conflict(self, name: str, project_id: UUID | None) -> None:
         """Check if a role name already exists in the same scope."""
@@ -211,21 +428,61 @@ class RoleService(BaseService):
             msg = f"Role '{name}' already exists in {scope}"
             raise RoleNameConflictError(msg)
 
-    async def _resolve_policies(self, policy_names: list[str]) -> dict[str, Policy]:
-        """Validate that all referenced policy names exist and return them.
+    async def _validate_policy_names(self, policy_names: list[str]) -> None:
+        """Validate that all policy names refer to known builtins or custom DB policies."""
+        from nexus.authz.models.policy import Policy  # noqa: PLC0415
 
-        Returns:
-            Dict mapping policy name → Policy object.
+        unknown = [n for n in policy_names if not is_builtin_policy(n)]
+        if not unknown:
+            return
 
-        """
-        if not policy_names:
-            return {}
         result = await self.session.exec(
-            select(Policy).where(Policy.name.in_(policy_names))  # type: ignore[attr-defined]
+            select(Policy.name).where(Policy.name.in_(unknown))  # type: ignore[attr-defined]
         )
-        found = {p.name: p for p in result.all()}
-        missing = set(policy_names) - set(found.keys())
-        if missing:
-            msg = f"Unknown policies: {', '.join(sorted(missing))}"
+        found = set(result.all())
+        still_unknown = [n for n in unknown if n not in found]
+        if still_unknown:
+            msg = f"Unknown policies: {', '.join(sorted(still_unknown))}"
             raise SafeValueError(msg)
-        return found
+
+    @staticmethod
+    def _role_to_read(role: Role) -> RoleRead:
+        return RoleRead(
+            id=role.id,
+            name=role.name,
+            description=role.description,
+            policies=role.policy_names,
+            is_builtin=role.is_builtin,
+            project_id=role.project_id,
+            scope=role.scope,
+            labels=role.labels,
+            created_at=role.created_at,
+            updated_at=role.updated_at,
+        )
+
+    @staticmethod
+    def _filter_builtin_roles(
+        query_params: dict[str, str],
+        scope_filter: str | None = None,
+    ) -> list[RoleRead]:
+        """Return builtin roles matching query_params filters."""
+        is_builtin_filter = query_params.get("is_builtin")
+
+        effective_scope = scope_filter
+        if not effective_scope and query_params.get("project_id"):
+            effective_scope = "project"
+
+        reads = []
+        for r in BUILTIN_ROLES:
+            if is_builtin_filter == "true" and not r.is_builtin:
+                continue
+            if is_builtin_filter == "false" and r.is_builtin:
+                continue
+            if effective_scope and r.scope != effective_scope:
+                continue
+            if not matches_query_param(r.scope, "scope", query_params):
+                continue
+            if not matches_query_param(r.name, "name", query_params):
+                continue
+            reads.append(_builtin_role_to_read(r.name))
+        return reads

@@ -4,12 +4,13 @@ from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, status
+from fastapi import Depends, Request, status
 from sqlmodel import SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth import get_current_user
-from nexus.authz.dependencies import PermissionChecker
+from nexus.authz.dependencies import PermissionChecker, get_opa_client
+from nexus.authz.engine import AuthzRequest, authorize
 from nexus.authz.services.user_role_service import UserRoleService
 from nexus.core.database.session import get_db
 from nexus.core.models import User
@@ -22,7 +23,7 @@ class UserRoleAssignmentCreate(SQLModel):
     """Request body for assigning a role to a user."""
 
     user_id: UUID
-    role_id: UUID
+    role_name: str
 
 
 class UserRoleAssignmentRead(SQLModel):
@@ -31,8 +32,9 @@ class UserRoleAssignmentRead(SQLModel):
     id: str
     user_id: str
     username: str
-    role_id: str
     role_name: str
+    project_id: str | None = None
+    project_name: str | None = None
     created_at: datetime | None = None
 
 
@@ -47,7 +49,7 @@ def get_user_role_service(
 @router.post(
     "",
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(PermissionChecker("user-role", "assign", roles=["admin"]))],
+    dependencies=[Depends(PermissionChecker("user-role", "assign"))],
     operation_id="assign_user_role",
     response_description="Role assigned to user",
 )
@@ -58,7 +60,7 @@ async def assign_user_role(
     """Assign a role directly to a user (system-level). Requires: admin permission."""
     assignment = await service.assign_role(
         user_id=body.user_id,
-        role_id=body.role_id,
+        role_name=body.role_name,
     )
     assignments = await service.list_assignments()
     match = next((a for a in assignments if a["id"] == str(assignment.id)), None)
@@ -68,8 +70,7 @@ async def assign_user_role(
         id=str(assignment.id),
         user_id=str(assignment.user_id),
         username="",
-        role_id=str(assignment.role_id),
-        role_name="",
+        role_name=assignment.role_name,
         created_at=assignment.created_at,
     )
 
@@ -81,17 +82,37 @@ async def assign_user_role(
     response_description="List of user-role assignments",
 )
 async def list_user_role_assignments(
+    request: Request,
     service: Annotated[UserRoleService, Depends(get_user_role_service)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> list[UserRoleAssignmentRead]:
-    """List all system-level user→role assignments."""
-    assignments = await service.list_assignments()
+    """List system-level user→role assignments.
+
+    Admin/auditor see all assignments; other users see only their own.
+    """
+    opa_client = get_opa_client(request)
+    authz_result = await authorize(
+        db,
+        opa_client,
+        AuthzRequest(
+            user_id=current_user.id,
+            action="read",
+            resource_type="user-role",
+            resource_id="",
+            user_labels=current_user.labels,
+            user_metadata=current_user.authz_metadata,
+        ),
+    )
+    user_id = None if authz_result.allowed else current_user.id
+    assignments = await service.list_assignments(user_id=user_id)
     return [UserRoleAssignmentRead(**a) for a in assignments]
 
 
 @router.delete(
     "/{assignment_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(PermissionChecker("user-role", "revoke", roles=["admin"]))],
+    dependencies=[Depends(PermissionChecker("user-role", "revoke"))],
     operation_id="revoke_user_role_assignment",
     response_description="Assignment removed",
 )

@@ -3,7 +3,7 @@
 Tests cover:
 - resolve_effective_policies() with global and project-scoped roles
 - resolve_user_groups() for group membership resolution
-- _get_user_group_ids() implicit authenticated group inclusion
+- get_user_group_ids() implicit authenticated group inclusion
 - _resolve_roles_to_policies() deduplication and project scoping
 """
 
@@ -17,10 +17,10 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.authz.models.assignments import GroupRoleAssignment, UserRoleAssignment
 from nexus.authz.models.policy import Policy
 from nexus.authz.models.project import Project
-from nexus.authz.models.role import Role, RolePolicyLink
+from nexus.authz.models.role import Role
 from nexus.authz.resolver import (
-    _get_user_group_ids,
     _resolve_roles_to_policies,
+    get_user_group_ids,
     resolve_effective_policies,
     resolve_user_groups,
 )
@@ -37,14 +37,14 @@ async def seeded_db(test_db_session: AsyncSession) -> AsyncSession:
 
 
 # ============================================================================
-# _get_user_group_ids
+# get_user_group_ids
 # ============================================================================
 
 
 @pytest.mark.asyncio
-async def test_get_user_group_ids_includes_authenticated(seeded_db: AsyncSession, test_user: User) -> None:
+async def testget_user_group_ids_includes_authenticated(seeded_db: AsyncSession, test_user: User) -> None:
     """All users implicitly belong to the 'authenticated' group."""
-    group_ids = await _get_user_group_ids(seeded_db, test_user.id)
+    group_ids = await get_user_group_ids(seeded_db, test_user.id)
     # Find the authenticated group
     result = await seeded_db.exec(select(Group).where(Group.name == "authenticated"))
     auth_group = result.first()
@@ -53,7 +53,7 @@ async def test_get_user_group_ids_includes_authenticated(seeded_db: AsyncSession
 
 
 @pytest.mark.asyncio
-async def test_get_user_group_ids_includes_explicit_groups(seeded_db: AsyncSession, test_user: User) -> None:
+async def testget_user_group_ids_includes_explicit_groups(seeded_db: AsyncSession, test_user: User) -> None:
     """User's explicit group memberships are included."""
     custom_group = Group(id=uuid4(), name="custom-grp", description="", labels={})
     seeded_db.add(custom_group)
@@ -61,12 +61,12 @@ async def test_get_user_group_ids_includes_explicit_groups(seeded_db: AsyncSessi
     await seeded_db.exec(insert(user_groups).values(user_id=test_user.id, group_id=custom_group.id))
     await seeded_db.commit()
 
-    group_ids = await _get_user_group_ids(seeded_db, test_user.id)
+    group_ids = await get_user_group_ids(seeded_db, test_user.id)
     assert custom_group.id in group_ids
 
 
 @pytest.mark.asyncio
-async def test_get_user_group_ids_excludes_soft_deleted_groups(seeded_db: AsyncSession, test_user: User) -> None:
+async def testget_user_group_ids_excludes_soft_deleted_groups(seeded_db: AsyncSession, test_user: User) -> None:
     """Soft-deleted groups must not appear in user's group IDs."""
     group = Group(id=uuid4(), name="soon-deleted-grp", description="", labels={})
     seeded_db.add(group)
@@ -75,7 +75,7 @@ async def test_get_user_group_ids_excludes_soft_deleted_groups(seeded_db: AsyncS
     await seeded_db.commit()
 
     # Before soft-delete the group is present
-    group_ids = await _get_user_group_ids(seeded_db, test_user.id)
+    group_ids = await get_user_group_ids(seeded_db, test_user.id)
     assert group.id in group_ids
 
     # Soft-delete the group
@@ -83,7 +83,7 @@ async def test_get_user_group_ids_excludes_soft_deleted_groups(seeded_db: AsyncS
     seeded_db.add(group)
     await seeded_db.commit()
 
-    group_ids = await _get_user_group_ids(seeded_db, test_user.id)
+    group_ids = await get_user_group_ids(seeded_db, test_user.id)
     assert group.id not in group_ids
 
 
@@ -100,17 +100,15 @@ async def test_soft_deleted_group_policies_not_resolved(seeded_db: AsyncSession,
     seeded_db.add(policy)
     await seeded_db.flush()
 
-    role = Role(name="deleted-grp-role", is_builtin=False, labels={})
+    role = Role(name="deleted-grp-role", is_builtin=False, labels={}, policy_names=["deleted-grp:test:any"])
     seeded_db.add(role)
     await seeded_db.flush()
-
-    seeded_db.add(RolePolicyLink(role_id=role.id, policy_id=policy.id))
 
     group = Group(id=uuid4(), name="will-be-deleted-grp", description="", labels={})
     seeded_db.add(group)
     await seeded_db.flush()
 
-    seeded_db.add(GroupRoleAssignment(group_id=group.id, role_id=role.id, labels={}))
+    seeded_db.add(GroupRoleAssignment(group_id=group.id, role_name=role.name, labels={}))
     await seeded_db.exec(insert(user_groups).values(user_id=test_user.id, group_id=group.id))
     await seeded_db.commit()
 
@@ -135,7 +133,7 @@ async def test_soft_deleted_group_policies_not_resolved(seeded_db: AsyncSession,
 
 @pytest.mark.asyncio
 async def test_resolve_roles_to_policies_empty(seeded_db: AsyncSession) -> None:
-    """Empty role_ids produces no policies."""
+    """Empty role_names produces no policies."""
     seen: set[str] = set()
     result: list[dict[str, object]] = []
     await _resolve_roles_to_policies(seeded_db, [], seen, result)
@@ -145,7 +143,7 @@ async def test_resolve_roles_to_policies_empty(seeded_db: AsyncSession) -> None:
 @pytest.mark.asyncio
 async def test_resolve_roles_to_policies_with_project(seeded_db: AsyncSession) -> None:
     """Project parameter injects scope and project into statements."""
-    # Create a policy and role linked to it
+    # Create a policy and role with policy_names referencing it
     policy = Policy(
         name="test:resolve:any",
         statements=[{"name": "test:resolve:any", "effect": "allow", "actions": ["read"], "scope": "any"}],
@@ -155,16 +153,13 @@ async def test_resolve_roles_to_policies_with_project(seeded_db: AsyncSession) -
     seeded_db.add(policy)
     await seeded_db.flush()
 
-    role = Role(name="resolve-test-role", is_builtin=False, labels={})
+    role = Role(name="resolve-test-role", is_builtin=False, policy_names=["test:resolve:any"], labels={})
     seeded_db.add(role)
-    await seeded_db.flush()
-
-    seeded_db.add(RolePolicyLink(role_id=role.id, policy_id=policy.id))
     await seeded_db.commit()
 
     seen: set[str] = set()
     result: list[dict[str, object]] = []
-    await _resolve_roles_to_policies(seeded_db, [role.id], seen, result, project="my-project")
+    await _resolve_roles_to_policies(seeded_db, ["resolve-test-role"], seen, result, project="my-project")
 
     assert len(result) >= 1
     proj_stmts = [s for s in result if s.get("project") == "my-project"]
@@ -184,19 +179,15 @@ async def test_resolve_roles_to_policies_deduplication(seeded_db: AsyncSession) 
     seeded_db.add(policy)
     await seeded_db.flush()
 
-    role1 = Role(name="dedup-role-1", is_builtin=False, labels={})
-    role2 = Role(name="dedup-role-2", is_builtin=False, labels={})
+    role1 = Role(name="dedup-role-1", is_builtin=False, policy_names=["test:dedup:any"], labels={})
+    role2 = Role(name="dedup-role-2", is_builtin=False, policy_names=["test:dedup:any"], labels={})
     seeded_db.add(role1)
     seeded_db.add(role2)
-    await seeded_db.flush()
-
-    seeded_db.add(RolePolicyLink(role_id=role1.id, policy_id=policy.id))
-    seeded_db.add(RolePolicyLink(role_id=role2.id, policy_id=policy.id))
     await seeded_db.commit()
 
     seen: set[str] = set()
     result: list[dict[str, object]] = []
-    await _resolve_roles_to_policies(seeded_db, [role1.id, role2.id], seen, result)
+    await _resolve_roles_to_policies(seeded_db, ["dedup-role-1", "dedup-role-2"], seen, result)
     # Same policy name should appear only once
     names = [s.get("name") for s in result]
     assert names.count("test:dedup:any") == 1
@@ -231,12 +222,11 @@ async def test_resolve_effective_policies_direct_user_role(seeded_db: AsyncSessi
     seeded_db.add(policy)
     await seeded_db.flush()
 
-    role = Role(name="direct-role", is_builtin=False, labels={})
+    role = Role(name="direct-role", is_builtin=False, policy_names=["direct:test:any"], labels={})
     seeded_db.add(role)
     await seeded_db.flush()
 
-    seeded_db.add(RolePolicyLink(role_id=role.id, policy_id=policy.id))
-    assignment = UserRoleAssignment(user_id=test_user.id, role_id=role.id)
+    assignment = UserRoleAssignment(user_id=test_user.id, role_name="direct-role")
     seeded_db.add(assignment)
     await seeded_db.commit()
 
@@ -261,12 +251,11 @@ async def test_resolve_effective_policies_project_scoped(seeded_db: AsyncSession
     seeded_db.add(policy)
     await seeded_db.flush()
 
-    role = Role(name="proj-role", is_builtin=False, labels={})
+    role = Role(name="proj-role", is_builtin=False, policy_names=["proj:test:any"], labels={})
     seeded_db.add(role)
     await seeded_db.flush()
 
-    seeded_db.add(RolePolicyLink(role_id=role.id, policy_id=policy.id))
-    assignment = UserRoleAssignment(user_id=test_user.id, role_id=role.id, project_id=project.id)
+    assignment = UserRoleAssignment(user_id=test_user.id, role_name="proj-role", project_id=project.id)
     seeded_db.add(assignment)
     await seeded_db.commit()
 
@@ -291,18 +280,16 @@ async def test_resolve_effective_policies_group_project_scoped(seeded_db: AsyncS
     seeded_db.add(policy)
     await seeded_db.flush()
 
-    role = Role(name="grp-proj-role", is_builtin=False, labels={})
+    role = Role(name="grp-proj-role", is_builtin=False, policy_names=["grp-proj:test:any"], labels={})
     seeded_db.add(role)
     await seeded_db.flush()
-
-    seeded_db.add(RolePolicyLink(role_id=role.id, policy_id=policy.id))
 
     group = Group(id=uuid4(), name="proj-test-grp", description="", labels={})
     seeded_db.add(group)
     await seeded_db.flush()
 
     # Assign group to project-scoped role
-    seeded_db.add(GroupRoleAssignment(group_id=group.id, role_id=role.id, project_id=project.id, labels={}))
+    seeded_db.add(GroupRoleAssignment(group_id=group.id, role_name="grp-proj-role", project_id=project.id, labels={}))
     # Add user to group
     await seeded_db.exec(insert(user_groups).values(user_id=test_user.id, group_id=group.id))
     await seeded_db.commit()

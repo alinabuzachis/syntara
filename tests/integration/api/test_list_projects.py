@@ -14,7 +14,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.api.main import app
 from nexus.auth.dependencies import get_current_user
-from nexus.authz.models import GroupRoleAssignment, Project, Role
+from nexus.authz.models import GroupRoleAssignment, Project
 from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
 
@@ -112,8 +112,6 @@ async def test_lp4_system_auditor_sees_all_projects(
     """LP-4: A system auditor (project:read:any at scope=any) sees all projects."""
     from uuid import uuid4
 
-    from sqlmodel import select
-
     # Create some projects first
     resp = await auth_client.post("/api/v1/projects", json={"name": "lp4-proj"})
     assert resp.status_code == 201
@@ -122,15 +120,12 @@ async def test_lp4_system_auditor_sees_all_projects(
     auditor = await user_factory(username="lp4-auditor", email="lp4-aud@example.com")
 
     # Set up auditor group with auditor role
-    auditor_role = (await test_db_session.exec(select(Role).where(Role.name == "auditor"))).first()
-    assert auditor_role is not None
-
     auditor_group = Group(
         id=uuid4(), name="lp4-auditor-group", description="Auditor group", is_builtin=False, labels={}
     )
     test_db_session.add(auditor_group)
     await test_db_session.flush()
-    test_db_session.add(GroupRoleAssignment(id=uuid4(), group_id=auditor_group.id, role_id=auditor_role.id, labels={}))
+    test_db_session.add(GroupRoleAssignment(id=uuid4(), group_id=auditor_group.id, role_name="auditor", labels={}))
     await test_db_session.execute(insert(user_groups).values(user_id=auditor.id, group_id=auditor_group.id))
     await test_db_session.commit()
 
@@ -155,20 +150,15 @@ async def test_lp5_system_admin_sees_all_projects(
     """LP-5: A system admin sees all projects."""
     from uuid import uuid4
 
-    from sqlmodel import select
-
     resp = await auth_client.post("/api/v1/projects", json={"name": "lp5-proj"})
     assert resp.status_code == 201
 
     admin = await user_factory(username="lp5-admin", email="lp5-adm@example.com")
 
-    admin_role = (await test_db_session.exec(select(Role).where(Role.name == "admin"))).first()
-    assert admin_role is not None
-
     admin_group = Group(id=uuid4(), name="lp5-admin-group", description="Admin group", is_builtin=False, labels={})
     test_db_session.add(admin_group)
     await test_db_session.flush()
-    test_db_session.add(GroupRoleAssignment(id=uuid4(), group_id=admin_group.id, role_id=admin_role.id, labels={}))
+    test_db_session.add(GroupRoleAssignment(id=uuid4(), group_id=admin_group.id, role_name="admin", labels={}))
     await test_db_session.execute(insert(user_groups).values(user_id=admin.id, group_id=admin_group.id))
     await test_db_session.commit()
 
@@ -197,7 +187,7 @@ async def test_lp6_project_user_can_see_assigned_project(
     # Create another user and assign project-user
     viewer = await user_factory(username="lp6-viewer", email="lp6-v@example.com")
     resp = await auth_client.post(
-        f"/api/v1/projects/{project_id}/roles",
+        f"/api/v1/projects/{project_id}/role-assignments",
         json={"user_id": str(viewer.id), "role_name": "project-user"},
     )
     assert resp.status_code == 201
@@ -234,7 +224,7 @@ async def test_lp7_granting_role_makes_project_visible(
     # Grant project-auditor role
     _auth_as(test_user)
     resp = await auth_client.post(
-        f"/api/v1/projects/{project_id}/roles",
+        f"/api/v1/projects/{project_id}/role-assignments",
         json={"user_id": str(new_user.id), "role_name": "project-auditor"},
     )
     assert resp.status_code == 201
@@ -264,7 +254,7 @@ async def test_lp8_revoking_role_removes_project_from_list(
     # Create user and assign project-auditor
     target = await user_factory(username="lp8-target", email="lp8@example.com")
     resp = await auth_client.post(
-        f"/api/v1/projects/{project_id}/roles",
+        f"/api/v1/projects/{project_id}/role-assignments",
         json={"user_id": str(target.id), "role_name": "project-auditor"},
     )
     assert resp.status_code == 201
@@ -279,7 +269,7 @@ async def test_lp8_revoking_role_removes_project_from_list(
 
     # Revoke the role
     _auth_as(test_user)
-    resp = await auth_client.delete(f"/api/v1/projects/{project_id}/roles/{assignment_id}")
+    resp = await auth_client.delete(f"/api/v1/projects/{project_id}/role-assignments/{assignment_id}")
     assert resp.status_code == 204
 
     # Target should still see default but no longer the revoked project

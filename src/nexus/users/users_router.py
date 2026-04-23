@@ -28,10 +28,10 @@ from nexus.users.services.user_service import UsersService
 
 router = NexusRouter(prefix="/users", tags=["Users"])
 
-_user_create = PermissionChecker("user", "create", roles=["admin"])
-_user_read = PermissionChecker("user", "read", roles=["admin", "auditor", "default"])
-_user_update = PermissionChecker("user", "update", roles=["admin"])
-_user_delete = PermissionChecker("user", "delete", roles=["admin"])
+_user_create = PermissionChecker("user", "create")
+_user_read = PermissionChecker("user", "read")
+_user_update = PermissionChecker("user", "update")
+_user_delete = PermissionChecker("user", "delete")
 
 
 # ============================================================================

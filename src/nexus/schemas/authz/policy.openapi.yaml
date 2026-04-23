@@ -28,8 +28,8 @@ paths:
       x-app-permission:
         resource: policy
         action: create
-        scope: any
-        default_roles: [admin]
+        scope: project
+        default_roles: [admin, project-admin]
       tags:
         - Policies
       requestBody:
@@ -114,6 +114,14 @@ paths:
               - type: boolean
               - type: "null"
             title: Project Eligible
+        - in: query
+          name: scope
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Scope
       responses:
         "200":
           description: Paginated list of policies
@@ -190,8 +198,8 @@ paths:
       x-app-permission:
         resource: policy
         action: update
-        scope: any
-        default_roles: [admin]
+        scope: project
+        default_roles: [admin, project-admin]
       tags:
         - Policies
       parameters:
@@ -240,8 +248,8 @@ paths:
       x-app-permission:
         resource: policy
         action: update
-        scope: any
-        default_roles: [admin]
+        scope: project
+        default_roles: [admin, project-admin]
       tags:
         - Policies
       parameters:
@@ -290,8 +298,8 @@ paths:
       x-app-permission:
         resource: policy
         action: delete
-        scope: any
-        default_roles: [admin]
+        scope: project
+        default_roles: [admin, project-admin]
       tags:
         - Policies
       parameters:
@@ -346,7 +354,7 @@ components:
         scope:
           type: string
           title: Scope
-          description: any or self
+          description: any, self, or project
         conditions:
           anyOf:
             - type: object
@@ -473,6 +481,10 @@ components:
               format: uuid
             - type: "null"
           title: Project Id
+        scope:
+          type: string
+          default: any
+          title: Scope
         labels:
           type: object
           default: {}

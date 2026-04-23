@@ -63,7 +63,11 @@ paths:
         - bearerAuth: []
     get:
       summary: List Group Role Assignments
-      description: List all system-level group→role assignments.
+      description: |-
+        List system-level group→role assignments.
+
+        Admin/auditor see all assignments; other users see only assignments
+        for groups they belong to.
       operationId: list_group_role_assignments
       x-app-permission:
         resource: null
@@ -148,16 +152,15 @@ components:
       description: Request body for assigning a role to a group.
       required:
         - group_id
-        - role_id
+        - role_name
       properties:
         group_id:
           type: string
           format: uuid
           title: Group Id
-        role_id:
+        role_name:
           type: string
-          format: uuid
-          title: Role Id
+          title: Role Name
 
     GroupRoleAssignmentRead:
       type: object
@@ -167,21 +170,27 @@ components:
         - id
         - group_id
         - group_name
-        - role_id
         - role_name
       properties:
         id:
           type: string
           title: Id
+        project_id:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Project Id
+        project_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Project Name
         group_id:
           type: string
           title: Group Id
         group_name:
           type: string
           title: Group Name
-        role_id:
-          type: string
-          title: Role Id
         role_name:
           type: string
           title: Role Name

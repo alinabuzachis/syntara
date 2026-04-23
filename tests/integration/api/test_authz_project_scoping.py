@@ -12,7 +12,7 @@ from sqlalchemy import insert
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.authz.models import GroupRoleAssignment, Project, Role
+from nexus.authz.models import GroupRoleAssignment, Project
 from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
 from tests.integration.api.conftest import make_admin, make_project_admin, make_project_user
@@ -168,15 +168,13 @@ async def test_cross_project_group_role(
 
     await test_db_session.execute(insert(user_groups).values(user_id=bob.id, group_id=group.id))
 
-    role = (await test_db_session.exec(select(Role).where(Role.name == "project-user"))).first()
-    assert role is not None
     project = (await test_db_session.exec(select(Project).where(Project.name == alpha_name))).first()
     assert project is not None
     test_db_session.add(
         GroupRoleAssignment(
             group_id=group.id,
             project_id=project.id,
-            role_id=role.id,
+            role_name="project-user",
             labels={},
         )
     )

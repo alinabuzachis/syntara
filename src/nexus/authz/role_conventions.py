@@ -1,18 +1,24 @@
 """Central registries for built-in policies and roles.
 
 ``PolicyInfo`` captures ``(resource, action, scope)`` plus the built-in
-roles the policy is assigned to.  ``EXTRA_POLICIES_REGISTRY`` is the
-authoritative list of policies that cannot be discovered from route
-``PermissionChecker`` declarations (self-scoped, ProjectScopeFilter-only,
-or inline checks).
+roles the policy is assigned to.  ``BUILTIN_POLICIES`` is the single
+source of truth for all built-in policies.
 
-``RoleInfo`` describes a system role; ``BUILTIN_ROLES_REGISTRY`` is the
-single source of truth for which roles exist.
+``RoleInfo`` describes a system role; ``BUILTIN_ROLES`` is the single
+source of truth for which roles exist and which policies they include.
+
+Built-in roles and policies are **not** stored in the database.  They
+exist only in this module and are resolved at runtime by the policy
+resolver and merged into API list/get responses by the service layer.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
+from uuid import UUID, uuid5
+
+_BUILTIN_NS = UUID("a3c1f8d0-7e2b-4f5a-9c6d-1b8e3f0a2d4c")
 
 
 @dataclass(frozen=True)
@@ -66,49 +72,218 @@ class RoleInfo:
     name: str
     description: str
     is_builtin: bool = True
+    scope: str = "system"
 
 
 # ---------------------------------------------------------------------------
-# Central registry of all system roles.
-# Adding a RoleInfo here is the only step required to declare a new role —
-# the Alembic hook will auto-generate the migration on the next
-# ``alembic revision --autogenerate`` run.
+# Authoritative registry of ALL built-in policies.
+#
+# Each PolicyInfo declares which built-in roles receive the policy via
+# the ``roles`` tuple.  The role→policy mapping is derived by inverting
+# these declarations (see ``builtin_role_policy_names``).
 # ---------------------------------------------------------------------------
-# ---------------------------------------------------------------------------
-# Central registry of policies not discoverable from route PermissionCheckers.
-# Adding a PolicyInfo here is sufficient to declare a new non-route policy —
-# the Alembic hook and seeder both consume this via discover_all_policies().
-# ---------------------------------------------------------------------------
-EXTRA_POLICIES_REGISTRY: list[PolicyInfo] = [
+
+BUILTIN_POLICIES: list[PolicyInfo] = [
+    # -- self-scoped --
     PolicyInfo("user", "read", scope="self", roles=("admin", "user", "default")),
     PolicyInfo("user", "update", scope="self", roles=("admin", "user", "default")),
-    PolicyInfo("policy", "read", roles=("admin", "auditor")),
+    # -- system-scoped (any) --
+    # credentials
+    PolicyInfo("credential", "read", roles=("admin", "auditor", "user")),
+    PolicyInfo("credential", "create", roles=("admin", "user")),
+    PolicyInfo("credential", "update", roles=("admin", "user")),
+    PolicyInfo("credential", "delete", roles=("admin",)),
+    # workflows
+    PolicyInfo("workflow", "read", roles=("admin", "auditor", "user")),
+    PolicyInfo("workflow", "create", roles=("admin", "user")),
+    PolicyInfo("workflow", "update", roles=("admin", "user")),
+    PolicyInfo("workflow", "delete", roles=("admin", "user")),
+    # executions
+    PolicyInfo("execution", "read", roles=("admin", "auditor", "user")),
+    PolicyInfo("execution", "run", roles=("admin", "user")),
+    # approvals
+    PolicyInfo("approval", "read", roles=("admin", "auditor", "user")),
+    PolicyInfo("approval", "decide", roles=("admin", "user")),
+    PolicyInfo("approval", "create", roles=("admin",)),
+    # projects
+    PolicyInfo("project", "read", roles=("admin", "auditor", "user")),
+    PolicyInfo("project", "create", roles=("admin", "user", "default")),
+    PolicyInfo("project", "update", roles=("admin",)),
+    PolicyInfo("project", "delete", roles=("admin",)),
+    # project role assignments
+    PolicyInfo("project-role", "read", scope="self", roles=("admin", "auditor", "default")),
+    PolicyInfo("project-role", "read", roles=("admin", "auditor")),
+    PolicyInfo("project-role", "assign", roles=("admin",)),
+    PolicyInfo("project-role", "revoke", roles=("admin",)),
+    # roles & policies (system-level admin)
+    PolicyInfo("role", "create", roles=("admin",)),
     PolicyInfo("role", "read", roles=("admin", "auditor")),
-    # approval:read has no active router yet; kept here so it remains discoverable.
-    PolicyInfo(
-        "approval",
-        "read",
-        roles=("admin", "auditor", "user", "project-admin", "project-user", "project-auditor"),
-    ),
+    PolicyInfo("role", "update", roles=("admin",)),
+    PolicyInfo("role", "delete", roles=("admin",)),
+    PolicyInfo("policy", "create", roles=("admin",)),
+    PolicyInfo("policy", "read", roles=("admin", "auditor")),
+    PolicyInfo("policy", "update", roles=("admin",)),
+    PolicyInfo("policy", "delete", roles=("admin",)),
+    # user/role assignments
+    PolicyInfo("user-role", "read", scope="self", roles=("admin", "auditor", "default")),
+    PolicyInfo("user-role", "read", roles=("admin", "auditor")),
+    PolicyInfo("user-role", "assign", roles=("admin",)),
+    PolicyInfo("user-role", "revoke", roles=("admin",)),
+    PolicyInfo("group-role", "read", scope="self", roles=("admin", "auditor", "default")),
+    PolicyInfo("group-role", "read", roles=("admin", "auditor")),
+    PolicyInfo("group-role", "assign", roles=("admin",)),
+    PolicyInfo("group-role", "revoke", roles=("admin",)),
+    # users & groups
+    PolicyInfo("user", "create", roles=("admin",)),
+    PolicyInfo("user", "read", roles=("admin", "auditor", "default")),
+    PolicyInfo("user", "update", roles=("admin",)),
+    PolicyInfo("user", "delete", roles=("admin",)),
+    PolicyInfo("group", "create", roles=("admin",)),
+    PolicyInfo("group", "read", roles=("admin", "auditor", "user", "default")),
+    PolicyInfo("group", "update", roles=("admin",)),
+    PolicyInfo("group", "delete", roles=("admin",)),
+    PolicyInfo("group", "manage-members", roles=("admin",)),
+    # identity providers
+    PolicyInfo("identity-provider", "create", roles=("admin",)),
+    PolicyInfo("identity-provider", "read", roles=("admin",)),
+    PolicyInfo("identity-provider", "update", roles=("admin",)),
+    PolicyInfo("identity-provider", "delete", roles=("admin",)),
+    PolicyInfo("identity-provider", "test", roles=("admin",)),
+    # settings
+    PolicyInfo("setting", "read", roles=("admin",)),
+    PolicyInfo("setting", "write", roles=("admin",)),
+    # audit
+    PolicyInfo("audit", "read", roles=("admin", "auditor")),
+    # authz query
+    PolicyInfo("authz", "query", roles=("admin",)),
+    # -- project-scoped --
+    PolicyInfo("workflow", "create", scope="project", roles=("project-admin", "project-user")),
+    PolicyInfo("workflow", "read", scope="project", roles=("project-admin", "project-user", "project-auditor")),
+    PolicyInfo("workflow", "update", scope="project", roles=("project-admin", "project-user")),
+    PolicyInfo("workflow", "delete", scope="project", roles=("project-admin", "project-user")),
+    PolicyInfo("execution", "read", scope="project", roles=("project-admin", "project-user", "project-auditor")),
+    PolicyInfo("execution", "run", scope="project", roles=("project-admin", "project-user")),
+    PolicyInfo("credential", "create", scope="project", roles=("project-admin", "project-user")),
+    PolicyInfo("credential", "read", scope="project", roles=("project-admin", "project-user", "project-auditor")),
+    PolicyInfo("credential", "update", scope="project", roles=("project-admin", "project-user")),
+    PolicyInfo("credential", "delete", scope="project", roles=("project-admin",)),
+    PolicyInfo("approval", "read", scope="project", roles=("project-admin", "project-user", "project-auditor")),
+    PolicyInfo("approval", "decide", scope="project", roles=("project-admin", "project-user")),
+    PolicyInfo("project", "read", scope="project", roles=("project-admin", "project-user", "project-auditor")),
+    PolicyInfo("project", "update", scope="project", roles=("project-admin",)),
+    PolicyInfo("project", "delete", scope="project", roles=("project-admin",)),
+    PolicyInfo("project-role", "read", scope="project", roles=("project-admin",)),
+    PolicyInfo("project-role", "assign", scope="project", roles=("project-admin",)),
+    PolicyInfo("project-role", "revoke", scope="project", roles=("project-admin",)),
+    PolicyInfo("role", "create", scope="project", roles=("project-admin",)),
+    PolicyInfo("role", "read", scope="project", roles=("project-admin", "project-user", "project-auditor")),
+    PolicyInfo("role", "update", scope="project", roles=("project-admin",)),
+    PolicyInfo("role", "delete", scope="project", roles=("project-admin",)),
+    PolicyInfo("policy", "create", scope="project", roles=("project-admin",)),
+    PolicyInfo("policy", "read", scope="project", roles=("project-admin", "project-user", "project-auditor")),
+    PolicyInfo("policy", "update", scope="project", roles=("project-admin",)),
+    PolicyInfo("policy", "delete", scope="project", roles=("project-admin",)),
 ]
 
-
-BUILTIN_ROLES_REGISTRY: list[RoleInfo] = [
+BUILTIN_ROLES: list[RoleInfo] = [
     RoleInfo("admin", "Full access to all resources"),
     RoleInfo("auditor", "Read-only access with audit log visibility"),
     RoleInfo("user", "Standard user with CRUD on own resources"),
     RoleInfo(
         "project-admin",
         "Full access to a project and its resources, including role management",
+        scope="project",
     ),
     RoleInfo(
         "project-user",
         "Standard access within a project (CRUD workflows, run executions)",
+        scope="project",
     ),
-    RoleInfo("project-auditor", "Read-only access within a project"),
+    RoleInfo("project-auditor", "Read-only access within a project", scope="project"),
     RoleInfo(
         "default",
         "Default permissions granted to all authenticated users via the 'authenticated' group",
         is_builtin=False,
     ),
 ]
+
+
+# ---------------------------------------------------------------------------
+# Lookup helpers
+# ---------------------------------------------------------------------------
+
+
+def _build_policy_map() -> dict[str, PolicyInfo]:
+    """Build name→PolicyInfo map from ``BUILTIN_POLICIES``."""
+    return {p.name: p for p in BUILTIN_POLICIES}
+
+
+def _build_role_map() -> dict[str, RoleInfo]:
+    """Build name→RoleInfo map from ``BUILTIN_ROLES``."""
+    return {r.name: r for r in BUILTIN_ROLES}
+
+
+def _build_role_policy_names() -> dict[str, list[str]]:
+    """Invert PolicyInfo.roles to get role_name→[policy_name, ...] mapping."""
+    mapping: dict[str, list[str]] = {r.name: [] for r in BUILTIN_ROLES}
+    for p in BUILTIN_POLICIES:
+        for role_name in p.roles:
+            if role_name in mapping:
+                mapping[role_name].append(p.name)
+    return mapping
+
+
+# Module-level caches — built once at import time.
+_POLICY_MAP: dict[str, PolicyInfo] = _build_policy_map()
+_ROLE_MAP: dict[str, RoleInfo] = _build_role_map()
+_ROLE_POLICY_NAMES: dict[str, list[str]] = _build_role_policy_names()
+
+
+def get_builtin_policy(name: str) -> PolicyInfo | None:
+    """Look up a built-in policy by canonical name, or ``None`` if not found."""
+    return _POLICY_MAP.get(name)
+
+
+def get_builtin_role(name: str) -> RoleInfo | None:
+    """Look up a built-in role by name, or ``None`` if not found."""
+    return _ROLE_MAP.get(name)
+
+
+def is_builtin_role(name: str) -> bool:
+    """Return ``True`` if *name* is a built-in role."""
+    return name in _ROLE_MAP
+
+
+def is_builtin_policy(name: str) -> bool:
+    """Return ``True`` if *name* is a built-in policy."""
+    return name in _POLICY_MAP
+
+
+def builtin_role_policy_names(role_name: str) -> list[str]:
+    """Return the policy names assigned to a built-in role."""
+    return list(_ROLE_POLICY_NAMES.get(role_name, []))
+
+
+def builtin_policy_uuid(name: str) -> UUID:
+    """Deterministic UUID for a built-in policy (stable across restarts)."""
+    return uuid5(_BUILTIN_NS, f"policy:{name}")
+
+
+def builtin_role_uuid(name: str) -> UUID:
+    """Deterministic UUID for a built-in role (stable across restarts)."""
+    return uuid5(_BUILTIN_NS, f"role:{name}")
+
+
+def resolve_builtin_policy_statements(name: str) -> list[dict[str, Any]]:
+    """Return OPA statement dicts for a built-in policy, or empty list."""
+    p = _POLICY_MAP.get(name)
+    return list(p.statements) if p else []
+
+
+def resolve_builtin_role_statements(role_name: str) -> list[dict[str, Any]]:
+    """Return all OPA statement dicts for a built-in role's policies."""
+    policy_names = _ROLE_POLICY_NAMES.get(role_name, [])
+    result: list[dict[str, Any]] = []
+    for pn in policy_names:
+        result.extend(resolve_builtin_policy_statements(pn))
+    return result

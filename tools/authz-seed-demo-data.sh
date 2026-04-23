@@ -2,7 +2,7 @@
 # authz-seed-demo-data.sh - Seed demo data to exercise all roles and features
 #
 # Prerequisites: Backend running on localhost:8000
-# Usage: ./tools/authz-seed-demo-data.sh [--clean]
+# Usage: ./tools/authz-seed-demo-data.sh [--clean] [--custom-policies]
 #
 # Creates:
 #   Users:     20 users across engineering, product, QA, SRE, data, security, executive personas
@@ -11,6 +11,9 @@
 #   Workflows: 4-10 per project (~35 total, mix of simple + approval-gated)
 #   Executions: sample runs by different users
 #   Approvals:  pending approval requests for UI testing
+#
+# --custom-policies: Also creates project-scoped custom policies, custom roles
+#   (with mixed builtin + custom policy references), and assigns them to users/groups.
 
 set -euo pipefail
 
@@ -42,13 +45,22 @@ if ! curl -sf "$BASE_URL/health" > /dev/null 2>&1; then
     exit 1
 fi
 
-if [[ "${1:-}" == "--clean" ]]; then
-    info "Cleaning existing demo data..."
-    $CLI clean -y
-    info "Re-seeding built-in policies and roles..."
-    $CLI seed-builtin
+CUSTOM_POLICIES=false
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --clean)
+            info "Cleaning existing demo data..."
+            $CLI clean -y
+            info "Re-seeding built-in policies and roles..."
+            $CLI seed-builtin
+            ;;
+        --custom-policies)
+            CUSTOM_POLICIES=true
+            ;;
+        *) echo "Unknown option: $1"; exit 1 ;;
+    esac
     shift
-fi
+done
 
 # ---------------------------------------------------------------------------
 # 1. Users (20 users with varied personas)
@@ -261,7 +273,134 @@ step "mobile-app=$MOBILE_ID"
 step "internal-tools=$TOOLS_ID"
 
 # ---------------------------------------------------------------------------
-# 8. Workflows
+# 8. Custom policies, roles & assignments (optional)
+# ---------------------------------------------------------------------------
+if [ "$CUSTOM_POLICIES" = true ]; then
+
+info "Creating custom project policies..."
+
+create_policy() {
+    local project_id="$1" name="$2" desc="$3" statements="$4"
+    step "Policy: $name"
+    curl -sf "$API/projects/$project_id/policies" \
+        -H "Authorization: Bearer $ADMIN_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d "{\"name\": \"$name\", \"description\": \"$desc\", \"statements\": $statements}" \
+        > /dev/null && step "  created" || warn "  failed (may already exist)"
+}
+
+# -- data-pipeline policies --
+create_policy "$PIPELINE_ID" "etl-operator" \
+    "Run and monitor ETL workflows" \
+    '[{"effect":"allow","actions":["workflow:read","execution:read","execution:run"],"scope":"project"}]'
+
+create_policy "$PIPELINE_ID" "data-viewer" \
+    "Read-only access to pipeline workflows and credentials" \
+    '[{"effect":"allow","actions":["workflow:read","execution:read","credential:read"],"scope":"project"}]'
+
+create_policy "$PIPELINE_ID" "data-quality-admin" \
+    "Manage data quality workflows and approve pipeline runs" \
+    '[{"effect":"allow","actions":["workflow:read","workflow:update","execution:read","execution:run","approval:read","approval:decide"],"scope":"project"}]'
+
+# -- payment-service policies --
+create_policy "$PAYMENT_ID" "pci-auditor" \
+    "Read-only access with credential visibility for PCI compliance audits" \
+    '[{"effect":"allow","actions":["workflow:read","execution:read","credential:read","approval:read"],"scope":"project"}]'
+
+create_policy "$PAYMENT_ID" "deploy-approver" \
+    "Approve production deployments but cannot modify workflows" \
+    '[{"effect":"allow","actions":["workflow:read","execution:read","approval:read","approval:decide"],"scope":"project"}]'
+
+# -- storefront policies --
+create_policy "$STOREFRONT_ID" "feature-flag-manager" \
+    "Manage feature flag workflows and run deployments" \
+    '[{"effect":"allow","actions":["workflow:read","workflow:create","workflow:update","execution:read","execution:run"],"scope":"project"}]'
+
+create_policy "$STOREFRONT_ID" "cdn-operator" \
+    "Run CDN and cache-related workflows" \
+    '[{"effect":"allow","actions":["workflow:read","execution:read","execution:run"],"scope":"project"}]'
+
+# -- internal-tools policies --
+create_policy "$TOOLS_ID" "infra-operator" \
+    "Run infrastructure workflows and view credentials" \
+    '[{"effect":"allow","actions":["workflow:read","execution:read","execution:run","credential:read"],"scope":"project"}]'
+
+info "Creating custom project roles..."
+
+create_role() {
+    local project_id="$1" name="$2" desc="$3" policies="$4"
+    step "Role: $name"
+    curl -sf "$API/projects/$project_id/roles" \
+        -H "Authorization: Bearer $ADMIN_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d "{\"name\": \"$name\", \"description\": \"$desc\", \"policies\": $policies}" \
+        > /dev/null && step "  created" || warn "  failed (may already exist)"
+}
+
+# -- data-pipeline roles (mix of custom + builtin policies) --
+create_role "$PIPELINE_ID" "etl-engineer" \
+    "Run ETL workflows and view pipeline credentials" \
+    '["etl-operator", "credential:read:project"]'
+
+create_role "$PIPELINE_ID" "data-stakeholder" \
+    "Read-only stakeholder view of data pipeline" \
+    '["data-viewer"]'
+
+create_role "$PIPELINE_ID" "data-quality-lead" \
+    "Manage data quality checks and approve pipeline changes" \
+    '["data-quality-admin", "credential:read:project", "role:read:project"]'
+
+# -- payment-service roles --
+create_role "$PAYMENT_ID" "compliance-reviewer" \
+    "PCI compliance reviewer with deploy approval authority" \
+    '["pci-auditor", "deploy-approver"]'
+
+create_role "$PAYMENT_ID" "payment-deployer" \
+    "Deploy payment services and manage credentials" \
+    '["deploy-approver", "credential:read:project", "credential:update:project"]'
+
+# -- storefront roles --
+create_role "$STOREFRONT_ID" "frontend-lead" \
+    "Manage feature flags and CDN for storefront" \
+    '["feature-flag-manager", "cdn-operator", "credential:read:project"]'
+
+create_role "$STOREFRONT_ID" "release-engineer" \
+    "Run deployments and manage CDN cache" \
+    '["cdn-operator", "execution:run:project"]'
+
+# -- internal-tools roles --
+create_role "$TOOLS_ID" "platform-engineer" \
+    "Operate infrastructure workflows and manage tool credentials" \
+    '["infra-operator", "credential:update:project"]'
+
+info "Assigning custom roles..."
+
+# -- data-pipeline: custom role assignments --
+$CLI assign-role etl-engineer    --user nate    --project data-pipeline
+$CLI assign-role data-stakeholder --user paul   --project data-pipeline
+$CLI assign-role data-stakeholder --user rachel --project data-pipeline
+$CLI assign-role data-quality-lead --user maya  --project data-pipeline
+$CLI assign-role data-stakeholder --group leadership --project data-pipeline
+
+# -- payment-service: custom role assignments --
+$CLI assign-role compliance-reviewer --user quinn  --project payment-service
+$CLI assign-role payment-deployer    --user elena  --project payment-service
+$CLI assign-role compliance-reviewer --group security --project payment-service
+
+# -- storefront: custom role assignments --
+$CLI assign-role frontend-lead    --user bob    --project storefront
+$CLI assign-role release-engineer --user hector --project storefront
+$CLI assign-role release-engineer --group on-call --project storefront
+
+# -- internal-tools: custom role assignments --
+$CLI assign-role platform-engineer --user iris   --project internal-tools
+$CLI assign-role platform-engineer --user elena  --project internal-tools
+$CLI assign-role platform-engineer --group sre   --project internal-tools
+
+fi
+
+# ---------------------------------------------------------------------------
+# 9. Workflows
 # ---------------------------------------------------------------------------
 info "Creating workflows..."
 
@@ -473,7 +612,7 @@ run_wf "hello-world"           "admin"
 run_wf "smoke-test"            "hector"
 
 # ---------------------------------------------------------------------------
-# 10. Pending approval requests
+# 11. Pending approval requests
 # ---------------------------------------------------------------------------
 info "Creating pending approval requests..."
 
@@ -542,6 +681,16 @@ echo "Credentials:   15 (3 org-level + 12 project-scoped across 5 types)"
 echo "Workflows:     ~35 (mix of simple + approval-gated)"
 echo "Executions:    12 sample runs"
 echo "Approvals:     6 pending approval requests"
+if [ "$CUSTOM_POLICIES" = true ]; then
+echo ""
+echo "Custom policies (8): etl-operator, data-viewer, data-quality-admin,"
+echo "               pci-auditor, deploy-approver, feature-flag-manager,"
+echo "               cdn-operator, infra-operator"
+echo ""
+echo "Custom roles (8):  etl-engineer, data-stakeholder, data-quality-lead,"
+echo "               compliance-reviewer, payment-deployer, frontend-lead,"
+echo "               release-engineer, platform-engineer"
+fi
 echo ""
 echo "Personas:"
 echo "  alice, bob         -> eng leads, system admins"

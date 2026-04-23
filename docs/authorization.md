@@ -10,7 +10,7 @@ Request → Authentication → PermissionChecker → Policy Resolver → OPA →
 
 1. **Authentication**: Identifies the user via `get_current_user()`
 2. **PermissionChecker**: FastAPI dependency that extracts resource type, action, and project context from the request
-3. **Policy Resolver**: Resolves the user's effective policies from the database (via roles, groups, and project assignments)
+3. **Policy Resolver**: Resolves the user's effective policies from role assignments and built-in role definitions (via roles, groups, and project assignments)
 4. **OPA**: Evaluates the Rego policy against the resolved policies and request context
 5. **Decision**: Allow (200) or deny (403 Forbidden)
 
@@ -42,16 +42,17 @@ A policy contains one or more **statements** that define what actions are allowe
   - `"self"` — applies only to the user's own resource (e.g., `user:read` on own user record)
   - `"project"` — applies only within a specific project (set via project role assignments)
 
+There are two categories of policies:
+
+- **Built-in policies**: Defined in `BUILTIN_POLICIES` in `src/nexus/authz/role_conventions.py`. These exist only in code and are resolved at runtime — they are **not** stored in the database.
+- **Custom policies**: Created via the API (system-level or project-scoped) and stored in the `policies` database table.
+
 ### Roles
 
-A role bundles a set of policies via a `role_policies` join table (many-to-many):
+A role bundles a set of policies. Like policies, roles come in two categories:
 
-```json
-{
-  "name": "user",
-  "policies": ["workflow:read:any", "workflow:create:any", "execution:run:any"]
-}
-```
+- **Built-in roles**: Defined in `BUILTIN_ROLES` in `src/nexus/authz/role_conventions.py`. Their policy assignments are declared via the `roles` tuple on each `PolicyInfo`. These are resolved at runtime and **not** stored in the database.
+- **Custom roles**: Created via the API (system-level or project-scoped) and stored in the `roles` database table, with policies linked via `policy_names` or the `role_policies` join table.
 
 ### Groups
 
@@ -63,21 +64,17 @@ Projects provide resource isolation. Resources belong to projects, and users can
 
 ## Built-in Roles
 
-Defined in `BUILTIN_ROLES_REGISTRY` in `src/nexus/authz/role_conventions.py`:
+Defined in `BUILTIN_ROLES` in `src/nexus/authz/role_conventions.py`:
 
-| Role | Builtin | Description | Key Permissions |
-|------|---------|-------------|-----------------|
-| `admin` | yes | Full system access | All policies |
-| `auditor` | yes | Read-only with audit visibility | Read workflows, executions, approvals, policies, roles |
-| `user` | yes | Standard user | CRUD workflows, run executions, read/update self, create projects |
-| `project-admin` | yes | Full access within a project | Manage project, assign roles, CRUD workflows/executions |
-| `project-user` | yes | Standard access within a project | Read project, CRUD workflows, run executions |
-| `project-auditor` | yes | Read-only within a project | Read project, workflows, executions |
-| `default` | no | Baseline for all authenticated users (editable) | Read/update self, create projects |
-
-Policies are assigned to roles via the `roles` parameter on `PermissionChecker` (for route-scoped policies) or `PolicyInfo.roles` (for extra policies). These declarations drive the auto-generated migrations.
-
-Role-to-policy relationships are stored in a `role_policies` join table (many-to-many), providing referential integrity and normalized queries.
+| Role | Builtin | Scope | Description | Key Permissions |
+|------|---------|-------|-------------|-----------------|
+| `admin` | yes | system | Full system access | All policies |
+| `auditor` | yes | system | Read-only with audit visibility | Read workflows, executions, approvals, policies, roles |
+| `user` | yes | system | Standard user | CRUD workflows, run executions, read/update self, create projects |
+| `project-admin` | yes | project | Full access within a project | Manage project, assign roles, CRUD workflows/executions, create custom roles/policies |
+| `project-user` | yes | project | Standard access within a project | Read project, CRUD workflows, run executions |
+| `project-auditor` | yes | project | Read-only within a project | Read project, workflows, executions, roles, policies |
+| `default` | no | system | Baseline for all authenticated users (editable) | Read/update self, create projects |
 
 ## Database Schema
 
@@ -85,14 +82,18 @@ The authorization system uses these tables:
 
 | Table | Model | Location | Description |
 |-------|-------|----------|-------------|
-| `policies` | `Policy` | `src/nexus/authz/models/policy.py` | IAM-style policies with JSONB statements |
-| `roles` | `Role` | `src/nexus/authz/models/role.py` | Named roles (builtin or custom) |
-| `role_policies` | `RolePolicyLink` | `src/nexus/authz/models/role.py` | Many-to-many join table linking roles to policies |
+| `policies` | `Policy` | `src/nexus/authz/models/policy.py` | Custom IAM-style policies with JSONB statements; optional `project_id` for project scoping |
+| `roles` | `Role` | `src/nexus/authz/models/role.py` | Custom named roles; optional `project_id` for project scoping |
+| `role_policies` | `RolePolicyLink` | `src/nexus/authz/models/role.py` | Many-to-many join table linking custom roles to custom policies |
 | `groups` | `Group` | `src/nexus/core/models/group.py` | User groups with labels |
 | `user_groups` | *(association table)* | `src/nexus/core/models/group.py` | User-to-group membership (SQLAlchemy Table) |
-| `user_role_assignments` | `UserRoleAssignment` | `src/nexus/authz/models/assignments.py` | User-to-role with optional `project_id` for scoping |
-| `group_role_assignments` | `GroupRoleAssignment` | `src/nexus/authz/models/assignments.py` | Group-to-role with optional `project_id` for scoping |
+| `user_role_assignments` | `UserRoleAssignment` | `src/nexus/authz/models/assignments.py` | User-to-role with optional `project_id`; references roles by `role_name` (string) |
+| `group_role_assignments` | `GroupRoleAssignment` | `src/nexus/authz/models/assignments.py` | Group-to-role with optional `project_id`; references roles by `role_name` (string) |
 | `projects` | `Project` | `src/nexus/authz/models/project.py` | Resource isolation boundaries |
+
+Built-in roles and policies are **not** stored in these tables. They live in `role_conventions.py` and are resolved at runtime by the policy resolver, then merged into API list/get responses by the service layer.
+
+Role assignments reference roles by **name** (string), which allows a single assignment to refer to either a built-in role or a custom database role.
 
 Both assignment tables use a **nullable `project_id`** column with conditional unique indexes to handle global and project-scoped assignments in a single table.
 
@@ -116,7 +117,7 @@ Both `UserRoleAssignment` and `GroupRoleAssignment` use a nullable `project_id` 
 
 ## Default Bootstrap State
 
-On first boot, Alembic migrations seed policies and roles via `POLICY_OPS` / `ROLE_OPS` (the same ops the migration generator produces). The seed module (`src/nexus/authz/seed.py`) replays these migration ops and then creates:
+On first boot, the seed module (`src/nexus/authz/seed.py`) creates:
 
 - `authenticated` group (builtin, implicit — all users belong to it)
 - `admins` group (builtin)
@@ -129,8 +130,10 @@ On first boot, Alembic migrations seed policies and roles via `POLICY_OPS` / `RO
 This means every authenticated user can immediately read/update their own profile, create projects, and work with workflows/executions in the `default` project.
 
 There are two seeding paths:
-- `seed_authz_data()` — full seed that replays migration ops (requires sync connection for asyncpg greenlet compatibility). Used by tests.
-- `seed_groups_project_admin()` — lightweight seed that only creates groups, project, and assignments. Used at app startup after migrations have already run.
+- `seed_authz_data()` — full seed used by tests after table truncation.
+- `seed_groups_project_admin()` — lightweight seed that creates groups, project, admin user, and role assignments. Used at app startup after migrations have already run.
+
+Both functions only create groups, the default project, the admin user, and role assignments. Built-in policies and roles are not seeded into the database — they are resolved from `role_conventions.py` at runtime.
 
 ## Protecting API Endpoints
 
@@ -140,11 +143,7 @@ Use the `PermissionChecker` dependency on your router endpoints:
 from nexus.authz.dependencies import PermissionChecker
 
 # Simple check: user must have workflow:create permission
-# The roles parameter declares which built-in roles receive this policy automatically
-@router.post("", dependencies=[Depends(PermissionChecker(
-    "workflow", "create",
-    roles=["admin", "user", "project-admin", "project-user"],
-))])
+@router.post("", dependencies=[Depends(PermissionChecker("workflow", "create"))])
 async def create_workflow(...):
     ...
 
@@ -154,7 +153,6 @@ async def create_workflow(...):
     dependencies=[Depends(PermissionChecker(
         "project", "update",
         project_param="project_id",
-        roles=["admin", "project-admin"],
     ))]
 )
 async def update_project(...):
@@ -167,7 +165,6 @@ async def update_project(...):
         "workflow", "delete",
         resource_model=Workflow,
         resource_id_param="workflow_id",
-        roles=["admin", "user", "project-admin", "project-user"],
     ))]
 )
 async def delete_workflow(...):
@@ -179,14 +176,22 @@ async def delete_workflow(...):
     dependencies=[Depends(PermissionChecker(
         "workflow", "create",
         body_project_field="project_id",
-        roles=["admin", "user", "project-admin", "project-user"],
     ))]
 )
 async def create_workflow_in_project(...):
     ...
 ```
 
-The `roles` parameter is not used at runtime — it declares which built-in roles should receive the policy when the migration generator runs (see below).
+`PermissionChecker` parameters:
+
+| Parameter | Description |
+|-----------|-------------|
+| `resource_type` | The resource type (e.g., `"workflow"`, `"project"`) |
+| `action` | The action (e.g., `"read"`, `"create"`, `"delete"`) |
+| `project_param` | Path parameter name for project-scoped checks (looks up project name by UUID) |
+| `resource_model` | SQLModel class with a `project_id` field (used with `resource_id_param`) |
+| `resource_id_param` | Path parameter name for the resource ID (used with `resource_model`) |
+| `body_project_field` | JSON body field name containing a project UUID |
 
 ### Filtering List Endpoints by Project
 
@@ -264,61 +269,138 @@ The `/authz` router provides introspection endpoints (all POST):
 | `POST /authz/who-can` | List users who can perform an action (debug) |
 | `POST /authz/what-can-i` | List all permissions for the current user |
 
-## Policy and Role Auto-Generation
+## Unified Role Assignment List
 
-Policies and roles are managed through Alembic migrations. The system automatically discovers new policies and roles and generates the corresponding migration code.
+The `/all-role-assignments` endpoint provides a single paginated view of both user and group role assignments combined.
 
-### How It Works
-
-1. **Route scanning**: The route scanner inspects all `NexusRouter` routes for `PermissionChecker` and `ProjectScopeFilter` dependencies, extracting `(resource_type, action, roles)` tuples as `PolicyInfo` objects.
-
-2. **Extra policies registry**: Policies that can't be discovered from routes (self-scoped, audit, etc.) are declared in `EXTRA_POLICIES_REGISTRY` in `src/nexus/authz/role_conventions.py`.
-
-3. **Role registry**: All built-in roles are declared in `BUILTIN_ROLES_REGISTRY` in the same file.
-
-4. **Migration generation**: When you run `alembic revision --autogenerate`, the Alembic hook compares discovered policies/roles against those already tracked in existing migrations. New ones get a generated migration with `POLICY_OPS` and/or `ROLE_OPS`.
-
-### Adding a New Policy
-
-For route-based policies, just add `PermissionChecker` with `roles` to your endpoint — the migration generator picks it up automatically:
-
-```python
-@router.post("", dependencies=[Depends(PermissionChecker(
-    "credential", "create",
-    roles=["admin", "user", "project-admin"],
-))])
-async def create_credential(...):
-    ...
+```
+GET /all-role-assignments
 ```
 
-For non-route policies (e.g., self-scoped or audit), add to `EXTRA_POLICIES_REGISTRY`:
+**Query parameters:**
+
+| Parameter | Description |
+|-----------|-------------|
+| `principal_type` | Filter by `user` or `group` |
+| `principal_name` | Filter by username or group name |
+| `role_name` | Filter by role name |
+| `project_id` | Filter by project ID |
+| `sort` | Sort field (prefix with `-` for descending). Sortable: `created_at`, `principal_name`, `principal_type`, `role_name`, `project_name` |
+| `cursor` | Cursor for pagination |
+| `limit` | Page size |
+| `include_total` | Include total count |
+
+**Visibility:** Admins see all assignments; other users see only their own user assignments and assignments for groups they belong to.
+
+A project-scoped variant is available at `GET /projects/{project_id}/all-role-assignments`.
+
+## Project Admin Endpoints
+
+Projects expose a full set of admin endpoints for managing role assignments, custom roles, and custom policies within the project scope. All are under `/projects/{project_id}/...`.
+
+### Role Assignments
+
+| Endpoint | Permission | Description |
+|----------|------------|-------------|
+| `POST /{project_id}/role-assignments` | `project-role:assign` | Assign a role to a user within the project |
+| `GET /{project_id}/role-assignments` | *(visibility-based)* | List user role assignments for the project |
+| `DELETE /{project_id}/role-assignments/{id}` | `project-role:revoke` | Remove a user role assignment |
+| `POST /{project_id}/group-role-assignments` | `project-role:assign` | Assign a role to a group within the project |
+| `GET /{project_id}/group-role-assignments` | *(visibility-based)* | List group role assignments for the project |
+| `DELETE /{project_id}/group-role-assignments/{id}` | `project-role:revoke` | Remove a group role assignment |
+| `GET /{project_id}/all-role-assignments` | *(visibility-based)* | Unified view of user + group assignments |
+
+For visibility-based endpoints: admin/auditor/project-admin see all assignments; other users see only their own.
+
+### Custom Project Roles
+
+| Endpoint | Permission | Description |
+|----------|------------|-------------|
+| `POST /{project_id}/roles` | `role:create` | Create a custom role scoped to this project |
+| `GET /{project_id}/roles` | `role:read` | List project-owned and global project-scoped roles |
+| `GET /{project_id}/roles/{role_id}` | `role:read` | Get a role's details |
+| `PATCH /{project_id}/roles/{role_id}` | `role:update` | Update a project role |
+| `DELETE /{project_id}/roles/{role_id}` | `role:delete` | Delete a project role |
+
+### Custom Project Policies
+
+| Endpoint | Permission | Description |
+|----------|------------|-------------|
+| `POST /{project_id}/policies` | `policy:create` | Create a custom policy scoped to this project |
+| `GET /{project_id}/policies` | `policy:read` | List project-owned and global project-scoped policies |
+| `GET /{project_id}/policies/{policy_id}` | `policy:read` | Get a policy's details |
+| `PATCH /{project_id}/policies/{policy_id}` | `policy:update` | Update a project policy |
+| `DELETE /{project_id}/policies/{policy_id}` | `policy:delete` | Delete a project policy |
+
+### Project Creation
+
+When a project is created, the creator is automatically assigned the `project-admin` role for that project.
+
+### Sub-resources
+
+Projects also expose filtered views of their resources:
+
+| Endpoint | Permission | Description |
+|----------|------------|-------------|
+| `GET /{project_id}/workflows` | `workflow:read` | List workflows in the project |
+| `GET /{project_id}/approvals` | `approval:read` | List approvals in the project |
+
+## Policy and Role Management
+
+Built-in policies and roles are defined as static registries in `src/nexus/authz/role_conventions.py`. They are the single source of truth and are resolved at runtime — they are never stored in or read from the database.
+
+### `PolicyInfo` — Built-in Policy Definition
+
+Each `PolicyInfo` declares a resource, action, scope, and which built-in roles receive the policy:
 
 ```python
-# In src/nexus/authz/role_conventions.py
-EXTRA_POLICIES_REGISTRY: list[PolicyInfo] = [
+PolicyInfo("workflow", "create", scope="project", roles=("project-admin", "project-user"))
+```
+
+This generates a policy named `workflow:create:project` and assigns it to the `project-admin` and `project-user` roles.
+
+### `RoleInfo` — Built-in Role Definition
+
+Each `RoleInfo` declares a role name, description, and scope:
+
+```python
+RoleInfo("project-admin", "Full access to a project", scope="project")
+```
+
+The role's policies are derived by inverting the `roles` tuples across all `PolicyInfo` entries.
+
+### Adding a New Built-in Policy
+
+Add a `PolicyInfo` entry to `BUILTIN_POLICIES` in `role_conventions.py`:
+
+```python
+BUILTIN_POLICIES: list[PolicyInfo] = [
     ...
-    PolicyInfo("credential", "read", scope="self", roles=("admin", "user")),
+    PolicyInfo("credential", "archive", roles=("admin", "project-admin")),
 ]
 ```
 
-Then run:
-```bash
-uv run alembic revision --autogenerate -m "add credential policies"
-```
+No migration is needed — the policy is resolved at runtime.
 
-### Adding a New Role
+### Adding a New Built-in Role
 
-Add a `RoleInfo` to `BUILTIN_ROLES_REGISTRY`:
+Add a `RoleInfo` to `BUILTIN_ROLES` and assign policies via the `roles` tuple on existing or new `PolicyInfo` entries:
 
 ```python
-# In src/nexus/authz/role_conventions.py
-BUILTIN_ROLES_REGISTRY: list[RoleInfo] = [
+BUILTIN_ROLES: list[RoleInfo] = [
     ...
     RoleInfo("credential-manager", "Manages credentials across projects"),
 ]
+
+# Then add roles=("credential-manager",) to relevant PolicyInfo entries
 ```
 
-Then run `alembic revision --autogenerate` to generate the migration.
+### Custom Roles and Policies
+
+Custom roles and policies are created via the API and stored in the database. They can be scoped to a project (via `project_id`) or be system-wide.
+
+- **System-level**: Created via `/roles` and `/policies` endpoints (admin only)
+- **Project-level**: Created via `/projects/{id}/roles` and `/projects/{id}/policies` endpoints (project-admin)
 
 ## CLI Tools
 

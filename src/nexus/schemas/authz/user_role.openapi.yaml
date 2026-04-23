@@ -63,7 +63,10 @@ paths:
         - bearerAuth: []
     get:
       summary: List User Role Assignments
-      description: List all system-level user→role assignments.
+      description: |-
+        List system-level user→role assignments.
+
+        Admin/auditor see all assignments; other users see only their own.
       operationId: list_user_role_assignments
       x-app-permission:
         resource: null
@@ -148,16 +151,15 @@ components:
       description: Request body for assigning a role to a user.
       required:
         - user_id
-        - role_id
+        - role_name
       properties:
         user_id:
           type: string
           format: uuid
           title: User Id
-        role_id:
+        role_name:
           type: string
-          format: uuid
-          title: Role Id
+          title: Role Name
 
     UserRoleAssignmentRead:
       type: object
@@ -167,21 +169,27 @@ components:
         - id
         - user_id
         - username
-        - role_id
         - role_name
       properties:
         id:
           type: string
           title: Id
+        project_id:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Project Id
+        project_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Project Name
         user_id:
           type: string
           title: User Id
         username:
           type: string
           title: Username
-        role_id:
-          type: string
-          title: Role Id
         role_name:
           type: string
           title: Role Name

@@ -50,6 +50,16 @@ def _collect_permission_registry(
     from fastapi.routing import APIRoute
 
     from nexus.authz.dependencies import PermissionChecker
+    from nexus.authz.role_conventions import BUILTIN_POLICIES
+
+    policy_roles: dict[tuple[str, str], list[str]] = {}
+    for p in BUILTIN_POLICIES:
+        key = (p.resource, p.action)
+        if key not in policy_roles:
+            policy_roles[key] = []
+        for role in p.roles:
+            if role not in policy_roles[key]:
+                policy_roles[key].append(role)
 
     pc_roles: dict[tuple[str, str], list[str]] = {}
     pc_scope: dict[tuple[str, str], str] = {}
@@ -60,9 +70,10 @@ def _collect_permission_registry(
         for dep in _iter_route_deps(route):
             inner = _get_dep_instance(dep)
             if isinstance(inner, PermissionChecker) and (inner.resource_type, inner.action) not in pc_roles:
-                pc_roles[(inner.resource_type, inner.action)] = list(inner.roles)
+                key = (inner.resource_type, inner.action)
+                pc_roles[key] = policy_roles.get(key, [])
                 is_project = bool(inner.project_param or inner.resource_model or inner.body_project_field)
-                pc_scope[(inner.resource_type, inner.action)] = "project" if is_project else "any"
+                pc_scope[key] = "project" if is_project else "any"
 
     return pc_roles, pc_scope
 
@@ -83,7 +94,7 @@ def _extract_route_permission(
                 "resource": inner.resource_type,
                 "action": inner.action,
                 "scope": pc_scope.get(key, "any"),
-                "default_roles": list(inner.roles),
+                "default_roles": pc_roles.get(key, []),
             }
         if isinstance(inner, ProjectScopeFilter):
             key = (inner.resource_type, inner.action)

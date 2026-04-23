@@ -139,35 +139,16 @@ def deny_policy(
 
 
 def policies_for_role(role_name: str) -> list[dict[str, Any]]:
-    """Resolve policy statements for a built-in role without DB access.
+    """Resolve policy statements for a built-in role without DB access."""
+    from nexus.authz.role_conventions import builtin_role_policy_names, resolve_builtin_policy_statements
 
-    Scans migration POLICY_OPS to build the effective_policies list that
-    OPA expects.
-    """
-    from nexus.authz.migration_ops import PolicyAdd, RolePolicyAppend
-    from nexus.authz.migration_scanner import scan_migrations
-
-    all_ops = scan_migrations()
-
-    # Build policy lookup: name -> statements
-    policy_lookup: dict[str, list[dict[str, Any]]] = {o.name: o.statements for o in all_ops if isinstance(o, PolicyAdd)}
-
-    # Build role -> [policy_name] from RolePolicyAppend ops
-    role_policy_map: dict[str, list[str]] = {}
-    for o in all_ops:
-        if isinstance(o, RolePolicyAppend):
-            role_policy_map.setdefault(o.role_name, []).append(o.policy_name)
-
-    role_policies = role_policy_map.get(role_name)
-    if role_policies is None:
+    policy_names = builtin_role_policy_names(role_name)
+    if not policy_names:
         msg = f"Unknown built-in role: {role_name}"
         raise ValueError(msg)
 
-    # Resolve to statement dicts
     result: list[dict[str, Any]] = []
-    for policy_name in role_policies:
-        stmts = policy_lookup.get(policy_name, [])
-        for stmt in stmts:
+    for policy_name in policy_names:
+        for stmt in resolve_builtin_policy_statements(policy_name):
             result.append({**stmt, "name": policy_name})
-
     return result

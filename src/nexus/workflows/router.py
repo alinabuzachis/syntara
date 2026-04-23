@@ -35,28 +35,24 @@ router = NexusRouter(prefix="/workflows", tags=["workflows"])
 _wf_perm_read = PermissionChecker(
     "workflow",
     "read",
-    roles=["admin", "auditor", "user", "project-admin", "project-user", "project-auditor"],
     resource_model=Workflow,
     resource_id_param="workflow_id",
 )
 _wf_perm_update = PermissionChecker(
     "workflow",
     "update",
-    roles=["admin", "user", "project-admin", "project-user"],
     resource_model=Workflow,
     resource_id_param="workflow_id",
 )
 _wf_perm_delete = PermissionChecker(
     "workflow",
     "delete",
-    roles=["admin", "user", "project-admin", "project-user"],
     resource_model=Workflow,
     resource_id_param="workflow_id",
 )
 _wf_perm_create = PermissionChecker(
     "workflow",
     "create",
-    roles=["admin", "user", "project-admin", "project-user"],
     body_project_field="project_id",
 )
 

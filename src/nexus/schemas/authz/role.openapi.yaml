@@ -27,8 +27,8 @@ paths:
       x-app-permission:
         resource: role
         action: create
-        scope: any
-        default_roles: [admin]
+        scope: project
+        default_roles: [admin, project-admin]
       tags:
         - Roles
       requestBody:
@@ -105,6 +105,14 @@ paths:
               - type: "null"
             title: Project Id
           description: Filter by project scope
+        - in: query
+          name: scope
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Scope
       responses:
         "200":
           description: Successful Response
@@ -181,8 +189,8 @@ paths:
       x-app-permission:
         resource: role
         action: update
-        scope: any
-        default_roles: [admin]
+        scope: project
+        default_roles: [admin, project-admin]
       tags:
         - Roles
       parameters:
@@ -231,8 +239,8 @@ paths:
       x-app-permission:
         resource: role
         action: update
-        scope: any
-        default_roles: [admin]
+        scope: project
+        default_roles: [admin, project-admin]
       tags:
         - Roles
       parameters:
@@ -281,8 +289,8 @@ paths:
       x-app-permission:
         resource: role
         action: delete
-        scope: any
-        default_roles: [admin]
+        scope: project
+        default_roles: [admin, project-admin]
       tags:
         - Roles
       parameters:
@@ -428,6 +436,10 @@ components:
               format: uuid
             - type: "null"
           title: Project Id
+        scope:
+          type: string
+          default: system
+          title: Scope
         labels:
           type: object
           default: {}

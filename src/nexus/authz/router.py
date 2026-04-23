@@ -111,7 +111,7 @@ class WhatCanIResponse(SQLModel):
 # ============================================================================
 
 
-_authz_query_perm = PermissionChecker("authz", "query", roles=["admin"])
+_authz_query_perm = PermissionChecker("authz", "query")
 
 
 @router.post(

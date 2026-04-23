@@ -23,11 +23,11 @@ from nexus.identity_providers.services.oidc_discovery import OIDCTestResult, tes
 
 router = APIRouter(prefix="/identity_providers", tags=["IdentityProviders"])
 
-_idp_create = PermissionChecker("identity-provider", "create", roles=["admin"])
-_idp_read = PermissionChecker("identity-provider", "read", roles=["admin"])
-_idp_update = PermissionChecker("identity-provider", "update", roles=["admin"])
-_idp_delete = PermissionChecker("identity-provider", "delete", roles=["admin"])
-_idp_test = PermissionChecker("identity-provider", "test", roles=["admin"])
+_idp_create = PermissionChecker("identity-provider", "create")
+_idp_read = PermissionChecker("identity-provider", "read")
+_idp_update = PermissionChecker("identity-provider", "update")
+_idp_delete = PermissionChecker("identity-provider", "delete")
+_idp_test = PermissionChecker("identity-provider", "test")
 
 logger = structlog.stdlib.get_logger(__name__)
 

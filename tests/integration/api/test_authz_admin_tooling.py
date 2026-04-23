@@ -12,9 +12,9 @@ from httpx import AsyncClient
 from sqlalchemy import insert
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.authz.models import GroupRoleAssignment, Role
+from nexus.authz.models import GroupRoleAssignment
 from nexus.authz.models.policy import Policy
-from nexus.authz.models.role import RolePolicyLink
+from nexus.authz.models.role import Role
 from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
 from tests.integration.api.conftest import make_admin, make_auditor, make_user_role
@@ -91,16 +91,16 @@ async def test_explicit_deny_fields(
         name="deny-delete-role-at",
         description="Role with deny policy",
         is_builtin=False,
+        policy_names=["deny-wf-delete-at"],
         labels={},
     )
     test_db_session.add(deny_role)
     await test_db_session.flush()
-    test_db_session.add(RolePolicyLink(role_id=deny_role.id, policy_id=deny_policy.id, labels={}))
 
     group = Group(name=f"deny-at-grp-{uuid4()}", description="", labels={})
     test_db_session.add(group)
     await test_db_session.flush()
-    test_db_session.add(GroupRoleAssignment(group_id=group.id, role_id=deny_role.id, labels={}))
+    test_db_session.add(GroupRoleAssignment(group_id=group.id, role_name="deny-delete-role-at", labels={}))
     await test_db_session.execute(insert(user_groups).values(user_id=bob.id, group_id=group.id))
     await test_db_session.commit()
 

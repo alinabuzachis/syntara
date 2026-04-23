@@ -23,9 +23,9 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.api.main import app
 from nexus.auth.dependencies import get_current_user
 from nexus.authz.dependencies import get_opa_client
-from nexus.authz.models import GroupRoleAssignment, Role
+from nexus.authz.models import GroupRoleAssignment
 from nexus.authz.models.policy import Policy
-from nexus.authz.models.role import RolePolicyLink
+from nexus.authz.models.role import Role
 from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
 
@@ -85,24 +85,20 @@ def _override_opa_dependency() -> Generator[None, None, None]:
 
 async def _make_admin(session: AsyncSession, user: User) -> None:
     """Assign the admin role to a user via a dedicated group."""
-    admin_role = (await session.exec(select(Role).where(Role.name == "admin"))).first()
-    assert admin_role is not None
     group = Group(name=f"admin-grp-{uuid4()}", description="", labels={})
     session.add(group)
     await session.flush()
-    session.add(GroupRoleAssignment(group_id=group.id, role_id=admin_role.id, labels={}))
+    session.add(GroupRoleAssignment(group_id=group.id, role_name="admin", labels={}))
     await session.execute(insert(user_groups).values(user_id=user.id, group_id=group.id))
     await session.commit()
 
 
 async def _make_auditor(session: AsyncSession, user: User) -> None:
     """Assign the auditor role to a user via a dedicated group."""
-    auditor_role = (await session.exec(select(Role).where(Role.name == "auditor"))).first()
-    assert auditor_role is not None
     group = Group(name=f"auditor-grp-{uuid4()}", description="", labels={})
     session.add(group)
     await session.flush()
-    session.add(GroupRoleAssignment(group_id=group.id, role_id=auditor_role.id, labels={}))
+    session.add(GroupRoleAssignment(group_id=group.id, role_name="auditor", labels={}))
     await session.execute(insert(user_groups).values(user_id=user.id, group_id=group.id))
     await session.commit()
 
@@ -255,23 +251,23 @@ async def test_can_i_wildcard_action(
     )
     test_db_session.add(wildcard_policy)
 
-    # Create a role and link the policy via RolePolicyLink
+    # Create a role with the policy in policy_names
     wildcard_role = Role(
         id=uuid4(),
         name="wildcard-test-role",
         description="Role with wildcard",
         is_builtin=False,
+        policy_names=["test:wildcard:any"],
         labels={},
     )
     test_db_session.add(wildcard_role)
     await test_db_session.flush()
-    test_db_session.add(RolePolicyLink(role_id=wildcard_role.id, policy_id=wildcard_policy.id, labels={}))
 
     # Create group and assign to user
     group = Group(name=f"wildcard-grp-{uuid4()}", description="", labels={})
     test_db_session.add(group)
     await test_db_session.flush()
-    test_db_session.add(GroupRoleAssignment(group_id=group.id, role_id=wildcard_role.id, labels={}))
+    test_db_session.add(GroupRoleAssignment(group_id=group.id, role_name="wildcard-test-role", labels={}))
     await test_db_session.execute(insert(user_groups).values(user_id=test_user.id, group_id=group.id))
     await test_db_session.commit()
 
@@ -309,16 +305,16 @@ async def test_can_i_explicit_deny_overrides_allow(
         name="deny-delete-role",
         description="Role with deny policy",
         is_builtin=False,
+        policy_names=["deny-workflow-delete"],
         labels={},
     )
     test_db_session.add(deny_role)
     await test_db_session.flush()
-    test_db_session.add(RolePolicyLink(role_id=deny_role.id, policy_id=deny_policy.id, labels={}))
 
     group = Group(name=f"deny-grp-{uuid4()}", description="", labels={})
     test_db_session.add(group)
     await test_db_session.flush()
-    test_db_session.add(GroupRoleAssignment(group_id=group.id, role_id=deny_role.id, labels={}))
+    test_db_session.add(GroupRoleAssignment(group_id=group.id, role_name="deny-delete-role", labels={}))
     await test_db_session.execute(insert(user_groups).values(user_id=test_user.id, group_id=group.id))
     await test_db_session.commit()
 

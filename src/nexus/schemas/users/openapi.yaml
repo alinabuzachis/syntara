@@ -34,7 +34,7 @@ paths:
         resource: user
         action: read
         scope: any
-        default_roles: [admin, auditor, default]
+        default_roles: [admin, user, default, auditor]
       tags:
         - Users
       parameters:
@@ -116,7 +116,7 @@ paths:
         resource: user
         action: read
         scope: any
-        default_roles: [admin, auditor, default]
+        default_roles: [admin, user, default, auditor]
       tags:
         - Users
       parameters:
@@ -162,7 +162,7 @@ paths:
         resource: user
         action: update
         scope: any
-        default_roles: [admin]
+        default_roles: [admin, user, default]
       tags:
         - Users
       parameters:
@@ -251,7 +251,7 @@ paths:
         resource: user
         action: read
         scope: any
-        default_roles: [admin, auditor, default]
+        default_roles: [admin, user, default, auditor]
       tags:
         - Users
       parameters:
@@ -302,7 +302,7 @@ paths:
         resource: user
         action: update
         scope: any
-        default_roles: [admin]
+        default_roles: [admin, user, default]
       tags:
         - Users
       parameters:

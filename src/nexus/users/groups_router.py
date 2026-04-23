@@ -30,11 +30,11 @@ from nexus.users.services.group_service import GroupsService
 
 router = NexusRouter(prefix="/groups", tags=["Groups"])
 
-_group_create = PermissionChecker("group", "create", roles=["admin"])
-_group_read = PermissionChecker("group", "read", roles=["admin", "auditor", "user", "default"])
-_group_update = PermissionChecker("group", "update", roles=["admin"])
-_group_delete = PermissionChecker("group", "delete", roles=["admin"])
-_group_member_manage = PermissionChecker("group", "manage-members", roles=["admin"])
+_group_create = PermissionChecker("group", "create")
+_group_read = PermissionChecker("group", "read")
+_group_update = PermissionChecker("group", "update")
+_group_delete = PermissionChecker("group", "delete")
+_group_member_manage = PermissionChecker("group", "manage-members")
 
 
 # ============================================================================

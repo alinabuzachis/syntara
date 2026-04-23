@@ -5,7 +5,7 @@ from typing import Annotated, Any
 from uuid import UUID
 
 from pydantic import Field as PydanticField
-from pydantic import computed_field
+from pydantic import computed_field, field_validator
 from sqlmodel import Field, SQLModel
 
 from nexus.core.constants import NAME_PATTERN
@@ -21,14 +21,25 @@ OptionalNameField = Annotated[
 # Policy schemas
 # ---------------------------------------------------------------------------
 
+VALID_SCOPES = {"any", "self", "project"}
+
 
 class PolicyStatementSchema(SQLModel):
     """A single policy statement."""
 
     effect: str = Field(description="allow or deny")
     actions: list[str] = Field(description="List of resource_type:action strings")
-    scope: str = Field(description="any or self")
+    scope: str = Field(description="any, self, or project")
     conditions: dict[str, Any] | None = Field(default=None, description="Optional attribute-based conditions")
+
+    @field_validator("scope")
+    @classmethod
+    def validate_scope(cls, v: str) -> str:
+        """Validate that scope is one of the allowed values."""
+        if v not in VALID_SCOPES:
+            msg = f"scope must be one of {sorted(VALID_SCOPES)}, got '{v}'"
+            raise ValueError(msg)
+        return v
 
 
 class PolicyCreate(SQLModel):
@@ -60,6 +71,7 @@ class PolicyRead(SQLModel):
     is_builtin: bool = False
     is_project_eligible: bool = False
     project_id: UUID | None = None
+    scope: str = "any"
     labels: dict[str, Any] = {}
     created_at: datetime | None = None
     updated_at: datetime | None = None
@@ -85,6 +97,7 @@ class PolicyListParams(BaseListParams):
         default=None,
         description="When true, return only system-scoped policies eligible for project roles",
     )
+    scope: str | None = Field(default=None, description="Filter by policy scope (any, self, or project)")
 
 
 # ---------------------------------------------------------------------------
@@ -120,6 +133,7 @@ class RoleRead(SQLModel):
     policies: list[str] = []
     is_builtin: bool = False
     project_id: UUID | None = None
+    scope: str = "system"
     labels: dict[str, Any] = {}
     created_at: datetime | None = None
     updated_at: datetime | None = None
@@ -141,3 +155,4 @@ class RoleListParams(BaseListParams):
     name: str | None = Field(default=None, description="Filter by name")
     is_builtin: bool | None = Field(default=None, description="Filter by builtin status")
     project_id: UUID | None = Field(default=None, description="Filter by project scope")
+    scope: str | None = Field(default=None, description="Filter by role scope (system or project)")

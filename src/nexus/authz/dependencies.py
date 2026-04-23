@@ -58,7 +58,6 @@ class PermissionChecker:
         resource_type: str,
         action: str,
         *,
-        roles: list[str] | None = None,
         project_param: str | None = None,
         resource_model: type[SQLModel] | None = None,
         resource_id_param: str | None = None,
@@ -69,9 +68,6 @@ class PermissionChecker:
         Args:
             resource_type: The resource type (e.g., "workflow", "project").
             action: The action being performed (e.g., "read", "create", "delete").
-            roles: Built-in roles that should receive this policy when the migration
-                generator runs.  An empty list (the default) means no automatic role
-                assignment — the policy is created but not appended to any role.
             project_param: Path parameter name for project-scoped checks. When set,
                 the checker looks up the project name from the database using this
                 path parameter's UUID value.
@@ -87,7 +83,6 @@ class PermissionChecker:
         """
         self.resource_type = resource_type
         self.action = action
-        self.roles: tuple[str, ...] = tuple(roles or [])
         self.project_param = project_param
         self.resource_model = resource_model
         self.resource_id_param = resource_id_param

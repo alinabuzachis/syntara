@@ -28,7 +28,7 @@ def get_policy_service(
 @router.post(
     "",
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(PermissionChecker("policy", "create", roles=["admin"]))],
+    dependencies=[Depends(PermissionChecker("policy", "create"))],
     operation_id="create_policy",
     response_description="Policy created",
 )
@@ -79,8 +79,7 @@ async def get_policy(
     service: Annotated[PolicyService, Depends(get_policy_service)],
 ) -> PolicyRead:
     """Get a policy by ID."""
-    policy = await service.get_policy(policy_id)
-    return PolicyRead.model_validate(policy)
+    return await service.get_policy_or_builtin(policy_id)
 
 
 async def _do_update_policy(
@@ -104,7 +103,7 @@ async def _do_update_policy(
 
 @router.patch(
     "/{policy_id}",
-    dependencies=[Depends(PermissionChecker("policy", "update", roles=["admin"]))],
+    dependencies=[Depends(PermissionChecker("policy", "update"))],
     operation_id="update_policy",
     response_description="Updated policy",
 )
@@ -119,7 +118,7 @@ async def update_policy(
 
 @router.put(
     "/{policy_id}",
-    dependencies=[Depends(PermissionChecker("policy", "update", roles=["admin"]))],
+    dependencies=[Depends(PermissionChecker("policy", "update"))],
     operation_id="replace_policy",
     response_description="Updated policy",
 )
@@ -135,7 +134,7 @@ async def replace_policy(
 @router.delete(
     "/{policy_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(PermissionChecker("policy", "delete", roles=["admin"]))],
+    dependencies=[Depends(PermissionChecker("policy", "delete"))],
     operation_id="delete_policy",
     response_description="Policy deleted",
 )

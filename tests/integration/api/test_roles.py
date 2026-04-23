@@ -13,22 +13,20 @@ from uuid import uuid4
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import insert
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.authz.models import GroupRoleAssignment, Role
+from nexus.authz.models import GroupRoleAssignment
+from nexus.authz.models.role import Role
 from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
 
 
 async def _make_admin(session: AsyncSession, user: User) -> None:
     """Assign the admin role to a user via a dedicated group."""
-    admin_role = (await session.exec(select(Role).where(Role.name == "admin"))).first()
-    assert admin_role is not None
     group = Group(name=f"admin-grp-{uuid4()}", description="", labels={})
     session.add(group)
     await session.flush()
-    session.add(GroupRoleAssignment(group_id=group.id, role_id=admin_role.id, labels={}))
+    session.add(GroupRoleAssignment(group_id=group.id, role_name="admin", labels={}))
     await session.execute(insert(user_groups).values(user_id=user.id, group_id=group.id))
     await session.commit()
 

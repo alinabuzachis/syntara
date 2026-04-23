@@ -44,12 +44,15 @@ class Policy(BaseResource, table=True):
         "description",
         "is_builtin",
         "project_id",
+        "scope",
     ]
 
     __sortable_fields__: ClassVar[list[str]] = [
         *BaseResource.__sortable_fields__,
         "name",
         "is_builtin",
+        "scope",
+        "project_id",
     ]
 
     name: str = Field(
@@ -84,6 +87,13 @@ class Policy(BaseResource, table=True):
         default=None,
         foreign_key="projects.id",
         description="Optional project scope (NULL = global policy)",
+        index=True,
+    )
+
+    scope: str = Field(
+        default="any",
+        sa_type=String(20),  # type: ignore[call-overload]
+        description="Policy scope: any, self, or project",
         index=True,
     )
 

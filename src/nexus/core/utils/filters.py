@@ -76,6 +76,27 @@ BRACKET_PATTERN = re.compile(r"^([\w.]+)\[([^]]*)\]$")
 LABEL_PARAM_PATTERN = re.compile(r"^labels\[([^]]+)\]$")
 
 
+def matches_query_param(value: str, field: str, query_params: dict[str, str]) -> bool:
+    """Check if *value* matches a query param for *field*, supporting bracket operators.
+
+    Handles both ``field=exact`` and ``field[contains]=substring`` forms.
+    Returns True when no matching param exists (no constraint).
+    """
+    if field in query_params:
+        return value == query_params[field]
+    for param_key, param_val in query_params.items():
+        m = BRACKET_PATTERN.match(param_key)
+        if not m or m.group(1) != field:
+            continue
+        op = m.group(2)
+        if op == "contains":
+            return param_val.lower() in value.lower()
+        if op == "startswith":
+            return value.lower().startswith(param_val.lower())
+        return value == param_val
+    return True
+
+
 def parse_filters(params: dict[str, str], allowed_fields: list[str]) -> list[Filter]:
     """Parse query parameters into structured filter objects.
 

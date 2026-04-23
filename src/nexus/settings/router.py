@@ -39,8 +39,8 @@ def get_settings_service(
     return SettingsService(db, current_user)
 
 
-_require_settings_read = PermissionChecker("setting", "read", roles=["admin"])
-_require_settings_write = PermissionChecker("setting", "write", roles=["admin"])
+_require_settings_read = PermissionChecker("setting", "read")
+_require_settings_write = PermissionChecker("setting", "write")
 
 
 _SETTING_KEY_PATTERN = re.compile(r"^[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)+$")

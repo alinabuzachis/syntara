@@ -227,20 +227,6 @@ async def _resolve_group_id(name: str) -> str | None:
     return str(match["id"])
 
 
-async def _resolve_role_id(name: str) -> str | None:
-    """Look up a role ID by name via API."""
-    data, status = await api_request("GET", "/roles")
-    if status >= 400 or data is None:  # noqa: PLR2004
-        print(f"Role '{name}' not found")
-        return None
-    roles = data.get("resources", []) if isinstance(data, dict) else data
-    match = next((r for r in roles if r.get("name") == name), None)
-    if not match:
-        print(f"Role '{name}' not found")
-        return None
-    return str(match["id"])
-
-
 async def cmd_seed_builtin(args: argparse.Namespace) -> None:
     """Seed built-in policies, roles, groups, default project, and bootstrap admin user."""
     print(DB_DIRECT_NOTE)
@@ -352,7 +338,7 @@ async def _assign_project_user_role(role_name: str, target_user: str, project_na
         return
     result, _ = await api_request(
         "POST",
-        f"/projects/{project_id}/roles",
+        f"/projects/{project_id}/role-assignments",
         body={"user_id": user_id, "role_name": role_name},
     )
     if result and not _config["json_mode"]:
@@ -369,7 +355,7 @@ async def _assign_project_group_role(role_name: str, group_name: str, project_na
         return
     result, _ = await api_request(
         "POST",
-        f"/projects/{project_id}/group-roles",
+        f"/projects/{project_id}/group-role-assignments",
         body={"group_id": group_id, "role_name": role_name},
     )
     if result and not _config["json_mode"]:
@@ -381,13 +367,10 @@ async def _assign_system_group_role(role_name: str, group_name: str) -> None:
     group_id = await _resolve_group_id(group_name)
     if not group_id:
         return
-    role_id = await _resolve_role_id(role_name)
-    if not role_id:
-        return
     result, _ = await api_request(
         "POST",
         "/group-role-assignments",
-        body={"group_id": group_id, "role_id": role_id},
+        body={"group_id": group_id, "role_name": role_name},
     )
     if result and not _config["json_mode"]:
         print(f"Assigned role '{role_name}' to group '{group_name}'")
@@ -398,13 +381,10 @@ async def _assign_system_user_role(role_name: str, target_user: str) -> None:
     user_id = await _resolve_user_id(target_user)
     if not user_id:
         return
-    role_id = await _resolve_role_id(role_name)
-    if not role_id:
-        return
     result, _ = await api_request(
         "POST",
         "/user-role-assignments",
-        body={"user_id": user_id, "role_id": role_id},
+        body={"user_id": user_id, "role_name": role_name},
     )
     if result and not _config["json_mode"]:
         print(f"Assigned role '{role_name}' to user '{target_user}'")
@@ -576,7 +556,7 @@ async def _unassign_project_user_role(role_name: str, target_user: str, project_
     user_id = await _resolve_user_id(target_user)
     if not user_id:
         return
-    assignments, _ = await api_request("GET", f"/projects/{project_id}/roles")
+    assignments, _ = await api_request("GET", f"/projects/{project_id}/role-assignments")
     if not assignments:
         if not _config["json_mode"]:
             print(f"No role assignments found in project '{project_name}'")
@@ -589,7 +569,7 @@ async def _unassign_project_user_role(role_name: str, target_user: str, project_
         if not _config["json_mode"]:
             print(f"Role '{role_name}' is not assigned to user '{target_user}' in project '{project_name}'")
         return
-    await api_request("DELETE", f"/projects/{project_id}/roles/{match['id']}")
+    await api_request("DELETE", f"/projects/{project_id}/role-assignments/{match['id']}")
     if not _config["json_mode"]:
         print(f"Removed role '{role_name}' from user '{target_user}' in project '{project_name}'")
 
@@ -602,7 +582,7 @@ async def _unassign_project_group_role(role_name: str, group_name: str, project_
     group_id = await _resolve_group_id(group_name)
     if not group_id:
         return
-    assignments, _ = await api_request("GET", f"/projects/{project_id}/group-roles")
+    assignments, _ = await api_request("GET", f"/projects/{project_id}/group-role-assignments")
     if not assignments:
         if not _config["json_mode"]:
             print(f"No group role assignments found in project '{project_name}'")
@@ -615,7 +595,7 @@ async def _unassign_project_group_role(role_name: str, group_name: str, project_
         if not _config["json_mode"]:
             print(f"Role '{role_name}' is not assigned to group '{group_name}' in project '{project_name}'")
         return
-    await api_request("DELETE", f"/projects/{project_id}/group-roles/{match['id']}")
+    await api_request("DELETE", f"/projects/{project_id}/group-role-assignments/{match['id']}")
     if not _config["json_mode"]:
         print(f"Removed role '{role_name}' from group '{group_name}' in project '{project_name}'")
 
@@ -712,12 +692,11 @@ async def cmd_clean(args: argparse.Namespace) -> None:
         ("user_role_assignments", None),
         ("group_role_assignments", None),
         ("user_groups", "group_id IN (SELECT id FROM groups WHERE is_builtin = false)"),
+        ("roles", "is_builtin = false"),
+        ("policies", "is_builtin = false"),
         ("projects", "is_default = false"),
         ("users", "username != 'admin'"),
         ("groups", "is_builtin = false"),
-        ("role_policies", "role_id IN (SELECT id FROM roles WHERE is_builtin = false)"),
-        ("roles", "is_builtin = false"),
-        ("policies", "is_builtin = false"),
     ]
 
     async with AsyncSessionLocal() as db:

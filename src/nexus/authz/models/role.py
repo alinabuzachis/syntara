@@ -1,15 +1,17 @@
 """Role model for authorization policy bundles.
 
 Roles group policies together and are assigned to users.
-Built-in roles (admin, auditor, user) are seeded via migration.
-Policies are linked via the RolePolicyLink join table.
+Built-in roles exist only in ``role_conventions.py`` — this table
+stores only custom (user-created) roles.  Each role carries its
+policy references as a list of names in ``policy_names``.
 """
 
 from typing import ClassVar
 from uuid import UUID
 
 from sqlalchemy import String, text
-from sqlmodel import Field, Index, UniqueConstraint
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlmodel import Field, Index
 
 from nexus.core.constants import FieldLimits
 from nexus.core.models.base import BaseResource
@@ -18,18 +20,10 @@ from nexus.core.models.base import BaseResource
 class Role(BaseResource, table=True):
     """Role model representing a bundle of policies.
 
-    Policies are linked via the ``RolePolicyLink`` join table rather than
-    stored inline, giving referential integrity and simpler queries.
-
-    Attributes:
-        id: Primary key UUID (from BaseResource)
-        name: Unique role name
-        description: Optional role description
-        is_builtin: Whether this role is a built-in system role
-        created_at: Creation timestamp (from BaseResource)
-        updated_at: Last update timestamp (from BaseResource)
-        labels: JSONB key-value labels (from BaseResource)
-
+    Policy associations are stored as ``policy_names`` (JSONB list of
+    strings).  Each name can reference either a built-in policy (resolved
+    from ``role_conventions.py``) or a custom policy (resolved from the
+    ``policies`` table).
     """
 
     __tablename__ = "roles"
@@ -40,12 +34,15 @@ class Role(BaseResource, table=True):
         "description",
         "is_builtin",
         "project_id",
+        "scope",
     ]
 
     __sortable_fields__: ClassVar[list[str]] = [
         *BaseResource.__sortable_fields__,
         "name",
         "is_builtin",
+        "scope",
+        "project_id",
     ]
 
     name: str = Field(
@@ -76,6 +73,20 @@ class Role(BaseResource, table=True):
         index=True,
     )
 
+    scope: str = Field(
+        default="system",
+        sa_type=String(20),  # type: ignore[call-overload]
+        description="Role scope: system or project",
+        index=True,
+    )
+
+    policy_names: list[str] = Field(
+        default_factory=list,
+        sa_type=JSONB,
+        sa_column_kwargs={"server_default": text("'[]'::jsonb")},
+        description="Policy names attached to this role",
+    )
+
     __table_args__ = (
         Index(
             "ix_roles_name_global_unique",
@@ -95,33 +106,3 @@ class Role(BaseResource, table=True):
     def __repr__(self) -> str:
         """Return string representation."""
         return f"<Role(id={self.id}, name={self.name}, is_builtin={self.is_builtin})>"
-
-
-class RolePolicyLink(BaseResource, table=True):
-    """Many-to-many link between roles and policies.
-
-    Attributes:
-        role_id: FK to roles table
-        policy_id: FK to policies table
-
-    """
-
-    __tablename__ = "role_policies"
-
-    role_id: UUID = Field(
-        foreign_key="roles.id",
-        description="Role that includes the policy",
-        index=True,
-    )
-
-    policy_id: UUID = Field(
-        foreign_key="policies.id",
-        description="Policy included in the role",
-        index=True,
-    )
-
-    __table_args__ = (UniqueConstraint("role_id", "policy_id", name="uq_role_policies_role_policy"),)
-
-    def __repr__(self) -> str:
-        """Return string representation."""
-        return f"<RolePolicyLink(role_id={self.role_id}, policy_id={self.policy_id})>"

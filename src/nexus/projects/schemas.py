@@ -5,8 +5,9 @@ from typing import Annotated, Any
 from uuid import UUID
 
 from pydantic import Field as PydanticField
-from sqlmodel import SQLModel
+from sqlmodel import Field, SQLModel
 
+from nexus.authz.schemas import PolicyStatementSchema
 from nexus.core.constants import NAME_PATTERN
 from nexus.core.models.base import BaseResource
 
@@ -54,7 +55,6 @@ class ProjectRoleAssignmentRead(SQLModel):
     user_id: UUID
     username: str = ""
     project_id: UUID
-    role_id: UUID
     role_name: str
     created_at: datetime | None = None
 
@@ -73,6 +73,23 @@ class ProjectGroupRoleAssignmentRead(SQLModel):
     group_id: UUID
     group_name: str = ""
     project_id: UUID
-    role_id: UUID
     role_name: str
     created_at: datetime | None = None
+
+
+class ProjectRoleCreate(SQLModel):
+    """Request body for creating a project-scoped role (project_id comes from URL path)."""
+
+    name: str = Field(min_length=1, max_length=255)
+    description: str | None = None
+    policies: list[str] = Field(min_length=1)
+    labels: dict[str, str] = {}
+
+
+class ProjectPolicyCreate(SQLModel):
+    """Request body for creating a project-scoped policy (project_id comes from URL path)."""
+
+    name: str = Field(min_length=1, max_length=255)
+    description: str | None = None
+    statements: list[PolicyStatementSchema] = Field(min_length=1)
+    labels: dict[str, str] = {}

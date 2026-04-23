@@ -42,27 +42,23 @@ logger = structlog.stdlib.get_logger(__name__)
 _cred_perm_read = PermissionChecker(
     "credential",
     "read",
-    roles=["admin", "auditor", "user", "project-admin", "project-user", "project-auditor"],
     resource_model=Credential,
     resource_id_param="credential_id",
 )
 _cred_perm_create = PermissionChecker(
     "credential",
     "create",
-    roles=["admin", "user", "project-admin", "project-user"],
     body_project_field="project_id",
 )
 _cred_perm_update = PermissionChecker(
     "credential",
     "update",
-    roles=["admin", "user", "project-admin", "project-user"],
     resource_model=Credential,
     resource_id_param="credential_id",
 )
 _cred_perm_delete = PermissionChecker(
     "credential",
     "delete",
-    roles=["admin", "project-admin"],
     resource_model=Credential,
     resource_id_param="credential_id",
 )

@@ -11,7 +11,7 @@ from httpx import AsyncClient
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.authz.models import Project, Role
+from nexus.authz.models import Project
 from nexus.authz.models.assignments import UserRoleAssignment
 from nexus.core.models import User
 from tests.integration.api.conftest import make_admin, make_project_admin, make_project_user
@@ -98,9 +98,7 @@ async def test_assign_user_and_auditor(
     await make_project_user(test_db_session, bob, project)
 
     # Carol as project-auditor (manual assignment)
-    auditor_role = (await test_db_session.exec(select(Role).where(Role.name == "project-auditor"))).first()
-    assert auditor_role is not None
-    test_db_session.add(UserRoleAssignment(user_id=carol.id, project_id=project.id, role_id=auditor_role.id))
+    test_db_session.add(UserRoleAssignment(user_id=carol.id, project_id=project.id, role_name="project-auditor"))
     await test_db_session.commit()
 
     # Bob can create and read

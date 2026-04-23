@@ -24,7 +24,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.api.main import app
 from nexus.auth.dependencies import get_current_user
 from nexus.authz.dependencies import get_opa_client
-from nexus.authz.models import GroupRoleAssignment, Project, Role
+from nexus.authz.models import GroupRoleAssignment, Project
 from nexus.authz.models.assignments import UserRoleAssignment
 from nexus.authz.seed import seed_authz_data
 from nexus.core.models import User
@@ -83,14 +83,11 @@ async def _seed_authz(test_db_session: AsyncSession) -> None:
     """
     await seed_authz_data(test_db_session)
 
-    user_role = (await test_db_session.exec(select(Role).where(Role.name == "user"))).first()
-    assert user_role is not None
-
     # Create a group with the 'user' role for test users
     test_group = Group(id=uuid4(), name=_TEST_GROUP_NAME, description="Test users group", is_builtin=False, labels={})
     test_db_session.add(test_group)
     await test_db_session.flush()
-    test_db_session.add(GroupRoleAssignment(id=uuid4(), group_id=test_group.id, role_id=user_role.id, labels={}))
+    test_db_session.add(GroupRoleAssignment(id=uuid4(), group_id=test_group.id, role_name="user", labels={}))
 
     # Create dev-user and add to the group
     dev_user = User(
@@ -171,12 +168,10 @@ async def _make_role_assignment(
     role_name: str,
 ) -> None:
     """Assign a named role to a user via a dedicated group."""
-    role = (await session.exec(select(Role).where(Role.name == role_name))).first()
-    assert role is not None, f"Role '{role_name}' not found"
     group = Group(name=f"{role_name}-grp-{uuid4()}", description="", labels={})
     session.add(group)
     await session.flush()
-    session.add(GroupRoleAssignment(group_id=group.id, role_id=role.id, labels={}))
+    session.add(GroupRoleAssignment(group_id=group.id, role_name=role_name, labels={}))
     await session.execute(insert(user_groups).values(user_id=user.id, group_id=group.id))
     await session.commit()
 
@@ -202,9 +197,7 @@ async def make_project_user(
     project: "Project",
 ) -> UserRoleAssignment:
     """Assign project-user role to a user for a specific project."""
-    role = (await session.exec(select(Role).where(Role.name == "project-user"))).first()
-    assert role is not None
-    assignment = UserRoleAssignment(user_id=user.id, project_id=project.id, role_id=role.id)
+    assignment = UserRoleAssignment(user_id=user.id, project_id=project.id, role_name="project-user")
     session.add(assignment)
     await session.commit()
     return assignment
@@ -216,9 +209,7 @@ async def make_project_admin(
     project: "Project",
 ) -> UserRoleAssignment:
     """Assign project-admin role to a user for a specific project."""
-    role = (await session.exec(select(Role).where(Role.name == "project-admin"))).first()
-    assert role is not None
-    assignment = UserRoleAssignment(user_id=user.id, project_id=project.id, role_id=role.id)
+    assignment = UserRoleAssignment(user_id=user.id, project_id=project.id, role_name="project-admin")
     session.add(assignment)
     await session.commit()
     return assignment

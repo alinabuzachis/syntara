@@ -15,7 +15,7 @@ from sqlalchemy import insert
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.authz.models import GroupRoleAssignment, Project, Role
+from nexus.authz.models import GroupRoleAssignment, Project
 from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
 from tests.integration.api.conftest import (
@@ -38,19 +38,15 @@ class TestPrivilegeEscalation:
     async def test_user_cannot_self_assign_admin_role(
         self,
         auth_client: AsyncClient,
-        test_db_session: AsyncSession,
         test_user: User,
         auth_as: Callable[[User], None],
     ) -> None:
         """SEC-001: Regular user cannot assign admin role to themselves."""
         auth_as(test_user)
 
-        admin_role = (await test_db_session.exec(select(Role).where(Role.name == "admin"))).first()
-        assert admin_role is not None
-
         resp = await auth_client.post(
             "/api/v1/user-role-assignments",
-            json={"user_id": str(test_user.id), "role_id": str(admin_role.id)},
+            json={"user_id": str(test_user.id), "role_name": "admin"},
         )
         assert resp.status_code == 403
 
@@ -403,13 +399,10 @@ class TestGroupMembershipEdgeCases:
         """SEC-031: Removing a role assignment from a group revokes access for all members."""
         user = await user_factory(username="revoke-sec31", email="revoke-sec31@test.com")
 
-        user_role = (await test_db_session.exec(select(Role).where(Role.name == "user"))).first()
-        assert user_role is not None
-
         group = Group(name=f"revoke-sec31-{uuid4()}", description="", labels={})
         test_db_session.add(group)
         await test_db_session.flush()
-        role_assignment = GroupRoleAssignment(group_id=group.id, role_id=user_role.id, labels={})
+        role_assignment = GroupRoleAssignment(group_id=group.id, role_name="user", labels={})
         test_db_session.add(role_assignment)
         await test_db_session.execute(insert(user_groups).values(user_id=user.id, group_id=group.id))
         await test_db_session.commit()
@@ -476,19 +469,15 @@ class TestPermissionChecker403:
     async def test_403_on_role_assignment_attempt(
         self,
         auth_client: AsyncClient,
-        test_db_session: AsyncSession,
         test_user: User,
         auth_as: Callable[[User], None],
     ) -> None:
         """Non-admin trying to assign a role gets 403 with details."""
         auth_as(test_user)
 
-        admin_role = (await test_db_session.exec(select(Role).where(Role.name == "admin"))).first()
-        assert admin_role is not None
-
         resp = await auth_client.post(
             "/api/v1/user-role-assignments",
-            json={"user_id": str(test_user.id), "role_id": str(admin_role.id)},
+            json={"user_id": str(test_user.id), "role_name": "admin"},
         )
         assert resp.status_code == 403
         detail = resp.json()["detail"]

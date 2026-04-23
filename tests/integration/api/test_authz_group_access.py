@@ -13,7 +13,7 @@ from sqlalchemy import insert
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.authz.models import GroupRoleAssignment, Project, Role
+from nexus.authz.models import GroupRoleAssignment, Project
 from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
 from tests.integration.api.conftest import make_admin
@@ -39,13 +39,10 @@ async def test_group_grants_access(
     assert resp.json()["allowed"] is False
 
     # Create group with user role and add bob
-    user_role = (await test_db_session.exec(select(Role).where(Role.name == "user"))).first()
-    assert user_role is not None
-
     group = Group(name="dev-team-gga", description="Dev team", labels={})
     test_db_session.add(group)
     await test_db_session.flush()
-    test_db_session.add(GroupRoleAssignment(group_id=group.id, role_id=user_role.id, labels={}))
+    test_db_session.add(GroupRoleAssignment(group_id=group.id, role_name="user", labels={}))
     await test_db_session.execute(insert(user_groups).values(user_id=bob.id, group_id=group.id))
     await test_db_session.commit()
 
@@ -68,23 +65,18 @@ async def test_multiple_groups_additive(
     """User in multiple groups gets union of permissions."""
     bob = await user_factory(username="bob-mga", email="bob-mga@test.com")
 
-    user_role = (await test_db_session.exec(select(Role).where(Role.name == "user"))).first()
-    auditor_role = (await test_db_session.exec(select(Role).where(Role.name == "auditor"))).first()
-    assert user_role is not None
-    assert auditor_role is not None
-
     # Writer group with user role
     writer_group = Group(name="writer-group-mga", description="Writer group", labels={})
     test_db_session.add(writer_group)
     await test_db_session.flush()
-    test_db_session.add(GroupRoleAssignment(group_id=writer_group.id, role_id=user_role.id, labels={}))
+    test_db_session.add(GroupRoleAssignment(group_id=writer_group.id, role_name="user", labels={}))
     await test_db_session.execute(insert(user_groups).values(user_id=bob.id, group_id=writer_group.id))
 
     # Reader group with auditor role
     reader_group = Group(name="reader-group-mga", description="Reader group", labels={})
     test_db_session.add(reader_group)
     await test_db_session.flush()
-    test_db_session.add(GroupRoleAssignment(group_id=reader_group.id, role_id=auditor_role.id, labels={}))
+    test_db_session.add(GroupRoleAssignment(group_id=reader_group.id, role_name="auditor", labels={}))
     await test_db_session.execute(insert(user_groups).values(user_id=bob.id, group_id=reader_group.id))
     await test_db_session.commit()
 
@@ -131,15 +123,13 @@ async def test_group_project_role(
     await test_db_session.execute(insert(user_groups).values(user_id=bob.id, group_id=group.id))
 
     # Assign project-user role to group for gamma
-    role = (await test_db_session.exec(select(Role).where(Role.name == "project-user"))).first()
-    assert role is not None
     project = (await test_db_session.exec(select(Project).where(Project.name == gamma_name))).first()
     assert project is not None
     test_db_session.add(
         GroupRoleAssignment(
             group_id=group.id,
             project_id=project.id,
-            role_id=role.id,
+            role_name="project-user",
             labels={},
         )
     )
@@ -174,13 +164,10 @@ async def test_remove_revokes_access(
     """Removing user from group revokes access (sequential, not parametrized)."""
     bob = await user_factory(username="revoke-bob-ga", email="revoke-bob-ga@test.com")
 
-    user_role = (await test_db_session.exec(select(Role).where(Role.name == "user"))).first()
-    assert user_role is not None
-
     group = Group(name="revoke-team-ga", description="Revoke team", labels={})
     test_db_session.add(group)
     await test_db_session.flush()
-    test_db_session.add(GroupRoleAssignment(group_id=group.id, role_id=user_role.id, labels={}))
+    test_db_session.add(GroupRoleAssignment(group_id=group.id, role_name="user", labels={}))
     await test_db_session.execute(insert(user_groups).values(user_id=bob.id, group_id=group.id))
     await test_db_session.commit()
 

@@ -17,7 +17,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.api.main import app
 from nexus.auth.dependencies import get_current_user
-from nexus.authz.models import GroupRoleAssignment, Role
+from nexus.authz.models import GroupRoleAssignment
 from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
 from nexus.workflows.models.workflow import Workflow
@@ -101,7 +101,7 @@ async def test_lw1_user_sees_only_workflows_in_their_project(
     # Create scoped_user with access only to proj_a
     scoped_user = await user_factory(username="lw1-scoped", email="lw1@example.com")
     resp = await auth_client.post(
-        f"/api/v1/projects/{proj_a_id}/roles",
+        f"/api/v1/projects/{proj_a_id}/role-assignments",
         json={"user_id": str(scoped_user.id), "role_name": "project-user"},
     )
     assert resp.status_code == 201
@@ -142,7 +142,7 @@ async def test_lw2_user_with_multiple_projects_sees_workflows_from_all(
     multi_user = await user_factory(username="lw2-multi", email="lw2@example.com")
     for pid in [proj1_id, proj2_id]:
         resp = await auth_client.post(
-            f"/api/v1/projects/{pid}/roles",
+            f"/api/v1/projects/{pid}/role-assignments",
             json={"user_id": str(multi_user.id), "role_name": "project-user"},
         )
         assert resp.status_code == 201
@@ -180,13 +180,11 @@ async def test_lw3_global_admin_sees_all_including_unscoped(
 
     # Create an admin user
     admin = await user_factory(username="lw3-admin", email="lw3-adm@example.com")
-    admin_role = (await test_db_session.exec(select(Role).where(Role.name == "admin"))).first()
-    assert admin_role is not None
 
     admin_group = Group(id=uuid4(), name="lw3-admin-group", description="Admin group", is_builtin=False, labels={})
     test_db_session.add(admin_group)
     await test_db_session.flush()
-    test_db_session.add(GroupRoleAssignment(id=uuid4(), group_id=admin_group.id, role_id=admin_role.id, labels={}))
+    test_db_session.add(GroupRoleAssignment(id=uuid4(), group_id=admin_group.id, role_name="admin", labels={}))
     await test_db_session.execute(insert(user_groups).values(user_id=admin.id, group_id=admin_group.id))
     await test_db_session.commit()
 
@@ -215,7 +213,7 @@ async def test_lw4_user_with_no_workflow_projects_sees_empty(
     # Create a user with access to that project
     scoped_user = await user_factory(username="lw4-empty", email="lw4@example.com")
     resp = await auth_client.post(
-        f"/api/v1/projects/{proj_id}/roles",
+        f"/api/v1/projects/{proj_id}/role-assignments",
         json={"user_id": str(scoped_user.id), "role_name": "project-user"},
     )
     assert resp.status_code == 201
@@ -252,7 +250,7 @@ async def test_lw5_unscoped_workflows_hidden_from_project_scoped_users(
     # Create a project-only user
     proj_user = await user_factory(username="lw5-proj-user", email="lw5@example.com")
     resp = await auth_client.post(
-        f"/api/v1/projects/{proj_id}/roles",
+        f"/api/v1/projects/{proj_id}/role-assignments",
         json={"user_id": str(proj_user.id), "role_name": "project-user"},
     )
     assert resp.status_code == 201

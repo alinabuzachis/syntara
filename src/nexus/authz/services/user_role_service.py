@@ -7,7 +7,8 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.models.assignments import UserRoleAssignment
-from nexus.authz.models.role import Role
+from nexus.authz.models.project import Project
+from nexus.authz.role_conventions import is_builtin_role
 from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
 
@@ -22,18 +23,18 @@ class UserRoleService:
         self.session = session
         self.user = user
 
-    async def assign_role(self, user_id: UUID, role_id: UUID) -> UserRoleAssignment:
+    async def assign_role(self, user_id: UUID, role_name: str) -> UserRoleAssignment:
         """Assign a role directly to a user.
 
         Args:
             user_id: The user to assign the role to.
-            role_id: The role to assign.
+            role_name: The role name to assign.
 
         Returns:
             The created assignment.
 
         Raises:
-            SafeValueError: If user or role not found, or already assigned.
+            SafeValueError: If user not found, role unknown, or already assigned.
 
         """
         target_user = await self.session.get(User, user_id)
@@ -41,22 +42,21 @@ class UserRoleService:
             msg = f"User {user_id} not found"
             raise SafeValueError(msg)
 
-        role = await self.session.get(Role, role_id)
-        if not role:
-            msg = f"Role {role_id} not found"
+        if not await self._role_exists(role_name):
+            msg = f"Role '{role_name}' not found"
             raise SafeValueError(msg)
 
         existing = await self.session.exec(
             select(UserRoleAssignment).where(
                 UserRoleAssignment.user_id == user_id,
-                UserRoleAssignment.role_id == role_id,
+                UserRoleAssignment.role_name == role_name,
             )
         )
         if existing.one_or_none():
-            msg = f"Role '{role.name}' is already assigned to user '{target_user.username}'"
+            msg = f"Role '{role_name}' is already assigned to user '{target_user.username}'"
             raise SafeValueError(msg)
 
-        assignment = UserRoleAssignment(user_id=user_id, role_id=role_id)
+        assignment = UserRoleAssignment(user_id=user_id, role_name=role_name)
         self.session.add(assignment)
         await self.session.commit()
         await self.session.refresh(assignment)
@@ -65,28 +65,36 @@ class UserRoleService:
             "Assigned role to user",
             user_id=str(user_id),
             username=target_user.username,
-            role_id=str(role_id),
-            role_name=role.name,
+            role_name=role_name,
         )
         return assignment
 
-    async def list_assignments(self) -> list[dict[str, str | None]]:
-        """List all user→role assignments with names resolved."""
-        result = await self.session.exec(
-            select(UserRoleAssignment, User.username, Role.name)
+    async def list_assignments(self, *, user_id: UUID | None = None) -> list[dict[str, str | None]]:
+        """List user→role assignments with usernames and project info resolved.
+
+        Args:
+            user_id: If provided, only return assignments for this user.
+
+        """
+        stmt = (
+            select(UserRoleAssignment, User.username, Project.name)
             .join(User, UserRoleAssignment.user_id == User.id)  # type: ignore[arg-type]
-            .join(Role, UserRoleAssignment.role_id == Role.id)  # type: ignore[arg-type]
+            .outerjoin(Project, UserRoleAssignment.project_id == Project.id)  # type: ignore[arg-type]
         )
+        if user_id is not None:
+            stmt = stmt.where(UserRoleAssignment.user_id == user_id)
+        result = await self.session.exec(stmt)
         return [
             {
                 "id": str(a.id),
                 "user_id": str(a.user_id),
                 "username": username,
-                "role_id": str(a.role_id),
-                "role_name": role_name,
+                "role_name": a.role_name,
+                "project_id": str(a.project_id) if a.project_id else None,
+                "project_name": project_name,
                 "created_at": a.created_at.isoformat() if a.created_at else None,
             }
-            for a, username, role_name in result.all()
+            for a, username, project_name in result.all()
         ]
 
     async def revoke_assignment(self, assignment_id: UUID) -> None:
@@ -108,3 +116,12 @@ class UserRoleService:
         await self.session.commit()
 
         logger.info("Revoked user role assignment", assignment_id=str(assignment_id))
+
+    async def _role_exists(self, role_name: str) -> bool:
+        """Check if a role exists as a builtin or custom role in the DB."""
+        if is_builtin_role(role_name):
+            return True
+        from nexus.authz.models.role import Role  # noqa: PLC0415
+
+        result = await self.session.exec(select(Role).where(Role.name == role_name))
+        return result.first() is not None

@@ -19,7 +19,6 @@ router = NexusRouter(prefix="/audit", tags=["Audit Events"])
 _audit_perm_read = PermissionChecker(
     "audit",
     "read",
-    roles=["admin", "auditor"],
 )
 
 # ============================================================================

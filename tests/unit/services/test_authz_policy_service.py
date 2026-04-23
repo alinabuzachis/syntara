@@ -10,10 +10,12 @@ Tests cover:
 from uuid import uuid4
 
 import pytest
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.exceptions import BuiltinProtectionError, PolicyNameConflictError, PolicyNotFoundError
 from nexus.authz.models.policy import Policy
+from nexus.authz.models.role import Role
 from nexus.authz.services.policy_service import PolicyService
 from nexus.core.models import User
 
@@ -148,6 +150,36 @@ async def test_update_builtin_policy_rejected(test_db_session: AsyncSession, tes
     svc = PolicyService(test_db_session, test_user)
     with pytest.raises(BuiltinProtectionError):
         await svc.update_policy(builtin.id, description="hacked")
+
+
+@pytest.mark.asyncio
+async def test_rename_policy_updates_roles(test_db_session: AsyncSession, test_user: User) -> None:
+    """Renaming a policy propagates the new name to all roles that reference it."""
+    svc = PolicyService(test_db_session, test_user)
+    policy = await svc.create_policy(
+        name="old-policy-name",
+        statements=[{"effect": "allow", "actions": ["read"], "scope": "any"}],
+    )
+
+    role = Role(
+        name="refs-policy",
+        is_builtin=False,
+        scope="system",
+        policy_names=["old-policy-name", "workflow:read"],
+        labels={},
+    )
+    test_db_session.add(role)
+    await test_db_session.commit()
+    role_id = role.id
+
+    await svc.update_policy(policy.id, name="new-policy-name")
+
+    test_db_session.expire_all()
+    updated_role = (await test_db_session.exec(select(Role).where(Role.id == role_id))).first()
+    assert updated_role is not None
+    assert "new-policy-name" in updated_role.policy_names
+    assert "old-policy-name" not in updated_role.policy_names
+    assert "workflow:read" in updated_role.policy_names
 
 
 @pytest.mark.asyncio

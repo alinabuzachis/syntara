@@ -30,14 +30,12 @@ _ALL_ROLES = ["admin", "auditor", "user", "project-admin", "project-user", "proj
 _approval_perm_read = PermissionChecker(
     "approval",
     "read",
-    roles=_ALL_ROLES,
     resource_model=ApprovalRequest,
     resource_id_param="approval_id",
 )
 _approval_perm_decide = PermissionChecker(
     "approval",
     "decide",
-    roles=["admin", "user", "project-admin", "project-user"],
     resource_model=ApprovalRequest,
     resource_id_param="approval_id",
 )
@@ -112,7 +110,7 @@ async def list_approvals(
 @router.post(
     "",
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(PermissionChecker("approval", "create", roles=["admin"]))],
+    dependencies=[Depends(PermissionChecker("approval", "create"))],
     operation_id="create_approval",
     summary="Create approval request",
     response_description="Approval request created",
@@ -181,9 +179,7 @@ async def decide_approval(
 
 @router.post(
     "/batch",
-    dependencies=[
-        Depends(PermissionChecker("approval", "decide", roles=["admin", "user", "project-admin", "project-user"]))
-    ],
+    dependencies=[Depends(PermissionChecker("approval", "decide"))],
     operation_id="batch_decide_approvals",
     summary="Batch approve/reject multiple requests",
     response_description="Batch decision results",

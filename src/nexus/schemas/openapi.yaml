@@ -25,6 +25,8 @@ tags:
     description: Audit event query and retrieval
   - name: Authentication
     description: JWT token management and user identity
+  - name: All Role Assignments
+    description: Unified view of user and group role assignments
   - name: Group Role Assignments
     description: System-level group-to-role assignment management
   - name: Authorization
@@ -2789,6 +2791,195 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+  /all-role-assignments:
+    get:
+      summary: List All Role Assignments
+      description: |-
+        List all role assignments (user and group) with filtering, sorting, and pagination.
+
+        Admins see all assignments; other users see only their own user
+        assignments and assignments for groups they belong to.
+      operationId: list_all_role_assignments
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
+      tags:
+        - All Role Assignments
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            exclusiveMinimum: 0
+            maximum: 100
+            default: 20
+            description: Maximum number of results per page
+            title: Limit
+          description: Maximum number of results per page
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            description: Pagination cursor from previous response
+            title: Cursor
+          description: Pagination cursor from previous response
+        - name: sort
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            description: Sort parameter (e.g., 'name', '-created_at')
+            title: Sort
+          description: Sort parameter (e.g., 'name', '-created_at')
+        - name: include_total
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+            description: Include total count in response (expensive)
+            title: Include Total
+          description: Include total count in response (expensive)
+        - name: principal_type
+          in: query
+          required: false
+          description: Filter by principal type (user or group)
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Principal Type
+        - name: principal_name
+          in: query
+          required: false
+          description: Filter by principal name (username or group name)
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Principal Name
+        - name: role_name
+          in: query
+          required: false
+          description: Filter by role name
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Role Name
+        - name: project_id
+          in: query
+          required: false
+          description: Filter by project ID
+          schema:
+            anyOf:
+              - type: string
+                format: uuid
+              - type: 'null'
+            title: Project Id
+      responses:
+        '200':
+          description: Paginated list of role assignments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AllRoleAssignmentListResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
   /group-role-assignments:
     post:
       summary: Assign Group Role
@@ -2905,7 +3096,11 @@ paths:
         - bearerAuth: []
     get:
       summary: List Group Role Assignments
-      description: List all system-level group→role assignments.
+      description: |-
+        List system-level group→role assignments.
+
+        Admin/auditor see all assignments; other users see only assignments
+        for groups they belong to.
       operationId: list_group_role_assignments
       x-app-permission:
         resource: null
@@ -3596,9 +3791,10 @@ paths:
       x-app-permission:
         resource: policy
         action: create
-        scope: any
+        scope: project
         default_roles:
           - admin
+          - project-admin
       tags:
         - Policies
       requestBody:
@@ -3790,6 +3986,14 @@ paths:
               - type: boolean
               - type: 'null'
             title: Project Eligible
+        - in: query
+          name: scope
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Scope
       responses:
         '200':
           description: Paginated list of policies
@@ -4007,9 +4211,10 @@ paths:
       x-app-permission:
         resource: policy
         action: update
-        scope: any
+        scope: project
         default_roles:
           - admin
+          - project-admin
       tags:
         - Policies
       parameters:
@@ -4128,9 +4333,10 @@ paths:
       x-app-permission:
         resource: policy
         action: update
-        scope: any
+        scope: project
         default_roles:
           - admin
+          - project-admin
       tags:
         - Policies
       parameters:
@@ -4249,9 +4455,10 @@ paths:
       x-app-permission:
         resource: policy
         action: delete
-        scope: any
+        scope: project
         default_roles:
           - admin
+          - project-admin
       tags:
         - Policies
       parameters:
@@ -4361,9 +4568,10 @@ paths:
       x-app-permission:
         resource: role
         action: create
-        scope: any
+        scope: project
         default_roles:
           - admin
+          - project-admin
       tags:
         - Roles
       requestBody:
@@ -4547,6 +4755,14 @@ paths:
               - type: 'null'
             title: Project Id
           description: Filter by project scope
+        - in: query
+          name: scope
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Scope
       responses:
         '200':
           description: Successful Response
@@ -4764,9 +4980,10 @@ paths:
       x-app-permission:
         resource: role
         action: update
-        scope: any
+        scope: project
         default_roles:
           - admin
+          - project-admin
       tags:
         - Roles
       parameters:
@@ -4885,9 +5102,10 @@ paths:
       x-app-permission:
         resource: role
         action: update
-        scope: any
+        scope: project
         default_roles:
           - admin
+          - project-admin
       tags:
         - Roles
       parameters:
@@ -5006,9 +5224,10 @@ paths:
       x-app-permission:
         resource: role
         action: delete
-        scope: any
+        scope: project
         default_roles:
           - admin
+          - project-admin
       tags:
         - Roles
       parameters:
@@ -5226,7 +5445,10 @@ paths:
         - bearerAuth: []
     get:
       summary: List User Role Assignments
-      description: List all system-level user→role assignments.
+      description: |-
+        List system-level user→role assignments.
+
+        Admin/auditor see all assignments; other users see only their own.
       operationId: list_user_role_assignments
       x-app-permission:
         resource: null
@@ -8556,11 +8778,9 @@ paths:
   /projects:
     post:
       summary: Create Project
-      description: |-
-        Create a new project.
-
-        The creator is automatically assigned the project-admin role.
-        Requires: project:create permission.
+      description: |
+        Create a new project. The creator is automatically assigned
+        the project-admin role. Requires: project:create permission.
       operationId: create_project
       x-app-permission:
         resource: project
@@ -8697,7 +8917,6 @@ paths:
             application/json:
               schema:
                 type: array
-                title: Response List Projects
                 items:
                   $ref: '#/components/schemas/ProjectRead'
         '400':
@@ -8807,13 +9026,7 @@ paths:
       tags:
         - Projects
       parameters:
-        - name: project_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            title: Project Id
+        - $ref: '#/components/parameters/projectIdParam'
       responses:
         '200':
           description: Project details
@@ -8923,13 +9136,7 @@ paths:
       tags:
         - Projects
       parameters:
-        - name: project_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            title: Project Id
+        - $ref: '#/components/parameters/projectIdParam'
       requestBody:
         required: true
         content:
@@ -9045,13 +9252,7 @@ paths:
       tags:
         - Projects
       parameters:
-        - name: project_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            title: Project Id
+        - $ref: '#/components/parameters/projectIdParam'
       requestBody:
         required: true
         content:
@@ -9167,13 +9368,7 @@ paths:
       tags:
         - Projects
       parameters:
-        - name: project_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            title: Project Id
+        - $ref: '#/components/parameters/projectIdParam'
       responses:
         '204':
           description: Project deleted
@@ -9288,13 +9483,7 @@ paths:
       tags:
         - Projects
       parameters:
-        - name: project_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            title: Project Id
+        - $ref: '#/components/parameters/projectIdParam'
         - name: limit
           in: query
           required: false
@@ -9453,13 +9642,7 @@ paths:
       tags:
         - Projects
       parameters:
-        - name: project_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            title: Project Id
+        - $ref: '#/components/parameters/projectIdParam'
         - name: limit
           in: query
           required: false
@@ -9508,6 +9691,7 @@ paths:
               - $ref: '#/components/schemas/ApprovalRequestStatus'
               - type: 'null'
             title: Status
+          description: Filter by approval status
         - name: execution_id
           in: query
           required: false
@@ -9517,6 +9701,7 @@ paths:
                 format: uuid
               - type: 'null'
             title: Execution Id
+          description: Filter by parent workflow execution ID
       responses:
         '200':
           description: Paginated list of approvals in the project
@@ -9612,7 +9797,7 @@ paths:
                 retryable: true
       security:
         - bearerAuth: []
-  /projects/{project_id}/roles:
+  /projects/{project_id}/role-assignments:
     post:
       summary: Assign Project Role
       description: |-
@@ -9631,13 +9816,7 @@ paths:
       tags:
         - Projects
       parameters:
-        - name: project_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            title: Project Id
+        - $ref: '#/components/parameters/projectIdParam'
       requestBody:
         required: true
         content:
@@ -9740,9 +9919,12 @@ paths:
       security:
         - bearerAuth: []
     get:
-      summary: List Project Roles
-      description: List all role assignments for a project.
-      operationId: list_project_roles
+      summary: List Project Role Assignments
+      description: |-
+        List role assignments for a project.
+
+        Admin/auditor/project-admin see all assignments; other users see only their own.
+      operationId: list_project_role_assignments
       x-app-permission:
         resource: null
         action: null
@@ -9751,13 +9933,7 @@ paths:
       tags:
         - Projects
       parameters:
-        - name: project_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            title: Project Id
+        - $ref: '#/components/parameters/projectIdParam'
       responses:
         '200':
           description: List of role assignments
@@ -9765,7 +9941,6 @@ paths:
             application/json:
               schema:
                 type: array
-                title: Response List Project Roles
                 items:
                   $ref: '#/components/schemas/ProjectRoleAssignmentRead'
         '400':
@@ -9856,7 +10031,7 @@ paths:
                 retryable: true
       security:
         - bearerAuth: []
-  /projects/{project_id}/roles/{assignment_id}:
+  /projects/{project_id}/role-assignments/{assignment_id}:
     delete:
       summary: Revoke Project Role
       description: 'Remove a role assignment from a project. Requires: project-role:revoke permission.'
@@ -9871,20 +10046,14 @@ paths:
       tags:
         - Projects
       parameters:
-        - name: project_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            title: Project Id
+        - $ref: '#/components/parameters/projectIdParam'
         - name: assignment_id
           in: path
           required: true
           schema:
             type: string
             format: uuid
-            title: Assignment Id
+          description: Assignment UUID
       responses:
         '204':
           description: Assignment removed
@@ -9976,7 +10145,7 @@ paths:
                 retryable: true
       security:
         - bearerAuth: []
-  /projects/{project_id}/group-roles:
+  /projects/{project_id}/group-role-assignments:
     post:
       summary: Assign Project Group Role
       description: |-
@@ -9996,13 +10165,7 @@ paths:
       tags:
         - Projects
       parameters:
-        - name: project_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            title: Project Id
+        - $ref: '#/components/parameters/projectIdParam'
       requestBody:
         required: true
         content:
@@ -10105,9 +10268,13 @@ paths:
       security:
         - bearerAuth: []
     get:
-      summary: List Project Group Roles
-      description: List all group role assignments for a project.
-      operationId: list_project_group_roles
+      summary: List Project Group Role Assignments
+      description: |-
+        List group role assignments for a project.
+
+        Admin/auditor/project-admin see all assignments; other users see only
+        assignments for groups they belong to.
+      operationId: list_project_group_role_assignments
       x-app-permission:
         resource: null
         action: null
@@ -10116,13 +10283,7 @@ paths:
       tags:
         - Projects
       parameters:
-        - name: project_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            title: Project Id
+        - $ref: '#/components/parameters/projectIdParam'
       responses:
         '200':
           description: List of group role assignments
@@ -10130,7 +10291,6 @@ paths:
             application/json:
               schema:
                 type: array
-                title: Response List Project Group Roles
                 items:
                   $ref: '#/components/schemas/ProjectGroupRoleAssignmentRead'
         '400':
@@ -10221,7 +10381,7 @@ paths:
                 retryable: true
       security:
         - bearerAuth: []
-  /projects/{project_id}/group-roles/{assignment_id}:
+  /projects/{project_id}/group-role-assignments/{assignment_id}:
     delete:
       summary: Revoke Project Group Role
       description: 'Remove a group role assignment from a project. Requires: project-role:revoke permission.'
@@ -10236,23 +10396,1747 @@ paths:
       tags:
         - Projects
       parameters:
-        - name: project_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            title: Project Id
+        - $ref: '#/components/parameters/projectIdParam'
         - name: assignment_id
           in: path
           required: true
           schema:
             type: string
             format: uuid
-            title: Assignment Id
+          description: Assignment UUID
       responses:
         '204':
           description: Assignment removed
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+  /projects/{project_id}/all-role-assignments:
+    get:
+      summary: List Project All Role Assignments
+      description: List all role assignments (user + group) scoped to a project.
+      operationId: list_project_all_role_assignments
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
+      tags:
+        - Projects
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            exclusiveMinimum: 0
+            maximum: 100
+            default: 20
+            description: Maximum number of results per page
+            title: Limit
+          description: Maximum number of results per page
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            description: Pagination cursor from previous response
+            title: Cursor
+          description: Pagination cursor from previous response
+        - name: sort
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            description: Sort parameter (e.g., 'name', '-created_at')
+            title: Sort
+          description: Sort parameter (e.g., 'name', '-created_at')
+        - name: include_total
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+            description: Include total count in response (expensive)
+            title: Include Total
+          description: Include total count in response (expensive)
+        - name: principal_type
+          in: query
+          required: false
+          description: Filter by principal type (user or group)
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+        - name: principal_name
+          in: query
+          required: false
+          description: Filter by principal name (username or group name)
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+        - name: role_name
+          in: query
+          required: false
+          description: Filter by role name
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+      responses:
+        '200':
+          description: Paginated list of role assignments for this project
+          content:
+            application/json:
+              schema:
+                type: object
+                title: AllRoleAssignmentListResponse
+                description: Paginated response for all role assignments.
+                examples:
+                  - next: eyJpZCI6InV1aWQifQ
+                    total: 150
+                  - next: eyJpZCI6Im5leHQifQ
+                    prev: eyJpZCI6InByZXYifQ
+                required:
+                  - resources
+                properties:
+                  next:
+                    anyOf:
+                      - type: string
+                      - type: 'null'
+                    title: Next
+                    description: Cursor for next page of results
+                  prev:
+                    anyOf:
+                      - type: string
+                      - type: 'null'
+                    title: Prev
+                    description: Cursor for previous page of results
+                  total:
+                    anyOf:
+                      - type: integer
+                        minimum: 0.0
+                      - type: 'null'
+                    title: Total
+                    description: Total count of resources (only when include_total=true)
+                  resources:
+                    type: array
+                    maxItems: 100
+                    items:
+                      $ref: '#/components/schemas/AllRoleAssignmentRead'
+                    title: Resources
+                    description: Array of resources in current page
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+  /projects/{project_id}/roles:
+    post:
+      summary: Create Project Role
+      description: 'Create a role scoped to this project. Requires: role:create permission.'
+      operationId: create_project_role
+      x-app-permission:
+        resource: role
+        action: create
+        scope: project
+        default_roles:
+          - admin
+          - project-admin
+      tags:
+        - Projects
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectRoleCreate'
+      responses:
+        '201':
+          description: Role created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleRead'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+    get:
+      summary: List Project Roles
+      description: |-
+        List roles visible within this project.
+
+        Includes project-owned roles and global roles with scope "project".
+      operationId: list_project_roles
+      x-app-permission:
+        resource: role
+        action: read
+        scope: project
+        default_roles:
+          - admin
+          - auditor
+          - project-admin
+          - project-user
+          - project-auditor
+      tags:
+        - Projects
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            exclusiveMinimum: 0
+            maximum: 100
+            default: 20
+            description: Maximum number of results per page
+            title: Limit
+          description: Maximum number of results per page
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            description: Pagination cursor from previous response
+            title: Cursor
+          description: Pagination cursor from previous response
+        - name: sort
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            description: Sort parameter (e.g., 'name', '-created_at')
+            title: Sort
+          description: Sort parameter (e.g., 'name', '-created_at')
+        - name: include_total
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+            description: Include total count in response (expensive)
+            title: Include Total
+          description: Include total count in response (expensive)
+        - name: name
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Name
+          description: Filter by role name
+        - name: is_builtin
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: boolean
+              - type: 'null'
+            title: Is Builtin
+          description: Filter by builtin status
+        - name: scope
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Scope
+          description: Filter by scope
+      responses:
+        '200':
+          description: Paginated list of roles in the project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleListResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+  /projects/{project_id}/roles/{role_id}:
+    get:
+      summary: Get Project Role
+      description: Get a single role, verifying it belongs to this project.
+      operationId: get_project_role
+      x-app-permission:
+        resource: role
+        action: read
+        scope: project
+        default_roles:
+          - admin
+          - auditor
+          - project-admin
+          - project-user
+          - project-auditor
+      tags:
+        - Projects
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+        - $ref: '#/components/parameters/roleIdParam'
+      responses:
+        '200':
+          description: Role details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleRead'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+    patch:
+      summary: Update Project Role
+      description: Patch a project role. Builtin roles cannot be modified.
+      operationId: update_project_role
+      x-app-permission:
+        resource: role
+        action: update
+        scope: project
+        default_roles:
+          - admin
+          - project-admin
+      tags:
+        - Projects
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+        - $ref: '#/components/parameters/roleIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleUpdate'
+      responses:
+        '200':
+          description: Updated role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleRead'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+    put:
+      summary: Replace Project Role
+      description: Replace a project role. Builtin roles cannot be modified.
+      operationId: replace_project_role
+      x-app-permission:
+        resource: role
+        action: update
+        scope: project
+        default_roles:
+          - admin
+          - project-admin
+      tags:
+        - Projects
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+        - $ref: '#/components/parameters/roleIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleUpdate'
+      responses:
+        '200':
+          description: Updated role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleRead'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+    delete:
+      summary: Delete Project Role
+      description: Delete a project role. Builtin roles cannot be deleted.
+      operationId: delete_project_role
+      x-app-permission:
+        resource: role
+        action: delete
+        scope: project
+        default_roles:
+          - admin
+          - project-admin
+      tags:
+        - Projects
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+        - $ref: '#/components/parameters/roleIdParam'
+      responses:
+        '204':
+          description: Role deleted
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+  /projects/{project_id}/policies:
+    post:
+      summary: Create Project Policy
+      description: 'Create a policy scoped to this project. Requires: policy:create permission.'
+      operationId: create_project_policy
+      x-app-permission:
+        resource: policy
+        action: create
+        scope: project
+        default_roles:
+          - admin
+          - project-admin
+      tags:
+        - Projects
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectPolicyCreate'
+      responses:
+        '201':
+          description: Policy created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyRead'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+    get:
+      summary: List Project Policies
+      description: |-
+        List policies visible within this project.
+
+        Includes project-owned policies and global policies with scope "project".
+      operationId: list_project_policies
+      x-app-permission:
+        resource: policy
+        action: read
+        scope: project
+        default_roles:
+          - admin
+          - auditor
+          - project-admin
+          - project-user
+          - project-auditor
+      tags:
+        - Projects
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            exclusiveMinimum: 0
+            maximum: 100
+            default: 20
+            description: Maximum number of results per page
+            title: Limit
+          description: Maximum number of results per page
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            description: Pagination cursor from previous response
+            title: Cursor
+          description: Pagination cursor from previous response
+        - name: sort
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            description: Sort parameter (e.g., 'name', '-created_at')
+            title: Sort
+          description: Sort parameter (e.g., 'name', '-created_at')
+        - name: include_total
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+            description: Include total count in response (expensive)
+            title: Include Total
+          description: Include total count in response (expensive)
+        - name: name
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Name
+          description: Filter by policy name
+        - name: is_builtin
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: boolean
+              - type: 'null'
+            title: Is Builtin
+          description: Filter by builtin status
+        - name: project_eligible
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: boolean
+              - type: 'null'
+            title: Project Eligible
+          description: Filter by project eligibility
+        - name: scope
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Scope
+          description: Filter by scope
+      responses:
+        '200':
+          description: Paginated list of policies in the project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyListResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+  /projects/{project_id}/policies/{policy_id}:
+    get:
+      summary: Get Project Policy
+      description: Get a single policy, if it belongs to this project or is a global project-scoped policy.
+      operationId: get_project_policy
+      x-app-permission:
+        resource: policy
+        action: read
+        scope: project
+        default_roles:
+          - admin
+          - auditor
+          - project-admin
+          - project-user
+          - project-auditor
+      tags:
+        - Projects
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+        - $ref: '#/components/parameters/policyIdParam'
+      responses:
+        '200':
+          description: Policy details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyRead'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+    patch:
+      summary: Update Project Policy
+      description: Patch a project policy. Only project-owned policies can be modified.
+      operationId: update_project_policy
+      x-app-permission:
+        resource: policy
+        action: update
+        scope: project
+        default_roles:
+          - admin
+          - project-admin
+      tags:
+        - Projects
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+        - $ref: '#/components/parameters/policyIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PolicyUpdate'
+      responses:
+        '200':
+          description: Updated policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyRead'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+    put:
+      summary: Replace Project Policy
+      description: Replace a project policy. Only project-owned policies can be modified.
+      operationId: replace_project_policy
+      x-app-permission:
+        resource: policy
+        action: update
+        scope: project
+        default_roles:
+          - admin
+          - project-admin
+      tags:
+        - Projects
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+        - $ref: '#/components/parameters/policyIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PolicyUpdate'
+      responses:
+        '200':
+          description: Updated policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyRead'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+    delete:
+      summary: Delete Project Policy
+      description: Delete a project policy. Only project-owned policies can be deleted.
+      operationId: delete_project_policy
+      x-app-permission:
+        resource: policy
+        action: delete
+        scope: project
+        default_roles:
+          - admin
+          - project-admin
+      tags:
+        - Projects
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+        - $ref: '#/components/parameters/policyIdParam'
+      responses:
+        '204':
+          description: Policy deleted
         '400':
           description: Bad Request
           content:
@@ -13077,8 +14961,9 @@ paths:
         scope: any
         default_roles:
           - admin
-          - auditor
+          - user
           - default
+          - auditor
       tags:
         - Users
       parameters:
@@ -13341,8 +15226,9 @@ paths:
         scope: any
         default_roles:
           - admin
-          - auditor
+          - user
           - default
+          - auditor
       tags:
         - Users
       parameters:
@@ -13461,6 +15347,8 @@ paths:
         scope: any
         default_roles:
           - admin
+          - user
+          - default
       tags:
         - Users
       parameters:
@@ -13694,8 +15582,9 @@ paths:
         scope: any
         default_roles:
           - admin
-          - auditor
+          - user
           - default
+          - auditor
       tags:
         - Users
       parameters:
@@ -13855,6 +15744,8 @@ paths:
         scope: any
         default_roles:
           - admin
+          - user
+          - default
       tags:
         - Users
       parameters:
@@ -17329,6 +19220,44 @@ components:
           minimum: 0.0
           title: Total Failed
           description: Number of failed decisions
+    ApprovalListResponse:
+      type: object
+      title: ApprovalListResponse
+      description: Paginated list response for approval requests.
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
+      required:
+        - resources
+      properties:
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Next
+          description: Cursor for next page of results
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Prev
+          description: Cursor for previous page of results
+        total:
+          anyOf:
+            - type: integer
+              minimum: 0.0
+            - type: 'null'
+          title: Total
+          description: Total count of resources (only when include_total=true)
+        resources:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/ApprovalRequestRead'
+          title: Resources
+          description: Array of resources in current page
     UserReference:
       type: object
       title: UserReference
@@ -17765,22 +19694,101 @@ components:
           items:
             $ref: '#/components/schemas/AuthProviderInfo'
           description: Enabled identity providers
+    AllRoleAssignmentRead:
+      type: object
+      title: AllRoleAssignmentRead
+      description: A single role assignment (user or group).
+      required:
+        - id
+        - principal_id
+        - principal_name
+        - principal_type
+        - role_name
+      properties:
+        id:
+          type: string
+          title: Id
+        principal_id:
+          type: string
+          title: Principal Id
+        principal_name:
+          type: string
+          title: Principal Name
+        principal_type:
+          type: string
+          title: Principal Type
+        role_name:
+          type: string
+          title: Role Name
+        project_id:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Project Id
+        project_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Project Name
+        created_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Created At
+    AllRoleAssignmentListResponse:
+      type: object
+      title: AllRoleAssignmentListResponse
+      description: Paginated response for all role assignments.
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
+      required:
+        - resources
+      properties:
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Next
+          description: Cursor for next page of results
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Prev
+          description: Cursor for previous page of results
+        total:
+          anyOf:
+            - type: integer
+              minimum: 0.0
+            - type: 'null'
+          title: Total
+          description: Total count of resources (only when include_total=true)
+        resources:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/AllRoleAssignmentRead'
+          title: Resources
+          description: Array of resources in current page
     GroupRoleAssignmentCreate:
       type: object
       title: GroupRoleAssignmentCreate
       description: Request body for assigning a role to a group.
       required:
         - group_id
-        - role_id
+        - role_name
       properties:
         group_id:
           type: string
           format: uuid
           title: Group Id
-        role_id:
+        role_name:
           type: string
-          format: uuid
-          title: Role Id
+          title: Role Name
     GroupRoleAssignmentRead:
       type: object
       title: GroupRoleAssignmentRead
@@ -17789,21 +19797,27 @@ components:
         - id
         - group_id
         - group_name
-        - role_id
         - role_name
       properties:
         id:
           type: string
           title: Id
+        project_id:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Project Id
+        project_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Project Name
         group_id:
           type: string
           title: Group Id
         group_name:
           type: string
           title: Group Name
-        role_id:
-          type: string
-          title: Role Id
         role_name:
           type: string
           title: Role Name
@@ -18043,7 +20057,7 @@ components:
         scope:
           type: string
           title: Scope
-          description: any or self
+          description: any, self, or project
         conditions:
           anyOf:
             - type: object
@@ -18167,6 +20181,10 @@ components:
               format: uuid
             - type: 'null'
           title: Project Id
+        scope:
+          type: string
+          default: any
+          title: Scope
         labels:
           type: object
           default: {}
@@ -18333,6 +20351,10 @@ components:
               format: uuid
             - type: 'null'
           title: Project Id
+        scope:
+          type: string
+          default: system
+          title: Scope
         labels:
           type: object
           default: {}
@@ -18394,16 +20416,15 @@ components:
       description: Request body for assigning a role to a user.
       required:
         - user_id
-        - role_id
+        - role_name
       properties:
         user_id:
           type: string
           format: uuid
           title: User Id
-        role_id:
+        role_name:
           type: string
-          format: uuid
-          title: Role Id
+          title: Role Name
     UserRoleAssignmentRead:
       type: object
       title: UserRoleAssignmentRead
@@ -18412,21 +20433,27 @@ components:
         - id
         - user_id
         - username
-        - role_id
         - role_name
       properties:
         id:
           type: string
           title: Id
+        project_id:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Project Id
+        project_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Project Name
         user_id:
           type: string
           title: User Id
         username:
           type: string
           title: Username
-        role_id:
-          type: string
-          title: Role Id
         role_name:
           type: string
           title: Role Name
@@ -19888,7 +21915,6 @@ components:
         - id
         - user_id
         - project_id
-        - role_id
         - role_name
       properties:
         id:
@@ -19907,10 +21933,6 @@ components:
           type: string
           format: uuid
           title: Project Id
-        role_id:
-          type: string
-          format: uuid
-          title: Role Id
         role_name:
           type: string
           title: Role Name
@@ -19943,7 +21965,6 @@ components:
         - id
         - group_id
         - project_id
-        - role_id
         - role_name
       properties:
         id:
@@ -19962,10 +21983,6 @@ components:
           type: string
           format: uuid
           title: Project Id
-        role_id:
-          type: string
-          format: uuid
-          title: Role Id
         role_name:
           type: string
           title: Role Name
@@ -19975,9 +21992,74 @@ components:
               format: date-time
             - type: 'null'
           title: Created At
-    ApprovalListResponse:
-      title: ApprovalListResponse
-      description: Paginated list response for approval requests.
+    ProjectRoleCreate:
+      type: object
+      title: ProjectRoleCreate
+      description: Request body for creating a project-scoped role (project_id comes from URL path).
+      required:
+        - name
+        - policies
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          title: Name
+        description:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Description
+        policies:
+          type: array
+          minItems: 1
+          items:
+            type: string
+          title: Policies
+        labels:
+          type: object
+          default: {}
+          additionalProperties:
+            type: string
+          title: Labels
+    ProjectPolicyCreate:
+      type: object
+      title: ProjectPolicyCreate
+      description: Request body for creating a project-scoped policy (project_id comes from URL path).
+      required:
+        - name
+        - statements
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          title: Name
+        description:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Description
+        statements:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/PolicyStatementSchema'
+          title: Statements
+        labels:
+          type: object
+          default: {}
+          additionalProperties:
+            type: string
+          title: Labels
+    WorkflowListResponse:
+      title: WorkflowListResponse
+      description: Paginated list response for workflows.
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
       properties:
         next:
           anyOf:
@@ -20004,15 +22086,10 @@ components:
           description: Array of resources in current page
           maxItems: 100
           items:
-            $ref: '#/components/schemas/ApprovalRequestRead'
+            $ref: '#/components/schemas/WorkflowRead'
       required:
         - resources
       type: object
-      examples:
-        - next: eyJpZCI6InV1aWQifQ
-          total: 150
-        - next: eyJpZCI6Im5leHQifQ
-          prev: eyJpZCI6InByZXYifQ
     SettingValueType:
       type: string
       title: SettingValueType
@@ -22184,44 +24261,6 @@ components:
               format: uuid
             - type: 'null'
           title: Deleted By
-    WorkflowListResponse:
-      title: WorkflowListResponse
-      description: Paginated list response for workflows.
-      examples:
-        - next: eyJpZCI6InV1aWQifQ
-          total: 150
-        - next: eyJpZCI6Im5leHQifQ
-          prev: eyJpZCI6InByZXYifQ
-      properties:
-        next:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Next
-          description: Cursor for next page of results
-        prev:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Prev
-          description: Cursor for previous page of results
-        total:
-          anyOf:
-            - minimum: 0.0
-              type: integer
-            - type: 'null'
-          title: Total
-          description: Total count of resources (only when include_total=true)
-        resources:
-          type: array
-          title: Resources
-          description: Array of resources in current page
-          maxItems: 100
-          items:
-            $ref: '#/components/schemas/WorkflowRead'
-      required:
-        - resources
-      type: object
     WorkflowVersionListResponse:
       type: object
       title: WorkflowVersionListResponse
@@ -22333,3 +24372,28 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: JWT token authentication
+  parameters:
+    projectIdParam:
+      name: project_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Project UUID
+    roleIdParam:
+      name: role_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Role UUID
+    policyIdParam:
+      name: policy_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Policy UUID

@@ -22,7 +22,6 @@ from nexus.authz.engine import (
     resolve_allowed_projects,
 )
 from nexus.authz.models.project import Project
-from nexus.authz.models.role import Role
 from nexus.authz.seed import seed_authz_data
 from nexus.core.models import User
 from nexus.core.models.group import Group
@@ -183,19 +182,7 @@ async def test_assign_project_admin(seeded_db: AsyncSession, test_user: User) ->
     assignment = await assign_project_admin(seeded_db, test_user.id, project.id)
     assert assignment.user_id == test_user.id
     assert assignment.project_id == project.id
-
-    # Verify the role is project-admin
-    role = await seeded_db.get(Role, assignment.role_id)
-    assert role is not None
-    assert role.name == "project-admin"
-
-
-@pytest.mark.asyncio
-async def test_assign_project_admin_role_missing(test_db_session: AsyncSession, test_user: User) -> None:
-    """assign_project_admin() raises ValueError when project-admin role doesn't exist."""
-    # No authz data seeded, so project-admin role doesn't exist
-    with pytest.raises(ValueError, match="project-admin"):
-        await assign_project_admin(test_db_session, test_user.id, uuid4())
+    assert assignment.role_name == "project-admin"
 
 
 @pytest.mark.asyncio
@@ -210,16 +197,12 @@ async def test_assign_authenticated_group_project_user(
     assignment = await assign_authenticated_group_project_user(seeded_db, project.id)
     assert assignment is not None
     assert assignment.project_id == project.id
+    assert assignment.role_name == "project-user"
 
     # Verify group is "authenticated"
     group = await seeded_db.get(Group, assignment.group_id)
     assert group is not None
     assert group.name == "authenticated"
-
-    # Verify role is "project-user"
-    role = await seeded_db.get(Role, assignment.role_id)
-    assert role is not None
-    assert role.name == "project-user"
 
 
 @pytest.mark.asyncio

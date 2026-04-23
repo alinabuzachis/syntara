@@ -4,6 +4,10 @@ Revision ID: 229065ab56b0
 Revises: 5835100415bc
 Create Date: 2026-04-14 07:53:14.463883
 
+NOTE: This migration originally also seeded builtin roles and policies via
+nexus.authz.migration_ops (apply_role_ops / apply_policy_ops).  Those helpers
+have been removed; builtin policies/roles are now managed purely in code.
+The schema operations and backfill below are preserved as-is.
 """
 
 from collections.abc import Sequence
@@ -12,276 +16,11 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-from nexus.authz.migration_ops import (
-    PolicyAdd,
-    RoleAdd,
-    RolePolicyAppend,
-    apply_policy_ops,
-    apply_role_ops,
-    revert_policy_ops,
-    revert_role_ops,
-)
-
 # revision identifiers, used by Alembic.
 revision: str = "229065ab56b0"
 down_revision: str | Sequence[str] | None = "5835100415bc"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
-
-ROLE_OPS: list[RoleAdd] = [
-    RoleAdd("admin", "Full access to all resources"),
-    RoleAdd("auditor", "Read-only access with audit log visibility"),
-    RoleAdd("user", "Standard user with CRUD on own resources"),
-    RoleAdd("project-admin", "Full access to a project and its resources, including role management"),
-    RoleAdd("project-user", "Standard access within a project (CRUD workflows, run executions)"),
-    RoleAdd("project-auditor", "Read-only access within a project"),
-    RoleAdd(
-        "default",
-        "Default permissions granted to all authenticated users via the 'authenticated' group",
-        is_builtin=False,
-    ),
-]
-
-POLICY_OPS: list[PolicyAdd | RolePolicyAppend] = [
-    PolicyAdd("user:read:self", "Read own user", [{"effect": "allow", "actions": ["user:read"], "scope": "self"}]),
-    PolicyAdd(
-        "user:update:self",
-        "Update own user",
-        [{"effect": "allow", "actions": ["user:update"], "scope": "self"}],
-    ),
-    PolicyAdd("policy:read:any", "Read any policy", [{"effect": "allow", "actions": ["policy:read"], "scope": "any"}]),
-    PolicyAdd("role:read:any", "Read any role", [{"effect": "allow", "actions": ["role:read"], "scope": "any"}]),
-    PolicyAdd(
-        "approval:read:any",
-        "Read any approval",
-        [{"effect": "allow", "actions": ["approval:read"], "scope": "any"}],
-    ),
-    PolicyAdd(
-        "project:create:any",
-        "Create any project",
-        [{"effect": "allow", "actions": ["project:create"], "scope": "any"}],
-    ),
-    PolicyAdd(
-        "project:read:any",
-        "Read any project",
-        [{"effect": "allow", "actions": ["project:read"], "scope": "any"}],
-    ),
-    PolicyAdd(
-        "project:update:any",
-        "Update any project",
-        [{"effect": "allow", "actions": ["project:update"], "scope": "any"}],
-    ),
-    PolicyAdd(
-        "project:delete:any",
-        "Delete any project",
-        [{"effect": "allow", "actions": ["project:delete"], "scope": "any"}],
-    ),
-    PolicyAdd(
-        "workflow:read:any",
-        "Read any workflow",
-        [{"effect": "allow", "actions": ["workflow:read"], "scope": "any"}],
-    ),
-    PolicyAdd(
-        "project-role:assign:any",
-        "Assign any project-role",
-        [{"effect": "allow", "actions": ["project-role:assign"], "scope": "any"}],
-    ),
-    PolicyAdd(
-        "project-role:revoke:any",
-        "Revoke any project-role",
-        [{"effect": "allow", "actions": ["project-role:revoke"], "scope": "any"}],
-    ),
-    PolicyAdd(
-        "execution:read:any",
-        "Read any execution",
-        [{"effect": "allow", "actions": ["execution:read"], "scope": "any"}],
-    ),
-    PolicyAdd(
-        "execution:run:any",
-        "Run any execution",
-        [{"effect": "allow", "actions": ["execution:run"], "scope": "any"}],
-    ),
-    PolicyAdd(
-        "workflow:create:any",
-        "Create any workflow",
-        [{"effect": "allow", "actions": ["workflow:create"], "scope": "any"}],
-    ),
-    PolicyAdd(
-        "workflow:update:any",
-        "Update any workflow",
-        [{"effect": "allow", "actions": ["workflow:update"], "scope": "any"}],
-    ),
-    PolicyAdd(
-        "workflow:delete:any",
-        "Delete any workflow",
-        [{"effect": "allow", "actions": ["workflow:delete"], "scope": "any"}],
-    ),
-    PolicyAdd("user:create:any", "Create any user", [{"effect": "allow", "actions": ["user:create"], "scope": "any"}]),
-    PolicyAdd("user:read:any", "Read any user", [{"effect": "allow", "actions": ["user:read"], "scope": "any"}]),
-    PolicyAdd("user:update:any", "Update any user", [{"effect": "allow", "actions": ["user:update"], "scope": "any"}]),
-    PolicyAdd("user:delete:any", "Delete any user", [{"effect": "allow", "actions": ["user:delete"], "scope": "any"}]),
-    PolicyAdd(
-        "group:create:any",
-        "Create any group",
-        [{"effect": "allow", "actions": ["group:create"], "scope": "any"}],
-    ),
-    PolicyAdd("group:read:any", "Read any group", [{"effect": "allow", "actions": ["group:read"], "scope": "any"}]),
-    PolicyAdd(
-        "group:update:any",
-        "Update any group",
-        [{"effect": "allow", "actions": ["group:update"], "scope": "any"}],
-    ),
-    PolicyAdd(
-        "group:delete:any",
-        "Delete any group",
-        [{"effect": "allow", "actions": ["group:delete"], "scope": "any"}],
-    ),
-    PolicyAdd(
-        "group:manage-members:any",
-        "Manage-members any group",
-        [{"effect": "allow", "actions": ["group:manage-members"], "scope": "any"}],
-    ),
-    PolicyAdd("role:create:any", "Create any role", [{"effect": "allow", "actions": ["role:create"], "scope": "any"}]),
-    PolicyAdd("role:update:any", "Update any role", [{"effect": "allow", "actions": ["role:update"], "scope": "any"}]),
-    PolicyAdd("role:delete:any", "Delete any role", [{"effect": "allow", "actions": ["role:delete"], "scope": "any"}]),
-    PolicyAdd(
-        "user-role:assign:any",
-        "Assign any user-role",
-        [{"effect": "allow", "actions": ["user-role:assign"], "scope": "any"}],
-    ),
-    PolicyAdd(
-        "user-role:revoke:any",
-        "Revoke any user-role",
-        [{"effect": "allow", "actions": ["user-role:revoke"], "scope": "any"}],
-    ),
-    PolicyAdd(
-        "group-role:assign:any",
-        "Assign any group-role",
-        [{"effect": "allow", "actions": ["group-role:assign"], "scope": "any"}],
-    ),
-    PolicyAdd(
-        "group-role:revoke:any",
-        "Revoke any group-role",
-        [{"effect": "allow", "actions": ["group-role:revoke"], "scope": "any"}],
-    ),
-    PolicyAdd(
-        "policy:create:any",
-        "Create any policy",
-        [{"effect": "allow", "actions": ["policy:create"], "scope": "any"}],
-    ),
-    PolicyAdd(
-        "policy:update:any",
-        "Update any policy",
-        [{"effect": "allow", "actions": ["policy:update"], "scope": "any"}],
-    ),
-    PolicyAdd(
-        "policy:delete:any",
-        "Delete any policy",
-        [{"effect": "allow", "actions": ["policy:delete"], "scope": "any"}],
-    ),
-    PolicyAdd(
-        "approval:decide:any",
-        "Decide any approval",
-        [{"effect": "allow", "actions": ["approval:decide"], "scope": "any"}],
-    ),
-    PolicyAdd(
-        "approval:create:any",
-        "Create any approval",
-        [{"effect": "allow", "actions": ["approval:create"], "scope": "any"}],
-    ),
-    PolicyAdd("authz:query:any", "Query any authz", [{"effect": "allow", "actions": ["authz:query"], "scope": "any"}]),
-    RolePolicyAppend("admin", "approval:create:any"),
-    RolePolicyAppend("admin", "approval:decide:any"),
-    RolePolicyAppend("admin", "approval:read:any"),
-    RolePolicyAppend("admin", "authz:query:any"),
-    RolePolicyAppend("admin", "execution:read:any"),
-    RolePolicyAppend("admin", "execution:run:any"),
-    RolePolicyAppend("admin", "group-role:assign:any"),
-    RolePolicyAppend("admin", "group-role:revoke:any"),
-    RolePolicyAppend("admin", "group:create:any"),
-    RolePolicyAppend("admin", "group:delete:any"),
-    RolePolicyAppend("admin", "group:manage-members:any"),
-    RolePolicyAppend("admin", "group:read:any"),
-    RolePolicyAppend("admin", "group:update:any"),
-    RolePolicyAppend("admin", "policy:create:any"),
-    RolePolicyAppend("admin", "policy:delete:any"),
-    RolePolicyAppend("admin", "policy:read:any"),
-    RolePolicyAppend("admin", "policy:update:any"),
-    RolePolicyAppend("admin", "project-role:assign:any"),
-    RolePolicyAppend("admin", "project-role:revoke:any"),
-    RolePolicyAppend("admin", "project:create:any"),
-    RolePolicyAppend("admin", "project:delete:any"),
-    RolePolicyAppend("admin", "project:read:any"),
-    RolePolicyAppend("admin", "project:update:any"),
-    RolePolicyAppend("admin", "role:create:any"),
-    RolePolicyAppend("admin", "role:delete:any"),
-    RolePolicyAppend("admin", "role:read:any"),
-    RolePolicyAppend("admin", "role:update:any"),
-    RolePolicyAppend("admin", "user-role:assign:any"),
-    RolePolicyAppend("admin", "user-role:revoke:any"),
-    RolePolicyAppend("admin", "user:create:any"),
-    RolePolicyAppend("admin", "user:delete:any"),
-    RolePolicyAppend("admin", "user:read:any"),
-    RolePolicyAppend("admin", "user:read:self"),
-    RolePolicyAppend("admin", "user:update:any"),
-    RolePolicyAppend("admin", "user:update:self"),
-    RolePolicyAppend("admin", "workflow:create:any"),
-    RolePolicyAppend("admin", "workflow:delete:any"),
-    RolePolicyAppend("admin", "workflow:read:any"),
-    RolePolicyAppend("admin", "workflow:update:any"),
-    RolePolicyAppend("auditor", "approval:read:any"),
-    RolePolicyAppend("auditor", "execution:read:any"),
-    RolePolicyAppend("auditor", "group:read:any"),
-    RolePolicyAppend("auditor", "policy:read:any"),
-    RolePolicyAppend("auditor", "project:read:any"),
-    RolePolicyAppend("auditor", "role:read:any"),
-    RolePolicyAppend("auditor", "user:read:any"),
-    RolePolicyAppend("auditor", "workflow:read:any"),
-    RolePolicyAppend("default", "group:read:any"),
-    RolePolicyAppend("default", "project:create:any"),
-    RolePolicyAppend("default", "user:read:any"),
-    RolePolicyAppend("default", "user:read:self"),
-    RolePolicyAppend("default", "user:update:self"),
-    RolePolicyAppend("project-admin", "approval:decide:any"),
-    RolePolicyAppend("project-admin", "approval:read:any"),
-    RolePolicyAppend("project-admin", "execution:read:any"),
-    RolePolicyAppend("project-admin", "execution:run:any"),
-    RolePolicyAppend("project-admin", "project-role:assign:any"),
-    RolePolicyAppend("project-admin", "project-role:revoke:any"),
-    RolePolicyAppend("project-admin", "project:delete:any"),
-    RolePolicyAppend("project-admin", "project:read:any"),
-    RolePolicyAppend("project-admin", "project:update:any"),
-    RolePolicyAppend("project-admin", "workflow:create:any"),
-    RolePolicyAppend("project-admin", "workflow:delete:any"),
-    RolePolicyAppend("project-admin", "workflow:read:any"),
-    RolePolicyAppend("project-admin", "workflow:update:any"),
-    RolePolicyAppend("project-auditor", "approval:read:any"),
-    RolePolicyAppend("project-auditor", "execution:read:any"),
-    RolePolicyAppend("project-auditor", "project:read:any"),
-    RolePolicyAppend("project-auditor", "workflow:read:any"),
-    RolePolicyAppend("project-user", "approval:decide:any"),
-    RolePolicyAppend("project-user", "approval:read:any"),
-    RolePolicyAppend("project-user", "execution:read:any"),
-    RolePolicyAppend("project-user", "execution:run:any"),
-    RolePolicyAppend("project-user", "project:read:any"),
-    RolePolicyAppend("project-user", "workflow:create:any"),
-    RolePolicyAppend("project-user", "workflow:delete:any"),
-    RolePolicyAppend("project-user", "workflow:read:any"),
-    RolePolicyAppend("project-user", "workflow:update:any"),
-    RolePolicyAppend("user", "approval:decide:any"),
-    RolePolicyAppend("user", "approval:read:any"),
-    RolePolicyAppend("user", "execution:read:any"),
-    RolePolicyAppend("user", "execution:run:any"),
-    RolePolicyAppend("user", "group:read:any"),
-    RolePolicyAppend("user", "project:create:any"),
-    RolePolicyAppend("user", "project:read:any"),
-    RolePolicyAppend("user", "user:read:self"),
-    RolePolicyAppend("user", "user:update:self"),
-    RolePolicyAppend("user", "workflow:create:any"),
-    RolePolicyAppend("user", "workflow:delete:any"),
-    RolePolicyAppend("user", "workflow:read:any"),
-    RolePolicyAppend("user", "workflow:update:any"),
-]
 
 
 def upgrade() -> None:
@@ -542,8 +281,6 @@ def upgrade() -> None:
     op.add_column("workflows", sa.Column("project_id", sa.Uuid(), nullable=True))
     op.create_index(op.f("ix_workflows_project_id"), "workflows", ["project_id"], unique=False)
     op.create_foreign_key("fk_workflows_project_id_projects", "workflows", "projects", ["project_id"], ["id"])
-    apply_role_ops(ROLE_OPS)
-    apply_policy_ops(POLICY_OPS)
     # ### end Alembic commands ###
     # CUSTOM: backfill NULL project_id rows to the default project
     conn = op.get_bind()
@@ -568,10 +305,6 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Downgrade schema."""
-    # CUSTOM: revert seed data before dropping tables
-    revert_policy_ops(POLICY_OPS)
-    revert_role_ops(ROLE_OPS)
-    # END CUSTOM
     # ### commands auto generated by Alembic - please adjust! ###
     op.drop_constraint("fk_workflows_project_id_projects", "workflows", type_="foreignkey")
     op.drop_index(op.f("ix_workflows_project_id"), table_name="workflows")

@@ -10,7 +10,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.models.assignments import GroupRoleAssignment, UserRoleAssignment
 from nexus.authz.models.project import Project
-from nexus.authz.models.role import Role
 from nexus.authz.opa_client import OPAClient
 from nexus.authz.resolver import resolve_effective_policies, resolve_user_groups
 from nexus.core.models.group import Group
@@ -227,16 +226,10 @@ async def assign_project_admin(
         ValueError: If the project-admin role does not exist.
 
     """
-    role_result = await db.exec(select(Role).where(Role.name == PROJECT_ADMIN_ROLE_NAME))
-    role = role_result.first()
-    if not role:
-        msg = f"Built-in role '{PROJECT_ADMIN_ROLE_NAME}' not found"
-        raise ValueError(msg)
-
     assignment = UserRoleAssignment(
         user_id=user_id,
         project_id=project_id,
-        role_id=role.id,
+        role_name=PROJECT_ADMIN_ROLE_NAME,
     )
     db.add(assignment)
     await db.flush()
@@ -245,7 +238,6 @@ async def assign_project_admin(
         "Assigned project-admin role",
         user_id=str(user_id),
         project_id=str(project_id),
-        role_id=str(role.id),
     )
 
     return assignment
@@ -279,15 +271,10 @@ async def assign_authenticated_group_project_user(
     if not group:
         return None
 
-    role_result = await db.exec(select(Role).where(Role.name == PROJECT_USER_ROLE_NAME))
-    role = role_result.first()
-    if not role:
-        return None
-
     assignment = GroupRoleAssignment(
         group_id=group.id,
         project_id=project_id,
-        role_id=role.id,
+        role_name=PROJECT_USER_ROLE_NAME,
     )
     db.add(assignment)
     await db.flush()
@@ -296,7 +283,6 @@ async def assign_authenticated_group_project_user(
         "Assigned project-user role to authenticated group",
         project_id=str(project_id),
         group_id=str(group.id),
-        role_id=str(role.id),
     )
 
     return assignment
