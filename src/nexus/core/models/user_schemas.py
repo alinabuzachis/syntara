@@ -75,3 +75,6 @@ class UserListResponse(ResourcesResponse[UserRead]):
 
 class UserListParams(BaseListParams):
     """Query parameters for listing users."""
+
+    username: str | None = Field(default=None, description="Filter by username")
+    full_name: str | None = Field(default=None, description="Filter by full name")

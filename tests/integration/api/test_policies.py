@@ -14,7 +14,7 @@ from httpx import AsyncClient
 from sqlalchemy import insert
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.authz.models import GroupRoleAssignment
+from nexus.authz.models import PrincipalType, RoleAssignment
 from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
 
@@ -24,7 +24,7 @@ async def _make_admin(session: AsyncSession, user: User) -> None:
     group = Group(name=f"admin-grp-{uuid4()}", description="", labels={})
     session.add(group)
     await session.flush()
-    session.add(GroupRoleAssignment(group_id=group.id, role_name="admin", labels={}))
+    session.add(RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=group.id, role_name="admin"))
     await session.execute(insert(user_groups).values(user_id=user.id, group_id=group.id))
     await session.commit()
 

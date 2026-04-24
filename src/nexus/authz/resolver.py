@@ -11,10 +11,7 @@ import structlog
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.authz.models.assignments import (
-    GroupRoleAssignment,
-    UserRoleAssignment,
-)
+from nexus.authz.models.assignments import PrincipalType, RoleAssignment
 from nexus.authz.models.policy import Policy
 from nexus.authz.models.project import Project
 from nexus.authz.models.role import Role
@@ -180,8 +177,9 @@ async def resolve_effective_policies(
 
     if group_ids:
         group_assignments = await db.exec(
-            select(GroupRoleAssignment).where(
-                GroupRoleAssignment.group_id.in_(group_ids)  # type: ignore[attr-defined]
+            select(RoleAssignment).where(
+                RoleAssignment.principal_type == PrincipalType.GROUP,
+                RoleAssignment.principal_id.in_(group_ids),  # type: ignore[attr-defined]
             )
         )
         for ga in group_assignments.all():
@@ -192,7 +190,12 @@ async def resolve_effective_policies(
 
     await _resolve_roles_to_policies(db, global_group_role_names, seen, result)
 
-    user_assignments = await db.exec(select(UserRoleAssignment).where(UserRoleAssignment.user_id == user_id))
+    user_assignments = await db.exec(
+        select(RoleAssignment).where(
+            RoleAssignment.principal_type == PrincipalType.USER,
+            RoleAssignment.principal_id == user_id,
+        )
+    )
     direct_global_role_names: list[str] = []
     for ua in user_assignments.all():
         if ua.project_id is None:

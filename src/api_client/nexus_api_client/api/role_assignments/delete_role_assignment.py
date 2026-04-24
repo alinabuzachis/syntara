@@ -15,7 +15,7 @@ def _get_kwargs(
 ) -> dict[str, Any]:
     _kwargs: dict[str, Any] = {
         "method": "delete",
-        "url": f"/user-role-assignments/{assignment_id}",
+        "url": f"/role-assignments/{assignment_id}",
     }
 
     return _kwargs
@@ -83,9 +83,9 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[Any | ErrorData]:
-    """Revoke User Role Assignment
+    """Delete Role Assignment
 
-     Remove a user→role assignment. Requires: admin permission.
+     Remove a role assignment.
 
     Args:
         assignment_id (UUID):
@@ -114,9 +114,9 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> Any | ErrorData | None:
-    """Revoke User Role Assignment
+    """Delete Role Assignment
 
-     Remove a user→role assignment. Requires: admin permission.
+     Remove a role assignment.
 
     Args:
         assignment_id (UUID):
@@ -140,9 +140,9 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[Any | ErrorData]:
-    """Revoke User Role Assignment
+    """Delete Role Assignment
 
-     Remove a user→role assignment. Requires: admin permission.
+     Remove a role assignment.
 
     Args:
         assignment_id (UUID):
@@ -169,9 +169,9 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> Any | ErrorData | None:
-    """Revoke User Role Assignment
+    """Delete Role Assignment
 
-     Remove a user→role assignment. Requires: admin permission.
+     Remove a role assignment.
 
     Args:
         assignment_id (UUID):

@@ -7,27 +7,24 @@ from typing import Any
 from ...client import AuthenticatedClient
 from ...types import Response
 from . import (
-    assign_project_group_role,
-    assign_project_role,
     create_project,
     create_project_policy,
     create_project_role,
+    create_project_role_assignment,
     delete_project,
     delete_project_policy,
     delete_project_role,
+    delete_project_role_assignment,
     get_project,
     get_project_policy,
     get_project_role,
     list_project_approvals,
-    list_project_group_role_assignments,
     list_project_role_assignments,
     list_project_workflows,
     list_projects,
     replace_project,
     replace_project_policy,
     replace_project_role,
-    revoke_project_group_role,
-    revoke_project_role,
     update_project,
     update_project_policy,
     update_project_role,
@@ -94,35 +91,17 @@ class ProjectsApi:
     async def async_list_role_assignments(self, **kwargs: Any) -> Response[Any]:
         return await list_project_role_assignments.asyncio_detailed(client=self._client, **kwargs)
 
-    def assign_role(self, **kwargs: Any) -> Response[Any]:
-        return assign_project_role.sync_detailed(client=self._client, **kwargs)
+    def create_role_assignment(self, **kwargs: Any) -> Response[Any]:
+        return create_project_role_assignment.sync_detailed(client=self._client, **kwargs)
 
-    async def async_assign_role(self, **kwargs: Any) -> Response[Any]:
-        return await assign_project_role.asyncio_detailed(client=self._client, **kwargs)
+    async def async_create_role_assignment(self, **kwargs: Any) -> Response[Any]:
+        return await create_project_role_assignment.asyncio_detailed(client=self._client, **kwargs)
 
-    def revoke_role(self, **kwargs: Any) -> Response[Any]:
-        return revoke_project_role.sync_detailed(client=self._client, **kwargs)
+    def delete_role_assignment(self, **kwargs: Any) -> Response[Any]:
+        return delete_project_role_assignment.sync_detailed(client=self._client, **kwargs)
 
-    async def async_revoke_role(self, **kwargs: Any) -> Response[Any]:
-        return await revoke_project_role.asyncio_detailed(client=self._client, **kwargs)
-
-    def list_group_role_assignments(self, **kwargs: Any) -> Response[Any]:
-        return list_project_group_role_assignments.sync_detailed(client=self._client, **kwargs)
-
-    async def async_list_group_role_assignments(self, **kwargs: Any) -> Response[Any]:
-        return await list_project_group_role_assignments.asyncio_detailed(client=self._client, **kwargs)
-
-    def assign_group_role(self, **kwargs: Any) -> Response[Any]:
-        return assign_project_group_role.sync_detailed(client=self._client, **kwargs)
-
-    async def async_assign_group_role(self, **kwargs: Any) -> Response[Any]:
-        return await assign_project_group_role.asyncio_detailed(client=self._client, **kwargs)
-
-    def revoke_group_role(self, **kwargs: Any) -> Response[Any]:
-        return revoke_project_group_role.sync_detailed(client=self._client, **kwargs)
-
-    async def async_revoke_group_role(self, **kwargs: Any) -> Response[Any]:
-        return await revoke_project_group_role.asyncio_detailed(client=self._client, **kwargs)
+    async def async_delete_role_assignment(self, **kwargs: Any) -> Response[Any]:
+        return await delete_project_role_assignment.asyncio_detailed(client=self._client, **kwargs)
 
     def create_role(self, **kwargs: Any) -> Response[Any]:
         return create_project_role.sync_detailed(client=self._client, **kwargs)

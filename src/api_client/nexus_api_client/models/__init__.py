@@ -27,8 +27,6 @@ from .activity_signal_payload_signal_data import ActivitySignalPayloadSignalData
 from .activity_status import ActivityStatus
 from .activity_summary import ActivitySummary
 from .actor_type import ActorType
-from .all_role_assignment_list_response import AllRoleAssignmentListResponse
-from .all_role_assignment_read import AllRoleAssignmentRead
 from .approval_create_request import ApprovalCreateRequest
 from .approval_decision_request import ApprovalDecisionRequest
 from .approval_decision_status import ApprovalDecisionStatus
@@ -99,8 +97,6 @@ from .group_member_add import GroupMemberAdd
 from .group_member_add_response import GroupMemberAddResponse
 from .group_read import GroupRead
 from .group_read_labels import GroupReadLabels
-from .group_role_assignment_create import GroupRoleAssignmentCreate
-from .group_role_assignment_read import GroupRoleAssignmentRead
 from .group_update import GroupUpdate
 from .identity_provider_create import IdentityProviderCreate
 from .identity_provider_list_response import IdentityProviderListResponse
@@ -141,21 +137,21 @@ from .policy_update import PolicyUpdate
 from .policy_update_labels_type_0 import PolicyUpdateLabelsType0
 from .previous_step_context import PreviousStepContext
 from .previous_step_context_output_type_0 import PreviousStepContextOutputType0
+from .principal_type import PrincipalType
 from .project_create import ProjectCreate
 from .project_create_labels import ProjectCreateLabels
-from .project_group_role_assignment_create import ProjectGroupRoleAssignmentCreate
-from .project_group_role_assignment_read import ProjectGroupRoleAssignmentRead
 from .project_policy_create import ProjectPolicyCreate
 from .project_policy_create_labels import ProjectPolicyCreateLabels
 from .project_read import ProjectRead
 from .project_read_labels import ProjectReadLabels
-from .project_role_assignment_create import ProjectRoleAssignmentCreate
-from .project_role_assignment_read import ProjectRoleAssignmentRead
 from .project_role_create import ProjectRoleCreate
 from .project_role_create_labels import ProjectRoleCreateLabels
 from .project_update import ProjectUpdate
 from .project_update_labels_type_0 import ProjectUpdateLabelsType0
 from .provider_status import ProviderStatus
+from .role_assignment_create import RoleAssignmentCreate
+from .role_assignment_list_response import RoleAssignmentListResponse
+from .role_assignment_read import RoleAssignmentRead
 from .role_create import RoleCreate
 from .role_create_labels import RoleCreateLabels
 from .role_list_response import RoleListResponse
@@ -173,6 +169,7 @@ from .setting_update import SettingUpdate
 from .setting_value_type import SettingValueType
 from .settings_list_response import SettingsListResponse
 from .signal_response import SignalResponse
+from .sub_resource_role_assignment_create import SubResourceRoleAssignmentCreate
 from .tool_bulk_update import ToolBulkUpdate
 from .tool_execution import ToolExecution
 from .tool_execution_input_parameters import ToolExecutionInputParameters
@@ -207,8 +204,6 @@ from .user_info import UserInfo
 from .user_list_response import UserListResponse
 from .user_read import UserRead
 from .user_reference import UserReference
-from .user_role_assignment_create import UserRoleAssignmentCreate
-from .user_role_assignment_read import UserRoleAssignmentRead
 from .user_update import UserUpdate
 from .validate_name_resource_type import ValidateNameResourceType
 from .validate_name_response import ValidateNameResponse
@@ -261,8 +256,6 @@ __all__ = (
     "ActivityStatus",
     "ActivitySummary",
     "ActorType",
-    "AllRoleAssignmentListResponse",
-    "AllRoleAssignmentRead",
     "ApprovalCreateRequest",
     "ApprovalDecisionRequest",
     "ApprovalDecisionStatus",
@@ -333,8 +326,6 @@ __all__ = (
     "GroupMemberAddResponse",
     "GroupRead",
     "GroupReadLabels",
-    "GroupRoleAssignmentCreate",
-    "GroupRoleAssignmentRead",
     "GroupUpdate",
     "IdentityProviderCreate",
     "IdentityProviderListResponse",
@@ -375,21 +366,21 @@ __all__ = (
     "PolicyUpdateLabelsType0",
     "PreviousStepContext",
     "PreviousStepContextOutputType0",
+    "PrincipalType",
     "ProjectCreate",
     "ProjectCreateLabels",
-    "ProjectGroupRoleAssignmentCreate",
-    "ProjectGroupRoleAssignmentRead",
     "ProjectPolicyCreate",
     "ProjectPolicyCreateLabels",
     "ProjectRead",
     "ProjectReadLabels",
-    "ProjectRoleAssignmentCreate",
-    "ProjectRoleAssignmentRead",
     "ProjectRoleCreate",
     "ProjectRoleCreateLabels",
     "ProjectUpdate",
     "ProjectUpdateLabelsType0",
     "ProviderStatus",
+    "RoleAssignmentCreate",
+    "RoleAssignmentListResponse",
+    "RoleAssignmentRead",
     "RoleCreate",
     "RoleCreateLabels",
     "RoleListResponse",
@@ -407,6 +398,7 @@ __all__ = (
     "SettingUpdate",
     "SettingValueType",
     "SignalResponse",
+    "SubResourceRoleAssignmentCreate",
     "ToolBulkUpdate",
     "ToolExecution",
     "ToolExecutionInputParameters",
@@ -441,8 +433,6 @@ __all__ = (
     "UserListResponse",
     "UserRead",
     "UserReference",
-    "UserRoleAssignmentCreate",
-    "UserRoleAssignmentRead",
     "UserUpdate",
     "ValidateNameResourceType",
     "ValidateNameResponse",

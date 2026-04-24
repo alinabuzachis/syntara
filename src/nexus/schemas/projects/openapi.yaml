@@ -373,18 +373,15 @@ paths:
       security:
         - bearerAuth: []
 
-  # ── Project User Role Assignments ────────────────────────────────────
+  # ── Project Role Assignments ─────────────────────────────────────────
   /projects/{project_id}/role-assignments:
     post:
-      summary: Assign Project Role
+      summary: Create Project Role Assignment
       description: |-
-        Assign a role to a user within a project.
-
-        Valid roles: project-admin, project-user, project-auditor.
-        Requires: project-role:assign permission scoped to this project.
-      operationId: assign_project_role
+        Assign a role to a user or group within a project.
+      operationId: create_project_role_assignment
       x-app-permission:
-        resource: project-role
+        resource: role-assignment
         action: assign
       tags:
         - Projects
@@ -395,14 +392,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ProjectRoleAssignmentCreate"
+              $ref: "#/components/schemas/RoleAssignmentCreate"
       responses:
         "201":
-          description: Role assigned
+          description: Role assignment created
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ProjectRoleAssignmentRead"
+                $ref: "#/components/schemas/RoleAssignmentRead"
         "400":
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         "401":
@@ -425,7 +422,8 @@ paths:
       description: |-
         List role assignments for a project.
 
-        Admin/auditor/project-admin see all assignments; other users see only their own.
+        Admin/auditor/project-admin see all assignments in the project;
+        other users see only their own.
       operationId: list_project_role_assignments
       x-app-permission:
         resource: null
@@ -434,16 +432,50 @@ paths:
         - Projects
       parameters:
         - $ref: "#/components/parameters/projectIdParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/limitParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/cursorParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/sortParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam"
+        - name: principal_type
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Principal Type
+        - name: principal_id
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                format: uuid
+              - type: 'null'
+            title: Principal Id
+        - name: principal_name
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Principal Name
+        - name: role_name
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Role Name
       responses:
         "200":
           description: List of role assignments
           content:
             application/json:
               schema:
-                type: array
-                title: Response List Project Role Assignments
-                items:
-                  $ref: "#/components/schemas/ProjectRoleAssignmentRead"
+                $ref: "#/components/schemas/RoleAssignmentListResponse"
         "400":
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         "401":
@@ -463,12 +495,12 @@ paths:
         - bearerAuth: []
   /projects/{project_id}/role-assignments/{assignment_id}:
     delete:
-      summary: Revoke Project Role
+      summary: Delete Project Role Assignment
       description: |-
-        Remove a role assignment from a project. Requires: project-role:revoke permission.
-      operationId: revoke_project_role
+        Remove a role assignment from a project.
+      operationId: delete_project_role_assignment
       x-app-permission:
-        resource: project-role
+        resource: role-assignment
         action: revoke
       tags:
         - Projects
@@ -485,217 +517,6 @@ paths:
       responses:
         "204":
           description: Assignment removed
-        "400":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
-        "401":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
-        "404":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
-        "409":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
-        "422":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
-        "500":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
-
-      security:
-        - bearerAuth: []
-
-  # ── Project Group Role Assignments ───────────────────────────────────
-  /projects/{project_id}/group-role-assignments:
-    post:
-      summary: Assign Project Group Role
-      description: |-
-        Assign a role to a group within a project.
-
-        All members of the group inherit the role for this project.
-        Valid roles: project-admin, project-user, project-auditor.
-        Requires: project-role:assign permission scoped to this project.
-      operationId: assign_project_group_role
-      x-app-permission:
-        resource: project-role
-        action: assign
-      tags:
-        - Projects
-      parameters:
-        - $ref: "#/components/parameters/projectIdParam"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ProjectGroupRoleAssignmentCreate"
-      responses:
-        "201":
-          description: Role assigned to group
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ProjectGroupRoleAssignmentRead"
-        "400":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
-        "401":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
-        "404":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
-        "409":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
-        "422":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
-        "500":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
-
-      security:
-        - bearerAuth: []
-    get:
-      summary: List Project Group Role Assignments
-      description: |-
-        List group role assignments for a project.
-
-        Admin/auditor/project-admin see all assignments; other users see only
-        assignments for groups they belong to.
-      operationId: list_project_group_role_assignments
-      x-app-permission:
-        resource: null
-        action: null
-      tags:
-        - Projects
-      parameters:
-        - $ref: "#/components/parameters/projectIdParam"
-      responses:
-        "200":
-          description: List of group role assignments
-          content:
-            application/json:
-              schema:
-                type: array
-                title: Response List Project Group Role Assignments
-                items:
-                  $ref: "#/components/schemas/ProjectGroupRoleAssignmentRead"
-        "400":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
-        "401":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
-        "404":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
-        "409":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
-        "422":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
-        "500":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
-
-      security:
-        - bearerAuth: []
-  /projects/{project_id}/group-role-assignments/{assignment_id}:
-    delete:
-      summary: Revoke Project Group Role
-      description: |-
-        Remove a group role assignment from a project. Requires: project-role:revoke permission.
-      operationId: revoke_project_group_role
-      x-app-permission:
-        resource: project-role
-        action: revoke
-      tags:
-        - Projects
-      parameters:
-        - $ref: "#/components/parameters/projectIdParam"
-        - name: assignment_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            title: Assignment Id
-          description: Assignment UUID
-      responses:
-        "204":
-          description: Assignment removed
-        "400":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
-        "401":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
-        "404":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
-        "409":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
-        "422":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
-        "500":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
-
-      security:
-        - bearerAuth: []
-
-  # ── Project All Role Assignments (unified view) ─────────────────────
-  /projects/{project_id}/all-role-assignments:
-    get:
-      summary: List Project All Role Assignments
-      description: |-
-        List all role assignments (user + group) scoped to a project.
-      operationId: list_project_all_role_assignments
-      x-app-permission:
-        resource: null
-        action: null
-      tags:
-        - Projects
-      parameters:
-        - name: project_id
-          in: path
-          required: true
-          schema:
-            anyOf:
-              - format: uuid
-                type: string
-              - type: 'null'
-            title: Project Id
-          description: Project UUID
-        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/limitParam"
-        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/cursorParam"
-        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/sortParam"
-        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam"
-        - name: principal_type
-          in: query
-          required: false
-          description: Filter by principal type (user or group)
-          schema:
-            anyOf:
-              - type: string
-              - type: 'null'
-            title: Principal Type
-        - name: principal_name
-          in: query
-          required: false
-          description: Filter by principal name (username or group name)
-          schema:
-            anyOf:
-              - type: string
-              - type: 'null'
-            title: Principal Name
-        - name: role_name
-          in: query
-          required: false
-          description: Filter by role name
-          schema:
-            anyOf:
-              - type: string
-              - type: 'null'
-            title: Role Name
-      responses:
-        "200":
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AllRoleAssignmentListResponse"
         "400":
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         "401":
@@ -1386,109 +1207,6 @@ components:
               default: false
               title: Is Default
 
-    ProjectRoleAssignmentCreate:
-      type: object
-      title: ProjectRoleAssignmentCreate
-      description: Request body for assigning a role to a user within a project.
-      required:
-        - user_id
-        - role_name
-      properties:
-        user_id:
-          type: string
-          format: uuid
-          title: User Id
-        role_name:
-          type: string
-          title: Role Name
-
-    ProjectRoleAssignmentRead:
-      type: object
-      title: ProjectRoleAssignmentRead
-      description: Response body for a project role assignment.
-      required:
-        - id
-        - user_id
-        - project_id
-        - role_name
-      properties:
-        id:
-          type: string
-          format: uuid
-          title: Id
-        user_id:
-          type: string
-          format: uuid
-          title: User Id
-        username:
-          type: string
-          default: ""
-          title: Username
-        project_id:
-          type: string
-          format: uuid
-          title: Project Id
-        role_name:
-          type: string
-          title: Role Name
-        created_at:
-          anyOf:
-            - type: string
-              format: date-time
-            - type: "null"
-          title: Created At
-
-    ProjectGroupRoleAssignmentCreate:
-      type: object
-      title: ProjectGroupRoleAssignmentCreate
-      description: Request body for assigning a role to a group within a project.
-      required:
-        - group_id
-        - role_name
-      properties:
-        group_id:
-          type: string
-          format: uuid
-          title: Group Id
-        role_name:
-          type: string
-          title: Role Name
-
-    ProjectGroupRoleAssignmentRead:
-      type: object
-      title: ProjectGroupRoleAssignmentRead
-      description: Response body for a project group role assignment.
-      required:
-        - id
-        - group_id
-        - project_id
-        - role_name
-      properties:
-        id:
-          type: string
-          format: uuid
-          title: Id
-        group_id:
-          type: string
-          format: uuid
-          title: Group Id
-        group_name:
-          type: string
-          default: ""
-          title: Group Name
-        project_id:
-          type: string
-          format: uuid
-          title: Project Id
-        role_name:
-          type: string
-          title: Role Name
-        created_at:
-          anyOf:
-            - type: string
-              format: date-time
-            - type: "null"
-          title: Created At
 
     ProjectRoleCreate:
       type: object
@@ -1552,9 +1270,6 @@ components:
             type: string
           title: Labels
 
-    AllRoleAssignmentListResponse:
-      $ref: "../authz/all_role_assignment.openapi.yaml#/components/schemas/AllRoleAssignmentListResponse"
-
     PolicyStatementSchema:
       $ref: "../authz/policy.openapi.yaml#/components/schemas/PolicyStatementSchema"
 
@@ -1580,6 +1295,13 @@ components:
 
     ApprovalRequestStatus:
       $ref: "../approvals/openapi.yaml#/components/schemas/ApprovalRequestStatus"
+
+    RoleAssignmentCreate:
+      $ref: "../authz/role_assignment.openapi.yaml#/components/schemas/RoleAssignmentCreate"
+    RoleAssignmentRead:
+      $ref: "../authz/role_assignment.openapi.yaml#/components/schemas/RoleAssignmentRead"
+    RoleAssignmentListResponse:
+      $ref: "../authz/role_assignment.openapi.yaml#/components/schemas/RoleAssignmentListResponse"
 
   securitySchemes:
     bearerAuth:

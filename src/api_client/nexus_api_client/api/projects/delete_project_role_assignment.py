@@ -1,36 +1,31 @@
 from http import HTTPStatus
-from typing import Any
+from typing import Any, cast
+from uuid import UUID
 
 import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.error_data import ErrorData
-from ...models.group_role_assignment_read import GroupRoleAssignmentRead
 from ...types import Response
 
 
-def _get_kwargs() -> dict[str, Any]:
+def _get_kwargs(
+    project_id: UUID,
+    assignment_id: UUID,
+) -> dict[str, Any]:
     _kwargs: dict[str, Any] = {
-        "method": "get",
-        "url": "/group-role-assignments",
+        "method": "delete",
+        "url": f"/projects/{project_id}/role-assignments/{assignment_id}",
     }
 
     return _kwargs
 
 
-def _parse_response(
-    *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> ErrorData | list[GroupRoleAssignmentRead] | None:
-    if response.status_code == 200:
-        response_200 = []
-        _response_200 = response.json()
-        for response_200_item_data in _response_200:
-            response_200_item = GroupRoleAssignmentRead.from_dict(response_200_item_data)
-
-            response_200.append(response_200_item)
-
-        return response_200
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | ErrorData | None:
+    if response.status_code == 204:
+        response_204 = cast(Any, None)
+        return response_204
 
     if response.status_code == 400:
         response_400 = ErrorData.from_dict(response.json())
@@ -73,9 +68,7 @@ def _parse_response(
         return None
 
 
-def _build_response(
-    *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[ErrorData | list[GroupRoleAssignmentRead]]:
+def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Any | ErrorData]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -87,25 +80,31 @@ def _build_response(
 
 
 def sync_detailed(
+    project_id: UUID,
+    assignment_id: UUID,
     *,
     client: AuthenticatedClient,
-) -> Response[ErrorData | list[GroupRoleAssignmentRead]]:
-    """List Group Role Assignments
+) -> Response[Any | ErrorData]:
+    """Delete Project Role Assignment
 
-     List system-level group→role assignments.
+     Remove a role assignment from a project.
 
-    Admin/auditor see all assignments; other users see only assignments
-    for groups they belong to.
+    Args:
+        project_id (UUID):
+        assignment_id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorData | list[GroupRoleAssignmentRead]]
+        Response[Any | ErrorData]
     """
 
-    kwargs = _get_kwargs()
+    kwargs = _get_kwargs(
+        project_id=project_id,
+        assignment_id=assignment_id,
+    )
 
     response = client.get_httpx_client().request(
         **kwargs,
@@ -115,49 +114,60 @@ def sync_detailed(
 
 
 def sync(
+    project_id: UUID,
+    assignment_id: UUID,
     *,
     client: AuthenticatedClient,
-) -> ErrorData | list[GroupRoleAssignmentRead] | None:
-    """List Group Role Assignments
+) -> Any | ErrorData | None:
+    """Delete Project Role Assignment
 
-     List system-level group→role assignments.
+     Remove a role assignment from a project.
 
-    Admin/auditor see all assignments; other users see only assignments
-    for groups they belong to.
+    Args:
+        project_id (UUID):
+        assignment_id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorData | list[GroupRoleAssignmentRead]
+        Any | ErrorData
     """
 
     return sync_detailed(
+        project_id=project_id,
+        assignment_id=assignment_id,
         client=client,
     ).parsed
 
 
 async def asyncio_detailed(
+    project_id: UUID,
+    assignment_id: UUID,
     *,
     client: AuthenticatedClient,
-) -> Response[ErrorData | list[GroupRoleAssignmentRead]]:
-    """List Group Role Assignments
+) -> Response[Any | ErrorData]:
+    """Delete Project Role Assignment
 
-     List system-level group→role assignments.
+     Remove a role assignment from a project.
 
-    Admin/auditor see all assignments; other users see only assignments
-    for groups they belong to.
+    Args:
+        project_id (UUID):
+        assignment_id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorData | list[GroupRoleAssignmentRead]]
+        Response[Any | ErrorData]
     """
 
-    kwargs = _get_kwargs()
+    kwargs = _get_kwargs(
+        project_id=project_id,
+        assignment_id=assignment_id,
+    )
 
     response = await client.get_async_httpx_client().request(**kwargs)
 
@@ -165,26 +175,31 @@ async def asyncio_detailed(
 
 
 async def asyncio(
+    project_id: UUID,
+    assignment_id: UUID,
     *,
     client: AuthenticatedClient,
-) -> ErrorData | list[GroupRoleAssignmentRead] | None:
-    """List Group Role Assignments
+) -> Any | ErrorData | None:
+    """Delete Project Role Assignment
 
-     List system-level group→role assignments.
+     Remove a role assignment from a project.
 
-    Admin/auditor see all assignments; other users see only assignments
-    for groups they belong to.
+    Args:
+        project_id (UUID):
+        assignment_id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorData | list[GroupRoleAssignmentRead]
+        Any | ErrorData
     """
 
     return (
         await asyncio_detailed(
+            project_id=project_id,
+            assignment_id=assignment_id,
             client=client,
         )
     ).parsed

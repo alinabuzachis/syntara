@@ -40,6 +40,22 @@ paths:
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/sortParam
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
+        - name: username
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Username
+        - name: full_name
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Full Name
       responses:
         '200':
           description: List of users
@@ -678,6 +694,315 @@ paths:
 
       security:
         - bearerAuth: []
+
+  # ── User Role Assignments ────────────────────────────────────────────
+  /users/{user_id}/role-assignments:
+    post:
+      summary: Create User Role Assignment
+      description: Assign a role to this user.
+      operationId: create_user_role_assignment
+      x-app-permission:
+        resource: role-assignment
+        action: assign
+      tags:
+        - Users
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: User Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubResourceRoleAssignmentCreate"
+      responses:
+        "201":
+          description: Role assignment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoleAssignmentRead"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+      security:
+        - bearerAuth: []
+    get:
+      summary: List User Role Assignments
+      description: List role assignments for a specific user.
+      operationId: list_user_role_assignments
+      x-app-permission:
+        resource: null
+        action: null
+      tags:
+        - Users
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: User Id
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/limitParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/cursorParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/sortParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam"
+        - name: role_name
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Role Name
+        - name: project_id
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                format: uuid
+              - type: 'null'
+            title: Project Id
+      responses:
+        "200":
+          description: List of role assignments for this user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoleAssignmentListResponse"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+      security:
+        - bearerAuth: []
+  /users/{user_id}/role-assignments/{assignment_id}:
+    delete:
+      summary: Delete User Role Assignment
+      description: Remove a role assignment from this user.
+      operationId: delete_user_role_assignment
+      x-app-permission:
+        resource: role-assignment
+        action: revoke
+      tags:
+        - Users
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: User Id
+        - in: path
+          name: assignment_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Assignment Id
+      responses:
+        "204":
+          description: Assignment removed
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+      security:
+        - bearerAuth: []
+
+  # ── Group Role Assignments ───────────────────────────────────────────
+  /groups/{group_id}/role-assignments:
+    post:
+      summary: Create Group Role Assignment
+      description: Assign a role to this group.
+      operationId: create_group_role_assignment
+      x-app-permission:
+        resource: role-assignment
+        action: assign
+      tags:
+        - Groups
+      parameters:
+        - in: path
+          name: group_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Group Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubResourceRoleAssignmentCreate"
+      responses:
+        "201":
+          description: Role assignment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoleAssignmentRead"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+      security:
+        - bearerAuth: []
+    get:
+      summary: List Group Role Assignments
+      description: List role assignments for a specific group.
+      operationId: list_group_role_assignments
+      x-app-permission:
+        resource: null
+        action: null
+      tags:
+        - Groups
+      parameters:
+        - in: path
+          name: group_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Group Id
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/limitParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/cursorParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/sortParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam"
+        - name: role_name
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Role Name
+        - name: project_id
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                format: uuid
+              - type: 'null'
+            title: Project Id
+      responses:
+        "200":
+          description: List of role assignments for this group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoleAssignmentListResponse"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+      security:
+        - bearerAuth: []
+  /groups/{group_id}/role-assignments/{assignment_id}:
+    delete:
+      summary: Delete Group Role Assignment
+      description: Remove a role assignment from this group.
+      operationId: delete_group_role_assignment
+      x-app-permission:
+        resource: role-assignment
+        action: revoke
+      tags:
+        - Groups
+      parameters:
+        - in: path
+          name: group_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Group Id
+        - in: path
+          name: assignment_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Assignment Id
+      responses:
+        "204":
+          description: Assignment removed
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+      security:
+        - bearerAuth: []
+
 components:
   schemas:
     # ── User schemas ────────────────────────────────────────────────
@@ -969,6 +1294,14 @@ components:
           default: Member added successfully
           description: Confirmation message
           title: Message
+
+    # ── Role Assignment schema aliases (from authz/role_assignment) ──
+    SubResourceRoleAssignmentCreate:
+      $ref: "../authz/role_assignment.openapi.yaml#/components/schemas/SubResourceRoleAssignmentCreate"
+    RoleAssignmentRead:
+      $ref: "../authz/role_assignment.openapi.yaml#/components/schemas/RoleAssignmentRead"
+    RoleAssignmentListResponse:
+      $ref: "../authz/role_assignment.openapi.yaml#/components/schemas/RoleAssignmentListResponse"
 
   securitySchemes:
     bearerAuth:

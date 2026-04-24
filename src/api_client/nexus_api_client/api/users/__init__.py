@@ -6,7 +6,18 @@ from typing import Any
 
 from ...client import AuthenticatedClient
 from ...types import Response
-from . import create_user, delete_user, get_user, list_user_groups, list_users, set_user_groups, update_user
+from . import (
+    create_user,
+    create_user_role_assignment,
+    delete_user,
+    delete_user_role_assignment,
+    get_user,
+    list_user_groups,
+    list_user_role_assignments,
+    list_users,
+    set_user_groups,
+    update_user,
+)
 
 
 class UsersApi:
@@ -56,3 +67,21 @@ class UsersApi:
 
     async def async_set_groups(self, **kwargs: Any) -> Response[Any]:
         return await set_user_groups.asyncio_detailed(client=self._client, **kwargs)
+
+    def list_role_assignments(self, **kwargs: Any) -> Response[Any]:
+        return list_user_role_assignments.sync_detailed(client=self._client, **kwargs)
+
+    async def async_list_role_assignments(self, **kwargs: Any) -> Response[Any]:
+        return await list_user_role_assignments.asyncio_detailed(client=self._client, **kwargs)
+
+    def create_role_assignment(self, **kwargs: Any) -> Response[Any]:
+        return create_user_role_assignment.sync_detailed(client=self._client, **kwargs)
+
+    async def async_create_role_assignment(self, **kwargs: Any) -> Response[Any]:
+        return await create_user_role_assignment.asyncio_detailed(client=self._client, **kwargs)
+
+    def delete_role_assignment(self, **kwargs: Any) -> Response[Any]:
+        return delete_user_role_assignment.sync_detailed(client=self._client, **kwargs)
+
+    async def async_delete_role_assignment(self, **kwargs: Any) -> Response[Any]:
+        return await delete_user_role_assignment.asyncio_detailed(client=self._client, **kwargs)

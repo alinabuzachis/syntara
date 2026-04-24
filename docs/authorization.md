@@ -87,15 +87,14 @@ The authorization system uses these tables:
 | `role_policies` | `RolePolicyLink` | `src/nexus/authz/models/role.py` | Many-to-many join table linking custom roles to custom policies |
 | `groups` | `Group` | `src/nexus/core/models/group.py` | User groups with labels |
 | `user_groups` | *(association table)* | `src/nexus/core/models/group.py` | User-to-group membership (SQLAlchemy Table) |
-| `user_role_assignments` | `UserRoleAssignment` | `src/nexus/authz/models/assignments.py` | User-to-role with optional `project_id`; references roles by `role_name` (string) |
-| `group_role_assignments` | `GroupRoleAssignment` | `src/nexus/authz/models/assignments.py` | Group-to-role with optional `project_id`; references roles by `role_name` (string) |
+| `role_assignments` | `RoleAssignment` | `src/nexus/authz/models/assignments.py` | Principal-to-role with `principal_type` (user/group), `principal_id`, optional `project_id`; references roles by `role_name` (string) |
 | `projects` | `Project` | `src/nexus/authz/models/project.py` | Resource isolation boundaries |
 
 Built-in roles and policies are **not** stored in these tables. They live in `role_conventions.py` and are resolved at runtime by the policy resolver, then merged into API list/get responses by the service layer.
 
 Role assignments reference roles by **name** (string), which allows a single assignment to refer to either a built-in role or a custom database role.
 
-Both assignment tables use a **nullable `project_id`** column with conditional unique indexes to handle global and project-scoped assignments in a single table.
+The `role_assignments` table uses a `principal_type` discriminator ('user' or 'group') and a **nullable `project_id`** column with conditional unique indexes to handle global and project-scoped assignments in a single table.
 
 ## How Roles Are Assigned
 
@@ -103,14 +102,14 @@ Roles reach users through multiple paths:
 
 ```
 User
-├── Direct: UserRoleAssignment (project_id=NULL) → Role → Policies (global scope)
-├── Direct: UserRoleAssignment (project_id=X)    → Role → Policies (project scope)
+├── Direct: RoleAssignment (principal_type=user, project_id=NULL) → Role → Policies (global scope)
+├── Direct: RoleAssignment (principal_type=user, project_id=X)    → Role → Policies (project scope)
 ├── Groups:
-│   └── GroupMembership → Group → GroupRoleAssignment (project_id=NULL) → Role → Policies (global)
-│   └── GroupMembership → Group → GroupRoleAssignment (project_id=X)    → Role → Policies (project)
+│   └── GroupMembership → Group → RoleAssignment (principal_type=group, project_id=NULL) → Role → Policies (global)
+│   └── GroupMembership → Group → RoleAssignment (principal_type=group, project_id=X)    → Role → Policies (project)
 ```
 
-Both `UserRoleAssignment` and `GroupRoleAssignment` use a nullable `project_id` column to distinguish scope:
+`RoleAssignment` uses a nullable `project_id` column to distinguish scope:
 
 - **`project_id IS NULL`** → global assignment, policies apply system-wide
 - **`project_id IS NOT NULL`** → project-scoped assignment, policies apply only within that project
@@ -123,9 +122,9 @@ On first boot, the seed module (`src/nexus/authz/seed.py`) creates:
 - `admins` group (builtin)
 - `default` project
 - `admin` user (member of `admins` group)
-- `default` role → `authenticated` group via `GroupRoleAssignment` with `project_id=NULL` (global)
-- `admin` role → `admins` group via `GroupRoleAssignment` with `project_id=NULL` (global)
-- `project-user` role → `authenticated` group via `GroupRoleAssignment` with `project_id=<default project>` (project-scoped)
+- `default` role → `authenticated` group via `RoleAssignment` (principal_type=group, project_id=NULL, global)
+- `admin` role → `admins` group via `RoleAssignment` (principal_type=group, project_id=NULL, global)
+- `project-user` role → `authenticated` group via `RoleAssignment` (principal_type=group, project_id=default project, project-scoped)
 
 This means every authenticated user can immediately read/update their own profile, create projects, and work with workflows/executions in the `default` project.
 
@@ -269,15 +268,18 @@ The `/authz` router provides introspection endpoints (all POST):
 | `POST /authz/who-can` | List users who can perform an action (debug) |
 | `POST /authz/what-can-i` | List all permissions for the current user |
 
-## Unified Role Assignment List
+## Unified Role Assignment Endpoints
 
-The `/all-role-assignments` endpoint provides a single paginated view of both user and group role assignments combined.
+The `/role-assignments` endpoints provide a unified view of both user and group role assignments.
 
 ```
-GET /all-role-assignments
+POST   /role-assignments           — create (global or project-scoped)
+GET    /role-assignments           — list with project-aware visibility
+GET    /role-assignments/{id}      — detail with project-aware visibility
+DELETE /role-assignments/{id}      — revoke
 ```
 
-**Query parameters:**
+**Query parameters (list):**
 
 | Parameter | Description |
 |-----------|-------------|
@@ -290,25 +292,19 @@ GET /all-role-assignments
 | `limit` | Page size |
 | `include_total` | Include total count |
 
-**Visibility:** Admins see all assignments; other users see only their own user assignments and assignments for groups they belong to.
-
-A project-scoped variant is available at `GET /projects/{project_id}/all-role-assignments`.
+**Visibility:** Admins/auditors see all. Project-admins see their own plus all assignments in projects they administer. Other users see only their own (direct and via groups).
 
 ## Project Admin Endpoints
 
-Projects expose a full set of admin endpoints for managing role assignments, custom roles, and custom policies within the project scope. All are under `/projects/{project_id}/...`.
+Projects expose convenience endpoints for managing role assignments, custom roles, and custom policies within the project scope. All are under `/projects/{project_id}/...`.
 
 ### Role Assignments
 
 | Endpoint | Permission | Description |
 |----------|------------|-------------|
-| `POST /{project_id}/role-assignments` | `project-role:assign` | Assign a role to a user within the project |
-| `GET /{project_id}/role-assignments` | *(visibility-based)* | List user role assignments for the project |
-| `DELETE /{project_id}/role-assignments/{id}` | `project-role:revoke` | Remove a user role assignment |
-| `POST /{project_id}/group-role-assignments` | `project-role:assign` | Assign a role to a group within the project |
-| `GET /{project_id}/group-role-assignments` | *(visibility-based)* | List group role assignments for the project |
-| `DELETE /{project_id}/group-role-assignments/{id}` | `project-role:revoke` | Remove a group role assignment |
-| `GET /{project_id}/all-role-assignments` | *(visibility-based)* | Unified view of user + group assignments |
+| `POST /{project_id}/role-assignments` | `role-assignment:assign` | Assign a role to a user or group within the project |
+| `GET /{project_id}/role-assignments` | *(visibility-based)* | List role assignments for the project |
+| `DELETE /{project_id}/role-assignments/{id}` | `role-assignment:revoke` | Remove a role assignment |
 
 For visibility-based endpoints: admin/auditor/project-admin see all assignments; other users see only their own.
 

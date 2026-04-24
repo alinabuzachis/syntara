@@ -14,16 +14,17 @@ from nexus.approvals.models.approval_request import ApprovalListResponse
 from nexus.approvals.models.query_params import ApprovalListParams
 from nexus.approvals.services.approval_service import ApprovalService
 from nexus.auth import get_current_user
-from nexus.authz.all_role_assignment_router import (
-    AllRoleAssignmentListParams,
-    AllRoleAssignmentListResponse,
-    AllRoleAssignmentRead,
-    _resolve_visibility,
-)
 from nexus.authz.dependencies import PermissionChecker, ProjectScopeFilter, get_opa_client
 from nexus.authz.engine import AllowedProjectsResult, AuthzRequest, authorize
 from nexus.authz.exceptions import PolicyNotFoundError, RoleNotFoundError
 from nexus.authz.resolver import get_user_group_ids
+from nexus.authz.role_assignment_router import (
+    ProjectRoleAssignmentListParams,
+    RoleAssignmentCreate,
+    RoleAssignmentListResponse,
+    RoleAssignmentRead,
+    _parse_contains_filters,
+)
 from nexus.authz.schemas import (
     PolicyListParams,
     PolicyListResponse,
@@ -34,20 +35,16 @@ from nexus.authz.schemas import (
     RoleRead,
     RoleUpdate,
 )
-from nexus.authz.services.all_role_assignment_service import AllRoleAssignmentService
 from nexus.authz.services.policy_service import PolicyService
+from nexus.authz.services.role_assignment_service import RoleAssignmentService
 from nexus.authz.services.role_service import RoleService
 from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
 from nexus.projects.schemas import (
     ProjectCreate,
-    ProjectGroupRoleAssignmentCreate,
-    ProjectGroupRoleAssignmentRead,
     ProjectPolicyCreate,
     ProjectRead,
-    ProjectRoleAssignmentCreate,
-    ProjectRoleAssignmentRead,
     ProjectRoleCreate,
     ProjectUpdate,
 )
@@ -63,8 +60,8 @@ _perm_project_update = PermissionChecker("project", "update", project_param="pro
 _perm_project_delete = PermissionChecker("project", "delete", project_param="project_id")
 _perm_workflow_read = PermissionChecker("workflow", "read", project_param="project_id")
 _perm_approval_read = PermissionChecker("approval", "read", project_param="project_id")
-_perm_project_role_assign = PermissionChecker("project-role", "assign", project_param="project_id")
-_perm_project_role_revoke = PermissionChecker("project-role", "revoke", project_param="project_id")
+_perm_role_assignment_assign = PermissionChecker("role-assignment", "assign", project_param="project_id")
+_perm_role_assignment_revoke = PermissionChecker("role-assignment", "revoke", project_param="project_id")
 _perm_role_create = PermissionChecker("role", "create", project_param="project_id")
 _perm_role_read = PermissionChecker("role", "read", project_param="project_id")
 _perm_role_update = PermissionChecker("role", "update", project_param="project_id")
@@ -97,6 +94,13 @@ def get_policy_service(
 ) -> PolicyService:
     """Dependency provider for PolicyService."""
     return PolicyService(db, current_user)
+
+
+def _get_role_assignment_service(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> RoleAssignmentService:
+    return RoleAssignmentService(db, current_user)
 
 
 # ============================================================================
@@ -296,44 +300,32 @@ async def list_project_approvals(
 
 
 # ============================================================================
-# Project Role Assignments
+# Project Role Assignments (convenience endpoints calling RoleAssignmentService)
 # ============================================================================
 
 
 @router.post(
     "/{project_id}/role-assignments",
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(_perm_project_role_assign)],
-    operation_id="assign_project_role",
-    response_description="Role assigned",
+    dependencies=[Depends(_perm_role_assignment_assign)],
+    operation_id="create_project_role_assignment",
+    response_description="Role assignment created",
 )
-async def assign_project_role(
+async def create_project_role_assignment(
     project_id: UUID,
-    body: ProjectRoleAssignmentCreate,
-    service: Annotated[ProjectService, Depends(get_project_service)],
-) -> ProjectRoleAssignmentRead:
-    """Assign a role to a user within a project.
-
-    Valid roles: project-admin, project-user, project-auditor.
-    Requires: project-role:assign permission scoped to this project.
-    """
-    assignment = await service.assign_role(
-        project_id=project_id,
-        user_id=body.user_id,
+    body: RoleAssignmentCreate,
+    service: Annotated[RoleAssignmentService, Depends(_get_role_assignment_service)],
+    project_service: Annotated[ProjectService, Depends(get_project_service)],
+) -> RoleAssignmentRead:
+    """Assign a role to a user or group within a project."""
+    await project_service.get_project(project_id)
+    result = await service.assign(
+        principal_type=body.principal_type,
+        principal_id=body.principal_id,
         role_name=body.role_name,
+        project_id=project_id,
     )
-    # Re-fetch to resolve username via join
-    assignments = await service.list_role_assignments(project_id)
-    match = next((a for a in assignments if a["id"] == assignment.id), None)
-    if match:
-        return ProjectRoleAssignmentRead.model_validate(match)
-    return ProjectRoleAssignmentRead(
-        id=assignment.id,
-        user_id=assignment.user_id,
-        project_id=assignment.project_id,
-        role_name=assignment.role_name,
-        created_at=assignment.created_at,
-    )
+    return RoleAssignmentRead.model_validate(result)
 
 
 @router.get(
@@ -345,15 +337,18 @@ async def assign_project_role(
 async def list_project_role_assignments(
     project_id: UUID,
     request: Request,
-    service: Annotated[ProjectService, Depends(get_project_service)],
+    params: Annotated[ProjectRoleAssignmentListParams, Depends()],
+    service: Annotated[RoleAssignmentService, Depends(_get_role_assignment_service)],
+    project_service: Annotated[ProjectService, Depends(get_project_service)],
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
-) -> list[ProjectRoleAssignmentRead]:
+) -> RoleAssignmentListResponse:
     """List role assignments for a project.
 
-    Admin/auditor/project-admin see all assignments; other users see only their own.
+    Admin/auditor/project-admin see all assignments in the project;
+    other users see only their own.
     """
-    project_name = (await service.get_project(project_id)).name
+    project = await project_service.get_project(project_id)
     opa_client = get_opa_client(request)
     authz_result = await authorize(
         db,
@@ -361,130 +356,57 @@ async def list_project_role_assignments(
         AuthzRequest(
             user_id=current_user.id,
             action="read",
-            resource_type="project-role",
+            resource_type="role-assignment",
             resource_id="",
-            resource_project=project_name,
+            resource_project=project.name,
             user_labels=current_user.labels,
             user_metadata=current_user.authz_metadata,
         ),
     )
-    user_id = None if authz_result.allowed else current_user.id
-    assignments = await service.list_role_assignments(project_id, user_id=user_id)
-    return [ProjectRoleAssignmentRead.model_validate(a) for a in assignments]
+    restrict_user_id = None
+    restrict_group_ids = None
+    if not authz_result.allowed:
+        restrict_user_id = current_user.id
+        restrict_group_ids = await get_user_group_ids(db, current_user.id)
+
+    contains = _parse_contains_filters(request)
+    result = await service.list(
+        limit=params.limit,
+        cursor=params.cursor,
+        sort=params.sort,
+        principal_type=params.principal_type,
+        principal_id=params.principal_id,
+        principal_name=params.principal_name,
+        principal_name_contains=contains.get("principal_name_contains"),
+        role_name=params.role_name,
+        role_name_contains=contains.get("role_name_contains"),
+        project_id=project_id,
+        include_total=params.include_total,
+        restrict_user_id=restrict_user_id,
+        restrict_group_ids=restrict_group_ids,
+    )
+    return RoleAssignmentListResponse(
+        resources=[RoleAssignmentRead.model_validate(r) for r in result["resources"]],
+        next=result["next"],
+        prev=result["prev"],
+        total=result["total"],
+    )
 
 
 @router.delete(
     "/{project_id}/role-assignments/{assignment_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(_perm_project_role_revoke)],
-    operation_id="revoke_project_role",
+    dependencies=[Depends(_perm_role_assignment_revoke)],
+    operation_id="delete_project_role_assignment",
     response_description="Assignment removed",
 )
-async def revoke_project_role(
+async def delete_project_role_assignment(
     project_id: UUID,
     assignment_id: UUID,
-    service: Annotated[ProjectService, Depends(get_project_service)],
+    service: Annotated[RoleAssignmentService, Depends(_get_role_assignment_service)],
 ) -> None:
-    """Remove a role assignment from a project. Requires: project-role:revoke permission."""
-    await service.revoke_role(project_id, assignment_id)
-
-
-# ============================================================================
-# Project Group Role Assignments
-# ============================================================================
-
-
-@router.post(
-    "/{project_id}/group-role-assignments",
-    status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(_perm_project_role_assign)],
-    operation_id="assign_project_group_role",
-    response_description="Role assigned to group",
-)
-async def assign_project_group_role(
-    project_id: UUID,
-    body: ProjectGroupRoleAssignmentCreate,
-    service: Annotated[ProjectService, Depends(get_project_service)],
-) -> ProjectGroupRoleAssignmentRead:
-    """Assign a role to a group within a project.
-
-    All members of the group inherit the role for this project.
-    Valid roles: project-admin, project-user, project-auditor.
-    Requires: project-role:assign permission scoped to this project.
-    """
-    assignment = await service.assign_group_role(
-        project_id=project_id,
-        group_id=body.group_id,
-        role_name=body.role_name,
-    )
-    # Re-fetch to resolve group_name via join
-    assignments = await service.list_group_role_assignments(project_id)
-    match = next((a for a in assignments if a["id"] == assignment.id), None)
-    if match:
-        return ProjectGroupRoleAssignmentRead.model_validate(match)
-    return ProjectGroupRoleAssignmentRead(
-        id=assignment.id,
-        group_id=assignment.group_id,
-        project_id=assignment.project_id,
-        role_name=assignment.role_name,
-        created_at=assignment.created_at,
-    )
-
-
-@router.get(
-    "/{project_id}/group-role-assignments",
-    dependencies=[NO_PERMISSION],
-    operation_id="list_project_group_role_assignments",
-    response_description="List of group role assignments",
-)
-async def list_project_group_role_assignments(
-    project_id: UUID,
-    request: Request,
-    service: Annotated[ProjectService, Depends(get_project_service)],
-    current_user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-) -> list[ProjectGroupRoleAssignmentRead]:
-    """List group role assignments for a project.
-
-    Admin/auditor/project-admin see all assignments; other users see only
-    assignments for groups they belong to.
-    """
-    project_name = (await service.get_project(project_id)).name
-    opa_client = get_opa_client(request)
-    authz_result = await authorize(
-        db,
-        opa_client,
-        AuthzRequest(
-            user_id=current_user.id,
-            action="read",
-            resource_type="project-role",
-            resource_id="",
-            resource_project=project_name,
-            user_labels=current_user.labels,
-            user_metadata=current_user.authz_metadata,
-        ),
-    )
-    group_ids = None
-    if not authz_result.allowed:
-        group_ids = await get_user_group_ids(db, current_user.id)
-    assignments = await service.list_group_role_assignments(project_id, group_ids=group_ids)
-    return [ProjectGroupRoleAssignmentRead.model_validate(a) for a in assignments]
-
-
-@router.delete(
-    "/{project_id}/group-role-assignments/{assignment_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(_perm_project_role_revoke)],
-    operation_id="revoke_project_group_role",
-    response_description="Assignment removed",
-)
-async def revoke_project_group_role(
-    project_id: UUID,
-    assignment_id: UUID,
-    service: Annotated[ProjectService, Depends(get_project_service)],
-) -> None:
-    """Remove a group role assignment from a project. Requires: project-role:revoke permission."""
-    await service.revoke_group_role(project_id, assignment_id)
+    """Remove a role assignment from a project."""
+    await service.revoke(assignment_id, project_id=project_id)
 
 
 # ============================================================================
@@ -776,57 +698,3 @@ async def delete_project_policy(
         msg = f"Policy {policy_id} not found in project {project_id}"
         raise PolicyNotFoundError(msg)
     await service.delete_policy(policy_id)
-
-
-# ============================================================================
-# Project-scoped All Role Assignments (unified view)
-# ============================================================================
-
-
-def _get_all_role_assignment_service(
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
-) -> AllRoleAssignmentService:
-    return AllRoleAssignmentService(db, current_user)
-
-
-@router.get(
-    "/{project_id}/all-role-assignments", dependencies=[NO_PERMISSION], operation_id="list_project_all_role_assignments"
-)
-async def list_project_all_role_assignments(
-    project_id: Annotated[UUID, Path(description="Project UUID")],
-    request: Request,
-    params: Annotated[AllRoleAssignmentListParams, Depends()],
-    service: Annotated[AllRoleAssignmentService, Depends(_get_all_role_assignment_service)],
-    project_service: Annotated[ProjectService, Depends(get_project_service)],
-    current_user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-) -> AllRoleAssignmentListResponse:
-    """List all role assignments (user + group) scoped to a project."""
-    project = await project_service.get_project(project_id)
-
-    restrict_user_id, restrict_group_ids = await _resolve_visibility(
-        db,
-        request,
-        current_user,
-        resource_project=project.name,
-    )
-
-    result = await service.list_all(
-        limit=params.limit,
-        cursor=params.cursor,
-        sort=params.sort,
-        principal_type=params.principal_type,
-        principal_name=params.principal_name,
-        role_name=params.role_name,
-        project_id=project_id,
-        include_total=params.include_total,
-        restrict_user_id=restrict_user_id,
-        restrict_group_ids=restrict_group_ids,
-    )
-    return AllRoleAssignmentListResponse(
-        resources=[AllRoleAssignmentRead(**r) for r in result["resources"]],
-        next=result["next"],
-        prev=result["prev"],
-        total=result["total"],
-    )

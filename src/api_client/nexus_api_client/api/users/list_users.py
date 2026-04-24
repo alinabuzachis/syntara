@@ -16,6 +16,8 @@ def _get_kwargs(
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
+    username: None | str | Unset = UNSET,
+    full_name: None | str | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     params: dict[str, Any] = {}
@@ -39,6 +41,20 @@ def _get_kwargs(
     params["sort"] = json_sort
 
     params["include_total"] = include_total
+
+    json_username: None | str | Unset
+    if isinstance(username, Unset):
+        json_username = UNSET
+    else:
+        json_username = username
+    params["username"] = json_username
+
+    json_full_name: None | str | Unset
+    if isinstance(full_name, Unset):
+        json_full_name = UNSET
+    else:
+        json_full_name = full_name
+    params["full_name"] = json_full_name
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
@@ -120,6 +136,8 @@ def sync_detailed(
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
+    username: None | str | Unset = UNSET,
+    full_name: None | str | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | UserListResponse]:
     """List Users
@@ -133,6 +151,8 @@ def sync_detailed(
         cursor (None | str | Unset): Pagination cursor from previous response
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
+        username (None | str | Unset):
+        full_name (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -143,7 +163,13 @@ def sync_detailed(
     """
 
     kwargs = _get_kwargs(
-        limit=limit, cursor=cursor, sort=sort, include_total=include_total, additional_params=additional_params
+        limit=limit,
+        cursor=cursor,
+        sort=sort,
+        include_total=include_total,
+        username=username,
+        full_name=full_name,
+        additional_params=additional_params,
     )
 
     response = client.get_httpx_client().request(
@@ -160,6 +186,8 @@ def sync(
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
+    username: None | str | Unset = UNSET,
+    full_name: None | str | Unset = UNSET,
 ) -> ErrorData | UserListResponse | None:
     """List Users
 
@@ -172,6 +200,8 @@ def sync(
         cursor (None | str | Unset): Pagination cursor from previous response
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
+        username (None | str | Unset):
+        full_name (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -187,6 +217,8 @@ def sync(
         cursor=cursor,
         sort=sort,
         include_total=include_total,
+        username=username,
+        full_name=full_name,
     ).parsed
 
 
@@ -197,6 +229,8 @@ async def asyncio_detailed(
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
+    username: None | str | Unset = UNSET,
+    full_name: None | str | Unset = UNSET,
 ) -> Response[ErrorData | UserListResponse]:
     """List Users
 
@@ -209,6 +243,8 @@ async def asyncio_detailed(
         cursor (None | str | Unset): Pagination cursor from previous response
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
+        username (None | str | Unset):
+        full_name (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -223,6 +259,8 @@ async def asyncio_detailed(
         cursor=cursor,
         sort=sort,
         include_total=include_total,
+        username=username,
+        full_name=full_name,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -237,6 +275,8 @@ async def asyncio(
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
+    username: None | str | Unset = UNSET,
+    full_name: None | str | Unset = UNSET,
 ) -> ErrorData | UserListResponse | None:
     """List Users
 
@@ -249,6 +289,8 @@ async def asyncio(
         cursor (None | str | Unset): Pagination cursor from previous response
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
+        username (None | str | Unset):
+        full_name (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -265,5 +307,7 @@ async def asyncio(
             cursor=cursor,
             sort=sort,
             include_total=include_total,
+            username=username,
+            full_name=full_name,
         )
     ).parsed

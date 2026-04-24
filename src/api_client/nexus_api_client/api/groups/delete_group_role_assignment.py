@@ -1,42 +1,31 @@
 from http import HTTPStatus
-from typing import Any
+from typing import Any, cast
+from uuid import UUID
 
 import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.error_data import ErrorData
-from ...models.user_role_assignment_create import UserRoleAssignmentCreate
-from ...models.user_role_assignment_read import UserRoleAssignmentRead
 from ...types import Response
 
 
 def _get_kwargs(
-    *,
-    body: UserRoleAssignmentCreate,
+    group_id: UUID,
+    assignment_id: UUID,
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-
     _kwargs: dict[str, Any] = {
-        "method": "post",
-        "url": "/user-role-assignments",
+        "method": "delete",
+        "url": f"/groups/{group_id}/role-assignments/{assignment_id}",
     }
 
-    _kwargs["json"] = body.to_dict()
-
-    headers["Content-Type"] = "application/json"
-
-    _kwargs["headers"] = headers
     return _kwargs
 
 
-def _parse_response(
-    *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> ErrorData | UserRoleAssignmentRead | None:
-    if response.status_code == 201:
-        response_201 = UserRoleAssignmentRead.from_dict(response.json())
-
-        return response_201
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | ErrorData | None:
+    if response.status_code == 204:
+        response_204 = cast(Any, None)
+        return response_204
 
     if response.status_code == 400:
         response_400 = ErrorData.from_dict(response.json())
@@ -79,9 +68,7 @@ def _parse_response(
         return None
 
 
-def _build_response(
-    *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[ErrorData | UserRoleAssignmentRead]:
+def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Any | ErrorData]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -93,27 +80,30 @@ def _build_response(
 
 
 def sync_detailed(
+    group_id: UUID,
+    assignment_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: UserRoleAssignmentCreate,
-) -> Response[ErrorData | UserRoleAssignmentRead]:
-    """Assign User Role
+) -> Response[Any | ErrorData]:
+    """Delete Group Role Assignment
 
-     Assign a role directly to a user (system-level). Requires: admin permission.
+     Remove a role assignment from this group.
 
     Args:
-        body (UserRoleAssignmentCreate): Request body for assigning a role to a user.
+        group_id (UUID):
+        assignment_id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorData | UserRoleAssignmentRead]
+        Response[Any | ErrorData]
     """
 
     kwargs = _get_kwargs(
-        body=body,
+        group_id=group_id,
+        assignment_id=assignment_id,
     )
 
     response = client.get_httpx_client().request(
@@ -124,53 +114,59 @@ def sync_detailed(
 
 
 def sync(
+    group_id: UUID,
+    assignment_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: UserRoleAssignmentCreate,
-) -> ErrorData | UserRoleAssignmentRead | None:
-    """Assign User Role
+) -> Any | ErrorData | None:
+    """Delete Group Role Assignment
 
-     Assign a role directly to a user (system-level). Requires: admin permission.
+     Remove a role assignment from this group.
 
     Args:
-        body (UserRoleAssignmentCreate): Request body for assigning a role to a user.
+        group_id (UUID):
+        assignment_id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorData | UserRoleAssignmentRead
+        Any | ErrorData
     """
 
     return sync_detailed(
+        group_id=group_id,
+        assignment_id=assignment_id,
         client=client,
-        body=body,
     ).parsed
 
 
 async def asyncio_detailed(
+    group_id: UUID,
+    assignment_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: UserRoleAssignmentCreate,
-) -> Response[ErrorData | UserRoleAssignmentRead]:
-    """Assign User Role
+) -> Response[Any | ErrorData]:
+    """Delete Group Role Assignment
 
-     Assign a role directly to a user (system-level). Requires: admin permission.
+     Remove a role assignment from this group.
 
     Args:
-        body (UserRoleAssignmentCreate): Request body for assigning a role to a user.
+        group_id (UUID):
+        assignment_id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorData | UserRoleAssignmentRead]
+        Response[Any | ErrorData]
     """
 
     kwargs = _get_kwargs(
-        body=body,
+        group_id=group_id,
+        assignment_id=assignment_id,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -179,28 +175,31 @@ async def asyncio_detailed(
 
 
 async def asyncio(
+    group_id: UUID,
+    assignment_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: UserRoleAssignmentCreate,
-) -> ErrorData | UserRoleAssignmentRead | None:
-    """Assign User Role
+) -> Any | ErrorData | None:
+    """Delete Group Role Assignment
 
-     Assign a role directly to a user (system-level). Requires: admin permission.
+     Remove a role assignment from this group.
 
     Args:
-        body (UserRoleAssignmentCreate): Request body for assigning a role to a user.
+        group_id (UUID):
+        assignment_id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorData | UserRoleAssignmentRead
+        Any | ErrorData
     """
 
     return (
         await asyncio_detailed(
+            group_id=group_id,
+            assignment_id=assignment_id,
             client=client,
-            body=body,
         )
     ).parsed

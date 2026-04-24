@@ -8,7 +8,7 @@ import structlog
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.authz.models.assignments import GroupRoleAssignment, UserRoleAssignment
+from nexus.authz.models.assignments import PrincipalType, RoleAssignment
 from nexus.authz.models.project import Project
 from nexus.authz.opa_client import OPAClient
 from nexus.authz.resolver import resolve_effective_policies, resolve_user_groups
@@ -209,7 +209,7 @@ async def assign_project_admin(
     db: AsyncSession,
     user_id: UUID,
     project_id: UUID,
-) -> UserRoleAssignment:
+) -> RoleAssignment:
     """Assign the project-admin role to a user for a project.
 
     Called automatically when a user creates a project.
@@ -220,14 +220,15 @@ async def assign_project_admin(
         project_id: The project to grant admin for.
 
     Returns:
-        The created UserRoleAssignment (project-scoped).
+        The created RoleAssignment (project-scoped).
 
     Raises:
         ValueError: If the project-admin role does not exist.
 
     """
-    assignment = UserRoleAssignment(
-        user_id=user_id,
+    assignment = RoleAssignment(
+        principal_type=PrincipalType.USER,
+        principal_id=user_id,
         project_id=project_id,
         role_name=PROJECT_ADMIN_ROLE_NAME,
     )
@@ -246,7 +247,7 @@ async def assign_project_admin(
 async def assign_authenticated_group_project_user(
     db: AsyncSession,
     project_id: UUID,
-) -> GroupRoleAssignment | None:
+) -> RoleAssignment | None:
     """Assign the project-user role to the authenticated group for a project.
 
     Called automatically when a default project is created so that all
@@ -257,8 +258,8 @@ async def assign_authenticated_group_project_user(
         project_id: The project to grant access to.
 
     Returns:
-        The created GroupRoleAssignment (project-scoped), or None if the
-        authenticated group or project-user role doesn't exist.
+        The created RoleAssignment (project-scoped), or None if the
+        authenticated group doesn't exist.
 
     """
     group_result = await db.exec(
@@ -271,8 +272,9 @@ async def assign_authenticated_group_project_user(
     if not group:
         return None
 
-    assignment = GroupRoleAssignment(
-        group_id=group.id,
+    assignment = RoleAssignment(
+        principal_type=PrincipalType.GROUP,
+        principal_id=group.id,
         project_id=project_id,
         role_name=PROJECT_USER_ROLE_NAME,
     )

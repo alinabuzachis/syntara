@@ -6,19 +6,18 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.all_role_assignment_list_response import AllRoleAssignmentListResponse
 from ...models.error_data import ErrorData
+from ...models.role_assignment_list_response import RoleAssignmentListResponse
 from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
+    user_id: UUID,
     *,
     limit: int | Unset = 20,
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
-    principal_type: None | str | Unset = UNSET,
-    principal_name: None | str | Unset = UNSET,
     role_name: None | str | Unset = UNSET,
     project_id: None | Unset | UUID = UNSET,
     additional_params: dict[str, Any] | None = None,
@@ -45,20 +44,6 @@ def _get_kwargs(
 
     params["include_total"] = include_total
 
-    json_principal_type: None | str | Unset
-    if isinstance(principal_type, Unset):
-        json_principal_type = UNSET
-    else:
-        json_principal_type = principal_type
-    params["principal_type"] = json_principal_type
-
-    json_principal_name: None | str | Unset
-    if isinstance(principal_name, Unset):
-        json_principal_name = UNSET
-    else:
-        json_principal_name = principal_name
-    params["principal_name"] = json_principal_name
-
     json_role_name: None | str | Unset
     if isinstance(role_name, Unset):
         json_role_name = UNSET
@@ -79,7 +64,7 @@ def _get_kwargs(
 
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": "/all-role-assignments",
+        "url": f"/users/{user_id}/role-assignments",
         "params": params,
     }
 
@@ -88,9 +73,9 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> AllRoleAssignmentListResponse | ErrorData | None:
+) -> ErrorData | RoleAssignmentListResponse | None:
     if response.status_code == 200:
-        response_200 = AllRoleAssignmentListResponse.from_dict(response.json())
+        response_200 = RoleAssignmentListResponse.from_dict(response.json())
 
         return response_200
 
@@ -137,7 +122,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[AllRoleAssignmentListResponse | ErrorData]:
+) -> Response[ErrorData | RoleAssignmentListResponse]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -149,32 +134,27 @@ def _build_response(
 
 
 def sync_detailed(
+    user_id: UUID,
     *,
     client: AuthenticatedClient,
     limit: int | Unset = 20,
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
-    principal_type: None | str | Unset = UNSET,
-    principal_name: None | str | Unset = UNSET,
     role_name: None | str | Unset = UNSET,
     project_id: None | Unset | UUID = UNSET,
     additional_params: dict[str, Any] | None = None,
-) -> Response[AllRoleAssignmentListResponse | ErrorData]:
-    """List All Role Assignments
+) -> Response[ErrorData | RoleAssignmentListResponse]:
+    """List User Role Assignments
 
-     List all role assignments (user and group) with filtering, sorting, and pagination.
-
-    Admins see all assignments; other users see only their own user
-    assignments and assignments for groups they belong to.
+     List role assignments for a specific user.
 
     Args:
+        user_id (UUID):
         limit (int | Unset): Maximum number of results per page Default: 20.
         cursor (None | str | Unset): Pagination cursor from previous response
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
-        principal_type (None | str | Unset):
-        principal_name (None | str | Unset):
         role_name (None | str | Unset):
         project_id (None | Unset | UUID):
 
@@ -183,16 +163,15 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[AllRoleAssignmentListResponse | ErrorData]
+        Response[ErrorData | RoleAssignmentListResponse]
     """
 
     kwargs = _get_kwargs(
+        user_id=user_id,
         limit=limit,
         cursor=cursor,
         sort=sort,
         include_total=include_total,
-        principal_type=principal_type,
-        principal_name=principal_name,
         role_name=role_name,
         project_id=project_id,
         additional_params=additional_params,
@@ -206,31 +185,26 @@ def sync_detailed(
 
 
 def sync(
+    user_id: UUID,
     *,
     client: AuthenticatedClient,
     limit: int | Unset = 20,
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
-    principal_type: None | str | Unset = UNSET,
-    principal_name: None | str | Unset = UNSET,
     role_name: None | str | Unset = UNSET,
     project_id: None | Unset | UUID = UNSET,
-) -> AllRoleAssignmentListResponse | ErrorData | None:
-    """List All Role Assignments
+) -> ErrorData | RoleAssignmentListResponse | None:
+    """List User Role Assignments
 
-     List all role assignments (user and group) with filtering, sorting, and pagination.
-
-    Admins see all assignments; other users see only their own user
-    assignments and assignments for groups they belong to.
+     List role assignments for a specific user.
 
     Args:
+        user_id (UUID):
         limit (int | Unset): Maximum number of results per page Default: 20.
         cursor (None | str | Unset): Pagination cursor from previous response
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
-        principal_type (None | str | Unset):
-        principal_name (None | str | Unset):
         role_name (None | str | Unset):
         project_id (None | Unset | UUID):
 
@@ -239,48 +213,42 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        AllRoleAssignmentListResponse | ErrorData
+        ErrorData | RoleAssignmentListResponse
     """
 
     return sync_detailed(
+        user_id=user_id,
         client=client,
         limit=limit,
         cursor=cursor,
         sort=sort,
         include_total=include_total,
-        principal_type=principal_type,
-        principal_name=principal_name,
         role_name=role_name,
         project_id=project_id,
     ).parsed
 
 
 async def asyncio_detailed(
+    user_id: UUID,
     *,
     client: AuthenticatedClient,
     limit: int | Unset = 20,
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
-    principal_type: None | str | Unset = UNSET,
-    principal_name: None | str | Unset = UNSET,
     role_name: None | str | Unset = UNSET,
     project_id: None | Unset | UUID = UNSET,
-) -> Response[AllRoleAssignmentListResponse | ErrorData]:
-    """List All Role Assignments
+) -> Response[ErrorData | RoleAssignmentListResponse]:
+    """List User Role Assignments
 
-     List all role assignments (user and group) with filtering, sorting, and pagination.
-
-    Admins see all assignments; other users see only their own user
-    assignments and assignments for groups they belong to.
+     List role assignments for a specific user.
 
     Args:
+        user_id (UUID):
         limit (int | Unset): Maximum number of results per page Default: 20.
         cursor (None | str | Unset): Pagination cursor from previous response
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
-        principal_type (None | str | Unset):
-        principal_name (None | str | Unset):
         role_name (None | str | Unset):
         project_id (None | Unset | UUID):
 
@@ -289,16 +257,15 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[AllRoleAssignmentListResponse | ErrorData]
+        Response[ErrorData | RoleAssignmentListResponse]
     """
 
     kwargs = _get_kwargs(
+        user_id=user_id,
         limit=limit,
         cursor=cursor,
         sort=sort,
         include_total=include_total,
-        principal_type=principal_type,
-        principal_name=principal_name,
         role_name=role_name,
         project_id=project_id,
     )
@@ -309,31 +276,26 @@ async def asyncio_detailed(
 
 
 async def asyncio(
+    user_id: UUID,
     *,
     client: AuthenticatedClient,
     limit: int | Unset = 20,
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
-    principal_type: None | str | Unset = UNSET,
-    principal_name: None | str | Unset = UNSET,
     role_name: None | str | Unset = UNSET,
     project_id: None | Unset | UUID = UNSET,
-) -> AllRoleAssignmentListResponse | ErrorData | None:
-    """List All Role Assignments
+) -> ErrorData | RoleAssignmentListResponse | None:
+    """List User Role Assignments
 
-     List all role assignments (user and group) with filtering, sorting, and pagination.
-
-    Admins see all assignments; other users see only their own user
-    assignments and assignments for groups they belong to.
+     List role assignments for a specific user.
 
     Args:
+        user_id (UUID):
         limit (int | Unset): Maximum number of results per page Default: 20.
         cursor (None | str | Unset): Pagination cursor from previous response
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
-        principal_type (None | str | Unset):
-        principal_name (None | str | Unset):
         role_name (None | str | Unset):
         project_id (None | Unset | UUID):
 
@@ -342,18 +304,17 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        AllRoleAssignmentListResponse | ErrorData
+        ErrorData | RoleAssignmentListResponse
     """
 
     return (
         await asyncio_detailed(
+            user_id=user_id,
             client=client,
             limit=limit,
             cursor=cursor,
             sort=sort,
             include_total=include_total,
-            principal_type=principal_type,
-            principal_name=principal_name,
             role_name=role_name,
             project_id=project_id,
         )

@@ -2,10 +2,6 @@
 
 Tests cover:
 - Project CRUD operations (create, get, list, update, delete)
-- User role assignment and revocation within projects
-- Group role assignment and revocation within projects
-- Listing role assignments
-- Invalid role name handling
 - Auto-assignment of project-admin on create
 - Cascading deletion of project-scoped resources
 """
@@ -18,11 +14,10 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.engine import AllowedProjectsResult
 from nexus.authz.exceptions import ProjectNotFoundError
-from nexus.authz.models.assignments import GroupRoleAssignment, UserRoleAssignment
+from nexus.authz.models.assignments import PrincipalType, RoleAssignment
 from nexus.authz.models.policy import Policy
 from nexus.authz.models.role import Role
 from nexus.authz.seed import seed_authz_data
-from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
 from nexus.core.models.group import Group
 from nexus.core.models.secret import EncryptedSecret, Secret
@@ -61,11 +56,11 @@ async def test_create_project(seeded_db: AsyncSession, test_user: User) -> None:
     assert project.deleted_at is None
 
     # Creator should be assigned project-admin
-    assignments = await svc.list_role_assignments(project.id)
+    assignments = (await seeded_db.exec(select(RoleAssignment).where(RoleAssignment.project_id == project.id))).all()
     assert len(assignments) == 1
-    roles = {a["role_name"] for a in assignments}
-    assert "project-admin" in roles
-    assert all(a["user_id"] == test_user.id for a in assignments)
+    assert assignments[0].role_name == "project-admin"
+    assert assignments[0].principal_type == PrincipalType.USER
+    assert assignments[0].principal_id == test_user.id
 
 
 @pytest.mark.asyncio
@@ -190,163 +185,6 @@ async def test_delete_project(seeded_db: AsyncSession, test_user: User) -> None:
 
 
 # ============================================================================
-# User Role Assignment
-# ============================================================================
-
-
-@pytest.mark.asyncio
-async def test_assign_user_role(seeded_db: AsyncSession, test_user: User) -> None:
-    """Assign project-user role to a user in a project."""
-    svc = ProjectService(seeded_db, test_user)
-    project = await svc.create_project(name="role-assign-project")
-
-    # Create another user
-    other = User(id=uuid4(), username="other", email="other@test.com", full_name="Other")
-    seeded_db.add(other)
-    await seeded_db.commit()
-
-    assignment = await svc.assign_role(project.id, other.id, "project-user")
-    assert assignment.user_id == other.id
-    assert assignment.project_id == project.id
-
-
-@pytest.mark.asyncio
-async def test_assign_invalid_role_name(seeded_db: AsyncSession, test_user: User) -> None:
-    """Invalid role name raises SafeValueError."""
-    svc = ProjectService(seeded_db, test_user)
-    project = await svc.create_project(name="invalid-role-project")
-    with pytest.raises(SafeValueError, match="Role 'superadmin' not found"):
-        await svc.assign_role(project.id, test_user.id, "superadmin")
-
-
-@pytest.mark.asyncio
-async def test_assign_role_project_not_found(seeded_db: AsyncSession, test_user: User) -> None:
-    """Assigning a role to a non-existent project raises SafeValueError."""
-    svc = ProjectService(seeded_db, test_user)
-    with pytest.raises(ProjectNotFoundError, match="not found"):
-        await svc.assign_role(uuid4(), test_user.id, "project-user")
-
-
-@pytest.mark.asyncio
-async def test_revoke_user_role(seeded_db: AsyncSession, test_user: User) -> None:
-    """Revoke a user role assignment from a project."""
-    svc = ProjectService(seeded_db, test_user)
-    project = await svc.create_project(name="revoke-role-project")
-
-    other = User(id=uuid4(), username="revokee", email="revokee@test.com", full_name="Revokee")
-    seeded_db.add(other)
-    await seeded_db.commit()
-
-    assignment = await svc.assign_role(project.id, other.id, "project-user")
-    await svc.revoke_role(project.id, assignment.id)
-
-    assignments = await svc.list_role_assignments(project.id)
-    user_ids = [a["user_id"] for a in assignments]
-    assert other.id not in user_ids
-
-
-@pytest.mark.asyncio
-async def test_revoke_nonexistent_role(seeded_db: AsyncSession, test_user: User) -> None:
-    """Revoking a non-existent assignment raises SafeValueError."""
-    svc = ProjectService(seeded_db, test_user)
-    project = await svc.create_project(name="revoke-missing-project")
-    with pytest.raises(SafeValueError, match="not found"):
-        await svc.revoke_role(project.id, uuid4())
-
-
-@pytest.mark.asyncio
-async def test_list_role_assignments(seeded_db: AsyncSession, test_user: User) -> None:
-    """List user role assignments with resolved names."""
-    svc = ProjectService(seeded_db, test_user)
-    project = await svc.create_project(name="list-roles-project")
-
-    other = User(id=uuid4(), username="listroles-user", email="lr@test.com", full_name="LR")
-    seeded_db.add(other)
-    await seeded_db.commit()
-
-    await svc.assign_role(project.id, other.id, "project-user")
-    assignments = await svc.list_role_assignments(project.id)
-    # Should have project-admin (creator) + project-user (other)
-    assert len(assignments) == 2
-    roles = {a["role_name"] for a in assignments}
-    assert "project-admin" in roles
-    assert "project-user" in roles
-
-
-# ============================================================================
-# Group Role Assignment
-# ============================================================================
-
-
-@pytest.mark.asyncio
-async def test_assign_group_role(seeded_db: AsyncSession, test_user: User) -> None:
-    """Assign a project-scoped role to a group."""
-    svc = ProjectService(seeded_db, test_user)
-    project = await svc.create_project(name="grp-role-project")
-
-    group = Group(id=uuid4(), name="proj-team", description="", labels={})
-    seeded_db.add(group)
-    await seeded_db.commit()
-
-    assignment = await svc.assign_group_role(project.id, group.id, "project-user")
-    assert assignment.group_id == group.id
-    assert assignment.project_id == project.id
-
-
-@pytest.mark.asyncio
-async def test_assign_group_invalid_role(seeded_db: AsyncSession, test_user: User) -> None:
-    """Invalid role name for group assignment raises SafeValueError."""
-    svc = ProjectService(seeded_db, test_user)
-    project = await svc.create_project(name="grp-invalid-role")
-    with pytest.raises(SafeValueError, match="Role 'superadmin' not found"):
-        await svc.assign_group_role(project.id, uuid4(), "superadmin")
-
-
-@pytest.mark.asyncio
-async def test_revoke_group_role(seeded_db: AsyncSession, test_user: User) -> None:
-    """Revoke a group role assignment from a project."""
-    svc = ProjectService(seeded_db, test_user)
-    project = await svc.create_project(name="revoke-grp-project")
-
-    group = Group(id=uuid4(), name="revoke-grp", description="", labels={})
-    seeded_db.add(group)
-    await seeded_db.commit()
-
-    assignment = await svc.assign_group_role(project.id, group.id, "project-user")
-    await svc.revoke_group_role(project.id, assignment.id)
-
-    assignments = await svc.list_group_role_assignments(project.id)
-    assert not any(a["group_id"] == group.id for a in assignments)
-
-
-@pytest.mark.asyncio
-async def test_revoke_group_nonexistent(seeded_db: AsyncSession, test_user: User) -> None:
-    """Revoking a non-existent group assignment raises SafeValueError."""
-    svc = ProjectService(seeded_db, test_user)
-    project = await svc.create_project(name="revoke-grp-missing")
-    with pytest.raises(SafeValueError, match="not found"):
-        await svc.revoke_group_role(project.id, uuid4())
-
-
-@pytest.mark.asyncio
-async def test_list_group_role_assignments(seeded_db: AsyncSession, test_user: User) -> None:
-    """List group role assignments with resolved names."""
-    svc = ProjectService(seeded_db, test_user)
-    project = await svc.create_project(name="list-grp-roles")
-
-    group = Group(id=uuid4(), name="listed-proj-grp", description="", labels={})
-    seeded_db.add(group)
-    await seeded_db.commit()
-
-    await svc.assign_group_role(project.id, group.id, "project-user")
-    assignments = await svc.list_group_role_assignments(project.id)
-    assert len(assignments) >= 1
-    match = [a for a in assignments if a["group_name"] == "listed-proj-grp"]
-    assert len(match) == 1
-    assert match[0]["role_name"] == "project-user"
-
-
-# ============================================================================
 # Cascading Deletion
 # ============================================================================
 
@@ -362,19 +200,25 @@ async def test_delete_project_cascades_role_assignments(seeded_db: AsyncSession,
     seeded_db.add_all([other, group])
     await seeded_db.commit()
 
-    await svc.assign_role(project.id, other.id, "project-user")
-    await svc.assign_group_role(project.id, group.id, "project-auditor")
+    seeded_db.add(
+        RoleAssignment(
+            principal_type=PrincipalType.USER, principal_id=other.id, role_name="project-user", project_id=project.id
+        )
+    )
+    seeded_db.add(
+        RoleAssignment(
+            principal_type=PrincipalType.GROUP,
+            principal_id=group.id,
+            role_name="project-auditor",
+            project_id=project.id,
+        )
+    )
+    await seeded_db.commit()
 
     await svc.delete_project(project.id)
 
-    user_assigns = (
-        await seeded_db.exec(select(UserRoleAssignment).where(UserRoleAssignment.project_id == project.id))
-    ).all()
-    group_assigns = (
-        await seeded_db.exec(select(GroupRoleAssignment).where(GroupRoleAssignment.project_id == project.id))
-    ).all()
-    assert user_assigns == []
-    assert group_assigns == []
+    assigns = (await seeded_db.exec(select(RoleAssignment).where(RoleAssignment.project_id == project.id))).all()
+    assert assigns == []
 
 
 @pytest.mark.asyncio
@@ -660,106 +504,3 @@ async def test_delete_project_with_no_resources(seeded_db: AsyncSession, test_us
     await svc.delete_project(project.id)
     with pytest.raises(ProjectNotFoundError):
         await svc.get_project(project.id)
-
-
-# ============================================================================
-# Role Validation
-# ============================================================================
-
-
-@pytest.mark.asyncio
-async def test_validate_builtin_role_accepted(seeded_db: AsyncSession, test_user: User) -> None:
-    """Built-in role names are accepted for assignment."""
-    svc = ProjectService(seeded_db, test_user)
-    project = await svc.create_project(name="validate-builtin")
-    other = User(id=uuid4(), username="validate-u", email="vu@test.com", full_name="V")
-    seeded_db.add(other)
-    await seeded_db.commit()
-
-    assignment = await svc.assign_role(project.id, other.id, "project-user")
-    assert assignment.role_name == "project-user"
-
-
-@pytest.mark.asyncio
-async def test_validate_custom_project_role_accepted(seeded_db: AsyncSession, test_user: User) -> None:
-    """Custom roles scoped to the project are accepted for assignment."""
-    svc = ProjectService(seeded_db, test_user)
-    project = await svc.create_project(name="validate-custom")
-
-    custom_role = Role(
-        name="custom-reviewer",
-        is_builtin=False,
-        project_id=project.id,
-        scope="project",
-        policy_names=["workflow:read"],
-        labels={},
-    )
-    seeded_db.add(custom_role)
-    await seeded_db.commit()
-
-    other = User(id=uuid4(), username="custom-u", email="cu@test.com", full_name="CU")
-    seeded_db.add(other)
-    await seeded_db.commit()
-
-    assignment = await svc.assign_role(project.id, other.id, "custom-reviewer")
-    assert assignment.role_name == "custom-reviewer"
-
-
-@pytest.mark.asyncio
-async def test_validate_role_from_different_project_rejected(seeded_db: AsyncSession, test_user: User) -> None:
-    """Custom roles scoped to a different project are rejected."""
-    svc = ProjectService(seeded_db, test_user)
-    project1 = await svc.create_project(name="validate-p1")
-    project2 = await svc.create_project(name="validate-p2")
-
-    custom_role = Role(
-        name="other-proj-role",
-        is_builtin=False,
-        project_id=project2.id,
-        scope="project",
-        policy_names=[],
-        labels={},
-    )
-    seeded_db.add(custom_role)
-    await seeded_db.commit()
-
-    with pytest.raises(SafeValueError, match="not found"):
-        await svc.assign_role(project1.id, test_user.id, "other-proj-role")
-
-
-@pytest.mark.asyncio
-async def test_validate_global_custom_role_accepted(seeded_db: AsyncSession, test_user: User) -> None:
-    """Global custom roles (project_id=None) are accepted for project assignment."""
-    svc = ProjectService(seeded_db, test_user)
-    project = await svc.create_project(name="validate-global")
-
-    global_role = Role(
-        name="global-custom",
-        is_builtin=False,
-        project_id=None,
-        scope="system",
-        policy_names=[],
-        labels={},
-    )
-    seeded_db.add(global_role)
-    await seeded_db.commit()
-
-    other = User(id=uuid4(), username="global-u", email="gu@test.com", full_name="GU")
-    seeded_db.add(other)
-    await seeded_db.commit()
-
-    assignment = await svc.assign_role(project.id, other.id, "global-custom")
-    assert assignment.role_name == "global-custom"
-
-
-@pytest.mark.asyncio
-async def test_assign_group_validates_role(seeded_db: AsyncSession, test_user: User) -> None:
-    """Group role assignment also validates the role name."""
-    svc = ProjectService(seeded_db, test_user)
-    project = await svc.create_project(name="grp-validate")
-    group = Group(id=uuid4(), name="grp-validate-g", description="", labels={})
-    seeded_db.add(group)
-    await seeded_db.commit()
-
-    with pytest.raises(SafeValueError, match="not found"):
-        await svc.assign_group_role(project.id, group.id, "totally-fake-role")

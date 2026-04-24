@@ -10,6 +10,16 @@ from nexus.auth import get_current_user
 from nexus.auth.exceptions import UserNotLocalError
 from nexus.auth.session.session_store import SessionStore
 from nexus.authz.dependencies import PermissionChecker
+from nexus.authz.models.assignments import PrincipalType, RoleAssignment
+from nexus.authz.role_assignment_router import (
+    PrincipalRoleAssignmentListParams,
+    RoleAssignmentListResponse,
+    RoleAssignmentRead,
+    SubResourceRoleAssignmentCreate,
+    delete_principal_assignment,
+    list_principal_assignments,
+)
+from nexus.authz.services.role_assignment_service import RoleAssignmentService
 from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.core.models.base.query_params import BaseListParams
@@ -21,7 +31,7 @@ from nexus.core.models.user_schemas import (
     UserRead,
     UserUpdate,
 )
-from nexus.core.nexus_router import NexusRouter
+from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
 from nexus.core.queries.user_queries import get_user_by_id as fetch_user
 from nexus.users.services.group_service import GroupsService
 from nexus.users.services.user_service import UsersService
@@ -53,6 +63,13 @@ def get_group_service(
 ) -> GroupsService:
     """Dependency provider for GroupsService (used for user-groups listing)."""
     return GroupsService(db, current_user)
+
+
+def _get_role_assignment_service(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> RoleAssignmentService:
+    return RoleAssignmentService(db, current_user)
 
 
 # ============================================================================
@@ -216,3 +233,86 @@ async def set_user_groups(
     async with SessionStore() as store:
         await store.increment_token_version(user_id)
     return result
+
+
+# ============================================================================
+# User Role Assignments
+# ============================================================================
+
+
+@router.post(
+    "/{user_id}/role-assignments",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(PermissionChecker("role-assignment", "assign", body_project_field="project_id"))],
+    operation_id="create_user_role_assignment",
+    response_description="Role assignment created",
+)
+async def create_user_role_assignment(
+    user_id: UUID,
+    body: SubResourceRoleAssignmentCreate,
+    service: Annotated[RoleAssignmentService, Depends(_get_role_assignment_service)],
+) -> RoleAssignmentRead:
+    """Assign a role to this user."""
+    result = await service.assign(
+        principal_type=PrincipalType.USER,
+        principal_id=user_id,
+        role_name=body.role_name,
+        project_id=body.project_id,
+    )
+    return RoleAssignmentRead.model_validate(result)
+
+
+@router.get(
+    "/{user_id}/role-assignments",
+    dependencies=[NO_PERMISSION],
+    operation_id="list_user_role_assignments",
+    response_description="List of role assignments for this user",
+)
+async def list_user_role_assignments(
+    user_id: UUID,
+    request: Request,
+    params: Annotated[PrincipalRoleAssignmentListParams, Depends()],
+    service: Annotated[RoleAssignmentService, Depends(_get_role_assignment_service)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> RoleAssignmentListResponse:
+    """List role assignments for a specific user."""
+    return await list_principal_assignments(
+        principal_type=PrincipalType.USER,
+        principal_id=user_id,
+        request=request,
+        params=params,
+        service=service,
+        current_user=current_user,
+        db=db,
+    )
+
+
+@router.delete(
+    "/{user_id}/role-assignments/{assignment_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[
+        Depends(
+            PermissionChecker(
+                "role-assignment",
+                "revoke",
+                resource_model=RoleAssignment,
+                resource_id_param="assignment_id",
+            )
+        )
+    ],
+    operation_id="delete_user_role_assignment",
+    response_description="Assignment removed",
+)
+async def delete_user_role_assignment(
+    user_id: UUID,
+    assignment_id: UUID,
+    service: Annotated[RoleAssignmentService, Depends(_get_role_assignment_service)],
+) -> None:
+    """Remove a role assignment from this user."""
+    await delete_principal_assignment(
+        principal_type=PrincipalType.USER,
+        principal_id=user_id,
+        assignment_id=assignment_id,
+        service=service,
+    )

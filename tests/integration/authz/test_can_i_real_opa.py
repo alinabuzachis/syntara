@@ -17,7 +17,7 @@ from sqlalchemy import insert
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.engine import AuthzRequest, authorize
-from nexus.authz.models import GroupRoleAssignment
+from nexus.authz.models import PrincipalType, RoleAssignment
 from nexus.authz.opa_client import OPAClient
 from nexus.authz.resolver import resolve_effective_policies
 from nexus.authz.seed import seed_authz_data
@@ -73,7 +73,7 @@ async def _assign_role(
     group = Group(name=f"{role_name}-{uuid4()}", description="", labels={})
     session.add(group)
     await session.flush()
-    session.add(GroupRoleAssignment(group_id=group.id, role_name=role_name, labels={}))
+    session.add(RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=group.id, role_name=role_name))
     await session.execute(insert(user_groups).values(user_id=user.id, group_id=group.id))
     await session.commit()
 

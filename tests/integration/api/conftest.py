@@ -24,8 +24,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.api.main import app
 from nexus.auth.dependencies import get_current_user
 from nexus.authz.dependencies import get_opa_client
-from nexus.authz.models import GroupRoleAssignment, Project
-from nexus.authz.models.assignments import UserRoleAssignment
+from nexus.authz.models import PrincipalType, Project, RoleAssignment
 from nexus.authz.seed import seed_authz_data
 from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
@@ -87,7 +86,14 @@ async def _seed_authz(test_db_session: AsyncSession) -> None:
     test_group = Group(id=uuid4(), name=_TEST_GROUP_NAME, description="Test users group", is_builtin=False, labels={})
     test_db_session.add(test_group)
     await test_db_session.flush()
-    test_db_session.add(GroupRoleAssignment(id=uuid4(), group_id=test_group.id, role_name="user", labels={}))
+    test_db_session.add(
+        RoleAssignment(
+            id=uuid4(),
+            principal_type=PrincipalType.GROUP,
+            principal_id=test_group.id,
+            role_name="user",
+        )
+    )
 
     # Create dev-user and add to the group
     dev_user = User(
@@ -171,7 +177,13 @@ async def _make_role_assignment(
     group = Group(name=f"{role_name}-grp-{uuid4()}", description="", labels={})
     session.add(group)
     await session.flush()
-    session.add(GroupRoleAssignment(group_id=group.id, role_name=role_name, labels={}))
+    session.add(
+        RoleAssignment(
+            principal_type=PrincipalType.GROUP,
+            principal_id=group.id,
+            role_name=role_name,
+        )
+    )
     await session.execute(insert(user_groups).values(user_id=user.id, group_id=group.id))
     await session.commit()
 
@@ -195,9 +207,14 @@ async def make_project_user(
     session: AsyncSession,
     user: User,
     project: "Project",
-) -> UserRoleAssignment:
+) -> RoleAssignment:
     """Assign project-user role to a user for a specific project."""
-    assignment = UserRoleAssignment(user_id=user.id, project_id=project.id, role_name="project-user")
+    assignment = RoleAssignment(
+        principal_type=PrincipalType.USER,
+        principal_id=user.id,
+        project_id=project.id,
+        role_name="project-user",
+    )
     session.add(assignment)
     await session.commit()
     return assignment
@@ -207,9 +224,14 @@ async def make_project_admin(
     session: AsyncSession,
     user: User,
     project: "Project",
-) -> UserRoleAssignment:
+) -> RoleAssignment:
     """Assign project-admin role to a user for a specific project."""
-    assignment = UserRoleAssignment(user_id=user.id, project_id=project.id, role_name="project-admin")
+    assignment = RoleAssignment(
+        principal_type=PrincipalType.USER,
+        principal_id=user.id,
+        project_id=project.id,
+        role_name="project-admin",
+    )
     session.add(assignment)
     await session.commit()
     return assignment
@@ -236,6 +258,8 @@ def _mock_opa(monkeypatch: pytest.MonkeyPatch) -> None:
         return mock_opa
 
     monkeypatch.setattr("nexus.authz.dependencies.get_opa_client", _mock_getter)
+    monkeypatch.setattr("nexus.authz.role_assignment_router.get_opa_client", _mock_getter)
+    monkeypatch.setattr("nexus.projects.router.get_opa_client", _mock_getter)
     monkeypatch.setattr("nexus.workflows.executions_router.get_opa_client", _mock_getter)
 
     # Also override via FastAPI dependency_overrides so Depends(get_opa_client) resolves correctly

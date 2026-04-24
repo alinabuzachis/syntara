@@ -12,16 +12,14 @@ from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
-    project_id: UUID,
+    group_id: UUID,
     *,
     limit: int | Unset = 20,
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
-    principal_type: None | str | Unset = UNSET,
-    principal_id: None | Unset | UUID = UNSET,
-    principal_name: None | str | Unset = UNSET,
     role_name: None | str | Unset = UNSET,
+    project_id: None | Unset | UUID = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     params: dict[str, Any] = {}
@@ -46,29 +44,6 @@ def _get_kwargs(
 
     params["include_total"] = include_total
 
-    json_principal_type: None | str | Unset
-    if isinstance(principal_type, Unset):
-        json_principal_type = UNSET
-    else:
-        json_principal_type = principal_type
-    params["principal_type"] = json_principal_type
-
-    json_principal_id: None | str | Unset
-    if isinstance(principal_id, Unset):
-        json_principal_id = UNSET
-    elif isinstance(principal_id, UUID):
-        json_principal_id = str(principal_id)
-    else:
-        json_principal_id = principal_id
-    params["principal_id"] = json_principal_id
-
-    json_principal_name: None | str | Unset
-    if isinstance(principal_name, Unset):
-        json_principal_name = UNSET
-    else:
-        json_principal_name = principal_name
-    params["principal_name"] = json_principal_name
-
     json_role_name: None | str | Unset
     if isinstance(role_name, Unset):
         json_role_name = UNSET
@@ -76,11 +51,20 @@ def _get_kwargs(
         json_role_name = role_name
     params["role_name"] = json_role_name
 
+    json_project_id: None | str | Unset
+    if isinstance(project_id, Unset):
+        json_project_id = UNSET
+    elif isinstance(project_id, UUID):
+        json_project_id = str(project_id)
+    else:
+        json_project_id = project_id
+    params["project_id"] = json_project_id
+
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": f"/projects/{project_id}/role-assignments",
+        "url": f"/groups/{group_id}/role-assignments",
         "params": params,
     }
 
@@ -150,36 +134,29 @@ def _build_response(
 
 
 def sync_detailed(
-    project_id: UUID,
+    group_id: UUID,
     *,
     client: AuthenticatedClient,
     limit: int | Unset = 20,
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
-    principal_type: None | str | Unset = UNSET,
-    principal_id: None | Unset | UUID = UNSET,
-    principal_name: None | str | Unset = UNSET,
     role_name: None | str | Unset = UNSET,
+    project_id: None | Unset | UUID = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | RoleAssignmentListResponse]:
-    """List Project Role Assignments
+    """List Group Role Assignments
 
-     List role assignments for a project.
-
-    Admin/auditor/project-admin see all assignments in the project;
-    other users see only their own.
+     List role assignments for a specific group.
 
     Args:
-        project_id (UUID):
+        group_id (UUID):
         limit (int | Unset): Maximum number of results per page Default: 20.
         cursor (None | str | Unset): Pagination cursor from previous response
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
-        principal_type (None | str | Unset):
-        principal_id (None | Unset | UUID):
-        principal_name (None | str | Unset):
         role_name (None | str | Unset):
+        project_id (None | Unset | UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -190,15 +167,13 @@ def sync_detailed(
     """
 
     kwargs = _get_kwargs(
-        project_id=project_id,
+        group_id=group_id,
         limit=limit,
         cursor=cursor,
         sort=sort,
         include_total=include_total,
-        principal_type=principal_type,
-        principal_id=principal_id,
-        principal_name=principal_name,
         role_name=role_name,
+        project_id=project_id,
         additional_params=additional_params,
     )
 
@@ -210,35 +185,28 @@ def sync_detailed(
 
 
 def sync(
-    project_id: UUID,
+    group_id: UUID,
     *,
     client: AuthenticatedClient,
     limit: int | Unset = 20,
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
-    principal_type: None | str | Unset = UNSET,
-    principal_id: None | Unset | UUID = UNSET,
-    principal_name: None | str | Unset = UNSET,
     role_name: None | str | Unset = UNSET,
+    project_id: None | Unset | UUID = UNSET,
 ) -> ErrorData | RoleAssignmentListResponse | None:
-    """List Project Role Assignments
+    """List Group Role Assignments
 
-     List role assignments for a project.
-
-    Admin/auditor/project-admin see all assignments in the project;
-    other users see only their own.
+     List role assignments for a specific group.
 
     Args:
-        project_id (UUID):
+        group_id (UUID):
         limit (int | Unset): Maximum number of results per page Default: 20.
         cursor (None | str | Unset): Pagination cursor from previous response
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
-        principal_type (None | str | Unset):
-        principal_id (None | Unset | UUID):
-        principal_name (None | str | Unset):
         role_name (None | str | Unset):
+        project_id (None | Unset | UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -249,49 +217,40 @@ def sync(
     """
 
     return sync_detailed(
-        project_id=project_id,
+        group_id=group_id,
         client=client,
         limit=limit,
         cursor=cursor,
         sort=sort,
         include_total=include_total,
-        principal_type=principal_type,
-        principal_id=principal_id,
-        principal_name=principal_name,
         role_name=role_name,
+        project_id=project_id,
     ).parsed
 
 
 async def asyncio_detailed(
-    project_id: UUID,
+    group_id: UUID,
     *,
     client: AuthenticatedClient,
     limit: int | Unset = 20,
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
-    principal_type: None | str | Unset = UNSET,
-    principal_id: None | Unset | UUID = UNSET,
-    principal_name: None | str | Unset = UNSET,
     role_name: None | str | Unset = UNSET,
+    project_id: None | Unset | UUID = UNSET,
 ) -> Response[ErrorData | RoleAssignmentListResponse]:
-    """List Project Role Assignments
+    """List Group Role Assignments
 
-     List role assignments for a project.
-
-    Admin/auditor/project-admin see all assignments in the project;
-    other users see only their own.
+     List role assignments for a specific group.
 
     Args:
-        project_id (UUID):
+        group_id (UUID):
         limit (int | Unset): Maximum number of results per page Default: 20.
         cursor (None | str | Unset): Pagination cursor from previous response
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
-        principal_type (None | str | Unset):
-        principal_id (None | Unset | UUID):
-        principal_name (None | str | Unset):
         role_name (None | str | Unset):
+        project_id (None | Unset | UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -302,15 +261,13 @@ async def asyncio_detailed(
     """
 
     kwargs = _get_kwargs(
-        project_id=project_id,
+        group_id=group_id,
         limit=limit,
         cursor=cursor,
         sort=sort,
         include_total=include_total,
-        principal_type=principal_type,
-        principal_id=principal_id,
-        principal_name=principal_name,
         role_name=role_name,
+        project_id=project_id,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -319,35 +276,28 @@ async def asyncio_detailed(
 
 
 async def asyncio(
-    project_id: UUID,
+    group_id: UUID,
     *,
     client: AuthenticatedClient,
     limit: int | Unset = 20,
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
-    principal_type: None | str | Unset = UNSET,
-    principal_id: None | Unset | UUID = UNSET,
-    principal_name: None | str | Unset = UNSET,
     role_name: None | str | Unset = UNSET,
+    project_id: None | Unset | UUID = UNSET,
 ) -> ErrorData | RoleAssignmentListResponse | None:
-    """List Project Role Assignments
+    """List Group Role Assignments
 
-     List role assignments for a project.
-
-    Admin/auditor/project-admin see all assignments in the project;
-    other users see only their own.
+     List role assignments for a specific group.
 
     Args:
-        project_id (UUID):
+        group_id (UUID):
         limit (int | Unset): Maximum number of results per page Default: 20.
         cursor (None | str | Unset): Pagination cursor from previous response
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
-        principal_type (None | str | Unset):
-        principal_id (None | Unset | UUID):
-        principal_name (None | str | Unset):
         role_name (None | str | Unset):
+        project_id (None | Unset | UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -359,15 +309,13 @@ async def asyncio(
 
     return (
         await asyncio_detailed(
-            project_id=project_id,
+            group_id=group_id,
             client=client,
             limit=limit,
             cursor=cursor,
             sort=sort,
             include_total=include_total,
-            principal_type=principal_type,
-            principal_id=principal_id,
-            principal_name=principal_name,
             role_name=role_name,
+            project_id=project_id,
         )
     ).parsed

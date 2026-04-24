@@ -15,7 +15,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.exceptions import BuiltinProtectionError, RoleNameConflictError, RoleNotFoundError
-from nexus.authz.models.assignments import GroupRoleAssignment, UserRoleAssignment
+from nexus.authz.models.assignments import PrincipalType, RoleAssignment
 from nexus.authz.models.role import Role
 from nexus.authz.services.role_service import RoleService
 from nexus.core.exceptions import SafeValueError
@@ -151,14 +151,14 @@ async def test_rename_role_updates_assignments(test_db_session: AsyncSession, te
     role = await svc.create_role(name="old-role-name", policies=[_P_READ])
 
     user_id = test_user.id
-    user_assign = UserRoleAssignment(user_id=user_id, role_name="old-role-name")
+    user_assign = RoleAssignment(principal_type=PrincipalType.USER, principal_id=user_id, role_name="old-role-name")
     test_db_session.add(user_assign)
 
     group = Group(name="rename-test-grp", description="", labels={})
     test_db_session.add(group)
     await test_db_session.flush()
 
-    group_assign = GroupRoleAssignment(group_id=group.id, role_name="old-role-name")
+    group_assign = RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=group.id, role_name="old-role-name")
     test_db_session.add(group_assign)
     await test_db_session.commit()
     ua_id = user_assign.id
@@ -167,11 +167,11 @@ async def test_rename_role_updates_assignments(test_db_session: AsyncSession, te
     await svc.update_role(role.id, name="new-role-name")
 
     test_db_session.expire_all()
-    ua = (await test_db_session.exec(select(UserRoleAssignment).where(UserRoleAssignment.id == ua_id))).first()
+    ua = (await test_db_session.exec(select(RoleAssignment).where(RoleAssignment.id == ua_id))).first()
     assert ua is not None
     assert ua.role_name == "new-role-name"
 
-    ga = (await test_db_session.exec(select(GroupRoleAssignment).where(GroupRoleAssignment.id == ga_id))).first()
+    ga = (await test_db_session.exec(select(RoleAssignment).where(RoleAssignment.id == ga_id))).first()
     assert ga is not None
     assert ga.role_name == "new-role-name"
 

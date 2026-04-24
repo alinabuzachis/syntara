@@ -23,7 +23,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.api.main import app
 from nexus.auth.dependencies import get_current_user
 from nexus.authz.dependencies import get_opa_client
-from nexus.authz.models import GroupRoleAssignment
+from nexus.authz.models import PrincipalType, RoleAssignment
 from nexus.authz.models.policy import Policy
 from nexus.authz.models.role import Role
 from nexus.core.models import User
@@ -88,7 +88,7 @@ async def _make_admin(session: AsyncSession, user: User) -> None:
     group = Group(name=f"admin-grp-{uuid4()}", description="", labels={})
     session.add(group)
     await session.flush()
-    session.add(GroupRoleAssignment(group_id=group.id, role_name="admin", labels={}))
+    session.add(RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=group.id, role_name="admin"))
     await session.execute(insert(user_groups).values(user_id=user.id, group_id=group.id))
     await session.commit()
 
@@ -98,7 +98,7 @@ async def _make_auditor(session: AsyncSession, user: User) -> None:
     group = Group(name=f"auditor-grp-{uuid4()}", description="", labels={})
     session.add(group)
     await session.flush()
-    session.add(GroupRoleAssignment(group_id=group.id, role_name="auditor", labels={}))
+    session.add(RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=group.id, role_name="auditor"))
     await session.execute(insert(user_groups).values(user_id=user.id, group_id=group.id))
     await session.commit()
 
@@ -267,7 +267,9 @@ async def test_can_i_wildcard_action(
     group = Group(name=f"wildcard-grp-{uuid4()}", description="", labels={})
     test_db_session.add(group)
     await test_db_session.flush()
-    test_db_session.add(GroupRoleAssignment(group_id=group.id, role_name="wildcard-test-role", labels={}))
+    test_db_session.add(
+        RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=group.id, role_name="wildcard-test-role")
+    )
     await test_db_session.execute(insert(user_groups).values(user_id=test_user.id, group_id=group.id))
     await test_db_session.commit()
 
@@ -314,7 +316,9 @@ async def test_can_i_explicit_deny_overrides_allow(
     group = Group(name=f"deny-grp-{uuid4()}", description="", labels={})
     test_db_session.add(group)
     await test_db_session.flush()
-    test_db_session.add(GroupRoleAssignment(group_id=group.id, role_name="deny-delete-role", labels={}))
+    test_db_session.add(
+        RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=group.id, role_name="deny-delete-role")
+    )
     await test_db_session.execute(insert(user_groups).values(user_id=test_user.id, group_id=group.id))
     await test_db_session.commit()
 

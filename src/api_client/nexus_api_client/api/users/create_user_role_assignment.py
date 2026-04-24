@@ -7,21 +7,21 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.error_data import ErrorData
-from ...models.project_role_assignment_create import ProjectRoleAssignmentCreate
-from ...models.project_role_assignment_read import ProjectRoleAssignmentRead
+from ...models.role_assignment_read import RoleAssignmentRead
+from ...models.sub_resource_role_assignment_create import SubResourceRoleAssignmentCreate
 from ...types import Response
 
 
 def _get_kwargs(
-    project_id: UUID,
+    user_id: UUID,
     *,
-    body: ProjectRoleAssignmentCreate,
+    body: SubResourceRoleAssignmentCreate,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
 
     _kwargs: dict[str, Any] = {
         "method": "post",
-        "url": f"/projects/{project_id}/role-assignments",
+        "url": f"/users/{user_id}/role-assignments",
     }
 
     _kwargs["json"] = body.to_dict()
@@ -34,9 +34,9 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> ErrorData | ProjectRoleAssignmentRead | None:
+) -> ErrorData | RoleAssignmentRead | None:
     if response.status_code == 201:
-        response_201 = ProjectRoleAssignmentRead.from_dict(response.json())
+        response_201 = RoleAssignmentRead.from_dict(response.json())
 
         return response_201
 
@@ -83,7 +83,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[ErrorData | ProjectRoleAssignmentRead]:
+) -> Response[ErrorData | RoleAssignmentRead]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -95,33 +95,32 @@ def _build_response(
 
 
 def sync_detailed(
-    project_id: UUID,
+    user_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: ProjectRoleAssignmentCreate,
-) -> Response[ErrorData | ProjectRoleAssignmentRead]:
-    """Assign Project Role
+    body: SubResourceRoleAssignmentCreate,
+) -> Response[ErrorData | RoleAssignmentRead]:
+    """Create User Role Assignment
 
-     Assign a role to a user within a project.
-
-    Valid roles: project-admin, project-user, project-auditor.
-    Requires: project-role:assign permission scoped to this project.
+     Assign a role to this user.
 
     Args:
-        project_id (UUID):
-        body (ProjectRoleAssignmentCreate): Request body for assigning a role to a user within a
-            project.
+        user_id (UUID):
+        body (SubResourceRoleAssignmentCreate): Request body for creating a role assignment from a
+            sub-resource endpoint.
+
+            principal_type and principal_id come from the URL path.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorData | ProjectRoleAssignmentRead]
+        Response[ErrorData | RoleAssignmentRead]
     """
 
     kwargs = _get_kwargs(
-        project_id=project_id,
+        user_id=user_id,
         body=body,
     )
 
@@ -133,66 +132,64 @@ def sync_detailed(
 
 
 def sync(
-    project_id: UUID,
+    user_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: ProjectRoleAssignmentCreate,
-) -> ErrorData | ProjectRoleAssignmentRead | None:
-    """Assign Project Role
+    body: SubResourceRoleAssignmentCreate,
+) -> ErrorData | RoleAssignmentRead | None:
+    """Create User Role Assignment
 
-     Assign a role to a user within a project.
-
-    Valid roles: project-admin, project-user, project-auditor.
-    Requires: project-role:assign permission scoped to this project.
+     Assign a role to this user.
 
     Args:
-        project_id (UUID):
-        body (ProjectRoleAssignmentCreate): Request body for assigning a role to a user within a
-            project.
+        user_id (UUID):
+        body (SubResourceRoleAssignmentCreate): Request body for creating a role assignment from a
+            sub-resource endpoint.
+
+            principal_type and principal_id come from the URL path.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorData | ProjectRoleAssignmentRead
+        ErrorData | RoleAssignmentRead
     """
 
     return sync_detailed(
-        project_id=project_id,
+        user_id=user_id,
         client=client,
         body=body,
     ).parsed
 
 
 async def asyncio_detailed(
-    project_id: UUID,
+    user_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: ProjectRoleAssignmentCreate,
-) -> Response[ErrorData | ProjectRoleAssignmentRead]:
-    """Assign Project Role
+    body: SubResourceRoleAssignmentCreate,
+) -> Response[ErrorData | RoleAssignmentRead]:
+    """Create User Role Assignment
 
-     Assign a role to a user within a project.
-
-    Valid roles: project-admin, project-user, project-auditor.
-    Requires: project-role:assign permission scoped to this project.
+     Assign a role to this user.
 
     Args:
-        project_id (UUID):
-        body (ProjectRoleAssignmentCreate): Request body for assigning a role to a user within a
-            project.
+        user_id (UUID):
+        body (SubResourceRoleAssignmentCreate): Request body for creating a role assignment from a
+            sub-resource endpoint.
+
+            principal_type and principal_id come from the URL path.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorData | ProjectRoleAssignmentRead]
+        Response[ErrorData | RoleAssignmentRead]
     """
 
     kwargs = _get_kwargs(
-        project_id=project_id,
+        user_id=user_id,
         body=body,
     )
 
@@ -202,34 +199,33 @@ async def asyncio_detailed(
 
 
 async def asyncio(
-    project_id: UUID,
+    user_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: ProjectRoleAssignmentCreate,
-) -> ErrorData | ProjectRoleAssignmentRead | None:
-    """Assign Project Role
+    body: SubResourceRoleAssignmentCreate,
+) -> ErrorData | RoleAssignmentRead | None:
+    """Create User Role Assignment
 
-     Assign a role to a user within a project.
-
-    Valid roles: project-admin, project-user, project-auditor.
-    Requires: project-role:assign permission scoped to this project.
+     Assign a role to this user.
 
     Args:
-        project_id (UUID):
-        body (ProjectRoleAssignmentCreate): Request body for assigning a role to a user within a
-            project.
+        user_id (UUID):
+        body (SubResourceRoleAssignmentCreate): Request body for creating a role assignment from a
+            sub-resource endpoint.
+
+            principal_type and principal_id come from the URL path.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorData | ProjectRoleAssignmentRead
+        ErrorData | RoleAssignmentRead
     """
 
     return (
         await asyncio_detailed(
-            project_id=project_id,
+            user_id=user_id,
             client=client,
             body=body,
         )

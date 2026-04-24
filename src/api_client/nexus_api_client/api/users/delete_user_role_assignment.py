@@ -11,12 +11,12 @@ from ...types import Response
 
 
 def _get_kwargs(
-    project_id: UUID,
+    user_id: UUID,
     assignment_id: UUID,
 ) -> dict[str, Any]:
     _kwargs: dict[str, Any] = {
         "method": "delete",
-        "url": f"/projects/{project_id}/group-role-assignments/{assignment_id}",
+        "url": f"/users/{user_id}/role-assignments/{assignment_id}",
     }
 
     return _kwargs
@@ -80,17 +80,17 @@ def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Res
 
 
 def sync_detailed(
-    project_id: UUID,
+    user_id: UUID,
     assignment_id: UUID,
     *,
     client: AuthenticatedClient,
 ) -> Response[Any | ErrorData]:
-    """Revoke Project Group Role
+    """Delete User Role Assignment
 
-     Remove a group role assignment from a project. Requires: project-role:revoke permission.
+     Remove a role assignment from this user.
 
     Args:
-        project_id (UUID):
+        user_id (UUID):
         assignment_id (UUID):
 
     Raises:
@@ -102,7 +102,7 @@ def sync_detailed(
     """
 
     kwargs = _get_kwargs(
-        project_id=project_id,
+        user_id=user_id,
         assignment_id=assignment_id,
     )
 
@@ -114,17 +114,17 @@ def sync_detailed(
 
 
 def sync(
-    project_id: UUID,
+    user_id: UUID,
     assignment_id: UUID,
     *,
     client: AuthenticatedClient,
 ) -> Any | ErrorData | None:
-    """Revoke Project Group Role
+    """Delete User Role Assignment
 
-     Remove a group role assignment from a project. Requires: project-role:revoke permission.
+     Remove a role assignment from this user.
 
     Args:
-        project_id (UUID):
+        user_id (UUID):
         assignment_id (UUID):
 
     Raises:
@@ -136,24 +136,24 @@ def sync(
     """
 
     return sync_detailed(
-        project_id=project_id,
+        user_id=user_id,
         assignment_id=assignment_id,
         client=client,
     ).parsed
 
 
 async def asyncio_detailed(
-    project_id: UUID,
+    user_id: UUID,
     assignment_id: UUID,
     *,
     client: AuthenticatedClient,
 ) -> Response[Any | ErrorData]:
-    """Revoke Project Group Role
+    """Delete User Role Assignment
 
-     Remove a group role assignment from a project. Requires: project-role:revoke permission.
+     Remove a role assignment from this user.
 
     Args:
-        project_id (UUID):
+        user_id (UUID):
         assignment_id (UUID):
 
     Raises:
@@ -165,7 +165,7 @@ async def asyncio_detailed(
     """
 
     kwargs = _get_kwargs(
-        project_id=project_id,
+        user_id=user_id,
         assignment_id=assignment_id,
     )
 
@@ -175,17 +175,17 @@ async def asyncio_detailed(
 
 
 async def asyncio(
-    project_id: UUID,
+    user_id: UUID,
     assignment_id: UUID,
     *,
     client: AuthenticatedClient,
 ) -> Any | ErrorData | None:
-    """Revoke Project Group Role
+    """Delete User Role Assignment
 
-     Remove a group role assignment from a project. Requires: project-role:revoke permission.
+     Remove a role assignment from this user.
 
     Args:
-        project_id (UUID):
+        user_id (UUID):
         assignment_id (UUID):
 
     Raises:
@@ -198,7 +198,7 @@ async def asyncio(
 
     return (
         await asyncio_detailed(
-            project_id=project_id,
+            user_id=user_id,
             assignment_id=assignment_id,
             client=client,
         )

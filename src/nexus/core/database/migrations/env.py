@@ -21,11 +21,10 @@ from nexus.agent_orchestrator.models.invocation import Invocation
 from nexus.agent_orchestrator.token_manager.models import TokenUsageRecord, UserTokenConfig
 from nexus.approvals.models.approval_request import ApprovalRequest
 from nexus.authz.models import (
-    GroupRoleAssignment,
     Policy,
     Project,
     Role,
-    UserRoleAssignment,
+    RoleAssignment,
 )
 from nexus.core.config.base import get_settings
 from nexus.core.logging.logging import configure_structlog
@@ -79,8 +78,7 @@ _ = (
     Group,
     Role,
     Policy,
-    GroupRoleAssignment,
-    UserRoleAssignment,
+    RoleAssignment,
 )
 
 # this is the Alembic Config object, which provides

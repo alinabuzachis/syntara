@@ -1,8 +1,6 @@
 """Request/response schemas for the projects API."""
 
-from datetime import datetime
 from typing import Annotated, Any
-from uuid import UUID
 
 from pydantic import Field as PydanticField
 from sqlmodel import Field, SQLModel
@@ -39,42 +37,6 @@ class ProjectRead(BaseResource):
     name: str
     description: str | None = None
     is_default: bool = False
-
-
-class ProjectRoleAssignmentCreate(SQLModel):
-    """Request body for assigning a role to a user within a project."""
-
-    user_id: UUID
-    role_name: str
-
-
-class ProjectRoleAssignmentRead(SQLModel):
-    """Response body for a project role assignment."""
-
-    id: UUID
-    user_id: UUID
-    username: str = ""
-    project_id: UUID
-    role_name: str
-    created_at: datetime | None = None
-
-
-class ProjectGroupRoleAssignmentCreate(SQLModel):
-    """Request body for assigning a role to a group within a project."""
-
-    group_id: UUID
-    role_name: str
-
-
-class ProjectGroupRoleAssignmentRead(SQLModel):
-    """Response body for a project group role assignment."""
-
-    id: UUID
-    group_id: UUID
-    group_name: str = ""
-    project_id: UUID
-    role_name: str
-    created_at: datetime | None = None
 
 
 class ProjectRoleCreate(SQLModel):

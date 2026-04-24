@@ -14,7 +14,9 @@ from sqlalchemy import insert
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.authz.models import GroupRoleAssignment, Project
+from nexus.authz.models import RoleAssignment
+from nexus.authz.models.assignments import PrincipalType
+from nexus.authz.models.project import Project
 from nexus.core.config.base import get_settings
 from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
@@ -97,39 +99,59 @@ async def _seed_assignments_and_admin(
     """Seed group-role assignments and bootstrap admin user."""
     # Assign "default" role to the "authenticated" group (global)
     existing_auth_assignment = await session.exec(
-        select(GroupRoleAssignment).where(
-            GroupRoleAssignment.group_id == auth_group.id,
-            GroupRoleAssignment.role_name == "default",
-            GroupRoleAssignment.project_id.is_(None),  # type: ignore[union-attr]
+        select(RoleAssignment).where(
+            RoleAssignment.principal_type == PrincipalType.GROUP,
+            RoleAssignment.principal_id == auth_group.id,
+            RoleAssignment.role_name == "default",
+            RoleAssignment.project_id.is_(None),  # type: ignore[union-attr]
         )
     )
     if not existing_auth_assignment.one_or_none():
-        session.add(GroupRoleAssignment(id=uuid4(), group_id=auth_group.id, role_name="default", labels={}))
+        session.add(
+            RoleAssignment(
+                id=uuid4(),
+                principal_type=PrincipalType.GROUP,
+                principal_id=auth_group.id,
+                role_name="default",
+                labels={},
+            )
+        )
 
     # Assign "admin" role to the "admins" group (global)
     existing_admin_assignment = await session.exec(
-        select(GroupRoleAssignment).where(
-            GroupRoleAssignment.group_id == admin_group.id,
-            GroupRoleAssignment.role_name == "admin",
-            GroupRoleAssignment.project_id.is_(None),  # type: ignore[union-attr]
+        select(RoleAssignment).where(
+            RoleAssignment.principal_type == PrincipalType.GROUP,
+            RoleAssignment.principal_id == admin_group.id,
+            RoleAssignment.role_name == "admin",
+            RoleAssignment.project_id.is_(None),  # type: ignore[union-attr]
         )
     )
     if not existing_admin_assignment.one_or_none():
-        session.add(GroupRoleAssignment(id=uuid4(), group_id=admin_group.id, role_name="admin", labels={}))
+        session.add(
+            RoleAssignment(
+                id=uuid4(),
+                principal_type=PrincipalType.GROUP,
+                principal_id=admin_group.id,
+                role_name="admin",
+                labels={},
+            )
+        )
 
     # Assign "project-user" role to "authenticated" group on the default project
     existing_default_assignment = await session.exec(
-        select(GroupRoleAssignment).where(
-            GroupRoleAssignment.group_id == auth_group.id,
-            GroupRoleAssignment.project_id == default_project.id,
-            GroupRoleAssignment.role_name == "project-user",
+        select(RoleAssignment).where(
+            RoleAssignment.principal_type == PrincipalType.GROUP,
+            RoleAssignment.principal_id == auth_group.id,
+            RoleAssignment.project_id == default_project.id,
+            RoleAssignment.role_name == "project-user",
         )
     )
     if not existing_default_assignment.one_or_none():
         session.add(
-            GroupRoleAssignment(
+            RoleAssignment(
                 id=uuid4(),
-                group_id=auth_group.id,
+                principal_type=PrincipalType.GROUP,
+                principal_id=auth_group.id,
                 project_id=default_project.id,
                 role_name="project-user",
                 labels={},

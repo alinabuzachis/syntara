@@ -1,5 +1,5 @@
 from http import HTTPStatus
-from typing import Any, cast
+from typing import Any
 from uuid import UUID
 
 import httpx
@@ -7,24 +7,38 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.error_data import ErrorData
+from ...models.role_assignment_read import RoleAssignmentRead
+from ...models.sub_resource_role_assignment_create import SubResourceRoleAssignmentCreate
 from ...types import Response
 
 
 def _get_kwargs(
-    assignment_id: UUID,
+    group_id: UUID,
+    *,
+    body: SubResourceRoleAssignmentCreate,
 ) -> dict[str, Any]:
+    headers: dict[str, Any] = {}
+
     _kwargs: dict[str, Any] = {
-        "method": "delete",
-        "url": f"/group-role-assignments/{assignment_id}",
+        "method": "post",
+        "url": f"/groups/{group_id}/role-assignments",
     }
 
+    _kwargs["json"] = body.to_dict()
+
+    headers["Content-Type"] = "application/json"
+
+    _kwargs["headers"] = headers
     return _kwargs
 
 
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | ErrorData | None:
-    if response.status_code == 204:
-        response_204 = cast(Any, None)
-        return response_204
+def _parse_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> ErrorData | RoleAssignmentRead | None:
+    if response.status_code == 201:
+        response_201 = RoleAssignmentRead.from_dict(response.json())
+
+        return response_201
 
     if response.status_code == 400:
         response_400 = ErrorData.from_dict(response.json())
@@ -67,7 +81,9 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Any | ErrorData]:
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[ErrorData | RoleAssignmentRead]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -79,27 +95,33 @@ def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Res
 
 
 def sync_detailed(
-    assignment_id: UUID,
+    group_id: UUID,
     *,
     client: AuthenticatedClient,
-) -> Response[Any | ErrorData]:
-    """Revoke Group Role Assignment
+    body: SubResourceRoleAssignmentCreate,
+) -> Response[ErrorData | RoleAssignmentRead]:
+    """Create Group Role Assignment
 
-     Remove a group→role assignment. Requires: admin permission.
+     Assign a role to this group.
 
     Args:
-        assignment_id (UUID):
+        group_id (UUID):
+        body (SubResourceRoleAssignmentCreate): Request body for creating a role assignment from a
+            sub-resource endpoint.
+
+            principal_type and principal_id come from the URL path.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | ErrorData]
+        Response[ErrorData | RoleAssignmentRead]
     """
 
     kwargs = _get_kwargs(
-        assignment_id=assignment_id,
+        group_id=group_id,
+        body=body,
     )
 
     response = client.get_httpx_client().request(
@@ -110,53 +132,65 @@ def sync_detailed(
 
 
 def sync(
-    assignment_id: UUID,
+    group_id: UUID,
     *,
     client: AuthenticatedClient,
-) -> Any | ErrorData | None:
-    """Revoke Group Role Assignment
+    body: SubResourceRoleAssignmentCreate,
+) -> ErrorData | RoleAssignmentRead | None:
+    """Create Group Role Assignment
 
-     Remove a group→role assignment. Requires: admin permission.
+     Assign a role to this group.
 
     Args:
-        assignment_id (UUID):
+        group_id (UUID):
+        body (SubResourceRoleAssignmentCreate): Request body for creating a role assignment from a
+            sub-resource endpoint.
+
+            principal_type and principal_id come from the URL path.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | ErrorData
+        ErrorData | RoleAssignmentRead
     """
 
     return sync_detailed(
-        assignment_id=assignment_id,
+        group_id=group_id,
         client=client,
+        body=body,
     ).parsed
 
 
 async def asyncio_detailed(
-    assignment_id: UUID,
+    group_id: UUID,
     *,
     client: AuthenticatedClient,
-) -> Response[Any | ErrorData]:
-    """Revoke Group Role Assignment
+    body: SubResourceRoleAssignmentCreate,
+) -> Response[ErrorData | RoleAssignmentRead]:
+    """Create Group Role Assignment
 
-     Remove a group→role assignment. Requires: admin permission.
+     Assign a role to this group.
 
     Args:
-        assignment_id (UUID):
+        group_id (UUID):
+        body (SubResourceRoleAssignmentCreate): Request body for creating a role assignment from a
+            sub-resource endpoint.
+
+            principal_type and principal_id come from the URL path.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | ErrorData]
+        Response[ErrorData | RoleAssignmentRead]
     """
 
     kwargs = _get_kwargs(
-        assignment_id=assignment_id,
+        group_id=group_id,
+        body=body,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -165,28 +199,34 @@ async def asyncio_detailed(
 
 
 async def asyncio(
-    assignment_id: UUID,
+    group_id: UUID,
     *,
     client: AuthenticatedClient,
-) -> Any | ErrorData | None:
-    """Revoke Group Role Assignment
+    body: SubResourceRoleAssignmentCreate,
+) -> ErrorData | RoleAssignmentRead | None:
+    """Create Group Role Assignment
 
-     Remove a group→role assignment. Requires: admin permission.
+     Assign a role to this group.
 
     Args:
-        assignment_id (UUID):
+        group_id (UUID):
+        body (SubResourceRoleAssignmentCreate): Request body for creating a role assignment from a
+            sub-resource endpoint.
+
+            principal_type and principal_id come from the URL path.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | ErrorData
+        ErrorData | RoleAssignmentRead
     """
 
     return (
         await asyncio_detailed(
-            assignment_id=assignment_id,
+            group_id=group_id,
             client=client,
+            body=body,
         )
     ).parsed

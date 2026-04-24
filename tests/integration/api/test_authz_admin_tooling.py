@@ -12,7 +12,7 @@ from httpx import AsyncClient
 from sqlalchemy import insert
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.authz.models import GroupRoleAssignment
+from nexus.authz.models import PrincipalType, RoleAssignment
 from nexus.authz.models.policy import Policy
 from nexus.authz.models.role import Role
 from nexus.core.models import User
@@ -100,7 +100,9 @@ async def test_explicit_deny_fields(
     group = Group(name=f"deny-at-grp-{uuid4()}", description="", labels={})
     test_db_session.add(group)
     await test_db_session.flush()
-    test_db_session.add(GroupRoleAssignment(group_id=group.id, role_name="deny-delete-role-at", labels={}))
+    test_db_session.add(
+        RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=group.id, role_name="deny-delete-role-at")
+    )
     await test_db_session.execute(insert(user_groups).values(user_id=bob.id, group_id=group.id))
     await test_db_session.commit()
 

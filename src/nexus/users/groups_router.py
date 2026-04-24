@@ -10,6 +10,16 @@ from nexus.auth import get_current_user
 from nexus.auth.exceptions import UserNotLocalError
 from nexus.auth.session.session_store import SessionStore
 from nexus.authz.dependencies import PermissionChecker
+from nexus.authz.models.assignments import PrincipalType, RoleAssignment
+from nexus.authz.role_assignment_router import (
+    PrincipalRoleAssignmentListParams,
+    RoleAssignmentListResponse,
+    RoleAssignmentRead,
+    SubResourceRoleAssignmentCreate,
+    delete_principal_assignment,
+    list_principal_assignments,
+)
+from nexus.authz.services.role_assignment_service import RoleAssignmentService
 from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.core.models.base.query_params import BaseListParams
@@ -24,7 +34,7 @@ from nexus.core.models.group import (
     GroupUpdate,
 )
 from nexus.core.models.user_schemas import UserListResponse
-from nexus.core.nexus_router import NexusRouter
+from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
 from nexus.core.queries.user_queries import get_user_by_id as get_user
 from nexus.users.services.group_service import GroupsService
 
@@ -57,6 +67,13 @@ def get_group_service(
 
     """
     return GroupsService(db, current_user)
+
+
+def _get_role_assignment_service(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> RoleAssignmentService:
+    return RoleAssignmentService(db, current_user)
 
 
 # ============================================================================
@@ -226,4 +243,87 @@ async def list_members(
         group_id,
         limit=params.limit,
         cursor=params.cursor,
+    )
+
+
+# ============================================================================
+# Group Role Assignments
+# ============================================================================
+
+
+@router.post(
+    "/{group_id}/role-assignments",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(PermissionChecker("role-assignment", "assign", body_project_field="project_id"))],
+    operation_id="create_group_role_assignment",
+    response_description="Role assignment created",
+)
+async def create_group_role_assignment(
+    group_id: UUID,
+    body: SubResourceRoleAssignmentCreate,
+    service: Annotated[RoleAssignmentService, Depends(_get_role_assignment_service)],
+) -> RoleAssignmentRead:
+    """Assign a role to this group."""
+    result = await service.assign(
+        principal_type=PrincipalType.GROUP,
+        principal_id=group_id,
+        role_name=body.role_name,
+        project_id=body.project_id,
+    )
+    return RoleAssignmentRead.model_validate(result)
+
+
+@router.get(
+    "/{group_id}/role-assignments",
+    dependencies=[NO_PERMISSION],
+    operation_id="list_group_role_assignments",
+    response_description="List of role assignments for this group",
+)
+async def list_group_role_assignments(
+    group_id: UUID,
+    request: Request,
+    params: Annotated[PrincipalRoleAssignmentListParams, Depends()],
+    service: Annotated[RoleAssignmentService, Depends(_get_role_assignment_service)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> RoleAssignmentListResponse:
+    """List role assignments for a specific group."""
+    return await list_principal_assignments(
+        principal_type=PrincipalType.GROUP,
+        principal_id=group_id,
+        request=request,
+        params=params,
+        service=service,
+        current_user=current_user,
+        db=db,
+    )
+
+
+@router.delete(
+    "/{group_id}/role-assignments/{assignment_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[
+        Depends(
+            PermissionChecker(
+                "role-assignment",
+                "revoke",
+                resource_model=RoleAssignment,
+                resource_id_param="assignment_id",
+            )
+        )
+    ],
+    operation_id="delete_group_role_assignment",
+    response_description="Assignment removed",
+)
+async def delete_group_role_assignment(
+    group_id: UUID,
+    assignment_id: UUID,
+    service: Annotated[RoleAssignmentService, Depends(_get_role_assignment_service)],
+) -> None:
+    """Remove a role assignment from this group."""
+    await delete_principal_assignment(
+        principal_type=PrincipalType.GROUP,
+        principal_id=group_id,
+        assignment_id=assignment_id,
+        service=service,
     )

@@ -1,25 +1,27 @@
 from http import HTTPStatus
 from typing import Any
+from uuid import UUID
 
 import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.error_data import ErrorData
-from ...models.group_role_assignment_create import GroupRoleAssignmentCreate
-from ...models.group_role_assignment_read import GroupRoleAssignmentRead
+from ...models.role_assignment_create import RoleAssignmentCreate
+from ...models.role_assignment_read import RoleAssignmentRead
 from ...types import Response
 
 
 def _get_kwargs(
+    project_id: UUID,
     *,
-    body: GroupRoleAssignmentCreate,
+    body: RoleAssignmentCreate,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
 
     _kwargs: dict[str, Any] = {
         "method": "post",
-        "url": "/group-role-assignments",
+        "url": f"/projects/{project_id}/role-assignments",
     }
 
     _kwargs["json"] = body.to_dict()
@@ -32,9 +34,9 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> ErrorData | GroupRoleAssignmentRead | None:
+) -> ErrorData | RoleAssignmentRead | None:
     if response.status_code == 201:
-        response_201 = GroupRoleAssignmentRead.from_dict(response.json())
+        response_201 = RoleAssignmentRead.from_dict(response.json())
 
         return response_201
 
@@ -81,7 +83,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[ErrorData | GroupRoleAssignmentRead]:
+) -> Response[ErrorData | RoleAssignmentRead]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -93,26 +95,29 @@ def _build_response(
 
 
 def sync_detailed(
+    project_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: GroupRoleAssignmentCreate,
-) -> Response[ErrorData | GroupRoleAssignmentRead]:
-    """Assign Group Role
+    body: RoleAssignmentCreate,
+) -> Response[ErrorData | RoleAssignmentRead]:
+    """Create Project Role Assignment
 
-     Assign a role to a group (system-level). Requires: admin permission.
+     Assign a role to a user or group within a project.
 
     Args:
-        body (GroupRoleAssignmentCreate): Request body for assigning a role to a group.
+        project_id (UUID):
+        body (RoleAssignmentCreate): Request body for creating a role assignment.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorData | GroupRoleAssignmentRead]
+        Response[ErrorData | RoleAssignmentRead]
     """
 
     kwargs = _get_kwargs(
+        project_id=project_id,
         body=body,
     )
 
@@ -124,52 +129,58 @@ def sync_detailed(
 
 
 def sync(
+    project_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: GroupRoleAssignmentCreate,
-) -> ErrorData | GroupRoleAssignmentRead | None:
-    """Assign Group Role
+    body: RoleAssignmentCreate,
+) -> ErrorData | RoleAssignmentRead | None:
+    """Create Project Role Assignment
 
-     Assign a role to a group (system-level). Requires: admin permission.
+     Assign a role to a user or group within a project.
 
     Args:
-        body (GroupRoleAssignmentCreate): Request body for assigning a role to a group.
+        project_id (UUID):
+        body (RoleAssignmentCreate): Request body for creating a role assignment.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorData | GroupRoleAssignmentRead
+        ErrorData | RoleAssignmentRead
     """
 
     return sync_detailed(
+        project_id=project_id,
         client=client,
         body=body,
     ).parsed
 
 
 async def asyncio_detailed(
+    project_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: GroupRoleAssignmentCreate,
-) -> Response[ErrorData | GroupRoleAssignmentRead]:
-    """Assign Group Role
+    body: RoleAssignmentCreate,
+) -> Response[ErrorData | RoleAssignmentRead]:
+    """Create Project Role Assignment
 
-     Assign a role to a group (system-level). Requires: admin permission.
+     Assign a role to a user or group within a project.
 
     Args:
-        body (GroupRoleAssignmentCreate): Request body for assigning a role to a group.
+        project_id (UUID):
+        body (RoleAssignmentCreate): Request body for creating a role assignment.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorData | GroupRoleAssignmentRead]
+        Response[ErrorData | RoleAssignmentRead]
     """
 
     kwargs = _get_kwargs(
+        project_id=project_id,
         body=body,
     )
 
@@ -179,27 +190,30 @@ async def asyncio_detailed(
 
 
 async def asyncio(
+    project_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: GroupRoleAssignmentCreate,
-) -> ErrorData | GroupRoleAssignmentRead | None:
-    """Assign Group Role
+    body: RoleAssignmentCreate,
+) -> ErrorData | RoleAssignmentRead | None:
+    """Create Project Role Assignment
 
-     Assign a role to a group (system-level). Requires: admin permission.
+     Assign a role to a user or group within a project.
 
     Args:
-        body (GroupRoleAssignmentCreate): Request body for assigning a role to a group.
+        project_id (UUID):
+        body (RoleAssignmentCreate): Request body for creating a role assignment.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorData | GroupRoleAssignmentRead
+        ErrorData | RoleAssignmentRead
     """
 
     return (
         await asyncio_detailed(
+            project_id=project_id,
             client=client,
             body=body,
         )

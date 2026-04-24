@@ -8,7 +8,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.exceptions import BuiltinProtectionError, RoleNameConflictError, RoleNotFoundError
-from nexus.authz.models.assignments import GroupRoleAssignment, UserRoleAssignment
+from nexus.authz.models.assignments import RoleAssignment
 from nexus.authz.models.role import Role
 from nexus.authz.role_conventions import (
     BUILTIN_ROLES,
@@ -397,10 +397,9 @@ class RoleService(BaseService):
             msg = "Cannot delete builtin role"
             raise BuiltinProtectionError(msg)
 
-        for model in (UserRoleAssignment, GroupRoleAssignment):
-            results = await self.session.exec(select(model).where(model.role_name == role.name))
-            for row in results.all():
-                await self.session.delete(row)
+        results = await self.session.exec(select(RoleAssignment).where(RoleAssignment.role_name == role.name))
+        for row in results.all():
+            await self.session.delete(row)
 
         await self.session.delete(role)
         await self.session.commit()
@@ -409,11 +408,10 @@ class RoleService(BaseService):
 
     async def _propagate_role_rename(self, old_name: str, new_name: str) -> None:
         """Update all assignments that reference the old role name."""
-        for model in (UserRoleAssignment, GroupRoleAssignment):
-            results = await self.session.exec(select(model).where(model.role_name == old_name))
-            for row in results.all():
-                row.role_name = new_name
-                self.session.add(row)
+        results = await self.session.exec(select(RoleAssignment).where(RoleAssignment.role_name == old_name))
+        for row in results.all():
+            row.role_name = new_name
+            self.session.add(row)
 
     async def _check_name_conflict(self, name: str, project_id: UUID | None) -> None:
         """Check if a role name already exists in the same scope."""

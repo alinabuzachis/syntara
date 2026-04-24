@@ -6,7 +6,6 @@ from functools import cached_property
 
 from ..client import AuthenticatedClient
 from .aap import AapApi
-from .all_role_assignments import AllRoleAssignmentsApi
 from .approvals import ApprovalsApi
 from .audit_events import AuditEventsApi
 from .authentication import AuthenticationApi
@@ -15,17 +14,16 @@ from .credentials import CredentialsApi
 from .example import ExampleApi
 from .executions import ExecutionsApi
 from .files import FilesApi
-from .group_role_assignments import GroupRoleAssignmentsApi
 from .groups import GroupsApi
 from .identity_providers import IdentityProvidersApi
 from .invocation import InvocationApi
 from .policies import PoliciesApi
 from .projects import ProjectsApi
+from .role_assignments import RoleAssignmentsApi
 from .roles import RolesApi
 from .settings import SettingsApi
 from .tool_manager import ToolManagerApi
 from .tool_metrics import ToolMetricsApi
-from .user_role_assignments import UserRoleAssignmentsApi
 from .users import UsersApi
 from .workflows import WorkflowsApi
 
@@ -53,14 +51,6 @@ class NexusApiRegistry:
         return AuthenticationApi(client=self._client)
 
     @cached_property
-    def all_role_assignments(self) -> AllRoleAssignmentsApi:
-        return AllRoleAssignmentsApi(client=self._client)
-
-    @cached_property
-    def group_role_assignments(self) -> GroupRoleAssignmentsApi:
-        return GroupRoleAssignmentsApi(client=self._client)
-
-    @cached_property
     def authorization(self) -> AuthorizationApi:
         return AuthorizationApi(client=self._client)
 
@@ -73,8 +63,8 @@ class NexusApiRegistry:
         return RolesApi(client=self._client)
 
     @cached_property
-    def user_role_assignments(self) -> UserRoleAssignmentsApi:
-        return UserRoleAssignmentsApi(client=self._client)
+    def role_assignments(self) -> RoleAssignmentsApi:
+        return RoleAssignmentsApi(client=self._client)
 
     @cached_property
     def credentials(self) -> CredentialsApi:

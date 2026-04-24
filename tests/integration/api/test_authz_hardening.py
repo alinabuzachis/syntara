@@ -15,7 +15,7 @@ from sqlalchemy import insert
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.authz.models import GroupRoleAssignment, Project
+from nexus.authz.models import PrincipalType, Project, RoleAssignment
 from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
 from tests.integration.api.conftest import (
@@ -45,8 +45,8 @@ class TestPrivilegeEscalation:
         auth_as(test_user)
 
         resp = await auth_client.post(
-            "/api/v1/user-role-assignments",
-            json={"user_id": str(test_user.id), "role_name": "admin"},
+            "/api/v1/role-assignments",
+            json={"principal_type": "user", "principal_id": str(test_user.id), "role_name": "admin"},
         )
         assert resp.status_code == 403
 
@@ -57,12 +57,12 @@ class TestPrivilegeEscalation:
         test_user: User,
         auth_as: Callable[[User], None],
     ) -> None:
-        """SEC-001b: can-i confirms user-role:assign is denied for regular user."""
+        """SEC-001b: can-i confirms role-assignment:assign is denied for regular user."""
         auth_as(test_user)
 
         resp = await auth_client.post(
             "/api/v1/authz/can-i",
-            json={"action": "assign", "resource_type": "user-role"},
+            json={"action": "assign", "resource_type": "role-assignment"},
         )
         assert resp.status_code == 200
         assert resp.json()["allowed"] is False
@@ -402,7 +402,7 @@ class TestGroupMembershipEdgeCases:
         group = Group(name=f"revoke-sec31-{uuid4()}", description="", labels={})
         test_db_session.add(group)
         await test_db_session.flush()
-        role_assignment = GroupRoleAssignment(group_id=group.id, role_name="user", labels={})
+        role_assignment = RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=group.id, role_name="user")
         test_db_session.add(role_assignment)
         await test_db_session.execute(insert(user_groups).values(user_id=user.id, group_id=group.id))
         await test_db_session.commit()
@@ -476,10 +476,10 @@ class TestPermissionChecker403:
         auth_as(test_user)
 
         resp = await auth_client.post(
-            "/api/v1/user-role-assignments",
-            json={"user_id": str(test_user.id), "role_name": "admin"},
+            "/api/v1/role-assignments",
+            json={"principal_type": "user", "principal_id": str(test_user.id), "role_name": "admin"},
         )
         assert resp.status_code == 403
         detail = resp.json()["detail"]
-        assert "user-role" in detail
+        assert "role-assignment" in detail
         assert "assign" in detail
