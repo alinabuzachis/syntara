@@ -125,6 +125,107 @@ class TestAuditEventServiceList:
         assert page1_ids.isdisjoint(page2_ids)
 
     @pytest.mark.asyncio
+    async def test_list_cursor_pagination_forward_and_backward(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        audit_events_factory: AuditEventsFactory,
+    ) -> None:
+        """Test cursor pagination forward to last page, then backward to first page.
+
+        Verifies that after paging forward and then backward to the first page,
+        the next cursor is still present (allowing forward pagination again)
+        while the prev cursor is None (indicating we're at the start).
+        """
+        # Create 7 events to get 4 pages with limit=2 (pages: 2,2,2,1)
+        await audit_events_factory.create_events(count=7)
+
+        service = AuditEventService(test_db_session, test_user)
+
+        # Page 1: First page should have next, no prev
+        page1 = await service.list_resources(
+            model=AuditEventRecord,
+            response_type=AuditEventListResponse,
+            limit=2,
+        )
+        assert len(page1.resources) == 2
+        assert page1.next is not None
+        assert page1.prev is None
+
+        # Page 2: Middle page should have both next and prev
+        page2 = await service.list_resources(
+            model=AuditEventRecord,
+            response_type=AuditEventListResponse,
+            limit=2,
+            cursor=page1.next,
+        )
+        assert len(page2.resources) == 2
+        assert page2.next is not None
+        assert page2.prev is not None
+
+        # Page 3: Another middle page
+        page3 = await service.list_resources(
+            model=AuditEventRecord,
+            response_type=AuditEventListResponse,
+            limit=2,
+            cursor=page2.next,
+        )
+        assert len(page3.resources) == 2
+        assert page3.next is not None
+        assert page3.prev is not None
+
+        # Page 4: Last page should have prev, no next
+        page4 = await service.list_resources(
+            model=AuditEventRecord,
+            response_type=AuditEventListResponse,
+            limit=2,
+            cursor=page3.next,
+        )
+        assert len(page4.resources) == 1
+        assert page4.next is None
+        assert page4.prev is not None
+
+        # Now paginate backward
+        # Back to page 3
+        back_to_page3 = await service.list_resources(
+            model=AuditEventRecord,
+            response_type=AuditEventListResponse,
+            limit=2,
+            cursor=page4.prev,
+        )
+        assert len(back_to_page3.resources) == 2
+        assert back_to_page3.next is not None
+        assert back_to_page3.prev is not None
+
+        # Back to page 2
+        back_to_page2 = await service.list_resources(
+            model=AuditEventRecord,
+            response_type=AuditEventListResponse,
+            limit=2,
+            cursor=back_to_page3.prev,
+        )
+        assert len(back_to_page2.resources) == 2
+        assert back_to_page2.next is not None
+        assert back_to_page2.prev is not None
+
+        # Back to page 1: This is the critical assertion for the bug
+        # After paging forward and backward, the first page should still have next cursor
+        back_to_page1 = await service.list_resources(
+            model=AuditEventRecord,
+            response_type=AuditEventListResponse,
+            limit=2,
+            cursor=back_to_page2.prev,
+        )
+        assert len(back_to_page1.resources) == 2
+        assert back_to_page1.prev is None, "First page should have no previous cursor"
+        assert back_to_page1.next is not None, "First page should have next cursor (bug: this returns None)"
+
+        # Verify we got the same resources as the original page 1
+        back_to_page1_ids = {r.id for r in back_to_page1.resources}
+        page1_ids = {r.id for r in page1.resources}
+        assert back_to_page1_ids == page1_ids
+
+    @pytest.mark.asyncio
     async def test_list_default_sort_is_created_at_desc(
         self,
         test_db_session: AsyncSession,

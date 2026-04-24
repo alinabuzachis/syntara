@@ -328,6 +328,61 @@ class TestPaginationFunctions:
         assert middle_response["next"] is None  # Less than limit, so no next
         assert middle_response["prev"] is not None  # Has cursor, so has prev
 
+    def test_backward_pagination_to_first_page_generates_next_cursor(self) -> None:
+        """Test that backward pagination to first page still generates next cursor.
+
+        This is a regression test for a bug where navigating backward to the first page
+        would incorrectly set next=None, preventing forward navigation and hiding
+        pagination controls.
+
+        The bug occurred because:
+        - During backward pagination, the N+1 pattern detects items in the PREV direction
+        - When reaching first page, has_more=False (no items before first page)
+        - The code incorrectly used has_more to determine next cursor generation
+        - This caused next=None even though there were pages ahead (that we came from)
+
+        Fix: During backward pagination with a cursor, next cursor should always be
+        generated to allow forward navigation back through the pages.
+        """
+        # Create 2 resources (first page when limit=2)
+        resources = [
+            MockResource(id=uuid4(), created_at=datetime.now(UTC), name="Resource 1"),
+            MockResource(id=uuid4(), created_at=datetime.now(UTC), name="Resource 2"),
+        ]
+
+        # Simulate backward pagination to first page using a prev cursor
+        # This cursor indicates we're navigating backward from a later page
+        prev_cursor_data = create_cursor_data(
+            resource_id=resources[0].id,
+            created_at=resources[0].created_at,
+            direction=PaginationDirection.PREV,
+        )
+        prev_cursor = encode_cursor(prev_cursor_data)
+
+        # Generate response for first page reached via backward pagination
+        # is_first_page=True indicates we're on the first page (determined by caller)
+        # We have exactly 2 items (no extra), so has_more=False
+        response = generate_response(
+            items=resources,
+            limit=2,
+            cursor=prev_cursor,
+            is_first_page=True,
+        )
+
+        # Assertions for first page reached via backward pagination
+        assert len(response["trimmed_items"]) == 2
+
+        # Critical assertion: next cursor MUST be present
+        # This allows forward navigation back to the pages we came from
+        assert response["next"] is not None, "First page reached via backward pagination must have next cursor"
+
+        # prev cursor must be None since we're on the first page
+        assert response["prev"] is None, "First page should have no previous cursor"
+
+        # Verify the next cursor has correct direction
+        decoded_next = decode_cursor(response["next"])
+        assert decoded_next["direction"] == "next"
+
 
 class TestCursorSecurity:
     """Test cursor security features and limits."""
