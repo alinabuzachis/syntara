@@ -3,7 +3,7 @@ import { useCallback } from 'react'
 import { useAlerts } from '../components/alerts'
 import { getErrorMessage } from '../utils/apiErrors'
 
-interface UseDeleteActionOptions<T, P = unknown> {
+type UseDeleteActionOptions<T, P = unknown> = {
   /** Function that performs the delete mutation */
   deleteFn: (
     params: P,

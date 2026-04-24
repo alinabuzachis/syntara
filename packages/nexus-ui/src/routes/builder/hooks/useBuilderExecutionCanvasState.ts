@@ -3,15 +3,15 @@ import { useEffect, useMemo, type Dispatch } from 'react'
 
 import type { BuilderAction } from '../builderReducer'
 
-interface ExecutionListQueryLike {
+type ExecutionListQueryLike = {
   data?: { resources?: Array<{ id?: string }> } | null
 }
 
-interface ExecutionDetailQueryLike {
+type ExecutionDetailQueryLike = {
   data?: Execution
 }
 
-interface WorkflowDefinitionLike {
+type WorkflowDefinitionLike = {
   metadata?: { name?: string; description?: string }
   workflow?: { activities?: Array<{ id: string }> }
   triggers?: unknown[]

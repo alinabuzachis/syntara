@@ -62,7 +62,7 @@ const TIMEOUT_ACTION_OPTIONS: Array<{ label: string; value: 'fail' | 'continue';
   },
 ]
 
-interface ConvergeTimeoutActionMenuToggleProps {
+type ConvergeTimeoutActionMenuToggleProps = {
   toggleRef: Ref<MenuToggleElement>
   isExpanded: boolean
   onToggleClick: () => void
@@ -82,7 +82,7 @@ function ConvergeTimeoutActionMenuToggle({
   )
 }
 
-interface ConvergeNodeFormProps {
+type ConvergeNodeFormProps = {
   onSubmit: (data: ConvergeFormData) => void
   submitButtonText?: string
   initialData?: Partial<ConvergeFormData>

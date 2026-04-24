@@ -51,5 +51,5 @@ export function useMonacoBlur(code: string, onBlur?: (value: string) => void) {
     latestValueRef.current = value
   }
 
-  return { getValue, focus, handleEditorDidMount, setValue }
+  return { getValue, focus, handleEditorDidMount, setValue, editorRef: editorInstanceRef }
 }

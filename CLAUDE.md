@@ -139,7 +139,7 @@ For how the UI is structured, see these comprehensive guides:
 | **PR sizing / stacking**            | [`.github/PR_GUIDELINES.md`](.github/PR_GUIDELINES.md) — budget, stacking, stop rules                                         |
 | **List page with pagination**       | [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) — `useCursorPagination` pattern                    |
 | **Confirmation dialogs**            | [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) — `ConfirmationDialog` component                   |
-| **Sonar S6478 / PF `toggle` props** | [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) — nested components and PatternFly render props     |
+| **Sonar S6478 / PF `toggle` props** | [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) — nested components and PatternFly render props    |
 | **Dialog state management**         | [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) — `useDialogState` hook                            |
 | **Error handling patterns**         | [`docs/error-handling.md`](docs/error-handling.md) — RFC 9457, error utilities, retry support                                 |
 | **Testing standards**               | [`.claude/skills/testing_guidelines.md`](.claude/skills/testing_guidelines.md) — coverage, queries, accessibility             |

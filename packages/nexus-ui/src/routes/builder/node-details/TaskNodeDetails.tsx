@@ -12,7 +12,12 @@ import type { ActionFormData as RegistryActionFormData } from '../hooks/useNodeC
 import { AAPNodeForm } from '../node-forms/AAPNodeForm'
 import type { AAPFormData } from '../node-forms/AAPNodeForm'
 import { ActionNodeForm } from '../node-forms/ActionNodeForm'
-import { buildAAPConfig, validateJobTemplateId } from '../utils/aapHelpers'
+import {
+  buildAAPConfig,
+  buildExpressionModeActivity,
+  hasExpressionValue,
+  validateJobTemplateId,
+} from '../utils/aapHelpers'
 
 import { AIAgentNodeDetails } from './AIAgentNodeDetails'
 
@@ -224,13 +229,14 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
 
     const handleAAPSubmit = (data: AAPFormData) => {
       try {
-        // Validate job_template_id (required, set by dropdown selection)
-        const job_template_id = validateJobTemplateId(data.job_template_id)
+        if (hasExpressionValue(data.job_template_name, data.organization_name)) {
+          updateActivity(nodeId, buildExpressionModeActivity(nodeId, data.name, data))
+        } else {
+          const job_template_id = validateJobTemplateId(data.job_template_id)
+          const aapNodeConfig = buildAAPConfig(data)
+          updateActivity(nodeId, createAAPJobTemplateActivity(nodeId, data.name, job_template_id, aapNodeConfig))
+        }
 
-        const aapNodeConfig = buildAAPConfig(data)
-        const updatedActivity = createAAPJobTemplateActivity(nodeId, data.name, job_template_id, aapNodeConfig)
-
-        updateActivity(nodeId, updatedActivity)
         onClose()
       } catch (error) {
         showError('Update failed', error instanceof Error ? error.message : 'Failed to update step')

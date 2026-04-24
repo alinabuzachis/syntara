@@ -15,7 +15,7 @@ import type { CredentialWorkflowRefExtended } from './credentialConstants'
 
 type ExecutionStatus = ExecutionsAPI.components['schemas']['ExecutionStatus']
 
-interface CredentialWorkflowsTabProps {
+type CredentialWorkflowsTabProps = {
   credentialId: string
 }
 

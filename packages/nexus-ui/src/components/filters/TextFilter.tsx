@@ -24,7 +24,7 @@ import { useTextFilterState } from './useTextFilterState'
 /**
  * Props for TextFilter component
  */
-export interface TextFilterProps {
+export type TextFilterProps = {
   /** Filter field definitions */
   fieldDefinitions: FilterFieldDefinition[]
   /** Current active filters */
@@ -40,7 +40,7 @@ export interface TextFilterProps {
 /**
  * Field selector dropdown component
  */
-interface FieldSelectorProps {
+type FieldSelectorProps = {
   selectedField: FilterFieldDefinition
   fieldDefinitions: FilterFieldDefinition[]
   isOpen: boolean
@@ -49,7 +49,7 @@ interface FieldSelectorProps {
   popperProps?: Record<string, unknown>
 }
 
-interface FieldSelectorMenuToggleProps {
+type FieldSelectorMenuToggleProps = {
   toggleRef: React.Ref<MenuToggleElement>
   isOpen: boolean
   onOpenChange: (open: boolean) => void
@@ -103,7 +103,7 @@ function FieldSelector({
 /**
  * Text filter input with search and apply button
  */
-interface TextFilterInputProps {
+type TextFilterInputProps = {
   inputValue: string
   selectedField: FilterFieldDefinition
   onInputChange: (_event: React.FormEvent<HTMLInputElement>, value: string) => void
@@ -146,7 +146,7 @@ function TextFilterInput({
 /**
  * Select filter dropdown with search capability (client-side or server-side)
  */
-interface SelectFilterInputProps {
+type SelectFilterInputProps = {
   selectedField: FilterFieldDefinition
   currentFilter: FilterConfig | null
   isOpen: boolean
@@ -155,7 +155,7 @@ interface SelectFilterInputProps {
   popperProps?: Record<string, unknown>
 }
 
-interface SelectFilterInputMenuToggleProps {
+type SelectFilterInputMenuToggleProps = {
   toggleRef: React.Ref<MenuToggleElement>
   isOpen: boolean
   onOpenChange: (open: boolean) => void
@@ -348,7 +348,7 @@ function SelectFilterInput({
 /**
  * Multi-select filter input with checkboxes
  */
-interface MultiSelectFilterInputProps {
+type MultiSelectFilterInputProps = {
   selectedField: FilterFieldDefinition
   values: string[]
   isOpen: boolean
@@ -356,7 +356,7 @@ interface MultiSelectFilterInputProps {
   onSelect: (_event: React.MouseEvent | undefined, value: string | number | undefined) => void
 }
 
-interface MultiSelectFilterInputMenuToggleProps {
+type MultiSelectFilterInputMenuToggleProps = {
   toggleRef: React.Ref<MenuToggleElement>
   isOpen: boolean
   onOpenChange: (open: boolean) => void
@@ -423,7 +423,7 @@ function MultiSelectFilterInput({
 /**
  * Date range filter with start and end date pickers
  */
-interface DateRangeFilterInputProps {
+type DateRangeFilterInputProps = {
   selectedField: FilterFieldDefinition
   filters: FilterConfig[]
   onDateRangeChange: (dateFilters: FilterConfig[]) => void

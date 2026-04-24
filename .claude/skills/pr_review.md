@@ -103,11 +103,11 @@ Check whether the changes follow:
 
 **Also check these review-specific items:**
 
-| Check                                                                          | How to verify                                                                                      |
-| ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
-| **UI PRs include screenshots**                                                 | PRs changing visible UI must include screenshots or recordings of key states                       |
-| **New API endpoints have mock handlers**                                       | Check `packages/nexus-mock-api/src/handlers.ts`; note exception if backend not yet merged          |
-| **Error handling consistency**                                                 | Verify `useQueryState` / `useMutationErrorHandler` — no ad-hoc try/catch with custom error display |
+| Check                                    | How to verify                                                                                      |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| **UI PRs include screenshots**           | PRs changing visible UI must include screenshots or recordings of key states                       |
+| **New API endpoints have mock handlers** | Check `packages/nexus-mock-api/src/handlers.ts`; note exception if backend not yet merged          |
+| **Error handling consistency**           | Verify `useQueryState` / `useMutationErrorHandler` — no ad-hoc try/catch with custom error display |
 
 ### HTML → PF6 Component Mapping
 

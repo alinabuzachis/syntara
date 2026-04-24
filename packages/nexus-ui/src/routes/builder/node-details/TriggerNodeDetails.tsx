@@ -84,7 +84,7 @@ function validateISO8601Interval(interval: string): boolean {
   return true
 }
 
-interface TriggerNodeDetailsProps {
+type TriggerNodeDetailsProps = {
   trigger: Trigger
   triggerIndex: number
   onClose: () => void

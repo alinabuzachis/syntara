@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
@@ -192,5 +192,80 @@ describe('ExpandableCodeEditor', () => {
     await user.click(closeButton!)
 
     expect(onBlur).toHaveBeenCalledWith('edited in modal')
+  })
+
+  it('calls onDropText when text is dropped from internal source', () => {
+    const onDropText = vi.fn()
+    render(<ExpandableCodeEditor {...defaultProps} onDropText={onDropText} />)
+
+    const dropTarget = screen.getByTestId('inline-code-editor')
+    const dataTransfer = {
+      getData: (format: string) => {
+        if (format === 'application/json') return '{"type":"nexus/input-field"}'
+        if (format === 'text/plain') return '${node.field}'
+        return ''
+      },
+      dropEffect: '',
+    }
+
+    fireEvent.drop(dropTarget, { dataTransfer })
+
+    expect(onDropText).toHaveBeenCalledWith('${node.field}')
+  })
+
+  it('rejects drops from external sources without application/json', () => {
+    const onDropText = vi.fn()
+    render(<ExpandableCodeEditor {...defaultProps} onDropText={onDropText} />)
+
+    const dropTarget = screen.getByTestId('inline-code-editor')
+    const dataTransfer = {
+      getData: (format: string) => (format === 'text/plain' ? 'malicious code' : ''),
+      dropEffect: '',
+    }
+
+    fireEvent.drop(dropTarget, { dataTransfer })
+
+    expect(onDropText).not.toHaveBeenCalled()
+  })
+
+  it('shows drop highlight on dragOver', () => {
+    render(<ExpandableCodeEditor {...defaultProps} />)
+
+    const dropTarget = screen.getByTestId('inline-code-editor')
+    const dataTransfer = { dropEffect: '' }
+
+    fireEvent.dragOver(dropTarget, { dataTransfer })
+
+    expect(dropTarget.style.outline).toBe('2px solid var(--pf-t--global--color--brand--default)')
+  })
+
+  it('removes drop highlight on dragLeave', () => {
+    render(<ExpandableCodeEditor {...defaultProps} />)
+
+    const dropTarget = screen.getByTestId('inline-code-editor')
+    const dataTransfer = { dropEffect: '' }
+
+    // First dragOver to add highlight
+    fireEvent.dragOver(dropTarget, { dataTransfer })
+    expect(dropTarget.style.outline).toBe('2px solid var(--pf-t--global--color--brand--default)')
+
+    // Then dragLeave to remove it
+    fireEvent.dragLeave(dropTarget)
+    expect(dropTarget.style.outline).toBe('')
+  })
+
+  it('does not call onDropText when no text/plain data is present', () => {
+    const onDropText = vi.fn()
+    render(<ExpandableCodeEditor {...defaultProps} onDropText={onDropText} />)
+
+    const dropTarget = screen.getByTestId('inline-code-editor')
+    const dataTransfer = {
+      getData: () => '',
+      dropEffect: '',
+    }
+
+    fireEvent.drop(dropTarget, { dataTransfer })
+
+    expect(onDropText).not.toHaveBeenCalled()
   })
 })

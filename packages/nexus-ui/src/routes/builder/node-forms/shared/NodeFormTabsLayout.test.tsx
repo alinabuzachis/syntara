@@ -12,16 +12,35 @@ vi.mock('../../../../components/alerts', () => ({
 describe('NodeFormTabsLayout', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  describe('Run step button', () => {
-    it('renders with correct label and triggers info alert on click', async () => {
+  describe('Test step button', () => {
+    it('renders with correct label and falls back to info alert when no onTestStep is provided', async () => {
       const user = userEvent.setup()
       render(<NodeFormTabsLayout parametersContent={<div>Params</div>} />)
 
-      const button = screen.getByRole('button', { name: 'Run step' })
+      const button = screen.getByRole('button', { name: 'Test step' })
       expect(button).toBeInTheDocument()
 
       await user.click(button)
       expect(mockShowInfo).toHaveBeenCalledWith('Not yet implemented')
+    })
+
+    it('calls onTestStep when provided', async () => {
+      const user = userEvent.setup()
+      const onTestStep = vi.fn()
+      render(<NodeFormTabsLayout parametersContent={<div>Params</div>} onTestStep={onTestStep} />)
+
+      await user.click(screen.getByRole('button', { name: 'Test step' }))
+
+      expect(onTestStep).toHaveBeenCalledTimes(1)
+      expect(mockShowInfo).not.toHaveBeenCalled()
+    })
+
+    it('shows loading state when isTestStepPending is true', () => {
+      render(<NodeFormTabsLayout parametersContent={<div>Params</div>} isTestStepPending />)
+
+      const button = screen.getByRole('button', { name: /running/i })
+      expect(button).toBeDisabled()
+      expect(screen.getByRole('progressbar')).toBeInTheDocument()
     })
   })
 

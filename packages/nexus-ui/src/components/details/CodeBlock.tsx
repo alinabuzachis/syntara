@@ -9,14 +9,17 @@ export function CodeBlock(props: {
   noMaxHeight?: boolean
   enableCopy?: boolean
   fillHeight?: boolean
+  copyContent?: string
 }) {
   const codeContent = props.children ?? (props.jsonObject && JSON.stringify(props.jsonObject, undefined, 2))
 
-  let copyText = ''
-  if (typeof codeContent === 'string') {
-    copyText = codeContent
-  } else if (props.jsonObject) {
-    copyText = JSON.stringify(props.jsonObject, undefined, 2)
+  let copyText = props.copyContent ?? ''
+  if (!copyText) {
+    if (typeof codeContent === 'string') {
+      copyText = codeContent
+    } else if (props.jsonObject) {
+      copyText = JSON.stringify(props.jsonObject, undefined, 2)
+    }
   }
   const copyButtonId = useId()
   const [isCopied, setIsCopied] = useState(false)

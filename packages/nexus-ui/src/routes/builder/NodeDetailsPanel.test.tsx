@@ -74,6 +74,18 @@ vi.mock('./NodeRawDataView', () => ({
   NodeRawDataView: () => <div data-testid="raw-node-view" />,
 }))
 
+vi.mock('./panels/hooks/useNodeExecutionData', () => ({
+  useNodeExecutionData: vi.fn(() => ({ inputData: null, outputData: null, isLoading: false })),
+}))
+
+vi.mock('./panels/InputPanel', () => ({
+  InputPanel: () => <div data-testid="input-panel">Input</div>,
+}))
+
+vi.mock('./panels/OutputPanel', () => ({
+  OutputPanel: () => <div data-testid="output-panel">Output</div>,
+}))
+
 vi.mock('../automations/canvas/nodes/hooks/useNodeMenuActions', () => ({
   useNodeMenuActions: vi.fn(() => []),
   MenuNodeType: { ACTIVITY: 'activity', TRIGGER: 'trigger' },

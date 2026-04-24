@@ -13,6 +13,8 @@ interface NodeEditorOverlayProps {
   nodeSubtypeId: string | null
   sourceNodeId: string | null
   replacementNodeId: string | null
+  executionId?: string | null
+  workflowId?: string | null
   onConnect: (sourceId: string, targetId: string) => void
   onClose: () => void
   projectId?: string
@@ -27,6 +29,8 @@ export const NodeEditorOverlay = memo(function NodeEditorOverlay(props: NodeEdit
     nodeSubtypeId,
     sourceNodeId,
     replacementNodeId,
+    executionId,
+    workflowId,
     onConnect,
     onClose,
     projectId,
@@ -50,6 +54,8 @@ export const NodeEditorOverlay = memo(function NodeEditorOverlay(props: NodeEdit
           nodeSubtypeId={mode === 'add' ? nodeSubtypeId : null}
           sourceNodeId={sourceNodeId}
           replacementNodeId={replacementNodeId}
+          executionId={executionId}
+          workflowId={workflowId}
           onConnect={onConnect}
           onClose={onClose}
           projectId={projectId}

@@ -1,11 +1,14 @@
 import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 import { describe, expect, it } from 'vitest'
 
+import type { EdgeConnection } from '../types/edge'
+
 import {
   getButtonEdgeId,
   getPendingEdgeId,
   getPendingTargetNodeId,
   getPlaceholderNodeId,
+  getUpstreamNodeIds,
   handleToV2Port,
   isApprovalHandle,
   isBranchHandle,
@@ -290,6 +293,91 @@ describe('edgeHelpers', () => {
       const handle = v2PortToHandle(v2Port)
       const backToV2 = handleToV2Port(handle)
       expect(backToV2).toBeUndefined()
+    })
+  })
+
+  describe('getUpstreamNodeIds', () => {
+    /** Helper to build an edge with minimal required fields. */
+    function edge(source: string, target: string): EdgeConnection {
+      return { id: `${source}->${target}`, source, target }
+    }
+
+    it('returns empty set for a root node with no incoming edges', () => {
+      const edges = [edge('A', 'B'), edge('B', 'C')]
+      const result = getUpstreamNodeIds('A', edges)
+      expect(result.size).toBe(0)
+    })
+
+    it('returns empty set when the node is not referenced in any edge', () => {
+      const edges = [edge('A', 'B'), edge('B', 'C')]
+      const result = getUpstreamNodeIds('Z', edges)
+      expect(result.size).toBe(0)
+    })
+
+    it('returns empty set when edge list is empty', () => {
+      const result = getUpstreamNodeIds('A', [])
+      expect(result.size).toBe(0)
+    })
+
+    it('returns single parent for A -> B', () => {
+      const edges = [edge('A', 'B')]
+      const result = getUpstreamNodeIds('B', edges)
+      expect(result).toEqual(new Set(['A']))
+    })
+
+    it('returns all ancestors for a linear chain A -> B -> C', () => {
+      const edges = [edge('A', 'B'), edge('B', 'C')]
+      const result = getUpstreamNodeIds('C', edges)
+      expect(result).toEqual(new Set(['A', 'B']))
+    })
+
+    it('returns both parents for a diamond/merge: A -> C, B -> C', () => {
+      const edges = [edge('A', 'C'), edge('B', 'C')]
+      const result = getUpstreamNodeIds('C', edges)
+      expect(result).toEqual(new Set(['A', 'B']))
+    })
+
+    it('returns all ancestors for a diamond with shared root: A -> B, A -> C, B -> D, C -> D', () => {
+      const edges = [edge('A', 'B'), edge('A', 'C'), edge('B', 'D'), edge('C', 'D')]
+      const result = getUpstreamNodeIds('D', edges)
+      expect(result).toEqual(new Set(['A', 'B', 'C']))
+    })
+
+    it('returns deep ancestors for a long chain: trigger -> A -> B -> C -> D', () => {
+      const edges = [edge('trigger', 'A'), edge('A', 'B'), edge('B', 'C'), edge('C', 'D')]
+      const result = getUpstreamNodeIds('D', edges)
+      expect(result).toEqual(new Set(['trigger', 'A', 'B', 'C']))
+    })
+
+    it('excludes self-referencing edges', () => {
+      const edges = [edge('A', 'B'), edge('B', 'B')]
+      const result = getUpstreamNodeIds('B', edges)
+      expect(result).toEqual(new Set(['A']))
+    })
+
+    it('does not include the starting node itself', () => {
+      const edges = [edge('A', 'B'), edge('B', 'C')]
+      const result = getUpstreamNodeIds('C', edges)
+      expect(result.has('C')).toBe(false)
+    })
+
+    it('handles a complex DAG with multiple paths', () => {
+      // Graph:
+      //   A → B → D
+      //   A → C → D
+      //   D → E
+      const edges = [edge('A', 'B'), edge('A', 'C'), edge('B', 'D'), edge('C', 'D'), edge('D', 'E')]
+      const result = getUpstreamNodeIds('E', edges)
+      expect(result).toEqual(new Set(['A', 'B', 'C', 'D']))
+    })
+
+    it('handles edges with extra properties without issue', () => {
+      const edges: EdgeConnection[] = [
+        { id: 'e1', source: 'A', target: 'B', sourceHandle: 'source', targetHandle: 'target' },
+        { id: 'e2', source: 'B', target: 'C', sourceHandle: 'true', targetHandle: 'target' },
+      ]
+      const result = getUpstreamNodeIds('C', edges)
+      expect(result).toEqual(new Set(['A', 'B']))
     })
   })
 

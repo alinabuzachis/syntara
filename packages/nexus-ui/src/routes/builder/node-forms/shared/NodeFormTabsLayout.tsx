@@ -1,8 +1,9 @@
-import { Button, Flex, FlexItem, Stack, StackItem, Tab, Tabs } from '@patternfly/react-core'
+import { Flex, FlexItem, Stack, StackItem, Tab, Tabs } from '@patternfly/react-core'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 
 import { useAlerts } from '../../../../components/alerts'
+import { TestStepButton } from '../../panels/TestStepButton'
 
 import { FormSubmitButton } from './FormSubmitButton'
 
@@ -11,6 +12,8 @@ interface NodeFormTabsLayoutProps {
   settingsContent?: ReactNode
   submitButtonText?: string
   isSubmitDisabled?: boolean
+  onTestStep?: () => void
+  isTestStepPending?: boolean
 }
 
 export function NodeFormTabsLayout({
@@ -18,6 +21,8 @@ export function NodeFormTabsLayout({
   settingsContent,
   submitButtonText,
   isSubmitDisabled,
+  onTestStep,
+  isTestStepPending,
 }: NodeFormTabsLayoutProps) {
   const [activeTabKey, setActiveTabKey] = useState<number>(0)
   const { showInfo } = useAlerts()
@@ -33,9 +38,10 @@ export function NodeFormTabsLayout({
             </Tabs>
           </FlexItem>
           <FlexItem>
-            <Button variant="primary" type="button" onClick={() => showInfo('Not yet implemented')}>
-              Run step
-            </Button>
+            <TestStepButton
+              onTestStep={onTestStep ?? (() => showInfo('Not yet implemented'))}
+              isPending={isTestStepPending}
+            />
           </FlexItem>
         </Flex>
       </StackItem>

@@ -7,12 +7,14 @@ import {
   PanelMainBody,
   Stack,
   StackItem,
-  Title,
+  Tooltip,
 } from '@patternfly/react-core'
 import { ExternalLinkAltIcon, RhUiCloseIcon } from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
 
-import { useAlerts } from '../../components/alerts'
+import { useNodeExecutionData } from './panels/hooks/useNodeExecutionData'
+import { InputPanel } from './panels/InputPanel'
+import { OutputPanel } from './panels/OutputPanel'
 
 interface NodeEditorLayoutProps {
   parametersContent: ReactNode
@@ -20,30 +22,12 @@ interface NodeEditorLayoutProps {
   headerIcon?: ReactNode
   headerActions?: ReactNode
   showInputPanel: boolean
+  nodeId?: string
+  executionId?: string | null
+  workflowId?: string | null
   onClose?: () => void
   showClose?: boolean
-}
-
-function EmptyDataPanel({ title }: { title: string }) {
-  return (
-    <CompassPanel
-      style={{
-        height: '100%',
-        maxHeight: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-      }}
-    >
-      <PanelMain style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-        <PanelMainBody style={{ flex: 1, minHeight: 0 }}>
-          <Title headingLevel="h2" size="md">
-            {title}
-          </Title>
-        </PanelMainBody>
-      </PanelMain>
-    </CompassPanel>
-  )
+  sourceNodeId?: string | null
 }
 
 export function NodeEditorLayout({
@@ -52,11 +36,15 @@ export function NodeEditorLayout({
   headerIcon,
   headerActions,
   showInputPanel,
+  nodeId,
+  executionId,
+  workflowId,
   onClose,
   showClose = true,
+  sourceNodeId,
 }: NodeEditorLayoutProps) {
+  const { inputData, outputData } = useNodeExecutionData(nodeId ?? '', executionId, workflowId)
   const outputFlex = showInputPanel ? 'flex_1' : 'flex_2'
-  const { showInfo } = useAlerts()
   return (
     <CompassPanel
       hasNoPadding
@@ -96,15 +84,11 @@ export function NodeEditorLayout({
                 gap={{ default: 'gapSm' }}
               >
                 <FlexItem>
-                  <Button
-                    variant="link"
-                    icon={<ExternalLinkAltIcon />}
-                    iconPosition="right"
-                    type="button"
-                    onClick={() => showInfo('Not yet implemented')}
-                  >
-                    Documentation
-                  </Button>
+                  <Tooltip content="Coming soon">
+                    <Button variant="link" icon={<ExternalLinkAltIcon />} iconPosition="right" type="button" isDisabled>
+                      Documentation
+                    </Button>
+                  </Tooltip>
                 </FlexItem>
                 {headerActions && <FlexItem>{headerActions}</FlexItem>}
                 {showClose && (
@@ -138,9 +122,10 @@ export function NodeEditorLayout({
                 style={{
                   minWidth: 0,
                   height: '100%',
+                  overflow: 'hidden',
                 }}
               >
-                <EmptyDataPanel title="Input" />
+                <InputPanel nodeId={nodeId ?? ''} executionData={inputData} sourceNodeId={sourceNodeId} />
               </FlexItem>
             )}
             <FlexItem
@@ -180,9 +165,10 @@ export function NodeEditorLayout({
               style={{
                 minWidth: 0,
                 height: '100%',
+                overflow: 'hidden',
               }}
             >
-              <EmptyDataPanel title="Output" />
+              <OutputPanel outputData={outputData} />
             </FlexItem>
           </Flex>
         </StackItem>

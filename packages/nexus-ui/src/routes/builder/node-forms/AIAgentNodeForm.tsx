@@ -20,6 +20,7 @@ import { credentialHelpText } from '../../../components/credentialSelectorHelpTe
 import { FileUpload, type UploadedFile } from '../../../components/file-upload'
 import { useFileUploadWithProgress } from '../../../hooks/useFileUploadWithProgress'
 import { generateUUID } from '../../../utils/generateUUID'
+import { DroppableField } from '../panels/fields/DroppableField'
 
 import { aiAgentFormSchema, type AIAgentFormData } from './aiAgentFormSchema'
 import { ActivityNameField } from './shared/ActivityNameField'
@@ -32,21 +33,21 @@ type FileUploadInfo = FilesAPI.components['schemas']['FileUploadInfo']
 export type { AIAgentFormData }
 
 /** Submitted data includes file IDs from uploads */
-export interface AIAgentFormSubmitData extends AIAgentFormData {
+export type AIAgentFormSubmitData = {
   fileIds: string[]
-}
+} & AIAgentFormData
 
 /** Initial data for form fields (file IDs handled separately by parent) */
 export type AIAgentFormInitialData = Partial<AIAgentFormData>
 
 /** Context to share file state between form components */
-interface FileContextType {
+type FileContextType = {
   completedFiles: UploadedFile[]
   setCompletedFiles: React.Dispatch<React.SetStateAction<UploadedFile[]>>
 }
 const FileContext = createContext<FileContextType | null>(null)
 
-interface AIAgentNodeFormProps {
+type AIAgentNodeFormProps = {
   onSubmit: (data: AIAgentFormSubmitData) => void
   submitButtonText?: string
   initialData?: AIAgentFormInitialData
@@ -63,7 +64,7 @@ function AIAgentFormFields({
   onHeaderContentChange?: (content: ReactNode | null) => void
   projectId?: string
 }) {
-  const { register, control } = useFormContext<AIAgentFormData>()
+  const { register, control, getValues, setValue } = useFormContext<AIAgentFormData>()
   const { errors } = useFormState({ control })
   const fileContext = useContext(FileContext)
   if (!fileContext) throw new Error('AIAgentFormFields must be used within FileContext.Provider')
@@ -174,13 +175,20 @@ function AIAgentFormFields({
       </StackItem>
       <StackItem>
         <FormGroup label="Prompt" fieldId="agent-prompt" isRequired>
-          <TextArea
-            {...register('prompt')}
-            id="agent-prompt"
-            placeholder="Natural language instructions for the agent..."
-            rows={3}
-            validated={errors.prompt ? 'error' : 'default'}
-          />
+          <DroppableField
+            onDropText={(text) => {
+              const current = getValues('prompt')
+              setValue('prompt', (current ?? '') + text)
+            }}
+          >
+            <TextArea
+              {...register('prompt')}
+              id="agent-prompt"
+              placeholder="Natural language instructions for the agent..."
+              rows={3}
+              validated={errors.prompt ? 'error' : 'default'}
+            />
+          </DroppableField>
           {errors.prompt && (
             <FormHelperText>
               <HelperText>

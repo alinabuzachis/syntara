@@ -3,7 +3,7 @@ import React, { useCallback, useState } from 'react'
 
 import { FilterOperatorEnum, type FilterConfig, type FilterOperator } from '../../types/filters'
 
-interface MultiSelectFilterMenuToggleProps {
+type MultiSelectFilterMenuToggleProps = {
   toggleRef: React.Ref<MenuToggleElement>
   isOpen: boolean
   onToggle: () => void
@@ -35,7 +35,7 @@ function MultiSelectFilterMenuToggle({
 /**
  * Props for MultiSelectFilter component
  */
-export interface MultiSelectFilterProps {
+export type MultiSelectFilterProps = {
   /** Filter field key (e.g., 'status') */
   fieldKey: string
   /** Display label shown on the toggle */

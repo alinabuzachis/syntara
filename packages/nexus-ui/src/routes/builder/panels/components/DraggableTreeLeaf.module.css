@@ -1,0 +1,11 @@
+.dragContainer {
+  display: flex;
+  align-items: center;
+  gap: var(--pf-t--global--spacer--sm);
+  cursor: grab;
+}
+
+.secondaryText {
+  color: var(--pf-t--global--color--200);
+  font-size: var(--pf-t--global--font--size--sm);
+}

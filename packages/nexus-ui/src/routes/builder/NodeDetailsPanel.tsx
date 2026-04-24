@@ -65,14 +65,27 @@ type NodeDetailsPanelProps = {
   nodeSubtypeId?: string | null
   sourceNodeId?: string | null
   replacementNodeId?: string | null
+  executionId?: string | null
+  workflowId?: string | null
   onConnect?: (sourceId: string, targetId: string) => void
   onClose: () => void
   projectId?: string
 }
 
 export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
-  const { mode, node, nodeTypeId, nodeSubtypeId, sourceNodeId, replacementNodeId, onConnect, onClose, projectId } =
-    props
+  const {
+    mode,
+    node,
+    nodeTypeId,
+    nodeSubtypeId,
+    sourceNodeId,
+    replacementNodeId,
+    executionId,
+    workflowId,
+    onConnect,
+    onClose,
+    projectId,
+  } = props
   const { showError } = useAlerts()
   // Use typed selector for optimized subscription
   const currentWorkflow = useWorkflowStore(selectCurrentWorkflow)
@@ -254,7 +267,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
       )
     }
 
-    if (node.type === 'converge') {
+    if (node.type === FlowNodeType.CONVERGE) {
       const convergeData = node.data as ConvergeActivity
       return (
         <ConvergeNodeDetails
@@ -279,7 +292,11 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
       headerIcon={headerIcon}
       headerActions={headerActions}
       showInputPanel={showInputPanel}
+      nodeId={node?.id}
+      executionId={executionId}
+      workflowId={workflowId}
       onClose={onClose}
+      sourceNodeId={sourceNodeId}
     />
   )
 }

@@ -21,7 +21,7 @@ import { valuesEqual } from './valuesEqual'
 
 type RuntimeSetting = SettingsAPI.components['schemas']['RuntimeSettingRead']
 
-interface SettingFieldProps {
+type SettingFieldProps = {
   readonly setting: RuntimeSetting
   readonly value: unknown
   readonly onChange: (key: string, value: unknown) => void
@@ -47,7 +47,7 @@ function KebabToggle({
   )
 }
 
-interface SettingFieldKebabMenuToggleProps {
+type SettingFieldKebabMenuToggleProps = {
   readonly toggleRef: React.Ref<HTMLButtonElement>
   readonly onClick: () => void
   readonly isExpanded: boolean

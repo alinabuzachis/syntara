@@ -4,14 +4,14 @@ import { useEffect, useState, type ReactNode } from 'react'
 type ConfirmVariant = 'primary' | 'danger'
 
 /** When set, the user must check the box before the confirm action is enabled. */
-export interface DestructiveAcknowledgementProps {
+export type DestructiveAcknowledgementProps = {
   /** Stable id for the checkbox (labels and tests). */
   checkboxId: string
   /** Checkbox label (e.g. "I understand this cannot be undone"). */
   label: ReactNode
 }
 
-interface ConfirmationDialogProps {
+type ConfirmationDialogProps = {
   /** Whether the dialog is open */
   isOpen: boolean
   /** Called when the dialog is closed (cancel or backdrop click) */

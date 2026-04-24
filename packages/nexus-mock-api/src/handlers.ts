@@ -18,6 +18,7 @@ import { providers } from './resources/providers'
 import { workflows } from './resources/workflows'
 import { tools } from './resources/tools'
 import { executions } from './resources/executions'
+import { activityExecutions } from './resources/activityExecutions'
 import { approvals } from './resources/approvals'
 import { settings, settingsCategories } from './resources/settings'
 import { identityProviders, type IdentityProvider } from './resources/identityProviders'
@@ -563,7 +564,7 @@ export const handlers = [
         {
           type: 'https://api.nexus.com/errors/execution-not-found',
           title: 'Execution Not Found',
-          detail: `Execution with id '${executionId}' not found`,
+          detail: 'Execution not found',
           code: 'EXECUTION_NOT_FOUND',
           retryable: false,
           instance: `/api/v1/executions/${executionId}`,
@@ -572,6 +573,31 @@ export const handlers = [
       )
     }
     return HttpResponse.json(body)
+  }),
+
+  http.get('/api/v1/executions/:executionId/activities', (request) => {
+    const executionId = request.params.executionId as string
+    const execution = executions.find((e) => e.id === executionId)
+    if (!execution) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/execution-not-found',
+          title: 'Execution Not Found',
+          detail: 'Execution not found',
+          code: 'EXECUTION_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/executions/${executionId}/activities`,
+        },
+        { status: 404 }
+      )
+    }
+
+    const activities = activityExecutions[executionId] ?? []
+    return HttpResponse.json({
+      resources: activities,
+      next: null,
+      prev: null,
+    })
   }),
 
   http.get('/api/v1/approvals', ({ request }) => {

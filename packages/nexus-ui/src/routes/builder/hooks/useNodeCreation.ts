@@ -1,4 +1,4 @@
-export interface TriggerFormData {
+export type TriggerFormData = {
   name?: string
   triggerType: string
   scheduleType?: string
@@ -9,7 +9,7 @@ export interface TriggerFormData {
   eventType?: string
 }
 
-export interface ActionFormData {
+export type ActionFormData = {
   name: string
   executor: 'script' | 'http_request'
   // Allow legacy or custom values to round-trip existing data.

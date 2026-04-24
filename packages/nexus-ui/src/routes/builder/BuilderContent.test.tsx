@@ -15,7 +15,7 @@ import { BuilderContent } from './BuilderContent'
 type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersion']
 type BuilderContentProps = ComponentProps<typeof BuilderContent>
 
-interface MutationCallbacks {
+type MutationCallbacks = {
   onSuccess?: (data: unknown, variables: unknown, context: unknown) => void
   onError?: (error: unknown, variables: unknown, context: unknown) => void
 }

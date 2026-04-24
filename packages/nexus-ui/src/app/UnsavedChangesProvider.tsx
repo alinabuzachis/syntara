@@ -6,7 +6,7 @@ import { useWorkflowStore } from '../stores/useWorkflowStore'
 
 import { UnsavedChangesContext } from './unsavedChangesContext'
 
-interface UnsavedChangesProviderProps {
+type UnsavedChangesProviderProps = {
   children: ReactNode
 }
 

@@ -2,9 +2,11 @@ import { CodeEditor, CodeEditorControl, Language } from '@patternfly/react-code-
 import { Button, Content, Modal, ModalBody, ModalFooter, ModalHeader } from '@patternfly/react-core'
 import { RhUiExternalLinkIcon } from '@patternfly/react-icons'
 import type { KeyboardEvent } from 'react'
-import { forwardRef, useImperativeHandle, useState } from 'react'
+import { forwardRef, useCallback, useImperativeHandle, useState } from 'react'
 
+import { useDropTarget } from '../hooks/useDropTarget'
 import { useMonacoBlur } from '../hooks/useMonacoBlur'
+import { DROP_TARGET_OUTLINE } from '../routes/builder/panels/utils/dragTypes'
 import { useColorScheme } from '../theme/useColorScheme'
 
 /** Supported code languages for syntax highlighting */
@@ -38,7 +40,7 @@ function stopKeyboardPropagation(e: KeyboardEvent) {
  *   height="200px"
  * />
  */
-export interface ExpandableCodeEditorProps {
+export type ExpandableCodeEditorProps = {
   /** The code content to display/edit */
   code: string
   /** Callback when code changes */
@@ -64,12 +66,16 @@ export interface ExpandableCodeEditorProps {
   isDarkTheme?: boolean
   /** Called when the editor loses focus (e.g. for blur-based validation). Receives current editor value. */
   onBlur?: (value: string) => void
+  /** Called when text is dropped onto the editor (e.g. from an external drag source). */
+  onDropText?: (text: string) => void
 }
 
-export interface ExpandableCodeEditorHandle {
+export type ExpandableCodeEditorHandle = {
   getValue: () => string
   /** Focus the editor (e.g. when validation fails and this is the first error field). */
   focus: () => void
+  /** Insert text at the current cursor position, or append if no cursor. */
+  insertAtCursor: (text: string) => void
 }
 
 export const ExpandableCodeEditor = forwardRef<ExpandableCodeEditorHandle, ExpandableCodeEditorProps>(
@@ -86,6 +92,7 @@ export const ExpandableCodeEditor = forwardRef<ExpandableCodeEditorHandle, Expan
       isLineNumbersVisible = true,
       isDarkTheme,
       onBlur,
+      onDropText,
     },
     ref
   ) {
@@ -96,9 +103,43 @@ export const ExpandableCodeEditor = forwardRef<ExpandableCodeEditorHandle, Expan
 
     const [isModalOpen, setIsModalOpen] = useState(false)
     const monacoLanguage = languageMap[language]
-    const { getValue, focus, handleEditorDidMount, setValue } = useMonacoBlur(code, onBlur)
+    const { getValue, focus, handleEditorDidMount, setValue, editorRef } = useMonacoBlur(code, onBlur)
 
-    useImperativeHandle(ref, () => ({ getValue, focus }))
+    const handleDroppedText = useCallback(
+      (text: string) => {
+        if (onDropText) {
+          onDropText(text)
+        }
+      },
+      [onDropText]
+    )
+
+    const { isDropTarget, handleDragOver, handleDragLeave, handleDrop } = useDropTarget({
+      onDropText: handleDroppedText,
+    })
+
+    useImperativeHandle(ref, () => ({
+      getValue,
+      focus,
+      insertAtCursor: (text: string) => {
+        const editor = editorRef.current
+        if (!editor) {
+          onCodeChange(code + text)
+          return
+        }
+        const selection = editor.getSelection()
+        if (selection) {
+          editor.executeEdits('drop-insert', [
+            {
+              range: selection,
+              text,
+              forceMoveMarkers: true,
+            },
+          ])
+          onCodeChange(editor.getValue())
+        }
+      },
+    }))
 
     const handleModalClose = () => {
       onBlur?.(getValue())
@@ -116,7 +157,14 @@ export const ExpandableCodeEditor = forwardRef<ExpandableCodeEditorHandle, Expan
 
     return (
       <>
-        <div data-testid="inline-code-editor">
+        {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- drag-and-drop target wrapper */}
+        <div
+          data-testid="inline-code-editor"
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          style={isDropTarget ? DROP_TARGET_OUTLINE : undefined}
+        >
           <CodeEditor
             code={code}
             onCodeChange={(value) => {

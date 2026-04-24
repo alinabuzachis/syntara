@@ -1,5 +1,7 @@
 import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 
+import type { EdgeConnection } from '../types/edge'
+
 /** Map from React Flow handle IDs to v2 API port names. */
 const handleToPortMap: Record<string, string> = {
   [EdgeHandleEnum.LOOP]: 'iterate',
@@ -134,4 +136,37 @@ export function getPendingTargetNodeId(sourceNodeId: string): string {
  */
 export function getPendingEdgeId(sourceNodeId: string): string {
   return `pending-${sourceNodeId}`
+}
+
+/**
+ * Returns the set of all upstream (ancestor) node IDs reachable from `nodeId`
+ * via a reverse BFS traversal of the edge graph.
+ *
+ * Self-referencing edges are ignored so `nodeId` is never included in the result.
+ *
+ * @param nodeId - The starting node whose ancestors are sought
+ * @param edges - All edges in the workflow
+ * @returns Set of ancestor node IDs (does not include `nodeId`)
+ *
+ * @example
+ * // trigger → A → B → C
+ * getUpstreamNodeIds('C', edges) // Set { 'B', 'A', 'trigger' }
+ */
+export function getUpstreamNodeIds(nodeId: string, edges: EdgeConnection[]): Set<string> {
+  const visited = new Set<string>()
+  const queue = [nodeId]
+
+  while (queue.length > 0) {
+    const current = queue.shift()!
+    const incoming = edges.filter((edge) => edge.target === current && edge.source !== current)
+
+    for (const edge of incoming) {
+      if (!visited.has(edge.source)) {
+        visited.add(edge.source)
+        queue.push(edge.source)
+      }
+    }
+  }
+
+  return visited
 }

@@ -1,5 +1,35 @@
+import { createAAPJobTemplateActivity } from '../../../stores/useWorkflowStore'
 import type { AAPJobTemplateConfig } from '../../../stores/workflowFactories'
 import type { AAPFormData } from '../node-forms/AAPNodeForm'
+
+/**
+ * Check whether any of the given values contain a ${...} expression placeholder.
+ * Used to detect expression mode in AAP forms.
+ */
+export function hasExpressionValue(...values: (string | undefined)[]): boolean {
+  return values.some((v) => v?.includes('${'))
+}
+
+/**
+ * Build an AAP activity in expression mode (template name/org provided as expressions
+ * that resolve at runtime rather than a concrete job_template_id).
+ */
+export function buildExpressionModeActivity(
+  nodeId: string,
+  name: string,
+  data: AAPFormData
+): ReturnType<typeof createAAPJobTemplateActivity> {
+  // job_template_id is set to 0 as a placeholder — expression-mode nodes resolve
+  // the template by name at runtime, so the ID is removed from config below.
+  const config = buildAAPConfig(data)
+  const activity = createAAPJobTemplateActivity(nodeId, name, 0, config)
+  if (activity.config) {
+    activity.config.job_template_name = data.job_template_name
+    activity.config.organization_name = data.organization_name
+    delete activity.config.job_template_id
+  }
+  return activity
+}
 
 /**
  * Validates that a job template ID is a valid positive integer.

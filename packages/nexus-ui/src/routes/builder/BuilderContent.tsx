@@ -395,6 +395,8 @@ export function BuilderContent(props: BuilderContentProps) {
                   nodeSubtypeId={nodeEditorNodeSubtypeId}
                   sourceNodeId={sourceNodeId}
                   replacementNodeId={replacementNodeId}
+                  executionId={selectedExecutionId}
+                  workflowId={workflowId}
                   onConnect={handleConnectFromPanel}
                   onClose={() => dispatch({ type: 'CLOSE_NODE_EDITOR' })}
                   projectId={

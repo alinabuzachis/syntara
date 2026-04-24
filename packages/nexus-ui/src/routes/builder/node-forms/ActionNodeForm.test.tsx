@@ -222,4 +222,10 @@ describe('ActionNodeForm', () => {
       })
     )
   })
+
+  it('renders code editor with drop support for script executor', () => {
+    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} />)
+
+    expect(screen.getByTestId('code-editor')).toBeInTheDocument()
+  })
 })

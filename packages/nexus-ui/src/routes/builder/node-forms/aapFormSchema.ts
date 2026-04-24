@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { hasExpressionValue } from '../utils/aapHelpers'
+
 import { optionalNumber } from './shared/formSchemaUtils'
 
 /**
@@ -42,7 +44,11 @@ export const aapFormSchema = z
     labels: z.string().optional(),
   })
   .superRefine((data, ctx) => {
-    if (!data.job_template_id || !Number.isInteger(data.job_template_id) || data.job_template_id < 1) {
+    // Skip job_template_id check when using expression mode (${...} expressions resolve at runtime)
+    if (
+      !hasExpressionValue(data.job_template_name, data.organization_name) &&
+      (!data.job_template_id || !Number.isInteger(data.job_template_id) || data.job_template_id < 1)
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['job_template_name'],

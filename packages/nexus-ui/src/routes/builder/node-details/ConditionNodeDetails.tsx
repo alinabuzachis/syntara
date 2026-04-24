@@ -5,7 +5,7 @@ import { useAlerts } from '../../../components/alerts'
 import { useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
 import { ConditionNodeForm } from '../node-forms/ConditionNodeForm'
 
-interface ConditionNodeDetailsProps {
+type ConditionNodeDetailsProps = {
   conditionData: ConditionActivity
   nodeId: string
   onClose: () => void

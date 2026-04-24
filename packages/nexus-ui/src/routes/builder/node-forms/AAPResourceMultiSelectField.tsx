@@ -20,12 +20,12 @@ import type { AAPFormData } from './aapFormSchema'
 
 const DEBOUNCE_MS = 300
 
-interface AAPResourceItem {
+type AAPResourceItem = {
   readonly id: number
   readonly name: string
 }
 
-interface AAPResourceMultiSelectFieldProps {
+type AAPResourceMultiSelectFieldProps = {
   readonly label: string
   readonly fieldId: string
   readonly nameField: 'job_credentials' // Only job_credentials field is a number[] array
@@ -36,7 +36,7 @@ interface AAPResourceMultiSelectFieldProps {
   readonly onSearchChange?: (search: string) => void
 }
 
-interface MultiSelectToggleProps {
+type MultiSelectToggleProps = {
   readonly toggleRef: React.Ref<MenuToggleElement>
   readonly isOpen: boolean
   readonly isLoading: boolean
@@ -74,7 +74,7 @@ function MultiSelectToggle({
   )
 }
 
-interface MultiSelectContentProps {
+type MultiSelectContentProps = {
   readonly label: string
   readonly items: readonly AAPResourceItem[]
   readonly isLoading: boolean
@@ -90,7 +90,7 @@ interface MultiSelectContentProps {
   readonly onFilterClear: () => void
 }
 
-interface RenderToggleProps {
+type RenderToggleProps = {
   readonly isOpen: boolean
   readonly isLoading: boolean
   readonly selectedCount: number

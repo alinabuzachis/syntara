@@ -27,6 +27,7 @@ import {
   type ExpandableCodeEditorHandle,
 } from '../../../components/ExpandableCodeEditor'
 import type { ActionFormData as RegistryActionFormData } from '../hooks/useNodeCreation'
+import { DroppableField } from '../panels/fields/DroppableField'
 
 import { actionFormSchema, type ActionFormData, type ActionFormValues } from './actionFormSchema'
 import { ActivityNameField } from './shared/ActivityNameField'
@@ -40,7 +41,7 @@ export type ExecutorType = ActionFormData['executor']
 export type ScriptLanguage = 'python' | 'bash'
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
-interface ActionNodeFormProps {
+type ActionNodeFormProps = {
   onSubmit: (data: RegistryActionFormData) => void
   submitButtonText?: string
   initialData?: Partial<RegistryActionFormData>
@@ -66,13 +67,15 @@ const HTTP_METHOD_OPTIONS: Array<{ label: HttpMethod; value: HttpMethod }> = [
 function ActionParametersContent(props: {
   register: ReturnType<typeof useFormContext<ActionFormValues>>['register']
   control: ReturnType<typeof useFormContext<ActionFormValues>>['control']
+  getValues: ReturnType<typeof useFormContext<ActionFormValues>>['getValues']
+  setValue: ReturnType<typeof useFormContext<ActionFormValues>>['setValue']
   errors: { code?: { message?: string }; url?: { message?: string } }
   executor: ActionFormValues['executor']
   scriptEditorRef?: React.RefObject<ExpandableCodeEditorHandle | null>
   editorLanguage: CodeLanguage
   projectId?: string
 }) {
-  const { register, control, errors, executor, scriptEditorRef, editorLanguage, projectId } = props
+  const { register, control, getValues, setValue, errors, executor, scriptEditorRef, editorLanguage, projectId } = props
   return (
     <Stack
       hasGutter
@@ -126,6 +129,10 @@ function ActionParametersContent(props: {
                       language={editorLanguage}
                       height="200px"
                       ariaLabel="Script code editor"
+                      isDarkTheme
+                      onDropText={(text) => {
+                        scriptEditorRef?.current?.insertAtCursor(text)
+                      }}
                     />
                   </div>
                 )}
@@ -180,13 +187,20 @@ function ActionParametersContent(props: {
           </StackItem>
           <StackItem>
             <FormGroup label="URL" isRequired fieldId="action-url">
-              <TextInput
-                {...register('url')}
-                id="action-url"
-                type="url"
-                placeholder="https://api.example.com/endpoint"
-                validated={errors.url ? 'error' : 'default'}
-              />
+              <DroppableField
+                onDropText={(text) => {
+                  const current = getValues('url')
+                  setValue('url', (current ?? '') + text)
+                }}
+              >
+                <TextInput
+                  {...register('url')}
+                  id="action-url"
+                  type="url"
+                  placeholder="https://api.example.com/endpoint"
+                  validated={errors.url ? 'error' : 'default'}
+                />
+              </DroppableField>
               {errors.url && (
                 <FormHelperText>
                   <HelperText>
@@ -230,7 +244,14 @@ function ActionParametersContent(props: {
           </StackItem>
           <StackItem>
             <FormGroup label="Body" fieldId="action-body">
-              <TextArea {...register('body')} id="action-body" placeholder='{"key": "value"}' rows={3} />
+              <DroppableField
+                onDropText={(text) => {
+                  const current = getValues('body')
+                  setValue('body', (current ?? '') + text)
+                }}
+              >
+                <TextArea {...register('body')} id="action-body" placeholder='{"key": "value"}' rows={3} />
+              </DroppableField>
             </FormGroup>
           </StackItem>
         </>
@@ -258,6 +279,8 @@ function ActionFormFields({
   const {
     register,
     control,
+    getValues,
+    setValue,
     formState: { errors: contextErrors },
   } = useFormContext<ActionFormValues>()
   const errors = validationErrors ?? contextErrors
@@ -308,6 +331,8 @@ function ActionFormFields({
     <ActionParametersContent
       register={register}
       control={control}
+      getValues={getValues}
+      setValue={setValue}
       errors={errors}
       executor={executor}
       scriptEditorRef={scriptEditorRef}
@@ -330,7 +355,7 @@ export function ActionNodeForm(props: Readonly<ActionNodeFormProps>) {
     ...props.initialData,
   }
 
-  const handleSubmit = (data: ActionFormData) => {
+  const handleSubmit = (data: ActionFormValues) => {
     // Clean up data based on executor type (schema type is assignable to registry type)
     const cleanedData: RegistryActionFormData = {
       name: data.name,
