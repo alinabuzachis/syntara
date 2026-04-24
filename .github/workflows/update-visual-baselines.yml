@@ -20,7 +20,7 @@ jobs:
     steps:
       - name: Get PR branch
         id: pr
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const pr = await github.rest.pulls.get({
@@ -37,7 +37,7 @@ jobs:
             core.setOutput('ref', pr.data.head.ref);
             core.setOutput('sha', pr.data.head.sha);
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           ref: ${{ steps.pr.outputs.ref }}
           fetch-depth: 0
@@ -80,7 +80,7 @@ jobs:
           fi
 
       - name: Post result comment
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const committed = '${{ steps.commit.outputs.committed }}' === 'true';

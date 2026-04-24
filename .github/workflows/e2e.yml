@@ -34,7 +34,7 @@ jobs:
             });
 
       - name: Checkout nexus-ui
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: ${{ github.event.workflow_run.repository.full_name }}
           ref: ${{ github.event.workflow_run.head_sha }}
@@ -71,7 +71,7 @@ jobs:
       # --- Deploy Nexus cluster (runs in parallel with npm/Playwright install) ---
       - name: Generate token for syntara-orchestration org
         id: token-nexus
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
@@ -79,7 +79,7 @@ jobs:
           repositories: nexus
 
       - name: Checkout nexus (for deploy-nexus action)
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: syntara-orchestration/syntara
           path: _nexus
@@ -108,7 +108,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v8.1.0
 
       - name: Install dependencies
         working-directory: aap-dev/src/nexus
