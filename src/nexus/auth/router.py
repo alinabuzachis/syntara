@@ -26,6 +26,7 @@ from nexus.audit.models.audit_event import EventCategory
 from nexus.auth.audit.login_attempt import LoginAttemptEvent, LoginErrorReason, LoginMethod
 from nexus.auth.audit.oidc_flow import OIDCFlowEvent, OIDCStage
 from nexus.auth.audit.session_lifecycle import SessionAction, SessionLifecycleEvent
+from nexus.auth.audit.user_login import UserLoginEvent
 from nexus.auth.cookies import (
     clear_refresh_cookie,
     set_refresh_cookie,
@@ -179,8 +180,9 @@ async def login(
     async with SessionStore() as store:
         token_version = await store.get_token_version(user.id)
 
-    # Update last login (commit deferred until after Redis session is created
+    # Update last_login (commit deferred until after Redis session is created
     # to avoid updating last_login when the session store is unreachable).
+    is_first_login = user.last_login is None
     user.update_last_login()
     db.add(user)
 
@@ -235,14 +237,16 @@ async def login(
 
     # Commit last_login only after Redis session is successfully created
     await db.commit()
+    AuditEventDispatcher.dispatch(
+        UserLoginEvent(user_id=user.id, amr=[AMR_PASSWORD], idp="local", is_first_login=is_first_login)
+    )
+    logger.info("User logged in", user_id=str(user.id), username=user.username, amr=[AMR_PASSWORD], idp="local")
 
     # Set refresh cookie
     cookie_max_age = settings.jwt_refresh_token_lifetime_hours * 3600
     set_refresh_cookie(response, refresh_token_str, max_age=cookie_max_age)
 
-    logger.info("User logged in", user_id=str(user.id), username=user.username)
     AuditEventDispatcher.dispatch(LoginAttemptEvent(username=username, method=LoginMethod.PASSWORD, user_id=user.id))
-
     return AccessTokenResponse(
         access_token=access_token,
         expires_in=settings.jwt_access_token_lifetime_minutes * 60,
@@ -885,7 +889,7 @@ async def oidc_callback(
     user_agent = request.headers.get("User-Agent")
 
     try:
-        user, provider, state_data = await _process_oidc_callback(
+        user, provider, state_data, is_first_login = await _process_oidc_callback(
             state=state,
             db=db,
             code=code,
@@ -952,9 +956,11 @@ async def oidc_callback(
     cookie_max_age = settings.jwt_refresh_token_lifetime_hours * 3600
     set_refresh_cookie(response, refresh_token_str, max_age=cookie_max_age)
 
+    AuditEventDispatcher.dispatch(
+        UserLoginEvent(user_id=user.id, amr=[AMR_FEDERATED], idp=provider.name, is_first_login=is_first_login)
+    )
     logger.info("OIDC login successful", user_id=str(user.id), provider=provider.name)
     AuditEventDispatcher.dispatch(LoginAttemptEvent(username=user.username, method=LoginMethod.OIDC, user_id=user.id))
-
     return response
 
 
@@ -1053,8 +1059,8 @@ async def _process_oidc_callback(
     code: str | None,
     error: str | None,
     error_description: str | None,
-) -> tuple[User, IdentityProvider, dict[str, str]]:
-    """Process the OIDC callback flow. Returns (user, provider, state_data) on success."""
+) -> tuple[User, IdentityProvider, dict[str, str], bool]:
+    """Process the OIDC callback flow. Returns (user, provider, state_data, is_first_login) on success."""
     if error:
         logger.warning("OIDC provider returned error", error=error, description=error_description)
         raise _OIDCCallbackError(error_description or error)
@@ -1106,7 +1112,7 @@ async def _process_oidc_callback(
     except OIDCError as e:
         raise _OIDCCallbackError(_OIDC_ERR_USER_FAILED, origin=origin) from e
 
+    is_first_login = user.last_login is None
     user.update_last_login()
     db.add(user)
-
-    return user, provider, state_data
+    return user, provider, state_data, is_first_login

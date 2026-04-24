@@ -1058,8 +1058,9 @@ class TestOIDCAuditEvents:
         Expected order:
         1. OIDCFlowEvent -> "oidc_callback" (USER_ACTION, SUCCESS)
         2. SessionLifecycleEvent -> "session_created" (USER_ACTION, SUCCESS)
-        3. LoginAttemptEvent -> "login" (USER_ACTION, SUCCESS, method=OIDC)
-        4. @track_event "oidc_callback" (SECURITY_EVENT, SUCCESS)
+        3. UserLoginEvent -> "user_login" (USER_ACTION, SUCCESS)
+        4. LoginAttemptEvent -> "login" (USER_ACTION, SUCCESS, method=OIDC)
+        5. @track_event "oidc_callback" (SECURITY_EVENT, SUCCESS)
         """
         from nexus.audit.dispatcher import AuditEventDispatcher
         from nexus.audit.models.audit_event import AuditEvent, EventCategory, EventStatus
@@ -1067,6 +1068,7 @@ class TestOIDCAuditEvents:
         from nexus.auth.audit.login_attempt import LoginAttemptEvent, LoginAttemptHandler
         from nexus.auth.audit.oidc_flow import OIDCFlowEvent, OIDCFlowHandler
         from nexus.auth.audit.session_lifecycle import SessionLifecycleEvent, SessionLifecycleHandler
+        from nexus.auth.audit.user_login import UserLoginEvent, UserLoginHandler
 
         provider = MagicMock()
         provider.id, provider.name = uuid4(), "TestProvider"
@@ -1085,6 +1087,7 @@ class TestOIDCAuditEvents:
                 OIDCFlowEvent: OIDCFlowHandler(),
                 SessionLifecycleEvent: SessionLifecycleHandler(),
                 LoginAttemptEvent: LoginAttemptHandler(),
+                UserLoginEvent: UserLoginHandler(),
                 FunctionExecutionEvent: FunctionExecutionHandler(),
             }
         )
@@ -1098,7 +1101,7 @@ class TestOIDCAuditEvents:
                 patch("nexus.auth.router.set_refresh_cookie"),
                 patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit,
             ):
-                mock_process.return_value = (user, provider, state_data)
+                mock_process.return_value = (user, provider, state_data, False)
 
                 response = await oidc_callback(
                     state="valid-state",
@@ -1109,8 +1112,8 @@ class TestOIDCAuditEvents:
 
                 assert response.status_code == 302
 
-            # Verify all 4 events were emitted in the correct order
-            assert mock_do_emit.call_count == 4
+            # Verify all 5 events were emitted in the correct order
+            assert mock_do_emit.call_count == 5
             events: list[AuditEvent] = [call.args[0] for call in mock_do_emit.call_args_list]
 
             # Event 1: OIDCFlowEvent -> "oidc_callback" (USER_ACTION, SUCCESS)
@@ -1141,23 +1144,32 @@ class TestOIDCAuditEvents:
                 e1.structured_data.idp,  # type: ignore[attr-defined]
             ) == ("create", "jti-123", "TestProvider")
 
-            # Event 3: LoginAttemptEvent -> "login" (USER_ACTION, SUCCESS, method=OIDC)
+            # Event 3: UserLoginEvent -> "user_login" (USER_ACTION, SUCCESS)
             e2 = events[2]
             assert (e2.event_action, e2.event_category, e2.event_status, e2.actor_id) == (
+                "user_login",
+                EventCategory.USER_ACTION,
+                EventStatus.SUCCESS,
+                user.id,
+            )
+
+            # Event 4: LoginAttemptEvent -> "login" (USER_ACTION, SUCCESS, method=OIDC)
+            e3 = events[3]
+            assert (e3.event_action, e3.event_category, e3.event_status, e3.actor_id) == (
                 "login",
                 EventCategory.USER_ACTION,
                 EventStatus.SUCCESS,
                 user.id,
             )
-            assert isinstance(e2.structured_data, AuditContextData)
+            assert isinstance(e3.structured_data, AuditContextData)
             assert (
-                e2.structured_data.method,  # type: ignore[attr-defined]
-                e2.actor_username,
+                e3.structured_data.method,  # type: ignore[attr-defined]
+                e3.actor_username,
             ) == ("oidc", "testuser")
 
-            # Event 4: @track_event "oidc_callback" (SECURITY_EVENT, SUCCESS)
-            e3 = events[3]
-            assert (e3.event_action, e3.event_category, e3.event_status) == (
+            # Event 5: @track_event "oidc_callback" (SECURITY_EVENT, SUCCESS)
+            e4 = events[4]
+            assert (e4.event_action, e4.event_category, e4.event_status) == (
                 "oidc_callback",
                 EventCategory.SECURITY_EVENT,
                 EventStatus.SUCCESS,

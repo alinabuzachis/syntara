@@ -24,5 +24,9 @@ class AuditEventHandler[T](ABC):
     """
 
     @abstractmethod
-    def handle(self, event: T) -> AuditEvent:
-        """Map a single domain event to a single normalized AuditEvent."""
+    def handle(self, event: T) -> AuditEvent | None:
+        """Map a single domain event to a normalized AuditEvent.
+
+        Return ``None`` for side-effect-only handlers (e.g. telemetry
+        emitters) that do not produce an audit trail entry.
+        """

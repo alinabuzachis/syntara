@@ -22,6 +22,7 @@ import nexus.audit.events  # Package scanned by discover_handlers() at startup
 import nexus.auth.audit  # Package scanned by discover_handlers() at startup
 import nexus.auth.exceptions  # Side-effect import to trigger exception handler registration
 import nexus.identity_providers.exceptions
+import nexus.telemetry.handlers  # Package scanned by discover_handlers() at startup
 from nexus.api.constants import API_V1_PATH_PREFIX
 from nexus.audit.discovery import discover_handlers
 from nexus.audit.dispatcher import AuditEventDispatcher
@@ -75,6 +76,28 @@ from nexus.workflows.error_handlers import (
 )
 
 logger = structlog.stdlib.get_logger(__name__)
+
+
+def _discover_and_register_audit_handlers() -> None:
+    """Discover audit/telemetry event handlers and register them with the dispatcher.
+
+    Scoped to known sub-packages; add new domains here as they are instrumented.
+    Continues startup if discovery fails — audit is observability, not critical path.
+    """
+    try:
+        audit_events_registry = discover_handlers(nexus.audit.events)
+        AuditEventDispatcher.register(audit_events_registry)
+
+        auth_audit_registry = discover_handlers(nexus.auth.audit)
+        AuditEventDispatcher.register(auth_audit_registry)
+
+        telemetry_registry = discover_handlers(nexus.telemetry.handlers)
+        AuditEventDispatcher.register(telemetry_registry)
+
+        total_handlers = len(audit_events_registry) + len(auth_audit_registry) + len(telemetry_registry)
+        logger.info("Audit event handlers discovered", handler_count=total_handlers)
+    except Exception:
+        logger.exception("Failed to discover and register audit handlers - audit system degraded")
 
 
 async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
@@ -137,20 +160,7 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
         raise RuntimeError(msg)
     app.state.opa_client = opa_client
 
-    # Discover audit event handlers and register them with the dispatcher.
-    # Scoped to known audit sub-packages; add new domains here as they are instrumented.
-    # Continue startup if discovery fails - audit is observability, not critical path
-    try:
-        audit_events_registry = discover_handlers(nexus.audit.events)
-        AuditEventDispatcher.register(audit_events_registry)
-
-        auth_audit_registry = discover_handlers(nexus.auth.audit)
-        AuditEventDispatcher.register(auth_audit_registry)
-
-        total_handlers = len(audit_events_registry) + len(auth_audit_registry)
-        logger.info("Audit event handlers discovered", handler_count=total_handlers)
-    except Exception:
-        logger.exception("Failed to discover and register audit handlers - audit system degraded")
+    _discover_and_register_audit_handlers()
 
     # Initialize telemetry (reads installation ID from database)
     await initialize_telemetry()

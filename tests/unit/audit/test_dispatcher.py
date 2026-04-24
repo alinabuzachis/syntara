@@ -46,15 +46,15 @@ class _OtherHandler(AuditEventHandler["_OtherEvent"]):
         )
 
 
-class _ReplacementDispatchHandler(AuditEventHandler["_DispatchEvent"]):
-    def handle(self, event: "_DispatchEvent") -> AuditEvent:
-        return AuditEvent(
-            event_category=EventCategory.USER_ACTION,
-            event_action="replaced",
-            event_message=event.message,
-            source_component="test",
-            structured_data=AuditContextData(data_type="test"),
-        )
+class _SideEffectHandler(AuditEventHandler["_DispatchEvent"]):
+    """Handler that returns None (side-effect only, e.g. telemetry)."""
+
+    def __init__(self) -> None:
+        self.called = False
+
+    def handle(self, event: "_DispatchEvent") -> AuditEvent | None:
+        self.called = True
+        return None
 
 
 class TestAuditEventDispatcher:
@@ -114,6 +114,33 @@ class TestAuditEventDispatcher:
         mock_emit.assert_not_called()
         mock_logger.exception.assert_called_once()
 
+    def test_multiple_handlers_for_same_event_type(self) -> None:
+        """dispatch() invokes all registered handlers for an event type."""
+        AuditEventDispatcher.reset()
+        side_effect_handler = _SideEffectHandler()
+        AuditEventDispatcher.register({_DispatchEvent: _DispatchHandler()})
+        AuditEventDispatcher.register({_DispatchEvent: side_effect_handler})
+
+        with patch("nexus.audit.dispatcher.emit_audit_event") as mock_emit:
+            AuditEventDispatcher.dispatch(_DispatchEvent(message="multi"))
+
+        # Only the first handler returns an AuditEvent; the side-effect handler returns None
+        mock_emit.assert_called_once()
+        assert mock_emit.call_args[0][0].event_action == "dispatched"
+        assert side_effect_handler.called
+
+    def test_side_effect_only_handler_skips_emit(self) -> None:
+        """Handlers returning None do not trigger emit_audit_event."""
+        AuditEventDispatcher.reset()
+        side_effect_handler = _SideEffectHandler()
+        AuditEventDispatcher.register({_DispatchEvent: side_effect_handler})
+
+        with patch("nexus.audit.dispatcher.emit_audit_event") as mock_emit:
+            AuditEventDispatcher.dispatch(_DispatchEvent(message="no-audit"))
+
+        mock_emit.assert_not_called()
+        assert side_effect_handler.called
+
 
 class TestDispatcherLifecycle:
     """Tests for register/reset lifecycle."""
@@ -136,21 +163,6 @@ class TestDispatcherLifecycle:
         assert mock_emit.call_count == 2
         actions = [call.args[0].event_action for call in mock_emit.call_args_list]
         assert actions == ["dispatched", "other"]
-
-    def test_register_overwrite_logs_warning(self) -> None:
-        """Registering a second handler for the same event type warns but succeeds."""
-        AuditEventDispatcher.register({_DispatchEvent: _DispatchHandler()})
-
-        with patch("nexus.audit.dispatcher.logger") as mock_logger:
-            AuditEventDispatcher.register({_DispatchEvent: _ReplacementDispatchHandler()})
-
-        mock_logger.warning.assert_called_once()
-
-        with patch("nexus.audit.dispatcher.emit_audit_event") as mock_emit:
-            AuditEventDispatcher.dispatch(_DispatchEvent(message="hi"))
-
-        mock_emit.assert_called_once()
-        assert mock_emit.call_args[0][0].event_action == "replaced"
 
     def test_reset_clears_registry(self) -> None:
         """reset() empties the registry so subsequent dispatches find nothing."""
