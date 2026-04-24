@@ -8,7 +8,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { credentialsClient } from '../../../client'
 
 import type { Credential } from './credentialConstants'
-import { useDisableCredentialState } from './useDisableCredentialState'
+import { useDeleteCredentialState } from './useDeleteCredentialState'
 
 vi.mock('../../../client', () => ({
   credentialsClient: {
@@ -16,13 +16,14 @@ vi.mock('../../../client', () => ({
   },
 }))
 
-type MockQueryReturn = Pick<UseQueryResult, 'data' | 'error' | 'isPending'>
+type MockQueryReturn = Pick<UseQueryResult, 'data' | 'error' | 'isPending' | 'isLoading'>
 
 function mockQuery(overrides: Partial<MockQueryReturn> = {}) {
   vi.mocked(credentialsClient.useQuery).mockReturnValue({
     data: undefined,
     error: null,
     isPending: false,
+    isLoading: false,
     ...overrides,
   } as ReturnType<typeof credentialsClient.useQuery>)
 }
@@ -48,28 +49,29 @@ function createWrapper() {
   }
 }
 
-describe('useDisableCredentialState', () => {
+describe('useDeleteCredentialState', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockQuery()
   })
 
-  it('has initial state with credentialToDisable null, affectedWorkflows empty, workflowsFetchError false', () => {
-    const { result } = renderHook(() => useDisableCredentialState(), { wrapper: createWrapper() })
+  it('has initial state with credentialToDelete null, affectedWorkflows empty, and no errors', () => {
+    const { result } = renderHook(() => useDeleteCredentialState(), { wrapper: createWrapper() })
 
-    expect(result.current.credentialToDisable).toBeNull()
+    expect(result.current.credentialToDelete).toBeNull()
     expect(result.current.affectedWorkflows).toEqual([])
     expect(result.current.workflowsFetchError).toBe(false)
+    expect(result.current.isLoadingWorkflows).toBe(false)
   })
 
-  it('sets credentialToDisable when openDisableDialog is called', () => {
-    const { result } = renderHook(() => useDisableCredentialState(), { wrapper: createWrapper() })
+  it('sets credentialToDelete when openDeleteDialog is called', () => {
+    const { result } = renderHook(() => useDeleteCredentialState(), { wrapper: createWrapper() })
 
     act(() => {
-      result.current.openDisableDialog(mockCredential)
+      result.current.openDeleteDialog(mockCredential)
     })
 
-    expect(result.current.credentialToDisable).toEqual(mockCredential)
+    expect(result.current.credentialToDelete).toEqual(mockCredential)
   })
 
   it('returns affectedWorkflows from query data', () => {
@@ -79,10 +81,10 @@ describe('useDisableCredentialState', () => {
     ]
     mockQuery({ data: mockWorkflows })
 
-    const { result } = renderHook(() => useDisableCredentialState(), { wrapper: createWrapper() })
+    const { result } = renderHook(() => useDeleteCredentialState(), { wrapper: createWrapper() })
 
     act(() => {
-      result.current.openDisableDialog(mockCredential)
+      result.current.openDeleteDialog(mockCredential)
     })
 
     expect(result.current.affectedWorkflows).toEqual(mockWorkflows)
@@ -92,38 +94,49 @@ describe('useDisableCredentialState', () => {
   it('sets workflowsFetchError when query has error', () => {
     mockQuery({ error: new Error('Server error') })
 
-    const { result } = renderHook(() => useDisableCredentialState(), { wrapper: createWrapper() })
+    const { result } = renderHook(() => useDeleteCredentialState(), { wrapper: createWrapper() })
 
     act(() => {
-      result.current.openDisableDialog(mockCredential)
+      result.current.openDeleteDialog(mockCredential)
     })
 
     expect(result.current.workflowsFetchError).toBe(true)
     expect(result.current.affectedWorkflows).toEqual([])
   })
 
-  it('resets credentialToDisable when closeDisableDialog is called', () => {
-    const { result } = renderHook(() => useDisableCredentialState(), { wrapper: createWrapper() })
+  it('reports isLoadingWorkflows when query is loading and credential is selected', () => {
+    mockQuery({ isPending: true, isLoading: true })
+
+    const { result } = renderHook(() => useDeleteCredentialState(), { wrapper: createWrapper() })
 
     act(() => {
-      result.current.openDisableDialog(mockCredential)
+      result.current.openDeleteDialog(mockCredential)
     })
-    expect(result.current.credentialToDisable).toEqual(mockCredential)
+
+    expect(result.current.isLoadingWorkflows).toBe(true)
+  })
+
+  it('resets credentialToDelete when closeDeleteDialog is called', () => {
+    const { result } = renderHook(() => useDeleteCredentialState(), { wrapper: createWrapper() })
 
     act(() => {
-      result.current.closeDisableDialog()
+      result.current.openDeleteDialog(mockCredential)
     })
-    expect(result.current.credentialToDisable).toBeNull()
+    expect(result.current.credentialToDelete).toEqual(mockCredential)
+
+    act(() => {
+      result.current.closeDeleteDialog()
+    })
+    expect(result.current.credentialToDelete).toBeNull()
   })
 
   it('passes credential_id to useQuery params', () => {
-    const { result } = renderHook(() => useDisableCredentialState(), { wrapper: createWrapper() })
+    const { result } = renderHook(() => useDeleteCredentialState(), { wrapper: createWrapper() })
 
     act(() => {
-      result.current.openDisableDialog(mockCredential)
+      result.current.openDeleteDialog(mockCredential)
     })
 
-    // Verify useQuery was called with the credential ID in the path params
     expect(credentialsClient.useQuery).toHaveBeenCalledWith(
       'get',
       '/credentials/{credential_id}/workflows',
@@ -135,7 +148,7 @@ describe('useDisableCredentialState', () => {
   })
 
   it('disables query when no credential is selected', () => {
-    renderHook(() => useDisableCredentialState(), { wrapper: createWrapper() })
+    renderHook(() => useDeleteCredentialState(), { wrapper: createWrapper() })
 
     expect(credentialsClient.useQuery).toHaveBeenCalledWith(
       'get',

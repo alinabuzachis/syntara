@@ -40,7 +40,7 @@ test.describe('Credential Enable/Disable State Management', () => {
 
       const dialog = app.getByRole('dialog')
       await expect(dialog.getByText(new RegExp(name))).toBeVisible()
-      await expect(dialog.getByText(/may cause these workflows to fail/)).toBeVisible()
+      await expect(dialog.getByText(/You can re-enable the credential at any time/)).toBeVisible()
       await expect(dialog.getByRole('button', { name: 'Disable' })).toBeVisible()
       await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeVisible()
     } finally {

@@ -27,6 +27,7 @@ import { Detail } from '../../../components/details/Detail'
 import { ErrorState } from '../../../components/states/ErrorState'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { UserTimestamp } from '../../../components/UserTimestamp'
+import { useDeleteAction } from '../../../hooks/useDeleteAction'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 
@@ -36,6 +37,7 @@ import { DeleteCredentialDialog } from './DeleteCredentialDialog'
 import { DisableCredentialDialog } from './DisableCredentialDialog'
 import { CredentialFormModal } from './form/CredentialFormModal'
 import type { FieldDefinition } from './form/DynamicFieldRenderer'
+import { useDeleteCredentialState } from './useDeleteCredentialState'
 import { useDisableCredentialState } from './useDisableCredentialState'
 
 // eslint-disable-next-line max-lines-per-function
@@ -44,11 +46,24 @@ export default function CredentialDetail() {
   const [, navigate] = useLocation()
   const [activeTab, setActiveTab] = useState(0)
   const [editModalOpen, setEditModalOpen] = useState(false)
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const {
+    credentialToDelete,
+    affectedWorkflows: deleteAffectedWorkflows,
+    workflowsFetchError: deleteWorkflowsFetchError,
+    isLoadingWorkflows: deleteIsLoadingWorkflows,
+    openDeleteDialog,
+    closeDeleteDialog,
+  } = useDeleteCredentialState()
 
   // Disable credential dialog state
-  const { credentialToDisable, affectedWorkflows, workflowsFetchError, openDisableDialog, closeDisableDialog } =
-    useDisableCredentialState()
+  const {
+    credentialToDisable,
+    affectedWorkflows,
+    workflowsFetchError,
+    isLoadingWorkflows: disableIsLoadingWorkflows,
+    openDisableDialog,
+    closeDisableDialog,
+  } = useDisableCredentialState()
 
   const { showAlert } = useAlerts()
 
@@ -154,32 +169,19 @@ export default function CredentialDetail() {
     )
   }
 
-  function handleConfirmDelete() {
-    if (!credential) return
-    deleteCredentialMut(
-      { params: { path: { credential_id: credential.id! } } },
-      {
-        onSuccess: () => {
-          showAlert({ title: 'Credential deleted', variant: 'success', autoDismiss: true })
-          navigate(AppRoute.Configuration.Credentials.Root)
-        },
-        onError: (error: unknown) => {
-          showAlert({
-            title: 'Delete failed',
-            description: getErrorMessage(error),
-            variant: 'danger',
-            autoDismiss: true,
-          })
-        },
-        onSettled: () => setDeleteDialogOpen(false),
-      }
-    )
-  }
+  const handleConfirmDelete = useDeleteAction<CredentialExtended, { params: { path: { credential_id: string } } }>({
+    deleteFn: (params, callbacks) => deleteCredentialMut(params, callbacks),
+    buildParams: (cred) => ({ params: { path: { credential_id: cred.id! } } }),
+    entityLabel: 'credential',
+    getItemName: (cred) => cred.name,
+    onSuccess: () => navigate(AppRoute.Configuration.Credentials.Root),
+    onSettled: closeDeleteDialog,
+  })
 
   const kebabActions: IAction[] = [
     {
       title: 'Delete',
-      onClick: () => setDeleteDialogOpen(true),
+      onClick: () => openDeleteDialog(credential!),
     },
   ]
 
@@ -332,16 +334,20 @@ export default function CredentialDetail() {
         credential={credentialToDisable}
         affectedWorkflows={affectedWorkflows}
         workflowsFetchError={workflowsFetchError}
+        isLoadingWorkflows={disableIsLoadingWorkflows}
         isLoading={isPatchPending}
         onConfirm={handleConfirmDisable}
         onClose={closeDisableDialog}
       />
 
       <DeleteCredentialDialog
-        credential={deleteDialogOpen ? credential : null}
+        credential={credentialToDelete}
+        affectedWorkflows={deleteAffectedWorkflows}
+        workflowsFetchError={deleteWorkflowsFetchError}
+        isLoadingWorkflows={deleteIsLoadingWorkflows}
         isLoading={isDeletePending}
-        onConfirm={handleConfirmDelete}
-        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={() => handleConfirmDelete(credentialToDelete)}
+        onClose={closeDeleteDialog}
       />
 
       <CredentialFormModal

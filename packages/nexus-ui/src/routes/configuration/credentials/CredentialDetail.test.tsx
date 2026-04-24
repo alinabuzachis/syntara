@@ -211,7 +211,7 @@ describe('CredentialDetail', () => {
     const deleteItem = await screen.findByText('Delete')
     await user.click(deleteItem)
 
-    expect(screen.getByText('Delete credential')).toBeInTheDocument()
+    expect(screen.getByText('Delete credential?')).toBeInTheDocument()
   })
 
   it('renders loading state', () => {
@@ -383,7 +383,7 @@ describe('CredentialDetail', () => {
     const deleteItem = await screen.findByText('Delete')
     await user.click(deleteItem)
 
-    expect(screen.getByText('Delete credential')).toBeInTheDocument()
+    expect(screen.getByText('Delete credential?')).toBeInTheDocument()
 
     const dialog = screen.getByRole('dialog')
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }))

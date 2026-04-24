@@ -227,6 +227,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
           nodeId={node.id}
           onClose={onClose}
           onHeaderContentChange={setHeaderContent}
+          projectId={projectId}
         />
       )
     }

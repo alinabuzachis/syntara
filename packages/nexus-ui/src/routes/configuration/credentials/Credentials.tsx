@@ -1,12 +1,11 @@
-import { Button, CompassPanel, Content, ContentVariants, Label, Stack, StackItem, Switch } from '@patternfly/react-core'
-import { RhUiEditIcon, RhUiKeyIcon, RhUiTrashIcon } from '@patternfly/react-icons'
-import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import { Button, CompassPanel, Content, ContentVariants, Stack, StackItem } from '@patternfly/react-core'
+import { RhUiEditIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+import { Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
 
 import { AppPage } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
-import { AppRoute } from '../../../app/AppRoute'
 import { credentialsClient } from '../../../client'
 import { useAlerts } from '../../../components/alerts'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
@@ -14,10 +13,9 @@ import { FilterBar } from '../../../components/filters/FilterBar'
 import { IconLabel } from '../../../components/IconLabel'
 import { PageTitleWithProject } from '../../../components/PageTitleWithProject'
 import { useQueryState } from '../../../components/states/useQueryState'
-import { LinkCell } from '../../../components/table/LinkCell'
 import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
-import { UserTimestamp } from '../../../components/UserTimestamp'
 import { useCursorReset } from '../../../hooks/useCursorPagination'
+import { useDeleteAction } from '../../../hooks/useDeleteAction'
 import { useFilterState } from '../../../hooks/useFilterState'
 import { useProjectSelector } from '../../../hooks/useProjectSelector'
 import { useTableSort } from '../../../hooks/useTableSort'
@@ -29,21 +27,30 @@ import { buildFilterParams } from '../../../utils/filterUtils'
 import type { Credential, CredentialExtended, CredentialType } from './credentialConstants'
 import { CredentialEmptyState } from './CredentialEmptyState'
 import { createFilterChangeHandler, getCredentialNameFilterDefinition } from './credentialFilters'
+import { FlatCredentialsTableBody, GroupedCredentialsTableBody } from './CredentialsTableBody'
 import { DeleteCredentialDialog } from './DeleteCredentialDialog'
 import { DisableCredentialDialog } from './DisableCredentialDialog'
 import { CredentialFormModal } from './form/CredentialFormModal'
+import { useDeleteCredentialState } from './useDeleteCredentialState'
 import { useDisableCredentialState } from './useDisableCredentialState'
 
 // eslint-disable-next-line max-lines-per-function
 export default function Credentials() {
   const { showAlert } = useAlerts()
-  const { selectedProject, ProjectSelector } = useProjectSelector()
+  const { selectedProject, isAllProjects, projects, ProjectSelector } = useProjectSelector()
 
   // UI state
   const [cursor, setCursor] = useState<string | null>(null)
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [credentialToEdit, setCredentialToEdit] = useState<Credential | null>(null)
-  const [credentialToDelete, setCredentialToDelete] = useState<Credential | null>(null)
+  const {
+    credentialToDelete,
+    affectedWorkflows: deleteAffectedWorkflows,
+    workflowsFetchError: deleteWorkflowsFetchError,
+    isLoadingWorkflows: deleteIsLoadingWorkflows,
+    openDeleteDialog,
+    closeDeleteDialog,
+  } = useDeleteCredentialState()
   // Filter state
   const { filters, clearAllFilters, setAllFilters } = useFilterState()
   const filterFieldDefinitions = useMemo<FilterFieldDefinition[]>(() => [getCredentialNameFilterDefinition()], [])
@@ -107,6 +114,37 @@ export default function Credentials() {
     }
   })
 
+  // Group credentials by project when viewing all projects
+  const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set())
+
+  const groupedCredentials = useMemo(() => {
+    if (!isAllProjects) return null
+    const groups = new Map<string, { project: (typeof projects)[number] | null; credentials: CredentialExtended[] }>()
+    for (const credential of results) {
+      const projectId = credential.project_id ?? 'unknown'
+      if (!groups.has(projectId)) {
+        groups.set(projectId, {
+          project: projects.find((p) => p.id === projectId) ?? null,
+          credentials: [],
+        })
+      }
+      groups.get(projectId)!.credentials.push(credential)
+    }
+    return groups
+  }, [results, projects, isAllProjects])
+
+  const toggleProjectCollapsed = (projectId: string) => {
+    setCollapsedProjects((prev) => {
+      const next = new Set(prev)
+      if (next.has(projectId)) {
+        next.delete(projectId)
+      } else {
+        next.add(projectId)
+      }
+      return next
+    })
+  }
+
   // Mutations
   const { mutate: patchCredential, isPending: isPatchPending } = credentialsClient.useMutation(
     'patch',
@@ -118,8 +156,14 @@ export default function Credentials() {
   )
 
   // Disable credential dialog state
-  const { credentialToDisable, affectedWorkflows, workflowsFetchError, openDisableDialog, closeDisableDialog } =
-    useDisableCredentialState()
+  const {
+    credentialToDisable,
+    affectedWorkflows,
+    workflowsFetchError,
+    isLoadingWorkflows: disableIsLoadingWorkflows,
+    openDisableDialog,
+    closeDisableDialog,
+  } = useDisableCredentialState()
 
   function handleToggleEnabled(credential: Credential) {
     if (credential.enabled) {
@@ -167,32 +211,14 @@ export default function Credentials() {
     )
   }
 
-  function handleConfirmDelete() {
-    if (!credentialToDelete) return
-    deleteCredential(
-      { params: { path: { credential_id: credentialToDelete.id! } } },
-      {
-        onSuccess: () => {
-          showAlert({
-            title: 'Credential deleted',
-            description: `Credential "${credentialToDelete.name}" has been deleted.`,
-            variant: 'success',
-            autoDismiss: true,
-          })
-          detachPromise(query.refetch())
-        },
-        onError: (error: unknown) => {
-          showAlert({
-            title: 'Delete failed',
-            description: getErrorMessage(error),
-            variant: 'danger',
-            autoDismiss: true,
-          })
-        },
-        onSettled: () => setCredentialToDelete(null),
-      }
-    )
-  }
+  const handleConfirmDelete = useDeleteAction<Credential, { params: { path: { credential_id: string } } }>({
+    deleteFn: (params, callbacks) => deleteCredential(params, callbacks),
+    buildParams: (cred) => ({ params: { path: { credential_id: cred.id! } } }),
+    entityLabel: 'credential',
+    getItemName: (cred) => cred.name,
+    onSuccess: () => detachPromise(query.refetch()),
+    onSettled: closeDeleteDialog,
+  })
 
   const getRowActions = (credential: Credential): IAction[] => [
     {
@@ -202,7 +228,7 @@ export default function Credentials() {
     { isSeparator: true },
     {
       title: <IconLabel icon={<RhUiTrashIcon />}>Delete</IconLabel>,
-      onClick: () => setCredentialToDelete(credential),
+      onClick: () => openDeleteDialog(credential),
     },
   ]
 
@@ -291,66 +317,23 @@ export default function Credentials() {
                         <Th screenReaderText="Actions" />
                       </Tr>
                     </Thead>
-                    <Tbody>
-                      {results.map((credential) => {
-                        const credType = typeMap.get(credential.credential_type_id)
-                        return (
-                          <Tr key={credential.id}>
-                            <Td dataLabel="Name">
-                              <LinkCell
-                                href={AppRoute.Configuration.Credentials.Detail.replace(
-                                  ':credentialId',
-                                  credential.id!
-                                )}
-                              >
-                                {credential.name}
-                              </LinkCell>
-                              {credential.description && (
-                                <Content
-                                  component={ContentVariants.small}
-                                  style={{ margin: 0, color: 'var(--pf-t--global--text--color--subtle)' }}
-                                >
-                                  {credential.description}
-                                </Content>
-                              )}
-                            </Td>
-                            <Td dataLabel="Type">
-                              {credType ? (
-                                <Label variant="outline" isCompact icon={<RhUiKeyIcon />}>
-                                  {credType.name}
-                                </Label>
-                              ) : (
-                                '\u2014'
-                              )}
-                            </Td>
-                            <Td dataLabel="Workflows">
-                              {credential.workflow_count != null && credential.workflow_count > 0
-                                ? credential.workflow_count
-                                : '\u2014'}
-                            </Td>
-                            <Td dataLabel="Created">
-                              <UserTimestamp user={credential.created_by} timestamp={credential.created_at} />
-                            </Td>
-                            <Td dataLabel="Last modified">
-                              <UserTimestamp user={credential.updated_by} timestamp={credential.updated_at} />
-                            </Td>
-
-                            <Td dataLabel="State" onClick={(e) => e.stopPropagation()}>
-                              <Switch
-                                id={`credential-toggle-${credential.id}`}
-                                label="Enabled"
-                                isChecked={credential.enabled}
-                                onChange={() => handleToggleEnabled(credential)}
-                                isReversed
-                              />
-                            </Td>
-                            <Td isActionCell onClick={(e) => e.stopPropagation()}>
-                              <ActionsColumn items={getRowActions(credential)} />
-                            </Td>
-                          </Tr>
-                        )
-                      })}
-                    </Tbody>
+                    {isAllProjects && groupedCredentials ? (
+                      <GroupedCredentialsTableBody
+                        groupedCredentials={groupedCredentials}
+                        collapsedProjects={collapsedProjects}
+                        onToggleProject={toggleProjectCollapsed}
+                        typeMap={typeMap}
+                        getRowActions={getRowActions}
+                        onToggleEnabled={handleToggleEnabled}
+                      />
+                    ) : (
+                      <FlatCredentialsTableBody
+                        credentials={results}
+                        typeMap={typeMap}
+                        getRowActions={getRowActions}
+                        onToggleEnabled={handleToggleEnabled}
+                      />
+                    )}
                   </ScrollableTableContainer>
                 </StackItem>
               )}
@@ -363,6 +346,7 @@ export default function Credentials() {
         credential={credentialToDisable}
         affectedWorkflows={affectedWorkflows}
         workflowsFetchError={workflowsFetchError}
+        isLoadingWorkflows={disableIsLoadingWorkflows}
         isLoading={isPatchPending}
         onConfirm={handleConfirmDisable}
         onClose={closeDisableDialog}
@@ -370,9 +354,12 @@ export default function Credentials() {
 
       <DeleteCredentialDialog
         credential={credentialToDelete}
+        affectedWorkflows={deleteAffectedWorkflows}
+        workflowsFetchError={deleteWorkflowsFetchError}
+        isLoadingWorkflows={deleteIsLoadingWorkflows}
         isLoading={isDeletePending}
-        onConfirm={handleConfirmDelete}
-        onClose={() => setCredentialToDelete(null)}
+        onConfirm={() => handleConfirmDelete(credentialToDelete)}
+        onClose={closeDeleteDialog}
       />
 
       <CredentialFormModal

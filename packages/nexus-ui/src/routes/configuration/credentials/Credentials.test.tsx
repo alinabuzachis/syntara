@@ -26,11 +26,16 @@ vi.mock('../../../client', () => ({
   },
 }))
 
+const mockProjects = [
+  { id: 'proj-1', name: 'Project Alpha' },
+  { id: 'proj-2', name: 'Project Beta' },
+]
+
 vi.mock('../../../hooks/useProjectSelector', () => ({
   useProjectSelector: () => ({
     selectedProject: mockSelectedProject.current,
     isAllProjects: mockSelectedProject.current === null,
-    projects: [],
+    projects: mockProjects,
     ProjectSelector: <MockProjectSelector />,
   }),
 }))
@@ -59,6 +64,7 @@ const mockCredentials = [
     inputs: { token: '$encrypted$' },
     enabled: true,
     labels: {},
+    project_id: 'proj-1',
     created_at: '2026-03-01T05:00:00Z',
     updated_at: '2026-03-18T05:45:00Z',
   },
@@ -70,6 +76,7 @@ const mockCredentials = [
     inputs: { username: 'deploy', ssh_private_key: '$encrypted$' },
     enabled: false,
     labels: {},
+    project_id: 'proj-2',
     created_at: '2026-03-05T05:30:00Z',
     updated_at: '2026-03-05T05:30:00Z',
   },
@@ -430,7 +437,7 @@ describe('Credentials', () => {
     const deleteItem = await screen.findByText('Delete')
     await user.click(deleteItem)
 
-    expect(screen.getByText('Delete credential')).toBeInTheDocument()
+    expect(screen.getByText('Delete credential?')).toBeInTheDocument()
     expect(screen.getByText(/This action cannot be undone/)).toBeInTheDocument()
 
     const dialog = screen.getByRole('dialog')
@@ -531,5 +538,62 @@ describe('Credentials', () => {
     const lastCall = credentialsCalls[credentialsCalls.length - 1]
     const queryParams = (lastCall[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params?.query
     expect(queryParams).not.toHaveProperty('project_id')
+  })
+
+  it('renders empty state when no credentials exist', () => {
+    mockSelectedProject.current = { id: 'proj-1', name: 'Project Alpha' }
+    vi.mocked(credentialsClient.useQuery).mockImplementation(mockQuery([]))
+    vi.mocked(credentialsClient.useMutation).mockReturnValue({ mutate: vi.fn(), isPending: false } as never)
+    render(<Credentials />, { wrapper })
+
+    expect(screen.getByText('No credentials yet')).toBeInTheDocument()
+  })
+
+  it('renders grouped table body when viewing all projects', () => {
+    mockSelectedProject.current = null
+    vi.mocked(credentialsClient.useQuery).mockImplementation(mockQuery(mockCredentials))
+    vi.mocked(credentialsClient.useMutation).mockReturnValue({ mutate: vi.fn(), isPending: false } as never)
+    render(<Credentials />, { wrapper })
+
+    expect(screen.getByText('Project Alpha')).toBeInTheDocument()
+    expect(screen.getByText('Project Beta')).toBeInTheDocument()
+    expect(screen.getByText('GitHub API Token')).toBeInTheDocument()
+    expect(screen.getByText('Staging SSH')).toBeInTheDocument()
+  })
+
+  it('collapses and expands project group when header is clicked', async () => {
+    const user = userEvent.setup()
+    mockSelectedProject.current = null
+    vi.mocked(credentialsClient.useQuery).mockImplementation(mockQuery(mockCredentials))
+    vi.mocked(credentialsClient.useMutation).mockReturnValue({ mutate: vi.fn(), isPending: false } as never)
+    render(<Credentials />, { wrapper })
+
+    expect(screen.getByText('GitHub API Token')).toBeInTheDocument()
+
+    await user.click(screen.getByText('Project Alpha'))
+    expect(screen.queryByText('GitHub API Token')).not.toBeInTheDocument()
+
+    await user.click(screen.getByText('Project Alpha'))
+    expect(screen.getByText('GitHub API Token')).toBeInTheDocument()
+  })
+
+  it('shows "No project" label for credentials without a known project', () => {
+    mockSelectedProject.current = null
+    const credWithUnknownProject = [{ ...mockCredentials[0], project_id: 'unknown-id' }]
+    vi.mocked(credentialsClient.useQuery).mockImplementation(mockQuery(credWithUnknownProject))
+    vi.mocked(credentialsClient.useMutation).mockReturnValue({ mutate: vi.fn(), isPending: false } as never)
+    render(<Credentials />, { wrapper })
+
+    expect(screen.getByText('unknown-id')).toBeInTheDocument()
+  })
+
+  it('renders flat table body when a project is selected', () => {
+    mockSelectedProject.current = { id: 'proj-1', name: 'Project Alpha' }
+    vi.mocked(credentialsClient.useQuery).mockImplementation(mockQuery(mockCredentials))
+    vi.mocked(credentialsClient.useMutation).mockReturnValue({ mutate: vi.fn(), isPending: false } as never)
+    render(<Credentials />, { wrapper })
+
+    expect(screen.queryByText('Project Alpha')).not.toBeInTheDocument()
+    expect(screen.getByText('GitHub API Token')).toBeInTheDocument()
   })
 })

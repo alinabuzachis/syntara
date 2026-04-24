@@ -479,6 +479,17 @@ describe('CredentialSelector', () => {
       expect(screen.getByTestId('credential-form-modal')).toHaveAttribute('data-pre-selected-type-id', 'type-bearer')
     })
 
+    it('passes projectId as defaultProjectId to the create modal', async () => {
+      const user = userEvent.setup()
+      mockUseQueryLegacy()
+      renderSelector({ allowCreate: true, projectId: 'proj-123' })
+
+      await user.click(screen.getByRole('button', { name: 'Credential' }))
+      await user.click(screen.getByRole('option', { name: 'Create new credential' }))
+
+      expect(screen.getByTestId('credential-form-modal')).toHaveAttribute('data-default-project-id', 'proj-123')
+    })
+
     it('auto-selects the new credential after creation', async () => {
       const user = userEvent.setup()
       const onChange = vi.fn()

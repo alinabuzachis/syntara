@@ -35,7 +35,7 @@ test.describe('Group Detail — Navigation & Tabs', () => {
 
     // Should show tabs
     await expect(app.getByRole('tab', { name: /details/i })).toBeVisible()
-    await expect(app.getByRole('tab', { name: /roles/i })).toBeVisible()
+    await expect(app.getByRole('tab', { name: /role assignments/i })).toBeVisible()
   })
 
   test('members tab shows member list or empty state', async ({ app }) => {

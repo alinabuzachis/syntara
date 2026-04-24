@@ -199,9 +199,16 @@ type TaskNodeDetailsProps = {
   readonly nodeId: string
   readonly onClose: () => void
   readonly onHeaderContentChange: (content: ReactNode | null) => void
+  readonly projectId?: string
 }
 
-export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChange }: Readonly<TaskNodeDetailsProps>) {
+export function TaskNodeDetails({
+  taskData,
+  nodeId,
+  onClose,
+  onHeaderContentChange,
+  projectId,
+}: Readonly<TaskNodeDetailsProps>) {
   const { showError } = useAlerts()
   // Use action accessor - component won't re-render when store state changes
   const { updateActivity } = useWorkflowStoreActions()
@@ -250,6 +257,7 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
         onSubmit={handleAAPSubmit}
         onCancel={onClose}
         onHeaderContentChange={onHeaderContentChange}
+        projectId={projectId}
       />
     )
   }
@@ -262,6 +270,7 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
         nodeId={nodeId}
         onClose={onClose}
         onHeaderContentChange={onHeaderContentChange}
+        projectId={projectId}
       />
     )
   }
@@ -317,6 +326,7 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
       submitButtonText="Update step"
       onSubmit={handleSubmit}
       onHeaderContentChange={onHeaderContentChange}
+      projectId={projectId}
     />
   )
 }

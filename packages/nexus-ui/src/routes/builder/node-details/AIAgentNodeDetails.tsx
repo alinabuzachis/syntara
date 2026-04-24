@@ -12,13 +12,20 @@ type AIAgentNodeDetailsProps = {
   nodeId: string
   onClose: () => void
   onHeaderContentChange?: (content: ReactNode | null) => void
+  projectId?: string
 }
 
 /**
  * Side panel for editing an AI agent **step** (agentic executor on the canvas).
  * Handles MCP server, tools, model, prompt, and files.
  */
-export function AIAgentNodeDetails({ taskData, nodeId, onClose, onHeaderContentChange }: AIAgentNodeDetailsProps) {
+export function AIAgentNodeDetails({
+  taskData,
+  nodeId,
+  onClose,
+  onHeaderContentChange,
+  projectId,
+}: Readonly<AIAgentNodeDetailsProps>) {
   const { showError } = useAlerts()
   // Use action accessor - component won't re-render when store state changes
   const { updateActivity } = useWorkflowStoreActions()
@@ -80,6 +87,7 @@ export function AIAgentNodeDetails({ taskData, nodeId, onClose, onHeaderContentC
       submitButtonText="Update step"
       onSubmit={handleSubmit}
       onHeaderContentChange={onHeaderContentChange}
+      projectId={projectId}
     />
   )
 }

@@ -3,25 +3,25 @@ import { useDialogState } from '../../../hooks/useDialogState'
 import type { Credential, CredentialWorkflowRef } from './credentialConstants'
 import { useCredentialWorkflowCheck } from './useCredentialWorkflowCheck'
 
-type DisableCredentialState = {
-  credentialToDisable: Credential | null
+type DeleteCredentialState = {
+  credentialToDelete: Credential | null
   affectedWorkflows: CredentialWorkflowRef[]
   workflowsFetchError: boolean
   isLoadingWorkflows: boolean
-  openDisableDialog: (credential: Credential) => void
-  closeDisableDialog: () => void
+  openDeleteDialog: (credential: Credential) => void
+  closeDeleteDialog: () => void
 }
 
-export function useDisableCredentialState(): DisableCredentialState {
+export function useDeleteCredentialState(): DeleteCredentialState {
   const dialog = useDialogState<Credential>()
   const { affectedWorkflows, workflowsFetchError, isLoadingWorkflows } = useCredentialWorkflowCheck(dialog.item)
 
   return {
-    credentialToDisable: dialog.item,
+    credentialToDelete: dialog.item,
     affectedWorkflows,
     workflowsFetchError,
     isLoadingWorkflows,
-    openDisableDialog: dialog.open,
-    closeDisableDialog: dialog.close,
+    openDeleteDialog: dialog.open,
+    closeDeleteDialog: dialog.close,
   }
 }
