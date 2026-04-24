@@ -25,6 +25,8 @@ import type { ProjectCreate, ProjectRead } from '../routes/access/types'
 import { useProjectStore } from '../stores/useProjectStore'
 import { getErrorMessage } from '../utils/apiErrors'
 
+import { PROJECT_SELECTOR_MAX_WIDTH, projectSelectorUx } from './projectSelectorUtils'
+
 const ALL_PROJECTS_VALUE = '__all__'
 const CREATE_PROJECT_VALUE = '__create__'
 
@@ -46,7 +48,7 @@ type UseProjectSelectorResult = {
  * Selection persists across page navigation via Zustand store with localStorage.
  *
  * When `requireProject` is true, the "All projects" option is hidden and the toggle shows
- * "Select a project" when nothing is selected.
+ * `projectSelectorUx.selectProjectPlaceholder` when nothing is selected.
  *
  * Includes a "Create project" option in the dropdown that opens a modal dialog.
  */
@@ -114,7 +116,9 @@ export function useProjectSelector(options?: UseProjectSelectorOptions): UseProj
     }
   }, [isOpen])
 
-  const toggleLabel = selectedProject?.name ?? (requireProject ? 'Select a project' : 'All projects')
+  const toggleLabel =
+    selectedProject?.name ??
+    (requireProject ? projectSelectorUx.selectProjectPlaceholder : projectSelectorUx.allProjectsOptionLabel)
 
   const ProjectSelector = (
     <>
@@ -124,6 +128,7 @@ export function useProjectSelector(options?: UseProjectSelectorOptions): UseProj
           setIsOpen(open)
           if (!open) setFilterValue('')
         }}
+        popperProps={{ maxWidth: PROJECT_SELECTOR_MAX_WIDTH }}
         onSelect={(_event, value) => {
           if (value === CREATE_PROJECT_VALUE) {
             setIsOpen(false)
@@ -158,17 +163,24 @@ export function useProjectSelector(options?: UseProjectSelectorOptions): UseProj
         <SelectList style={{ maxHeight: '200px', overflow: 'auto' }}>
           {!requireProject && (
             <>
-              <SelectOption key={ALL_PROJECTS_VALUE} value={ALL_PROJECTS_VALUE}>
-                All projects
+              <SelectOption
+                key={ALL_PROJECTS_VALUE}
+                value={ALL_PROJECTS_VALUE}
+                description={projectSelectorUx.allProjectsOptionDescription}
+              >
+                {projectSelectorUx.allProjectsOptionLabel}
               </SelectOption>
               <Divider key="divider-all" />
             </>
           )}
-          {filteredProjects.map((p) => (
-            <SelectOption key={p.id} value={p.id}>
-              {p.name}
-            </SelectOption>
-          ))}
+          {filteredProjects.map((p) => {
+            const descriptionText = p.description?.trim()
+            return (
+              <SelectOption key={p.id} value={p.id} description={descriptionText || undefined}>
+                {p.name}
+              </SelectOption>
+            )
+          })}
           <Divider key="divider-create" />
           <SelectOption key={CREATE_PROJECT_VALUE} value={CREATE_PROJECT_VALUE} icon={<PlusIcon />}>
             Create project

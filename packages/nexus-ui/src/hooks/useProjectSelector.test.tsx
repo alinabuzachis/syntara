@@ -223,9 +223,12 @@ describe('useProjectSelector', () => {
 
       await user.click(screen.getByDisplayValue('All projects'))
 
-      expect(screen.getByRole('option', { name: 'All projects' })).toBeInTheDocument()
-      expect(screen.getByRole('option', { name: 'Alpha' })).toBeInTheDocument()
-      expect(screen.getByRole('option', { name: 'Beta' })).toBeInTheDocument()
+      expect(screen.getByRole('option', { name: /All projects/i })).toBeInTheDocument()
+      expect(screen.getByText('View all items you have access to.')).toBeInTheDocument()
+      expect(screen.getByRole('option', { name: /Alpha/i })).toBeInTheDocument()
+      expect(screen.getByText('First project')).toBeInTheDocument()
+      expect(screen.getByRole('option', { name: /Beta/i })).toBeInTheDocument()
+      expect(screen.getByText('Second project')).toBeInTheDocument()
       expect(screen.getByRole('option', { name: 'Create project' })).toBeInTheDocument()
     })
 
@@ -236,8 +239,8 @@ describe('useProjectSelector', () => {
       await user.click(screen.getByPlaceholderText('Select a project'))
 
       expect(screen.queryByRole('option', { name: 'All projects' })).not.toBeInTheDocument()
-      expect(screen.getByRole('option', { name: 'Alpha' })).toBeInTheDocument()
-      expect(screen.getByRole('option', { name: 'Beta' })).toBeInTheDocument()
+      expect(screen.getByRole('option', { name: /Alpha/i })).toBeInTheDocument()
+      expect(screen.getByRole('option', { name: /Beta/i })).toBeInTheDocument()
     })
 
     it('selects a project when option is clicked', async () => {
@@ -245,7 +248,7 @@ describe('useProjectSelector', () => {
       renderSelector()
 
       await user.click(screen.getByDisplayValue('All projects'))
-      await user.click(screen.getByRole('option', { name: 'Beta' }))
+      await user.click(screen.getByRole('option', { name: /Beta/i }))
 
       expect(mockSetSelectedProjectId).toHaveBeenCalledWith('proj-2')
     })
@@ -256,9 +259,28 @@ describe('useProjectSelector', () => {
       renderSelector()
 
       await user.click(screen.getByDisplayValue('Alpha'))
-      await user.click(screen.getByRole('option', { name: 'All projects' }))
+      await user.click(screen.getByRole('option', { name: /All projects/i }))
 
       expect(mockSetSelectedProjectId).toHaveBeenCalledWith(null)
+    })
+
+    it('omits description line when project description is empty', async () => {
+      mockProjectsData = [
+        {
+          id: 'proj-empty',
+          name: 'NoDesc',
+          description: '',
+          labels: {},
+          is_default: false,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+        },
+      ]
+      const user = userEvent.setup()
+      renderSelector()
+
+      await user.click(screen.getByDisplayValue('All projects'))
+      expect(screen.getByRole('option', { name: /^NoDesc$/i })).toBeInTheDocument()
     })
   })
 
