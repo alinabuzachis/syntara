@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { ReactFlowProvider } from '@xyflow/react'
 import type { ReactElement } from 'react'
 import { describe, expect, it, vi } from 'vitest'
+import { axe } from 'vitest-axe'
 
 vi.mock('../../../assets/ansible-automation-platform.svg?react', () => ({
   default: () => <span data-testid="mock-aap-icon" />,
@@ -56,5 +57,10 @@ describe('CanvasControls', () => {
     expect(screen.queryByRole('button', { name: 'Expand all' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Layout' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Show node legend' })).toBeInTheDocument()
+  })
+
+  it('has no accessibility violations', async () => {
+    const { container } = renderWithFlow(<CanvasControls onLayout={() => undefined} />)
+    expect(await axe(container)).toHaveNoViolations()
   })
 })

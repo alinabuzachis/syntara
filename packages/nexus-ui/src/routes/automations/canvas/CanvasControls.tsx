@@ -70,6 +70,7 @@ function CanvasLegendPopoverBlock() {
         <Button
           ref={legendToggleRef}
           variant="plain"
+          isCircle
           isClicked={legendOpen}
           aria-label={legendOpen ? 'Hide node legend' : 'Show node legend'}
           aria-expanded={legendOpen}
@@ -92,12 +93,13 @@ export function CanvasControls(props: Readonly<{ onLayout: () => void; hideLayou
 
   return (
     <Panel position="bottom-left">
-      <CompassPanel isPill hasNoPadding>
+      <CompassPanel isPill hasNoPadding style={{ padding: 'var(--pf-t--global--spacer--xs)' }}>
         <Flex gap={{ default: 'gapNone' }}>
           <CanvasLegendPopoverBlock />
           <FlexItem>
             <Button
               variant="plain"
+              isCircle
               onClick={() => zoomIn()}
               aria-label="Zoom in"
               icon={
@@ -110,6 +112,7 @@ export function CanvasControls(props: Readonly<{ onLayout: () => void; hideLayou
           <FlexItem>
             <Button
               variant="plain"
+              isCircle
               onClick={() => zoomOut()}
               aria-label="Zoom out"
               icon={
@@ -122,6 +125,7 @@ export function CanvasControls(props: Readonly<{ onLayout: () => void; hideLayou
           <FlexItem>
             <Button
               variant="plain"
+              isCircle
               onClick={() => fitView()}
               aria-label="Fit view"
               icon={
@@ -136,6 +140,7 @@ export function CanvasControls(props: Readonly<{ onLayout: () => void; hideLayou
               <FlexItem>
                 <Button
                   variant="plain"
+                  isCircle
                   onClick={() => collapseAllEvent.dispatchEvent(new Event('collapseAll'))}
                   aria-label="Collapse all"
                   icon={
@@ -148,6 +153,7 @@ export function CanvasControls(props: Readonly<{ onLayout: () => void; hideLayou
               <FlexItem>
                 <Button
                   variant="plain"
+                  isCircle
                   onClick={() => expandAllEvent.dispatchEvent(new Event('expandAll'))}
                   aria-label="Expand all"
                   icon={
@@ -160,6 +166,7 @@ export function CanvasControls(props: Readonly<{ onLayout: () => void; hideLayou
               <FlexItem>
                 <Button
                   variant="plain"
+                  isCircle
                   onClick={() => props.onLayout()}
                   aria-label="Layout"
                   icon={

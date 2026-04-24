@@ -13,12 +13,13 @@ export function UndoRedoControls() {
 
   return (
     <Panel position="bottom-center">
-      <CompassPanel isPill hasNoPadding>
+      <CompassPanel isPill hasNoPadding style={{ padding: 'var(--pf-t--global--spacer--xs)' }}>
         <Flex role="toolbar" aria-label="Undo and redo" gap={{ default: 'gapNone' }}>
           <FlexItem>
             <Tooltip content={`Undo (${UNDO_SHORTCUT_LABEL})`}>
               <Button
                 variant="plain"
+                isCircle
                 onClick={() => undo()}
                 isDisabled={!canUndo}
                 aria-label="Undo"
@@ -34,6 +35,7 @@ export function UndoRedoControls() {
             <Tooltip content={`Redo (${REDO_SHORTCUT_LABEL})`}>
               <Button
                 variant="plain"
+                isCircle
                 onClick={() => redo()}
                 isDisabled={!canRedo}
                 aria-label="Redo"
