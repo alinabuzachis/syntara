@@ -1,5 +1,5 @@
 import { Badge, MenuToggle, Select, SelectList, SelectOption, type MenuToggleElement } from '@patternfly/react-core'
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 
 import { FilterOperatorEnum, type FilterConfig, type FilterOperator } from '../../types/filters'
 
@@ -29,6 +29,21 @@ function MultiSelectFilterMenuToggle({
     >
       {toggleLabel}
     </MenuToggle>
+  )
+}
+
+function multiSelectFilterToggle(
+  toggleRef: React.Ref<MenuToggleElement>,
+  state: Pick<MultiSelectFilterMenuToggleProps, 'isOpen' | 'onToggle' | 'selectedCount' | 'toggleLabel'>
+) {
+  return (
+    <MultiSelectFilterMenuToggle
+      toggleRef={toggleRef}
+      isOpen={state.isOpen}
+      onToggle={state.onToggle}
+      selectedCount={state.selectedCount}
+      toggleLabel={state.toggleLabel}
+    />
   )
 }
 
@@ -108,6 +123,21 @@ export function MultiSelectFilter({
 
   const toggleLabel = placeholder ?? `Filter by ${label.toLowerCase()}`
 
+  const toggleState = useMemo(
+    () => ({
+      isOpen,
+      onToggle: toggleOpen,
+      selectedCount: selectedValues.length,
+      toggleLabel,
+    }),
+    [isOpen, toggleOpen, selectedValues.length, toggleLabel]
+  )
+
+  const renderToggle = useCallback(
+    (toggleRef: React.Ref<MenuToggleElement>) => multiSelectFilterToggle(toggleRef, toggleState),
+    [toggleState]
+  )
+
   return (
     <Select
       role="menu"
@@ -115,15 +145,7 @@ export function MultiSelectFilter({
       selected={selectedValues}
       onSelect={handleSelect}
       onOpenChange={setIsOpen}
-      toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-        <MultiSelectFilterMenuToggle
-          toggleRef={toggleRef}
-          isOpen={isOpen}
-          onToggle={toggleOpen}
-          selectedCount={selectedValues.length}
-          toggleLabel={toggleLabel}
-        />
-      )}
+      toggle={renderToggle}
     >
       <SelectList aria-label={`Filter by ${label}`}>
         {options.map((option) => (

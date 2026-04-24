@@ -17,7 +17,7 @@ import {
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
 import type { ReactNode, Ref } from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
 import { timeUnitsToSeconds } from '../utils/timeUtils'
@@ -82,6 +82,21 @@ function ConvergeTimeoutActionMenuToggle({
   )
 }
 
+function convergeTimeoutActionSelectToggle(
+  toggleRef: Ref<MenuToggleElement>,
+  state: { isExpanded: boolean; onToggleClick: () => void; label: string }
+) {
+  return (
+    <ConvergeTimeoutActionMenuToggle
+      toggleRef={toggleRef}
+      isExpanded={state.isExpanded}
+      onToggleClick={state.onToggleClick}
+    >
+      {state.label}
+    </ConvergeTimeoutActionMenuToggle>
+  )
+}
+
 type ConvergeNodeFormProps = {
   onSubmit: (data: ConvergeFormData) => void
   submitButtonText?: string
@@ -113,7 +128,22 @@ function ConvergeFormFields({
   const errors = validationErrors ?? contextErrors
   const strategy = useWatch({ control, name: 'strategy' })
   const timeoutEnabled = useWatch({ control, name: 'timeoutEnabled' })
+  const onTimeoutValue = useWatch({ control, name: 'onTimeout' })
   const [isTimeoutActionOpen, setIsTimeoutActionOpen] = useState(false)
+
+  const timeoutActionToggleState = useMemo(
+    () => ({
+      isExpanded: isTimeoutActionOpen,
+      onToggleClick: () => setIsTimeoutActionOpen((prev) => !prev),
+      label: TIMEOUT_ACTION_OPTIONS.find((option) => option.value === onTimeoutValue)?.label ?? 'Select timeout action',
+    }),
+    [isTimeoutActionOpen, onTimeoutValue]
+  )
+
+  const renderTimeoutActionToggle = useCallback(
+    (toggleRef: Ref<MenuToggleElement>) => convergeTimeoutActionSelectToggle(toggleRef, timeoutActionToggleState),
+    [timeoutActionToggleState]
+  )
 
   useEffect(() => {
     if (errors.strategy) document.getElementById('converge-strategy')?.focus()
@@ -234,7 +264,12 @@ function ConvergeFormFields({
           id="converge-timeoutEnabled"
           label="Timeout"
           isChecked={timeoutEnabled ?? false}
-          onChange={(_event, checked) => setValue('timeoutEnabled', checked)}
+          onChange={(_event, checked) => {
+            setValue('timeoutEnabled', checked)
+            if (!checked) {
+              setIsTimeoutActionOpen(false)
+            }
+          }}
           aria-label="Timeout"
         />
       </StackItem>
@@ -300,20 +335,13 @@ function ConvergeFormFields({
                     isOpen={isTimeoutActionOpen}
                     onOpenChange={setIsTimeoutActionOpen}
                     popperProps={{ minWidth: 'trigger', maxWidth: 'trigger' }}
-                    onSelect={(_event, value) => {
-                      field.onChange(value)
+                    onSelect={(_event, raw) => {
+                      const selectedValue = typeof raw === 'string' || typeof raw === 'number' ? raw : undefined
+                      field.onChange(selectedValue)
                       setIsTimeoutActionOpen(false)
                     }}
                     selected={field.value}
-                    toggle={(toggleRef) => (
-                      <ConvergeTimeoutActionMenuToggle
-                        toggleRef={toggleRef}
-                        isExpanded={isTimeoutActionOpen}
-                        onToggleClick={() => setIsTimeoutActionOpen(!isTimeoutActionOpen)}
-                      >
-                        {TIMEOUT_ACTION_OPTIONS.find((o) => o.value === field.value)?.label ?? 'Select timeout action'}
-                      </ConvergeTimeoutActionMenuToggle>
-                    )}
+                    toggle={renderTimeoutActionToggle}
                   >
                     <SelectList>
                       {TIMEOUT_ACTION_OPTIONS.map((option) => (

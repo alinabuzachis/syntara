@@ -47,21 +47,20 @@ function KebabToggle({
   )
 }
 
-type SettingFieldKebabMenuToggleProps = {
-  readonly toggleRef: React.Ref<HTMLButtonElement>
+type SettingFieldKebabToggleState = {
   readonly onClick: () => void
   readonly isExpanded: boolean
   readonly settingName: string
 }
 
-function SettingFieldKebabMenuToggle({
-  toggleRef,
-  onClick,
-  isExpanded,
-  settingName,
-}: SettingFieldKebabMenuToggleProps) {
+function settingFieldKebabDropdownToggle(toggleRef: React.Ref<HTMLButtonElement>, state: SettingFieldKebabToggleState) {
   return (
-    <KebabToggle toggleRef={toggleRef} onClick={onClick} isExpanded={isExpanded} label={`Actions for ${settingName}`} />
+    <KebabToggle
+      toggleRef={toggleRef}
+      onClick={state.onClick}
+      isExpanded={state.isExpanded}
+      label={`Actions for ${state.settingName}`}
+    />
   )
 }
 
@@ -69,6 +68,20 @@ export function SettingField({ setting, value, onChange, onResetSingle, onValida
   const [kebabOpen, setKebabOpen] = useState(false)
   const [stringError, setStringError] = useState<string | null>(null)
   const handleToggleClick = useCallback(() => setKebabOpen((prev) => !prev), [])
+
+  const kebabToggleState = useMemo(
+    () => ({
+      onClick: handleToggleClick,
+      isExpanded: kebabOpen,
+      settingName: setting.name,
+    }),
+    [handleToggleClick, kebabOpen, setting.name]
+  )
+
+  const renderKebabToggle = useCallback(
+    (toggleRef: React.Ref<HTMLButtonElement>) => settingFieldKebabDropdownToggle(toggleRef, kebabToggleState),
+    [kebabToggleState]
+  )
 
   const isNotifications = setting.category === 'notifications'
 
@@ -130,14 +143,7 @@ export function SettingField({ setting, value, onChange, onResetSingle, onValida
       isOpen={kebabOpen}
       onSelect={() => setKebabOpen(false)}
       onOpenChange={setKebabOpen}
-      toggle={(toggleRef) => (
-        <SettingFieldKebabMenuToggle
-          toggleRef={toggleRef}
-          onClick={handleToggleClick}
-          isExpanded={kebabOpen}
-          settingName={setting.name}
-        />
-      )}
+      toggle={renderKebabToggle}
       popperProps={{ position: 'right' }}
     >
       <DropdownList>

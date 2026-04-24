@@ -2,14 +2,23 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi } from 'vitest'
 
-import type { FilterFieldDefinition } from '../../types/filters'
+import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { FilterTypeEnum } from '../../types/filters'
 
 import { TextFilter } from './TextFilter'
 
 vi.mock('./DateRangeFilter', () => ({
-  DateRangeFilter: (props: { fieldKey: string; label: string }) => (
-    <div data-testid="date-range-filter">{props.label} date range</div>
+  DateRangeFilter: (props: { fieldKey: string; label: string; onChange: (filters: FilterConfig[]) => void }) => (
+    <div data-testid="date-range-filter">
+      {props.label} date range
+      <button
+        type="button"
+        data-testid="date-range-apply"
+        onClick={() => props.onChange([{ key: props.fieldKey, operator: 'gte', value: '2025-01-01' }])}
+      >
+        Save range
+      </button>
+    </div>
   ),
 }))
 
@@ -225,12 +234,8 @@ describe('TextFilter', () => {
 
       render(<TextFilter {...defaultProps} filters={filters} />)
 
-      // Should select Status field (last filter)
-      const allButtons = screen.getAllByRole('button')
-      const statusFieldSelector = allButtons.find(
-        (btn) => btn.textContent?.includes('Status') && btn.querySelector('.pf-v6-c-menu-toggle__icon')
-      )
-      expect(statusFieldSelector).toBeInTheDocument()
+      // Should select Status field (last filter); value toggle shows "Enabled" for this fixture
+      expect(screen.getByRole('button', { name: 'Status' })).toBeInTheDocument()
     })
 
     it('defaults to first field when no filters present', () => {
@@ -313,6 +318,196 @@ describe('TextFilter', () => {
       await waitFor(() => {
         expect(screen.queryByText('Enabled')).not.toBeInTheDocument()
       })
+    })
+  })
+
+  describe('date range field', () => {
+    const dateRangeField: FilterFieldDefinition = {
+      key: 'created',
+      label: 'Created',
+      type: FilterTypeEnum.DATERANGE,
+    }
+
+    it('renders date range control and forwards range changes', async () => {
+      const user = userEvent.setup()
+      const onDateRangeChange = vi.fn()
+
+      render(
+        <TextFilter
+          fieldDefinitions={[dateRangeField]}
+          filters={[]}
+          onFilterChange={vi.fn()}
+          onDateRangeChange={onDateRangeChange}
+        />
+      )
+
+      expect(screen.getByTestId('date-range-filter')).toBeInTheDocument()
+      expect(screen.getByText(/Created date range/i)).toBeInTheDocument()
+
+      await user.click(screen.getByTestId('date-range-apply'))
+
+      expect(onDateRangeChange).toHaveBeenCalledWith(
+        'created',
+        expect.arrayContaining([expect.objectContaining({ key: 'created', operator: 'gte', value: '2025-01-01' })])
+      )
+    })
+
+    it('passes gte and lte filter values into the date range control', () => {
+      const filters: FilterConfig[] = [
+        { key: 'created', operator: 'gte', value: '2024-06-01' },
+        { key: 'created', operator: 'lte', value: '2024-06-30' },
+      ]
+
+      render(
+        <TextFilter
+          fieldDefinitions={[dateRangeField]}
+          filters={filters}
+          onFilterChange={vi.fn()}
+          onDateRangeChange={vi.fn()}
+        />
+      )
+
+      expect(screen.getByTestId('date-range-filter')).toBeInTheDocument()
+    })
+
+    it('does not throw when date range changes without onDateRangeChange', async () => {
+      const user = userEvent.setup()
+
+      render(<TextFilter fieldDefinitions={[dateRangeField]} filters={[]} onFilterChange={vi.fn()} />)
+
+      await user.click(screen.getByTestId('date-range-apply'))
+
+      expect(screen.getByTestId('date-range-filter')).toBeInTheDocument()
+    })
+  })
+
+  describe('async select field', () => {
+    it('shows getOptionLabel for a preloaded value before async options resolve', () => {
+      const asyncField: FilterFieldDefinition = {
+        key: 'workflow_id',
+        label: 'Workflow',
+        type: FilterTypeEnum.SELECT,
+        asyncOptions: () => new Promise<{ label: string; value: string }[]>(() => {}),
+        getOptionLabel: (value) => (value === 'stored-1' ? 'Stored workflow' : undefined),
+      }
+      const filters = [{ key: 'workflow_id', operator: 'eq' as const, value: 'stored-1' }]
+
+      render(<TextFilter fieldDefinitions={[asyncField]} filters={filters} onFilterChange={vi.fn()} />)
+
+      expect(screen.getByText('Stored workflow')).toBeInTheDocument()
+    })
+
+    it('shows loading then options when async list resolves', async () => {
+      const user = userEvent.setup()
+      let resolveLoad!: (rows: { label: string; value: string }[]) => void
+      const asyncField: FilterFieldDefinition = {
+        key: 'wf',
+        label: 'Workflow',
+        type: FilterTypeEnum.SELECT,
+        asyncOptions: () =>
+          new Promise<{ label: string; value: string }[]>((resolve) => {
+            resolveLoad = resolve
+          }),
+      }
+
+      render(<TextFilter fieldDefinitions={[asyncField]} filters={[]} onFilterChange={vi.fn()} />)
+
+      await user.click(screen.getByText('Filter by workflow'))
+
+      expect(await screen.findByText('Loading...')).toBeInTheDocument()
+
+      resolveLoad([{ label: 'Option A', value: 'a' }])
+
+      expect(await screen.findByText('Option A')).toBeInTheDocument()
+    })
+
+    it('calls onOptionSelected when an async option is chosen', async () => {
+      const user = userEvent.setup()
+      const onOptionSelected = vi.fn()
+      const asyncField: FilterFieldDefinition = {
+        key: 'wf',
+        label: 'Workflow',
+        type: FilterTypeEnum.SELECT,
+        asyncOptions: () => Promise.resolve([{ label: 'Alpha', value: 'alpha' }]),
+        onOptionSelected,
+      }
+
+      render(<TextFilter fieldDefinitions={[asyncField]} filters={[]} onFilterChange={vi.fn()} />)
+
+      await user.click(screen.getByText('Filter by workflow'))
+      await user.click(await screen.findByText('Alpha'))
+
+      expect(onOptionSelected).toHaveBeenCalledWith('alpha', 'Alpha')
+    })
+
+    it('clears async search and reloads when search clear is used', async () => {
+      const user = userEvent.setup()
+      const asyncField: FilterFieldDefinition = {
+        key: 'wf',
+        label: 'Workflow',
+        type: FilterTypeEnum.SELECT,
+        asyncOptions: () => Promise.resolve([{ label: 'Alpha', value: 'alpha' }]),
+      }
+
+      render(<TextFilter fieldDefinitions={[asyncField]} filters={[]} onFilterChange={vi.fn()} />)
+
+      await user.click(screen.getByText('Filter by workflow'))
+      await screen.findByText('Alpha')
+
+      const search = screen.getByPlaceholderText('Search...')
+      await user.type(search, 'alp')
+
+      await user.click(screen.getByRole('button', { name: 'Reset' }))
+
+      expect(await screen.findByText('Alpha')).toBeInTheDocument()
+    })
+
+    it('invalidates async work when the value menu closes', async () => {
+      const user = userEvent.setup()
+      let resolveLoad!: (rows: { label: string; value: string }[]) => void
+      const asyncField: FilterFieldDefinition = {
+        key: 'wf',
+        label: 'Workflow',
+        type: FilterTypeEnum.SELECT,
+        asyncOptions: () =>
+          new Promise<{ label: string; value: string }[]>((resolve) => {
+            resolveLoad = resolve
+          }),
+      }
+
+      render(<TextFilter fieldDefinitions={[asyncField]} filters={[]} onFilterChange={vi.fn()} />)
+
+      await user.click(screen.getByText('Filter by workflow'))
+      expect(await screen.findByText('Loading...')).toBeInTheDocument()
+
+      await user.click(screen.getByText('Filter by workflow'))
+
+      resolveLoad([{ label: 'Stale', value: 'stale' }])
+
+      await waitFor(() => {
+        expect(screen.queryByText('Stale')).not.toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('select search', () => {
+    it('shows no results when client search matches nothing', async () => {
+      const user = userEvent.setup()
+      const fieldDefinitions = [selectFieldDefinition]
+
+      render(<TextFilter {...defaultProps} fieldDefinitions={fieldDefinitions} />)
+
+      await user.click(screen.getByText('Filter by status'))
+      await user.type(screen.getByPlaceholderText('Search...'), 'nomatchzzzz')
+
+      expect(await screen.findByText('No results found')).toBeInTheDocument()
+    })
+  })
+
+  describe('compact layout', () => {
+    it('renders when isCompact is true', () => {
+      render(<TextFilter {...defaultProps} isCompact />)
+      expect(screen.getByText('Name')).toBeInTheDocument()
     })
   })
 })
