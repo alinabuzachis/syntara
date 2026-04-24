@@ -12,11 +12,10 @@ async function filterCredentialByName(app: import('@playwright/test').Page, name
 }
 
 test.describe('Credential Enable/Disable State Management', () => {
-  // Tests create and mutate credentials — run serially to avoid shared state conflicts
   test.describe.configure({ mode: 'serial' })
 
   test('toggle on enabled credential opens disable confirmation', async ({ app }) => {
-    const name = await createTestCredential(app, { prefix: 'e2e-toggle-open' })
+    const { name } = await createTestCredential(app, { prefix: 'e2e-toggle-open' })
     try {
       await goToCredentialsList(app)
       await filterCredentialByName(app, name)
@@ -32,7 +31,7 @@ test.describe('Credential Enable/Disable State Management', () => {
   })
 
   test('disable confirmation dialog shows warning with credential name', async ({ app }) => {
-    const name = await createTestCredential(app, { prefix: 'e2e-toggle-warn' })
+    const { name } = await createTestCredential(app, { prefix: 'e2e-toggle-warn' })
     try {
       await goToCredentialsList(app)
       await filterCredentialByName(app, name)
@@ -50,7 +49,7 @@ test.describe('Credential Enable/Disable State Management', () => {
   })
 
   test('confirm disable changes credential state', async ({ app }) => {
-    const name = await createTestCredential(app, { prefix: 'e2e-toggle-confirm' })
+    const { name } = await createTestCredential(app, { prefix: 'e2e-toggle-confirm' })
     try {
       await goToCredentialsList(app)
       await filterCredentialByName(app, name)
@@ -67,7 +66,7 @@ test.describe('Credential Enable/Disable State Management', () => {
   })
 
   test('cancel disable keeps credential enabled', async ({ app }) => {
-    const name = await createTestCredential(app, { prefix: 'e2e-toggle-cancel' })
+    const { name } = await createTestCredential(app, { prefix: 'e2e-toggle-cancel' })
     try {
       await goToCredentialsList(app)
       await filterCredentialByName(app, name)
@@ -87,7 +86,7 @@ test.describe('Credential Enable/Disable State Management', () => {
   })
 
   test('re-enable credential without confirmation', async ({ app }) => {
-    const name = await createTestCredential(app, { prefix: 'e2e-toggle-reenable', enabled: false })
+    const { name } = await createTestCredential(app, { prefix: 'e2e-toggle-reenable', enabled: false })
     try {
       await goToCredentialsList(app)
       await filterCredentialByName(app, name)
@@ -106,7 +105,7 @@ test.describe('Credential Enable/Disable State Management', () => {
   })
 
   test('disable from detail page', async ({ app }) => {
-    const name = await createTestCredential(app, { prefix: 'e2e-toggle-detail' })
+    const { name } = await createTestCredential(app, { prefix: 'e2e-toggle-detail' })
     try {
       await navigateToCredentialDetail(app, name)
 
@@ -123,7 +122,7 @@ test.describe('Credential Enable/Disable State Management', () => {
   })
 
   test('state badge reflects current state on detail page', async ({ app }) => {
-    const name = await createTestCredential(app, { prefix: 'e2e-toggle-badge' })
+    const { name } = await createTestCredential(app, { prefix: 'e2e-toggle-badge' })
     try {
       await navigateToCredentialDetail(app, name)
 
@@ -142,7 +141,7 @@ test.describe('Credential Enable/Disable State Management', () => {
   })
 
   test('state persists across page navigation', async ({ app }) => {
-    const name = await createTestCredential(app, { prefix: 'e2e-toggle-persist' })
+    const { name } = await createTestCredential(app, { prefix: 'e2e-toggle-persist' })
     try {
       // Disable the credential
       await goToCredentialsList(app)

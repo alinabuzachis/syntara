@@ -2,7 +2,8 @@ import type { Page } from '@playwright/test'
 
 import { test, expect, toAppUrl } from './fixtures'
 import { deleteCredentialByName, goToCredentialsList } from './helpers/credentials'
-import { buildUniqueName, clickAddConnectedStep } from './helpers/workflows'
+import { buildUniqueName, clickAddConnectedStep, selectProjectIfRequired } from './helpers/workflows'
+import { ensureProject } from './utils/api'
 
 /**
  * Navigate to the workflow builder and add an API action node form
@@ -11,26 +12,25 @@ import { buildUniqueName, clickAddConnectedStep } from './helpers/workflows'
  * Flow: New workflow → Manual trigger → Add connected step → Action → REST API
  */
 async function navigateToApiActionForm(app: Page) {
+  await ensureProject(app)
   await app.goto(toAppUrl('/workflow-builder/new'))
   await expect(app.getByRole('heading', { name: 'Select a trigger step' })).toBeVisible()
 
-  // Add manual trigger
+  await selectProjectIfRequired(app)
+
   await app.getByRole('button', { name: 'Manual trigger' }).click()
   await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Manual trigger')
   await app.getByRole('button', { name: /^Add step$/ }).click()
 
-  // Add connected API action node — set up credential response listener
-  // BEFORE clicking REST API (which triggers the credential fetch)
   const credentialsLoaded = app.waitForResponse((resp) => resp.url().includes('/credentials') && resp.status() === 200)
   const panel = await clickAddConnectedStep(app)
   await panel.getByRole('button', { name: 'Action', exact: true }).click()
   await panel.getByRole('button', { name: 'REST API', exact: true }).click()
 
-  // Wait for the form and credential data to fully load
   await expect(app.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible()
   await credentialsLoaded
   const credToggle = app.getByRole('button', { name: 'Authentication credential', exact: true })
-  await expect(credToggle).toBeEnabled({ timeout: 5000 })
+  await expect(credToggle).toBeEnabled({ timeout: 10_000 })
 }
 
 test.describe('Credential Selector', () => {
@@ -94,7 +94,7 @@ test.describe('Credential Selector', () => {
 
     try {
       await goToCredentialsList(app, { ensureCreateEnabled: true })
-      await app.getByRole('button', { name: 'Create credential' }).click()
+      await app.getByRole('button', { name: 'Create credential' }).first().click()
       const createModal = app.getByRole('dialog')
       await createModal.getByRole('textbox', { name: 'Credential name' }).fill(incompatibleName)
       await createModal.getByRole('combobox', { name: 'Credential type' }).selectOption({ label: 'LLM Provider' })

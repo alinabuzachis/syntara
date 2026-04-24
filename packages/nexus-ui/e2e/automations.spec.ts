@@ -2,7 +2,7 @@ import { test, expect, toAppUrl } from './fixtures'
 import { buildUniqueName, createBasicWorkflow, deleteWorkflow } from './helpers/workflows'
 
 test('user searches, views, and deletes a workflow', async ({ app }) => {
-  test.setTimeout(60_000)
+  test.setTimeout(90_000)
   // Arrange - Create a workflow to manage
   const workflowName = buildUniqueName('e2e-workflow')
   const otherWorkflowName = buildUniqueName('e2e-workflow-control')

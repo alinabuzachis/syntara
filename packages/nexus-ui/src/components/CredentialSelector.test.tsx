@@ -22,14 +22,20 @@ vi.mock('../routes/configuration/credentials/form/CredentialFormModal', () => ({
     onClose,
     onCreated,
     preSelectedTypeId,
+    defaultProjectId,
   }: {
     isOpen: boolean
     onClose: () => void
     onCreated?: (id: string) => void
     preSelectedTypeId?: string
+    defaultProjectId?: string
   }) =>
     isOpen ? (
-      <div data-testid="credential-form-modal" data-pre-selected-type-id={preSelectedTypeId}>
+      <div
+        data-testid="credential-form-modal"
+        data-pre-selected-type-id={preSelectedTypeId}
+        data-default-project-id={defaultProjectId}
+      >
         <button onClick={onClose}>Close modal</button>
         <button onClick={() => onCreated?.('new-cred-id')}>Simulate create</button>
       </div>
@@ -487,6 +493,17 @@ describe('CredentialSelector', () => {
       await user.click(screen.getByText('Simulate create'))
 
       expect(onChange).toHaveBeenCalledWith('new-cred-id')
+    })
+
+    it('passes projectId as defaultProjectId to the create modal', async () => {
+      const user = userEvent.setup()
+      mockUseQueryLegacy()
+      renderSelector({ allowCreate: true, projectId: 'proj-456' })
+
+      await user.click(screen.getByRole('button', { name: 'Credential' }))
+      await user.click(screen.getByRole('option', { name: 'Create new credential' }))
+
+      expect(screen.getByTestId('credential-form-modal')).toHaveAttribute('data-default-project-id', 'proj-456')
     })
 
     it('does not show "No credentials available" when allowCreate is true and list is empty', async () => {

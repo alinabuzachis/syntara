@@ -2,9 +2,8 @@ import { test, expect } from './fixtures'
 import { createTestCredential, deleteCredentialByName, navigateToCredentialDetail } from './helpers/credentials'
 
 test.describe('Credential Detail Page & Workflows Tab', () => {
-  test.describe.configure({ timeout: 45_000 })
   test('navigates to credential detail page', async ({ app }) => {
-    const name = await createTestCredential(app, { prefix: 'e2e-detail-nav' })
+    const { name } = await createTestCredential(app, { prefix: 'e2e-detail-nav' })
     try {
       // Act - Navigate to detail page via list
       await navigateToCredentialDetail(app, name)
@@ -18,7 +17,7 @@ test.describe('Credential Detail Page & Workflows Tab', () => {
   })
 
   test('detail page shows all tabs', async ({ app }) => {
-    const name = await createTestCredential(app, { prefix: 'e2e-detail-tabs' })
+    const { name } = await createTestCredential(app, { prefix: 'e2e-detail-tabs' })
     try {
       await navigateToCredentialDetail(app, name)
 
@@ -31,7 +30,7 @@ test.describe('Credential Detail Page & Workflows Tab', () => {
   })
 
   test('details tab shows credential information', async ({ app }) => {
-    const name = await createTestCredential(app, { prefix: 'e2e-detail-info' })
+    const { name } = await createTestCredential(app, { prefix: 'e2e-detail-info' })
     try {
       await navigateToCredentialDetail(app, name)
 
@@ -51,7 +50,7 @@ test.describe('Credential Detail Page & Workflows Tab', () => {
   })
 
   test('edit button opens edit modal', async ({ app }) => {
-    const name = await createTestCredential(app, { prefix: 'e2e-detail-edit' })
+    const { name } = await createTestCredential(app, { prefix: 'e2e-detail-edit' })
     try {
       await navigateToCredentialDetail(app, name)
 
@@ -72,7 +71,7 @@ test.describe('Credential Detail Page & Workflows Tab', () => {
   })
 
   test('enable/disable toggle shows confirmation dialog', async ({ app }) => {
-    const name = await createTestCredential(app, { prefix: 'e2e-detail-toggle' })
+    const { name } = await createTestCredential(app, { prefix: 'e2e-detail-toggle' })
     try {
       await navigateToCredentialDetail(app, name)
 
@@ -92,7 +91,7 @@ test.describe('Credential Detail Page & Workflows Tab', () => {
   })
 
   test('navigates to Workflows tab', async ({ app }) => {
-    const name = await createTestCredential(app, { prefix: 'e2e-detail-wf-nav' })
+    const { name } = await createTestCredential(app, { prefix: 'e2e-detail-wf-nav' })
     try {
       await navigateToCredentialDetail(app, name)
 
@@ -110,7 +109,7 @@ test.describe('Credential Detail Page & Workflows Tab', () => {
   })
 
   test('workflows tab shows workflow references when available', async ({ app }) => {
-    const name = await createTestCredential(app, { prefix: 'e2e-detail-wf-refs' })
+    const { name } = await createTestCredential(app, { prefix: 'e2e-detail-wf-refs' })
     try {
       await navigateToCredentialDetail(app, name)
       await app.getByRole('tab', { name: /Workflows/ }).click()
@@ -127,7 +126,7 @@ test.describe('Credential Detail Page & Workflows Tab', () => {
   })
 
   test('workflows tab shows count in footer when workflows exist', async ({ app }) => {
-    const name = await createTestCredential(app, { prefix: 'e2e-detail-wf-count' })
+    const { name } = await createTestCredential(app, { prefix: 'e2e-detail-wf-count' })
     try {
       await navigateToCredentialDetail(app, name)
       await app.getByRole('tab', { name: /Workflows/ }).click()
@@ -143,7 +142,7 @@ test.describe('Credential Detail Page & Workflows Tab', () => {
   })
 
   test('workflow names display as bold text in table', async ({ app }) => {
-    const name = await createTestCredential(app, { prefix: 'e2e-detail-wf-bold' })
+    const { name } = await createTestCredential(app, { prefix: 'e2e-detail-wf-bold' })
     try {
       await navigateToCredentialDetail(app, name)
       await app.getByRole('tab', { name: /Workflows/ }).click()
@@ -171,7 +170,7 @@ test.describe('Credential Detail Page & Workflows Tab', () => {
 
   test('shows empty state when no workflows use credential', async ({ app }) => {
     // A freshly created credential has no workflows referencing it
-    const name = await createTestCredential(app, { prefix: 'e2e-detail-wf-empty' })
+    const { name } = await createTestCredential(app, { prefix: 'e2e-detail-wf-empty' })
     try {
       await navigateToCredentialDetail(app, name)
       await app.getByRole('tab', { name: /Workflows/ }).click()

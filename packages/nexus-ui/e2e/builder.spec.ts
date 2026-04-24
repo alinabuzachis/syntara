@@ -9,7 +9,6 @@ import {
 } from './helpers/workflows'
 
 test('user creates and saves a multi-node workflow', async ({ app }) => {
-  // Arrange - Start a new workflow
   const workflowName = buildUniqueName('e2e-multi-node')
   await app.goto(toAppUrl('/workflow-builder/new'))
   await expect(app.getByRole('heading', { name: 'Select a trigger step' })).toBeVisible()
@@ -66,7 +65,6 @@ test('user creates and saves a multi-node workflow', async ({ app }) => {
 })
 
 test('user edits an existing workflow and changes persist', async ({ app }) => {
-  // Arrange - Create a workflow to edit
   const workflowName = buildUniqueName('e2e-edit')
   await createBasicWorkflow(app, workflowName, 'Initial task')
 

@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { type Page } from '@playwright/test'
 
 import { expect, toAppUrl } from '../fixtures'
+import { ensureProject } from '../utils/api'
 
 export const buildUniqueName = (prefix: string) => `${prefix}-${Date.now()}-${randomUUID()}`
 
@@ -102,36 +103,128 @@ export async function fillCodeEditor(
 }
 
 /**
+ * Select the first available project from a typeahead project selector dropdown.
+ * Works on both mock API (where projects are available immediately) and real backend
+ * (where project names vary). Skips "All projects" and "Create project" options.
+ */
+export async function selectFirstProject(page: Page) {
+  const projectInput = page.getByPlaceholder(/All projects|Select a project/)
+  const hasInput = await projectInput
+    .waitFor({ state: 'visible', timeout: 5_000 })
+    .then(() => true)
+    .catch(() => false)
+  if (!hasInput) return
+
+  await projectInput.click()
+  await page.getByRole('option').first().waitFor({ state: 'visible', timeout: 10_000 })
+
+  // Retry until a real project option appears — API-loaded options arrive after
+  // static ones ("All projects", "Create project") on slower CI backends.
+  await clickFirstRealProjectOption(page)
+}
+
+/**
  * Select a project in the builder toolbar.
  * Required for new workflows on the real backend (Save is disabled without a project).
  * Falls back silently when the project selector is absent (e.g. mock API).
  */
-export async function selectProjectIfRequired(page: Page, projectName = 'default') {
-  const toggle = page.getByRole('button', { name: /Select a project/i })
-  if ((await toggle.count()) > 0 && (await toggle.isVisible())) {
-    await toggle.click()
-    await page.getByRole('option', { name: projectName }).click()
+export async function selectProjectIfRequired(page: Page, projectName?: string) {
+  const projectInput = page.getByPlaceholder(/Select a project/)
+  const needsSelection = await projectInput
+    .waitFor({ state: 'visible', timeout: 5_000 })
+    .then(() => true)
+    .catch(() => false)
+  if (!needsSelection) return
+
+  await projectInput.click()
+  await page.getByRole('option').first().waitFor({ state: 'visible', timeout: 10_000 })
+
+  if (projectName) {
+    const option = page.getByRole('option', { name: projectName })
+    await option.waitFor({ state: 'visible', timeout: 15_000 })
+    await option.click()
+  } else {
+    await clickFirstRealProjectOption(page)
   }
+}
+
+async function clickFirstRealProjectOption(page: Page) {
+  // First try: wait for an API-loaded project to appear
+  const found = await trySelectRealProject(page)
+  if (found) return
+
+  // No real projects exist — create one via the "Create project" UI option
+  await createProjectViaDropdown(page)
+}
+
+async function trySelectRealProject(page: Page): Promise<boolean> {
+  try {
+    await expect(async () => {
+      const options = page.getByRole('option')
+      if ((await options.count()) === 0) {
+        const toggle = page.getByPlaceholder(/All projects|Select a project/)
+        if ((await toggle.count()) > 0) await toggle.click()
+        await options.first().waitFor({ state: 'visible', timeout: 3_000 })
+      }
+
+      const count = await options.count()
+      for (let i = 0; i < count; i++) {
+        const text = await options.nth(i).textContent()
+        if (text && !text.includes('All projects') && !text.includes('Create project')) {
+          await options.nth(i).click()
+          return
+        }
+      }
+      throw new Error('No real project options yet')
+    }).toPass({ timeout: 5_000 })
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function createProjectViaDropdown(page: Page) {
+  const options = page.getByRole('option')
+  if ((await options.count()) === 0) {
+    const toggle = page.getByPlaceholder(/All projects|Select a project/)
+    if ((await toggle.count()) > 0) await toggle.click()
+    await options.first().waitFor({ state: 'visible', timeout: 5_000 })
+  }
+
+  await page.getByRole('option', { name: 'Create project' }).click()
+
+  const dialog = page.getByRole('dialog')
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole('textbox', { name: 'Project name' }).fill('default')
+  await dialog.getByRole('button', { name: 'Create' }).click()
+
+  // Wait for dialog to close (project created) or for a success toast
+  await expect(dialog).not.toBeVisible({ timeout: 15_000 })
 }
 
 /** Delete a workflow from the workflows list by its unique name. */
 export async function deleteWorkflow(page: Page, workflowName: string) {
-  await page.goto(toAppUrl('/workflows'))
-  await page.getByPlaceholder('Filter by name').fill(workflowName)
-  await page.getByRole('button', { name: 'Apply filter' }).click()
-  const row = page.getByRole('row', { name: new RegExp(workflowName) })
-  const isVisible = await expect(row.first())
-    .toBeVisible()
-    .then(() => true)
-    .catch(() => false)
-  if (isVisible) {
-    await row
-      .getByRole('button', { name: /Actions|Kebab toggle/i })
-      .first()
-      .click({ force: true })
-    await page.getByRole('menuitem', { name: 'Delete workflow' }).click()
-    await page.getByRole('checkbox', { name: /I understand this workflow/i }).check()
-    await page.getByRole('button', { name: 'Delete' }).click()
+  if (page.isClosed()) return
+  try {
+    await page.goto(toAppUrl('/workflows'))
+    await page.getByPlaceholder('Filter by name').fill(workflowName)
+    await page.getByRole('button', { name: 'Apply filter' }).click()
+    const row = page.getByRole('row', { name: new RegExp(workflowName) })
+    const isVisible = await expect(row.first())
+      .toBeVisible()
+      .then(() => true)
+      .catch(() => false)
+    if (isVisible) {
+      await row
+        .getByRole('button', { name: /Actions|Kebab toggle/i })
+        .first()
+        .click({ force: true })
+      await page.getByRole('menuitem', { name: 'Delete workflow' }).click()
+      await page.getByRole('checkbox', { name: /I understand this workflow/i }).check()
+      await page.getByRole('button', { name: 'Delete' }).click()
+    }
+  } catch {
+    // Best-effort cleanup — don't fail the test
   }
 }
 
@@ -145,16 +238,18 @@ export async function openWorkflowInBuilder(page: Page, workflowName: string) {
 }
 
 export async function createBasicWorkflow(page: Page, workflowName: string, actionName: string) {
-  // Arrange - Start from the new workflow builder
+  // Ensure a project exists before entering the builder (CI starts with empty DB)
+  await ensureProject(page)
+
   await page.goto(toAppUrl('/workflow-builder/new'))
   await expect(page.getByRole('heading', { name: 'Select a trigger step' })).toBeVisible()
 
-  // Act - Add manual trigger
+  // Add manual trigger
   await page.getByRole('button', { name: 'Manual trigger' }).click()
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Manual trigger')
   await page.getByRole('button', { name: /^Add step$/ }).click()
 
-  // Act - Add a connected action node
+  // Add a connected action node
   const panel = await clickAddConnectedStep(page)
   await panel.getByRole('button', { name: 'Action', exact: true }).click()
   await panel.getByRole('button', { name: 'Script', exact: true }).click()
@@ -163,11 +258,10 @@ export async function createBasicWorkflow(page: Page, workflowName: string, acti
   await page.getByRole('button', { name: /^Add step$/ }).click()
   await closeNodeEditorPanel(page)
 
-  // Act - Select project first (required on real backend), then name and save
+  // Select project (required on real backend), then name and save
   await selectProjectIfRequired(page)
   await page.getByPlaceholder('Workflow name').fill(workflowName)
   await page.getByRole('button', { name: 'Save' }).click()
 
-  // Assert - Workflow created and navigated to edit route
   await expect(page).toHaveURL(/workflow-builder\/.+/)
 }

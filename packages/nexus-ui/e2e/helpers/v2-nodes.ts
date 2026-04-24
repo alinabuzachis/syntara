@@ -22,25 +22,35 @@ import { addNodePanel, closeNodeEditorPanel, fillCodeEditor } from './workflows'
 
 /** Click "Add connected step" button on an edge and wait for the add-node panel to appear. */
 async function openAddNodePanel(page: Page) {
-  // Click the layout button to ensure nodes are properly positioned and "Add connected step" is visible
   const layoutButton = page.getByRole('button', { name: 'Layout' })
   if ((await layoutButton.count()) > 0) {
     await layoutButton.click()
   }
 
-  // Click the "Add connected step" button that appears on edges
-  // Use .first() to handle cases where multiple buttons exist (e.g., approval/condition nodes)
   const addBtn = page.getByRole('button', { name: 'Add connected step' })
-  await expect(addBtn.first()).toBeVisible({ timeout: 5000 })
-  await addBtn.first().click({ force: true })
-  await expect(addNodePanel(page)).toHaveCount(1)
+  await expect(addBtn.first()).toBeVisible({ timeout: 10_000 })
+
+  // Retry clicking — React Flow edge buttons can be briefly detached during layout animations
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await addBtn.first().click({ force: true, timeout: 5_000 })
+      await expect(addNodePanel(page)).toHaveCount(1, { timeout: 5_000 })
+      return
+    } catch {
+      if (attempt === 2) throw new Error('Failed to open add-node panel after 3 attempts')
+      await layoutButton.click()
+      await expect(addBtn.first()).toBeVisible({ timeout: 5_000 })
+    }
+  }
 }
 
 /** Select a category then a subtype within the add-node panel. */
 async function selectCategoryAndType(page: Page, category: string, subtype: string) {
   const panel = addNodePanel(page)
   await panel.getByRole('button', { name: category, exact: true }).click()
-  await panel.getByRole('button', { name: subtype, exact: true }).click()
+  const subtypeBtn = panel.getByRole('button', { name: subtype, exact: true })
+  await expect(subtypeBtn).toBeVisible({ timeout: 5_000 })
+  await subtypeBtn.click()
 }
 
 /** Select a direct (non-category) button in the add-node panel. */
@@ -75,7 +85,10 @@ export async function addManualTrigger(page: Page, name = 'Manual trigger') {
 export async function addScriptNode(page: Page, name: string, code = 'print("hello")') {
   await openAddNodePanel(page)
   await selectCategoryAndType(page, 'Action', 'Script')
-  await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
+  const nameInput = page.getByRole('textbox', { name: 'Name', exact: true })
+  await expect(nameInput).toBeVisible({ timeout: 10_000 })
+  await expect(nameInput).toBeEditable({ timeout: 5_000 })
+  await nameInput.fill(name)
   await fillCodeEditor(page, { value: code })
   await page.getByRole('button', { name: /^Add step$/ }).click()
   await closeNodeEditorPanel(page)

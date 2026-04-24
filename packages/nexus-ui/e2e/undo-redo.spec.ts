@@ -36,6 +36,7 @@ test('undo/redo add node via toolbar buttons', async ({ app }) => {
   const nodeName = 'Toolbar undo node'
 
   try {
+    await openWorkflowInBuilder(app, workflowName)
     await addScriptNode(app, nodeName)
     await expect(app.getByText(nodeName)).toBeVisible()
 
@@ -56,6 +57,7 @@ test('undo/redo add node via keyboard shortcuts', async ({ app }) => {
   const nodeName = 'Keyboard undo node'
 
   try {
+    await openWorkflowInBuilder(app, workflowName)
     await addScriptNode(app, nodeName)
     await expect(app.getByText(nodeName)).toBeVisible()
 
@@ -90,6 +92,7 @@ test('undo history resets when navigating away from the builder', async ({ app }
   const nodeName = 'Nav reset node'
 
   try {
+    await openWorkflowInBuilder(app, workflowName)
     await addScriptNode(app, nodeName)
     await expect(undoButton(app)).toBeEnabled()
 
@@ -109,6 +112,8 @@ test('undo/redo becomes disabled when entering execution view', async ({ app }) 
   await createBasicWorkflow(app, workflowName, 'Initial action')
 
   try {
+    await openWorkflowInBuilder(app, workflowName)
+
     // Create an execution by running the workflow through the UI
     await app.getByRole('button', { name: 'Run', exact: true }).click()
     await app.getByRole('button', { name: 'Run now' }).click()
