@@ -40,8 +40,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       requestBody:
         required: true
         content:
@@ -86,8 +84,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       responses:
         '200':
           description: New access token issued
@@ -127,8 +123,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       responses:
         '200':
           description: Successfully logged out
@@ -166,8 +160,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       responses:
         '200':
           description: Current user information
@@ -205,8 +197,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       responses:
         '200':
           description: List of enabled identity providers
@@ -243,8 +233,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - Authentication
       parameters:
@@ -299,8 +287,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - Authentication
       parameters:

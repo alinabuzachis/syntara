@@ -4,57 +4,43 @@ from __future__ import annotations
 
 from typing import Any
 
-from ...client import AuthenticatedClient, Client
+from ...client import AuthenticatedClient
 from ...types import Response
-from . import (
-    create_execution_api_v1_executions_post,
-    get_execution_api_v1_executions_execution_id_get,
-    list_execution_activities_api_v1_executions_execution_id_activities_get,
-    list_executions_api_v1_executions_get,
-    signal_activity_api_v1_executions_execution_id_activities_activity_id_signal_post,
-)
+from . import create_execution, get_execution, list_execution_activities, list_executions, signal_activity
 
 
 class ExecutionsApi:
     """Registry for executions API endpoints."""
 
-    def __init__(self, client: Client | AuthenticatedClient) -> None:
+    def __init__(self, client: AuthenticatedClient) -> None:
         self._client = client
 
     def list(self, **kwargs: Any) -> Response[Any]:
-        return list_executions_api_v1_executions_get.sync_detailed(client=self._client, **kwargs)
+        return list_executions.sync_detailed(client=self._client, **kwargs)
 
     async def async_list(self, **kwargs: Any) -> Response[Any]:
-        return await list_executions_api_v1_executions_get.asyncio_detailed(client=self._client, **kwargs)
+        return await list_executions.asyncio_detailed(client=self._client, **kwargs)
 
     def create(self, **kwargs: Any) -> Response[Any]:
-        return create_execution_api_v1_executions_post.sync_detailed(client=self._client, **kwargs)
+        return create_execution.sync_detailed(client=self._client, **kwargs)
 
     async def async_create(self, **kwargs: Any) -> Response[Any]:
-        return await create_execution_api_v1_executions_post.asyncio_detailed(client=self._client, **kwargs)
+        return await create_execution.asyncio_detailed(client=self._client, **kwargs)
 
     def get(self, **kwargs: Any) -> Response[Any]:
-        return get_execution_api_v1_executions_execution_id_get.sync_detailed(client=self._client, **kwargs)
+        return get_execution.sync_detailed(client=self._client, **kwargs)
 
     async def async_get(self, **kwargs: Any) -> Response[Any]:
-        return await get_execution_api_v1_executions_execution_id_get.asyncio_detailed(client=self._client, **kwargs)
+        return await get_execution.asyncio_detailed(client=self._client, **kwargs)
 
     def list_activities(self, **kwargs: Any) -> Response[Any]:
-        return list_execution_activities_api_v1_executions_execution_id_activities_get.sync_detailed(
-            client=self._client, **kwargs
-        )
+        return list_execution_activities.sync_detailed(client=self._client, **kwargs)
 
     async def async_list_activities(self, **kwargs: Any) -> Response[Any]:
-        return await list_execution_activities_api_v1_executions_execution_id_activities_get.asyncio_detailed(
-            client=self._client, **kwargs
-        )
+        return await list_execution_activities.asyncio_detailed(client=self._client, **kwargs)
 
     def signal_activity(self, **kwargs: Any) -> Response[Any]:
-        return signal_activity_api_v1_executions_execution_id_activities_activity_id_signal_post.sync_detailed(
-            client=self._client, **kwargs
-        )
+        return signal_activity.sync_detailed(client=self._client, **kwargs)
 
     async def async_signal_activity(self, **kwargs: Any) -> Response[Any]:
-        return await signal_activity_api_v1_executions_execution_id_activities_activity_id_signal_post.asyncio_detailed(
-            client=self._client, **kwargs
-        )
+        return await signal_activity.asyncio_detailed(client=self._client, **kwargs)

@@ -31,14 +31,15 @@ paths:
     post:
       summary: Create Project
       description: |
-        Create a new project. The creator is automatically assigned
-        the project-admin role. Requires: project:create permission.
+        Create a new project.
+
+        The creator is automatically assigned the project-admin role.
+
+        Requires: project:create permission.
       operationId: create_project
       x-app-permission:
         resource: project
         action: create
-        scope: any
-        default_roles: [admin, user, default]
       tags:
         - Projects
       requestBody:
@@ -79,8 +80,6 @@ paths:
       x-app-permission:
         resource: project
         action: read
-        scope: project
-        default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       tags:
         - Projects
       responses:
@@ -90,6 +89,7 @@ paths:
             application/json:
               schema:
                 type: array
+                title: Response List Projects
                 items:
                   $ref: "#/components/schemas/ProjectRead"
         "400":
@@ -117,8 +117,6 @@ paths:
       x-app-permission:
         resource: project
         action: read
-        scope: project
-        default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       tags:
         - Projects
       parameters:
@@ -155,8 +153,6 @@ paths:
       x-app-permission:
         resource: project
         action: update
-        scope: project
-        default_roles: [admin, project-admin]
       tags:
         - Projects
       parameters:
@@ -199,8 +195,6 @@ paths:
       x-app-permission:
         resource: project
         action: update
-        scope: project
-        default_roles: [admin, project-admin]
       tags:
         - Projects
       parameters:
@@ -243,8 +237,6 @@ paths:
       x-app-permission:
         resource: project
         action: delete
-        scope: project
-        default_roles: [admin, project-admin]
       tags:
         - Projects
       parameters:
@@ -283,8 +275,6 @@ paths:
       x-app-permission:
         resource: workflow
         action: read
-        scope: project
-        default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       tags:
         - Projects
       parameters:
@@ -331,8 +321,6 @@ paths:
       x-app-permission:
         resource: approval
         action: read
-        scope: project
-        default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       tags:
         - Projects
       parameters:
@@ -398,8 +386,6 @@ paths:
       x-app-permission:
         resource: project-role
         action: assign
-        scope: project
-        default_roles: [admin, project-admin]
       tags:
         - Projects
       parameters:
@@ -444,8 +430,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - Projects
       parameters:
@@ -457,6 +441,7 @@ paths:
             application/json:
               schema:
                 type: array
+                title: Response List Project Role Assignments
                 items:
                   $ref: "#/components/schemas/ProjectRoleAssignmentRead"
         "400":
@@ -485,8 +470,6 @@ paths:
       x-app-permission:
         resource: project-role
         action: revoke
-        scope: project
-        default_roles: [admin, project-admin]
       tags:
         - Projects
       parameters:
@@ -497,6 +480,7 @@ paths:
           schema:
             type: string
             format: uuid
+            title: Assignment Id
           description: Assignment UUID
       responses:
         "204":
@@ -533,8 +517,6 @@ paths:
       x-app-permission:
         resource: project-role
         action: assign
-        scope: project
-        default_roles: [admin, project-admin]
       tags:
         - Projects
       parameters:
@@ -580,8 +562,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - Projects
       parameters:
@@ -593,6 +573,7 @@ paths:
             application/json:
               schema:
                 type: array
+                title: Response List Project Group Role Assignments
                 items:
                   $ref: "#/components/schemas/ProjectGroupRoleAssignmentRead"
         "400":
@@ -621,8 +602,6 @@ paths:
       x-app-permission:
         resource: project-role
         action: revoke
-        scope: project
-        default_roles: [admin, project-admin]
       tags:
         - Projects
       parameters:
@@ -633,6 +612,7 @@ paths:
           schema:
             type: string
             format: uuid
+            title: Assignment Id
           description: Assignment UUID
       responses:
         "204":
@@ -665,12 +645,19 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - Projects
       parameters:
-        - $ref: "#/components/parameters/projectIdParam"
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            anyOf:
+              - format: uuid
+                type: string
+              - type: 'null'
+            title: Project Id
+          description: Project UUID
         - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/limitParam"
         - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/cursorParam"
         - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/sortParam"
@@ -683,6 +670,7 @@ paths:
             anyOf:
               - type: string
               - type: 'null'
+            title: Principal Type
         - name: principal_name
           in: query
           required: false
@@ -691,6 +679,7 @@ paths:
             anyOf:
               - type: string
               - type: 'null'
+            title: Principal Name
         - name: role_name
           in: query
           required: false
@@ -699,13 +688,14 @@ paths:
             anyOf:
               - type: string
               - type: 'null'
+            title: Role Name
       responses:
         "200":
-          description: Paginated list of role assignments for this project
+          description: Successful Response
           content:
             application/json:
               schema:
-                $ref: "../authz/all_role_assignment.openapi.yaml#/components/schemas/AllRoleAssignmentListResponse"
+                $ref: "#/components/schemas/AllRoleAssignmentListResponse"
         "400":
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         "401":
@@ -734,8 +724,6 @@ paths:
       x-app-permission:
         resource: role
         action: create
-        scope: project
-        default_roles: [admin, project-admin]
       tags:
         - Projects
       parameters:
@@ -748,7 +736,7 @@ paths:
               $ref: "#/components/schemas/ProjectRoleCreate"
       responses:
         "201":
-          description: Role created
+          description: Successful Response
           content:
             application/json:
               schema:
@@ -780,12 +768,19 @@ paths:
       x-app-permission:
         resource: role
         action: read
-        scope: project
-        default_roles: [admin, auditor, project-admin, project-user, project-auditor]
       tags:
         - Projects
       parameters:
-        - $ref: "#/components/parameters/projectIdParam"
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            anyOf:
+              - format: uuid
+                type: string
+              - type: 'null'
+            title: Project Id
+          description: Project UUID
         - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/limitParam"
         - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/cursorParam"
         - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/sortParam"
@@ -819,7 +814,7 @@ paths:
           description: Filter by scope
       responses:
         "200":
-          description: Paginated list of roles in the project
+          description: Successful Response
           content:
             application/json:
               schema:
@@ -849,8 +844,6 @@ paths:
       x-app-permission:
         resource: role
         action: read
-        scope: project
-        default_roles: [admin, auditor, project-admin, project-user, project-auditor]
       tags:
         - Projects
       parameters:
@@ -858,7 +851,7 @@ paths:
         - $ref: "#/components/parameters/roleIdParam"
       responses:
         "200":
-          description: Role details
+          description: Successful Response
           content:
             application/json:
               schema:
@@ -888,8 +881,6 @@ paths:
       x-app-permission:
         resource: role
         action: update
-        scope: project
-        default_roles: [admin, project-admin]
       tags:
         - Projects
       parameters:
@@ -903,7 +894,7 @@ paths:
               $ref: "#/components/schemas/RoleUpdate"
       responses:
         "200":
-          description: Updated role
+          description: Successful Response
           content:
             application/json:
               schema:
@@ -933,8 +924,6 @@ paths:
       x-app-permission:
         resource: role
         action: update
-        scope: project
-        default_roles: [admin, project-admin]
       tags:
         - Projects
       parameters:
@@ -948,7 +937,7 @@ paths:
               $ref: "#/components/schemas/RoleUpdate"
       responses:
         "200":
-          description: Updated role
+          description: Successful Response
           content:
             application/json:
               schema:
@@ -978,8 +967,6 @@ paths:
       x-app-permission:
         resource: role
         action: delete
-        scope: project
-        default_roles: [admin, project-admin]
       tags:
         - Projects
       parameters:
@@ -987,7 +974,7 @@ paths:
         - $ref: "#/components/parameters/roleIdParam"
       responses:
         "204":
-          description: Role deleted
+          description: Successful Response
         "400":
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         "401":
@@ -1016,8 +1003,6 @@ paths:
       x-app-permission:
         resource: policy
         action: create
-        scope: project
-        default_roles: [admin, project-admin]
       tags:
         - Projects
       parameters:
@@ -1030,7 +1015,7 @@ paths:
               $ref: "#/components/schemas/ProjectPolicyCreate"
       responses:
         "201":
-          description: Policy created
+          description: Successful Response
           content:
             application/json:
               schema:
@@ -1062,12 +1047,19 @@ paths:
       x-app-permission:
         resource: policy
         action: read
-        scope: project
-        default_roles: [admin, auditor, project-admin, project-user, project-auditor]
       tags:
         - Projects
       parameters:
-        - $ref: "#/components/parameters/projectIdParam"
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            anyOf:
+              - format: uuid
+                type: string
+              - type: 'null'
+            title: Project Id
+          description: Project UUID
         - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/limitParam"
         - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/cursorParam"
         - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/sortParam"
@@ -1110,7 +1102,7 @@ paths:
           description: Filter by scope
       responses:
         "200":
-          description: Paginated list of policies in the project
+          description: Successful Response
           content:
             application/json:
               schema:
@@ -1141,8 +1133,6 @@ paths:
       x-app-permission:
         resource: policy
         action: read
-        scope: project
-        default_roles: [admin, auditor, project-admin, project-user, project-auditor]
       tags:
         - Projects
       parameters:
@@ -1150,7 +1140,7 @@ paths:
         - $ref: "#/components/parameters/policyIdParam"
       responses:
         "200":
-          description: Policy details
+          description: Successful Response
           content:
             application/json:
               schema:
@@ -1180,8 +1170,6 @@ paths:
       x-app-permission:
         resource: policy
         action: update
-        scope: project
-        default_roles: [admin, project-admin]
       tags:
         - Projects
       parameters:
@@ -1195,7 +1183,7 @@ paths:
               $ref: "#/components/schemas/PolicyUpdate"
       responses:
         "200":
-          description: Updated policy
+          description: Successful Response
           content:
             application/json:
               schema:
@@ -1225,8 +1213,6 @@ paths:
       x-app-permission:
         resource: policy
         action: update
-        scope: project
-        default_roles: [admin, project-admin]
       tags:
         - Projects
       parameters:
@@ -1240,7 +1226,7 @@ paths:
               $ref: "#/components/schemas/PolicyUpdate"
       responses:
         "200":
-          description: Updated policy
+          description: Successful Response
           content:
             application/json:
               schema:
@@ -1270,8 +1256,6 @@ paths:
       x-app-permission:
         resource: policy
         action: delete
-        scope: project
-        default_roles: [admin, project-admin]
       tags:
         - Projects
       parameters:
@@ -1279,7 +1263,7 @@ paths:
         - $ref: "#/components/parameters/policyIdParam"
       responses:
         "204":
-          description: Policy deleted
+          description: Successful Response
         "400":
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         "401":
@@ -1307,6 +1291,7 @@ components:
       schema:
         type: string
         format: uuid
+        title: Project Id
       description: Project UUID
     roleIdParam:
       name: role_id
@@ -1315,6 +1300,7 @@ components:
       schema:
         type: string
         format: uuid
+        title: Role Id
       description: Role UUID
     policyIdParam:
       name: policy_id
@@ -1323,6 +1309,7 @@ components:
       schema:
         type: string
         format: uuid
+        title: Policy Id
       description: Policy UUID
 
   schemas:
@@ -1564,6 +1551,9 @@ components:
           additionalProperties:
             type: string
           title: Labels
+
+    AllRoleAssignmentListResponse:
+      $ref: "../authz/all_role_assignment.openapi.yaml#/components/schemas/AllRoleAssignmentListResponse"
 
     PolicyStatementSchema:
       $ref: "../authz/policy.openapi.yaml#/components/schemas/PolicyStatementSchema"

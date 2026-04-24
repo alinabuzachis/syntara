@@ -446,12 +446,12 @@ VERBOSITY ?= -v
 .PHONY: api-spec-validation
 api-spec-validation: ## Validate syntax of OpenAPI and AsyncAPI spec files
 	@echo "🔍 Validating API specifications..."
-	uv run python tools/ci/validate_api_specs.py
+	@uv run python tools/ci/validate_api_specs.py
 
 .PHONY: api-spec-drift
 api-spec-drift: ## Check that committed openapi.yaml matches the generated spec (VERBOSITY=-v/-vv/-vvv)
 	@echo "🔍 Checking OpenAPI spec is up to date..."
-	uv run python tools/export_openapi.py 2>/dev/null | uv run python tools/ci/check_openapi_spec.py $(OPENAPI_SPEC) $(VERBOSITY)
+	@uv run python tools/export_openapi.py 2>/dev/null | uv run python tools/ci/check_openapi_spec.py $(OPENAPI_SPEC) $(VERBOSITY)
 
 .PHONY: api-spec-bundle
 api-spec-bundle: ## Bundle all domain sub-specs into a single merged openapi.yaml (no external $refs)
@@ -480,6 +480,8 @@ generate-api-client: ## Generate the Nexus Python API client from the OpenAPI sp
 	@rm -rf src/api_client
 	@mv $(TMPDIR)/nexus_api_client src/api_client
 	@rm -rf $(TMPDIR)
+	@uv run pre-commit run trailing-whitespace --files $$(find src/api_client -type f | tr '\n' ' ') > /dev/null 2>&1 || true
+	@uv run pre-commit run end-of-file-fixer --files $$(find src/api_client -type f | tr '\n' ' ') > /dev/null 2>&1 || true
 	@echo "Done. Client written to src/api_client/"
 
 # Capture positional arguments for init-worktree

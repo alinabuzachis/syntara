@@ -71,7 +71,7 @@ def nexus_client(nexus_base_url: str) -> AuthenticatedClient:
 
     access_token = _generate_e2e_token(base_url)
 
-    return AuthenticatedClient(base_url=base_url, token=access_token, verify_ssl=False)
+    return AuthenticatedClient(base_url=f"{base_url}/api/v1", token=access_token, verify_ssl=False)
 
 
 @pytest.fixture(scope="session")
@@ -93,7 +93,7 @@ def viewer_client(nexus_base_url: str, nexus_client: AuthenticatedClient) -> Aut
 
     # Create the viewer user (ignore 409 if it already exists from a previous run)
     resp = admin_http.post(
-        "/api/v1/users",
+        "/users",
         json={
             "username": username,
             "email": "e2e-viewer@example.com",
@@ -114,7 +114,7 @@ def viewer_client(nexus_base_url: str, nexus_client: AuthenticatedClient) -> Aut
     login_resp.raise_for_status()
     token: str = login_resp.json()["access_token"]
 
-    return AuthenticatedClient(base_url=nexus_base_url, token=token, verify_ssl=False)
+    return AuthenticatedClient(base_url=f"{nexus_base_url}/api/v1", token=token, verify_ssl=False)
 
 
 @pytest.fixture(scope="session")

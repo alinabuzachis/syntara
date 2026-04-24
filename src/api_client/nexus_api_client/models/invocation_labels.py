@@ -11,7 +11,12 @@ T = TypeVar("T", bound="InvocationLabels")
 
 @_attrs_define
 class InvocationLabels:
-    """Key-value pairs for resource labeling and filtering"""
+    """Key-value pairs for resource labeling and filtering
+
+    Example:
+        {'environment': 'production', 'region': 'us-east-1', 'team': 'platform'}
+
+    """
 
     additional_properties: dict[str, str] = _attrs_field(init=False, factory=dict)
 

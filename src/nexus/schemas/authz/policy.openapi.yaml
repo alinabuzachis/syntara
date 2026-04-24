@@ -28,8 +28,6 @@ paths:
       x-app-permission:
         resource: policy
         action: create
-        scope: project
-        default_roles: [admin, project-admin]
       tags:
         - Policies
       requestBody:
@@ -69,8 +67,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - Policies
       parameters:
@@ -154,8 +150,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - Policies
       parameters:
@@ -198,8 +192,6 @@ paths:
       x-app-permission:
         resource: policy
         action: update
-        scope: project
-        default_roles: [admin, project-admin]
       tags:
         - Policies
       parameters:
@@ -248,8 +240,6 @@ paths:
       x-app-permission:
         resource: policy
         action: update
-        scope: project
-        default_roles: [admin, project-admin]
       tags:
         - Policies
       parameters:
@@ -298,8 +288,6 @@ paths:
       x-app-permission:
         resource: policy
         action: delete
-        scope: project
-        default_roles: [admin, project-admin]
       tags:
         - Policies
       parameters:

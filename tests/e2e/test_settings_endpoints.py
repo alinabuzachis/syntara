@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.e2e
 
 _LOG_LEVEL_KEY = "logging.log_level"
-_LOG_LEVEL_PATH = f"/api/v1/settings/{_LOG_LEVEL_KEY}"
+_LOG_LEVEL_PATH = f"/settings/{_LOG_LEVEL_KEY}"
 
 
 class TestSettings:
@@ -28,7 +28,7 @@ class TestSettings:
     def test_list_settings(self, nexus_client: AuthenticatedClient) -> None:
         """GET /settings returns 200 with resources."""
         client = nexus_client.get_httpx_client()
-        response = client.get("/api/v1/settings")
+        response = client.get("/settings")
 
         assert response.status_code == 200
         data = response.json()
@@ -39,7 +39,7 @@ class TestSettings:
     def test_list_categories(self, nexus_client: AuthenticatedClient) -> None:
         """GET /settings/categories returns 200 with results."""
         client = nexus_client.get_httpx_client()
-        response = client.get("/api/v1/settings/categories")
+        response = client.get("/settings/categories")
 
         assert response.status_code == 200
         data = response.json()
@@ -50,7 +50,7 @@ class TestSettings:
     def test_get_setting(self, nexus_client: AuthenticatedClient) -> None:
         """GET /settings/{key} returns a specific setting."""
         client = nexus_client.get_httpx_client()
-        response = client.get("/api/v1/settings/context_manager.max_total_tokens")
+        response = client.get("/settings/context_manager.max_total_tokens")
 
         assert response.status_code == 200
         data = response.json()
@@ -60,19 +60,19 @@ class TestSettings:
     def test_update_setting(self, nexus_client: AuthenticatedClient) -> None:
         """PATCH /settings/{key} updates a setting and resets afterward."""
         client = nexus_client.get_httpx_client()
-        original = client.get("/api/v1/settings/context_manager.max_total_tokens").json()
+        original = client.get("/settings/context_manager.max_total_tokens").json()
         original_value = original["effective_value"]
 
         try:
             patch_response = client.patch(
-                "/api/v1/settings/context_manager.max_total_tokens",
+                "/settings/context_manager.max_total_tokens",
                 json={"value": 6666},
             )
             assert patch_response.status_code == 200
             assert patch_response.json()["effective_value"] == 6666
         finally:
             client.patch(
-                "/api/v1/settings/context_manager.max_total_tokens",
+                "/settings/context_manager.max_total_tokens",
                 json={"value": original_value},
             )
 
@@ -123,7 +123,7 @@ class TestNewSettings:
     def test_new_categories_appear(self, nexus_client: AuthenticatedClient) -> None:
         """GET /settings/categories includes ai_llm, workflow_execution, application."""
         client = nexus_client.get_httpx_client()
-        response = client.get("/api/v1/settings/categories")
+        response = client.get("/settings/categories")
 
         assert response.status_code == 200
         slugs = [cat["slug"] for cat in response.json()["results"]]
@@ -134,7 +134,7 @@ class TestNewSettings:
     def test_workflow_setting_exists(self, nexus_client: AuthenticatedClient) -> None:
         """GET /settings/{key} returns a workflow execution setting."""
         client = nexus_client.get_httpx_client()
-        response = client.get("/api/v1/settings/workflow_engine.script_timeout_seconds")
+        response = client.get("/settings/workflow_engine.script_timeout_seconds")
 
         assert response.status_code == 200
         data = response.json()
@@ -146,7 +146,7 @@ class TestNewSettings:
     def test_retriever_setting_requires_restart(self, nexus_client: AuthenticatedClient) -> None:
         """GET /settings/retriever.llm_model shows requires_restart=True."""
         client = nexus_client.get_httpx_client()
-        response = client.get("/api/v1/settings/retriever.llm_model")
+        response = client.get("/settings/retriever.llm_model")
 
         assert response.status_code == 200
         data = response.json()
@@ -156,7 +156,7 @@ class TestNewSettings:
         """PATCH with out-of-range value returns 422."""
         client = nexus_client.get_httpx_client()
         response = client.patch(
-            "/api/v1/settings/document_conversion.timeout_seconds",
+            "/settings/document_conversion.timeout_seconds",
             json={"value": 999},
         )
 
@@ -169,7 +169,7 @@ class TestSettingsAuthorization:
     def test_viewer_cannot_list_settings(self, viewer_client: AuthenticatedClient) -> None:
         """Non-admin user is denied access to list settings."""
         client = viewer_client.get_httpx_client()
-        response = client.get("/api/v1/settings")
+        response = client.get("/settings")
 
         assert response.status_code == 403
 

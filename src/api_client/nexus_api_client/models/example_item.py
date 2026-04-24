@@ -17,16 +17,16 @@ class ExampleItem:
     """Schema for example item response.
 
     Attributes:
-        name (str): Name of the example item
         id (int):
+        name (str): Name of the example item
         created_at (str):
         updated_at (str):
         description (None | str | Unset): Description of the example item
         status (ExampleStatus | Unset): Status enumeration for example items.
     """
 
-    name: str
     id: int
+    name: str
     created_at: str
     updated_at: str
     description: None | str | Unset = UNSET
@@ -34,9 +34,9 @@ class ExampleItem:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        name = self.name
-
         id = self.id
+
+        name = self.name
 
         created_at = self.created_at
 
@@ -56,8 +56,8 @@ class ExampleItem:
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "name": name,
                 "id": id,
+                "name": name,
                 "created_at": created_at,
                 "updated_at": updated_at,
             }
@@ -72,9 +72,9 @@ class ExampleItem:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        name = d.pop("name")
-
         id = d.pop("id")
+
+        name = d.pop("name")
 
         created_at = d.pop("created_at")
 
@@ -97,8 +97,8 @@ class ExampleItem:
             status = ExampleStatus(_status)
 
         example_item = cls(
-            name=name,
             id=id,
+            name=name,
             created_at=created_at,
             updated_at=updated_at,
             description=description,

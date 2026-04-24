@@ -68,8 +68,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - aap
       parameters:
@@ -207,8 +205,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - aap
       parameters:
@@ -355,8 +351,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - aap
       parameters:
@@ -501,8 +495,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - aap
       parameters:
@@ -649,8 +641,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - aap
       parameters:
@@ -797,8 +787,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - aap
       parameters:
@@ -936,8 +924,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - aap
       parameters:
@@ -1084,14 +1070,6 @@ paths:
       x-app-permission:
         resource: approval
         action: read
-        scope: project
-        default_roles:
-          - admin
-          - auditor
-          - user
-          - project-admin
-          - project-user
-          - project-auditor
       parameters:
         - name: limit
           in: query
@@ -1259,9 +1237,6 @@ paths:
       x-app-permission:
         resource: approval
         action: create
-        scope: any
-        default_roles:
-          - admin
       requestBody:
         required: true
         content:
@@ -1379,14 +1354,6 @@ paths:
       x-app-permission:
         resource: approval
         action: read
-        scope: project
-        default_roles:
-          - admin
-          - auditor
-          - user
-          - project-admin
-          - project-user
-          - project-auditor
       parameters:
         - name: approval_id
           in: path
@@ -1508,12 +1475,6 @@ paths:
       x-app-permission:
         resource: approval
         action: decide
-        scope: project
-        default_roles:
-          - admin
-          - user
-          - project-admin
-          - project-user
       parameters:
         - name: approval_id
           in: path
@@ -1642,12 +1603,6 @@ paths:
       x-app-permission:
         resource: approval
         action: decide
-        scope: project
-        default_roles:
-          - admin
-          - user
-          - project-admin
-          - project-user
       requestBody:
         required: true
         content:
@@ -1764,10 +1719,6 @@ paths:
       x-app-permission:
         resource: audit
         action: read
-        scope: any
-        default_roles:
-          - admin
-          - auditor
       tags:
         - Audit Events
       parameters:
@@ -2023,8 +1974,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       requestBody:
         required: true
         content:
@@ -2130,8 +2079,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       responses:
         '200':
           description: New access token issued
@@ -2232,8 +2179,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       responses:
         '200':
           description: Successfully logged out
@@ -2332,8 +2277,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       responses:
         '200':
           description: Current user information
@@ -2432,8 +2375,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       responses:
         '200':
           description: List of enabled identity providers
@@ -2541,8 +2482,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - Authentication
       parameters:
@@ -2668,8 +2607,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - Authentication
       parameters:
@@ -2803,8 +2740,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - All Role Assignments
       parameters:
@@ -2988,9 +2923,6 @@ paths:
       x-app-permission:
         resource: group-role
         action: assign
-        scope: any
-        default_roles:
-          - admin
       tags:
         - Group Role Assignments
       requestBody:
@@ -3105,8 +3037,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - Group Role Assignments
       responses:
@@ -3215,9 +3145,6 @@ paths:
       x-app-permission:
         resource: group-role
         action: revoke
-        scope: any
-        default_roles:
-          - admin
       tags:
         - Group Role Assignments
       parameters:
@@ -3327,8 +3254,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - Authorization
       requestBody:
@@ -3440,9 +3365,6 @@ paths:
       x-app-permission:
         resource: authz
         action: query
-        scope: any
-        default_roles:
-          - admin
       tags:
         - Authorization
       requestBody:
@@ -3554,8 +3476,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - Authorization
       responses:
@@ -3664,8 +3584,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - Authorization
       parameters:
@@ -3791,10 +3709,6 @@ paths:
       x-app-permission:
         resource: policy
         action: create
-        scope: project
-        default_roles:
-          - admin
-          - project-admin
       tags:
         - Policies
       requestBody:
@@ -3905,8 +3819,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - Policies
       parameters:
@@ -4097,8 +4009,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - Policies
       parameters:
@@ -4211,10 +4121,6 @@ paths:
       x-app-permission:
         resource: policy
         action: update
-        scope: project
-        default_roles:
-          - admin
-          - project-admin
       tags:
         - Policies
       parameters:
@@ -4333,10 +4239,6 @@ paths:
       x-app-permission:
         resource: policy
         action: update
-        scope: project
-        default_roles:
-          - admin
-          - project-admin
       tags:
         - Policies
       parameters:
@@ -4455,10 +4357,6 @@ paths:
       x-app-permission:
         resource: policy
         action: delete
-        scope: project
-        default_roles:
-          - admin
-          - project-admin
       tags:
         - Policies
       parameters:
@@ -4568,10 +4466,6 @@ paths:
       x-app-permission:
         resource: role
         action: create
-        scope: project
-        default_roles:
-          - admin
-          - project-admin
       tags:
         - Roles
       requestBody:
@@ -4682,8 +4576,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - Roles
       parameters:
@@ -4866,8 +4758,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - Roles
       parameters:
@@ -4980,10 +4870,6 @@ paths:
       x-app-permission:
         resource: role
         action: update
-        scope: project
-        default_roles:
-          - admin
-          - project-admin
       tags:
         - Roles
       parameters:
@@ -5102,10 +4988,6 @@ paths:
       x-app-permission:
         resource: role
         action: update
-        scope: project
-        default_roles:
-          - admin
-          - project-admin
       tags:
         - Roles
       parameters:
@@ -5224,10 +5106,6 @@ paths:
       x-app-permission:
         resource: role
         action: delete
-        scope: project
-        default_roles:
-          - admin
-          - project-admin
       tags:
         - Roles
       parameters:
@@ -5337,9 +5215,6 @@ paths:
       x-app-permission:
         resource: user-role
         action: assign
-        scope: any
-        default_roles:
-          - admin
       tags:
         - UserRoleAssignments
       requestBody:
@@ -5453,8 +5328,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - UserRoleAssignments
       responses:
@@ -5563,9 +5436,6 @@ paths:
       x-app-permission:
         resource: user-role
         action: revoke
-        scope: any
-        default_roles:
-          - admin
       tags:
         - UserRoleAssignments
       parameters:
@@ -5677,14 +5547,6 @@ paths:
       x-app-permission:
         resource: credential
         action: read
-        scope: project
-        default_roles:
-          - admin
-          - auditor
-          - user
-          - project-admin
-          - project-user
-          - project-auditor
       parameters:
         - name: limit
           in: query
@@ -5851,12 +5713,6 @@ paths:
       x-app-permission:
         resource: credential
         action: create
-        scope: project
-        default_roles:
-          - admin
-          - user
-          - project-admin
-          - project-user
       requestBody:
         required: true
         content:
@@ -5968,14 +5824,6 @@ paths:
       x-app-permission:
         resource: credential
         action: read
-        scope: project
-        default_roles:
-          - admin
-          - auditor
-          - user
-          - project-admin
-          - project-user
-          - project-auditor
       parameters:
         - name: credential_id
           in: path
@@ -6088,12 +5936,6 @@ paths:
       x-app-permission:
         resource: credential
         action: update
-        scope: project
-        default_roles:
-          - admin
-          - user
-          - project-admin
-          - project-user
       parameters:
         - name: credential_id
           in: path
@@ -6212,10 +6054,6 @@ paths:
       x-app-permission:
         resource: credential
         action: delete
-        scope: project
-        default_roles:
-          - admin
-          - project-admin
       parameters:
         - name: credential_id
           in: path
@@ -6328,14 +6166,6 @@ paths:
       x-app-permission:
         resource: credential
         action: read
-        scope: project
-        default_roles:
-          - admin
-          - auditor
-          - user
-          - project-admin
-          - project-user
-          - project-auditor
       parameters:
         - name: credential_id
           in: path
@@ -6455,8 +6285,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       responses:
         '200':
           description: Successful Response
@@ -6562,8 +6390,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       parameters:
         - name: credential_type_id
           in: path
@@ -6677,8 +6503,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       parameters:
         - name: limit
           in: query
@@ -6793,8 +6617,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       requestBody:
         required: true
         content:
@@ -6904,8 +6726,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       parameters:
         - name: item_id
           in: path
@@ -7017,8 +6837,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       parameters:
         - name: item_id
           in: path
@@ -7136,8 +6954,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       parameters:
         - name: item_id
           in: path
@@ -7250,8 +7066,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       requestBody:
         required: true
         content:
@@ -7373,9 +7187,6 @@ paths:
       x-app-permission:
         resource: identity-provider
         action: read
-        scope: any
-        default_roles:
-          - admin
       parameters:
         - name: limit
           in: query
@@ -7519,9 +7330,6 @@ paths:
       x-app-permission:
         resource: identity-provider
         action: create
-        scope: any
-        default_roles:
-          - admin
       requestBody:
         required: true
         content:
@@ -7633,9 +7441,6 @@ paths:
       x-app-permission:
         resource: identity-provider
         action: read
-        scope: any
-        default_roles:
-          - admin
       parameters:
         - name: provider_id
           in: path
@@ -7748,9 +7553,6 @@ paths:
       x-app-permission:
         resource: identity-provider
         action: update
-        scope: any
-        default_roles:
-          - admin
       parameters:
         - name: provider_id
           in: path
@@ -7869,9 +7671,6 @@ paths:
       x-app-permission:
         resource: identity-provider
         action: delete
-        scope: any
-        default_roles:
-          - admin
       parameters:
         - name: provider_id
           in: path
@@ -7981,9 +7780,6 @@ paths:
       x-app-permission:
         resource: identity-provider
         action: test
-        scope: any
-        default_roles:
-          - admin
       requestBody:
         required: true
         content:
@@ -8097,8 +7893,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       requestBody:
         required: true
         content:
@@ -8223,8 +8017,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       parameters:
         - name: limit
           in: query
@@ -8417,8 +8209,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       requestBody:
         required: true
         content:
@@ -8530,8 +8320,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       parameters:
         - name: invocation_id
           in: path
@@ -8653,8 +8441,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       parameters:
         - name: invocation_id
           in: path
@@ -8779,17 +8565,15 @@ paths:
     post:
       summary: Create Project
       description: |
-        Create a new project. The creator is automatically assigned
-        the project-admin role. Requires: project:create permission.
+        Create a new project.
+
+        The creator is automatically assigned the project-admin role.
+
+        Requires: project:create permission.
       operationId: create_project
       x-app-permission:
         resource: project
         action: create
-        scope: any
-        default_roles:
-          - admin
-          - user
-          - default
       tags:
         - Projects
       requestBody:
@@ -8900,14 +8684,6 @@ paths:
       x-app-permission:
         resource: project
         action: read
-        scope: project
-        default_roles:
-          - admin
-          - auditor
-          - user
-          - project-admin
-          - project-user
-          - project-auditor
       tags:
         - Projects
       responses:
@@ -8917,6 +8693,7 @@ paths:
             application/json:
               schema:
                 type: array
+                title: Response List Projects
                 items:
                   $ref: '#/components/schemas/ProjectRead'
         '400':
@@ -9015,18 +8792,17 @@ paths:
       x-app-permission:
         resource: project
         action: read
-        scope: project
-        default_roles:
-          - admin
-          - auditor
-          - user
-          - project-admin
-          - project-user
-          - project-auditor
       tags:
         - Projects
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Project Id
+          description: Project UUID
       responses:
         '200':
           description: Project details
@@ -9129,14 +8905,17 @@ paths:
       x-app-permission:
         resource: project
         action: update
-        scope: project
-        default_roles:
-          - admin
-          - project-admin
       tags:
         - Projects
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Project Id
+          description: Project UUID
       requestBody:
         required: true
         content:
@@ -9245,14 +9024,17 @@ paths:
       x-app-permission:
         resource: project
         action: update
-        scope: project
-        default_roles:
-          - admin
-          - project-admin
       tags:
         - Projects
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Project Id
+          description: Project UUID
       requestBody:
         required: true
         content:
@@ -9361,14 +9143,17 @@ paths:
       x-app-permission:
         resource: project
         action: delete
-        scope: project
-        default_roles:
-          - admin
-          - project-admin
       tags:
         - Projects
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Project Id
+          description: Project UUID
       responses:
         '204':
           description: Project deleted
@@ -9472,18 +9257,17 @@ paths:
       x-app-permission:
         resource: workflow
         action: read
-        scope: project
-        default_roles:
-          - admin
-          - auditor
-          - user
-          - project-admin
-          - project-user
-          - project-auditor
       tags:
         - Projects
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Project Id
+          description: Project UUID
         - name: limit
           in: query
           required: false
@@ -9631,18 +9415,17 @@ paths:
       x-app-permission:
         resource: approval
         action: read
-        scope: project
-        default_roles:
-          - admin
-          - auditor
-          - user
-          - project-admin
-          - project-user
-          - project-auditor
       tags:
         - Projects
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Project Id
+          description: Project UUID
         - name: limit
           in: query
           required: false
@@ -9809,14 +9592,17 @@ paths:
       x-app-permission:
         resource: project-role
         action: assign
-        scope: project
-        default_roles:
-          - admin
-          - project-admin
       tags:
         - Projects
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Project Id
+          description: Project UUID
       requestBody:
         required: true
         content:
@@ -9928,12 +9714,17 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - Projects
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Project Id
+          description: Project UUID
       responses:
         '200':
           description: List of role assignments
@@ -9941,6 +9732,7 @@ paths:
             application/json:
               schema:
                 type: array
+                title: Response List Project Role Assignments
                 items:
                   $ref: '#/components/schemas/ProjectRoleAssignmentRead'
         '400':
@@ -10039,20 +9831,24 @@ paths:
       x-app-permission:
         resource: project-role
         action: revoke
-        scope: project
-        default_roles:
-          - admin
-          - project-admin
       tags:
         - Projects
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Project Id
+          description: Project UUID
         - name: assignment_id
           in: path
           required: true
           schema:
             type: string
             format: uuid
+            title: Assignment Id
           description: Assignment UUID
       responses:
         '204':
@@ -10158,14 +9954,17 @@ paths:
       x-app-permission:
         resource: project-role
         action: assign
-        scope: project
-        default_roles:
-          - admin
-          - project-admin
       tags:
         - Projects
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Project Id
+          description: Project UUID
       requestBody:
         required: true
         content:
@@ -10278,12 +10077,17 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - Projects
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Project Id
+          description: Project UUID
       responses:
         '200':
           description: List of group role assignments
@@ -10291,6 +10095,7 @@ paths:
             application/json:
               schema:
                 type: array
+                title: Response List Project Group Role Assignments
                 items:
                   $ref: '#/components/schemas/ProjectGroupRoleAssignmentRead'
         '400':
@@ -10389,20 +10194,24 @@ paths:
       x-app-permission:
         resource: project-role
         action: revoke
-        scope: project
-        default_roles:
-          - admin
-          - project-admin
       tags:
         - Projects
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Project Id
+          description: Project UUID
         - name: assignment_id
           in: path
           required: true
           schema:
             type: string
             format: uuid
+            title: Assignment Id
           description: Assignment UUID
       responses:
         '204':
@@ -10503,12 +10312,19 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - Projects
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            anyOf:
+              - format: uuid
+                type: string
+              - type: 'null'
+            title: Project Id
+          description: Project UUID
         - name: limit
           in: query
           required: false
@@ -10557,6 +10373,7 @@ paths:
             anyOf:
               - type: string
               - type: 'null'
+            title: Principal Type
         - name: principal_name
           in: query
           required: false
@@ -10565,6 +10382,7 @@ paths:
             anyOf:
               - type: string
               - type: 'null'
+            title: Principal Name
         - name: role_name
           in: query
           required: false
@@ -10573,49 +10391,14 @@ paths:
             anyOf:
               - type: string
               - type: 'null'
+            title: Role Name
       responses:
         '200':
-          description: Paginated list of role assignments for this project
+          description: Successful Response
           content:
             application/json:
               schema:
-                type: object
-                title: AllRoleAssignmentListResponse
-                description: Paginated response for all role assignments.
-                examples:
-                  - next: eyJpZCI6InV1aWQifQ
-                    total: 150
-                  - next: eyJpZCI6Im5leHQifQ
-                    prev: eyJpZCI6InByZXYifQ
-                required:
-                  - resources
-                properties:
-                  next:
-                    anyOf:
-                      - type: string
-                      - type: 'null'
-                    title: Next
-                    description: Cursor for next page of results
-                  prev:
-                    anyOf:
-                      - type: string
-                      - type: 'null'
-                    title: Prev
-                    description: Cursor for previous page of results
-                  total:
-                    anyOf:
-                      - type: integer
-                        minimum: 0.0
-                      - type: 'null'
-                    title: Total
-                    description: Total count of resources (only when include_total=true)
-                  resources:
-                    type: array
-                    maxItems: 100
-                    items:
-                      $ref: '#/components/schemas/AllRoleAssignmentRead'
-                    title: Resources
-                    description: Array of resources in current page
+                $ref: '#/components/schemas/AllRoleAssignmentListResponse'
         '400':
           description: Bad Request
           content:
@@ -10712,14 +10495,17 @@ paths:
       x-app-permission:
         resource: role
         action: create
-        scope: project
-        default_roles:
-          - admin
-          - project-admin
       tags:
         - Projects
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Project Id
+          description: Project UUID
       requestBody:
         required: true
         content:
@@ -10728,7 +10514,7 @@ paths:
               $ref: '#/components/schemas/ProjectRoleCreate'
       responses:
         '201':
-          description: Role created
+          description: Successful Response
           content:
             application/json:
               schema:
@@ -10831,17 +10617,19 @@ paths:
       x-app-permission:
         resource: role
         action: read
-        scope: project
-        default_roles:
-          - admin
-          - auditor
-          - project-admin
-          - project-user
-          - project-auditor
       tags:
         - Projects
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            anyOf:
+              - format: uuid
+                type: string
+              - type: 'null'
+            title: Project Id
+          description: Project UUID
         - name: limit
           in: query
           required: false
@@ -10911,7 +10699,7 @@ paths:
           description: Filter by scope
       responses:
         '200':
-          description: Paginated list of roles in the project
+          description: Successful Response
           content:
             application/json:
               schema:
@@ -11012,21 +10800,28 @@ paths:
       x-app-permission:
         resource: role
         action: read
-        scope: project
-        default_roles:
-          - admin
-          - auditor
-          - project-admin
-          - project-user
-          - project-auditor
       tags:
         - Projects
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
-        - $ref: '#/components/parameters/roleIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Project Id
+          description: Project UUID
+        - name: role_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Role Id
+          description: Role UUID
       responses:
         '200':
-          description: Role details
+          description: Successful Response
           content:
             application/json:
               schema:
@@ -11126,15 +10921,25 @@ paths:
       x-app-permission:
         resource: role
         action: update
-        scope: project
-        default_roles:
-          - admin
-          - project-admin
       tags:
         - Projects
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
-        - $ref: '#/components/parameters/roleIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Project Id
+          description: Project UUID
+        - name: role_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Role Id
+          description: Role UUID
       requestBody:
         required: true
         content:
@@ -11143,7 +10948,7 @@ paths:
               $ref: '#/components/schemas/RoleUpdate'
       responses:
         '200':
-          description: Updated role
+          description: Successful Response
           content:
             application/json:
               schema:
@@ -11243,15 +11048,25 @@ paths:
       x-app-permission:
         resource: role
         action: update
-        scope: project
-        default_roles:
-          - admin
-          - project-admin
       tags:
         - Projects
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
-        - $ref: '#/components/parameters/roleIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Project Id
+          description: Project UUID
+        - name: role_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Role Id
+          description: Role UUID
       requestBody:
         required: true
         content:
@@ -11260,7 +11075,7 @@ paths:
               $ref: '#/components/schemas/RoleUpdate'
       responses:
         '200':
-          description: Updated role
+          description: Successful Response
           content:
             application/json:
               schema:
@@ -11360,18 +11175,28 @@ paths:
       x-app-permission:
         resource: role
         action: delete
-        scope: project
-        default_roles:
-          - admin
-          - project-admin
       tags:
         - Projects
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
-        - $ref: '#/components/parameters/roleIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Project Id
+          description: Project UUID
+        - name: role_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Role Id
+          description: Role UUID
       responses:
         '204':
-          description: Role deleted
+          description: Successful Response
         '400':
           description: Bad Request
           content:
@@ -11468,14 +11293,17 @@ paths:
       x-app-permission:
         resource: policy
         action: create
-        scope: project
-        default_roles:
-          - admin
-          - project-admin
       tags:
         - Projects
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Project Id
+          description: Project UUID
       requestBody:
         required: true
         content:
@@ -11484,7 +11312,7 @@ paths:
               $ref: '#/components/schemas/ProjectPolicyCreate'
       responses:
         '201':
-          description: Policy created
+          description: Successful Response
           content:
             application/json:
               schema:
@@ -11587,17 +11415,19 @@ paths:
       x-app-permission:
         resource: policy
         action: read
-        scope: project
-        default_roles:
-          - admin
-          - auditor
-          - project-admin
-          - project-user
-          - project-auditor
       tags:
         - Projects
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            anyOf:
+              - format: uuid
+                type: string
+              - type: 'null'
+            title: Project Id
+          description: Project UUID
         - name: limit
           in: query
           required: false
@@ -11676,7 +11506,7 @@ paths:
           description: Filter by scope
       responses:
         '200':
-          description: Paginated list of policies in the project
+          description: Successful Response
           content:
             application/json:
               schema:
@@ -11777,21 +11607,28 @@ paths:
       x-app-permission:
         resource: policy
         action: read
-        scope: project
-        default_roles:
-          - admin
-          - auditor
-          - project-admin
-          - project-user
-          - project-auditor
       tags:
         - Projects
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
-        - $ref: '#/components/parameters/policyIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Project Id
+          description: Project UUID
+        - name: policy_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Policy Id
+          description: Policy UUID
       responses:
         '200':
-          description: Policy details
+          description: Successful Response
           content:
             application/json:
               schema:
@@ -11891,15 +11728,25 @@ paths:
       x-app-permission:
         resource: policy
         action: update
-        scope: project
-        default_roles:
-          - admin
-          - project-admin
       tags:
         - Projects
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
-        - $ref: '#/components/parameters/policyIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Project Id
+          description: Project UUID
+        - name: policy_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Policy Id
+          description: Policy UUID
       requestBody:
         required: true
         content:
@@ -11908,7 +11755,7 @@ paths:
               $ref: '#/components/schemas/PolicyUpdate'
       responses:
         '200':
-          description: Updated policy
+          description: Successful Response
           content:
             application/json:
               schema:
@@ -12008,15 +11855,25 @@ paths:
       x-app-permission:
         resource: policy
         action: update
-        scope: project
-        default_roles:
-          - admin
-          - project-admin
       tags:
         - Projects
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
-        - $ref: '#/components/parameters/policyIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Project Id
+          description: Project UUID
+        - name: policy_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Policy Id
+          description: Policy UUID
       requestBody:
         required: true
         content:
@@ -12025,7 +11882,7 @@ paths:
               $ref: '#/components/schemas/PolicyUpdate'
       responses:
         '200':
-          description: Updated policy
+          description: Successful Response
           content:
             application/json:
               schema:
@@ -12125,18 +11982,28 @@ paths:
       x-app-permission:
         resource: policy
         action: delete
-        scope: project
-        default_roles:
-          - admin
-          - project-admin
       tags:
         - Projects
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
-        - $ref: '#/components/parameters/policyIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Project Id
+          description: Project UUID
+        - name: policy_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Policy Id
+          description: Policy UUID
       responses:
         '204':
-          description: Policy deleted
+          description: Successful Response
         '400':
           description: Bad Request
           content:
@@ -12233,9 +12100,6 @@ paths:
       x-app-permission:
         resource: setting
         action: read
-        scope: any
-        default_roles:
-          - admin
       tags:
         - Settings
       parameters:
@@ -12397,9 +12261,6 @@ paths:
       x-app-permission:
         resource: setting
         action: write
-        scope: any
-        default_roles:
-          - admin
       tags:
         - Settings
       requestBody:
@@ -12514,9 +12375,6 @@ paths:
       x-app-permission:
         resource: setting
         action: read
-        scope: any
-        default_roles:
-          - admin
       tags:
         - Settings
       responses:
@@ -12622,9 +12480,6 @@ paths:
       x-app-permission:
         resource: setting
         action: read
-        scope: any
-        default_roles:
-          - admin
       tags:
         - Settings
       parameters:
@@ -12737,9 +12592,6 @@ paths:
       x-app-permission:
         resource: setting
         action: write
-        scope: any
-        default_roles:
-          - admin
       tags:
         - Settings
       parameters:
@@ -12857,8 +12709,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       summary: Get Tool Metrics Summary
       description: |-
         Return aggregated per-tool metrics summary.
@@ -13002,8 +12852,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       summary: List Tool Executions
       description: |-
         Return paginated tool execution history.
@@ -13217,8 +13065,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       parameters:
         - name: limit
           in: query
@@ -13379,8 +13225,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       parameters:
         - name: tool_id
           in: path
@@ -13508,8 +13352,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       parameters:
         - name: tool_id
           in: path
@@ -13643,8 +13485,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       requestBody:
         required: true
         content:
@@ -13776,8 +13616,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       parameters:
         - name: limit
           in: query
@@ -13937,8 +13775,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       requestBody:
         required: true
         content:
@@ -14064,8 +13900,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       parameters:
         - name: provider_id
           in: path
@@ -14193,8 +14027,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       parameters:
         - name: provider_id
           in: path
@@ -14328,8 +14160,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       parameters:
         - name: provider_id
           in: path
@@ -14459,8 +14289,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       parameters:
         - name: provider_id
           in: path
@@ -14584,8 +14412,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       parameters:
         - name: provider_id
           in: path
@@ -14713,8 +14539,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       parameters:
         - name: provider_id
           in: path
@@ -14842,8 +14666,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       requestBody:
         required: true
         content:
@@ -14958,12 +14780,6 @@ paths:
       x-app-permission:
         resource: user
         action: read
-        scope: any
-        default_roles:
-          - admin
-          - user
-          - default
-          - auditor
       tags:
         - Users
       parameters:
@@ -15109,9 +14925,6 @@ paths:
       x-app-permission:
         resource: user
         action: create
-        scope: any
-        default_roles:
-          - admin
       tags:
         - Users
       requestBody:
@@ -15223,12 +15036,6 @@ paths:
       x-app-permission:
         resource: user
         action: read
-        scope: any
-        default_roles:
-          - admin
-          - user
-          - default
-          - auditor
       tags:
         - Users
       parameters:
@@ -15344,11 +15151,6 @@ paths:
       x-app-permission:
         resource: user
         action: update
-        scope: any
-        default_roles:
-          - admin
-          - user
-          - default
       tags:
         - Users
       parameters:
@@ -15467,9 +15269,6 @@ paths:
       x-app-permission:
         resource: user
         action: delete
-        scope: any
-        default_roles:
-          - admin
       tags:
         - Users
       parameters:
@@ -15579,12 +15378,6 @@ paths:
       x-app-permission:
         resource: user
         action: read
-        scope: any
-        default_roles:
-          - admin
-          - user
-          - default
-          - auditor
       tags:
         - Users
       parameters:
@@ -15741,11 +15534,6 @@ paths:
       x-app-permission:
         resource: user
         action: update
-        scope: any
-        default_roles:
-          - admin
-          - user
-          - default
       tags:
         - Users
       parameters:
@@ -15865,12 +15653,6 @@ paths:
       x-app-permission:
         resource: group
         action: read
-        scope: any
-        default_roles:
-          - admin
-          - auditor
-          - user
-          - default
       tags:
         - Groups
       parameters:
@@ -16016,9 +15798,6 @@ paths:
       x-app-permission:
         resource: group
         action: create
-        scope: any
-        default_roles:
-          - admin
       tags:
         - Groups
       requestBody:
@@ -16130,12 +15909,6 @@ paths:
       x-app-permission:
         resource: group
         action: read
-        scope: any
-        default_roles:
-          - admin
-          - auditor
-          - user
-          - default
       tags:
         - Groups
       parameters:
@@ -16249,9 +16022,6 @@ paths:
       x-app-permission:
         resource: group
         action: update
-        scope: any
-        default_roles:
-          - admin
       tags:
         - Groups
       parameters:
@@ -16371,9 +16141,6 @@ paths:
       x-app-permission:
         resource: group
         action: delete
-        scope: any
-        default_roles:
-          - admin
       tags:
         - Groups
       parameters:
@@ -16484,12 +16251,6 @@ paths:
       x-app-permission:
         resource: group
         action: read
-        scope: any
-        default_roles:
-          - admin
-          - auditor
-          - user
-          - default
       tags:
         - Groups
       parameters:
@@ -16643,9 +16404,6 @@ paths:
       x-app-permission:
         resource: group
         action: manage-members
-        scope: any
-        default_roles:
-          - admin
       tags:
         - Groups
       parameters:
@@ -16766,9 +16524,6 @@ paths:
       x-app-permission:
         resource: group
         action: manage-members
-        scope: any
-        default_roles:
-          - admin
       tags:
         - Groups
       parameters:
@@ -16886,14 +16641,6 @@ paths:
       x-app-permission:
         resource: execution
         action: read
-        scope: project
-        default_roles:
-          - admin
-          - auditor
-          - user
-          - project-admin
-          - project-user
-          - project-auditor
       tags:
         - executions
       parameters:
@@ -17039,8 +16786,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - executions
       requestBody:
@@ -17152,14 +16897,6 @@ paths:
       x-app-permission:
         resource: execution
         action: read
-        scope: project
-        default_roles:
-          - admin
-          - auditor
-          - user
-          - project-admin
-          - project-user
-          - project-auditor
       tags:
         - executions
       parameters:
@@ -17283,14 +17020,6 @@ paths:
       x-app-permission:
         resource: execution
         action: read
-        scope: project
-        default_roles:
-          - admin
-          - auditor
-          - user
-          - project-admin
-          - project-user
-          - project-auditor
       tags:
         - executions
       parameters:
@@ -17301,15 +17030,52 @@ paths:
             format: uuid
             title: Execution Id
             type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            exclusiveMinimum: 0
+            maximum: 100
+            default: 20
+            description: Maximum number of results per page
+            title: Limit
+          description: Maximum number of results per page
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            description: Pagination cursor from previous response
+            title: Cursor
+          description: Pagination cursor from previous response
+        - name: sort
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            description: Sort parameter (e.g., 'name', '-created_at')
+            title: Sort
+          description: Sort parameter (e.g., 'name', '-created_at')
+        - name: include_total
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+            description: Include total count in response (expensive)
+            title: Include Total
+          description: Include total count in response (expensive)
       responses:
         '200':
           content:
             application/json:
               schema:
-                items:
-                  $ref: '#/components/schemas/ActivityExecution'
-                title: Response List Execution Activities
-                type: array
+                $ref: '#/components/schemas/ActivityExecutionListResponse'
           description: Successful Response
         '400':
           description: Bad Request
@@ -17407,12 +17173,6 @@ paths:
       x-app-permission:
         resource: execution
         action: run
-        scope: project
-        default_roles:
-          - admin
-          - user
-          - project-admin
-          - project-user
       tags:
         - executions
       parameters:
@@ -17548,14 +17308,6 @@ paths:
       x-app-permission:
         resource: workflow
         action: read
-        scope: project
-        default_roles:
-          - admin
-          - auditor
-          - user
-          - project-admin
-          - project-user
-          - project-auditor
       parameters:
         - name: limit
           in: query
@@ -17701,12 +17453,6 @@ paths:
       x-app-permission:
         resource: workflow
         action: create
-        scope: project
-        default_roles:
-          - admin
-          - user
-          - project-admin
-          - project-user
       requestBody:
         required: true
         content:
@@ -17818,14 +17564,6 @@ paths:
       x-app-permission:
         resource: workflow
         action: read
-        scope: project
-        default_roles:
-          - admin
-          - auditor
-          - user
-          - project-admin
-          - project-user
-          - project-auditor
       parameters:
         - name: workflow_id
           in: path
@@ -17944,12 +17682,6 @@ paths:
       x-app-permission:
         resource: workflow
         action: update
-        scope: project
-        default_roles:
-          - admin
-          - user
-          - project-admin
-          - project-user
       parameters:
         - name: workflow_id
           in: path
@@ -18068,12 +17800,6 @@ paths:
       x-app-permission:
         resource: workflow
         action: delete
-        scope: project
-        default_roles:
-          - admin
-          - user
-          - project-admin
-          - project-user
       parameters:
         - name: workflow_id
           in: path
@@ -18183,14 +17909,6 @@ paths:
       x-app-permission:
         resource: workflow
         action: read
-        scope: project
-        default_roles:
-          - admin
-          - auditor
-          - user
-          - project-admin
-          - project-user
-          - project-auditor
       parameters:
         - name: workflow_id
           in: path
@@ -18304,14 +18022,6 @@ paths:
       x-app-permission:
         resource: workflow
         action: read
-        scope: project
-        default_roles:
-          - admin
-          - auditor
-          - user
-          - project-admin
-          - project-user
-          - project-auditor
       parameters:
         - name: workflow_id
           in: path
@@ -23899,6 +23609,44 @@ components:
             updated_at: Last update timestamp
             labels: Optional key-value metadata
       additionalProperties: false
+    ActivityExecutionListResponse:
+      title: ActivityExecutionListResponse
+      description: Paginated list response for activity executions.
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
+      properties:
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Next
+          description: Cursor for next page of results
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Prev
+          description: Cursor for previous page of results
+        total:
+          anyOf:
+            - minimum: 0.0
+              type: integer
+            - type: 'null'
+          title: Total
+          description: Total count of resources (only when include_total=true)
+        resources:
+          type: array
+          title: Resources
+          description: Array of resources in current page
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/ActivityExecution'
+      required:
+        - resources
+      type: object
     SignalResponse:
       type: object
       title: Signal Response
@@ -24263,28 +24011,3 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: JWT token authentication
-  parameters:
-    projectIdParam:
-      name: project_id
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-      description: Project UUID
-    roleIdParam:
-      name: role_id
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-      description: Role UUID
-    policyIdParam:
-      name: policy_id
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-      description: Policy UUID

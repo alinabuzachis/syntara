@@ -7,7 +7,7 @@ Authorization is enforced via PermissionChecker dependency on each endpoint.
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, Query, Request, status
+from fastapi import Depends, Path, Query, Request, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.approvals.models.approval_request import ApprovalListResponse
@@ -520,7 +520,7 @@ async def create_project_role(
     operation_id="list_project_roles",
 )
 async def list_project_roles(
-    project_id: UUID,
+    project_id: Annotated[UUID, Path(description="Project UUID")],
     request: Request,
     params: Annotated[RoleListParams, Depends()],
     service: Annotated[RoleService, Depends(get_role_service)],
@@ -667,7 +667,7 @@ async def create_project_policy(
     operation_id="list_project_policies",
 )
 async def list_project_policies(
-    project_id: UUID,
+    project_id: Annotated[UUID, Path(description="Project UUID")],
     request: Request,
     params: Annotated[PolicyListParams, Depends()],
     service: Annotated[PolicyService, Depends(get_policy_service)],
@@ -794,7 +794,7 @@ def _get_all_role_assignment_service(
     "/{project_id}/all-role-assignments", dependencies=[NO_PERMISSION], operation_id="list_project_all_role_assignments"
 )
 async def list_project_all_role_assignments(
-    project_id: UUID,
+    project_id: Annotated[UUID, Path(description="Project UUID")],
     request: Request,
     params: Annotated[AllRoleAssignmentListParams, Depends()],
     service: Annotated[AllRoleAssignmentService, Depends(_get_all_role_assignment_service)],

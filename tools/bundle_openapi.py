@@ -400,9 +400,14 @@ def _merge_sub_spec(
     # same-file $refs like '#/components/schemas/Foo' are preserved as named
     # component refs in the bundled output instead of being inlined at every
     # usage site.
+    # Parameters are intentionally excluded: FastAPI always inlines path/query
+    # parameters and never emits components/parameters, so keeping them as
+    # named components in the bundle causes drift. Excluding them from
+    # local_shared_refs causes _resolve_same_file_ref to inline them at each
+    # usage site instead of preserving the $ref.
     local_shared_refs = dict(shared_refs)
     for section, items in spec_data.get("components", {}).items():
-        if isinstance(items, dict):
+        if isinstance(items, dict) and section != "parameters":
             for name in items:
                 fragment = f"/components/{section}/{name}"
                 local_shared_refs[f"{resolved_spec_path}#{fragment}"] = f"#/components/{section}/{name}"
@@ -417,6 +422,8 @@ def _merge_sub_spec(
         merged_paths[path_key] = path_item
 
     components = _strip_self_ref_exports(resolved.get("components", {}))
+    # Drop parameters: inlined at usage sites above; FastAPI never emits components/parameters.
+    components = {k: v for k, v in components.items() if k != "parameters"}
     _deep_merge_components(merged_components, components, spec_path)
     _collect_tags(resolved.get("tags", []), merged_tags, seen_tag_names)
 

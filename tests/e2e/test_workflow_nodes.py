@@ -58,10 +58,10 @@ def _ensure_mcp_provider(api: NexusApiRegistry) -> str:
     response = api.tool_manager.get_tool_providers()
     assert response.is_success, "Failed to list tool providers"
     assert response.parsed is not None, "Failed to list tool providers"
-    existing = [p for p in response.parsed.resources if p["name"] == MCP_PROVIDER_NAME]
+    existing = [p for p in response.parsed.resources if p.name == MCP_PROVIDER_NAME]
 
     if existing:
-        provider_id: str = existing[0]["id"]
+        provider_id: str = str(existing[0].id)
     else:
         reg = api.tool_manager.register_tool_provider(
             body=ToolProviderCreate(
@@ -87,10 +87,10 @@ def _create_and_run_workflow(
     list_response = api.workflows.list(additional_params={"name": name})
     assert list_response.is_success, "Failed to list workflows"
     assert list_response.parsed is not None, "Failed to list workflows"
-    existing = [w for w in list_response.parsed.resources if w["name"] == name]
+    existing = [w for w in list_response.parsed.resources if w.name == name]
 
     if existing:
-        wf_id = UUID(existing[0]["id"])
+        wf_id = existing[0].id
         api.workflows.update(workflow_id=wf_id, body=WorkflowUpdate(workflow_definition=definition))
     else:
         create_response = api.workflows.create(

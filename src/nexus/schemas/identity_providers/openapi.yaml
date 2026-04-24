@@ -22,8 +22,6 @@ paths:
       x-app-permission:
         resource: identity-provider
         action: read
-        scope: any
-        default_roles: [admin]
       parameters:
         - name: limit
           in: query
@@ -69,8 +67,6 @@ paths:
       x-app-permission:
         resource: identity-provider
         action: create
-        scope: any
-        default_roles: [admin]
       requestBody:
         required: true
         content:
@@ -110,8 +106,6 @@ paths:
       x-app-permission:
         resource: identity-provider
         action: read
-        scope: any
-        default_roles: [admin]
       parameters:
         - name: provider_id
           in: path
@@ -152,8 +146,6 @@ paths:
       x-app-permission:
         resource: identity-provider
         action: update
-        scope: any
-        default_roles: [admin]
       parameters:
         - name: provider_id
           in: path
@@ -200,8 +192,6 @@ paths:
       x-app-permission:
         resource: identity-provider
         action: delete
-        scope: any
-        default_roles: [admin]
       parameters:
         - name: provider_id
           in: path
@@ -239,8 +229,6 @@ paths:
       x-app-permission:
         resource: identity-provider
         action: test
-        scope: any
-        default_roles: [admin]
       requestBody:
         required: true
         content:

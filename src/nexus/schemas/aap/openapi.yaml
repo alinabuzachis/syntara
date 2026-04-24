@@ -31,8 +31,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - aap
       parameters:
@@ -99,8 +97,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - aap
       parameters:
@@ -176,8 +172,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - aap
       parameters:
@@ -251,8 +245,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - aap
       parameters:
@@ -328,8 +320,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - aap
       parameters:
@@ -405,8 +395,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - aap
       parameters:
@@ -473,8 +461,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - aap
       parameters:

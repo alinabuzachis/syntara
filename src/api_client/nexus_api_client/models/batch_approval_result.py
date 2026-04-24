@@ -21,18 +21,16 @@ T = TypeVar("T", bound="BatchApprovalResult")
 
 @_attrs_define
 class BatchApprovalResult:
-    """Result for a single approval within a batch response.
+    """Confirmation for a single approval within a batch response.
 
-    Matches the BatchApprovalResult schema from the OpenAPI specification.
-
-        Attributes:
-            approval_id (UUID): ID of the approval request
-            success (bool): Whether the decision was successfully recorded
-            status (ApprovalRequestStatus | None | Unset): New status after the decision (if successful)
-            decided_at (datetime.datetime | None | Unset): When decision was recorded (if successful)
-            decided_by (None | Unset | UserReference): User who made the decision (if successful)
-            decision_notes (None | str | Unset): Notes provided with the decision (echoed back from request)
-            error (None | str | Unset): Error message if the decision failed
+    Attributes:
+        approval_id (UUID): ID of the approval request
+        success (bool): Whether the decision was successfully recorded
+        status (ApprovalRequestStatus | None | Unset): New status after the decision (if successful)
+        decided_at (datetime.datetime | None | Unset): When decision was recorded (if successful)
+        decided_by (None | Unset | UserReference): User who made the decision (if successful)
+        decision_notes (None | str | Unset): Notes provided with the decision (echoed back from request)
+        error (None | str | Unset): Error message if the decision failed
     """
 
     approval_id: UUID

@@ -42,10 +42,11 @@ class ActivityExecution:
             activity_name (str): Activity ID from workflow definition
             temporal_activity_id (str): Temporal activity execution ID
             status (ActivityStatus): Activity execution status enumeration.
-            id (UUID | Unset): Unique identifier for the resource
-            created_at (datetime.datetime | Unset): Timestamp when resource was created
-            updated_at (datetime.datetime | Unset): Timestamp when resource was last updated
-            labels (ActivityExecutionLabels | Unset): Key-value pairs for resource labeling and filtering
+            id (UUID | Unset): Unique identifier for the resource Example: 550e8400-e29b-41d4-a716-446655440000.
+            created_at (datetime.datetime | Unset): Timestamp when resource was created Example: 2025-10-09T12:00:00Z.
+            updated_at (datetime.datetime | Unset): Timestamp when resource was last updated Example: 2025-10-09T12:30:00Z.
+            labels (ActivityExecutionLabels | Unset): Key-value pairs for resource labeling and filtering Example:
+                {'environment': 'production', 'region': 'us-east-1', 'team': 'platform'}.
             activity_definition (ActivityExecutionActivityDefinitionType0 | None | Unset): Snapshot of activity
                 configuration from workflow definition
             started_at (datetime.datetime | None | Unset): When activity started execution

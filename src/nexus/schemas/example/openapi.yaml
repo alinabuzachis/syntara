@@ -24,8 +24,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       parameters:
         - name: limit
           in: query
@@ -67,8 +65,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       requestBody:
         required: true
         content:
@@ -105,8 +101,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       parameters:
         - name: item_id
           in: path
@@ -145,8 +139,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       parameters:
         - name: item_id
           in: path
@@ -191,8 +183,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       parameters:
         - name: item_id
           in: path

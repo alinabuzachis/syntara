@@ -28,8 +28,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - All Role Assignments
       parameters:

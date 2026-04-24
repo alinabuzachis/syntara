@@ -27,8 +27,6 @@ paths:
       x-app-permission:
         resource: user-role
         action: assign
-        scope: any
-        default_roles: [admin]
       tags:
         - UserRoleAssignments
       requestBody:
@@ -71,8 +69,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - UserRoleAssignments
       responses:
@@ -111,8 +107,6 @@ paths:
       x-app-permission:
         resource: user-role
         action: revoke
-        scope: any
-        default_roles: [admin]
       tags:
         - UserRoleAssignments
       parameters:

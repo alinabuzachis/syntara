@@ -64,8 +64,6 @@ paths:
       x-app-permission:
         resource: workflow
         action: read
-        scope: project
-        default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       parameters:
         - name: created_by
           in: query
@@ -115,8 +113,6 @@ paths:
       x-app-permission:
         resource: workflow
         action: create
-        scope: project
-        default_roles: [admin, user, project-admin, project-user]
       requestBody:
         required: true
         content:
@@ -178,8 +174,6 @@ paths:
       x-app-permission:
         resource: workflow
         action: read
-        scope: project
-        default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       parameters:
         - name: workflow_id
           in: path
@@ -210,8 +204,6 @@ paths:
       x-app-permission:
         resource: workflow
         action: update
-        scope: project
-        default_roles: [admin, user, project-admin, project-user]
       parameters:
         - name: workflow_id
           in: path
@@ -263,8 +255,6 @@ paths:
       x-app-permission:
         resource: workflow
         action: delete
-        scope: project
-        default_roles: [admin, user, project-admin, project-user]
       parameters:
         - name: workflow_id
           in: path
@@ -299,8 +289,6 @@ paths:
       x-app-permission:
         resource: workflow
         action: read
-        scope: project
-        default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       parameters:
         - name: workflow_id
           in: path
@@ -345,8 +333,6 @@ paths:
       x-app-permission:
         resource: workflow
         action: read
-        scope: project
-        default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       parameters:
         - name: workflow_id
           in: path

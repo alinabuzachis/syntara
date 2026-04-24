@@ -134,10 +134,10 @@ def mcp_provider(nexus_api: NexusApiRegistry) -> str:
     providers = nexus_api.tool_manager.get_tool_providers(
         additional_params={"name": MCP_PROVIDER_NAME}
     ).assert_and_get()
-    existing = [p for p in providers.resources if p["name"] == MCP_PROVIDER_NAME]
+    existing = [p for p in providers.resources if p.name == MCP_PROVIDER_NAME]
 
     if existing:
-        provider_id: str = existing[0]["id"]
+        provider_id: str = str(existing[0].id)
         # Update configuration to use the current MCP_PROVIDER_URL
         nexus_api.tool_manager.patch_tool_provider(
             provider_id=UUID(provider_id),
@@ -156,10 +156,10 @@ def mcp_provider(nexus_api: NexusApiRegistry) -> str:
         if response.status_code == 409:
             # Provider exists but wasn't returned by list query — fetch all and find it
             all_providers = nexus_api.tool_manager.get_tool_providers().assert_and_get()
-            match = [p for p in all_providers.resources if p["name"] == MCP_PROVIDER_NAME]
+            match = [p for p in all_providers.resources if p.name == MCP_PROVIDER_NAME]
             if not match:
                 pytest.skip(f"MCP provider '{MCP_PROVIDER_NAME}' conflict but not found in list")
-            provider_id = match[0]["id"]
+            provider_id = str(match[0].id)
         else:
             provider_id = str(response.assert_and_get().id)
 
@@ -176,7 +176,7 @@ def mcp_provider(nexus_api: NexusApiRegistry) -> str:
         additional_params={"provider_id": provider_id},
         limit=100,
     ).assert_and_get()
-    names = [t["namespaced_name"] for t in tools.resources]
+    names = [t.namespaced_name for t in tools.resources]
     if "mcp::get_greeting" not in names:
         pytest.skip(f"mcp::get_greeting not found after refresh. Available: {names}")
 

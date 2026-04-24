@@ -34,6 +34,7 @@ class ApprovalCreateRequest:
                 Essential context for approvers to make a decision.
                 Contains workflow identification, inputs, and the output from the immediately
                 preceding activity.
+            project_id (None | Unset | UUID): Project ID (denormalized from execution)
             timeout_at (datetime.datetime | None | Unset): When this request expires (null = no timeout)
             next_step_approved (ActivitySummary | None | Unset): First activity that executes if approved
             next_step_rejected (ActivitySummary | None | Unset): First activity that executes if rejected
@@ -43,6 +44,7 @@ class ApprovalCreateRequest:
     approval_node_id: str
     name: str
     workflow_context: WorkflowContext
+    project_id: None | Unset | UUID = UNSET
     timeout_at: datetime.datetime | None | Unset = UNSET
     next_step_approved: ActivitySummary | None | Unset = UNSET
     next_step_rejected: ActivitySummary | None | Unset = UNSET
@@ -58,6 +60,14 @@ class ApprovalCreateRequest:
         name = self.name
 
         workflow_context = self.workflow_context.to_dict()
+
+        project_id: None | str | Unset
+        if isinstance(self.project_id, Unset):
+            project_id = UNSET
+        elif isinstance(self.project_id, UUID):
+            project_id = str(self.project_id)
+        else:
+            project_id = self.project_id
 
         timeout_at: None | str | Unset
         if isinstance(self.timeout_at, Unset):
@@ -93,6 +103,8 @@ class ApprovalCreateRequest:
                 "workflow_context": workflow_context,
             }
         )
+        if project_id is not UNSET:
+            field_dict["project_id"] = project_id
         if timeout_at is not UNSET:
             field_dict["timeout_at"] = timeout_at
         if next_step_approved is not UNSET:
@@ -115,6 +127,23 @@ class ApprovalCreateRequest:
         name = d.pop("name")
 
         workflow_context = WorkflowContext.from_dict(d.pop("workflow_context"))
+
+        def _parse_project_id(data: object) -> None | Unset | UUID:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                project_id_type_0 = UUID(data)
+
+                return project_id_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(None | Unset | UUID, data)
+
+        project_id = _parse_project_id(d.pop("project_id", UNSET))
 
         def _parse_timeout_at(data: object) -> datetime.datetime | None | Unset:
             if data is None:
@@ -172,6 +201,7 @@ class ApprovalCreateRequest:
             approval_node_id=approval_node_id,
             name=name,
             workflow_context=workflow_context,
+            project_id=project_id,
             timeout_at=timeout_at,
             next_step_approved=next_step_approved,
             next_step_rejected=next_step_rejected,

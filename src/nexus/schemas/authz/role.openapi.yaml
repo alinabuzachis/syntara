@@ -27,8 +27,6 @@ paths:
       x-app-permission:
         resource: role
         action: create
-        scope: project
-        default_roles: [admin, project-admin]
       tags:
         - Roles
       requestBody:
@@ -68,8 +66,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - Roles
       parameters:
@@ -145,8 +141,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - Roles
       parameters:
@@ -189,8 +183,6 @@ paths:
       x-app-permission:
         resource: role
         action: update
-        scope: project
-        default_roles: [admin, project-admin]
       tags:
         - Roles
       parameters:
@@ -239,8 +231,6 @@ paths:
       x-app-permission:
         resource: role
         action: update
-        scope: project
-        default_roles: [admin, project-admin]
       tags:
         - Roles
       parameters:
@@ -289,8 +279,6 @@ paths:
       x-app-permission:
         resource: role
         action: delete
-        scope: project
-        default_roles: [admin, project-admin]
       tags:
         - Roles
       parameters:

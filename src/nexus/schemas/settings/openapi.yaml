@@ -31,8 +31,6 @@ paths:
       x-app-permission:
         resource: setting
         action: read
-        scope: any
-        default_roles: [admin]
       tags:
         - Settings
       parameters:
@@ -88,8 +86,6 @@ paths:
       x-app-permission:
         resource: setting
         action: write
-        scope: any
-        default_roles: [admin]
       tags:
         - Settings
       requestBody:
@@ -134,8 +130,6 @@ paths:
       x-app-permission:
         resource: setting
         action: read
-        scope: any
-        default_roles: [admin]
       tags:
         - Settings
       responses:
@@ -171,8 +165,6 @@ paths:
       x-app-permission:
         resource: setting
         action: read
-        scope: any
-        default_roles: [admin]
       tags:
         - Settings
       parameters:
@@ -215,8 +207,6 @@ paths:
       x-app-permission:
         resource: setting
         action: write
-        scope: any
-        default_roles: [admin]
       tags:
         - Settings
       parameters:

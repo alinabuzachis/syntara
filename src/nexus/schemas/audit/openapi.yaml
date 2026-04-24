@@ -39,8 +39,6 @@ paths:
       x-app-permission:
         resource: audit
         action: read
-        scope: any
-        default_roles: [admin, auditor]
       tags:
         - Audit Events
       parameters:

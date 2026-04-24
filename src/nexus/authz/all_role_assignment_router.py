@@ -64,7 +64,12 @@ def _get_service(
     return AllRoleAssignmentService(db, current_user)
 
 
-@router.get("", dependencies=[NO_PERMISSION], operation_id="list_all_role_assignments")
+@router.get(
+    "",
+    dependencies=[NO_PERMISSION],
+    operation_id="list_all_role_assignments",
+    response_description="Paginated list of role assignments",
+)
 async def list_all_role_assignments(
     request: Request,
     params: Annotated[AllRoleAssignmentListParams, Depends()],

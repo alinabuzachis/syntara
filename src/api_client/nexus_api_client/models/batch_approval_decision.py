@@ -19,10 +19,9 @@ class BatchApprovalDecision:
 
     Attributes:
         approval_id (UUID): ID of the approval request
-        status (BatchApprovalDecisionStatus): Status values for batch approval decisions.
+        status (BatchApprovalDecisionStatus): Status values that can be submitted in batch approval decisions.
 
-            This is a subset of ApprovalRequestStatus representing only the
-            values that can be submitted in batch decision requests.
+            This is a subset of ApprovalRequestStatus containing only system-actionable values.
         notes (None | str | Unset): Optional notes explaining the decision
     """
 

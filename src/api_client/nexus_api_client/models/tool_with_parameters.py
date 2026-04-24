@@ -24,19 +24,24 @@ class ToolWithParameters:
     """Schema for Tool response with ToolParameter details.
 
     Attributes:
-        created_by (UUID): User who created the resource
-        name (str): Human-readable name for the resource
+        created_by (UUID): User who created the resource Example: 770e8400-e29b-41d4-a716-446655440000.
+        name (str): Human-readable name for the resource Example: Authentication Service.
         provider_id (UUID): UUID of the associated tool provider
         namespaced_name (str): Unique namespaced name for the tool
         parameters (list[ToolParameter]): Tool parameters
-        id (UUID | Unset): Unique identifier for the resource
-        created_at (datetime.datetime | Unset): Timestamp when resource was created
-        updated_at (datetime.datetime | Unset): Timestamp when resource was last updated
-        labels (ToolWithParametersLabels | Unset): Key-value pairs for resource labeling and filtering
-        updated_by (None | Unset | UUID): User who last updated the resource
-        deleted_at (datetime.datetime | None | Unset): Timestamp when resource was soft deleted
-        deleted_by (None | Unset | UUID): User who performed the soft delete
-        description (None | str | Unset): Detailed description of the resource
+        id (UUID | Unset): Unique identifier for the resource Example: 550e8400-e29b-41d4-a716-446655440000.
+        created_at (datetime.datetime | Unset): Timestamp when resource was created Example: 2025-10-09T12:00:00Z.
+        updated_at (datetime.datetime | Unset): Timestamp when resource was last updated Example: 2025-10-09T12:30:00Z.
+        labels (ToolWithParametersLabels | Unset): Key-value pairs for resource labeling and filtering Example:
+            {'environment': 'production', 'region': 'us-east-1', 'team': 'platform'}.
+        updated_by (None | Unset | UUID): User who last updated the resource Example:
+            880e8400-e29b-41d4-a716-446655440000.
+        deleted_at (datetime.datetime | None | Unset): Timestamp when resource was soft deleted Example:
+            2025-10-09T14:00:00Z.
+        deleted_by (None | Unset | UUID): User who performed the soft delete Example:
+            660e8400-e29b-41d4-a716-446655440000.
+        description (None | str | Unset): Detailed description of the resource Example: Handles user authentication and
+            authorization workflows.
         enabled (bool | Unset): Whether the tool is enabled Default: True.
         status (ToolStatus | Unset): Status of a tool.
         last_executed_at (datetime.datetime | None | Unset): Timestamp of last execution

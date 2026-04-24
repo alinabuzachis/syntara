@@ -28,8 +28,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - Authorization
       requestBody:
@@ -70,8 +68,6 @@ paths:
       x-app-permission:
         resource: authz
         action: query
-        scope: any
-        default_roles: [admin]
       tags:
         - Authorization
       requestBody:
@@ -112,8 +108,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - Authorization
       responses:
@@ -152,8 +146,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - Authorization
       parameters:

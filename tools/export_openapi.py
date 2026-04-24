@@ -43,67 +43,16 @@ def _iter_route_deps(route: object) -> list[object]:
     return deps
 
 
-def _collect_permission_registry(
-    app: FastAPI,
-) -> tuple[dict[tuple[str, str], list[str]], dict[tuple[str, str], str]]:
-    """Collect roles and scope by (resource, action) from all PermissionChecker deps."""
-    from fastapi.routing import APIRoute
-
-    from nexus.authz.dependencies import PermissionChecker
-    from nexus.authz.role_conventions import BUILTIN_POLICIES
-
-    policy_roles: dict[tuple[str, str], list[str]] = {}
-    for p in BUILTIN_POLICIES:
-        key = (p.resource, p.action)
-        if key not in policy_roles:
-            policy_roles[key] = []
-        for role in p.roles:
-            if role not in policy_roles[key]:
-                policy_roles[key].append(role)
-
-    pc_roles: dict[tuple[str, str], list[str]] = {}
-    pc_scope: dict[tuple[str, str], str] = {}
-
-    for route in app.routes:
-        if not isinstance(route, APIRoute):
-            continue
-        for dep in _iter_route_deps(route):
-            inner = _get_dep_instance(dep)
-            if isinstance(inner, PermissionChecker) and (inner.resource_type, inner.action) not in pc_roles:
-                key = (inner.resource_type, inner.action)
-                pc_roles[key] = policy_roles.get(key, [])
-                is_project = bool(inner.project_param or inner.resource_model or inner.body_project_field)
-                pc_scope[key] = "project" if is_project else "any"
-
-    return pc_roles, pc_scope
-
-
-def _extract_route_permission(
-    route: object,
-    pc_roles: dict[tuple[str, str], list[str]],
-    pc_scope: dict[tuple[str, str], str],
-) -> dict[str, object] | None:
+def _extract_route_permission(route: object) -> dict[str, object] | None:
     """Extract x-app-permission dict from a route's dependencies, or None."""
     from nexus.authz.dependencies import PermissionChecker, ProjectScopeFilter
 
     for dep in _iter_route_deps(route):
         inner = _get_dep_instance(dep)
         if isinstance(inner, PermissionChecker):
-            key = (inner.resource_type, inner.action)
-            return {
-                "resource": inner.resource_type,
-                "action": inner.action,
-                "scope": pc_scope.get(key, "any"),
-                "default_roles": pc_roles.get(key, []),
-            }
+            return {"resource": inner.resource_type, "action": inner.action}
         if isinstance(inner, ProjectScopeFilter):
-            key = (inner.resource_type, inner.action)
-            return {
-                "resource": inner.resource_type,
-                "action": inner.action,
-                "scope": "project",
-                "default_roles": pc_roles.get(key, []),
-            }
+            return {"resource": inner.resource_type, "action": inner.action}
     return None
 
 
@@ -118,16 +67,14 @@ def _inject_permission_metadata(app: FastAPI, spec: dict) -> None:
     """
     from fastapi.routing import APIRoute
 
-    pc_roles, pc_scope = _collect_permission_registry(app)
-
     paths = spec.get("paths", {})
     for route in app.routes:
         if not isinstance(route, APIRoute):
             continue
 
-        permission = _extract_route_permission(route, pc_roles, pc_scope)
+        permission = _extract_route_permission(route)
         if permission is None:
-            permission = {"resource": None, "action": None, "scope": None, "default_roles": []}
+            permission = {"resource": None, "action": None}
 
         path = route.path
         if path not in paths:

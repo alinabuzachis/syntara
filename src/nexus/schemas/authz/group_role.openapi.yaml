@@ -27,8 +27,6 @@ paths:
       x-app-permission:
         resource: group-role
         action: assign
-        scope: any
-        default_roles: [admin]
       tags:
         - Group Role Assignments
       requestBody:
@@ -72,8 +70,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags:
         - Group Role Assignments
       responses:
@@ -112,8 +108,6 @@ paths:
       x-app-permission:
         resource: group-role
         action: revoke
-        scope: any
-        default_roles: [admin]
       tags:
         - Group Role Assignments
       parameters:

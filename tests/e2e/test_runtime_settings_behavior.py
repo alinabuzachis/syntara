@@ -74,7 +74,7 @@ def _run_workflow(
 
 
 def _patch_setting(client: Any, key: str, *, value: int | bool) -> dict[str, Any]:  # noqa: ANN401
-    resp = client.patch(f"/api/v1/settings/{key}", json={"value": value})
+    resp = client.patch(f"/settings/{key}", json={"value": value})
     assert resp.status_code == 200
     return resp.json()  # type: ignore[no-any-return]
 
@@ -92,7 +92,7 @@ def test_script_timeout_setting_affects_execution(
     """Changing script_timeout_seconds causes a slow script to time out."""
     client = nexus_client.get_httpx_client()
     key = "workflow_engine.script_timeout_seconds"
-    original = client.get(f"/api/v1/settings/{key}").json()
+    original = client.get(f"/settings/{key}").json()
 
     try:
         # Set timeout to 2 seconds
@@ -135,7 +135,7 @@ def test_max_loop_iterations_setting_affects_execution(
     """Changing max_loop_iterations limits how many times a while loop runs."""
     client = nexus_client.get_httpx_client()
     key = "workflow_engine.max_loop_iterations"
-    original = client.get(f"/api/v1/settings/{key}").json()
+    original = client.get(f"/settings/{key}").json()
 
     try:
         # Set max iterations to 3

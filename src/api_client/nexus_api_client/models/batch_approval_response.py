@@ -17,12 +17,10 @@ T = TypeVar("T", bound="BatchApprovalResponse")
 class BatchApprovalResponse:
     """Response for batch approval submission.
 
-    Matches the BatchApprovalResponse schema from the OpenAPI specification.
-
-        Attributes:
-            results (list[BatchApprovalResult]): Individual results for each decision
-            total_success (int): Number of successfully processed decisions
-            total_failed (int): Number of failed decisions
+    Attributes:
+        results (list[BatchApprovalResult]): Individual results for each decision
+        total_success (int): Number of successfully processed decisions
+        total_failed (int): Number of failed decisions
     """
 
     results: list[BatchApprovalResult]

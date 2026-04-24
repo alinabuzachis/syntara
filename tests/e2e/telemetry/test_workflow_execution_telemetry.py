@@ -88,9 +88,9 @@ def workflow_id(nexus_api: NexusApiRegistry) -> str:
         additional_params={"name": WORKFLOW_NAME},
     ).assert_and_get()
 
-    matched = [w for w in existing.resources if w["name"] == WORKFLOW_NAME]
+    matched = [w for w in existing.resources if w.name == WORKFLOW_NAME]
     if matched:
-        wf_id = str(matched[0]["id"])
+        wf_id = str(matched[0].id)
         try:
             nexus_api.workflows.update(
                 workflow_id=UUID(wf_id),

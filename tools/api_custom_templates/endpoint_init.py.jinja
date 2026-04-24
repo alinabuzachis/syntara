@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ...client import AuthenticatedClient, Client
+from ...client import AuthenticatedClient
 from ...types import Response
 
 {% for endpoint in endpoint_collection.endpoints %}
@@ -28,7 +28,7 @@ from . import {{ endpoint.name.replace('__', '_') }}
 class {{ class_name(endpoint_collection.tag) }}Api:
     """Registry for {{ endpoint_collection.tag }} API endpoints."""
 
-    def __init__(self, client: Client | AuthenticatedClient) -> None:
+    def __init__(self, client: AuthenticatedClient) -> None:
         self._client = client
 
 {% for endpoint in endpoint_collection.endpoints %}

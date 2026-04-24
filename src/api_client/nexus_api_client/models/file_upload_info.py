@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Any, TypeVar
+from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
+
+from ..models.file_status import FileStatus
 
 T = TypeVar("T", bound="FileUploadInfo")
 
@@ -18,22 +21,28 @@ class FileUploadInfo:
         exposing internal filesystem paths in API responses.
 
         Attributes:
-            file_id (str): Unique file identifier (UUID)
-            filename (str): Original filename
+            file_id (UUID): Unique file identifier (UUID)
+            filename (str): Original filename from upload
             size_bytes (int): File size in bytes
-            mime_type (str): Detected MIME type
-            status (str): Processing status (pending_conversion)
+            mime_type (str): Detected MIME type of the file
+            status (FileStatus): Status enum for file conversion lifecycle.
+
+                States:
+                    PENDING_CONVERSION: File uploaded, waiting for conversion
+                    CONVERTING: Conversion in progress
+                    CONVERTED: Successfully converted to text/markdown
+                    CONVERSION_FAILED: Conversion failed with error
     """
 
-    file_id: str
+    file_id: UUID
     filename: str
     size_bytes: int
     mime_type: str
-    status: str
+    status: FileStatus
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        file_id = self.file_id
+        file_id = str(self.file_id)
 
         filename = self.filename
 
@@ -41,7 +50,7 @@ class FileUploadInfo:
 
         mime_type = self.mime_type
 
-        status = self.status
+        status = self.status.value
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
@@ -60,7 +69,7 @@ class FileUploadInfo:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        file_id = d.pop("file_id")
+        file_id = UUID(d.pop("file_id"))
 
         filename = d.pop("filename")
 
@@ -68,7 +77,7 @@ class FileUploadInfo:
 
         mime_type = d.pop("mime_type")
 
-        status = d.pop("status")
+        status = FileStatus(d.pop("status"))
 
         file_upload_info = cls(
             file_id=file_id,

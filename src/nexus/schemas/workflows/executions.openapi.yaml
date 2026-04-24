@@ -21,8 +21,6 @@ paths:
       x-app-permission:
         resource: execution
         action: read
-        scope: project
-        default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       tags: [executions]
       parameters:
         - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/limitParam"
@@ -59,8 +57,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       tags: [executions]
       requestBody:
         content:
@@ -100,8 +96,6 @@ paths:
       x-app-permission:
         resource: execution
         action: read
-        scope: project
-        default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       tags: [executions]
       parameters:
         - in: path
@@ -153,8 +147,6 @@ paths:
       x-app-permission:
         resource: execution
         action: read
-        scope: project
-        default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       tags: [executions]
       parameters:
         - in: path
@@ -164,15 +156,16 @@ paths:
             format: uuid
             title: Execution Id
             type: string
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/limitParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/cursorParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/sortParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam"
       responses:
         '200':
           content:
             application/json:
               schema:
-                items:
-                  $ref: '#/components/schemas/ActivityExecution'
-                title: Response List Execution Activities
-                type: array
+                $ref: '#/components/schemas/ActivityExecutionListResponse'
           description: Successful Response
         '400':
           $ref: '../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
@@ -199,8 +192,6 @@ paths:
       x-app-permission:
         resource: execution
         action: run
-        scope: project
-        default_roles: [admin, user, project-admin, project-user]
       tags: [executions]
       parameters:
         - in: path
@@ -471,6 +462,27 @@ components:
 
     ActivityExecution:
       $ref: ./shared-schemas.yaml#/components/schemas/ActivityExecution
+
+    ActivityExecutionListResponse:
+      allOf:
+        - $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase"
+        - type: object
+          required:
+            - resources
+          properties:
+            resources:
+              type: array
+              items:
+                $ref: '#/components/schemas/ActivityExecution'
+              title: Resources
+              description: Array of resources in current page
+      title: ActivityExecutionListResponse
+      description: Paginated list response for activity executions.
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
 
     SignalResponse:
       type: object

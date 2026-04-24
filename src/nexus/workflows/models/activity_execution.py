@@ -154,4 +154,5 @@ class ActivityExecution(BaseResource, table=True):
     iteration: int | None = Field(None, description="Iteration number if activity is within a loop (0-indexed)")
 
 
-ActivityExecutionListResponse = ResourcesResponse[ActivityExecution]
+class ActivityExecutionListResponse(ResourcesResponse[ActivityExecution]):
+    """Paginated list response for activity executions."""

@@ -26,8 +26,8 @@ class WorkflowReadWithVersion:
     Used when retrieving a single workflow to include the active workflow definition.
 
         Attributes:
-            name (str): Workflow name
             id (UUID):
+            name (str): Workflow name
             current_version (int):
             is_enabled (bool):
             created_by (UUID):
@@ -39,12 +39,13 @@ class WorkflowReadWithVersion:
                 Note: deleted_at and deleted_by are None since soft-deleted versions are excluded from queries.
             description (None | str | Unset): Workflow description
             labels (WorkflowReadWithVersionLabels | Unset): Workflow labels
+            project_id (None | Unset | UUID):
             deleted_at (datetime.datetime | None | Unset):
             deleted_by (None | Unset | UUID):
     """
 
-    name: str
     id: UUID
+    name: str
     current_version: int
     is_enabled: bool
     created_by: UUID
@@ -53,14 +54,15 @@ class WorkflowReadWithVersion:
     version: WorkflowVersionRead
     description: None | str | Unset = UNSET
     labels: WorkflowReadWithVersionLabels | Unset = UNSET
+    project_id: None | Unset | UUID = UNSET
     deleted_at: datetime.datetime | None | Unset = UNSET
     deleted_by: None | Unset | UUID = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        name = self.name
-
         id = str(self.id)
+
+        name = self.name
 
         current_version = self.current_version
 
@@ -84,6 +86,14 @@ class WorkflowReadWithVersion:
         if not isinstance(self.labels, Unset):
             labels = self.labels.to_dict()
 
+        project_id: None | str | Unset
+        if isinstance(self.project_id, Unset):
+            project_id = UNSET
+        elif isinstance(self.project_id, UUID):
+            project_id = str(self.project_id)
+        else:
+            project_id = self.project_id
+
         deleted_at: None | str | Unset
         if isinstance(self.deleted_at, Unset):
             deleted_at = UNSET
@@ -104,8 +114,8 @@ class WorkflowReadWithVersion:
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "name": name,
                 "id": id,
+                "name": name,
                 "current_version": current_version,
                 "is_enabled": is_enabled,
                 "created_by": created_by,
@@ -118,6 +128,8 @@ class WorkflowReadWithVersion:
             field_dict["description"] = description
         if labels is not UNSET:
             field_dict["labels"] = labels
+        if project_id is not UNSET:
+            field_dict["project_id"] = project_id
         if deleted_at is not UNSET:
             field_dict["deleted_at"] = deleted_at
         if deleted_by is not UNSET:
@@ -131,9 +143,9 @@ class WorkflowReadWithVersion:
         from ..models.workflow_version_read import WorkflowVersionRead
 
         d = dict(src_dict)
-        name = d.pop("name")
-
         id = UUID(d.pop("id"))
+
+        name = d.pop("name")
 
         current_version = d.pop("current_version")
 
@@ -162,6 +174,23 @@ class WorkflowReadWithVersion:
             labels = UNSET
         else:
             labels = WorkflowReadWithVersionLabels.from_dict(_labels)
+
+        def _parse_project_id(data: object) -> None | Unset | UUID:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                project_id_type_0 = UUID(data)
+
+                return project_id_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(None | Unset | UUID, data)
+
+        project_id = _parse_project_id(d.pop("project_id", UNSET))
 
         def _parse_deleted_at(data: object) -> datetime.datetime | None | Unset:
             if data is None:
@@ -198,8 +227,8 @@ class WorkflowReadWithVersion:
         deleted_by = _parse_deleted_by(d.pop("deleted_by", UNSET))
 
         workflow_read_with_version = cls(
-            name=name,
             id=id,
+            name=name,
             current_version=current_version,
             is_enabled=is_enabled,
             created_by=created_by,
@@ -208,6 +237,7 @@ class WorkflowReadWithVersion:
             version=version,
             description=description,
             labels=labels,
+            project_id=project_id,
             deleted_at=deleted_at,
             deleted_by=deleted_by,
         )

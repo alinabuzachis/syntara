@@ -39,10 +39,11 @@ class ToolParameter:
             type_ (ToolParameterType): Parameter types for tools.
             description (str): Parameter description
             required (bool): Whether this parameter is required
-            id (UUID | Unset): Unique identifier for the resource
-            created_at (datetime.datetime | Unset): Timestamp when resource was created
-            updated_at (datetime.datetime | Unset): Timestamp when resource was last updated
-            labels (ToolParameterLabels | Unset): Key-value pairs for resource labeling and filtering
+            id (UUID | Unset): Unique identifier for the resource Example: 550e8400-e29b-41d4-a716-446655440000.
+            created_at (datetime.datetime | Unset): Timestamp when resource was created Example: 2025-10-09T12:00:00Z.
+            updated_at (datetime.datetime | Unset): Timestamp when resource was last updated Example: 2025-10-09T12:30:00Z.
+            labels (ToolParameterLabels | Unset): Key-value pairs for resource labeling and filtering Example:
+                {'environment': 'production', 'region': 'us-east-1', 'team': 'platform'}.
             default_value (None | ToolParameterDefaultValueType0 | Unset): Default value for the parameter
             example_value (None | ToolParameterExampleValueType0 | Unset): Example value for the parameter
     """

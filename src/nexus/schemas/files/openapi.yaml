@@ -49,8 +49,6 @@ paths:
       x-app-permission:
         resource: null
         action: null
-        scope: null
-        default_roles: []
       requestBody:
         required: true
         content:

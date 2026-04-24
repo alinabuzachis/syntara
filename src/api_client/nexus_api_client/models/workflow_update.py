@@ -25,16 +25,16 @@ class WorkflowUpdate:
         Attributes:
             name (None | str | Unset): Update workflow name
             description (None | str | Unset): Update workflow description
-            labels (None | Unset | WorkflowUpdateLabelsType0): Update workflow labels
             is_enabled (bool | None | Unset): Enable/disable workflow
+            labels (None | Unset | WorkflowUpdateLabelsType0): Update workflow labels
             workflow_definition (Any | None | Unset): New workflow definition (auto-creates version)
             change_description (None | str | Unset): Description of changes for version history
     """
 
     name: None | str | Unset = UNSET
     description: None | str | Unset = UNSET
-    labels: None | Unset | WorkflowUpdateLabelsType0 = UNSET
     is_enabled: bool | None | Unset = UNSET
+    labels: None | Unset | WorkflowUpdateLabelsType0 = UNSET
     workflow_definition: Any | None | Unset = UNSET
     change_description: None | str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
@@ -54,6 +54,12 @@ class WorkflowUpdate:
         else:
             description = self.description
 
+        is_enabled: bool | None | Unset
+        if isinstance(self.is_enabled, Unset):
+            is_enabled = UNSET
+        else:
+            is_enabled = self.is_enabled
+
         labels: dict[str, Any] | None | Unset
         if isinstance(self.labels, Unset):
             labels = UNSET
@@ -61,12 +67,6 @@ class WorkflowUpdate:
             labels = self.labels.to_dict()
         else:
             labels = self.labels
-
-        is_enabled: bool | None | Unset
-        if isinstance(self.is_enabled, Unset):
-            is_enabled = UNSET
-        else:
-            is_enabled = self.is_enabled
 
         workflow_definition: Any | None | Unset
         if isinstance(self.workflow_definition, Unset):
@@ -87,10 +87,10 @@ class WorkflowUpdate:
             field_dict["name"] = name
         if description is not UNSET:
             field_dict["description"] = description
-        if labels is not UNSET:
-            field_dict["labels"] = labels
         if is_enabled is not UNSET:
             field_dict["is_enabled"] = is_enabled
+        if labels is not UNSET:
+            field_dict["labels"] = labels
         if workflow_definition is not UNSET:
             field_dict["workflow_definition"] = workflow_definition
         if change_description is not UNSET:
@@ -122,6 +122,15 @@ class WorkflowUpdate:
 
         description = _parse_description(d.pop("description", UNSET))
 
+        def _parse_is_enabled(data: object) -> bool | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(bool | None | Unset, data)
+
+        is_enabled = _parse_is_enabled(d.pop("is_enabled", UNSET))
+
         def _parse_labels(data: object) -> None | Unset | WorkflowUpdateLabelsType0:
             if data is None:
                 return data
@@ -138,15 +147,6 @@ class WorkflowUpdate:
             return cast(None | Unset | WorkflowUpdateLabelsType0, data)
 
         labels = _parse_labels(d.pop("labels", UNSET))
-
-        def _parse_is_enabled(data: object) -> bool | None | Unset:
-            if data is None:
-                return data
-            if isinstance(data, Unset):
-                return data
-            return cast(bool | None | Unset, data)
-
-        is_enabled = _parse_is_enabled(d.pop("is_enabled", UNSET))
 
         def _parse_workflow_definition(data: object) -> Any | None | Unset:
             if data is None:
@@ -169,8 +169,8 @@ class WorkflowUpdate:
         workflow_update = cls(
             name=name,
             description=description,
-            labels=labels,
             is_enabled=is_enabled,
+            labels=labels,
             workflow_definition=workflow_definition,
             change_description=change_description,
         )

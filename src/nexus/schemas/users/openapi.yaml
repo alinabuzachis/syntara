@@ -33,8 +33,6 @@ paths:
       x-app-permission:
         resource: user
         action: read
-        scope: any
-        default_roles: [admin, user, default, auditor]
       tags:
         - Users
       parameters:
@@ -73,8 +71,6 @@ paths:
       x-app-permission:
         resource: user
         action: create
-        scope: any
-        default_roles: [admin]
       tags:
         - Users
       requestBody:
@@ -115,8 +111,6 @@ paths:
       x-app-permission:
         resource: user
         action: read
-        scope: any
-        default_roles: [admin, user, default, auditor]
       tags:
         - Users
       parameters:
@@ -161,8 +155,6 @@ paths:
       x-app-permission:
         resource: user
         action: update
-        scope: any
-        default_roles: [admin, user, default]
       tags:
         - Users
       parameters:
@@ -210,8 +202,6 @@ paths:
       x-app-permission:
         resource: user
         action: delete
-        scope: any
-        default_roles: [admin]
       tags:
         - Users
       parameters:
@@ -250,8 +240,6 @@ paths:
       x-app-permission:
         resource: user
         action: read
-        scope: any
-        default_roles: [admin, user, default, auditor]
       tags:
         - Users
       parameters:
@@ -301,8 +289,6 @@ paths:
       x-app-permission:
         resource: user
         action: update
-        scope: any
-        default_roles: [admin, user, default]
       tags:
         - Users
       parameters:
@@ -352,8 +338,6 @@ paths:
       x-app-permission:
         resource: group
         action: read
-        scope: any
-        default_roles: [admin, auditor, user, default]
       tags:
         - Groups
       parameters:
@@ -392,8 +376,6 @@ paths:
       x-app-permission:
         resource: group
         action: create
-        scope: any
-        default_roles: [admin]
       tags:
         - Groups
       requestBody:
@@ -434,8 +416,6 @@ paths:
       x-app-permission:
         resource: group
         action: read
-        scope: any
-        default_roles: [admin, auditor, user, default]
       tags:
         - Groups
       parameters:
@@ -478,8 +458,6 @@ paths:
       x-app-permission:
         resource: group
         action: update
-        scope: any
-        default_roles: [admin]
       tags:
         - Groups
       parameters:
@@ -528,8 +506,6 @@ paths:
       x-app-permission:
         resource: group
         action: delete
-        scope: any
-        default_roles: [admin]
       tags:
         - Groups
       parameters:
@@ -569,8 +545,6 @@ paths:
       x-app-permission:
         resource: group
         action: read
-        scope: any
-        default_roles: [admin, auditor, user, default]
       tags:
         - Groups
       parameters:
@@ -617,8 +591,6 @@ paths:
       x-app-permission:
         resource: group
         action: manage-members
-        scope: any
-        default_roles: [admin]
       tags:
         - Groups
       parameters:
@@ -668,8 +640,6 @@ paths:
       x-app-permission:
         resource: group
         action: manage-members
-        scope: any
-        default_roles: [admin]
       tags:
         - Groups
       parameters:

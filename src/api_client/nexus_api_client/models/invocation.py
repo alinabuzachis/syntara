@@ -46,22 +46,25 @@ class Invocation:
         checkpoint_data: Checkpoint data for pause/resume
 
         Attributes:
-            created_by (UUID): User who created the resource
+            created_by (UUID): User who created the resource Example: 770e8400-e29b-41d4-a716-446655440000.
             prompt (str): Natural language user request
             session_id (str): Session identifier for multi-tenant isolation
-            id (UUID | Unset): Unique identifier for the resource
-            created_at (datetime.datetime | Unset): Timestamp when resource was created
-            updated_at (datetime.datetime | Unset): Timestamp when resource was last updated
-            labels (InvocationLabels | Unset): Key-value pairs for resource labeling and filtering
-            updated_by (None | Unset | UUID): User who last updated the resource
+            id (UUID | Unset): Unique identifier for the resource Example: 550e8400-e29b-41d4-a716-446655440000.
+            created_at (datetime.datetime | Unset): Timestamp when resource was created Example: 2025-10-09T12:00:00Z.
+            updated_at (datetime.datetime | Unset): Timestamp when resource was last updated Example: 2025-10-09T12:30:00Z.
+            labels (InvocationLabels | Unset): Key-value pairs for resource labeling and filtering Example: {'environment':
+                'production', 'region': 'us-east-1', 'team': 'platform'}.
+            updated_by (None | Unset | UUID): User who last updated the resource Example:
+                880e8400-e29b-41d4-a716-446655440000.
             status (InvocationStatus | Unset): Status enum for invocation lifecycle.
+            model_name (None | str | Unset): LLM model name used for the invocation
             started_at (datetime.datetime | None | Unset): Timestamp when workflow execution started
             completed_at (datetime.datetime | None | Unset): Timestamp when workflow completed
             context_data (InvocationContextData | Unset): Additional context for the request, including file_ids array if
                 files uploaded
             result (InvocationResultType0 | None | Unset): Workflow result data
-            checkpoint_data (InvocationCheckpointDataType0 | None | Unset): Checkpoint data for pause/resume
             error_message (None | str | Unset): Error message if invocation failed
+            checkpoint_data (InvocationCheckpointDataType0 | None | Unset): Checkpoint data for pause/resume
     """
 
     created_by: UUID
@@ -73,12 +76,13 @@ class Invocation:
     labels: InvocationLabels | Unset = UNSET
     updated_by: None | Unset | UUID = UNSET
     status: InvocationStatus | Unset = UNSET
+    model_name: None | str | Unset = UNSET
     started_at: datetime.datetime | None | Unset = UNSET
     completed_at: datetime.datetime | None | Unset = UNSET
     context_data: InvocationContextData | Unset = UNSET
     result: InvocationResultType0 | None | Unset = UNSET
-    checkpoint_data: InvocationCheckpointDataType0 | None | Unset = UNSET
     error_message: None | str | Unset = UNSET
+    checkpoint_data: InvocationCheckpointDataType0 | None | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
         from ..models.invocation_checkpoint_data_type_0 import InvocationCheckpointDataType0
@@ -118,6 +122,12 @@ class Invocation:
         if not isinstance(self.status, Unset):
             status = self.status.value
 
+        model_name: None | str | Unset
+        if isinstance(self.model_name, Unset):
+            model_name = UNSET
+        else:
+            model_name = self.model_name
+
         started_at: None | str | Unset
         if isinstance(self.started_at, Unset):
             started_at = UNSET
@@ -146,6 +156,12 @@ class Invocation:
         else:
             result = self.result
 
+        error_message: None | str | Unset
+        if isinstance(self.error_message, Unset):
+            error_message = UNSET
+        else:
+            error_message = self.error_message
+
         checkpoint_data: dict[str, Any] | None | Unset
         if isinstance(self.checkpoint_data, Unset):
             checkpoint_data = UNSET
@@ -153,12 +169,6 @@ class Invocation:
             checkpoint_data = self.checkpoint_data.to_dict()
         else:
             checkpoint_data = self.checkpoint_data
-
-        error_message: None | str | Unset
-        if isinstance(self.error_message, Unset):
-            error_message = UNSET
-        else:
-            error_message = self.error_message
 
         field_dict: dict[str, Any] = {}
 
@@ -181,6 +191,8 @@ class Invocation:
             field_dict["updated_by"] = updated_by
         if status is not UNSET:
             field_dict["status"] = status
+        if model_name is not UNSET:
+            field_dict["model_name"] = model_name
         if started_at is not UNSET:
             field_dict["started_at"] = started_at
         if completed_at is not UNSET:
@@ -189,10 +201,10 @@ class Invocation:
             field_dict["context_data"] = context_data
         if result is not UNSET:
             field_dict["result"] = result
-        if checkpoint_data is not UNSET:
-            field_dict["checkpoint_data"] = checkpoint_data
         if error_message is not UNSET:
             field_dict["error_message"] = error_message
+        if checkpoint_data is not UNSET:
+            field_dict["checkpoint_data"] = checkpoint_data
 
         return field_dict
 
@@ -262,6 +274,15 @@ class Invocation:
         else:
             status = InvocationStatus(_status)
 
+        def _parse_model_name(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        model_name = _parse_model_name(d.pop("model_name", UNSET))
+
         def _parse_started_at(data: object) -> datetime.datetime | None | Unset:
             if data is None:
                 return data
@@ -320,6 +341,15 @@ class Invocation:
 
         result = _parse_result(d.pop("result", UNSET))
 
+        def _parse_error_message(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        error_message = _parse_error_message(d.pop("error_message", UNSET))
+
         def _parse_checkpoint_data(data: object) -> InvocationCheckpointDataType0 | None | Unset:
             if data is None:
                 return data
@@ -337,15 +367,6 @@ class Invocation:
 
         checkpoint_data = _parse_checkpoint_data(d.pop("checkpoint_data", UNSET))
 
-        def _parse_error_message(data: object) -> None | str | Unset:
-            if data is None:
-                return data
-            if isinstance(data, Unset):
-                return data
-            return cast(None | str | Unset, data)
-
-        error_message = _parse_error_message(d.pop("error_message", UNSET))
-
         invocation = cls(
             created_by=created_by,
             prompt=prompt,
@@ -356,12 +377,13 @@ class Invocation:
             labels=labels,
             updated_by=updated_by,
             status=status,
+            model_name=model_name,
             started_at=started_at,
             completed_at=completed_at,
             context_data=context_data,
             result=result,
-            checkpoint_data=checkpoint_data,
             error_message=error_message,
+            checkpoint_data=checkpoint_data,
         )
 
         return invocation
