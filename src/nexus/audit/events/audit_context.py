@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass, field
 from typing import Any
-from uuid import UUID
 
 from nexus.audit.handler import AuditEventHandler
 from nexus.audit.models.audit_event import (
@@ -13,6 +12,7 @@ from nexus.audit.models.audit_event import (
     EventStatus,
 )
 from nexus.audit.models.structured_data import AuditContextData
+from nexus.core.models.user import User
 
 # ---------------------------------------------------------------------------
 # Domain event
@@ -30,8 +30,7 @@ class AuditContextEvent:
     event_category: EventCategory
     event_action: str
     source_component: str
-    actor_id: UUID | None
-    actor_type: ActorType
+    actor: User | None
     event_severity: EventSeverity
     error_type: str | None = field(default=None)
     error_message: str | None = field(default=None)
@@ -56,6 +55,12 @@ class AuditContextHandler(AuditEventHandler[AuditContextEvent]):
             A normalized AuditEvent for persistence and querying.
 
         """
+        # Extract actor fields from User object
+        # None actor -> SYSTEM, otherwise USER
+        actor_id = event.actor.id if event.actor is not None else None
+        actor_type = ActorType.USER if event.actor is not None else ActorType.SYSTEM
+        actor_username = event.actor.username if event.actor is not None else None
+
         # Determine if this is an error based on presence of error_type
         is_error = event.error_type is not None
 
@@ -75,8 +80,9 @@ class AuditContextHandler(AuditEventHandler[AuditContextEvent]):
                 event_message=f"Operation {event.event_action} failed with {event.error_type}",
                 source_component=event.source_component,
                 structured_data=structured_data,
-                actor_id=event.actor_id,
-                actor_type=event.actor_type,
+                actor_id=actor_id,
+                actor_type=actor_type,
+                actor_username=actor_username,
             )
 
         # Success path
@@ -89,6 +95,7 @@ class AuditContextHandler(AuditEventHandler[AuditContextEvent]):
             event_message=f"Operation {event.event_action} completed successfully",
             source_component=event.source_component,
             structured_data=structured_data,
-            actor_id=event.actor_id,
-            actor_type=event.actor_type,
+            actor_id=actor_id,
+            actor_type=actor_type,
+            actor_username=actor_username,
         )

@@ -125,14 +125,14 @@ class AuditMiddleware:
         """Extract user information from the ASGI scope if available.
 
         Looks for user information in scope["user"] set by authentication middleware.
-        Extracts id, role, and actor type for logging purposes.
+        Extracts id, username, role, and actor type for logging purposes.
 
         Args:
             scope: ASGI connection scope.
 
         Returns:
-            Dictionary with actor_type=USER and optionally user_id and user_role
-            if the user is authenticated.
+            Dictionary with actor_type=USER and optionally user_id, actor_name,
+            and user_role if the user is authenticated.
 
         """
         user = scope.get("user")
@@ -145,6 +145,10 @@ class AuditMiddleware:
         # Extract user ID (convert UUID to string for logging)
         if hasattr(user, "id") and user.id is not None:
             user_context["user_id"] = str(user.id)
+
+        # Extract username
+        if hasattr(user, "username") and user.username is not None:
+            user_context["actor_username"] = str(user.username)
 
         # Extract role (convert enum to string value)
         if hasattr(user, "role") and user.role is not None:
@@ -314,6 +318,7 @@ class AuditMiddleware:
 
             actor_id = UUID(user_context["user_id"]) if "user_id" in user_context else None
             actor_type = user_context.get("actor_type", ActorType.SYSTEM)
+            actor_username = user_context.get("actor_username")
 
             # Build and dispatch the domain event
             query_params = self._parse_query_params(scope.get("query_string", b""))
@@ -329,6 +334,7 @@ class AuditMiddleware:
                 status_code=status_code,
                 actor_id=actor_id,
                 actor_type=actor_type,
+                actor_username=actor_username,
                 source_component=self._resolve_source_component(scope),
                 query_params=query_params or None,
                 user_role=user_context.get("user_role"),

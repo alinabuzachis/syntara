@@ -28,6 +28,7 @@ class AuditEventRead(BaseResource):
     event_action: str = Field(description="Specific action that occurred")
     actor_id: UUID | None = Field(default=None, description="User, system, or service that performed the action")
     actor_type: ActorType | None = Field(default=None, description="Type of actor (user|system|service)")
+    actor_username: str | None = Field(default=None, description="Username of the actor")
     source_component: str = Field(description="Component that generated the event")
     workflow_id: UUID | None = Field(default=None, description="Workflow identifier for workflow-scoped events")
     activity_id: str | None = Field(default=None, description="Activity identifier for activity-level events")
@@ -68,6 +69,10 @@ class AuditEventListParams(BaseListParams):
     actor_type: ActorType | None = Field(
         default=None,
         description="Filter by actor type",
+    )
+    actor_username: str | None = Field(
+        default=None,
+        description="Filter by actor username",
     )
     source_component: str | None = Field(
         default=None,

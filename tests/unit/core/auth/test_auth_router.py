@@ -785,6 +785,7 @@ class TestLoginAuditEvents:
             assert events[0].event_action == "session_created"
             assert events[0].event_category == EventCategory.USER_ACTION
             assert events[0].event_status == EventStatus.SUCCESS
+            assert events[0].actor_username == "testuser"
             assert isinstance(events[0].structured_data, AuditContextData)
             assert events[0].structured_data.lifecycle_action == "create"  # type: ignore[attr-defined]
             assert events[0].structured_data.jti == "jti-123"  # type: ignore[attr-defined]
@@ -795,7 +796,7 @@ class TestLoginAuditEvents:
             assert events[1].event_status == EventStatus.SUCCESS
             assert isinstance(events[1].structured_data, AuditContextData)
             assert events[1].structured_data.method == "password"  # type: ignore[attr-defined]
-            assert events[1].structured_data.username == "testuser"  # type: ignore[attr-defined]
+            assert events[1].actor_username == "testuser"
             assert events[1].actor_id == user.id
 
             # Event 3: @track_event "login"
@@ -1120,6 +1121,7 @@ class TestOIDCAuditEvents:
                 EventStatus.SUCCESS,
                 user.id,
             )
+            assert e0.actor_username == "testuser"
             assert isinstance(e0.structured_data, AuditContextData)
             assert e0.structured_data.provider_id == str(provider.id)  # type: ignore[attr-defined]
             assert e0.structured_data.stage == "callback"  # type: ignore[attr-defined]
@@ -1150,7 +1152,7 @@ class TestOIDCAuditEvents:
             assert isinstance(e2.structured_data, AuditContextData)
             assert (
                 e2.structured_data.method,  # type: ignore[attr-defined]
-                e2.structured_data.username,  # type: ignore[attr-defined]
+                e2.actor_username,
             ) == ("oidc", "testuser")
 
             # Event 4: @track_event "oidc_callback" (SECURITY_EVENT, SUCCESS)

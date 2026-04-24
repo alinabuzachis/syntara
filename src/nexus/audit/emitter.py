@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from nexus.audit.models.audit_event import ActorType, AuditEvent
+    from nexus.core.models.user import User
 
 audit_logger = structlog.stdlib.get_logger("nexus.audit")
 
@@ -23,7 +24,7 @@ audit_logger = structlog.stdlib.get_logger("nexus.audit")
 logger = structlog.stdlib.get_logger(__name__)
 
 # Context variables for async-safe actor context management
-actor_id_context_var: ContextVar[UUID | None] = ContextVar("actor_id", default=None)
+actor_context_var: ContextVar[User | None] = ContextVar("actor", default=None)
 actor_type_context_var: ContextVar[ActorType | None] = ContextVar("actor_type", default=None)
 workflow_id_context_var: ContextVar[UUID | None] = ContextVar("workflow_id", default=None)
 activity_id_context_var: ContextVar[str | None] = ContextVar("activity_id", default=None)
@@ -64,7 +65,7 @@ _sanitizer = EventSanitizer(
 def _get_current_actor_context() -> dict[str, Any]:
     """Get current actor context for event population."""
     return {
-        "actor_id": actor_id_context_var.get(),
+        "actor": actor_context_var.get(),
         "actor_type": actor_type_context_var.get(),
         "workflow_id": workflow_id_context_var.get(),
         "activity_id": activity_id_context_var.get(),
@@ -84,8 +85,10 @@ def emit_audit_event(event: AuditEvent) -> None:
     try:
         # Inject current context if not already set
         context = _get_current_actor_context()
-        if event.actor_id is None and context["actor_id"]:
-            event.actor_id = context["actor_id"]
+        if event.actor_id is None and context["actor"]:
+            event.actor_id = context["actor"].id
+        if event.actor_username is None and context["actor"]:
+            event.actor_username = context["actor"].username
         if event.actor_type is None and context["actor_type"]:
             event.actor_type = context["actor_type"]
         if event.workflow_id is None and context["workflow_id"]:

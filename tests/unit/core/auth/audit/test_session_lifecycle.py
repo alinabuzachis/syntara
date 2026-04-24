@@ -16,11 +16,12 @@ class TestSessionLifecycleEvent:
     """Tests for SessionLifecycleEvent dataclass."""
 
     def test_minimal_construction_defaults(self) -> None:
-        """SessionLifecycleEvent can be constructed with action + user_id; error_type defaults to None."""
+        """SessionLifecycleEvent can be constructed with action + user_id; optional fields default to None."""
         uid = uuid4()
         event = SessionLifecycleEvent(action=SessionAction.CREATE, user_id=uid)
         assert event.action == SessionAction.CREATE
         assert event.user_id == uid
+        assert event.username is None
         assert event.jti is None
         assert event.idp is None
         assert event.error_type is None
@@ -45,7 +46,7 @@ class TestSessionLifecycleHandler:
     def test_successful_create(self) -> None:
         """Successful create → USER_ACTION / INFO / SUCCESS / 'session_created' / USER actor."""
         uid = uuid4()
-        event = SessionLifecycleEvent(action=SessionAction.CREATE, user_id=uid)
+        event = SessionLifecycleEvent(action=SessionAction.CREATE, user_id=uid, username="testuser")
         handler = SessionLifecycleHandler()
         result = handler.handle(event)
 
@@ -55,32 +56,37 @@ class TestSessionLifecycleHandler:
         assert result.event_action == "session_created"
         assert result.actor_type == ActorType.USER
         assert result.actor_id == uid
+        assert result.actor_username == "testuser"
         assert result.source_component == "nexus.auth.session"
 
     def test_successful_revoke(self) -> None:
         """Successful revoke → action='session_revoked'."""
         uid = uuid4()
-        event = SessionLifecycleEvent(action=SessionAction.REVOKE, user_id=uid)
+        event = SessionLifecycleEvent(action=SessionAction.REVOKE, user_id=uid, username="revokeuser")
         handler = SessionLifecycleHandler()
         result = handler.handle(event)
 
         assert result.event_action == "session_revoked"
         assert result.event_status == EventStatus.SUCCESS
+        assert result.actor_username == "revokeuser"
 
     def test_successful_refresh(self) -> None:
         """Successful refresh → action='session_refreshed'."""
         uid = uuid4()
-        event = SessionLifecycleEvent(action=SessionAction.REFRESH, user_id=uid)
+        event = SessionLifecycleEvent(action=SessionAction.REFRESH, user_id=uid, username="refreshuser")
         handler = SessionLifecycleHandler()
         result = handler.handle(event)
 
         assert result.event_action == "session_refreshed"
         assert result.event_status == EventStatus.SUCCESS
+        assert result.actor_username == "refreshuser"
 
     def test_error_event(self) -> None:
         """Error event (error_type set) → SECURITY_EVENT / ERROR / ERROR / 'session_created'."""
         uid = uuid4()
-        event = SessionLifecycleEvent(action=SessionAction.CREATE, user_id=uid, error_type="RedisConnectionError")
+        event = SessionLifecycleEvent(
+            action=SessionAction.CREATE, user_id=uid, username="erroruser", error_type="RedisConnectionError"
+        )
         handler = SessionLifecycleHandler()
         result = handler.handle(event)
 
@@ -90,6 +96,7 @@ class TestSessionLifecycleHandler:
         assert result.event_action == "session_created"
         assert result.actor_type == ActorType.USER
         assert result.actor_id == uid
+        assert result.actor_username == "erroruser"
         assert isinstance(result.structured_data, AuditContextData)
         assert result.structured_data.data_type == "session-lifecycle-context"
         assert result.structured_data.error_message == "Look at the Operational Logs for full diagnosis"

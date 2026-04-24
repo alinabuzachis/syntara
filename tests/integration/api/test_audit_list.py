@@ -76,13 +76,16 @@ async def test_list_audit_events_empty(auth_client_as_admin: AsyncClient) -> Non
 async def test_list_audit_events_response_schema(
     auth_client_as_admin: AsyncClient,
     audit_events_factory: AuditEventsFactory,
+    test_user: User,
 ) -> None:
     """Test response contains expected pagination and resource fields."""
     await audit_events_factory.create_event(
         event_category="security_event",
         event_severity="warning",
         event_action="login_failed",
+        actor_id=test_user.id,
         actor_type="user",
+        actor_username=test_user.username,
         source_component="auth_service",
         event_message="Invalid credentials",
     )
@@ -102,7 +105,9 @@ async def test_list_audit_events_response_schema(
         "event_category",
         "event_severity",
         "event_action",
+        "actor_id",
         "actor_type",
+        "actor_username",
         "source_component",
         "event_message",
     ):
@@ -110,7 +115,9 @@ async def test_list_audit_events_response_schema(
     assert event["event_category"] == "security_event"
     assert event["event_severity"] == "warning"
     assert event["event_action"] == "login_failed"
+    assert event["actor_id"] == str(test_user.id)
     assert event["actor_type"] == "user"
+    assert event["actor_username"] == test_user.username
     assert event["source_component"] == "auth_service"
     assert event["event_message"] == "Invalid credentials"
 

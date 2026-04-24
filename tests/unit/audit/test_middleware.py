@@ -333,6 +333,7 @@ class TestAuditMiddlewareUserContext:
         assert len(events) == 1
         assert events[0].actor_id == user_id
         assert events[0].actor_type == "user"
+        assert events[0].actor_username == "testuser"
         assert isinstance(events[0].structured_data, AuditContextData)
         assert events[0].structured_data.user_role == "creator"
 
@@ -350,6 +351,7 @@ class TestAuditMiddlewareUserContext:
         assert len(events) == 1
         assert events[0].actor_id is None
         assert events[0].actor_type == "user"
+        assert events[0].actor_username is None
         assert isinstance(events[0].structured_data, AuditContextData)
         assert events[0].structured_data.user_role is None
 
@@ -370,6 +372,7 @@ class TestAuditMiddlewareUserContext:
         assert len(events) == 1
         assert events[0].actor_id is None
         assert events[0].actor_type == "user"
+        assert events[0].actor_username == "partialuser"
         assert isinstance(events[0].structured_data, AuditContextData)
         assert events[0].structured_data.user_role is None
 
@@ -607,7 +610,7 @@ class TestAuditMiddlewareResponse:
         middleware = AuditMiddleware(app)
 
         user_id = uuid4()
-        user = _MockUser(user_id=user_id, role="creator")
+        user = _MockUser(user_id=user_id, username="testuser", role="creator")
         scope = _make_scope(user=user)
 
         with patch(_EMIT_PATCH) as mock_emit:
@@ -616,6 +619,7 @@ class TestAuditMiddlewareResponse:
         events = _get_audit_events(mock_emit, "request_completed")
         assert events[0].actor_id == user_id
         assert events[0].actor_type == "user"
+        assert events[0].actor_username == "testuser"
 
     @pytest.mark.asyncio
     async def test_exception_preserves_actor_context(self) -> None:
@@ -627,7 +631,7 @@ class TestAuditMiddlewareResponse:
 
         middleware = AuditMiddleware(failing_app)
         user_id = uuid4()
-        user = _MockUser(user_id=user_id, role="creator")
+        user = _MockUser(user_id=user_id, username="testuser", role="creator")
         scope = _make_scope(user=user)
 
         with patch(_EMIT_PATCH) as mock_emit, pytest.raises(RuntimeError, match="boom"):
@@ -636,6 +640,7 @@ class TestAuditMiddlewareResponse:
         events = _get_audit_events(mock_emit, "request_completed")
         assert events[0].actor_id == user_id
         assert events[0].actor_type == "user"
+        assert events[0].actor_username == "testuser"
 
 
 # =============================================================================

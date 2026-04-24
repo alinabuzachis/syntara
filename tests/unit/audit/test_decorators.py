@@ -3,17 +3,17 @@
 # mypy: disable-error-code="attr-defined"
 
 from typing import Any
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 from uuid import UUID, uuid4
 
 import pytest
 
-from nexus.audit.actor_extractor import ActorContext
 from nexus.audit.decorators import track_event
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.events.function_execution import FunctionExecutionEvent, FunctionExecutionHandler
 from nexus.audit.models.audit_event import ActorType, AuditEvent, EventCategory, EventSeverity, EventStatus
 from nexus.audit.models.structured_data import AuditContextData
+from nexus.core.models.user import User
 
 
 @pytest.fixture(autouse=True)
@@ -33,6 +33,7 @@ def _assert_audit_event_fields(
     expected_message: str,
     expected_actor_id: UUID | None = None,
     expected_actor_type: ActorType = ActorType.SYSTEM,
+    expected_actor_name: str | None = None,
     expected_status: EventStatus | None = EventStatus.SUCCESS,
     expected_workflow_id: UUID | None = None,
     expected_activity_id: str | None = None,
@@ -50,6 +51,7 @@ def _assert_audit_event_fields(
     # Actor and source information
     assert event_obj.actor_id == expected_actor_id
     assert event_obj.actor_type == expected_actor_type
+    assert event_obj.actor_username == expected_actor_name
     assert event_obj.source_component == expected_source
 
     # Context tracking
@@ -201,16 +203,15 @@ class TestTrackEventDecorator:
             assert function_data.function_args["value"] == "test"
             assert function_data.function_result == {"result": "test"}
 
-    def test_track_event_actor_extraction_from_parameter(self) -> None:
+    def test_track_event_actor_extraction_from_parameter(self, test_user: User) -> None:
         """Test actor extraction from function parameters."""
-        user_id = uuid4()
 
         @track_event(EventCategory.USER_ACTION)
-        def test_function(user_id: UUID) -> str:
+        def test_function(user: User) -> str:
             return "success"
 
         with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
-            test_function(user_id)
+            test_function(test_user)
 
             # Verify all AuditEvent fields are correctly populated
             event_obj = mock_emit.call_args[0][0]
@@ -221,20 +222,20 @@ class TestTrackEventDecorator:
                 "test_function",
                 "tests.unit.audit.test_decorators",
                 "Function test_function executed successfully",
-                expected_actor_id=user_id,
+                expected_actor_id=test_user.id,
+                expected_actor_name=test_user.username,
                 expected_actor_type=ActorType.USER,
             )
 
-    def test_track_event_actor_param_specification(self) -> None:
+    def test_track_event_actor_param_specification(self, test_user: User) -> None:
         """Test explicit actor parameter specification."""
-        admin_id = uuid4()
 
-        @track_event(EventCategory.SYSTEM_OPERATION, actor_param="admin_id")
-        def test_function(admin_id: UUID, other_param: str) -> str:
+        @track_event(EventCategory.SYSTEM_OPERATION, actor_param="admin")
+        def test_function(admin: User, other_param: str) -> str:
             return "success"
 
         with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
-            test_function(admin_id, "other")
+            test_function(test_user, "other")
 
             # Verify all AuditEvent fields are correctly populated
             event_obj = mock_emit.call_args[0][0]
@@ -245,33 +246,9 @@ class TestTrackEventDecorator:
                 "test_function",
                 "tests.unit.audit.test_decorators",
                 "Function test_function executed successfully",
-                expected_actor_id=admin_id,
+                expected_actor_id=test_user.id,
+                expected_actor_name=test_user.username,
                 expected_actor_type=ActorType.USER,
-            )
-
-    def test_track_event_actor_fallback(self) -> None:
-        """Test actor fallback when no actor can be detected."""
-        fallback_id = uuid4()
-        fallback_context = ActorContext(actor_id=fallback_id, actor_type=ActorType.SYSTEM)
-
-        @track_event(EventCategory.SYSTEM_OPERATION, actor_fallback=fallback_context)
-        def test_function() -> str:
-            return "success"
-
-        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
-            test_function()
-
-            # Verify all AuditEvent fields are correctly populated
-            event_obj = mock_emit.call_args[0][0]
-            _assert_audit_event_fields(
-                event_obj,
-                EventCategory.SYSTEM_OPERATION,
-                EventSeverity.INFO,
-                "test_function",
-                "tests.unit.audit.test_decorators",
-                "Function test_function executed successfully",
-                expected_actor_id=fallback_id,
-                expected_actor_type=ActorType.SYSTEM,
             )
 
     def test_track_event_system_actor_default(self) -> None:
@@ -491,17 +468,16 @@ class TestTrackEventDecorator:
             # Should contain error indicator instead of raw args/kwargs
             assert function_args == {"capture_error": "Failed to bind function signature"}
 
-    def test_track_event_context_variable_injection(self) -> None:
+    def test_track_event_context_variable_injection(self, test_user: User) -> None:
         """Test that context variables are properly injected into events."""
         from nexus.audit.emitter import (
             activity_id_context_var,
-            actor_id_context_var,
+            actor_context_var,
             actor_type_context_var,
             execution_id_context_var,
             workflow_id_context_var,
         )
 
-        user_id = uuid4()
         workflow_id = uuid4()
         activity_id = "activity-id"
         execution_id = uuid4()
@@ -511,7 +487,7 @@ class TestTrackEventDecorator:
             return "success"
 
         # Set context variables
-        token_actor_id = actor_id_context_var.set(user_id)
+        token_actor = actor_context_var.set(test_user)
         token_actor_type = actor_type_context_var.set(ActorType.USER)
         token_workflow_id = workflow_id_context_var.set(workflow_id)
         token_activity_id = activity_id_context_var.set(activity_id)
@@ -530,15 +506,16 @@ class TestTrackEventDecorator:
                     "test_function",
                     "tests.unit.audit.test_decorators",
                     "Function test_function executed successfully",
-                    expected_actor_id=user_id,
+                    expected_actor_id=test_user.id,
                     expected_actor_type=ActorType.USER,
+                    expected_actor_name=test_user.username,
                     expected_workflow_id=workflow_id,
                     expected_activity_id=activity_id,
                     expected_execution_id=execution_id,
                 )
         finally:
             # Clean up context variables
-            actor_id_context_var.reset(token_actor_id)
+            actor_context_var.reset(token_actor)
             actor_type_context_var.reset(token_actor_type)
             workflow_id_context_var.reset(token_workflow_id)
             activity_id_context_var.reset(token_activity_id)
@@ -575,7 +552,6 @@ class TestTrackEventEdgeCases:
 
     def test_track_event_comprehensive_parameter_usage(self) -> None:
         """Test decorator with all parameters specified."""
-        fallback_context = ActorContext(actor_id=None, actor_type=ActorType.SYSTEM)
 
         @track_event(
             EventCategory.SYSTEM_OPERATION,
@@ -584,7 +560,6 @@ class TestTrackEventEdgeCases:
             capture_args=True,
             capture_result=True,
             actor_param="admin_user",
-            actor_fallback=fallback_context,
         )
         def comprehensive_function(admin_user: str, data: dict[str, str]) -> dict[str, dict[str, str]]:
             return {"processed": data}
@@ -613,20 +588,15 @@ class TestTrackEventEdgeCases:
             assert function_data.function_args["admin_user"] == "admin"
             assert isinstance(function_data.function_result, dict)
 
-    def test_track_event_with_fastapi_user_object(self) -> None:
+    def test_track_event_with_fastapi_user_object(self, test_user: User) -> None:
         """Test actor extraction from FastAPI-style user objects."""
-        user_id = uuid4()
-
-        # Simulate a FastAPI user object
-        user = Mock()
-        user.id = user_id
 
         @track_event(EventCategory.USER_ACTION, capture_args=False)  # Avoid Mock serialization
-        def test_function(current_user: Mock) -> str:
+        def test_function(current_user: User) -> str:
             return "success"
 
         with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
-            test_function(current_user=user)
+            test_function(current_user=test_user)
 
             # Verify all AuditEvent fields are correctly populated
             event_obj = mock_emit.call_args[0][0]
@@ -637,8 +607,9 @@ class TestTrackEventEdgeCases:
                 "test_function",
                 "tests.unit.audit.test_decorators",
                 "Function test_function executed successfully",
-                expected_actor_id=user_id,
+                expected_actor_id=test_user.id,
                 expected_actor_type=ActorType.USER,
+                expected_actor_name=test_user.username,
             )
 
     def test_track_event_data_sanitization(self) -> None:
@@ -924,21 +895,21 @@ class TestTrackEventEdgeCases:
         """Test that async functions properly clean up context variables."""
         import asyncio
 
-        from nexus.audit.emitter import actor_id_context_var, actor_type_context_var
+        from nexus.audit.emitter import actor_context_var, actor_type_context_var
 
         @track_event(EventCategory.USER_ACTION)
         async def async_function() -> str:
             # Verify context is set during execution (no actor provided defaults to SYSTEM)
-            assert actor_id_context_var.get() is None
+            assert actor_context_var.get() is None
             assert actor_type_context_var.get() == ActorType.SYSTEM
             await asyncio.sleep(0)
             return "result"
 
         # Store initial context state
-        initial_actor_id = None
+        initial_actor = None
         initial_actor_type = None
         try:
-            initial_actor_id = actor_id_context_var.get()
+            initial_actor = actor_context_var.get()
         except LookupError:
             pass
         try:
@@ -954,10 +925,10 @@ class TestTrackEventEdgeCases:
         assert emitted_event.actor_type == ActorType.SYSTEM
 
         # Verify context is restored to initial state
-        final_actor_id = None
+        final_actor = None
         final_actor_type = None
         try:
-            final_actor_id = actor_id_context_var.get()
+            final_actor = actor_context_var.get()
         except LookupError:
             pass
         try:
@@ -965,7 +936,7 @@ class TestTrackEventEdgeCases:
         except LookupError:
             pass
 
-        assert final_actor_id == initial_actor_id
+        assert final_actor == initial_actor
         assert final_actor_type == initial_actor_type
 
     def test_track_event_string_result_capture_true(self) -> None:

@@ -31,6 +31,7 @@ class HTTPRequestEvent:
     status_code: int
     actor_id: UUID | None = field(default=None)
     actor_type: ActorType = field(default=ActorType.SYSTEM)
+    actor_username: str | None = field(default=None)
     source_component: str = field(default="nexus.audit.middleware")
     query_params: dict[str, str | list[str]] | None = field(default=None)
     user_role: str | None = field(default=None)
@@ -87,6 +88,7 @@ class HTTPRequestHandler(AuditEventHandler[HTTPRequestEvent]):
             structured_data=structured_data,
             actor_id=event.actor_id,
             actor_type=event.actor_type,
+            actor_username=event.actor_username,
             workflow_id=event.workflow_id,
             execution_id=event.execution_id,
             activity_id=event.activity_id,

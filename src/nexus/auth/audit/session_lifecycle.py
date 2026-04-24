@@ -39,6 +39,7 @@ class SessionLifecycleEvent:
 
     action: SessionAction
     user_id: UUID
+    username: str | None = field(default=None)
     jti: str | None = field(default=None)
     idp: str | None = field(default=None)
     error_type: str | None = field(default=None)
@@ -95,4 +96,5 @@ class SessionLifecycleHandler(AuditEventHandler[SessionLifecycleEvent]):
             structured_data=data,
             actor_id=event.user_id,
             actor_type=ActorType.USER,
+            actor_username=event.username,
         )

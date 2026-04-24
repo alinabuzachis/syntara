@@ -8,7 +8,7 @@ from uuid import UUID
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.emitter import (
     activity_id_context_var,
-    actor_id_context_var,
+    actor_context_var,
     actor_type_context_var,
     execution_id_context_var,
     workflow_id_context_var,
@@ -17,14 +17,15 @@ from nexus.audit.events.audit_context import AuditContextEvent
 from nexus.audit.models.audit_event import ActorType, EventCategory, EventSeverity
 from nexus.audit.models.structured_data import AuditContextData
 from nexus.audit.utils import escalate_severity
+from nexus.core.models.user import User
 
 _RESERVED_AUDIT_FIELDS = frozenset(AuditContextData.model_fields.keys())
 
 
 @contextmanager
 def actor_context(
-    actor_id: UUID | None = None,
-    actor_type: ActorType = ActorType.USER,
+    *,
+    actor: User | None = None,
     workflow_id: UUID | None = None,
     activity_id: str | None = None,
     execution_id: UUID | None = None,
@@ -32,17 +33,22 @@ def actor_context(
     """Context manager to inject actor context for audit events.
 
     Ensures all audit events within this context include proper actor linkage.
+    Extracts actor_id, actor_type, and actor_name atomically from the User object
+    to guarantee integrity (prevents mismatched id/username pairs).
 
     Args:
-        actor_id: The actor ID to associate with all events
-        actor_type: Type of actor (user, system, service)
+        actor: User object to extract actor information from. If None, events
+            will have actor_id=None, actor_type=SYSTEM, actor_name=None.
         workflow_id: Optional workflow identifier for workflow-scoped events
         activity_id: Optional workflow activity identifier for workflow-scoped events
         execution_id: Optional execution identifier for execution tracing
 
     """
+    # Extract actor fields atomically from User object to ensure integrity
+    actor_type = ActorType.USER if actor is not None else ActorType.SYSTEM
+
     # Set new context using context variables for async-safe operations
-    token_actor_id = actor_id_context_var.set(actor_id)
+    token_actor = actor_context_var.set(actor)
     token_actor_type = actor_type_context_var.set(actor_type)
     token_workflow_id = workflow_id_context_var.set(workflow_id)
     token_activity_id = activity_id_context_var.set(activity_id)
@@ -52,7 +58,7 @@ def actor_context(
         yield
     finally:
         # Restore previous context using reset tokens
-        actor_id_context_var.reset(token_actor_id)
+        actor_context_var.reset(token_actor)
         actor_type_context_var.reset(token_actor_type)
         workflow_id_context_var.reset(token_workflow_id)
         activity_id_context_var.reset(token_activity_id)
@@ -64,19 +70,22 @@ def audit_context(
     event_category: EventCategory,
     event_action: str,
     source_component: str,
-    actor_id: UUID | None,
-    actor_type: ActorType,
+    *,
+    actor: User | None,
     event_severity: EventSeverity = EventSeverity.INFO,
     **context_data: Any,  # noqa: ANN401
 ) -> Generator[None, None, None]:
     """Context manager for capturing audit events with additional context.
 
+    Extracts actor_id, actor_type, and actor_name atomically from the User object
+    to guarantee integrity (prevents mismatched id/username pairs).
+
     Args:
         event_category: Category of the audit event
         event_action: Action being performed
         source_component: Component performing the action
-        actor_id: The actor ID to associate with the audit event
-        actor_type: Type of actor (user, system, service)
+        actor: User object to extract actor information from. If None, events
+            will have actor_id=None, actor_type=SYSTEM, actor_name=None.
         event_severity: Severity level of the audit event (defaults to INFO).
             On exception, severity is escalated to at least ERROR; a
             caller-declared CRITICAL severity is preserved.
@@ -87,8 +96,11 @@ def audit_context(
         msg = f"Reserved audit field names cannot be passed as context_data: {overlap}"
         raise ValueError(msg)
 
+    # Extract actor fields atomically from User object to ensure integrity
+    actor_type = ActorType.USER if actor is not None else ActorType.SYSTEM
+
     # Set actor context for this audit operation
-    token_actor_id = actor_id_context_var.set(actor_id)
+    token_actor = actor_context_var.set(actor)
     token_actor_type = actor_type_context_var.set(actor_type)
 
     # Track error state and severity (updated in except block if exception occurs)
@@ -111,8 +123,7 @@ def audit_context(
             event_category=event_category,
             event_action=event_action,
             source_component=source_component,
-            actor_id=actor_id,
-            actor_type=actor_type,
+            actor=actor,
             event_severity=event_severity,
             error_type=error_type,
             error_message=error_message,
@@ -121,5 +132,5 @@ def audit_context(
         AuditEventDispatcher.dispatch(event)
 
         # Restore previous actor context
-        actor_id_context_var.reset(token_actor_id)
+        actor_context_var.reset(token_actor)
         actor_type_context_var.reset(token_actor_type)

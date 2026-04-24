@@ -47,6 +47,7 @@ class AuditEventRead:
         event_status (EventStatus | None | Unset): Status of the audited operation
         actor_id (None | Unset | UUID): User, system, or service that performed the action
         actor_type (ActorType | None | Unset): Type of actor (user|system|service)
+        actor_username (None | str | Unset): Username of the actor
         workflow_id (None | Unset | UUID): Workflow identifier for workflow-scoped events
         activity_id (None | str | Unset): Activity identifier for activity-level events
         execution_id (None | Unset | UUID): Execution identifier for execution tracing
@@ -65,6 +66,7 @@ class AuditEventRead:
     event_status: EventStatus | None | Unset = UNSET
     actor_id: None | Unset | UUID = UNSET
     actor_type: ActorType | None | Unset = UNSET
+    actor_username: None | str | Unset = UNSET
     workflow_id: None | Unset | UUID = UNSET
     activity_id: None | str | Unset = UNSET
     execution_id: None | Unset | UUID = UNSET
@@ -124,6 +126,12 @@ class AuditEventRead:
         else:
             actor_type = self.actor_type
 
+        actor_username: None | str | Unset
+        if isinstance(self.actor_username, Unset):
+            actor_username = UNSET
+        else:
+            actor_username = self.actor_username
+
         workflow_id: None | str | Unset
         if isinstance(self.workflow_id, Unset):
             workflow_id = UNSET
@@ -173,6 +181,8 @@ class AuditEventRead:
             field_dict["actor_id"] = actor_id
         if actor_type is not UNSET:
             field_dict["actor_type"] = actor_type
+        if actor_username is not UNSET:
+            field_dict["actor_username"] = actor_username
         if workflow_id is not UNSET:
             field_dict["workflow_id"] = workflow_id
         if activity_id is not UNSET:
@@ -284,6 +294,15 @@ class AuditEventRead:
 
         actor_type = _parse_actor_type(d.pop("actor_type", UNSET))
 
+        def _parse_actor_username(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        actor_username = _parse_actor_username(d.pop("actor_username", UNSET))
+
         def _parse_workflow_id(data: object) -> None | Unset | UUID:
             if data is None:
                 return data
@@ -341,6 +360,7 @@ class AuditEventRead:
             event_status=event_status,
             actor_id=actor_id,
             actor_type=actor_type,
+            actor_username=actor_username,
             workflow_id=workflow_id,
             activity_id=activity_id,
             execution_id=execution_id,

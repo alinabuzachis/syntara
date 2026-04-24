@@ -8,11 +8,12 @@ reuse ``id``, ``created_at``, and cursor-pagination support from ``BaseService``
 from typing import ClassVar
 from uuid import UUID
 
-from sqlalchemy import Index, text
+from sqlalchemy import Index, String, text
 from sqlmodel import Field
 
 from nexus.audit.models.audit_event import ActorType, AuditEvent, EventCategory, EventSeverity, EventStatus
 from nexus.audit.models.structured_data import AuditContextData
+from nexus.core.constants import FieldLimits
 from nexus.core.models.base.base_resource import BaseResource
 from nexus.core.utils.sqlmodel import DiscriminatedJSONB, postgres_enum_column
 
@@ -73,6 +74,12 @@ class AuditEventRecord(BaseResource, table=True):
         ),
         description="Type of actor (user, system, service)",
     )
+    actor_username: str | None = Field(
+        default=None,
+        sa_type=String(FieldLimits.NAME_MAX_LENGTH),  # type: ignore[call-overload]
+        description="Username of the actor",
+        index=True,
+    )
     source_component: str = Field(description="Component that generated the event")
 
     # -- Context tracking ------------------------------------------------------
@@ -99,6 +106,7 @@ class AuditEventRecord(BaseResource, table=True):
         "event_action",
         "actor_id",
         "actor_type",
+        "actor_username",
         "source_component",
         "workflow_id",
         "activity_id",
@@ -111,6 +119,7 @@ class AuditEventRecord(BaseResource, table=True):
         "event_severity",
         "event_status",
         "actor_type",
+        "actor_username",
     ]
 
     # Composite indexes for efficient filtering + sorting queries
@@ -118,6 +127,8 @@ class AuditEventRecord(BaseResource, table=True):
     __table_args__ = (
         # actor_id queries with date ordering (e.g., "show me user X's events")
         Index("ix_audit_events_actor_id_created_at_id", "actor_id", "created_at", "id"),
+        # actor_name queries with date ordering (e.g., "show me events by username 'alice'")
+        Index("ix_audit_events_actor_username_created_at_id", "actor_username", "created_at", "id"),
         # event_category queries with date ordering (e.g., "show me workflow events")
         Index("ix_audit_events_event_category_created_at_id", "event_category", "created_at", "id"),
         # workflow_id queries with date ordering (e.g., "show me workflow X's events")
@@ -149,6 +160,7 @@ class AuditEventRecord(BaseResource, table=True):
             event_action=event.event_action,
             actor_id=event.actor_id,
             actor_type=event.actor_type,
+            actor_username=event.actor_username,
             source_component=event.source_component,
             workflow_id=event.workflow_id,
             activity_id=event.activity_id,

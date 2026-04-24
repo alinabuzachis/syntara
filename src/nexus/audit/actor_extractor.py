@@ -1,38 +1,29 @@
 """Actor context extraction utilities for audit decorators."""
 
 import inspect
-from dataclasses import dataclass
 from typing import Any
-from uuid import UUID
 
 import structlog
 
-from nexus.audit.constants import UNKNOWN
-from nexus.audit.emitter import actor_id_context_var, actor_type_context_var
-from nexus.audit.models.audit_event import ActorType
+from nexus.audit.emitter import actor_context_var
+from nexus.core.models.user import User
 
 logger = structlog.stdlib.get_logger(__name__)
 
 
-@dataclass
-class ActorContext:
-    """Result of actor extraction containing actor information."""
+def _try_fastapi_dependency_extraction(kwargs: dict[str, Any]) -> Any:  # noqa: ANN401
+    """Try to extract actor from FastAPI dependency injection.
 
-    actor_id: UUID | None
-    actor_type: ActorType = ActorType.USER
-
-
-def _try_fastapi_dependency_extraction(kwargs: dict[str, Any]) -> ActorContext | None:
-    """Try to extract actor from FastAPI dependency injection."""
+    Returns the extracted value (typically a User object) or None.
+    Caller must validate and convert using _convert_to_actor_context.
+    """
     try:
         # Look for common FastAPI patterns
         if "current_user" in kwargs:
-            user = kwargs["current_user"]
-            return ActorContext(actor_id=getattr(user, "id", None), actor_type=ActorType.USER)
+            return kwargs["current_user"]
 
         if "user_context" in kwargs:
-            context = kwargs["user_context"]
-            return ActorContext(actor_id=getattr(context, "user_id", None), actor_type=ActorType.USER)
+            return kwargs["user_context"]
     except (AttributeError, KeyError, TypeError) as e:
         logger.debug(
             "FastAPI dependency extraction failed",
@@ -62,10 +53,11 @@ def _auto_detect_actor_params(
     signature: inspect.Signature,
     args: tuple[Any, ...],
     kwargs: dict[str, Any],
-    func_name: str = UNKNOWN,
-    func_module: str = UNKNOWN,
-) -> ActorContext | None:
+) -> Any:  # noqa: ANN401
     """Auto-detect actor from common parameter patterns.
+
+    Returns the extracted value or None. Caller must validate and convert
+    using _convert_to_actor_context.
 
     WARNING: This method blindly trusts parameter values and should only be used
     on endpoints protected by authentication middleware. In non-authenticated
@@ -86,7 +78,7 @@ def _auto_detect_actor_params(
             if param_name in bound_args.arguments:
                 value = bound_args.arguments[param_name]
                 if value is not None:
-                    return _convert_to_actor_context(value, func_name, func_module)
+                    return value
     except (TypeError, ValueError) as exc:
         logger.debug(
             "Actor parameter auto-detection failed",
@@ -95,86 +87,32 @@ def _auto_detect_actor_params(
     return None
 
 
-def _convert_to_actor_context(
-    value: Any,  # noqa: ANN401
-    func_name: str = UNKNOWN,
-    func_module: str = UNKNOWN,
-) -> ActorContext:
-    """Convert various value types to ActorContext."""
-    if isinstance(value, ActorContext):
-        return value
-
-    if isinstance(value, UUID):
-        return ActorContext(actor_id=value, actor_type=ActorType.USER)
-
-    if isinstance(value, str):
-        try:
-            return ActorContext(actor_id=UUID(value), actor_type=ActorType.USER)
-        except ValueError:
-            pass
-
-    # Handle user objects with common attributes
-    if hasattr(value, "id"):
-        actor_id = value.id
-        if isinstance(actor_id, (UUID, str)):
-            try:
-                return ActorContext(
-                    actor_id=UUID(actor_id) if isinstance(actor_id, str) else actor_id,
-                    actor_type=ActorType.USER,
-                )
-            except ValueError:
-                pass
-
-    # Default to SYSTEM if we can't determine actor identity
-    logger.warning(
-        "Actor conversion failed - defaulting to SYSTEM actor",
-        function_name=func_name,
-        module=func_module,
-    )
-    return ActorContext(actor_id=None, actor_type=ActorType.SYSTEM)
-
-
-def extract_actor_context(
+def extract_actor(
     signature: inspect.Signature,
     args: tuple[Any, ...],
     kwargs: dict[str, Any],
     actor_param: str | None = None,
-    actor_fallback: ActorContext | None = None,
-    func_name: str = UNKNOWN,
-    func_module: str = UNKNOWN,
-) -> ActorContext:
+) -> User | None:
     """Extract actor context using multiple fallback strategies."""
     # Strategy 1: Use existing context variable (highest priority)
-    if actor_id_context_var.get() is not None:
-        return ActorContext(
-            actor_id=actor_id_context_var.get(),
-            actor_type=actor_type_context_var.get() or ActorType.SYSTEM,
-        )
+    actor = actor_context_var.get()
+    if actor is not None:
+        return actor
 
     # Strategy 2: FastAPI dependency injection
-    fastapi_actor = _try_fastapi_dependency_extraction(kwargs)
-    if fastapi_actor:
-        return fastapi_actor
+    fastapi_value = _try_fastapi_dependency_extraction(kwargs)
+    if isinstance(fastapi_value, User):
+        return fastapi_value
 
     # Strategy 3: Explicit parameter specification
-    if actor_param:
+    if actor_param is not None:
         actor_value = _extract_from_param(signature, args, kwargs, actor_param)
-        if actor_value:
-            return _convert_to_actor_context(actor_value, func_name, func_module)
+        if isinstance(actor_value, User):
+            return actor_value
 
     # Strategy 4: Auto-detect common parameter patterns
-    auto_detected = _auto_detect_actor_params(signature, args, kwargs, func_name, func_module)
-    if auto_detected:
-        return auto_detected
+    auto_detected_value = _auto_detect_actor_params(signature, args, kwargs)
+    if isinstance(auto_detected_value, User):
+        return auto_detected_value
 
-    # Strategy 5: Use provided fallback
-    if actor_fallback:
-        return actor_fallback
-
-    # Strategy 6: Default to SYSTEM actor with warning
-    logger.warning(
-        "Actor extraction failed - defaulting to SYSTEM actor",
-        function_name=func_name,
-        module=func_module,
-    )
-    return ActorContext(actor_id=None, actor_type=ActorType.SYSTEM)
+    return None

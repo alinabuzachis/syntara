@@ -6,16 +6,16 @@ import inspect
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
-from uuid import UUID
 
 import structlog
 
-from nexus.audit.actor_extractor import ActorContext, extract_actor_context
+from nexus.audit.actor_extractor import extract_actor
 from nexus.audit.constants import UNKNOWN
 from nexus.audit.dispatcher import AuditEventDispatcher
-from nexus.audit.emitter import actor_id_context_var, actor_type_context_var
+from nexus.audit.emitter import actor_context_var, actor_type_context_var
 from nexus.audit.events.function_execution import FunctionExecutionEvent
 from nexus.audit.models.audit_event import ActorType, EventCategory, EventSeverity
+from nexus.core.models.user import User
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -25,8 +25,8 @@ class AuditContext:
     """Container for audit context setup results."""
 
     function_event: FunctionExecutionEvent
-    actor_context: ActorContext  # Captured early for nested decorator safety
-    token_actor_id: contextvars.Token[UUID | None]
+    actor: User | None  # Captured early for nested decorator safety
+    token_actor: contextvars.Token[User | None]
     token_actor_type: contextvars.Token[ActorType | None]
     capture_result: bool | set[str]
 
@@ -90,7 +90,6 @@ def _setup_audit_context(
     event_action: str | None,
     source_component: str | None,
     actor_param: str | None,
-    actor_fallback: ActorContext | None,
     event_category: EventCategory,
     event_severity: EventSeverity,
     *,
@@ -122,13 +121,12 @@ def _setup_audit_context(
 
     # Extract actor context using flexible strategies
     # CRITICAL: This must be captured here and stored in AuditContext for later use
-    actor_context = extract_actor_context(
-        signature, args, kwargs, actor_param, actor_fallback, func.__name__, func.__module__
-    )
+    actor = extract_actor(signature, args, kwargs, actor_param)
 
     # Set actor context using context variables for async-safe operations
-    token_actor_id: contextvars.Token[UUID | None] = actor_id_context_var.set(actor_context.actor_id)
-    token_actor_type: contextvars.Token[ActorType | None] = actor_type_context_var.set(actor_context.actor_type)
+    actor_type = ActorType.USER if actor is not None else ActorType.SYSTEM
+    token_actor: contextvars.Token[User | None] = actor_context_var.set(actor)
+    token_actor_type: contextvars.Token[ActorType | None] = actor_type_context_var.set(actor_type)
 
     # Capture function arguments
     function_args = _capture_function_arguments(
@@ -145,16 +143,15 @@ def _setup_audit_context(
         event_category=event_category,
         event_action=action,
         source_component=component,
-        actor_id=actor_context.actor_id,
-        actor_type=actor_context.actor_type,
+        actor=actor,
         event_severity=event_severity,
         function_args=function_args,
     )
 
     return AuditContext(
         function_event=function_event,
-        actor_context=actor_context,
-        token_actor_id=token_actor_id,
+        actor=actor,
+        token_actor=token_actor,
         token_actor_type=token_actor_type,
         capture_result=capture_result,
     )
@@ -216,7 +213,7 @@ def _capture_error(error: Exception, audit_context: AuditContext) -> None:
 
 def _cleanup_audit_context(audit_context: AuditContext) -> None:
     """Clean up audit context variables."""
-    actor_id_context_var.reset(audit_context.token_actor_id)
+    actor_context_var.reset(audit_context.token_actor)
     actor_type_context_var.reset(audit_context.token_actor_type)
 
 
@@ -229,7 +226,6 @@ def track_event[F: Callable[..., Any]](
     capture_args: bool | set[str] = False,
     capture_result: bool | set[str] = False,
     actor_param: str | None = None,
-    actor_fallback: ActorContext | None = None,
 ) -> Callable[[F], F]:
     """Track function execution with flexible actor detection.
 
@@ -267,7 +263,6 @@ def track_event[F: Callable[..., Any]](
                        no result is captured and a warning is logged (safer audit default).
                        Selective capture only works with dict-like objects and objects with __dict__.
         actor_param: Optional parameter name to extract actor from
-        actor_fallback: Fallback actor context if no actor detected
 
     Security Notes:
         - Using capture_args=True captures ALL parameters including sensitive data
@@ -296,7 +291,6 @@ def track_event[F: Callable[..., Any]](
                     event_action,
                     source_component,
                     actor_param,
-                    actor_fallback,
                     event_category,
                     event_severity,
                     capture_args=capture_args,
@@ -327,7 +321,6 @@ def track_event[F: Callable[..., Any]](
                 event_action,
                 source_component,
                 actor_param,
-                actor_fallback,
                 event_category,
                 event_severity,
                 capture_args=capture_args,

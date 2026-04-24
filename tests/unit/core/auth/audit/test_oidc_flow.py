@@ -17,6 +17,7 @@ class TestOIDCFlowEvent:
         assert event.provider_id is None
         assert event.stage == OIDCStage.AUTHORIZE
         assert event.user_id is None
+        assert event.username is None
         assert event.error_type is None
 
 
@@ -39,12 +40,13 @@ class TestOIDCFlowHandler:
         assert result.event_action == "oidc_authorize"
         assert result.actor_type == ActorType.SYSTEM
         assert result.actor_id is None
+        assert result.actor_username is None
         assert result.source_component == "nexus.auth.oidc"
 
     def test_successful_callback_with_user(self) -> None:
-        """Successful callback with user → actor_id=user_id, actor_type=USER, 'oidc_callback'."""
+        """Successful callback with user → actor_id=user_id, actor_name=username, actor_type=USER, 'oidc_callback'."""
         uid = uuid4()
-        event = OIDCFlowEvent(provider_id=None, stage=OIDCStage.CALLBACK, user_id=uid)
+        event = OIDCFlowEvent(provider_id=None, stage=OIDCStage.CALLBACK, user_id=uid, username="testuser")
         handler = OIDCFlowHandler()
         result = handler.handle(event)
 
@@ -52,6 +54,7 @@ class TestOIDCFlowHandler:
         assert result.event_action == "oidc_callback"
         assert result.actor_type == ActorType.USER
         assert result.actor_id == uid
+        assert result.actor_username == "testuser"
 
     def test_error_produces_security_event_error_severity(self) -> None:
         """Error → SECURITY_EVENT / ERROR severity / ERROR status / 'oidc_callback'."""

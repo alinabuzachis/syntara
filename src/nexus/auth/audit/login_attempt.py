@@ -98,7 +98,6 @@ class LoginAttemptHandler(AuditEventHandler[LoginAttemptEvent]):
             data_type="login-context",
             error_type=error_type_str,
             error_message=error_message,
-            username=event.username,
             method=event.method.value,
         )
 
@@ -112,4 +111,5 @@ class LoginAttemptHandler(AuditEventHandler[LoginAttemptEvent]):
             structured_data=data,
             actor_id=event.user_id,
             actor_type=actor_type,
+            actor_username=event.username,
         )

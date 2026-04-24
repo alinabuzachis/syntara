@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass, field
 from typing import Any
-from uuid import UUID
 
 from nexus.audit.handler import AuditEventHandler
 from nexus.audit.models.audit_event import (
@@ -14,6 +13,7 @@ from nexus.audit.models.audit_event import (
 )
 from nexus.audit.models.structured_data import AuditContextData
 from nexus.audit.utils import escalate_severity
+from nexus.core.models.user import User
 
 # ---------------------------------------------------------------------------
 # Domain event
@@ -31,8 +31,7 @@ class FunctionExecutionEvent:
     event_category: EventCategory
     event_action: str
     source_component: str
-    actor_id: UUID | None
-    actor_type: ActorType
+    actor: User | None
     event_severity: EventSeverity
     function_args: dict[str, Any] = field(default_factory=dict)
     function_result: Any | None = field(default=None)
@@ -58,6 +57,12 @@ class FunctionExecutionHandler(AuditEventHandler[FunctionExecutionEvent]):
             A normalized AuditEvent for persistence and querying.
 
         """
+        # Extract actor fields from User object
+        # None actor -> SYSTEM, otherwise USER
+        actor_id = event.actor.id if event.actor is not None else None
+        actor_type = ActorType.USER if event.actor is not None else ActorType.SYSTEM
+        actor_username = event.actor.username if event.actor is not None else None
+
         is_error = event.error_type is not None
 
         # Build structured data
@@ -85,8 +90,9 @@ class FunctionExecutionHandler(AuditEventHandler[FunctionExecutionEvent]):
                 event_message=f"Function {event.event_action} failed with {event.error_type}",
                 source_component=event.source_component,
                 structured_data=structured_data,
-                actor_id=event.actor_id,
-                actor_type=event.actor_type,
+                actor_id=actor_id,
+                actor_type=actor_type,
+                actor_username=actor_username,
             )
 
         # Success path
@@ -98,6 +104,7 @@ class FunctionExecutionHandler(AuditEventHandler[FunctionExecutionEvent]):
             event_message=f"Function {event.event_action} executed successfully",
             source_component=event.source_component,
             structured_data=structured_data,
-            actor_id=event.actor_id,
-            actor_type=event.actor_type,
+            actor_id=actor_id,
+            actor_type=actor_type,
+            actor_username=actor_username,
         )

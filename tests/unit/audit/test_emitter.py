@@ -11,7 +11,7 @@ from nexus.audit.emitter import (
     _get_current_actor_context,
     _sanitizer,
     activity_id_context_var,
-    actor_id_context_var,
+    actor_context_var,
     actor_type_context_var,
     emit_audit_event,
     execution_id_context_var,
@@ -21,6 +21,7 @@ from nexus.audit.models.audit_event import ActorType, AuditEvent, EventCategory,
 from nexus.audit.models.structured_data import AuditContextData
 from nexus.audit.sanitization import EventSanitizer
 from nexus.audit.services.writer import AuditEventWriter
+from nexus.core.models.user import User
 
 
 class TestEventCaptureContextMethods:
@@ -30,15 +31,14 @@ class TestEventCaptureContextMethods:
         """Test getting context with default values."""
         context = _get_current_actor_context()
 
-        assert context["actor_id"] is None
+        assert context["actor"] is None
         assert context["actor_type"] is None
         assert context["workflow_id"] is None
         assert context["activity_id"] is None
         assert context["execution_id"] is None
 
-    def test_get_current_actor_context_with_set_values(self) -> None:
+    def test_get_current_actor_context_with_set_values(self, test_user: User) -> None:
         """Test getting context with set values."""
-        test_actor_id = uuid4()
         test_workflow_id = uuid4()
         test_activity_id = "activity_id"
         test_execution_id = uuid4()
@@ -47,7 +47,7 @@ class TestEventCaptureContextMethods:
         ctx = copy_context()
 
         def test_in_context() -> None:
-            actor_id_context_var.set(test_actor_id)
+            actor_context_var.set(test_user)
             actor_type_context_var.set(ActorType.USER)
             workflow_id_context_var.set(test_workflow_id)
             activity_id_context_var.set(test_activity_id)
@@ -55,7 +55,7 @@ class TestEventCaptureContextMethods:
 
             context = _get_current_actor_context()
 
-            assert context["actor_id"] == test_actor_id
+            assert context["actor"] == test_user
             assert context["actor_type"] == ActorType.USER
             assert context["workflow_id"] == test_workflow_id
             assert context["activity_id"] == test_activity_id
@@ -63,20 +63,18 @@ class TestEventCaptureContextMethods:
 
         ctx.run(test_in_context)
 
-    def test_get_current_actor_context_partial_values(self) -> None:
+    def test_get_current_actor_context_partial_values(self, test_user: User) -> None:
         """Test getting context with only some values set."""
-        test_actor_id = uuid4()
-
         # Use context copy to isolate the test
         ctx = copy_context()
 
         def test_in_context() -> None:
-            actor_id_context_var.set(test_actor_id)
+            actor_context_var.set(test_user)
             actor_type_context_var.set(ActorType.SERVICE)
 
             context = _get_current_actor_context()
 
-            assert context["actor_id"] == test_actor_id
+            assert context["actor"] == test_user
             assert context["actor_type"] == ActorType.SERVICE
             assert context["workflow_id"] is None  # Still default
             assert context["activity_id"] is None  # Still default
@@ -131,9 +129,8 @@ class TestEventCaptureEmitAuditEvent:
         assert call_args.structured_data is not None
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
-    def test_emit_audit_event_with_context_injection(self, mock_do_emit: Mock) -> None:
+    def test_emit_audit_event_with_context_injection(self, mock_do_emit: Mock, test_user: User) -> None:
         """Test audit event emission with context injection."""
-        test_actor_id = uuid4()
         test_workflow_id = uuid4()
         test_activity_id = "activity_id"
         test_execution_id = uuid4()
@@ -143,7 +140,7 @@ class TestEventCaptureEmitAuditEvent:
 
         def test_in_context() -> None:
             # Set context variables
-            actor_id_context_var.set(test_actor_id)
+            actor_context_var.set(test_user)
             actor_type_context_var.set(ActorType.SERVICE)
             workflow_id_context_var.set(test_workflow_id)
             activity_id_context_var.set(test_activity_id)
@@ -167,7 +164,8 @@ class TestEventCaptureEmitAuditEvent:
             event_obj = mock_do_emit.call_args[0][0]
 
             # Verify context injection worked for None fields only
-            assert event_obj.actor_id == test_actor_id
+            assert event_obj.actor_id == test_user.id
+            assert event_obj.actor_username == test_user.username
             assert event_obj.actor_type == ActorType.SYSTEM  # Not overridden because it was already set
             assert event_obj.workflow_id == test_workflow_id
             assert event_obj.activity_id == test_activity_id
@@ -176,11 +174,9 @@ class TestEventCaptureEmitAuditEvent:
         ctx.run(test_in_context)
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
-    def test_emit_audit_event_no_context_override(self, mock_do_emit: Mock) -> None:
+    def test_emit_audit_event_no_context_override(self, mock_do_emit: Mock, test_user: User) -> None:
         """Test that existing event values are not overridden by context."""
-        event_actor_id = uuid4()
         event_workflow_id = uuid4()
-        context_actor_id = uuid4()
         context_workflow_id = uuid4()
 
         # Use context copy to isolate the test
@@ -188,14 +184,15 @@ class TestEventCaptureEmitAuditEvent:
 
         def test_in_context() -> None:
             # Set context variables
-            actor_id_context_var.set(context_actor_id)
+            actor_context_var.set(test_user)
             workflow_id_context_var.set(context_workflow_id)
 
             # Create event with existing values
             event = AuditEvent(
                 event_category=EventCategory.USER_ACTION,
                 event_action="user_action",
-                actor_id=event_actor_id,  # Should not be overridden
+                actor_id=test_user.id,  # Should not be overridden
+                actor_username=test_user.username,  # Should not be overridden
                 actor_type=ActorType.USER,
                 workflow_id=event_workflow_id,  # Should not be overridden
                 source_component="test_component",
@@ -208,7 +205,8 @@ class TestEventCaptureEmitAuditEvent:
 
             # Verify original values were preserved
             event_obj = mock_do_emit.call_args[0][0]
-            assert event_obj.actor_id == event_actor_id  # Not context_actor_id
+            assert event_obj.actor_id == test_user.id  # Not context_actor_id
+            assert event_obj.actor_username == test_user.username  # Not context_actor_id
             assert event_obj.workflow_id == event_workflow_id  # Not context_workflow_id
 
         ctx.run(test_in_context)
@@ -578,9 +576,8 @@ class TestEventCaptureIntegration:
     """Integration tests for EventCapture functionality."""
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
-    def test_full_emission_flow(self, mock_do_emit: Mock) -> None:
+    def test_full_emission_flow(self, mock_do_emit: Mock, test_user: User) -> None:
         """Test the complete flow from event creation to emission."""
-        test_actor_id = uuid4()
         test_workflow_id = uuid4()
 
         # Use context copy to isolate the test
@@ -588,7 +585,7 @@ class TestEventCaptureIntegration:
 
         def test_in_context() -> None:
             # Set up context
-            actor_id_context_var.set(test_actor_id)
+            actor_context_var.set(test_user)
             actor_type_context_var.set(ActorType.USER)
             workflow_id_context_var.set(test_workflow_id)
             activity_id_context_var.set("activity_id")
@@ -598,6 +595,7 @@ class TestEventCaptureIntegration:
                 event_category=EventCategory.AGENT_INTERACTION,
                 event_action="agent_query",
                 actor_id=None,  # Will be injected
+                actor_username=None,  # Will be injected
                 actor_type=ActorType.SYSTEM,  # Required field, will NOT be overridden since it's truthy
                 source_component="agent_service",
                 event_message="User queried agent",
@@ -617,7 +615,8 @@ class TestEventCaptureIntegration:
             event_obj = mock_do_emit.call_args[0][0]
 
             # Verify context injection
-            assert event_obj.actor_id == test_actor_id
+            assert event_obj.actor_id == test_user.id
+            assert event_obj.actor_username == test_user.username
             assert event_obj.actor_type == ActorType.SYSTEM  # Not overridden because it was already set
             assert event_obj.workflow_id == test_workflow_id
 

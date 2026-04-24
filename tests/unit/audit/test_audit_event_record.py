@@ -253,6 +253,7 @@ class TestAuditEventRecordTableConfig:
             "event_action",
             "actor_id",
             "actor_type",
+            "actor_username",
             "source_component",
             "workflow_id",
             "activity_id",
@@ -262,5 +263,13 @@ class TestAuditEventRecordTableConfig:
 
     def test_sortable_fields(self) -> None:
         """Test that expected fields are sortable."""
-        expected = {"created_at", "updated_at", "event_category", "event_severity", "event_status", "actor_type"}
+        expected = {
+            "created_at",
+            "updated_at",
+            "event_category",
+            "event_severity",
+            "event_status",
+            "actor_type",
+            "actor_username",
+        }
         assert set(AuditEventRecord.__sortable_fields__) == expected

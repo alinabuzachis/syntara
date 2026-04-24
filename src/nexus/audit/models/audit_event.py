@@ -60,6 +60,7 @@ class AuditEvent(SQLModel):
     # Actor and source information
     actor_id: UUID | None = Field(default=None, description="User/system/service that performed action")
     actor_type: ActorType | None = Field(default=None, description="Type of actor (user|system|service)")
+    actor_username: str | None = Field(default=None, description="Username of the actor")
     source_component: str = Field(description="Component that generated event")
 
     # Context tracking

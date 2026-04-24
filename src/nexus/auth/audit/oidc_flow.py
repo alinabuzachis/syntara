@@ -38,6 +38,7 @@ class OIDCFlowEvent:
     provider_id: UUID | None
     stage: OIDCStage
     user_id: UUID | None = None
+    username: str | None = None
     error_type: str | None = None
 
 
@@ -88,4 +89,5 @@ class OIDCFlowHandler(AuditEventHandler[OIDCFlowEvent]):
             structured_data=data,
             actor_id=event.user_id,
             actor_type=actor_type,
+            actor_username=event.username,
         )

@@ -117,6 +117,7 @@ erDiagram
         string event_action
         UUID actor_id FK
         ActorType actor_type
+        string actor_username
         string source_component
         UUID workflow_id FK
         string activity_id
@@ -134,6 +135,7 @@ erDiagram
         string event_action
         UUID actor_id FK
         ActorType actor_type
+        string actor_username
         string source_component
         UUID workflow_id FK
         string activity_id
@@ -158,6 +160,15 @@ The `data_type` field is a string that identifies the event source for UI/fronte
 - `"context"` - from `audit_context` manager (includes arbitrary `**context_data`)
 - `"request_completed"` - from `AuditMiddleware` (includes `method`, `path`, `status_code`, `query_params`, `user_role`)
 - Domain events set custom `data_type` values based on their needs
+
+**Actor Identity Integrity:**  
+The `actor_username` field is stored alongside `actor_id` and `actor_type` to provide complete actor identity. To ensure these fields remain synchronized and prevent potential security issues from id/username mismatches:
+
+- `AuditContextEvent` accepts `actor: User | None` instead of discrete actor fields
+- The handler extracts `actor_id`, `actor_type`, and `actor_username` atomically from the User object
+- This guarantees the three fields always come from the same source record
+- Domain events populate username from User objects or JWT payloads to maintain integrity
+- `actor_username` is queryable via the `/api/v1/audit` endpoint for filtering and analysis
 
 #### Key Enums
 
@@ -282,10 +293,12 @@ sequenceDiagram
 
     Note over Handler: Business logic begins
 
-    Handler->>Handler: with actor_context(actor_id, actor_type)
-    Handler->>ContextVar: Set actor_id_context_var
+    Handler->>Handler: with actor_context(actor=user)
+    Handler->>ContextVar: Set actor_context_var
     Handler->>ContextVar: Set actor_type_context_var
     Handler->>ContextVar: Set workflow_id_context_var (optional)
+    Handler->>ContextVar: Set activity_id_context_var (optional)
+    Handler->>ContextVar: Set execution_id_context_var (optional)
 
     Handler->>Decorator: Decorated function called
     Decorator->>ContextVar: Extract current context
@@ -366,19 +379,33 @@ async def create_workflow(
 - Sets actor context for nested operations
 - Auto-escalates severity on exceptions
 - Event action is success (`{action}`) or error (`{action}_error`)
+- Atomic actor extraction: Accepts `actor: User | None` parameter to ensure `actor_id`, `actor_type`, and `actor_username` are extracted from a single source, preventing potential id/username mismatches
 
 **Usage:**
 
 ```python
 from nexus.audit.context_managers import audit_context
-from nexus.audit.models.audit_event import EventCategory, EventSeverity, ActorType
+from nexus.audit.models.audit_event import EventCategory, EventSeverity
 
+# With User actor (extracts actor_id, actor_type, actor_username atomically)
+with audit_context(
+    event_category=EventCategory.USER_ACTION,
+    event_action="export_data",
+    source_component="nexus.exports",
+    actor=current_user,  # User object - ensures id/username integrity
+    event_severity=EventSeverity.INFO,
+    export_format="csv",
+    record_count=5000,
+):
+    # Perform operation
+    export_data()
+
+# Or with SYSTEM actor (actor=None)
 with audit_context(
     event_category=EventCategory.SYSTEM_OPERATION,
     event_action="backup_database",
     source_component="nexus.maintenance",
-    actor_id=None,
-    actor_type=ActorType.SYSTEM,
+    actor=None,  # SYSTEM actor
     event_severity=EventSeverity.INFO,
     database_name="production",
     backup_size_mb=1024,
@@ -526,8 +553,7 @@ async def provision_infrastructure(user: User, config: InfraConfig):
         event_category=EventCategory.SYSTEM_OPERATION,
         event_action="provision_infrastructure",
         source_component="nexus.infra",
-        actor_id=user.id,
-        actor_type=ActorType.USER,
+        actor=user,  # User object - ensures atomic actor field extraction
         region=config.region,
         instance_count=config.instance_count,
         estimated_cost_usd=config.estimated_cost,
@@ -699,14 +725,17 @@ async def login(body: LoginRequest): ...
 **LoginAttemptEvent:** Tracks authentication attempts
 - Fields: `username`, `method`, `user_id`, `error_type`
 - `error_type` can be: `None` (success), `LoginErrorReason` enum (business error), or `str` (technical error)
+- The `username` field is mapped to `actor_username` in the resulting AuditEvent
 
 **OIDCFlowEvent:** Tracks OIDC authorize/callback stages
-- Fields: `provider_id`, `stage`, `user_id`, `error_type`
+- Fields: `provider_id`, `stage`, `user_id`, `username`, `error_type`
 - Dynamic action based on stage: `oidc_authorize`, `oidc_callback`
+- The `username` field is populated during successful callback and mapped to `actor_username`
 
 **SessionLifecycleEvent:** Tracks session create/revoke/refresh
-- Fields: `action`, `user_id`, `jti`, `idp`, `error_type`
-- Dynamic action based on lifecycle: `session_created`, `session_revoked`, `session_refreshed`  
+- Fields: `action`, `user_id`, `username`, `jti`, `idp`, `error_type`
+- Dynamic action based on lifecycle: `session_created`, `session_revoked`, `session_refreshed`
+- The `username` field is populated from User object or JWT payload and mapped to `actor_username`  
 
 ### Login Flow Example
 
@@ -749,10 +778,10 @@ async def login(body: LoginRequest, ...) -> AccessTokenResponse:
         )
     )
 
-    # Success - error_type=None (implicit)
+    # Success - error_type=None (implicit), username populated
     AuditEventDispatcher.dispatch(
         LoginAttemptEvent(
-            username=username,
+            username=user.username,
             method=LoginMethod.PASSWORD,
             user_id=user.id,
         )
@@ -813,13 +842,14 @@ class LoginAttemptHandler(AuditEventHandler[LoginAttemptEvent]):
             event_message=message,
             source_component="nexus.auth.login",
             structured_data=AuditContextData(
+                data_type="login-context",
                 error_type=error_type_str,
                 error_message=error_message,
-                username=event.username,
                 method=event.method.value,
             ),
             actor_id=event.user_id,
             actor_type=actor_type,
+            actor_username=event.username,  # Top-level field for actor identity
         )
 ```
 

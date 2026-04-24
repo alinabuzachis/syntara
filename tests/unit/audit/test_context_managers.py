@@ -2,6 +2,7 @@
 
 # mypy: disable-error-code="attr-defined"
 
+from collections.abc import Awaitable, Callable
 from typing import Any
 from unittest.mock import Mock, patch
 from uuid import uuid4
@@ -13,7 +14,7 @@ from nexus.audit.decorators import track_event
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.emitter import (
     activity_id_context_var,
-    actor_id_context_var,
+    actor_context_var,
     actor_type_context_var,
     execution_id_context_var,
     workflow_id_context_var,
@@ -28,6 +29,7 @@ from nexus.audit.models.audit_event import (
     EventStatus,
 )
 from nexus.audit.models.structured_data import AuditContextData
+from nexus.core.models.user import User
 
 
 @pytest.fixture(autouse=True)
@@ -43,86 +45,84 @@ def _register_audit_event_handlers() -> Any:  # noqa: ANN401
 class TestActorContext:
     """Test the actor_context context manager."""
 
-    def test_actor_context_sets_and_resets_context_variables(self) -> None:
+    async def test_actor_context_sets_and_resets_context_variables(self, test_user: User) -> None:
         """Test that actor_context properly sets and resets context variables."""
         # Arrange
-        test_actor_id = uuid4()
         test_workflow_id = uuid4()
         test_activity_id = "test_activity"
         test_execution_id = uuid4()
 
         # Act & Assert - context variables should be set inside context
         with actor_context(
-            actor_id=test_actor_id,
-            actor_type=ActorType.USER,
+            actor=test_user,
             workflow_id=test_workflow_id,
             activity_id=test_activity_id,
             execution_id=test_execution_id,
         ):
-            assert actor_id_context_var.get() == test_actor_id
+            assert actor_context_var.get() == test_user
             assert actor_type_context_var.get() == ActorType.USER
             assert workflow_id_context_var.get() == test_workflow_id
             assert activity_id_context_var.get() == test_activity_id
             assert execution_id_context_var.get() == test_execution_id
 
         # Assert - context variables should be reset after context
-        assert actor_id_context_var.get() is None
+        assert actor_context_var.get() is None
         assert actor_type_context_var.get() is None
         assert workflow_id_context_var.get() is None
         assert activity_id_context_var.get() is None
         assert execution_id_context_var.get() is None
 
-    def test_actor_context_with_defaults(self) -> None:
-        """Test actor_context with default values."""
+    async def test_actor_context_with_defaults(self) -> None:
+        """Test actor_context with default values (actor=None means SYSTEM)."""
         with actor_context():
-            assert actor_id_context_var.get() is None
-            assert actor_type_context_var.get() == ActorType.USER
+            assert actor_context_var.get() is None
+            assert actor_type_context_var.get() == ActorType.SYSTEM
             assert workflow_id_context_var.get() is None
             assert activity_id_context_var.get() is None
             assert execution_id_context_var.get() is None
 
-    def test_actor_context_resets_on_exception(self) -> None:
+    async def test_actor_context_resets_on_exception(self, test_user: User) -> None:
         """Test that actor_context resets context variables even when exception occurs."""
         # Arrange
-        test_actor_id = uuid4()
-        original_actor_id = actor_id_context_var.get()
+        original_actor = actor_context_var.get()
         original_actor_type = actor_type_context_var.get()
         error_msg = "test error"
 
         # Act & Assert
         with (
             pytest.raises(ValueError, match="test error"),
-            actor_context(actor_id=test_actor_id, actor_type=ActorType.SYSTEM),
+            actor_context(actor=test_user),
         ):
-            assert actor_id_context_var.get() == test_actor_id
-            assert actor_type_context_var.get() == ActorType.SYSTEM
+            assert actor_context_var.get() == test_user
+            assert actor_type_context_var.get() == ActorType.USER
             raise ValueError(error_msg)
 
         # Assert - context should be reset even after exception
-        assert actor_id_context_var.get() == original_actor_id
+        assert actor_context_var.get() == original_actor
         assert actor_type_context_var.get() == original_actor_type
 
-    def test_actor_context_nested_contexts(self) -> None:
+    async def test_actor_context_nested_contexts(
+        self, test_user: User, user_factory: Callable[..., Awaitable["User"]]
+    ) -> None:
         """Test nested actor_context managers."""
-        # Arrange
-        outer_actor_id = uuid4()
-        inner_actor_id = uuid4()
+        # Arrange - create another user for inner context
+        inner_user = await user_factory(username="inner_user", email="inner@example.com")
 
         # Act & Assert
-        with actor_context(actor_id=outer_actor_id, actor_type=ActorType.USER):
-            assert actor_id_context_var.get() == outer_actor_id
+        with actor_context(actor=test_user):
+            assert actor_context_var.get() == test_user
             assert actor_type_context_var.get() == ActorType.USER
 
-            with actor_context(actor_id=inner_actor_id, actor_type=ActorType.SYSTEM):
-                assert actor_id_context_var.get() == inner_actor_id
-                assert actor_type_context_var.get() == ActorType.SYSTEM
+            with actor_context(actor=inner_user):
+                assert actor_context_var.get() == inner_user
+                assert actor_type_context_var.get() == ActorType.USER
 
             # Should restore outer context
-            assert actor_id_context_var.get() == outer_actor_id
+            assert actor_context_var.get() == test_user
             assert actor_type_context_var.get() == ActorType.USER
 
         # Should restore original context
-        assert actor_id_context_var.get() is None
+        assert actor_context_var.get() is None
         assert actor_type_context_var.get() is None
 
 
@@ -130,20 +130,17 @@ class TestAuditContext:
     """Test the audit_context context manager."""
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
-    def test_audit_context_success_emits_audit_event(self, mock_emit: Mock) -> None:
+    async def test_audit_context_success_emits_audit_event(self, mock_emit: Mock, test_user: User) -> None:
         """Test that audit_context emits success event when no exception occurs."""
         # Arrange
         test_context_data: dict[str, Any] = {"test_field": "test_value"}
 
         # Act
-        test_actor_id = uuid4()
-
         with audit_context(
             event_category=EventCategory.USER_ACTION,
             event_action="test_action",
             source_component="test.component",
-            actor_id=test_actor_id,
-            actor_type=ActorType.USER,
+            actor=test_user,
             **test_context_data,
         ):
             pass  # Successful execution
@@ -158,8 +155,9 @@ class TestAuditContext:
         assert emitted_event.event_action == "test_action"
         assert emitted_event.event_message == "Operation test_action completed successfully"
         assert emitted_event.source_component == "test.component"
-        assert emitted_event.actor_id == test_actor_id
+        assert emitted_event.actor_id == test_user.id
         assert emitted_event.actor_type == ActorType.USER
+        assert emitted_event.actor_username == test_user.username
 
         assert emitted_event.event_status == EventStatus.SUCCESS
         assert isinstance(emitted_event.structured_data, AuditContextData)
@@ -168,21 +166,20 @@ class TestAuditContext:
         assert structured_dict["test_field"] == "test_value"
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
-    def test_audit_context_error_emits_error_event(self, mock_emit: Mock) -> None:
+    async def test_audit_context_error_emits_error_event(self, mock_emit: Mock) -> None:
         """Test that audit_context emits error event when exception occurs."""
         # Arrange
         test_context_data: dict[str, Any] = {"test_field": "test_value"}
         error_msg = "test error"
 
-        # Act & Assert
+        # Act & Assert - Use actor=None for SYSTEM type
         with (
             pytest.raises(ValueError, match="test error"),
             audit_context(
                 event_category=EventCategory.API_EXECUTION,
                 event_action="test_action",
                 source_component="test.component",
-                actor_id=uuid4(),
-                actor_type=ActorType.SYSTEM,
+                actor=None,
                 **test_context_data,
             ),
         ):
@@ -200,6 +197,7 @@ class TestAuditContext:
         assert emitted_event.event_message == "Operation test_action failed with ValueError"
         assert emitted_event.source_component == "test.component"
         assert emitted_event.actor_type == ActorType.SYSTEM
+        assert emitted_event.actor_username is None
 
         assert emitted_event.event_status == EventStatus.ERROR
         assert isinstance(emitted_event.structured_data, AuditContextData)
@@ -220,7 +218,7 @@ class TestAuditContext:
         ids=["password", "token", "api_key", "credentials"],
     )
     @patch("nexus.audit.emitter._do_emit_audit_event")
-    def test_audit_context_sanitizes_sensitive_data_in_exception_messages(
+    async def test_audit_context_sanitizes_sensitive_data_in_exception_messages(
         self, mock_emit: Mock, exception: Exception, sensitive_pattern: str
     ) -> None:
         """Test that exception messages with sensitive data are sanitized and don't leak into audit events."""
@@ -231,8 +229,7 @@ class TestAuditContext:
                 event_category=EventCategory.SECURITY_EVENT,
                 event_action="test_action",
                 source_component="test.component",
-                actor_id=uuid4(),
-                actor_type=ActorType.SYSTEM,
+                actor=None,
             ),
         ):
             raise exception
@@ -263,15 +260,14 @@ class TestAuditContext:
                 )
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
-    def test_audit_context_with_no_context_data(self, mock_emit: Mock) -> None:
+    async def test_audit_context_with_no_context_data(self, mock_emit: Mock) -> None:
         """Test audit_context with no additional context data."""
         # Act
         with audit_context(
             event_category=EventCategory.SYSTEM_OPERATION,
             event_action="simple_action",
             source_component="simple.component",
-            actor_id=uuid4(),
-            actor_type=ActorType.SYSTEM,
+            actor=None,
         ):
             pass
 
@@ -282,6 +278,7 @@ class TestAuditContext:
         assert emitted_event.event_status == EventStatus.SUCCESS
         assert isinstance(emitted_event.structured_data, AuditContextData)
         assert emitted_event.actor_type == ActorType.SYSTEM
+        assert emitted_event.actor_username is None
         # Should only have base fields (data_type, error_type, error_message with defaults)
         structured_dict = emitted_event.structured_data.model_dump()
         expected_keys = {"data_type", "error_type", "error_message"}
@@ -290,7 +287,7 @@ class TestAuditContext:
         assert structured_dict["error_message"] is None
 
     @pytest.mark.parametrize("field_name", ["error_type", "error_message"])
-    def test_audit_context_rejects_reserved_field_names(self, field_name: str) -> None:
+    async def test_audit_context_rejects_reserved_field_names(self, field_name: str, test_user: User) -> None:
         """Test that audit_context raises ValueError when context_data contains reserved fields."""
         with (
             pytest.raises(ValueError, match="Reserved audit field names"),
@@ -298,15 +295,14 @@ class TestAuditContext:
                 event_category=EventCategory.USER_ACTION,
                 event_action="test_action",
                 source_component="test.component",
-                actor_id=uuid4(),
-                actor_type=ActorType.USER,
+                actor=test_user,
                 event_severity=EventSeverity.INFO,
                 **{field_name: "injected_value"},
             ),
         ):
             pass  # pragma: no cover
 
-    def test_audit_context_rejects_multiple_reserved_fields(self) -> None:
+    async def test_audit_context_rejects_multiple_reserved_fields(self, test_user: User) -> None:
         """Test that audit_context rejects multiple reserved fields at once."""
         with (
             pytest.raises(ValueError, match="Reserved audit field names"),
@@ -314,8 +310,7 @@ class TestAuditContext:
                 event_category=EventCategory.USER_ACTION,
                 event_action="test_action",
                 source_component="test.component",
-                actor_id=uuid4(),
-                actor_type=ActorType.USER,
+                actor=test_user,
                 error_type="injected",
                 error_message="injected",
             ),
@@ -331,8 +326,14 @@ class TestAuditContext:
         ],
     )
     @patch("nexus.audit.emitter._do_emit_audit_event")
-    def test_audit_context_custom_severity_success(
-        self, mock_emit: Mock, severity: EventSeverity, category: EventCategory, action: str, source_component: str
+    async def test_audit_context_custom_severity_success(
+        self,
+        mock_emit: Mock,
+        severity: EventSeverity,
+        category: EventCategory,
+        action: str,
+        source_component: str,
+        test_user: User,
     ) -> None:
         """Test audit_context with custom severity levels for successful operations."""
         # Act
@@ -341,8 +342,7 @@ class TestAuditContext:
             event_action=action,
             source_component=source_component,
             event_severity=severity,
-            actor_id=uuid4(),
-            actor_type=ActorType.USER,
+            actor=test_user,
         ):
             pass
 
@@ -394,7 +394,7 @@ class TestAuditContext:
         ],
     )
     @patch("nexus.audit.emitter._do_emit_audit_event")
-    def test_audit_context_severity_escalated_on_exception(
+    async def test_audit_context_severity_escalated_on_exception(
         self,
         mock_emit: Mock,
         declared_severity: EventSeverity,
@@ -402,6 +402,7 @@ class TestAuditContext:
         category: EventCategory,
         action: str,
         source_component: str,
+        test_user: User,
     ) -> None:
         """Custom severity is escalated to at least ERROR on exception; CRITICAL is preserved."""
         # Act & Assert
@@ -412,8 +413,7 @@ class TestAuditContext:
                 event_action=action,
                 source_component=source_component,
                 event_severity=declared_severity,
-                actor_id=uuid4(),
-                actor_type=ActorType.USER,
+                actor=test_user,
             ),
         ):
             error_msg = "test error"
@@ -435,17 +435,16 @@ class TestContextManagersWithTrackEventDecorator:
     """Test context managers working with @track_event decorator."""
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
-    def test_actor_context_with_track_event_decorator(self, mock_emit: Mock) -> None:
+    async def test_actor_context_with_track_event_decorator(self, mock_emit: Mock, test_user: User) -> None:
         """Test that actor_context provides context for @track_event decorated function."""
-        # Arrange
-        test_actor_id = uuid4()
 
+        # Arrange
         @track_event(EventCategory.USER_ACTION, capture_args=True)
         def test_function(param1: str) -> str:
             return f"result_{param1}"
 
         # Act
-        with actor_context(actor_id=test_actor_id, actor_type=ActorType.USER):
+        with actor_context(actor=test_user):
             result = test_function("test_value")
 
         # Assert
@@ -454,13 +453,14 @@ class TestContextManagersWithTrackEventDecorator:
         assert mock_emit.call_count == 1
 
         emitted_event = mock_emit.call_args[0][0]
-        assert emitted_event.actor_id == test_actor_id
+        assert emitted_event.actor_id == test_user.id
         assert emitted_event.actor_type == ActorType.USER
+        assert emitted_event.actor_username == test_user.username
         assert isinstance(emitted_event.structured_data, AuditContextData)
         assert emitted_event.structured_data.function_args == {"param1": "test_value"}
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
-    def test_audit_context_with_track_event_decorator_success(self, mock_emit: Mock) -> None:
+    async def test_audit_context_with_track_event_decorator_success(self, mock_emit: Mock, test_user: User) -> None:
         """Test audit_context with @track_event decorated function - success case."""
 
         # Arrange
@@ -473,8 +473,7 @@ class TestContextManagersWithTrackEventDecorator:
             event_category=EventCategory.SYSTEM_OPERATION,
             event_action="wrapper_operation",
             source_component="test.wrapper",
-            actor_id=uuid4(),
-            actor_type=ActorType.USER,
+            actor=test_user,
         ):
             result = test_function()
 
@@ -489,6 +488,7 @@ class TestContextManagersWithTrackEventDecorator:
         assert decorator_event.event_category == EventCategory.API_EXECUTION
         assert decorator_event.event_action == "test_function"
         assert decorator_event.actor_type == ActorType.USER
+        assert decorator_event.actor_username == test_user.username
 
         # Verify context manager event (second call, index 1)
         context_event = mock_emit.call_args_list[1][0][0]
@@ -498,7 +498,7 @@ class TestContextManagersWithTrackEventDecorator:
         assert context_event.event_status == EventStatus.SUCCESS
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
-    def test_audit_context_with_track_event_decorator_error(self, mock_emit: Mock) -> None:
+    async def test_audit_context_with_track_event_decorator_error(self, mock_emit: Mock) -> None:
         """Test audit_context with @track_event decorated function - error case."""
         # Arrange
         error_msg = "function error"
@@ -507,15 +507,14 @@ class TestContextManagersWithTrackEventDecorator:
         def test_function() -> str:
             raise RuntimeError(error_msg)
 
-        # Act & Assert
+        # Act & Assert - Use actor=None for SERVICE type
         with (
             pytest.raises(RuntimeError, match="function error"),
             audit_context(
                 event_category=EventCategory.SYSTEM_OPERATION,
                 event_action="wrapper_operation",
                 source_component="test.wrapper",
-                actor_id=uuid4(),
-                actor_type=ActorType.SERVICE,
+                actor=None,
             ),
         ):
             test_function()
@@ -528,31 +527,31 @@ class TestContextManagersWithTrackEventDecorator:
         decorator_event = mock_emit.call_args_list[0][0][0]
         assert decorator_event.event_category == EventCategory.API_EXECUTION
         assert decorator_event.event_action == "test_function_error"
-        assert decorator_event.actor_type == ActorType.SERVICE
+        assert decorator_event.actor_type == ActorType.SYSTEM
+        assert decorator_event.actor_username is None
 
         # Verify context manager error event (second call, index 1)
         context_event = mock_emit.call_args_list[1][0][0]
         assert context_event.event_category == EventCategory.SYSTEM_OPERATION
         assert context_event.event_action == "wrapper_operation_error"
-        assert context_event.actor_type == ActorType.SERVICE
+        assert context_event.actor_type == ActorType.SYSTEM
+        assert context_event.actor_username is None
         assert context_event.event_status == EventStatus.ERROR
         assert context_event.structured_data.error_type == "RuntimeError"
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
-    def test_nested_context_managers_with_track_event(self, mock_emit: Mock) -> None:
+    async def test_nested_context_managers_with_track_event(self, mock_emit: Mock) -> None:
         """Test nested actor_context and audit_context with @track_event decorator."""
         # Arrange
-        test_actor_id = uuid4()
         test_workflow_id = uuid4()
 
         @track_event(EventCategory.USER_ACTION, capture_result=True)
         def test_function(value: str) -> dict[str, str]:
             return {"result": f"processed_{value}"}
 
-        # Act
+        # Act - Use actor=None for SYSTEM type
         with actor_context(
-            actor_id=test_actor_id,
-            actor_type=ActorType.SERVICE,
+            actor=None,
             workflow_id=test_workflow_id,
         ):
             result = test_function("test_data")
@@ -563,30 +562,25 @@ class TestContextManagersWithTrackEventDecorator:
         assert mock_emit.call_count == 1
 
         emitted_event = mock_emit.call_args[0][0]
-        assert emitted_event.actor_id == test_actor_id
-        assert emitted_event.actor_type == ActorType.SERVICE
+        assert emitted_event.actor_id is None
+        assert emitted_event.actor_type == ActorType.SYSTEM
+        assert emitted_event.actor_username is None
         assert emitted_event.workflow_id == test_workflow_id
         assert isinstance(emitted_event.structured_data, AuditContextData)
         assert emitted_event.structured_data.function_result == {"result": "processed_test_data"}
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
-    def test_async_function_with_actor_context(self, mock_emit: Mock) -> None:
+    async def test_async_function_with_actor_context(self, mock_emit: Mock) -> None:
         """Test actor_context with async @track_event decorated function."""
-        # Arrange
-        test_actor_id = uuid4()
 
+        # Arrange
         @track_event(EventCategory.API_EXECUTION)
         async def async_test_function(param: str) -> str:
             return f"async_result_{param}"
 
-        # Act
-        async def run_test() -> str:
-            with actor_context(actor_id=test_actor_id, actor_type=ActorType.SYSTEM):
-                return await async_test_function("test")
-
-        import asyncio
-
-        result = asyncio.run(run_test())
+        # Act - Use actor=None for SYSTEM type
+        with actor_context(actor=None):
+            result = await async_test_function("test")
 
         # Assert
         assert result == "async_result_test"
@@ -594,8 +588,9 @@ class TestContextManagersWithTrackEventDecorator:
         assert mock_emit.call_count == 1
 
         emitted_event = mock_emit.call_args[0][0]
-        assert emitted_event.actor_id == test_actor_id
+        assert emitted_event.actor_id is None
         assert emitted_event.actor_type == ActorType.SYSTEM
+        assert emitted_event.actor_username is None
         assert emitted_event.event_action == "async_test_function"
 
 
@@ -603,19 +598,19 @@ class TestActorContextSanitizationAndTruncation:
     """Test that events emitted within actor_context have sanitized and truncated payloads."""
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
-    def test_actor_context_emitted_event_has_sanitized_payload(self, mock_emit: Mock) -> None:
+    async def test_actor_context_emitted_event_has_sanitized_payload(self, mock_emit: Mock, test_user: User) -> None:
         """Test that sensitive data in captured arguments is redacted when using actor_context."""
-        test_actor_id = uuid4()
 
         @track_event(EventCategory.USER_ACTION, capture_args=True)
         def test_function(api_secret: str, name: str) -> str:
             return "ok"
 
-        with actor_context(actor_id=test_actor_id, actor_type=ActorType.USER):
+        with actor_context(actor=test_user):
             test_function("my_secret_key", "alice")
 
         emitted_event = mock_emit.call_args[0][0]
         assert emitted_event.actor_type == ActorType.USER
+        assert emitted_event.actor_username == test_user.username
         function_data = emitted_event.structured_data
         assert isinstance(function_data, AuditContextData)
 
@@ -626,19 +621,19 @@ class TestActorContextSanitizationAndTruncation:
         assert function_data.function_args["name"] == "alice"
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
-    def test_actor_context_emitted_event_has_truncated_payload(self, mock_emit: Mock) -> None:
+    async def test_actor_context_emitted_event_has_truncated_payload(self, mock_emit: Mock, test_user: User) -> None:
         """Test that oversized captured results are truncated when using actor_context."""
-        test_actor_id = uuid4()
 
         @track_event(EventCategory.USER_ACTION, capture_result=True)
         def test_function() -> dict[str, str]:
             return {"large_value": "x" * 20_000}
 
-        with actor_context(actor_id=test_actor_id, actor_type=ActorType.USER):
+        with actor_context(actor=test_user):
             test_function()
 
         emitted_event = mock_emit.call_args[0][0]
         assert emitted_event.actor_type == ActorType.USER
+        assert emitted_event.actor_username == test_user.username
         function_data = emitted_event.structured_data
         assert isinstance(function_data, AuditContextData)
 
@@ -651,14 +646,13 @@ class TestAuditContextSanitizationAndTruncation:
     """Test that events emitted by audit_context have sanitized and truncated payloads."""
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
-    def test_audit_context_emitted_event_has_sanitized_payload(self, mock_emit: Mock) -> None:
+    async def test_audit_context_emitted_event_has_sanitized_payload(self, mock_emit: Mock, test_user: User) -> None:
         """Test that sensitive data in context_data is redacted by audit_context."""
         with audit_context(
             event_category=EventCategory.USER_ACTION,
             event_action="test_action",
             source_component="test.component",
-            actor_id=uuid4(),
-            actor_type=ActorType.USER,
+            actor=test_user,
             user_password="super_secret",  # noqa: S106
             username="alice",
         ):
@@ -666,6 +660,7 @@ class TestAuditContextSanitizationAndTruncation:
 
         emitted_event = mock_emit.call_args[0][0]
         assert emitted_event.actor_type == ActorType.USER
+        assert emitted_event.actor_username == test_user.username
         assert emitted_event.event_status == EventStatus.SUCCESS
         assert isinstance(emitted_event.structured_data, AuditContextData)
 
@@ -685,11 +680,12 @@ class TestAuditContextSanitizationAndTruncation:
         ],
     )
     @patch("nexus.audit.emitter._do_emit_audit_event")
-    def test_audit_context_sanitizes_credential_patterns_in_context_data(
+    async def test_audit_context_sanitizes_credential_patterns_in_context_data(
         self,
         mock_emit: Mock,
         sensitive_field_name: str,
         sensitive_value: str,
+        test_user: User,
     ) -> None:
         """Test that common credential patterns in context_data are redacted by audit_context.
 
@@ -710,14 +706,14 @@ class TestAuditContextSanitizationAndTruncation:
             event_category=EventCategory.USER_ACTION,
             event_action="test_action",
             source_component="test.component",
-            actor_id=uuid4(),
-            actor_type=ActorType.USER,
+            actor=test_user,
             **context_kwargs,
         ):
             pass
 
         emitted_event = mock_emit.call_args[0][0]
         assert emitted_event.actor_type == ActorType.USER
+        assert emitted_event.actor_username == test_user.username
         assert emitted_event.event_status == EventStatus.SUCCESS
         assert isinstance(emitted_event.structured_data, AuditContextData)
 
@@ -730,20 +726,20 @@ class TestAuditContextSanitizationAndTruncation:
         assert sensitive_value not in str(structured_dict)
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
-    def test_audit_context_emitted_event_has_truncated_payload(self, mock_emit: Mock) -> None:
+    async def test_audit_context_emitted_event_has_truncated_payload(self, mock_emit: Mock, test_user: User) -> None:
         """Test that oversized context_data is truncated by audit_context."""
         with audit_context(
             event_category=EventCategory.USER_ACTION,
             event_action="test_action",
             source_component="test.component",
-            actor_id=uuid4(),
-            actor_type=ActorType.USER,
+            actor=test_user,
             large_field="x" * 20_000,
         ):
             pass
 
         emitted_event = mock_emit.call_args[0][0]
         assert emitted_event.actor_type == ActorType.USER
+        assert emitted_event.actor_username == test_user.username
         assert emitted_event.event_status == EventStatus.SUCCESS
         assert isinstance(emitted_event.structured_data, AuditContextData)
 

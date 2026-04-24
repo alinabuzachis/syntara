@@ -216,6 +216,7 @@ async def login(
             SessionLifecycleEvent(
                 action=SessionAction.CREATE,
                 user_id=user.id,
+                username=user.username,
                 jti=jti,
                 idp="local",
                 error_type=type(exc).__name__,
@@ -227,7 +228,9 @@ async def login(
         await db.rollback()
         raise SessionStoreUnavailableError from exc
     AuditEventDispatcher.dispatch(
-        SessionLifecycleEvent(action=SessionAction.CREATE, user_id=user.id, jti=jti, idp="local")
+        SessionLifecycleEvent(
+            action=SessionAction.CREATE, user_id=user.id, username=user.username, jti=jti, idp="local"
+        )
     )
 
     # Commit last_login only after Redis session is successfully created
@@ -364,6 +367,7 @@ async def refresh_token(
                 SessionLifecycleEvent(
                     action=SessionAction.REFRESH,
                     user_id=user.id,
+                    username=user.username,
                     jti=payload.jti,
                     idp=idp,
                 )
@@ -466,6 +470,7 @@ async def logout(
             SessionLifecycleEvent(
                 action=SessionAction.REVOKE,
                 user_id=UUID(payload.sub),
+                username=payload.preferred_username,
                 jti=payload.jti,
                 error_type=type(exc).__name__,
             )
@@ -473,7 +478,9 @@ async def logout(
         logger.exception("Redis connection failed during logout", error=str(exc))
         raise SessionStoreUnavailableError from exc
     AuditEventDispatcher.dispatch(
-        SessionLifecycleEvent(action=SessionAction.REVOKE, user_id=UUID(payload.sub), jti=payload.jti)
+        SessionLifecycleEvent(
+            action=SessionAction.REVOKE, user_id=UUID(payload.sub), username=payload.preferred_username, jti=payload.jti
+        )
     )
 
     # Clear the refresh cookie
@@ -885,7 +892,9 @@ async def oidc_callback(
             error=error,
             error_description=error_description,
         )
-        AuditEventDispatcher.dispatch(OIDCFlowEvent(provider_id=provider.id, stage=OIDCStage.CALLBACK, user_id=user.id))
+        AuditEventDispatcher.dispatch(
+            OIDCFlowEvent(provider_id=provider.id, stage=OIDCStage.CALLBACK, user_id=user.id, username=user.username)
+        )
     except _OIDCCallbackError as e:
         AuditEventDispatcher.dispatch(
             OIDCFlowEvent(provider_id=None, stage=OIDCStage.CALLBACK, error_type=type(e).__name__)
@@ -912,6 +921,7 @@ async def oidc_callback(
             SessionLifecycleEvent(
                 action=SessionAction.CREATE,
                 user_id=user.id,
+                username=user.username,
                 jti=jti,
                 idp=provider.name,
                 error_type=type(exc).__name__,
@@ -924,7 +934,9 @@ async def oidc_callback(
         await db.rollback()
         raise SessionStoreUnavailableError from exc
     AuditEventDispatcher.dispatch(
-        SessionLifecycleEvent(action=SessionAction.CREATE, user_id=user.id, jti=jti, idp=provider.name)
+        SessionLifecycleEvent(
+            action=SessionAction.CREATE, user_id=user.id, username=user.username, jti=jti, idp=provider.name
+        )
     )
 
     # Commit last_login only after Redis session is successfully created

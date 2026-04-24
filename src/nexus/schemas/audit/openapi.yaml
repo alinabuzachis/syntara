@@ -143,6 +143,16 @@ paths:
               - type: 'null'
             title: Actor Type
             description: Filter by actor type
+        - name: actor_username
+          in: query
+          required: false
+          description: Filter by actor username
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Actor Username
+            description: Filter by actor username
         - name: source_component
           in: query
           required: false
@@ -272,6 +282,12 @@ components:
                 - $ref: '#/components/schemas/ActorType'
                 - type: 'null'
               description: Type of actor (user|system|service)
+            actor_username:
+              anyOf:
+                - type: string
+                - type: 'null'
+              title: Actor Username
+              description: Username of the actor
             source_component:
               type: string
               title: Source Component

@@ -11,6 +11,7 @@ import pytest
 import pytest_asyncio
 
 import nexus.audit.services.writer as writer_module
+from nexus.audit.context_managers import actor_context
 from nexus.audit.decorators import track_event
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.events.function_execution import FunctionExecutionEvent, FunctionExecutionHandler
@@ -190,11 +191,12 @@ async def test_track_event_end_to_end(
     test_user: User,
 ) -> None:
     """@track_event -> writer -> DB -> AuditEventService, with typed structured_data."""
-    if mode == "error":
-        with pytest.raises(ValueError):
+    with actor_context(actor=test_user):
+        if mode == "error":
+            with pytest.raises(ValueError):
+                call()
+        else:
             call()
-    else:
-        call()
 
     await audit_writer.drain()
 
@@ -213,6 +215,11 @@ async def test_track_event_end_to_end(
     assert read.event_status == expected["event_status"]
     assert read.event_severity == expected["event_severity"]
     assert read.source_component == __name__
+
+    # Actor fields are extracted from context and survive the round-trip.
+    assert read.actor_id == test_user.id
+    assert read.actor_type == "user"
+    assert read.actor_username == test_user.username
 
     # structured_data is discriminated back to AuditContextData with the expected content.
     assert isinstance(read.structured_data, AuditContextData)
