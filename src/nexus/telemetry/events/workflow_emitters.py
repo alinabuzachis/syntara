@@ -15,7 +15,7 @@ from nexus.telemetry.client import get_telemetry_registry
 from nexus.telemetry.collector import _TERMINAL_STATUSES, TelemetryCollector
 from nexus.workflows.models.activity_execution import ActivityStatus
 from nexus.workflows.models.execution import ExecutionStatus
-from nexus.workflows.workflow_engine.models.workflow_definition import WorkflowTerminalStatus
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, WorkflowTerminalStatus
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -27,7 +27,12 @@ if TYPE_CHECKING:
 logger = structlog.stdlib.get_logger(__name__)
 
 
-def emit_workflow_start(execution: Execution, *, request_id: UUID | None = None) -> None:
+def emit_workflow_start(
+    execution: Execution,
+    *,
+    request_id: UUID | None = None,
+    trigger_activity_type: ActivityName | None = None,
+) -> None:
     """Emit workflow start telemetry event.
 
     Called when an execution transitions from PENDING to RUNNING.
@@ -35,6 +40,7 @@ def emit_workflow_start(execution: Execution, *, request_id: UUID | None = None)
     Args:
         execution: The execution record.
         request_id: Optional X-Request-Id from the originating HTTP request.
+        trigger_activity_type: Type of trigger that started the workflow.
 
     """
     try:
@@ -45,7 +51,11 @@ def emit_workflow_start(execution: Execution, *, request_id: UUID | None = None)
         request_id_str = str(request_id) if request_id is not None else None
 
         collector = TelemetryCollector(registry=registry)
-        collector.capture_workflow_start(execution_id=str(execution.id), request_id=request_id_str)
+        collector.capture_workflow_start(
+            execution_id=str(execution.id),
+            request_id=request_id_str,
+            trigger_activity_type=trigger_activity_type,
+        )
 
         logger.debug(
             "Emitted workflow start telemetry",

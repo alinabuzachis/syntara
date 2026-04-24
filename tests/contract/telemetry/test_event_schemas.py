@@ -12,6 +12,7 @@ from nexus.telemetry.events.workflow_execution import (
     WorkflowExecutionCompletedEvent,
     WorkflowExecutionStartEvent,
 )
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
 
 # Import shared test data from unit telemetry conftest
 from tests.unit.telemetry.conftest import (
@@ -27,12 +28,14 @@ class TestWorkflowExecutionStartEventSchema:
         schema = WorkflowExecutionStartEvent.model_json_schema()
         assert schema["type"] == "object"
         assert "workflow_execution_id" in schema["properties"]
+        assert "trigger_type" in schema["properties"]
 
     def test_valid_event_conforms_to_schema(self):
         schema = WorkflowExecutionStartEvent.model_json_schema()
         event = WorkflowExecutionStartEvent(
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
             entitlement_id="",
+            trigger_type=ActivityName.MANUAL_TRIGGER,
         )
         event_dict = event.model_dump()
         jsonschema.validate(instance=event_dict, schema=schema)

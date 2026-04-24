@@ -11,7 +11,10 @@ from typing import Literal
 from sqlmodel import Field
 
 from nexus.telemetry.events.base import BaseTelemetryEvent
-from nexus.workflows.workflow_engine.models.workflow_definition import WorkflowTerminalStatus  # noqa: TC001
+from nexus.workflows.workflow_engine.models.workflow_definition import (  # noqa: TC001
+    ActivityName,
+    WorkflowTerminalStatus,
+)
 
 
 class WorkflowExecutionStartEvent(BaseTelemetryEvent):
@@ -19,10 +22,12 @@ class WorkflowExecutionStartEvent(BaseTelemetryEvent):
 
     Attributes:
         workflow_execution_id: Unique workflow execution identifier (UUID v4 format).
+        trigger_type: Type of trigger that started the workflow (e.g. manual_trigger).
 
     """
 
     workflow_execution_id: str = Field(description="Unique workflow execution identifier (UUID v4)")
+    trigger_type: ActivityName | None = Field(default=None, description="Type of trigger that started the workflow")
 
 
 class WorkflowExecutionCompletedEvent(BaseTelemetryEvent):
@@ -60,6 +65,7 @@ class WorkflowExecutionEventBuilder:
         execution_id: str,
         entitlement_id: str,
         request_id: str | None = None,
+        trigger_activity_type: ActivityName | None = None,
     ) -> WorkflowExecutionStartEvent:
         """Build a workflow execution start event.
 
@@ -67,6 +73,7 @@ class WorkflowExecutionEventBuilder:
             execution_id: Unique workflow execution identifier (UUID v4).
             entitlement_id: Installation entitlement identifier.
             request_id: Optional X-Request-Id from the originating HTTP request.
+            trigger_activity_type: Type of trigger that started the workflow.
 
         Returns:
             WorkflowExecutionStartEvent instance.
@@ -76,6 +83,7 @@ class WorkflowExecutionEventBuilder:
             workflow_execution_id=execution_id,
             entitlement_id=entitlement_id,
             request_id=request_id,
+            trigger_type=trigger_activity_type,
         )
 
     def build_completed_event(

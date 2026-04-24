@@ -13,6 +13,7 @@ from nexus.telemetry.events.workflow_execution import (
     WorkflowExecutionEventBuilder,
     WorkflowExecutionStartEvent,
 )
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
 
 # Import shared test data from conftest
 from tests.unit.telemetry.conftest import (
@@ -83,17 +84,29 @@ class TestWorkflowExecutionStartEvent:
             entitlement_id="",
         )
         assert event.workflow_execution_id == VALID_WORKFLOW_EXECUTION_ID
+        assert event.trigger_type is None
+
+    def test_valid_event_creation_with_trigger_type(self):
+        event = WorkflowExecutionStartEvent(
+            workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
+            entitlement_id="",
+            trigger_type=ActivityName.MANUAL_TRIGGER,
+        )
+        assert event.workflow_execution_id == VALID_WORKFLOW_EXECUTION_ID
+        assert event.trigger_type == ActivityName.MANUAL_TRIGGER
 
     def test_to_segment_event(self):
         event = WorkflowExecutionStartEvent(
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
             entitlement_id="",
+            trigger_type=ActivityName.MANUAL_TRIGGER,
         )
         segment_event = event.to_segment_event()
         assert segment_event["event"] == "workflow_execution_start"
         assert "properties" in segment_event
         props = segment_event["properties"]
         assert props["workflow_execution_id"] == VALID_WORKFLOW_EXECUTION_ID
+        assert props["trigger_type"] == ActivityName.MANUAL_TRIGGER
 
     def test_entitlement_id_in_segment_properties(self):
         """entitlement_id value must appear in segment event properties."""
@@ -251,6 +264,17 @@ class TestWorkflowExecutionEventBuilder:
         )
         assert isinstance(event, WorkflowExecutionStartEvent)
         assert event.workflow_execution_id == VALID_WORKFLOW_EXECUTION_ID
+        assert event.trigger_type is None
+
+    def test_build_start_event_with_trigger_activity_type(self):
+        builder = WorkflowExecutionEventBuilder()
+        event = builder.build_start_event(
+            execution_id=VALID_WORKFLOW_EXECUTION_ID,
+            entitlement_id="",
+            trigger_activity_type=ActivityName.MANUAL_TRIGGER,
+        )
+        assert isinstance(event, WorkflowExecutionStartEvent)
+        assert event.trigger_type == ActivityName.MANUAL_TRIGGER
 
     def test_build_completed_event_success(self):
         builder = WorkflowExecutionEventBuilder()

@@ -29,7 +29,7 @@ from nexus.workflows.models.execution import Execution, ExecutionStatus
 from nexus.workflows.models.workflow_version import WorkflowVersion
 from nexus.workflows.services.activity_update_publisher import ActivityUpdatePublisher
 from nexus.workflows.utils.datetime import ensure_timezone_aware
-from nexus.workflows.workflow_engine.models.workflow_definition import NodeType
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, NodeType
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -212,7 +212,12 @@ class ActivitySyncService:
                     await self._publish_snapshot_safely(session, metadata.execution_id, "initial_snapshot")
 
                     # Emit workflow start telemetry
-                    emit_workflow_start(execution, request_id=metadata.request_id)
+                    trigger_activity_type = self._extract_trigger_activity_type(metadata.activity_definitions_map)
+                    emit_workflow_start(
+                        execution,
+                        request_id=metadata.request_id,
+                        trigger_activity_type=trigger_activity_type,
+                    )
                 else:
                     logger.debug(
                         "Skipping RUNNING update for execution - already in state",
@@ -480,6 +485,38 @@ class ActivitySyncService:
         # V1 fallback: nested under task.executor
         task = activity_def.get("task")
         return isinstance(task, dict) and task.get("executor") == "agentic"
+
+    _TRIGGER_ACTIVITY_TYPES: frozenset[ActivityName] = frozenset(
+        {
+            ActivityName.MANUAL_TRIGGER,
+            ActivityName.SCHEDULED_TRIGGER,
+            ActivityName.WEBHOOK_TRIGGER,
+            ActivityName.EDA_TRIGGER,
+        }
+    )
+
+    @staticmethod
+    def _extract_trigger_activity_type(activity_definitions_map: dict[str, dict[str, Any]]) -> ActivityName | None:
+        """Extract the trigger type from activity definitions.
+
+        Searches through the activity definitions to find a trigger node
+        (e.g., manual_trigger, scheduled_trigger, webhook_trigger, eda_trigger).
+
+        Args:
+            activity_definitions_map: Map of activity ID to activity definition
+
+        Returns:
+            The trigger ActivityName if found, None otherwise
+
+        """
+        return next(
+            (
+                ActivityName(defn["type"])
+                for defn in activity_definitions_map.values()
+                if defn.get("type") in ActivitySyncService._TRIGGER_ACTIVITY_TYPES
+            ),
+            None,
+        )
 
     @staticmethod
     def _parse_error_from_output(output: dict[str, Any] | None) -> str | None:

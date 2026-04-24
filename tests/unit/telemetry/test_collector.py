@@ -12,6 +12,7 @@ from nexus.telemetry.events.workflow_execution import (
 )
 from nexus.tool_manager.models.tool_execution import ToolExecutionStatus
 from nexus.workflows.workflow_engine.models.workflow_definition import (
+    ActivityName,
     ActivityTerminalStatus,
     NodeType,
     WorkflowTerminalStatus,
@@ -46,6 +47,18 @@ class TestTelemetryCollector:
         sent_event = mock_registry.send_event.call_args[0][0]
         assert isinstance(sent_event, WorkflowExecutionStartEvent)
         assert sent_event.workflow_execution_id == VALID_WORKFLOW_EXECUTION_ID
+        assert sent_event.trigger_type is None
+
+    def test_capture_workflow_start_with_trigger_activity_type(self):
+        collector, mock_registry = self._create_collector()
+        collector.capture_workflow_start(
+            execution_id=VALID_WORKFLOW_EXECUTION_ID,
+            trigger_activity_type=ActivityName.MANUAL_TRIGGER,
+        )
+        mock_registry.send_event.assert_called_once()
+        sent_event = mock_registry.send_event.call_args[0][0]
+        assert isinstance(sent_event, WorkflowExecutionStartEvent)
+        assert sent_event.trigger_type == ActivityName.MANUAL_TRIGGER
 
     def test_capture_workflow_completed_success(self):
         collector, mock_registry = self._create_collector()

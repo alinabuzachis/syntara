@@ -15,7 +15,7 @@ from nexus.telemetry.events.node_execution import NodeExecutionEventBuilder
 from nexus.telemetry.events.tool_execution import ToolExecutionEventBuilder
 from nexus.telemetry.events.workflow_execution import WorkflowExecutionEventBuilder
 from nexus.workflows.models.activity_execution import ActivityExecution, ActivityStatus
-from nexus.workflows.workflow_engine.models.workflow_definition import ActivityTerminalStatus
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, ActivityTerminalStatus
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -86,12 +86,14 @@ class TelemetryCollector:
         self,
         execution_id: str,
         request_id: str | None = None,
+        trigger_activity_type: ActivityName | None = None,
     ) -> None:
         """Capture a workflow execution start event (fire-and-forget).
 
         Args:
             execution_id: Unique workflow execution identifier (UUID v4).
             request_id: Optional X-Request-Id from the originating HTTP request.
+            trigger_activity_type: Type of trigger that started the workflow.
 
         """
         try:
@@ -99,6 +101,7 @@ class TelemetryCollector:
                 execution_id=execution_id,
                 entitlement_id=self._registry.entitlement_id,
                 request_id=request_id,
+                trigger_activity_type=trigger_activity_type,
             )
             self._registry.send_event(event)
         except Exception:

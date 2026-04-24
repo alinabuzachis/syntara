@@ -57,6 +57,9 @@ class ActivityName(StrEnum):
 
     # Triggers
     MANUAL_TRIGGER = "manual_trigger"
+    SCHEDULED_TRIGGER = "scheduled_trigger"
+    WEBHOOK_TRIGGER = "webhook_trigger"
+    EDA_TRIGGER = "eda_trigger"
     # Control nodes
     CONDITION = "condition"
     CONVERGE = "converge"
@@ -78,6 +81,9 @@ class NodeType(str, Enum):
 
     # Triggers
     MANUAL_TRIGGER = "manual_trigger"
+    SCHEDULED_TRIGGER = "scheduled_trigger"
+    WEBHOOK_TRIGGER = "webhook_trigger"
+    EDA_TRIGGER = "eda_trigger"
     # Control nodes
     CONDITION = "condition"
     CONVERGE = "converge"

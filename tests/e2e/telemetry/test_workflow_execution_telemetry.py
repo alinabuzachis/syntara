@@ -19,6 +19,7 @@ from nexus_api_client.api import NexusApiRegistry
 from nexus_api_client.models.workflow_create import WorkflowCreate
 from nexus_api_client.models.workflow_update import WorkflowUpdate
 
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
 from tests.e2e.telemetry.conftest import get_captured_events, new_request_id
 
 pytestmark = pytest.mark.e2e
@@ -171,6 +172,18 @@ class TestWorkflowStartEvent:
         assert len(start_events) >= 1
         props = start_events[0].get("properties", {})
         assert "workflow_execution_id" in props, f"workflow_execution_start missing workflow_execution_id: {props}"
+
+    def test_start_event_has_trigger_type(
+        self,
+        completed_execution: dict[str, Any],
+    ) -> None:
+        """The start event must contain trigger_type matching the workflow trigger node."""
+        start_events = [e for e in completed_execution["events"] if e.get("event") == "workflow_execution_start"]
+        assert len(start_events) == 1
+        props = start_events[0].get("properties", {})
+        assert props.get("trigger_type") == ActivityName.MANUAL_TRIGGER, (
+            f"Expected trigger_type={ActivityName.MANUAL_TRIGGER!r}, got {props.get('trigger_type')!r}"
+        )
 
     def test_start_event_carries_request_id(
         self,

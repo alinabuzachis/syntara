@@ -13,6 +13,7 @@ from nexus.core.exceptions import SafeValueError
 from nexus.workflows.models.activity_execution import ActivityStatus
 from nexus.workflows.models.execution import Execution
 from nexus.workflows.workflow_engine.activities.internal import register_activity_monitoring
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
 from nexus.workflows.workflow_engine.services.activity_sync_service import (
     ActivitySyncService,
     ExecutionMonitorMetadata,
@@ -1341,6 +1342,52 @@ class TestIsAgenticActivity:
     def test_is_agentic_activity(self, activity_def: dict[str, object], expected: bool) -> None:  # noqa: FBT001
         """Test agentic detection for v1 and v2 activity definitions."""
         assert ActivitySyncService._is_agentic_activity(activity_def) == expected
+
+
+class TestExtractTriggerActivityType:
+    """Test _extract_trigger_activity_type static method."""
+
+    @pytest.mark.parametrize(
+        ("activity_definitions_map", "expected"),
+        [
+            ({"trigger-1": {"type": "manual_trigger"}}, "manual_trigger"),
+            ({"trigger-1": {"type": "scheduled_trigger"}}, "scheduled_trigger"),
+            ({"trigger-1": {"type": "webhook_trigger"}}, "webhook_trigger"),
+            ({"trigger-1": {"type": "eda_trigger"}}, "eda_trigger"),
+            (
+                {
+                    "node-1": {"type": "script"},
+                    "trigger-1": {"type": "manual_trigger"},
+                    "node-2": {"type": "condition"},
+                },
+                "manual_trigger",
+            ),
+            ({"node-1": {"type": "script"}, "node-2": {"type": "agentic"}}, None),
+            ({}, None),
+            ({"node-1": {"type": 123}}, None),
+            ({"node-1": {"name": "test"}}, None),
+            ({"node-1": {}}, None),
+            ({"trigger-1": {"type": "unknown_trigger"}}, None),
+        ],
+        ids=[
+            "manual_trigger",
+            "scheduled_trigger",
+            "webhook_trigger",
+            "eda_trigger",
+            "mixed_nodes_with_trigger",
+            "no_trigger_nodes",
+            "empty_map",
+            "non_string_type",
+            "missing_type_key",
+            "empty_definition",
+            "unknown_trigger_type_not_matched",
+        ],
+    )
+    def test_extract_trigger_activity_type(
+        self, activity_definitions_map: dict[str, dict[str, Any]], expected: ActivityName | None
+    ) -> None:
+        """Test trigger type extraction from various activity definition maps."""
+        assert ActivitySyncService._extract_trigger_activity_type(activity_definitions_map) == expected
 
 
 class TestPendingOutputFlag:
