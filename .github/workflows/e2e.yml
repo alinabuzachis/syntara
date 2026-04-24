@@ -178,7 +178,7 @@ jobs:
 
       - name: Run E2E tests
         working-directory: packages/nexus-ui
-        run: npx playwright test --retries=1
+        run: npx playwright test --retries=1 --reporter=list
         env:
           NEXUS_E2E_SKIP_WEB_SERVER: '1'
           NEXUS_E2E_BASE_URL: http://localhost:8000

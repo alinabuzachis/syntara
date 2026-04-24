@@ -15,6 +15,9 @@ export default defineConfig({
   expect: {
     timeout: 10_000,
   },
+  reporter: process.env.CI
+    ? [['list'], ['html', { outputFolder: 'playwright-report', open: 'never' }]]
+    : [['list'], ['json', { outputFile: 'test-results/results.json' }], ['html', { outputFolder: 'playwright-report', open: 'never' }]],
   use: {
     baseURL,
     viewport: { width: 1280, height: 720 },

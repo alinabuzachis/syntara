@@ -154,8 +154,7 @@ test.describe('Node editor panels', () => {
     const workflowName = buildUniqueName('e2e-chain')
 
     // Build: Trigger → Gather Info → Process Data → Send Alert
-    await app.goto(toAppUrl('/automation-builder/new'))
-    await selectProjectIfRequired(app)
+    await app.goto(toAppUrl('/workflow-builder/new'))
     await addManualTrigger(app, 'Trigger')
     await addScriptNode(
       app,
@@ -173,15 +172,8 @@ test.describe('Node editor panels', () => {
       'import json; print(json.dumps({"notification_sent": True, "channel": "#ops-alerts"}))'
     )
 
-    // Save the workflow
-    await app.getByPlaceholder('Workflow name').fill(workflowName)
-    await app.getByRole('button', { name: 'Save' }).click()
-    await expect(app).toHaveURL(/automation-builder\/.+/)
-
-    // Extract node IDs from the canvas
+    // Extract node IDs from the canvas before saving (IDs are stable across save)
     await layoutCanvas(app)
-    const workflowId = app.url().split('/').pop()
-
     const gatherNode = app.locator('.react-flow__node').filter({ hasText: 'Gather Info' })
     const processNode = app.locator('.react-flow__node').filter({ hasText: 'Process Data' })
     const alertNode = app.locator('.react-flow__node').filter({ hasText: 'Send Alert' })
@@ -214,7 +206,9 @@ test.describe('Node editor panels', () => {
       stdout_json: { notification_sent: true, channel: '#ops-alerts', message: 'web-01 degraded' },
     }
 
-    // Mock execution API — return a completed execution with all activities
+    // Set up execution mock BEFORE saving so the builder's initial execution query
+    // hits the mock instead of the real backend (avoids React Query caching empty data)
+    let workflowId = 'pending'
     await app.route(/\/api\/v1\/executions/, async (route) => {
       const url = route.request().url()
 
@@ -288,6 +282,13 @@ test.describe('Node editor panels', () => {
       }
     })
 
+    // Save the workflow
+    await selectProjectIfRequired(app)
+    await app.getByPlaceholder('Workflow name').fill(workflowName)
+    await app.getByRole('button', { name: 'Save' }).click()
+    await expect(app).toHaveURL(/workflow-builder\/.+/)
+    workflowId = app.url().split('/').pop() ?? workflowId
+
     // --- Verify each node's output data (scoped to the Output JSON region) ---
 
     // Node 1: Gather Info — output has server diagnostics
@@ -320,7 +321,7 @@ test.describe('Node editor panels', () => {
     // Clicking "Analyze" should show the schema preview for script output fields
     // because its upstream node (Fetch Data) is a script node with known output schema.
     // No execution data — purely design-time schema discovery.
-    await app.goto(toAppUrl('/automation-builder/new'))
+    await app.goto(toAppUrl('/workflow-builder/new'))
     await selectProjectIfRequired(app)
     await addManualTrigger(app, 'Trigger')
     await addScriptNode(app, 'Fetch Data', 'print("fetching")')
@@ -352,7 +353,7 @@ test.describe('Node editor panels', () => {
     const workflowName = buildUniqueName('e2e-real-input')
 
     // Build: Trigger → Fetch Data (script) → Analyze (script)
-    await app.goto(toAppUrl('/automation-builder/new'))
+    await app.goto(toAppUrl('/workflow-builder/new'))
     await selectProjectIfRequired(app)
     await addManualTrigger(app, 'Trigger')
     await addScriptNode(app, 'Fetch Data', 'print("fetching")')
@@ -379,7 +380,7 @@ test.describe('Node editor panels', () => {
     await selectProjectIfRequired(app)
     await app.getByPlaceholder('Workflow name').fill(workflowName)
     await app.getByRole('button', { name: 'Save' }).click()
-    await expect(app).toHaveURL(/automation-builder\/.+/)
+    await expect(app).toHaveURL(/workflow-builder\/.+/)
     const builderUrl = app.url()
     const workflowId = builderUrl.split('/').pop()
 
@@ -489,8 +490,8 @@ test.describe('Node editor panels', () => {
       }
     })
 
-    // Navigate back to the builder via automations list (real user flow)
-    await app.goto(toAppUrl('/automations'))
+    // Navigate back to the builder via workflows list (real user flow)
+    await app.goto(toAppUrl('/workflows'))
     await app.getByPlaceholder('Filter by name').fill(workflowName)
     await app.getByRole('button', { name: 'Apply filter' }).click()
     await app.getByRole('button', { name: workflowName, exact: true }).click()
@@ -514,7 +515,7 @@ test.describe('Node editor panels', () => {
 
   test('input panel sections can be collapsed and expanded', async ({ app }) => {
     // Build: Trigger → Script A → Script B (so Script B has a script upstream with known schema)
-    await app.goto(toAppUrl('/automation-builder/new'))
+    await app.goto(toAppUrl('/workflow-builder/new'))
     await selectProjectIfRequired(app)
     await addManualTrigger(app, 'Trigger')
     await addScriptNode(app, 'Script A', 'print("hello")')
@@ -557,14 +558,14 @@ test.describe('Node editor panels', () => {
 
   test('input panel view switching: Schema, Table, and JSON with execution data', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-views')
-    await app.goto(toAppUrl('/automation-builder/new'))
+    await app.goto(toAppUrl('/workflow-builder/new'))
     await selectProjectIfRequired(app)
     await addManualTrigger(app, 'Trigger')
     await addScriptNode(app, 'Fetch', 'print("data")')
     await addScriptNode(app, 'Analyze', 'print("result")')
     await app.getByPlaceholder('Workflow name').fill(workflowName)
     await app.getByRole('button', { name: 'Save' }).click()
-    await expect(app).toHaveURL(/automation-builder\/.+/)
+    await expect(app).toHaveURL(/workflow-builder\/.+/)
 
     await layoutCanvas(app)
     const workflowId = app.url().split('/').pop()
@@ -635,7 +636,7 @@ test.describe('Node editor panels', () => {
     })
 
     // Navigate back to builder
-    await app.goto(toAppUrl('/automations'))
+    await app.goto(toAppUrl('/workflows'))
     await app.getByPlaceholder('Filter by name').fill(workflowName)
     await app.getByRole('button', { name: 'Apply filter' }).click()
     await app.getByRole('button', { name: workflowName, exact: true }).click()
@@ -669,7 +670,7 @@ test.describe('Node editor panels', () => {
 
   test('input panel node selector switches between upstream nodes', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-selector')
-    await app.goto(toAppUrl('/automation-builder/new'))
+    await app.goto(toAppUrl('/workflow-builder/new'))
     await selectProjectIfRequired(app)
     await addManualTrigger(app, 'Trigger')
     await addScriptNode(app, 'Step A', 'print("alpha")')
@@ -677,7 +678,7 @@ test.describe('Node editor panels', () => {
     await addScriptNode(app, 'Step C', 'print("gamma")')
     await app.getByPlaceholder('Workflow name').fill(workflowName)
     await app.getByRole('button', { name: 'Save' }).click()
-    await expect(app).toHaveURL(/automation-builder\/.+/)
+    await expect(app).toHaveURL(/workflow-builder\/.+/)
 
     await layoutCanvas(app)
     const workflowId = app.url().split('/').pop()
@@ -764,7 +765,7 @@ test.describe('Node editor panels', () => {
     })
 
     // Navigate back to builder
-    await app.goto(toAppUrl('/automations'))
+    await app.goto(toAppUrl('/workflows'))
     await app.getByPlaceholder('Filter by name').fill(workflowName)
     await app.getByRole('button', { name: 'Apply filter' }).click()
     await app.getByRole('button', { name: workflowName, exact: true }).click()
