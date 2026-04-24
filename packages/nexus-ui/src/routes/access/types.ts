@@ -6,11 +6,10 @@
  */
 import type { User } from '@ansible/nexus-contracts'
 import type * as AuthzAPI from '@ansible/nexus-contracts/src/authz-api.js'
-import type * as GroupRoleAssignmentsAPI from '@ansible/nexus-contracts/src/group-role-assignments-api.js'
 import type * as PoliciesAPI from '@ansible/nexus-contracts/src/policies-api.js'
 import type * as ProjectsAPI from '@ansible/nexus-contracts/src/projects-api.js'
+import type * as RoleAssignmentsAPI from '@ansible/nexus-contracts/src/role-assignments-api.js'
 import type * as RolesAPI from '@ansible/nexus-contracts/src/roles-api.js'
-import type * as UserRoleAssignmentsAPI from '@ansible/nexus-contracts/src/user-role-assignments-api.js'
 
 // ── Project ───────────────────────────────────────────────────────────────
 
@@ -18,25 +17,10 @@ export type ProjectRead = ProjectsAPI.components['schemas']['ProjectRead']
 export type ProjectCreate = ProjectsAPI.components['schemas']['ProjectCreate']
 export type ProjectUpdate = ProjectsAPI.components['schemas']['ProjectUpdate']
 
-// ── Project Role Assignment (user → role in project) ──────────────────────
+// ── Role Assignment (unified) ────────────────────────────────────────────
 
-export type ProjectRoleAssignmentRead = ProjectsAPI.components['schemas']['ProjectRoleAssignmentRead']
-export type ProjectRoleAssignmentCreate = ProjectsAPI.components['schemas']['ProjectRoleAssignmentCreate']
-
-// ── Project Group Role Assignment (group → role in project) ───────────────
-
-export type ProjectGroupRoleAssignmentRead = ProjectsAPI.components['schemas']['ProjectGroupRoleAssignmentRead']
-export type ProjectGroupRoleAssignmentCreate = ProjectsAPI.components['schemas']['ProjectGroupRoleAssignmentCreate']
-
-// ── System-level User Role Assignment (user → role globally) ─────────────
-
-export type UserRoleAssignmentRead = UserRoleAssignmentsAPI.components['schemas']['UserRoleAssignmentRead']
-export type UserRoleAssignmentCreate = UserRoleAssignmentsAPI.components['schemas']['UserRoleAssignmentCreate']
-
-// ── System-level Group Role Assignment (group → role globally) ────────────
-
-export type GroupRoleAssignmentRead = GroupRoleAssignmentsAPI.components['schemas']['GroupRoleAssignmentRead']
-export type GroupRoleAssignmentCreate = GroupRoleAssignmentsAPI.components['schemas']['GroupRoleAssignmentCreate']
+export type RoleAssignmentRead = RoleAssignmentsAPI.components['schemas']['RoleAssignmentRead']
+export type RoleAssignmentCreate = RoleAssignmentsAPI.components['schemas']['RoleAssignmentCreate']
 
 // ── Policy ────────────────────────────────────────────────────────────────
 
@@ -92,9 +76,11 @@ export type PermissionRow = {
   principalName: string
   assignmentType: 'role'
   assignmentName: string
+  roleDescription: string | null
+  rolePolicies: string[]
   roleId?: string
   scopeType: 'project' | 'system'
   scopeName: string
   projectId?: string
-  sourceEndpoint: 'project-roles' | 'project-group-roles' | 'user-role-assignments' | 'group-role-assignments'
+  sourceEndpoint: 'role-assignments' | 'project-role-assignments'
 }

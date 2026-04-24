@@ -19,8 +19,10 @@ describe('access/types', () => {
       roleId: 'r1',
       scopeType: 'system',
       scopeName: 'System',
-      sourceEndpoint: 'group-role-assignments',
+      roleDescription: null,
+      rolePolicies: [],
+      sourceEndpoint: 'role-assignments',
     }
-    expect(row.sourceEndpoint).toBe('group-role-assignments')
+    expect(row.sourceEndpoint).toBe('role-assignments')
   })
 })

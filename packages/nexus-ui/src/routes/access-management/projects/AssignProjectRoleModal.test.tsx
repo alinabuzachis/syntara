@@ -7,7 +7,6 @@ import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../../../components/alerts'
 import { accessClient } from '../../access/accessClient'
-import { useAllUsers } from '../../access/useAllUsers'
 
 import { AssignProjectRoleModal } from './AssignProjectRoleModal'
 
@@ -22,8 +21,8 @@ vi.mock('../../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
 }))
 
-vi.mock('../../access/useAllUsers', () => ({
-  useAllUsers: vi.fn(),
+vi.mock('../../../hooks/useDebouncedValue', () => ({
+  useDebouncedValue: <T,>(value: T) => value,
 }))
 
 const mockMutate = vi.fn()
@@ -74,20 +73,28 @@ describe('AssignProjectRoleModal', () => {
   const emptyAssignedRoles = new Map<string, Set<string>>()
 
   function setupMocks() {
-    vi.mocked(useAllUsers).mockReturnValue({
-      users: mockUsers as never,
-      isLoading: false,
-      error: null,
+    vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
+      if (path === '/users') {
+        return {
+          data: { resources: mockUsers, next: null },
+          isPending: false,
+          isLoading: false,
+          isError: false,
+          error: null,
+          isFetching: false,
+          refetch: vi.fn(),
+        } as never
+      }
+      return {
+        data: { resources: mockRoles, next: null },
+        isPending: false,
+        isLoading: false,
+        isError: false,
+        error: null,
+        isFetching: false,
+        refetch: vi.fn(),
+      } as never
     })
-
-    vi.mocked(accessClient.useQuery).mockReturnValue({
-      data: { resources: mockRoles },
-      isLoading: false,
-      isError: false,
-      error: null,
-      isFetching: false,
-      refetch: vi.fn(),
-    } as never)
 
     vi.mocked(accessClient.useMutation).mockReturnValue(mockMutationReturn)
   }

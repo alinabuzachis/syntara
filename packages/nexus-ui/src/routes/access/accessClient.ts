@@ -6,13 +6,11 @@
  * consumers can call any access endpoint through one import.
  */
 import type {
-  AllRoleAssignmentsAPI,
   AuthzAPI,
-  GroupRoleAssignmentsAPI,
   PoliciesAPI,
   ProjectsAPI,
+  RoleAssignmentsAPI,
   RolesAPI,
-  UserRoleAssignmentsAPI,
   UsersAPI,
 } from '@ansible/nexus-contracts'
 import createFetchClient from 'openapi-fetch'
@@ -25,12 +23,10 @@ import { authMiddleware } from '../../client'
 // UsersAPI.paths is included for backward compat (users/groups CRUD is
 // used alongside RBAC endpoints in access-management components).
 type AccessPaths = ProjectsAPI.paths &
-  AllRoleAssignmentsAPI.paths &
+  RoleAssignmentsAPI.paths &
   AuthzAPI.paths &
   RolesAPI.paths &
   PoliciesAPI.paths &
-  UserRoleAssignmentsAPI.paths &
-  GroupRoleAssignmentsAPI.paths &
   UsersAPI.paths
 
 export const accessFetchClient = createFetchClient<AccessPaths>({ baseUrl: '/api/v1/' })

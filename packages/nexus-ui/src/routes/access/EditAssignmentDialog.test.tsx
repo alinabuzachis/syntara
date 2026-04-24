@@ -88,7 +88,9 @@ const projectRow: PermissionRow = {
   scopeType: 'project',
   scopeName: 'Project Alpha',
   projectId: 'p1',
-  sourceEndpoint: 'project-roles',
+  roleDescription: null,
+  rolePolicies: [],
+  sourceEndpoint: 'project-role-assignments',
 }
 
 const projectGroupRow: PermissionRow = {
@@ -101,7 +103,9 @@ const projectGroupRow: PermissionRow = {
   scopeType: 'project',
   scopeName: 'Project Alpha',
   projectId: 'p1',
-  sourceEndpoint: 'project-group-roles',
+  roleDescription: null,
+  rolePolicies: [],
+  sourceEndpoint: 'project-role-assignments',
 }
 
 const systemUserRow: PermissionRow = {
@@ -113,7 +117,9 @@ const systemUserRow: PermissionRow = {
   assignmentName: 'Viewer',
   scopeType: 'system',
   scopeName: 'System',
-  sourceEndpoint: 'user-role-assignments',
+  roleDescription: null,
+  rolePolicies: [],
+  sourceEndpoint: 'role-assignments',
   roleId: 'r2',
 }
 
@@ -126,7 +132,9 @@ const systemGroupRow: PermissionRow = {
   assignmentName: 'Admin',
   scopeType: 'system',
   scopeName: 'System',
-  sourceEndpoint: 'group-role-assignments',
+  roleDescription: null,
+  rolePolicies: [],
+  sourceEndpoint: 'role-assignments',
   roleId: 'r1',
 }
 
@@ -451,36 +459,6 @@ describe('EditAssignmentDialog', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Invalid assignment: missing project ID')).toBeInTheDocument()
-      })
-    })
-
-    it('shows error when system user assignment is missing roleId', async () => {
-      const user = userEvent.setup()
-      const rowMissingRole: PermissionRow = { ...systemUserRow, roleId: undefined }
-      render(<EditAssignmentDialog {...defaultProps} row={rowMissingRole} displayName="bob" />, { wrapper })
-
-      const roleToggle = screen.getByPlaceholderText('Select a role...')
-      await user.click(roleToggle)
-      await user.click(await screen.findByRole('option', { name: 'Admin' }))
-      await user.click(screen.getByRole('button', { name: 'Save' }))
-
-      await waitFor(() => {
-        expect(screen.getByText('Invalid assignment: missing role ID')).toBeInTheDocument()
-      })
-    })
-
-    it('shows error when system group assignment is missing roleId', async () => {
-      const user = userEvent.setup()
-      const rowMissingRole: PermissionRow = { ...systemGroupRow, roleId: undefined }
-      render(<EditAssignmentDialog {...defaultProps} row={rowMissingRole} displayName="Ops" />, { wrapper })
-
-      const roleToggle = screen.getByPlaceholderText('Select a role...')
-      await user.click(roleToggle)
-      await user.click(await screen.findByRole('option', { name: 'Viewer' }))
-      await user.click(screen.getByRole('button', { name: 'Save' }))
-
-      await waitFor(() => {
-        expect(screen.getByText('Invalid assignment: missing role ID')).toBeInTheDocument()
       })
     })
 

@@ -13,31 +13,60 @@ import {
 import { RhUiCloseIcon } from '@patternfly/react-icons'
 import { type Ref, useMemo, useRef, useState } from 'react'
 
-export interface RoleOption {
+export type RoleOption = {
   id: string
   name: string
   description: string | null
+}
+
+function renderSelectOptions(options: RoleOption[], filterValue: string, hasMore?: boolean, isLoading?: boolean) {
+  if (isLoading) {
+    return <SelectOption isDisabled>Loading...</SelectOption>
+  }
+  if (options.length === 0) {
+    return (
+      <SelectOption isDisabled>{filterValue ? `No results match "${filterValue}"` : 'No roles available'}</SelectOption>
+    )
+  }
+  return (
+    <>
+      {options.map((role) => (
+        <SelectOption key={role.id} value={role.id} description={role.description ?? undefined}>
+          {role.name}
+        </SelectOption>
+      ))}
+      {hasMore && <SelectOption isDisabled>Type to narrow results...</SelectOption>}
+    </>
+  )
 }
 
 export function MultiRoleSelect({
   options,
   selected,
   onChange,
+  onSearchChange,
+  hasMore,
+  isLoading,
 }: Readonly<{
   options: RoleOption[]
   selected: string[]
   onChange: (ids: string[]) => void
+  onSearchChange?: (term: string) => void
+  hasMore?: boolean
+  isLoading?: boolean
 }>) {
   const [isOpen, setIsOpen] = useState(false)
   const [filterValue, setFilterValue] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
+  const isServerFiltered = !!onSearchChange
+
   const filteredOptions = useMemo(() => {
     const available = options.filter((o) => !selected.includes(o.id))
-    if (!filterValue) return available
+    if (isServerFiltered || !filterValue) return available
     const term = filterValue.toLowerCase()
     return available.filter((o) => o.name.toLowerCase().includes(term))
-  }, [options, selected, filterValue])
+  }, [options, selected, filterValue, isServerFiltered])
 
   const selectedLabels = useMemo(() => {
     const map = new Map(options.map((o) => [o.id, o.name]))
@@ -51,6 +80,7 @@ export function MultiRoleSelect({
       onChange([...selected, roleId])
     }
     setFilterValue('')
+    if (onSearchChange) onSearchChange('')
     inputRef.current?.focus()
   }
 
@@ -61,6 +91,7 @@ export function MultiRoleSelect({
   const handleClear = () => {
     onChange([])
     setFilterValue('')
+    if (onSearchChange) onSearchChange('')
     inputRef.current?.focus()
   }
 
@@ -71,6 +102,7 @@ export function MultiRoleSelect({
           value={filterValue}
           onChange={(_e, val) => {
             setFilterValue(val)
+            if (onSearchChange) onSearchChange(val)
             if (!isOpen) setIsOpen(true)
           }}
           onClick={() => {
@@ -125,17 +157,7 @@ export function MultiRoleSelect({
       toggle={toggle}
     >
       <SelectList style={{ maxHeight: '200px', overflow: 'auto' }}>
-        {filteredOptions.length === 0 ? (
-          <SelectOption isDisabled>
-            {filterValue ? `No results match "${filterValue}"` : 'No roles available'}
-          </SelectOption>
-        ) : (
-          filteredOptions.map((role) => (
-            <SelectOption key={role.id} value={role.id} description={role.description ?? undefined}>
-              {role.name}
-            </SelectOption>
-          ))
-        )}
+        {renderSelectOptions(filteredOptions, filterValue, hasMore, isLoading)}
       </SelectList>
     </Select>
   )

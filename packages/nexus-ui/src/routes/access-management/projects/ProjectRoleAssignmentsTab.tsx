@@ -1,21 +1,11 @@
-import {
-  Button,
-  Flex,
-  FlexItem,
-  Label,
-  Modal,
-  ModalBody,
-  ModalFooter,
-  ModalHeader,
-  Stack,
-  StackItem,
-} from '@patternfly/react-core'
+import { Button, Flex, FlexItem, Label, LabelGroup, Stack, StackItem } from '@patternfly/react-core'
 import { PlusIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
 
 import { useAlerts } from '../../../components/alerts'
+import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
 import { FilterBar } from '../../../components/filters'
@@ -26,7 +16,6 @@ import { useSortState } from '../../../hooks/useSortState'
 import type { FilterConfig, FilterFieldDefinition } from '../../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../../types/filters'
 import { getErrorMessage } from '../../../utils/apiErrors'
-import { formatDateTime } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
 import { accessClient } from '../../access/accessClient'
 import { PaginationFooter } from '../../access/PaginationFooter'
@@ -35,30 +24,30 @@ import { AssignProjectRoleModal } from './AssignProjectRoleModal'
 
 const filterFieldDefinitions: FilterFieldDefinition[] = [
   {
-    key: 'name',
-    label: 'Name',
-    type: FilterTypeEnum.TEXT,
-    operators: [FilterOperatorEnum.CONTAINS],
-    defaultOperator: FilterOperatorEnum.CONTAINS,
-    placeholder: 'Filter by name',
-  },
-  {
-    key: 'role_name',
-    label: 'Role',
-    type: FilterTypeEnum.TEXT,
-    operators: [FilterOperatorEnum.CONTAINS],
-    defaultOperator: FilterOperatorEnum.CONTAINS,
-    placeholder: 'Filter by role',
-  },
-  {
     key: 'type',
-    label: 'Type',
+    label: 'Principal Type',
     type: FilterTypeEnum.SELECT,
     options: [
       { value: 'user', label: 'User' },
       { value: 'group', label: 'Group' },
     ],
-    placeholder: 'Filter by type',
+    placeholder: 'Filter by principal type',
+  },
+  {
+    key: 'name',
+    label: 'Principal Name',
+    type: FilterTypeEnum.TEXT,
+    operators: [FilterOperatorEnum.CONTAINS],
+    defaultOperator: FilterOperatorEnum.CONTAINS,
+    placeholder: 'Filter by principal name',
+  },
+  {
+    key: 'role_name',
+    label: 'Role Name',
+    type: FilterTypeEnum.TEXT,
+    operators: [FilterOperatorEnum.CONTAINS],
+    defaultOperator: FilterOperatorEnum.CONTAINS,
+    placeholder: 'Filter by role name',
   },
 ]
 
@@ -66,14 +55,12 @@ const sortFieldByColumn: Record<number, string> = {
   0: 'principal_name',
   1: 'principal_type',
   2: 'role_name',
-  3: 'created_at',
 }
 
 const sortFieldToRowKey: Record<string, keyof RoleAssignmentRow> = {
   principal_name: 'principalName',
   principal_type: 'principalType',
   role_name: 'roleName',
-  created_at: 'createdAt',
 }
 
 function applyFilters(rows: RoleAssignmentRow[], filters: FilterConfig[]): RoleAssignmentRow[] {
@@ -118,40 +105,11 @@ type RoleAssignmentRow = {
   principalName: string
   principalType: 'user' | 'group'
   roleName: string
-  createdAt: string | null
+  rolePolicies: string[]
 }
 
 type ProjectRoleAssignmentsTabProps = {
   projectId: string
-}
-
-function UnassignRoleDialog({
-  row,
-  isOpen,
-  onClose,
-  onConfirm,
-}: Readonly<{
-  row: RoleAssignmentRow | null
-  isOpen: boolean
-  onClose: () => void
-  onConfirm: () => void
-}>) {
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} variant="small">
-      <ModalHeader title="Unassign role" />
-      <ModalBody>
-        Are you sure you want to unassign role &quot;{row?.roleName}&quot; from {row?.principalName}?
-      </ModalBody>
-      <ModalFooter>
-        <Button variant="danger" onClick={onConfirm}>
-          Unassign
-        </Button>
-        <Button variant="link" onClick={onClose}>
-          Cancel
-        </Button>
-      </ModalFooter>
-    </Modal>
-  )
 }
 
 function getAssignmentActions(row: RoleAssignmentRow, onUnassign: (row: RoleAssignmentRow) => void): IAction[] {
@@ -177,9 +135,9 @@ function RoleAssignmentsTable({
       <Thead>
         <Tr>
           <Th sort={getSortParams(0)}>Principal Name</Th>
-          <Th sort={getSortParams(1)}>Type</Th>
+          <Th sort={getSortParams(1)}>Principal Type</Th>
           <Th sort={getSortParams(2)}>Role Name</Th>
-          <Th sort={getSortParams(3)}>Created</Th>
+          <Th>Policies</Th>
           <Th screenReaderText="Actions" />
         </Tr>
       </Thead>
@@ -187,13 +145,25 @@ function RoleAssignmentsTable({
         {rows.map((row) => (
           <Tr key={row.id}>
             <Td dataLabel="Principal Name">{row.principalName}</Td>
-            <Td dataLabel="Type">
-              <Label isCompact color={row.principalType === 'user' ? 'blue' : 'green'}>
+            <Td dataLabel="Principal Type">
+              <Label isCompact color={row.principalType === 'user' ? 'blue' : 'teal'}>
                 {row.principalType === 'user' ? 'User' : 'Group'}
               </Label>
             </Td>
             <Td dataLabel="Role Name">{row.roleName}</Td>
-            <Td dataLabel="Created">{formatDateTime(row.createdAt)}</Td>
+            <Td dataLabel="Policies">
+              {row.rolePolicies.length > 0 ? (
+                <LabelGroup numLabels={3}>
+                  {row.rolePolicies.map((name) => (
+                    <Label key={name} isCompact>
+                      {name}
+                    </Label>
+                  ))}
+                </LabelGroup>
+              ) : (
+                '-'
+              )}
+            </Td>
             <Td isActionCell>
               <ActionsColumn items={getAssignmentActions(row, onUnassign)} />
             </Td>
@@ -223,17 +193,13 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAss
     setPage(1)
   }
 
-  const allAssignmentsQuery = accessClient.useQuery('get', '/projects/{project_id}/all-role-assignments', {
+  const allAssignmentsQuery = accessClient.useQuery('get', '/projects/{project_id}/role-assignments', {
     params: { path: { project_id: projectId } },
   })
 
-  const { mutate: deleteUserAssignment } = accessClient.useMutation(
+  const { mutate: deleteAssignment } = accessClient.useMutation(
     'delete',
     '/projects/{project_id}/role-assignments/{assignment_id}'
-  )
-  const { mutate: deleteGroupAssignment } = accessClient.useMutation(
-    'delete',
-    '/projects/{project_id}/group-role-assignments/{assignment_id}'
   )
 
   const assignments = useMemo(() => allAssignmentsQuery.data?.resources ?? [], [allAssignmentsQuery.data])
@@ -245,7 +211,7 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAss
         principalName: a.principal_name,
         principalType: a.principal_type === 'group' ? 'group' : 'user',
         roleName: a.role_name,
-        createdAt: a.created_at ?? null,
+        rolePolicies: a.role_policies ?? [],
       })),
     [assignments]
   )
@@ -302,12 +268,7 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAss
       },
       onSettled: () => setRowToUnassign(null),
     }
-    const params = { params: { path: { project_id: projectId, assignment_id: rowToUnassign.id } } }
-    if (rowToUnassign.principalType === 'user') {
-      deleteUserAssignment(params, callbacks)
-    } else {
-      deleteGroupAssignment(params, callbacks)
-    }
+    deleteAssignment({ params: { path: { project_id: projectId, assignment_id: rowToUnassign.id } } }, callbacks)
   }
 
   const queryState = useQueryState(allAssignmentsQuery, {
@@ -398,12 +359,17 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAss
         onSuccess={refetch}
       />
 
-      <UnassignRoleDialog
-        row={rowToUnassign}
+      <ConfirmationDialog
         isOpen={!!rowToUnassign}
         onClose={() => setRowToUnassign(null)}
         onConfirm={handleUnassign}
-      />
+        title="Unassign role"
+        confirmLabel="Unassign"
+        confirmVariant="danger"
+      >
+        Are you sure you want to unassign role &quot;{rowToUnassign?.roleName}&quot; from {rowToUnassign?.principalName}
+        ?
+      </ConfirmationDialog>
     </>
   )
 }

@@ -111,7 +111,7 @@ function AddToGroupModal({
   const availableGroups = useMemo(() => {
     const allGroups = groupsQuery.data?.resources ?? []
     return allGroups
-      .filter((g) => !existingGroupIds.includes(g.id))
+      .filter((g): g is typeof g & { id: string } => !!g.id && !existingGroupIds.includes(g.id))
       .map((g) => ({
         value: g.id,
         label: g.name,
@@ -408,7 +408,7 @@ export function UserGroupsPanel({ userId }: Readonly<UserGroupsPanelProps>) {
         onSuccess={() => {
           query.refetch().catch(() => {})
         }}
-        existingGroupIds={groups.map((g) => g.id)}
+        existingGroupIds={groups.flatMap((g) => (g.id ? [g.id] : []))}
       />
 
       <RemoveFromGroupDialog

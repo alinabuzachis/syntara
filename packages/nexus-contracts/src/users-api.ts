@@ -12,14 +12,16 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List users
-     * @description Retrieve list of users with filtering and pagination
+     * List Users
+     * @description List users with filtering, sorting, and pagination.
+     *
+     *     Uses cursor-based pagination for scalability and consistency.
      */
     get: operations['list_users']
     put?: never
     /**
-     * Create a new local user
-     * @description Create a new local user account with username and password
+     * Create User
+     * @description Create a new local user.
      */
     post: operations['create_user']
     delete?: never
@@ -36,23 +38,24 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get user by ID
-     * @description Retrieve a user by their UUID
+     * Get User
+     * @description Get a user by ID.
      */
     get: operations['get_user']
     put?: never
     post?: never
     /**
-     * Delete user
-     * @description Soft delete a user account
+     * Delete User
+     * @description Soft delete a user.
      */
     delete: operations['delete_user']
     options?: never
     head?: never
     /**
-     * Update user
-     * @description Partially update a user. Only provided fields are updated.
-     *     Include the password field to change the user's password.
+     * Update User
+     * @description Update a user.
+     *
+     *     Supports partial updates - only provided fields are updated.
      */
     patch: operations['update_user']
     trace?: never
@@ -65,14 +68,16 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List user's groups
-     * @description List groups that a user belongs to
+     * List User Groups
+     * @description List groups that a user belongs to.
      */
     get: operations['list_user_groups']
     /**
-     * Set user's group memberships
-     * @description Declaratively set a user's group memberships. The provided list replaces
-     *     all current memberships. An empty list removes the user from all groups.
+     * Set User Groups
+     * @description Set a user's group memberships declaratively.
+     *
+     *     Replace all current memberships with the provided list of group IDs.
+     *     An empty list removes the user from all groups.
      */
     put: operations['set_user_groups']
     post?: never
@@ -90,14 +95,14 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List groups
-     * @description Retrieve list of groups with filtering and pagination
+     * List Groups
+     * @description Retrieve list of groups with filtering and pagination.
      */
     get: operations['list_groups']
     put?: never
     /**
-     * Create a new group
-     * @description Create a new group for organizing users
+     * Create Group
+     * @description Create a new group for organizing users.
      */
     post: operations['create_group']
     delete?: never
@@ -114,22 +119,22 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get group by ID
-     * @description Retrieve a group by its UUID
+     * Get Group
+     * @description Retrieve a group by its UUID.
      */
     get: operations['get_group']
     put?: never
     post?: never
     /**
-     * Delete group
-     * @description Soft delete a group
+     * Delete Group
+     * @description Soft delete a group.
      */
     delete: operations['delete_group']
     options?: never
     head?: never
     /**
-     * Update group
-     * @description Partially update a group. Only provided fields are updated.
+     * Update Group
+     * @description Update a group partially; only provided fields are changed.
      */
     patch: operations['update_group']
     trace?: never
@@ -142,14 +147,14 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List group members
-     * @description List members of a group with pagination
+     * List Members
+     * @description List members of a group with pagination.
      */
     get: operations['list_members']
     put?: never
     /**
-     * Add member to group
-     * @description Add a local user to a group
+     * Add Member
+     * @description Add a local user to a group.
      */
     post: operations['add_member']
     delete?: never
@@ -169,10 +174,98 @@ export interface paths {
     put?: never
     post?: never
     /**
-     * Remove member from group
-     * @description Remove a user from a group
+     * Remove Member
+     * @description Remove a user from a group.
      */
     delete: operations['remove_member']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/users/{user_id}/role-assignments': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List User Role Assignments
+     * @description List role assignments for a specific user.
+     */
+    get: operations['list_user_role_assignments']
+    put?: never
+    /**
+     * Create User Role Assignment
+     * @description Assign a role to this user.
+     */
+    post: operations['create_user_role_assignment']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/users/{user_id}/role-assignments/{assignment_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /**
+     * Delete User Role Assignment
+     * @description Remove a role assignment from this user.
+     */
+    delete: operations['delete_user_role_assignment']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/groups/{group_id}/role-assignments': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List Group Role Assignments
+     * @description List role assignments for a specific group.
+     */
+    get: operations['list_group_role_assignments']
+    put?: never
+    /**
+     * Create Group Role Assignment
+     * @description Assign a role to this group.
+     */
+    post: operations['create_group_role_assignment']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/groups/{group_id}/role-assignments/{assignment_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /**
+     * Delete Group Role Assignment
+     * @description Remove a role assignment from this group.
+     */
+    delete: operations['delete_group_role_assignment']
     options?: never
     head?: never
     patch?: never
@@ -182,151 +275,213 @@ export interface paths {
 export type webhooks = Record<string, never>
 export interface components {
   schemas: {
+    /**
+     * UserCreate
+     * @description Schema for creating a new local user (POST /users).
+     *
+     *     Excludes auto-generated fields: id, created_at, updated_at, last_login, preferences.
+     */
     UserCreate: {
-      /** @description Unique username */
+      /**
+       * Username
+       * @description Unique username
+       */
       username: string
       /**
+       * Email
        * Format: email
        * @description Unique email address
        */
       email: string
-      /** @description User's display name */
+      /**
+       * Full Name
+       * @description User's display name
+       */
       full_name: string
       /**
+       * Password
        * Format: password
        * @description Plaintext password (will be hashed)
        */
       password: string
       /**
+       * Is Active
        * @description Account activation status
        * @default true
        */
       is_active?: boolean
     }
+    /**
+     * UserUpdate
+     * @description Schema for updating a user (PATCH /users/{id}).
+     *
+     *     All fields are optional for partial updates.
+     */
     UserUpdate: {
-      /** @description Update display name */
-      full_name?: string
       /**
-       * Format: email
+       * Full Name
+       * @description Update display name
+       */
+      full_name?: string | null
+      /**
+       * Email
        * @description Update email address
        */
-      email?: string
+      email?: string | null
       /**
-       * Format: password
+       * Password
        * @description New password (will be hashed). Omit to keep current password.
        */
-      password?: string
-      /** @description Enable or disable user account */
-      is_active?: boolean
+      password?: string | null
+      /**
+       * Is Active
+       * @description Enable or disable user account
+       */
+      is_active?: boolean | null
     }
+    /**
+     * UserRead
+     * @description Schema for user response (GET /users/{id}).
+     *
+     *     Includes all user fields except sensitive data (password_hash, preferences).
+     */
     UserRead: {
       /**
+       * Id
        * Format: uuid
-       * @description User UUID
        */
       id: string
-      /** @description Username */
+      /** Username */
       username: string
-      /**
-       * Format: email
-       * @description Email address
-       */
+      /** Email */
       email: string
-      /** @description Display name */
+      /** Full Name */
       full_name: string
-      /** @description Account active status */
+      /** Is Active */
       is_active: boolean
-      /**
-       * Format: date-time
-       * @description Last login timestamp
-       */
+      /** Last Login */
       last_login?: string | null
       /**
+       * Created At
        * Format: date-time
-       * @description Creation timestamp
        */
       created_at: string
       /**
+       * Updated At
        * Format: date-time
-       * @description Last update timestamp
        */
       updated_at: string
     }
+    /**
+     * UserListResponse
+     * @description Paginated list response for users.
+     */
     UserListResponse: components['schemas']['ResourcesResponseBase'] & {
       resources: components['schemas']['UserRead'][]
     }
+    /**
+     * UserGroupsSet
+     * @description Schema for declaratively setting a user's group memberships (PUT /users/{id}/groups).
+     *
+     *     The provided list replaces all current memberships. An empty list removes
+     *     the user from all groups.
+     */
     UserGroupsSet: {
       /**
+       * Group Ids
        * @description Complete list of group IDs the user should belong to
-       * @default []
        */
       group_ids?: string[]
     }
+    /**
+     * GroupCreate
+     * @description Schema for creating a new group (POST /groups).
+     */
     GroupCreate: {
-      /** @description Unique group name */
-      name: string
-      /** @description Group description */
-      description?: string | null
-    }
-    GroupUpdate: {
-      /** @description Update group name */
-      name?: string
-      /** @description Update group description */
-      description?: string | null
-    }
-    GroupRead: {
       /**
-       * Format: uuid
-       * @description Group UUID
+       * Name
+       * @description Group name
        */
-      id: string
-      /** @description Group name */
       name: string
-      /** @description Group description */
+      /**
+       * Description
+       * @description Group description
+       */
+      description?: string | null
+    }
+    /**
+     * GroupUpdate
+     * @description Schema for updating a group (PATCH /groups/{id}).
+     *
+     *     All fields are optional for partial updates.
+     */
+    GroupUpdate: {
+      /**
+       * Name
+       * @description Update group name
+       */
+      name?: string | null
+      /**
+       * Description
+       * @description Update group description
+       */
+      description?: string | null
+    }
+    /**
+     * GroupRead
+     * @description Schema for group response (GET /groups/{id}).
+     *
+     *     Includes all fields from the database table model.
+     */
+    GroupRead: components['schemas']['BaseResource'] & {
+      /** Name */
+      name: string
+      /** Description */
       description?: string | null
       /**
-       * @description Whether this is a seeded builtin group (e.g. admins, authenticated)
+       * Is Builtin
        * @default false
        */
       is_builtin?: boolean
-      /**
-       * Format: uuid
-       * @description User who created the group
-       */
+      /** Created By */
       created_by?: string | null
       /**
-       * Format: date-time
-       * @description Creation timestamp
-       */
-      created_at: string
-      /**
-       * Format: date-time
-       * @description Last update timestamp
-       */
-      updated_at: string
-      /**
-       * @description Source of group creation (local or idp)
+       * Source
        * @default local
        */
       source?: string
       /**
-       * @description Number of members in the group
+       * Member Count
        * @default 0
        */
       member_count?: number
     }
+    /**
+     * GroupListResponse
+     * @description Paginated list response for groups.
+     */
     GroupListResponse: components['schemas']['ResourcesResponseBase'] & {
       resources: components['schemas']['GroupRead'][]
     }
+    /**
+     * GroupMemberAdd
+     * @description Schema for adding a member to a group (POST /groups/{id}/members).
+     */
     GroupMemberAdd: {
       /**
+       * User Id
        * Format: uuid
        * @description UUID of the user to add to the group
        */
       user_id: string
     }
+    /**
+     * GroupMemberAddResponse
+     * @description Response schema for adding a member to a group.
+     */
     GroupMemberAddResponse: {
       /**
+       * Message
        * @description Confirmation message
        * @default Member added successfully
        */
@@ -335,88 +490,346 @@ export interface components {
     /**
      * Paginated Response Base
      * @description Pagination metadata structure for list responses
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
      */
     ResourcesResponseBase: {
       /**
-       * Next Page Cursor
+       * Next
        * @description Cursor for next page of results
-       * @example eyJpZCI6InV1aWQifQ
        */
       next?: string | null
       /**
-       * Previous Page Cursor
+       * Prev
        * @description Cursor for previous page of results
-       * @example eyJpZCI6InV1aWQifQ
        */
       prev?: string | null
       /**
-       * Total Count
+       * Total
        * @description Total count of resources (only when include_total=true)
-       * @example 150
        */
       total?: number | null
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources?: unknown[]
     }
     /**
-     * RFC 9457 Problem Details
-     * @description RFC 9457 Problem Details format for error responses.
-     *     This format provides machine-readable and human-readable error information
-     *     with consistent structure for all API error responses.
+     * ErrorData
+     * @description RFC 9457 Problem Details format for error event data.
+     *     This model is used for streaming error events and follows the RFC 9457 Problem Details specification. It provides machine-readable and human-readable error information with consistent structure.
+     *     Attributes:
+     *         type: URI reference identifying the problem type
+     *         title: Short, human-readable summary of the problem
+     *         detail: Human-readable explanation specific to this occurrence
+     *         code: Machine-readable error code for programmatic handling
+     *         retryable: Whether this error can be retried by creating a new invocation
+     *         instance: Optional URI reference identifying the specific occurrence
+     * @example {
+     *       "type": "https://api.nexus.com/errors/llm-error",
+     *       "title": "LLM Rate Limit Exceeded",
+     *       "detail": "OpenRouter API rate limit exceeded. Please try again in a few moments.",
+     *       "code": "RATE_LIMIT_EXCEEDED",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
+     * @example {
+     *       "type": "https://api.nexus.com/errors/timeout-error",
+     *       "title": "Streaming Timeout",
+     *       "detail": "LLM streaming timed out after 30 seconds",
+     *       "code": "STREAM_TIMEOUT",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
      */
     ErrorData: {
       /**
-       * Problem Type URI
+       * Type
        * @description URI reference identifying the problem type
-       * @example https://api.nexus.com/errors/validation-error
+       * @example https://api.nexus.com/errors/llm-error
        */
       type: string
       /**
-       * Problem Title
+       * Title
        * @description Short, human-readable summary of the problem
-       * @example Validation Error
+       * @example LLM Service Unavailable
        */
       title: string
       /**
-       * Problem Detail
+       * Detail
        * @description Human-readable explanation specific to this occurrence
-       * @example Field 'name' must be between 1 and 255 characters
+       * @example OpenRouter API returned error: rate limit exceeded. Please try again in a few moments.
        */
       detail: string
       /**
-       * Error Code
+       * Code
        * @description Machine-readable error code for programmatic handling
-       * @example VALIDATION_ERROR
+       * @example RATE_LIMIT_EXCEEDED
        */
       code: string
       /**
-       * Retryable Flag
-       * @description Whether this error can be retried
-       * @example false
+       * Retryable
+       * @description Whether this error can be retried by creating a new invocation
+       * @example true
        */
       retryable: boolean
       /**
-       * Problem Instance
-       * @description URI reference identifying the specific occurrence
-       * @example /api/v1/workflows
+       * Instance
+       * @description Optional URI reference identifying the specific occurrence
+       * @example /invocations/550e8400-e29b-41d4-a716-446655440000
        */
       instance?: string | null
     }
+    /**
+     * Base Resource
+     * @description Foundational schema for all API resources with system-managed metadata
+     */
+    BaseResource: {
+      /**
+       * Resource ID
+       * Format: uuid
+       * @description Unique identifier for the resource
+       * @example 550e8400-e29b-41d4-a716-446655440000
+       */
+      readonly id?: string
+      /**
+       * Created At
+       * Format: date-time
+       * @description Timestamp when resource was created
+       * @example 2025-10-09T12:00:00Z
+       */
+      readonly created_at?: string
+      /**
+       * Updated At
+       * Format: date-time
+       * @description Timestamp when resource was last updated
+       * @example 2025-10-09T12:30:00Z
+       */
+      readonly updated_at?: string
+      /**
+       * Labels
+       * @description Key-value pairs for resource labeling and filtering
+       * @default {}
+       * @example {
+       *       "environment": "production",
+       *       "region": "us-east-1",
+       *       "team": "platform"
+       *     }
+       */
+      labels?: {
+        [key: string]: string
+      }
+    }
+    /**
+     * RoleAssignmentRead
+     * @description Response body for a role assignment.
+     */
+    RoleAssignmentRead: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /** Principal Type */
+      principal_type: string
+      /**
+       * Principal Id
+       * Format: uuid
+       */
+      principal_id: string
+      /**
+       * Principal Name
+       * @description Resolved username or group name
+       */
+      principal_name: string
+      /** Role Name */
+      role_name: string
+      /**
+       * Role Description
+       * @description Human-readable description of the role
+       */
+      role_description?: string | null
+      /**
+       * Role Policies
+       * @description Policy names included in this role
+       */
+      role_policies?: string[]
+      /** Project Id */
+      project_id?: string | null
+      /** Project Name */
+      project_name?: string | null
+      /** Created At */
+      created_at?: string | null
+    }
+    /**
+     * RoleAssignmentListResponse
+     * @description Paginated response for role assignments.
+     */
+    RoleAssignmentListResponse: components['schemas']['ResourcesResponseBase'] & {
+      resources?: components['schemas']['RoleAssignmentRead'][]
+    }
+    /**
+     * SubResourceRoleAssignmentCreate
+     * @description Request body for creating a role assignment from a sub-resource endpoint (principal comes from URL).
+     */
+    SubResourceRoleAssignmentCreate: {
+      /**
+       * Role Name
+       * @description Name of the role to assign
+       */
+      role_name: string
+      /**
+       * Project Id
+       * @description Project scope (null for global assignment)
+       */
+      project_id?: string | null
+    }
   }
-  responses: never
+  responses: {
+    /** @description Bad Request */
+    BadRequestError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/bad-request",
+         *       "title": "Bad Request",
+         *       "detail": "The request was malformed or contained invalid parameters",
+         *       "code": "BAD_REQUEST",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Unauthorized */
+    UnauthorizedError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/unauthorized",
+         *       "title": "Unauthorized",
+         *       "detail": "Authentication is required to access this resource",
+         *       "code": "UNAUTHORIZED",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Forbidden */
+    ForbiddenError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/forbidden",
+         *       "title": "Forbidden",
+         *       "detail": "You do not have permission to access this resource",
+         *       "code": "FORBIDDEN",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Not Found */
+    NotFoundError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/not-found",
+         *       "title": "Resource Not Found",
+         *       "detail": "No resource exists with the provided identifier",
+         *       "code": "NOT_FOUND",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Conflict */
+    ConflictError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/conflict",
+         *       "title": "Conflict",
+         *       "detail": "The request conflicts with the current state of the resource",
+         *       "code": "CONFLICT",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Validation Error */
+    ValidationError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/validation-error",
+         *       "title": "Validation Error",
+         *       "detail": "Field 'name' must be between 1 and 255 characters",
+         *       "code": "VALIDATION_ERROR",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Internal Server Error */
+    InternalServerError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/internal-error",
+         *       "title": "Internal Server Error",
+         *       "detail": "An unexpected error occurred",
+         *       "code": "INTERNAL_ERROR",
+         *       "retryable": true
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+  }
   parameters: {
-    /**
-     * @description Number of resources to return per page
-     * @example 20
-     */
+    /** @description Maximum number of results per page */
     limitParam: number
-    /**
-     * @description Opaque cursor for pagination (from previous response)
-     * @example eyJpZCI6InV1aWQifQ
-     */
-    cursorParam: string
-    /**
-     * @description Whether to include total count in response (may impact performance)
-     * @example true
-     */
+    /** @description Pagination cursor from previous response */
+    cursorParam: string | null
+    /** @description Sort parameter (e.g., 'name', '-created_at') */
+    sortParam: string | null
+    /** @description Include total count in response (expensive) */
     includeTotalParam: boolean
   }
   requestBodies: never
@@ -428,23 +841,18 @@ export interface operations {
   list_users: {
     parameters: {
       query?: {
-        /**
-         * @description Number of resources to return per page
-         * @example 20
-         */
+        /** @description Maximum number of results per page */
         limit?: components['parameters']['limitParam']
-        /**
-         * @description Opaque cursor for pagination (from previous response)
-         * @example eyJpZCI6InV1aWQifQ
-         */
+        /** @description Pagination cursor from previous response */
         cursor?: components['parameters']['cursorParam']
-        /**
-         * @description Whether to include total count in response (may impact performance)
-         * @example true
-         */
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
+        sort?: components['parameters']['sortParam']
+        /** @description Include total count in response (expensive) */
         include_total?: components['parameters']['includeTotalParam']
-        /** @description Sort field and direction (e.g., 'username', '-created_at') */
-        sort?: string
+        /** @description Filter by username */
+        username?: string | null
+        /** @description Filter by full name */
+        full_name?: string | null
       }
       header?: never
       path?: never
@@ -461,6 +869,13 @@ export interface operations {
           'application/json': components['schemas']['UserListResponse']
         }
       }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   create_user: {
@@ -485,15 +900,13 @@ export interface operations {
           'application/json': components['schemas']['UserRead']
         }
       }
-      /** @description Username or email conflict */
-      409: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   get_user: {
@@ -501,7 +914,6 @@ export interface operations {
       query?: never
       header?: never
       path: {
-        /** @description User UUID */
         user_id: string
       }
       cookie?: never
@@ -517,15 +929,13 @@ export interface operations {
           'application/json': components['schemas']['UserRead']
         }
       }
-      /** @description User not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   delete_user: {
@@ -533,7 +943,6 @@ export interface operations {
       query?: never
       header?: never
       path: {
-        /** @description User UUID */
         user_id: string
       }
       cookie?: never
@@ -547,15 +956,13 @@ export interface operations {
         }
         content?: never
       }
-      /** @description User not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   update_user: {
@@ -563,7 +970,6 @@ export interface operations {
       query?: never
       header?: never
       path: {
-        /** @description User UUID */
         user_id: string
       }
       cookie?: never
@@ -583,59 +989,36 @@ export interface operations {
           'application/json': components['schemas']['UserRead']
         }
       }
-      /** @description Forbidden (e.g., non-admin disabling built-in admin) */
-      403: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description User not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Email conflict */
-      409: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   list_user_groups: {
     parameters: {
       query?: {
-        /**
-         * @description Number of resources to return per page
-         * @example 20
-         */
+        /** @description Maximum number of results per page */
         limit?: components['parameters']['limitParam']
-        /**
-         * @description Opaque cursor for pagination (from previous response)
-         * @example eyJpZCI6InV1aWQifQ
-         */
+        /** @description Pagination cursor from previous response */
         cursor?: components['parameters']['cursorParam']
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
+        sort?: components['parameters']['sortParam']
+        /** @description Include total count in response (expensive) */
+        include_total?: components['parameters']['includeTotalParam']
       }
       header?: never
       path: {
-        /** @description User UUID */
         user_id: string
       }
       cookie?: never
     }
     requestBody?: never
     responses: {
-      /** @description List of groups */
+      /** @description List of groups the user belongs to */
       200: {
         headers: {
           [name: string]: unknown
@@ -644,15 +1027,13 @@ export interface operations {
           'application/json': components['schemas']['GroupListResponse']
         }
       }
-      /** @description User not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   set_user_groups: {
@@ -660,7 +1041,6 @@ export interface operations {
       query?: never
       header?: never
       path: {
-        /** @description User UUID */
         user_id: string
       }
       cookie?: never
@@ -680,37 +1060,26 @@ export interface operations {
           'application/json': components['schemas']['GroupListResponse']
         }
       }
-      /** @description User or group not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   list_groups: {
     parameters: {
       query?: {
-        /**
-         * @description Number of resources to return per page
-         * @example 20
-         */
+        /** @description Maximum number of results per page */
         limit?: components['parameters']['limitParam']
-        /**
-         * @description Opaque cursor for pagination (from previous response)
-         * @example eyJpZCI6InV1aWQifQ
-         */
+        /** @description Pagination cursor from previous response */
         cursor?: components['parameters']['cursorParam']
-        /**
-         * @description Whether to include total count in response (may impact performance)
-         * @example true
-         */
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
+        sort?: components['parameters']['sortParam']
+        /** @description Include total count in response (expensive) */
         include_total?: components['parameters']['includeTotalParam']
-        /** @description Sort field and direction (e.g., 'name', '-created_at') */
-        sort?: string
       }
       header?: never
       path?: never
@@ -727,6 +1096,13 @@ export interface operations {
           'application/json': components['schemas']['GroupListResponse']
         }
       }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   create_group: {
@@ -751,15 +1127,13 @@ export interface operations {
           'application/json': components['schemas']['GroupRead']
         }
       }
-      /** @description Group name conflict */
-      409: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   get_group: {
@@ -783,15 +1157,13 @@ export interface operations {
           'application/json': components['schemas']['GroupRead']
         }
       }
-      /** @description Group not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   delete_group: {
@@ -813,15 +1185,13 @@ export interface operations {
         }
         content?: never
       }
-      /** @description Group not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   update_group: {
@@ -849,39 +1219,26 @@ export interface operations {
           'application/json': components['schemas']['GroupRead']
         }
       }
-      /** @description Group not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Group name conflict */
-      409: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   list_members: {
     parameters: {
       query?: {
-        /**
-         * @description Number of resources to return per page
-         * @example 20
-         */
+        /** @description Maximum number of results per page */
         limit?: components['parameters']['limitParam']
-        /**
-         * @description Opaque cursor for pagination (from previous response)
-         * @example eyJpZCI6InV1aWQifQ
-         */
+        /** @description Pagination cursor from previous response */
         cursor?: components['parameters']['cursorParam']
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
+        sort?: components['parameters']['sortParam']
+        /** @description Include total count in response (expensive) */
+        include_total?: components['parameters']['includeTotalParam']
       }
       header?: never
       path: {
@@ -901,15 +1258,13 @@ export interface operations {
           'application/json': components['schemas']['UserListResponse']
         }
       }
-      /** @description Group not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   add_member: {
@@ -937,33 +1292,13 @@ export interface operations {
           'application/json': components['schemas']['GroupMemberAddResponse']
         }
       }
-      /** @description User is not a local user */
-      403: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Group or user not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description User already a member */
-      409: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   remove_member: {
@@ -973,7 +1308,6 @@ export interface operations {
       path: {
         /** @description Group UUID */
         group_id: string
-        /** @description User UUID */
         user_id: string
       }
       cookie?: never
@@ -987,24 +1321,221 @@ export interface operations {
         }
         content?: never
       }
-      /** @description User is not a local user */
-      403: {
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  list_user_role_assignments: {
+    parameters: {
+      query?: {
+        /** @description Maximum number of results per page */
+        limit?: components['parameters']['limitParam']
+        /** @description Pagination cursor from previous response */
+        cursor?: components['parameters']['cursorParam']
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
+        sort?: components['parameters']['sortParam']
+        /** @description Include total count in response (expensive) */
+        include_total?: components['parameters']['includeTotalParam']
+        /** @description Filter by role name (exact match) */
+        role_name?: string | null
+        /** @description Filter by role name (substring, case-insensitive) */
+        'role_name[contains]'?: string | null
+        project_id?: string | null
+      }
+      header?: never
+      path: {
+        user_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description List of role assignments for this user */
+      200: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/problem+json': components['schemas']['ErrorData']
+          'application/json': components['schemas']['RoleAssignmentListResponse']
         }
       }
-      /** @description Group not found or user not a member */
-      404: {
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  create_user_role_assignment: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        user_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SubResourceRoleAssignmentCreate']
+      }
+    }
+    responses: {
+      /** @description Role assignment created */
+      201: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/problem+json': components['schemas']['ErrorData']
+          'application/json': components['schemas']['RoleAssignmentRead']
         }
       }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  delete_user_role_assignment: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        user_id: string
+        assignment_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Assignment removed */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  list_group_role_assignments: {
+    parameters: {
+      query?: {
+        /** @description Maximum number of results per page */
+        limit?: components['parameters']['limitParam']
+        /** @description Pagination cursor from previous response */
+        cursor?: components['parameters']['cursorParam']
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
+        sort?: components['parameters']['sortParam']
+        /** @description Include total count in response (expensive) */
+        include_total?: components['parameters']['includeTotalParam']
+        /** @description Filter by role name (exact match) */
+        role_name?: string | null
+        /** @description Filter by role name (substring, case-insensitive) */
+        'role_name[contains]'?: string | null
+        project_id?: string | null
+      }
+      header?: never
+      path: {
+        group_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description List of role assignments for this group */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['RoleAssignmentListResponse']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  create_group_role_assignment: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        group_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SubResourceRoleAssignmentCreate']
+      }
+    }
+    responses: {
+      /** @description Role assignment created */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['RoleAssignmentRead']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  delete_group_role_assignment: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        group_id: string
+        assignment_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Assignment removed */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
 }

@@ -20,14 +20,14 @@ import { assignNewThenDeleteOldWithRollback } from './editAssignmentMutations'
 import { TypeaheadSelect } from './TypeaheadSelect'
 import type { PermissionRow } from './types'
 
-interface EditAssignmentDialogProps {
+type EditAssignmentDialogProps = {
   row: PermissionRow
   displayName: string
   onClose: () => void
   onSuccess: () => void
 }
 
-interface EditAssignmentFormData {
+type EditAssignmentFormData = {
   roleName: string
 }
 
@@ -57,32 +57,17 @@ export function EditAssignmentDialog({ row, displayName, onClose, onSuccess }: R
     reset({ roleName: isProjectScoped ? row.assignmentName : '' })
   }, [row, isProjectScoped, reset])
 
-  // Mutations for delete
-  const { mutateAsync: deleteProjectRole } = accessClient.useMutation(
+  const { mutateAsync: deleteRoleAssignment } = accessClient.useMutation('delete', '/role-assignments/{assignment_id}')
+  const { mutateAsync: deleteProjectRoleAssignment } = accessClient.useMutation(
     'delete',
     '/projects/{project_id}/role-assignments/{assignment_id}'
   )
-  const { mutateAsync: deleteProjectGroupRole } = accessClient.useMutation(
-    'delete',
-    '/projects/{project_id}/group-role-assignments/{assignment_id}'
-  )
-  const { mutateAsync: deleteSystemUserRole } = accessClient.useMutation(
-    'delete',
-    '/user-role-assignments/{assignment_id}'
-  )
-  const { mutateAsync: deleteSystemGroupRole } = accessClient.useMutation(
-    'delete',
-    '/group-role-assignments/{assignment_id}'
-  )
 
-  // Mutations for create
-  const { mutateAsync: assignProjectRole } = accessClient.useMutation('post', '/projects/{project_id}/role-assignments')
-  const { mutateAsync: assignProjectGroupRole } = accessClient.useMutation(
+  const { mutateAsync: createRoleAssignment } = accessClient.useMutation('post', '/role-assignments')
+  const { mutateAsync: createProjectRoleAssignment } = accessClient.useMutation(
     'post',
-    '/projects/{project_id}/group-role-assignments'
+    '/projects/{project_id}/role-assignments'
   )
-  const { mutateAsync: assignSystemUserRole } = accessClient.useMutation('post', '/user-role-assignments')
-  const { mutateAsync: assignSystemGroupRole } = accessClient.useMutation('post', '/group-role-assignments')
 
   const onSubmit = async (data: EditAssignmentFormData) => {
     const newRole = data.roleName
@@ -93,9 +78,7 @@ export function EditAssignmentDialog({ row, displayName, onClose, onSuccess }: R
 
     setIsPending(true)
     try {
-      // Assign the new role first, then remove the old assignment, so the principal is never
-      // left without a role. If delete fails, revoke the new assignment to roll back.
-      if (row.sourceEndpoint === 'project-roles') {
+      if (row.sourceEndpoint === 'project-role-assignments') {
         if (!row.projectId) {
           showError('Update failed', 'Invalid assignment: missing project ID')
           setIsPending(false)
@@ -104,54 +87,24 @@ export function EditAssignmentDialog({ row, displayName, onClose, onSuccess }: R
         const pid = row.projectId
         await assignNewThenDeleteOldWithRollback({
           assignNew: () =>
-            assignProjectRole({
+            createProjectRoleAssignment({
               params: { path: { project_id: pid } },
-              body: { user_id: row.principalId, role_name: newRole },
+              body: { principal_type: row.principalType, principal_id: row.principalId, role_name: newRole },
             }),
-          deleteOld: () => deleteProjectRole({ params: { path: { project_id: pid, assignment_id: row.id } } }),
+          deleteOld: () =>
+            deleteProjectRoleAssignment({ params: { path: { project_id: pid, assignment_id: row.id } } }),
           revokeNew: (newAssignmentId) =>
-            deleteProjectRole({ params: { path: { project_id: pid, assignment_id: newAssignmentId } } }),
-        })
-      } else if (row.sourceEndpoint === 'project-group-roles') {
-        if (!row.projectId) {
-          showError('Update failed', 'Invalid assignment: missing project ID')
-          setIsPending(false)
-          return
-        }
-        const pid = row.projectId
-        await assignNewThenDeleteOldWithRollback({
-          assignNew: () =>
-            assignProjectGroupRole({
-              params: { path: { project_id: pid } },
-              body: { group_id: row.principalId, role_name: newRole },
-            }),
-          deleteOld: () => deleteProjectGroupRole({ params: { path: { project_id: pid, assignment_id: row.id } } }),
-          revokeNew: (newAssignmentId) =>
-            deleteProjectGroupRole({ params: { path: { project_id: pid, assignment_id: newAssignmentId } } }),
-        })
-      } else if (row.sourceEndpoint === 'user-role-assignments') {
-        if (!row.roleId) {
-          showError('Update failed', 'Invalid assignment: missing role ID')
-          setIsPending(false)
-          return
-        }
-        await assignNewThenDeleteOldWithRollback({
-          assignNew: () => assignSystemUserRole({ body: { user_id: row.principalId, role_name: newRole } }),
-          deleteOld: () => deleteSystemUserRole({ params: { path: { assignment_id: row.id } } }),
-          revokeNew: (newAssignmentId) =>
-            deleteSystemUserRole({ params: { path: { assignment_id: newAssignmentId } } }),
+            deleteProjectRoleAssignment({ params: { path: { project_id: pid, assignment_id: newAssignmentId } } }),
         })
       } else {
-        if (!row.roleId) {
-          showError('Update failed', 'Invalid assignment: missing role ID')
-          setIsPending(false)
-          return
-        }
         await assignNewThenDeleteOldWithRollback({
-          assignNew: () => assignSystemGroupRole({ body: { group_id: row.principalId, role_name: newRole } }),
-          deleteOld: () => deleteSystemGroupRole({ params: { path: { assignment_id: row.id } } }),
+          assignNew: () =>
+            createRoleAssignment({
+              body: { principal_type: row.principalType, principal_id: row.principalId, role_name: newRole },
+            }),
+          deleteOld: () => deleteRoleAssignment({ params: { path: { assignment_id: row.id } } }),
           revokeNew: (newAssignmentId) =>
-            deleteSystemGroupRole({ params: { path: { assignment_id: newAssignmentId } } }),
+            deleteRoleAssignment({ params: { path: { assignment_id: newAssignmentId } } }),
         })
       }
 

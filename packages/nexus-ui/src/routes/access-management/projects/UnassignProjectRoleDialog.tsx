@@ -1,5 +1,5 @@
 import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
-import type { ProjectRoleAssignmentRead } from '../../access/types'
+import type { RoleAssignmentRead } from '../../access/types'
 
 export function UnassignProjectRoleDialog({
   assignment,
@@ -7,7 +7,7 @@ export function UnassignProjectRoleDialog({
   onClose,
   onConfirm,
 }: Readonly<{
-  assignment: ProjectRoleAssignmentRead | null
+  assignment: RoleAssignmentRead | null
   isOpen: boolean
   onClose: () => void
   onConfirm: () => void
@@ -21,8 +21,7 @@ export function UnassignProjectRoleDialog({
       confirmLabel="Unassign"
       confirmVariant="danger"
     >
-      Are you sure you want to unassign role &quot;{assignment?.role_name}&quot; from{' '}
-      {assignment?.username ?? assignment?.user_id}?
+      Are you sure you want to unassign role &quot;{assignment?.role_name}&quot; from {assignment?.principal_name}?
     </ConfirmationDialog>
   )
 }

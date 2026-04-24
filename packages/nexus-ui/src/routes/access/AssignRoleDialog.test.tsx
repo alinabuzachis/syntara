@@ -23,60 +23,8 @@ vi.mock('./accessClient', () => ({
   },
 }))
 
-vi.mock('./useAllUsers', () => ({
-  useAllUsers: vi.fn().mockReturnValue({
-    users: [
-      { id: 'u1', username: 'alice', email: 'alice@test.com', full_name: 'Alice' },
-      { id: 'u2', username: 'bob', email: 'bob@test.com', full_name: 'Bob' },
-    ],
-    isLoading: false,
-    error: null,
-  }),
-}))
-
-vi.mock('./useAllRoles', () => ({
-  useAllRoles: vi.fn().mockReturnValue({
-    roles: [
-      {
-        id: 'r1',
-        name: 'Admin',
-        description: null,
-        policies: [],
-        is_builtin: true,
-        is_system_scoped: true,
-        project_id: null,
-        labels: {},
-        created_at: null,
-        updated_at: null,
-      },
-      {
-        id: 'r2',
-        name: 'Viewer',
-        description: null,
-        policies: [],
-        is_builtin: true,
-        is_system_scoped: true,
-        project_id: null,
-        labels: {},
-        created_at: null,
-        updated_at: null,
-      },
-      {
-        id: 'r3',
-        name: 'ProjectAdmin',
-        description: null,
-        policies: [],
-        is_builtin: true,
-        is_system_scoped: false,
-        project_id: 'p1',
-        labels: {},
-        created_at: null,
-        updated_at: null,
-      },
-    ],
-    isLoading: false,
-    error: null,
-  }),
+vi.mock('../../hooks/useDebouncedValue', () => ({
+  useDebouncedValue: <T,>(value: T) => value,
 }))
 
 vi.mock('../../client', () => ({
@@ -116,6 +64,48 @@ const mockProjects = [
   },
 ]
 
+const mockSystemRoles = [
+  {
+    id: 'r1',
+    name: 'Admin',
+    description: null,
+    policies: [],
+    is_builtin: true,
+    is_system_scoped: true,
+    project_id: null,
+    labels: {},
+    created_at: null,
+    updated_at: null,
+  },
+  {
+    id: 'r2',
+    name: 'Viewer',
+    description: null,
+    policies: [],
+    is_builtin: true,
+    is_system_scoped: true,
+    project_id: null,
+    labels: {},
+    created_at: null,
+    updated_at: null,
+  },
+]
+
+const mockProjectRoles = [
+  {
+    id: 'r3',
+    name: 'ProjectAdmin',
+    description: null,
+    policies: [],
+    is_builtin: true,
+    is_system_scoped: false,
+    project_id: 'p1',
+    labels: {},
+    created_at: null,
+    updated_at: null,
+  },
+]
+
 const mockMutationReturn = {
   mutate: vi.fn(),
   mutateAsync: vi.fn(),
@@ -135,26 +125,60 @@ const mockMutationReturn = {
   isPaused: false,
 }
 
+const defaultQueryReturn = {
+  data: undefined,
+  isPending: false,
+  isError: false,
+  error: null,
+  isFetching: false,
+  refetch: vi.fn(),
+}
+
 function setupDefaultMocks() {
   vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
     if (path === '/projects') {
       return {
+        ...defaultQueryReturn,
         data: mockProjects,
-        isPending: false,
-        isError: false,
-        error: null,
-        isFetching: false,
-        refetch: vi.fn(),
       } as never
     }
-    return {
-      data: undefined,
-      isPending: false,
-      isError: false,
-      error: null,
-      isFetching: false,
-      refetch: vi.fn(),
-    } as never
+    if (path === '/roles') {
+      return {
+        ...defaultQueryReturn,
+        data: { resources: mockSystemRoles, next: null },
+      } as never
+    }
+    if (path === '/projects/{project_id}/roles') {
+      return {
+        ...defaultQueryReturn,
+        data: { resources: mockProjectRoles, next: null },
+      } as never
+    }
+    if (path === '/users') {
+      return {
+        ...defaultQueryReturn,
+        data: {
+          resources: [
+            { id: 'u1', username: 'alice', email: 'alice@test.com', full_name: 'Alice' },
+            { id: 'u2', username: 'bob', email: 'bob@test.com', full_name: 'Bob' },
+          ],
+          next: null,
+        },
+      } as never
+    }
+    if (path === '/groups') {
+      return {
+        ...defaultQueryReturn,
+        data: {
+          resources: [
+            { id: 'g1', name: 'test-group' },
+            { id: 'g2', name: 'another-group' },
+          ],
+          next: null,
+        },
+      } as never
+    }
+    return { ...defaultQueryReturn } as never
   })
   vi.mocked(accessClient.useMutation).mockReturnValue(mockMutationReturn as never)
 }
@@ -179,11 +203,14 @@ describe('AssignRoleDialog', () => {
       expect(screen.getByText('Add Assignment')).toBeInTheDocument()
     })
 
-    it('renders assignment type selector with default value', () => {
+    it('renders principal type and scope selectors with default values', () => {
       render(<AssignRoleDialog {...defaultProps} />, { wrapper })
 
-      const assignmentTypeSelect = screen.getByLabelText('Assignment type')
-      expect(assignmentTypeSelect).toBeInTheDocument()
+      const principalTypeSelect = screen.getByLabelText('Principal type')
+      expect(principalTypeSelect).toBeInTheDocument()
+
+      const scopeSelect = screen.getByLabelText('Scope')
+      expect(scopeSelect).toBeInTheDocument()
     })
 
     it('renders Add and Cancel buttons', () => {
@@ -202,8 +229,8 @@ describe('AssignRoleDialog', () => {
     it('renders Project field for project-scoped type', () => {
       render(<AssignRoleDialog {...defaultProps} />, { wrapper })
 
-      // Project field is rendered for user-project (default)
-      expect(screen.getByText('Project')).toBeInTheDocument()
+      // Project field is rendered for user-project (default) -- check for the typeahead placeholder
+      expect(screen.getByPlaceholderText('Select a project...')).toBeInTheDocument()
     })
 
     it('renders Role field', () => {
@@ -213,39 +240,42 @@ describe('AssignRoleDialog', () => {
     })
   })
 
-  describe('Assignment Type Switching', () => {
-    it('shows Group ID field when group-project is selected', async () => {
+  describe('Principal Type and Scope Switching', () => {
+    it('shows Group field when principal type is changed to group', async () => {
       const user = userEvent.setup()
       render(<AssignRoleDialog {...defaultProps} />, { wrapper })
 
-      const typeSelect = screen.getByLabelText('Assignment type')
-      await user.selectOptions(typeSelect, 'group-project')
+      const principalTypeSelect = screen.getByLabelText('Principal type')
+      await user.selectOptions(principalTypeSelect, 'group')
 
-      expect(screen.getByRole('textbox', { name: 'Group ID' })).toBeInTheDocument()
+      expect(screen.getByPlaceholderText('Select a group...')).toBeInTheDocument()
       expect(screen.queryByPlaceholderText('Select a user...')).not.toBeInTheDocument()
     })
 
-    it('shows User field for user-system type', async () => {
+    it('shows User field for user principal type with system scope', async () => {
       const user = userEvent.setup()
       render(<AssignRoleDialog {...defaultProps} />, { wrapper })
 
-      const typeSelect = screen.getByLabelText('Assignment type')
-      await user.selectOptions(typeSelect, 'user-system')
+      const scopeSelect = screen.getByLabelText('Scope')
+      await user.selectOptions(scopeSelect, 'system')
 
       expect(screen.getByPlaceholderText('Select a user...')).toBeInTheDocument()
       // No project field for system-scoped
-      expect(screen.queryByText('Project')).not.toBeInTheDocument()
+      expect(screen.queryByPlaceholderText('Select a project...')).not.toBeInTheDocument()
     })
 
-    it('shows Group ID field for group-system type', async () => {
+    it('shows Group field for group principal type with system scope', async () => {
       const user = userEvent.setup()
       render(<AssignRoleDialog {...defaultProps} />, { wrapper })
 
-      const typeSelect = screen.getByLabelText('Assignment type')
-      await user.selectOptions(typeSelect, 'group-system')
+      const principalTypeSelect = screen.getByLabelText('Principal type')
+      await user.selectOptions(principalTypeSelect, 'group')
 
-      expect(screen.getByRole('textbox', { name: 'Group ID' })).toBeInTheDocument()
-      expect(screen.queryByText('Project')).not.toBeInTheDocument()
+      const scopeSelect = screen.getByLabelText('Scope')
+      await user.selectOptions(scopeSelect, 'system')
+
+      expect(screen.getByPlaceholderText('Select a group...')).toBeInTheDocument()
+      expect(screen.queryByPlaceholderText('Select a project...')).not.toBeInTheDocument()
     })
   })
 
@@ -300,9 +330,9 @@ describe('AssignRoleDialog', () => {
       const user = userEvent.setup()
       render(<AssignRoleDialog {...defaultProps} />, { wrapper })
 
-      // Switch to group-project
-      const typeSelect = screen.getByLabelText('Assignment type')
-      await user.selectOptions(typeSelect, 'group-project')
+      // Switch principal type to group
+      const principalTypeSelect = screen.getByLabelText('Principal type')
+      await user.selectOptions(principalTypeSelect, 'group')
 
       // Select a project FIRST (role dropdown is disabled until project is selected)
       const projectInput = screen.getByPlaceholderText('Select a project...')
@@ -310,9 +340,11 @@ describe('AssignRoleDialog', () => {
       const projectOption = await screen.findByRole('option', { name: 'Project Alpha' })
       await user.click(projectOption)
 
-      // Fill Group ID
-      const groupIdInput = screen.getByRole('textbox', { name: 'Group ID' })
-      await user.type(groupIdInput, 'test-group')
+      // Select a group from the typeahead
+      const groupInput = screen.getByPlaceholderText('Select a group...')
+      await user.click(groupInput)
+      const groupOption = await screen.findByRole('option', { name: 'test-group' })
+      await user.click(groupOption)
 
       // Select a role (options include scope tags)
       const roleInput = screen.getByPlaceholderText('Select a role...')
@@ -403,9 +435,9 @@ describe('AssignRoleDialog', () => {
       const user = userEvent.setup()
       render(<AssignRoleDialog {...defaultProps} />, { wrapper })
 
-      // Switch to user-system
-      const typeSelect = screen.getByLabelText('Assignment type')
-      await user.selectOptions(typeSelect, 'user-system')
+      // Switch scope to system
+      const scopeSelect = screen.getByLabelText('Scope')
+      await user.selectOptions(scopeSelect, 'system')
 
       // Select a user from the typeahead
       const userInput = screen.getByPlaceholderText('Select a user...')
@@ -413,11 +445,11 @@ describe('AssignRoleDialog', () => {
       const userOption = await screen.findByRole('option', { name: 'alice' })
       await user.click(userOption)
 
-      // Select a role (system-scoped uses role name as value, options include scope tags)
+      // Select a role (system-scoped uses role name as value)
       const roleInput = screen.getByPlaceholderText('Select a role...')
       await user.click(roleInput)
       // Use exact name to avoid matching "Project ProjectAdmin"
-      const roleOption = await screen.findByRole('option', { name: /^System Admin$/ })
+      const roleOption = await screen.findByRole('option', { name: 'Admin' })
       await user.click(roleOption)
 
       await user.click(screen.getByRole('button', { name: 'Add' }))
@@ -426,8 +458,10 @@ describe('AssignRoleDialog', () => {
         expect(mockMutate).toHaveBeenCalled()
       })
 
-      const callArgs = mockMutate.mock.calls[0] as [{ body: { user_id: string; role_name: string } }]
-      expect(callArgs[0]).toEqual({ body: { user_id: 'u1', role_name: 'Admin' } })
+      const callArgs = mockMutate.mock.calls[0] as [
+        { body: { principal_type: string; principal_id: string; role_name: string } },
+      ]
+      expect(callArgs[0]).toEqual({ body: { principal_type: 'user', principal_id: 'u1', role_name: 'Admin' } })
     })
 
     it('calls assignSystemGroupRole mutation for group-system type', async () => {
@@ -440,13 +474,19 @@ describe('AssignRoleDialog', () => {
       const user = userEvent.setup()
       render(<AssignRoleDialog {...defaultProps} />, { wrapper })
 
-      // Switch to group-system
-      const typeSelect = screen.getByLabelText('Assignment type')
-      await user.selectOptions(typeSelect, 'group-system')
+      // Switch principal type to group
+      const principalTypeSelect = screen.getByLabelText('Principal type')
+      await user.selectOptions(principalTypeSelect, 'group')
 
-      // Fill Group ID
-      const groupIdInput = screen.getByRole('textbox', { name: 'Group ID' })
-      await user.type(groupIdInput, 'test-group-id')
+      // Switch scope to system
+      const scopeSelect = screen.getByLabelText('Scope')
+      await user.selectOptions(scopeSelect, 'system')
+
+      // Select a group from the typeahead
+      const groupInput = screen.getByPlaceholderText('Select a group...')
+      await user.click(groupInput)
+      const groupOption = await screen.findByRole('option', { name: 'test-group' })
+      await user.click(groupOption)
 
       // Select a role
       const roleInput = screen.getByPlaceholderText('Select a role...')
@@ -460,12 +500,16 @@ describe('AssignRoleDialog', () => {
         expect(mockMutate).toHaveBeenCalled()
       })
 
-      const callArgs = mockMutate.mock.calls[0] as [{ body: { group_id: string; role_name: string } }]
-      expect(callArgs[0]).toEqual({ body: { group_id: 'test-group-id', role_name: 'Viewer' } })
+      const callArgs = mockMutate.mock.calls[0] as [
+        { body: { principal_type: string; principal_id: string; role_name: string } },
+      ]
+      expect(callArgs[0]).toEqual({
+        body: { principal_type: 'group', principal_id: 'g1', role_name: 'Viewer' },
+      })
     })
   })
 
-  describe('Role Reset on Assignment Type Switch', () => {
+  describe('Role Reset on Scope Switch', () => {
     it('clears role selection when switching from project to system scope', async () => {
       const user = userEvent.setup()
       render(<AssignRoleDialog {...defaultProps} />, { wrapper })
@@ -475,7 +519,7 @@ describe('AssignRoleDialog', () => {
       await user.click(projectInput)
       await user.click(await screen.findByRole('option', { name: 'Project Alpha' }))
 
-      // Select a role in project scope (default: user-project)
+      // Select a role in project scope (default: user + project scope)
       const roleInput = screen.getByPlaceholderText('Select a role...')
       await user.click(roleInput)
       const roleOption = await screen.findByRole('option', { name: /ProjectAdmin/ })
@@ -485,11 +529,11 @@ describe('AssignRoleDialog', () => {
       const clearButtons = screen.getAllByRole('button', { name: 'Clear selection' })
       expect(clearButtons.length).toBeGreaterThanOrEqual(1)
 
-      // Switch to user-system (project field disappears, role resets)
-      const typeSelect = screen.getByLabelText('Assignment type')
-      await user.selectOptions(typeSelect, 'user-system')
+      // Switch scope to system (project field disappears, role resets)
+      const scopeSelect = screen.getByLabelText('Scope')
+      await user.selectOptions(scopeSelect, 'system')
 
-      // Role field should be cleared — no clear button for role
+      // Role field should be cleared -- no clear button for role
       await waitFor(() => {
         expect(screen.queryByRole('button', { name: 'Clear selection' })).not.toBeInTheDocument()
       })
@@ -499,21 +543,21 @@ describe('AssignRoleDialog', () => {
       const user = userEvent.setup()
       render(<AssignRoleDialog {...defaultProps} />, { wrapper })
 
-      // Switch to user-system first
-      const typeSelect = screen.getByLabelText('Assignment type')
-      await user.selectOptions(typeSelect, 'user-system')
+      // Switch scope to system first
+      const scopeSelect = screen.getByLabelText('Scope')
+      await user.selectOptions(scopeSelect, 'system')
 
       // Select a role in system scope (use exact name to avoid multiple matches)
       const roleInput = screen.getByPlaceholderText('Select a role...')
       await user.click(roleInput)
-      const roleOption = await screen.findByRole('option', { name: /^System Admin$/ })
+      const roleOption = await screen.findByRole('option', { name: 'Admin' })
       await user.click(roleOption)
 
       // Verify role is selected
       expect(screen.getByRole('button', { name: 'Clear selection' })).toBeInTheDocument()
 
-      // Switch back to user-project
-      await user.selectOptions(typeSelect, 'user-project')
+      // Switch back to project scope
+      await user.selectOptions(scopeSelect, 'project')
 
       // Role field should be cleared
       await waitFor(() => {
@@ -542,9 +586,9 @@ describe('AssignRoleDialog', () => {
       let roleOption = await screen.findByRole('option', { name: /ProjectAdmin/ })
       await user.click(roleOption)
 
-      // Switch to user-system
-      const typeSelect = screen.getByLabelText('Assignment type')
-      await user.selectOptions(typeSelect, 'user-system')
+      // Switch scope to system
+      const scopeSelect = screen.getByLabelText('Scope')
+      await user.selectOptions(scopeSelect, 'system')
 
       // Select a user from the typeahead
       const userInput = screen.getByPlaceholderText('Select a user...')
@@ -552,7 +596,7 @@ describe('AssignRoleDialog', () => {
       const userOption = await screen.findByRole('option', { name: 'bob' })
       await user.click(userOption)
 
-      // Re-select a role (now uses systemRoleName, options include scope tags)
+      // Re-select a role (now uses system roles)
       roleInput = screen.getByPlaceholderText('Select a role...')
       await user.click(roleInput)
       roleOption = await screen.findByRole('option', { name: /Viewer/ })
@@ -564,8 +608,10 @@ describe('AssignRoleDialog', () => {
         expect(mockMutate).toHaveBeenCalled()
       })
 
-      const callArgs = mockMutate.mock.calls[0] as [{ body: { user_id: string; role_name: string } }]
-      expect(callArgs[0]).toEqual({ body: { user_id: 'u2', role_name: 'Viewer' } })
+      const callArgs = mockMutate.mock.calls[0] as [
+        { body: { principal_type: string; principal_id: string; role_name: string } },
+      ]
+      expect(callArgs[0]).toEqual({ body: { principal_type: 'user', principal_id: 'u2', role_name: 'Viewer' } })
     })
   })
 

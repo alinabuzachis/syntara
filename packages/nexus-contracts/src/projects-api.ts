@@ -123,13 +123,10 @@ export interface paths {
     get: operations['list_project_role_assignments']
     put?: never
     /**
-     * Assign Project Role
-     * @description Assign a role to a user within a project.
-     *
-     *     Valid roles: project-admin, project-user, project-auditor.
-     *     Requires: project-role:assign permission scoped to this project.
+     * Create Project Role Assignment
+     * @description Assign a role to a user or group within a project.
      */
-    post: operations['assign_project_role']
+    post: operations['create_project_role_assignment']
     delete?: never
     options?: never
     head?: never
@@ -147,81 +144,10 @@ export interface paths {
     put?: never
     post?: never
     /**
-     * Revoke Project Role
-     * @description Remove a role assignment from a project. Requires: project-role:revoke permission.
+     * Delete Project Role Assignment
+     * @description Remove a role assignment from a project.
      */
-    delete: operations['revoke_project_role']
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/projects/{project_id}/group-role-assignments': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /**
-     * List Project Group Role Assignments
-     * @description List group role assignments for a project.
-     *
-     *     Admin/auditor/project-admin see all assignments; other users see only
-     *     assignments for groups they belong to.
-     */
-    get: operations['list_project_group_role_assignments']
-    put?: never
-    /**
-     * Assign Project Group Role
-     * @description Assign a role to a group within a project.
-     *
-     *     All members of the group inherit the role for this project.
-     *     Valid roles: project-admin, project-user, project-auditor.
-     *     Requires: project-role:assign permission scoped to this project.
-     */
-    post: operations['assign_project_group_role']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/projects/{project_id}/group-role-assignments/{assignment_id}': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    post?: never
-    /**
-     * Revoke Project Group Role
-     * @description Remove a group role assignment from a project. Requires: project-role:revoke permission.
-     */
-    delete: operations['revoke_project_group_role']
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/projects/{project_id}/all-role-assignments': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /**
-     * List Project All Role Assignments
-     * @description List all role assignments (user + group) scoped to a project.
-     */
-    get: operations['list_project_all_role_assignments']
-    put?: never
-    post?: never
-    delete?: never
+    delete: operations['delete_project_role_assignment']
     options?: never
     head?: never
     patch?: never
@@ -392,92 +318,6 @@ export interface components {
        * @default false
        */
       is_default?: boolean
-    }
-    /**
-     * ProjectRoleAssignmentCreate
-     * @description Request body for assigning a role to a user within a project.
-     */
-    ProjectRoleAssignmentCreate: {
-      /**
-       * User Id
-       * Format: uuid
-       */
-      user_id: string
-      /** Role Name */
-      role_name: string
-    }
-    /**
-     * ProjectRoleAssignmentRead
-     * @description Response body for a project role assignment.
-     */
-    ProjectRoleAssignmentRead: {
-      /**
-       * Id
-       * Format: uuid
-       */
-      id: string
-      /**
-       * User Id
-       * Format: uuid
-       */
-      user_id: string
-      /**
-       * Username
-       * @default
-       */
-      username?: string
-      /**
-       * Project Id
-       * Format: uuid
-       */
-      project_id: string
-      /** Role Name */
-      role_name: string
-      /** Created At */
-      created_at?: string | null
-    }
-    /**
-     * ProjectGroupRoleAssignmentCreate
-     * @description Request body for assigning a role to a group within a project.
-     */
-    ProjectGroupRoleAssignmentCreate: {
-      /**
-       * Group Id
-       * Format: uuid
-       */
-      group_id: string
-      /** Role Name */
-      role_name: string
-    }
-    /**
-     * ProjectGroupRoleAssignmentRead
-     * @description Response body for a project group role assignment.
-     */
-    ProjectGroupRoleAssignmentRead: {
-      /**
-       * Id
-       * Format: uuid
-       */
-      id: string
-      /**
-       * Group Id
-       * Format: uuid
-       */
-      group_id: string
-      /**
-       * Group Name
-       * @default
-       */
-      group_name?: string
-      /**
-       * Project Id
-       * Format: uuid
-       */
-      project_id: string
-      /** Role Name */
-      role_name: string
-      /** Created At */
-      created_at?: string | null
     }
     /**
      * ProjectRoleCreate
@@ -1037,20 +877,39 @@ export interface components {
       decision_notes?: string | null
     }
     /**
-     * AllRoleAssignmentRead
-     * @description A single role assignment (user or group).
+     * RoleAssignmentRead
+     * @description Response body for a role assignment.
      */
-    AllRoleAssignmentRead: {
-      /** Id */
+    RoleAssignmentRead: {
+      /**
+       * Id
+       * Format: uuid
+       */
       id: string
-      /** Principal Id */
-      principal_id: string
-      /** Principal Name */
-      principal_name: string
       /** Principal Type */
       principal_type: string
+      /**
+       * Principal Id
+       * Format: uuid
+       */
+      principal_id: string
+      /**
+       * Principal Name
+       * @description Resolved username or group name
+       */
+      principal_name: string
       /** Role Name */
       role_name: string
+      /**
+       * Role Description
+       * @description Human-readable description of the role
+       */
+      role_description?: string | null
+      /**
+       * Role Policies
+       * @description Policy names included in this role
+       */
+      role_policies?: string[]
       /** Project Id */
       project_id?: string | null
       /** Project Name */
@@ -1059,38 +918,39 @@ export interface components {
       created_at?: string | null
     }
     /**
-     * AllRoleAssignmentListResponse
-     * @description Paginated response for all role assignments.
-     * @example {
-     *       "next": "eyJpZCI6InV1aWQifQ",
-     *       "total": 150
-     *     }
-     * @example {
-     *       "next": "eyJpZCI6Im5leHQifQ",
-     *       "prev": "eyJpZCI6InByZXYifQ"
-     *     }
+     * RoleAssignmentListResponse
+     * @description Paginated response for role assignments.
      */
-    AllRoleAssignmentListResponse: {
+    RoleAssignmentListResponse: components['schemas']['ResourcesResponseBase'] & {
+      resources?: components['schemas']['RoleAssignmentRead'][]
+    }
+    /**
+     * RoleAssignmentCreate
+     * @description Request body for creating a role assignment.
+     */
+    RoleAssignmentCreate: {
       /**
-       * Next
-       * @description Cursor for next page of results
+       * Principal Type
+       * @description Type of principal receiving the role
+       * @enum {string}
        */
-      next?: string | null
+      principal_type: 'user' | 'group'
       /**
-       * Prev
-       * @description Cursor for previous page of results
+       * Principal Id
+       * Format: uuid
+       * @description UUID of the user or group
        */
-      prev?: string | null
+      principal_id: string
       /**
-       * Total
-       * @description Total count of resources (only when include_total=true)
+       * Role Name
+       * @description Name of the role to assign
        */
-      total?: number | null
+      role_name: string
       /**
-       * Resources
-       * @description Array of resources in current page
+       * Project Id
+       * @description Project scope (null for global assignment)
        */
-      resources: components['schemas']['AllRoleAssignmentRead'][]
+      project_id?: string | null
     }
   }
   responses: {
@@ -1513,7 +1373,28 @@ export interface operations {
   }
   list_project_role_assignments: {
     parameters: {
-      query?: never
+      query?: {
+        /** @description Maximum number of results per page */
+        limit?: components['parameters']['limitParam']
+        /** @description Pagination cursor from previous response */
+        cursor?: components['parameters']['cursorParam']
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
+        sort?: components['parameters']['sortParam']
+        /** @description Include total count in response (expensive) */
+        include_total?: components['parameters']['includeTotalParam']
+        /** @description Filter by principal type (user or group) */
+        principal_type?: string | null
+        /** @description Filter by principal ID (user or group UUID) */
+        principal_id?: string | null
+        /** @description Filter by principal name (exact match) */
+        principal_name?: string | null
+        /** @description Filter by principal name (substring, case-insensitive) */
+        'principal_name[contains]'?: string | null
+        /** @description Filter by role name (exact match) */
+        role_name?: string | null
+        /** @description Filter by role name (substring, case-insensitive) */
+        'role_name[contains]'?: string | null
+      }
       header?: never
       path: {
         /** @description Project UUID */
@@ -1529,7 +1410,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['ProjectRoleAssignmentRead'][]
+          'application/json': components['schemas']['RoleAssignmentListResponse']
         }
       }
       400: components['responses']['BadRequestError']
@@ -1541,7 +1422,7 @@ export interface operations {
       500: components['responses']['InternalServerError']
     }
   }
-  assign_project_role: {
+  create_project_role_assignment: {
     parameters: {
       query?: never
       header?: never
@@ -1553,17 +1434,17 @@ export interface operations {
     }
     requestBody: {
       content: {
-        'application/json': components['schemas']['ProjectRoleAssignmentCreate']
+        'application/json': components['schemas']['RoleAssignmentCreate']
       }
     }
     responses: {
-      /** @description Role assigned */
+      /** @description Role assignment created */
       201: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['ProjectRoleAssignmentRead']
+          'application/json': components['schemas']['RoleAssignmentRead']
         }
       }
       400: components['responses']['BadRequestError']
@@ -1575,7 +1456,7 @@ export interface operations {
       500: components['responses']['InternalServerError']
     }
   }
-  revoke_project_role: {
+  delete_project_role_assignment: {
     parameters: {
       query?: never
       header?: never
@@ -1595,145 +1476,6 @@ export interface operations {
           [name: string]: unknown
         }
         content?: never
-      }
-      400: components['responses']['BadRequestError']
-      401: components['responses']['UnauthorizedError']
-      403: components['responses']['ForbiddenError']
-      404: components['responses']['NotFoundError']
-      409: components['responses']['ConflictError']
-      422: components['responses']['ValidationError']
-      500: components['responses']['InternalServerError']
-    }
-  }
-  list_project_group_role_assignments: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        /** @description Project UUID */
-        project_id: components['parameters']['projectIdParam']
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description List of group role assignments */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['ProjectGroupRoleAssignmentRead'][]
-        }
-      }
-      400: components['responses']['BadRequestError']
-      401: components['responses']['UnauthorizedError']
-      403: components['responses']['ForbiddenError']
-      404: components['responses']['NotFoundError']
-      409: components['responses']['ConflictError']
-      422: components['responses']['ValidationError']
-      500: components['responses']['InternalServerError']
-    }
-  }
-  assign_project_group_role: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        /** @description Project UUID */
-        project_id: components['parameters']['projectIdParam']
-      }
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['ProjectGroupRoleAssignmentCreate']
-      }
-    }
-    responses: {
-      /** @description Role assigned to group */
-      201: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['ProjectGroupRoleAssignmentRead']
-        }
-      }
-      400: components['responses']['BadRequestError']
-      401: components['responses']['UnauthorizedError']
-      403: components['responses']['ForbiddenError']
-      404: components['responses']['NotFoundError']
-      409: components['responses']['ConflictError']
-      422: components['responses']['ValidationError']
-      500: components['responses']['InternalServerError']
-    }
-  }
-  revoke_project_group_role: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        /** @description Project UUID */
-        project_id: components['parameters']['projectIdParam']
-        /** @description Assignment UUID */
-        assignment_id: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description Assignment removed */
-      204: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-      400: components['responses']['BadRequestError']
-      401: components['responses']['UnauthorizedError']
-      403: components['responses']['ForbiddenError']
-      404: components['responses']['NotFoundError']
-      409: components['responses']['ConflictError']
-      422: components['responses']['ValidationError']
-      500: components['responses']['InternalServerError']
-    }
-  }
-  list_project_all_role_assignments: {
-    parameters: {
-      query?: {
-        /** @description Maximum number of results per page */
-        limit?: components['parameters']['limitParam']
-        /** @description Pagination cursor from previous response */
-        cursor?: components['parameters']['cursorParam']
-        /** @description Sort parameter (e.g., 'name', '-created_at') */
-        sort?: components['parameters']['sortParam']
-        /** @description Include total count in response (expensive) */
-        include_total?: components['parameters']['includeTotalParam']
-        /** @description Filter by principal type (user or group) */
-        principal_type?: string | null
-        /** @description Filter by principal name (username or group name) */
-        principal_name?: string | null
-        /** @description Filter by role name */
-        role_name?: string | null
-      }
-      header?: never
-      path: {
-        /** @description Project UUID */
-        project_id: components['parameters']['projectIdParam']
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description Paginated list of role assignments for this project */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['AllRoleAssignmentListResponse']
-        }
       }
       400: components['responses']['BadRequestError']
       401: components['responses']['UnauthorizedError']

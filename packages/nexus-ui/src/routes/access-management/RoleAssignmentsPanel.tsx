@@ -1,24 +1,11 @@
-import {
-  Alert,
-  Button,
-  Flex,
-  FlexItem,
-  Label,
-  LabelGroup,
-  Modal,
-  ModalBody,
-  ModalFooter,
-  ModalHeader,
-  Stack,
-  StackItem,
-} from '@patternfly/react-core'
+import { Alert, Button, Flex, FlexItem, Label, LabelGroup, Stack, StackItem } from '@patternfly/react-core'
 import { PlusIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
-import type { IAction } from '@patternfly/react-table'
-import { useQuery } from '@tanstack/react-query'
+import type { IAction, ThProps } from '@patternfly/react-table'
 import { type ReactNode, useMemo, useState } from 'react'
 
 import { useAlerts } from '../../components/alerts'
+import { ConfirmationDialog } from '../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
@@ -26,34 +13,105 @@ import { IconLabel } from '../../components/IconLabel'
 import { ErrorState } from '../../components/states/ErrorState'
 import { LoadingState } from '../../components/states/LoadingState'
 import { useFilterState } from '../../hooks/useFilterState'
+import { useSortState } from '../../hooks/useSortState'
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import { getErrorMessage, getErrorStatus } from '../../utils/apiErrors'
+import { detachPromise } from '../../utils/detachPromise'
 import { accessClient } from '../access/accessClient'
 import { PaginationFooter } from '../access/PaginationFooter'
-import { useAllPolicies } from '../access/useAllPolicies'
-import { useAllRoles } from '../access/useAllRoles'
 
 import { AssignRoleModal } from './AssignRoleModal'
-import { fetchProjectRolesForPrincipal } from './projectRoleFallback'
 
 const filterFieldDefinitions: FilterFieldDefinition[] = [
   {
     key: 'name',
-    label: 'Name',
+    label: 'Role Name',
     type: FilterTypeEnum.TEXT,
     operators: [FilterOperatorEnum.CONTAINS],
     defaultOperator: FilterOperatorEnum.CONTAINS,
-    placeholder: 'Filter by name',
+    placeholder: 'Filter by role name',
+  },
+  {
+    key: 'scope',
+    label: 'Scope',
+    type: FilterTypeEnum.SELECT,
+    options: [
+      { value: 'system', label: 'System' },
+      { value: 'project', label: 'Project' },
+    ],
+    placeholder: 'Filter by scope',
+  },
+  {
+    key: 'project',
+    label: 'Project',
+    type: FilterTypeEnum.TEXT,
+    operators: [FilterOperatorEnum.CONTAINS],
+    defaultOperator: FilterOperatorEnum.CONTAINS,
+    placeholder: 'Filter by project',
   },
 ]
 
-interface PolicyInfo {
-  name: string
-  description: string | null
+const sortFieldByColumn: Record<number, string> = {
+  0: 'role_name',
+  1: 'description',
+  2: 'scope_type',
+  3: 'project',
+  4: 'policies',
 }
 
-interface RoleAssignmentRow {
+const sortFieldToRowKey: Record<string, keyof RoleAssignmentRow> = {
+  role_name: 'roleName',
+  description: 'roleDescription',
+  scope_type: 'scopeType',
+  project: 'scope',
+  policies: 'roleName',
+}
+
+function sortRoleAssignmentRows(
+  rows: RoleAssignmentRow[],
+  activeSortIndex: number | undefined,
+  sortDirection: 'asc' | 'desc'
+): RoleAssignmentRow[] {
+  if (activeSortIndex === undefined) return rows
+  const sortField = sortFieldByColumn[activeSortIndex]
+  const rowKey = sortField ? sortFieldToRowKey[sortField] : undefined
+  if (!rowKey) return rows
+
+  return [...rows].sort((a, b) => {
+    const rawA = a[rowKey]
+    const rawB = b[rowKey]
+    const aVal = typeof rawA === 'string' ? rawA : ''
+    const bVal = typeof rawB === 'string' ? rawB : ''
+    const cmp = aVal.localeCompare(bVal)
+    return sortDirection === 'asc' ? cmp : -cmp
+  })
+}
+
+function applyRoleAssignmentFilters(rows: RoleAssignmentRow[], filters: FilterConfig[]): RoleAssignmentRow[] {
+  if (filters.length === 0) return rows
+  return rows.filter((row) =>
+    filters.every((filter) => {
+      const value = typeof filter.value === 'string' ? filter.value : String(filter.value)
+      switch (filter.key) {
+        case 'name':
+          return row.roleName.toLowerCase().includes(value.toLowerCase())
+        case 'scope':
+          return row.scopeType === value
+        case 'project':
+          return (row.scope ?? '').toLowerCase().includes(value.toLowerCase())
+        default:
+          return true
+      }
+    })
+  )
+}
+
+type PolicyInfo = {
+  name: string
+}
+
+type RoleAssignmentRow = {
   id: string
   roleName: string
   roleDescription: string | null
@@ -61,40 +119,12 @@ interface RoleAssignmentRow {
   scope: string
   scopeType: 'system' | 'project'
   createdAt: string | null
-  /** For project-scoped rows, the project + assignment IDs needed for deletion */
   projectId?: string
 }
 
-interface RoleAssignmentsPanelProps {
+type RoleAssignmentsPanelProps = {
   principalType: 'user' | 'group'
   principalId: string
-}
-
-function UnassignRoleDialog({
-  roleName,
-  isOpen,
-  onClose,
-  onConfirm,
-}: Readonly<{
-  roleName: string | null
-  isOpen: boolean
-  onClose: () => void
-  onConfirm: () => void
-}>) {
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} variant="small">
-      <ModalHeader title="Unassign role" />
-      <ModalBody>Are you sure you want to unassign role &quot;{roleName}&quot;?</ModalBody>
-      <ModalFooter>
-        <Button variant="danger" onClick={onConfirm}>
-          Unassign
-        </Button>
-        <Button variant="link" onClick={onClose}>
-          Cancel
-        </Button>
-      </ModalFooter>
-    </Modal>
-  )
 }
 
 function getAssignmentActions(row: RoleAssignmentRow, onUnassign: (row: RoleAssignmentRow) => void): IAction[] {
@@ -108,18 +138,21 @@ function getAssignmentActions(row: RoleAssignmentRow, onUnassign: (row: RoleAssi
 
 function RoleAssignmentsTable({
   rows,
+  getSortParams,
   onUnassign,
 }: Readonly<{
   rows: RoleAssignmentRow[]
+  getSortParams: (columnIndex: number) => ThProps['sort']
   onUnassign: (row: RoleAssignmentRow) => void
 }>) {
   return (
     <Table aria-label="Role assignments table" isStriped style={{ width: '100%' }}>
       <Thead>
         <Tr>
-          <Th>Name</Th>
-          <Th>Description</Th>
-          <Th>Scope</Th>
+          <Th sort={getSortParams(0)}>Role Name</Th>
+          <Th sort={getSortParams(1)}>Description</Th>
+          <Th sort={getSortParams(2)}>Scope</Th>
+          <Th sort={getSortParams(3)}>Project</Th>
           <Th>Policies</Th>
           <Th screenReaderText="Actions" />
         </Tr>
@@ -127,16 +160,17 @@ function RoleAssignmentsTable({
       <Tbody>
         {rows.map((row) => (
           <Tr key={row.id}>
-            <Td dataLabel="Name">{row.roleName}</Td>
+            <Td dataLabel="Role Name">{row.roleName}</Td>
             <Td dataLabel="Description">{row.roleDescription ?? '-'}</Td>
             <Td dataLabel="Scope">
               <Label isCompact color={row.scopeType === 'system' ? 'blue' : 'green'}>
-                {row.scope}
+                {row.scopeType === 'system' ? 'System' : 'Project'}
               </Label>
             </Td>
+            <Td dataLabel="Project">{row.scopeType === 'project' ? row.scope : '-'}</Td>
             <Td dataLabel="Policies">
               {row.policies.length > 0 ? (
-                <LabelGroup>
+                <LabelGroup numLabels={3}>
                   {row.policies.map((policy) => (
                     <Label key={policy.name} isCompact>
                       {policy.name}
@@ -158,96 +192,55 @@ function RoleAssignmentsTable({
 }
 
 function useRoleAssignmentData(principalType: 'user' | 'group', principalId: string) {
-  // ── System-level queries (may 403 for non-admin users) ──────────────────
-  const systemUserQuery = accessClient.useQuery('get', '/user-role-assignments', undefined, {
-    enabled: principalType === 'user',
-    retry: false,
-  })
-  const systemGroupQuery = accessClient.useQuery('get', '/group-role-assignments', undefined, {
-    enabled: principalType === 'group',
-    retry: false,
-  })
-
-  const activeSystemQuery = principalType === 'user' ? systemUserQuery : systemGroupQuery
-  const systemQueryForbidden = useMemo(() => {
-    if (!activeSystemQuery.isError) return false
-    const status = getErrorStatus(activeSystemQuery.error)
-    if (status === 403) return true
-    const errBody = activeSystemQuery.error as { code?: string } | null
-    return errBody?.code === 'AUTHORIZATION_DENIED'
-  }, [activeSystemQuery.isError, activeSystemQuery.error])
-
-  // ── Project-scoped fallback (when system query is forbidden) ────────────
-  const projectFallbackQuery = useQuery({
-    queryKey: ['project-role-fallback', principalType, principalId],
-    queryFn: () => fetchProjectRolesForPrincipal(principalType, principalId),
-    enabled: systemQueryForbidden,
-  })
-
-  const { roles: allRoles } = useAllRoles()
-  const { policies: allPolicies } = useAllPolicies()
-
-  // ── Build rows from system-level data (when available) ──────────────────
-  const systemRows = useMemo((): RoleAssignmentRow[] => {
-    if (systemQueryForbidden) return []
-
-    const rolesData = allRoles
-    const policyDescMap = new Map(allPolicies.map((p) => [p.name, p.description]))
-    const roleMap = new Map(rolesData.map((r) => [r.name, r]))
-
-    function buildRow(assignmentId: string, roleName: string, createdAt: string | null): RoleAssignmentRow {
-      const role = roleMap.get(roleName)
-      const policyNames = role?.policies ?? []
-      return {
-        id: assignmentId,
-        roleName,
-        roleDescription: role?.description ?? null,
-        policies: policyNames.map((name) => ({ name, description: policyDescMap.get(name) ?? null })),
-        scope: 'System',
-        scopeType: 'system',
-        createdAt,
-      }
-    }
-
-    if (principalType === 'user') {
-      return (systemUserQuery.data ?? [])
-        .filter((a) => a.user_id === principalId)
-        .map((a) => buildRow(a.id, a.role_name, a.created_at ?? null))
-    }
-    return (systemGroupQuery.data ?? [])
-      .filter((a) => a.group_id === principalId)
-      .map((a) => buildRow(a.id, a.role_name, a.created_at ?? null))
-  }, [
-    systemQueryForbidden,
-    principalType,
-    principalId,
-    systemUserQuery.data,
-    systemGroupQuery.data,
-    allRoles,
-    allPolicies,
-  ])
-
-  const rows = useMemo(() => {
-    const projectRows = (projectFallbackQuery.data ?? []).map((row) => ({
-      ...row,
-      roleDescription: null,
-      policies: [],
-    }))
-    return [...systemRows, ...projectRows]
-  }, [systemRows, projectFallbackQuery.data])
-
-  const { mutate: deleteUserAssignment } = accessClient.useMutation('delete', '/user-role-assignments/{assignment_id}')
-  const { mutate: deleteGroupAssignment } = accessClient.useMutation(
-    'delete',
-    '/group-role-assignments/{assignment_id}'
+  const userAssignmentsQuery = accessClient.useQuery(
+    'get',
+    '/users/{user_id}/role-assignments',
+    { params: { path: { user_id: principalId } } },
+    { enabled: principalType === 'user', retry: false }
   )
-  const { mutate: deleteProjectUserRole } = accessClient.useMutation(
+
+  const groupAssignmentsQuery = accessClient.useQuery(
+    'get',
+    '/groups/{group_id}/role-assignments',
+    { params: { path: { group_id: principalId } } },
+    { enabled: principalType === 'group', retry: false }
+  )
+
+  const activeQuery = principalType === 'user' ? userAssignmentsQuery : groupAssignmentsQuery
+
+  const queryForbidden = useMemo(() => {
+    if (!activeQuery.isError) return false
+    const status = getErrorStatus(activeQuery.error)
+    if (status === 403) return true
+    const errBody = activeQuery.error as { code?: string } | null
+    return errBody?.code === 'AUTHORIZATION_DENIED'
+  }, [activeQuery.isError, activeQuery.error])
+
+  const assignmentRows = useMemo((): RoleAssignmentRow[] => {
+    if (queryForbidden) return []
+
+    const assignments = activeQuery.data?.resources ?? []
+
+    return assignments.map((a) => {
+      const policyNames = a.role_policies ?? []
+      const isProject = !!a.project_id
+      return {
+        id: a.id,
+        roleName: a.role_name,
+        roleDescription: a.role_description ?? null,
+        policies: policyNames.map((name) => ({ name })),
+        scope: isProject ? (a.project_name ?? a.project_id!) : 'System',
+        scopeType: isProject ? ('project' as const) : ('system' as const),
+        createdAt: a.created_at ?? null,
+        projectId: a.project_id ?? undefined,
+      }
+    })
+  }, [queryForbidden, activeQuery.data])
+
+  const { mutate: deleteRoleAssignment } = accessClient.useMutation('delete', '/role-assignments/{assignment_id}')
+  const { mutate: deleteProjectRoleAssignment } = accessClient.useMutation(
     'delete',
     '/projects/{project_id}/role-assignments/{assignment_id}'
-  )
-  const { mutate: deleteProjectGroupRole } = accessClient.useMutation(
-    'delete',
-    '/projects/{project_id}/group-role-assignments/{assignment_id}'
   )
 
   const deleteAssignment = (
@@ -255,31 +248,21 @@ function useRoleAssignmentData(principalType: 'user' | 'group', principalId: str
     callbacks: { onSuccess: () => void; onError: (err: unknown) => void; onSettled: () => void }
   ) => {
     if (row.projectId) {
-      const mutate = principalType === 'user' ? deleteProjectUserRole : deleteProjectGroupRole
-      mutate({ params: { path: { project_id: row.projectId, assignment_id: row.id } } }, callbacks)
-    } else if (principalType === 'user') {
-      deleteUserAssignment({ params: { path: { assignment_id: row.id } } }, callbacks)
+      deleteProjectRoleAssignment({ params: { path: { project_id: row.projectId, assignment_id: row.id } } }, callbacks)
     } else {
-      deleteGroupAssignment({ params: { path: { assignment_id: row.id } } }, callbacks)
+      deleteRoleAssignment({ params: { path: { assignment_id: row.id } } }, callbacks)
     }
   }
 
-  const isLoading =
-    (!systemQueryForbidden && activeSystemQuery.isPending) || (systemQueryForbidden && projectFallbackQuery.isPending)
-
   const refetch = () => {
-    if (systemQueryForbidden) {
-      projectFallbackQuery.refetch().catch(() => {})
-    } else {
-      activeSystemQuery.refetch().catch(() => {})
-    }
+    detachPromise(activeQuery.refetch())
   }
 
   return {
-    rows,
-    systemQueryForbidden,
-    activeSystemQuery,
-    isLoading,
+    rows: assignmentRows,
+    queryForbidden,
+    activeQuery,
+    isLoading: activeQuery.isPending,
     deleteAssignment,
     refetch,
   }
@@ -289,11 +272,12 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
   const [assignModalOpen, setAssignModalOpen] = useState(false)
   const [rowToUnassign, setRowToUnassign] = useState<RoleAssignmentRow | null>(null)
   const { filters, setAllFilters, clearAllFilters } = useFilterState()
+  const { activeSortIndex, sortDirection, getSortParams } = useSortState(sortFieldByColumn)
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(20)
   const { showAlert } = useAlerts()
 
-  const { rows, systemQueryForbidden, activeSystemQuery, isLoading, deleteAssignment, refetch } = useRoleAssignmentData(
+  const { rows, queryForbidden, activeQuery, isLoading, deleteAssignment, refetch } = useRoleAssignmentData(
     principalType,
     principalId
   )
@@ -308,17 +292,17 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
     setPage(1)
   }
 
-  const filteredRows = useMemo(() => {
-    const nameFilter = filters.find((f) => f.key === 'name')
-    if (!nameFilter) return rows
-    const term = String(nameFilter.value).toLowerCase()
-    return rows.filter((row) => row.roleName.toLowerCase().includes(term))
-  }, [rows, filters])
+  const filteredRows = useMemo(() => applyRoleAssignmentFilters(rows, filters), [rows, filters])
+
+  const sortedRows = useMemo(
+    () => sortRoleAssignmentRows(filteredRows, activeSortIndex, sortDirection),
+    [filteredRows, activeSortIndex, sortDirection]
+  )
 
   const paginatedRows = useMemo(() => {
     const start = (page - 1) * perPage
-    return filteredRows.slice(start, start + perPage)
-  }, [filteredRows, page, perPage])
+    return sortedRows.slice(start, start + perPage)
+  }, [sortedRows, page, perPage])
 
   const handleUnassign = () => {
     if (!rowToUnassign) return
@@ -345,19 +329,19 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
   }
 
   // ── Loading / error states ──────────────────────────────────────────────
-  if (activeSystemQuery.isError && !systemQueryForbidden) {
+  if (activeQuery.isError && !queryForbidden) {
     return (
       <ErrorState
         title="Error loading role assignments"
-        message={activeSystemQuery.error}
-        onRetry={() => activeSystemQuery.refetch().catch(() => {})}
+        message={activeQuery.error}
+        onRetry={() => detachPromise(activeQuery.refetch())}
       />
     )
   }
 
   if (isLoading) return <LoadingState />
 
-  if (rows.length === 0 && !systemQueryForbidden) {
+  if (rows.length === 0 && !queryForbidden) {
     return (
       <>
         <EmptyStateNoData
@@ -405,7 +389,7 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
   } else {
     tableContent = (
       <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
-        <RoleAssignmentsTable rows={paginatedRows} onUnassign={setRowToUnassign} />
+        <RoleAssignmentsTable rows={paginatedRows} getSortParams={getSortParams} onUnassign={setRowToUnassign} />
       </StackItem>
     )
   }
@@ -413,7 +397,7 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
   return (
     <>
       <Stack style={{ height: '100%' }}>
-        {systemQueryForbidden && (
+        {queryForbidden && (
           <StackItem>
             <Alert
               variant="info"
@@ -454,8 +438,8 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
         <PaginationFooter
           page={page}
           perPage={perPage}
-          total={filteredRows.length}
-          hasNext={page * perPage < filteredRows.length}
+          total={sortedRows.length}
+          hasNext={page * perPage < sortedRows.length}
           onPrev={() => setPage((p) => Math.max(1, p - 1))}
           onNext={() => setPage((p) => p + 1)}
           onPerPageChange={handlePerPageChange}
@@ -470,12 +454,16 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
         onSuccess={refetch}
       />
 
-      <UnassignRoleDialog
-        roleName={rowToUnassign?.roleName ?? null}
+      <ConfirmationDialog
         isOpen={!!rowToUnassign}
         onClose={() => setRowToUnassign(null)}
         onConfirm={handleUnassign}
-      />
+        title="Unassign role"
+        confirmLabel="Unassign"
+        confirmVariant="danger"
+      >
+        Are you sure you want to unassign role &quot;{rowToUnassign?.roleName}&quot;?
+      </ConfirmationDialog>
     </>
   )
 }

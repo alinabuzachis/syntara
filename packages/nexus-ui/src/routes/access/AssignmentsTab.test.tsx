@@ -133,7 +133,9 @@ const sampleRows: PermissionRow[] = [
     scopeType: 'project',
     scopeName: 'Project Alpha',
     projectId: 'p1',
-    sourceEndpoint: 'project-roles',
+    roleDescription: null,
+    rolePolicies: [],
+    sourceEndpoint: 'project-role-assignments',
   },
   {
     id: 'pgr1',
@@ -145,7 +147,9 @@ const sampleRows: PermissionRow[] = [
     scopeType: 'project',
     scopeName: 'Project Alpha',
     projectId: 'p1',
-    sourceEndpoint: 'project-group-roles',
+    roleDescription: null,
+    rolePolicies: [],
+    sourceEndpoint: 'project-role-assignments',
   },
   {
     id: 'sur1',
@@ -156,7 +160,9 @@ const sampleRows: PermissionRow[] = [
     assignmentName: 'Viewer',
     scopeType: 'system',
     scopeName: 'System',
-    sourceEndpoint: 'user-role-assignments',
+    roleDescription: null,
+    rolePolicies: [],
+    sourceEndpoint: 'role-assignments',
   },
 ]
 
@@ -211,9 +217,9 @@ describe('AssignmentsTab', () => {
     it('renders column headers', () => {
       render(<AssignmentsTab />, { wrapper })
 
-      expect(screen.getByRole('columnheader', { name: /Principal/i })).toBeInTheDocument()
-      expect(screen.getByRole('columnheader', { name: /Type/i })).toBeInTheDocument()
-      expect(screen.getByRole('columnheader', { name: /Role/i })).toBeInTheDocument()
+      expect(screen.getByRole('columnheader', { name: /Principal Name/i })).toBeInTheDocument()
+      expect(screen.getByRole('columnheader', { name: /Principal Type/i })).toBeInTheDocument()
+      expect(screen.getByRole('columnheader', { name: /Role Name/i })).toBeInTheDocument()
       expect(screen.getByRole('columnheader', { name: /Scope/i })).toBeInTheDocument()
     })
 

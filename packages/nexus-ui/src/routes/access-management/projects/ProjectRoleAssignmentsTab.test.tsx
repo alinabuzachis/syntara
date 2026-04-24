@@ -489,34 +489,6 @@ describe('ProjectRoleAssignmentsTab', () => {
     expect(screen.getByRole('grid', { name: 'Project role assignments' })).toBeInTheDocument()
   })
 
-  it('displays created_at dates for each assignment', () => {
-    render(<ProjectRoleAssignmentsTab projectId="proj-1" />, { wrapper })
-
-    // Our mock formatDateTime returns the raw value
-    expect(screen.getByText('2024-01-01T00:00:00Z')).toBeInTheDocument()
-    expect(screen.getByText('2024-02-01T00:00:00Z')).toBeInTheDocument()
-    expect(screen.getByText('2024-03-01T00:00:00Z')).toBeInTheDocument()
-  })
-
-  it('displays N/A when created_at is null', () => {
-    setupMocks([
-      {
-        id: 'a-null-date',
-        principal_id: 'u5',
-        principal_name: 'nulldate-user',
-        principal_type: 'user',
-        role_name: 'viewer',
-        created_at: null as unknown as string,
-        project_id: 'proj-1',
-        project_name: 'Test Project',
-      },
-    ])
-
-    render(<ProjectRoleAssignmentsTab projectId="proj-1" />, { wrapper })
-
-    expect(screen.getByText('N/A')).toBeInTheDocument()
-  })
-
   it('handles assignment with unknown principal_type as user', () => {
     setupMocks([
       {
@@ -601,9 +573,9 @@ describe('ProjectRoleAssignmentsTab', () => {
     const grid = screen.getByRole('grid', { name: 'Project role assignments' })
     // Verify sortable column headers exist
     expect(within(grid).getByText('Principal Name')).toBeInTheDocument()
-    expect(within(grid).getByText('Type')).toBeInTheDocument()
+    expect(within(grid).getByText('Principal Type')).toBeInTheDocument()
     expect(within(grid).getByText('Role Name')).toBeInTheDocument()
-    expect(within(grid).getByText('Created')).toBeInTheDocument()
+    expect(within(grid).getByText('Policies')).toBeInTheDocument()
   })
 
   it('renders pagination footer', () => {

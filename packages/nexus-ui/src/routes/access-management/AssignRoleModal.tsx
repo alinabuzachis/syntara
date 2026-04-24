@@ -17,9 +17,9 @@ import { Controller, useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 
 import { useAlerts } from '../../components/alerts'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { accessClient } from '../access/accessClient'
-import { useAllRoles } from '../access/useAllRoles'
 
 import { MultiRoleSelect, type RoleOption } from './MultiRoleSelect'
 
@@ -37,6 +37,8 @@ const assignRoleSchema = z.discriminatedUnion('scope', [
 ])
 
 type AssignRoleFormData = z.infer<typeof assignRoleSchema>
+
+const ROLE_PAGE_SIZE = 20
 
 type AssignRoleModalProps = {
   principalType: 'user' | 'group'
@@ -111,31 +113,43 @@ export function AssignRoleModal({
 
   const scope = useWatch({ control, name: 'scope' })
 
-  // Clear roles when scope changes (different role sets for system vs project)
   useEffect(() => {
     setValue('roleIds', [])
   }, [scope, setValue])
 
-  // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
       reset({ scope: 'system', projectId: '', roleIds: [] })
     }
   }, [isOpen, reset])
 
-  const { roles: allRoles } = useAllRoles()
   const projectsQuery = accessClient.useQuery('get', '/projects')
 
+  // ── Server-side role search ──────────────────────────────────────────────
+  const [roleSearch, setRoleSearch] = useState('')
+  const debouncedRoleSearch = useDebouncedValue(roleSearch)
+
+  const rolesQuery = accessClient.useQuery('get', '/roles', {
+    params: {
+      query: {
+        limit: ROLE_PAGE_SIZE,
+        ...(debouncedRoleSearch ? { 'name[contains]': debouncedRoleSearch } : {}),
+        scope: scope === 'system' ? 'system' : 'project',
+      },
+    },
+  })
+
   const roleOptions = useMemo((): RoleOption[] => {
-    if (scope === 'system') {
-      return allRoles
-        .filter((r) => r.project_id === null)
-        .map((r) => ({ id: r.name, name: r.name, description: r.description ?? null }))
-    }
-    return allRoles
-      .filter((r) => r.project_id === null && r.is_builtin && r.name.startsWith('project-'))
-      .map((r) => ({ id: r.name, name: r.name, description: r.description ?? null }))
-  }, [allRoles, scope])
+    const roles = rolesQuery.data?.resources ?? []
+    return roles.map((r) => ({ id: r.name, name: r.name, description: r.description ?? null }))
+  }, [rolesQuery.data])
+
+  const hasMoreRoles = !!rolesQuery.data?.next
+  const isRolesLoading = rolesQuery.isFetching
+
+  const handleRoleSearchChange = (term: string) => {
+    setRoleSearch(term)
+  }
 
   const projectOptions = useMemo(() => {
     return (projectsQuery.data ?? [])
@@ -143,59 +157,58 @@ export function AssignRoleModal({
       .map((p) => ({ value: p.id, label: p.name }))
   }, [projectsQuery.data])
 
-  const { mutateAsync: assignSystemUserRole } = accessClient.useMutation('post', '/user-role-assignments')
-  const { mutateAsync: assignSystemGroupRole } = accessClient.useMutation('post', '/group-role-assignments')
-  const { mutateAsync: assignProjectUserRole } = accessClient.useMutation(
+  const { mutateAsync: createRoleAssignment } = accessClient.useMutation('post', '/role-assignments')
+  const { mutateAsync: createProjectRoleAssignment } = accessClient.useMutation(
     'post',
     '/projects/{project_id}/role-assignments'
-  )
-  const { mutateAsync: assignProjectGroupRole } = accessClient.useMutation(
-    'post',
-    '/projects/{project_id}/group-role-assignments'
   )
 
   const handleClose = () => {
     reset({ scope: 'system', projectId: '', roleIds: [] })
+    setRoleSearch('')
     onClose()
   }
 
   const onSubmit = handleSubmit(async (data) => {
     setIsPending(true)
     try {
-      for (const roleKey of data.roleIds) {
-        if (data.scope === 'system') {
-          if (principalType === 'user') {
-            await assignSystemUserRole({ body: { user_id: principalId, role_name: roleKey } })
-          } else {
-            await assignSystemGroupRole({ body: { group_id: principalId, role_name: roleKey } })
+      const results = await Promise.allSettled(
+        data.roleIds.map((roleKey) => {
+          const body = { principal_type: principalType, principal_id: principalId, role_name: roleKey }
+          if (data.scope === 'system') {
+            return createRoleAssignment({ body })
           }
-        } else if (principalType === 'user') {
-          await assignProjectUserRole({
+          return createProjectRoleAssignment({
             params: { path: { project_id: data.projectId } },
-            body: { user_id: principalId, role_name: roleKey },
+            body,
           })
-        } else {
-          await assignProjectGroupRole({
-            params: { path: { project_id: data.projectId } },
-            body: { group_id: principalId, role_name: roleKey },
-          })
-        }
+        })
+      )
+      const failures = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+      const successCount = results.length - failures.length
+      if (failures.length === 0) {
+        showAlert({
+          title: successCount === 1 ? 'Role assigned' : `${String(successCount)} roles assigned`,
+          variant: 'success',
+          autoDismiss: true,
+        })
+      } else if (successCount > 0) {
+        showAlert({
+          title: `${String(successCount)} role(s) assigned, ${String(failures.length)} failed`,
+          description: getErrorMessage(failures[0].reason),
+          variant: 'warning',
+          autoDismiss: true,
+        })
+      } else {
+        showAlert({
+          title: 'Failed to assign roles',
+          description: getErrorMessage(failures[0].reason),
+          variant: 'error',
+          autoDismiss: true,
+        })
       }
-      const count = data.roleIds.length
-      showAlert({
-        title: count === 1 ? 'Role assigned' : `${String(count)} roles assigned`,
-        variant: 'success',
-        autoDismiss: true,
-      })
       handleClose()
       onSuccess()
-    } catch (err: unknown) {
-      showAlert({
-        title: 'Failed to assign roles',
-        description: getErrorMessage(err),
-        variant: 'error',
-        autoDismiss: true,
-      })
     } finally {
       setIsPending(false)
     }
@@ -249,7 +262,14 @@ export function AssignRoleModal({
               name="roleIds"
               control={control}
               render={({ field }) => (
-                <MultiRoleSelect options={roleOptions} selected={field.value} onChange={field.onChange} />
+                <MultiRoleSelect
+                  options={roleOptions}
+                  selected={field.value}
+                  onChange={field.onChange}
+                  onSearchChange={handleRoleSearchChange}
+                  hasMore={hasMoreRoles}
+                  isLoading={isRolesLoading}
+                />
               )}
             />
           </FormGroup>

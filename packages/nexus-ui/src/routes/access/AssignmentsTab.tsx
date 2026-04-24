@@ -1,24 +1,15 @@
-import {
-  Button,
-  Flex,
-  FlexItem,
-  Label,
-  Modal,
-  ModalBody,
-  ModalFooter,
-  ModalHeader,
-  Stack,
-  StackItem,
-} from '@patternfly/react-core'
+import { Button, Flex, FlexItem, Label, LabelGroup, Stack, StackItem } from '@patternfly/react-core'
 import { PlusIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
 
+import { ConfirmationDialog } from '../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
 import { IconLabel } from '../../components/IconLabel'
+import type { FilterFieldDefinition } from '../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 
 import { AssignRoleDialog } from './AssignRoleDialog'
@@ -29,37 +20,51 @@ import { ProjectLabel, ScopeLabel } from './ScopeLabel'
 import type { PermissionRow } from './types'
 import { useAssignmentsData } from './useAssignmentsData'
 
-// ── Delete Confirmation Modal ─────────────────────────────────────────────
-
-function DeleteAssignmentModal({
-  row,
-  onClose,
-  onConfirm,
-}: Readonly<{ row: PermissionRow | null; onClose: () => void; onConfirm: () => void }>) {
-  return (
-    <Modal isOpen={!!row} onClose={onClose} variant="small">
-      <ModalHeader title="Remove assignment?" titleIconVariant="warning" />
-      <ModalBody>
-        Remove role <strong>{row?.assignmentName}</strong> from <strong>{row?.principalName}</strong>
-        {row?.scopeType === 'project' && (
-          <>
-            {' '}
-            in project <strong>{row.scopeName}</strong>
-          </>
-        )}
-        ? This will revoke the associated permissions.
-      </ModalBody>
-      <ModalFooter>
-        <Button variant="secondary" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button variant="danger" onClick={onConfirm}>
-          Remove
-        </Button>
-      </ModalFooter>
-    </Modal>
-  )
-}
+const baseFilterDefs: FilterFieldDefinition[] = [
+  {
+    key: 'name',
+    label: 'Principal Name',
+    type: FilterTypeEnum.TEXT,
+    operators: [FilterOperatorEnum.CONTAINS],
+    defaultOperator: FilterOperatorEnum.CONTAINS,
+    placeholder: 'Filter by principal name',
+  },
+  {
+    key: 'role_name',
+    label: 'Role Name',
+    type: FilterTypeEnum.TEXT,
+    operators: [FilterOperatorEnum.CONTAINS],
+    defaultOperator: FilterOperatorEnum.CONTAINS,
+    placeholder: 'Filter by role name',
+  },
+  {
+    key: 'type',
+    label: 'Principal Type',
+    type: FilterTypeEnum.SELECT,
+    options: [
+      { value: 'user', label: 'User' },
+      { value: 'group', label: 'Group' },
+    ],
+    placeholder: 'Filter by principal type',
+  },
+  {
+    key: 'scope',
+    label: 'Scope',
+    type: FilterTypeEnum.SELECT,
+    options: [
+      { value: 'system', label: 'System' },
+      { value: 'project', label: 'Project' },
+    ],
+    placeholder: 'Filter by scope',
+  },
+  {
+    key: 'project',
+    label: 'Project',
+    type: FilterTypeEnum.SELECT,
+    options: [],
+    placeholder: 'Filter by project',
+  },
+]
 
 // ── Component ──────────────────────────────────────────────────────────────
 
@@ -81,50 +86,7 @@ export function AssignmentsTab() {
     handleDelete,
   } = useAssignmentsData()
 
-  const filterFieldDefinitions = useMemo(
-    () =>
-      buildProjectFilterDefs(
-        [
-          {
-            key: 'name',
-            label: 'Principal',
-            type: FilterTypeEnum.TEXT,
-            operators: [FilterOperatorEnum.CONTAINS],
-            defaultOperator: FilterOperatorEnum.CONTAINS,
-            placeholder: 'Filter by principal',
-          },
-          {
-            key: 'type',
-            label: 'Type',
-            type: FilterTypeEnum.SELECT,
-            options: [
-              { value: 'user', label: 'User' },
-              { value: 'group', label: 'Group' },
-            ],
-            placeholder: 'Filter by type',
-          },
-          {
-            key: 'scope',
-            label: 'Scope',
-            type: FilterTypeEnum.SELECT,
-            options: [
-              { value: 'system', label: 'System' },
-              { value: 'project', label: 'Project' },
-            ],
-            placeholder: 'Filter by scope',
-          },
-          {
-            key: 'project',
-            label: 'Project',
-            type: FilterTypeEnum.SELECT,
-            options: [],
-            placeholder: 'Filter by project',
-          },
-        ],
-        projectNameMap
-      ),
-    [projectNameMap]
-  )
+  const filterFieldDefinitions = useMemo(() => buildProjectFilterDefs(baseFilterDefs, projectNameMap), [projectNameMap])
 
   const getAssignmentActions = (row: PermissionRow): IAction[] => [
     {
@@ -180,14 +142,14 @@ export function AssignmentsTab() {
             <Table aria-label="Role assignments" isStriped style={{ width: '100%' }}>
               <Thead>
                 <Tr>
-                  <Th width={25} sort={getSortParams(0)}>
-                    Principal
+                  <Th width={15} sort={getSortParams(0)}>
+                    Principal Name
                   </Th>
                   <Th width={10} sort={getSortParams(1)} modifier="nowrap">
-                    Type
+                    Principal Type
                   </Th>
-                  <Th width={20} sort={getSortParams(2)}>
-                    Role
+                  <Th width={10} sort={getSortParams(2)}>
+                    Role Name
                   </Th>
                   <Th width={10} sort={getSortParams(3)} modifier="nowrap">
                     Scope
@@ -195,19 +157,20 @@ export function AssignmentsTab() {
                   <Th width={10} sort={getSortParams(4)} modifier="nowrap">
                     Project
                   </Th>
+                  <Th width={30}>Policies</Th>
                   <Th screenReaderText="Actions" />
                 </Tr>
               </Thead>
               <Tbody>
                 {sortedRows.map((row) => (
                   <Tr key={`${row.sourceEndpoint}-${row.id}`}>
-                    <Td dataLabel="Principal">{row.principalName}</Td>
-                    <Td dataLabel="Type">
+                    <Td dataLabel="Principal Name">{row.principalName}</Td>
+                    <Td dataLabel="Principal Type">
                       <Label color={row.principalType === 'user' ? 'blue' : 'teal'} isCompact>
                         {row.principalType === 'user' ? 'User' : 'Group'}
                       </Label>
                     </Td>
-                    <Td dataLabel="Role">
+                    <Td dataLabel="Role Name">
                       <Label color="purple" isCompact>
                         {row.assignmentName}
                       </Label>
@@ -217,6 +180,19 @@ export function AssignmentsTab() {
                     </Td>
                     <Td dataLabel="Project">
                       <ProjectLabel projectId={row.projectId} projectNameMap={projectNameMap} />
+                    </Td>
+                    <Td dataLabel="Policies">
+                      {row.rolePolicies.length > 0 ? (
+                        <LabelGroup numLabels={3}>
+                          {row.rolePolicies.map((name) => (
+                            <Label key={name} isCompact>
+                              {name}
+                            </Label>
+                          ))}
+                        </LabelGroup>
+                      ) : (
+                        '-'
+                      )}
                     </Td>
                     <Td isActionCell>
                       <ActionsColumn items={getAssignmentActions(row)} />
@@ -240,15 +216,28 @@ export function AssignmentsTab() {
 
       {isAddDialogOpen && <AssignRoleDialog onClose={() => setIsAddDialogOpen(false)} onSuccess={refetchAll} />}
 
-      <DeleteAssignmentModal
-        row={rowToDelete}
+      <ConfirmationDialog
+        isOpen={!!rowToDelete}
         onClose={() => setRowToDelete(null)}
         onConfirm={() => {
           if (rowToDelete) {
             handleDelete(rowToDelete, () => setRowToDelete(null))
           }
         }}
-      />
+        title="Remove assignment?"
+        confirmLabel="Remove"
+        confirmVariant="danger"
+        titleIconVariant="warning"
+      >
+        Remove role <strong>{rowToDelete?.assignmentName}</strong> from <strong>{rowToDelete?.principalName}</strong>
+        {rowToDelete?.scopeType === 'project' && (
+          <>
+            {' '}
+            in project <strong>{rowToDelete.scopeName}</strong>
+          </>
+        )}
+        ? This will revoke the associated permissions.
+      </ConfirmationDialog>
 
       {rowToEdit && (
         <EditAssignmentDialog

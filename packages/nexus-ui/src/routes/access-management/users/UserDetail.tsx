@@ -150,7 +150,7 @@ export function UserDetail() {
               </TabTitleText>
             }
           />
-          <Tab eventKey="roles" title={<TabTitleText>Roles</TabTitleText>} />
+          <Tab eventKey="roles" title={<TabTitleText>Role Assignments</TabTitleText>} />
         </Tabs>
       </StackItem>
       <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>

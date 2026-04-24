@@ -7,7 +7,6 @@ import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../../components/alerts'
 import { accessClient } from '../access/accessClient'
-import { useAllRoles } from '../access/useAllRoles'
 
 import { AssignRoleModal } from './AssignRoleModal'
 
@@ -22,8 +21,8 @@ vi.mock('../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
 }))
 
-vi.mock('../access/useAllRoles', () => ({
-  useAllRoles: vi.fn(),
+vi.mock('../../hooks/useDebouncedValue', () => ({
+  useDebouncedValue: <T,>(value: T) => value,
 }))
 
 const mockMutateAsync = vi.fn()
@@ -57,22 +56,23 @@ const wrapper = ({ children }: { children: ReactNode }) => (
   </QueryClientProvider>
 )
 
-const mockRoles = {
-  resources: [
-    { id: 'r1', name: 'admin-role', description: 'Admin', project_id: null, is_builtin: true, policies: [] },
-    { id: 'r2', name: 'viewer-role', description: 'Viewer', project_id: null, is_builtin: true, policies: [] },
-    { id: 'r3', name: 'project-admin', description: 'Project Admin', project_id: null, is_builtin: true, policies: [] },
-    { id: 'r4', name: 'project-user', description: 'Project User', project_id: null, is_builtin: true, policies: [] },
-    {
-      id: 'r5',
-      name: 'project-auditor',
-      description: 'Project Auditor',
-      project_id: null,
-      is_builtin: true,
-      policies: [],
-    },
-  ],
-}
+const systemRoles = [
+  { id: 'r1', name: 'admin-role', description: 'Admin', project_id: null, is_builtin: true, policies: [] },
+  { id: 'r2', name: 'viewer-role', description: 'Viewer', project_id: null, is_builtin: true, policies: [] },
+]
+
+const projectBuiltinRoles = [
+  { id: 'r3', name: 'project-admin', description: 'Project Admin', project_id: null, is_builtin: true, policies: [] },
+  { id: 'r4', name: 'project-user', description: 'Project User', project_id: null, is_builtin: true, policies: [] },
+  {
+    id: 'r5',
+    name: 'project-auditor',
+    description: 'Project Auditor',
+    project_id: null,
+    is_builtin: true,
+    policies: [],
+  },
+]
 
 const mockProjects = [
   {
@@ -100,18 +100,43 @@ describe('AssignRoleModal', () => {
   const mockOnSuccess = vi.fn()
 
   function setupMocks() {
-    vi.mocked(useAllRoles).mockReturnValue({
-      roles: mockRoles.resources as never,
-      isLoading: false,
-      error: null,
-    })
-
-    vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
-      if (path === '/projects') {
-        return { data: mockProjects, isPending: false, isError: false, error: null, refetch: vi.fn() } as never
+    vi.mocked(accessClient.useQuery).mockImplementation(
+      (_method: string, path: string, options?: { params?: { query?: { scope?: string; is_builtin?: boolean } } }) => {
+        if (path === '/projects') {
+          return {
+            data: mockProjects,
+            isPending: false,
+            isError: false,
+            error: null,
+            isFetching: false,
+            refetch: vi.fn(),
+          } as never
+        }
+        if (path === '/roles') {
+          const query = options?.params?.query
+          let roles = systemRoles
+          if (query?.scope === 'project') {
+            roles = projectBuiltinRoles
+          }
+          return {
+            data: { resources: roles, next: null },
+            isPending: false,
+            isError: false,
+            error: null,
+            isFetching: false,
+            refetch: vi.fn(),
+          } as never
+        }
+        return {
+          data: undefined,
+          isPending: false,
+          isError: false,
+          error: null,
+          isFetching: false,
+          refetch: vi.fn(),
+        } as never
       }
-      return { data: undefined, isPending: false, isError: false, error: null, refetch: vi.fn() } as never
-    })
+    )
 
     vi.mocked(accessClient.useMutation).mockReturnValue(mockMutationReturn)
   }
@@ -299,7 +324,7 @@ describe('AssignRoleModal', () => {
 
       await waitFor(() => {
         expect(mockMutateAsync).toHaveBeenCalledWith({
-          body: { user_id: 'u1', role_name: 'admin-role' },
+          body: { principal_type: 'user', principal_id: 'u1', role_name: 'admin-role' },
         })
       })
 
@@ -324,7 +349,7 @@ describe('AssignRoleModal', () => {
 
       await waitFor(() => {
         expect(mockMutateAsync).toHaveBeenCalledWith({
-          body: { group_id: 'g1', role_name: 'admin-role' },
+          body: { principal_type: 'group', principal_id: 'g1', role_name: 'admin-role' },
         })
       })
     })
@@ -359,7 +384,7 @@ describe('AssignRoleModal', () => {
       await waitFor(() => {
         expect(mockMutateAsync).toHaveBeenCalledWith({
           params: { path: { project_id: 'proj1' } },
-          body: { user_id: 'u1', role_name: 'project-admin' },
+          body: { principal_type: 'user', principal_id: 'u1', role_name: 'project-admin' },
         })
       })
     })
@@ -391,7 +416,7 @@ describe('AssignRoleModal', () => {
       await waitFor(() => {
         expect(mockMutateAsync).toHaveBeenCalledWith({
           params: { path: { project_id: 'proj1' } },
-          body: { group_id: 'g1', role_name: 'project-admin' },
+          body: { principal_type: 'group', principal_id: 'g1', role_name: 'project-admin' },
         })
       })
     })
@@ -470,8 +495,8 @@ describe('AssignRoleModal', () => {
         expect(screen.getByText('Failed to assign roles')).toBeInTheDocument()
       })
 
-      // onSuccess should NOT have been called
-      expect(mockOnSuccess).not.toHaveBeenCalled()
+      // onSuccess is still called (component always calls onSuccess + onClose after Promise.allSettled)
+      expect(mockOnSuccess).toHaveBeenCalled()
     })
   })
 

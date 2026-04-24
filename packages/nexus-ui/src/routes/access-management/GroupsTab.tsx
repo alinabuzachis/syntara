@@ -154,7 +154,9 @@ export function GroupsTab() {
                         <Button
                           variant="link"
                           isInline
-                          onClick={() => navigate(AppRoute.AccessManagement.GroupDetail.replace(':groupId', group.id))}
+                          onClick={() =>
+                            navigate(AppRoute.AccessManagement.GroupDetail.replace(':groupId', group.id ?? ''))
+                          }
                         >
                           {group.name}
                         </Button>

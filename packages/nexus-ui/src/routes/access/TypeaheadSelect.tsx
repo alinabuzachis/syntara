@@ -14,19 +14,19 @@ import {
 import { RhUiCloseIcon } from '@patternfly/react-icons'
 import { type Ref, useMemo, useRef, useState } from 'react'
 
-export interface TypeaheadOptionTag {
+export type TypeaheadOptionTag = {
   label: string
   color: 'blue' | 'green' | 'orange' | 'orangered' | 'red' | 'purple' | 'grey' | 'teal' | 'yellow'
 }
 
-export interface TypeaheadOption {
+export type TypeaheadOption = {
   value: string
   label: string
   description?: string
   tag?: TypeaheadOptionTag
 }
 
-interface TypeaheadSelectProps {
+type TypeaheadSelectProps = {
   id: string
   ariaLabel: string
   options: TypeaheadOption[]
@@ -35,6 +35,53 @@ interface TypeaheadSelectProps {
   placeholder?: string
   hasError?: boolean
   isDisabled?: boolean
+  /** When provided, filtering is delegated to the caller (server-side search). */
+  onSearchChange?: (term: string) => void
+  /** Shows a footer hint when the server has more results beyond the current page. */
+  hasMore?: boolean
+  /** Shows a loading indicator while fetching results. */
+  isLoading?: boolean
+}
+
+function renderOptions(
+  options: TypeaheadOption[],
+  filterValue: string,
+  selected: string,
+  hasMore?: boolean,
+  isLoading?: boolean
+) {
+  if (isLoading) {
+    return <SelectOption isDisabled>Loading...</SelectOption>
+  }
+  if (options.length === 0) {
+    return <SelectOption isDisabled>No results match &quot;{filterValue}&quot;</SelectOption>
+  }
+  return (
+    <>
+      {options.map((option) => (
+        <SelectOption
+          key={option.value}
+          value={option.value}
+          isSelected={option.value === selected}
+          description={option.description}
+        >
+          {option.tag ? (
+            <Flex gap={{ default: 'gapSm' }} alignItems={{ default: 'alignItemsCenter' }}>
+              <FlexItem>
+                <Label isCompact color={option.tag.color}>
+                  {option.tag.label}
+                </Label>
+              </FlexItem>
+              <FlexItem>{option.label}</FlexItem>
+            </Flex>
+          ) : (
+            option.label
+          )}
+        </SelectOption>
+      ))}
+      {hasMore && <SelectOption isDisabled>Type to narrow results...</SelectOption>}
+    </>
+  )
 }
 
 export function TypeaheadSelect({
@@ -46,6 +93,9 @@ export function TypeaheadSelect({
   placeholder = 'Select...',
   hasError,
   isDisabled,
+  onSearchChange,
+  hasMore,
+  isLoading,
 }: Readonly<TypeaheadSelectProps>) {
   const [isOpen, setIsOpen] = useState(false)
   const [filterValue, setFilterValue] = useState('')
@@ -53,21 +103,38 @@ export function TypeaheadSelect({
 
   const selectedLabel = options.find((o) => o.value === selected)?.label ?? ''
 
+  const isServerFiltered = !!onSearchChange
+
   const filteredOptions = useMemo(() => {
+    if (isServerFiltered) return options
     if (!filterValue) return options
     const term = filterValue.toLowerCase()
     return options.filter((o) => o.label.toLowerCase().includes(term))
-  }, [options, filterValue])
+  }, [options, filterValue, isServerFiltered])
+
+  const handleFilterChange = (val: string) => {
+    setFilterValue(val)
+    if (onSearchChange) {
+      onSearchChange(val)
+    }
+  }
 
   const onSelect = (_event: React.MouseEvent<Element, MouseEvent> | undefined, value: string | number | undefined) => {
-    onChange(value as string)
+    if (value === undefined) return
+    onChange(String(value))
     setFilterValue('')
+    if (onSearchChange) {
+      onSearchChange('')
+    }
     setIsOpen(false)
   }
 
   const clear = () => {
     onChange('')
     setFilterValue('')
+    if (onSearchChange) {
+      onSearchChange('')
+    }
     inputRef.current?.focus()
   }
 
@@ -85,7 +152,7 @@ export function TypeaheadSelect({
         <TextInputGroupMain
           value={isOpen ? filterValue : selectedLabel}
           onChange={(_e, val) => {
-            setFilterValue(val)
+            handleFilterChange(val)
             if (!isOpen) setIsOpen(true)
           }}
           onClick={() => {
@@ -124,31 +191,7 @@ export function TypeaheadSelect({
       toggle={toggle}
     >
       <SelectList style={{ maxHeight: '200px', overflow: 'auto' }}>
-        {filteredOptions.length === 0 ? (
-          <SelectOption isDisabled>No results match &quot;{filterValue}&quot;</SelectOption>
-        ) : (
-          filteredOptions.map((option) => (
-            <SelectOption
-              key={option.value}
-              value={option.value}
-              isSelected={option.value === selected}
-              description={option.description}
-            >
-              {option.tag ? (
-                <Flex gap={{ default: 'gapSm' }} alignItems={{ default: 'alignItemsCenter' }}>
-                  <FlexItem>
-                    <Label isCompact color={option.tag.color}>
-                      {option.tag.label}
-                    </Label>
-                  </FlexItem>
-                  <FlexItem>{option.label}</FlexItem>
-                </Flex>
-              ) : (
-                option.label
-              )}
-            </SelectOption>
-          ))
-        )}
+        {renderOptions(filteredOptions, filterValue, selected, hasMore, isLoading)}
       </SelectList>
     </Select>
   )

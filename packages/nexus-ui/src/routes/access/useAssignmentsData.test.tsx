@@ -135,7 +135,7 @@ function setupDefaultMocks() {
         refetch: mockRefetch,
       } as never
     }
-    if (path === '/all-role-assignments') {
+    if (path === '/role-assignments') {
       return {
         data: { resources: mockAllAssignments, total: mockAllAssignments.length, next: null },
         isPending: false,
@@ -186,7 +186,9 @@ describe('useAssignmentsData', () => {
         assignmentName: 'Admin',
         scopeType: 'project',
         scopeName: 'Project Alpha',
-        sourceEndpoint: 'project-roles',
+        roleDescription: null,
+        rolePolicies: [],
+        sourceEndpoint: 'project-role-assignments',
       })
     })
 
@@ -201,7 +203,9 @@ describe('useAssignmentsData', () => {
         principalName: 'Devs',
         assignmentName: 'Editor',
         scopeType: 'project',
-        sourceEndpoint: 'project-group-roles',
+        roleDescription: null,
+        rolePolicies: [],
+        sourceEndpoint: 'project-role-assignments',
       })
     })
 
@@ -217,7 +221,9 @@ describe('useAssignmentsData', () => {
         assignmentName: 'Viewer',
         scopeType: 'system',
         scopeName: 'System',
-        sourceEndpoint: 'user-role-assignments',
+        roleDescription: null,
+        rolePolicies: [],
+        sourceEndpoint: 'role-assignments',
       })
     })
 
@@ -233,7 +239,9 @@ describe('useAssignmentsData', () => {
         assignmentName: 'Admin',
         scopeType: 'system',
         scopeName: 'System',
-        sourceEndpoint: 'group-role-assignments',
+        roleDescription: null,
+        rolePolicies: [],
+        sourceEndpoint: 'role-assignments',
       })
     })
 
@@ -247,7 +255,7 @@ describe('useAssignmentsData', () => {
 
     it('falls back to project_id when project_name is missing', () => {
       vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
-        if (path === '/all-role-assignments') {
+        if (path === '/role-assignments') {
           return {
             data: {
               resources: [
@@ -566,7 +574,9 @@ describe('useAssignmentsData', () => {
         scopeType: 'project',
         scopeName: 'Project Alpha',
         projectId: 'p1',
-        sourceEndpoint: 'project-roles',
+        roleDescription: null,
+        rolePolicies: [],
+        sourceEndpoint: 'project-role-assignments',
       }
 
       const onSettled = vi.fn()
@@ -601,7 +611,9 @@ describe('useAssignmentsData', () => {
         scopeType: 'project',
         scopeName: 'Project Alpha',
         projectId: 'p1',
-        sourceEndpoint: 'project-group-roles',
+        roleDescription: null,
+        rolePolicies: [],
+        sourceEndpoint: 'project-role-assignments',
       }
 
       act(() => {
@@ -634,7 +646,9 @@ describe('useAssignmentsData', () => {
         assignmentName: 'Viewer',
         scopeType: 'system',
         scopeName: 'System',
-        sourceEndpoint: 'user-role-assignments',
+        roleDescription: null,
+        rolePolicies: [],
+        sourceEndpoint: 'role-assignments',
       }
 
       act(() => {
@@ -667,7 +681,9 @@ describe('useAssignmentsData', () => {
         assignmentName: 'Admin',
         scopeType: 'system',
         scopeName: 'System',
-        sourceEndpoint: 'group-role-assignments',
+        roleDescription: null,
+        rolePolicies: [],
+        sourceEndpoint: 'role-assignments',
       }
 
       act(() => {
@@ -701,7 +717,9 @@ describe('useAssignmentsData', () => {
         assignmentName: 'Viewer',
         scopeType: 'system',
         scopeName: 'System',
-        sourceEndpoint: 'user-role-assignments',
+        roleDescription: null,
+        rolePolicies: [],
+        sourceEndpoint: 'role-assignments',
       }
 
       act(() => {
@@ -716,7 +734,7 @@ describe('useAssignmentsData', () => {
       expect(callbacks.onSettled).toBe(onSettled)
     })
 
-    it('early-returns with onSettled when project-roles row has no projectId', () => {
+    it('early-returns with onSettled when project-role-assignments row has no projectId', () => {
       const mockDeleteMutate = vi.fn()
       setupDefaultMocks()
       vi.mocked(accessClient.useMutation).mockReturnValue({
@@ -735,38 +753,9 @@ describe('useAssignmentsData', () => {
         assignmentName: 'Admin',
         scopeType: 'project',
         scopeName: 'Project Alpha',
-        sourceEndpoint: 'project-roles',
-      }
-
-      const onSettled = vi.fn()
-      act(() => {
-        result.current.handleDelete(row, onSettled)
-      })
-
-      expect(onSettled).toHaveBeenCalled()
-      expect(mockDeleteMutate).not.toHaveBeenCalled()
-    })
-
-    it('early-returns with onSettled when project-group-roles row has no projectId', () => {
-      const mockDeleteMutate = vi.fn()
-      setupDefaultMocks()
-      vi.mocked(accessClient.useMutation).mockReturnValue({
-        ...mockMutationReturn,
-        mutate: mockDeleteMutate,
-      } as never)
-
-      const { result } = renderHook(() => useAssignmentsData(), { wrapper })
-
-      const row: PermissionRow = {
-        id: 'pgr-missing',
-        principalType: 'group',
-        principalId: 'g1',
-        principalName: 'admins',
-        assignmentType: 'role',
-        assignmentName: 'Editor',
-        scopeType: 'project',
-        scopeName: 'Project Beta',
-        sourceEndpoint: 'project-group-roles',
+        roleDescription: null,
+        rolePolicies: [],
+        sourceEndpoint: 'project-role-assignments',
       }
 
       const onSettled = vi.fn()

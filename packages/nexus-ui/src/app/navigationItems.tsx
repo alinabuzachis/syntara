@@ -116,7 +116,7 @@ export const navigationItems: INavigationItem[] = [
             hidden: true,
           },
           {
-            label: 'Assignments',
+            label: 'Role Assignments',
             path: AppRoute.AccessManagement.Assignments,
             element: <AccessManagement />,
           },

@@ -81,7 +81,7 @@ describe('AccessManagement', () => {
     expect(screen.getByRole('tab', { name: 'Groups' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Policies' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Roles' })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Assignments' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Role Assignments' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Can I?' })).toBeInTheDocument()
   })
 

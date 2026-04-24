@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-  '/user-role-assignments': {
+  '/role-assignments': {
     parameters: {
       query?: never
       header?: never
@@ -12,39 +12,51 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List User Role Assignments
-     * @description List system-level user→role assignments.
+     * List Role Assignments
+     * @description List role assignments with project-aware visibility.
      *
-     *     Admin/auditor see all assignments; other users see only their own.
+     *     Admins/auditors see all. Project-admins see their own plus all
+     *     assignments in projects they administer. Other users see only their
+     *     own (direct and via groups).
      */
-    get: operations['list_user_role_assignments']
+    get: operations['list_role_assignments']
     put?: never
     /**
-     * Assign User Role
-     * @description Assign a role directly to a user (system-level). Requires: admin permission.
+     * Create Role Assignment
+     * @description Assign a role to a user or group.
+     *
+     *     When project_id is provided the assignment is project-scoped;
+     *     otherwise it is a global (system-level) assignment.
      */
-    post: operations['assign_user_role']
+    post: operations['create_role_assignment']
     delete?: never
     options?: never
     head?: never
     patch?: never
     trace?: never
   }
-  '/user-role-assignments/{assignment_id}': {
+  '/role-assignments/{assignment_id}': {
     parameters: {
       query?: never
       header?: never
       path?: never
       cookie?: never
     }
-    get?: never
+    /**
+     * Get Role Assignment
+     * @description Get a single role assignment by ID.
+     *
+     *     Visibility rules match the list endpoint: admins see all,
+     *     project-admins see their projects, users see their own.
+     */
+    get: operations['get_role_assignment']
     put?: never
     post?: never
     /**
-     * Revoke User Role Assignment
-     * @description Remove a user→role assignment. Requires: admin permission.
+     * Delete Role Assignment
+     * @description Remove a role assignment.
      */
-    delete: operations['revoke_user_role_assignment']
+    delete: operations['delete_role_assignment']
     options?: never
     head?: never
     patch?: never
@@ -55,37 +67,130 @@ export type webhooks = Record<string, never>
 export interface components {
   schemas: {
     /**
-     * UserRoleAssignmentCreate
-     * @description Request body for assigning a role to a user.
+     * RoleAssignmentCreate
+     * @description Request body for creating a role assignment.
      */
-    UserRoleAssignmentCreate: {
+    RoleAssignmentCreate: {
       /**
-       * User Id
-       * Format: uuid
+       * Principal Type
+       * @description Type of principal receiving the role
+       * @enum {string}
        */
-      user_id: string
-      /** Role Name */
+      principal_type: 'user' | 'group'
+      /**
+       * Principal Id
+       * Format: uuid
+       * @description UUID of the user or group
+       */
+      principal_id: string
+      /**
+       * Role Name
+       * @description Name of the role to assign
+       */
       role_name: string
+      /**
+       * Project Id
+       * @description Project scope (null for global assignment)
+       */
+      project_id?: string | null
     }
     /**
-     * UserRoleAssignmentRead
-     * @description Response body for a user→role assignment.
+     * SubResourceRoleAssignmentCreate
+     * @description Request body for creating a role assignment from a sub-resource endpoint (principal comes from URL).
      */
-    UserRoleAssignmentRead: {
-      /** Id */
+    SubResourceRoleAssignmentCreate: {
+      /**
+       * Role Name
+       * @description Name of the role to assign
+       */
+      role_name: string
+      /**
+       * Project Id
+       * @description Project scope (null for global assignment)
+       */
+      project_id?: string | null
+    }
+    /**
+     * RoleAssignmentRead
+     * @description Response body for a role assignment.
+     */
+    RoleAssignmentRead: {
+      /**
+       * Id
+       * Format: uuid
+       */
       id: string
+      /** Principal Type */
+      principal_type: string
+      /**
+       * Principal Id
+       * Format: uuid
+       */
+      principal_id: string
+      /**
+       * Principal Name
+       * @description Resolved username or group name
+       */
+      principal_name: string
+      /** Role Name */
+      role_name: string
+      /**
+       * Role Description
+       * @description Human-readable description of the role
+       */
+      role_description?: string | null
+      /**
+       * Role Policies
+       * @description Policy names included in this role
+       */
+      role_policies?: string[]
       /** Project Id */
       project_id?: string | null
       /** Project Name */
       project_name?: string | null
-      /** User Id */
-      user_id: string
-      /** Username */
-      username: string
-      /** Role Name */
-      role_name: string
       /** Created At */
       created_at?: string | null
+    }
+    /**
+     * RoleAssignmentListResponse
+     * @description Paginated response for role assignments.
+     */
+    RoleAssignmentListResponse: components['schemas']['ResourcesResponseBase'] & {
+      resources?: components['schemas']['RoleAssignmentRead'][]
+    }
+    /**
+     * Paginated Response Base
+     * @description Pagination metadata structure for list responses
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
+     */
+    ResourcesResponseBase: {
+      /**
+       * Next
+       * @description Cursor for next page of results
+       */
+      next?: string | null
+      /**
+       * Prev
+       * @description Cursor for previous page of results
+       */
+      prev?: string | null
+      /**
+       * Total
+       * @description Total count of resources (only when include_total=true)
+       */
+      total?: number | null
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources?: unknown[]
     }
     /**
      * ErrorData
@@ -284,29 +389,61 @@ export interface components {
       }
     }
   }
-  parameters: never
+  parameters: {
+    /** @description Maximum number of results per page */
+    limitParam: number
+    /** @description Pagination cursor from previous response */
+    cursorParam: string | null
+    /** @description Sort parameter (e.g., 'name', '-created_at') */
+    sortParam: string | null
+    /** @description Include total count in response (expensive) */
+    includeTotalParam: boolean
+  }
   requestBodies: never
   headers: never
   pathItems: never
 }
 export type $defs = Record<string, never>
 export interface operations {
-  list_user_role_assignments: {
+  list_role_assignments: {
     parameters: {
-      query?: never
+      query?: {
+        /** @description Maximum number of results per page */
+        limit?: components['parameters']['limitParam']
+        /** @description Pagination cursor from previous response */
+        cursor?: components['parameters']['cursorParam']
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
+        sort?: components['parameters']['sortParam']
+        /** @description Include total count in response (expensive) */
+        include_total?: components['parameters']['includeTotalParam']
+        /** @description Filter by principal type (user or group) */
+        principal_type?: string | null
+        /** @description Filter by principal ID (user or group UUID) */
+        principal_id?: string | null
+        /** @description Filter by principal name (exact match) */
+        principal_name?: string | null
+        /** @description Filter by principal name (substring, case-insensitive) */
+        'principal_name[contains]'?: string | null
+        /** @description Filter by role name (exact match) */
+        role_name?: string | null
+        /** @description Filter by role name (substring, case-insensitive) */
+        'role_name[contains]'?: string | null
+        /** @description Filter by project ID */
+        project_id?: string | null
+      }
       header?: never
       path?: never
       cookie?: never
     }
     requestBody?: never
     responses: {
-      /** @description List of user-role assignments */
+      /** @description List of role assignments */
       200: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['UserRoleAssignmentRead'][]
+          'application/json': components['schemas']['RoleAssignmentListResponse']
         }
       }
       400: components['responses']['BadRequestError']
@@ -318,7 +455,7 @@ export interface operations {
       500: components['responses']['InternalServerError']
     }
   }
-  assign_user_role: {
+  create_role_assignment: {
     parameters: {
       query?: never
       header?: never
@@ -327,17 +464,17 @@ export interface operations {
     }
     requestBody: {
       content: {
-        'application/json': components['schemas']['UserRoleAssignmentCreate']
+        'application/json': components['schemas']['RoleAssignmentCreate']
       }
     }
     responses: {
-      /** @description Role assigned to user */
+      /** @description Role assignment created */
       201: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['UserRoleAssignmentRead']
+          'application/json': components['schemas']['RoleAssignmentRead']
         }
       }
       400: components['responses']['BadRequestError']
@@ -349,7 +486,36 @@ export interface operations {
       500: components['responses']['InternalServerError']
     }
   }
-  revoke_user_role_assignment: {
+  get_role_assignment: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        assignment_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Role assignment detail */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['RoleAssignmentRead']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  delete_role_assignment: {
     parameters: {
       query?: never
       header?: never

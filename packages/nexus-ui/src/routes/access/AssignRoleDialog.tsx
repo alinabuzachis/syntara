@@ -9,55 +9,102 @@ import {
   ModalBody,
   ModalFooter,
   ModalHeader,
-  TextInput,
 } from '@patternfly/react-core'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 
 import { useAlerts } from '../../components/alerts'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { getErrorMessage } from '../../utils/apiErrors'
 
 import { accessClient } from './accessClient'
 import { assignRoleSchema } from './assignRoleSchema'
 import type { AssignRoleFormData } from './assignRoleSchema'
 import { TypeaheadSelect } from './TypeaheadSelect'
-import { useAllRoles } from './useAllRoles'
-import { useAllUsers } from './useAllUsers'
 
-const ASSIGNMENT_TYPE_OPTIONS = [
-  { value: 'user-project', label: 'User to Project' },
-  { value: 'group-project', label: 'Group to Project' },
-  { value: 'user-system', label: 'User to System Role' },
-  { value: 'group-system', label: 'Group to System Role' },
-]
+const PAGE_SIZE = 20
 
-// ── Form fields ───────────────────────────────────────────────────────────
+// ── Form body (extracted to stay within max-lines-per-function) ───────────
 
-type AssignmentFormFieldsProps = {
-  assignmentType: string
+type AssignRoleFormBodyProps = {
+  control: ReturnType<typeof useForm<AssignRoleFormData>>['control']
+  errors: ReturnType<typeof useForm<AssignRoleFormData>>['formState']['errors']
+  principalType: string
+  isProjectScoped: boolean
   projectOptions: { value: string; label: string }[]
   userOptions: { value: string; label: string }[]
+  groupOptions: { value: string; label: string }[]
   roleOptions: { value: string; label: string }[]
-  isRoleDisabled: boolean
-  errors: ReturnType<typeof useForm<AssignRoleFormData>>['formState']['errors']
-  control: ReturnType<typeof useForm<AssignRoleFormData>>['control']
-  register: ReturnType<typeof useForm<AssignRoleFormData>>['register']
+  roleDisabled: boolean
+  onUserSearchChange: (term: string) => void
+  hasMoreUsers: boolean
+  isUsersLoading: boolean
+  onGroupSearchChange: (term: string) => void
+  hasMoreGroups: boolean
+  isGroupsLoading: boolean
+  onRoleSearchChange: (term: string) => void
+  hasMoreRoles: boolean
+  isRolesLoading: boolean
 }
 
-function AssignmentFormFields({
-  assignmentType,
+function AssignRoleFormBody({
+  control,
+  errors,
+  principalType,
+  isProjectScoped,
   projectOptions,
   userOptions,
+  groupOptions,
   roleOptions,
-  isRoleDisabled,
-  errors,
-  control,
-  register,
-}: Readonly<AssignmentFormFieldsProps>) {
-  const isProjectScoped = assignmentType === 'user-project' || assignmentType === 'group-project'
-
+  roleDisabled,
+  onUserSearchChange,
+  hasMoreUsers,
+  isUsersLoading,
+  onGroupSearchChange,
+  hasMoreGroups,
+  isGroupsLoading,
+  onRoleSearchChange,
+  hasMoreRoles,
+  isRolesLoading,
+}: Readonly<AssignRoleFormBodyProps>) {
   return (
     <>
+      <FormGroup label="Principal type" isRequired fieldId="principal-type">
+        <Controller
+          name="principalType"
+          control={control}
+          render={({ field }) => (
+            <FormSelect
+              id="principal-type"
+              aria-label="Principal type"
+              value={field.value}
+              onChange={(_event, value) => field.onChange(value)}
+            >
+              <FormSelectOption value="user" label="User" />
+              <FormSelectOption value="group" label="Group" />
+            </FormSelect>
+          )}
+        />
+      </FormGroup>
+
+      <FormGroup label="Scope" isRequired fieldId="scope">
+        <Controller
+          name="scope"
+          control={control}
+          render={({ field }) => (
+            <FormSelect
+              id="scope"
+              aria-label="Scope"
+              value={field.value}
+              onChange={(_event, value) => field.onChange(value)}
+            >
+              <FormSelectOption value="system" label="System" />
+              <FormSelectOption value="project" label="Project" />
+            </FormSelect>
+          )}
+        />
+      </FormGroup>
+
       {isProjectScoped && (
         <FormGroup label="Project" isRequired fieldId="project-id">
           <Controller
@@ -78,7 +125,7 @@ function AssignmentFormFields({
         </FormGroup>
       )}
 
-      {(assignmentType === 'user-project' || assignmentType === 'user-system') && (
+      {principalType === 'user' && (
         <FormGroup label="User" isRequired fieldId="user-id">
           <Controller
             name="userId"
@@ -92,28 +139,41 @@ function AssignmentFormFields({
                 onChange={field.onChange}
                 placeholder="Select a user..."
                 hasError={!!errors.userId}
+                onSearchChange={onUserSearchChange}
+                hasMore={hasMoreUsers}
+                isLoading={isUsersLoading}
               />
             )}
           />
         </FormGroup>
       )}
 
-      {(assignmentType === 'group-project' || assignmentType === 'group-system') && (
-        <FormGroup label="Group ID" isRequired fieldId="group-id">
-          <TextInput
-            id="group-id"
-            isRequired
-            aria-label="Group ID"
-            validated={errors.groupId ? 'error' : 'default'}
-            {...register('groupId')}
+      {principalType === 'group' && (
+        <FormGroup label="Group" isRequired fieldId="group-id">
+          <Controller
+            name="groupId"
+            control={control}
+            render={({ field }) => (
+              <TypeaheadSelect
+                id="group-id"
+                ariaLabel="Group"
+                options={groupOptions}
+                selected={field.value ?? ''}
+                onChange={field.onChange}
+                placeholder="Select a group..."
+                hasError={!!errors.groupId}
+                onSearchChange={onGroupSearchChange}
+                hasMore={hasMoreGroups}
+                isLoading={isGroupsLoading}
+              />
+            )}
           />
         </FormGroup>
       )}
 
       <FormGroup label="Role" isRequired fieldId="role-select">
         <Controller
-          key={isProjectScoped ? 'roleName' : 'systemRoleName'}
-          name={isProjectScoped ? 'roleName' : 'systemRoleName'}
+          name="roleName"
           control={control}
           render={({ field }) => (
             <TypeaheadSelect
@@ -122,9 +182,12 @@ function AssignmentFormFields({
               options={roleOptions}
               selected={field.value ?? ''}
               onChange={field.onChange}
-              placeholder={isRoleDisabled ? 'Select a project first...' : 'Select a role...'}
-              hasError={isProjectScoped ? !!errors.roleName : !!errors.systemRoleName}
-              isDisabled={isRoleDisabled}
+              placeholder={roleDisabled ? 'Select a project first...' : 'Select a role...'}
+              hasError={!!errors.roleName}
+              isDisabled={roleDisabled}
+              onSearchChange={onRoleSearchChange}
+              hasMore={hasMoreRoles}
+              isLoading={isRolesLoading}
             />
           )}
         />
@@ -143,14 +206,7 @@ type AssignRoleDialogProps = {
 export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDialogProps>) {
   const { showSuccess, showError } = useAlerts()
 
-  const projectsQuery = accessClient.useQuery('get', '/projects')
-  const projectsData = projectsQuery.data
-
-  const { users } = useAllUsers()
-  const { roles: allRoles } = useAllRoles()
-
   const {
-    register,
     handleSubmit,
     control,
     setValue,
@@ -158,116 +214,128 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
   } = useForm<AssignRoleFormData>({
     resolver: zodResolver(assignRoleSchema, undefined, { mode: 'sync' }),
     defaultValues: {
-      assignmentType: 'user-project',
+      principalType: 'user',
+      scope: 'project',
       projectId: '',
       userId: '',
       groupId: '',
       roleName: '',
-      systemRoleName: '',
     },
   })
 
-  const assignmentType = useWatch({ control, name: 'assignmentType' })
+  const principalType = useWatch({ control, name: 'principalType' })
+  const scope = useWatch({ control, name: 'scope' })
   const selectedProjectId = useWatch({ control, name: 'projectId' })
-  const isProjectScoped = assignmentType === 'user-project' || assignmentType === 'group-project'
+  const isProjectScoped = scope === 'project'
 
-  // Reset role selection when switching between project/system scope
-  // because project-scoped uses roleName and system-scoped uses systemRoleName
   useEffect(() => {
     setValue('roleName', '')
-    setValue('systemRoleName', '')
-  }, [assignmentType, setValue])
+  }, [scope, setValue])
 
-  // Reset role selection when project changes (roles are project-specific)
   useEffect(() => {
     if (isProjectScoped) {
       setValue('roleName', '')
     }
   }, [selectedProjectId, isProjectScoped, setValue])
 
+  useEffect(() => {
+    setValue('userId', '')
+    setValue('groupId', '')
+  }, [principalType, setValue])
+
+  const projectsQuery = accessClient.useQuery('get', '/projects')
   const projectOptions = useMemo(
     () =>
-      (projectsData ?? [])
+      (projectsQuery.data ?? [])
         .filter((p): p is typeof p & { id: string } => !!p.id)
         .map((p) => ({ value: p.id, label: p.name })),
-    [projectsData]
+    [projectsQuery.data]
   )
 
-  const userOptions = useMemo(() => users.map((u) => ({ value: u.id, label: u.username })), [users])
+  const [userSearchTerm, setUserSearchTerm] = useState('')
+  const debouncedUserSearch = useDebouncedValue(userSearchTerm)
+  const usersQuery = accessClient.useQuery('get', '/users', {
+    params: {
+      query: { limit: PAGE_SIZE, ...(debouncedUserSearch ? { 'username[contains]': debouncedUserSearch } : {}) },
+    },
+  })
+  const userOptions = useMemo(
+    () => (usersQuery.data?.resources ?? []).map((u) => ({ value: u.id, label: u.username })),
+    [usersQuery.data]
+  )
 
-  const roleOptions = useMemo(() => {
-    const filtered =
-      isProjectScoped && selectedProjectId ? allRoles.filter((role) => role.project_id === selectedProjectId) : allRoles
-    return filtered.map((role) => ({
-      value: role.name,
-      label: role.name,
-      tag: !role.project_id
-        ? { label: 'System', color: 'blue' as const }
-        : { label: 'Project', color: 'green' as const },
-    }))
-  }, [allRoles, isProjectScoped, selectedProjectId])
+  const [groupSearchTerm, setGroupSearchTerm] = useState('')
+  const debouncedGroupSearch = useDebouncedValue(groupSearchTerm)
+  const groupsQuery = accessClient.useQuery('get', '/groups', {
+    params: {
+      query: { limit: PAGE_SIZE, ...(debouncedGroupSearch ? { 'name[contains]': debouncedGroupSearch } : {}) },
+    },
+  })
+  const groupOptions = useMemo(
+    () =>
+      (groupsQuery.data?.resources ?? [])
+        .filter((g): g is typeof g & { id: string } => !!g.id)
+        .map((g) => ({ value: g.id, label: g.name })),
+    [groupsQuery.data]
+  )
 
-  const { mutate: assignProjectRole, isPending: isPendingProjectRole } = accessClient.useMutation(
+  const [roleSearchTerm, setRoleSearchTerm] = useState('')
+  const debouncedRoleSearch = useDebouncedValue(roleSearchTerm)
+  const systemRolesQuery = accessClient.useQuery('get', '/roles', {
+    params: {
+      query: {
+        limit: PAGE_SIZE,
+        scope: 'system',
+        ...(debouncedRoleSearch ? { 'name[contains]': debouncedRoleSearch } : {}),
+      },
+    },
+  })
+  const projectRolesQuery = accessClient.useQuery(
+    'get',
+    '/projects/{project_id}/roles',
+    {
+      params: {
+        path: { project_id: selectedProjectId || '' },
+        query: { limit: PAGE_SIZE, ...(debouncedRoleSearch ? { 'name[contains]': debouncedRoleSearch } : {}) },
+      },
+    },
+    { enabled: isProjectScoped && !!selectedProjectId }
+  )
+  const activeRolesQuery = isProjectScoped ? projectRolesQuery : systemRolesQuery
+  const roleOptions = useMemo(
+    () => (activeRolesQuery.data?.resources ?? []).map((role) => ({ value: role.name, label: role.name })),
+    [activeRolesQuery.data]
+  )
+
+  const { mutate: createRoleAssignment, isPending: isPendingSystem } = accessClient.useMutation(
+    'post',
+    '/role-assignments'
+  )
+  const { mutate: createProjectRoleAssignment, isPending: isPendingProject } = accessClient.useMutation(
     'post',
     '/projects/{project_id}/role-assignments'
   )
-  const { mutate: assignProjectGroupRole, isPending: isPendingProjectGroupRole } = accessClient.useMutation(
-    'post',
-    '/projects/{project_id}/group-role-assignments'
-  )
-  const { mutate: assignSystemUserRole, isPending: isPendingSystemUserRole } = accessClient.useMutation(
-    'post',
-    '/user-role-assignments'
-  )
-  const { mutate: assignSystemGroupRole, isPending: isPendingSystemGroupRole } = accessClient.useMutation(
-    'post',
-    '/group-role-assignments'
-  )
-
-  const isPending =
-    isPendingProjectRole || isPendingProjectGroupRole || isPendingSystemUserRole || isPendingSystemGroupRole
+  const isPending = isPendingSystem || isPendingProject
 
   const onSubmit = (data: AssignRoleFormData) => {
-    const handleSuccess = () => {
+    const onMutationSuccess = () => {
       showSuccess('Assignment added', 'Assignment created successfully')
       onSuccess()
       onClose()
     }
-    const handleError = (error: unknown) => {
+    const onMutationError = (error: unknown) => {
       showError('Failed to add assignment', getErrorMessage(error))
     }
+    const principalId = data.principalType === 'user' ? data.userId : data.groupId
+    const body = { principal_type: data.principalType, principal_id: principalId, role_name: data.roleName }
 
-    switch (data.assignmentType) {
-      case 'user-project':
-        assignProjectRole(
-          {
-            params: { path: { project_id: data.projectId } },
-            body: { user_id: data.userId, role_name: data.roleName },
-          },
-          { onSuccess: handleSuccess, onError: handleError }
-        )
-        break
-      case 'group-project':
-        assignProjectGroupRole(
-          {
-            params: { path: { project_id: data.projectId } },
-            body: { group_id: data.groupId, role_name: data.roleName },
-          },
-          { onSuccess: handleSuccess, onError: handleError }
-        )
-        break
-      case 'user-system':
-        assignSystemUserRole(
-          { body: { user_id: data.userId, role_name: data.systemRoleName } },
-          { onSuccess: handleSuccess, onError: handleError }
-        )
-        break
-      case 'group-system':
-        assignSystemGroupRole(
-          { body: { group_id: data.groupId, role_name: data.systemRoleName } },
-          { onSuccess: handleSuccess, onError: handleError }
-        )
-        break
+    if (data.scope === 'project') {
+      createProjectRoleAssignment(
+        { params: { path: { project_id: data.projectId } }, body },
+        { onSuccess: onMutationSuccess, onError: onMutationError }
+      )
+    } else {
+      createRoleAssignment({ body }, { onSuccess: onMutationSuccess, onError: onMutationError })
     }
   }
 
@@ -276,35 +344,25 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
       <ModalHeader title="Add Assignment" />
       <ModalBody>
         <Form id="assign-role-form" onSubmit={handleSubmit(onSubmit)}>
-          <FormGroup label="Assignment type" isRequired fieldId="assignment-type">
-            <Controller
-              name="assignmentType"
-              control={control}
-              render={({ field }) => (
-                <FormSelect
-                  id="assignment-type"
-                  aria-label="Assignment type"
-                  validated={errors.assignmentType ? 'error' : 'default'}
-                  value={field.value}
-                  onChange={(_event, value) => field.onChange(value)}
-                >
-                  {ASSIGNMENT_TYPE_OPTIONS.map((opt) => (
-                    <FormSelectOption key={opt.value} value={opt.value} label={opt.label} />
-                  ))}
-                </FormSelect>
-              )}
-            />
-          </FormGroup>
-
-          <AssignmentFormFields
-            assignmentType={assignmentType}
+          <AssignRoleFormBody
+            control={control}
+            errors={errors}
+            principalType={principalType}
+            isProjectScoped={isProjectScoped}
             projectOptions={projectOptions}
             userOptions={userOptions}
+            groupOptions={groupOptions}
             roleOptions={roleOptions}
-            isRoleDisabled={isProjectScoped && !selectedProjectId}
-            errors={errors}
-            control={control}
-            register={register}
+            roleDisabled={isProjectScoped && !selectedProjectId}
+            onUserSearchChange={setUserSearchTerm}
+            hasMoreUsers={!!usersQuery.data?.next}
+            isUsersLoading={usersQuery.isFetching}
+            onGroupSearchChange={setGroupSearchTerm}
+            hasMoreGroups={!!groupsQuery.data?.next}
+            isGroupsLoading={groupsQuery.isFetching}
+            onRoleSearchChange={setRoleSearchTerm}
+            hasMoreRoles={!!activeRolesQuery.data?.next}
+            isRolesLoading={activeRolesQuery.isFetching}
           />
         </Form>
       </ModalBody>

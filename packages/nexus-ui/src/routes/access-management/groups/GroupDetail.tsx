@@ -87,7 +87,7 @@ function GroupTabBar({
           }
         />
       )}
-      <Tab eventKey="roles" title={<TabTitleText>Roles</TabTitleText>} />
+      <Tab eventKey="roles" title={<TabTitleText>Role Assignments</TabTitleText>} />
     </Tabs>
   )
 }

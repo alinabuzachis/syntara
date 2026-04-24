@@ -7,29 +7,12 @@ import type { FilterConfig } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
 
 import { accessClient } from './accessClient'
-import type { PermissionRow } from './types'
+import type { PermissionRow, RoleAssignmentRead } from './types'
 
-type AllRoleAssignment = {
-  id: string
-  principal_id: string
-  principal_name: string
-  principal_type: string
-  role_name: string
-  project_id?: string | null
-  project_name?: string | null
-  created_at?: string | null
-}
-
-function buildPermissionRows(assignments: AllRoleAssignment[]): PermissionRow[] {
+function buildPermissionRows(assignments: RoleAssignmentRead[]): PermissionRow[] {
   return assignments.map((a) => {
     const isProject = !!a.project_id
     const principalType = a.principal_type as 'user' | 'group'
-    let sourceEndpoint: PermissionRow['sourceEndpoint']
-    if (isProject) {
-      sourceEndpoint = principalType === 'user' ? 'project-roles' : 'project-group-roles'
-    } else {
-      sourceEndpoint = principalType === 'user' ? 'user-role-assignments' : 'group-role-assignments'
-    }
     return {
       id: a.id,
       principalType,
@@ -37,10 +20,12 @@ function buildPermissionRows(assignments: AllRoleAssignment[]): PermissionRow[] 
       principalName: a.principal_name,
       assignmentType: 'role' as const,
       assignmentName: a.role_name,
+      roleDescription: a.role_description ?? null,
+      rolePolicies: a.role_policies ?? [],
       scopeType: isProject ? ('project' as const) : ('system' as const),
       scopeName: isProject ? (a.project_name ?? a.project_id!) : 'System',
       projectId: a.project_id ?? undefined,
-      sourceEndpoint,
+      sourceEndpoint: isProject ? ('project-role-assignments' as const) : ('role-assignments' as const),
     }
   })
 }
@@ -54,6 +39,8 @@ function applyFilters(rows: PermissionRow[], filters: FilterConfig[]): Permissio
       switch (filter.key) {
         case 'name':
           return displayName.toLowerCase().includes(value.toLowerCase())
+        case 'role_name':
+          return row.assignmentName.toLowerCase().includes(value.toLowerCase())
         case 'type':
           return row.principalType === value
         case 'scope':
@@ -117,24 +104,16 @@ export function useAssignmentsData() {
     [projects]
   )
 
-  const allAssignmentsQuery = accessClient.useQuery('get', '/all-role-assignments')
+  const allAssignmentsQuery = accessClient.useQuery('get', '/role-assignments')
 
-  const { mutate: deleteProjectRole } = accessClient.useMutation(
+  const { mutate: deleteRoleAssignment } = accessClient.useMutation('delete', '/role-assignments/{assignment_id}')
+  const { mutate: deleteProjectRoleAssignment } = accessClient.useMutation(
     'delete',
     '/projects/{project_id}/role-assignments/{assignment_id}'
   )
-  const { mutate: deleteProjectGroupRole } = accessClient.useMutation(
-    'delete',
-    '/projects/{project_id}/group-role-assignments/{assignment_id}'
-  )
-  const { mutate: deleteSystemUserRole } = accessClient.useMutation('delete', '/user-role-assignments/{assignment_id}')
-  const { mutate: deleteSystemGroupRole } = accessClient.useMutation(
-    'delete',
-    '/group-role-assignments/{assignment_id}'
-  )
 
   const allRows = useMemo(
-    () => buildPermissionRows((allAssignmentsQuery.data?.resources ?? []) as AllRoleAssignment[]),
+    () => buildPermissionRows((allAssignmentsQuery.data?.resources ?? []) as RoleAssignmentRead[]),
     [allAssignmentsQuery.data]
   )
 
@@ -158,24 +137,15 @@ export function useAssignmentsData() {
     const onError = (error: unknown) => showError('Remove failed', getErrorMessage(error))
     const callbacks = { onSuccess, onError, onSettled }
 
-    if (row.sourceEndpoint === 'project-roles') {
+    if (row.sourceEndpoint === 'project-role-assignments') {
       if (!row.projectId) {
         showError('Remove failed', 'Invalid assignment: missing project ID')
         onSettled()
         return
       }
-      deleteProjectRole({ params: { path: { project_id: row.projectId, assignment_id: row.id } } }, callbacks)
-    } else if (row.sourceEndpoint === 'project-group-roles') {
-      if (!row.projectId) {
-        showError('Remove failed', 'Invalid assignment: missing project ID')
-        onSettled()
-        return
-      }
-      deleteProjectGroupRole({ params: { path: { project_id: row.projectId, assignment_id: row.id } } }, callbacks)
-    } else if (row.sourceEndpoint === 'user-role-assignments') {
-      deleteSystemUserRole({ params: { path: { assignment_id: row.id } } }, callbacks)
+      deleteProjectRoleAssignment({ params: { path: { project_id: row.projectId, assignment_id: row.id } } }, callbacks)
     } else {
-      deleteSystemGroupRole({ params: { path: { assignment_id: row.id } } }, callbacks)
+      deleteRoleAssignment({ params: { path: { assignment_id: row.id } } }, callbacks)
     }
   }
 
