@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+reviews:
+  # Skip the creative poem in the walkthrough
+  poem: false
+  # Skip Mermaid flow diagrams for changed components
+  sequence_diagrams: false
+  # Skip the per-file change summary table
+  changed_files_summary: false
+  # Skip the effort estimate badge
+  estimate_code_review_effort: false
+  # Skip the fortune message posted while reviewing
+  in_progress_fortune: false
+  # Wrap the walkthrough in a collapsible <details> block
+  collapse_walkthrough: true
+  # Skip the footer showing ignored files and suppressed comments
+  review_details: false
+  # Skip "review skipped" status comments
+  review_status: false
+  auto_review:
+    enabled: true
+    # Review once on PR open; don't re-review on every push
+    auto_incremental_review: false
