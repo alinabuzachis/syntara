@@ -19,7 +19,6 @@ def mock_credential() -> MagicMock:
     cred.enabled = True
     cred.secret_id = uuid4()
     cred.credential_type_id = uuid4()
-    cred.deleted_at = None
     return cred
 
 

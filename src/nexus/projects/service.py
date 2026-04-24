@@ -218,7 +218,7 @@ class ProjectService:
             .values(deleted_at=now, deleted_by=user_id)
         )
 
-        # Step 5: Collect secret IDs, null FK, then delete secrets and soft-delete credentials
+        # Step 5: Collect secret IDs, null FK, delete secrets, then hard-delete credentials
         secret_ids_result = await self.session.execute(
             select(Credential.secret_id).where(
                 Credential.project_id == project_id,
@@ -227,14 +227,14 @@ class ProjectService:
         )
         secret_ids = [row[0] for row in secret_ids_result.all()]
 
-        # Null secret_id and soft-delete credentials (breaks FK before secret deletion)
+        # Null secret_id (breaks FK before secret deletion)
         await self.session.execute(
             update(Credential)
             .where(Credential.project_id == project_id)  # type: ignore[arg-type]
-            .values(secret_id=None, deleted_at=now, deleted_by=user_id)
+            .values(secret_id=None)
         )
 
-        # Now safe to delete secrets
+        # Delete secrets
         if secret_ids:
             await self.session.execute(
                 delete(EncryptedSecret).where(
@@ -244,6 +244,11 @@ class ProjectService:
             await self.session.execute(
                 delete(Secret).where(Secret.id.in_(secret_ids))  # type: ignore[attr-defined]
             )
+
+        # Hard-delete credentials
+        await self.session.execute(
+            delete(Credential).where(Credential.project_id == project_id)  # type: ignore[arg-type]
+        )
 
         # Step 6: Hard-delete role assignments
         await self.session.execute(

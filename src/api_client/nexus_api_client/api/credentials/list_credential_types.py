@@ -89,7 +89,7 @@ def sync_detailed(
 
      List all Credential Types including preseeded managed types.
 
-    Each type includes a credential_count of non-deleted credentials using it.
+    Each type includes a credential_count of credentials using it.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -116,7 +116,7 @@ def sync(
 
      List all Credential Types including preseeded managed types.
 
-    Each type includes a credential_count of non-deleted credentials using it.
+    Each type includes a credential_count of credentials using it.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -139,7 +139,7 @@ async def asyncio_detailed(
 
      List all Credential Types including preseeded managed types.
 
-    Each type includes a credential_count of non-deleted credentials using it.
+    Each type includes a credential_count of credentials using it.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -164,7 +164,7 @@ async def asyncio(
 
      List all Credential Types including preseeded managed types.
 
-    Each type includes a credential_count of non-deleted credentials using it.
+    Each type includes a credential_count of credentials using it.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

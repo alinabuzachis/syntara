@@ -528,7 +528,7 @@ class TestCredentialTypeCount:
     async def test_deleted_credentials_not_counted(
         self, auth_client: AsyncClient, bearer_type: CredentialType, test_project_id: str
     ) -> None:
-        """Soft-deleted credentials should not be included in the count."""
+        """Deleted credentials should not be included in the count."""
         # Create and delete a credential
         create_resp = await auth_client.post(
             "/api/v1/credentials",

@@ -44,7 +44,7 @@ async def resolve_workflow_credentials(credential_map: dict[str, str]) -> dict[s
 
     Raises:
         ApplicationError: Non-retryable error if credential is missing, disabled,
-            deleted, or decryption fails.
+            or decryption fails.
 
     """
     results: dict[str, Any] = {}
@@ -88,13 +88,12 @@ async def _resolve_single_credential(
     """
     stmt = select(Credential).where(
         Credential.id == credential_id,
-        Credential.deleted_at.is_(None),  # type: ignore[union-attr]
     )
     result = await session.exec(stmt)
     credential = result.one_or_none()
 
     if not credential:
-        msg = f"Credential '{credential_id}' not found or deleted"
+        msg = f"Credential '{credential_id}' not found"
         raise ApplicationError(msg, non_retryable=True)
 
     if not credential.enabled:

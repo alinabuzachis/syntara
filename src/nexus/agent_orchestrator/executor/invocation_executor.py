@@ -457,8 +457,8 @@ class InvocationExecutor:
             raise LLMConfigurationError(msg) from e
 
         credential = await session.get(Credential, cred_uuid)
-        if not credential or credential.deleted_at is not None:
-            msg = f"LLM credential '{credential_id}' not found or has been deleted."
+        if not credential:
+            msg = f"LLM credential '{credential_id}' not found."
             raise LLMConfigurationError(msg)
         if not credential.enabled:
             msg = f"LLM credential '{credential_id}' is disabled."

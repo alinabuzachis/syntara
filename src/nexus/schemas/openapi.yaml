@@ -5727,7 +5727,7 @@ paths:
         - bearerAuth: []
     delete:
       summary: Delete Credential
-      description: Soft-delete a Credential.
+      description: Delete a Credential.
       operationId: delete_credential
       tags:
         - Credentials
@@ -5958,7 +5958,7 @@ paths:
       description: |-
         List all Credential Types including preseeded managed types.
 
-        Each type includes a credential_count of non-deleted credentials using it.
+        Each type includes a credential_count of credentials using it.
       operationId: list_credential_types
       tags:
         - Credentials
@@ -20259,24 +20259,6 @@ components:
           title: Updated By
           description: Username or UUID of the last modifier
           example: 880e8400-e29b-41d4-a716-446655440000
-        deleted_at:
-          anyOf:
-            - type: string
-              format: date-time
-            - type: 'null'
-          readOnly: true
-          title: Deleted At
-          description: Timestamp when resource was soft deleted
-          example: '2025-10-09T14:00:00Z'
-        deleted_by:
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
-          readOnly: true
-          title: Deleted By
-          description: User who performed the soft delete
-          example: 660e8400-e29b-41d4-a716-446655440000
         name:
           type: string
           minLength: 1
@@ -20366,7 +20348,7 @@ components:
           title: Description
         credential_count:
           default: 0
-          description: Number of non-deleted credentials using this type
+          description: Number of credentials using this type
           title: Credential Count
           type: integer
         injectors:

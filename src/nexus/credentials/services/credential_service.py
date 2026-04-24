@@ -6,8 +6,10 @@ and secret masking in API responses.
 
 import json
 from collections.abc import Iterable, Sequence
-from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from datetime import datetime
 from uuid import UUID
 
 import structlog
@@ -366,27 +368,37 @@ class CredentialService(BaseService):
         return read
 
     async def delete_credential(self, credential_id: UUID) -> None:
-        """Soft-delete a credential and delete its secret data atomically."""
+        """Delete a credential and its secret data atomically."""
         credential = await self._get_or_raise(credential_id)
+
+        counts = await self.get_workflow_counts([credential_id])
+        ref_count = counts.get(credential_id, 0)
+        if ref_count:
+            logger.warning(
+                "Deleting credential still referenced by workflows",
+                credential_id=str(credential_id),
+                credential_name=credential.name,
+                affected_workflow_count=ref_count,
+            )
+
         secret_id = credential.secret_id
 
-        # Atomic delete: all changes happen in SQLAlchemy's implicit transaction
-        # (no commit() between steps). If any step fails, nothing is committed.
-        #
+        # Atomic delete: all changes happen in SQLAlchemy's implicit transaction.
         # Order matters for FK constraints:
         #   1. NULL credential.secret_id (removes credentials → secrets FK ref)
         #   2. delete_secret() removes EncryptedSecret then Secret rows
-        #   3. commit() finalizes everything in one transaction
+        #   3. delete credential row
+        #   4. commit() finalizes everything in one transaction
         credential.secret_id = None
-        credential.deleted_at = datetime.now(UTC)
-        credential.deleted_by = self.user.id
         self.session.add(credential)
+        await self.session.flush()
 
         if secret_id:
             await self._secret_service.delete_secret(secret_id)
 
+        await self.session.delete(credential)
         await self.session.commit()
-        logger.info("Credential deleted", credential_id=str(credential.id))
+        logger.info("Credential deleted", credential_id=str(credential_id))
 
     async def get_credential_workflows(self, credential_id: UUID) -> list[CredentialWorkflowRef]:
         """Find workflows that reference a given credential in their definitions.
@@ -483,7 +495,9 @@ class CredentialService(BaseService):
             .subquery()
         )
 
-    async def get_workflow_counts(self, credential_ids: list[UUID]) -> dict[UUID, int]:
+    async def get_workflow_counts(
+        self, credential_ids: list[UUID], *, project_id: UUID | None = None
+    ) -> dict[UUID, int]:
         """Count workflows referencing each credential in a single SQL query.
 
         Uses PostgreSQL jsonb_path_exists with SUM(CASE) to count per-credential
@@ -491,6 +505,7 @@ class CredentialService(BaseService):
 
         Args:
             credential_ids: List of credential UUIDs to count for.
+            project_id: If provided, only count workflows in this project.
 
         Returns:
             Dict mapping credential_id -> workflow count.
@@ -532,6 +547,8 @@ class CredentialService(BaseService):
             )
             .where(Workflow.deleted_at.is_(None))  # type: ignore[union-attr]
         )
+        if project_id is not None:
+            stmt = stmt.where(Workflow.project_id == project_id)
 
         result = await self.session.exec(stmt)
         row = result.one_or_none()
@@ -548,6 +565,8 @@ class CredentialService(BaseService):
     async def _query_workflows_by_credential_ids(
         self,
         credential_ids: list[UUID],
+        *,
+        project_id: UUID | None = None,
     ) -> Sequence[Any]:
         """Query latest workflow definitions that reference any of the given credential IDs.
 
@@ -556,6 +575,7 @@ class CredentialService(BaseService):
 
         Args:
             credential_ids: Credential UUIDs to filter by.
+            project_id: If provided, only query workflows in this project.
 
         Returns:
             Sequence of (workflow_id, workflow_name, workflow_definition, description, created_by) rows.
@@ -593,6 +613,8 @@ class CredentialService(BaseService):
             for cid in credential_ids
         ]
         stmt = stmt.where(or_(*jsonpath_conditions))
+        if project_id is not None:
+            stmt = stmt.where(Workflow.project_id == project_id)
 
         result = await self.session.exec(stmt)
         return result.all()  # type: ignore[no-any-return]
@@ -622,7 +644,6 @@ class CredentialService(BaseService):
         """Get credential by ID or raise CredentialNotFoundError."""
         query = select(Credential).where(
             Credential.id == credential_id,
-            Credential.deleted_at.is_(None),  # type: ignore[union-attr]
         )
         result = await self.session.exec(query)
         credential = result.one_or_none()
@@ -642,10 +663,9 @@ class CredentialService(BaseService):
             raise CredentialDecryptionError(msg) from e
 
     async def _find_by_name(self, name: str) -> Credential | None:
-        """Find a non-deleted credential by name."""
+        """Find a credential by name."""
         stmt = select(Credential).where(
             Credential.name == name,
-            Credential.deleted_at.is_(None),  # type: ignore[union-attr]
         )
         result = await self.session.exec(stmt)
         return result.first()

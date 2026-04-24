@@ -85,7 +85,7 @@ def sync_detailed(
 ) -> Response[Any | ErrorData]:
     """Delete Credential
 
-     Soft-delete a Credential.
+     Delete a Credential.
 
     Args:
         credential_id (UUID):
@@ -116,7 +116,7 @@ def sync(
 ) -> Any | ErrorData | None:
     """Delete Credential
 
-     Soft-delete a Credential.
+     Delete a Credential.
 
     Args:
         credential_id (UUID):
@@ -142,7 +142,7 @@ async def asyncio_detailed(
 ) -> Response[Any | ErrorData]:
     """Delete Credential
 
-     Soft-delete a Credential.
+     Delete a Credential.
 
     Args:
         credential_id (UUID):
@@ -171,7 +171,7 @@ async def asyncio(
 ) -> Any | ErrorData | None:
     """Delete Credential
 
-     Soft-delete a Credential.
+     Delete a Credential.
 
     Args:
         credential_id (UUID):

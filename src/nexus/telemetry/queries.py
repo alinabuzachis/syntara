@@ -2,7 +2,7 @@
 
 All queries are read-only, non-locking, stateless snapshots
 of the current database state. No time-based filtering.
-Soft-deleted records are excluded from all counts.
+Soft-deleted records are excluded where applicable (workflows, executions).
 """
 
 from sqlalchemy import func, select
@@ -73,19 +73,16 @@ async def query_execution_counts(session: AsyncSession) -> ExecutionCounts:
 
 
 async def query_credential_counts(session: AsyncSession) -> CredentialCounts:
-    """Query current credential counts from database (excludes soft-deleted).
+    """Query current credential counts from database.
 
     Returns total count and per-type breakdown by credential type name.
     """
-    not_deleted = Credential.deleted_at.is_(None)  # type: ignore[union-attr]
-
     result = await session.exec(
         select(  # type: ignore[call-overload]
             CredentialType.name,
             func.count(Credential.id),  # type: ignore[arg-type]
         )
         .join(CredentialType, Credential.credential_type_id == CredentialType.id)
-        .where(not_deleted)
         .group_by(CredentialType.name)
     )
     counts_by_type: dict[str, int] = {}

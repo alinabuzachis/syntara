@@ -31,7 +31,7 @@ class CredentialTypeRead:
         labels (CredentialTypeReadLabels | Unset): Key-value pairs for resource labeling and filtering Example:
             {'environment': 'production', 'region': 'us-east-1', 'team': 'platform'}.
         description (None | str | Unset):
-        credential_count (int | Unset): Number of non-deleted credentials using this type Default: 0.
+        credential_count (int | Unset): Number of credentials using this type Default: 0.
         injectors (CredentialTypeReadInjectors | Unset):
         inputs (CredentialTypeReadInputs | Unset):
         managed (bool | Unset):  Default: False.

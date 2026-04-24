@@ -343,10 +343,10 @@ async def test_delete_project_soft_deletes_executions(seeded_db: AsyncSession, t
 
 
 @pytest.mark.asyncio
-async def test_delete_project_soft_deletes_credentials_and_cleans_secrets(
+async def test_delete_project_hard_deletes_credentials_and_cleans_secrets(
     seeded_db: AsyncSession, test_user: User
 ) -> None:
-    """Deleting a project soft-deletes credentials and removes their secrets."""
+    """Deleting a project hard-deletes credentials and removes their secrets."""
     svc = ProjectService(seeded_db, test_user)
     user_id = test_user.id
     project = await svc.create_project(name="cascade-creds")
@@ -390,9 +390,7 @@ async def test_delete_project_soft_deletes_credentials_and_cleans_secrets(
 
     seeded_db.expire_all()
     cred = (await seeded_db.exec(select(Credential).where(Credential.id == cred_id))).first()
-    assert cred is not None
-    assert cred.deleted_at is not None
-    assert cred.secret_id is None
+    assert cred is None
 
     sec = (await seeded_db.exec(select(Secret).where(Secret.id == secret_id))).first()
     assert sec is None

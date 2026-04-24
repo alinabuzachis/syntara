@@ -3,7 +3,6 @@
 A named instance of a credential type. Contains metadata (name, description,
 labels) and a secret_id FK pointing to the secrets routing table. Encrypted
 field values are stored separately in encrypted_secrets via SecretService.
-Supports soft-delete.
 """
 
 from datetime import datetime
@@ -13,15 +12,16 @@ from uuid import UUID
 from sqlalchemy import Index
 from sqlmodel import Field, Relationship, SQLModel
 
-from nexus.core.models.base import Resource
+from nexus.core.models.base.named import NamedResource
+from nexus.core.models.base.user_owned import UserOwnedResource
 from nexus.core.models.pagination import ResourcesResponse
 from nexus.credentials.models.credential_type import CredentialType
 
 
-class Credential(Resource, table=True):
+class Credential(NamedResource, UserOwnedResource, table=True):
     """Credential database model.
 
-    Extends Resource with credential-specific fields.
+    Extends NamedResource and UserOwnedResource with credential-specific fields.
     Encrypted field values are stored in the encrypted_secrets table
     via the secret_id FK → secrets routing table.
     """
@@ -55,17 +55,31 @@ class Credential(Resource, table=True):
     credential_type: CredentialType | None = Relationship()
 
     __table_args__ = (
-        Index("ix_credentials_name_unique", "name", unique=True, postgresql_where="deleted_at IS NULL"),
+        Index("ix_credentials_name_unique", "name", unique=True),
         Index("ix_credentials_created_at_id", "created_at", "id"),
     )
 
-    __filterable_fields__: ClassVar[list[str]] = [
-        *Resource.__filterable_fields__,
-        "credential_type_id",
-        "secret_id",
-        "enabled",
-        "project_id",
-    ]
+    __filterable_fields__: ClassVar[list[str]] = list(
+        dict.fromkeys(
+            [
+                *NamedResource.__filterable_fields__,
+                *UserOwnedResource.__filterable_fields__,
+                "credential_type_id",
+                "secret_id",
+                "enabled",
+                "project_id",
+            ]
+        )
+    )
+
+    __sortable_fields__: ClassVar[list[str]] = list(
+        dict.fromkeys(
+            [
+                *NamedResource.__sortable_fields__,
+                *UserOwnedResource.__sortable_fields__,
+            ]
+        )
+    )
 
 
 class CredentialCreate(SQLModel):
@@ -79,7 +93,7 @@ class CredentialCreate(SQLModel):
     project_id: UUID = Field(description="Project to assign credential to")
 
 
-class CredentialRead(Resource):
+class CredentialRead(NamedResource, UserOwnedResource):
     """Schema for credential API responses. Secret fields masked as $encrypted$."""
 
     # Override ownership fields: accept username strings or UUIDs (resolved by service layer).
@@ -88,9 +102,10 @@ class CredentialRead(Resource):
     updated_by: str | UUID | None = Field(default=None, description="Username or UUID of the last modifier")  # type: ignore[assignment]
 
     FIELD_SCHEMA_EXTRAS: ClassVar[dict[str, dict[str, Any]]] = {
-        **Resource.FIELD_SCHEMA_EXTRAS,
+        **NamedResource.FIELD_SCHEMA_EXTRAS,
+        **UserOwnedResource.FIELD_SCHEMA_EXTRAS,
         "created_by": {
-            **Resource.FIELD_SCHEMA_EXTRAS["created_by"],
+            **UserOwnedResource.FIELD_SCHEMA_EXTRAS["created_by"],
             "type": "string",
             "format": "uuid",
         },

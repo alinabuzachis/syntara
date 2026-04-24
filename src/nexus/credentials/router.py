@@ -145,7 +145,7 @@ async def delete_credential(
     credential_id: UUID,
     service: Annotated[CredentialService, Depends(get_credential_service)],
 ) -> None:
-    """Soft-delete a Credential."""
+    """Delete a Credential."""
     await service.delete_credential(credential_id)
 
 
@@ -177,15 +177,14 @@ async def list_credential_types(
 ) -> CredentialTypeListResponse:
     """List all Credential Types including preseeded managed types.
 
-    Each type includes a credential_count of non-deleted credentials using it.
+    Each type includes a credential_count of credentials using it.
     """
-    # Subquery: count non-deleted credentials per type
+    # Subquery: count credentials per type
     count_subq = (
         select(
             Credential.credential_type_id,
             func.count(Credential.id).label("credential_count"),  # type: ignore[arg-type]
         )
-        .where(Credential.deleted_at.is_(None))  # type: ignore[union-attr]
         .group_by(Credential.credential_type_id)  # type: ignore[arg-type]
         .subquery()
     )
@@ -223,10 +222,9 @@ async def get_credential_type(
         msg = f"Credential type with ID '{credential_type_id}' not found"
         raise CredentialNotFoundError(msg)
 
-    # Count non-deleted credentials for this type
+    # Count credentials for this type
     count_stmt = select(func.count(Credential.id)).where(  # type: ignore[arg-type]
         Credential.credential_type_id == credential_type_id,
-        Credential.deleted_at.is_(None),  # type: ignore[union-attr]
     )
     count_result = await db.exec(count_stmt)
     credential_count = count_result.one()

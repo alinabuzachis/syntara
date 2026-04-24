@@ -899,30 +899,3 @@ class TestQueryCredentialCountsRealDB:
 
         assert result.total == 5
         assert result.type == {"Bearer": 3, "LLM Provider": 2}
-
-    async def test_excludes_soft_deleted_credentials(self, test_db_session: AsyncSession, test_user: User):
-        """Soft-deleted credentials must not be counted."""
-        ct = await self._create_credential_type(test_db_session, "Bearer", "bearer")
-        project = Project(name=f"tel-del-{uuid4().hex[:8]}", description="Telemetry delete test")
-        test_db_session.add(project)
-        await test_db_session.flush()
-
-        test_db_session.add(
-            Credential(name="active-cred", credential_type_id=ct.id, project_id=project.id, created_by=test_user.id)
-        )
-        test_db_session.add(
-            Credential(
-                name="deleted-cred",
-                credential_type_id=ct.id,
-                project_id=project.id,
-                created_by=test_user.id,
-                deleted_at=datetime.now(UTC),
-                deleted_by=test_user.id,
-            )
-        )
-        await test_db_session.commit()
-
-        result = await query_credential_counts(test_db_session)
-
-        assert result.total == 1
-        assert result.type == {"Bearer": 1}

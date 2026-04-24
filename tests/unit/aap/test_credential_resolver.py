@@ -67,7 +67,6 @@ def _mock_credential(
     enabled: bool = True,
     secret_id: UUID | None | object = _DEFAULT_SENTINEL,
     created_by: UUID | None = None,
-    deleted_at: str | None = None,
 ) -> "Credential":
     """Create a mock Credential."""
     credential = MagicMock()
@@ -85,7 +84,6 @@ def _mock_credential(
     else:
         credential.secret_id = secret_id
     credential.created_by = created_by or uuid4()
-    credential.deleted_at = deleted_at
     # Mock the is_owned_by method
     credential.is_owned_by = MagicMock(return_value=True)
     return credential
@@ -149,7 +147,7 @@ class TestFetchCredential:
         mock_session = AsyncMock()
         mock_session.exec.return_value = mock_result
 
-        with pytest.raises(AAPNotConfiguredError, match=f"Credential {credential_id} not found or deleted"):
+        with pytest.raises(AAPNotConfiguredError, match=f"Credential {credential_id} not found"):
             await _fetch_credential(mock_session, credential_id)
 
 
@@ -591,7 +589,7 @@ class TestResolveAAPConnectionFromCredential:
         mock_session = AsyncMock()
         mock_session.exec.return_value = mock_result
 
-        with pytest.raises(AAPNotConfiguredError, match="not found or deleted"):
+        with pytest.raises(AAPNotConfiguredError, match="not found"):
             await resolve_aap_connection_from_credential(mock_session, credential_id, uuid4())
 
     @pytest.mark.asyncio

@@ -58,14 +58,13 @@ async def _fetch_credential(session: AsyncSession, credential_id: UUID) -> Crede
         Credential instance.
 
     Raises:
-        AAPNotConfiguredError: If credential not found or deleted.
+        AAPNotConfiguredError: If credential not found.
 
     """
     stmt = (
         select(Credential)
         .where(
             Credential.id == credential_id,
-            Credential.deleted_at.is_(None),  # type: ignore[union-attr]
         )
         .options(selectinload(Credential.credential_type))  # type: ignore[arg-type]
     )
@@ -73,7 +72,7 @@ async def _fetch_credential(session: AsyncSession, credential_id: UUID) -> Crede
     credential = result.one_or_none()
 
     if not credential:
-        msg = f"Credential {credential_id} not found or deleted"
+        msg = f"Credential {credential_id} not found"
         raise AAPNotConfiguredError(msg)
 
     return credential

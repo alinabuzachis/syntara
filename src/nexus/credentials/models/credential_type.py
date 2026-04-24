@@ -74,7 +74,7 @@ class CredentialTypeRead(BaseResource):
     inputs: dict[str, Any] = Field(default_factory=dict)
     injectors: dict[str, Any] = Field(default_factory=dict)
     managed: bool = False
-    credential_count: int = Field(default=0, description="Number of non-deleted credentials using this type")
+    credential_count: int = Field(default=0, description="Number of credentials using this type")
 
 
 class CredentialTypeListResponse(ResourcesResponse[CredentialTypeRead]):

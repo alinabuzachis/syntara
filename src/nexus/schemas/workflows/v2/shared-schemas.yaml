@@ -20,6 +20,11 @@ components:
             is_enabled:
               type: boolean
               description: Whether workflow is enabled and available for execution
+            project_id:
+              type: string
+              format: uuid
+              nullable: true
+              description: Project this workflow belongs to
 
     WorkflowWithVersion:
       allOf:

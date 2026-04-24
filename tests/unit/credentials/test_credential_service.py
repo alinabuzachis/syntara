@@ -68,6 +68,7 @@ def mock_session() -> MagicMock:
     session.commit = AsyncMock()
     session.refresh = AsyncMock()
     session.flush = AsyncMock()
+    session.delete = AsyncMock()
     session.get = AsyncMock()
     session.exec = AsyncMock()
     return session
@@ -334,7 +335,7 @@ class TestDeleteCredential:
     """Tests for CredentialService.delete_credential."""
 
     @pytest.mark.asyncio
-    async def test_soft_deletes_and_removes_secret(
+    async def test_hard_deletes_and_removes_secret(
         self,
         mock_session: MagicMock,
         mock_user: MagicMock,
@@ -358,10 +359,69 @@ class TestDeleteCredential:
         service = CredentialService(mock_session, mock_user, mock_secret_service)
         await service.delete_credential(credential.id)
 
-        assert credential.deleted_at is not None
-        assert credential.deleted_by == mock_user.id
-        assert credential.secret_id is None
         mock_secret_service.delete_secret.assert_awaited_once_with(secret_id)
+        mock_session.delete.assert_awaited_once_with(credential)
+
+    @pytest.mark.asyncio
+    async def test_deletes_credential_without_secret(
+        self,
+        mock_session: MagicMock,
+        mock_user: MagicMock,
+        mock_secret_service: MagicMock,
+    ) -> None:
+        credential = Credential(
+            id=uuid4(),
+            name="No Secret",
+            credential_type_id=uuid4(),
+            secret_id=None,
+            enabled=True,
+            project_id=uuid4(),
+            created_by=mock_user.id,
+        )
+
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = credential
+        mock_session.exec.return_value = mock_result
+
+        service = CredentialService(mock_session, mock_user, mock_secret_service)
+        await service.delete_credential(credential.id)
+
+        mock_secret_service.delete_secret.assert_not_called()
+        mock_session.delete.assert_awaited_once_with(credential)
+
+    @pytest.mark.asyncio
+    async def test_logs_warning_when_workflows_reference_credential(
+        self,
+        mock_session: MagicMock,
+        mock_user: MagicMock,
+        mock_secret_service: MagicMock,
+    ) -> None:
+        credential = Credential(
+            id=uuid4(),
+            name="Referenced Cred",
+            credential_type_id=uuid4(),
+            secret_id=uuid4(),
+            enabled=True,
+            project_id=uuid4(),
+            created_by=mock_user.id,
+        )
+
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = credential
+        mock_session.exec.return_value = mock_result
+
+        service = CredentialService(mock_session, mock_user, mock_secret_service)
+
+        with (
+            patch.object(service, "get_workflow_counts", new_callable=AsyncMock, return_value={credential.id: 3}),
+            patch("nexus.credentials.services.credential_service.logger") as mock_logger,
+        ):
+            await service.delete_credential(credential.id)
+
+            mock_logger.warning.assert_called_once()
+            assert "still referenced by workflows" in mock_logger.warning.call_args[0][0]
+
+        mock_session.delete.assert_awaited_once_with(credential)
 
 
 class TestValidateInputs:
