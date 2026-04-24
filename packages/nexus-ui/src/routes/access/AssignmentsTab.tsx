@@ -1,6 +1,6 @@
 import { Button, Flex, FlexItem, Label, LabelGroup, Stack, StackItem } from '@patternfly/react-core'
 import { PlusIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
-import { ActionsColumn, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
 
@@ -9,12 +9,13 @@ import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
 import { IconLabel } from '../../components/IconLabel'
+import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import type { FilterFieldDefinition } from '../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
+import { formatItemCount } from '../../utils/formatItemCount'
 
 import { AssignRoleDialog } from './AssignRoleDialog'
 import { EditAssignmentDialog } from './EditAssignmentDialog'
-import { PaginationFooter } from './PaginationFooter'
 import { buildProjectFilterDefs } from './scopeFilterUtils'
 import { ProjectLabel, ScopeLabel } from './ScopeLabel'
 import type { PermissionRow } from './types'
@@ -138,80 +139,74 @@ export function AssignmentsTab() {
             <EmptyStateFilter clearAllFilters={clearAllFilters} />
           </StackItem>
         ) : (
-          <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
-            <Table aria-label="Role assignments" isStriped style={{ width: '100%' }}>
-              <Thead>
-                <Tr>
-                  <Th width={15} sort={getSortParams(0)}>
-                    Principal Name
-                  </Th>
-                  <Th width={10} sort={getSortParams(1)} modifier="nowrap">
-                    Principal Type
-                  </Th>
-                  <Th width={10} sort={getSortParams(2)}>
-                    Role Name
-                  </Th>
-                  <Th width={10} sort={getSortParams(3)} modifier="nowrap">
-                    Scope
-                  </Th>
-                  <Th width={10} sort={getSortParams(4)} modifier="nowrap">
-                    Project
-                  </Th>
-                  <Th width={30}>Policies</Th>
-                  <Th screenReaderText="Actions" />
+          <ScrollableTableContainer
+            aria-label="Role assignments"
+            footer={{
+              content: formatItemCount(sortedRows.length, 'assignment', 'assignments'),
+            }}
+          >
+            <Thead>
+              <Tr>
+                <Th width={15} sort={getSortParams(0)}>
+                  Principal Name
+                </Th>
+                <Th width={10} sort={getSortParams(1)} modifier="nowrap">
+                  Principal Type
+                </Th>
+                <Th width={10} sort={getSortParams(2)}>
+                  Role Name
+                </Th>
+                <Th width={10} sort={getSortParams(3)} modifier="nowrap">
+                  Scope
+                </Th>
+                <Th width={10} sort={getSortParams(4)} modifier="nowrap">
+                  Project
+                </Th>
+                <Th width={30}>Policies</Th>
+                <Th screenReaderText="Actions" />
+              </Tr>
+            </Thead>
+            <Tbody>
+              {sortedRows.map((row) => (
+                <Tr key={`${row.sourceEndpoint}-${row.id}`}>
+                  <Td dataLabel="Principal Name">{row.principalName}</Td>
+                  <Td dataLabel="Principal Type">
+                    <Label color={row.principalType === 'user' ? 'blue' : 'teal'} isCompact>
+                      {row.principalType === 'user' ? 'User' : 'Group'}
+                    </Label>
+                  </Td>
+                  <Td dataLabel="Role Name">
+                    <Label color="purple" isCompact>
+                      {row.assignmentName}
+                    </Label>
+                  </Td>
+                  <Td dataLabel="Scope">
+                    <ScopeLabel scope={row.scopeType} />
+                  </Td>
+                  <Td dataLabel="Project">
+                    <ProjectLabel projectId={row.projectId} projectNameMap={projectNameMap} />
+                  </Td>
+                  <Td dataLabel="Policies">
+                    {row.rolePolicies.length > 0 ? (
+                      <LabelGroup numLabels={3}>
+                        {row.rolePolicies.map((name) => (
+                          <Label key={name} isCompact>
+                            {name}
+                          </Label>
+                        ))}
+                      </LabelGroup>
+                    ) : (
+                      '-'
+                    )}
+                  </Td>
+                  <Td isActionCell>
+                    <ActionsColumn items={getAssignmentActions(row)} />
+                  </Td>
                 </Tr>
-              </Thead>
-              <Tbody>
-                {sortedRows.map((row) => (
-                  <Tr key={`${row.sourceEndpoint}-${row.id}`}>
-                    <Td dataLabel="Principal Name">{row.principalName}</Td>
-                    <Td dataLabel="Principal Type">
-                      <Label color={row.principalType === 'user' ? 'blue' : 'teal'} isCompact>
-                        {row.principalType === 'user' ? 'User' : 'Group'}
-                      </Label>
-                    </Td>
-                    <Td dataLabel="Role Name">
-                      <Label color="purple" isCompact>
-                        {row.assignmentName}
-                      </Label>
-                    </Td>
-                    <Td dataLabel="Scope">
-                      <ScopeLabel scope={row.scopeType} />
-                    </Td>
-                    <Td dataLabel="Project">
-                      <ProjectLabel projectId={row.projectId} projectNameMap={projectNameMap} />
-                    </Td>
-                    <Td dataLabel="Policies">
-                      {row.rolePolicies.length > 0 ? (
-                        <LabelGroup numLabels={3}>
-                          {row.rolePolicies.map((name) => (
-                            <Label key={name} isCompact>
-                              {name}
-                            </Label>
-                          ))}
-                        </LabelGroup>
-                      ) : (
-                        '-'
-                      )}
-                    </Td>
-                    <Td isActionCell>
-                      <ActionsColumn items={getAssignmentActions(row)} />
-                    </Td>
-                  </Tr>
-                ))}
-              </Tbody>
-            </Table>
-          </StackItem>
+              ))}
+            </Tbody>
+          </ScrollableTableContainer>
         )}
-        <PaginationFooter
-          page={1}
-          perPage={sortedRows.length}
-          total={sortedRows.length}
-          hasNext={false}
-          onPrev={() => {}}
-          onNext={() => {}}
-          onPerPageChange={() => {}}
-        />
       </Stack>
 
       {isAddDialogOpen && <AssignRoleDialog onClose={() => setIsAddDialogOpen(false)} onSuccess={refetchAll} />}

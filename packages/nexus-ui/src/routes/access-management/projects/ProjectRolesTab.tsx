@@ -1,6 +1,6 @@
 import { Button, Label, LabelGroup, Flex, FlexItem, Stack, StackItem } from '@patternfly/react-core'
 import { PlusIcon, RhUiEditFillIcon, RhUiLockIcon, RhUiTrashIcon } from '@patternfly/react-icons'
-import { ActionsColumn, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
 import { useState } from 'react'
 
@@ -11,12 +11,12 @@ import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
 import { FilterBar } from '../../../components/filters'
 import { IconLabel } from '../../../components/IconLabel'
 import { useQueryState } from '../../../components/states/useQueryState'
+import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
 import { useDialogState } from '../../../hooks/useDialogState'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 import { accessClient } from '../../access/accessClient'
 import { builtinFilterDefinitions } from '../../access/builtinFilterDefinitions'
-import { PaginationFooter } from '../../access/PaginationFooter'
 import type { ProjectRoleRead } from '../../access/types'
 import { useBuiltinListState } from '../../access/useBuiltinListState'
 
@@ -52,7 +52,7 @@ function ProjectRolesTable({
   ]
 
   return (
-    <Table aria-label="Project roles" isStriped style={{ width: '100%' }}>
+    <>
       <Thead>
         <Tr>
           <Th sort={getSortParams(0)}>Name</Th>
@@ -80,7 +80,7 @@ function ProjectRolesTable({
             </Td>
             <Td dataLabel="Type">
               {role.is_builtin ? (
-                <Label color="yellow" icon={<RhUiLockIcon />} isCompact>
+                <Label color="grey" icon={<RhUiLockIcon />} isCompact>
                   Built-in
                 </Label>
               ) : (
@@ -93,7 +93,7 @@ function ProjectRolesTable({
           </Tr>
         ))}
       </Tbody>
-    </Table>
+    </>
   )
 }
 
@@ -106,8 +106,6 @@ export function ProjectRolesTab({ projectId }: Readonly<{ projectId: string }>) 
     getSortParams,
     queryParams,
     page,
-    perPage,
-    handlePerPageChange,
     goToPrevPage,
     goToNextPage,
   } = useBuiltinListState(sortFieldByColumn)
@@ -215,25 +213,32 @@ export function ProjectRolesTab({ projectId }: Readonly<{ projectId: string }>) 
             <EmptyStateFilter clearAllFilters={clearAllFilters} />
           </StackItem>
         ) : (
-          <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
+          <ScrollableTableContainer
+            aria-label="Project roles"
+            useFixedLayout={false}
+            footer={{
+              content: (
+                <>
+                  {roles.length} {roles.length === 1 ? 'role' : 'roles'}
+                  {rolesQuery.data?.total != null && rolesQuery.data.total > roles.length && (
+                    <> of {rolesQuery.data.total}</>
+                  )}
+                </>
+              ),
+              prev: page > 1 ? 'prev' : null,
+              next: rolesQuery.data?.next ?? null,
+              onPrev: goToPrevPage,
+              onNext: () => goToNextPage(rolesQuery.data?.next ?? null),
+            }}
+          >
             <ProjectRolesTable
               roles={roles}
               getSortParams={getSortParams}
               onEdit={setRoleToEdit}
               onDelete={deleteDialog.open}
             />
-          </StackItem>
+          </ScrollableTableContainer>
         )}
-
-        <PaginationFooter
-          page={page}
-          perPage={perPage}
-          total={rolesQuery.data?.total}
-          hasNext={!!rolesQuery.data?.next}
-          onPrev={goToPrevPage}
-          onNext={() => goToNextPage(rolesQuery.data?.next ?? null)}
-          onPerPageChange={handlePerPageChange}
-        />
       </Stack>
 
       {isAddDialogOpen && (

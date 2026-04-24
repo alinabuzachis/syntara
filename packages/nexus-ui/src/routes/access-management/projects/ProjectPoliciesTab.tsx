@@ -1,6 +1,6 @@
 import { Label, Stack, StackItem } from '@patternfly/react-core'
 import { RhUiEditFillIcon, RhUiLockIcon, RhUiTrashIcon } from '@patternfly/react-icons'
-import { ActionsColumn, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
 import { useState } from 'react'
 
@@ -11,12 +11,12 @@ import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
 import { FilterBar } from '../../../components/filters'
 import { IconLabel } from '../../../components/IconLabel'
 import { useQueryState } from '../../../components/states/useQueryState'
+import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
 import { useDialogState } from '../../../hooks/useDialogState'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 import { accessClient } from '../../access/accessClient'
 import { builtinFilterDefinitions } from '../../access/builtinFilterDefinitions'
-import { PaginationFooter } from '../../access/PaginationFooter'
 import type { ProjectPolicyRead } from '../../access/types'
 import { useBuiltinListState } from '../../access/useBuiltinListState'
 
@@ -55,7 +55,7 @@ function ProjectPoliciesTable({
   ]
 
   return (
-    <Table aria-label="Project policies" isStriped style={{ width: '100%' }}>
+    <>
       <Thead>
         <Tr>
           <Th sort={getSortParams(0)}>Name</Th>
@@ -75,7 +75,7 @@ function ProjectPoliciesTable({
             <Td dataLabel="Description">{policy.description ?? '-'}</Td>
             <Td dataLabel="Type">
               {policy.is_builtin ? (
-                <Label color="yellow" icon={<RhUiLockIcon />} isCompact>
+                <Label color="grey" icon={<RhUiLockIcon />} isCompact>
                   Built-in
                 </Label>
               ) : (
@@ -88,7 +88,7 @@ function ProjectPoliciesTable({
           </Tr>
         ))}
       </Tbody>
-    </Table>
+    </>
   )
 }
 
@@ -101,8 +101,6 @@ export function ProjectPoliciesTab({ projectId }: Readonly<{ projectId: string }
     getSortParams,
     queryParams,
     page,
-    perPage,
-    handlePerPageChange,
     goToPrevPage,
     goToNextPage,
   } = useBuiltinListState(sortFieldByColumn)
@@ -173,25 +171,31 @@ export function ProjectPoliciesTab({ projectId }: Readonly<{ projectId: string }
             <EmptyStateFilter clearAllFilters={clearAllFilters} />
           </StackItem>
         ) : (
-          <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
+          <ScrollableTableContainer
+            aria-label="Project policies"
+            footer={{
+              content: (
+                <>
+                  {policies.length} {policies.length === 1 ? 'policy' : 'policies'}
+                  {policiesQuery.data?.total != null && policiesQuery.data.total > policies.length && (
+                    <> of {policiesQuery.data.total}</>
+                  )}
+                </>
+              ),
+              prev: page > 1 ? 'prev' : null,
+              next: policiesQuery.data?.next ?? null,
+              onPrev: goToPrevPage,
+              onNext: () => goToNextPage(policiesQuery.data?.next ?? null),
+            }}
+          >
             <ProjectPoliciesTable
               policies={policies}
               getSortParams={getSortParams}
               onEdit={setPolicyToEdit}
               onDelete={deleteDialog.open}
             />
-          </StackItem>
+          </ScrollableTableContainer>
         )}
-
-        <PaginationFooter
-          page={page}
-          perPage={perPage}
-          total={policiesQuery.data?.total}
-          hasNext={!!policiesQuery.data?.next}
-          onPrev={goToPrevPage}
-          onNext={() => goToNextPage(policiesQuery.data?.next ?? null)}
-          onPerPageChange={handlePerPageChange}
-        />
       </Stack>
 
       {policyToEdit && (

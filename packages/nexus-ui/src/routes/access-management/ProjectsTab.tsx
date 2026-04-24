@@ -10,7 +10,7 @@ import {
   StackItem,
 } from '@patternfly/react-core'
 import { PlusIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
-import { ActionsColumn, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
 import { useState } from 'react'
 import { navigate } from 'wouter/use-browser-location'
@@ -22,6 +22,7 @@ import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters/FilterBar'
 import { IconLabel } from '../../components/IconLabel'
 import { useQueryState } from '../../components/states/useQueryState'
+import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { useFilterState } from '../../hooks/useFilterState'
 import { useSortState } from '../../hooks/useSortState'
 import type { FilterFieldDefinition } from '../../types/filters'
@@ -29,8 +30,8 @@ import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { formatDateTime } from '../../utils/dateUtils'
 import { detachPromise } from '../../utils/detachPromise'
+import { formatItemCount } from '../../utils/formatItemCount'
 import { accessClient } from '../access/accessClient'
-import { PaginationFooter } from '../access/PaginationFooter'
 import type { ProjectRead } from '../access/types'
 
 import { ProjectFormModal } from './ProjectFormModal'
@@ -84,7 +85,7 @@ function ProjectsTable({
   onDelete: (p: ProjectRead) => void
 }>) {
   return (
-    <Table aria-label="Projects" isStriped style={{ width: '100%' }}>
+    <>
       <Thead>
         <Tr>
           <Th sort={getSortParams(0)}>Name</Th>
@@ -117,7 +118,7 @@ function ProjectsTable({
           </Tr>
         ))}
       </Tbody>
-    </Table>
+    </>
   )
 }
 
@@ -158,7 +159,7 @@ export function ProjectsTab() {
   const { filters, setAllFilters, clearAllFilters } = useFilterState()
   const { activeSortIndex, sortDirection, getSortParams } = useSortState(projectSortFieldByColumn)
   const [page, setPage] = useState(1)
-  const [perPage, setPerPage] = useState(20)
+  const perPage = 20
   const [projectToDelete, setProjectToDelete] = useState<ProjectRead | null>(null)
   const [projectToEdit, setProjectToEdit] = useState<ProjectRead | null>(null)
   const [formModalOpen, setFormModalOpen] = useState(false)
@@ -167,11 +168,6 @@ export function ProjectsTab() {
 
   const handleFilterChange = (newFilters: typeof filters) => {
     setAllFilters(newFilters)
-    setPage(1)
-  }
-
-  const handlePerPageChange = (newPerPage: number) => {
-    setPerPage(newPerPage)
     setPage(1)
   }
 
@@ -295,7 +291,16 @@ export function ProjectsTab() {
             />
           </StackItem>
         ) : (
-          <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
+          <ScrollableTableContainer
+            aria-label="Projects"
+            footer={{
+              content: formatItemCount(sortedProjects.length, 'project', 'projects'),
+              prev: page > 1 ? 'prev' : null,
+              next: hasNext ? 'next' : null,
+              onPrev: () => setPage(Math.max(1, page - 1)),
+              onNext: () => setPage(page + 1),
+            }}
+          >
             <ProjectsTable
               projects={paginatedProjects}
               getSortParams={getSortParams}
@@ -305,21 +310,8 @@ export function ProjectsTab() {
               }}
               onDelete={setProjectToDelete}
             />
-          </StackItem>
+          </ScrollableTableContainer>
         )}
-        <PaginationFooter
-          page={page}
-          perPage={perPage}
-          total={sortedProjects.length}
-          hasNext={hasNext}
-          onPrev={() => {
-            setPage(Math.max(1, page - 1))
-          }}
-          onNext={() => {
-            setPage(page + 1)
-          }}
-          onPerPageChange={handlePerPageChange}
-        />
       </Stack>
 
       <ProjectFormModal

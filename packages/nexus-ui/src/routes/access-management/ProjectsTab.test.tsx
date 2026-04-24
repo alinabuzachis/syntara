@@ -579,8 +579,7 @@ describe('ProjectsTab', () => {
     it('renders pagination footer', () => {
       render(<ProjectsTab />, { wrapper })
 
-      const nav = screen.getByRole('navigation', { name: /pagination/i })
-      expect(nav).toBeInTheDocument()
+      expect(screen.getByText(/3 projects/)).toBeInTheDocument()
     })
 
     it('navigates to next page when next is clicked', async () => {

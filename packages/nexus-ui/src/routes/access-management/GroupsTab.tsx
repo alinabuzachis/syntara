@@ -132,63 +132,61 @@ export function GroupsTab() {
               <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
             </StackItem>
           ) : (
-            <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
-              <ScrollableTableContainer
-                aria-label="Groups table"
-                footer={getFooterProps(data, results.length, 'group', 'groups')}
-              >
-                <Thead>
-                  <Tr>
-                    <Th sort={getSortParams(0)}>Name</Th>
-                    <Th sort={getSortParams(1)}>Description</Th>
-                    <Th>Members</Th>
-                    <Th sort={getSortParams(3)}>Created</Th>
-                    <Th sort={getSortParams(4)}>Updated</Th>
-                    <Th screenReaderText="Actions" />
+            <ScrollableTableContainer
+              aria-label="Groups table"
+              footer={getFooterProps(data, results.length, 'group', 'groups')}
+            >
+              <Thead>
+                <Tr>
+                  <Th sort={getSortParams(0)}>Name</Th>
+                  <Th sort={getSortParams(1)}>Description</Th>
+                  <Th>Members</Th>
+                  <Th sort={getSortParams(3)}>Created</Th>
+                  <Th sort={getSortParams(4)}>Updated</Th>
+                  <Th screenReaderText="Actions" />
+                </Tr>
+              </Thead>
+              <Tbody>
+                {results.map((group) => (
+                  <Tr key={group.id}>
+                    <Td dataLabel="Name">
+                      <Button
+                        variant="link"
+                        isInline
+                        onClick={() =>
+                          navigate(AppRoute.AccessManagement.GroupDetail.replace(':groupId', group.id ?? ''))
+                        }
+                      >
+                        {group.name}
+                      </Button>
+                    </Td>
+                    <Td dataLabel="Description">{group.description ?? ''}</Td>
+                    <Td dataLabel="Members">
+                      <Badge isRead>{group.member_count ?? 0}</Badge>
+                    </Td>
+                    <Td dataLabel="Created">{formatDateTime(group.created_at)}</Td>
+                    <Td dataLabel="Updated">{formatDateTime(group.updated_at)}</Td>
+                    <Td isActionCell>
+                      {!group.is_builtin && (
+                        <ActionsColumn
+                          items={[
+                            {
+                              title: <IconLabel icon={<RhUiEditFillIcon />}>Edit</IconLabel>,
+                              onClick: () => formDialog.open(group as Group),
+                            },
+                            { isSeparator: true },
+                            {
+                              title: <IconLabel icon={<RhUiTrashIcon />}>Delete</IconLabel>,
+                              onClick: () => deleteDialog.open(group as Group),
+                            },
+                          ]}
+                        />
+                      )}
+                    </Td>
                   </Tr>
-                </Thead>
-                <Tbody>
-                  {results.map((group) => (
-                    <Tr key={group.id}>
-                      <Td dataLabel="Name">
-                        <Button
-                          variant="link"
-                          isInline
-                          onClick={() =>
-                            navigate(AppRoute.AccessManagement.GroupDetail.replace(':groupId', group.id ?? ''))
-                          }
-                        >
-                          {group.name}
-                        </Button>
-                      </Td>
-                      <Td dataLabel="Description">{group.description ?? ''}</Td>
-                      <Td dataLabel="Members">
-                        <Badge isRead>{group.member_count ?? 0}</Badge>
-                      </Td>
-                      <Td dataLabel="Created">{formatDateTime(group.created_at)}</Td>
-                      <Td dataLabel="Updated">{formatDateTime(group.updated_at)}</Td>
-                      <Td isActionCell>
-                        {!group.is_builtin && (
-                          <ActionsColumn
-                            items={[
-                              {
-                                title: <IconLabel icon={<RhUiEditFillIcon />}>Edit</IconLabel>,
-                                onClick: () => formDialog.open(group as Group),
-                              },
-                              { isSeparator: true },
-                              {
-                                title: <IconLabel icon={<RhUiTrashIcon />}>Delete</IconLabel>,
-                                onClick: () => deleteDialog.open(group as Group),
-                              },
-                            ]}
-                          />
-                        )}
-                      </Td>
-                    </Tr>
-                  ))}
-                </Tbody>
-              </ScrollableTableContainer>
-            </StackItem>
+                ))}
+              </Tbody>
+            </ScrollableTableContainer>
           )}
         </Stack>
       )}

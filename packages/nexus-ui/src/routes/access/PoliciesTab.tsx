@@ -1,17 +1,18 @@
 import { Label, Stack, StackItem } from '@patternfly/react-core'
 import { RhUiLockIcon } from '@patternfly/react-icons'
-import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
 
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
 import { useQueryState } from '../../components/states/useQueryState'
+import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import { buildFilterParams } from '../../utils/filterUtils'
+import { formatItemCount } from '../../utils/formatItemCount'
 
 import { accessClient } from './accessClient'
-import { PaginationFooter } from './PaginationFooter'
 import { PolicyDetailSidebar } from './PolicyDetailSidebar'
 import { buildProjectFilterDefs, POLICY_SCOPE_OPTIONS, transformFiltersForApi } from './scopeFilterUtils'
 import { ProjectLabel, ScopeLabel } from './ScopeLabel'
@@ -80,8 +81,6 @@ export function PoliciesTab() {
     getSortParams,
     queryParams: baseQueryParams,
     page,
-    perPage,
-    handlePerPageChange,
     goToPrevPage,
     goToNextPage,
   } = useBuiltinListState(sortFieldByColumn)
@@ -144,70 +143,67 @@ export function PoliciesTab() {
               <EmptyStateFilter clearAllFilters={clearAllFilters} />
             </StackItem>
           ) : (
-            <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
-              <Table aria-label="Policies" isStriped style={{ width: '100%' }}>
-                <Thead>
-                  <Tr>
-                    <Th sort={getSortParams(0)}>Name</Th>
-                    <Th>Description</Th>
-                    <Th sort={getSortParams(2)} modifier="nowrap">
-                      Scope
-                    </Th>
-                    <Th sort={getSortParams(3)} modifier="nowrap">
-                      Project
-                    </Th>
-                    <Th sort={getSortParams(4)} modifier="nowrap">
-                      Type
-                    </Th>
+            <ScrollableTableContainer
+              aria-label="Policies"
+              footer={{
+                content: formatItemCount(policies.length, 'policy', 'policies', policiesQuery.data?.total),
+                prev: page > 1 ? 'prev' : null,
+                next: policiesQuery.data?.next ?? null,
+                onPrev: goToPrevPage,
+                onNext: () => goToNextPage(policiesQuery.data?.next ?? null),
+              }}
+            >
+              <Thead>
+                <Tr>
+                  <Th sort={getSortParams(0)}>Name</Th>
+                  <Th>Description</Th>
+                  <Th sort={getSortParams(2)} modifier="nowrap">
+                    Scope
+                  </Th>
+                  <Th sort={getSortParams(3)} modifier="nowrap">
+                    Project
+                  </Th>
+                  <Th sort={getSortParams(4)} modifier="nowrap">
+                    Type
+                  </Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {policies.map((policy) => (
+                  <Tr
+                    key={policy.id}
+                    isSelectable
+                    isClickable
+                    selected={policy.id === selectedPolicyId}
+                    onRowClick={() => setSelectedPolicyId(policy.id === selectedPolicyId ? null : policy.id)}
+                    data-testid={`policy-row-${policy.id}`}
+                  >
+                    <Td dataLabel="Name">
+                      <code>{policy.name}</code>
+                    </Td>
+                    <Td dataLabel="Description">{policy.description ?? '-'}</Td>
+                    <Td dataLabel="Scope">
+                      <ScopeLabel scope={policy.scope} />
+                    </Td>
+                    <Td dataLabel="Project">
+                      <ProjectLabel projectId={policy.project_id} projectNameMap={projectNameMap} />
+                    </Td>
+                    <Td dataLabel="Type">
+                      {policy.is_builtin ? (
+                        <Label color="grey" icon={<RhUiLockIcon />} isCompact>
+                          Built-in
+                        </Label>
+                      ) : (
+                        <Label color="blue" isCompact>
+                          Custom
+                        </Label>
+                      )}
+                    </Td>
                   </Tr>
-                </Thead>
-                <Tbody>
-                  {policies.map((policy) => (
-                    <Tr
-                      key={policy.id}
-                      isSelectable
-                      isClickable
-                      selected={policy.id === selectedPolicyId}
-                      onRowClick={() => setSelectedPolicyId(policy.id === selectedPolicyId ? null : policy.id)}
-                      data-testid={`policy-row-${policy.id}`}
-                    >
-                      <Td dataLabel="Name">
-                        <code>{policy.name}</code>
-                      </Td>
-                      <Td dataLabel="Description">{policy.description ?? '-'}</Td>
-                      <Td dataLabel="Scope">
-                        <ScopeLabel scope={policy.scope} />
-                      </Td>
-                      <Td dataLabel="Project">
-                        <ProjectLabel projectId={policy.project_id} projectNameMap={projectNameMap} />
-                      </Td>
-                      <Td dataLabel="Type">
-                        {policy.is_builtin ? (
-                          <Label color="grey" icon={<RhUiLockIcon />} isCompact>
-                            Built-in
-                          </Label>
-                        ) : (
-                          <Label color="blue" isCompact>
-                            Custom
-                          </Label>
-                        )}
-                      </Td>
-                    </Tr>
-                  ))}
-                </Tbody>
-              </Table>
-            </StackItem>
+                ))}
+              </Tbody>
+            </ScrollableTableContainer>
           )}
-
-          <PaginationFooter
-            page={page}
-            perPage={perPage}
-            total={policiesQuery.data?.total}
-            hasNext={!!policiesQuery.data?.next}
-            onPrev={goToPrevPage}
-            onNext={() => goToNextPage(policiesQuery.data?.next ?? null)}
-            onPerPageChange={handlePerPageChange}
-          />
         </Stack>
       </div>
 

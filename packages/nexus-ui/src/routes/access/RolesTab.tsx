@@ -12,7 +12,7 @@ import {
   StackItem,
 } from '@patternfly/react-core'
 import { PlusIcon, RhUiEditFillIcon, RhUiLockIcon, RhUiTrashIcon } from '@patternfly/react-icons'
-import { ActionsColumn, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
 
@@ -22,14 +22,15 @@ import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
 import { IconLabel } from '../../components/IconLabel'
 import { useQueryState } from '../../components/states/useQueryState'
+import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { buildFilterParams } from '../../utils/filterUtils'
+import { formatItemCount } from '../../utils/formatItemCount'
 
 import { accessClient } from './accessClient'
 import { AddRoleDialog } from './AddRoleDialog'
 import { EditRoleDialog } from './EditRoleDialog'
-import { PaginationFooter } from './PaginationFooter'
 import { buildProjectFilterDefs, ROLE_SCOPE_OPTIONS, transformFiltersForApi } from './scopeFilterUtils'
 import { ProjectLabel, ScopeLabel } from './ScopeLabel'
 import type { RoleRead } from './types'
@@ -105,7 +106,7 @@ function RolesTable({
   ]
 
   return (
-    <Table aria-label="Roles" isStriped style={{ width: '100%' }}>
+    <>
       <Thead>
         <Tr>
           <Th sort={getSortParams(0)}>Name</Th>
@@ -158,7 +159,7 @@ function RolesTable({
           </Tr>
         ))}
       </Tbody>
-    </Table>
+    </>
   )
 }
 
@@ -171,8 +172,6 @@ export function RolesTab() {
     getSortParams,
     queryParams: baseQueryParams,
     page,
-    perPage,
-    handlePerPageChange,
     goToPrevPage,
     goToNextPage,
   } = useBuiltinListState(sortFieldByColumn)
@@ -277,7 +276,17 @@ export function RolesTab() {
             <EmptyStateFilter clearAllFilters={clearAllFilters} />
           </StackItem>
         ) : (
-          <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
+          <ScrollableTableContainer
+            aria-label="Roles"
+            useFixedLayout={false}
+            footer={{
+              content: formatItemCount(roles.length, 'role', 'roles', rolesQuery.data?.total),
+              prev: page > 1 ? 'prev' : null,
+              next: rolesQuery.data?.next ?? null,
+              onPrev: goToPrevPage,
+              onNext: () => goToNextPage(rolesQuery.data?.next ?? null),
+            }}
+          >
             <RolesTable
               roles={roles}
               projectNameMap={projectNameMap}
@@ -285,18 +294,8 @@ export function RolesTab() {
               onEdit={setRoleToEdit}
               onDelete={setRoleToDelete}
             />
-          </StackItem>
+          </ScrollableTableContainer>
         )}
-
-        <PaginationFooter
-          page={page}
-          perPage={perPage}
-          total={rolesQuery.data?.total}
-          hasNext={!!rolesQuery.data?.next}
-          onPrev={goToPrevPage}
-          onNext={() => goToNextPage(rolesQuery.data?.next ?? null)}
-          onPerPageChange={handlePerPageChange}
-        />
       </Stack>
 
       {isAddDialogOpen && <AddRoleDialog onClose={() => setIsAddDialogOpen(false)} onSuccess={handleRolesChanged} />}

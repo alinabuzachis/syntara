@@ -192,8 +192,7 @@ describe('PoliciesTab', () => {
 
     render(<PoliciesTab />, { wrapper })
 
-    // Pagination component should be in the DOM
-    expect(screen.getByRole('navigation', { name: /pagination/i })).toBeInTheDocument()
+    expect(screen.getByText(/2 policies/)).toBeInTheDocument()
   })
 
   it('has no accessibility violations', async () => {
@@ -279,8 +278,7 @@ describe('PoliciesTab', () => {
 
     render(<PoliciesTab />, { wrapper })
 
-    // Click the next page button in the pagination
-    const nextButton = screen.getByRole('button', { name: /go to next page/i })
+    const nextButton = screen.getByRole('button', { name: /next page/i })
     await user.click(nextButton)
 
     // Verify useQuery was called again (with cursor param on re-render)
@@ -298,11 +296,11 @@ describe('PoliciesTab', () => {
     render(<PoliciesTab />, { wrapper })
 
     // Go to page 2 first
-    const nextButton = screen.getByRole('button', { name: /go to next page/i })
+    const nextButton = screen.getByRole('button', { name: /next page/i })
     await user.click(nextButton)
 
     // Now go back to page 1
-    const prevButton = screen.getByRole('button', { name: /go to previous page/i })
+    const prevButton = screen.getByRole('button', { name: /previous page/i })
     await user.click(prevButton)
 
     // After going back, cursor should be null (first page)
@@ -349,25 +347,16 @@ describe('PoliciesTab', () => {
     expect(screen.getByText('No results found')).toBeInTheDocument()
   })
 
-  it('resets pagination when per-page changes', async () => {
-    const user = userEvent.setup()
+  it('renders footer with item count, total, and correct pagination button state', () => {
     setupPoliciesQuery(samplePolicies, { total: 40, next: 'cursor-page2' })
 
     render(<PoliciesTab />, { wrapper })
 
-    // The PF6 compact pagination shows a per-page menu toggle with the range text
-    const perPageMenu = screen.getByRole('button', { name: /1 - 20 of 40/i })
-    await user.click(perPageMenu)
+    expect(screen.getByText(/2 policies of 40/)).toBeInTheDocument()
 
-    const option50 = await screen.findByText('50 per page')
-    await user.click(option50)
-
-    // Verify the query was called with the new perPage and no cursor
-    const calls = vi.mocked(accessClient.useQuery).mock.calls
-    const lastCall = calls[calls.length - 1]
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access -- test assertion on mock call args
-    const queryParams = (lastCall?.[2] as any)?.params?.query as Record<string, unknown>
-    expect(queryParams).toMatchObject({ limit: 50 })
-    expect(queryParams).not.toHaveProperty('cursor')
+    const prevButton = screen.getByRole('button', { name: /previous page/i })
+    const nextButton = screen.getByRole('button', { name: /next page/i })
+    expect(prevButton).toBeDisabled()
+    expect(nextButton).toBeEnabled()
   })
 })

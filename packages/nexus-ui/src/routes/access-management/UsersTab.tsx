@@ -202,14 +202,12 @@ export function UsersTab() {
               <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
             </StackItem>
           ) : (
-            <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
-              <ScrollableTableContainer
-                aria-label="Users table"
-                footer={getFooterProps(data, results.length, 'user', 'users')}
-              >
-                <UsersTable users={results} dispatch={dispatch} getSortParams={getSortParams} />
-              </ScrollableTableContainer>
-            </StackItem>
+            <ScrollableTableContainer
+              aria-label="Users table"
+              footer={getFooterProps(data, results.length, 'user', 'users')}
+            >
+              <UsersTable users={results} dispatch={dispatch} getSortParams={getSortParams} />
+            </ScrollableTableContainer>
           )}
         </Stack>
       )}

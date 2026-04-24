@@ -427,28 +427,38 @@ describe('RolesTab', () => {
   })
 
   describe('Pagination', () => {
-    it('renders pagination controls', () => {
+    it('renders footer with item count', () => {
       render(<RolesTab />, { wrapper })
 
-      const nav = screen.getByRole('navigation', { name: /pagination/i })
-      expect(nav).toBeInTheDocument()
+      expect(screen.getByText(/3 roles/)).toBeInTheDocument()
     })
 
     it('navigates to next page when next cursor is available', async () => {
-      vi.mocked(accessClient.useQuery).mockReturnValue({
-        data: { resources: mockRoles, next: 'next-cursor', total: 25 },
-        isPending: false,
-        isError: false,
-        error: null,
-        isFetching: false,
-        refetch: mockRefetch,
-      } as never)
+      vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
+        if (path === '/projects') {
+          return {
+            data: [],
+            isPending: false,
+            isError: false,
+            error: null,
+            isFetching: false,
+            refetch: mockRefetch,
+          } as never
+        }
+        return {
+          data: { resources: mockRoles, next: 'next-cursor', total: 25 },
+          isPending: false,
+          isError: false,
+          error: null,
+          isFetching: false,
+          refetch: mockRefetch,
+        } as never
+      })
 
       const user = userEvent.setup()
       render(<RolesTab />, { wrapper })
 
-      const nav = screen.getByRole('navigation', { name: /pagination/i })
-      const nextButton = within(nav).getByRole('button', { name: /next/i })
+      const nextButton = screen.getByRole('button', { name: /next page/i })
       await user.click(nextButton)
 
       // After clicking next, the cursor param should be sent
