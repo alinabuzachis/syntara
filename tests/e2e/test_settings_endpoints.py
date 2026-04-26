@@ -163,6 +163,53 @@ class TestNewSettings:
         assert response.status_code == 422
 
 
+class TestAuditorSettingsAccess:
+    """E2E tests verifying auditor users have read-only access to settings."""
+
+    def test_auditor_can_list_settings(self, auditor_client: AuthenticatedClient) -> None:
+        """Auditor can list all settings."""
+        client = auditor_client.get_httpx_client()
+        response = client.get("/settings")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "resources" in data
+        assert isinstance(data["resources"], list)
+
+    def test_auditor_can_get_setting(self, auditor_client: AuthenticatedClient) -> None:
+        """Auditor can read a specific setting."""
+        client = auditor_client.get_httpx_client()
+        response = client.get("/settings/context_manager.max_total_tokens")
+
+        assert response.status_code == 200
+        assert response.json()["key"] == "context_manager.max_total_tokens"
+
+    def test_auditor_can_list_categories(self, auditor_client: AuthenticatedClient) -> None:
+        """Auditor can list setting categories."""
+        client = auditor_client.get_httpx_client()
+        response = client.get("/settings/categories")
+
+        assert response.status_code == 200
+        assert "results" in response.json()
+
+    def test_auditor_cannot_update_setting(self, auditor_client: AuthenticatedClient) -> None:
+        """Auditor is denied access to update a setting."""
+        client = auditor_client.get_httpx_client()
+        response = client.patch(_LOG_LEVEL_PATH, json={"value": "DEBUG"})
+
+        assert response.status_code == 403
+
+    def test_auditor_cannot_bulk_update(self, auditor_client: AuthenticatedClient) -> None:
+        """Auditor is denied access to bulk update settings."""
+        client = auditor_client.get_httpx_client()
+        response = client.patch(
+            "/settings",
+            json={"updates": [{"key": _LOG_LEVEL_KEY, "value": "DEBUG"}]},
+        )
+
+        assert response.status_code == 403
+
+
 class TestSettingsAuthorization:
     """E2E tests verifying non-admin users cannot access settings."""
 

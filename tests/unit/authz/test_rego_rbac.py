@@ -99,12 +99,14 @@ class TestAuditorRole:
             ("read", "execution"),
             ("read", "policy"),
             ("read", "role"),
+            ("read", "setting"),
         ],
         ids=[
             "workflow:read",
             "execution:read",
             "policy:read",
             "role:read",
+            "setting:read",
         ],
     )
     def test_auditor_read_allowed(self, opa_evaluate, action: str, resource_type: str):
@@ -125,6 +127,7 @@ class TestAuditorRole:
             ("delete", "workflow"),
             ("create", "policy"),
             ("run", "execution"),
+            ("write", "setting"),
         ],
         ids=[
             "workflow:create",
@@ -132,6 +135,7 @@ class TestAuditorRole:
             "workflow:delete",
             "policy:create",
             "execution:run",
+            "setting:write",
         ],
     )
     def test_auditor_write_denied(self, opa_evaluate, action: str, resource_type: str):

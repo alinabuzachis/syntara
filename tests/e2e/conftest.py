@@ -1,12 +1,15 @@
 """Shared fixtures for Nexus E2E tests."""
 
 import os
+from http import HTTPStatus
 from pathlib import Path
 
 import httpx
 import pytest
 from nexus_api_client import AuthenticatedClient
 from nexus_api_client.api import NexusApiRegistry
+from nexus_api_client.models.sub_resource_role_assignment_create import SubResourceRoleAssignmentCreate
+from nexus_api_client.models.user_create import UserCreate
 
 
 def _generate_e2e_token(base_url: str) -> str:
@@ -121,6 +124,57 @@ def viewer_client(nexus_base_url: str, nexus_client: AuthenticatedClient) -> Aut
 def viewer_api(viewer_client: AuthenticatedClient) -> NexusApiRegistry:
     """Return a NexusApiRegistry bound to the non-admin viewer client."""
     return NexusApiRegistry(viewer_client)
+
+
+@pytest.fixture(scope="session")
+def auditor_client(
+    nexus_base_url: str, nexus_client: AuthenticatedClient, nexus_api: NexusApiRegistry
+) -> AuthenticatedClient:
+    """Return an authenticated client for a user with the auditor role.
+
+    Creates the user and assigns the auditor role via the generated API
+    client on first use.  The user has read-only access to most resources
+    including settings, but cannot perform write operations.
+    """
+    username = "e2e-auditor"
+    password = "AuditorPass1234!"  # noqa: S105
+
+    resp = nexus_api.users.create(
+        body=UserCreate(
+            username=username,
+            email="e2e-auditor@example.com",
+            full_name="E2E Auditor",
+            password=password,
+        ),
+    )
+    if resp.status_code not in (HTTPStatus.CREATED, HTTPStatus.CONFLICT):
+        pytest.fail(f"Failed to create auditor user: {resp.status_code} {resp.content!r}")
+
+    if resp.status_code == HTTPStatus.CONFLICT:
+        lookup = nexus_api.users.list(username=username)
+        assert lookup.parsed is not None, "Failed to look up auditor user"
+        user_id = lookup.parsed.resources[0].id
+    else:
+        assert resp.parsed is not None, "Failed to parse created auditor user"
+        user_id = resp.parsed.id
+
+    role_resp = nexus_api.users.create_role_assignment(
+        user_id=user_id,
+        body=SubResourceRoleAssignmentCreate(role_name="auditor"),
+    )
+    if role_resp.status_code not in (HTTPStatus.CREATED, HTTPStatus.CONFLICT):
+        pytest.fail(f"Failed to assign auditor role: {role_resp.status_code} {role_resp.content!r}")
+
+    login_resp = httpx.post(
+        f"{nexus_base_url}/api/v1/auth/login",
+        json={"username": username, "password": password},
+        verify=False,  # noqa: S501
+        timeout=10,
+    )
+    login_resp.raise_for_status()
+    token: str = login_resp.json()["access_token"]
+
+    return AuthenticatedClient(base_url=f"{nexus_base_url}/api/v1", token=token, verify_ssl=False)
 
 
 @pytest.fixture(scope="session")
