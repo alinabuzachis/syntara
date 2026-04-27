@@ -24,7 +24,7 @@ function hasLoopNodePlaceholders(nodes: Node[], sourceId: string): boolean {
 /**
  * Parameters for creating edges when connecting nodes from the add panel
  */
-export interface EdgeConnectionParams {
+export type EdgeConnectionParams = {
   sourceId: string
   targetId: string
   edgeIdToReplace?: string | null
@@ -43,7 +43,7 @@ export interface EdgeConnectionParams {
 /**
  * Result of edge connection operation
  */
-export interface EdgeConnectionResult {
+export type EdgeConnectionResult = {
   /** New edges to add to the graph */
   edgesToAdd: EdgeType[]
   /** Edge IDs to remove from the graph */

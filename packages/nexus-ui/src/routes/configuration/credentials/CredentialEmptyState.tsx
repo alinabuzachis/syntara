@@ -1,7 +1,7 @@
 import { Button, EmptyState, EmptyStateActions, EmptyStateBody, EmptyStateFooter } from '@patternfly/react-core'
 import { RhUiKeyIcon } from '@patternfly/react-icons'
 
-interface CredentialEmptyStateProps {
+type CredentialEmptyStateProps = {
   onCreateCredential: () => void
 }
 

@@ -11,7 +11,7 @@ type ActivityStatus = ExecutionsAPI.components['schemas']['ActivityStatus']
 /**
  * Execution state that can be inferred from workflow structure.
  */
-export interface ExecutionState {
+export type ExecutionState = {
   status: ActivityStatus
   started_at?: string
   completed_at?: string
@@ -24,7 +24,7 @@ export interface ExecutionState {
  * Each node type (loop, converge, conditional) has different logic
  * for determining its execution state based on connected nodes.
  */
-export interface NodeStateInferrer {
+export type NodeStateInferrer = {
   /**
    * Infer execution state for a node based on its connections and neighbor states.
    *

@@ -3,7 +3,7 @@ import type { Activity } from '@ansible/nexus-contracts'
 import type { EdgeConnection } from '../../../types/edge'
 import type { ValidationError } from '../types'
 
-interface BranchValidationConfig {
+type BranchValidationConfig = {
   /** Function to filter activities that need validation */
   nodeFilter: (activity: Activity) => boolean
   /** The sourceHandle value that is required */

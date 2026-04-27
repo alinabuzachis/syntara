@@ -1,7 +1,7 @@
 import { Button, Icon, Tooltip } from '@patternfly/react-core'
 import { RhUiHistoryIcon } from '@patternfly/react-icons'
 
-interface RunHistoryToggleButtonProps {
+type RunHistoryToggleButtonProps = {
   onClick: () => void
   isActive?: boolean
 }

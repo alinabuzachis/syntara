@@ -6,7 +6,7 @@ import type { EdgeConnection } from '../types/edge'
 import { getButtonEdgeId, isBranchHandle } from './edgeHelpers'
 import { markerEnd, type EdgeType } from './workflowToGraph'
 
-export interface CreateEdgeOptions {
+export type CreateEdgeOptions = {
   source: string
   target: string
   sourceHandle?: string

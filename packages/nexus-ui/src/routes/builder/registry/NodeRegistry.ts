@@ -5,7 +5,7 @@ import type { NodeCategory } from './categories'
 /**
  * Base form props that all node forms must accept
  */
-export interface BaseNodeFormProps<TData = unknown> {
+export type BaseNodeFormProps<TData = unknown> = {
   onSubmit: (data: TData) => void
   onCancel: () => void
   initialData?: Partial<TData>
@@ -14,7 +14,7 @@ export interface BaseNodeFormProps<TData = unknown> {
   projectId?: string
 }
 
-export interface NodeSubtypeDefinition<TFormData = unknown> {
+export type NodeSubtypeDefinition<TFormData = unknown> = {
   /** Unique identifier for this subtype */
   id: string
   /** Display label in UI */
@@ -41,7 +41,7 @@ export interface NodeSubtypeDefinition<TFormData = unknown> {
 /**
  * Node type definition for the registry
  */
-export interface NodeTypeDefinition<TFormData = unknown> {
+export type NodeTypeDefinition<TFormData = unknown> = {
   /** Unique identifier for this node type */
   id: string
 

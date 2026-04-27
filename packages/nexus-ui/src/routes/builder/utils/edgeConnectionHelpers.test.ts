@@ -430,7 +430,7 @@ describe('applyEdgeConnection', () => {
     expect(setEdges).toHaveBeenCalled()
 
     // Verify callback behavior (filtering old edges and adding new ones)
-    interface EdgeWithId {
+    type EdgeWithId = {
       id: string
     }
     const callback = setEdges.mock.calls[0][0] as (edges: EdgeWithId[]) => EdgeWithId[]

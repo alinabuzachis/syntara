@@ -18,7 +18,7 @@ import { useMemo, useState } from 'react'
 import { FormLabelWithHelp } from '../../../../components/FormLabelWithHelp'
 import { ENCRYPTED_SENTINEL } from '../credentialConstants'
 
-export interface FieldDefinition {
+export type FieldDefinition = {
   id: string
   label: string
   type: string
@@ -30,7 +30,7 @@ export interface FieldDefinition {
   multiline?: boolean
 }
 
-interface DynamicFieldRendererProps {
+type DynamicFieldRendererProps = {
   field: FieldDefinition
   value: unknown
   onChange: (fieldId: string, value: unknown) => void
@@ -63,7 +63,7 @@ function FieldHelperText({ error, helpText }: Readonly<{ error?: string; helpTex
   return null
 }
 
-interface FieldWrapperProps {
+type FieldWrapperProps = {
   field: FieldDefinition
   isRequired?: boolean
   error?: string

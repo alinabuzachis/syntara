@@ -6,7 +6,7 @@ import type { NodeType } from '../../automations/canvas/nodes/NodeType'
 import { filterRealEdges, filterRealNodes } from './filterHelpers'
 import type { EdgeType } from './workflowToGraph'
 
-interface DagreNodeLabel {
+type DagreNodeLabel = {
   x: number
   y: number
 }
@@ -31,16 +31,16 @@ function getNodeLabel(g: Dagre.graphlib.Graph, nodeId: string): DagreNodeLabel {
 
 const markerEnd = { type: 'arrowclosed' as const }
 
-interface LayoutOptions {
+type LayoutOptions = {
   direction: 'TB' | 'LR'
 }
 
-interface LoopBodyPosition {
+type LoopBodyPosition = {
   x: number
   y: number
 }
 
-interface BodyNodeWithPosition {
+type BodyNodeWithPosition = {
   nodeId: string
   width: number
   height: number

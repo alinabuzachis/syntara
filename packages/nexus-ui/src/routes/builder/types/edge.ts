@@ -4,7 +4,7 @@
  * EdgeConnection is a simplified representation of edges used in the workflow store
  * and transformation logic. It strips away React Flow-specific properties.
  */
-export interface EdgeConnection {
+export type EdgeConnection = {
   id: string
   source: string
   target: string

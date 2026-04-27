@@ -53,7 +53,7 @@ const wrapper = ({ children }: { children: ReactNode }) => (
   </QueryClientProvider>
 )
 
-interface MockMutationCallbacks {
+type MockMutationCallbacks = {
   onSuccess: (...args: unknown[]) => void
   onError: (...args: unknown[]) => void
   onSettled: () => void

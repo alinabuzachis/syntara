@@ -77,13 +77,13 @@ function updateNodesAfterPanelConnect(nds: Node[], sourceId: string, sourcePlace
   return removeButtonEdgeClass(filtered, sourceId)
 }
 
-export interface PanelConnectReactFlowAdapter {
+export type PanelConnectReactFlowAdapter = {
   getNodes: () => Node[]
   setEdges: (updater: (edges: EdgeType[]) => EdgeType[]) => void
   setNodes: (updater: (nodes: Node[]) => Node[]) => void
 }
 
-export interface PanelConnectCapturedState {
+export type PanelConnectCapturedState = {
   sourceId: string
   targetId: string
   capturedSourceHandle: string | undefined | null
@@ -116,7 +116,7 @@ export function createPanelConnectReactFlowAdapter(
   }
 }
 
-interface PendingPanelConnect {
+type PendingPanelConnect = {
   attempts: number
   flow: PanelConnectReactFlowAdapter
   state: PanelConnectCapturedState

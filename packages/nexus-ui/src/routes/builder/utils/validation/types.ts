@@ -10,7 +10,7 @@ export type ValidationSeverity = 'error' | 'warning' | 'info'
 /**
  * A validation error or warning
  */
-export interface ValidationError {
+export type ValidationError = {
   /** Unique identifier for this error */
   id: string
   /** Severity level */
@@ -32,7 +32,7 @@ export interface ValidationError {
 /**
  * Result of workflow validation
  */
-export interface ValidationResult {
+export type ValidationResult = {
   /** True if workflow is valid (no errors) */
   valid: boolean
   /** All errors found (block save) */

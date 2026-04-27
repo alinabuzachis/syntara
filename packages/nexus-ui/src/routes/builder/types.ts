@@ -8,7 +8,7 @@ export type FlowPosition = { x: number; y: number }
 /**
  * Props for the BuilderFlow component
  */
-export interface BuilderFlowProps {
+export type BuilderFlowProps = {
   /** Workflow ID from route params (null for new workflows) */
   workflowId?: string | null
   /** Counter to trigger layout re-calculation */
@@ -48,7 +48,7 @@ export interface BuilderFlowProps {
 /**
  * State for tracking connection attempts when dragging from a node
  */
-export interface ConnectionState {
+export type ConnectionState = {
   sourceNodeId: string | null
   sourceHandleId: string | null
   successful: boolean
@@ -57,7 +57,7 @@ export interface ConnectionState {
 /**
  * Pending edge state when dragging from a node to the canvas
  */
-export interface PendingEdge {
+export type PendingEdge = {
   sourceNodeId: string
   sourceHandle?: string
   x: number

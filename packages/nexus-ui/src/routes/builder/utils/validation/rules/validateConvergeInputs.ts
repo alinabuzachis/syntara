@@ -6,7 +6,7 @@ import type { ValidationError } from '../types'
 /**
  * Information about a condition branch in the trace
  */
-interface ConditionBranchInfo {
+type ConditionBranchInfo = {
   conditionId: string
   conditionName: string
   branch: 'then' | 'else'
