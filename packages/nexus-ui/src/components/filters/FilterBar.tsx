@@ -32,7 +32,7 @@ function isAttributeSearchField(field: FilterFieldDefinition): boolean {
 /**
  * Props for FilterBar component
  */
-export interface FilterBarProps {
+export type FilterBarProps = {
   /** Filter field definitions */
   fieldDefinitions: FilterFieldDefinition[]
   /** Current active filters */

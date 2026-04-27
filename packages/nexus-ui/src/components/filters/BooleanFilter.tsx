@@ -6,7 +6,7 @@ import type { FilterConfig } from '../../types/filters'
 /**
  * Props for BooleanFilter component
  */
-export interface BooleanFilterProps {
+export type BooleanFilterProps = {
   /** Filter field key (e.g., 'is_enabled', 'is_public') */
   fieldKey: string
   /** Display label for the filter */

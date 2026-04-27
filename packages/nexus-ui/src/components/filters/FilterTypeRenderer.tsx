@@ -10,7 +10,7 @@ import { MultiSelectFilter } from './MultiSelectFilter'
 /**
  * Props for FilterTypeRenderer component
  */
-export interface FilterTypeRendererProps {
+export type FilterTypeRendererProps = {
   field: FilterFieldDefinition
   filters: FilterConfig[]
   onFilterUpdate: (filter: FilterConfig | null, fieldKey?: string) => void

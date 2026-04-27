@@ -5,7 +5,7 @@ import { useCallback, useMemo } from 'react'
 /**
  * Single label key-value pair
  */
-export interface LabelPair {
+export type LabelPair = {
   /** Unique identifier for React key prop */
   id: string
   /** Label key */
@@ -17,7 +17,7 @@ export interface LabelPair {
 /**
  * Props for LabelFilter component
  */
-export interface LabelFilterProps {
+export type LabelFilterProps = {
   /** Display label for the filter */
   label: string
   /** Current label filters */
@@ -29,7 +29,7 @@ export interface LabelFilterProps {
 /**
  * Props for LabelPairRow component
  */
-interface LabelPairRowProps {
+type LabelPairRowProps = {
   /** Label pair data */
   pair: LabelPair
   /** Index for accessibility labels */

@@ -5,7 +5,7 @@ import { getErrorMessage, getErrorTitle, isRetryableError, isServiceUnavailableE
 
 import { EmptyStateServiceUnavailable } from './EmptyStateServiceUnavailable'
 
-export interface ErrorStateProps {
+export type ErrorStateProps = {
   title?: string
   message: unknown
   onRetry?: () => void

@@ -7,14 +7,14 @@ import { buildFilterParams } from '../utils/filterUtils'
 import { createFilterChangeHandler } from './useFilterChangeHandler'
 import { useFilterState } from './useFilterState'
 
-interface PaginatedResponse {
+type PaginatedResponse = {
   resources?: unknown[]
   prev?: string | null
   next?: string | null
   total?: number | null
 }
 
-interface UseCursorPaginationOptions {
+type UseCursorPaginationOptions = {
   /** Default page size (defaults to 20) */
   limit?: number
   /** Default filters from URL or other sources */
@@ -25,7 +25,7 @@ interface UseCursorPaginationOptions {
   extraParams?: Record<string, unknown>
 }
 
-export interface UseCursorPaginationResult {
+export type UseCursorPaginationResult = {
   /** Current pagination cursor */
   cursor: string | null
   /** Set cursor directly */

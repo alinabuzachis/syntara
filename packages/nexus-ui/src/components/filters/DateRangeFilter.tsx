@@ -7,7 +7,7 @@ import { formatDateForApi } from '../../utils/dateUtils'
 /**
  * Props for DateRangeFilter component
  */
-export interface DateRangeFilterProps {
+export type DateRangeFilterProps = {
   /** Filter field key (e.g., 'created_at', 'updated_at') */
   fieldKey: string
   /** Display label for the filter */

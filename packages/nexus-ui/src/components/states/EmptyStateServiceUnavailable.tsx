@@ -1,7 +1,7 @@
 import { EmptyState, EmptyStateBody } from '@patternfly/react-core'
 import { RhUiErrorFillIcon } from '@patternfly/react-icons'
 
-export interface EmptyStateServiceUnavailableProps {
+export type EmptyStateServiceUnavailableProps = {
   title?: string
   description?: string
   showAdminHint?: boolean

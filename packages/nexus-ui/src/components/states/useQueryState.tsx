@@ -5,7 +5,7 @@ import { EmptyStateServiceUnavailable } from './EmptyStateServiceUnavailable'
 import { ErrorState } from './ErrorState'
 import { LoadingState } from './LoadingState'
 
-export interface QueryStateOptions {
+export type QueryStateOptions = {
   title?: string
   onRetry?: () => void
 }

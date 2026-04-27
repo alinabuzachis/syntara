@@ -3,7 +3,7 @@ import { workflowClient } from '../client'
 /**
  * Props for WorkflowName component
  */
-export interface WorkflowNameProps {
+export type WorkflowNameProps = {
   /** Workflow ID to fetch and display name for */
   workflowId: string
   /** Optional fallback to display while loading or on error (defaults to workflow ID) */

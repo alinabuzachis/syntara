@@ -45,7 +45,7 @@ function getArrayFilterValueDisplayLabel(field: FilterFieldDefinition | undefine
   return resolveFilterOptionDisplayLabel(field, val) ?? val
 }
 
-interface ArrayFilterValueLabelsProps {
+type ArrayFilterValueLabelsProps = {
   field: FilterFieldDefinition | undefined
   filter: FilterConfig
   operator: FilterOperator
@@ -67,7 +67,7 @@ function ArrayFilterValueLabels({ field, filter, operator, values, onChipRemove 
 /**
  * Props for ActiveFilterChips component
  */
-interface ActiveFilterChipsProps {
+type ActiveFilterChipsProps = {
   /** Current active filters */
   filters: FilterConfig[]
   /** Filter field definitions */

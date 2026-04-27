@@ -9,7 +9,7 @@ import { Flex, FormHelperText, HelperText, HelperTextItem, Label } from '@patter
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useState } from 'react'
 
-export interface TagInputProps {
+export type TagInputProps = {
   /** Current list of items */
   value: string[]
   /** Called when the list changes */

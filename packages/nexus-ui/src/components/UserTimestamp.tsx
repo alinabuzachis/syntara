@@ -6,7 +6,7 @@ const userStyle = { margin: 0, color: 'var(--pf-t--global--color--brand--default
 const timestampStyle = { margin: 0, color: 'var(--pf-t--global--text--color--subtle)' } as const
 const timestampDefaultStyle = { margin: 0 } as const
 
-interface UserTimestampProps {
+type UserTimestampProps = {
   user?: string | null
   timestamp?: string
   /** Use subtle color for the timestamp (default: true). Set false for neutral color. */

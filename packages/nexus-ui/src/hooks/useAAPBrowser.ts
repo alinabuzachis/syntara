@@ -13,7 +13,7 @@ export type AAPExecutionEnvironment = AAPAPI.components['schemas']['AAPExecution
 export type AAPCredential = AAPAPI.components['schemas']['AAPCredential']
 export type AAPInstanceGroup = AAPAPI.components['schemas']['AAPInstanceGroup']
 
-interface AAPSearchState {
+type AAPSearchState = {
   selectedOrg: string
   selectedTemplateId: number | undefined
   orgSearch: string
@@ -35,7 +35,7 @@ const INITIAL_STATE: AAPSearchState = {
   instanceGroupSearch: '',
 }
 
-export interface AAPBrowserInitialState {
+export type AAPBrowserInitialState = {
   readonly organization?: string
   readonly jobTemplateId?: number
 }

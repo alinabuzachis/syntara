@@ -16,7 +16,7 @@ import { type Dispatch, useEffect, useReducer, useRef } from 'react'
 
 import { parseRepeatingInterval as parseRepeatingIntervalUtil } from '../../utils/triggerFormatting'
 
-export interface DateRangeCadencePickerProps {
+export type DateRangeCadencePickerProps = {
   /** The current ISO 8601 repeating interval string (e.g., "R/2024-01-01T10:00:00Z/P1D" or "R/2024-01-01T10:00:00Z/P1D/2024-12-31T23:59:59Z") */
   value?: string
   /** Callback when the interval changes, receives the ISO 8601 repeating interval string */
@@ -163,7 +163,7 @@ const cadenceOptions: { value: CadenceValue; label: string }[] = [
   { value: 'annually', label: 'Annually' },
 ]
 
-interface DateRangeCadenceState {
+type DateRangeCadenceState = {
   startDate: string
   cadence: CadenceValue
   triggerHour: number

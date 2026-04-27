@@ -1,4 +1,4 @@
-interface TotalCountProps {
+type TotalCountProps = {
   /** The total number of items across all pages */
   total: number
 }

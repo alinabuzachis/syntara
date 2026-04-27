@@ -1,7 +1,7 @@
 import { Button, Popover } from '@patternfly/react-core'
 import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
 
-interface FormLabelWithHelpProps {
+type FormLabelWithHelpProps = {
   label: string
   helpText?: string | React.ReactNode
 }

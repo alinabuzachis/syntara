@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react'
 import { useAlerts } from '../components/alerts'
 import { getErrorMessage, getErrorStatus, getErrorTitle, isServiceUnavailableError } from '../utils/apiErrors'
 
-export interface UseApiErrorAlertOptions {
+export type UseApiErrorAlertOptions = {
   /** Override the alert title (defaults to parsed title or "Error") */
   title?: string
   /** Additional context prefixed to the parsed error message */
