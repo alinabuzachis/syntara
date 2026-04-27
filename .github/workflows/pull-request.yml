@@ -6,6 +6,7 @@ on:
 permissions:
   contents: read # checkout code
   pull-requests: write # post coverage, PR size, and visual regression comments
+  statuses: read # read E2E commit status
 
 concurrency:
   group: ${{ github.ref }}
@@ -330,3 +331,76 @@ jobs:
           platforms: linux/amd64
           push: false
           tags: nexus-mock-api:test
+
+  e2e-gate:
+    name: E2E Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Wait for E2E commit status
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const sha = context.payload.pull_request.head.sha;
+            const timeout = 30 * 60 * 1000; // 30 minutes
+            const interval = 30 * 1000; // poll every 30s
+            const start = Date.now();
+
+            while (Date.now() - start < timeout) {
+              const { data: statuses } = await github.rest.repos.listCommitStatusesForRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: sha,
+                per_page: 100,
+              });
+
+              const e2e = statuses.find(s => s.context === 'E2E Tests');
+
+              if (e2e?.state === 'success') {
+                console.log('E2E Tests passed');
+                return;
+              }
+              if (e2e?.state === 'failure' || e2e?.state === 'error') {
+                core.setFailed(`E2E Tests ${e2e.state}: ${e2e.target_url}`);
+                return;
+              }
+
+              const elapsed = Math.round((Date.now() - start) / 1000);
+              console.log(`E2E status: ${e2e?.state ?? 'not reported yet'} (${elapsed}s elapsed)`);
+              await new Promise(r => setTimeout(r, interval));
+            }
+            core.setFailed('Timed out waiting for E2E Tests status');
+
+  # Single required status check for branch protection. All merge-blocking jobs
+  # are listed in `needs` so we manage requirements in code instead of maintaining
+  # a separate list in GitHub rulesets that can drift out of sync with the workflow.
+  success:
+    name: Success
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    needs:
+      - checks
+      - unit-tests
+      - coverage-report
+      - sonarcloud
+      - test-build
+      - e2e-gate
+    steps:
+      - name: Check required jobs passed
+        run: |
+          if [[ "${{ needs.checks.result }}" != "success" ]] || \
+             [[ "${{ needs.unit-tests.result }}" != "success" ]] || \
+             [[ "${{ needs.coverage-report.result }}" != "success" ]] || \
+             [[ "${{ needs.sonarcloud.result }}" != "success" ]] || \
+             [[ "${{ needs.test-build.result }}" != "success" ]] || \
+             [[ "${{ needs.e2e-gate.result }}" != "success" ]]; then
+            echo "Required jobs failed:"
+            echo "  checks: ${{ needs.checks.result }}"
+            echo "  unit-tests: ${{ needs.unit-tests.result }}"
+            echo "  coverage-report: ${{ needs.coverage-report.result }}"
+            echo "  sonarcloud: ${{ needs.sonarcloud.result }}"
+            echo "  test-build: ${{ needs.test-build.result }}"
+            echo "  e2e-gate: ${{ needs.e2e-gate.result }}"
+            exit 1
+          fi
+          echo "All required checks passed"
