@@ -8,7 +8,7 @@ import { formatDate, formatTime } from './dateUtils'
 /**
  * Parsed repeating interval structure
  */
-export interface ParsedRepeatingInterval {
+export type ParsedRepeatingInterval = {
   start: string
   cadence: string
   end?: string

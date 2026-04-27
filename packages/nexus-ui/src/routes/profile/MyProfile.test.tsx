@@ -16,7 +16,7 @@ vi.mock('../../components/states/useQueryState', () => ({
   useQueryState: vi.fn(),
 }))
 
-interface MockProfile {
+type MockProfile = {
   id: string
   username: string
   email: string

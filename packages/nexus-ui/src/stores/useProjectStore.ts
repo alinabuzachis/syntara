@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-interface ProjectState {
+type ProjectState = {
   /** The currently selected project ID, or null for no selection. */
   selectedProjectId: string | null
   /** Set the selected project ID. Pass null to clear. */

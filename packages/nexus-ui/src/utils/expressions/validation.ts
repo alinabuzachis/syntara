@@ -10,7 +10,7 @@ import type { ExpressionNode } from './types'
 /**
  * Validation error for a specific node/field
  */
-export interface ValidationError {
+export type ValidationError = {
   /** Path to invalid node: ['group', '0', 'condition', '1'] */
   path: string[]
   /** Field that is invalid */

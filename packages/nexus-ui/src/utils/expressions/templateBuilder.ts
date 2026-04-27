@@ -26,7 +26,7 @@ function validateFieldSegment(segment: string): string {
   return segment
 }
 
-export interface DragPayload {
+export type DragPayload = {
   /** The node's ID (e.g., "step_1_gather_info"), NOT the display name */
   nodeId: string
   fieldPath: string[]

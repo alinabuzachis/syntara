@@ -1,4 +1,4 @@
-export interface DetachPromiseOptions {
+export type DetachPromiseOptions = {
   /**
    * Called when `result` rejects. Prefer this for security- or UX-sensitive flows (e.g. sign-out)
    * so failures are never only handled by the default path below.

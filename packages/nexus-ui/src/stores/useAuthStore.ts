@@ -12,13 +12,13 @@ import { create } from 'zustand'
 // Types
 // ============================================================================
 
-interface LoginResponse {
+type LoginResponse = {
   access_token: string
   token_type: string
   expires_in: number
 }
 
-interface AuthState {
+type AuthState = {
   accessToken: string | null
   expiresAt: number | null
   isAuthenticated: boolean
@@ -28,12 +28,12 @@ interface AuthState {
   username: string | null
 }
 
-interface LoginCredentials {
+type LoginCredentials = {
   username: string
   password: string
 }
 
-interface AuthActions {
+type AuthActions = {
   login: (credentials: LoginCredentials) => Promise<void>
   refresh: () => Promise<void>
   logout: () => Promise<void>

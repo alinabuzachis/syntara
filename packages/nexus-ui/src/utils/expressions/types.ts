@@ -52,7 +52,7 @@ export type ExpressionNode = ExpressionGroup | ExpressionCondition
  * Example: (input.age >= 18 AND input.score > 50)
  * Example with negation: !((input.age >= 18 AND input.score > 50))
  */
-export interface ExpressionGroup {
+export type ExpressionGroup = {
   type: 'group'
   /** Unique identifier for React keys and path-based updates */
   id: string
@@ -70,7 +70,7 @@ export interface ExpressionGroup {
  * Example: input.age >= 18
  * Example with negation: !(user.status == 'inactive')
  */
-export interface ExpressionCondition {
+export type ExpressionCondition = {
   type: 'condition'
   /** Unique identifier for React keys and path-based updates */
   id: string
@@ -89,7 +89,7 @@ export interface ExpressionCondition {
  *
  * null indicates an empty expression (no conditions defined)
  */
-export interface Expression {
+export type Expression = {
   /** Root node of the expression tree, or null if empty */
   root: ExpressionNode | null
 }

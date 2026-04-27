@@ -18,12 +18,12 @@ import { z } from 'zod'
 
 type RuntimeSetting = SettingsAPI.components['schemas']['RuntimeSettingRead']
 
-interface NumericBounds {
+type NumericBounds = {
   min: number | undefined
   max: number | undefined
 }
 
-interface SettingInputProps {
+type SettingInputProps = {
   readonly setting: RuntimeSetting
   readonly value: unknown
   readonly numericBounds: NumericBounds | null

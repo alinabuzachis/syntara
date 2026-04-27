@@ -10,7 +10,7 @@ import { valuesEqual } from './valuesEqual'
 
 type RuntimeSetting = SettingsAPI.components['schemas']['RuntimeSettingRead']
 
-interface SettingsCategoryTabProps {
+type SettingsCategoryTabProps = {
   readonly settings: RuntimeSetting[]
   readonly edits: Map<string, unknown>
   readonly onChange: (key: string, value: unknown) => void

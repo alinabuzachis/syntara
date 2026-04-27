@@ -9,7 +9,7 @@
  */
 
 /** RFC 9457 Problem Details format */
-export interface ProblemDetails {
+export type ProblemDetails = {
   type: string
   title: string
   detail: string
@@ -49,7 +49,7 @@ export type ApiErrorCode =
   | 'INTERNAL_ERROR'
 
 /** API error format (RFC 9457 + wrappers) */
-export interface ApiError {
+export type ApiError = {
   // RFC 9457 Problem Details fields
   type?: string
   title?: string
@@ -74,7 +74,7 @@ export interface ApiError {
   } // openapi-fetch nested
 }
 
-export interface ApiValidationFieldError {
+export type ApiValidationFieldError = {
   /** Dot-delimited field path (react-hook-form compatible), e.g. "configuration.api_key" */
   field: string
   message: string

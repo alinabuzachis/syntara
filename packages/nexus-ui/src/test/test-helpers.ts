@@ -1,7 +1,7 @@
 import type { Activity } from '@ansible/nexus-contracts'
 
 /** Options for creating a condition fixture with flexible config */
-interface ConditionOverrides {
+type ConditionOverrides = {
   id?: string
   name?: string
   condition?: string

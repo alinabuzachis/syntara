@@ -41,7 +41,7 @@ export type WorkflowDefinition = Omit<WorkflowDefinitionBase, 'triggers' | 'node
  * injection that could bypass type safety in security-sensitive code
  * paths (e.g., executor type detection in detectTaskNodeType).
  */
-export interface ActivityMetadata {
+export type ActivityMetadata = {
   __isGeneric?: boolean
   __customMessage?: string
   __reverseHandles?: boolean
@@ -112,7 +112,7 @@ export function getActivityMetadata(activity: unknown): ActivityMetadata | undef
   return sanitizeMetadata(raw as Record<string, unknown>)
 }
 
-export interface WorkflowStore {
+export type WorkflowStore = {
   currentWorkflow: WorkflowDefinition | null
   /**
    * UI-only counter to force React Flow recomputation.
