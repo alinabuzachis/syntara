@@ -34,7 +34,7 @@ def _mock_audit_dispatcher() -> Generator[MagicMock, None, None]:
 
 @pytest.fixture
 def _mock_audit_emission() -> Generator[None, None, None]:
-    """Prevent @track_event emission side effects in unit tests."""
+    """Prevent @audit emission side effects in unit tests."""
     with patch("nexus.audit.emitter.emit_audit_event"):
         yield
 
@@ -721,7 +721,7 @@ class TestLoginAuditEvents:
         Expected order:
         1. SessionLifecycleEvent -> "session_created" (USER_ACTION, SUCCESS)
         2. LoginAttemptEvent -> "login" (USER_ACTION, SUCCESS, error_type=None)
-        3. @track_event "login" (SECURITY_EVENT, SUCCESS)
+        3. @audit "login" (SECURITY_EVENT, SUCCESS)
         """
         from nexus.audit.dispatcher import AuditEventDispatcher
         from nexus.audit.models.audit_event import AuditEvent, EventCategory, EventStatus
@@ -799,7 +799,7 @@ class TestLoginAuditEvents:
             assert events[1].actor_username == "testuser"
             assert events[1].actor_id == user.id
 
-            # Event 3: @track_event "login"
+            # Event 3: @audit "login"
             assert events[2].event_action == "login"
             assert events[2].event_category == EventCategory.SECURITY_EVENT
             assert events[2].event_status == EventStatus.SUCCESS
@@ -878,7 +878,7 @@ class TestOIDCAuditEvents:
                     assert "auth_error=" in response.headers["location"]
 
                 # Verify audit events were emitted
-                # @track_event emits 1 event + OIDCFlowEvent dispatch = 2 total
+                # @audit emits 1 event + OIDCFlowEvent dispatch = 2 total
                 assert mock_do_emit.call_count == 2
                 events: list[AuditEvent] = [call.args[0] for call in mock_do_emit.call_args_list]
 
@@ -930,7 +930,7 @@ class TestOIDCAuditEvents:
                     assert response.status_code == 302
 
                 # Verify audit events were emitted
-                # @track_event emits 1 event + OIDCFlowEvent dispatch = 2 total
+                # @audit emits 1 event + OIDCFlowEvent dispatch = 2 total
                 assert mock_do_emit.call_count == 2
                 events: list[AuditEvent] = [call.args[0] for call in mock_do_emit.call_args_list]
 
@@ -982,7 +982,7 @@ class TestOIDCAuditEvents:
                     assert response.status_code == 302
 
                 # Verify audit events were emitted
-                # @track_event emits 1 event + OIDCFlowEvent dispatch = 2 total
+                # @audit emits 1 event + OIDCFlowEvent dispatch = 2 total
                 assert mock_do_emit.call_count == 2
                 events: list[AuditEvent] = [call.args[0] for call in mock_do_emit.call_args_list]
 
@@ -1034,7 +1034,7 @@ class TestOIDCAuditEvents:
                     assert response.status_code == 302
 
                 # Verify audit events were emitted
-                # @track_event emits 1 event + OIDCFlowEvent dispatch = 2 total
+                # @audit emits 1 event + OIDCFlowEvent dispatch = 2 total
                 assert mock_do_emit.call_count == 2
                 events: list[AuditEvent] = [call.args[0] for call in mock_do_emit.call_args_list]
 
@@ -1060,7 +1060,7 @@ class TestOIDCAuditEvents:
         2. SessionLifecycleEvent -> "session_created" (USER_ACTION, SUCCESS)
         3. UserLoginEvent -> "user_login" (USER_ACTION, SUCCESS)
         4. LoginAttemptEvent -> "login" (USER_ACTION, SUCCESS, method=OIDC)
-        5. @track_event "oidc_callback" (SECURITY_EVENT, SUCCESS)
+        5. @audit "oidc_callback" (SECURITY_EVENT, SUCCESS)
         """
         from nexus.audit.dispatcher import AuditEventDispatcher
         from nexus.audit.models.audit_event import AuditEvent, EventCategory, EventStatus
@@ -1167,7 +1167,7 @@ class TestOIDCAuditEvents:
                 e3.actor_username,
             ) == ("oidc", "testuser")
 
-            # Event 5: @track_event "oidc_callback" (SECURITY_EVENT, SUCCESS)
+            # Event 5: @audit "oidc_callback" (SECURITY_EVENT, SUCCESS)
             e4 = events[4]
             assert (e4.event_action, e4.event_category, e4.event_status) == (
                 "oidc_callback",

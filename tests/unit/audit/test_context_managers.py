@@ -10,7 +10,7 @@ from uuid import uuid4
 import pytest
 
 from nexus.audit.context_managers import actor_context, audit_context
-from nexus.audit.decorators import track_event
+from nexus.audit.decorators import audit
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.emitter import (
     activity_id_context_var,
@@ -432,14 +432,14 @@ class TestAuditContext:
 
 
 class TestContextManagersWithTrackEventDecorator:
-    """Test context managers working with @track_event decorator."""
+    """Test context managers working with @audit decorator."""
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
-    async def test_actor_context_with_track_event_decorator(self, mock_emit: Mock, test_user: User) -> None:
-        """Test that actor_context provides context for @track_event decorated function."""
+    async def test_actor_context_with_audit_decorator(self, mock_emit: Mock, test_user: User) -> None:
+        """Test that actor_context provides context for @audit decorated function."""
 
         # Arrange
-        @track_event(EventCategory.USER_ACTION, capture_args=True)
+        @audit(EventCategory.USER_ACTION, capture_args=True)
         def test_function(param1: str) -> str:
             return f"result_{param1}"
 
@@ -460,11 +460,11 @@ class TestContextManagersWithTrackEventDecorator:
         assert emitted_event.structured_data.function_args == {"param1": "test_value"}
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
-    async def test_audit_context_with_track_event_decorator_success(self, mock_emit: Mock, test_user: User) -> None:
-        """Test audit_context with @track_event decorated function - success case."""
+    async def test_audit_context_with_audit_decorator_success(self, mock_emit: Mock, test_user: User) -> None:
+        """Test audit_context with @audit decorated function - success case."""
 
         # Arrange
-        @track_event(EventCategory.API_EXECUTION)
+        @audit(EventCategory.API_EXECUTION)
         def test_function() -> str:
             return "success"
 
@@ -498,12 +498,12 @@ class TestContextManagersWithTrackEventDecorator:
         assert context_event.event_status == EventStatus.SUCCESS
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
-    async def test_audit_context_with_track_event_decorator_error(self, mock_emit: Mock) -> None:
-        """Test audit_context with @track_event decorated function - error case."""
+    async def test_audit_context_with_audit_decorator_error(self, mock_emit: Mock) -> None:
+        """Test audit_context with @audit decorated function - error case."""
         # Arrange
         error_msg = "function error"
 
-        @track_event(EventCategory.API_EXECUTION)
+        @audit(EventCategory.API_EXECUTION)
         def test_function() -> str:
             raise RuntimeError(error_msg)
 
@@ -540,12 +540,12 @@ class TestContextManagersWithTrackEventDecorator:
         assert context_event.structured_data.error_type == "RuntimeError"
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
-    async def test_nested_context_managers_with_track_event(self, mock_emit: Mock) -> None:
-        """Test nested actor_context and audit_context with @track_event decorator."""
+    async def test_nested_context_managers_with_audit(self, mock_emit: Mock) -> None:
+        """Test nested actor_context and audit_context with @audit decorator."""
         # Arrange
         test_workflow_id = uuid4()
 
-        @track_event(EventCategory.USER_ACTION, capture_result=True)
+        @audit(EventCategory.USER_ACTION, capture_result=True)
         def test_function(value: str) -> dict[str, str]:
             return {"result": f"processed_{value}"}
 
@@ -571,10 +571,10 @@ class TestContextManagersWithTrackEventDecorator:
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
     async def test_async_function_with_actor_context(self, mock_emit: Mock) -> None:
-        """Test actor_context with async @track_event decorated function."""
+        """Test actor_context with async @audit decorated function."""
 
         # Arrange
-        @track_event(EventCategory.API_EXECUTION)
+        @audit(EventCategory.API_EXECUTION)
         async def async_test_function(param: str) -> str:
             return f"async_result_{param}"
 
@@ -601,7 +601,7 @@ class TestActorContextSanitizationAndTruncation:
     async def test_actor_context_emitted_event_has_sanitized_payload(self, mock_emit: Mock, test_user: User) -> None:
         """Test that sensitive data in captured arguments is redacted when using actor_context."""
 
-        @track_event(EventCategory.USER_ACTION, capture_args=True)
+        @audit(EventCategory.USER_ACTION, capture_args=True)
         def test_function(api_secret: str, name: str) -> str:
             return "ok"
 
@@ -624,7 +624,7 @@ class TestActorContextSanitizationAndTruncation:
     async def test_actor_context_emitted_event_has_truncated_payload(self, mock_emit: Mock, test_user: User) -> None:
         """Test that oversized captured results are truncated when using actor_context."""
 
-        @track_event(EventCategory.USER_ACTION, capture_result=True)
+        @audit(EventCategory.USER_ACTION, capture_result=True)
         def test_function() -> dict[str, str]:
             return {"large_value": "x" * 20_000}
 

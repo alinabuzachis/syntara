@@ -1,4 +1,4 @@
-"""End-to-end audit event lifecycle tests: @track_event -> DB -> AuditEventService."""
+"""End-to-end audit event lifecycle tests: @audit -> DB -> AuditEventService."""
 
 # mypy: disable-error-code="attr-defined"
 
@@ -12,7 +12,7 @@ import pytest_asyncio
 
 import nexus.audit.services.writer as writer_module
 from nexus.audit.context_managers import actor_context
-from nexus.audit.decorators import track_event
+from nexus.audit.decorators import audit
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.events.function_execution import FunctionExecutionEvent, FunctionExecutionHandler
 from nexus.audit.models.audit_event import EventCategory
@@ -45,12 +45,12 @@ def _register_audit_event_handler() -> Any:  # noqa: ANN401
 # ------------------------------------------------------------------ #
 
 
-@track_event(EventCategory.USER_ACTION, event_action="no_capture_action")
+@audit(EventCategory.USER_ACTION, event_action="no_capture_action")
 def _tracked_no_capture(value: int) -> int:
     return value * 2
 
 
-@track_event(
+@audit(
     EventCategory.USER_ACTION,
     event_action="capture_args_action",
     capture_args=True,
@@ -59,7 +59,7 @@ def _tracked_capture_args(alpha: str, beta: int) -> int:
     return len(alpha) + beta
 
 
-@track_event(
+@audit(
     EventCategory.API_EXECUTION,
     event_action="capture_all_action",
     capture_args=True,
@@ -69,7 +69,7 @@ def _tracked_capture_all(name: str, count: int) -> dict[str, Any]:
     return {"name": name, "count": count, "summary": f"{name}x{count}"}
 
 
-@track_event(
+@audit(
     EventCategory.SYSTEM_OPERATION,
     event_action="failing_action",
     capture_args=True,
@@ -182,7 +182,7 @@ async def audit_writer(test_db_session: AsyncSession) -> AsyncGenerator[AuditEve
         ),
     ],
 )
-async def test_track_event_end_to_end(
+async def test_audit_end_to_end(
     call: Callable[[], Any],
     mode: RunMode,
     expected: dict[str, Any],
@@ -190,7 +190,7 @@ async def test_track_event_end_to_end(
     test_db_session: AsyncSession,
     test_user: User,
 ) -> None:
-    """@track_event -> writer -> DB -> AuditEventService, with typed structured_data."""
+    """@audit -> writer -> DB -> AuditEventService, with typed structured_data."""
     with actor_context(actor=test_user):
         if mode == "error":
             with pytest.raises(ValueError):

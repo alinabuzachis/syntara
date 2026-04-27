@@ -99,7 +99,7 @@ def _setup_audit_context(
     """Set up audit context and capture initial data.
 
     IMPORTANT: This function captures actor_context in the returned AuditContext object.
-    This is critical for nested @track_event decorators - the captured actor_context
+    This is critical for nested @audit decorators - the captured actor_context
     must be used for event emission rather than reading from ContextVars, because
     inner decorators' finally blocks reset ContextVars before outer decorators emit.
     """
@@ -217,7 +217,7 @@ def _cleanup_audit_context(audit_context: AuditContext) -> None:
     actor_type_context_var.reset(audit_context.token_actor_type)
 
 
-def track_event[F: Callable[..., Any]](
+def audit[F: Callable[..., Any]](
     event_category: EventCategory,
     event_action: str | None = None,
     source_component: str | None = None,
@@ -238,7 +238,7 @@ def track_event[F: Callable[..., Any]](
     6. System actor (last resort)
 
     NESTED DECORATOR SAFETY:
-    This decorator supports stacking (multiple @track_event decorators on the same function).
+    This decorator supports stacking (multiple @audit decorators on the same function).
     The implementation captures actor context early and uses the captured data for event
     emission rather than reading from ContextVars at emission time. This prevents issues
     where inner decorators' finally blocks reset ContextVars before outer decorators emit.

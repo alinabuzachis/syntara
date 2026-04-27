@@ -40,7 +40,7 @@ The audit framework provides **comprehensive, type-safe event tracking** for cap
 graph TB
     subgraph "Event Sources"
         A1[Domain Events]
-        A2[@track_event Decorator]
+        A2[@audit Decorator]
         A3[audit_context Manager]
         A4[AuditMiddleware]
     end
@@ -83,8 +83,8 @@ graph TB
 | **AuditEventDispatcher** | Type-based event router | `audit/dispatcher.py` |
 | **AuditEventHandler** | Domain event → AuditEvent mapper | `audit/handler.py` |
 | **emit_audit_event** | Central emission point | `audit/emitter.py` |
-| **@track_event** | Function decorator | `audit/decorators.py` |
-| **FunctionExecutionEvent** | Domain event for @track_event | `audit/events/function_execution.py` |
+| **@audit** | Function decorator | `audit/decorators.py` |
+| **FunctionExecutionEvent** | Domain event for @audit | `audit/events/function_execution.py` |
 | **FunctionExecutionHandler** | Maps FunctionExecutionEvent → AuditEvent | `audit/events/function_execution.py` |
 | **audit_context** | Context manager | `audit/context_managers.py` |
 | **AuditContextEvent** | Domain event for audit_context | `audit/events/audit_context.py` |
@@ -156,7 +156,7 @@ erDiagram
 All audit events use the same structured data type (`AuditContextData`) with `model_config = {"extra": "allow"}`. This allows handlers to include domain-specific fields alongside the base fields (`data_type`, `error_type`, `error_message`).
 
 The `data_type` field is a string that identifies the event source for UI/frontend purposes:
-- `"function"` - from `@track_event` decorator (includes `function_args`, `function_result`)
+- `"function"` - from `@audit` decorator (includes `function_args`, `function_result`)
 - `"context"` - from `audit_context` manager (includes arbitrary `**context_data`)
 - `"request_completed"` - from `AuditMiddleware` (includes `method`, `path`, `status_code`, `query_params`, `user_role`)
 - Domain events set custom `data_type` values based on their needs
@@ -283,7 +283,7 @@ sequenceDiagram
     participant Request as HTTP Request
     participant Middleware as AuditMiddleware
     participant Handler as Endpoint Handler
-    participant Decorator as @track_event
+    participant Decorator as @audit
     participant Dispatcher as AuditEventDispatcher
     participant ContextVar as ContextVar Storage
     participant Emitter as emit_audit_event()
@@ -323,7 +323,7 @@ sequenceDiagram
 
 ### Instrumentation Tools
 
-#### 1. @track_event Decorator
+#### 1. @audit Decorator
 
 **Purpose:** Automatic function instrumentation with flexible actor detection.
 
@@ -339,10 +339,10 @@ sequenceDiagram
 **Usage:**
 
 ```python
-from nexus.audit.decorators import track_event
+from nexus.audit.decorators import audit
 from nexus.audit.models.audit_event import EventCategory, EventSeverity
 
-@track_event(
+@audit(
     EventCategory.USER_ACTION,
     event_action="create_workflow",
     source_component="nexus.workflows",
@@ -445,7 +445,7 @@ The audit framework provides **four cascading layers** of instrumentation, each 
 
 ```mermaid
 graph LR
-    A[1. Middleware<br/>Zero Intrusion] --> B[2. @track_event<br/>Minimal Intrusion]
+    A[1. Middleware<br/>Zero Intrusion] --> B[2. @audit<br/>Minimal Intrusion]
     B --> C[3. audit_context<br/>Moderate Intrusion]
     C --> D[4. DomainEvents<br/>High Intrusion]
 ```
@@ -457,7 +457,7 @@ Each layer can coexist — a single HTTP request may generate events from **all 
 | Layer | Code Changes | Developer Burden | Semantic Richness | When to Use |
 |-------|-------------|------------------|-------------------|-------------|
 | **1. Middleware** | None | None (automatic) | HTTP metadata only | Always active - no choice needed |
-| **2. @track_event** | One line decorator | Configure parameters | Function-level execution | Track important function calls without business context |
+| **2. @audit** | One line decorator | Configure parameters | Function-level execution | Track important function calls without business context |
 | **3. audit_context** | Wrap blocks with `with` | Provide context data | Operation-level with custom fields | Track complex operations spanning multiple functions |
 | **4. DomainEvents** | Define events, handlers, dispatch calls | Architectural decisions | Business semantics | Capture business-meaningful events (login failures, state transitions) |
 
@@ -486,7 +486,7 @@ Each layer can coexist — a single HTTP request may generate events from **all 
 All HTTP requests automatically tracked - no action needed
 ```
 
-##### 2. @track_event Decorator (Minimal Intrusion)
+##### 2. @audit Decorator (Minimal Intrusion)
 
 **What it captures:**
 - Function execution success/failure
@@ -508,7 +508,7 @@ All HTTP requests automatically tracked - no action needed
 **Example use-case:**
 ```python
 # Track important operations without writing custom events
-@track_event(
+@audit(
     EventCategory.SYSTEM_OPERATION,
     event_action="database_backup",
     source_component="nexus.maintenance",
@@ -689,7 +689,7 @@ graph TD
     Q2 -->|Yes, business classification needed| A4[Use DomainEvents<br/>Define typed events + handlers]
     Q2 -->|No, just track execution| Q3{Aligns with function boundary?}
 
-    Q3 -->|Yes| A2[Use @track_event decorator<br/>Minimal intrusion]
+    Q3 -->|Yes| A2[Use @audit decorator<br/>Minimal intrusion]
     Q3 -->|No, spans multiple functions| A3[Use audit_context manager<br/>Wrap code block]
 ```
 
@@ -705,7 +705,7 @@ AuditEventDispatcher.dispatch(
 # → event_action="login", event_category=SECURITY_EVENT, severity=WARNING
 
 # Layer 2: Decorator - Function execution
-@track_event(EventCategory.SECURITY_EVENT, event_action="authenticate_user")
+@audit(EventCategory.SECURITY_EVENT, event_action="authenticate_user")
 async def login(body: LoginRequest): ...
 # → event_action="authenticate_user", event_status=ERROR, captures exception
 
@@ -858,15 +858,15 @@ class LoginAttemptHandler(AuditEventHandler[LoginAttemptEvent]):
 For a successful login:
 1. `session_created` — SessionLifecycleEvent (event_status=SUCCESS)
 2. `login` — LoginAttemptEvent (event_status=SUCCESS, error_type=None)
-3. `login` — @track_event decorator via FunctionExecutionEvent (event_status=SUCCESS, event_category=SECURITY_EVENT)
+3. `login` — @audit decorator via FunctionExecutionEvent (event_status=SUCCESS, event_category=SECURITY_EVENT)
 4. `request_completed` — AuditMiddleware
 
 For a failed login (bad password):
 1. `login` — LoginAttemptEvent (event_status=ERROR, error_type=LoginErrorReason.BAD_PASSWORD)
-2. `login` — @track_event decorator via FunctionExecutionEvent (event_status=ERROR, event_category=SECURITY_EVENT)
+2. `login` — @audit decorator via FunctionExecutionEvent (event_status=ERROR, event_category=SECURITY_EVENT)
 3. `request_completed` — AuditMiddleware (401)
 
-**Note:** The `@track_event` decorator now emits a single event per function call. The `FunctionExecutionHandler` determines the event_status (SUCCESS or ERROR) and escalates severity on exceptions. Domain events (LoginAttemptEvent, SessionLifecycleEvent) provide semantic context, while @track_event provides function-level execution tracking.
+**Note:** The `@audit` decorator now emits a single event per function call. The `FunctionExecutionHandler` determines the event_status (SUCCESS or ERROR) and escalates severity on exceptions. Domain events (LoginAttemptEvent, SessionLifecycleEvent) provide semantic context, while @audit provides function-level execution tracking.
 
 ---
 
@@ -874,7 +874,7 @@ For a failed login (bad password):
 
 The Nexus audit framework provides:
 
-✅ **Unified event architecture** - All instrumentation methods (@track_event, audit_context, AuditMiddleware) use AuditEventDispatcher pattern  
+✅ **Unified event architecture** - All instrumentation methods (@audit, audit_context, AuditMiddleware) use AuditEventDispatcher pattern  
 ✅ **Universal structured data** - Single `AuditContextData` type with `extra="allow"` for all audit events  
 ✅ **Type-safe domain events** - Strongly typed domain events mapped to normalized AuditEvent via handlers  
 ✅ **Multiple instrumentation methods** - Decorators, context managers, middleware, and custom domain events  

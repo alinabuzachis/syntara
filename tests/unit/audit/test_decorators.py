@@ -8,7 +8,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from nexus.audit.decorators import track_event
+from nexus.audit.decorators import audit
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.events.function_execution import FunctionExecutionEvent, FunctionExecutionHandler
 from nexus.audit.models.audit_event import ActorType, AuditEvent, EventCategory, EventSeverity, EventStatus
@@ -62,18 +62,18 @@ def _assert_audit_event_fields(
     # Human-readable message
     assert event_obj.event_message == expected_message
 
-    # Event data (structured_data should always be present and be AuditContextData for track_event)
+    # Event data (structured_data should always be present and be AuditContextData for audit)
     assert event_obj.structured_data is not None
     assert isinstance(event_obj.structured_data, AuditContextData)
 
 
 class TestTrackEventDecorator:
-    """Test the track_event decorator functionality."""
+    """Test the audit decorator functionality."""
 
-    def test_track_event_basic_decoration(self) -> None:
+    def test_audit_basic_decoration(self) -> None:
         """Test basic function decoration and execution."""
 
-        @track_event(EventCategory.USER_ACTION)
+        @audit(EventCategory.USER_ACTION)
         def test_function() -> str:
             return "success"
 
@@ -94,10 +94,10 @@ class TestTrackEventDecorator:
                 "Function test_function executed successfully",
             )
 
-    def test_track_event_custom_parameters(self) -> None:
+    def test_audit_custom_parameters(self) -> None:
         """Test decorator with custom action and component."""
 
-        @track_event(EventCategory.WORKFLOW_EVENT, event_action="custom_action", source_component="test.module")
+        @audit(EventCategory.WORKFLOW_EVENT, event_action="custom_action", source_component="test.module")
         def test_function() -> str:
             return "success"
 
@@ -115,10 +115,10 @@ class TestTrackEventDecorator:
                 "Function custom_action executed successfully",
             )
 
-    def test_track_event_argument_capture(self) -> None:
+    def test_audit_argument_capture(self) -> None:
         """Test function argument capture functionality."""
 
-        @track_event(EventCategory.USER_ACTION, capture_args=True)
+        @audit(EventCategory.USER_ACTION, capture_args=True)
         def test_function(arg1: str, arg2: int, kwarg1: str = "default") -> str:
             return f"{arg1}-{arg2}-{kwarg1}"
 
@@ -143,10 +143,10 @@ class TestTrackEventDecorator:
             assert isinstance(function_data, AuditContextData)
             assert function_data.function_args == {"arg1": "test", "arg2": 42, "kwarg1": "custom"}
 
-    def test_track_event_no_argument_capture(self) -> None:
+    def test_audit_no_argument_capture(self) -> None:
         """Test with argument capture disabled."""
 
-        @track_event(EventCategory.USER_ACTION, capture_args=False)
+        @audit(EventCategory.USER_ACTION, capture_args=False)
         def test_function(arg1: str, arg2: int) -> str:
             return f"{arg1}-{arg2}"
 
@@ -172,10 +172,10 @@ class TestTrackEventDecorator:
             assert isinstance(function_data.function_args, dict)
             assert len(function_data.function_args.items()) == 0
 
-    def test_track_event_result_capture(self) -> None:
+    def test_audit_result_capture(self) -> None:
         """Test function result capture functionality."""
 
-        @track_event(EventCategory.USER_ACTION, capture_args=True, capture_result=True)
+        @audit(EventCategory.USER_ACTION, capture_args=True, capture_result=True)
         def test_function(value: str) -> dict[str, str]:
             return {"result": value}
 
@@ -203,10 +203,10 @@ class TestTrackEventDecorator:
             assert function_data.function_args["value"] == "test"
             assert function_data.function_result == {"result": "test"}
 
-    def test_track_event_actor_extraction_from_parameter(self, test_user: User) -> None:
+    def test_audit_actor_extraction_from_parameter(self, test_user: User) -> None:
         """Test actor extraction from function parameters."""
 
-        @track_event(EventCategory.USER_ACTION)
+        @audit(EventCategory.USER_ACTION)
         def test_function(user: User) -> str:
             return "success"
 
@@ -227,10 +227,10 @@ class TestTrackEventDecorator:
                 expected_actor_type=ActorType.USER,
             )
 
-    def test_track_event_actor_param_specification(self, test_user: User) -> None:
+    def test_audit_actor_param_specification(self, test_user: User) -> None:
         """Test explicit actor parameter specification."""
 
-        @track_event(EventCategory.SYSTEM_OPERATION, actor_param="admin")
+        @audit(EventCategory.SYSTEM_OPERATION, actor_param="admin")
         def test_function(admin: User, other_param: str) -> str:
             return "success"
 
@@ -251,10 +251,10 @@ class TestTrackEventDecorator:
                 expected_actor_type=ActorType.USER,
             )
 
-    def test_track_event_system_actor_default(self) -> None:
+    def test_audit_system_actor_default(self) -> None:
         """Test default system actor when no actor can be determined."""
 
-        @track_event(EventCategory.SYSTEM_OPERATION)
+        @audit(EventCategory.SYSTEM_OPERATION)
         def test_function() -> str:
             return "success"
 
@@ -272,10 +272,10 @@ class TestTrackEventDecorator:
                 "Function test_function executed successfully",
             )
 
-    def test_track_event_exception_handling(self) -> None:
+    def test_audit_exception_handling(self) -> None:
         """Test exception handling and error event emission."""
 
-        @track_event(EventCategory.USER_ACTION)
+        @audit(EventCategory.USER_ACTION)
         def test_function(*, should_fail: bool = False) -> str:
             if should_fail:
                 error_msg = "Test error message"
@@ -314,20 +314,20 @@ class TestTrackEventDecorator:
             assert function_data.error_type == "ValueError"
             assert function_data.error_message == "Look at the Operational Logs for full diagnosis"
 
-    def test_track_event_sanitizes_sensitive_data_in_exception_messages(self) -> None:
+    def test_audit_sanitizes_sensitive_data_in_exception_messages(self) -> None:
         """Test that exception messages with sensitive data are sanitized and don't leak into audit events."""
 
-        @track_event(EventCategory.SECURITY_EVENT)
+        @audit(EventCategory.SECURITY_EVENT)
         def test_function_with_password_leak(password: str) -> str:
             msg = f"Invalid password: {password}"
             raise ValueError(msg)
 
-        @track_event(EventCategory.SECURITY_EVENT)
+        @audit(EventCategory.SECURITY_EVENT)
         def test_function_with_token_leak(token: str) -> str:
             msg = f"Token {token} expired"
             raise RuntimeError(msg)
 
-        @track_event(EventCategory.SECURITY_EVENT)
+        @audit(EventCategory.SECURITY_EVENT)
         def test_function_with_api_key_leak(api_key: str) -> str:
             msg = f"Missing API key: {api_key}"
             raise KeyError(msg)
@@ -373,10 +373,10 @@ class TestTrackEventDecorator:
                             f"Sensitive data '{sensitive_pattern}' leaked into field '{field_name}'"
                         )
 
-    def test_track_event_exception_with_args_capture(self) -> None:
+    def test_audit_exception_with_args_capture(self) -> None:
         """Test exception handling with argument capture."""
 
-        @track_event(EventCategory.USER_ACTION, capture_args=True)
+        @audit(EventCategory.USER_ACTION, capture_args=True)
         def test_function(param1: str, param2: int) -> str:
             error_msg = "Function failed"
             raise RuntimeError(error_msg)
@@ -405,11 +405,11 @@ class TestTrackEventDecorator:
             assert function_data.error_message == "Look at the Operational Logs for full diagnosis"
             assert function_data.function_args == {"param1": "test", "param2": 42}
 
-    def test_track_event_async_function_support(self) -> None:
+    def test_audit_async_function_support(self) -> None:
         """Test decorator works with async functions."""
         import asyncio
 
-        @track_event(EventCategory.USER_ACTION)
+        @audit(EventCategory.USER_ACTION)
         async def async_function(value: str) -> str:
             await asyncio.sleep(0)  # Simulate async operation
             return f"async_{value}"
@@ -435,10 +435,10 @@ class TestTrackEventDecorator:
         # Run the async test
         asyncio.run(run_test())
 
-    def test_track_event_argument_capture_failure_fallback(self) -> None:
+    def test_audit_argument_capture_failure_fallback(self) -> None:
         """Test handling of argument capture failures."""
 
-        @track_event(EventCategory.USER_ACTION, capture_args=True, capture_result=True)
+        @audit(EventCategory.USER_ACTION, capture_args=True, capture_result=True)
         def test_function(*args: str) -> str:
             return "success"
 
@@ -468,7 +468,7 @@ class TestTrackEventDecorator:
             # Should contain error indicator instead of raw args/kwargs
             assert function_args == {"capture_error": "Failed to bind function signature"}
 
-    def test_track_event_context_variable_injection(self, test_user: User) -> None:
+    def test_audit_context_variable_injection(self, test_user: User) -> None:
         """Test that context variables are properly injected into events."""
         from nexus.audit.emitter import (
             activity_id_context_var,
@@ -482,7 +482,7 @@ class TestTrackEventDecorator:
         activity_id = "activity-id"
         execution_id = uuid4()
 
-        @track_event(EventCategory.USER_ACTION)
+        @audit(EventCategory.USER_ACTION)
         def test_function() -> str:
             return "success"
 
@@ -523,13 +523,13 @@ class TestTrackEventDecorator:
 
 
 class TestTrackEventEdgeCases:
-    """Test edge cases and error conditions for track_event decorator."""
+    """Test edge cases and error conditions for audit decorator."""
 
-    def test_track_event_multiple_decorators(self) -> None:
-        """Test function with multiple track_event decorators."""
+    def test_audit_multiple_decorators(self) -> None:
+        """Test function with multiple audit decorators."""
 
-        @track_event(EventCategory.USER_ACTION, event_action="outer")
-        @track_event(EventCategory.SYSTEM_OPERATION, event_action="inner")
+        @audit(EventCategory.USER_ACTION, event_action="outer")
+        @audit(EventCategory.SYSTEM_OPERATION, event_action="inner")
         def double_decorated_function() -> str:
             return "success"
 
@@ -550,10 +550,10 @@ class TestTrackEventEdgeCases:
             for call in calls:
                 assert call[0][0].actor_type == ActorType.SYSTEM
 
-    def test_track_event_comprehensive_parameter_usage(self) -> None:
+    def test_audit_comprehensive_parameter_usage(self) -> None:
         """Test decorator with all parameters specified."""
 
-        @track_event(
+        @audit(
             EventCategory.SYSTEM_OPERATION,
             event_action="comprehensive_test",
             source_component="test.comprehensive",
@@ -588,10 +588,10 @@ class TestTrackEventEdgeCases:
             assert function_data.function_args["admin_user"] == "admin"
             assert isinstance(function_data.function_result, dict)
 
-    def test_track_event_with_fastapi_user_object(self, test_user: User) -> None:
+    def test_audit_with_fastapi_user_object(self, test_user: User) -> None:
         """Test actor extraction from FastAPI-style user objects."""
 
-        @track_event(EventCategory.USER_ACTION, capture_args=False)  # Avoid Mock serialization
+        @audit(EventCategory.USER_ACTION, capture_args=False)  # Avoid Mock serialization
         def test_function(current_user: User) -> str:
             return "success"
 
@@ -612,10 +612,10 @@ class TestTrackEventEdgeCases:
                 expected_actor_name=test_user.username,
             )
 
-    def test_track_event_data_sanitization(self) -> None:
+    def test_audit_data_sanitization(self) -> None:
         """Test that structured data goes through sanitization pipeline."""
 
-        @track_event(EventCategory.USER_ACTION, capture_args=True)
+        @audit(EventCategory.USER_ACTION, capture_args=True)
         def test_function(password: str, username: str) -> str:
             return "success"
 
@@ -640,11 +640,11 @@ class TestTrackEventEdgeCases:
             assert function_data.function_args["password"] == "[REDACTED]"  # noqa: S105
             assert function_data.function_args["username"] == "testuser"
 
-    async def test_track_event_async_function_with_result_capture(self) -> None:
+    async def test_audit_async_function_with_result_capture(self) -> None:
         """Test async function with result capture."""
         import asyncio
 
-        @track_event(EventCategory.USER_ACTION, capture_result=True)
+        @audit(EventCategory.USER_ACTION, capture_result=True)
         async def async_function(value: str) -> str:
             await asyncio.sleep(0)  # Simulate async operation
             return f"processed_{value}"
@@ -662,11 +662,11 @@ class TestTrackEventEdgeCases:
             assert isinstance(function_data, AuditContextData)
             assert function_data.function_result == "processed_test_data"
 
-    async def test_track_event_async_function_error_handling(self) -> None:
+    async def test_audit_async_function_error_handling(self) -> None:
         """Test async function error handling and audit event emission."""
         import asyncio
 
-        @track_event(EventCategory.USER_ACTION, capture_args=True)
+        @audit(EventCategory.USER_ACTION, capture_args=True)
         async def async_function_with_error(value: str) -> str:
             await asyncio.sleep(0)  # Simulate async operation before error
             error_msg = "Async function error"
@@ -691,10 +691,10 @@ class TestTrackEventEdgeCases:
             assert function_data.error_message == "Look at the Operational Logs for full diagnosis"
             assert function_data.function_args == {"value": "test"}
 
-    def test_track_event_selective_argument_capture(self) -> None:
+    def test_audit_selective_argument_capture(self) -> None:
         """Test selective argument capture with set of parameter names."""
 
-        @track_event(EventCategory.USER_ACTION, capture_args={"username", "action"})
+        @audit(EventCategory.USER_ACTION, capture_args={"username", "action"})
         def test_function(username: str, password: str, action: str, token: str) -> str:
             return f"{username} performed {action}"
 
@@ -716,10 +716,10 @@ class TestTrackEventEdgeCases:
             assert "password" not in args
             assert "token" not in args
 
-    def test_track_event_selective_result_capture_dict(self) -> None:
+    def test_audit_selective_result_capture_dict(self) -> None:
         """Test selective result capture from dictionary return."""
 
-        @track_event(EventCategory.USER_ACTION, capture_result={"user_id", "status"})
+        @audit(EventCategory.USER_ACTION, capture_result={"user_id", "status"})
         def test_function() -> dict[str, Any]:
             return {
                 "user_id": "123",
@@ -747,7 +747,7 @@ class TestTrackEventEdgeCases:
             assert "token" not in result
             assert "metadata" not in result
 
-    def test_track_event_selective_result_capture_object(self) -> None:
+    def test_audit_selective_result_capture_object(self) -> None:
         """Test selective result capture from object return."""
 
         class UserResult:
@@ -757,7 +757,7 @@ class TestTrackEventEdgeCases:
                 self.password = "secret"  # noqa: S105
                 self.token = "xyz789"  # noqa: S105
 
-        @track_event(EventCategory.USER_ACTION, capture_result={"user_id", "name"})
+        @audit(EventCategory.USER_ACTION, capture_result={"user_id", "name"})
         def test_function() -> UserResult:
             return UserResult()
 
@@ -778,10 +778,10 @@ class TestTrackEventEdgeCases:
             assert "password" not in result
             assert "token" not in result
 
-    def test_track_event_selective_capture_empty_set(self) -> None:
+    def test_audit_selective_capture_empty_set(self) -> None:
         """Test that empty set results in no capture."""
 
-        @track_event(EventCategory.USER_ACTION, capture_args=set(), capture_result=set())
+        @audit(EventCategory.USER_ACTION, capture_args=set(), capture_result=set())
         def test_function(username: str, password: str) -> dict[str, str]:
             return {"result": "data", "sensitive": "info"}
 
@@ -798,10 +798,10 @@ class TestTrackEventEdgeCases:
             assert len(getattr(function_data, "function_args", {}).items()) == 0
             assert getattr(function_data, "function_result", None) is None
 
-    def test_track_event_selective_args_signature_failure(self) -> None:
+    def test_audit_selective_args_signature_failure(self) -> None:
         """Test selective argument capture behavior when signature binding fails."""
 
-        @track_event(EventCategory.USER_ACTION, capture_args={"param1"})
+        @audit(EventCategory.USER_ACTION, capture_args={"param1"})
         def test_function(*args: str, **kwargs: str) -> str:
             return "success"
 
@@ -820,10 +820,10 @@ class TestTrackEventEdgeCases:
             # For selective capture, should return error indicator instead of empty dict
             assert function_data.function_args == {"capture_error": "Failed to bind function signature"}
 
-    def test_track_event_backward_compatibility(self) -> None:
+    def test_audit_backward_compatibility(self) -> None:
         """Test that existing boolean usage still works."""
 
-        @track_event(EventCategory.USER_ACTION, capture_args=True, capture_result=True)
+        @audit(EventCategory.USER_ACTION, capture_args=True, capture_result=True)
         def test_function(username: str, safe_param: str) -> dict[str, str]:
             return {"result": "data", "status": "success"}
 
@@ -839,7 +839,7 @@ class TestTrackEventEdgeCases:
             assert function_data.function_args == {"username": "john", "safe_param": "safe_value"}
             assert function_data.function_result == {"result": "data", "status": "success"}
 
-    async def test_track_event_async_vs_sync_timing(self) -> None:
+    async def test_audit_async_vs_sync_timing(self) -> None:
         """Test event emits after function completes."""
         import asyncio
 
@@ -848,14 +848,14 @@ class TestTrackEventEdgeCases:
         def capture_event(event_obj: AuditEvent) -> None:
             events_captured.append((event_obj.event_action, "emitted"))
 
-        @track_event(EventCategory.USER_ACTION)
+        @audit(EventCategory.USER_ACTION)
         async def async_function() -> str:
             events_captured.append(("async_function", "started"))
             await asyncio.sleep(0)
             events_captured.append(("async_function", "finished"))
             return "async_result"
 
-        @track_event(EventCategory.USER_ACTION)
+        @audit(EventCategory.USER_ACTION)
         def sync_function() -> str:
             events_captured.append(("sync_function", "started"))
             events_captured.append(("sync_function", "finished"))
@@ -891,13 +891,13 @@ class TestTrackEventEdgeCases:
         for call in mock_emit.call_args_list:
             assert call[0][0].actor_type == ActorType.SYSTEM
 
-    async def test_track_event_async_context_variables_cleanup(self) -> None:
+    async def test_audit_async_context_variables_cleanup(self) -> None:
         """Test that async functions properly clean up context variables."""
         import asyncio
 
         from nexus.audit.emitter import actor_context_var, actor_type_context_var
 
-        @track_event(EventCategory.USER_ACTION)
+        @audit(EventCategory.USER_ACTION)
         async def async_function() -> str:
             # Verify context is set during execution (no actor provided defaults to SYSTEM)
             assert actor_context_var.get() is None
@@ -939,10 +939,10 @@ class TestTrackEventEdgeCases:
         assert final_actor == initial_actor
         assert final_actor_type == initial_actor_type
 
-    def test_track_event_string_result_capture_true(self) -> None:
+    def test_audit_string_result_capture_true(self) -> None:
         """Test that capture_result=True captures string return values."""
 
-        @track_event(EventCategory.USER_ACTION, capture_result=True)
+        @audit(EventCategory.USER_ACTION, capture_result=True)
         def test_function() -> str:
             return "Hello World"
 
@@ -958,10 +958,10 @@ class TestTrackEventEdgeCases:
             # Should capture the entire string result
             assert function_data.function_result == "Hello World"
 
-    def test_track_event_string_result_capture_false(self) -> None:
+    def test_audit_string_result_capture_false(self) -> None:
         """Test that capture_result=False does not capture string return values."""
 
-        @track_event(EventCategory.USER_ACTION, capture_result=False)
+        @audit(EventCategory.USER_ACTION, capture_result=False)
         def test_function() -> str:
             return "Hello World"
 
@@ -977,10 +977,10 @@ class TestTrackEventEdgeCases:
             # Should not capture anything
             assert getattr(function_data, "function_result", None) is None
 
-    def test_track_event_string_result_capture_set(self) -> None:
+    def test_audit_string_result_capture_set(self) -> None:
         """Test that capture_result=set does not capture string return values and logs warning."""
 
-        @track_event(EventCategory.USER_ACTION, capture_result={"field1", "field2"})
+        @audit(EventCategory.USER_ACTION, capture_result={"field1", "field2"})
         def test_function() -> str:
             return "Hello World"
 
@@ -1009,12 +1009,12 @@ class TestTrackEventEdgeCases:
 
 
 class TestTrackEventSanitizationAndTruncation:
-    """Test that emitted audit events from @track_event have sanitized and truncated payloads."""
+    """Test that emitted audit events from @audit have sanitized and truncated payloads."""
 
-    def test_track_event_emitted_event_has_sanitized_payload(self) -> None:
+    def test_audit_emitted_event_has_sanitized_payload(self) -> None:
         """Test that sensitive data in captured arguments is redacted in the emitted event."""
 
-        @track_event(EventCategory.USER_ACTION, capture_args=True)
+        @audit(EventCategory.USER_ACTION, capture_args=True)
         def test_function(user_password: str, username: str) -> str:
             return "ok"
 
@@ -1032,10 +1032,10 @@ class TestTrackEventSanitizationAndTruncation:
             # Non-sensitive field should be preserved
             assert function_data.function_args["username"] == "alice"
 
-    def test_track_event_emitted_event_has_truncated_payload(self) -> None:
+    def test_audit_emitted_event_has_truncated_payload(self) -> None:
         """Test that oversized captured results are truncated in the emitted event."""
 
-        @track_event(EventCategory.USER_ACTION, capture_result=True)
+        @audit(EventCategory.USER_ACTION, capture_result=True)
         def test_function() -> dict[str, str]:
             # Return a payload that exceeds DEFAULT_MAX_PAYLOAD_BYTES (10,000)
             return {"large_value": "x" * 20_000}
@@ -1056,10 +1056,10 @@ class TestTrackEventSanitizationAndTruncation:
 class TestEventSeverity:
     """Test event severity override functionality."""
 
-    def test_track_event_default_severity_info(self) -> None:
+    def test_audit_default_severity_info(self) -> None:
         """Test that the default event severity is INFO."""
 
-        @track_event(EventCategory.USER_ACTION)
+        @audit(EventCategory.USER_ACTION)
         def test_function() -> str:
             return "success"
 
@@ -1084,12 +1084,12 @@ class TestEventSeverity:
             (EventSeverity.CRITICAL, EventCategory.SECURITY_EVENT, None, "test_function"),
         ],
     )
-    def test_track_event_severity_override(
+    def test_audit_severity_override(
         self, severity: EventSeverity, category: EventCategory, action: str | None, expected_action: str
     ) -> None:
         """Test that event severity can be overridden for various severity levels."""
 
-        @track_event(category, event_action=action, event_severity=severity)
+        @audit(category, event_action=action, event_severity=severity)
         def test_function() -> str:
             return "success"
 
@@ -1118,12 +1118,12 @@ class TestEventSeverity:
             (EventSeverity.CRITICAL, EventSeverity.CRITICAL),
         ],
     )
-    def test_track_event_severity_escalated_on_error(
+    def test_audit_severity_escalated_on_error(
         self, declared_severity: EventSeverity, expected_error_severity: EventSeverity
     ) -> None:
         """Custom severity is escalated to at least ERROR on exception; CRITICAL is preserved."""
 
-        @track_event(EventCategory.USER_ACTION, event_severity=declared_severity)
+        @audit(EventCategory.USER_ACTION, event_severity=declared_severity)
         def test_function() -> str:
             error_msg = "Test error"
             raise RuntimeError(error_msg)
@@ -1143,11 +1143,11 @@ class TestEventSeverity:
                 expected_status=EventStatus.ERROR,
             )
 
-    async def test_track_event_severity_async_function(self) -> None:
+    async def test_audit_severity_async_function(self) -> None:
         """Test that custom event severity works with async functions."""
         import asyncio
 
-        @track_event(EventCategory.LLM_INTERACTION, event_severity=EventSeverity.ERROR)
+        @audit(EventCategory.LLM_INTERACTION, event_severity=EventSeverity.ERROR)
         async def async_function() -> str:
             await asyncio.sleep(0)
             return "async_result"
@@ -1175,13 +1175,13 @@ class TestEventSeverity:
             (EventSeverity.CRITICAL, EventSeverity.CRITICAL),
         ],
     )
-    async def test_track_event_severity_escalated_on_error_async(
+    async def test_audit_severity_escalated_on_error_async(
         self, declared_severity: EventSeverity, expected_error_severity: EventSeverity
     ) -> None:
         """Custom severity is escalated to at least ERROR on exception in async functions; CRITICAL is preserved."""
         import asyncio
 
-        @track_event(EventCategory.USER_ACTION, event_severity=declared_severity)
+        @audit(EventCategory.USER_ACTION, event_severity=declared_severity)
         async def test_function() -> str:
             await asyncio.sleep(0)
             error_msg = "Test error"
@@ -1209,7 +1209,7 @@ class TestTrackEventAttemptingEvent:
     def test_single_event_emitted_on_success(self) -> None:
         """Only one event is emitted on successful function completion."""
 
-        @track_event(EventCategory.USER_ACTION)
+        @audit(EventCategory.USER_ACTION)
         def test_function() -> str:
             return "success"
 
@@ -1224,7 +1224,7 @@ class TestTrackEventAttemptingEvent:
     def test_single_event_emitted_on_error(self) -> None:
         """Only one event is emitted on function error."""
 
-        @track_event(EventCategory.USER_ACTION)
+        @audit(EventCategory.USER_ACTION)
         def test_function() -> str:
             msg = "test error"
             raise ValueError(msg)
@@ -1241,13 +1241,13 @@ class TestTrackEventAttemptingEvent:
             assert event.event_status == EventStatus.ERROR
 
     def test_nested_decorators_produce_correct_order(self) -> None:
-        """Nested @track_event produces: Complete inner, Complete outer."""
+        """Nested @audit produces: Complete inner, Complete outer."""
 
-        @track_event(EventCategory.USER_ACTION, event_action="outer")
+        @audit(EventCategory.USER_ACTION, event_action="outer")
         def outer_function() -> str:
             return inner_function()
 
-        @track_event(EventCategory.USER_ACTION, event_action="inner")
+        @audit(EventCategory.USER_ACTION, event_action="inner")
         def inner_function() -> str:
             return "done"
 

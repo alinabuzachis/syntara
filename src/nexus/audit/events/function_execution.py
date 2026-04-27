@@ -1,4 +1,4 @@
-"""FunctionExecutionEvent and FunctionExecutionHandler for @track_event decorator."""
+"""FunctionExecutionEvent and FunctionExecutionHandler for @audit decorator."""
 
 from dataclasses import dataclass, field
 from typing import Any
@@ -22,7 +22,7 @@ from nexus.core.models.user import User
 
 @dataclass
 class FunctionExecutionEvent:
-    """Domain event for function execution tracked by @track_event decorator.
+    """Domain event for function execution tracked by @audit decorator.
 
     Captures the complete execution context including arguments, result,
     and error state for audit purposes.

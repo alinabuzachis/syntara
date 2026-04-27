@@ -20,7 +20,7 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.audit.decorators import track_event
+from nexus.audit.decorators import audit
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.models.audit_event import EventCategory
 from nexus.auth.audit.login_attempt import LoginAttemptEvent, LoginErrorReason, LoginMethod
@@ -108,7 +108,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
         401: {"description": "Invalid username or password"},
     },
 )
-@track_event(EventCategory.SECURITY_EVENT)
+@audit(EventCategory.SECURITY_EVENT)
 async def login(
     body: LoginRequest,
     request: Request,
@@ -270,7 +270,7 @@ async def login(
         401: {"description": "Invalid or expired refresh token"},
     },
 )
-@track_event(EventCategory.USER_ACTION)
+@audit(EventCategory.USER_ACTION)
 async def refresh_token(
     raw_refresh_token: Annotated[str, Depends(get_refresh_token)],
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -410,7 +410,7 @@ async def refresh_token(
         401: {"description": "Invalid or expired refresh token"},
     },
 )
-@track_event(EventCategory.SECURITY_EVENT)
+@audit(EventCategory.SECURITY_EVENT)
 async def logout(
     raw_refresh_token: Annotated[str, Depends(get_refresh_token)],
     response: Response,
@@ -506,7 +506,7 @@ async def logout(
         401: {"description": "Invalid or missing authentication"},
     },
 )
-@track_event(EventCategory.USER_ACTION)
+@audit(EventCategory.USER_ACTION)
 async def get_me(
     payload: Annotated[TokenPayload, Depends(get_token_payload)],
 ) -> UserInfo:
@@ -538,7 +538,7 @@ async def get_me(
     """,
     response_description="List of enabled identity providers",
 )
-@track_event(EventCategory.USER_ACTION)
+@audit(EventCategory.USER_ACTION)
 async def list_auth_providers(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> AuthProvidersResponse:
@@ -578,7 +578,7 @@ async def list_auth_providers(
         302: {"description": "Redirect to identity provider or frontend on error"},
     },
 )
-@track_event(EventCategory.SECURITY_EVENT)
+@audit(EventCategory.SECURITY_EVENT)
 async def oidc_authorize(
     provider_id: Annotated[UUID, Query(description="UUID of the identity provider to use")],
     request: Request,
@@ -873,7 +873,7 @@ _OIDC_ERR_USER_FAILED = "Unable to sign in. Contact your administrator."
         401: {"description": "Authentication failed"},
     },
 )
-@track_event(EventCategory.SECURITY_EVENT)
+@audit(EventCategory.SECURITY_EVENT)
 async def oidc_callback(
     state: Annotated[str, Query(description="OIDC state parameter for CSRF protection")],
     request: Request,

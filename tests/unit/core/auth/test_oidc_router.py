@@ -184,7 +184,7 @@ def _mock_audit_dispatcher() -> Generator[MagicMock, None, None]:
 
 @pytest.fixture
 def _mock_audit_emission() -> Generator[None, None, None]:
-    """Prevent @track_event emission side effects in unit tests."""
+    """Prevent @audit emission side effects in unit tests."""
     with patch("nexus.audit.emitter.emit_audit_event"):
         yield
 
