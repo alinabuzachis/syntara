@@ -1,6 +1,7 @@
 """Service for executing invocations decoupled from creation."""
 
 import contextlib
+import os
 import time
 from collections.abc import AsyncGenerator, Callable
 from datetime import UTC, datetime
@@ -22,6 +23,7 @@ from nexus.agent_orchestrator.token_manager.models import UsageDetails, UsageDet
 from nexus.agent_orchestrator.token_manager.repository import TokenUsageRepository
 from nexus.agent_orchestrator.utils.workflow_signal_client import WorkflowSignalClient
 from nexus.audit.emitter import request_id_context_var
+from nexus.core.config.base import get_settings
 from nexus.core.constants import CONTEXT_KEY_FILE_IDS
 from nexus.core.database.session import get_db
 from nexus.core.services.secret_service import create_secret_service
@@ -299,10 +301,16 @@ class InvocationExecutor:
             invocation_model: str | None = str(context["model"]) if context.get("model") else None
 
             # Resolve API key via deferred credential resolution (no plaintext in DB).
+            # Falls back to settings.openrouter_api_key only when
+            # E2E_LLM_CREDENTIAL_CONFIGURED is set (e2e testing without stored credentials).
             credential_id = metadata.get("credential_id")
             credential_api_key: str | None = None
             if credential_id:
                 credential_api_key = await self._resolve_llm_api_key(str(credential_id), session)
+            elif os.environ.get("E2E_LLM_CREDENTIAL_CONFIGURED"):
+                _settings = get_settings()
+                if _settings.openrouter_api_key:
+                    credential_api_key = _settings.openrouter_api_key.get_secret_value()
 
             llm = get_openrouter_llm(
                 api_key=credential_api_key,

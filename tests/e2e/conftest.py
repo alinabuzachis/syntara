@@ -95,7 +95,11 @@ def auditor_client(
         user_id=user_id,
         body=SubResourceRoleAssignmentCreate(role_name="auditor"),
     )
-    if role_resp.status_code not in (HTTPStatus.CREATED, HTTPStatus.CONFLICT):
+    if role_resp.status_code not in (
+        HTTPStatus.CREATED,
+        HTTPStatus.CONFLICT,
+        HTTPStatus.UNPROCESSABLE_ENTITY,  # role already assigned
+    ):
         pytest.fail(f"Failed to assign auditor role: {role_resp.status_code} {role_resp.content!r}")
 
     login_resp = httpx.post(

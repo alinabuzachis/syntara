@@ -136,10 +136,12 @@ jobs:
         run: |
           kubectl set env deployment/myaap-ao-api \
             APP_OPENROUTER_API_KEY="${APP_OPENROUTER_API_KEY}" \
-            APP_OPENROUTER_MODEL="${APP_OPENROUTER_MODEL}"
+            APP_OPENROUTER_MODEL="${APP_OPENROUTER_MODEL}" \
+            E2E_LLM_CREDENTIAL_CONFIGURED=1
           kubectl set env deployment/myaap-ao-worker \
             APP_OPENROUTER_API_KEY="${APP_OPENROUTER_API_KEY}" \
-            APP_OPENROUTER_MODEL="${APP_OPENROUTER_MODEL}"
+            APP_OPENROUTER_MODEL="${APP_OPENROUTER_MODEL}" \
+            E2E_LLM_CREDENTIAL_CONFIGURED=1
         env:
           APP_OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           APP_OPENROUTER_MODEL: moonshotai/kimi-k2.6
@@ -185,6 +187,7 @@ jobs:
           APP_WORKER_BASE_URL: http://myaap-ao-api:8000
           APP_OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           APP_OPENROUTER_MODEL: moonshotai/kimi-k2.6
+          E2E_LLM_CREDENTIAL_CONFIGURED: 1
           SEGMENT_SERVER_URL: http://localhost:9999
 
       - name: Show service logs on failure

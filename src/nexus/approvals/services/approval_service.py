@@ -9,12 +9,17 @@ import asyncio
 import builtins
 from collections.abc import Iterable
 from datetime import UTC, datetime
-from typing import cast
+from typing import TYPE_CHECKING, cast
 from uuid import UUID
 
 import structlog
+from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
+
+if TYPE_CHECKING:
+    from sqlalchemy import Select
+    from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
 from nexus.approvals.clients.workflow_client import WorkflowApiClient
 from nexus.approvals.exceptions import ApprovalAlreadyDecidedError, ApprovalAlreadyRequestedError, ApprovalNotFoundError
@@ -35,9 +40,20 @@ from nexus.approvals.models import (
 from nexus.authz.engine import AllowedProjectsResult
 from nexus.core.models import User
 from nexus.core.services import BaseService
-from nexus.core.services.extensions import ConvertResourceMixin
+from nexus.core.services.extensions import ConvertResourceMixin, EnrichQueryMixin
 
 logger = structlog.stdlib.get_logger(__name__)
+
+
+class ApprovalEnrichQuery(EnrichQueryMixin):
+    """Eagerly load the decider relationship to avoid lazy-load in async context."""
+
+    def enrich(  # type: ignore[override]
+        self,
+        query: "Select[tuple[ApprovalRequest]] | SelectOfScalar[tuple[ApprovalRequest]]",
+    ) -> "Select[tuple[ApprovalRequest]] | SelectOfScalar[tuple[ApprovalRequest]]":
+        """Add selectinload for the decider relationship."""
+        return query.options(selectinload(ApprovalRequest.decider))  # type: ignore[arg-type]
 
 
 class ApprovalServiceConvertResourceMixin(ConvertResourceMixin):
@@ -56,9 +72,21 @@ class ApprovalServiceConvertResourceMixin(ConvertResourceMixin):
         # Create the ApprovalRequestRead instance with the base data
         result = ApprovalRequestRead(**resource_data)
 
-        # Set the decided_by field with UserReference if there's a decider
-        if resource.decider is not None:
-            result.decided_by = UserReference(id=resource.decider.id, name=resource.decider.full_name)
+        # Set the decided_by field with UserReference if there's a decider.
+        # Check the FK column first to avoid triggering a lazy load (which
+        # fails in async context with MissingGreenlet).  The decider
+        # relationship may still be None after selectinload if the session
+        # state was reset (e.g. after commit in decide()), so fall back to
+        # the current user when the decider matches.
+        if resource.decided_by is not None:
+            decider = getattr(resource, "decider", None)
+            if decider is not None:
+                decider_name = decider.full_name
+            elif resource.decided_by == self.user.id:
+                decider_name = self.user.full_name
+            else:
+                decider_name = ""
+            result.decided_by = UserReference(id=resource.decided_by, name=decider_name)
 
         return result
 
@@ -72,7 +100,12 @@ class ApprovalService(BaseService):
 
     def __init__(self, session: AsyncSession, user: User) -> None:
         """Initialize ApprovalService with database session and user context."""
-        super().__init__(session, user, convert_resource_mixin=ApprovalServiceConvertResourceMixin(user))
+        super().__init__(
+            session,
+            user,
+            convert_resource_mixin=ApprovalServiceConvertResourceMixin(user),
+            enrich_query_mixin=ApprovalEnrichQuery(),
+        )
 
     async def list(
         self,
@@ -110,7 +143,11 @@ class ApprovalService(BaseService):
         )
 
     async def _get_approval_by_id(self, approval_id: UUID) -> ApprovalRequest | None:
-        query = select(ApprovalRequest).where(ApprovalRequest.id == approval_id)
+        query = (
+            select(ApprovalRequest)
+            .where(ApprovalRequest.id == approval_id)
+            .options(selectinload(ApprovalRequest.decider))  # type: ignore[arg-type]
+        )
         result = await self.session.exec(query)
         return result.one_or_none()
 

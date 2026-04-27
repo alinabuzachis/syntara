@@ -54,10 +54,10 @@ def _run_workflow(
     list_resp = api.workflows.list(additional_params={"name": name})
     assert list_resp.is_success
     assert list_resp.parsed is not None
-    existing = [w for w in list_resp.parsed.resources if w["name"] == name]
+    existing = [w for w in list_resp.parsed.resources if w.name == name]
 
     if existing:
-        wf_id = UUID(existing[0]["id"])
+        wf_id = existing[0].id
         api.workflows.update(workflow_id=wf_id, body=WorkflowUpdate(workflow_definition=definition))
     else:
         create = api.workflows.create(

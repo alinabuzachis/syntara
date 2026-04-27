@@ -84,6 +84,9 @@ until curl -sf http://localhost:8000/health 2>/dev/null | grep -q '"status":"hea
 done
 echo "✅ API server is ready"
 
+echo "🔧 Creating system user..."
+uv run python tools/create_system_user.py
+
 SEGMENT_SERVER_URL="http://localhost:${SEGMENT_SERVER_PORT}" \
 APP_BASE_URL="${APP_BASE_URL:-http://localhost:8000}" \
 uv run pytest "${PYTEST_ARGS[@]}"
