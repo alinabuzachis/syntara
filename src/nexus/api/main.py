@@ -69,7 +69,6 @@ from nexus.metrics.middleware import MetricsMiddleware
 from nexus.metrics.openmetrics import openmetrics_endpoint
 from nexus.settings.cache.settings_cache import SettingsCache, set_runtime_settings
 from nexus.telemetry.client import flush_telemetry, get_telemetry_registry, initialize_telemetry
-from nexus.telemetry.middleware import AnalyticsMiddleware
 from nexus.telemetry.periodic_collector import PeriodicCollector
 from nexus.workflows.error_handlers import (
     temporal_rpc_error_handler,
@@ -289,15 +288,8 @@ app.add_middleware(
 # Added after CORS so it can set X-Token-Stale header on responses.
 app.add_middleware(StaleTokenMiddleware)
 
-# Register analytics middleware.
-# Added after CORS so it wraps the entire request lifecycle.
-# Telemetry is initialized asynchronously in the lifespan handler;
-# the middleware uses the registry which will be populated by that point.
-app.add_middleware(AnalyticsMiddleware, registry=get_telemetry_registry())
-
 # Register metrics middleware (outermost = first to execute).
-# Added after analytics so it captures full request duration including
-# analytics overhead.  Records REQUEST_DURATION and ERROR metrics.
+# Records REQUEST_DURATION and ERROR metrics.
 app.add_middleware(MetricsMiddleware, recorder=get_metrics_recorder())
 
 # Register audit middleware.

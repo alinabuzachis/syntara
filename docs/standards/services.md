@@ -117,12 +117,12 @@ Middleware registration order and execution order are **reversed** in FastAPI (l
 
 **Registration order** (as written in `main.py`):
 1. `CORSMiddleware`
-2. `AnalyticsMiddleware` (Segment telemetry)
-3. `MetricsMiddleware` (Prometheus)
+2. `MetricsMiddleware` (Prometheus)
+3. `AuditMiddleware` (audit events + Segment telemetry via dispatcher)
 
 **Execution order** (at runtime):
-1. `MetricsMiddleware` — outermost, measures full request duration including other middleware
-2. `AnalyticsMiddleware` — captures API call telemetry
+1. `AuditMiddleware` — outermost, emits audit events (including `api_call` telemetry via `APICallTelemetryHandler`)
+2. `MetricsMiddleware` — measures request duration, records Prometheus metrics
 3. `CORSMiddleware` — handles CORS headers
 
 ## Periodic Workers

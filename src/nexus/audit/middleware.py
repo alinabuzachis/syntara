@@ -13,6 +13,7 @@ so downstream middleware, handlers, and telemetry can access it.
 from __future__ import annotations
 
 import contextlib
+import time
 from http import HTTPStatus
 from posixpath import normpath
 from typing import TYPE_CHECKING, Any
@@ -21,7 +22,7 @@ from uuid import UUID
 
 import structlog
 
-from nexus.api.constants import EXCLUDED_PATHS
+from nexus.api.constants import EXCLUDED_PATH_PREFIXES, EXCLUDED_PATHS
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.emitter import (
     execution_id_context_var,
@@ -256,18 +257,22 @@ class AuditMiddleware:
 
         path: str = self._normalize_path(scope["path"])
 
-        if path in EXCLUDED_PATHS:
+        if path in EXCLUDED_PATHS or path.startswith(EXCLUDED_PATH_PREFIXES):
             await self.app(scope, receive, send)
             return
 
-        # Extract X-Request-Id from incoming headers and propagate via ContextVar.
+        # Extract X-Request-Id and content-length from incoming headers.
         # Only valid UUID values are accepted; malformed values are silently ignored.
         request_id: UUID | None = None
+        request_payload_size: int = 0
         for header_name, header_value in scope.get("headers", []):
-            if header_name.lower() == _REQUEST_ID_HEADER:
+            lower_name = header_name.lower()
+            if lower_name == _REQUEST_ID_HEADER:
                 with contextlib.suppress(ValueError, UnicodeDecodeError):
                     request_id = UUID(header_value.decode("latin-1"))
-                break
+            elif lower_name == b"content-length":
+                with contextlib.suppress(ValueError, TypeError):
+                    request_payload_size = int(header_value)
         token = request_id_context_var.set(request_id)
 
         # Fail-closed: default to 500 so a downstream app that returns without
@@ -275,6 +280,7 @@ class AuditMiddleware:
         # than silently emitting a SUCCESS/INFO event for an un-observed
         # response.
         status_code: int = HTTPStatus.INTERNAL_SERVER_ERROR
+        start_time = time.monotonic()
 
         async def send_wrapper(message: Message) -> None:
             nonlocal status_code
@@ -290,8 +296,9 @@ class AuditMiddleware:
             status_code = HTTPStatus.INTERNAL_SERVER_ERROR
             raise
         finally:
+            response_time_ms = int((time.monotonic() - start_time) * 1000)
             # Emit audit event for request completion (success or error)
-            self._emit_completed(scope, path, status_code)
+            self._emit_completed(scope, path, status_code, response_time_ms, request_payload_size)
             request_id_context_var.reset(token)
 
     def _emit_completed(
@@ -299,6 +306,8 @@ class AuditMiddleware:
         scope: Scope,
         path: str,
         status_code: int,
+        response_time_ms: int,
+        request_payload_size: int,
     ) -> None:
         """Emit a ``request_completed`` audit event via dispatcher.
 
@@ -309,6 +318,8 @@ class AuditMiddleware:
             scope: ASGI connection scope with resolved routing context.
             path: Normalized request path.
             status_code: Response status code.
+            response_time_ms: Response time in milliseconds.
+            request_payload_size: Request body size in bytes from Content-Length.
 
         """
         try:
@@ -341,6 +352,8 @@ class AuditMiddleware:
                 workflow_id=workflow_id_value if isinstance(workflow_id_value, UUID) else None,
                 execution_id=execution_id_value if isinstance(execution_id_value, UUID) else None,
                 activity_id=activity_id_value if isinstance(activity_id_value, str) else None,
+                response_time_ms=response_time_ms,
+                request_payload_size=request_payload_size,
             )
 
             AuditEventDispatcher.dispatch(event)

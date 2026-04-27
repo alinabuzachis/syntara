@@ -38,6 +38,8 @@ class HTTPRequestEvent:
     workflow_id: UUID | None = field(default=None)
     execution_id: UUID | None = field(default=None)
     activity_id: str | None = field(default=None)
+    response_time_ms: int = field(default=0)
+    request_payload_size: int = field(default=0)
 
 
 # ---------------------------------------------------------------------------
@@ -66,6 +68,8 @@ class HTTPRequestHandler(AuditEventHandler[HTTPRequestEvent]):
             status_code=event.status_code,
             query_params=event.query_params,
             user_role=event.user_role,
+            response_time_ms=event.response_time_ms,
+            request_payload_size=event.request_payload_size,
         )
 
         # Derive severity and status from HTTP status code
