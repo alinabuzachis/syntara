@@ -24,7 +24,7 @@ import type { ProjectPolicyRead } from '../../access/types'
 import { addProjectPolicySchema, policyStatementSchema } from './addProjectPolicySchema'
 import type { AddProjectPolicyFormData } from './addProjectPolicySchema'
 
-type EditProjectPolicyDialogProps = {
+interface EditProjectPolicyDialogProps {
   projectId: string
   policy: ProjectPolicyRead
   onClose: () => void

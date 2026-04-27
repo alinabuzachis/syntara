@@ -32,7 +32,7 @@ describe('aapFormSchema', () => {
       diff_mode: true,
       execution_environment: 'Default EE',
       instance_groups: 'group1',
-      labels: 'prod,deploy',
+      labels: ['prod', 'deploy'],
     })
     expect(result.success).toBe(true)
   })
@@ -53,7 +53,7 @@ describe('aapFormSchema', () => {
     }
   })
 
-  it('rejects empty job_template_name', () => {
+  it('rejects empty jobTemplateName', () => {
     const result = aapFormSchema.safeParse({ ...validBase, job_template_name: '' })
     expect(result.success).toBe(false)
     if (!result.success) {

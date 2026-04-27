@@ -1,0 +1,285 @@
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { FormProvider, useForm } from 'react-hook-form'
+import { describe, expect, it, vi } from 'vitest'
+
+import type { useAAPBrowser } from '../../../hooks/useAAPBrowser'
+
+import type { AAPFormData } from './aapFormSchema'
+import { AAPResourcePickers } from './AAPResourcePickers'
+
+// Mock dependencies
+vi.mock('../../../components/CredentialSelector', () => ({
+  CredentialSelector: ({
+    label,
+    onChange,
+    value,
+  }: {
+    label: string
+    onChange: (v: number) => void
+    value?: number
+  }) => (
+    <div data-testid="credential-selector">
+      {label}
+      <button onClick={() => onChange(123)}>Select Credential</button>
+      {value && <span>Value: {value}</span>}
+    </div>
+  ),
+}))
+
+vi.mock('../../../components/credentialSelectorHelpText', () => ({
+  credentialHelpText: (text: string) => text,
+}))
+
+vi.mock('../../../utils/apiErrors', () => ({
+  getErrorMessage: (error: Error) => error.message,
+  isRetryableError: () => true,
+}))
+
+vi.mock('../../../utils/urlValidation', () => ({
+  isValidAAPTemplateURL: (url: string) => url.startsWith('https://'),
+}))
+
+vi.mock('./AAPTypeaheadSelect', () => ({
+  AAPTypeaheadSelect: ({
+    options,
+    onChange,
+    placeholder,
+    selected,
+    ariaLabel,
+  }: {
+    options: Array<{ value: string; label: string }>
+    onChange: (v: string) => void
+    placeholder: string
+    selected: string
+    ariaLabel: string
+  }) => (
+    <div data-testid={`typeahead-${ariaLabel.toLowerCase()}`}>
+      <input
+        aria-label={ariaLabel}
+        value={selected}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      {options.map((opt) => (
+        <button key={opt.value} onClick={() => onChange(opt.value)}>
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  ),
+}))
+
+function TestWrapper({ children, defaultValues }: { children: React.ReactNode; defaultValues?: Partial<AAPFormData> }) {
+  const methods = useForm<AAPFormData>({
+    defaultValues,
+  })
+  return <FormProvider {...methods}>{children}</FormProvider>
+}
+
+function createMockBrowser(overrides?: Partial<ReturnType<typeof useAAPBrowser>>): ReturnType<typeof useAAPBrowser> {
+  return {
+    organizations: [
+      { id: 1, name: 'Org 1' },
+      { id: 2, name: 'Org 2' },
+    ],
+    jobTemplates: [
+      { id: 1, name: 'Template 1', description: 'Desc 1' },
+      { id: 2, name: 'Template 2', description: null },
+    ],
+    selectOrganization: vi.fn(),
+    selectJobTemplate: vi.fn(),
+    searchOrganizations: vi.fn(),
+    searchJobTemplates: vi.fn(),
+    loadingOrgs: false,
+    loadingTemplates: false,
+    error: null,
+    retryAll: vi.fn(),
+    templateDetail: null,
+    ...overrides,
+  } as ReturnType<typeof useAAPBrowser>
+}
+
+describe('AAPResourcePickers', () => {
+  it('renders credential selector', () => {
+    const browser = createMockBrowser()
+    render(
+      <TestWrapper>
+        <AAPResourcePickers browser={browser} />
+      </TestWrapper>
+    )
+
+    expect(screen.getByTestId('credential-selector')).toBeInTheDocument()
+    expect(screen.getByText('Authentication credential')).toBeInTheDocument()
+  })
+
+  it('renders organization selector with options', () => {
+    const browser = createMockBrowser()
+    render(
+      <TestWrapper>
+        <AAPResourcePickers browser={browser} />
+      </TestWrapper>
+    )
+
+    expect(screen.getByLabelText('Organization')).toBeInTheDocument()
+    expect(screen.getByText('Org 1')).toBeInTheDocument()
+    expect(screen.getByText('Org 2')).toBeInTheDocument()
+  })
+
+  it('renders job template selector with options', () => {
+    const browser = createMockBrowser()
+    render(
+      <TestWrapper>
+        <AAPResourcePickers browser={browser} />
+      </TestWrapper>
+    )
+
+    expect(screen.getByLabelText('Job template')).toBeInTheDocument()
+    expect(screen.getByText('Template 1')).toBeInTheDocument()
+    expect(screen.getByText('Template 2')).toBeInTheDocument()
+  })
+
+  it('calls selectOrganization when organization is changed', async () => {
+    const user = userEvent.setup()
+    const selectOrganization = vi.fn()
+    const browser = createMockBrowser({ selectOrganization })
+
+    render(
+      <TestWrapper>
+        <AAPResourcePickers browser={browser} />
+      </TestWrapper>
+    )
+
+    const orgButton = screen.getByRole('button', { name: 'Org 1' })
+    await user.click(orgButton)
+
+    expect(selectOrganization).toHaveBeenCalledWith('Org 1')
+  })
+
+  it('calls selectJobTemplate when template is changed', async () => {
+    const user = userEvent.setup()
+    const selectJobTemplate = vi.fn()
+    const browser = createMockBrowser({ selectJobTemplate })
+
+    render(
+      <TestWrapper>
+        <AAPResourcePickers browser={browser} />
+      </TestWrapper>
+    )
+
+    const templateButton = screen.getByRole('button', { name: 'Template 1' })
+    await user.click(templateButton)
+
+    expect(selectJobTemplate).toHaveBeenCalledWith(1)
+  })
+
+  it('displays error alert when browser has error', () => {
+    const browser = createMockBrowser({ error: new Error('Failed to load resources') })
+
+    render(
+      <TestWrapper>
+        <AAPResourcePickers browser={browser} />
+      </TestWrapper>
+    )
+
+    expect(screen.getByText('Failed to load AAP resources')).toBeInTheDocument()
+    expect(screen.getByText('Failed to load resources')).toBeInTheDocument()
+  })
+
+  it('shows retry button for retryable errors', async () => {
+    const user = userEvent.setup()
+    const retryAll = vi.fn()
+    const browser = createMockBrowser({
+      error: new Error('Network error'),
+      retryAll,
+    })
+
+    render(
+      <TestWrapper>
+        <AAPResourcePickers browser={browser} />
+      </TestWrapper>
+    )
+
+    const retryButton = screen.getByRole('button', { name: /retry/i })
+    await user.click(retryButton)
+
+    expect(retryAll).toHaveBeenCalled()
+  })
+
+  it('displays template link when template detail has valid URL', () => {
+    const browser = createMockBrowser({
+      templateDetail: {
+        id: 1,
+        url: 'https://aap.example.com/templates/1',
+      } as NonNullable<ReturnType<typeof useAAPBrowser>['templateDetail']>,
+    })
+
+    render(
+      <TestWrapper defaultValues={{ job_template_name: 'Template 1' }}>
+        <AAPResourcePickers browser={browser} />
+      </TestWrapper>
+    )
+
+    const link = screen.getByRole('link', { name: /view job template in aap/i })
+    expect(link).toHaveAttribute('href', 'https://aap.example.com/templates/1')
+    expect(link).toHaveAttribute('target', '_blank')
+  })
+
+  it('does not display template link for invalid URLs', () => {
+    const browser = createMockBrowser({
+      templateDetail: {
+        id: 1,
+        url: 'invalid-url',
+      } as NonNullable<ReturnType<typeof useAAPBrowser>['templateDetail']>,
+    })
+
+    render(
+      <TestWrapper defaultValues={{ job_template_name: 'Template 1' }}>
+        <AAPResourcePickers browser={browser} />
+      </TestWrapper>
+    )
+
+    expect(screen.queryByRole('link', { name: /view job template in aap/i })).not.toBeInTheDocument()
+  })
+
+  it('passes projectId to CredentialSelector', () => {
+    const browser = createMockBrowser()
+
+    render(
+      <TestWrapper>
+        <AAPResourcePickers browser={browser} projectId="proj-123" />
+      </TestWrapper>
+    )
+
+    // CredentialSelector is rendered - we can verify via its presence
+    expect(screen.getByTestId('credential-selector')).toBeInTheDocument()
+  })
+
+  it('maps organizations to options correctly', () => {
+    const browser = createMockBrowser()
+
+    render(
+      <TestWrapper>
+        <AAPResourcePickers browser={browser} />
+      </TestWrapper>
+    )
+
+    // Options should include all organizations
+    expect(screen.getByText('Org 1')).toBeInTheDocument()
+    expect(screen.getByText('Org 2')).toBeInTheDocument()
+  })
+
+  it('maps job templates to options with descriptions', () => {
+    const browser = createMockBrowser()
+
+    render(
+      <TestWrapper>
+        <AAPResourcePickers browser={browser} />
+      </TestWrapper>
+    )
+
+    // Both templates should be rendered
+    expect(screen.getByText('Template 1')).toBeInTheDocument()
+    expect(screen.getByText('Template 2')).toBeInTheDocument()
+  })
+})

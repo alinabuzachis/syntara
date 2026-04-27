@@ -11,11 +11,11 @@ import { buildFilterParams } from '../utils/filterUtils'
 /**
  * Options for useFilteredQuery hook
  */
-export interface UseFilteredQueryOptions<
+export type UseFilteredQueryOptions<
   Paths extends Record<string, Record<HttpMethod, object>>,
   Method extends HttpMethod,
   Path extends PathsWithMethod<Paths, Method>,
-> {
+> = {
   /** API client (e.g., workflowClient, executionsClient) */
   client: {
     useQuery: <
@@ -66,7 +66,7 @@ type FilterPaths<Paths, Path, Method> =
 /**
  * Result from useFilteredQuery hook
  */
-export interface UseFilteredQueryResult<TData> {
+export type UseFilteredQueryResult<TData> = {
   /** Query response data */
   data: TData | undefined
   /** Query error */

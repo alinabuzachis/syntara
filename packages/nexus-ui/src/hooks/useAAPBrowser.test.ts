@@ -163,8 +163,8 @@ describe('useAAPBrowser', () => {
       result.current.retryAll()
     })
 
-    // Seven queries (orgs, templates, inventories, template detail, exec envs, credentials, instance groups) each call refetch
-    expect(mockRefetch).toHaveBeenCalledTimes(7)
+    // Eight queries (orgs, templates, inventories, template detail, exec envs, credentials, instance groups, labels) each call refetch
+    expect(mockRefetch).toHaveBeenCalledTimes(8)
   })
 
   it('returns data from successful queries', () => {

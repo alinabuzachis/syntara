@@ -21,7 +21,7 @@ import { detachPromise } from '../utils/detachPromise'
 
 import { FormLabelWithHelp } from './FormLabelWithHelp'
 
-export type CredentialSelectorProps = {
+export interface CredentialSelectorProps {
   /** Currently selected credential ID */
   value?: string
   /** Callback when selection changes */
@@ -74,7 +74,7 @@ function buildTypeGroups(credentials: Credential[], credentialTypes: CredentialT
   return Array.from(groupMap.values())
 }
 
-type TypeGroup = {
+interface TypeGroup {
   typeId: string
   typeName: string
   credentials: Credential[]

@@ -28,7 +28,7 @@ function isWorkflowQuery(query: Query): boolean {
   )
 }
 
-export type UseBuilderSaveWorkflowParams = {
+export interface UseBuilderSaveWorkflowParams {
   currentWorkflow: WorkflowDefinition | null
   workflowName: string
   workflowDescription: string

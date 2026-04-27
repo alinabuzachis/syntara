@@ -22,7 +22,7 @@ vi.mock('../../../components/ExpandableCodeEditor', () => ({
   }) => (
     <textarea
       data-testid="extra-vars-editor"
-      id="aap-extraVars"
+      id="aap-extra_vars"
       value={code}
       onChange={(e) => onCodeChange(e.target.value)}
       onBlur={(e) => onBlur?.(e.currentTarget.value)}
@@ -73,6 +73,11 @@ const mockInstanceGroups = [
   { id: 2, name: 'controlplane' },
 ]
 
+const mockLabels = [
+  { id: 1, name: 'Production' },
+  { id: 2, name: 'Critical' },
+]
+
 const defaultTemplateDetail = {
   id: 10,
   name: 'Deploy App',
@@ -94,6 +99,7 @@ const defaultTemplateDetail = {
   ask_timeout_on_launch: false,
   survey_enabled: false,
   url: 'https://aap.example.com/execution/templates/job-template/10/details',
+  default_labels: [] as Array<{ id: number; name: string }>,
 }
 
 describe('AAPPromptOnLaunchFields', () => {
@@ -123,6 +129,9 @@ describe('AAPPromptOnLaunchFields', () => {
           onSearchExecutionEnvironments={vi.fn()}
           onSearchCredentials={vi.fn()}
           onSearchInstanceGroups={vi.fn()}
+          labels={[]}
+          loadingLabels={false}
+          onSearchLabels={vi.fn()}
         />
       </TestWrapper>
     )
@@ -151,6 +160,9 @@ describe('AAPPromptOnLaunchFields', () => {
           onSearchExecutionEnvironments={vi.fn()}
           onSearchCredentials={vi.fn()}
           onSearchInstanceGroups={vi.fn()}
+          labels={[]}
+          loadingLabels={false}
+          onSearchLabels={vi.fn()}
         />
       </TestWrapper>
     )
@@ -179,6 +191,9 @@ describe('AAPPromptOnLaunchFields', () => {
           onSearchExecutionEnvironments={vi.fn()}
           onSearchCredentials={vi.fn()}
           onSearchInstanceGroups={vi.fn()}
+          labels={[]}
+          loadingLabels={false}
+          onSearchLabels={vi.fn()}
         />
       </TestWrapper>
     )
@@ -207,11 +222,14 @@ describe('AAPPromptOnLaunchFields', () => {
           onSearchExecutionEnvironments={vi.fn()}
           onSearchCredentials={vi.fn()}
           onSearchInstanceGroups={vi.fn()}
+          labels={[]}
+          loadingLabels={false}
+          onSearchLabels={vi.fn()}
         />
       </TestWrapper>
     )
 
-    expect(screen.getByPlaceholderText(/Use default inventory/i)).toBeInTheDocument()
+    expect(screen.getByPlaceholderText(/No default inventory/i)).toBeInTheDocument()
   })
 
   it('renders credentials field when ask_credential_on_launch is true', () => {
@@ -235,11 +253,14 @@ describe('AAPPromptOnLaunchFields', () => {
           onSearchExecutionEnvironments={vi.fn()}
           onSearchCredentials={vi.fn()}
           onSearchInstanceGroups={vi.fn()}
+          labels={[]}
+          loadingLabels={false}
+          onSearchLabels={vi.fn()}
         />
       </TestWrapper>
     )
 
-    expect(screen.getByRole('button', { name: /Use default credentials/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /No default credentials/i })).toBeInTheDocument()
   })
 
   it('renders execution environment field when ask_execution_environment_on_launch is true', () => {
@@ -263,11 +284,14 @@ describe('AAPPromptOnLaunchFields', () => {
           onSearchExecutionEnvironments={vi.fn()}
           onSearchCredentials={vi.fn()}
           onSearchInstanceGroups={vi.fn()}
+          labels={[]}
+          loadingLabels={false}
+          onSearchLabels={vi.fn()}
         />
       </TestWrapper>
     )
 
-    expect(screen.getByPlaceholderText(/Use default execution environment/i)).toBeInTheDocument()
+    expect(screen.getByPlaceholderText(/No default execution environment/i)).toBeInTheDocument()
   })
 
   it('renders instance groups field when ask_instance_groups_on_launch is true', () => {
@@ -291,6 +315,9 @@ describe('AAPPromptOnLaunchFields', () => {
           onSearchExecutionEnvironments={vi.fn()}
           onSearchCredentials={vi.fn()}
           onSearchInstanceGroups={vi.fn()}
+          labels={[]}
+          loadingLabels={false}
+          onSearchLabels={vi.fn()}
         />
       </TestWrapper>
     )
@@ -319,6 +346,9 @@ describe('AAPPromptOnLaunchFields', () => {
           onSearchExecutionEnvironments={vi.fn()}
           onSearchCredentials={vi.fn()}
           onSearchInstanceGroups={vi.fn()}
+          labels={[]}
+          loadingLabels={false}
+          onSearchLabels={vi.fn()}
         />
       </TestWrapper>
     )
@@ -347,6 +377,9 @@ describe('AAPPromptOnLaunchFields', () => {
           onSearchExecutionEnvironments={vi.fn()}
           onSearchCredentials={vi.fn()}
           onSearchInstanceGroups={vi.fn()}
+          labels={[]}
+          loadingLabels={false}
+          onSearchLabels={vi.fn()}
         />
       </TestWrapper>
     )
@@ -375,6 +408,9 @@ describe('AAPPromptOnLaunchFields', () => {
           onSearchExecutionEnvironments={vi.fn()}
           onSearchCredentials={vi.fn()}
           onSearchInstanceGroups={vi.fn()}
+          labels={[]}
+          loadingLabels={false}
+          onSearchLabels={vi.fn()}
         />
       </TestWrapper>
     )
@@ -403,6 +439,9 @@ describe('AAPPromptOnLaunchFields', () => {
           onSearchExecutionEnvironments={vi.fn()}
           onSearchCredentials={vi.fn()}
           onSearchInstanceGroups={vi.fn()}
+          labels={[]}
+          loadingLabels={false}
+          onSearchLabels={vi.fn()}
         />
       </TestWrapper>
     )
@@ -431,6 +470,9 @@ describe('AAPPromptOnLaunchFields', () => {
           onSearchExecutionEnvironments={vi.fn()}
           onSearchCredentials={vi.fn()}
           onSearchInstanceGroups={vi.fn()}
+          labels={[]}
+          loadingLabels={false}
+          onSearchLabels={vi.fn()}
         />
       </TestWrapper>
     )
@@ -459,6 +501,9 @@ describe('AAPPromptOnLaunchFields', () => {
           onSearchExecutionEnvironments={vi.fn()}
           onSearchCredentials={vi.fn()}
           onSearchInstanceGroups={vi.fn()}
+          labels={[]}
+          loadingLabels={false}
+          onSearchLabels={vi.fn()}
         />
       </TestWrapper>
     )
@@ -487,6 +532,9 @@ describe('AAPPromptOnLaunchFields', () => {
           onSearchExecutionEnvironments={vi.fn()}
           onSearchCredentials={vi.fn()}
           onSearchInstanceGroups={vi.fn()}
+          labels={[]}
+          loadingLabels={false}
+          onSearchLabels={vi.fn()}
         />
       </TestWrapper>
     )
@@ -515,6 +563,9 @@ describe('AAPPromptOnLaunchFields', () => {
           onSearchExecutionEnvironments={vi.fn()}
           onSearchCredentials={vi.fn()}
           onSearchInstanceGroups={vi.fn()}
+          labels={[]}
+          loadingLabels={false}
+          onSearchLabels={vi.fn()}
         />
       </TestWrapper>
     )
@@ -543,6 +594,9 @@ describe('AAPPromptOnLaunchFields', () => {
           onSearchExecutionEnvironments={vi.fn()}
           onSearchCredentials={vi.fn()}
           onSearchInstanceGroups={vi.fn()}
+          labels={[]}
+          loadingLabels={false}
+          onSearchLabels={vi.fn()}
         />
       </TestWrapper>
     )
@@ -571,11 +625,51 @@ describe('AAPPromptOnLaunchFields', () => {
           onSearchExecutionEnvironments={vi.fn()}
           onSearchCredentials={vi.fn()}
           onSearchInstanceGroups={vi.fn()}
+          labels={[]}
+          loadingLabels={false}
+          onSearchLabels={vi.fn()}
         />
       </TestWrapper>
     )
 
-    expect(screen.getByLabelText(/Labels/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /select or create labels/i })).toBeInTheDocument()
+  })
+
+  it('displays default labels when template provides them', () => {
+    mockTemplateDetail.ask_labels_on_launch = true
+    mockTemplateDetail.default_labels = [
+      { id: 1, name: 'Production' },
+      { id: 2, name: 'Critical' },
+    ]
+
+    render(
+      <TestWrapper defaultValues={{ labels: ['Production', 'Critical'] }}>
+        <PromptOnLaunchFields
+          extraVarsEditorRef={{ current: null }}
+          templateDetail={mockTemplateDetail}
+          isLoadingDetail={false}
+          inventories={[]}
+          loadingInventories={false}
+          executionEnvironments={[]}
+          loadingExecutionEnvironments={false}
+          credentials={[]}
+          loadingCredentials={false}
+          instanceGroups={[]}
+          loadingInstanceGroups={false}
+          onSearchInventories={vi.fn()}
+          onSearchExecutionEnvironments={vi.fn()}
+          onSearchCredentials={vi.fn()}
+          onSearchInstanceGroups={vi.fn()}
+          labels={mockLabels}
+          loadingLabels={false}
+          onSearchLabels={vi.fn()}
+        />
+      </TestWrapper>
+    )
+
+    // Verify the labels field is rendered and shows default labels as chips
+    expect(screen.getByText('Production')).toBeInTheDocument()
+    expect(screen.getByText('Critical')).toBeInTheDocument()
   })
 
   it('allows selecting verbosity level', async () => {
@@ -600,6 +694,9 @@ describe('AAPPromptOnLaunchFields', () => {
           onSearchExecutionEnvironments={vi.fn()}
           onSearchCredentials={vi.fn()}
           onSearchInstanceGroups={vi.fn()}
+          labels={[]}
+          loadingLabels={false}
+          onSearchLabels={vi.fn()}
         />
       </TestWrapper>
     )
@@ -632,6 +729,9 @@ describe('AAPPromptOnLaunchFields', () => {
           onSearchExecutionEnvironments={vi.fn()}
           onSearchCredentials={vi.fn()}
           onSearchInstanceGroups={vi.fn()}
+          labels={[]}
+          loadingLabels={false}
+          onSearchLabels={vi.fn()}
         />
       </TestWrapper>
     )
@@ -665,6 +765,9 @@ describe('AAPPromptOnLaunchFields', () => {
           onSearchExecutionEnvironments={vi.fn()}
           onSearchCredentials={vi.fn()}
           onSearchInstanceGroups={vi.fn()}
+          labels={[]}
+          loadingLabels={false}
+          onSearchLabels={vi.fn()}
         />
       </TestWrapper>
     )
@@ -700,6 +803,9 @@ describe('AAPPromptOnLaunchFields', () => {
           onSearchExecutionEnvironments={vi.fn()}
           onSearchCredentials={vi.fn()}
           onSearchInstanceGroups={vi.fn()}
+          labels={[]}
+          loadingLabels={false}
+          onSearchLabels={vi.fn()}
         />
       </TestWrapper>
     )
@@ -733,11 +839,14 @@ describe('AAPPromptOnLaunchFields', () => {
           onSearchExecutionEnvironments={vi.fn()}
           onSearchCredentials={vi.fn()}
           onSearchInstanceGroups={vi.fn()}
+          labels={[]}
+          loadingLabels={false}
+          onSearchLabels={vi.fn()}
         />
       </TestWrapper>
     )
 
-    const inventoryInput = screen.getByPlaceholderText(/Use default inventory/i)
+    const inventoryInput = screen.getByPlaceholderText(/No default inventory/i)
     await user.click(inventoryInput)
     await user.type(inventoryInput, 'prod')
 
@@ -772,11 +881,262 @@ describe('AAPPromptOnLaunchFields', () => {
           onSearchExecutionEnvironments={vi.fn()}
           onSearchCredentials={vi.fn()}
           onSearchInstanceGroups={vi.fn()}
+          labels={[]}
+          loadingLabels={false}
+          onSearchLabels={vi.fn()}
         />
       </TestWrapper>
     )
 
     const results = await axe(container)
     expect(results).toHaveNoViolations()
+  })
+
+  it('renders nothing when templateDetail is undefined', () => {
+    render(
+      <TestWrapper>
+        <PromptOnLaunchFields
+          extraVarsEditorRef={{ current: null }}
+          templateDetail={undefined}
+          isLoadingDetail={false}
+        />
+      </TestWrapper>
+    )
+
+    expect(screen.queryByText('Prompt on Launch')).not.toBeInTheDocument()
+  })
+
+  it('renders nothing when isLoadingDetail is true', () => {
+    render(
+      <TestWrapper>
+        <PromptOnLaunchFields
+          extraVarsEditorRef={{ current: null }}
+          templateDetail={mockTemplateDetail}
+          isLoadingDetail={true}
+        />
+      </TestWrapper>
+    )
+
+    expect(screen.queryByText('Prompt on Launch')).not.toBeInTheDocument()
+  })
+
+  it('uses default noop callbacks when onSearch callbacks are not provided', () => {
+    mockTemplateDetail.ask_inventory_on_launch = true
+
+    // Should not throw when search callbacks are not provided
+    expect(() => {
+      render(
+        <TestWrapper>
+          <PromptOnLaunchFields
+            extraVarsEditorRef={{ current: null }}
+            templateDetail={mockTemplateDetail}
+            inventories={mockInventories}
+          />
+        </TestWrapper>
+      )
+    }).not.toThrow()
+
+    expect(screen.getByPlaceholderText(/No default inventory/i)).toBeInTheDocument()
+  })
+
+  it('calls onSearchExecutionEnvironments when execution environment search changes', async () => {
+    const user = userEvent.setup()
+    const onSearchExecutionEnvironments = vi.fn()
+    mockTemplateDetail.ask_execution_environment_on_launch = true
+
+    render(
+      <TestWrapper>
+        <PromptOnLaunchFields
+          extraVarsEditorRef={{ current: null }}
+          templateDetail={mockTemplateDetail}
+          isLoadingDetail={false}
+          inventories={[]}
+          loadingInventories={false}
+          executionEnvironments={mockExecutionEnvironments}
+          loadingExecutionEnvironments={false}
+          credentials={[]}
+          loadingCredentials={false}
+          instanceGroups={[]}
+          loadingInstanceGroups={false}
+          onSearchInventories={vi.fn()}
+          onSearchExecutionEnvironments={onSearchExecutionEnvironments}
+          onSearchCredentials={vi.fn()}
+          onSearchInstanceGroups={vi.fn()}
+          labels={[]}
+          loadingLabels={false}
+          onSearchLabels={vi.fn()}
+        />
+      </TestWrapper>
+    )
+
+    const eeInput = screen.getByPlaceholderText(/No default execution environment/i)
+    await user.click(eeInput)
+    await user.type(eeInput, 'custom')
+
+    await waitFor(() => {
+      expect(onSearchExecutionEnvironments).toHaveBeenCalledWith('custom')
+    })
+  })
+
+  it('calls onSearchCredentials when credentials search changes', async () => {
+    const user = userEvent.setup()
+    const onSearchCredentials = vi.fn()
+    mockTemplateDetail.ask_credential_on_launch = true
+
+    render(
+      <TestWrapper>
+        <PromptOnLaunchFields
+          extraVarsEditorRef={{ current: null }}
+          templateDetail={mockTemplateDetail}
+          isLoadingDetail={false}
+          inventories={[]}
+          loadingInventories={false}
+          executionEnvironments={[]}
+          loadingExecutionEnvironments={false}
+          credentials={mockCredentials}
+          loadingCredentials={false}
+          instanceGroups={[]}
+          loadingInstanceGroups={false}
+          onSearchInventories={vi.fn()}
+          onSearchExecutionEnvironments={vi.fn()}
+          onSearchCredentials={onSearchCredentials}
+          onSearchInstanceGroups={vi.fn()}
+          labels={[]}
+          loadingLabels={false}
+          onSearchLabels={vi.fn()}
+        />
+      </TestWrapper>
+    )
+
+    const toggle = screen.getByRole('button', { name: /No default credentials/i })
+    await user.click(toggle)
+
+    const searchInput = screen.getByPlaceholderText('Search')
+    await user.type(searchInput, 'aws')
+
+    await waitFor(
+      () => {
+        expect(onSearchCredentials).toHaveBeenCalledWith('aws')
+      },
+      { timeout: 500 }
+    )
+  })
+
+  it('calls onSearchInstanceGroups when instance groups search changes', async () => {
+    const user = userEvent.setup()
+    const onSearchInstanceGroups = vi.fn()
+    mockTemplateDetail.ask_instance_groups_on_launch = true
+
+    render(
+      <TestWrapper>
+        <PromptOnLaunchFields
+          extraVarsEditorRef={{ current: null }}
+          templateDetail={mockTemplateDetail}
+          isLoadingDetail={false}
+          inventories={[]}
+          loadingInventories={false}
+          executionEnvironments={[]}
+          loadingExecutionEnvironments={false}
+          credentials={[]}
+          loadingCredentials={false}
+          instanceGroups={mockInstanceGroups}
+          loadingInstanceGroups={false}
+          onSearchInventories={vi.fn()}
+          onSearchExecutionEnvironments={vi.fn()}
+          onSearchCredentials={vi.fn()}
+          onSearchInstanceGroups={onSearchInstanceGroups}
+          labels={[]}
+          loadingLabels={false}
+          onSearchLabels={vi.fn()}
+        />
+      </TestWrapper>
+    )
+
+    const igInput = screen.getByPlaceholderText(/Use default instance groups/i)
+    await user.click(igInput)
+    await user.type(igInput, 'control')
+
+    await waitFor(() => {
+      expect(onSearchInstanceGroups).toHaveBeenCalledWith('control')
+    })
+  })
+
+  it('calls onSearchLabels when labels search changes', async () => {
+    const user = userEvent.setup()
+    const onSearchLabels = vi.fn()
+    mockTemplateDetail.ask_labels_on_launch = true
+
+    render(
+      <TestWrapper>
+        <PromptOnLaunchFields
+          extraVarsEditorRef={{ current: null }}
+          templateDetail={mockTemplateDetail}
+          isLoadingDetail={false}
+          inventories={[]}
+          loadingInventories={false}
+          executionEnvironments={[]}
+          loadingExecutionEnvironments={false}
+          credentials={[]}
+          loadingCredentials={false}
+          instanceGroups={[]}
+          loadingInstanceGroups={false}
+          onSearchInventories={vi.fn()}
+          onSearchExecutionEnvironments={vi.fn()}
+          onSearchCredentials={vi.fn()}
+          onSearchInstanceGroups={vi.fn()}
+          labels={mockLabels}
+          loadingLabels={false}
+          onSearchLabels={onSearchLabels}
+        />
+      </TestWrapper>
+    )
+
+    const toggle = screen.getByRole('button', { name: /select or create labels/i })
+    await user.click(toggle)
+
+    const searchInput = screen.getByPlaceholderText(/select or create labels/i)
+    await user.type(searchInput, 'prod')
+
+    await waitFor(
+      () => {
+        expect(onSearchLabels).toHaveBeenCalledWith('prod')
+      },
+      { timeout: 500 }
+    )
+  })
+
+  it('allows selecting job type', async () => {
+    const user = userEvent.setup()
+    mockTemplateDetail.ask_job_type_on_launch = true
+
+    render(
+      <TestWrapper>
+        <PromptOnLaunchFields
+          extraVarsEditorRef={{ current: null }}
+          templateDetail={mockTemplateDetail}
+          isLoadingDetail={false}
+          inventories={[]}
+          loadingInventories={false}
+          executionEnvironments={[]}
+          loadingExecutionEnvironments={false}
+          credentials={[]}
+          loadingCredentials={false}
+          instanceGroups={[]}
+          loadingInstanceGroups={false}
+          onSearchInventories={vi.fn()}
+          onSearchExecutionEnvironments={vi.fn()}
+          onSearchCredentials={vi.fn()}
+          onSearchInstanceGroups={vi.fn()}
+          labels={[]}
+          loadingLabels={false}
+          onSearchLabels={vi.fn()}
+        />
+      </TestWrapper>
+    )
+
+    const jobTypeSelect = screen.getByLabelText(/Run type/i)
+    await user.selectOptions(jobTypeSelect, 'check')
+
+    expect(jobTypeSelect).toHaveValue('check')
   })
 })

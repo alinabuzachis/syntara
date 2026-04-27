@@ -14,19 +14,19 @@ import {
 import { RhUiCloseIcon } from '@patternfly/react-icons'
 import { type Ref, useMemo, useRef, useState } from 'react'
 
-export type TypeaheadOptionTag = {
+export interface TypeaheadOptionTag {
   label: string
   color: 'blue' | 'green' | 'orange' | 'orangered' | 'red' | 'purple' | 'grey' | 'teal' | 'yellow'
 }
 
-export type TypeaheadOption = {
+export interface TypeaheadOption {
   value: string
   label: string
   description?: string
   tag?: TypeaheadOptionTag
 }
 
-type TypeaheadSelectProps = {
+interface TypeaheadSelectProps {
   id: string
   ariaLabel: string
   options: TypeaheadOption[]

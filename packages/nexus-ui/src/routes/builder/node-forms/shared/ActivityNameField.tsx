@@ -1,7 +1,7 @@
 import { TextInput } from '@patternfly/react-core'
 import type { Path, UseFormReturn } from 'react-hook-form'
 
-interface ActivityNameFieldProps<T extends { name?: string }> {
+type ActivityNameFieldProps<T extends { name?: string }> = {
   register: UseFormReturn<T>['register']
   fieldId: string
   placeholder?: string

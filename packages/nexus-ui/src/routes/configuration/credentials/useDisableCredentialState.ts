@@ -3,7 +3,7 @@ import { useDialogState } from '../../../hooks/useDialogState'
 import type { Credential, CredentialWorkflowRef } from './credentialConstants'
 import { useCredentialWorkflowCheck } from './useCredentialWorkflowCheck'
 
-type DisableCredentialState = {
+interface DisableCredentialState {
   credentialToDisable: Credential | null
   affectedWorkflows: CredentialWorkflowRef[]
   workflowsFetchError: boolean

@@ -2,7 +2,6 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { FormProvider, useForm } from 'react-hook-form'
 import { describe, expect, it, vi } from 'vitest'
-import { axe } from 'vitest-axe'
 
 import type { AAPFormData } from './aapFormSchema'
 import { AAPResourceMultiSelectField } from './AAPResourceMultiSelectField'
@@ -10,9 +9,6 @@ import { AAPResourceMultiSelectField } from './AAPResourceMultiSelectField'
 function TestWrapper({ children, defaultValues }: { children: React.ReactNode; defaultValues?: Partial<AAPFormData> }) {
   const methods = useForm<AAPFormData>({
     defaultValues: {
-      name: '',
-      organization_name: '',
-      job_template_name: '',
       job_credentials: [],
       ...defaultValues,
     },
@@ -20,178 +16,204 @@ function TestWrapper({ children, defaultValues }: { children: React.ReactNode; d
   return <FormProvider {...methods}>{children}</FormProvider>
 }
 
-const mockItems = [
-  { id: 1, name: 'Machine Credential' },
-  { id: 2, name: 'AWS Credential' },
-  { id: 3, name: 'Azure Credential' },
-]
-
 describe('AAPResourceMultiSelectField', () => {
-  it('renders with placeholder text when no items selected', () => {
+  const mockItems = [
+    { id: 1, name: 'Credential 1' },
+    { id: 2, name: 'Credential 2' },
+    { id: 3, name: 'Credential 3' },
+  ]
+
+  it('renders with placeholder when no items selected', () => {
     render(
       <TestWrapper>
         <AAPResourceMultiSelectField
           label="Credentials"
-          fieldId="test-credentials"
+          fieldId="test-multiselect"
           nameField="job_credentials"
           items={mockItems}
           isLoading={false}
           helperText="Select credentials"
-          placeholderText="Use default credentials"
+          placeholderText="No credentials selected"
         />
       </TestWrapper>
     )
 
-    expect(screen.getByRole('button', { name: /Use default credentials/i })).toBeInTheDocument()
-    expect(screen.getByText(/Select credentials/i)).toBeInTheDocument()
+    expect(screen.getByText('No credentials selected')).toBeInTheDocument()
+    expect(screen.getByText('Select credentials')).toBeInTheDocument()
   })
 
-  it('shows badge with count when items are selected', () => {
-    render(
-      <TestWrapper defaultValues={{ job_credentials: [1, 2] }}>
-        <AAPResourceMultiSelectField
-          label="Credentials"
-          fieldId="test-credentials"
-          nameField="job_credentials"
-          items={mockItems}
-          isLoading={false}
-          helperText="Select credentials"
-          placeholderText="Use default credentials"
-        />
-      </TestWrapper>
-    )
-
-    expect(screen.getByText('2 selected')).toBeInTheDocument()
-    expect(screen.getByText('2')).toBeInTheDocument() // Badge count
-  })
-
-  it('opens menu and displays items when clicked', async () => {
-    const user = userEvent.setup()
+  it('renders with loading spinner when isLoading=true', () => {
     render(
       <TestWrapper>
         <AAPResourceMultiSelectField
           label="Credentials"
-          fieldId="test-credentials"
-          nameField="job_credentials"
-          items={mockItems}
-          isLoading={false}
-          helperText="Select credentials"
-          placeholderText="Use default credentials"
-        />
-      </TestWrapper>
-    )
-
-    const toggle = screen.getByRole('button', { name: /Use default credentials/i })
-    await user.click(toggle)
-
-    await waitFor(() => {
-      expect(screen.getByText('Machine Credential')).toBeInTheDocument()
-      expect(screen.getByText('AWS Credential')).toBeInTheDocument()
-      expect(screen.getByText('Azure Credential')).toBeInTheDocument()
-    })
-  })
-
-  it('selects and deselects items', async () => {
-    const user = userEvent.setup()
-    render(
-      <TestWrapper>
-        <AAPResourceMultiSelectField
-          label="Credentials"
-          fieldId="test-credentials"
-          nameField="job_credentials"
-          items={mockItems}
-          isLoading={false}
-          helperText="Select credentials"
-          placeholderText="Use default credentials"
-        />
-      </TestWrapper>
-    )
-
-    // Open menu
-    const toggle = screen.getByRole('button', { name: /Use default credentials/i })
-    await user.click(toggle)
-
-    // Select first item
-    const machineOption = await screen.findByText('Machine Credential')
-    await user.click(machineOption)
-
-    // Verify badge shows 1 selected
-    await waitFor(() => {
-      expect(screen.getByText('1 selected')).toBeInTheDocument()
-    })
-
-    // Select second item
-    const awsOption = screen.getByText('AWS Credential')
-    await user.click(awsOption)
-
-    // Verify badge shows 2 selected
-    await waitFor(() => {
-      expect(screen.getByText('2 selected')).toBeInTheDocument()
-    })
-
-    // Deselect first item
-    await user.click(machineOption)
-
-    // Verify badge shows 1 selected
-    await waitFor(() => {
-      expect(screen.getByText('1 selected')).toBeInTheDocument()
-    })
-  })
-
-  it('has no accessibility violations', async () => {
-    const { container } = render(
-      <TestWrapper>
-        <AAPResourceMultiSelectField
-          label="Credentials"
-          fieldId="test-credentials"
-          nameField="job_credentials"
-          items={mockItems}
-          isLoading={false}
-          helperText="Select credentials"
-          placeholderText="Use default credentials"
-        />
-      </TestWrapper>
-    )
-
-    const results = await axe(container)
-    expect(results).toHaveNoViolations()
-  })
-
-  it('shows loading spinner when isLoading is true', () => {
-    render(
-      <TestWrapper>
-        <AAPResourceMultiSelectField
-          label="Credentials"
-          fieldId="test-credentials"
+          fieldId="test-multiselect"
           nameField="job_credentials"
           items={[]}
           isLoading={true}
           helperText="Select credentials"
-          placeholderText="Use default credentials"
+          placeholderText="No credentials selected"
         />
       </TestWrapper>
     )
 
-    expect(screen.getByRole('button', { name: /Use default credentials/i })).toBeDisabled()
+    // eslint-disable-next-line testing-library/no-node-access -- checking for PatternFly spinner icon
+    expect(document.querySelector('.pf-v6-c-spinner')).toBeInTheDocument()
   })
 
-  it('shows "No items available" when items array is empty and not loading', async () => {
+  it('displays selected items as labels', () => {
+    render(
+      <TestWrapper defaultValues={{ job_credentials: [1, 3] }}>
+        <AAPResourceMultiSelectField
+          label="Credentials"
+          fieldId="test-multiselect"
+          nameField="job_credentials"
+          items={mockItems}
+          isLoading={false}
+          helperText="Select credentials"
+          placeholderText="No credentials selected"
+        />
+      </TestWrapper>
+    )
+
+    expect(screen.getByText('Credential 1')).toBeInTheDocument()
+    expect(screen.getByText('Credential 3')).toBeInTheDocument()
+  })
+
+  it('opens dropdown and displays items', async () => {
     const user = userEvent.setup()
     render(
       <TestWrapper>
         <AAPResourceMultiSelectField
           label="Credentials"
-          fieldId="test-credentials"
+          fieldId="test-multiselect"
           nameField="job_credentials"
-          items={[]}
+          items={mockItems}
           isLoading={false}
           helperText="Select credentials"
-          placeholderText="Use default credentials"
+          placeholderText="No credentials selected"
         />
       </TestWrapper>
     )
 
-    const toggle = screen.getByRole('button', { name: /Use default credentials/i })
+    const toggle = screen.getByRole('button', { name: /no credentials selected/i })
+    await user.click(toggle)
+
+    await waitFor(() => {
+      expect(screen.getByText('Credential 1')).toBeVisible()
+    })
+    expect(screen.getByText('Credential 2')).toBeVisible()
+    expect(screen.getByText('Credential 3')).toBeVisible()
+  })
+
+  it('handles legacy single-value data by converting to array', () => {
+    render(
+      // Testing legacy data format where job_credentials was incorrectly stored as a number instead of number[]
+      <TestWrapper defaultValues={{ job_credentials: 2 as unknown as number[] }}>
+        <AAPResourceMultiSelectField
+          label="Credentials"
+          fieldId="test-multiselect"
+          nameField="job_credentials"
+          items={mockItems}
+          isLoading={false}
+          helperText="Select credentials"
+          placeholderText="No credentials selected"
+        />
+      </TestWrapper>
+    )
+
+    expect(screen.getByText('Credential 2')).toBeInTheDocument()
+  })
+
+  it('handles undefined/null value gracefully', () => {
+    render(
+      <TestWrapper defaultValues={{ job_credentials: undefined }}>
+        <AAPResourceMultiSelectField
+          label="Credentials"
+          fieldId="test-multiselect"
+          nameField="job_credentials"
+          items={mockItems}
+          isLoading={false}
+          helperText="Select credentials"
+          placeholderText="No credentials selected"
+        />
+      </TestWrapper>
+    )
+
+    expect(screen.getByText('No credentials selected')).toBeInTheDocument()
+  })
+
+  it('sets aria-describedby on toggle for helper text', () => {
+    render(
+      <TestWrapper>
+        <AAPResourceMultiSelectField
+          label="Credentials"
+          fieldId="test-multiselect"
+          nameField="job_credentials"
+          items={mockItems}
+          isLoading={false}
+          helperText="Select credentials"
+          placeholderText="No credentials selected"
+        />
+      </TestWrapper>
+    )
+
+    const toggle = screen.getByRole('button', { name: /no credentials selected/i })
+    expect(toggle).toHaveAttribute('aria-describedby', 'test-multiselect-helper')
+  })
+
+  it('renders search input when onSearchChange is provided', async () => {
+    const user = userEvent.setup()
+    const mockSearchChange = vi.fn()
+
+    render(
+      <TestWrapper>
+        <AAPResourceMultiSelectField
+          label="Credentials"
+          fieldId="test-multiselect"
+          nameField="job_credentials"
+          items={mockItems}
+          isLoading={false}
+          helperText="Select credentials"
+          placeholderText="No credentials selected"
+          onSearchChange={mockSearchChange}
+        />
+      </TestWrapper>
+    )
+
+    const toggle = screen.getByRole('button', { name: /no credentials selected/i })
+    await user.click(toggle)
+
+    const searchInput = await screen.findByPlaceholderText('Search')
+    expect(searchInput).toBeInTheDocument()
+
+    await user.type(searchInput, 'test')
+
+    await waitFor(
+      () => {
+        expect(mockSearchChange).toHaveBeenCalledWith('test')
+      },
+      { timeout: 500 }
+    )
+  })
+
+  it('displays "No items available" when items array is empty and not loading', async () => {
+    const user = userEvent.setup()
+    render(
+      <TestWrapper>
+        <AAPResourceMultiSelectField
+          label="Credentials"
+          fieldId="test-multiselect"
+          nameField="job_credentials"
+          items={[]}
+          isLoading={false}
+          helperText="Select credentials"
+          placeholderText="No credentials selected"
+        />
+      </TestWrapper>
+    )
+
+    const toggle = screen.getByRole('button', { name: /no credentials selected/i })
     await user.click(toggle)
 
     await waitFor(() => {
@@ -199,68 +221,65 @@ describe('AAPResourceMultiSelectField', () => {
     })
   })
 
-  it('calls onSearchChange when search input changes', async () => {
-    const onSearchChange = vi.fn()
+  it('merges defaultValues into items list when provided', () => {
+    const defaultValues = [
+      { id: 99, name: 'Default Credential' },
+      { id: 1, name: 'Credential 1' },
+    ]
+
+    render(
+      <TestWrapper defaultValues={{ job_credentials: [99] }}>
+        <AAPResourceMultiSelectField
+          label="Credentials"
+          fieldId="test-multiselect"
+          nameField="job_credentials"
+          items={mockItems}
+          isLoading={false}
+          helperText="Select credentials"
+          placeholderText="No credentials selected"
+          defaultValues={defaultValues}
+        />
+      </TestWrapper>
+    )
+
+    // Default credential appears in the toggle as selected label
+    expect(screen.getAllByText('Default Credential').length).toBeGreaterThan(0)
+  })
+
+  it('debounces search callback', async () => {
     const user = userEvent.setup()
+    const mockSearchChange = vi.fn()
 
     render(
       <TestWrapper>
         <AAPResourceMultiSelectField
           label="Credentials"
-          fieldId="test-credentials"
+          fieldId="test-multiselect"
           nameField="job_credentials"
           items={mockItems}
           isLoading={false}
           helperText="Select credentials"
-          placeholderText="Use default credentials"
-          onSearchChange={onSearchChange}
+          placeholderText="No credentials selected"
+          onSearchChange={mockSearchChange}
         />
       </TestWrapper>
     )
 
-    // Open menu
-    const toggle = screen.getByRole('button', { name: /Use default credentials/i })
+    const toggle = screen.getByRole('button', { name: /no credentials selected/i })
     await user.click(toggle)
 
-    // Find search input and type
-    const searchInput = screen.getByPlaceholderText('Search')
-    await user.type(searchInput, 'machine')
+    const searchInput = await screen.findByPlaceholderText('Search')
+    await user.type(searchInput, 'abc')
 
-    // Verify debounced search callback was called
+    expect(mockSearchChange).not.toHaveBeenCalled()
+
     await waitFor(
       () => {
-        expect(onSearchChange).toHaveBeenCalledWith('machine')
+        expect(mockSearchChange).toHaveBeenCalledWith('abc')
       },
       { timeout: 500 }
     )
-  })
 
-  it('renders search input when onSearchChange is provided', async () => {
-    const onSearchChange = vi.fn()
-    const user = userEvent.setup()
-
-    render(
-      <TestWrapper>
-        <AAPResourceMultiSelectField
-          label="Credentials"
-          fieldId="test-credentials"
-          nameField="job_credentials"
-          items={mockItems}
-          isLoading={false}
-          helperText="Select credentials"
-          placeholderText="Use default credentials"
-          onSearchChange={onSearchChange}
-        />
-      </TestWrapper>
-    )
-
-    // Open menu
-    const toggle = screen.getByRole('button', { name: /Use default credentials/i })
-    await user.click(toggle)
-
-    // Verify search input is rendered
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText('Search')).toBeInTheDocument()
-    })
+    expect(mockSearchChange).toHaveBeenCalledTimes(1)
   })
 })

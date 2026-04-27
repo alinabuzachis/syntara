@@ -15,7 +15,7 @@ export interface paths {
      * List Organizations
      * @description List AAP organizations.
      */
-    get: operations['list_organizations_aap_organizations_get']
+    get: operations['list_aap_organizations']
     put?: never
     post?: never
     delete?: never
@@ -35,7 +35,7 @@ export interface paths {
      * List Job Templates
      * @description List AAP job templates, optionally filtered by organization.
      */
-    get: operations['list_job_templates_aap_job_templates_get']
+    get: operations['list_aap_job_templates']
     put?: never
     post?: never
     delete?: never
@@ -52,10 +52,10 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get Job Template Details
+     * Get Job Template
      * @description Get AAP job template details including prompt-on-launch capabilities.
      */
-    get: operations['get_job_template_aap_job_templates_get']
+    get: operations['get_aap_job_template']
     put?: never
     post?: never
     delete?: never
@@ -75,7 +75,7 @@ export interface paths {
      * List Inventories
      * @description List AAP inventories, optionally filtered by organization.
      */
-    get: operations['list_inventories_aap_inventories_get']
+    get: operations['list_aap_inventories']
     put?: never
     post?: never
     delete?: never
@@ -95,7 +95,7 @@ export interface paths {
      * List Execution Environments
      * @description List AAP execution environments, optionally filtered by organization.
      */
-    get: operations['list_execution_environments_aap_execution_environments_get']
+    get: operations['list_aap_execution_environments']
     put?: never
     post?: never
     delete?: never
@@ -115,7 +115,7 @@ export interface paths {
      * List Credentials
      * @description List AAP credentials (not organization-scoped).
      */
-    get: operations['list_credentials_aap_credentials_get']
+    get: operations['list_aap_credentials']
     put?: never
     post?: never
     delete?: never
@@ -135,7 +135,27 @@ export interface paths {
      * List Instance Groups
      * @description List AAP instance groups (not organization-scoped).
      */
-    get: operations['list_instance_groups_aap_instance_groups_get']
+    get: operations['list_aap_instance_groups']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/aap/labels': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List Labels
+     * @description List AAP labels.
+     */
+    get: operations['list_aap_labels']
     put?: never
     post?: never
     delete?: never
@@ -171,8 +191,24 @@ export interface components {
       description?: string | null
     }
     /**
+     * AAPSummaryField
+     * @description Summary field with id and name from AAP summary_fields.
+     */
+    AAPSummaryField: {
+      /** Id */
+      id: number
+      /** Name */
+      name: string
+    }
+    /**
+     * AAPJobType
+     * @description AAP job type values.
+     * @enum {string}
+     */
+    AAPJobType: 'run' | 'check'
+    /**
      * AAPJobTemplateDetail
-     * @description AAP job template with prompt-on-launch capabilities.
+     * @description AAP job template with prompt-on-launch capabilities and default values.
      */
     AAPJobTemplateDetail: {
       /** Id */
@@ -186,40 +222,158 @@ export interface components {
        * @description Link to the job template in AAP Controller UI
        */
       url?: string | null
-      /** @default false */
+      /**
+       * Ask Job Type On Launch
+       * @default false
+       */
       ask_job_type_on_launch?: boolean
-      /** @default false */
+      /**
+       * Ask Inventory On Launch
+       * @default false
+       */
       ask_inventory_on_launch?: boolean
-      /** @default false */
+      /**
+       * Ask Credential On Launch
+       * @default false
+       */
       ask_credential_on_launch?: boolean
-      /** @default false */
+      /**
+       * Ask Variables On Launch
+       * @default false
+       */
       ask_variables_on_launch?: boolean
-      /** @default false */
+      /**
+       * Ask Limit On Launch
+       * @default false
+       */
       ask_limit_on_launch?: boolean
-      /** @default false */
+      /**
+       * Ask Tags On Launch
+       * @default false
+       */
       ask_tags_on_launch?: boolean
-      /** @default false */
+      /**
+       * Ask Skip Tags On Launch
+       * @default false
+       */
       ask_skip_tags_on_launch?: boolean
-      /** @default false */
+      /**
+       * Ask Verbosity On Launch
+       * @default false
+       */
       ask_verbosity_on_launch?: boolean
-      /** @default false */
+      /**
+       * Ask Diff Mode On Launch
+       * @default false
+       */
       ask_diff_mode_on_launch?: boolean
-      /** @default false */
+      /**
+       * Ask Forks On Launch
+       * @default false
+       */
       ask_forks_on_launch?: boolean
-      /** @default false */
+      /**
+       * Ask Job Slice Count On Launch
+       * @default false
+       */
       ask_job_slice_count_on_launch?: boolean
-      /** @default false */
+      /**
+       * Ask Execution Environment On Launch
+       * @default false
+       */
       ask_execution_environment_on_launch?: boolean
-      /** @default false */
+      /**
+       * Ask Instance Groups On Launch
+       * @default false
+       */
       ask_instance_groups_on_launch?: boolean
-      /** @default false */
+      /**
+       * Ask Labels On Launch
+       * @default false
+       */
       ask_labels_on_launch?: boolean
-      /** @default false */
+      /**
+       * Ask Timeout On Launch
+       * @default false
+       */
       ask_timeout_on_launch?: boolean
-      /** @default false */
+      /**
+       * Ask Scm Branch On Launch
+       * @default false
+       */
       ask_scm_branch_on_launch?: boolean
-      /** @default false */
+      /**
+       * Survey Enabled
+       * @default false
+       */
       survey_enabled?: boolean
+      /**
+       * Default Inventory
+       * @description Default inventory from job template summary_fields
+       */
+      default_inventory?: components['schemas']['AAPSummaryField'] | null
+      /**
+       * Default Execution Environment
+       * @description Default execution environment from job template summary_fields
+       */
+      default_execution_environment?: components['schemas']['AAPSummaryField'] | null
+      /**
+       * Default Credentials
+       * @description Default credentials from job template summary_fields
+       */
+      default_credentials?: components['schemas']['AAPSummaryField'][]
+      /**
+       * Default Labels
+       * @description Default labels from job template summary_fields
+       */
+      default_labels?: components['schemas']['AAPSummaryField'][]
+      /** @description Default job type - "run" or "check" */
+      job_type?: components['schemas']['AAPJobType'] | null
+      /**
+       * Verbosity
+       * @description Default verbosity level (0-5)
+       */
+      verbosity?: number | null
+      /**
+       * Forks
+       * @description Default number of forks (max 10,000)
+       */
+      forks?: number | null
+      /**
+       * Limit
+       * @description Default limit pattern
+       */
+      limit?: string | null
+      /**
+       * Job Tags
+       * @description Default job tags
+       */
+      job_tags?: string | null
+      /**
+       * Skip Tags
+       * @description Default skip tags
+       */
+      skip_tags?: string | null
+      /**
+       * Diff Mode
+       * @description Default diff mode setting
+       */
+      diff_mode?: boolean | null
+      /**
+       * Job Slice Count
+       * @description Default job slice count (max 10,000)
+       */
+      job_slice_count?: number | null
+      /**
+       * Timeout
+       * @description Default timeout in seconds (max 7 days)
+       */
+      timeout?: number | null
+      /**
+       * Extra Vars
+       * @description Default extra variables (YAML format, max 1MB)
+       */
+      extra_vars?: string | null
     }
     /**
      * AAPInventory
@@ -247,7 +401,10 @@ export interface components {
     }
     /**
      * AAPCredential
-     * @description AAP credential resource (description omitted to avoid leaking infrastructure details).
+     * @description AAP credential resource.
+     *
+     *     Only ``id`` and ``name`` are exposed — descriptions are omitted to avoid
+     *     leaking infrastructure details (e.g. "prod-aws-root-key") to all users.
      */
     AAPCredential: {
       /** Id */
@@ -264,6 +421,18 @@ export interface components {
       id: number
       /** Name */
       name: string
+    }
+    /**
+     * AAPLabel
+     * @description AAP label resource.
+     */
+    AAPLabel: {
+      /** Id */
+      id: number
+      /** Name */
+      name: string
+      /** Organization */
+      organization?: number | null
     }
     /** AAPListResponse[AAPOrganization] */
     AAPListResponse_AAPOrganization_: {
@@ -307,58 +476,210 @@ export interface components {
       /** Results */
       results: components['schemas']['AAPInstanceGroup'][]
     }
+    /** AAPListResponse[AAPLabel] */
+    AAPListResponse_AAPLabel_: {
+      /** Count */
+      count: number
+      /** Results */
+      results: components['schemas']['AAPLabel'][]
+    }
     /**
-     * ProblemDetails
-     * @description RFC 9457 Problem Details for HTTP APIs
+     * ErrorData
+     * @description RFC 9457 Problem Details format for error event data.
+     *     This model is used for streaming error events and follows the RFC 9457 Problem Details specification. It provides machine-readable and human-readable error information with consistent structure.
+     *     Attributes:
+     *         type: URI reference identifying the problem type
+     *         title: Short, human-readable summary of the problem
+     *         detail: Human-readable explanation specific to this occurrence
+     *         code: Machine-readable error code for programmatic handling
+     *         retryable: Whether this error can be retried by creating a new invocation
+     *         instance: Optional URI reference identifying the specific occurrence
+     * @example {
+     *       "type": "https://api.nexus.com/errors/llm-error",
+     *       "title": "LLM Rate Limit Exceeded",
+     *       "detail": "OpenRouter API rate limit exceeded. Please try again in a few moments.",
+     *       "code": "RATE_LIMIT_EXCEEDED",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
+     * @example {
+     *       "type": "https://api.nexus.com/errors/timeout-error",
+     *       "title": "Streaming Timeout",
+     *       "detail": "LLM streaming timed out after 30 seconds",
+     *       "code": "STREAM_TIMEOUT",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
      */
-    ProblemDetails: {
+    ErrorData: {
       /**
        * Type
        * @description URI reference identifying the problem type
+       * @example https://api.nexus.com/errors/llm-error
        */
       type: string
       /**
        * Title
-       * @description Short, human-readable summary
+       * @description Short, human-readable summary of the problem
+       * @example LLM Service Unavailable
        */
       title: string
       /**
        * Detail
        * @description Human-readable explanation specific to this occurrence
+       * @example OpenRouter API returned error: rate limit exceeded. Please try again in a few moments.
        */
-      detail?: string
+      detail: string
       /**
        * Code
-       * @description Application-specific error code
+       * @description Machine-readable error code for programmatic handling
+       * @example RATE_LIMIT_EXCEEDED
        */
-      code?: string
+      code: string
       /**
        * Retryable
-       * @description Whether the client should retry
+       * @description Whether this error can be retried by creating a new invocation
+       * @example true
        */
-      retryable?: boolean
+      retryable: boolean
       /**
        * Instance
-       * @description URI reference identifying this specific occurrence
+       * @description Optional URI reference identifying the specific occurrence
+       * @example /invocations/550e8400-e29b-41d4-a716-446655440000
        */
-      instance?: string
-    }
-    /** HTTPValidationError */
-    HTTPValidationError: {
-      /** Detail */
-      detail?: components['schemas']['ValidationError'][]
-    }
-    /** ValidationError */
-    ValidationError: {
-      /** Location */
-      loc: (string | number)[]
-      /** Message */
-      msg: string
-      /** Error Type */
-      type: string
+      instance?: string | null
     }
   }
-  responses: never
+  responses: {
+    /** @description Bad Request */
+    BadRequestError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/bad-request",
+         *       "title": "Bad Request",
+         *       "detail": "The request was malformed or contained invalid parameters",
+         *       "code": "BAD_REQUEST",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Unauthorized */
+    UnauthorizedError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/unauthorized",
+         *       "title": "Unauthorized",
+         *       "detail": "Authentication is required to access this resource",
+         *       "code": "UNAUTHORIZED",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Forbidden */
+    ForbiddenError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/forbidden",
+         *       "title": "Forbidden",
+         *       "detail": "You do not have permission to access this resource",
+         *       "code": "FORBIDDEN",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Not Found */
+    NotFoundError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/not-found",
+         *       "title": "Resource Not Found",
+         *       "detail": "No resource exists with the provided identifier",
+         *       "code": "NOT_FOUND",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Conflict */
+    ConflictError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/conflict",
+         *       "title": "Conflict",
+         *       "detail": "The request conflicts with the current state of the resource",
+         *       "code": "CONFLICT",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Validation Error */
+    ValidationError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/validation-error",
+         *       "title": "Validation Error",
+         *       "detail": "Field 'name' must be between 1 and 255 characters",
+         *       "code": "VALIDATION_ERROR",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Internal Server Error */
+    InternalServerError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/internal-error",
+         *       "title": "Internal Server Error",
+         *       "detail": "An unexpected error occurred",
+         *       "code": "INTERNAL_ERROR",
+         *       "retryable": true
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+  }
   parameters: never
   requestBodies: never
   headers: never
@@ -366,7 +687,7 @@ export interface components {
 }
 export type $defs = Record<string, never>
 export interface operations {
-  list_organizations_aap_organizations_get: {
+  list_aap_organizations: {
     parameters: {
       query?: {
         search?: string | null
@@ -393,56 +714,27 @@ export interface operations {
           'application/json': components['schemas']['AAPListResponse_AAPOrganization_']
         }
       }
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['HTTPValidationError']
-        }
-      }
-      /** @description AAP connection, authentication, or upstream error */
-      502: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails']
-        }
-      }
-      /** @description AAP Controller not configured */
-      503: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          /**
-           * @example {
-           *       "type": "https://api.nexus.com/errors/service-unavailable",
-           *       "title": "AAP Controller Not Configured",
-           *       "detail": "AAP Controller connection is not configured",
-           *       "code": "AAP_NOT_CONFIGURED",
-           *       "retryable": false
-           *     }
-           */
-          'application/problem+json': components['schemas']['ProblemDetails']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
-  list_job_templates_aap_job_templates_get: {
+  list_aap_job_templates: {
     parameters: {
       query?: {
         search?: string | null
         page_size?: number
-        organization?: string | null
         /**
          * @description Optional Nexus credential ID for AAP Controller authentication.
          *     If provided, the credential is decrypted and used instead of environment variables.
          *     Credential must be of type "Ansible Automation Platform".
          */
         credential_id?: string | null
+        organization?: string | null
       }
       header?: never
       path?: never
@@ -459,47 +751,20 @@ export interface operations {
           'application/json': components['schemas']['AAPListResponse_AAPJobTemplate_']
         }
       }
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['HTTPValidationError']
-        }
-      }
-      /** @description AAP connection, authentication, or upstream error */
-      502: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails']
-        }
-      }
-      /** @description AAP Controller not configured */
-      503: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          /**
-           * @example {
-           *       "type": "https://api.nexus.com/errors/service-unavailable",
-           *       "title": "AAP Controller Not Configured",
-           *       "detail": "AAP Controller connection is not configured",
-           *       "code": "AAP_NOT_CONFIGURED",
-           *       "retryable": false
-           *     }
-           */
-          'application/problem+json': components['schemas']['ProblemDetails']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
-  get_job_template_aap_job_templates_get: {
+  get_aap_job_template: {
     parameters: {
       query?: {
+        search?: string | null
+        page_size?: number
         /**
          * @description Optional Nexus credential ID for AAP Controller authentication.
          *     If provided, the credential is decrypted and used instead of environment variables.
@@ -524,65 +789,27 @@ export interface operations {
           'application/json': components['schemas']['AAPJobTemplateDetail']
         }
       }
-      /** @description Job Template Not Found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['ProblemDetails']
-        }
-      }
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['HTTPValidationError']
-        }
-      }
-      /** @description AAP connection, authentication, or upstream error */
-      502: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails']
-        }
-      }
-      /** @description AAP Controller not configured */
-      503: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          /**
-           * @example {
-           *       "type": "https://api.nexus.com/errors/service-unavailable",
-           *       "title": "AAP Controller Not Configured",
-           *       "detail": "AAP Controller connection is not configured",
-           *       "code": "AAP_NOT_CONFIGURED",
-           *       "retryable": false
-           *     }
-           */
-          'application/problem+json': components['schemas']['ProblemDetails']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
-  list_inventories_aap_inventories_get: {
+  list_aap_inventories: {
     parameters: {
       query?: {
         search?: string | null
         page_size?: number
-        organization?: string | null
         /**
          * @description Optional Nexus credential ID for AAP Controller authentication.
          *     If provided, the credential is decrypted and used instead of environment variables.
          *     Credential must be of type "Ansible Automation Platform".
          */
         credential_id?: string | null
+        organization?: string | null
       }
       header?: never
       path?: never
@@ -599,56 +826,27 @@ export interface operations {
           'application/json': components['schemas']['AAPListResponse_AAPInventory_']
         }
       }
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['HTTPValidationError']
-        }
-      }
-      /** @description AAP connection, authentication, or upstream error */
-      502: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails']
-        }
-      }
-      /** @description AAP Controller not configured */
-      503: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          /**
-           * @example {
-           *       "type": "https://api.nexus.com/errors/service-unavailable",
-           *       "title": "AAP Controller Not Configured",
-           *       "detail": "AAP Controller connection is not configured",
-           *       "code": "AAP_NOT_CONFIGURED",
-           *       "retryable": false
-           *     }
-           */
-          'application/problem+json': components['schemas']['ProblemDetails']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
-  list_execution_environments_aap_execution_environments_get: {
+  list_aap_execution_environments: {
     parameters: {
       query?: {
         search?: string | null
         page_size?: number
-        organization?: string | null
         /**
          * @description Optional Nexus credential ID for AAP Controller authentication.
          *     If provided, the credential is decrypted and used instead of environment variables.
          *     Credential must be of type "Ansible Automation Platform".
          */
         credential_id?: string | null
+        organization?: string | null
       }
       header?: never
       path?: never
@@ -665,45 +863,16 @@ export interface operations {
           'application/json': components['schemas']['AAPListResponse_AAPExecutionEnvironment_']
         }
       }
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['HTTPValidationError']
-        }
-      }
-      /** @description AAP connection, authentication, or upstream error */
-      502: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails']
-        }
-      }
-      /** @description AAP Controller not configured */
-      503: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          /**
-           * @example {
-           *       "type": "https://api.nexus.com/errors/service-unavailable",
-           *       "title": "AAP Controller Not Configured",
-           *       "detail": "AAP Controller connection is not configured",
-           *       "code": "AAP_NOT_CONFIGURED",
-           *       "retryable": false
-           *     }
-           */
-          'application/problem+json': components['schemas']['ProblemDetails']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
-  list_credentials_aap_credentials_get: {
+  list_aap_credentials: {
     parameters: {
       query?: {
         search?: string | null
@@ -730,45 +899,16 @@ export interface operations {
           'application/json': components['schemas']['AAPListResponse_AAPCredential_']
         }
       }
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['HTTPValidationError']
-        }
-      }
-      /** @description AAP connection, authentication, or upstream error */
-      502: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails']
-        }
-      }
-      /** @description AAP Controller not configured */
-      503: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          /**
-           * @example {
-           *       "type": "https://api.nexus.com/errors/service-unavailable",
-           *       "title": "AAP Controller Not Configured",
-           *       "detail": "AAP Controller connection is not configured",
-           *       "code": "AAP_NOT_CONFIGURED",
-           *       "retryable": false
-           *     }
-           */
-          'application/problem+json': components['schemas']['ProblemDetails']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
-  list_instance_groups_aap_instance_groups_get: {
+  list_aap_instance_groups: {
     parameters: {
       query?: {
         search?: string | null
@@ -795,42 +935,44 @@ export interface operations {
           'application/json': components['schemas']['AAPListResponse_AAPInstanceGroup_']
         }
       }
-      /** @description Validation Error */
-      422: {
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  list_aap_labels: {
+    parameters: {
+      query?: {
+        search?: string | null
+        page_size?: number
+        credential_id?: string | null
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['HTTPValidationError']
+          'application/json': components['schemas']['AAPListResponse_AAPLabel_']
         }
       }
-      /** @description AAP connection, authentication, or upstream error */
-      502: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails']
-        }
-      }
-      /** @description AAP Controller not configured */
-      503: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          /**
-           * @example {
-           *       "type": "https://api.nexus.com/errors/service-unavailable",
-           *       "title": "AAP Controller Not Configured",
-           *       "detail": "AAP Controller connection is not configured",
-           *       "code": "AAP_NOT_CONFIGURED",
-           *       "retryable": false
-           *     }
-           */
-          'application/problem+json': components['schemas']['ProblemDetails']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
 }

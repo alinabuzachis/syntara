@@ -14,7 +14,7 @@ import type { ProjectRead } from '../access/types'
 
 type Workflow = WorkflowAPI.components['schemas']['Workflow']
 
-type WorkflowRowProps = {
+interface WorkflowRowProps {
   workflow: Workflow
   getRowActions: (workflow: Workflow) => IAction[]
 }
@@ -51,12 +51,12 @@ function WorkflowRow({ workflow, getRowActions }: Readonly<WorkflowRowProps>) {
   )
 }
 
-type ProjectGroup = {
+interface ProjectGroup {
   project: ProjectRead | null
   workflows: Workflow[]
 }
 
-type GroupedWorkflowsTableBodyProps = {
+interface GroupedWorkflowsTableBodyProps {
   groupedWorkflows: Map<string, ProjectGroup>
   collapsedProjects: Set<string>
   onToggleProject: (projectId: string) => void
@@ -101,7 +101,7 @@ export function GroupedAutomationsTableBody({
   )
 }
 
-type FlatWorkflowsTableBodyProps = {
+interface FlatWorkflowsTableBodyProps {
   workflows: Workflow[]
   getRowActions: (workflow: Workflow) => IAction[]
 }

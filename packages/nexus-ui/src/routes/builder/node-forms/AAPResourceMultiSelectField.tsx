@@ -1,9 +1,11 @@
+import type { AAPAPI } from '@ansible/nexus-contracts'
 import {
-  Badge,
   FormGroup,
   FormHelperText,
   HelperText,
   HelperTextItem,
+  Label,
+  LabelGroup,
   MenuToggle,
   SearchInput,
   Select,
@@ -13,26 +15,29 @@ import {
   StackItem,
   type MenuToggleElement,
 } from '@patternfly/react-core'
-import { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Controller, useFormContext } from 'react-hook-form'
 
-import type { AAPFormData } from './aapFormSchema'
+import { DEBOUNCE_MS } from '../../../constants/timing'
 
-const DEBOUNCE_MS = 300
+import type { AAPFormData } from './aapFormSchema'
 
 type AAPResourceItem = {
   readonly id: number
   readonly name: string
 }
 
+type AAPDefaultValue = AAPAPI.components['schemas']['AAPSummaryField']
+
 type AAPResourceMultiSelectFieldProps = {
   readonly label: string
   readonly fieldId: string
-  readonly nameField: 'job_credentials' // Only job_credentials field is a number[] array
+  readonly nameField: 'job_credentials' | 'labels' // Multi-select fields with number[] arrays
   readonly items: readonly AAPResourceItem[]
   readonly isLoading: boolean
   readonly helperText: string
   readonly placeholderText: string
+  readonly defaultValues?: readonly AAPDefaultValue[]
   readonly onSearchChange?: (search: string) => void
 }
 
@@ -40,18 +45,20 @@ type MultiSelectToggleProps = {
   readonly toggleRef: React.Ref<MenuToggleElement>
   readonly isOpen: boolean
   readonly isLoading: boolean
-  readonly selectedCount: number
-  readonly placeholderText: string
+  readonly selectedItems: readonly AAPResourceItem[]
+  readonly placeholder: React.ReactNode
   readonly onToggle: () => void
+  readonly ariaDescribedBy?: string
 }
 
 function MultiSelectToggle({
   toggleRef,
   isOpen,
   isLoading,
-  selectedCount,
-  placeholderText,
+  selectedItems,
+  placeholder,
   onToggle,
+  ariaDescribedBy,
 }: MultiSelectToggleProps) {
   return (
     <MenuToggle
@@ -60,16 +67,22 @@ function MultiSelectToggle({
       isExpanded={isOpen}
       isFullWidth
       isDisabled={isLoading}
+      aria-describedby={ariaDescribedBy}
       style={{
         textAlign: 'left',
         minHeight: 'var(--pf-t--global--control-height--default)',
       }}
-      {...(selectedCount > 0 && {
-        badge: <Badge isRead>{selectedCount}</Badge>,
-      })}
       icon={isLoading ? <Spinner size="md" /> : undefined}
     >
-      {selectedCount === 0 ? placeholderText : `${selectedCount} selected`}
+      {selectedItems.length === 0 ? (
+        placeholder
+      ) : (
+        <LabelGroup numLabels={3}>
+          {selectedItems.map((item) => (
+            <Label key={item.id}>{item.name}</Label>
+          ))}
+        </LabelGroup>
+      )}
     </MenuToggle>
   )
 }
@@ -80,7 +93,7 @@ type MultiSelectContentProps = {
   readonly isLoading: boolean
   readonly isOpen: boolean
   readonly selectedIds: readonly number[]
-  readonly placeholderText: string
+  readonly placeholder: React.ReactNode
   readonly filterValue: string
   readonly onSearchChange?: (search: string) => void
   readonly onSelect: (event: React.MouseEvent | undefined, value: string | number | undefined) => void
@@ -88,25 +101,36 @@ type MultiSelectContentProps = {
   readonly onToggle: () => void
   readonly onFilterChange: (value: string) => void
   readonly onFilterClear: () => void
+  readonly ariaDescribedBy?: string
+  readonly defaultValues?: readonly AAPDefaultValue[]
 }
 
 type RenderToggleProps = {
   readonly isOpen: boolean
   readonly isLoading: boolean
-  readonly selectedCount: number
-  readonly placeholderText: string
+  readonly selectedItems: readonly AAPResourceItem[]
+  readonly placeholder: React.ReactNode
   readonly onToggle: () => void
+  readonly ariaDescribedBy?: string
 }
 
-function createToggleRenderer({ isOpen, isLoading, selectedCount, placeholderText, onToggle }: RenderToggleProps) {
+function createToggleRenderer({
+  isOpen,
+  isLoading,
+  selectedItems,
+  placeholder,
+  onToggle,
+  ariaDescribedBy,
+}: RenderToggleProps) {
   return (toggleRef: React.Ref<MenuToggleElement>) => (
     <MultiSelectToggle
       toggleRef={toggleRef}
       isOpen={isOpen}
       isLoading={isLoading}
-      selectedCount={selectedCount}
-      placeholderText={placeholderText}
+      selectedItems={selectedItems}
+      placeholder={placeholder}
       onToggle={onToggle}
+      ariaDescribedBy={ariaDescribedBy}
     />
   )
 }
@@ -117,7 +141,7 @@ function MultiSelectContent({
   isLoading,
   isOpen,
   selectedIds,
-  placeholderText,
+  placeholder,
   filterValue,
   onSearchChange,
   onSelect,
@@ -125,13 +149,32 @@ function MultiSelectContent({
   onToggle,
   onFilterChange,
   onFilterClear,
+  ariaDescribedBy,
+  defaultValues,
 }: MultiSelectContentProps) {
+  // Merge items with defaultValues to ensure selected items always have names
+  // This handles the case where default credentials from the template aren't in the items list yet
+  const allItems = React.useMemo(() => {
+    if (!defaultValues?.length) return items
+
+    const itemsMap = new Map(items.map((item) => [item.id, item]))
+    defaultValues.forEach((dv) => {
+      if (!itemsMap.has(dv.id)) {
+        itemsMap.set(dv.id, { id: dv.id, name: dv.name })
+      }
+    })
+    return Array.from(itemsMap.values())
+  }, [items, defaultValues])
+
+  const selectedItems = allItems.filter((item) => selectedIds.includes(item.id))
+
   const renderToggle = createToggleRenderer({
     isOpen,
     isLoading,
-    selectedCount: selectedIds.length,
-    placeholderText,
+    selectedItems,
+    placeholder,
     onToggle,
+    ariaDescribedBy,
   })
 
   return (
@@ -151,10 +194,10 @@ function MultiSelectContent({
         />
       )}
       <SelectList aria-label={label}>
-        {items.length === 0 ? (
+        {allItems.length === 0 ? (
           <SelectOption isDisabled>{isLoading ? 'Loading...' : 'No items available'}</SelectOption>
         ) : (
-          items.map((item) => (
+          allItems.map((item) => (
             <SelectOption key={item.id} value={String(item.id)} hasCheckbox isSelected={selectedIds.includes(item.id)}>
               {item.name}
             </SelectOption>
@@ -166,7 +209,7 @@ function MultiSelectContent({
 }
 
 function useMultiSelectHandlers(
-  nameField: 'job_credentials',
+  nameField: 'job_credentials' | 'labels',
   setValue: ReturnType<typeof useFormContext<AAPFormData>>['setValue'],
   setIsOpen: React.Dispatch<React.SetStateAction<boolean>>,
   setFilterValue: React.Dispatch<React.SetStateAction<string>>
@@ -208,6 +251,7 @@ export function AAPResourceMultiSelectField({
   isLoading,
   helperText,
   placeholderText,
+  defaultValues,
   onSearchChange,
 }: AAPResourceMultiSelectFieldProps) {
   const { control, setValue } = useFormContext<AAPFormData>()
@@ -234,6 +278,8 @@ export function AAPResourceMultiSelectField({
   // Clear debounce on unmount
   useEffect(() => () => clearTimeout(debounceRef.current), [])
 
+  const helperTextId = `${fieldId}-helper`
+
   return (
     <StackItem>
       <FormGroup label={label} fieldId={fieldId}>
@@ -242,7 +288,13 @@ export function AAPResourceMultiSelectField({
           name={nameField}
           render={({ field }) => {
             // Type is inferred from schema: number[] | undefined
-            const selectedIds = field.value ?? []
+            // Ensure selectedIds is always an array (handle legacy single-value data, empty strings, or undefined)
+            let selectedIds: readonly number[] = []
+            if (Array.isArray(field.value)) {
+              selectedIds = field.value as number[]
+            } else if (typeof field.value === 'number') {
+              selectedIds = [field.value]
+            }
 
             return (
               <MultiSelectContent
@@ -251,7 +303,7 @@ export function AAPResourceMultiSelectField({
                 isLoading={isLoading}
                 isOpen={isOpen}
                 selectedIds={selectedIds}
-                placeholderText={placeholderText}
+                placeholder={placeholderText}
                 filterValue={filterValue}
                 onSearchChange={onSearchChange}
                 onSelect={handleSelect(field, selectedIds)}
@@ -259,12 +311,14 @@ export function AAPResourceMultiSelectField({
                 onToggle={handleToggle}
                 onFilterChange={setFilterValue}
                 onFilterClear={() => setFilterValue('')}
+                ariaDescribedBy={helperTextId}
+                defaultValues={defaultValues}
               />
             )
           }}
         />
         <FormHelperText>
-          <HelperText>
+          <HelperText id={helperTextId}>
             <HelperTextItem>{helperText}</HelperTextItem>
           </HelperText>
         </FormHelperText>

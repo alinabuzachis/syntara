@@ -28,13 +28,13 @@ type Execution = ExecutionsAPI.components['schemas']['Execution']
 type ActivityData = ExecutionsAPI.components['schemas']['ActivityData']
 type ActivityExecution = ExecutionsAPI.components['schemas']['ActivityExecution']
 
-type WorkflowDefinitionLike = {
+interface WorkflowDefinitionLike {
   metadata?: { name?: string; description?: string }
   workflow?: { activities?: Array<{ id: string }> }
   triggers?: unknown[]
 }
 
-type ExecutionWorkflow = {
+interface ExecutionWorkflow {
   id: string
   name: string
   description?: string

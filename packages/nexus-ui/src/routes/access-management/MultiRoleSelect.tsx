@@ -13,7 +13,7 @@ import {
 import { RhUiCloseIcon } from '@patternfly/react-icons'
 import { type Ref, useMemo, useRef, useState } from 'react'
 
-export type RoleOption = {
+export interface RoleOption {
   id: string
   name: string
   description: string | null

@@ -40,7 +40,7 @@ export type EdgeStatus = 'pending' | 'passed'
  * JSON Patch operation per RFC 6902
  * Supports add, replace, and remove operations for activity updates
  */
-export interface JsonPatchOperation {
+export type JsonPatchOperation = {
   /** Operation type */
   op: 'add' | 'replace' | 'remove' | 'move' | 'copy' | 'test'
   /** JSON Pointer path (e.g., "/activities/0/status") */
@@ -58,7 +58,7 @@ export interface JsonPatchOperation {
 /**
  * Base message fields common to all WebSocket messages
  */
-interface BaseWebSocketMessage {
+type BaseWebSocketMessage = {
   /** Valkey stream ID for replay support (format: {milliseconds}-{sequence}) */
   event_id: string
   /** Workflow execution ID */
@@ -72,24 +72,24 @@ interface BaseWebSocketMessage {
  * Sent as first message (type="initial_snapshot") on replay from beginning,
  * and as last message (type="final_snapshot") when execution completes.
  */
-export interface ExecutionSnapshotMessage extends BaseWebSocketMessage {
+export type ExecutionSnapshotMessage = {
   type: 'initial_snapshot' | 'final_snapshot'
   /**
    * Execution object with same structure as REST API
    * GET /executions/{id}?include=activities
    */
   execution: Execution
-}
+} & BaseWebSocketMessage
 
 /**
  * Activity patch message
  * Activity status change using JSON Patch format for incremental updates
  */
-export interface ActivityPatchMessage extends BaseWebSocketMessage {
+export type ActivityPatchMessage = {
   type: 'activity_patch'
   /** One or more JSON Patch operations */
   ops: JsonPatchOperation[]
-}
+} & BaseWebSocketMessage
 
 /**
  * Union of all possible WebSocket message types
@@ -103,7 +103,7 @@ export type WebSocketMessage = ExecutionSnapshotMessage | ActivityPatchMessage
 /**
  * Activity state for visualization
  */
-export interface ActivityState {
+export type ActivityState = {
   /** Activity ID from workflow definition */
   activityId: string
   /** Current status */
@@ -122,7 +122,7 @@ export interface ActivityState {
  * Execution visualization data structure
  * Contains the workflow definition and execution metadata needed for visualization
  */
-export interface ExecutionVisualization {
+export type ExecutionVisualization = {
   /** Execution ID */
   executionId: string
   /** Workflow ID */
@@ -148,7 +148,7 @@ export interface ExecutionVisualization {
 /**
  * Connection state for WebSocket
  */
-export interface ConnectionState {
+export type ConnectionState = {
   /** Whether WebSocket is currently connected */
   isConnected: boolean
   /**
@@ -162,7 +162,7 @@ export interface ConnectionState {
  * Execution store state
  * Manages all state for execution visualization
  */
-export interface ExecutionStoreState {
+export type ExecutionStoreState = {
   /** Current execution ID being visualized */
   executionId: string | null
   /** Execution visualization data */

@@ -5,7 +5,7 @@ import type { FlowPosition } from '../types'
 /**
  * Shared edge data interface used by all edge types
  */
-export interface EdgeData {
+export type EdgeData = {
   onAddNode?: (sourceNodeId: string, targetNodeId: string, edgeId: string, sourceHandle?: string) => void
   isActive?: boolean
   isPending?: boolean
@@ -15,7 +15,7 @@ export interface EdgeData {
 /**
  * Button edge data interface (different from regular edges)
  */
-export interface ButtonEdgeData {
+export type ButtonEdgeData = {
   /** Called when [+] is clicked; optional position is the [+] location in flow coordinates (for placing the new node) */
   onButtonClick?: (position?: FlowPosition) => void
   isActive?: boolean
@@ -25,13 +25,13 @@ export interface ButtonEdgeData {
 /**
  * Base edge props interface that all edge components extend
  */
-export interface BaseEdgeProps extends Omit<EdgeProps, 'data'> {
+export type BaseEdgeProps = {
   data?: EdgeData
-}
+} & Omit<EdgeProps, 'data'>
 
 /**
  * Button edge props interface
  */
-export interface ButtonEdgeProps extends Omit<EdgeProps, 'data'> {
+export type ButtonEdgeProps = {
   data?: ButtonEdgeData
-}
+} & Omit<EdgeProps, 'data'>

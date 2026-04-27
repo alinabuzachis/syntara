@@ -6,7 +6,7 @@ import { useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
 import { ConvergeNodeForm } from '../node-forms/ConvergeNodeForm'
 import { secondsToTimeUnits } from '../utils/timeUtils'
 
-type ConvergeNodeDetailsProps = {
+interface ConvergeNodeDetailsProps {
   convergeData: ConvergeActivity
   nodeId: string
   onClose: () => void

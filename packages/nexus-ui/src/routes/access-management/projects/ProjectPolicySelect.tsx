@@ -16,7 +16,7 @@ import { type Ref, useCallback, useMemo, useRef, useState } from 'react'
 
 import { accessClient } from '../../access/accessClient'
 
-type ProjectPolicySelectProps = {
+interface ProjectPolicySelectProps {
   projectId: string
   selected: string[]
   onChange: (selected: string[]) => void

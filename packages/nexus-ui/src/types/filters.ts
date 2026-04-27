@@ -69,7 +69,7 @@ export type FilterValue = string | boolean | number | Date | string[]
  * // → API param: created_at[gte]=2024-01-01T00:00:00.000Z
  * ```
  */
-export type FilterConfig = {
+export interface FilterConfig {
   /** API query parameter key (e.g., 'name', 'status', 'created_at') */
   key: string
   /** Filter operator - defaults to 'eq' if not specified */
@@ -148,7 +148,7 @@ export type FilterType = (typeof FilterTypeEnum)[keyof typeof FilterTypeEnum]
  * }
  * ```
  */
-export type FilterFieldDefinition = {
+export interface FilterFieldDefinition {
   /** API parameter key - must match FilterConfig.key */
   key: string
   /** Display label for the filter control */

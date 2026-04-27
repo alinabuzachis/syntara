@@ -18,6 +18,7 @@ export const aapFormSchema = z
 
     // ── Core fields (from cascading dropdowns) ────────────────────────
     organization_name: z.string().trim().min(1, 'Organization is required'),
+    organization_id: optionalNumber.optional(),
     job_template_name: z.string().trim().min(1, 'Job template is required'),
     job_template_id: optionalNumber.optional(),
 
@@ -41,7 +42,7 @@ export const aapFormSchema = z
     execution_environment_id: optionalNumber.optional(),
     instance_group: z.string().optional(),
     instance_group_id: optionalNumber.optional(),
-    labels: z.string().optional(),
+    labels: z.array(z.string()).optional(), // Label names (supports creating new labels)
   })
   .superRefine((data, ctx) => {
     // Skip job_template_id check when using expression mode (${...} expressions resolve at runtime)

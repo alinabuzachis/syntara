@@ -1054,7 +1054,7 @@ export const handlers = [
     const issuerUrl = body.configuration?.issuer_url ?? ''
 
     if (!issuerUrl) {
-      return HttpResponse.json({ success: false, message: 'Issuer URL is required' })
+      return HttpResponse.json({ success: false, message: 'Issuer URL is required' }, { status: 400 })
     }
 
     return HttpResponse.json({

@@ -22,7 +22,7 @@ import { addProjectRoleSchema } from './addProjectRoleSchema'
 import type { AddProjectRoleFormData } from './addProjectRoleSchema'
 import { ProjectPolicySelect } from './ProjectPolicySelect'
 
-type AddProjectRoleDialogProps = {
+interface AddProjectRoleDialogProps {
   projectId: string
   onClose: () => void
   onSuccess: () => void

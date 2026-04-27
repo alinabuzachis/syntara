@@ -23,7 +23,7 @@ import type { EditRoleFormData } from './addRoleSchema'
 import { PolicySelect } from './PolicySelect'
 import type { RoleRead } from './types'
 
-type EditRoleDialogProps = {
+interface EditRoleDialogProps {
   role: RoleRead
   onClose: () => void
   onSuccess: () => void

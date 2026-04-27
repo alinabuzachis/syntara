@@ -22,9 +22,29 @@ import {
 import { AIAgentNodeDetails } from './AIAgentNodeDetails'
 
 /**
- * Stored AAP config uses snake_case to match the API contract.
+ * Stored AAP config supports both snake_case (API) and camelCase (legacy) field names.
+ * Extends AAPJobTemplateConfig with snake_case API fields for backend compatibility.
  */
 type StoredAAPConfig = AAPJobTemplateConfig & {
+  // Snake_case API field names (backend format)
+  credential_id?: string
+  organization_id?: number
+  organization_name?: string
+  job_template_id?: number
+  job_template_name?: string
+  inventory_id?: number
+  inventory_name?: string
+  extra_vars?: Record<string, unknown>
+  skip_tags?: string
+  job_type?: string
+  job_slice_count?: number
+  diff_mode?: boolean
+  execution_environment?: string
+  instance_groups?: string
+  instance_group_name?: string
+  instance_group_id?: number
+  job_credentials?: number[]
+
   // Index signature for unknown fields
   [key: string]: unknown
 }
@@ -44,16 +64,16 @@ function serializeExtraVars(extraVars: Record<string, unknown> | undefined): str
   return extraVars ? JSON.stringify(extraVars, null, 2) : ''
 }
 
-/** Get field value with default fallback. */
-function getField<T>(value: T | undefined, defaultValue: T): T {
-  return value ?? defaultValue
+/** Get field value with snake_case → camelCase fallback. */
+function getField<T>(snakeCase: T | undefined, camelCase: T | undefined, defaultValue: T): T {
+  return snakeCase ?? camelCase ?? defaultValue
 }
 
 /**
  * Type guard to check if config has AAP job template fields.
  */
 function hasJobTemplateConfig(config: Record<string, unknown>): config is StoredAAPConfig {
-  return 'job_template_id' in config
+  return 'job_template_id' in config || 'jobTemplateId' in config
 }
 
 /**
@@ -87,8 +107,8 @@ function buildActivityConfig(
   data: RegistryActionFormData,
   showError: (title: string, message: string) => void
 ):
-  | { language: string; code: string; credential_id?: string }
-  | { method: string; url: string; headers?: Record<string, string>; body?: unknown; credential_id?: string }
+  | { language: string; code: string; credentialId?: string }
+  | { method: string; url: string; headers?: Record<string, string>; body?: unknown; credentialId?: string }
   | null {
   const isScript = data.executor === ExecutorTypeEnum.SCRIPT
 
@@ -122,22 +142,39 @@ function mergeAuthHeaders(
 function buildHTTPConfig(
   data: RegistryActionFormData,
   headers: Record<string, string> | undefined
-): { method: string; url: string; headers?: Record<string, string>; body?: unknown; credential_id?: string } {
-  return {
-    method: data.method as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
-    url: data.url!,
-    ...(headers && { headers }),
-    ...(data.body && {
-      body: (() => {
+): { method: string; url: string; headers?: Record<string, string>; body?: unknown; credentialId?: string } {
+  const parsedBody = data.body
+    ? (() => {
         try {
           return JSON.parse(data.body, safeJSONReviver) as unknown
         } catch {
-          return data.body
+          return data.body as unknown
         }
-      })(),
-    }),
-    ...(data.credential_id && { credential_id: data.credential_id }),
+      })()
+    : undefined
+
+  const config: {
+    method: string
+    url: string
+    headers?: Record<string, string>
+    body?: unknown
+    credentialId?: string
+  } = {
+    method: data.method as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
+    url: data.url!,
   }
+
+  if (headers) {
+    config.headers = headers
+  }
+  if (parsedBody !== undefined) {
+    config.body = parsedBody
+  }
+  if (data.credential_id) {
+    config.credentialId = data.credential_id
+  }
+
+  return config
 }
 
 /**
@@ -151,17 +188,22 @@ function serializeBody(body: unknown): string {
 /**
  * Build script config from form data.
  */
-function buildScriptConfig(data: RegistryActionFormData): { language: string; code: string; credential_id?: string } {
-  return {
+function buildScriptConfig(data: RegistryActionFormData): { language: string; code: string; credentialId?: string } {
+  const config: { language: string; code: string; credentialId?: string } = {
     language: data.language ?? 'python',
     code: data.code!,
-    ...(data.credential_id && { credential_id: data.credential_id }),
   }
+
+  if (data.credential_id) {
+    config.credentialId = data.credential_id
+  }
+
+  return config
 }
 
 /**
  * Build initial form data from a stored AAP config.
- * All fields use snake_case to match API contract.
+ * Handles both snake_case (API) and camelCase (legacy) field names.
  */
 function buildAAPInitialData(taskName: string, config: Record<string, unknown>): Partial<AAPFormData> {
   if (!hasJobTemplateConfig(config)) {
@@ -171,26 +213,28 @@ function buildAAPInitialData(taskName: string, config: Record<string, unknown>):
 
   return {
     name: taskName,
-    credential_id: c.credential_id as string | undefined,
-    organization_name: getField(c.organization_name as string | undefined, ''),
-    job_template_name: getField(c.job_template_name as string | undefined, ''),
-    job_template_id: c.job_template_id as number | undefined,
-    inventory_name: getField(c.inventory_name as string | undefined, ''),
-    inventory_id: c.inventory_id as number | undefined,
-    extra_vars: serializeExtraVars(c.extra_vars as Record<string, unknown> | undefined),
-    limit: getField(c.limit, ''),
-    tags: getField(c.tags, ''),
-    skip_tags: getField(c.skip_tags as string | undefined, ''),
+    credential_id: c.credential_id ?? c.credentialId,
+    organization_id: c.organization_id ?? c.organizationId,
+    organization_name: getField(c.organization_name, c.organization, ''),
+    job_template_name: getField(c.job_template_name, c.jobTemplateName, ''),
+    job_template_id: (c.job_template_id ?? c.jobTemplateId) as number | undefined,
+    inventory_name: getField(c.inventory_name, c.inventoryName, ''),
+    inventory_id: c.inventory_id ?? c.inventory,
+    extra_vars: serializeExtraVars(c.extra_vars ?? c.extraVars),
+    limit: c.limit ?? '',
+    tags: c.tags ?? '',
+    skip_tags: c.skip_tags ?? c.skipTags ?? '',
     verbosity: c.verbosity?.toString() ?? '',
-    job_credentials: (c.job_credentials as number[] | undefined) ?? [],
-    job_type: getField(c.job_type as string | undefined, ''),
+    job_credentials: c.jobCredentials ?? c.job_credentials ?? [],
+    job_type: getField(c.job_type, c.jobType, ''),
     forks: c.forks,
     timeout: c.timeout,
-    job_slice_count: c.job_slice_count as number | undefined,
-    diff_mode: getField(c.diff_mode as boolean | undefined, false),
-    execution_environment: getField(c.execution_environment as string | undefined, ''),
-    instance_group: getField(c.instance_groups as string | undefined, ''),
-    labels: getField(c.labels, ''),
+    job_slice_count: c.job_slice_count ?? c.jobSlicing,
+    diff_mode: getField(c.diff_mode, c.diffMode, false),
+    execution_environment: getField(c.execution_environment, c.executionEnvironment, ''),
+    instance_group: getField(c.instance_group_name, c.instanceGroupName, '') as string | undefined,
+    instance_group_id: c.instance_group_id ?? c.instanceGroupId,
+    labels: c.labels ?? [],
   }
 }
 
@@ -298,7 +342,10 @@ export function TaskNodeDetails({
         ? JSON.stringify(config.headers, null, 2)
         : undefined,
     body: serializedBody,
-    credential_id: (config as { credential_id?: string }).credential_id ?? undefined,
+    credential_id:
+      (config as { credentialId?: string; credential_id?: string }).credentialId ??
+      (config as { credentialId?: string; credential_id?: string }).credential_id ??
+      undefined,
   }
 
   const handleSubmit = (data: RegistryActionFormData) => {

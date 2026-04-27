@@ -18,7 +18,7 @@ import { NodeExpandedAllContext } from './nodes/common/NodeExpandedAllContext'
 
 const LEGEND_REGION_ID = 'workflow-canvas-legend'
 
-type CanvasLegendPopoverBodyProps = {
+interface CanvasLegendPopoverBodyProps {
   hide?: () => void
   onClose: () => void
   regionId: string

@@ -13,7 +13,7 @@ import { RhUiCubesFillIcon } from '@patternfly/react-icons'
  *   addData={() => navigate('/create')}
  * />
  */
-export type EmptyStateNoDataProps = {
+export interface EmptyStateNoDataProps {
   title?: string
   description?: string
   buttonText?: string

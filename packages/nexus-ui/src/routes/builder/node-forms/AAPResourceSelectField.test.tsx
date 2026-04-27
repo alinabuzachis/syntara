@@ -123,6 +123,15 @@ describe('AAPResourceSelectField', () => {
       renderField()
       expect(screen.getByPlaceholderText('Use default inventory')).toHaveValue('')
     })
+
+    it('renders with empty selection when field value does not match any item', () => {
+      // Field has a value but it doesn't match any item in the list
+      // This exercises the selectedItem ? ... : '' branch when selectedItem is undefined
+      renderField({}, { inventory_name: 'Non-existent Inventory' })
+      const input = screen.getByPlaceholderText('Use default inventory')
+      // The input will be empty because selectedItem is undefined (no matching item)
+      expect(input).toHaveValue('')
+    })
   })
 
   describe('Loading state', () => {

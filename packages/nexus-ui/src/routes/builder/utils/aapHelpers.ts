@@ -69,23 +69,20 @@ function parseExtraVars(value: string): Record<string, unknown> | undefined {
 type ConfigKey = keyof AAPJobTemplateConfig
 
 /**
- * Table-driven mapping from form fields (snake_case) to config fields (camelCase).
- * Form uses snake_case for Zod validation, config uses camelCase per JS convention.
+ * Table-driven mapping from form fields to config fields.
+ * Each entry: [formKey, configKey, predicate] — predicate determines whether to include.
  */
 const stringFields: [keyof AAPFormData, ConfigKey][] = [
   ['limit', 'limit'],
   ['tags', 'tags'],
   ['skip_tags', 'skipTags'],
   ['job_type', 'jobType'],
-  ['execution_environment', 'executionEnvironment'],
-  ['instance_group', 'instanceGroups'],
-  ['labels', 'labels'],
 ]
 
 const numberFields: [keyof AAPFormData, ConfigKey][] = [
   ['forks', 'forks'],
   ['timeout', 'timeout'],
-  ['job_slice_count', 'jobSliceCount'],
+  ['job_slice_count', 'jobSlicing'],
 ]
 
 function collectStringFields(config: AAPJobTemplateConfig, data: AAPFormData): void {
@@ -107,15 +104,27 @@ function collectNumberFields(config: AAPJobTemplateConfig, data: AAPFormData): v
 }
 
 function setOrganizationAndTemplate(config: AAPJobTemplateConfig, data: AAPFormData): void {
-  if (data.organization_name) config.organizationName = data.organization_name
+  // Organization ID (takes precedence over name)
+  if (data.organization_id !== undefined && data.organization_id !== null) {
+    config.organizationId = data.organization_id
+  }
+  // Organization name (for lookup if ID not provided)
+  if (data.organization_name) config.organization = data.organization_name
   if (data.job_template_name) config.jobTemplateName = data.job_template_name
 }
 
 function setInventoryFields(config: AAPJobTemplateConfig, data: AAPFormData): void {
   if (data.inventory_id !== undefined && data.inventory_id !== null) {
-    config.inventoryId = data.inventory_id
+    config.inventory = data.inventory_id
   }
   if (data.inventory_name) config.inventoryName = data.inventory_name
+}
+
+function setExecutionEnvironmentFields(config: AAPJobTemplateConfig, data: AAPFormData): void {
+  if (data.execution_environment_id !== undefined && data.execution_environment_id !== null) {
+    config.executionEnvironmentId = data.execution_environment_id
+  }
+  if (data.execution_environment) config.executionEnvironment = data.execution_environment
 }
 
 function setExtraVarsField(config: AAPJobTemplateConfig, data: AAPFormData): void {
@@ -134,9 +143,16 @@ function setCredentialFields(config: AAPJobTemplateConfig, data: AAPFormData): v
   // Nexus credential for AAP authentication
   if (data.credential_id) config.credentialId = data.credential_id
 
-  // AAP Controller credentials for job template launch (prompt-on-launch override)
+  // AAP Controller credential IDs for job execution (prompt-on-launch override)
   if (data.job_credentials && data.job_credentials.length > 0) {
     config.jobCredentials = data.job_credentials
+  }
+}
+
+function setLabelsField(config: AAPJobTemplateConfig, data: AAPFormData): void {
+  // Labels are an array of label names (strings) - AAP supports creating new labels
+  if (data.labels && data.labels.length > 0) {
+    config.labels = data.labels
   }
 }
 
@@ -144,20 +160,33 @@ function setDiffModeField(config: AAPJobTemplateConfig, data: AAPFormData): void
   if (data.diff_mode !== undefined) config.diffMode = data.diff_mode
 }
 
+function setInstanceGroupFields(config: AAPJobTemplateConfig, data: AAPFormData): void {
+  // Instance group ID (takes precedence over name)
+  if (data.instance_group_id !== undefined && data.instance_group_id !== null) {
+    config.instanceGroupId = data.instance_group_id
+  }
+  // Instance group name (for lookup if ID not provided)
+  if (data.instance_group) {
+    config.instanceGroupName = data.instance_group
+  }
+}
+
 /**
  * Build optional AAP job configuration from form data.
- * Form data uses snake_case (from Zod), config uses camelCase (JS convention).
- * The jobTemplateId is handled separately by the caller.
+ * The jobTemplateId and organization are handled separately by the caller.
  */
 export function buildAAPConfig(data: AAPFormData): AAPJobTemplateConfig | undefined {
   const config: AAPJobTemplateConfig = {}
 
   setOrganizationAndTemplate(config, data)
   setInventoryFields(config, data)
+  setExecutionEnvironmentFields(config, data)
   setExtraVarsField(config, data)
   setVerbosityField(config, data)
   setCredentialFields(config, data)
+  setLabelsField(config, data)
   setDiffModeField(config, data)
+  setInstanceGroupFields(config, data)
   collectStringFields(config, data)
   collectNumberFields(config, data)
 

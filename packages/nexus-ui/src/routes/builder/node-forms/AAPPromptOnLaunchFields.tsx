@@ -1,30 +1,25 @@
-import {
-  FormGroup,
-  FormHelperText,
-  FormSelect,
-  FormSelectOption,
-  HelperText,
-  HelperTextItem,
-  Stack,
-  StackItem,
-  Switch,
-  TextInput,
-  Title,
-} from '@patternfly/react-core'
-import { RhUiErrorIcon } from '@patternfly/react-icons'
-import { Controller, useFormContext } from 'react-hook-form'
+import { Stack, StackItem, Title } from '@patternfly/react-core'
 
-import { ExpandableCodeEditor, type ExpandableCodeEditorHandle } from '../../../components/ExpandableCodeEditor'
-import { TagInput } from '../../../components/forms/TagInput'
+import type { ExpandableCodeEditorHandle } from '../../../components/ExpandableCodeEditor'
 import type {
   AAPCredential,
   AAPExecutionEnvironment,
   AAPInstanceGroup,
   AAPInventory,
   AAPJobTemplateDetail,
+  AAPLabel,
 } from '../../../hooks/useAAPBrowser'
 
-import type { AAPFormData } from './aapFormSchema'
+import { AAPLabelsField } from './AAPLabelsField'
+import {
+  DiffModeField,
+  ExtraVariablesField,
+  NumberInputField,
+  RunTypeField,
+  TagInputField,
+  TextInputField,
+  VerbosityField,
+} from './AAPPromptFields'
 import { AAPResourceMultiSelectField } from './AAPResourceMultiSelectField'
 import { AAPResourceSelectField } from './AAPResourceSelectField'
 
@@ -40,10 +35,13 @@ type PromptOnLaunchFieldsProps = {
   readonly loadingCredentials?: boolean
   readonly instanceGroups?: AAPInstanceGroup[]
   readonly loadingInstanceGroups?: boolean
+  readonly labels?: AAPLabel[]
+  readonly loadingLabels?: boolean
   readonly onSearchInventories?: (search: string) => void
   readonly onSearchExecutionEnvironments?: (search: string) => void
   readonly onSearchCredentials?: (search: string) => void
   readonly onSearchInstanceGroups?: (search: string) => void
+  readonly onSearchLabels?: (search: string) => void
 }
 
 /** All ask_* flag keys that control field visibility. */
@@ -69,220 +67,64 @@ function hasAnyPromptFlag(detail: AAPJobTemplateDetail): boolean {
   return PROMPT_FLAGS.some((flag) => detail[flag])
 }
 
-// ── Individual field sub-components ──────────────────────────────────────
+// ── Field components ───────────────────────────────
 
-function RunTypeField() {
-  const { control } = useFormContext<AAPFormData>()
+type InventoryFieldProps = {
+  readonly inventories: readonly AAPInventory[]
+  readonly loadingInventories: boolean
+  readonly defaultName: string | undefined
+  readonly onSearchInventories: (search: string) => void
+}
+
+function InventoryField({ inventories, loadingInventories, defaultName, onSearchInventories }: InventoryFieldProps) {
   return (
-    <StackItem>
-      <FormGroup label="Run type" fieldId="aap-job_type">
-        <Controller
-          control={control}
-          name="job_type"
-          render={({ field }) => (
-            <FormSelect
-              id="aap-job_type"
-              value={field.value ?? ''}
-              onChange={(_event, value) => field.onChange(value)}
-              aria-label="Run type"
-            >
-              <FormSelectOption value="" label="[ run type ]" isPlaceholder />
-              <FormSelectOption value="run" label="Run" />
-              <FormSelectOption value="check" label="Check (Dry Run)" />
-            </FormSelect>
-          )}
-        />
-      </FormGroup>
-    </StackItem>
+    <AAPResourceSelectField
+      label="Inventory"
+      fieldId="aap-inventory"
+      nameField="inventory_name"
+      idField="inventory_id"
+      items={inventories}
+      isLoading={loadingInventories}
+      helperText={
+        defaultName
+          ? `Override default inventory for the job. Default: ${defaultName}`
+          : 'Override default inventory for the job'
+      }
+      placeholderText={defaultName ? `${defaultName} (default)` : 'No default inventory'}
+      onSearchChange={onSearchInventories}
+    />
   )
 }
 
-function VerbosityField() {
-  const { control } = useFormContext<AAPFormData>()
-  return (
-    <StackItem>
-      <FormGroup label="Verbosity" fieldId="aap-verbosity">
-        <Controller
-          control={control}
-          name="verbosity"
-          render={({ field }) => (
-            <FormSelect
-              id="aap-verbosity"
-              value={field.value ?? ''}
-              onChange={(_event, value) => field.onChange(value)}
-              aria-label="Verbosity"
-            >
-              <FormSelectOption value="" label="[ verbosity ]" isPlaceholder />
-              <FormSelectOption value="0" label="0 - Normal" />
-              <FormSelectOption value="1" label="1 - Verbose" />
-              <FormSelectOption value="2" label="2 - More Verbose" />
-              <FormSelectOption value="3" label="3 - Debug" />
-              <FormSelectOption value="4" label="4 - Connection Debug" />
-              <FormSelectOption value="5" label="5 - WinRM Debug" />
-            </FormSelect>
-          )}
-        />
-      </FormGroup>
-    </StackItem>
-  )
+type ExecutionEnvironmentFieldProps = {
+  readonly executionEnvironments: readonly AAPExecutionEnvironment[]
+  readonly loadingExecutionEnvironments: boolean
+  readonly defaultName: string | undefined
+  readonly onSearchExecutionEnvironments: (search: string) => void
 }
 
-function DiffModeField() {
-  const { control } = useFormContext<AAPFormData>()
+function ExecutionEnvironmentField({
+  executionEnvironments,
+  loadingExecutionEnvironments,
+  defaultName,
+  onSearchExecutionEnvironments,
+}: ExecutionEnvironmentFieldProps) {
   return (
-    <StackItem>
-      <Controller
-        control={control}
-        name="diff_mode"
-        render={({ field }) => (
-          <Switch
-            id="aap-diff_mode"
-            label="Show changes"
-            isChecked={field.value ?? false}
-            onChange={(_event, checked) => field.onChange(checked)}
-            aria-label="Show changes"
-          />
-        )}
-      />
-    </StackItem>
-  )
-}
-
-function ExtraVariablesField({
-  editorRef,
-}: {
-  readonly editorRef: React.RefObject<ExpandableCodeEditorHandle | null>
-}) {
-  const {
-    control,
-    formState: { errors },
-  } = useFormContext<AAPFormData>()
-  const extraVarsMessage = errors.extra_vars?.message
-
-  return (
-    <StackItem>
-      <FormGroup label="Extra variables" fieldId="aap-extra_vars">
-        <Controller
-          control={control}
-          name="extra_vars"
-          render={({ field }) => (
-            <div className={extraVarsMessage ? 'pf-v6-c-form-control pf-m-error' : undefined}>
-              <ExpandableCodeEditor
-                ref={editorRef}
-                code={field.value ?? ''}
-                onCodeChange={field.onChange}
-                onBlur={field.onBlur}
-                language="json"
-                height="150px"
-                modalTitle="Edit extra variables"
-                ariaLabel="Extra Variables"
-              />
-            </div>
-          )}
-        />
-        {extraVarsMessage && (
-          <FormHelperText>
-            <HelperText>
-              <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
-                {extraVarsMessage}
-              </HelperTextItem>
-            </HelperText>
-          </FormHelperText>
-        )}
-      </FormGroup>
-    </StackItem>
-  )
-}
-
-function TextInputField({
-  label,
-  fieldId,
-  name,
-}: {
-  readonly label: string
-  readonly fieldId: string
-  readonly name: keyof AAPFormData
-}) {
-  const { register } = useFormContext<AAPFormData>()
-  return (
-    <StackItem>
-      <FormGroup label={label} fieldId={fieldId}>
-        <TextInput {...register(name)} id={fieldId} type="text" />
-      </FormGroup>
-    </StackItem>
-  )
-}
-
-function NumberInputField({
-  label,
-  fieldId,
-  name,
-  placeholder,
-  min,
-}: {
-  readonly label: string
-  readonly fieldId: string
-  readonly name: keyof AAPFormData
-  readonly placeholder: string
-  readonly min: number
-}) {
-  const { register } = useFormContext<AAPFormData>()
-  return (
-    <StackItem>
-      <FormGroup label={label} fieldId={fieldId}>
-        <TextInput
-          {...register(name, { valueAsNumber: true })}
-          id={fieldId}
-          type="number"
-          placeholder={placeholder}
-          min={min}
-        />
-      </FormGroup>
-    </StackItem>
-  )
-}
-
-function TagInputField({
-  label,
-  fieldId,
-  name,
-  placeholder,
-  helperText,
-}: {
-  readonly label: string
-  readonly fieldId: string
-  readonly name: keyof AAPFormData
-  readonly placeholder: string
-  readonly helperText: string
-}) {
-  const { control } = useFormContext<AAPFormData>()
-  return (
-    <StackItem>
-      <FormGroup label={label} fieldId={fieldId}>
-        <Controller
-          control={control}
-          name={name}
-          render={({ field }) => {
-            const items = field.value
-              ? String(field.value)
-                  .split(',')
-                  .map((s) => s.trim())
-                  .filter(Boolean)
-              : []
-            return (
-              <TagInput
-                id={fieldId}
-                value={items}
-                onChange={(arr) => field.onChange(arr.join(', '))}
-                ariaLabel={label}
-                placeholder={placeholder}
-                helperText={helperText}
-              />
-            )
-          }}
-        />
-      </FormGroup>
-    </StackItem>
+    <AAPResourceSelectField
+      label="Execution environment"
+      fieldId="aap-executionEnvironment"
+      nameField="execution_environment"
+      idField="execution_environment_id"
+      items={executionEnvironments}
+      isLoading={loadingExecutionEnvironments}
+      helperText={
+        defaultName
+          ? `Override default execution environment for the job. Default: ${defaultName}`
+          : 'Override default execution environment for the job'
+      }
+      placeholderText={defaultName ? `${defaultName} (default)` : 'No default execution environment'}
+      onSearchChange={onSearchExecutionEnvironments}
+    />
   )
 }
 
@@ -298,11 +140,14 @@ function PromptOnLaunchFieldList({
   loadingCredentials,
   instanceGroups,
   loadingInstanceGroups,
+  labels,
+  loadingLabels,
   extraVarsEditorRef,
   onSearchInventories,
   onSearchExecutionEnvironments,
   onSearchCredentials,
   onSearchInstanceGroups,
+  onSearchLabels,
 }: {
   readonly templateDetail: AAPJobTemplateDetail
   readonly inventories: AAPInventory[]
@@ -313,39 +158,35 @@ function PromptOnLaunchFieldList({
   readonly loadingCredentials: boolean
   readonly instanceGroups: AAPInstanceGroup[]
   readonly loadingInstanceGroups: boolean
+  readonly labels: AAPLabel[]
+  readonly loadingLabels: boolean
   readonly extraVarsEditorRef: React.RefObject<ExpandableCodeEditorHandle | null>
   readonly onSearchInventories: (search: string) => void
   readonly onSearchExecutionEnvironments: (search: string) => void
   readonly onSearchCredentials: (search: string) => void
   readonly onSearchInstanceGroups: (search: string) => void
+  readonly onSearchLabels: (search: string) => void
 }) {
+  const inventoryDefaultName = templateDetail.default_inventory?.name
+  const executionEnvironmentDefaultName = templateDetail.default_execution_environment?.name
+
   return (
     <>
       {templateDetail.ask_job_type_on_launch && <RunTypeField />}
       {templateDetail.ask_inventory_on_launch && (
-        <AAPResourceSelectField
-          label="Inventory"
-          fieldId="aap-inventory_name"
-          nameField="inventory_name"
-          idField="inventory_id"
-          items={inventories}
-          isLoading={loadingInventories}
-          helperText="Override default inventory for the job"
-          placeholderText="Use default inventory"
-          onSearchChange={onSearchInventories}
+        <InventoryField
+          inventories={inventories}
+          loadingInventories={loadingInventories}
+          defaultName={inventoryDefaultName}
+          onSearchInventories={onSearchInventories}
         />
       )}
       {templateDetail.ask_execution_environment_on_launch && (
-        <AAPResourceSelectField
-          label="Execution environment"
-          fieldId="aap-execution_environment"
-          nameField="execution_environment"
-          idField="execution_environment_id"
-          items={executionEnvironments}
-          isLoading={loadingExecutionEnvironments}
-          helperText="Override default execution environment for the job"
-          placeholderText="Use default execution environment"
-          onSearchChange={onSearchExecutionEnvironments}
+        <ExecutionEnvironmentField
+          executionEnvironments={executionEnvironments}
+          loadingExecutionEnvironments={loadingExecutionEnvironments}
+          defaultName={executionEnvironmentDefaultName}
+          onSearchExecutionEnvironments={onSearchExecutionEnvironments}
         />
       )}
       {templateDetail.ask_credential_on_launch && (
@@ -356,23 +197,28 @@ function PromptOnLaunchFieldList({
           items={credentials}
           isLoading={loadingCredentials}
           helperText="Select one or more credentials for the job"
-          placeholderText="Use default credentials"
+          placeholderText="No default credentials"
+          defaultValues={templateDetail.default_credentials}
           onSearchChange={onSearchCredentials}
         />
       )}
-      {templateDetail.ask_labels_on_launch && <TextInputField label="Labels" fieldId="aap-labels" name="labels" />}
+      {templateDetail.ask_labels_on_launch && (
+        <AAPLabelsField
+          label="Labels"
+          fieldId="aap-labels"
+          availableLabels={labels}
+          isLoading={loadingLabels}
+          helperText="Select or create labels for the job"
+          placeholderText="Select or create labels"
+          onSearchChange={onSearchLabels}
+        />
+      )}
       {templateDetail.ask_verbosity_on_launch && <VerbosityField />}
       {templateDetail.ask_forks_on_launch && (
         <NumberInputField label="Forks" fieldId="aap-forks" name="forks" placeholder="0" min={0} />
       )}
       {templateDetail.ask_job_slice_count_on_launch && (
-        <NumberInputField
-          label="Job slicing"
-          fieldId="aap-job_slice_count"
-          name="job_slice_count"
-          placeholder="1"
-          min={1}
-        />
+        <NumberInputField label="Job slicing" fieldId="aap-jobSlicing" name="job_slice_count" placeholder="1" min={1} />
       )}
       {templateDetail.ask_diff_mode_on_launch && <DiffModeField />}
       {templateDetail.ask_timeout_on_launch && (
@@ -403,7 +249,7 @@ function PromptOnLaunchFieldList({
       {templateDetail.ask_skip_tags_on_launch && (
         <TagInputField
           label="Skip tags"
-          fieldId="aap-skip_tags"
+          fieldId="aap-skipTags"
           name="skip_tags"
           placeholder="tag1"
           helperText="Type a tag and press Enter or comma to add"
@@ -429,10 +275,13 @@ export function PromptOnLaunchFields({
   loadingCredentials = false,
   instanceGroups = [],
   loadingInstanceGroups = false,
+  labels = [],
+  loadingLabels = false,
   onSearchInventories = noop,
   onSearchExecutionEnvironments = noop,
   onSearchCredentials = noop,
   onSearchInstanceGroups = noop,
+  onSearchLabels = noop,
 }: Readonly<PromptOnLaunchFieldsProps>) {
   if (!templateDetail || isLoadingDetail || !hasAnyPromptFlag(templateDetail)) {
     return null
@@ -453,11 +302,14 @@ export function PromptOnLaunchFields({
         loadingCredentials={loadingCredentials}
         instanceGroups={instanceGroups}
         loadingInstanceGroups={loadingInstanceGroups}
+        labels={labels}
+        loadingLabels={loadingLabels}
         extraVarsEditorRef={extraVarsEditorRef}
         onSearchInventories={onSearchInventories}
         onSearchExecutionEnvironments={onSearchExecutionEnvironments}
         onSearchCredentials={onSearchCredentials}
         onSearchInstanceGroups={onSearchInstanceGroups}
+        onSearchLabels={onSearchLabels}
       />
     </Stack>
   )

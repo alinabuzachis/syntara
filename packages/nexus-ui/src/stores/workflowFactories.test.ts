@@ -423,7 +423,7 @@ describe('workflowFactories', () => {
 
       it('creates an AAP activity with full config', () => {
         const activity = createAAPJobTemplateActivity('aap-1', 'Run Playbook', 123, {
-          inventoryId: 456,
+          inventory: 456,
           extraVars: { env: 'prod' },
           limit: 'web-servers',
           tags: 'deploy',
@@ -432,7 +432,7 @@ describe('workflowFactories', () => {
           jobType: 'run',
           forks: 10,
           timeout: 3600,
-          jobSliceCount: 2,
+          jobSlicing: 2,
           diffMode: true,
         })
 

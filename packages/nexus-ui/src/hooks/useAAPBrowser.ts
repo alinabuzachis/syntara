@@ -12,6 +12,7 @@ export type AAPInventory = AAPAPI.components['schemas']['AAPInventory']
 export type AAPExecutionEnvironment = AAPAPI.components['schemas']['AAPExecutionEnvironment']
 export type AAPCredential = AAPAPI.components['schemas']['AAPCredential']
 export type AAPInstanceGroup = AAPAPI.components['schemas']['AAPInstanceGroup']
+export type AAPLabel = AAPAPI.components['schemas']['AAPLabel']
 
 type AAPSearchState = {
   selectedOrg: string
@@ -22,6 +23,7 @@ type AAPSearchState = {
   execEnvSearch: string
   credentialSearch: string
   instanceGroupSearch: string
+  labelSearch: string
 }
 
 const INITIAL_STATE: AAPSearchState = {
@@ -33,6 +35,7 @@ const INITIAL_STATE: AAPSearchState = {
   execEnvSearch: '',
   credentialSearch: '',
   instanceGroupSearch: '',
+  labelSearch: '',
 }
 
 export type AAPBrowserInitialState = {
@@ -55,51 +58,35 @@ function resultsOf<T>(query: { data?: { results?: T[] } }): T[] {
   return query.data?.results ?? []
 }
 
+/** Build common query params for AAP resource searches */
+function buildSearchParams(search: string, credentialId: string | undefined, organization?: string) {
+  return {
+    search: search ? sanitizeSearchInput(search) : undefined,
+    page_size: AAP_DROPDOWN_PAGE_SIZE,
+    credential_id: credentialId || undefined,
+    organization: organization || undefined,
+  }
+}
+
 function useAAPQueries(state: AAPSearchState, isActive: boolean, credentialId: string | undefined) {
   const orgsQuery = aapClient.useQuery(
     'get',
     '/aap/organizations',
-    {
-      params: {
-        query: {
-          search: state.orgSearch ? sanitizeSearchInput(state.orgSearch) : undefined,
-          page_size: AAP_DROPDOWN_PAGE_SIZE,
-          credential_id: credentialId || undefined,
-        },
-      },
-    },
+    { params: { query: buildSearchParams(state.orgSearch, credentialId) } },
     { enabled: isActive }
   )
 
   const templatesQuery = aapClient.useQuery(
     'get',
     '/aap/job-templates',
-    {
-      params: {
-        query: {
-          organization: state.selectedOrg || undefined,
-          search: state.templateSearch ? sanitizeSearchInput(state.templateSearch) : undefined,
-          page_size: AAP_DROPDOWN_PAGE_SIZE,
-          credential_id: credentialId || undefined,
-        },
-      },
-    },
+    { params: { query: buildSearchParams(state.templateSearch, credentialId, state.selectedOrg) } },
     { enabled: isActive }
   )
 
   const inventoriesQuery = aapClient.useQuery(
     'get',
     '/aap/inventories',
-    {
-      params: {
-        query: {
-          organization: state.selectedOrg || undefined,
-          search: state.inventorySearch ? sanitizeSearchInput(state.inventorySearch) : undefined,
-          page_size: AAP_DROPDOWN_PAGE_SIZE,
-          credential_id: credentialId || undefined,
-        },
-      },
-    },
+    { params: { query: buildSearchParams(state.inventorySearch, credentialId, state.selectedOrg) } },
     { enabled: isActive }
   )
 
@@ -118,46 +105,28 @@ function useAAPQueries(state: AAPSearchState, isActive: boolean, credentialId: s
   const execEnvsQuery = aapClient.useQuery(
     'get',
     '/aap/execution-environments',
-    {
-      params: {
-        query: {
-          organization: state.selectedOrg || undefined,
-          search: state.execEnvSearch ? sanitizeSearchInput(state.execEnvSearch) : undefined,
-          page_size: AAP_DROPDOWN_PAGE_SIZE,
-          credential_id: credentialId || undefined,
-        },
-      },
-    },
+    { params: { query: buildSearchParams(state.execEnvSearch, credentialId, state.selectedOrg) } },
     { enabled: isActive }
   )
 
   const credentialsQuery = aapClient.useQuery(
     'get',
     '/aap/credentials',
-    {
-      params: {
-        query: {
-          search: state.credentialSearch ? sanitizeSearchInput(state.credentialSearch) : undefined,
-          page_size: AAP_DROPDOWN_PAGE_SIZE,
-          credential_id: credentialId || undefined,
-        },
-      },
-    },
+    { params: { query: buildSearchParams(state.credentialSearch, credentialId) } },
     { enabled: isActive }
   )
 
   const instanceGroupsQuery = aapClient.useQuery(
     'get',
     '/aap/instance-groups',
-    {
-      params: {
-        query: {
-          search: state.instanceGroupSearch ? sanitizeSearchInput(state.instanceGroupSearch) : undefined,
-          page_size: AAP_DROPDOWN_PAGE_SIZE,
-          credential_id: credentialId || undefined,
-        },
-      },
-    },
+    { params: { query: buildSearchParams(state.instanceGroupSearch, credentialId) } },
+    { enabled: isActive }
+  )
+
+  const labelsQuery = aapClient.useQuery(
+    'get',
+    '/aap/labels',
+    { params: { query: buildSearchParams(state.labelSearch, credentialId, state.selectedOrg) } },
     { enabled: isActive }
   )
 
@@ -169,6 +138,7 @@ function useAAPQueries(state: AAPSearchState, isActive: boolean, credentialId: s
     execEnvsQuery,
     credentialsQuery,
     instanceGroupsQuery,
+    labelsQuery,
   }
 }
 
@@ -182,6 +152,7 @@ function useAAPActions(setState: React.Dispatch<React.SetStateAction<AAPSearchSt
         templateSearch: '',
         inventorySearch: '',
         execEnvSearch: '',
+        labelSearch: '',
       }))
     },
     [setState]
@@ -219,6 +190,7 @@ function useAAPActions(setState: React.Dispatch<React.SetStateAction<AAPSearchSt
     (s: string) => setState((prev) => ({ ...prev, instanceGroupSearch: s })),
     [setState]
   )
+  const searchLabels = useCallback((s: string) => setState((prev) => ({ ...prev, labelSearch: s })), [setState])
 
   return {
     selectOrganization,
@@ -230,6 +202,7 @@ function useAAPActions(setState: React.Dispatch<React.SetStateAction<AAPSearchSt
     searchExecutionEnvironments,
     searchCredentials,
     searchInstanceGroups,
+    searchLabels,
   }
 }
 
@@ -245,6 +218,7 @@ function useAAPBrowserResults(
     executionEnvironments: resultsOf(queries.execEnvsQuery),
     credentials: resultsOf(queries.credentialsQuery),
     instanceGroups: resultsOf(queries.instanceGroupsQuery),
+    labels: resultsOf(queries.labelsQuery),
     templateDetail: queries.templateDetailQuery.data ?? undefined,
     loadingOrgs: queries.orgsQuery.isPending && isActive,
     loadingTemplates: queries.templatesQuery.isPending && isActive,
@@ -252,6 +226,7 @@ function useAAPBrowserResults(
     loadingExecutionEnvironments: queries.execEnvsQuery.isPending && isActive,
     loadingCredentials: queries.credentialsQuery.isPending && isActive,
     loadingInstanceGroups: queries.instanceGroupsQuery.isPending && isActive,
+    loadingLabels: queries.labelsQuery.isPending && isActive,
     loadingTemplateDetail: queries.templateDetailQuery.isPending && selectedTemplateId != null,
     error: getFirstError(
       queries.orgsQuery.error,
@@ -260,7 +235,8 @@ function useAAPBrowserResults(
       queries.templateDetailQuery.error,
       queries.execEnvsQuery.error,
       queries.credentialsQuery.error,
-      queries.instanceGroupsQuery.error
+      queries.instanceGroupsQuery.error,
+      queries.labelsQuery.error
     ),
   }
 }
@@ -293,6 +269,7 @@ export function useAAPBrowser(credentialId: string | undefined, initialState?: A
       queries.execEnvsQuery,
       queries.credentialsQuery,
       queries.instanceGroupsQuery,
+      queries.labelsQuery,
     ]
     detachPromise(Promise.all(allQueries.map((q) => q.refetch())))
   }, [
@@ -303,6 +280,7 @@ export function useAAPBrowser(credentialId: string | undefined, initialState?: A
     queries.execEnvsQuery,
     queries.credentialsQuery,
     queries.instanceGroupsQuery,
+    queries.labelsQuery,
   ])
 
   return {

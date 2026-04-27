@@ -31,7 +31,7 @@ import { credentialFormSchema, type CredentialFormData } from './credentialFormS
 import type { FieldDefinition } from './DynamicFieldRenderer'
 import { DynamicFieldRenderer } from './DynamicFieldRenderer'
 
-type CredentialFormModalProps = {
+interface CredentialFormModalProps {
   isOpen: boolean
   onClose: () => void
   credentialToEdit?: Credential | null
@@ -44,7 +44,7 @@ type CredentialFormModalProps = {
   defaultProjectId?: string
 }
 
-type TypeInputs = {
+interface TypeInputs {
   fields: FieldDefinition[]
   required: string[]
 }

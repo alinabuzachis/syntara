@@ -11,9 +11,9 @@ export type Credential = CredentialsAPI.components['schemas']['CredentialRead']
  *
  * The backend returns workflow_count but the OpenAPI contract doesn't declare it.
  */
-export interface CredentialExtended extends Credential {
+export type CredentialExtended = {
   workflow_count?: number
-}
+} & Credential
 
 /** Credential type resource from the API */
 export type CredentialType = CredentialsAPI.components['schemas']['CredentialTypeRead']
@@ -27,10 +27,10 @@ export type CredentialWorkflowRef = CredentialsAPI.components['schemas']['Creden
  * The backend returns enriched data (description, created_by, node_names, last_execution_at, last_execution_status)
  * but the OpenAPI contract only declares {id, name}. This type matches the actual backend response.
  */
-export interface CredentialWorkflowRefExtended extends CredentialWorkflowRef {
+export type CredentialWorkflowRefExtended = {
   description?: string | null
   created_by?: string | null
   node_names?: string[]
   last_execution_at?: string | null
   last_execution_status?: string | null
-}
+} & CredentialWorkflowRef

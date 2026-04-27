@@ -5,13 +5,13 @@ import { getValidationFieldErrors } from '../utils/apiErrors'
 
 import { useMutationErrorHandler, type MutationErrorHandlerOptions } from './useMutationErrorHandler'
 
-export interface FormMutationErrorHandlerOptions extends MutationErrorHandlerOptions {
+export type FormMutationErrorHandlerOptions = {
   /**
    * If true, map backend validation errors (FastAPI 422 detail arrays) onto react-hook-form fields via setError.
    * Defaults to true.
    */
   mapValidationToFields?: boolean
-}
+} & MutationErrorHandlerOptions
 
 /**
  * Shared helper for mutation-backed forms:

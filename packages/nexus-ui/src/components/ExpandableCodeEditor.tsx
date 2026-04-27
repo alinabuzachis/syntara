@@ -40,7 +40,7 @@ function stopKeyboardPropagation(e: KeyboardEvent) {
  *   height="200px"
  * />
  */
-export type ExpandableCodeEditorProps = {
+export interface ExpandableCodeEditorProps {
   /** The code content to display/edit */
   code: string
   /** Callback when code changes */
@@ -70,7 +70,7 @@ export type ExpandableCodeEditorProps = {
   onDropText?: (text: string) => void
 }
 
-export type ExpandableCodeEditorHandle = {
+export interface ExpandableCodeEditorHandle {
   getValue: () => string
   /** Focus the editor (e.g. when validation fails and this is the first error field). */
   focus: () => void

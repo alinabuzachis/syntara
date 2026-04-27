@@ -20,14 +20,14 @@ import { assignNewThenDeleteOldWithRollback } from './editAssignmentMutations'
 import { TypeaheadSelect } from './TypeaheadSelect'
 import type { PermissionRow } from './types'
 
-type EditAssignmentDialogProps = {
+interface EditAssignmentDialogProps {
   row: PermissionRow
   displayName: string
   onClose: () => void
   onSuccess: () => void
 }
 
-type EditAssignmentFormData = {
+interface EditAssignmentFormData {
   roleName: string
 }
 

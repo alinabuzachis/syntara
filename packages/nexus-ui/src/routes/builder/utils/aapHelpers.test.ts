@@ -42,26 +42,26 @@ describe('buildAAPConfig', () => {
     expect(result).toBeUndefined()
   })
 
-  it('includes organization_name and job_template_name when set', () => {
+  it('includes organization and jobTemplateName when set', () => {
     const result = buildAAPConfig(makeFormData({ organization_name: 'Default', job_template_name: 'Deploy' }))
-    expect(result).toEqual(expect.objectContaining({ organizationName: 'Default', jobTemplateName: 'Deploy' }))
+    expect(result).toEqual(expect.objectContaining({ organization: 'Default', jobTemplateName: 'Deploy' }))
   })
 
-  it('includes inventory_id and inventory_name when set', () => {
+  it('includes inventoryId and inventoryName when set', () => {
     const result = buildAAPConfig(makeFormData({ inventory_id: 42, inventory_name: 'Production' }))
-    expect(result?.inventoryId).toBe(42)
+    expect(result?.inventory).toBe(42)
     expect(result?.inventoryName).toBe('Production')
   })
 
-  it('handles inventory_id of 0 (falsy but defined)', () => {
-    // inventory_id = 0 is defined and not null, so it should be included
+  it('handles inventoryId of 0 (falsy but defined)', () => {
+    // inventoryId = 0 is defined and not null, so it should be included
     const result = buildAAPConfig(makeFormData({ inventory_id: 0, organization_name: 'Default' }))
-    expect(result?.inventoryId).toBe(0)
+    expect(result?.inventory).toBe(0)
   })
 
-  it('excludes inventory_id when undefined', () => {
+  it('excludes inventoryId when undefined', () => {
     const result = buildAAPConfig(makeFormData({ organization_name: 'Default' }))
-    expect(result?.inventoryId).toBeUndefined()
+    expect(result?.inventory).toBeUndefined()
   })
 
   it('parses valid JSON extra vars', () => {
@@ -78,7 +78,7 @@ describe('buildAAPConfig', () => {
     // parseExtraVars should reject arrays (they're not Record<string, unknown>)
     // The Zod schema already rejects arrays with 'Extra variables must be a JSON object'
     const result = buildAAPConfig(makeFormData({ extra_vars: '[1,2,3]' }))
-    // Arrays should be rejected - extra_vars should be undefined
+    // Arrays should be rejected - extraVars should be undefined
     expect(result?.extraVars).toBeUndefined()
   })
 
@@ -112,7 +112,7 @@ describe('buildAAPConfig', () => {
     expect(result?.jobCredentials).toBeUndefined()
   })
 
-  it('includes diff_mode when set', () => {
+  it('includes diffMode when set', () => {
     const result = buildAAPConfig(makeFormData({ diff_mode: true }))
     expect(result?.diffMode).toBe(true)
   })
@@ -126,7 +126,7 @@ describe('buildAAPConfig', () => {
         job_type: 'run',
         execution_environment: 'Default EE',
         instance_group: 'default',
-        labels: 'prod',
+        labels: ['prod'],
       })
     )
     expect(result).toEqual(
@@ -136,8 +136,8 @@ describe('buildAAPConfig', () => {
         skipTags: 'debug',
         jobType: 'run',
         executionEnvironment: 'Default EE',
-        instanceGroups: 'default',
-        labels: 'prod',
+        instanceGroupName: 'default',
+        labels: ['prod'],
       })
     )
   })
@@ -146,7 +146,7 @@ describe('buildAAPConfig', () => {
     const result = buildAAPConfig(makeFormData({ forks: 10, timeout: 300, job_slice_count: 2 }))
     expect(result?.forks).toBe(10)
     expect(result?.timeout).toBe(300)
-    expect(result?.jobSliceCount).toBe(2)
+    expect(result?.jobSlicing).toBe(2)
   })
 
   it('excludes NaN number fields', () => {
@@ -158,5 +158,30 @@ describe('buildAAPConfig', () => {
     const result = buildAAPConfig(makeFormData({ limit: '', tags: '', organization_name: 'Default' }))
     expect(result?.limit).toBeUndefined()
     expect(result?.tags).toBeUndefined()
+  })
+
+  it('includes credentialId when set', () => {
+    const result = buildAAPConfig(makeFormData({ credential_id: 'cred-123' }))
+    expect(result?.credentialId).toBe('cred-123')
+  })
+
+  it('includes organizationId when set', () => {
+    const result = buildAAPConfig(makeFormData({ organization_id: 5 }))
+    expect(result?.organizationId).toBe(5)
+  })
+
+  it('handles organizationId of 0 (falsy but defined)', () => {
+    const result = buildAAPConfig(makeFormData({ organization_id: 0 }))
+    expect(result?.organizationId).toBe(0)
+  })
+
+  it('includes instanceGroupId when set', () => {
+    const result = buildAAPConfig(makeFormData({ instance_group_id: 3 }))
+    expect(result?.instanceGroupId).toBe(3)
+  })
+
+  it('handles instanceGroupId of 0 (falsy but defined)', () => {
+    const result = buildAAPConfig(makeFormData({ instance_group_id: 0 }))
+    expect(result?.instanceGroupId).toBe(0)
   })
 })

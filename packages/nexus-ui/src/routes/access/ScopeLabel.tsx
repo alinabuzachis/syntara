@@ -13,7 +13,7 @@ const SCOPE_DISPLAY: Record<string, { label: string; color: 'blue' | 'green' | '
   project: { label: 'Project', color: 'green' },
 }
 
-type ScopeLabelProps = {
+interface ScopeLabelProps {
   scope?: string | null
 }
 
@@ -27,7 +27,7 @@ export function ScopeLabel({ scope }: Readonly<ScopeLabelProps>) {
   )
 }
 
-type ProjectLabelProps = {
+interface ProjectLabelProps {
   projectId?: string | null
   projectNameMap: Map<string, string>
 }

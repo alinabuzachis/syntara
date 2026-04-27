@@ -114,7 +114,7 @@ export function createScriptActivity(
     config: {
       language,
       code,
-      ...(credentialId && { credential_id: credentialId }),
+      ...(credentialId && { credentialId }),
     },
   }
 }
@@ -170,7 +170,7 @@ export function createApiActivity(options: CreateApiActivityOptions): Activity {
     name,
     config: {
       ...config,
-      ...(credentialId && { credential_id: credentialId }),
+      ...(credentialId && { credentialId }),
     },
   }
 }
@@ -197,7 +197,7 @@ export function createAgenticActivity(options: CreateAgenticActivityOptions): Ac
   if (model) config.model = model
   if (tools && tools.length > 0) config.tool_selections = tools
   if (fileIds && fileIds.length > 0) config.file_ids = fileIds
-  if (credentialId) config.credential_id = credentialId
+  if (credentialId) config.credentialId = credentialId
 
   return {
     id,
@@ -209,33 +209,60 @@ export function createAgenticActivity(options: CreateAgenticActivityOptions): Ac
 
 /**
  * AAP Job Template config — matches the backend AAPJobTemplateExecutorConfig fields.
- * Uses snake_case to match API contract.
  */
 export type AAPJobTemplateConfig = {
   credentialId?: string // Nexus credential for AAP authentication
-  organizationName?: string
+  organizationId?: number
+  organization?: string
   jobTemplateName?: string
-  inventoryId?: number
+  inventory?: number
   inventoryName?: string
   extraVars?: Record<string, unknown>
   limit?: string
   tags?: string
   skipTags?: string
   verbosity?: number
-  jobCredentials?: number[] // AAP Controller credentials (prompt-on-launch override)
+  jobCredentials?: number[] // AAP Controller credential IDs for job execution (prompt-on-launch override)
   jobType?: string
   forks?: number
   timeout?: number
-  jobSliceCount?: number
+  jobSlicing?: number
   diffMode?: boolean
   executionEnvironment?: string
-  instanceGroups?: string
-  labels?: string
+  executionEnvironmentId?: number
+  instanceGroupId?: number
+  instanceGroupName?: string
+  labels?: string[] // AAP Controller label names (prompt-on-launch override, supports creating new labels)
 }
+
+/** Mapping from AAPJobTemplateConfig key → API config key, with a predicate type. */
+const aapConfigMapping: [keyof AAPJobTemplateConfig, string, 'truthy' | 'defined'][] = [
+  ['credentialId', 'credential_id', 'truthy'],
+  ['organizationId', 'organization_id', 'defined'],
+  ['organization', 'organization_name', 'truthy'],
+  ['jobTemplateName', 'job_template_name', 'truthy'],
+  ['inventory', 'inventory_id', 'defined'],
+  ['inventoryName', 'inventory_name', 'truthy'],
+  ['extraVars', 'extra_vars', 'truthy'],
+  ['limit', 'limit', 'truthy'],
+  ['tags', 'tags', 'truthy'],
+  ['skipTags', 'skip_tags', 'truthy'],
+  ['verbosity', 'verbosity', 'defined'],
+  ['jobCredentials', 'job_credentials', 'defined'],
+  ['jobType', 'job_type', 'truthy'],
+  ['forks', 'forks', 'defined'],
+  ['timeout', 'timeout', 'defined'],
+  ['jobSlicing', 'job_slice_count', 'defined'],
+  ['diffMode', 'diff_mode', 'defined'],
+  ['executionEnvironment', 'execution_environment', 'truthy'],
+  ['executionEnvironmentId', 'execution_environment_id', 'defined'],
+  ['instanceGroupId', 'instance_group_id', 'defined'],
+  ['instanceGroupName', 'instance_group_name', 'truthy'],
+  ['labels', 'labels', 'truthy'],
+]
 
 /**
  * Create an AAP Job Template node (v2).
- * Converts camelCase config fields to snake_case for API contract.
  */
 export function createAAPJobTemplateActivity(
   id: string,
@@ -246,34 +273,14 @@ export function createAAPJobTemplateActivity(
   const activityConfig: Record<string, unknown> = { job_template_id: jobTemplateId }
 
   if (config) {
-    // Map camelCase config fields to snake_case for API
-    const fieldMapping: Record<keyof AAPJobTemplateConfig, string> = {
-      credentialId: 'credential_id',
-      organizationName: 'organization_name',
-      jobTemplateName: 'job_template_name',
-      inventoryId: 'inventory_id',
-      inventoryName: 'inventory_name',
-      extraVars: 'extra_vars',
-      limit: 'limit',
-      tags: 'tags',
-      skipTags: 'skip_tags',
-      verbosity: 'verbosity',
-      jobCredentials: 'job_credentials',
-      jobType: 'job_type',
-      forks: 'forks',
-      timeout: 'timeout',
-      jobSliceCount: 'job_slice_count',
-      diffMode: 'diff_mode',
-      executionEnvironment: 'execution_environment',
-      instanceGroups: 'instance_groups',
-      labels: 'labels',
-    }
-
-    for (const [camelKey, snakeKey] of Object.entries(fieldMapping)) {
-      const value = config[camelKey as keyof AAPJobTemplateConfig]
-      const include = value !== undefined && (typeof value === 'boolean' || typeof value === 'number' || value)
+    for (const [srcKey, destKey, predicate] of aapConfigMapping) {
+      const value = config[srcKey]
+      const include =
+        predicate === 'defined'
+          ? value !== undefined && (typeof value !== 'number' || Number.isFinite(value))
+          : Boolean(value)
       if (include) {
-        activityConfig[snakeKey] = value
+        activityConfig[destKey] = value
       }
     }
   }
