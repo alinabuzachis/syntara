@@ -29,7 +29,7 @@ import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 
 export type { LoopFormData }
 
-interface LoopNodeFormProps {
+type LoopNodeFormProps = {
   onSubmit: (data: LoopFormData) => void
   submitButtonText?: string
   initialData?: Partial<LoopFormData>

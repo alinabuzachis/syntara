@@ -14,7 +14,7 @@ import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 
 export type { ConditionFormData }
 
-interface ConditionNodeFormProps {
+type ConditionNodeFormProps = {
   onSubmit: (data: ConditionFormData) => void
   submitButtonText?: string
   initialData?: Partial<ConditionFormData>

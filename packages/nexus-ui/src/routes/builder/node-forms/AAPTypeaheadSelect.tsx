@@ -14,13 +14,13 @@ import { type Ref, useEffect, useRef, useState } from 'react'
 
 const DEBOUNCE_MS = 300
 
-interface AAPTypeaheadSelectOption {
+type AAPTypeaheadSelectOption = {
   readonly value: string
   readonly label: string
   readonly description?: string
 }
 
-interface AAPTypeaheadSelectProps {
+type AAPTypeaheadSelectProps = {
   readonly id: string
   readonly ariaLabel: string
   readonly options: readonly AAPTypeaheadSelectOption[]

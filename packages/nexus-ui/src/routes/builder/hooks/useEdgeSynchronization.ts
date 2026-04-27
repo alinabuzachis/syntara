@@ -6,7 +6,7 @@ import type { EdgeConnection } from '../types/edge'
 import { isButtonEdge } from '../utils/filterHelpers'
 import type { EdgeType } from '../utils/workflowToGraph'
 
-interface UseEdgeSynchronizationOptions {
+type UseEdgeSynchronizationOptions = {
   edges: EdgeType[]
   isInitialized: boolean
   setStoredEdges: (edges: EdgeConnection[]) => void

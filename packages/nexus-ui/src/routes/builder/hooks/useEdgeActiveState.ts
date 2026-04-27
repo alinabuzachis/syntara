@@ -3,7 +3,7 @@ import { useEffect } from 'react'
 
 import { markerEnd, type EdgeType } from '../utils/workflowToGraph'
 
-interface UseEdgeActiveStateOptions {
+type UseEdgeActiveStateOptions = {
   isInitialized: boolean
   activeEdgeId: string | null
   activeEdgeButtonNodeId: string | null

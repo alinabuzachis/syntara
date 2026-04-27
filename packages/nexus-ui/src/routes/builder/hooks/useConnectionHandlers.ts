@@ -10,7 +10,7 @@ import { getPlaceholderNodeId } from '../utils/edgeHelpers'
 import { consumePendingDragHandle } from '../utils/pendingDragHandle'
 import type { EdgeType } from '../utils/workflowToGraph'
 
-interface UseConnectionHandlersParams {
+type UseConnectionHandlersParams = {
   nodes: NodeType[]
   edges: EdgeType[]
   onAddNodeFromEdge?: (

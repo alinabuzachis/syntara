@@ -4,12 +4,12 @@ import { Controller, useFormContext } from 'react-hook-form'
 import type { AAPFormData } from './aapFormSchema'
 import { AAPTypeaheadSelect } from './AAPTypeaheadSelect'
 
-interface AAPResourceItem {
+type AAPResourceItem = {
   readonly id: number
   readonly name: string
 }
 
-interface AAPResourceSelectFieldProps {
+type AAPResourceSelectFieldProps = {
   readonly label: string
   readonly fieldId: string
   readonly nameField: keyof AAPFormData

@@ -7,7 +7,7 @@ import type { EdgeType } from '../utils/workflowToGraph'
 
 let loopPositionTimerId: ReturnType<typeof setTimeout> | null = null
 
-interface UseNodePositioningParams {
+type UseNodePositioningParams = {
   nodes: NodeType[]
   edges: EdgeType[]
   isInitialized: boolean
@@ -41,7 +41,7 @@ function applyPositionedNodes(
   })
 }
 
-interface PositionLoopNodeOptions {
+type PositionLoopNodeOptions = {
   node: NodeType
   newlyAddedNodeIdsRef: RefObject<Set<string>>
   baseX: number
@@ -97,7 +97,7 @@ function positionLoopBodyNode(
   return updatedNode
 }
 
-interface LoopPositioningContext {
+type LoopPositioningContext = {
   nodesToPosition: NodeType[]
   newlyAddedNodeIdsRef: RefObject<Set<string>>
   loopBodyNodeMap: Map<string, string>
@@ -178,7 +178,7 @@ function positionLoopBranch(ctx: LoopPositioningContext) {
   }
 }
 
-interface StandardPositioningContext {
+type StandardPositioningContext = {
   nodesToPosition: NodeType[]
   newlyAddedNodeIdsRef: RefObject<Set<string>>
   containerRef: RefObject<HTMLDivElement | null>

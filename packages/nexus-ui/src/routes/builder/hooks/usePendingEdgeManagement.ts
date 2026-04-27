@@ -4,7 +4,7 @@ import type { NodeType } from '../../automations/canvas/nodes/NodeType'
 import { getButtonEdgeId, getPendingEdgeId, getPendingTargetNodeId, getPlaceholderNodeId } from '../utils/edgeHelpers'
 import { markerEnd, type EdgeType } from '../utils/workflowToGraph'
 
-interface UsePendingEdgeManagementOptions {
+type UsePendingEdgeManagementOptions = {
   pendingEdge: { sourceNodeId: string; sourceHandle?: string; x: number; y: number } | null
   isInitialized: boolean
   setNodes: React.Dispatch<React.SetStateAction<NodeType[]>>

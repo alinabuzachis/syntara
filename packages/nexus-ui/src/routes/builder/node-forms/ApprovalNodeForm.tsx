@@ -42,7 +42,7 @@ export type ApprovalFormSubmitData = {
   }
 }
 
-interface ApprovalNodeFormProps {
+type ApprovalNodeFormProps = {
   onSubmit: (data: ApprovalFormSubmitData) => void
   submitButtonText?: string
   initialData?: Partial<ApprovalFormSubmitData>

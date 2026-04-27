@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import type { NodeType } from '../../automations/canvas/nodes/NodeType'
 
-interface UseWorkflowInitializationOptions {
+type UseWorkflowInitializationOptions = {
   nodes: NodeType[]
   workflowVersion: number
   triggerLayout?: number

@@ -7,7 +7,7 @@ import type { EdgeType } from '../utils/workflowToGraph'
 
 import { type ButtonEdgeFilterContext, getKeptButtonEdge } from './buttonEdgeMaintenanceHelpers'
 
-export interface ComputeButtonEdgesParams {
+export type ComputeButtonEdgesParams = {
   currentEdges: EdgeType[]
   conditionHandlesNeedingButtonEdges: { nodeId: string; handleId: string }[]
   loopHandlesNeedingButtonEdges: { nodeId: string; handleId: string }[]
@@ -54,7 +54,7 @@ function partitionEdgesByButtonKind(currentEdges: EdgeType[]): {
   return { nonButtonEdges, existingButtonEdges }
 }
 
-interface ButtonHandleKeySets {
+type ButtonHandleKeySets = {
   /** Sources that already have a button edge (any handle); used to skip duplicate regular SOURCE edges. */
   nodesWithRegularButtonEdge: Set<string>
   conditionKeys: Set<string>
@@ -171,7 +171,7 @@ function buildMultiHandleButtonEdge(
   } as unknown as EdgeType
 }
 
-interface AppendMissingRegularButtonEdgesOptions {
+type AppendMissingRegularButtonEdgesOptions = {
   nodeIds: string[]
   nodesWithButtonEdge: Set<string>
   buttonEdgesToAdd: EdgeType[]
@@ -190,7 +190,7 @@ function appendMissingRegularButtonEdges(options: AppendMissingRegularButtonEdge
   }
 }
 
-interface AppendMissingMultiHandleButtonEdgesOptions {
+type AppendMissingMultiHandleButtonEdgesOptions = {
   handles: { nodeId: string; handleId: string }[]
   existingKeys: Set<string>
   buttonEdgesToAdd: EdgeType[]
@@ -307,7 +307,7 @@ export function computeNextButtonEdges(params: ComputeButtonEdgesParams): EdgeTy
   return result
 }
 
-export interface UpdateNodesButtonEdgeClassParams {
+export type UpdateNodesButtonEdgeClassParams = {
   nodesNeedingButtonEdges: string[]
   conditionHandlesNeedingButtonEdges: { nodeId: string; handleId: string }[]
   loopHandlesNeedingButtonEdges: { nodeId: string; handleId: string }[]
@@ -315,7 +315,7 @@ export interface UpdateNodesButtonEdgeClassParams {
   connectedHandles: Map<string, Set<string>>
 }
 
-interface ButtonEdgeClassLookup {
+type ButtonEdgeClassLookup = {
   regularNodeIds: Set<string>
   conditionNodeIds: Set<string>
   loopNodeIds: Set<string>

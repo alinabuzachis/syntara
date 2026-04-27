@@ -22,7 +22,7 @@ export function mergeNodesPreservingPositions(prevNodes: NodeType[], initialNode
   return [...updatedNodes, ...preservedNodes]
 }
 
-interface UseNodeUpdatesOptions {
+type UseNodeUpdatesOptions = {
   initialNodes: NodeType[]
   initialEdges: EdgeType[]
   isInitialized: boolean

@@ -12,7 +12,7 @@ export type { ConvergeStrategy, RemainingBehavior } from './ConvergeNodeForm'
  * Combined form data type for logic nodes.
  * This is a union of all specialized form types plus the logicType discriminator.
  */
-export interface LogicFormData {
+export type LogicFormData = {
   name: string
   logicType: string
   // Condition fields
@@ -37,7 +37,7 @@ export interface LogicFormData {
   remainingBehavior?: 'continue' | 'cancel'
 }
 
-interface LogicNodeFormProps {
+type LogicNodeFormProps = {
   onSubmit: (data: LogicFormData) => void
   submitButtonText?: string
   initialData?: Partial<LogicFormData>

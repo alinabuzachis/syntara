@@ -20,7 +20,7 @@ import { applyLoopBackNodeTypes } from './useLoopBackNodeTypes'
 
 const executionStateEnricher = new ExecutionStateEnricher()
 
-interface UseBuilderFlowGraphParams {
+type UseBuilderFlowGraphParams = {
   currentWorkflow: {
     inputs?: Record<string, unknown>
     workflow: { activities: Activity[] }

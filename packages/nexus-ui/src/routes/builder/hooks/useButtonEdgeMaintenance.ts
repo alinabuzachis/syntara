@@ -15,7 +15,7 @@ import {
 } from './buttonEdgeMaintenanceHelpers'
 import { computeNextButtonEdges, updateNodesForButtonEdgeClasses } from './computeButtonEdgesUpdate'
 
-interface UseButtonEdgeMaintenanceOptions {
+type UseButtonEdgeMaintenanceOptions = {
   nodes: NodeType[]
   edges: EdgeType[]
   isInitialized: boolean
@@ -55,7 +55,7 @@ function buildConnectedHandlesMap(edges: EdgeType[]): Map<string, Set<string>> {
   return connectedHandles
 }
 
-interface RunButtonEdgeMaintenanceWorkArgs {
+type RunButtonEdgeMaintenanceWorkArgs = {
   nodes: NodeType[]
   edges: EdgeType[]
   pendingEdge: { sourceNodeId: string; sourceHandle?: string; x: number; y: number } | null

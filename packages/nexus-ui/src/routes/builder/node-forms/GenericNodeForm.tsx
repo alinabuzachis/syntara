@@ -3,7 +3,7 @@ import { Button, Content, ContentVariants, Flex, FlexItem, Stack, StackItem } fr
 import type { BaseNodeFormProps } from '../registry/NodeRegistry'
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-interface GenericNodeFormData {
+type GenericNodeFormData = {
   // No data needed - this form just triggers the node to be added
 }
 

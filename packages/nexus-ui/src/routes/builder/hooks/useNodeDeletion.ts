@@ -141,7 +141,7 @@ export function findLoopReconnections(
   return loopReconnections
 }
 
-interface UseNodeDeletionParams {
+type UseNodeDeletionParams = {
   nodes: NodeType[]
   edges: EdgeConnection[]
   setNodes: Dispatch<SetStateAction<NodeType[]>>
