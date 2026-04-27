@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import { useDialogState } from './useDialogState'
 
-interface TestItem {
+type TestItem = {
   id: string
   name: string
 }

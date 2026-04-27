@@ -14,7 +14,7 @@ import { DEFAULT_CONFIG } from './types'
 // Store Types
 // ============================================================================
 
-interface WebSocketStore {
+type WebSocketStore = {
   // State
   channels: Map<string, ChannelState>
   config: WebSocketConfig

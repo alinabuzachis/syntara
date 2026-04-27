@@ -3,7 +3,7 @@ import { SortByDirection } from '@patternfly/react-table'
 import { useCallback, useMemo } from 'react'
 import { useSearchParams } from 'wouter'
 
-export interface UseSortStateResult {
+export type UseSortStateResult = {
   activeSortIndex: number | undefined
   sortDirection: 'asc' | 'desc'
   sortParam: string | undefined

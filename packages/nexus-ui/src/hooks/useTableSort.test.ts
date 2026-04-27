@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 import { useTableSort } from './useTableSort'
 
-interface TestItem {
+type TestItem = {
   id: number
   name: string
   value: number

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 
-interface ElapsedTimeResult {
+type ElapsedTimeResult = {
   /** Elapsed milliseconds, or `undefined` when `startedAt` is absent/unparseable. */
   elapsedMs: number | undefined
   /** Current timestamp (ms) — ticks every second while running, stable otherwise. */

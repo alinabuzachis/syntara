@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import { useFuse } from './useFuse'
 
-interface TestItem {
+type TestItem = {
   id: number
   name: string
   description?: string

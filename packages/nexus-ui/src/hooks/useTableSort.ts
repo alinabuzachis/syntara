@@ -3,7 +3,7 @@ import { useState, useCallback, useMemo } from 'react'
 
 export type SortDirection = 'asc' | 'desc'
 
-export interface UseTableSortOptions {
+export type UseTableSortOptions = {
   initialSortIndex?: number
   initialDirection?: SortDirection
 }

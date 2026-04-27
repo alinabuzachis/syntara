@@ -15,7 +15,7 @@ vi.mock('../components/states/useQueryState', () => ({
   }),
 }))
 
-interface MockQueryResult {
+type MockQueryResult = {
   data: unknown
   error: Error | null
   isPending: boolean

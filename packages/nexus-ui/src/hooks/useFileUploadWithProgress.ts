@@ -43,7 +43,7 @@ export function isFileUploadError(value: unknown): value is FileUploadError {
   )
 }
 
-interface HandleXhrLoadOptions {
+type HandleXhrLoadOptions = {
   xhr: XMLHttpRequest
   xhrRef: MutableRefObject<XMLHttpRequest | null>
   setUploading: Dispatch<SetStateAction<boolean>>
@@ -85,7 +85,7 @@ function handleXhrLoad(options: HandleXhrLoadOptions): void {
 /**
  * Progress information for individual files during upload
  */
-export interface FileProgress {
+export type FileProgress = {
   /** Name of the file being uploaded */
   fileName: string
   /** Bytes uploaded so far */
@@ -99,7 +99,7 @@ export interface FileProgress {
 /**
  * Result type for the useFileUploadWithProgress hook
  */
-export interface UseFileUploadWithProgressResult {
+export type UseFileUploadWithProgressResult = {
   /** Function to upload files with progress tracking */
   uploadFiles: (files: File[]) => Promise<FileUploadResponse>
   /** Whether an upload is currently in progress */

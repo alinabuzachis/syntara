@@ -7,7 +7,7 @@ import { buildFilterParams, parseFiltersFromUrl } from '../utils/filterUtils'
 /**
  * Result from useFilterState hook
  */
-export interface UseFilterStateResult {
+export type UseFilterStateResult = {
   /** Current active filters parsed from URL */
   filters: FilterConfig[]
   /** Add or update a filter */

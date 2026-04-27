@@ -13,7 +13,7 @@ vi.mock('../utils/apiErrors', () => ({
   getErrorMessage: (error: unknown) => String(error),
 }))
 
-interface TestItem {
+type TestItem = {
   id: string
   name: string
 }

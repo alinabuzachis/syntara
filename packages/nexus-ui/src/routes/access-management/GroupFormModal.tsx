@@ -24,7 +24,7 @@ import { accessClient } from '../access/accessClient'
 
 import { groupFormSchema, type GroupFormData } from './groupFormSchema'
 
-export interface GroupFormModalProps {
+export type GroupFormModalProps = {
   /** Group to edit, or null/undefined to create a new group */
   group?: Group | null
   /** Whether the modal is open */

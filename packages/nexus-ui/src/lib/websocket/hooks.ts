@@ -14,7 +14,7 @@ import type { ConnectionState, WebSocketMessage } from './types'
 // Hook Options
 // ============================================================================
 
-export interface UseWebSocketOptions<T = unknown> {
+export type UseWebSocketOptions<T = unknown> = {
   /** Callback for incoming messages */
   onMessage?: (message: WebSocketMessage<T>) => void
 
@@ -35,7 +35,7 @@ export interface UseWebSocketOptions<T = unknown> {
 // Hook Return Type
 // ============================================================================
 
-export interface UseWebSocketReturn {
+export type UseWebSocketReturn = {
   /** Send a wrapped message ({ type, payload, timestamp }) */
   sendWrapped: <T = unknown>(message: WebSocketMessage<T>) => boolean
   /** Send raw data (no wrapping) */

@@ -1,11 +1,11 @@
 import { useCallback, useState } from 'react'
 
-interface UseDropTargetOptions {
+type UseDropTargetOptions = {
   /** Called when valid text data is dropped. */
   onDropText: (text: string) => void
 }
 
-interface UseDropTargetResult {
+type UseDropTargetResult = {
   /** Whether the element is currently an active drop target. */
   isDropTarget: boolean
   /** Attach to the wrapper element's `onDragOver`. */

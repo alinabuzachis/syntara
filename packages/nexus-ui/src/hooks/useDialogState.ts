@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 
-interface DialogState<T> {
+type DialogState<T> = {
   /** Whether the dialog is open */
   isOpen: boolean
   /** The item associated with the open dialog (null when closed) */

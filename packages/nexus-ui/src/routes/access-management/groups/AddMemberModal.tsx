@@ -18,7 +18,7 @@ import { getErrorMessage } from '../../../utils/apiErrors'
 import { accessClient } from '../../access/accessClient'
 import { TypeaheadSelect } from '../../access/TypeaheadSelect'
 
-interface AddMemberModalProps {
+type AddMemberModalProps = {
   groupId: string
   isOpen: boolean
   onClose: () => void

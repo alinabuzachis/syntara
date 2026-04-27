@@ -107,7 +107,7 @@ function ManualEndpointFields({ control }: Readonly<{ control: Control<IdentityP
   )
 }
 
-interface IdentityProviderFormFieldsProps {
+type IdentityProviderFormFieldsProps = {
   control: Control<IdentityProviderFormData>
   isEdit?: boolean
 }
