@@ -13,7 +13,7 @@ import { RhUiWarningIcon } from '@patternfly/react-icons'
 import type { Credential, CredentialWorkflowRef } from './credentialConstants'
 import { CredentialWorkflowWarning } from './CredentialWorkflowWarning'
 
-interface DeleteCredentialDialogProps {
+type DeleteCredentialDialogProps = {
   credential: Credential | null
   affectedWorkflows: CredentialWorkflowRef[]
   workflowsFetchError: boolean

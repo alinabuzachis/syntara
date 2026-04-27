@@ -41,7 +41,7 @@ export type ExecutorType = ActionFormData['executor']
 export type ScriptLanguage = 'python' | 'bash'
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
-interface ActionNodeFormProps {
+type ActionNodeFormProps = {
   onSubmit: (data: RegistryActionFormData) => void
   submitButtonText?: string
   initialData?: Partial<RegistryActionFormData>

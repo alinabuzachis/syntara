@@ -9,7 +9,7 @@ import type { NodeActionsContextValue } from '../NodeActionsContext'
 import type { FlowPosition } from '../types'
 import { applyEdgeConnection, calculateEdgeConnection } from '../utils/edgeConnectionHelpers'
 
-export interface UseBuilderFlowInteractionHandlersOptions {
+export type UseBuilderFlowInteractionHandlersOptions = {
   reactFlowInstance: ReactFlowInstance
   dispatch: Dispatch<BuilderAction>
   duplicateActivity: (nodeId: string) => void

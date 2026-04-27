@@ -25,7 +25,7 @@ import { useEffect, useState } from 'react'
 
 import { TagInput } from '../../components/forms/TagInput'
 
-export interface EditAutomationDetailsPopoverProps {
+export type EditAutomationDetailsPopoverProps = {
   /** Current name (from builder state) */
   name: string
   /** Current description (from builder state) */

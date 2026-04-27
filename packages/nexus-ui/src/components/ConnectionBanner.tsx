@@ -9,7 +9,7 @@ import {
 } from '@patternfly/react-core'
 import { useState } from 'react'
 
-interface ConnectionBannerProps {
+type ConnectionBannerProps = {
   isVisible: boolean
 }
 

@@ -5,7 +5,7 @@ import { useAlerts } from '../../../components/alerts'
 import { useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
 import { LoopNodeForm } from '../node-forms/LoopNodeForm'
 
-interface LoopNodeDetailsProps {
+type LoopNodeDetailsProps = {
   loopData: LoopActivity
   nodeId: string
   onClose: () => void

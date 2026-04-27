@@ -9,7 +9,7 @@ import {
   isValidationError,
 } from '../utils/apiErrors'
 
-export interface MutationErrorHandlerOptions {
+export type MutationErrorHandlerOptions = {
   /** Title for the error alert */
   title?: string
   /** Additional context to include in the error message */

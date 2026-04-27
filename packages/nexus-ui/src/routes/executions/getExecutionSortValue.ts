@@ -1,6 +1,6 @@
 import { getDateField } from '../../utils/getDateField'
 
-interface ExecutionLike {
+type ExecutionLike = {
   id?: string
   workflow_id?: string
   status?: string
