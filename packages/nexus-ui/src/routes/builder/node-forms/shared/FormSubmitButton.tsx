@@ -1,6 +1,6 @@
 import { Button, StackItem } from '@patternfly/react-core'
 
-interface FormSubmitButtonProps {
+type FormSubmitButtonProps = {
   submitButtonText?: string
   isDisabled?: boolean
 }

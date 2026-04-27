@@ -1,7 +1,7 @@
 import { Table, Thead, Tr, Th, Tbody, Td } from '@patternfly/react-table'
 import { useCallback, useMemo } from 'react'
 
-export interface InputTableViewProps {
+export type InputTableViewProps = {
   data: Record<string, unknown> | Record<string, unknown>[] | null
 }
 

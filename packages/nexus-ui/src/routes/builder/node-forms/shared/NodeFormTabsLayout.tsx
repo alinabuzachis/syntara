@@ -7,7 +7,7 @@ import { TestStepButton } from '../../panels/TestStepButton'
 
 import { FormSubmitButton } from './FormSubmitButton'
 
-interface NodeFormTabsLayoutProps {
+type NodeFormTabsLayoutProps = {
   parametersContent: ReactNode
   settingsContent?: ReactNode
   submitButtonText?: string

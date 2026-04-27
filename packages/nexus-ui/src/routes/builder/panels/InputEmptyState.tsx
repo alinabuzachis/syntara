@@ -1,6 +1,6 @@
 import { EmptyState, EmptyStateBody } from '@patternfly/react-core'
 
-export interface InputEmptyStateProps {
+export type InputEmptyStateProps = {
   variant: 'not-connected' | 'connected-not-run'
 }
 

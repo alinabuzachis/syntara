@@ -1,7 +1,7 @@
 import { Form } from '@patternfly/react-core'
 import type { FormEvent, ReactNode } from 'react'
 
-interface NodeFormContainerProps {
+type NodeFormContainerProps = {
   children: ReactNode
   formId: string
   onSubmit: (event: FormEvent<HTMLFormElement>) => void

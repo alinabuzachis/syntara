@@ -3,7 +3,7 @@ import React, { useCallback, useState } from 'react'
 
 import type { UpstreamNodeInfo } from './hooks/useUpstreamNodes'
 
-interface NodeSelectorDropdownProps {
+type NodeSelectorDropdownProps = {
   nodes: UpstreamNodeInfo[]
   selectedNodeId: string
   onSelect: (nodeId: string) => void

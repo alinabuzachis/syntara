@@ -2,7 +2,7 @@ import { ToggleGroup, ToggleGroupItem } from '@patternfly/react-core'
 
 export type InputView = 'schema' | 'table' | 'json'
 
-interface InputViewToggleProps {
+type InputViewToggleProps = {
   activeView: InputView
   onChange: (view: InputView) => void
 }

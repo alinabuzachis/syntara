@@ -14,7 +14,7 @@ import { triggerFormSchema, type TriggerFormData } from './triggerFormSchema'
 
 export type { TriggerFormData }
 
-interface TriggerNodeFormProps {
+type TriggerNodeFormProps = {
   onSubmit: (data: TriggerFormData) => void
   initialData?: Partial<TriggerFormData>
   submitButtonText?: string

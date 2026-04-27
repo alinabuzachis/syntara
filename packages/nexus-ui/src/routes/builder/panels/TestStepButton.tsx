@@ -1,6 +1,6 @@
 import { Button, Spinner } from '@patternfly/react-core'
 
-interface TestStepButtonProps {
+type TestStepButtonProps = {
   onTestStep: () => void
   isPending?: boolean
   isDisabled?: boolean

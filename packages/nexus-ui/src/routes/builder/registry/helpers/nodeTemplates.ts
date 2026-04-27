@@ -6,7 +6,7 @@ import type { BaseNodeFormProps, NodeSubtypeDefinition, NodeTypeDefinition } fro
 /**
  * Configuration for creating a node type
  */
-interface NodeConfig<TFormData = unknown> {
+type NodeConfig<TFormData = unknown> = {
   /** Unique identifier for this node type */
   id: string
   /** Display label in UI */

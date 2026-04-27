@@ -1,6 +1,6 @@
 import { CodeBlock } from '../../../../components/details/CodeBlock'
 
-export interface InputJsonViewProps {
+export type InputJsonViewProps = {
   data: Record<string, unknown> | null
 }
 

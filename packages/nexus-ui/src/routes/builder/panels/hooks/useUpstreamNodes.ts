@@ -4,7 +4,7 @@ import { useWorkflowStore } from '../../../../stores/useWorkflowStore'
 import { selectEdges, selectActivities, selectTriggers } from '../../../../stores/workflowStoreSelectors'
 import { getUpstreamNodeIds } from '../../utils/edgeHelpers'
 
-export interface UpstreamNodeInfo {
+export type UpstreamNodeInfo = {
   id: string
   name?: string
   type: string

@@ -11,7 +11,7 @@ import type { Node } from '@xyflow/react'
 import { CodeBlock } from '../../components/details/CodeBlock'
 import type { NodeType } from '../automations/canvas/nodes/NodeType'
 
-interface NodeRawDataViewProps {
+type NodeRawDataViewProps = {
   node: Node<NodeType['data']>
 }
 

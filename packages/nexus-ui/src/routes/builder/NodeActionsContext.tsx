@@ -7,7 +7,7 @@ import { createContext, useContext } from 'react'
  * require cross-component communication (panel open/close state lives
  * in BuilderContent, while the menu lives deep inside canvas node components).
  */
-export interface NodeActionsContextValue {
+export type NodeActionsContextValue = {
   /** Open the step editor panel for the given React Flow node ID. */
   onViewDetails: (nodeId: string) => void
   /** Open the add-step panel in replacement mode for the given React Flow node ID. */

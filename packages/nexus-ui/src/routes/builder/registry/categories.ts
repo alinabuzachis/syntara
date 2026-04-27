@@ -21,7 +21,7 @@ export type NodeCategory = (typeof NodeCategories)[keyof typeof NodeCategories]
 /**
  * Metadata for a node category
  */
-export interface CategoryMetadata {
+export type CategoryMetadata = {
   /** Unique category identifier */
   id: NodeCategory
   /** Display label for the category */
