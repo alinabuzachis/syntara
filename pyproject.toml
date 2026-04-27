@@ -219,6 +219,7 @@ omit = [
     "*/test_*",
     "*/__init__.py",
     "tools/*",  # Manual utilities, not production code
+    "src/api_client/*",  # Auto-generated API client, not production code
 ]
 
 [tool.coverage.report]
