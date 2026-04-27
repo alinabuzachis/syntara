@@ -19,59 +19,12 @@ Run with:
 
 from __future__ import annotations
 
-import time
-from typing import Any
+from typing import TYPE_CHECKING
 
-import httpx
 import pytest
 
-# The /_internal/metrics endpoints are not part of the public OpenAPI spec
-# and therefore not available in the auto-generated client.  We use raw
-# httpx helpers here until OpenAPI specs are added for these endpoints.
-INTERNAL_METRICS_PREFIX = "/_internal/metrics"
-
-
-# ---------------------------------------------------------------------------
-# Internal Metrics Helpers (raw httpx — not in generated client)
-# ---------------------------------------------------------------------------
-
-
-def metrics_get(
-    nexus_base_url: str,
-    path: str,
-    auth_headers: dict[str, str],
-    *,
-    params: dict[str, Any] | None = None,
-    timeout: int = 30,
-) -> dict[str, Any]:
-    """Authenticated GET against the internal metrics API."""
-    r = httpx.get(
-        f"{nexus_base_url}{INTERNAL_METRICS_PREFIX}{path}",
-        headers=auth_headers,
-        params=params,
-        timeout=timeout,
-        verify=False,  # noqa: S501
-    )
-    r.raise_for_status()
-    return r.json()  # type: ignore[no-any-return]
-
-
-def metrics_post(
-    nexus_base_url: str,
-    path: str,
-    auth_headers: dict[str, str],
-    *,
-    timeout: int = 30,
-) -> dict[str, Any]:
-    """Authenticated POST against the internal metrics API."""
-    r = httpx.post(
-        f"{nexus_base_url}{INTERNAL_METRICS_PREFIX}{path}",
-        headers=auth_headers,
-        timeout=timeout,
-        verify=False,  # noqa: S501
-    )
-    r.raise_for_status()
-    return r.json()  # type: ignore[no-any-return]
+if TYPE_CHECKING:
+    from nexus_api_client.api import NexusApiRegistry
 
 
 def compute_percentile(values: list[float], percentile: float) -> float:
@@ -101,8 +54,7 @@ def compute_percentile(values: list[float], percentile: float) -> float:
 
 @pytest.fixture(scope="module")
 def perf_test_mode_enabled(
-    nexus_base_url: str,
-    auth_headers: dict[str, str],
+    nexus_api: NexusApiRegistry,
 ) -> None:
     """Verify that metrics.perf_test_mode is enabled on the target instance.
 
@@ -110,13 +62,8 @@ def perf_test_mode_enabled(
     disabled and we skip the entire module.
     """
     try:
-        r = httpx.get(
-            f"{nexus_base_url}{INTERNAL_METRICS_PREFIX}/summary",
-            headers=auth_headers,
-            timeout=10,
-            verify=False,  # noqa: S501
-        )
-    except httpx.RequestError as exc:
+        r = nexus_api.internal_metrics.get_summary()
+    except Exception as exc:
         pytest.skip(f"Cannot reach metrics endpoint: {exc}")
 
     if r.status_code == 404:
@@ -124,49 +71,3 @@ def perf_test_mode_enabled(
             "metrics.perf_test_mode is disabled on the target instance. "
             "Enable it via the settings API before running performance tests."
         )
-
-
-@pytest.fixture(scope="module")
-def reset_metrics_store(
-    nexus_base_url: str,
-    auth_headers: dict[str, str],
-    perf_test_mode_enabled: None,
-) -> None:
-    """Reset the in-memory metrics store before the test module runs."""
-    metrics_post(nexus_base_url, "/reset", auth_headers)
-    time.sleep(0.5)
-
-
-@pytest.fixture(scope="module")
-def api_service_kpis(
-    nexus_base_url: str,
-    auth_headers: dict[str, str],
-    perf_test_mode_enabled: None,
-) -> dict[str, Any]:
-    """Fetch the api_service component KPIs from the internal metrics API."""
-    return metrics_get(nexus_base_url, "/kpis/api_service", auth_headers)
-
-
-def fetch_api_service_kpis(
-    nexus_base_url: str,
-    auth_headers: dict[str, str],
-) -> dict[str, Any]:
-    """Callable helper to fetch api_service KPIs (for use after load generation)."""
-    return metrics_get(nexus_base_url, "/kpis/api_service", auth_headers)
-
-
-def fetch_metrics_records(
-    nexus_base_url: str,
-    auth_headers: dict[str, str],
-    *,
-    metric_type: str | None = None,
-    labels: str | None = None,
-    limit: int = 10000,
-) -> dict[str, Any]:
-    """Fetch raw metric records with optional filters."""
-    params: dict[str, Any] = {"limit": limit}
-    if metric_type:
-        params["metric_type"] = metric_type
-    if labels:
-        params["labels"] = labels
-    return metrics_get(nexus_base_url, "/records", auth_headers, params=params)

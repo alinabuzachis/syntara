@@ -23,8 +23,6 @@ import pytest
 
 from tests.performance.api_service.conftest import (
     compute_percentile,
-    fetch_api_service_kpis,
-    metrics_post,
 )
 
 if TYPE_CHECKING:
@@ -72,17 +70,14 @@ class TestSustainedGetResponseTime:
     @pytest.fixture(autouse=True)
     def _setup(
         self,
-        nexus_base_url: str,
-        auth_headers: dict[str, str],
+        nexus_api: NexusApiRegistry,
         perf_test_mode_enabled: None,
     ) -> None:
-        metrics_post(nexus_base_url, "/reset", auth_headers)
+        nexus_api.internal_metrics.reset_store().assert_successful()
         time.sleep(0.5)
 
     def test_sustained_get_p95_under_target(
         self,
-        nexus_base_url: str,
-        auth_headers: dict[str, str],
         nexus_api: NexusApiRegistry,
     ) -> None:
         """GET /api/v1/workflows at sustained rate; p95 must be < 200ms."""
@@ -116,7 +111,9 @@ class TestSustainedGetResponseTime:
 
         client_p95 = compute_percentile(response_times, 95)
 
-        kpis = fetch_api_service_kpis(nexus_base_url, auth_headers)
+        kpis_response = nexus_api.internal_metrics.get_component_kpis(component="api_service")
+        kpis_response.assert_successful()
+        kpis = kpis_response.parsed.to_dict() if kpis_response.parsed is not None else {}
         server_p95 = kpis.get("metrics", {}).get("response_time_ms", {}).get("p95", 0)
 
         actual_rps = len(response_times) / SUSTAINED_DURATION_SECONDS
@@ -148,11 +145,10 @@ class TestConcurrentInvocationsResponseTime:
     @pytest.fixture(autouse=True)
     def _setup(
         self,
-        nexus_base_url: str,
-        auth_headers: dict[str, str],
+        nexus_api: NexusApiRegistry,
         perf_test_mode_enabled: None,
     ) -> None:
-        metrics_post(nexus_base_url, "/reset", auth_headers)
+        nexus_api.internal_metrics.reset_store().assert_successful()
         time.sleep(0.5)
 
     @staticmethod
@@ -179,8 +175,6 @@ class TestConcurrentInvocationsResponseTime:
 
     def test_concurrent_invocations_p99_under_target(
         self,
-        nexus_base_url: str,
-        auth_headers: dict[str, str],
         nexus_api: NexusApiRegistry,
     ) -> None:
         """50 concurrent POST /api/v1/invocations; p99 must be < 500ms."""
@@ -215,7 +209,9 @@ class TestConcurrentInvocationsResponseTime:
         )
 
         time.sleep(1)
-        kpis = fetch_api_service_kpis(nexus_base_url, auth_headers)
+        kpis_response = nexus_api.internal_metrics.get_component_kpis(component="api_service")
+        kpis_response.assert_successful()
+        kpis = kpis_response.parsed.to_dict() if kpis_response.parsed is not None else {}
         server_metrics = kpis.get("metrics", {}).get("response_time_ms", {})
         if server_metrics.get("count", 0) > 0:
             server_p99 = server_metrics.get("p99", 0)

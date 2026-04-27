@@ -21,6 +21,13 @@ from fastapi import FastAPI
 from nexus.api.constants import API_V1_PATH_PREFIX
 from nexus.core.error_handlers import apply_rfc9457_media_types, problem_details_response_map
 from nexus.core.router_discovery import discover_and_register_routers
+from nexus.metrics.internal_api import (
+    metrics_store_component_kpis,
+    metrics_store_kpis,
+    metrics_store_records,
+    metrics_store_reset,
+    metrics_store_summary,
+)
 
 
 def _get_dep_instance(dep: object) -> object | None:
@@ -102,7 +109,32 @@ def build_spec_app() -> FastAPI:
         enable_validation=False,
     )
 
+    _register_internal_routes(app)
+
     return app
+
+
+# Internal perf-test endpoints are intentionally hidden in the runtime app
+# (`include_in_schema=False`) but included here so generated bindings can
+# call them in performance harnesses.
+_INTERNAL_METRICS_TAG = "InternalMetrics"
+_INTERNAL_ROUTES: list[tuple[str, str, str, object]] = [
+    ("get", "/_internal/metrics/summary", "get_internal_metrics_summary", metrics_store_summary),
+    ("get", "/_internal/metrics/records", "get_internal_metrics_records", metrics_store_records),
+    ("get", "/_internal/metrics/kpis", "get_internal_metrics_kpis", metrics_store_kpis),
+    ("get", "/_internal/metrics/kpis/{component}", "get_internal_metrics_component_kpis", metrics_store_component_kpis),
+    ("post", "/_internal/metrics/reset", "reset_internal_metrics_store", metrics_store_reset),
+]
+
+
+def _register_internal_routes(app: FastAPI) -> None:
+    """Register /_internal routes on the spec app via a declarative table."""
+    for method, path, operation_id, endpoint in _INTERNAL_ROUTES:
+        getattr(app, method)(
+            path,
+            operation_id=operation_id,
+            tags=[_INTERNAL_METRICS_TAG],
+        )(endpoint)
 
 
 def main() -> int:

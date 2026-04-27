@@ -23,12 +23,6 @@ import pytest
 from nexus_api_client.models.workflow_create import WorkflowCreate
 from nexus_api_client.models.workflow_update import WorkflowUpdate
 
-from tests.performance.api_service.conftest import (
-    fetch_api_service_kpis,
-    fetch_metrics_records,
-    metrics_post,
-)
-
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -174,11 +168,12 @@ def _mixed_crud_cycle(
 
 
 def _format_server_error_details(
-    nexus_base_url: str,
-    auth_headers: dict[str, str],
+    nexus_api: NexusApiRegistry,
 ) -> str:
     """Fetch server-side error records and format them for diagnostics."""
-    records = fetch_metrics_records(nexus_base_url, auth_headers, metric_type="error", limit=50)
+    records_response = nexus_api.internal_metrics.get_records(metric_type="error", limit=50)
+    records_response.assert_successful()
+    records = records_response.parsed.to_dict() if records_response.parsed is not None else {}
     total = records.get("total", 0)
     if total == 0:
         return "  (no server-side error records)"
@@ -204,17 +199,14 @@ class TestMixedCrudErrorRate:
     @pytest.fixture(autouse=True)
     def _setup(
         self,
-        nexus_base_url: str,
-        auth_headers: dict[str, str],
+        nexus_api: NexusApiRegistry,
         perf_test_mode_enabled: None,
     ) -> None:
-        metrics_post(nexus_base_url, "/reset", auth_headers)
+        nexus_api.internal_metrics.reset_store().assert_successful()
         time.sleep(0.5)
 
     def test_mixed_crud_error_rate_under_target(
         self,
-        nexus_base_url: str,
-        auth_headers: dict[str, str],
         nexus_api: NexusApiRegistry,
     ) -> None:
         """Mixed CRUD operations for 60s; error rate must be < 1%."""
@@ -231,7 +223,9 @@ class TestMixedCrudErrorRate:
 
         client_error_rate = stats.server_errors / stats.total
 
-        kpis = fetch_api_service_kpis(nexus_base_url, auth_headers)
+        kpis_response = nexus_api.internal_metrics.get_component_kpis(component="api_service")
+        kpis_response.assert_successful()
+        kpis = kpis_response.parsed.to_dict() if kpis_response.parsed is not None else {}
         server_error_rate = kpis.get("metrics", {}).get("error_rate", 0)
         server_total_errors = kpis.get("metrics", {}).get("total_errors", 0)
         server_total_requests = kpis.get("metrics", {}).get("total_requests", 0)
@@ -244,7 +238,7 @@ class TestMixedCrudErrorRate:
             f"--- Server KPIs: total_requests={server_total_requests}, "
             f"total_errors={server_total_errors}, error_rate={server_error_rate} ---\n"
             f"--- Server error record samples ---\n"
-            f"{_format_server_error_details(nexus_base_url, auth_headers)}\n"
+            f"{_format_server_error_details(nexus_api)}\n"
         )
 
         assert client_error_rate < TARGET_ERROR_RATE, (
@@ -275,11 +269,10 @@ class TestErrorClassification:
     @pytest.fixture(autouse=True)
     def _setup(
         self,
-        nexus_base_url: str,
-        auth_headers: dict[str, str],
+        nexus_api: NexusApiRegistry,
         perf_test_mode_enabled: None,
     ) -> None:
-        metrics_post(nexus_base_url, "/reset", auth_headers)
+        nexus_api.internal_metrics.reset_store().assert_successful()
         time.sleep(0.5)
 
     def test_invalid_payload_returns_422(
@@ -332,8 +325,6 @@ class TestErrorClassification:
 
     def test_error_records_have_correct_labels(
         self,
-        nexus_base_url: str,
-        auth_headers: dict[str, str],
         nexus_api: NexusApiRegistry,
     ) -> None:
         """Error metric records must carry error_type labels for classification."""
@@ -343,11 +334,9 @@ class TestErrorClassification:
 
         time.sleep(1)
 
-        records = fetch_metrics_records(
-            nexus_base_url,
-            auth_headers,
-            metric_type="error",
-        )
+        records_response = nexus_api.internal_metrics.get_records(metric_type="error")
+        records_response.assert_successful()
+        records = records_response.parsed.to_dict() if records_response.parsed is not None else {}
 
         if records.get("total", 0) > 0:
             for record in records.get("records", []):

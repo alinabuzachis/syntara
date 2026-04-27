@@ -16,11 +16,6 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from tests.performance.api_service.conftest import (
-    fetch_api_service_kpis,
-    metrics_post,
-)
-
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
 
@@ -107,17 +102,14 @@ class TestThroughputRamp:
     @pytest.fixture(autouse=True)
     def _setup(
         self,
-        nexus_base_url: str,
-        auth_headers: dict[str, str],
+        nexus_api: NexusApiRegistry,
         perf_test_mode_enabled: None,
     ) -> None:
-        metrics_post(nexus_base_url, "/reset", auth_headers)
+        nexus_api.internal_metrics.reset_store().assert_successful()
         time.sleep(0.5)
 
     def test_throughput_ramp_meets_targets(
         self,
-        nexus_base_url: str,
-        auth_headers: dict[str, str],
         nexus_api: NexusApiRegistry,
     ) -> None:
         """Ramp 10 → 200 RPS over 120s; must reach 100+ sustained, 200+ peak."""
@@ -148,7 +140,9 @@ class TestThroughputRamp:
         sustained_rps = sum(sustained_steps) / len(sustained_steps) if sustained_steps else 0.0
 
         time.sleep(1)
-        kpis = fetch_api_service_kpis(nexus_base_url, auth_headers)
+        kpis_response = nexus_api.internal_metrics.get_component_kpis(component="api_service")
+        kpis_response.assert_successful()
+        kpis = kpis_response.parsed.to_dict() if kpis_response.parsed is not None else {}
         server_total = kpis.get("metrics", {}).get("total_requests", 0)
 
         error_rate = total_errors / total_requests if total_requests else 1.0

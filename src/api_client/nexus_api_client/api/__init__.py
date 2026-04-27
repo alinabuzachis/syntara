@@ -16,6 +16,7 @@ from .executions import ExecutionsApi
 from .files import FilesApi
 from .groups import GroupsApi
 from .identity_providers import IdentityProvidersApi
+from .internal_metrics import InternalMetricsApi
 from .invocation import InvocationApi
 from .policies import PoliciesApi
 from .projects import ProjectsApi
@@ -81,6 +82,10 @@ class NexusApiRegistry:
     @cached_property
     def identity_providers(self) -> IdentityProvidersApi:
         return IdentityProvidersApi(client=self._client)
+
+    @cached_property
+    def internal_metrics(self) -> InternalMetricsApi:
+        return InternalMetricsApi(client=self._client)
 
     @cached_property
     def invocation(self) -> InvocationApi:

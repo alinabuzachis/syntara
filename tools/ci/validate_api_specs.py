@@ -49,7 +49,7 @@ OPENAPI_IGNORE_FILES = {
 }
 
 # Directories within schemas/ that don't represent API domains
-SCHEMA_IGNORE_DIRS = {"base", "schemas", "v2"}
+SCHEMA_IGNORE_DIRS = {"base", "internal_metrics", "schemas", "v2"}
 
 # Maps schema domain names to their Python module domain when they differ.
 # Used when a schema lives in its own folder (e.g. schemas/executions/) but
@@ -279,6 +279,9 @@ def validate_openapi_specs(specs: list[Path], schemas_dir: Path, src_dir: Path) 
             continue
 
         if not is_openapi_spec(data):
+            continue
+
+        if spec_path.parent.name in SCHEMA_IGNORE_DIRS:
             continue
 
         base_path = extract_base_path(data)

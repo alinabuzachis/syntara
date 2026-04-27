@@ -54,6 +54,9 @@ from .can_i_request_resource_labels import CanIRequestResourceLabels
 from .can_i_request_resource_metadata import CanIRequestResourceMetadata
 from .can_i_response import CanIResponse
 from .categories_list_response import CategoriesListResponse
+from .component_kpi_summary import ComponentKPISummary
+from .component_kpi_summary_metrics import ComponentKPISummaryMetrics
+from .component_kpi_summary_metrics_additional_property_type_1 import ComponentKPISummaryMetricsAdditionalPropertyType1
 from .create_example_request import CreateExampleRequest
 from .credential_create import CredentialCreate
 from .credential_create_inputs import CredentialCreateInputs
@@ -115,15 +118,25 @@ from .invocation_list_response import InvocationListResponse
 from .invocation_request_with_file import InvocationRequestWithFile
 from .invocation_result_type_0 import InvocationResultType0
 from .invocation_status import InvocationStatus
+from .kpi_dashboard import KPIDashboard
 from .login_request import LoginRequest
 from .logout_response_logout import LogoutResponseLogout
 from .mcp_configuration import MCPConfiguration
+from .metric_record import MetricRecord
+from .metric_record_labels import MetricRecordLabels
+from .metric_type import MetricType
+from .metrics_category_type import MetricsCategoryType
+from .metrics_record_page import MetricsRecordPage
+from .metrics_store_summary import MetricsStoreSummary
+from .metrics_store_summary_counters import MetricsStoreSummaryCounters
+from .metrics_store_summary_metric_type_counts import MetricsStoreSummaryMetricTypeCounts
 from .oidc_configuration import OIDCConfiguration
 from .oidc_configuration_patch import OIDCConfigurationPatch
 from .oidc_configuration_response import OIDCConfigurationResponse
 from .oidc_test_request import OIDCTestRequest
 from .oidc_test_result import OIDCTestResult
 from .oidc_test_result_metadata_type_0 import OIDCTestResultMetadataType0
+from .percentile_stats import PercentileStats
 from .permission_entry import PermissionEntry
 from .policy_create import PolicyCreate
 from .policy_create_labels import PolicyCreateLabels
@@ -149,6 +162,9 @@ from .project_role_create_labels import ProjectRoleCreateLabels
 from .project_update import ProjectUpdate
 from .project_update_labels_type_0 import ProjectUpdateLabelsType0
 from .provider_status import ProviderStatus
+from .reset_internal_metrics_store_response_reset_internal_metrics_store import (
+    ResetInternalMetricsStoreResponseResetInternalMetricsStore,
+)
 from .role_assignment_create import RoleAssignmentCreate
 from .role_assignment_list_response import RoleAssignmentListResponse
 from .role_assignment_read import RoleAssignmentRead
@@ -283,6 +299,9 @@ __all__ = (
     "CanIRequestResourceMetadata",
     "CanIResponse",
     "CategoriesListResponse",
+    "ComponentKPISummary",
+    "ComponentKPISummaryMetrics",
+    "ComponentKPISummaryMetricsAdditionalPropertyType1",
     "CreateExampleRequest",
     "CredentialCreate",
     "CredentialCreateInputs",
@@ -344,15 +363,25 @@ __all__ = (
     "InvocationRequestWithFile",
     "InvocationResultType0",
     "InvocationStatus",
+    "KPIDashboard",
     "LoginRequest",
     "LogoutResponseLogout",
     "MCPConfiguration",
+    "MetricRecord",
+    "MetricRecordLabels",
+    "MetricsCategoryType",
+    "MetricsRecordPage",
+    "MetricsStoreSummary",
+    "MetricsStoreSummaryCounters",
+    "MetricsStoreSummaryMetricTypeCounts",
+    "MetricType",
     "OIDCConfiguration",
     "OIDCConfigurationPatch",
     "OIDCConfigurationResponse",
     "OIDCTestRequest",
     "OIDCTestResult",
     "OIDCTestResultMetadataType0",
+    "PercentileStats",
     "PermissionEntry",
     "PolicyCreate",
     "PolicyCreateLabels",
@@ -378,6 +407,7 @@ __all__ = (
     "ProjectUpdate",
     "ProjectUpdateLabelsType0",
     "ProviderStatus",
+    "ResetInternalMetricsStoreResponseResetInternalMetricsStore",
     "RoleAssignmentCreate",
     "RoleAssignmentListResponse",
     "RoleAssignmentRead",
