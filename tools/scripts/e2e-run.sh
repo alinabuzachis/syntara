@@ -19,14 +19,19 @@ fi
 SEGMENT_SERVER_PORT="${SEGMENT_SERVER_PORT:-9999}"
 MAKE="${MAKE:-make}"
 PYTEST_ARGS=("$@")
-DEV_PID=""
 
 cleanup() {
     echo "🧹 Stopping background services..."
-    if [[ -n "$DEV_PID" ]]; then
-        kill "$DEV_PID" 2>/dev/null || true
-        wait "$DEV_PID" 2>/dev/null || true
-    fi
+
+    # Save container logs before tearing down (useful for debugging failures)
+    local log_dir="/tmp/nexus-e2e-logs"
+    rm -rf "$log_dir"
+    mkdir -p "$log_dir"
+    echo "📋 Saving container logs to ${log_dir}/ ..."
+    for container in $(podman ps -a --format '{{.Names}}' --filter "label=com.docker.compose.project" 2>/dev/null); do
+        podman logs "$container" > "${log_dir}/${container}.log" 2>&1 || true
+    done
+
     ${COMPOSE_CMD} --profile telemetry-e2e down > /dev/null 2>&1 || true
 }
 trap cleanup EXIT
@@ -65,20 +70,14 @@ until timeout 2 bash -c "echo > /dev/tcp/localhost/\${APP_TEMPORAL_PORT:-7233}" 
 done
 echo "✅ Infrastructure ready"
 
-APP_SEGMENT_WRITE_KEY=test-e2e-write-key \
-APP_SEGMENT_ENDPOINT="http://localhost:${SEGMENT_SERVER_PORT}" \
-APP_COLLECTION_INTERVAL_SECONDS=10 \
-${MAKE} dev > /tmp/nexus-e2e-dev.log 2>&1 &
-DEV_PID=$!
-
 echo "⏳ Waiting for API server to be ready..."
 TRIES=0
 until curl -sf http://localhost:8000/health 2>/dev/null | grep -q '"status":"healthy"'; do
     sleep 1
     TRIES=$((TRIES + 1))
     if [[ $TRIES -ge 60 ]]; then
-        echo "❌ API server failed to start after 60s. Last 20 lines:"
-        tail -20 /tmp/nexus-e2e-dev.log
+        echo "❌ API server failed to start after 60s"
+        ${COMPOSE_CMD} logs nexus 2>&1 | tail -20
         exit 1
     fi
 done
