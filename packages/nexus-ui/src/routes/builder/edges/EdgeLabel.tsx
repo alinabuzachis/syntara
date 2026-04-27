@@ -1,7 +1,7 @@
 import { EdgeLabelRenderer } from '@xyflow/react'
 import React from 'react'
 
-interface EdgeLabelProps {
+type EdgeLabelProps = {
   /** X coordinate for positioning the label */
   labelX: number
   /** Y coordinate for positioning the label */

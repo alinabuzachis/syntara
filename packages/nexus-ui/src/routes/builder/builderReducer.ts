@@ -5,7 +5,7 @@ import type { NodeType } from '../automations/canvas/nodes/NodeType'
 import type { FlowPosition } from './types'
 
 // Builder state interface
-export interface BuilderState {
+export type BuilderState = {
   confirmDialogOpen: boolean
   deleteDialogOpen: boolean
   detailsOpen: boolean

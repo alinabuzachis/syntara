@@ -17,7 +17,7 @@ import { useExecutionStore } from '../stores/useExecutionStore'
 // Hook Options
 // ============================================================================
 
-export interface UseExecutionWebSocketOptions {
+export type UseExecutionWebSocketOptions = {
   /**
    * Whether to enable WebSocket connection
    * @default true
@@ -46,7 +46,7 @@ export interface UseExecutionWebSocketOptions {
 // Hook Return Type
 // ============================================================================
 
-export interface UseExecutionWebSocketReturn {
+export type UseExecutionWebSocketReturn = {
   /** Whether WebSocket is connected */
   isConnected: boolean
   /** Whether connection is stale (disconnected but reconnecting) */

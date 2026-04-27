@@ -3,7 +3,7 @@ import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 import { FlowNodeType } from '../../../constants'
 import type { ButtonEdgePlaceholderNode, NodeType } from '../../automations/canvas/nodes/NodeType'
 
-export interface HandlePositionConfig {
+export type HandlePositionConfig = {
   yOffset: number
   xOffset?: number
 }
@@ -22,7 +22,7 @@ export function createButtonEdgePlaceholderNode(params: {
   }
 }
 
-export interface ProcessMultiHandleNodeOptions {
+export type ProcessMultiHandleNodeOptions = {
   node: NodeType
   handles: readonly string[]
   handlePositions: Record<string, HandlePositionConfig>
@@ -78,7 +78,7 @@ export function mergeNewPlaceholderNodes(
   return nodesToAdd.length > 0 ? [...currentNodes, ...nodesToAdd] : currentNodes
 }
 
-export interface ButtonEdgeFilterContext {
+export type ButtonEdgeFilterContext = {
   conditionHandles: { nodeId: string; handleId: string }[]
   loopHandles: { nodeId: string; handleId: string }[]
   approvalHandles: { nodeId: string; handleId: string }[]

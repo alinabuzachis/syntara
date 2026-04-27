@@ -10,7 +10,7 @@ import {
 import type { ActivityStatus } from '../../../routes/automations/execution/types'
 import { activityStatusColors } from '../executionStatusConstants'
 
-interface ExecutionStatusBadgeProps {
+type ExecutionStatusBadgeProps = {
   status: ActivityStatus
   retryCount?: number
 }

@@ -10,18 +10,18 @@ import type { ActivityState } from '../automations/execution/types'
 
 import { ActivityStatusLabel } from './ExecutionStatus'
 
-export interface ActivityOrderItem {
+export type ActivityOrderItem = {
   id: string
   name?: string
 }
 
-export interface TriggerItem {
+export type TriggerItem = {
   index: number
   type: string
   name?: string
 }
 
-interface ExecutionActivityTableProps {
+type ExecutionActivityTableProps = {
   triggers: TriggerItem[]
   activityStates: Map<string, ActivityState>
   activityOrder: ActivityOrderItem[]

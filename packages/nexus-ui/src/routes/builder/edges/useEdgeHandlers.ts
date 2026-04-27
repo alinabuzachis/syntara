@@ -6,7 +6,7 @@ import { getEffectiveMarkerEnd } from './edgeMarkerHelpers'
 import type { EdgeData } from './types'
 import { useEdgeHover, useEdgeSourceHandle } from './useEdgeHover'
 
-interface UseEdgeHandlersProps {
+type UseEdgeHandlersProps = {
   edgeId: string
   source: string
   target: string

@@ -17,7 +17,7 @@ import { useExecutionStore } from '../stores/useExecutionStore'
 // Hook Options
 // ============================================================================
 
-export interface UseExecutionDataOptions {
+export type UseExecutionDataOptions = {
   /**
    * Whether to fetch execution data automatically
    * @default true
@@ -35,7 +35,7 @@ export interface UseExecutionDataOptions {
 // Hook Return Type
 // ============================================================================
 
-export interface UseExecutionDataReturn {
+export type UseExecutionDataReturn = {
   /** Execution data from API */
   data: Execution | undefined
   /** Whether data is loading */

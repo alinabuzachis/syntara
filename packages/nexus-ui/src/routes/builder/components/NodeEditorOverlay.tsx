@@ -5,7 +5,7 @@ import { memo } from 'react'
 import type { NodeType } from '../../automations/canvas/nodes/NodeType'
 import { NodeDetailsPanel } from '../NodeDetailsPanel'
 
-interface NodeEditorOverlayProps {
+type NodeEditorOverlayProps = {
   isOpen: boolean
   mode: 'add' | 'edit' | null
   selectedNode: Node<NodeType['data']> | null

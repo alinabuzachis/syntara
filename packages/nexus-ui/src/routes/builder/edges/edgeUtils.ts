@@ -37,7 +37,7 @@ export function adjustSourceCoordinates(
   }
 }
 
-export interface AdjustEdgeOptions {
+export type AdjustEdgeOptions = {
   sourceX: number
   sourceY: number
   sourcePosition: Position

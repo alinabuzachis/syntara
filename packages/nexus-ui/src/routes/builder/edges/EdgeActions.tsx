@@ -3,7 +3,7 @@ import { RhUiAddSquareIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { EdgeLabelRenderer } from '@xyflow/react'
 import React from 'react'
 
-interface EdgeActionsProps {
+type EdgeActionsProps = {
   /** X coordinate for positioning the actions */
   labelX: number
   /** Y coordinate for positioning the actions */

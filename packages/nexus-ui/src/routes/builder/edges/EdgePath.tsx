@@ -14,7 +14,7 @@ import { EDGE_INTERACTION_DROP_SHADOW } from './edgeInteractionStyles'
 const APPROVED_EDGE_COLOR = 'var(--pf-t--global--color--status--success--default)'
 const REJECTED_EDGE_COLOR = 'var(--pf-t--global--color--status--danger--default)'
 
-interface EdgePathProps {
+type EdgePathProps = {
   /** The SVG path string for the edge */
   edgePath: string
   /** The marker end for the edge (string URL or React Flow marker object) */
