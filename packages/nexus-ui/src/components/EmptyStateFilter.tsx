@@ -12,7 +12,7 @@ import { RhUiSearchIcon } from '@patternfly/react-icons'
  *   imageAlt="No results"
  * />
  */
-export interface EmptyStateFilterProps {
+export type EmptyStateFilterProps = {
   title?: string
   description?: string
   buttonText?: string

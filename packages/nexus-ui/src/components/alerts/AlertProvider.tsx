@@ -3,11 +3,11 @@ import { useId, useState, useCallback, useRef, useMemo, type ReactNode } from 'r
 
 import { AlertContext, type AlertConfig, type AlertVariant } from './AlertContext'
 
-interface AlertItem extends Omit<AlertConfig, 'variant' | 'id'> {
+type AlertItem = {
   /** Stable key for React list + dismiss; optional consumer `config.id` or monotonic instance id */
   instanceKey: string
   variant: AlertVariant
-}
+} & Omit<AlertConfig, 'variant' | 'id'>
 
 const DEFAULT_TIMEOUT = 8000
 

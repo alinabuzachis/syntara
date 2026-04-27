@@ -2,7 +2,7 @@ import { createContext, useContext } from 'react'
 
 export type AlertVariant = 'success' | 'danger' | 'warning' | 'info' | 'custom'
 
-export interface AlertConfig {
+export type AlertConfig = {
   /** Optional stable key for this toast; used with {@link AlertContextType.dismissAlert}. If omitted, an internal monotonic id is assigned. */
   id?: string
   variant?: AlertVariant | 'error' // Accept 'error' and map to 'danger'
@@ -12,7 +12,7 @@ export interface AlertConfig {
   timeout?: number // milliseconds, defaults to 8000 if autoDismiss is true
 }
 
-export interface AlertContextType {
+export type AlertContextType = {
   showAlert: (config: AlertConfig) => void
   showSuccess: (title: string, description?: string) => void
   showError: (title: string, description?: string) => void

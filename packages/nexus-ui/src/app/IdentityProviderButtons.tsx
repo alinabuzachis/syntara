@@ -39,7 +39,7 @@ function ProviderIcon({ name }: Readonly<{ name: string }>) {
   }
 }
 
-interface IdentityProviderButtonsProps {
+type IdentityProviderButtonsProps = {
   providers: AuthProvider[]
 }
 

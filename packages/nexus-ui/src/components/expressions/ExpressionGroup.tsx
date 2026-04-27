@@ -101,7 +101,7 @@ const GroupNotHelp = () => (
   />
 )
 
-interface ExpressionGroupProps {
+type ExpressionGroupProps = {
   /** The group data */
   group: ExpressionGroupType
   /** Callback when group is updated */

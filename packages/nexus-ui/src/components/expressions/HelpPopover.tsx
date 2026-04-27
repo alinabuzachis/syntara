@@ -7,7 +7,7 @@ import { Button, Popover } from '@patternfly/react-core'
 import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
 
-interface HelpPopoverProps {
+type HelpPopoverProps = {
   /** Accessible label for the help button */
   ariaLabel: string
   /** Header text for the popover */

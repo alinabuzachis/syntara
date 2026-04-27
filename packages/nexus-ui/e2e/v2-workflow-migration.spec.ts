@@ -36,7 +36,7 @@ import {
 import { buildUniqueName, selectProjectIfRequired } from './helpers/workflows'
 
 /** Inline v2 schema type (formerly in toV2Definition.ts stub, now replaced by generated contracts). */
-interface V2WorkflowDefinition {
+type V2WorkflowDefinition = {
   schema_version: '2.0.0'
   name: string
   description?: string

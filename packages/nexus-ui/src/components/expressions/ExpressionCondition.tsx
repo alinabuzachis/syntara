@@ -76,7 +76,7 @@ const NotHelp = () => (
   />
 )
 
-interface ExpressionConditionProps {
+type ExpressionConditionProps = {
   /** The condition data */
   condition: ExpressionConditionType
   /** Callback when condition is updated */

@@ -21,7 +21,7 @@ import {
 
 export type { UploadedFile } from './fileUploadUtils'
 
-export interface FileUploadProps {
+export type FileUploadProps = {
   onFilesSelected?: (files: File[]) => void
   onFileRemove?: (fileId: string) => void
   maxFiles?: number

@@ -18,7 +18,7 @@ import { useAuthStore, selectIsAuthenticated, selectIsRefreshing, selectAuthErro
 import { IdentityProviderButtons } from './IdentityProviderButtons'
 import { useAuthProviders } from './useAuthProviders'
 
-interface LocalLoginFormProps {
+type LocalLoginFormProps = {
   username: string
   password: string
   loginError: string | null

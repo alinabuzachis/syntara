@@ -5,7 +5,7 @@
 
 import { TextArea } from '@patternfly/react-core'
 
-interface ExpressionRawEditorProps {
+type ExpressionRawEditorProps = {
   /** Raw template string value */
   value: string
   /** Callback when value changes */

@@ -1,4 +1,4 @@
-export interface UploadedFile {
+export type UploadedFile = {
   id: string
   file: File
   progress: number

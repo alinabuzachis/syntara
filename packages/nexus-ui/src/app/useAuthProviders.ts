@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-export interface AuthProvider {
+export type AuthProvider = {
   id: string
   name: string
   provider_type: string
@@ -15,7 +15,7 @@ function isAuthProvider(value: unknown): value is AuthProvider {
   )
 }
 
-interface UseAuthProvidersResult {
+type UseAuthProvidersResult = {
   providers: AuthProvider[]
   isLoading: boolean
 }

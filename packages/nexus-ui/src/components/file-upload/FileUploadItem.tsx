@@ -1,7 +1,7 @@
 import { Button, Flex, FlexItem, Progress, ProgressSize } from '@patternfly/react-core'
 import { RhUiDocumentFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 
-export interface FileUploadItemProps {
+export type FileUploadItemProps = {
   file: File
   fileId: string
   status?: 'pending' | 'uploading' | 'success' | 'error'

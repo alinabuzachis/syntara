@@ -15,7 +15,7 @@ import { ExpressionGroup } from './ExpressionGroup'
 import { ExpressionRawEditor } from './ExpressionRawEditor'
 import { prepareRootNode } from './prepareRootNode'
 
-interface VisualExpressionEditorProps {
+type VisualExpressionEditorProps = {
   group: ExpressionGroupType
   onUpdateRoot: (root: ExpressionGroupType) => void
   error?: boolean
@@ -50,7 +50,7 @@ function VisualExpressionEditor({ group, onUpdateRoot, error }: VisualExpression
   )
 }
 
-interface ExpressionBuilderCoreProps {
+type ExpressionBuilderCoreProps = {
   /** Current expression value (template string) */
   value: string
   /** Callback when expression changes */
@@ -67,7 +67,7 @@ interface ExpressionBuilderCoreProps {
 
 type EditorMode = 'visual' | 'raw'
 
-interface BuilderState {
+type BuilderState = {
   expression: Expression
 
   mode: EditorMode
