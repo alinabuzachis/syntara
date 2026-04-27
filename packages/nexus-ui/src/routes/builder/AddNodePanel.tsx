@@ -1,11 +1,13 @@
-import { Button, CompassPanel, Flex, FlexItem, Icon, Stack, StackItem, Title, TitleSizes } from '@patternfly/react-core'
+import { Button, Flex, FlexItem, Icon, Stack, StackItem, Title, TitleSizes } from '@patternfly/react-core'
 import { RhUiCloseIcon, RhUiArrowLeftIcon, RhUiAddSquareIcon } from '@patternfly/react-icons'
 import { useMemo, useState, type ReactNode } from 'react'
+
+import { AppPanel } from '../../components/AppPanel'
 
 import { NodeTypeOptionsList } from './NodeTypeOptionsList'
 import { NodeRegistry } from './registry/NodeRegistry'
 
-interface AddNodePanelHeaderProps {
+type AddNodePanelHeaderProps = {
   panelTitle: string
   isShowingSubtypeList: boolean
   hasNoWorkflowNodes?: boolean
@@ -68,7 +70,7 @@ export function AddNodePanelHeader({
   )
 }
 
-interface AddNodePanelProps {
+type AddNodePanelProps = {
   onClose: () => void
   onSelectNode: (nodeTypeId: string, nodeSubtypeId?: string | null) => void
   sourceNodeId?: string | null
@@ -114,8 +116,9 @@ export function AddNodePanel(props: AddNodePanelProps) {
     isShowingSubtypeList && selectedNode ? (selectedNode.selectionTitle ?? 'Select a step') : 'Add step'
 
   return (
-    <CompassPanel
+    <AppPanel
       hasNoPadding
+      isGlass={false}
       role="region"
       aria-label={panelTitle}
       style={{
@@ -164,6 +167,6 @@ export function AddNodePanel(props: AddNodePanelProps) {
           </Stack>
         </StackItem>
       </Stack>
-    </CompassPanel>
+    </AppPanel>
   )
 }

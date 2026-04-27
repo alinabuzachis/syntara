@@ -1,9 +1,10 @@
-import { CompassPanel, StackItem, Tab, Tabs } from '@patternfly/react-core'
+import { StackItem, Tab, Tabs } from '@patternfly/react-core'
 import { useLocation } from 'wouter'
 
 import { AppPage } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { AppRoute } from '../../app/AppRoute'
+import { AppPanel } from '../../components/AppPanel'
 import { AssignmentsTab } from '../access/AssignmentsTab'
 import { CanITab } from '../access/CanITab'
 import { PoliciesTab } from '../access/PoliciesTab'
@@ -48,9 +49,9 @@ export function AccessManagement() {
         </Tabs>
       </StackItem>
       <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-        <CompassPanel isFullHeight>
+        <AppPanel isFullHeight>
           <ActiveTabComponent />
-        </CompassPanel>
+        </AppPanel>
       </StackItem>
     </AppPage>
   )

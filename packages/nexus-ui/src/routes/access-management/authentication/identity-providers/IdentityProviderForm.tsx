@@ -2,7 +2,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import {
   Alert,
   Button,
-  CompassPanel,
   EmptyState,
   EmptyStateActions,
   EmptyStateBody,
@@ -22,6 +21,7 @@ import { AppPageHeader } from '../../../../app/AppPageHeader'
 import { AppRoute } from '../../../../app/AppRoute'
 import { identityProvidersClient } from '../../../../client'
 import { useAlerts } from '../../../../components/alerts'
+import { AppPanel } from '../../../../components/AppPanel'
 import { useQueryState } from '../../../../components/states/useQueryState'
 import { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationErrorHandler'
 import { getErrorMessage, isConflictError } from '../../../../utils/apiErrors'
@@ -238,7 +238,7 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
       <AppPage>
         <AppPageHeader title="Edit OIDC provider" />
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>
+          <AppPanel isFullHeight>
             <EmptyState headingLevel="h2" titleText="Identity provider not found" icon={RhUiSearchIcon} isFullHeight>
               <EmptyStateBody>
                 The identity provider you are looking for does not exist or may have been deleted.
@@ -260,7 +260,7 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
                 </EmptyStateActions>
               </EmptyStateFooter>
             </EmptyState>
-          </CompassPanel>
+          </AppPanel>
         </StackItem>
       </AppPage>
     )
@@ -270,7 +270,7 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
       <AppPage>
         <AppPageHeader title={pageTitle} />
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>{queryState}</CompassPanel>
+          <AppPanel isFullHeight>{queryState}</AppPanel>
         </StackItem>
       </AppPage>
     )
@@ -298,7 +298,11 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
         </Button>
       </AppPageHeader>
       <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-        <CompassPanel isFullHeight isScrollable style={{ padding: 'var(--pf-t--global--spacer--xl)' }}>
+        <AppPanel
+          isFullHeight
+          isScrollable
+          panelMainBodyProps={{ style: { padding: 'var(--pf-t--global--spacer--xl)' } }}
+        >
           <div style={{ maxWidth: '600px' }}>
             {testResult && (
               <Alert
@@ -314,7 +318,7 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
               <IdentityProviderFormFields control={control} isEdit={isEdit} />
             </Form>
           </div>
-        </CompassPanel>
+        </AppPanel>
       </StackItem>
     </AppPage>
   )

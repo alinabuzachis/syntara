@@ -1,9 +1,9 @@
 import type { Activity, ExecutionsAPI } from '@ansible/nexus-contracts'
-import { CompassPanel } from '@patternfly/react-core'
 import { ReactFlowProvider } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { useEffect, useRef } from 'react'
 
+import { AppPanel } from '../../components/AppPanel'
 import { useWorkflowStoreActions } from '../../stores/useWorkflowStore'
 import { buildTriggerNodeId } from '../../utils/triggerNodeIds'
 import { useExecutionStoreActions } from '../automations/stores/useExecutionStore'
@@ -21,7 +21,7 @@ type ActivityExecution = ExecutionsAPI.components['schemas']['ActivityExecution'
 type ActivityInput = ActivityData | ActivityExecution
 
 /** Accepts both full Workflow objects and execution-derived workflow data with version.workflow_definition */
-interface ExecutionWorkflow {
+type ExecutionWorkflow = {
   id: string
   name?: string
   version?: { workflow_definition?: unknown }
@@ -29,7 +29,7 @@ interface ExecutionWorkflow {
   triggers?: unknown[]
 }
 
-interface ExecutionViewContentProps {
+type ExecutionViewContentProps = {
   workflow?: ExecutionWorkflow
   executionStatus?: string | null
   executionActivities?: ActivityInput[]
@@ -152,7 +152,7 @@ function ExecutionViewContentInner(props: ExecutionViewContentProps) {
   }, [workflow, loadWorkflowWithEdges, setWorkflowInStore, setStoredEdges, executionActivities, executionId])
 
   return (
-    <CompassPanel
+    <AppPanel
       hasNoPadding
       isFullHeight
       style={{
@@ -180,7 +180,7 @@ function ExecutionViewContentInner(props: ExecutionViewContentProps) {
           // No-op: cannot delete steps in execution view
         }}
       />
-    </CompassPanel>
+    </AppPanel>
   )
 }
 

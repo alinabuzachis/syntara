@@ -1,8 +1,8 @@
 import {
   Button,
-  CompassPanel,
   Flex,
   FlexItem,
+  Panel,
   PanelMain,
   PanelMainBody,
   Stack,
@@ -12,11 +12,13 @@ import {
 import { ExternalLinkAltIcon, RhUiCloseIcon } from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
 
+import { AppPanel } from '../../components/AppPanel'
+
 import { useNodeExecutionData } from './panels/hooks/useNodeExecutionData'
 import { InputPanel } from './panels/InputPanel'
 import { OutputPanel } from './panels/OutputPanel'
 
-interface NodeEditorLayoutProps {
+type NodeEditorLayoutProps = {
   parametersContent: ReactNode
   headerContent?: ReactNode
   headerIcon?: ReactNode
@@ -46,8 +48,10 @@ export function NodeEditorLayout({
   const { inputData, outputData } = useNodeExecutionData(nodeId ?? '', executionId, workflowId)
   const outputFlex = showInputPanel ? 'flex_1' : 'flex_2'
   return (
-    <CompassPanel
+    <AppPanel
       hasNoPadding
+      isFullHeight
+      isGlass={false}
       style={{
         height: '100%',
         maxHeight: '100%',
@@ -57,7 +61,7 @@ export function NodeEditorLayout({
         overflow: 'hidden',
       }}
     >
-      <Stack style={{ height: '100%', overflow: 'hidden' }}>
+      <Stack style={{ flex: 1, minHeight: 0, height: '100%' }}>
         <StackItem style={{ padding: 'var(--pf-t--global--spacer--sm)' }}>
           <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }} alignItems={{ default: 'alignItemsCenter' }}>
             <FlexItem grow={{ default: 'grow' }} style={{ minWidth: 0 }}>
@@ -106,7 +110,7 @@ export function NodeEditorLayout({
           isFilled
           style={{
             minHeight: 0,
-            overflow: 'hidden',
+            overflow: 'visible',
             padding: 'var(--pf-t--global--spacer--sm)',
           }}
         >
@@ -121,8 +125,8 @@ export function NodeEditorLayout({
                 flex={{ default: 'flex_1' }}
                 style={{
                   minWidth: 0,
+                  minHeight: 0,
                   height: '100%',
-                  overflow: 'hidden',
                 }}
               >
                 <InputPanel nodeId={nodeId ?? ''} executionData={inputData} sourceNodeId={sourceNodeId} />
@@ -132,21 +136,24 @@ export function NodeEditorLayout({
               flex={{ default: 'flex_1' }}
               style={{
                 minWidth: 0,
+                minHeight: 0,
                 height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
               }}
             >
-              <CompassPanel
+              <Panel
+                variant="raised"
                 style={{
                   height: '100%',
                   maxHeight: '100%',
                   display: 'flex',
                   flexDirection: 'column',
-                  overflow: 'hidden',
                 }}
               >
-                <PanelMain style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                <PanelMain
+                  style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}
+                >
                   <PanelMainBody
                     style={{
                       height: '100%',
@@ -158,14 +165,14 @@ export function NodeEditorLayout({
                     {parametersContent}
                   </PanelMainBody>
                 </PanelMain>
-              </CompassPanel>
+              </Panel>
             </FlexItem>
             <FlexItem
               flex={{ default: outputFlex }}
               style={{
                 minWidth: 0,
+                minHeight: 0,
                 height: '100%',
-                overflow: 'hidden',
               }}
             >
               <OutputPanel outputData={outputData} />
@@ -173,6 +180,6 @@ export function NodeEditorLayout({
           </Flex>
         </StackItem>
       </Stack>
-    </CompassPanel>
+    </AppPanel>
   )
 }

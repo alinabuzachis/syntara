@@ -1,5 +1,5 @@
 import type { Execution, WorkflowAPI } from '@ansible/nexus-contracts'
-import { CompassPanel, Content, Flex, FlexItem, Stack, StackItem } from '@patternfly/react-core'
+import { Content, Flex, FlexItem, Stack, StackItem } from '@patternfly/react-core'
 import { useQueryClient } from '@tanstack/react-query'
 import { useReactFlow, useNodesInitialized } from '@xyflow/react'
 import { useEffect, useMemo, useReducer, useState } from 'react'
@@ -9,6 +9,7 @@ import { AppPage } from '../../app/AppPage'
 import { useUnsavedChanges } from '../../app/useUnsavedChanges'
 import { executionsClient, workflowClient } from '../../client'
 import { useAlerts } from '../../components/alerts'
+import { AppPanel } from '../../components/AppPanel'
 import { ConfirmationDialog } from '../../components/ConfirmationDialog'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
@@ -289,8 +290,9 @@ export function BuilderContent(props: BuilderContentProps) {
                           executionId={selectedExecutionId}
                         />
                       ) : (
-                        <CompassPanel
+                        <AppPanel
                           hasNoPadding
+                          isFullHeight
                           style={{
                             position: 'relative',
                             minWidth: 0,
@@ -314,7 +316,7 @@ export function BuilderContent(props: BuilderContentProps) {
                             newNodeDesiredPosition={state.newNodeDesiredPosition}
                             onClearDesiredPosition={handleClearDesiredPosition}
                           />
-                        </CompassPanel>
+                        </AppPanel>
                       )}
                     </StackItem>
 

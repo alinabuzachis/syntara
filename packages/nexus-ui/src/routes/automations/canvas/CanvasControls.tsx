@@ -1,4 +1,4 @@
-import { Button, CompassPanel, Flex, FlexItem, Icon, Popover } from '@patternfly/react-core'
+import { Button, Flex, FlexItem, Icon, Popover } from '@patternfly/react-core'
 import {
   RhUiInformationIcon,
   RhUiCaretDownIcon,
@@ -10,6 +10,8 @@ import {
 } from '@patternfly/react-icons'
 import { Panel, useReactFlow } from '@xyflow/react'
 import React, { useCallback, useRef, useState } from 'react'
+
+import { AppPanel } from '../../../components/AppPanel'
 
 import { CanvasLegend } from './CanvasLegend'
 import { NodeExpandedAllContext } from './nodes/common/NodeExpandedAllContext'
@@ -93,7 +95,7 @@ export function CanvasControls(props: Readonly<{ onLayout: () => void; hideLayou
 
   return (
     <Panel position="bottom-left">
-      <CompassPanel isPill hasNoPadding style={{ padding: 'var(--pf-t--global--spacer--xs)' }}>
+      <AppPanel isPill hasNoPadding style={{ padding: 'var(--pf-t--global--spacer--xs)' }}>
         <Flex gap={{ default: 'gapNone' }}>
           <CanvasLegendPopoverBlock />
           <FlexItem>
@@ -179,7 +181,7 @@ export function CanvasControls(props: Readonly<{ onLayout: () => void; hideLayou
             </>
           )}
         </Flex>
-      </CompassPanel>
+      </AppPanel>
     </Panel>
   )
 }

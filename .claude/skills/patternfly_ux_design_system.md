@@ -143,15 +143,15 @@ Use a docked icon navigation (left sidebar) with PatternFly's [flyout panels com
 
 Every page **must** follow this structural hierarchy:
 
-| Layer              | Component                    | Purpose                        |
-| ------------------ | ---------------------------- | ------------------------------ |
-| App Shell          | `Compass`                    | Overall application frame      |
-| Navigation         | `AppDockedNav`               | Left sidebar with icons        |
-| Page Content       | `CompassContent` + `AppPage` | Main content area wrapper      |
-| Page Header        | `AppPageHeader`              | Page title and actions         |
-| Content Frame      | `CompassPanel`               | Scrollable content container   |
-| Main Content       | Table / Canvas / Form        | Primary page content           |
-| Footer (on tables) | Pagination component         | Navigation between table pages |
+| Layer              | Component                    | Purpose                                 |
+| ------------------ | ---------------------------- | --------------------------------------- |
+| App Shell          | `Compass`                    | Overall application frame               |
+| Navigation         | `AppDockedNav`               | Left sidebar with icons                 |
+| Page Content       | `CompassContent` + `AppPage` | Main content area wrapper               |
+| Page Header        | `AppPageHeader`              | Page title and actions                  |
+| Content Frame      | `AppPanel`                   | `Panel` → `PanelMain` → `PanelMainBody` |
+| Main Content       | Table / Canvas / Form        | Primary page content                    |
+| Footer (on tables) | Pagination component         | Navigation between table pages          |
 
 ### Page Header Structure
 
@@ -257,7 +257,7 @@ When building or reviewing any page, verify every item:
 
 - [ ] Uses `AppPage` as outer wrapper
 - [ ] Uses `AppPageHeader` for title and actions
-- [ ] Uses `StackItem isFilled` + `CompassPanel isFullHeight` for content
+- [ ] Uses `StackItem isFilled` + `AppPanel isFullHeight` for content
 - [ ] Inner content has consistent padding
 
 ### Header

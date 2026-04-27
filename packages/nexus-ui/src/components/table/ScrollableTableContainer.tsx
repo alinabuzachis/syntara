@@ -1,18 +1,11 @@
-import {
-  Button,
-  CompassPanel,
-  Content,
-  ContentVariants,
-  Flex,
-  FlexItem,
-  Stack,
-  StackItem,
-} from '@patternfly/react-core'
+import { Button, Content, ContentVariants, Flex, FlexItem, Stack, StackItem } from '@patternfly/react-core'
 import { RhUiCaretLeftIcon, RhUiCaretRightIcon } from '@patternfly/react-icons'
 import { Table } from '@patternfly/react-table'
 import type { ReactNode } from 'react'
 
-export interface TableFooterProps {
+import { AppPanel } from '../AppPanel'
+
+export type TableFooterProps = {
   /** Content to display (e.g., count, status). Pagination buttons appear on the right when prev/next are provided. */
   content: ReactNode
   /** Optional previous page cursor */
@@ -25,7 +18,7 @@ export interface TableFooterProps {
   onNext?: () => void
 }
 
-interface ScrollableTableContainerProps {
+type ScrollableTableContainerProps = {
   /** The table content (Thead, Tbody, etc.) */
   children: ReactNode
   /** Optional footer content (e.g., pagination) - can be a ReactNode or TableFooterProps */
@@ -58,7 +51,7 @@ export function ScrollableTableContainer({
         paddingBottom: 'var(--pf-t--global--spacer--sm)',
       }}
     >
-      <CompassPanel hasNoPadding isFullHeight isScrollable style={{ boxShadow: 'none' }}>
+      <AppPanel hasNoPadding isFullHeight isScrollable style={{ boxShadow: 'none' }}>
         <Stack style={{ height: '100%', maxHeight: '100%', overflow: 'hidden', width: '100%' }}>
           <StackItem
             isFilled
@@ -125,7 +118,7 @@ export function ScrollableTableContainer({
             </StackItem>
           )}
         </Stack>
-      </CompassPanel>
+      </AppPanel>
     </StackItem>
   )
 }

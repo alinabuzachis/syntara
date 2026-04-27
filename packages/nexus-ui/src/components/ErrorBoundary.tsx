@@ -1,17 +1,18 @@
-import { CompassPanel, StackItem } from '@patternfly/react-core'
+import { StackItem } from '@patternfly/react-core'
 import { Component, type ReactNode } from 'react'
 
 import { AppPage } from '../app/AppPage'
 import { AppPageHeader } from '../app/AppPageHeader'
 
+import { AppPanel } from './AppPanel'
 import { ErrorState } from './states/ErrorState'
 
-interface ErrorBoundaryProps {
+type ErrorBoundaryProps = {
   children: ReactNode
   fallback?: ReactNode
 }
 
-interface ErrorBoundaryState {
+type ErrorBoundaryState = {
   hasError: boolean
   error: Error | null
 }
@@ -40,12 +41,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         <AppPage>
           <AppPageHeader title="Something went wrong" />
           <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-            <CompassPanel isFullHeight>
+            <AppPanel isFullHeight>
               <ErrorState
                 title="Something went wrong"
                 message={this.state.error?.message ?? 'An unexpected error occurred'}
               />
-            </CompassPanel>
+            </AppPanel>
           </StackItem>
         </AppPage>
       )

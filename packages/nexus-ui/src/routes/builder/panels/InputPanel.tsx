@@ -1,15 +1,8 @@
 import { getNodeOutputSchema } from '@ansible/nexus-contracts'
-import {
-  CompassPanel,
-  ExpandableSection,
-  PanelMain,
-  PanelMainBody,
-  Stack,
-  StackItem,
-  Title,
-} from '@patternfly/react-core'
+import { ExpandableSection, Stack, StackItem, Title } from '@patternfly/react-core'
 import { useEffect, useMemo, useState } from 'react'
 
+import { AppPanel } from '../../../components/AppPanel'
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import { selectActivities, selectTriggers } from '../../../stores/workflowStoreSelectors'
 
@@ -23,7 +16,6 @@ import { InputJsonView } from './views/InputJsonView'
 import { InputSchemaPreview } from './views/InputSchemaPreview'
 import { InputSchemaView } from './views/InputSchemaView'
 import { InputTableView } from './views/InputTableView'
-
 
 type InputPanelProps = {
   nodeId: string
@@ -93,51 +85,53 @@ export function InputPanel({ nodeId, executionData, sourceNodeId }: Readonly<Inp
   }
 
   return (
-    <CompassPanel className={styles.panelContainer}>
-      <PanelMain className={styles.panelMain}>
-        <PanelMainBody className={styles.panelBodyFlex}>
-          <Title headingLevel="h2" size="md">
-            Input
-          </Title>
-          {!hasUpstream && <InputEmptyState variant="not-connected" />}
-          {hasUpstream && (
-            <Stack hasGutter className={styles.fillMinHeight}>
-              {hasData && (
-                <StackItem>
-                  <InputViewToggle activeView={activeView} onChange={setActiveView} />
-                </StackItem>
-              )}
-              {effectiveUpstream.length > 1 && (
-                <StackItem>
-                  <NodeSelectorDropdown
-                    nodes={effectiveUpstream}
-                    selectedNodeId={selectedNodeId}
-                    onSelect={setSelectedNodeId}
-                  />
-                </StackItem>
-              )}
-              <StackItem isFilled className={styles.scrollableContent}>
-                <ExpandableSection
-                  toggleText={nodeSectionTitle}
-                  isIndented
-                  isExpanded={isNodeSectionExpanded}
-                  onToggle={(_event, expanded) => setIsNodeSectionExpanded(expanded)}
-                >
-                  {renderNodeContent()}
-                </ExpandableSection>
-                <ExpandableSection
-                  toggleText="Variables and context"
-                  isIndented
-                  isExpanded={isVarsSectionExpanded}
-                  onToggle={(_event, expanded) => setIsVarsSectionExpanded(expanded)}
-                >
-                  <VariablesAndContextTree />
-                </ExpandableSection>
-              </StackItem>
-            </Stack>
+    <AppPanel
+      variant="raised"
+      isFullHeight
+      className={styles.panelContainer}
+      panelMainProps={{ className: styles.panelMain }}
+      panelMainBodyProps={{ className: styles.panelBodyFlex }}
+    >
+      <Title headingLevel="h2" size="md">
+        Input
+      </Title>
+      {!hasUpstream && <InputEmptyState variant="not-connected" />}
+      {hasUpstream && (
+        <Stack hasGutter className={styles.fillMinHeight}>
+          {hasData && (
+            <StackItem>
+              <InputViewToggle activeView={activeView} onChange={setActiveView} />
+            </StackItem>
           )}
-        </PanelMainBody>
-      </PanelMain>
-    </CompassPanel>
+          {effectiveUpstream.length > 1 && (
+            <StackItem>
+              <NodeSelectorDropdown
+                nodes={effectiveUpstream}
+                selectedNodeId={selectedNodeId}
+                onSelect={setSelectedNodeId}
+              />
+            </StackItem>
+          )}
+          <StackItem isFilled className={styles.scrollableContent}>
+            <ExpandableSection
+              toggleText={nodeSectionTitle}
+              isIndented
+              isExpanded={isNodeSectionExpanded}
+              onToggle={(_event, expanded) => setIsNodeSectionExpanded(expanded)}
+            >
+              {renderNodeContent()}
+            </ExpandableSection>
+            <ExpandableSection
+              toggleText="Variables and context"
+              isIndented
+              isExpanded={isVarsSectionExpanded}
+              onToggle={(_event, expanded) => setIsVarsSectionExpanded(expanded)}
+            >
+              <VariablesAndContextTree />
+            </ExpandableSection>
+          </StackItem>
+        </Stack>
+      )}
+    </AppPanel>
   )
 }

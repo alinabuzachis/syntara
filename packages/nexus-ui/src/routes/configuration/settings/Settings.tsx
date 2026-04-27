@@ -1,10 +1,11 @@
-import { Button, CompassPanel, Stack, StackItem, Tab, Tabs } from '@patternfly/react-core'
+import { Button, Stack, StackItem, Tab, Tabs } from '@patternfly/react-core'
 import { useCallback, useMemo, useState } from 'react'
 
 import { AppPage } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { settingsClient } from '../../../client'
 import { useAlerts } from '../../../components/alerts'
+import { AppPanel } from '../../../components/AppPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
 import { getErrorCode } from '../../../utils/apiErrors'
@@ -116,7 +117,7 @@ export default function Settings() {
       <AppPage>
         <AppPageHeader title="Settings" />
         <StackItem isFilled>
-          <CompassPanel isFullHeight>{categoriesState}</CompassPanel>
+          <AppPanel isFullHeight>{categoriesState}</AppPanel>
         </StackItem>
       </AppPage>
     )
@@ -127,7 +128,7 @@ export default function Settings() {
       <AppPage>
         <AppPageHeader title="Settings" />
         <StackItem isFilled>
-          <CompassPanel isFullHeight>{settingsState}</CompassPanel>
+          <AppPanel isFullHeight>{settingsState}</AppPanel>
         </StackItem>
       </AppPage>
     )
@@ -146,8 +147,8 @@ export default function Settings() {
         </Button>
       </AppPageHeader>
       <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-        <CompassPanel isFullHeight>
-          <Stack hasGutter>
+        <AppPanel isFullHeight>
+          <Stack hasGutter style={{ flex: 1, minHeight: 0, height: '100%' }}>
             <StackItem>
               <Tabs
                 activeKey={activeTab}
@@ -171,7 +172,7 @@ export default function Settings() {
               )}
             </StackItem>
           </Stack>
-        </CompassPanel>
+        </AppPanel>
       </StackItem>
     </AppPage>
   )

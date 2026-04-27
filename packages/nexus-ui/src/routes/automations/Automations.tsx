@@ -1,5 +1,5 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
-import { Button, CompassPanel, List, ListItem, Stack, StackItem } from '@patternfly/react-core'
+import { Button, List, ListItem, Stack, StackItem } from '@patternfly/react-core'
 import { RhUiEditFillIcon, RhUiHistoryIcon, RhUiPlayIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
@@ -10,6 +10,7 @@ import { AppPage } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { executionsClient, workflowClient } from '../../client'
 import { useAlerts } from '../../components/alerts'
+import { AppPanel } from '../../components/AppPanel'
 import { ConfirmationDialog } from '../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
@@ -219,7 +220,7 @@ export default function Automations() {
       <AppPage>
         <AppPageHeader title="Workflows" />
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>{queryState}</CompassPanel>
+          <AppPanel isFullHeight>{queryState}</AppPanel>
         </StackItem>
       </AppPage>
     )
@@ -234,14 +235,16 @@ export default function Automations() {
       </AppPageHeader>
 
       <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-        <CompassPanel isFullHeight>
-          <Stack style={{ height: '100%', padding: '0 var(--pf-t--global--spacer--sm)' }}>
-            <FilterBar
-              fieldDefinitions={filterFieldDefinitions}
-              filters={filters}
-              onFilterChange={handleFilterChange}
-              showClearAll={true}
-            />
+        <AppPanel isFullHeight>
+          <Stack style={{ height: '100%', flex: 1, minHeight: 0, padding: '0 var(--pf-t--global--spacer--sm)' }}>
+            <StackItem>
+              <FilterBar
+                fieldDefinitions={filterFieldDefinitions}
+                filters={filters}
+                onFilterChange={handleFilterChange}
+                showClearAll={true}
+              />
+            </StackItem>
 
             {sortedWorkflows.length === 0 ? (
               <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -285,7 +288,7 @@ export default function Automations() {
               </ScrollableTableContainer>
             )}
           </Stack>
-        </CompassPanel>
+        </AppPanel>
       </StackItem>
 
       <ConfirmationDialog

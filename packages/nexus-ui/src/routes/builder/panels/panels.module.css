@@ -1,9 +1,10 @@
+/* Avoid overflow: hidden on the panel root — it clips PatternFly raised `box-shadow`. */
 .panelContainer {
   height: 100%;
   max-height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
 
 .panelMain {

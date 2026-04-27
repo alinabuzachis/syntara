@@ -124,8 +124,7 @@ describe('IntegrationForm Component', () => {
       expect(screen.getByText('Add integration')).toBeInTheDocument()
       expect(screen.getByText('Cancel')).toBeInTheDocument()
 
-      const compassPanel = container.querySelector('.pf-v6-c-compass__panel')
-      expect(compassPanel).toBeInTheDocument()
+      expect(container.querySelector('#integration-form')).toBeInstanceOf(HTMLFormElement)
     })
   })
 

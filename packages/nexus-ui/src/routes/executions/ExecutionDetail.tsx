@@ -1,15 +1,5 @@
 import type { ExecutionsAPI } from '@ansible/nexus-contracts'
-import {
-  Button,
-  CompassPanel,
-  Flex,
-  FlexItem,
-  Label,
-  Stack,
-  StackItem,
-  Title,
-  TitleSizes,
-} from '@patternfly/react-core'
+import { Button, Flex, FlexItem, Label, Stack, StackItem, Title, TitleSizes } from '@patternfly/react-core'
 import { useQueryClient } from '@tanstack/react-query'
 import '@xyflow/react/dist/style.css'
 import { useEffect, useMemo, useState } from 'react'
@@ -18,6 +8,7 @@ import { useLocation, useParams, useSearch } from 'wouter'
 import { AppPage } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { executionsClient } from '../../client'
+import { AppPanel } from '../../components/AppPanel'
 import { ConnectionBanner } from '../../components/ConnectionBanner'
 import { ErrorState } from '../../components/states/ErrorState'
 import { LoadingState } from '../../components/states/LoadingState'
@@ -303,9 +294,9 @@ export default function ExecutionDetail() {
       <AppPage>
         <AppPageHeader title="Error" />
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>
+          <AppPanel isFullHeight>
             <ErrorState title="Invalid execution" message="No execution ID provided" />
-          </CompassPanel>
+          </AppPanel>
         </StackItem>
       </AppPage>
     )
@@ -317,9 +308,9 @@ export default function ExecutionDetail() {
       <AppPage>
         <AppPageHeader title="Error loading execution" />
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>
+          <AppPanel isFullHeight>
             <ErrorState title="Error loading execution" message={executionQuery.error} />
-          </CompassPanel>
+          </AppPanel>
         </StackItem>
       </AppPage>
     )
@@ -330,9 +321,9 @@ export default function ExecutionDetail() {
       <AppPage>
         <AppPageHeader title="Loading execution" />
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>
+          <AppPanel isFullHeight>
             <LoadingState />
-          </CompassPanel>
+          </AppPanel>
         </StackItem>
       </AppPage>
     )

@@ -5,6 +5,7 @@ export function AppPageHeader(props: { title: React.ReactNode; children?: React.
 
   return (
     <CompassMainHeader
+      compassPanelProps={{ isGlass: true }}
       title={titleContent}
       toolbar={
         props.children ? (

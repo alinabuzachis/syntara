@@ -1,7 +1,6 @@
 import {
   Card,
   CardBody,
-  CompassPanel,
   DescriptionList,
   DescriptionListDescription,
   DescriptionListGroup,
@@ -17,6 +16,7 @@ import {
 import { AppPage } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { authClient } from '../../client'
+import { AppPanel } from '../../components/AppPanel'
 import { useQueryState } from '../../components/states/useQueryState'
 
 function getInitials(username: string): string {
@@ -55,7 +55,7 @@ export function MyProfile() {
       <AppPage>
         <AppPageHeader title="My Profile" />
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>{queryState}</CompassPanel>
+          <AppPanel isFullHeight>{queryState}</AppPanel>
         </StackItem>
       </AppPage>
     )
@@ -65,7 +65,7 @@ export function MyProfile() {
     <AppPage>
       <AppPageHeader title="My Profile" />
       <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
-        <CompassPanel isFullHeight style={{ padding: 'var(--pf-t--global--spacer--xl)' }}>
+        <AppPanel isFullHeight panelMainBodyProps={{ style: { padding: 'var(--pf-t--global--spacer--xl)' } }}>
           {profile ? (
             <div style={{ maxWidth: '700px' }}>
               <Card isFullHeight>
@@ -124,7 +124,7 @@ export function MyProfile() {
               </Card>
             </div>
           ) : null}
-        </CompassPanel>
+        </AppPanel>
       </StackItem>
     </AppPage>
   )

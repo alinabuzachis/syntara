@@ -1,6 +1,6 @@
 import type { ToolProvider } from '@ansible/nexus-contracts'
 import { ProviderStatusEnum } from '@ansible/nexus-contracts'
-import { Button, CompassPanel, Label, Stack, StackItem } from '@patternfly/react-core'
+import { Button, Label, Stack, StackItem } from '@patternfly/react-core'
 import {
   RhUiCheckCircleIcon,
   RhUiCloseCircleIcon,
@@ -18,6 +18,7 @@ import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
 import { toolManagerClient } from '../../../client'
 import { useAlerts } from '../../../components/alerts'
+import { AppPanel } from '../../../components/AppPanel'
 import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { FilterBar } from '../../../components/filters/FilterBar'
@@ -242,7 +243,7 @@ export default function Integrations() {
       <AppPage>
         <AppPageHeader title="Integrations" />
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>{queryState}</CompassPanel>
+          <AppPanel isFullHeight>{queryState}</AppPanel>
         </StackItem>
       </AppPage>
     )
@@ -262,58 +263,62 @@ export default function Integrations() {
         </StackItem>
       ) : (
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>
-            <Stack style={{ height: '100%', padding: '0 var(--pf-t--global--spacer--sm)' }}>
-              <FilterBar
-                fieldDefinitions={filterFieldDefinitions}
-                filters={filters}
-                onFilterChange={handleFilterChange}
-                showClearAll={true}
-              />
+          <AppPanel isFullHeight>
+            <Stack style={{ height: '100%', flex: 1, minHeight: 0, padding: '0 var(--pf-t--global--spacer--sm)' }}>
+              <StackItem>
+                <FilterBar
+                  fieldDefinitions={filterFieldDefinitions}
+                  filters={filters}
+                  onFilterChange={handleFilterChange}
+                  showClearAll={true}
+                />
+              </StackItem>
 
               {results.length === 0 ? (
                 <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
                 </StackItem>
               ) : (
-                <ScrollableTableContainer
-                  aria-label="Integrations table"
-                  footer={getFooterProps(query.data, results.length, 'integration', 'integrations')}
-                >
-                  <Thead>
-                    <Tr>
-                      <Th sort={getSortParams(0)}>Name</Th>
-                      <Th sort={getSortParams(1)}>Status</Th>
-                      <Th sort={getSortParams(2)}>Integration type</Th>
-                      <Th sort={getSortParams(3)}>API URL</Th>
-                      <Th sort={getSortParams(4)}>Tools</Th>
-                      <Th screenReaderText="Actions" />
-                    </Tr>
-                  </Thead>
-                  <Tbody>
-                    {results.map((provider) => (
-                      <Tr key={provider.id}>
-                        <Td dataLabel="Name">{provider.name}</Td>
-                        <Td dataLabel="Status">
-                          <StatusLabel status={provider.status ?? 'unknown'} />
-                        </Td>
-                        <Td dataLabel="Integration type">
-                          {PROVIDER_TYPE_LABELS[provider.configuration?.provider_type ?? ''] ??
-                            provider.configuration?.provider_type ??
-                            ''}
-                        </Td>
-                        <Td dataLabel="API URL">{provider.configuration?.base_url ?? ''}</Td>
-                        <Td dataLabel="Tools">{provider.tool_count}</Td>
-                        <Td isActionCell>
-                          <ActionsColumn items={getRowActions(provider)} />
-                        </Td>
+                <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+                  <ScrollableTableContainer
+                    aria-label="Integrations table"
+                    footer={getFooterProps(query.data, results.length, 'integration', 'integrations')}
+                  >
+                    <Thead>
+                      <Tr>
+                        <Th sort={getSortParams(0)}>Name</Th>
+                        <Th sort={getSortParams(1)}>Status</Th>
+                        <Th sort={getSortParams(2)}>Integration type</Th>
+                        <Th sort={getSortParams(3)}>API URL</Th>
+                        <Th sort={getSortParams(4)}>Tools</Th>
+                        <Th screenReaderText="Actions" />
                       </Tr>
-                    ))}
-                  </Tbody>
-                </ScrollableTableContainer>
+                    </Thead>
+                    <Tbody>
+                      {results.map((provider) => (
+                        <Tr key={provider.id}>
+                          <Td dataLabel="Name">{provider.name}</Td>
+                          <Td dataLabel="Status">
+                            <StatusLabel status={provider.status ?? 'unknown'} />
+                          </Td>
+                          <Td dataLabel="Integration type">
+                            {PROVIDER_TYPE_LABELS[provider.configuration?.provider_type ?? ''] ??
+                              provider.configuration?.provider_type ??
+                              ''}
+                          </Td>
+                          <Td dataLabel="API URL">{provider.configuration?.base_url ?? ''}</Td>
+                          <Td dataLabel="Tools">{provider.tool_count}</Td>
+                          <Td isActionCell>
+                            <ActionsColumn items={getRowActions(provider)} />
+                          </Td>
+                        </Tr>
+                      ))}
+                    </Tbody>
+                  </ScrollableTableContainer>
+                </StackItem>
               )}
             </Stack>
-          </CompassPanel>
+          </AppPanel>
         </StackItem>
       )}
 

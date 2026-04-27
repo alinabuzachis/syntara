@@ -1,12 +1,9 @@
 import {
-  CompassPanel,
   Content,
   ContentVariants,
   Flex,
   FlexItem,
   Label,
-  PanelMain,
-  PanelMainBody,
   Split,
   SplitItem,
   Stack,
@@ -14,6 +11,7 @@ import {
   Title,
 } from '@patternfly/react-core'
 
+import { AppPanel } from '../../components/AppPanel'
 import { RegistryNodeId } from '../../constants'
 import { renderNodeIcon } from '../automations/canvas/nodes/renderNodeIcon'
 import { getAddNodePanelColor } from '../automations/canvas/nodeTypeColors'
@@ -23,7 +21,7 @@ import { resolveIconForType } from './utils/nodeIcons'
 
 export type NodeTypeOption = Pick<NodeTypeDefinition | NodeSubtypeDefinition, 'id' | 'label' | 'icon' | 'description'>
 
-interface NodeTypeOptionsListProps {
+type NodeTypeOptionsListProps = {
   nodeTypes: NodeTypeOption[]
   onSelect: (nodeId: string) => void
 }
@@ -37,7 +35,8 @@ export function NodeTypeOptionsList(props: NodeTypeOptionsListProps) {
 
     return (
       <StackItem key={nodeType.id}>
-        <CompassPanel
+        <AppPanel
+          isGlass={false}
           isScrollable={false}
           onClick={() => props.onSelect(nodeType.id)}
           onKeyDown={(e) => {
@@ -61,43 +60,39 @@ export function NodeTypeOptionsList(props: NodeTypeOptionsListProps) {
           tabIndex={0}
           aria-label={nodeType.label}
         >
-          <PanelMain>
-            <PanelMainBody>
-              <Stack hasGutter>
-                <StackItem>
-                  <Split hasGutter>
-                    <SplitItem isFilled={false} style={{ width: '2rem', flexShrink: 0 }}>
-                      {nodeIcon}
-                    </SplitItem>
-                    <SplitItem isFilled>
-                      <Flex
-                        alignItems={{ default: 'alignItemsCenter' }}
-                        gap={{ default: 'gapSm' }}
-                        flexWrap={{ default: 'nowrap' }}
-                      >
-                        <FlexItem flex={{ default: 'flexNone' }}>
-                          <Title headingLevel="h3" size="md">
-                            {nodeType.label}
-                          </Title>
-                        </FlexItem>
-                        {nodeType.id === RegistryNodeId.ACTION_SCRIPT && (
-                          <FlexItem>
-                            <Label isCompact color="purple">
-                              NOT SCOPED FOR GA
-                            </Label>
-                          </FlexItem>
-                        )}
-                      </Flex>
-                    </SplitItem>
-                  </Split>
-                </StackItem>
-                <StackItem>
-                  {nodeType.description && <Content component={ContentVariants.small}>{nodeType.description}</Content>}
-                </StackItem>
-              </Stack>
-            </PanelMainBody>
-          </PanelMain>
-        </CompassPanel>
+          <Stack hasGutter>
+            <StackItem>
+              <Split hasGutter>
+                <SplitItem isFilled={false} style={{ width: '2rem', flexShrink: 0 }}>
+                  {nodeIcon}
+                </SplitItem>
+                <SplitItem isFilled>
+                  <Flex
+                    alignItems={{ default: 'alignItemsCenter' }}
+                    gap={{ default: 'gapSm' }}
+                    flexWrap={{ default: 'nowrap' }}
+                  >
+                    <FlexItem flex={{ default: 'flexNone' }}>
+                      <Title headingLevel="h3" size="md">
+                        {nodeType.label}
+                      </Title>
+                    </FlexItem>
+                    {nodeType.id === RegistryNodeId.ACTION_SCRIPT && (
+                      <FlexItem>
+                        <Label isCompact color="purple">
+                          NOT SCOPED FOR GA
+                        </Label>
+                      </FlexItem>
+                    )}
+                  </Flex>
+                </SplitItem>
+              </Split>
+            </StackItem>
+            <StackItem>
+              {nodeType.description && <Content component={ContentVariants.small}>{nodeType.description}</Content>}
+            </StackItem>
+          </Stack>
+        </AppPanel>
       </StackItem>
     )
   })

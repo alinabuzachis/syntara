@@ -1,7 +1,6 @@
 import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import {
   Alert,
-  CompassPanel,
   Content,
   ContentVariants,
   Flex,
@@ -14,6 +13,7 @@ import {
 import { useEffect, useMemo } from 'react'
 
 import { executionsClient } from '../../client'
+import { AppPanel } from '../../components/AppPanel'
 import { useQueryState } from '../../components/states/useQueryState'
 import { useElapsedTime } from '../../hooks/useElapsedTime'
 import { formatExecutionDateTime, formatElapsedTime } from '../../utils/dateUtils'
@@ -24,7 +24,7 @@ import { ExecutionActivityTable } from './ExecutionActivityTable'
 import type { ActivityOrderItem, TriggerItem } from './ExecutionActivityTable'
 import { StatusLabel } from './ExecutionStatus'
 
-interface ActivityLike {
+type ActivityLike = {
   id?: string
   name?: string
   branches?: (ActivityLike[] | ActivityLike | string)[]
@@ -35,17 +35,17 @@ interface ActivityLike {
   converge?: { branches?: string[] }
 }
 
-interface TriggerLike {
+type TriggerLike = {
   type?: string
   name?: string
 }
 
-export interface WorkflowDefShape {
+export type WorkflowDefShape = {
   triggers?: TriggerLike[]
   workflow?: { activities?: ActivityLike[] }
 }
 
-interface ExecutionDetailsPanelProps {
+type ExecutionDetailsPanelProps = {
   executionId: string
   /** Workflow definition used to look up human-readable activity names. */
   workflowDefinition?: WorkflowDefShape | null
@@ -97,7 +97,7 @@ function buildNameMap(activities: ActivityLike[] | undefined): Map<string, strin
 
 type ExecutionStatus = ExecutionsAPI.components['schemas']['ExecutionStatus']
 
-interface HeaderMetadataProps {
+type HeaderMetadataProps = {
   execution: {
     started_at?: string | null
     created_at?: string | null
@@ -206,7 +206,8 @@ export function ExecutionDetailsPanel({ executionId, workflowDefinition }: Execu
 
   if (queryState || !execution) {
     return (
-      <CompassPanel
+      <AppPanel
+        isGlass={false}
         style={{
           height: '100%',
           maxHeight: '100%',
@@ -226,13 +227,14 @@ export function ExecutionDetailsPanel({ executionId, workflowDefinition }: Execu
             {queryState}
           </StackItem>
         </Stack>
-      </CompassPanel>
+      </AppPanel>
     )
   }
 
   return (
-    <CompassPanel
+    <AppPanel
       hasNoPadding
+      isGlass={false}
       style={{
         height: '100%',
         maxHeight: '100%',
@@ -272,6 +274,6 @@ export function ExecutionDetailsPanel({ executionId, workflowDefinition }: Execu
           />
         </StackItem>
       </Stack>
-    </CompassPanel>
+    </AppPanel>
   )
 }

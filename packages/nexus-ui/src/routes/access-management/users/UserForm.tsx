@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Alert, Button, CompassPanel, FlexItem, Form, Stack, StackItem } from '@patternfly/react-core'
+import { Alert, Button, FlexItem, Form, Stack, StackItem } from '@patternfly/react-core'
 import { useMemo } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { useParams } from 'wouter'
@@ -10,6 +10,7 @@ import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
 import { authClient } from '../../../client'
 import { useAlerts } from '../../../components/alerts'
+import { AppPanel } from '../../../components/AppPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { useFormMutationErrorHandler } from '../../../hooks/useFormMutationErrorHandler'
 import { useAuthStore } from '../../../stores/useAuthStore'
@@ -174,14 +175,14 @@ export function UserForm({ mode }: Readonly<UserFormProps>) {
       <AppPage>
         <AppPageHeader title="Edit User" />
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>
+          <AppPanel isFullHeight>
             <UserNotFoundState
               onBack={navigateBack}
               onRetry={() => {
                 detachPromise(refetchUser())
               }}
             />
-          </CompassPanel>
+          </AppPanel>
         </StackItem>
       </AppPage>
     )
@@ -191,7 +192,7 @@ export function UserForm({ mode }: Readonly<UserFormProps>) {
       <AppPage>
         <AppPageHeader title={pageTitle} />
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>{queryState}</CompassPanel>
+          <AppPanel isFullHeight>{queryState}</AppPanel>
         </StackItem>
       </AppPage>
     )
@@ -208,24 +209,26 @@ export function UserForm({ mode }: Readonly<UserFormProps>) {
           {submitLabel}
         </Button>
       </AppPageHeader>
-      <CompassPanel style={{ padding: 'var(--pf-t--global--spacer--xl)' }}>
-        <Stack hasGutter style={{ maxWidth: '600px' }}>
-          {showPasswordWarning && (
+      <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <AppPanel isFullHeight panelMainBodyProps={{ style: { padding: 'var(--pf-t--global--spacer--xl)' } }}>
+          <Stack hasGutter style={{ maxWidth: '600px' }}>
+            {showPasswordWarning && (
+              <StackItem>
+                <Alert variant="warning" title={isSelf ? 'You will be signed out' : 'User will be signed out'} isInline>
+                  {isSelf
+                    ? 'Changing your own password will end all active sessions. You will need to sign in again with your new password.'
+                    : "Changing this user's password will revoke all their active sessions. They will need to sign in again."}
+                </Alert>
+              </StackItem>
+            )}
             <StackItem>
-              <Alert variant="warning" title={isSelf ? 'You will be signed out' : 'User will be signed out'} isInline>
-                {isSelf
-                  ? 'Changing your own password will end all active sessions. You will need to sign in again with your new password.'
-                  : "Changing this user's password will revoke all their active sessions. They will need to sign in again."}
-              </Alert>
+              <Form id="user-form" onSubmit={handleSubmit(onSubmit)}>
+                <UserFormFields control={control} isEdit={isEdit} />
+              </Form>
             </StackItem>
-          )}
-          <StackItem>
-            <Form id="user-form" onSubmit={handleSubmit(onSubmit)}>
-              <UserFormFields control={control} isEdit={isEdit} />
-            </Form>
-          </StackItem>
-        </Stack>
-      </CompassPanel>
+          </Stack>
+        </AppPanel>
+      </StackItem>
     </AppPage>
   )
 }

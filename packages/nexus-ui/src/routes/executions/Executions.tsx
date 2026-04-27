@@ -1,5 +1,5 @@
 import type { Execution } from '@ansible/nexus-contracts'
-import { CompassPanel, Stack, StackItem } from '@patternfly/react-core'
+import { Stack, StackItem } from '@patternfly/react-core'
 import { Thead, Tr, Th } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
 import { useSearch } from 'wouter'
@@ -7,6 +7,7 @@ import { useSearch } from 'wouter'
 import { AppPage } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { executionsClient } from '../../client'
+import { AppPanel } from '../../components/AppPanel'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters/FilterBar'
@@ -124,7 +125,7 @@ export default function Executions() {
       <AppPage>
         <AppPageHeader title={<PageTitleWithProject title="Workflow Runs" projectSelector={ProjectSelector} />} />
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>{queryState}</CompassPanel>
+          <AppPanel isFullHeight>{queryState}</AppPanel>
         </StackItem>
       </AppPage>
     )
@@ -134,14 +135,16 @@ export default function Executions() {
     <AppPage>
       <AppPageHeader title={<PageTitleWithProject title="Workflow Runs" projectSelector={ProjectSelector} />} />
       <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-        <CompassPanel isFullHeight>
-          <Stack style={{ height: '100%', padding: '0 var(--pf-t--global--spacer--sm)' }}>
-            <FilterBar
-              fieldDefinitions={filterFieldDefinitions}
-              filters={filters}
-              onFilterChange={handleFilterChange}
-              showClearAll={true}
-            />
+        <AppPanel isFullHeight>
+          <Stack style={{ height: '100%', flex: 1, minHeight: 0, padding: '0 var(--pf-t--global--spacer--sm)' }}>
+            <StackItem>
+              <FilterBar
+                fieldDefinitions={filterFieldDefinitions}
+                filters={filters}
+                onFilterChange={handleFilterChange}
+                showClearAll={true}
+              />
+            </StackItem>
 
             {sortedExecutions.length === 0 ? (
               <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -181,7 +184,7 @@ export default function Executions() {
               </ScrollableTableContainer>
             )}
           </Stack>
-        </CompassPanel>
+        </AppPanel>
       </StackItem>
     </AppPage>
   )

@@ -1,6 +1,5 @@
 import {
   Button,
-  CompassPanel,
   Content,
   ContentVariants,
   Flex,
@@ -23,6 +22,7 @@ import {
 import { type ComponentType, type CSSProperties } from 'react'
 
 import AnsibleIcon from '../../../assets/ansible-automation-platform.svg?react'
+import { AppPanel } from '../../../components/AppPanel'
 import { RegistryNodeId } from '../../../constants'
 
 import { APPROVAL_BRANCH_TOKENS } from './nodes/common/approvalBranchTokens'
@@ -171,7 +171,11 @@ function CanvasLegendHeader(props: Readonly<{ regionId: string; hide: () => void
 export function CanvasLegend(props: CanvasLegendProps) {
   return (
     <div id={props.regionId}>
-      <CompassPanel data-testid="canvas-legend" style={{ padding: 'var(--pf-t--global--spacer--lg)' }}>
+      <AppPanel
+        data-testid="canvas-legend"
+        isGlass={false}
+        panelMainBodyProps={{ style: { padding: 'var(--pf-t--global--spacer--lg)' } }}
+      >
         <CanvasLegendHeader regionId={props.regionId} hide={props.hide} onClose={props.onClose} />
         <Stack
           component="section"
@@ -215,7 +219,7 @@ export function CanvasLegend(props: CanvasLegendProps) {
             <ApprovalBranchLegendSwatch variant="rejected" label="Rejected" />
           </StackItem>
         </Stack>
-      </CompassPanel>
+      </AppPanel>
     </div>
   )
 }

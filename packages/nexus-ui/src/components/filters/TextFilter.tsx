@@ -6,12 +6,7 @@ import { FilterTypeEnum } from '../../types/filters'
 
 import { DateRangeFilter } from './DateRangeFilter'
 import { parseFilterDate } from './filterBarUtils'
-import {
-  FieldSelector,
-  MultiSelectFilterInput,
-  SelectFilterInput,
-  TextFilterInput,
-} from './textFilterSelectControls'
+import { FieldSelector, MultiSelectFilterInput, SelectFilterInput, TextFilterInput } from './textFilterSelectControls'
 import { useTextFilterState } from './useTextFilterState'
 
 /**

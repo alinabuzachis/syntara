@@ -1,8 +1,8 @@
 import { ExecutorTypeEnum, type TaskActivity } from '@ansible/nexus-contracts'
-import { CompassPanel } from '@patternfly/react-core'
 import { Handle, type NodeProps, Position } from '@xyflow/react'
 import React, { useEffect, useMemo, useState } from 'react'
 
+import { AppPanel } from '../../../../../components/AppPanel'
 import { FlowNodeType } from '../../../../../constants'
 import { ExecutionStatusBadge } from '../../../../builder/components/ExecutionStatusBadge'
 import type { ActivityStatus } from '../../../execution/types'
@@ -15,7 +15,7 @@ import { NodeExpandedAllContext } from './NodeExpandedAllContext'
 import { NodeExpandedContext } from './NodeExpandedContext'
 import { NodeSemanticZoomBody } from './NodeSemanticZoomBody'
 
-interface ExecutionState {
+type ExecutionState = {
   status: ActivityStatus
   started_at?: string
   completed_at?: string
@@ -70,6 +70,8 @@ export function NodeComponent(props: {
   semanticZoomSummary?: { title: string; typeLabel: string }
   /** Branch source handles at semantic zoom (no labels; stacked on the bar edge) */
   semanticZoomBranchSources?: readonly SemanticZoomBranchSource[]
+  /** Optional stable hook for tests (e.g. canvas node root) */
+  rootTestId?: string
 }) {
   const { expandAllEvent, collapseAllEvent } = React.useContext(NodeExpandedAllContext)
   const expandedContext = useState(true)
@@ -157,9 +159,11 @@ export function NodeComponent(props: {
 
   return (
     <NodeExpandedContext.Provider value={expandedContext}>
-      <CompassPanel
+      <AppPanel
         hasNoPadding
+        isGlass={false}
         className={props.className}
+        data-testid={props.rootTestId}
         onClick={props.onClick}
         style={panelStyle}
         onKeyDown={(e: React.KeyboardEvent) => {
@@ -222,7 +226,7 @@ export function NodeComponent(props: {
             }}
           />
         )}
-      </CompassPanel>
+      </AppPanel>
     </NodeExpandedContext.Provider>
   )
 }

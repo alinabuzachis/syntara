@@ -1,7 +1,6 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import {
   Button,
-  CompassPanel,
   DescriptionList,
   DescriptionListDescription,
   DescriptionListGroup,
@@ -18,11 +17,12 @@ import {
 } from '@patternfly/react-core'
 import { RhUiCodeIcon, RhUiCloseIcon } from '@patternfly/react-icons'
 
+import { AppPanel } from '../../components/AppPanel'
 import { CodeBlock } from '../../components/details/CodeBlock'
 
 type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersion']
 
-interface WorkflowSidepanelProps {
+type WorkflowSidepanelProps = {
   workflow: WorkflowWithVersion
   workflowName: string
   workflowDescription: string
@@ -33,7 +33,7 @@ interface WorkflowSidepanelProps {
 
 export function WorkflowSidepanel(props: WorkflowSidepanelProps) {
   return (
-    <CompassPanel style={{ width: '32rem' }} isFullHeight isScrollable>
+    <AppPanel style={{ width: '32rem' }} isFullHeight isScrollable>
       <Stack hasGutter>
         <StackItem>
           <Flex alignItems={{ default: 'alignItemsCenter' }} justifyContent={{ default: 'justifyContentSpaceBetween' }}>
@@ -92,6 +92,6 @@ export function WorkflowSidepanel(props: WorkflowSidepanelProps) {
           </DescriptionList>
         </StackItem>
       </Stack>
-    </CompassPanel>
+    </AppPanel>
   )
 }

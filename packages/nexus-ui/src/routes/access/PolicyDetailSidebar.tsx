@@ -1,6 +1,5 @@
 import {
   Button,
-  CompassPanel,
   Content,
   ContentVariants,
   DescriptionList,
@@ -22,6 +21,7 @@ import { useEffect } from 'react'
 import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../app/AppRoute'
+import { AppPanel } from '../../components/AppPanel'
 import { CodeBlock } from '../../components/details/CodeBlock'
 
 import type { PolicyRead } from './types'
@@ -75,7 +75,7 @@ export function PolicyDetailSidebar({ policy, onClose, projectName }: Readonly<P
   const hasLabels = Object.keys(policy.labels ?? {}).length > 0
 
   return (
-    <CompassPanel
+    <AppPanel
       style={{ width: '32rem', borderLeft: '1px solid var(--pf-t--global--border--color--default)' }}
       isFullHeight
       isScrollable
@@ -253,6 +253,6 @@ export function PolicyDetailSidebar({ policy, onClose, projectName }: Readonly<P
           <CodeBlock jsonObject={policyJson} noMaxHeight enableCopy />
         </StackItem>
       </Stack>
-    </CompassPanel>
+    </AppPanel>
   )
 }

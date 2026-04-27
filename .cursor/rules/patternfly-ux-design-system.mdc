@@ -45,7 +45,7 @@ Every page must follow this structural hierarchy:
 | Navigation | `AppDockedNav` | Left sidebar with icons |
 | Page Content | `CompassContent` + `AppPage` | Main content area wrapper |
 | Page Header | `AppPageHeader` | Page title and actions |
-| Content Frame | `CompassPanel` | Scrollable content container |
+| Content Frame | `AppPanel` | `Panel` → `PanelMain` → `PanelMainBody` |
 | Main Content | Table / Canvas / Form | Primary page content |
 | Footer (tables) | Pagination component | Navigation between table pages |
 
@@ -57,7 +57,7 @@ Every page must follow this structural hierarchy:
 ### Structure Checklist
 - Use `AppPage` as outer wrapper
 - Use `AppPageHeader` for title and actions
-- Use `StackItem isFilled` + `CompassPanel isFullHeight` for content
+- Use `StackItem isFilled` + `AppPanel isFullHeight` for content
 - Primary action is the rightmost button
 - Canvas views use `hasNoPadding`
 

@@ -1,5 +1,4 @@
 import {
-  CompassPanel,
   DescriptionList,
   DescriptionListDescription,
   DescriptionListGroup,
@@ -20,6 +19,7 @@ import { navigate } from 'wouter/use-browser-location'
 import { AppPage } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
+import { AppPanel } from '../../../components/AppPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { useDetailTab } from '../../../hooks/useDetailTab'
 import { formatDateTime } from '../../../utils/dateUtils'
@@ -137,12 +137,12 @@ export function ProjectDetail() {
         </Tabs>
       </StackItem>
       <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-        <CompassPanel isFullHeight>
+        <AppPanel isFullHeight>
           {activeTab === 'details' && <ProjectDetailsTab project={projectData} />}
           {activeTab === 'role-assignments' && <ProjectRoleAssignmentsTab projectId={projectId ?? ''} />}
           {activeTab === 'roles' && <ProjectRolesTab projectId={projectId ?? ''} />}
           {activeTab === 'policies' && <ProjectPoliciesTab projectId={projectId ?? ''} />}
-        </CompassPanel>
+        </AppPanel>
       </StackItem>
     </AppPage>
   )

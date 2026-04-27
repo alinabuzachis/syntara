@@ -1,4 +1,4 @@
-import { Button, CompassPanel, Content, ContentVariants, Stack, StackItem } from '@patternfly/react-core'
+import { Button, Content, ContentVariants, Stack, StackItem } from '@patternfly/react-core'
 import { RhUiEditIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
@@ -8,6 +8,7 @@ import { AppPage } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { credentialsClient } from '../../../client'
 import { useAlerts } from '../../../components/alerts'
+import { AppPanel } from '../../../components/AppPanel'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { FilterBar } from '../../../components/filters/FilterBar'
 import { IconLabel } from '../../../components/IconLabel'
@@ -242,7 +243,7 @@ export default function Credentials() {
       <AppPage>
         <AppPageHeader title={<PageTitleWithProject title="Credentials" projectSelector={ProjectSelector} />} />
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>{queryState}</CompassPanel>
+          <AppPanel isFullHeight>{queryState}</AppPanel>
         </StackItem>
       </AppPage>
     )
@@ -262,8 +263,8 @@ export default function Credentials() {
         </StackItem>
       ) : (
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>
-            <Stack style={{ height: '100%' }}>
+          <AppPanel isFullHeight>
+            <Stack style={{ height: '100%', flex: 1, minHeight: 0 }}>
               <StackItem>
                 <FilterBar
                   fieldDefinitions={filterFieldDefinitions}
@@ -338,7 +339,7 @@ export default function Credentials() {
                 </StackItem>
               )}
             </Stack>
-          </CompassPanel>
+          </AppPanel>
         </StackItem>
       )}
 

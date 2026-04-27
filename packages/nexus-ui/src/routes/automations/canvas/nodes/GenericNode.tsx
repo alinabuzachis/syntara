@@ -46,6 +46,7 @@ export function GenericNodeComponent(props: NodeProps<GenericNode>) {
       nodeProps={props}
       reverseHandles={reverseHandles}
       hasDashedBorder
+      rootTestId="generic-flow-node"
       executionState={executionState}
       collapsible={false}
       topBarColor={getNodeTypeColor(FlowNodeType.GENERIC)}

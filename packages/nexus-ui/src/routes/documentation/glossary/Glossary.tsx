@@ -1,5 +1,4 @@
 import {
-  CompassPanel,
   Content,
   DescriptionList,
   DescriptionListDescription,
@@ -12,6 +11,7 @@ import { useMemo } from 'react'
 
 import { AppPage } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
+import { AppPanel } from '../../../components/AppPanel'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { useFuse } from '../../../hooks/useFuse'
 
@@ -40,13 +40,13 @@ export default function Glossary() {
       </AppPageHeader>
       {results.length === 0 ? (
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>
+          <AppPanel isFullHeight>
             <EmptyStateFilter clearAllFilters={() => setSearch('')} />
-          </CompassPanel>
+          </AppPanel>
         </StackItem>
       ) : (
         <StackItem isFilled>
-          <CompassPanel isFullHeight isScrollable>
+          <AppPanel isFullHeight isScrollable>
             <DescriptionList>
               {results.map((result) => (
                 <DescriptionListGroup key={result.term}>
@@ -59,7 +59,7 @@ export default function Glossary() {
                 </DescriptionListGroup>
               ))}
             </DescriptionList>
-          </CompassPanel>
+          </AppPanel>
         </StackItem>
       )}
     </AppPage>

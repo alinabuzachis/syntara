@@ -1,5 +1,5 @@
 import type { WorkflowWithVersion } from '@ansible/nexus-contracts'
-import { CompassPanel, StackItem } from '@patternfly/react-core'
+import { StackItem } from '@patternfly/react-core'
 import { ReactFlowProvider } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { useParams } from 'wouter'
@@ -7,6 +7,7 @@ import { useParams } from 'wouter'
 import { AppPage } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { workflowClient } from '../../client'
+import { AppPanel } from '../../components/AppPanel'
 import { ErrorState } from '../../components/states/ErrorState'
 import { LoadingState } from '../../components/states/LoadingState'
 
@@ -38,9 +39,9 @@ export default function BuilderEdit() {
       <AppPage>
         <AppPageHeader title="Error loading workflow" />
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>
+          <AppPanel isFullHeight>
             <ErrorState title="Error loading workflow" message={error} />
-          </CompassPanel>
+          </AppPanel>
         </StackItem>
       </AppPage>
     )
@@ -53,9 +54,9 @@ export default function BuilderEdit() {
       <AppPage>
         <AppPageHeader title="Loading workflow" />
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>
+          <AppPanel isFullHeight>
             <LoadingState />
-          </CompassPanel>
+          </AppPanel>
         </StackItem>
       </AppPage>
     )

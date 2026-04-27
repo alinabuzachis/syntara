@@ -127,25 +127,26 @@ For how the UI is structured, see these comprehensive guides:
 
 ### Quick Navigation by Task
 
-| Working on...                       | Read this                                                                                                                     |
-| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| **API integration**                 | [`docs/data-flow.md`](docs/data-flow.md) — OpenAPI contracts and type-safe clients                                            |
-| **Workflow transformations**        | [`docs/data-flow.md`](docs/data-flow.md) — Nested to flat conversions                                                         |
-| **Step registry (`NodeRegistry`)**  | [`docs/architecture.md`](docs/architecture.md) — auto-discovery of step types                                                 |
-| **Builder internals**               | [`docs/architecture.md`](docs/architecture.md) — "Builder internals (advanced)"                                               |
-| **State management**                | [`docs/zustand-architecture.md`](docs/zustand-architecture.md) — Zustand guide                                                |
-| **WebSocket / real-time**           | [`docs/websocket-architecture.md`](docs/websocket-architecture.md) — multi-channel infrastructure                             |
-| **Execution visualization**         | [`docs/execution-visualizer-protocol.md`](docs/execution-visualizer-protocol.md) — protocol, endpoints, data specs            |
-| **PR sizing / stacking**            | [`.github/PR_GUIDELINES.md`](.github/PR_GUIDELINES.md) — budget, stacking, stop rules                                         |
-| **List page with pagination**       | [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) — `useCursorPagination` pattern                    |
-| **Confirmation dialogs**            | [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) — `ConfirmationDialog` component                   |
-| **Sonar S6478 / PF `toggle` props** | [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) — nested components and PatternFly render props    |
-| **Dialog state management**         | [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) — `useDialogState` hook                            |
-| **Error handling patterns**         | [`docs/error-handling.md`](docs/error-handling.md) — RFC 9457, error utilities, retry support                                 |
-| **Testing standards**               | [`.claude/skills/testing_guidelines.md`](.claude/skills/testing_guidelines.md) — coverage, queries, accessibility             |
-| **Visual regression testing**       | [`packages/nexus-ui/VISUAL_REGRESSION.md`](packages/nexus-ui/VISUAL_REGRESSION.md) — page registry, baselines, CI screenshots |
-| **New workflow step type**          | `packages/nexus-ui/src/routes/builder/registry/nodes/QUICK_START.md`                                                          |
-| **UX / PatternFly design system**   | [`.claude/skills/patternfly_ux_design_system.md`](.claude/skills/patternfly_ux_design_system.md) — PF6 patterns               |
+| Working on...                       | Read this                                                                                                                                                                                    |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **API integration**                 | [`docs/data-flow.md`](docs/data-flow.md) — OpenAPI contracts and type-safe clients                                                                                                           |
+| **Workflow transformations**        | [`docs/data-flow.md`](docs/data-flow.md) — Nested to flat conversions                                                                                                                        |
+| **Step registry (`NodeRegistry`)**  | [`docs/architecture.md`](docs/architecture.md) — auto-discovery of step types                                                                                                                |
+| **Builder internals**               | [`docs/architecture.md`](docs/architecture.md) — "Builder internals (advanced)"                                                                                                              |
+| **State management**                | [`docs/zustand-architecture.md`](docs/zustand-architecture.md) — Zustand guide                                                                                                               |
+| **WebSocket / real-time**           | [`docs/websocket-architecture.md`](docs/websocket-architecture.md) — multi-channel infrastructure                                                                                            |
+| **Execution visualization**         | [`docs/execution-visualizer-protocol.md`](docs/execution-visualizer-protocol.md) — protocol, endpoints, data specs                                                                           |
+| **PR sizing / stacking**            | [`.github/PR_GUIDELINES.md`](.github/PR_GUIDELINES.md) — budget, stacking, stop rules                                                                                                        |
+| **List page with pagination**       | [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) — `useCursorPagination` pattern                                                                                   |
+| **Confirmation dialogs**            | [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) — `ConfirmationDialog` component                                                                                  |
+| **Sonar S6478 / PF `toggle` props** | [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) — nested components and PatternFly render props                                                                   |
+| **Dialog state management**         | [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) — `useDialogState` hook                                                                                           |
+| **Error handling patterns**         | [`docs/error-handling.md`](docs/error-handling.md) — RFC 9457, error utilities, retry support                                                                                                |
+| **Testing standards**               | [`.claude/skills/testing_guidelines.md`](.claude/skills/testing_guidelines.md) — coverage, queries, accessibility                                                                            |
+| **Visual regression testing**       | [`packages/nexus-ui/VISUAL_REGRESSION.md`](packages/nexus-ui/VISUAL_REGRESSION.md) — page registry, baselines, CI screenshots                                                                |
+| **New workflow step type**          | `packages/nexus-ui/src/routes/builder/registry/nodes/QUICK_START.md`                                                                                                                         |
+| **UX / PatternFly design system**   | [`.claude/skills/patternfly_ux_design_system.md`](.claude/skills/patternfly_ux_design_system.md) — PF6 patterns                                                                              |
+| **Page content frame (`AppPanel`)** | `packages/nexus-ui/src/components/AppPanel.tsx` — `Panel` → `PanelMain` → `PanelMainBody`; see JSDoc and [patternfly-react#12372](https://github.com/patternfly/patternfly-react/pull/12372) |
 
 ### Quick Reference: Common Tasks
 

@@ -2,7 +2,6 @@ import {
   ActionList,
   ActionListItem,
   Button,
-  CompassPanel,
   DescriptionList,
   DescriptionListDescription,
   DescriptionListGroup,
@@ -22,6 +21,7 @@ import { AppPageHeader } from '../../app/AppPageHeader'
 import { AppRoute } from '../../app/AppRoute'
 import { approvalsClient } from '../../client'
 import { useAlerts } from '../../components/alerts'
+import { AppPanel } from '../../components/AppPanel'
 import { CodeBlock } from '../../components/details/CodeBlock'
 import { ErrorState } from '../../components/states/ErrorState'
 import { useQueryState } from '../../components/states/useQueryState'
@@ -116,9 +116,9 @@ export default function ApprovalDetail() {
       <AppPage>
         <AppPageHeader title="Error" />
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>
+          <AppPanel isFullHeight>
             <ErrorState title="Invalid approval" message="No approval ID provided" />
-          </CompassPanel>
+          </AppPanel>
         </StackItem>
       </AppPage>
     )
@@ -130,7 +130,7 @@ export default function ApprovalDetail() {
       <AppPage>
         <AppPageHeader title="Approval details" />
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>{queryState}</CompassPanel>
+          <AppPanel isFullHeight>{queryState}</AppPanel>
         </StackItem>
       </AppPage>
     )
@@ -230,7 +230,7 @@ export default function ApprovalDetail() {
         )}
       </AppPageHeader>
       <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-        <CompassPanel isFullHeight>
+        <AppPanel isFullHeight>
           <Stack hasGutter>
             {approval && (
               <>
@@ -249,7 +249,7 @@ export default function ApprovalDetail() {
               </>
             )}
           </Stack>
-        </CompassPanel>
+        </AppPanel>
       </StackItem>
     </AppPage>
   )

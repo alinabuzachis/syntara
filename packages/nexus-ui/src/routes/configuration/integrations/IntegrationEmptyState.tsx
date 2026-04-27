@@ -1,12 +1,13 @@
-import { CompassPanel, Flex, FlexItem, Button, Content, ContentVariants, Title } from '@patternfly/react-core'
+import { Flex, FlexItem, Button, Content, ContentVariants, Title } from '@patternfly/react-core'
 import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../../app/AppRoute.tsx'
 import noDataImage from '../../../assets/collage-circle-sparkles-window-server-dark-RH.png'
+import { AppPanel } from '../../../components/AppPanel'
 
 export function IntegrationEmptyState() {
   return (
-    <CompassPanel isFullHeight>
+    <AppPanel isFullHeight>
       <Flex
         alignItems={{ default: 'alignItemsCenter' }}
         justifyContent={{ default: 'justifyContentFlexStart' }}
@@ -36,6 +37,6 @@ export function IntegrationEmptyState() {
           </Flex>
         </FlexItem>
       </Flex>
-    </CompassPanel>
+    </AppPanel>
   )
 }

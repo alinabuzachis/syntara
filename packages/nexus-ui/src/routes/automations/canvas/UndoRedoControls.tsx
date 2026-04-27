@@ -1,7 +1,8 @@
-import { Button, CompassPanel, Flex, FlexItem, Icon, Tooltip } from '@patternfly/react-core'
+import { Button, Flex, FlexItem, Icon, Tooltip } from '@patternfly/react-core'
 import { RhUiUndoIcon, RhUiRedoIcon } from '@patternfly/react-icons'
 import { Panel } from '@xyflow/react'
 
+import { AppPanel } from '../../../components/AppPanel'
 import { useWorkflowHistory } from '../../../stores/workflowStoreSelectors'
 
 const isMac = navigator.userAgent.includes('Mac')
@@ -13,7 +14,7 @@ export function UndoRedoControls() {
 
   return (
     <Panel position="bottom-center">
-      <CompassPanel isPill hasNoPadding style={{ padding: 'var(--pf-t--global--spacer--xs)' }}>
+      <AppPanel isPill hasNoPadding style={{ padding: 'var(--pf-t--global--spacer--xs)' }}>
         <Flex role="toolbar" aria-label="Undo and redo" gap={{ default: 'gapNone' }}>
           <FlexItem>
             <Tooltip content={`Undo (${UNDO_SHORTCUT_LABEL})`}>
@@ -48,7 +49,7 @@ export function UndoRedoControls() {
             </Tooltip>
           </FlexItem>
         </Flex>
-      </CompassPanel>
+      </AppPanel>
     </Panel>
   )
 }

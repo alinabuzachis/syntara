@@ -152,7 +152,7 @@ describe('TaskReversedNodeComponent', () => {
     it('renders with correct structure', () => {
       const { container } = render(<TaskReversedNodeComponent {...createNodeProps(baseTaskNode)} />)
 
-      expect(container.querySelector('.pf-v6-c-compass__panel')).toBeInTheDocument()
+      expect(container.querySelector('.pf-v6-c-panel')).toBeInTheDocument()
     })
   })
 

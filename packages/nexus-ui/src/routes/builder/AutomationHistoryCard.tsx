@@ -1,7 +1,6 @@
 import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import {
   Button,
-  CompassPanel,
   Content,
   ContentVariants,
   Divider,
@@ -19,6 +18,7 @@ import {
 import { RhUiHistoryIcon, RhUiCloseIcon } from '@patternfly/react-icons'
 import { useMemo, type CSSProperties, type ReactNode } from 'react'
 
+import { AppPanel } from '../../components/AppPanel'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { FilterBar } from '../../components/filters/FilterBar'
 import { useElapsedTime } from '../../hooks/useElapsedTime'
@@ -164,8 +164,9 @@ export function AutomationHistoryCard(props: AutomationHistoryCardProps) {
   }
 
   return (
-    <CompassPanel
+    <AppPanel
       hasNoPadding
+      isGlass={false}
       style={{
         height: '100%',
         maxHeight: '100%',
@@ -225,6 +226,6 @@ export function AutomationHistoryCard(props: AutomationHistoryCardProps) {
           {executionListBody}
         </StackItem>
       </Stack>
-    </CompassPanel>
+    </AppPanel>
   )
 }

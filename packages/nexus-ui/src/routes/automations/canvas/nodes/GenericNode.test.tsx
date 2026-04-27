@@ -127,18 +127,17 @@ describe('GenericNodeComponent', () => {
 
   describe('Node Structure', () => {
     it('renders with correct structure', () => {
-      const { container } = render(<GenericNodeComponent {...createNodeProps(baseGenericNode)} />)
+      render(<GenericNodeComponent {...createNodeProps(baseGenericNode)} />)
 
-      expect(container.querySelector('.pf-v6-c-compass__panel')).toBeInTheDocument()
+      expect(screen.getByTestId('generic-flow-node')).toBeInTheDocument()
+      expect(screen.getByText('Select a step type')).toBeInTheDocument()
     })
 
     it('renders with dashed border styling', () => {
-      const { container } = render(<GenericNodeComponent {...createNodeProps(baseGenericNode)} />)
+      render(<GenericNodeComponent {...createNodeProps(baseGenericNode)} />)
 
-      const panel = container.querySelector('.pf-v6-c-compass__panel')
-      expect(panel).toBeInTheDocument()
-      // Verify the dashed-border-specific color is applied (only set when hasDashedBorder is true)
-      expect(panel).toHaveAttribute('style', expect.stringContaining('rgba(196, 181, 253, 0.5)'))
+      const nodeRoot = screen.getByTestId('generic-flow-node')
+      expect(nodeRoot).toHaveStyle({ borderStyle: 'dashed' })
     })
   })
 

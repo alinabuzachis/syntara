@@ -1,19 +1,9 @@
-import {
-  Card,
-  CardBody,
-  CompassPanel,
-  Divider,
-  Flex,
-  FlexItem,
-  Label,
-  Stack,
-  StackItem,
-  Switch,
-} from '@patternfly/react-core'
+import { Card, CardBody, Divider, Flex, FlexItem, Label, Stack, StackItem, Switch } from '@patternfly/react-core'
 import { RhUiCheckCircleIcon, RhUiUnlockIcon } from '@patternfly/react-icons'
 
 import { AppPage } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
+import { AppPanel } from '../../../components/AppPanel'
 
 import { IdentityProvidersTab } from './IdentityProvidersTab'
 
@@ -56,7 +46,7 @@ export default function Authentication() {
     <AppPage>
       <AppPageHeader title="Identity Providers" />
       <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-        <CompassPanel isFullHeight>
+        <AppPanel isFullHeight>
           <Stack hasGutter>
             <StackItem>
               <BuiltInAdminCard />
@@ -68,7 +58,7 @@ export default function Authentication() {
               <IdentityProvidersTab />
             </StackItem>
           </Stack>
-        </CompassPanel>
+        </AppPanel>
       </StackItem>
     </AppPage>
   )

@@ -1,7 +1,6 @@
 import {
   Badge,
   Button,
-  CompassPanel,
   DescriptionList,
   Flex,
   FlexItem,
@@ -23,6 +22,7 @@ import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
 import { credentialsClient } from '../../../client'
 import { useAlerts } from '../../../components/alerts'
+import { AppPanel } from '../../../components/AppPanel'
 import { Detail } from '../../../components/details/Detail'
 import { ErrorState } from '../../../components/states/ErrorState'
 import { useQueryState } from '../../../components/states/useQueryState'
@@ -196,9 +196,9 @@ export default function CredentialDetail() {
       <AppPage>
         <AppPageHeader title="Error" />
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>
+          <AppPanel isFullHeight>
             <ErrorState title="Invalid credential" message="No credential ID provided" />
-          </CompassPanel>
+          </AppPanel>
         </StackItem>
       </AppPage>
     )
@@ -209,7 +209,7 @@ export default function CredentialDetail() {
       <AppPage>
         <AppPageHeader title="Credential" />
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>{queryState}</CompassPanel>
+          <AppPanel isFullHeight>{queryState}</AppPanel>
         </StackItem>
       </AppPage>
     )
@@ -253,7 +253,7 @@ export default function CredentialDetail() {
       </AppPageHeader>
 
       <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-        <CompassPanel isFullHeight>
+        <AppPanel isFullHeight>
           <Tabs activeKey={activeTab} onSelect={(_e, key) => setActiveTab(key as number)}>
             {/* Details Tab */}
             <Tab eventKey={0} title="Details">
@@ -327,7 +327,7 @@ export default function CredentialDetail() {
               <CredentialWorkflowsTab credentialId={credential.id!} />
             </Tab>
           </Tabs>
-        </CompassPanel>
+        </AppPanel>
       </StackItem>
 
       <DisableCredentialDialog

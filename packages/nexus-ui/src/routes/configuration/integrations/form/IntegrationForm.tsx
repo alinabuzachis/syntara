@@ -2,7 +2,6 @@ import type { ToolProviderCreate } from '@ansible/nexus-contracts'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
   Button,
-  CompassPanel,
   Flex,
   FlexItem,
   Form,
@@ -10,6 +9,7 @@ import {
   FormHelperText,
   HelperText,
   HelperTextItem,
+  StackItem,
   TextInput,
   ToggleGroup,
   ToggleGroupItem,
@@ -23,6 +23,7 @@ import { AppPageHeader } from '../../../../app/AppPageHeader'
 import { AppRoute } from '../../../../app/AppRoute'
 import { toolManagerClient } from '../../../../client'
 import { useAlerts } from '../../../../components/alerts'
+import { AppPanel } from '../../../../components/AppPanel'
 import { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationErrorHandler'
 
 import { integrationFormSchema, type IntegrationFormData } from './integrationFormSchema'
@@ -99,128 +100,130 @@ export function IntegrationForm() {
           Cancel
         </Button>
       </AppPageHeader>
-      <CompassPanel isFullHeight style={{ padding: 'var(--pf-t--global--spacer--xl)' }}>
-        <div style={{ maxWidth: '600px' }}>
-          <Form id="integration-form" onSubmit={handleSubmit(onSubmit)}>
-            <FormGroup label="Integration type" fieldId="provider-type" isRequired>
+      <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <AppPanel isFullHeight panelMainBodyProps={{ style: { padding: 'var(--pf-t--global--spacer--xl)' } }}>
+          <div style={{ maxWidth: '600px' }}>
+            <Form id="integration-form" onSubmit={handleSubmit(onSubmit)}>
+              <FormGroup label="Integration type" fieldId="provider-type" isRequired>
+                <Controller
+                  name="configuration.provider_type"
+                  control={control}
+                  render={({ field }) => (
+                    <ToggleGroup aria-label="Integration type selection">
+                      <ToggleGroupItem
+                        text={
+                          <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
+                            <RhUiServerFillIcon />
+                            <span>MCP Server</span>
+                          </Flex>
+                        }
+                        buttonId="mcp"
+                        isSelected={field.value === 'mcp'}
+                        onChange={() => field.onChange('mcp')}
+                      />
+                    </ToggleGroup>
+                  )}
+                />
+              </FormGroup>
               <Controller
-                name="configuration.provider_type"
+                name="name"
                 control={control}
-                render={({ field }) => (
-                  <ToggleGroup aria-label="Integration type selection">
-                    <ToggleGroupItem
-                      text={
-                        <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
-                          <RhUiServerFillIcon />
-                          <span>MCP Server</span>
-                        </Flex>
-                      }
-                      buttonId="mcp"
-                      isSelected={field.value === 'mcp'}
-                      onChange={() => field.onChange('mcp')}
+                render={({ field, fieldState }) => (
+                  <FormGroup label="Server name / ID" fieldId="name" isRequired>
+                    <TextInput
+                      id="name"
+                      placeholder="Enter server name / ID"
+                      validated={fieldState.error ? 'error' : 'default'}
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      name={field.name}
                     />
-                  </ToggleGroup>
+                    {fieldState.error && (
+                      <FormHelperText>
+                        <HelperText>
+                          <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+                            {fieldState.error.message}
+                          </HelperTextItem>
+                        </HelperText>
+                      </FormHelperText>
+                    )}
+                  </FormGroup>
                 )}
               />
-            </FormGroup>
-            <Controller
-              name="name"
-              control={control}
-              render={({ field, fieldState }) => (
-                <FormGroup label="Server name / ID" fieldId="name" isRequired>
-                  <TextInput
-                    id="name"
-                    placeholder="Enter server name / ID"
-                    validated={fieldState.error ? 'error' : 'default'}
-                    value={field.value ?? ''}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                    name={field.name}
-                  />
-                  {fieldState.error && (
-                    <FormHelperText>
-                      <HelperText>
-                        <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
-                          {fieldState.error.message}
-                        </HelperTextItem>
-                      </HelperText>
-                    </FormHelperText>
-                  )}
-                </FormGroup>
-              )}
-            />
-            <Controller
-              name="description"
-              control={control}
-              render={({ field }) => (
-                <FormGroup label="Description" fieldId="description">
-                  <TextInput
-                    id="description"
-                    placeholder="Enter description"
-                    value={field.value ?? ''}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                    name={field.name}
-                  />
-                </FormGroup>
-              )}
-            />
-            <Controller
-              name="configuration.base_url"
-              control={control}
-              render={({ field, fieldState }) => (
-                <FormGroup label="API URL" fieldId="base-url" isRequired>
-                  <TextInput
-                    id="base-url"
-                    placeholder="Enter API URL"
-                    validated={fieldState.error ? 'error' : 'default'}
-                    value={field.value ?? ''}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                    name={field.name}
-                  />
-                  {fieldState.error && (
-                    <FormHelperText>
-                      <HelperText>
-                        <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
-                          {fieldState.error.message}
-                        </HelperTextItem>
-                      </HelperText>
-                    </FormHelperText>
-                  )}
-                </FormGroup>
-              )}
-            />
-            <Controller
-              name="configuration.api_key"
-              control={control}
-              render={({ field, fieldState }) => (
-                <FormGroup label="API key" fieldId="api-key">
-                  <TextInput
-                    id="api-key"
-                    placeholder="Enter API key"
-                    type="password"
-                    validated={fieldState.error ? 'error' : 'default'}
-                    value={field.value ?? ''}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                    name={field.name}
-                  />
-                  {fieldState.error && (
-                    <FormHelperText>
-                      <HelperText>
-                        <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
-                          {fieldState.error.message}
-                        </HelperTextItem>
-                      </HelperText>
-                    </FormHelperText>
-                  )}
-                </FormGroup>
-              )}
-            />
-          </Form>
-        </div>
-      </CompassPanel>
+              <Controller
+                name="description"
+                control={control}
+                render={({ field }) => (
+                  <FormGroup label="Description" fieldId="description">
+                    <TextInput
+                      id="description"
+                      placeholder="Enter description"
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      name={field.name}
+                    />
+                  </FormGroup>
+                )}
+              />
+              <Controller
+                name="configuration.base_url"
+                control={control}
+                render={({ field, fieldState }) => (
+                  <FormGroup label="API URL" fieldId="base-url" isRequired>
+                    <TextInput
+                      id="base-url"
+                      placeholder="Enter API URL"
+                      validated={fieldState.error ? 'error' : 'default'}
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      name={field.name}
+                    />
+                    {fieldState.error && (
+                      <FormHelperText>
+                        <HelperText>
+                          <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+                            {fieldState.error.message}
+                          </HelperTextItem>
+                        </HelperText>
+                      </FormHelperText>
+                    )}
+                  </FormGroup>
+                )}
+              />
+              <Controller
+                name="configuration.api_key"
+                control={control}
+                render={({ field, fieldState }) => (
+                  <FormGroup label="API key" fieldId="api-key">
+                    <TextInput
+                      id="api-key"
+                      placeholder="Enter API key"
+                      type="password"
+                      validated={fieldState.error ? 'error' : 'default'}
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      name={field.name}
+                    />
+                    {fieldState.error && (
+                      <FormHelperText>
+                        <HelperText>
+                          <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+                            {fieldState.error.message}
+                          </HelperTextItem>
+                        </HelperText>
+                      </FormHelperText>
+                    )}
+                  </FormGroup>
+                )}
+              />
+            </Form>
+          </div>
+        </AppPanel>
+      </StackItem>
     </AppPage>
   )
 }

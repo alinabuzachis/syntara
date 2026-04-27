@@ -1,7 +1,6 @@
 import type { Tool } from '@ansible/nexus-contracts'
 import {
   Button,
-  CompassPanel,
   DescriptionList,
   DescriptionListDescription,
   DescriptionListGroup,
@@ -21,6 +20,7 @@ import { AppRoute } from '../../../app/AppRoute.tsx'
 import noToolsImage from '../../../assets/collage-circle-sparkles-window-server-dark-RH.png'
 import { toolManagerClient } from '../../../client'
 import { useAlerts } from '../../../components/alerts'
+import { AppPanel } from '../../../components/AppPanel'
 import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
@@ -127,7 +127,7 @@ function IntegrationToolsLoadedView({
       </AppPageHeader>
       {results.length === 0 && !hasActiveFilters ? (
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>
+          <AppPanel isFullHeight>
             <EmptyStateNoData
               title="No tools available"
               description={`No tools found for "${providerName}". Click the button below to refresh and fetch the latest tools from this integration.`}
@@ -136,18 +136,20 @@ function IntegrationToolsLoadedView({
               imageSrc={noToolsImage}
               imageAlt="No tools available"
             />
-          </CompassPanel>
+          </AppPanel>
         </StackItem>
       ) : (
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>
-            <Stack style={{ height: '100%', padding: '0 var(--pf-t--global--spacer--sm)' }}>
-              <FilterBar
-                fieldDefinitions={filterFieldDefinitions}
-                filters={filters}
-                onFilterChange={handleFilterChange}
-                showClearAll={true}
-              />
+          <AppPanel isFullHeight>
+            <Stack style={{ height: '100%', flex: 1, minHeight: 0, padding: '0 var(--pf-t--global--spacer--sm)' }}>
+              <StackItem>
+                <FilterBar
+                  fieldDefinitions={filterFieldDefinitions}
+                  filters={filters}
+                  onFilterChange={handleFilterChange}
+                  showClearAll={true}
+                />
+              </StackItem>
 
               {results.length === 0 ? (
                 <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -218,7 +220,7 @@ function IntegrationToolsLoadedView({
                 </ScrollableTableContainer>
               )}
             </Stack>
-          </CompassPanel>
+          </AppPanel>
         </StackItem>
       )}
 
@@ -387,7 +389,7 @@ export default function IntegrationTools() {
       <AppPage>
         <AppPageHeader title={provider?.name ? `${provider.name} tools` : 'Tools'} />
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>{integrationQueryStatus}</CompassPanel>
+          <AppPanel isFullHeight>{integrationQueryStatus}</AppPanel>
         </StackItem>
       </AppPage>
     )
