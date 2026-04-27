@@ -65,7 +65,7 @@ function useResourceOptions(resourceType: string): ResourceOption[] {
   return options
 }
 
-interface ResourceIdSelectProps {
+type ResourceIdSelectProps = {
   resourceType: string
   value: string
   onChange: (value: string) => void

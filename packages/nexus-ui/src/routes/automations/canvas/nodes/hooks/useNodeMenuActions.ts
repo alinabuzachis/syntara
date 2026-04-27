@@ -12,7 +12,7 @@ import { resolveFlowNodeId } from '../../../../../utils/triggerNodeIds'
 // Re-export for convenience
 export { MenuNodeType, type MenuNodeTypeUnion } from '../../../../../constants'
 
-export interface NodeMenuAction {
+export type NodeMenuAction = {
   id: string
   label: string
   onClick: () => void
@@ -21,7 +21,7 @@ export interface NodeMenuAction {
   separator?: boolean
 }
 
-interface UseNodeMenuActionsOptions {
+type UseNodeMenuActionsOptions = {
   nodeId: string
   nodeType: MenuNodeTypeUnion
   triggerIndex?: number

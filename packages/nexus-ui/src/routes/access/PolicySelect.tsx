@@ -16,7 +16,7 @@ import { type Ref, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 
 import { accessClient } from './accessClient'
 
-interface PolicySelectProps {
+type PolicySelectProps = {
   selected: string[]
   onChange: (selected: string[]) => void
   hasError?: boolean

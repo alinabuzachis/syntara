@@ -3,7 +3,7 @@ import { useContext, type ReactNode } from 'react'
 
 import { NodeExpandedContext } from './NodeExpandedContext'
 
-export interface NodeBodyProps {
+export type NodeBodyProps = {
   children: ReactNode
   className?: string
 }

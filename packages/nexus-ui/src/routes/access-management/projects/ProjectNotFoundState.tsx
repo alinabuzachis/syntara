@@ -1,7 +1,7 @@
 import { Button, EmptyState, EmptyStateActions, EmptyStateBody, EmptyStateFooter } from '@patternfly/react-core'
 import { RhUiArrowLeftIcon, RhUiSearchIcon, RhUiSyncIcon } from '@patternfly/react-icons'
 
-interface ProjectNotFoundStateProps {
+type ProjectNotFoundStateProps = {
   onBack: () => void
   onRetry: () => void
 }

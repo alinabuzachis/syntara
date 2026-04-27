@@ -41,12 +41,12 @@ const filterFieldDefinitions: FilterFieldDefinition[] = [
   },
 ]
 
-interface GroupMembersPanelProps {
+type GroupMembersPanelProps = {
   groupId: string
   onMembershipChange: () => void
 }
 
-interface MemberInfo {
+type MemberInfo = {
   id: string
   username: string
 }

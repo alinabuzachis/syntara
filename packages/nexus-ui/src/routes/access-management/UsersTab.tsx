@@ -24,7 +24,7 @@ import { detachPromise } from '../../utils/detachPromise'
 
 import { getUsernameFilterDefinition } from './userFilters'
 
-interface DeleteDialogState {
+type DeleteDialogState = {
   deleteDialogOpen: boolean
   userToDelete: User | null
 }

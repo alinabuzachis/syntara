@@ -1,6 +1,6 @@
 import { Pagination, StackItem } from '@patternfly/react-core'
 
-interface PaginationFooterProps {
+type PaginationFooterProps = {
   page: number
   perPage: number
   total?: number | null

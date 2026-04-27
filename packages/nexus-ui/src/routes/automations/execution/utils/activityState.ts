@@ -14,7 +14,7 @@ import type { ActivityStatus, JsonPatchOperation, ActivityState } from '../types
 /**
  * Parsed JSON Pointer path for activity updates
  */
-interface ActivityPathInfo {
+type ActivityPathInfo = {
   /** Activity ID from the path */
   activityId: string
   /** Field name being updated (e.g., "status", "error_details") */

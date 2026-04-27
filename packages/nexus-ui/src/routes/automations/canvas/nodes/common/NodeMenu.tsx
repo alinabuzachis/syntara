@@ -5,7 +5,7 @@ import { useState } from 'react'
 
 import type { NodeMenuAction } from '../hooks/useNodeMenuActions'
 
-interface NodeMenuProps {
+type NodeMenuProps = {
   menuActions: NodeMenuAction[]
   className?: string
   style?: React.CSSProperties

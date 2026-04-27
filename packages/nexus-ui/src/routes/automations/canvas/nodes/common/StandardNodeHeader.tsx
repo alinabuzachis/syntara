@@ -8,7 +8,7 @@ import { NodeHeader } from './NodeHeader'
 import { NodeMenu } from './NodeMenu'
 import { NodeTitle } from './NodeTitle'
 
-interface StandardNodeHeaderProps {
+type StandardNodeHeaderProps = {
   icon?: React.ReactNode
   /** Optional badge rendered just under the icon, above title/subtitle */
   badge?: React.ReactNode

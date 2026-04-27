@@ -5,7 +5,7 @@ import { Controller } from 'react-hook-form'
 
 import type { UserFormData } from '../userFormSchema'
 
-interface ControlledTextFieldProps {
+type ControlledTextFieldProps = {
   name: 'username' | 'first_name' | 'last_name' | 'email' | 'password'
   control: Control<UserFormData>
   label: string
@@ -59,7 +59,7 @@ function ControlledTextField({
   )
 }
 
-interface UserFormFieldsProps {
+type UserFormFieldsProps = {
   control: Control<UserFormData>
   isEdit: boolean
 }

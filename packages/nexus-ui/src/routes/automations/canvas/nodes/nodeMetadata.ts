@@ -13,7 +13,7 @@ import type { ComponentType } from 'react'
 
 import AnsibleIcon from '../../../../assets/ansible-automation-platform.svg?react'
 
-export interface NodeMetadata {
+export type NodeMetadata = {
   icon?: ComponentType<{ className?: string }>
   label: string
   className?: string

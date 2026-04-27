@@ -1,6 +1,6 @@
 import type { PolicyRead } from './types'
 
-export interface ResourceActionMap {
+export type ResourceActionMap = {
   resourceTypes: string[]
   actionsByResource: Map<string, string[]>
 }
@@ -46,7 +46,7 @@ export const RESOURCE_ENDPOINTS: Record<string, { path: string; idField: string;
   user: { path: '/users', idField: 'id', labelField: 'username' },
 }
 
-export interface ResourceOption {
+export type ResourceOption = {
   id: string
   label: string
 }
