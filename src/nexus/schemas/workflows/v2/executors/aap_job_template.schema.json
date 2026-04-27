@@ -25,6 +25,11 @@
         "description": "AAP organization name (required with name-based lookup)",
         "minLength": 1
       },
+      "organization_id": {
+        "type": "integer",
+        "description": "AAP organization ID (takes precedence over organization_name)",
+        "minimum": 1
+      },
       "inventory_id": {
         "type": "integer",
         "description": "Override default inventory by ID",
@@ -41,6 +46,14 @@
         "items": {
           "type": "integer",
           "minimum": 1
+        }
+      },
+      "credential_names": {
+        "type": "array",
+        "description": "List of AAP credential names to use (requires organization_name, resolved at launch time)",
+        "items": {
+          "type": "string",
+          "minLength": 1
         }
       },
       "extra_vars": {
@@ -95,13 +108,22 @@
         "type": "string",
         "description": "Execution environment override (deferred — requires ID resolution)"
       },
-      "instance_groups": {
+      "instance_group_id": {
+        "type": "integer",
+        "description": "Override instance group by ID (takes precedence over instance_group_name)",
+        "minimum": 1
+      },
+      "instance_group_name": {
         "type": "string",
-        "description": "Instance groups override (deferred — requires ID resolution)"
+        "description": "Override instance group by name (requires organization_name for lookup)",
+        "minLength": 1
       },
       "labels": {
-        "type": "string",
-        "description": "Labels (deferred — requires ID resolution)"
+        "type": "array",
+        "description": "AAP label names to append to job template's default labels (resolved to IDs at launch time)",
+        "items": {
+          "type": "string"
+        }
       }
     },
     "anyOf": [
@@ -116,6 +138,14 @@
       {
         "if": {
           "required": ["inventory_name"]
+        },
+        "then": {
+          "required": ["organization_name"]
+        }
+      },
+      {
+        "if": {
+          "required": ["instance_group_name"]
         },
         "then": {
           "required": ["organization_name"]

@@ -6,13 +6,17 @@ from .aap_instance_group import AAPInstanceGroup
 from .aap_inventory import AAPInventory
 from .aap_job_template import AAPJobTemplate
 from .aap_job_template_detail import AAPJobTemplateDetail
+from .aap_job_type import AAPJobType
+from .aap_label import AAPLabel
 from .aap_list_response_aap_credential import AAPListResponseAAPCredential
 from .aap_list_response_aap_execution_environment import AAPListResponseAAPExecutionEnvironment
 from .aap_list_response_aap_instance_group import AAPListResponseAAPInstanceGroup
 from .aap_list_response_aap_inventory import AAPListResponseAAPInventory
 from .aap_list_response_aap_job_template import AAPListResponseAAPJobTemplate
+from .aap_list_response_aap_label import AAPListResponseAAPLabel
 from .aap_list_response_aap_organization import AAPListResponseAAPOrganization
 from .aap_organization import AAPOrganization
+from .aap_summary_field import AAPSummaryField
 from .access_token_response import AccessTokenResponse
 from .activity_data import ActivityData
 from .activity_data_output_data_type_0 import ActivityDataOutputDataType0
@@ -251,13 +255,17 @@ __all__ = (
     "AAPInventory",
     "AAPJobTemplate",
     "AAPJobTemplateDetail",
+    "AAPJobType",
+    "AAPLabel",
     "AAPListResponseAAPCredential",
     "AAPListResponseAAPExecutionEnvironment",
     "AAPListResponseAAPInstanceGroup",
     "AAPListResponseAAPInventory",
     "AAPListResponseAAPJobTemplate",
+    "AAPListResponseAAPLabel",
     "AAPListResponseAAPOrganization",
     "AAPOrganization",
+    "AAPSummaryField",
     "AccessTokenResponse",
     "ActivityData",
     "ActivityDataOutputDataType0",

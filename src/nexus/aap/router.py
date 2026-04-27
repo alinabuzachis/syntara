@@ -29,6 +29,7 @@ from nexus.aap.models.responses import (
     AAPInventory,
     AAPJobTemplate,
     AAPJobTemplateDetail,
+    AAPLabel,
     AAPListResponse,
     AAPOrganization,
 )
@@ -136,3 +137,13 @@ async def list_instance_groups(
 ) -> AAPListResponse[AAPInstanceGroup]:
     """List AAP instance groups (not organization-scoped)."""
     return await service.list_instance_groups(query, user_id=current_user.id)
+
+
+@router.get("/labels", operation_id="list_aap_labels")
+async def list_labels(
+    query: Annotated[AAPBaseQuery, Depends()],
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[AAPProxyService, Depends(_get_aap_proxy_service)],
+) -> AAPListResponse[AAPLabel]:
+    """List AAP labels."""
+    return await service.list_labels(query, user_id=current_user.id)

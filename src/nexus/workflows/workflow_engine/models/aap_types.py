@@ -12,6 +12,7 @@ class AAPResourceType(StrEnum):
 
     JOB_TEMPLATES = "job_templates"
     INVENTORIES = "inventories"
+    INSTANCE_GROUPS = "instance_groups"
 
     @property
     def display_name(self) -> str:
@@ -23,6 +24,8 @@ class AAPResourceType(StrEnum):
         """
         if self == AAPResourceType.JOB_TEMPLATES:
             return "job template"
+        if self == AAPResourceType.INSTANCE_GROUPS:
+            return "instance group"
         # INVENTORIES
         return "inventory"
 
@@ -46,5 +49,7 @@ class AAPResourceType(StrEnum):
         """
         if self == AAPResourceType.JOB_TEMPLATES:
             return "job_template"
+        if self == AAPResourceType.INSTANCE_GROUPS:
+            return "instance_group"
         # INVENTORIES
         return "inventory"

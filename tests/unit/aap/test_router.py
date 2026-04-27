@@ -15,6 +15,7 @@ from nexus.aap.models.responses import (
     AAPInventory,
     AAPJobTemplate,
     AAPJobTemplateDetail,
+    AAPLabel,
     AAPListResponse,
     AAPOrganization,
 )
@@ -211,3 +212,29 @@ class TestListInstanceGroups:
         data = response.json()
         assert data["count"] == 1
         assert data["results"][0]["name"] == "Group 1"
+
+
+class TestListLabels:
+    """Tests for GET /api/v1/aap/labels."""
+
+    @pytest.mark.asyncio
+    async def test_returns_labels(self, app: FastAPI, mock_service: AsyncMock) -> None:
+        """Should return list of labels from service."""
+        mock_service.list_labels.return_value = AAPListResponse(
+            count=2,
+            results=[
+                AAPLabel(id=1, name="production", organization=1),
+                AAPLabel(id=2, name="staging", organization=None),
+            ],
+        )
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/api/v1/aap/labels")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["count"] == 2
+        assert data["results"][0]["name"] == "production"
+        assert data["results"][0]["organization"] == 1
+        assert data["results"][1]["name"] == "staging"
+        assert data["results"][1]["organization"] is None

@@ -21,6 +21,7 @@ from nexus.aap.models.responses import (
     AAPInventory,
     AAPJobTemplate,
     AAPJobTemplateDetail,
+    AAPLabel,
     AAPListResponse,
     AAPOrganization,
 )
@@ -203,6 +204,17 @@ class AAPProxyService:
         params = self._build_params(search=query.search, page_size=query.page_size)
         data = await self._proxy_get(connection, f"{_AAP_API_PREFIX}/instance_groups/", params)
         results = _safe_map(data, lambda r: AAPInstanceGroup(id=r["id"], name=r["name"]))
+        return AAPListResponse(count=data.get("count", len(results)), results=results)
+
+    async def list_labels(self, query: AAPBaseQuery, user_id: UUID | None = None) -> AAPListResponse[AAPLabel]:
+        """List AAP labels."""
+        connection = await self._resolve_connection(credential_id=query.credential_id, user_id=user_id)
+        params = self._build_params(search=query.search, page_size=query.page_size)
+        data = await self._proxy_get(connection, f"{_AAP_API_PREFIX}/labels/", params)
+        results = _safe_map(
+            data,
+            lambda r: AAPLabel(id=r["id"], name=r["name"], organization=r.get("organization")),
+        )
         return AAPListResponse(count=data.get("count", len(results)), results=results)
 
     # ------------------------------------------------------------------

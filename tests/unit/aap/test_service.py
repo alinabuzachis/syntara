@@ -439,6 +439,56 @@ class TestListInstanceGroups:
         assert result.results[1].name == "controlplane"
 
 
+class TestListLabels:
+    """Tests for list_labels."""
+
+    @pytest.mark.asyncio
+    async def test_returns_labels(self) -> None:
+        service = _service()
+        aap_response = {
+            "count": 3,
+            "results": [
+                {"id": 1, "name": "production", "organization": 1},
+                {"id": 2, "name": "staging", "organization": 1},
+                {"id": 3, "name": "development", "organization": 2},
+            ],
+        }
+
+        with (
+            patch.object(service, "_resolve_connection", return_value=_connection()),
+            patch.object(service, "_proxy_get", new_callable=AsyncMock, return_value=aap_response),
+        ):
+            result = await service.list_labels(AAPBaseQuery())
+
+        assert result.count == 3
+        assert len(result.results) == 3
+        assert result.results[0].name == "production"
+        assert result.results[0].organization == 1
+        assert result.results[1].name == "staging"
+        assert result.results[2].organization == 2
+
+    @pytest.mark.asyncio
+    async def test_handles_labels_without_organization(self) -> None:
+        """Labels can exist without organization (global labels)."""
+        service = _service()
+        aap_response = {
+            "count": 1,
+            "results": [
+                {"id": 1, "name": "global-label"},  # No organization field
+            ],
+        }
+
+        with (
+            patch.object(service, "_resolve_connection", return_value=_connection()),
+            patch.object(service, "_proxy_get", new_callable=AsyncMock, return_value=aap_response),
+        ):
+            result = await service.list_labels(AAPBaseQuery())
+
+        assert result.count == 1
+        assert result.results[0].name == "global-label"
+        assert result.results[0].organization is None
+
+
 class TestSafeMap:
     """Tests for _safe_map resilience against malformed AAP responses."""
 
@@ -464,6 +514,33 @@ class TestSafeMap:
         assert len(result.results) == 2
         assert result.results[0].name == "Good"
         assert result.results[1].name == "Also Good"
+
+    @pytest.mark.asyncio
+    async def test_skips_malformed_labels(self) -> None:
+        """Malformed label entries are skipped when using _safe_map in list_labels."""
+        service = _service()
+        aap_response = {
+            "count": 4,
+            "results": [
+                {"id": 1, "name": "production", "organization": 1},  # Valid
+                {"name": "Missing ID"},  # Invalid - no id
+                {"id": 3},  # Invalid - no name
+                {"id": 4, "name": "staging"},  # Valid - organization is optional
+            ],
+        }
+
+        with (
+            patch.object(service, "_resolve_connection", return_value=_connection()),
+            patch.object(service, "_proxy_get", new_callable=AsyncMock, return_value=aap_response),
+        ):
+            result = await service.list_labels(AAPBaseQuery())
+
+        # Only 2 valid labels should remain
+        assert len(result.results) == 2
+        assert result.results[0].name == "production"
+        assert result.results[0].organization == 1
+        assert result.results[1].name == "staging"
+        assert result.results[1].organization is None
 
 
 class TestGetJobTemplatePublicUrl:

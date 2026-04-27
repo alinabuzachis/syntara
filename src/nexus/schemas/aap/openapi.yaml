@@ -519,6 +519,68 @@ paths:
       security:
         - bearerAuth: []
 
+  /aap/labels:
+    get:
+      tags:
+        - aap
+      summary: List Labels
+      description: List AAP labels.
+      operationId: list_aap_labels
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                maxLength: 200
+              - type: "null"
+            title: Search
+        - name: page_size
+          in: query
+          required: false
+          schema:
+            type: integer
+            maximum: 200
+            minimum: 1
+            default: 50
+            title: Page Size
+        - name: credential_id
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                format: uuid
+              - type: "null"
+            title: Credential Id
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AAPListResponse_AAPLabel_"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+      x-app-permission:
+        resource: null
+        action: null
+
 components:
   schemas:
     AAPOrganization:
@@ -556,10 +618,33 @@ components:
             - type: "null"
           title: Description
 
+    AAPSummaryField:
+      type: object
+      title: AAPSummaryField
+      description: Summary field with id and name from AAP summary_fields.
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          title: Id
+        name:
+          type: string
+          title: Name
+
+    AAPJobType:
+      type: string
+      title: AAPJobType
+      description: AAP job type values.
+      enum:
+        - run
+        - check
+
     AAPJobTemplateDetail:
       type: object
       title: AAPJobTemplateDetail
-      description: AAP job template with prompt-on-launch capabilities.
+      description: AAP job template with prompt-on-launch capabilities and default values.
       required:
         - id
         - name
@@ -649,6 +734,101 @@ components:
           type: boolean
           default: false
           title: Survey Enabled
+        default_inventory:
+          anyOf:
+            - $ref: "#/components/schemas/AAPSummaryField"
+            - type: "null"
+          title: Default Inventory
+          description: Default inventory from job template summary_fields
+        default_execution_environment:
+          anyOf:
+            - $ref: "#/components/schemas/AAPSummaryField"
+            - type: "null"
+          title: Default Execution Environment
+          description: Default execution environment from job template summary_fields
+        default_credentials:
+          type: array
+          title: Default Credentials
+          description: Default credentials from job template summary_fields
+          items:
+            $ref: "#/components/schemas/AAPSummaryField"
+        default_labels:
+          type: array
+          title: Default Labels
+          description: Default labels from job template summary_fields
+          items:
+            $ref: "#/components/schemas/AAPSummaryField"
+        job_type:
+          anyOf:
+            - $ref: "#/components/schemas/AAPJobType"
+            - type: "null"
+          description: Default job type - "run" or "check"
+        verbosity:
+          anyOf:
+            - type: integer
+              minimum: 0.0
+              maximum: 5.0
+            - type: "null"
+          title: Verbosity
+          description: Default verbosity level (0-5)
+        forks:
+          anyOf:
+            - type: integer
+              minimum: 0.0
+              maximum: 10000.0
+            - type: "null"
+          title: Forks
+          description: Default number of forks (max 10,000)
+        limit:
+          anyOf:
+            - type: string
+              maxLength: 2048
+            - type: "null"
+          title: Limit
+          description: Default limit pattern
+        job_tags:
+          anyOf:
+            - type: string
+              maxLength: 2048
+            - type: "null"
+          title: Job Tags
+          description: Default job tags
+        skip_tags:
+          anyOf:
+            - type: string
+              maxLength: 2048
+            - type: "null"
+          title: Skip Tags
+          description: Default skip tags
+        diff_mode:
+          anyOf:
+            - type: boolean
+            - type: "null"
+          title: Diff Mode
+          description: Default diff mode setting
+        job_slice_count:
+          anyOf:
+            - type: integer
+              minimum: 0.0
+              maximum: 10000.0
+            - type: "null"
+          title: Job Slice Count
+          description: Default job slice count (max 10,000)
+        timeout:
+          anyOf:
+            - type: integer
+              minimum: 0.0
+              maximum: 604800.0
+            - type: "null"
+          title: Timeout
+          description: Default timeout in seconds (max 7 days)
+        extra_vars:
+          anyOf:
+            - type: string
+              maxLength: 1048576
+            - type: "null"
+          title: Extra Vars
+          description: Default extra variables (YAML format, max 1MB)
 
     AAPInventory:
       type: object
@@ -723,6 +903,26 @@ components:
         name:
           type: string
           title: Name
+
+    AAPLabel:
+      type: object
+      title: AAPLabel
+      description: AAP label resource.
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          title: Id
+        name:
+          type: string
+          title: Name
+        organization:
+          anyOf:
+            - type: integer
+            - type: "null"
+          title: Organization
 
     AAPListResponse_AAPOrganization_:
       type: object
@@ -819,6 +1019,22 @@ components:
           title: Results
           items:
             $ref: "#/components/schemas/AAPInstanceGroup"
+
+    AAPListResponse_AAPLabel_:
+      type: object
+      title: "AAPListResponse[AAPLabel]"
+      required:
+        - count
+        - results
+      properties:
+        count:
+          type: integer
+          title: Count
+        results:
+          type: array
+          title: Results
+          items:
+            $ref: "#/components/schemas/AAPLabel"
 
   securitySchemes:
     bearerAuth:

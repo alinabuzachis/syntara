@@ -319,7 +319,12 @@ class AAPJobTemplateExecutorConfig(TemplateAwareBaseModel):
     )
     job_credentials: list[int] | None = Field(
         default=None,
-        description="List of AAP credential IDs to pass to the job template (overrides template defaults)",
+        description="List of AAP credential IDs to use (takes precedence over credential_names)",
+    )
+    credential_names: list[str] | None = Field(
+        default=None,
+        description="List of AAP credential names to use (requires organization_name, resolved at launch time)",
+        alias="credentialNames",
     )
     extra_vars: dict[str, Any] = Field(
         default_factory=dict,
@@ -349,6 +354,12 @@ class AAPJobTemplateExecutorConfig(TemplateAwareBaseModel):
     job_template_name: str | None = Field(
         default=None,
         description="AAP job template name (used with organization_name)",
+    )
+    organization_id: int | None = Field(
+        default=None,
+        ge=1,
+        description="AAP organization ID (takes precedence over organization_name)",
+        alias="organizationId",
     )
     organization_name: str | None = Field(
         default=None,
@@ -382,13 +393,23 @@ class AAPJobTemplateExecutorConfig(TemplateAwareBaseModel):
         default=None,
         description="Execution environment override (deferred — requires ID resolution)",
     )
-    instance_groups: str | None = Field(
+    instance_group_id: int | None = Field(
         default=None,
-        description="Instance groups override (deferred — requires ID resolution)",
+        ge=1,
+        description="Override instance group by ID (takes precedence over instance_group_name)",
     )
-    labels: str | None = Field(
+    instance_group_name: str | None = Field(
         default=None,
-        description="Labels (deferred — requires ID resolution)",
+        description="Override instance group by name (requires organization_name for lookup)",
+    )
+    labels: list[str] | None = Field(
+        default=None,
+        description=(
+            "AAP label names to append to job template's default labels. "
+            "Names are resolved to IDs at launch time. "
+            "New labels that don't exist in AAP will be created automatically. "
+            "Note: Labels are APPENDED to template defaults, not replaced."
+        ),
     )
 
     def _validate_id_or_name_reference(

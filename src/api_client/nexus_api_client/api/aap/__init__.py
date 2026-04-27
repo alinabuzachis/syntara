@@ -13,6 +13,7 @@ from . import (
     list_aap_instance_groups,
     list_aap_inventories,
     list_aap_job_templates,
+    list_aap_labels,
     list_aap_organizations,
 )
 
@@ -64,3 +65,9 @@ class AapApi:
 
     async def async_list_instance_groups(self, **kwargs: Any) -> Response[Any]:
         return await list_aap_instance_groups.asyncio_detailed(client=self._client, **kwargs)
+
+    def list_labels(self, **kwargs: Any) -> Response[Any]:
+        return list_aap_labels.sync_detailed(client=self._client, **kwargs)
+
+    async def async_list_labels(self, **kwargs: Any) -> Response[Any]:
+        return await list_aap_labels.asyncio_detailed(client=self._client, **kwargs)

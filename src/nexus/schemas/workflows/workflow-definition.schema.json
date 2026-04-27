@@ -664,6 +664,11 @@
               "description": "AAP organization name. Required when using job_template_name or inventory_name for name-based lookups.",
               "minLength": 1
             },
+            "organization_id": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "AAP organization ID. Takes precedence over organization_name if both are provided."
+            },
             "inventory_id": {
               "type": "integer",
               "minimum": 1,
@@ -676,9 +681,16 @@
             },
             "job_credentials": {
               "type": "array",
-              "description": "List of credential IDs to use",
+              "description": "List of AAP credential IDs to use (takes precedence over credential_names)",
               "items": {
                 "type": "integer"
+              }
+            },
+            "credential_names": {
+              "type": "array",
+              "description": "List of AAP credential names to use (requires organization_name, resolved at launch time)",
+              "items": {
+                "type": "string"
               }
             },
             "extra_vars": {
@@ -704,6 +716,23 @@
               "minimum": 0,
               "maximum": 5,
               "default": 0
+            },
+            "labels": {
+              "type": "array",
+              "description": "AAP label names to append to job template's default labels. Names are resolved to IDs at launch time. New labels that don't exist in AAP will be created automatically. Note: Labels are APPENDED to template defaults, not replaced.",
+              "items": {
+                "type": "string"
+              }
+            },
+            "instance_group_id": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Override instance group by ID. Takes precedence over instance_group_name if both are provided."
+            },
+            "instance_group_name": {
+              "type": "string",
+              "description": "Override instance group by name. Requires organization_name for lookup. Ignored if instance_group_id is also provided.",
+              "minLength": 1
             }
           },
           "allOf": [
