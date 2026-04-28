@@ -5,6 +5,7 @@ Tests cover system overhead and error metrics:
 - Component timing breakdown labels available
 - Error counts by type (timeout, rate_limit, validation, internal)
 - Error timestamps in labels
+- Thread safety under concurrent requests
 """
 
 import asyncio
@@ -306,6 +307,106 @@ class TestMetricsMiddlewareErrors:
 
 
 # =============================================================================
+# MetricsMiddleware - system-wide metrics (FR-021/FR-022)
+# =============================================================================
+
+
+class TestMetricsMiddlewareSystemWide:
+    """System-wide metrics: E2E latency, error rate, and uptime."""
+
+    @pytest.mark.asyncio
+    async def test_e2e_latency_recorded(self, recorder: MetricsRecorder) -> None:
+        """SYSTEM_E2E_LATENCY is recorded for every request."""
+        app = await _make_app(status_code=200)
+        middleware = MetricsMiddleware(app, recorder=recorder)
+
+        await middleware(_make_scope(), AsyncMock(), AsyncMock())
+
+        results = list(recorder.query(metric_types={MetricType.SYSTEM_E2E_LATENCY}))
+        assert len(results) == 1
+        assert results[0].value >= 0
+        assert results[0].labels["component"] == "system_wide"
+
+    @pytest.mark.asyncio
+    async def test_uptime_recorded_on_error(self, recorder: MetricsRecorder) -> None:
+        """SYSTEM_UPTIME is always recorded on error responses."""
+        app = await _make_app(status_code=500)
+        middleware = MetricsMiddleware(app, recorder=recorder)
+
+        await middleware(_make_scope(), AsyncMock(), AsyncMock())
+
+        results = list(recorder.query(metric_types={MetricType.SYSTEM_UPTIME}))
+        assert len(results) == 1
+        assert results[0].value >= 0
+
+    @pytest.mark.asyncio
+    async def test_uptime_not_recorded_on_single_success(self, recorder: MetricsRecorder) -> None:
+        """SYSTEM_UPTIME is not recorded on a single success request (sampled every Nth)."""
+        app = await _make_app(status_code=200)
+        middleware = MetricsMiddleware(app, recorder=recorder)
+
+        await middleware(_make_scope(), AsyncMock(), AsyncMock())
+
+        results = list(recorder.query(metric_types={MetricType.SYSTEM_UPTIME}))
+        assert len(results) == 0
+
+    @pytest.mark.asyncio
+    async def test_uptime_sampled_periodically(self, recorder: MetricsRecorder) -> None:
+        """SYSTEM_UPTIME is recorded every _UPTIME_SAMPLE_INTERVAL requests during healthy traffic."""
+        app = await _make_app(status_code=200)
+        middleware = MetricsMiddleware(app, recorder=recorder)
+
+        interval = MetricsMiddleware._UPTIME_SAMPLE_INTERVAL
+        for _ in range(interval):
+            await middleware(_make_scope(), AsyncMock(), AsyncMock())
+
+        results = list(recorder.query(metric_types={MetricType.SYSTEM_UPTIME}))
+        assert len(results) == 1
+        assert results[0].value >= 0
+
+    @pytest.mark.asyncio
+    async def test_error_rate_not_recorded_on_success(self, recorder: MetricsRecorder) -> None:
+        """SYSTEM_ERROR_RATE is not recorded on success-only requests."""
+        app = await _make_app(status_code=200)
+        middleware = MetricsMiddleware(app, recorder=recorder)
+
+        await middleware(_make_scope(), AsyncMock(), AsyncMock())
+
+        results = list(recorder.query(metric_types={MetricType.SYSTEM_ERROR_RATE}))
+        assert len(results) == 0
+
+    @pytest.mark.asyncio
+    async def test_error_rate_after_mixed_requests(self, recorder: MetricsRecorder) -> None:
+        """SYSTEM_ERROR_RATE reflects the running error ratio on error requests."""
+        ok_app = await _make_app(status_code=200)
+        err_app = await _make_app(status_code=500)
+
+        ok_mw = MetricsMiddleware(ok_app, recorder=recorder)
+        err_mw = MetricsMiddleware(err_app, recorder=recorder)
+
+        await ok_mw(_make_scope(), AsyncMock(), AsyncMock())
+        await ok_mw(_make_scope(), AsyncMock(), AsyncMock())
+        await err_mw(_make_scope(), AsyncMock(), AsyncMock())
+
+        results = list(recorder.query(metric_types={MetricType.SYSTEM_ERROR_RATE}))
+        assert len(results) == 1
+        assert results[0].value == pytest.approx(1.0 / 3.0)
+
+    @pytest.mark.asyncio
+    async def test_e2e_latency_updates_prometheus_histogram(self, recorder: MetricsRecorder) -> None:
+        """SYSTEM_E2E_LATENCY updates the Prometheus histogram."""
+        app = await _make_app(status_code=200)
+        middleware = MetricsMiddleware(app, recorder=recorder)
+
+        await middleware(_make_scope(), AsyncMock(), AsyncMock())
+
+        sample_sum = recorder.prometheus.system_e2e_latency_seconds.labels(
+            component="system_wide",
+        )._sum.get()
+        assert sample_sum > 0
+
+
+# =============================================================================
 # MetricsMiddleware - Prometheus integration
 # =============================================================================
 
@@ -491,3 +592,58 @@ class TestMetricsMiddlewareExceptions:
         errors = list(recorder.query(metric_types={MetricType.ERROR}))
         assert len(errors) == 1
         assert errors[0].labels["error_type"] == "internal"
+
+
+# ---------------------------------------------------------------------------
+# Thread safety
+# ---------------------------------------------------------------------------
+
+
+class TestMetricsMiddlewareThreadSafety:
+    """Verify that concurrent requests don't corrupt shared recorder state."""
+
+    @pytest.mark.asyncio
+    async def test_concurrent_requests_no_lost_counts(self, recorder: MetricsRecorder) -> None:
+        """Concurrent requests must not lose request/error counts."""
+        n_ok = 50
+        n_err = 50
+
+        ok_app = await _make_app(status_code=200)
+        err_app = await _make_app(status_code=500)
+
+        ok_mw = MetricsMiddleware(ok_app, recorder=recorder)
+        err_mw = MetricsMiddleware(err_app, recorder=recorder)
+
+        tasks = [
+            asyncio.create_task(ok_mw(_make_scope(path=f"/api/v1/t/{i}"), AsyncMock(), AsyncMock()))
+            for i in range(n_ok)
+        ] + [
+            asyncio.create_task(err_mw(_make_scope(path=f"/api/v1/t/{i}"), AsyncMock(), AsyncMock()))
+            for i in range(n_err)
+        ]
+        await asyncio.gather(*tasks)
+
+        summary = recorder.get_summary()
+        assert summary.total_requests == n_ok + n_err
+        assert summary.total_errors == n_err
+
+        durations = list(recorder.query(metric_types={MetricType.REQUEST_DURATION}))
+        assert len(durations) == n_ok + n_err
+
+    @pytest.mark.asyncio
+    async def test_concurrent_error_rate_within_bounds(self, recorder: MetricsRecorder) -> None:
+        """Error rate recorded under concurrency stays within valid bounds."""
+        ok_app = await _make_app(status_code=200)
+        err_app = await _make_app(status_code=500)
+
+        ok_mw = MetricsMiddleware(ok_app, recorder=recorder)
+        err_mw = MetricsMiddleware(err_app, recorder=recorder)
+
+        tasks = [asyncio.create_task(ok_mw(_make_scope(), AsyncMock(), AsyncMock())) for _ in range(30)] + [
+            asyncio.create_task(err_mw(_make_scope(), AsyncMock(), AsyncMock())) for _ in range(20)
+        ]
+        await asyncio.gather(*tasks)
+
+        error_rates = list(recorder.query(metric_types={MetricType.SYSTEM_ERROR_RATE}))
+        for r in error_rates:
+            assert 0.0 <= r.value <= 1.0, f"Error rate {r.value} out of bounds"

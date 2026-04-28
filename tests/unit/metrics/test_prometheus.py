@@ -164,19 +164,21 @@ class TestToolInstruments:
     """Verify tool counter and histogram have correct label sets."""
 
     def test_tool_executions_total_labels(self, prom: NexusPrometheusMetrics) -> None:
-        """tool_executions_total counter has [namespaced_name, status] labels."""
+        """tool_executions_total counter has [namespaced_name, status, error_code] labels."""
         prom.tool_executions_total.labels(
             namespaced_name="github::search_code",
             status="success",
+            error_code="none",
         ).inc()
         value = prom.tool_executions_total.labels(
             namespaced_name="github::search_code",
             status="success",
+            error_code="none",
         )._value.get()
         assert value == pytest.approx(1.0)
 
     def test_tool_execution_duration_seconds_labels(self, prom: NexusPrometheusMetrics) -> None:
-        """tool_execution_duration_seconds histogram has [namespaced_name] labels and LATENCY_BUCKETS_MEDIUM."""
+        """tool_execution_duration_seconds histogram has [namespaced_name] labels."""
         prom.tool_execution_duration_seconds.labels(
             namespaced_name="github::search_code",
         ).observe(1.5)
@@ -190,18 +192,22 @@ class TestToolInstruments:
         prom.tool_executions_total.labels(
             namespaced_name="github::search_code",
             status="success",
+            error_code="none",
         ).inc()
         prom.tool_executions_total.labels(
             namespaced_name="github::search_code",
             status="error",
+            error_code="TimeoutError",
         ).inc()
         success = prom.tool_executions_total.labels(
             namespaced_name="github::search_code",
             status="success",
+            error_code="none",
         )._value.get()
         error = prom.tool_executions_total.labels(
             namespaced_name="github::search_code",
             status="error",
+            error_code="TimeoutError",
         )._value.get()
         assert success == pytest.approx(1.0)
         assert error == pytest.approx(1.0)

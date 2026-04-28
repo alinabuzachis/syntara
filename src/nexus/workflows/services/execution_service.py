@@ -19,7 +19,7 @@ from nexus.core.services import BaseService
 from nexus.core.services.extensions import ConvertResourceMixin
 from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.emission import emit_completion_metrics
-from nexus.metrics.types import MetricType
+from nexus.metrics.types import ComponentLabel, MetricType
 from nexus.workflows.exceptions import (
     ExecutionNotFoundError,
     TemporalUnavailableError,
@@ -150,6 +150,7 @@ class ExecutionService(BaseService):
         logger.info("Creating execution for workflow by user", workflow_id=workflow_id, user_id=self.user.id)
 
         recorder = get_metrics_recorder()
+        component = ComponentLabel.EXECUTION_SERVICE
 
         # Step 1: Validate workflow exists and is enabled
         result = await self.session.exec(
@@ -186,13 +187,17 @@ class ExecutionService(BaseService):
 
         if self.temporal_service is not None:
             logger.info("Starting Temporal workflow for execution...")
-            temporal_result = await self.temporal_service.start_workflow(
-                workflow_def=workflow_version.workflow_definition,
-                workflow_name=workflow.name,
-                input_data=input_data,
-                workflow_id=str(workflow.id),
-                request_id=request_id_context_var.get(),
-            )
+            with recorder.time(
+                MetricType.WORKFLOW_START_LATENCY,
+                labels={"component": component.value},
+            ):
+                temporal_result = await self.temporal_service.start_workflow(
+                    workflow_def=workflow_version.workflow_definition,
+                    workflow_name=workflow.name,
+                    input_data=input_data,
+                    workflow_id=str(workflow.id),
+                    request_id=request_id_context_var.get(),
+                )
             temporal_workflow_id = temporal_result.temporal_workflow_id
             execution_id = UUID(temporal_result.execution_id)
             logger.info(

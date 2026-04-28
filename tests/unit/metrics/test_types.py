@@ -66,6 +66,7 @@ class TestMetricType:
             # Execution Service
             "WORKFLOW_START_LATENCY",
             "WORKFLOW_COMPLETION_RATE",
+            "TEMPORAL_EXECUTION_SERVICE_DURATION",
             # Tool Metrics
             "TOOL_EXECUTION_DURATION",
             "TOOL_EXECUTION_STATUS",
@@ -90,7 +91,7 @@ class TestMetricType:
         """MetricType can be constructed from its string value."""
         assert MetricType("llm_duration_ms") is MetricType.LLM_DURATION
         assert MetricType("api_response_time_ms") is MetricType.API_RESPONSE_TIME
-        assert MetricType("system_uptime_ratio") is MetricType.SYSTEM_UPTIME
+        assert MetricType("system_uptime_seconds") is MetricType.SYSTEM_UPTIME
 
     def test_tool_execution_status_exists(self) -> None:
         """TOOL_EXECUTION_STATUS enum member exists with correct value."""

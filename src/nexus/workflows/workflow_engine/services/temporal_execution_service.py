@@ -15,6 +15,8 @@ from temporalio.exceptions import TemporalError
 
 from nexus.core.config.base import get_settings
 from nexus.core.exceptions import SafeValueError
+from nexus.metrics.dependencies import get_metrics_recorder
+from nexus.metrics.types import ComponentLabel, MetricType
 from nexus.workflows.utils.datetime import ensure_timezone_aware
 from nexus.workflows.workflow_engine.dynamic_workflow import NexusWorkflow
 from nexus.workflows.workflow_engine.models.responses import (
@@ -120,6 +122,8 @@ class TemporalExecutionService:
 
         """
         try:
+            recorder = get_metrics_recorder()
+
             # Validate V2 workflow structure (basic check)
             logger.info("Validating V2 workflow definition", workflow_name=workflow_name)
             schema_version = workflow_def.get("schema_version")
@@ -159,13 +163,16 @@ class TemporalExecutionService:
                 trigger_id=trigger_node_id,
             )
 
-            # Start Temporal workflow with V2 signature
-            handle = await self.temporal_client.start_workflow(
-                NexusWorkflow.run,
-                args=[workflow_def, execution_id, trigger_node_id, input_data or {}, False, request_id],
-                id=temporal_workflow_id,
-                task_queue=self.task_queue,
-            )
+            with recorder.time(
+                MetricType.TEMPORAL_EXECUTION_SERVICE_DURATION,
+                labels={"component": ComponentLabel.EXECUTION_SERVICE.value, "workflow_name": workflow_name},
+            ):
+                handle = await self.temporal_client.start_workflow(
+                    NexusWorkflow.run,
+                    args=[workflow_def, execution_id, trigger_node_id, input_data or {}, False, request_id],
+                    id=temporal_workflow_id,
+                    task_queue=self.task_queue,
+                )
 
             logger.info(
                 "Workflow started successfully",

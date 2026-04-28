@@ -279,4 +279,223 @@ class TestActivityDurationMetrics:
         with patch(PATCH_TARGET, return_value=recorder):
             await service._emit_completion_metrics(completed_execution)
 
-        assert recorder.prometheus.activity_duration_seconds._sum.get() > 0
+        assert (
+            recorder.prometheus.activity_duration_seconds.labels(
+                activity_name="say_hello",
+                status="completed",
+                workflow_type="test-workflow",
+            )._sum.get()
+            > 0
+        )
+
+
+# =============================================================================
+# Activity duration Prometheus labels
+# =============================================================================
+
+
+class TestActivityDurationPrometheusLabels:
+    """Tests that ACTIVITY_DURATION Prometheus histogram carries the correct labels."""
+
+    def setup_method(self) -> None:
+        reset_emission_trackers()
+
+    @pytest.mark.asyncio
+    async def test_prometheus_labels_match_activity(
+        self,
+        recorder: MetricsRecorder,
+        completed_execution: Execution,
+        activities_factory: ActivitiesFactory,
+        test_db_session: AsyncSession,
+    ) -> None:
+        await activities_factory.create_activities(completed_execution, ["fetch_data"], duration_seconds=2.0)
+
+        service = _make_service(test_db_session)
+        with patch(PATCH_TARGET, return_value=recorder):
+            await service._emit_completion_metrics(completed_execution)
+
+        labeled = recorder.prometheus.activity_duration_seconds.labels(
+            activity_name="fetch_data",
+            status="completed",
+            workflow_type="test-workflow",
+        )
+        assert labeled._sum.get() > 0
+
+    @pytest.mark.asyncio
+    async def test_failed_activity_gets_failed_label(
+        self,
+        recorder: MetricsRecorder,
+        completed_execution: Execution,
+        activities_factory: ActivitiesFactory,
+        test_db_session: AsyncSession,
+    ) -> None:
+        await activities_factory.create_activities(
+            completed_execution,
+            ["bad_step"],
+            status=ActivityStatus.FAILED,
+            duration_seconds=0.5,
+        )
+
+        service = _make_service(test_db_session)
+        with patch(PATCH_TARGET, return_value=recorder):
+            await service._emit_completion_metrics(completed_execution)
+
+        labeled = recorder.prometheus.activity_duration_seconds.labels(
+            activity_name="bad_step",
+            status="failed",
+            workflow_type="test-workflow",
+        )
+        assert labeled._sum.get() > 0
+
+
+# =============================================================================
+# Activity execution success rate
+# =============================================================================
+
+
+class TestActivityExecutionSuccessRate:
+    """Tests for ACTIVITY_EXECUTION_SUCCESS_RATE emitted after activity processing."""
+
+    def setup_method(self) -> None:
+        reset_emission_trackers()
+
+    @pytest.mark.asyncio
+    async def test_all_succeeded_yields_rate_one(
+        self,
+        recorder: MetricsRecorder,
+        completed_execution: Execution,
+        activities_factory: ActivitiesFactory,
+        test_db_session: AsyncSession,
+    ) -> None:
+        await activities_factory.create_activities(completed_execution, ["a", "b", "c"])
+
+        service = _make_service(test_db_session)
+        with patch(PATCH_TARGET, return_value=recorder):
+            await service._emit_completion_metrics(completed_execution)
+
+        results = list(recorder.query(metric_types={MetricType.ACTIVITY_EXECUTION_SUCCESS_RATE}))
+        assert len(results) == 1
+        assert results[0].value == pytest.approx(1.0)
+        assert results[0].labels["component"] == "temporal_worker"
+
+    @pytest.mark.asyncio
+    async def test_mixed_results_yields_correct_ratio(
+        self,
+        recorder: MetricsRecorder,
+        completed_execution: Execution,
+        activities_factory: ActivitiesFactory,
+        test_db_session: AsyncSession,
+    ) -> None:
+        await activities_factory.create_activities(completed_execution, ["ok1", "ok2"])
+        await activities_factory.create_activities(
+            completed_execution,
+            ["fail1"],
+            status=ActivityStatus.FAILED,
+        )
+
+        service = _make_service(test_db_session)
+        with patch(PATCH_TARGET, return_value=recorder):
+            await service._emit_completion_metrics(completed_execution)
+
+        results = list(recorder.query(metric_types={MetricType.ACTIVITY_EXECUTION_SUCCESS_RATE}))
+        assert len(results) == 1
+        assert results[0].value == pytest.approx(2.0 / 3.0)
+
+    @pytest.mark.asyncio
+    async def test_no_terminal_activities_skips_recording(
+        self,
+        recorder: MetricsRecorder,
+        completed_execution: Execution,
+        activities_factory: ActivitiesFactory,
+        test_db_session: AsyncSession,
+    ) -> None:
+        await activities_factory.create_activities(
+            completed_execution,
+            ["running"],
+            status=ActivityStatus.RUNNING,
+        )
+
+        service = _make_service(test_db_session)
+        with patch(PATCH_TARGET, return_value=recorder):
+            await service._emit_completion_metrics(completed_execution)
+
+        results = list(recorder.query(metric_types={MetricType.ACTIVITY_EXECUTION_SUCCESS_RATE}))
+        assert len(results) == 0
+
+    @pytest.mark.asyncio
+    async def test_updates_prometheus_gauge(
+        self,
+        recorder: MetricsRecorder,
+        completed_execution: Execution,
+        activities_factory: ActivitiesFactory,
+        test_db_session: AsyncSession,
+    ) -> None:
+        await activities_factory.create_activities(completed_execution, ["step"])
+
+        service = _make_service(test_db_session)
+        with patch(PATCH_TARGET, return_value=recorder):
+            await service._emit_completion_metrics(completed_execution)
+
+        gauge_value = recorder.prometheus.activity_execution_success_rate.labels(
+            component="temporal_worker",
+        )._value.get()
+        assert gauge_value == pytest.approx(1.0)
+
+
+# =============================================================================
+# Workflow completion rate
+# =============================================================================
+
+
+class TestWorkflowCompletionRate:
+    """Tests for WORKFLOW_COMPLETION_RATE emitted on terminal workflow state."""
+
+    def setup_method(self) -> None:
+        reset_emission_trackers()
+
+    @pytest.mark.asyncio
+    async def test_completed_execution_records_rate_one(
+        self,
+        recorder: MetricsRecorder,
+        completed_execution: Execution,
+        test_db_session: AsyncSession,
+    ) -> None:
+        service = _make_service(test_db_session)
+        with patch(PATCH_TARGET, return_value=recorder):
+            await service._emit_completion_metrics(completed_execution)
+
+        results = list(recorder.query(metric_types={MetricType.WORKFLOW_COMPLETION_RATE}))
+        assert len(results) == 1
+        assert results[0].value == pytest.approx(1.0)
+        assert results[0].labels["component"] == "execution_service"
+
+    @pytest.mark.asyncio
+    async def test_failed_execution_records_rate_zero(
+        self,
+        recorder: MetricsRecorder,
+        failed_execution: Execution,
+        test_db_session: AsyncSession,
+    ) -> None:
+        service = _make_service(test_db_session)
+        with patch(PATCH_TARGET, return_value=recorder):
+            await service._emit_completion_metrics(failed_execution)
+
+        results = list(recorder.query(metric_types={MetricType.WORKFLOW_COMPLETION_RATE}))
+        assert len(results) == 1
+        assert results[0].value == pytest.approx(0.0)
+
+    @pytest.mark.asyncio
+    async def test_updates_prometheus_gauge(
+        self,
+        recorder: MetricsRecorder,
+        completed_execution: Execution,
+        test_db_session: AsyncSession,
+    ) -> None:
+        service = _make_service(test_db_session)
+        with patch(PATCH_TARGET, return_value=recorder):
+            await service._emit_completion_metrics(completed_execution)
+
+        gauge_value = recorder.prometheus.workflow_completion_rate.labels(
+            component="execution_service",
+        )._value.get()
+        assert gauge_value == pytest.approx(1.0)

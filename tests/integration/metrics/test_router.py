@@ -85,7 +85,10 @@ class TestOpenMetricsEndpoint:
             MetricType.TOOL_EXECUTION_DURATION,
             value=1500.0,
             unit="ms",
-            labels={"namespaced_name": "github::search_code", "status": "success"},
+            labels={
+                "namespaced_name": "github::search_code",
+                "status": "success",
+            },
         )
         resp = client.get("/metrics")
         content = resp.text
@@ -99,12 +102,20 @@ class TestOpenMetricsEndpoint:
         recorder.record(
             MetricType.TOOL_EXECUTION_STATUS,
             value=1.0,
-            labels={"namespaced_name": "github::search_code", "status": "error"},
+            labels={
+                "namespaced_name": "github::search_code",
+                "status": "error",
+                "error_code": "RuntimeError",
+            },
         )
         recorder.record(
             MetricType.TOOL_EXECUTION_STATUS,
             value=1.0,
-            labels={"namespaced_name": "github::search_code", "status": "timeout"},
+            labels={
+                "namespaced_name": "github::search_code",
+                "status": "timeout",
+                "error_code": "TimeoutError",
+            },
         )
         resp = client.get("/metrics")
         content = resp.text

@@ -76,6 +76,7 @@ class MetricType(StrEnum):
     # Execution Service Metrics
     WORKFLOW_START_LATENCY = "workflow_start_latency_ms"
     WORKFLOW_COMPLETION_RATE = "workflow_completion_rate"
+    TEMPORAL_EXECUTION_SERVICE_DURATION = "temporal_execution_service_duration_ms"
 
     # Tool Metrics
     TOOL_EXECUTION_DURATION = "tool_execution_duration_ms"
@@ -87,7 +88,7 @@ class MetricType(StrEnum):
     DATABASE_TRANSACTION_RATE = "database_transaction_rate_tps"
 
     # System-Wide Metrics
-    SYSTEM_UPTIME = "system_uptime_ratio"
+    SYSTEM_UPTIME = "system_uptime_seconds"
     SYSTEM_E2E_LATENCY = "system_e2e_latency_ms"
     SYSTEM_ERROR_RATE = "system_error_rate"
 
@@ -162,6 +163,7 @@ METRIC_CATEGORIES: dict[MetricsCategoryType, list[MetricType]] = {
     MetricsCategoryType.EXECUTION_SERVICE: [
         MetricType.WORKFLOW_START_LATENCY,
         MetricType.WORKFLOW_COMPLETION_RATE,
+        MetricType.TEMPORAL_EXECUTION_SERVICE_DURATION,
     ],
     MetricsCategoryType.TOOL: [
         MetricType.TOOL_EXECUTION_DURATION,

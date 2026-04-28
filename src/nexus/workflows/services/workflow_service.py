@@ -4,6 +4,7 @@ This service encapsulates workflow-related business logic, separating it from
 HTTP/API concerns in the FastAPI endpoints.
 """
 
+import threading
 from collections.abc import Iterable
 from datetime import UTC, datetime
 from typing import Any
@@ -17,6 +18,8 @@ from nexus.authz.engine import AllowedProjectsResult
 from nexus.core.models import User
 from nexus.core.services import BaseService
 from nexus.core.services.extensions import ConvertResourceMixin
+from nexus.metrics.dependencies import get_metrics_recorder
+from nexus.metrics.types import ComponentLabel, MetricType
 from nexus.workflows.exceptions import (
     WorkflowNameConflictError,
     WorkflowNotFoundError,
@@ -24,6 +27,18 @@ from nexus.workflows.exceptions import (
 )
 from nexus.workflows.models import Workflow, WorkflowListResponse, WorkflowRead, WorkflowVersion
 from nexus.workflows.validators import workflow_validator
+
+# Running counters for workflow creation success rate (FR-010).
+_workflow_creation_counts: list[int] = [0, 0]  # [successes, total]
+
+# Thread lock to protect counter from race conditions during concurrent access
+_workflow_creation_lock = threading.Lock()
+
+
+def reset_workflow_creation_counters() -> None:
+    """Clear the workflow creation counters (testing helper)."""
+    with _workflow_creation_lock:
+        _workflow_creation_counts[:] = [0, 0]
 
 
 class WorkflowConvertResourceMixin(ConvertResourceMixin):
@@ -108,8 +123,14 @@ class WorkflowService(BaseService):
             WorkflowNameConflictError: If workflow name already exists
 
         """
-        # Validate V2 workflow structure (basic check)
-        workflow_validator.validate_workflow_definition(workflow_definition)
+        recorder = get_metrics_recorder()
+        component = ComponentLabel.WORKFLOW_ENGINE
+
+        with recorder.time(
+            MetricType.WORKFLOW_VALIDATION_DURATION,
+            labels={"component": component.value, "operation": "create"},
+        ):
+            workflow_validator.validate_workflow_definition(workflow_definition)
 
         schema_version = workflow_definition.get("schema_version")
         workflow_dict = workflow_definition
@@ -141,10 +162,30 @@ class WorkflowService(BaseService):
         self.session.add(version)
 
         # Commit changes with duplicate name check
-        await self._commit_with_duplicate_check(name)
+        try:
+            await self._commit_with_duplicate_check(name)
+        except Exception:
+            with _workflow_creation_lock:
+                _workflow_creation_counts[1] += 1
+                rate = _workflow_creation_counts[0] / _workflow_creation_counts[1]
+            recorder.record(
+                MetricType.WORKFLOW_CREATION_SUCCESS_RATE,
+                rate,
+                component=component,
+            )
+            raise
         await self.session.refresh(workflow)
         await self.session.refresh(version)
 
+        with _workflow_creation_lock:
+            _workflow_creation_counts[0] += 1
+            _workflow_creation_counts[1] += 1
+            rate = _workflow_creation_counts[0] / _workflow_creation_counts[1]
+        recorder.record(
+            MetricType.WORKFLOW_CREATION_SUCCESS_RATE,
+            rate,
+            component=component,
+        )
         return workflow, version
 
     async def list_workflows_cursor(
@@ -307,8 +348,13 @@ class WorkflowService(BaseService):
             If identical, no new version is created (returns None).
 
         """
-        # Validate V2 workflow structure (basic check)
-        workflow_validator.validate_workflow_definition(workflow_definition)
+        recorder = get_metrics_recorder()
+
+        with recorder.time(
+            MetricType.WORKFLOW_VALIDATION_DURATION,
+            labels={"component": ComponentLabel.WORKFLOW_ENGINE.value, "operation": "version_update"},
+        ):
+            workflow_validator.validate_workflow_definition(workflow_definition)
 
         schema_version = workflow_definition.get("schema_version")
         workflow_dict = workflow_definition

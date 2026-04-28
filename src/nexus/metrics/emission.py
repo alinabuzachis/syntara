@@ -10,16 +10,17 @@ execution from being counted twice regardless of which path fires first.
 
 from __future__ import annotations
 
+import threading
 from collections import OrderedDict
 from typing import TYPE_CHECKING
 
 import structlog
 from sqlmodel import select
 
-from nexus.metrics.types import MetricType
+from nexus.metrics.types import ComponentLabel, MetricType
 from nexus.telemetry.collector import _TERMINAL_STATUSES as TERMINAL_ACTIVITY_STATUSES
-from nexus.workflows.models.activity_execution import ActivityExecution
-from nexus.workflows.models.execution import TERMINAL_EXECUTION_STATUSES
+from nexus.workflows.models.activity_execution import ActivityExecution, ActivityStatus
+from nexus.workflows.models.execution import TERMINAL_EXECUTION_STATUSES, ExecutionStatus
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -40,39 +41,60 @@ class _BoundedDedup:
     When the capacity is exceeded, the oldest entries are evicted first.
     This replaces the previous plain ``set[UUID]`` which could grow without
     bound and used non-deterministic iteration order for trimming.
+
+    Thread-safe: All operations are protected by an internal lock to prevent
+    race conditions during concurrent access from multiple threads.
     """
 
-    __slots__ = ("_data", "_max_size")
+    __slots__ = ("_data", "_lock", "_max_size")
 
     def __init__(self, max_size: int = DEFAULT_MAX_DEDUP_SIZE) -> None:
         self._data: OrderedDict[UUID, None] = OrderedDict()
         self._max_size = max_size
+        self._lock = threading.Lock()
 
     def __contains__(self, item: UUID) -> bool:
-        return item in self._data
+        with self._lock:
+            return item in self._data
 
     def __len__(self) -> int:
-        return len(self._data)
+        with self._lock:
+            return len(self._data)
 
     def add(self, item: UUID) -> None:
-        self._data[item] = None
-        while len(self._data) > self._max_size:
-            self._data.popitem(last=False)
+        with self._lock:
+            self._data[item] = None
+            while len(self._data) > self._max_size:
+                self._data.popitem(last=False)
 
     def clear(self) -> None:
-        self._data.clear()
+        with self._lock:
+            self._data.clear()
 
     def difference_update(self, items: set[UUID] | list[UUID]) -> None:
-        for item in items:
-            self._data.pop(item, None)
+        with self._lock:
+            for item in items:
+                self._data.pop(item, None)
 
 
 emitted_completions: _BoundedDedup = _BoundedDedup()
 
+# Running counters for aggregate rate gauges.
+_workflow_completion_counts: list[int] = [0, 0]  # [completed, total]
+_activity_success_counts: list[int] = [0, 0]  # [succeeded, total]
+
+# Thread locks to protect counters from race conditions during concurrent access
+_workflow_completion_lock = threading.Lock()
+_activity_success_lock = threading.Lock()
+
 
 def reset_emission_trackers() -> None:
-    """Clear the process-local dedup set (testing helper)."""
+    """Clear the process-local dedup set and running counters (testing helper)."""
     emitted_completions.clear()
+    with _workflow_completion_lock:
+        _workflow_completion_counts[:] = [0, 0]
+    with _activity_success_lock:
+        _activity_success_counts[:] = [0, 0]
 
 
 async def emit_completion_metrics(
@@ -123,6 +145,17 @@ def _emit_workflow(
     recorder.record(MetricType.WORKFLOW_STATUS, value=1, labels=labels)
     recorder.decrement_gauge("active_workflows")
 
+    with _workflow_completion_lock:
+        _workflow_completion_counts[1] += 1
+        if execution.status == ExecutionStatus.COMPLETED:
+            _workflow_completion_counts[0] += 1
+        completion_rate = _workflow_completion_counts[0] / _workflow_completion_counts[1]
+    recorder.record(
+        MetricType.WORKFLOW_COMPLETION_RATE,
+        completion_rate,
+        component=ComponentLabel.EXECUTION_SERVICE,
+    )
+
 
 async def _emit_activities(
     session: AsyncSession,
@@ -130,7 +163,7 @@ async def _emit_activities(
     workflow_type: str,
     recorder: MetricsRecorder,
 ) -> None:
-    """Query terminal activities and record ACTIVITY_DURATION for each."""
+    """Query terminal activities and record ACTIVITY_DURATION + success rate."""
     result = await session.exec(
         select(ActivityExecution)
         .where(ActivityExecution.execution_id == execution.id)
@@ -139,9 +172,15 @@ async def _emit_activities(
         .where(ActivityExecution.completed_at.is_not(None))  # type: ignore[union-attr]
         .order_by(ActivityExecution.created_at)  # type: ignore[arg-type]
     )
-    for activity in result.all():
+    activities = result.all()
+    total = 0
+    succeeded = 0
+    for activity in activities:
         if not activity.started_at or not activity.completed_at:
             continue  # defensive; SQL WHERE should prevent this
+        total += 1
+        if activity.status == ActivityStatus.COMPLETED:
+            succeeded += 1
         duration_ms = (activity.completed_at - activity.started_at).total_seconds() * 1000
         recorder.record(
             MetricType.ACTIVITY_DURATION,
@@ -153,4 +192,15 @@ async def _emit_activities(
                 "status": activity.status.value if activity.status else "unknown",
                 "workflow_type": workflow_type,
             },
+        )
+
+    if total > 0:
+        with _activity_success_lock:
+            _activity_success_counts[0] += succeeded
+            _activity_success_counts[1] += total
+            aggregate_rate = _activity_success_counts[0] / _activity_success_counts[1]
+        recorder.record(
+            MetricType.ACTIVITY_EXECUTION_SUCCESS_RATE,
+            aggregate_rate,
+            component=ComponentLabel.TEMPORAL_WORKER,
         )

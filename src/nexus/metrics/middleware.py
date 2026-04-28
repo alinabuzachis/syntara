@@ -16,7 +16,7 @@ import structlog
 
 from nexus.api.constants import EXCLUDED_PATH_PREFIXES, EXCLUDED_PATHS
 from nexus.audit.emitter import request_id_context_var
-from nexus.metrics.types import MetricType
+from nexus.metrics.types import ComponentLabel, MetricType
 
 if TYPE_CHECKING:
     from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -96,6 +96,8 @@ class MetricsMiddleware:
 
     """
 
+    _UPTIME_SAMPLE_INTERVAL: int = 100
+
     def __init__(self, app: ASGIApp, recorder: MetricsRecorder) -> None:
         """Initialise the middleware.
 
@@ -106,6 +108,8 @@ class MetricsMiddleware:
         """
         self.app = app
         self._recorder = recorder
+        self._start_time = time.monotonic()
+        self._request_count = 0
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         """Process an ASGI request.
@@ -182,12 +186,20 @@ class MetricsMiddleware:
             "status": status_str,
         }
 
+        component = ComponentLabel.SYSTEM_WIDE
+
         try:
             self._recorder.record(
                 MetricType.REQUEST_DURATION,
                 duration_ms,
                 unit="ms",
                 labels=labels,
+            )
+            self._recorder.record(
+                MetricType.SYSTEM_E2E_LATENCY,
+                duration_ms,
+                unit="ms",
+                component=component,
             )
             self._recorder.increment("requests")
 
@@ -203,6 +215,22 @@ class MetricsMiddleware:
                     },
                 )
                 self._recorder.increment("errors")
+
+                summary = self._recorder.get_summary()
+                if summary.total_requests > 0:
+                    self._recorder.record(
+                        MetricType.SYSTEM_ERROR_RATE,
+                        summary.total_errors / summary.total_requests,
+                        component=component,
+                    )
+
+            self._request_count += 1
+            if error_type is not None or self._request_count % self._UPTIME_SAMPLE_INTERVAL == 0:
+                self._recorder.record(
+                    MetricType.SYSTEM_UPTIME,
+                    time.monotonic() - self._start_time,
+                    component=component,
+                )
         except Exception:  # noqa: BLE001
             logger.warning(
                 "metrics_recording_failed",

@@ -437,7 +437,10 @@ class TestRecorderPrometheus:
             MetricType.TOOL_EXECUTION_DURATION,
             1500.0,
             unit="ms",
-            labels={"namespaced_name": "github::search_code", "status": "success"},
+            labels={
+                "namespaced_name": "github::search_code",
+                "status": "success",
+            },
         )
         hist_sum = recorder.prometheus.tool_execution_duration_seconds.labels(
             namespaced_name="github::search_code",
@@ -446,6 +449,7 @@ class TestRecorderPrometheus:
         counter_val = recorder.prometheus.tool_executions_total.labels(
             namespaced_name="github::search_code",
             status="success",
+            error_code="none",
         )._value.get()
         assert counter_val == pytest.approx(1.0)
 
@@ -454,11 +458,16 @@ class TestRecorderPrometheus:
         recorder.record(
             MetricType.TOOL_EXECUTION_STATUS,
             1.0,
-            labels={"namespaced_name": "github::search_code", "status": "error"},
+            labels={
+                "namespaced_name": "github::search_code",
+                "status": "error",
+                "error_code": "TimeoutError",
+            },
         )
         counter_val = recorder.prometheus.tool_executions_total.labels(
             namespaced_name="github::search_code",
             status="error",
+            error_code="TimeoutError",
         )._value.get()
         assert counter_val == pytest.approx(1.0)
 
@@ -485,20 +494,128 @@ class TestRecorderPrometheus:
         counter_val = recorder.prometheus.tool_executions_total.labels(
             namespaced_name="github::search_code",
             status="unknown",
+            error_code="none",
         )._value.get()
         assert counter_val == pytest.approx(1.0)
+
+    def test_workflow_serialization_duration_updates_histogram(self, recorder: MetricsRecorder) -> None:
+        """Recording WORKFLOW_SERIALIZATION_DURATION observes the histogram."""
+        recorder.record(
+            MetricType.WORKFLOW_SERIALIZATION_DURATION,
+            150.0,
+            unit="ms",
+            labels={"component": "workflow_engine"},
+        )
+        sample = recorder.prometheus.workflow_serialization_duration_seconds.labels(
+            component="workflow_engine",
+        )
+        assert sample._sum.get() == pytest.approx(0.15)
+
+    def test_workflow_validation_duration_updates_histogram(self, recorder: MetricsRecorder) -> None:
+        """Recording WORKFLOW_VALIDATION_DURATION observes the histogram."""
+        recorder.record(
+            MetricType.WORKFLOW_VALIDATION_DURATION,
+            80.0,
+            unit="ms",
+            labels={"component": "workflow_engine"},
+        )
+        sample = recorder.prometheus.workflow_validation_duration_seconds.labels(
+            component="workflow_engine",
+        )
+        assert sample._sum.get() == pytest.approx(0.08)
+
+    def test_temporal_execution_service_duration_updates_histogram(self, recorder: MetricsRecorder) -> None:
+        """Recording TEMPORAL_EXECUTION_SERVICE_DURATION observes the histogram."""
+        recorder.record(
+            MetricType.TEMPORAL_EXECUTION_SERVICE_DURATION,
+            250.0,
+            unit="ms",
+            labels={"component": "execution_service"},
+        )
+        sample = recorder.prometheus.temporal_execution_service_duration_seconds.labels(
+            component="execution_service",
+        )
+        assert sample._sum.get() == pytest.approx(0.25)
+
+    def test_workflow_creation_success_rate_updates_gauge(self, recorder: MetricsRecorder) -> None:
+        """Recording WORKFLOW_CREATION_SUCCESS_RATE sets the gauge."""
+        recorder.record(
+            MetricType.WORKFLOW_CREATION_SUCCESS_RATE,
+            1.0,
+            component=ComponentLabel.WORKFLOW_ENGINE,
+        )
+        sample_value = recorder.prometheus.workflow_creation_success_rate.labels(
+            component="workflow_engine",
+        )._value.get()
+        assert sample_value == pytest.approx(1.0)
+
+    def test_activity_duration_updates_labeled_histogram(self, recorder: MetricsRecorder) -> None:
+        """Recording ACTIVITY_DURATION observes the histogram with labels."""
+        recorder.record(
+            MetricType.ACTIVITY_DURATION,
+            1500.0,
+            unit="ms",
+            labels={
+                "activity_name": "send_email",
+                "status": "completed",
+                "workflow_type": "onboarding",
+            },
+        )
+        sample = recorder.prometheus.activity_duration_seconds.labels(
+            activity_name="send_email",
+            status="completed",
+            workflow_type="onboarding",
+        )
+        assert sample._sum.get() == pytest.approx(1.5)
+
+    def test_activity_execution_success_rate_updates_gauge(self, recorder: MetricsRecorder) -> None:
+        """Recording ACTIVITY_EXECUTION_SUCCESS_RATE sets the gauge."""
+        recorder.record(
+            MetricType.ACTIVITY_EXECUTION_SUCCESS_RATE,
+            0.75,
+            component=ComponentLabel.TEMPORAL_WORKER,
+        )
+        sample_value = recorder.prometheus.activity_execution_success_rate.labels(
+            component="temporal_worker",
+        )._value.get()
+        assert sample_value == pytest.approx(0.75)
+
+    def test_workflow_start_latency_updates_histogram(self, recorder: MetricsRecorder) -> None:
+        """Recording WORKFLOW_START_LATENCY observes the histogram."""
+        recorder.record(
+            MetricType.WORKFLOW_START_LATENCY,
+            250.0,
+            unit="ms",
+            labels={"component": "execution_service"},
+        )
+        sample = recorder.prometheus.workflow_start_latency_seconds.labels(
+            component="execution_service",
+        )
+        assert sample._sum.get() == pytest.approx(0.25)
+
+    def test_workflow_completion_rate_updates_gauge(self, recorder: MetricsRecorder) -> None:
+        """Recording WORKFLOW_COMPLETION_RATE sets the gauge."""
+        recorder.record(
+            MetricType.WORKFLOW_COMPLETION_RATE,
+            1.0,
+            component=ComponentLabel.EXECUTION_SERVICE,
+        )
+        sample_value = recorder.prometheus.workflow_completion_rate.labels(
+            component="execution_service",
+        )._value.get()
+        assert sample_value == pytest.approx(1.0)
 
     def test_system_uptime_updates_gauge(self, recorder: MetricsRecorder) -> None:
         """Recording SYSTEM_UPTIME sets the system-wide gauge."""
         recorder.record(
             MetricType.SYSTEM_UPTIME,
-            0.999,
+            3600.5,
             component=ComponentLabel.SYSTEM_WIDE,
         )
         sample_value = recorder.prometheus.system_uptime.labels(
             component="system_wide",
         )._value.get()
-        assert sample_value == pytest.approx(0.999)
+        assert sample_value == pytest.approx(3600.5)
 
     def test_enabled_property(self, recorder: MetricsRecorder) -> None:
         """Enabled property reflects constructor argument."""

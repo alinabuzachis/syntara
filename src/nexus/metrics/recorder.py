@@ -57,6 +57,11 @@ _COMPONENT_METRIC_MAP: dict[MetricType, tuple[str, str, tuple[str, ...]]] = {
     # Execution Service
     MetricType.WORKFLOW_START_LATENCY: ("workflow_start_latency_seconds", "histogram", ()),
     MetricType.WORKFLOW_COMPLETION_RATE: ("workflow_completion_rate", "gauge", ()),
+    MetricType.TEMPORAL_EXECUTION_SERVICE_DURATION: ("temporal_execution_service_duration_seconds", "histogram", ()),
+    # Database
+    MetricType.DATABASE_QUERY_RESPONSE_TIME: ("database_query_response_time_seconds", "histogram", ("table_name",)),
+    MetricType.DATABASE_CONNECTION_POOL_UTILIZATION: ("database_connection_pool_utilization", "gauge", ()),
+    MetricType.DATABASE_TRANSACTION_RATE: ("database_transaction_rate_tps", "gauge", ()),
     # System-Wide
     MetricType.SYSTEM_UPTIME: ("system_uptime", "gauge", ()),
     MetricType.SYSTEM_E2E_LATENCY: ("system_e2e_latency_seconds", "histogram", ()),
@@ -348,7 +353,11 @@ class MetricsRecorder:
             ).inc()
 
         elif metric_type == MetricType.ACTIVITY_DURATION:
-            p.activity_duration_seconds.observe(value / 1000)
+            p.activity_duration_seconds.labels(
+                activity_name=labels.get("activity_name", "unknown"),
+                status=labels.get("status", "unknown"),
+                workflow_type=labels.get("workflow_type", "unknown"),
+            ).observe(value / 1000)
 
         elif metric_type == MetricType.ERROR:
             p.errors_total.labels(
@@ -441,6 +450,7 @@ class MetricsRecorder:
             msg = "Tool metrics require a 'namespaced_name' label"
             raise SafeValueError(msg)
         status = labels.get("status", "unknown")
+        error_code = labels.get("error_code", "none")
 
         if metric_type == MetricType.TOOL_EXECUTION_DURATION:
             p.tool_execution_duration_seconds.labels(
@@ -449,11 +459,13 @@ class MetricsRecorder:
             p.tool_executions_total.labels(
                 namespaced_name=namespaced_name,
                 status=status,
+                error_code=error_code,
             ).inc()
         elif metric_type == MetricType.TOOL_EXECUTION_STATUS:
             p.tool_executions_total.labels(
                 namespaced_name=namespaced_name,
                 status=status,
+                error_code=error_code,
             ).inc()
 
     @staticmethod

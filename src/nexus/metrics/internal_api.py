@@ -260,6 +260,9 @@ def _build_temporal_worker(recorder: MetricsRecorder) -> ComponentKPISummary:
 def _build_execution_service(recorder: MetricsRecorder, summary: MetricsSummary) -> ComponentKPISummary:
     m: _MetricsDict = {}
     m["start_latency_ms"] = _percentile_stats(_collect_values(recorder, {MetricType.WORKFLOW_START_LATENCY}))
+    m["temporal_rpc_duration_ms"] = _percentile_stats(
+        _collect_values(recorder, {MetricType.TEMPORAL_EXECUTION_SERVICE_DURATION}),
+    )
     m["completion_rate"] = _rate_from_status(recorder, MetricType.WORKFLOW_STATUS, {"completed"})
     m["active_workflows"] = summary.active_workflows
     m["total_workflows"] = summary.total_workflows

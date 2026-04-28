@@ -144,6 +144,7 @@ class NexusPrometheusMetrics:
         self.activity_duration_seconds = Histogram(
             "nexus_activity_duration_seconds",
             "Activity execution duration in seconds",
+            ["activity_name", "status", "workflow_type"],
             buckets=LATENCY_BUCKETS_MEDIUM,
             registry=self.registry,
         )
@@ -215,6 +216,14 @@ class NexusPrometheusMetrics:
             registry=self.registry,
         )
 
+        self.temporal_execution_service_duration_seconds = Histogram(
+            "nexus_temporal_execution_service_duration_seconds",
+            "Temporal client start_workflow RPC duration including network and server startup",
+            ["component"],
+            buckets=LATENCY_BUCKETS_MEDIUM,
+            registry=self.registry,
+        )
+
         self.tool_execution_duration_seconds = Histogram(
             "nexus_tool_execution_duration_seconds",
             "Tool execution duration in seconds",
@@ -243,7 +252,7 @@ class NexusPrometheusMetrics:
         self.tool_executions_total = Counter(
             "nexus_tool_executions_total",
             "Total tool executions",
-            ["namespaced_name", "status"],
+            ["namespaced_name", "status", "error_code"],
             registry=self.registry,
         )
 
@@ -306,7 +315,7 @@ class NexusPrometheusMetrics:
 
         self.system_uptime = Gauge(
             "nexus_system_uptime",
-            "System uptime ratio",
+            "System uptime in seconds",
             ["component"],
             registry=self.registry,
         )

@@ -106,19 +106,32 @@ def _resolve_execution_status(error: Exception | None) -> ToolExecutionStatus:
     return ToolExecutionStatus.ERROR
 
 
-def _emit_tool_metrics(base_tool: Any, duration_ms: float, status: ToolExecutionStatus) -> None:  # noqa: ANN401
+def _emit_tool_metrics(
+    base_tool: Any,  # noqa: ANN401
+    duration_ms: float,
+    status: ToolExecutionStatus,
+    error: Exception | None = None,
+) -> None:
     """Emit tool execution metrics to MetricsRecorder (best-effort).
 
     Args:
         base_tool: The BaseTool instance with metadata.
         duration_ms: Execution duration in milliseconds.
         status: Resolved execution status.
+        error: Optional exception for error_code labeling.
 
     """
     try:
         recorder = get_metrics_recorder()
-        namespaced_name = base_tool.metadata["namespaced_name"]
-        labels = {"namespaced_name": namespaced_name, "status": status.value}
+        metadata = base_tool.metadata
+        provider_id = metadata.get("provider_id", "unknown")
+        labels: dict[str, str] = {
+            "namespaced_name": metadata["namespaced_name"],
+            "status": status.value,
+            "provider_id": provider_id,
+            "tool_id": metadata.get("tool_id", "unknown"),
+            "error_code": type(error).__name__ if error is not None else "none",
+        }
         recorder.record(MetricType.TOOL_EXECUTION_DURATION, duration_ms, unit="ms", labels=labels)
         recorder.record(MetricType.TOOL_EXECUTION_STATUS, 1.0, labels=labels)
     except Exception:  # noqa: BLE001
@@ -290,7 +303,7 @@ def create_tool_awrapper(
                 if tool and hasattr(tool, "metadata") and isinstance(tool.metadata, dict)
                 else ""
             )
-            _emit_tool_metrics(request.tool, duration_ms, status)
+            _emit_tool_metrics(request.tool, duration_ms, status, error=caught_error)
             await _persist_tool_execution_to_db(
                 request.tool,
                 duration_ms,
@@ -400,7 +413,7 @@ def create_tool_wrapper(
                 if tool and hasattr(tool, "metadata") and isinstance(tool.metadata, dict)
                 else ""
             )
-            _emit_tool_metrics(request.tool, duration_ms, status)
+            _emit_tool_metrics(request.tool, duration_ms, status, error=caught_error)
             _run_coroutine_from_sync(
                 _persist_tool_execution_to_db(
                     request.tool,
