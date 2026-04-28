@@ -21,7 +21,7 @@ from uuid import uuid4
 
 import pytest
 
-from tests.performance.api_service.conftest import (
+from tests.performance.conftest import (
     compute_percentile,
 )
 
