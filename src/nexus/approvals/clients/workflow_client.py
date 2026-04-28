@@ -12,6 +12,7 @@ from uuid import UUID
 import httpx
 import structlog
 
+from nexus.auth import create_service_token
 from nexus.core.config.base import get_settings
 from nexus.workflows.utils.url import generate_activity_signal_url
 
@@ -138,14 +139,19 @@ class WorkflowApiClient:
         )
 
         # Retry logic with exponential backoff
-        last_error: Exception | None = None
+        last_error: httpx.HTTPError | None = None
 
         for attempt in range(self.max_retries + 1):
             try:
+                # Generate a fresh token per attempt to avoid expiry on retries
+                auth_headers = {
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {create_service_token()}",
+                }
                 response = await self.http_client.post(
                     signal_url,
                     json=signal_payload,
-                    headers={"Content-Type": "application/json"},
+                    headers=auth_headers,
                 )
                 response.raise_for_status()
 
@@ -160,7 +166,7 @@ class WorkflowApiClient:
                 )
                 return
 
-            except Exception as e:
+            except httpx.HTTPError as e:
                 last_error = e
 
                 # Check if we should retry

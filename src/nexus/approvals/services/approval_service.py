@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from sqlalchemy import Select
     from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
+from nexus.approvals.audit.approval import ApprovalDecidedEvent, ApprovalRequestedEvent
 from nexus.approvals.clients.workflow_client import WorkflowApiClient
 from nexus.approvals.exceptions import ApprovalAlreadyDecidedError, ApprovalAlreadyRequestedError, ApprovalNotFoundError
 from nexus.approvals.models import (
@@ -37,6 +38,7 @@ from nexus.approvals.models import (
     BatchApprovalResult,
     UserReference,
 )
+from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.authz.engine import AllowedProjectsResult
 from nexus.core.models import User
 from nexus.core.services import BaseService
@@ -243,6 +245,17 @@ class ApprovalService(BaseService):
             approval_node_id=request.approval_node_id,
         )
 
+        AuditEventDispatcher.dispatch(
+            ApprovalRequestedEvent(
+                approval_id=approval.id,
+                execution_id=request.execution_id,
+                approval_node_id=request.approval_node_id,
+                name=request.name,
+                project_id=project_id,
+                timeout_at=request.timeout_at,
+            )
+        )
+
         return cast("ApprovalRequestRead", self.convert_resource_mixin.convert_resource(approval))
 
     async def decide(
@@ -283,6 +296,7 @@ class ApprovalService(BaseService):
         approval.decision_notes = request.notes
 
         await self.session.commit()
+        await self.session.refresh(approval, ["decider"])
 
         logger.info(
             "Approval decision made",
@@ -291,7 +305,23 @@ class ApprovalService(BaseService):
             decided_by=self.user.id,
         )
 
-        # Send signal to workflow engine
+        decided = (approval.decided_at or datetime.now(UTC)).replace(tzinfo=None)
+        created = approval.created_at.replace(tzinfo=None)
+        wait_time_ms = int((decided - created).total_seconds() * 1000)
+        AuditEventDispatcher.dispatch(
+            ApprovalDecidedEvent(
+                approval_id=approval_id,
+                execution_id=approval.execution_id,
+                approval_node_id=approval.approval_node_id,
+                decision=status_enum.value,
+                decided_by=self.user.id,
+                decided_at=approval.decided_at,
+                wait_time_ms=wait_time_ms,
+                decision_notes=request.notes,
+            )
+        )
+
+        # Send signal to workflow engine (best-effort, never blocks the response)
         try:
             async with WorkflowApiClient() as client:
                 await client.send_approval_signal(
@@ -366,6 +396,22 @@ class ApprovalService(BaseService):
             approval_id=approval_id,
             status=status.value,
             decided_by=self.user.id,
+        )
+
+        decided = (approval.decided_at or datetime.now(UTC)).replace(tzinfo=None)
+        created = approval.created_at.replace(tzinfo=None)
+        wait_time_ms = int((decided - created).total_seconds() * 1000)
+        AuditEventDispatcher.dispatch(
+            ApprovalDecidedEvent(
+                approval_id=approval_id,
+                execution_id=approval.execution_id,
+                approval_node_id=approval.approval_node_id,
+                decision=status.value,
+                decided_by=self.user.id,
+                decided_at=approval.decided_at,
+                wait_time_ms=wait_time_ms,
+                decision_notes=notes,
+            )
         )
 
         return BatchApprovalResult(

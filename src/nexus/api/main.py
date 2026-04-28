@@ -18,6 +18,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import text
 from temporalio.service import RPCError
 
+import nexus.approvals.audit  # Package scanned by discover_handlers() at startup
 import nexus.audit.events  # Package scanned by discover_handlers() at startup
 import nexus.auth.audit  # Package scanned by discover_handlers() at startup
 import nexus.auth.exceptions  # Side-effect import to trigger exception handler registration
@@ -84,6 +85,9 @@ def _discover_and_register_audit_handlers() -> None:
     Continues startup if discovery fails — audit is observability, not critical path.
     """
     try:
+        approvals_audit_registry = discover_handlers(nexus.approvals.audit)
+        AuditEventDispatcher.register(approvals_audit_registry)
+
         audit_events_registry = discover_handlers(nexus.audit.events)
         AuditEventDispatcher.register(audit_events_registry)
 
@@ -93,7 +97,12 @@ def _discover_and_register_audit_handlers() -> None:
         telemetry_registry = discover_handlers(nexus.telemetry.handlers)
         AuditEventDispatcher.register(telemetry_registry)
 
-        total_handlers = len(audit_events_registry) + len(auth_audit_registry) + len(telemetry_registry)
+        total_handlers = (
+            len(approvals_audit_registry)
+            + len(audit_events_registry)
+            + len(auth_audit_registry)
+            + len(telemetry_registry)
+        )
         logger.info("Audit event handlers discovered", handler_count=total_handlers)
     except Exception:
         logger.exception("Failed to discover and register audit handlers - audit system degraded")
