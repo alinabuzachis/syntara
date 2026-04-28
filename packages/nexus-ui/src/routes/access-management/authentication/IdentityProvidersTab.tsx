@@ -17,6 +17,7 @@ import type { IAction } from '@patternfly/react-table'
 import { useMemo, useReducer } from 'react'
 import { navigate } from 'wouter/use-browser-location'
 
+import { AppPageMain } from '../../../app/AppPage'
 import { AppRoute } from '../../../app/AppRoute'
 import { identityProvidersClient } from '../../../client'
 import { useAlerts } from '../../../components/alerts'
@@ -220,7 +221,7 @@ export function IdentityProvidersTab() {
           </FlexItem>
         </Flex>
       </StackItem>
-      <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
+      <AppPageMain style={{ overflow: 'auto' }}>
         {providers.length === 0 && hasActiveFilters ? (
           <EmptyStateFilter clearAllFilters={() => handleFilterChange([])} />
         ) : (
@@ -281,7 +282,7 @@ export function IdentityProvidersTab() {
             </Tbody>
           </ScrollableTableContainer>
         )}
-      </StackItem>
+      </AppPageMain>
       <ConfirmationDialog
         isOpen={deleteDialogOpen}
         onClose={() => dispatch({ type: 'CLOSE_DELETE_DIALOG' })}

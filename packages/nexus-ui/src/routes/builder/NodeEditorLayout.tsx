@@ -58,10 +58,9 @@ export function NodeEditorLayout({
         width: '100%',
         display: 'flex',
         flexDirection: 'column',
-        overflow: 'hidden',
       }}
     >
-      <Stack style={{ flex: 1, minHeight: 0, height: '100%' }}>
+      <Stack style={{ flex: 1, minHeight: 0, height: '100%', overflow: 'hidden' }}>
         <StackItem style={{ padding: 'var(--pf-t--global--spacer--sm)' }}>
           <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }} alignItems={{ default: 'alignItemsCenter' }}>
             <FlexItem grow={{ default: 'grow' }} style={{ minWidth: 0 }}>

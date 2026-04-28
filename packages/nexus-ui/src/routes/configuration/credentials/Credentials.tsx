@@ -4,7 +4,7 @@ import { Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
 
-import { AppPage } from '../../../app/AppPage'
+import { AppPage, AppPageMain } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { credentialsClient } from '../../../client'
 import { useAlerts } from '../../../components/alerts'
@@ -242,9 +242,9 @@ export default function Credentials() {
     return (
       <AppPage>
         <AppPageHeader title={<PageTitleWithProject title="Credentials" projectSelector={ProjectSelector} />} />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <AppPageMain>
           <AppPanel isFullHeight>{queryState}</AppPanel>
-        </StackItem>
+        </AppPageMain>
       </AppPage>
     )
   }
@@ -258,11 +258,11 @@ export default function Credentials() {
       </AppPageHeader>
 
       {results.length === 0 && !hasActiveFilters ? (
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <AppPageMain>
           <CredentialEmptyState onCreateCredential={() => setCreateModalOpen(true)} />
-        </StackItem>
+        </AppPageMain>
       ) : (
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <AppPageMain>
           <AppPanel isFullHeight>
             <Stack style={{ height: '100%', flex: 1, minHeight: 0 }}>
               <StackItem>
@@ -275,11 +275,11 @@ export default function Credentials() {
               </StackItem>
 
               {results.length === 0 ? (
-                <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <AppPageMain style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
-                </StackItem>
+                </AppPageMain>
               ) : (
-                <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
+                <AppPageMain style={{ overflow: 'auto' }}>
                   <ScrollableTableContainer
                     aria-label="Credentials table"
                     footer={{
@@ -336,11 +336,11 @@ export default function Credentials() {
                       />
                     )}
                   </ScrollableTableContainer>
-                </StackItem>
+                </AppPageMain>
               )}
             </Stack>
           </AppPanel>
-        </StackItem>
+        </AppPageMain>
       )}
 
       <DisableCredentialDialog

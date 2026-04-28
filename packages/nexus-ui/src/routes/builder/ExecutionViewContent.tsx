@@ -160,26 +160,34 @@ function ExecutionViewContentInner(props: ExecutionViewContentProps) {
         minWidth: 0,
         width: '100%',
         height: '100%',
-        overflow: 'hidden',
       }}
     >
-      <BuilderFlow
-        workflowId={workflow?.id ?? null}
-        panelOpen={false}
-        activeEdgeButtonNodeId={null}
-        activeEdgeButtonHandle={null}
-        activeEdgeId={null}
-        executionStatus={executionStatus}
-        onNodeClick={() => {
-          // No-op: nodes are not clickable in execution view
+      <div
+        style={{
+          height: '100%',
+          width: '100%',
+          minHeight: 0,
+          overflow: 'hidden',
         }}
-        onAddNodeFromEdge={() => {
-          // No-op: cannot add steps in execution view
-        }}
-        onNodesDeleted={() => {
-          // No-op: cannot delete steps in execution view
-        }}
-      />
+      >
+        <BuilderFlow
+          workflowId={workflow?.id ?? null}
+          panelOpen={false}
+          activeEdgeButtonNodeId={null}
+          activeEdgeButtonHandle={null}
+          activeEdgeId={null}
+          executionStatus={executionStatus}
+          onNodeClick={() => {
+            // No-op: nodes are not clickable in execution view
+          }}
+          onAddNodeFromEdge={() => {
+            // No-op: cannot add steps in execution view
+          }}
+          onNodesDeleted={() => {
+            // No-op: cannot delete steps in execution view
+          }}
+        />
+      </div>
     </AppPanel>
   )
 }

@@ -1,6 +1,7 @@
 import { SearchInput, Stack, StackItem } from '@patternfly/react-core'
 import { useMemo, useState } from 'react'
 
+import { AppPageMain } from '../../../../app/AppPage'
 import { CodeBlock } from '../../../../components/details/CodeBlock'
 
 export type OutputJsonViewProps = {
@@ -33,11 +34,11 @@ export function OutputJsonView({ data }: Readonly<OutputJsonViewProps>) {
           onClear={() => setSearchTerm('')}
         />
       </StackItem>
-      <StackItem isFilled>
+      <AppPageMain>
         <CodeBlock enableCopy noMaxHeight copyContent={fullJson}>
           {filteredContent ?? fullJson}
         </CodeBlock>
-      </StackItem>
+      </AppPageMain>
     </Stack>
   )
 }

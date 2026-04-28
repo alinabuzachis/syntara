@@ -5,7 +5,7 @@ import '@xyflow/react/dist/style.css'
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useParams, useSearch } from 'wouter'
 
-import { AppPage } from '../../app/AppPage'
+import { AppPage, AppPageMain } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { executionsClient } from '../../client'
 import { AppPanel } from '../../components/AppPanel'
@@ -77,12 +77,12 @@ function ExecutionDetailContent({
     <Flex
       alignItems={{ default: 'alignItemsStretch' }}
       flexWrap={{ default: 'nowrap' }}
-      gap={{ default: 'gapSm' }}
+      gap={{ default: 'gapLg' }}
       style={{
         position: 'relative',
         minWidth: 0,
         height: '100%',
-        overflow: 'hidden',
+        overflow: 'visible',
         display: 'flex',
         flexDirection: 'row',
       }}
@@ -93,7 +93,6 @@ function ExecutionDetailContent({
           minWidth: 0,
           flexGrow: 1,
           height: '100%',
-          overflow: 'hidden',
         }}
       >
         {isStale && !isComplete && (
@@ -115,16 +114,22 @@ function ExecutionDetailContent({
             </FlexItem>
           </Flex>
         )}
-        <Stack style={{ height: '100%', overflow: 'hidden', gap: 'var(--pf-t--global--spacer--sm)' }}>
+        <Stack
+          style={{
+            height: '100%',
+            minHeight: 0,
+            gap: 'var(--pf-t--global--spacer--lg)',
+          }}
+        >
           {/* Workflow Canvas - use ExecutionViewContent for read-only viewing */}
-          <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+          <AppPageMain>
             <ExecutionViewContent
               workflow={workflow}
               executionStatus={execution?.status ?? null}
               executionActivities={activities}
               executionId={executionId}
             />
-          </StackItem>
+          </AppPageMain>
 
           {/* Execution Details Panel */}
           <StackItem style={{ flexShrink: 0, height: '300px' }}>
@@ -293,11 +298,11 @@ export default function ExecutionDetail() {
     return (
       <AppPage>
         <AppPageHeader title="Error" />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <AppPageMain>
           <AppPanel isFullHeight>
             <ErrorState title="Invalid execution" message="No execution ID provided" />
           </AppPanel>
-        </StackItem>
+        </AppPageMain>
       </AppPage>
     )
   }
@@ -307,11 +312,11 @@ export default function ExecutionDetail() {
     return (
       <AppPage>
         <AppPageHeader title="Error loading execution" />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <AppPageMain>
           <AppPanel isFullHeight>
             <ErrorState title="Error loading execution" message={executionQuery.error} />
           </AppPanel>
-        </StackItem>
+        </AppPageMain>
       </AppPage>
     )
   }
@@ -320,11 +325,11 @@ export default function ExecutionDetail() {
     return (
       <AppPage>
         <AppPageHeader title="Loading execution" />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <AppPageMain>
           <AppPanel isFullHeight>
             <LoadingState />
           </AppPanel>
-        </StackItem>
+        </AppPageMain>
       </AppPage>
     )
   }
@@ -368,7 +373,7 @@ export default function ExecutionDetail() {
           Back to editor
         </Button>
       </AppPageHeader>
-      <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+      <AppPageMain>
         <ExecutionDetailContent
           key={executionId}
           historyCardOpen={historyCardOpen}
@@ -382,7 +387,7 @@ export default function ExecutionDetail() {
           filters={executionFilters}
           onFilterChange={setExecutionFilters}
         />
-      </StackItem>
+      </AppPageMain>
     </AppPage>
   )
 }

@@ -15,6 +15,7 @@ import type { IAction, ThProps } from '@patternfly/react-table'
 import { useState } from 'react'
 import { navigate } from 'wouter/use-browser-location'
 
+import { AppPageMain } from '../../app/AppPage'
 import { AppRoute } from '../../app/AppRoute'
 import { useAlerts } from '../../components/alerts'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
@@ -282,14 +283,14 @@ export function ProjectsTab() {
           </Flex>
         </StackItem>
         {paginatedProjects.length === 0 ? (
-          <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <AppPageMain style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <EmptyStateFilter
               clearAllFilters={() => {
                 clearAllFilters()
                 setPage(1)
               }}
             />
-          </StackItem>
+          </AppPageMain>
         ) : (
           <ScrollableTableContainer
             aria-label="Projects"

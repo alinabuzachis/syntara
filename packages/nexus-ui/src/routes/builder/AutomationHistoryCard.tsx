@@ -18,6 +18,7 @@ import {
 import { RhUiHistoryIcon, RhUiCloseIcon } from '@patternfly/react-icons'
 import { useMemo, type CSSProperties, type ReactNode } from 'react'
 
+import pageMainSlotStyles from '../../app/AppPage.module.css'
 import { AppPanel } from '../../components/AppPanel'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { FilterBar } from '../../components/filters/FilterBar'
@@ -166,66 +167,74 @@ export function AutomationHistoryCard(props: AutomationHistoryCardProps) {
   return (
     <AppPanel
       hasNoPadding
-      isGlass={false}
+      isFullHeight
       style={{
         height: '100%',
         maxHeight: '100%',
         width: '20rem',
         flexShrink: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
       }}
     >
-      <Stack style={{ height: '100%', overflow: 'hidden' }}>
-        <StackItem
-          style={{
-            flexShrink: 0,
-            padding: 'var(--pf-t--global--spacer--lg) var(--pf-t--global--spacer--md) var(--pf-t--global--spacer--md)',
-          }}
-        >
-          <Flex
-            justifyContent={{ default: 'justifyContentSpaceBetween' }}
-            alignItems={{ default: 'alignItemsFlexStart' }}
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
+        <Stack style={{ height: '100%', minHeight: 0 }}>
+          <StackItem
+            style={{
+              flexShrink: 0,
+              padding:
+                'var(--pf-t--global--spacer--lg) var(--pf-t--global--spacer--md) var(--pf-t--global--spacer--md)',
+            }}
           >
-            <FlexItem>
-              <Stack hasGutter>
-                <Flex gap={{ default: 'gapSm' }} alignItems={{ default: 'alignItemsCenter' }}>
+            <Flex
+              justifyContent={{ default: 'justifyContentSpaceBetween' }}
+              alignItems={{ default: 'alignItemsFlexStart' }}
+            >
+              <FlexItem>
+                <Stack hasGutter>
+                  <Flex gap={{ default: 'gapSm' }} alignItems={{ default: 'alignItemsCenter' }}>
+                    <Icon>
+                      <RhUiHistoryIcon />
+                    </Icon>
+                    <Title headingLevel="h2" size={TitleSizes.md}>
+                      Run History
+                    </Title>
+                  </Flex>
+                  <Content component={ContentVariants.small}>View past runs of this workflow.</Content>
+                </Stack>
+              </FlexItem>
+              <FlexItem>
+                <Button variant="plain" onClick={onClose} aria-label="Close">
                   <Icon>
-                    <RhUiHistoryIcon />
+                    <RhUiCloseIcon />
                   </Icon>
-                  <Title headingLevel="h2" size={TitleSizes.md}>
-                    Run History
-                  </Title>
-                </Flex>
-                <Content component={ContentVariants.small}>View past runs of this workflow.</Content>
-              </Stack>
-            </FlexItem>
-            <FlexItem>
-              <Button variant="plain" onClick={onClose} aria-label="Close">
-                <Icon>
-                  <RhUiCloseIcon />
-                </Icon>
-              </Button>
-            </FlexItem>
-          </Flex>
-        </StackItem>
-
-        {onFilterChange && (
-          <StackItem style={{ flexShrink: 0, minWidth: 0, overflow: 'hidden' }}>
-            <FilterBar
-              fieldDefinitions={HISTORY_FILTER_FIELDS}
-              filters={filters}
-              onFilterChange={onFilterChange}
-              isCompact
-            />
+                </Button>
+              </FlexItem>
+            </Flex>
           </StackItem>
-        )}
 
-        <StackItem isFilled style={{ minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
-          {executionListBody}
-        </StackItem>
-      </Stack>
+          {onFilterChange && (
+            <StackItem style={{ flexShrink: 0, minWidth: 0, overflow: 'hidden' }}>
+              <FilterBar
+                fieldDefinitions={HISTORY_FILTER_FIELDS}
+                filters={filters}
+                onFilterChange={onFilterChange}
+                isCompact
+              />
+            </StackItem>
+          )}
+
+          <StackItem isFilled className={pageMainSlotStyles.main} style={{ overflowY: 'auto', overflowX: 'hidden' }}>
+            {executionListBody}
+          </StackItem>
+        </Stack>
+      </div>
     </AppPanel>
   )
 }

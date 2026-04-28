@@ -84,6 +84,8 @@ npm test                    # Run all tests
 npm run test:ui             # Run UI package tests
 npm run e2e                 # Run e2e playwright tests
 npm run e2e:ui              # Run e2e playwright tests in the playwright UI
+npm run e2e:visual-regression        # Page screenshot visual regression (mock API + UI via Playwright webServer)
+npm run e2e:visual-regression:update # Same, with --update-snapshots (see packages/nexus-ui/VISUAL_REGRESSION.md)
 
 # Run a specific test or coverage (from packages/nexus-ui)
 cd packages/nexus-ui

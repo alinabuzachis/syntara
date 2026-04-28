@@ -1,5 +1,6 @@
 import { Stack, StackItem, Tab, Tabs, TabTitleText } from '@patternfly/react-core'
 
+import { AppPageMain } from '../../app/AppPage'
 import { AppRoute } from '../../app/AppRoute'
 import { useDetailTab } from '../../hooks/useDetailTab'
 
@@ -45,11 +46,11 @@ export function CanITab() {
         </Tabs>
       </StackItem>
 
-      <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
+      <AppPageMain style={{ overflow: 'auto' }}>
         {mode === 'check' && <CheckAccessView policies={policies} />}
         {mode === 'who-can' && canQueryAuthz && <WhoCanView policies={policies} />}
         {mode === 'my-permissions' && <MyPermissionsView />}
-      </StackItem>
+      </AppPageMain>
     </Stack>
   )
 }

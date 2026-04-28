@@ -4,6 +4,7 @@ import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table
 import type { IAction, ThProps } from '@patternfly/react-table'
 import { useState } from 'react'
 
+import { AppPageMain } from '../../../app/AppPage'
 import { useAlerts } from '../../../components/alerts'
 import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
@@ -167,9 +168,9 @@ export function ProjectPoliciesTab({ projectId }: Readonly<{ projectId: string }
         </StackItem>
 
         {policies.length === 0 ? (
-          <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <AppPageMain style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <EmptyStateFilter clearAllFilters={clearAllFilters} />
-          </StackItem>
+          </AppPageMain>
         ) : (
           <ScrollableTableContainer
             aria-label="Project policies"

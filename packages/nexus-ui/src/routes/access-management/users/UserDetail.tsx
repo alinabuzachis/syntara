@@ -20,7 +20,7 @@ import { RhUiArrowLeftIcon, RhUiEditIcon } from '@patternfly/react-icons'
 import { useParams } from 'wouter'
 import { navigate } from 'wouter/use-browser-location'
 
-import { AppPage } from '../../../app/AppPage'
+import { AppPage, AppPageMain } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
 import { authClient } from '../../../client'
@@ -229,7 +229,7 @@ export function UserDetail() {
           Edit user
         </Button>
       </AppPageHeader>
-      <StackItem>
+      <StackItem style={{ flexShrink: 0 }}>
         <Tabs activeKey={activeTab} onSelect={(_event, key) => goToTab(key as UserTab)}>
           <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />
           <Tab
@@ -251,7 +251,7 @@ export function UserDetail() {
           <Tab eventKey="roles" title={<TabTitleText>Role Assignments</TabTitleText>} />
         </Tabs>
       </StackItem>
-      <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+      <AppPageMain>
         <AppPanel isFullHeight>
           {activeTab === 'details' && <UserDetailsTab user={userData} identities={identitiesData} />}
           {activeTab === 'groups' && <UserGroupsPanel userId={userId ?? ''} />}
@@ -264,7 +264,7 @@ export function UserDetail() {
           )}
           {activeTab === 'roles' && <RoleAssignmentsPanel principalType="user" principalId={userId ?? ''} />}
         </AppPanel>
-      </StackItem>
+      </AppPageMain>
     </AppPage>
   )
 }

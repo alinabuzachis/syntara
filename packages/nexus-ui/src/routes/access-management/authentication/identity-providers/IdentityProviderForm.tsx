@@ -15,7 +15,7 @@ import { useForm } from 'react-hook-form'
 import { useParams } from 'wouter'
 import { navigate } from 'wouter/use-browser-location'
 
-import { AppPage } from '../../../../app/AppPage'
+import { AppPage, AppPageMain } from '../../../../app/AppPage'
 import { AppPageHeader } from '../../../../app/AppPageHeader'
 import { AppRoute } from '../../../../app/AppRoute'
 import { identityProvidersClient, OIDC_REDIRECT_URI } from '../../../../client'
@@ -374,9 +374,9 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
     return (
       <AppPage>
         <AppPageHeader title={pageTitle} />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <AppPageMain>
           <AppPanel isFullHeight>{queryState}</AppPanel>
-        </StackItem>
+        </AppPageMain>
       </AppPage>
     )
   }
@@ -392,7 +392,7 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
           Cancel
         </Button>
       </AppPageHeader>
-      <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+      <AppPageMain>
         <AppPanel
           isFullHeight
           isScrollable
@@ -409,7 +409,7 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
             isTesting={isTesting}
           />
         </AppPanel>
-      </StackItem>
+      </AppPageMain>
     </AppPage>
   )
 }

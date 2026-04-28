@@ -3,6 +3,7 @@ import { Content, ContentVariants, EmptyState, EmptyStateBody, Label, Stack, Sta
 import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import { useLocation } from 'wouter'
 
+import { AppPageMain } from '../../../app/AppPage'
 import { AppRoute } from '../../../app/AppRoute'
 import { credentialsClient } from '../../../client'
 import { useQueryState } from '../../../components/states/useQueryState'
@@ -63,7 +64,7 @@ export function CredentialWorkflowsTab({ credentialId }: Readonly<CredentialWork
 
   return (
     <Stack style={{ height: '100%', padding: 'var(--pf-t--global--spacer--lg)' }}>
-      <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
+      <AppPageMain style={{ overflow: 'auto' }}>
         <ScrollableTableContainer
           aria-label="Workflows using this credential"
           footer={{
@@ -128,7 +129,7 @@ export function CredentialWorkflowsTab({ credentialId }: Readonly<CredentialWork
             ))}
           </Tbody>
         </ScrollableTableContainer>
-      </StackItem>
+      </AppPageMain>
     </Stack>
   )
 }

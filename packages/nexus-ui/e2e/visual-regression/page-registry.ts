@@ -402,7 +402,7 @@ export const pages: PageEntry[] = [
     name: 'authentication',
     path: '/access-management/authentication',
     waitFor: async (page) => {
-      await expect(page.getByText('Built-in Administrator Account')).toBeVisible()
+      await expect(page.getByRole('heading', { level: 1, name: 'Identity Providers' })).toBeVisible()
     },
   },
   {

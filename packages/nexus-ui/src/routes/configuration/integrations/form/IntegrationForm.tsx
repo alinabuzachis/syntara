@@ -9,7 +9,6 @@ import {
   FormHelperText,
   HelperText,
   HelperTextItem,
-  StackItem,
   TextInput,
   ToggleGroup,
   ToggleGroupItem,
@@ -18,7 +17,7 @@ import { RhUiErrorIcon, RhUiServerFillIcon } from '@patternfly/react-icons'
 import { Controller, useForm } from 'react-hook-form'
 import { navigate } from 'wouter/use-browser-location'
 
-import { AppPage } from '../../../../app/AppPage'
+import { AppPage, AppPageMain } from '../../../../app/AppPage'
 import { AppPageHeader } from '../../../../app/AppPageHeader'
 import { AppRoute } from '../../../../app/AppRoute'
 import { toolManagerClient } from '../../../../client'
@@ -100,7 +99,7 @@ export function IntegrationForm() {
           Cancel
         </Button>
       </AppPageHeader>
-      <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+      <AppPageMain>
         <AppPanel isFullHeight panelMainBodyProps={{ style: { padding: 'var(--pf-t--global--spacer--xl)' } }}>
           <div style={{ maxWidth: '600px' }}>
             <Form id="integration-form" onSubmit={handleSubmit(onSubmit)}>
@@ -223,7 +222,7 @@ export function IntegrationForm() {
             </Form>
           </div>
         </AppPanel>
-      </StackItem>
+      </AppPageMain>
     </AppPage>
   )
 }

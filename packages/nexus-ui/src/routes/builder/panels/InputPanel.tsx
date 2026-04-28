@@ -2,6 +2,7 @@ import { getNodeOutputSchema } from '@ansible/nexus-contracts'
 import { ExpandableSection, Stack, StackItem, Title } from '@patternfly/react-core'
 import { useEffect, useMemo, useState } from 'react'
 
+import { AppPageMain } from '../../../app/AppPage'
 import { AppPanel } from '../../../components/AppPanel'
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import { selectActivities, selectTriggers } from '../../../stores/workflowStoreSelectors'
@@ -112,7 +113,7 @@ export function InputPanel({ nodeId, executionData, sourceNodeId }: Readonly<Inp
               />
             </StackItem>
           )}
-          <StackItem isFilled className={styles.scrollableContent}>
+          <AppPageMain className={styles.scrollableContent}>
             <ExpandableSection
               toggleText={nodeSectionTitle}
               isIndented
@@ -129,7 +130,7 @@ export function InputPanel({ nodeId, executionData, sourceNodeId }: Readonly<Inp
             >
               <VariablesAndContextTree />
             </ExpandableSection>
-          </StackItem>
+          </AppPageMain>
         </Stack>
       )}
     </AppPanel>

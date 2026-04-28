@@ -5,11 +5,10 @@ import {
   DescriptionListGroup,
   DescriptionListTerm,
   SearchInput,
-  StackItem,
 } from '@patternfly/react-core'
 import { useMemo } from 'react'
 
-import { AppPage } from '../../../app/AppPage'
+import { AppPage, AppPageMain } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppPanel } from '../../../components/AppPanel'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
@@ -39,13 +38,13 @@ export default function Glossary() {
         />
       </AppPageHeader>
       {results.length === 0 ? (
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <AppPageMain>
           <AppPanel isFullHeight>
             <EmptyStateFilter clearAllFilters={() => setSearch('')} />
           </AppPanel>
-        </StackItem>
+        </AppPageMain>
       ) : (
-        <StackItem isFilled>
+        <AppPageMain>
           <AppPanel isFullHeight isScrollable>
             <DescriptionList>
               {results.map((result) => (
@@ -60,7 +59,7 @@ export default function Glossary() {
               ))}
             </DescriptionList>
           </AppPanel>
-        </StackItem>
+        </AppPageMain>
       )}
     </AppPage>
   )

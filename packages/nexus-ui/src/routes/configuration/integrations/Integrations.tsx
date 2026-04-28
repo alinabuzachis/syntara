@@ -13,7 +13,7 @@ import type { IAction } from '@patternfly/react-table'
 import { useMemo } from 'react'
 import { useLocation } from 'wouter'
 
-import { AppPage } from '../../../app/AppPage'
+import { AppPage, AppPageMain } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
 import { toolManagerClient } from '../../../client'
@@ -242,9 +242,9 @@ export default function Integrations() {
     return (
       <AppPage>
         <AppPageHeader title="Integrations" />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <AppPageMain>
           <AppPanel isFullHeight>{queryState}</AppPanel>
-        </StackItem>
+        </AppPageMain>
       </AppPage>
     )
   }
@@ -258,11 +258,11 @@ export default function Integrations() {
       </AppPageHeader>
 
       {results.length === 0 && !hasActiveFilters ? (
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <AppPageMain>
           <IntegrationEmptyState />
-        </StackItem>
+        </AppPageMain>
       ) : (
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <AppPageMain>
           <AppPanel isFullHeight>
             <Stack style={{ height: '100%', flex: 1, minHeight: 0, padding: '0 var(--pf-t--global--spacer--sm)' }}>
               <StackItem>
@@ -275,11 +275,11 @@ export default function Integrations() {
               </StackItem>
 
               {results.length === 0 ? (
-                <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <AppPageMain style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
-                </StackItem>
+                </AppPageMain>
               ) : (
-                <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+                <AppPageMain>
                   <ScrollableTableContainer
                     aria-label="Integrations table"
                     footer={getFooterProps(query.data, results.length, 'integration', 'integrations')}
@@ -315,11 +315,11 @@ export default function Integrations() {
                       ))}
                     </Tbody>
                   </ScrollableTableContainer>
-                </StackItem>
+                </AppPageMain>
               )}
             </Stack>
           </AppPanel>
-        </StackItem>
+        </AppPageMain>
       )}
 
       <ConfirmationDialog

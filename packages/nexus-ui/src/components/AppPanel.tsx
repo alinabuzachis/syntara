@@ -19,7 +19,7 @@ type PanelMainBodyProps = Omit<ComponentProps<typeof PanelMainBody>, 'children'>
  * - Do not nest another `PanelMain` / `PanelMainBody` inside; use **`panelMainProps`** /
  *   **`panelMainBodyProps`**.
  * - Avoid **`overflow: hidden`** between sibling **`variant="raised"`** panels (clips raised
- *   **`box-shadow`**); use **`minHeight: 0`** on scroll regions instead.
+ *   **`box-shadow`**); use **`AppPageMain`** / **`minHeight: 0`** on scroll regions instead.
  */
 export type AppPanelProps = Omit<PanelProps, 'children'> & {
   children?: ReactNode

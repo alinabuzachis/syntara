@@ -12,6 +12,8 @@
     "test:ui": "npm run test --prefix packages/nexus-ui",
     "e2e": "npm run e2e --prefix packages/nexus-ui",
     "e2e:ui": "npm run e2e:ui --prefix packages/nexus-ui",
+    "e2e:visual-regression": "npm run e2e --prefix packages/nexus-ui -- e2e/visual-regression/page-screenshots",
+    "e2e:visual-regression:update": "npm run e2e --prefix packages/nexus-ui -- e2e/visual-regression/page-screenshots --update-snapshots",
     "knip": "npm run knip --workspaces --if-present",
     "clean": "npm run clean --workspaces --if-present",
     "format": "prettier --write .",

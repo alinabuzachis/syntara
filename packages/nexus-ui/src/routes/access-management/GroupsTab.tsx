@@ -5,6 +5,7 @@ import { Thead, Tbody, Tr, Th, Td, ActionsColumn } from '@patternfly/react-table
 import { useMemo } from 'react'
 import { navigate } from 'wouter/use-browser-location'
 
+import { AppPageMain } from '../../app/AppPage'
 import { AppRoute } from '../../app/AppRoute'
 import { usersClient } from '../../client'
 import { ConfirmationDialog } from '../../components/ConfirmationDialog'
@@ -128,9 +129,9 @@ export function GroupsTab() {
           </StackItem>
 
           {results.length === 0 ? (
-            <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <AppPageMain style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
-            </StackItem>
+            </AppPageMain>
           ) : (
             <ScrollableTableContainer
               aria-label="Groups table"

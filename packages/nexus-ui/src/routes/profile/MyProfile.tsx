@@ -9,11 +9,10 @@ import {
   Flex,
   FlexItem,
   Label,
-  StackItem,
   Title,
 } from '@patternfly/react-core'
 
-import { AppPage } from '../../app/AppPage'
+import { AppPage, AppPageMain } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { authClient } from '../../client'
 import { AppPanel } from '../../components/AppPanel'
@@ -54,9 +53,9 @@ export function MyProfile() {
     return (
       <AppPage>
         <AppPageHeader title="My Profile" />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <AppPageMain>
           <AppPanel isFullHeight>{queryState}</AppPanel>
-        </StackItem>
+        </AppPageMain>
       </AppPage>
     )
   }
@@ -64,7 +63,7 @@ export function MyProfile() {
   return (
     <AppPage>
       <AppPageHeader title="My Profile" />
-      <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
+      <AppPageMain style={{ overflow: 'auto' }}>
         <AppPanel isFullHeight panelMainBodyProps={{ style: { padding: 'var(--pf-t--global--spacer--xl)' } }}>
           {profile ? (
             <div style={{ maxWidth: '700px' }}>
@@ -125,7 +124,7 @@ export function MyProfile() {
             </div>
           ) : null}
         </AppPanel>
-      </StackItem>
+      </AppPageMain>
     </AppPage>
   )
 }

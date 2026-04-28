@@ -2,7 +2,7 @@ import type { Approval } from '@ansible/nexus-contracts'
 import { Stack, StackItem } from '@patternfly/react-core'
 import { useMemo, useReducer, useState } from 'react'
 
-import { AppPage } from '../../app/AppPage'
+import { AppPage, AppPageMain } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { approvalsClient } from '../../client'
 import { AppPanel } from '../../components/AppPanel'
@@ -208,9 +208,9 @@ export default function Approvals() {
     return (
       <AppPage>
         <AppPageHeader title={<PageTitleWithProject title="Approvals" projectSelector={ProjectSelector} />} />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <AppPageMain>
           <AppPanel isFullHeight>{queryState}</AppPanel>
-        </StackItem>
+        </AppPageMain>
       </AppPage>
     )
   }
@@ -234,7 +234,7 @@ export default function Approvals() {
     <AppPage>
       <AppPageHeader title={<PageTitleWithProject title="Approvals" projectSelector={ProjectSelector} />} />
 
-      <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+      <AppPageMain>
         <AppPanel isFullHeight>
           <Stack style={{ height: '100%', flex: 1, minHeight: 0, padding: '0 var(--pf-t--global--spacer--sm)' }}>
             <StackItem>
@@ -247,7 +247,7 @@ export default function Approvals() {
             </StackItem>
 
             {sortedApprovals.length === 0 ? (
-              <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <AppPageMain style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {hasActiveFilters ? (
                   <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
                 ) : (
@@ -256,7 +256,7 @@ export default function Approvals() {
                     description="No approvals are currently pending or available."
                   />
                 )}
-              </StackItem>
+              </AppPageMain>
             ) : (
               <ScrollableTableContainer
                 aria-label="Approvals table"
@@ -288,7 +288,7 @@ export default function Approvals() {
             )}
           </Stack>
         </AppPanel>
-      </StackItem>
+      </AppPageMain>
     </AppPage>
   )
 }

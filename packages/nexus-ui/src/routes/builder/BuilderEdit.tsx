@@ -1,10 +1,9 @@
 import type { WorkflowWithVersion } from '@ansible/nexus-contracts'
-import { StackItem } from '@patternfly/react-core'
 import { ReactFlowProvider } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { useParams } from 'wouter'
 
-import { AppPage } from '../../app/AppPage'
+import { AppPage, AppPageMain } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { workflowClient } from '../../client'
 import { AppPanel } from '../../components/AppPanel'
@@ -38,11 +37,11 @@ export default function BuilderEdit() {
     return (
       <AppPage>
         <AppPageHeader title="Error loading workflow" />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <AppPageMain>
           <AppPanel isFullHeight>
             <ErrorState title="Error loading workflow" message={error} />
           </AppPanel>
-        </StackItem>
+        </AppPageMain>
       </AppPage>
     )
   }
@@ -53,11 +52,11 @@ export default function BuilderEdit() {
     return (
       <AppPage>
         <AppPageHeader title="Loading workflow" />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <AppPageMain>
           <AppPanel isFullHeight>
             <LoadingState />
           </AppPanel>
-        </StackItem>
+        </AppPageMain>
       </AppPage>
     )
   }

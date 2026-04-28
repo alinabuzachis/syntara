@@ -4,6 +4,7 @@ import { ActionsColumn, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/reac
 import type { IAction, ThProps } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
 
+import { AppPageMain } from '../../../app/AppPage'
 import { useAlerts } from '../../../components/alerts'
 import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
@@ -326,18 +327,18 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAss
         </StackItem>
 
         {sortedRows.length === 0 ? (
-          <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <AppPageMain style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <EmptyStateFilter
               clearAllFilters={() => {
                 clearAllFilters()
                 setPage(1)
               }}
             />
-          </StackItem>
+          </AppPageMain>
         ) : (
-          <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
+          <AppPageMain style={{ overflow: 'auto' }}>
             <RoleAssignmentsTable rows={paginatedRows} getSortParams={getSortParams} onUnassign={setRowToUnassign} />
-          </StackItem>
+          </AppPageMain>
         )}
 
         <PaginationFooter

@@ -3,6 +3,7 @@ import { RhUiLockIcon } from '@patternfly/react-icons'
 import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
 
+import { AppPageMain } from '../../app/AppPage'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
@@ -139,9 +140,9 @@ export function PoliciesTab() {
           </StackItem>
 
           {policies.length === 0 ? (
-            <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <AppPageMain style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <EmptyStateFilter clearAllFilters={clearAllFilters} />
-            </StackItem>
+            </AppPageMain>
           ) : (
             <ScrollableTableContainer
               aria-label="Policies"

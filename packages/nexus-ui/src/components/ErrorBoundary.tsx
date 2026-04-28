@@ -1,7 +1,6 @@
-import { StackItem } from '@patternfly/react-core'
 import { Component, type ReactNode } from 'react'
 
-import { AppPage } from '../app/AppPage'
+import { AppPage, AppPageMain } from '../app/AppPage'
 import { AppPageHeader } from '../app/AppPageHeader'
 
 import { AppPanel } from './AppPanel'
@@ -40,14 +39,14 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       return (
         <AppPage>
           <AppPageHeader title="Something went wrong" />
-          <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+          <AppPageMain>
             <AppPanel isFullHeight>
               <ErrorState
                 title="Something went wrong"
                 message={this.state.error?.message ?? 'An unexpected error occurred'}
               />
             </AppPanel>
-          </StackItem>
+          </AppPageMain>
         </AppPage>
       )
     }

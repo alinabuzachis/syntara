@@ -20,7 +20,7 @@ import { useState } from 'react'
 import { useParams } from 'wouter'
 import { navigate } from 'wouter/use-browser-location'
 
-import { AppPage } from '../../../app/AppPage'
+import { AppPage, AppPageMain } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
 import { AppPanel } from '../../../components/AppPanel'
@@ -182,7 +182,7 @@ export function GroupDetail() {
           </Button>
         )}
       </AppPageHeader>
-      <StackItem>
+      <StackItem style={{ flexShrink: 0 }}>
         <GroupTabBar
           activeTab={activeTab}
           onSelect={(_event, key) => goToTab(key as GroupTab)}
@@ -190,7 +190,7 @@ export function GroupDetail() {
           memberCount={memberCount}
         />
       </StackItem>
-      <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+      <AppPageMain>
         <AppPanel isFullHeight>
           <GroupTabContent
             group={groupData as Group}
@@ -202,7 +202,7 @@ export function GroupDetail() {
             }}
           />
         </AppPanel>
-      </StackItem>
+      </AppPageMain>
 
       <GroupFormModal
         group={groupData as Group}

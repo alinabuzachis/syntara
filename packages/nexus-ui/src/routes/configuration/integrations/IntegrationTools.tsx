@@ -14,7 +14,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useParams } from 'wouter'
 
-import { AppPage } from '../../../app/AppPage'
+import { AppPage, AppPageMain } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute.tsx'
 import noToolsImage from '../../../assets/collage-circle-sparkles-window-server-dark-RH.png'
@@ -126,7 +126,7 @@ function IntegrationToolsLoadedView({
         </Button>
       </AppPageHeader>
       {results.length === 0 && !hasActiveFilters ? (
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <AppPageMain>
           <AppPanel isFullHeight>
             <EmptyStateNoData
               title="No tools available"
@@ -137,9 +137,9 @@ function IntegrationToolsLoadedView({
               imageAlt="No tools available"
             />
           </AppPanel>
-        </StackItem>
+        </AppPageMain>
       ) : (
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <AppPageMain>
           <AppPanel isFullHeight>
             <Stack style={{ height: '100%', flex: 1, minHeight: 0, padding: '0 var(--pf-t--global--spacer--sm)' }}>
               <StackItem>
@@ -152,13 +152,13 @@ function IntegrationToolsLoadedView({
               </StackItem>
 
               {results.length === 0 ? (
-                <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <AppPageMain style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <EmptyStateFilter
                     clearAllFilters={handleClearAllFilters}
                     imageSrc={noToolsImage}
                     imageAlt="No results"
                   />
-                </StackItem>
+                </AppPageMain>
               ) : (
                 <ScrollableTableContainer
                   aria-label="Tools table"
@@ -221,7 +221,7 @@ function IntegrationToolsLoadedView({
               )}
             </Stack>
           </AppPanel>
-        </StackItem>
+        </AppPageMain>
       )}
 
       <ConfirmationDialog
@@ -388,9 +388,9 @@ export default function IntegrationTools() {
     return (
       <AppPage>
         <AppPageHeader title={provider?.name ? `${provider.name} tools` : 'Tools'} />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <AppPageMain>
           <AppPanel isFullHeight>{integrationQueryStatus}</AppPanel>
-        </StackItem>
+        </AppPageMain>
       </AppPage>
     )
   }

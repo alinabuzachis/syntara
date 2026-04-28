@@ -4,7 +4,7 @@ import { Thead, Tr, Th } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
 import { useSearch } from 'wouter'
 
-import { AppPage } from '../../app/AppPage'
+import { AppPage, AppPageMain } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { executionsClient } from '../../client'
 import { AppPanel } from '../../components/AppPanel'
@@ -124,9 +124,9 @@ export default function Executions() {
     return (
       <AppPage>
         <AppPageHeader title={<PageTitleWithProject title="Workflow Runs" projectSelector={ProjectSelector} />} />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <AppPageMain>
           <AppPanel isFullHeight>{queryState}</AppPanel>
-        </StackItem>
+        </AppPageMain>
       </AppPage>
     )
   }
@@ -134,7 +134,7 @@ export default function Executions() {
   return (
     <AppPage>
       <AppPageHeader title={<PageTitleWithProject title="Workflow Runs" projectSelector={ProjectSelector} />} />
-      <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+      <AppPageMain>
         <AppPanel isFullHeight>
           <Stack style={{ height: '100%', flex: 1, minHeight: 0, padding: '0 var(--pf-t--global--spacer--sm)' }}>
             <StackItem>
@@ -147,13 +147,13 @@ export default function Executions() {
             </StackItem>
 
             {sortedExecutions.length === 0 ? (
-              <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <AppPageMain style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {hasActiveFilters ? (
                   <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
                 ) : (
                   <EmptyStateNoData title="No executions found" description="No executions found." />
                 )}
-              </StackItem>
+              </AppPageMain>
             ) : (
               <ScrollableTableContainer
                 aria-label="Executions table"
@@ -185,7 +185,7 @@ export default function Executions() {
             )}
           </Stack>
         </AppPanel>
-      </StackItem>
+      </AppPageMain>
     </AppPage>
   )
 }

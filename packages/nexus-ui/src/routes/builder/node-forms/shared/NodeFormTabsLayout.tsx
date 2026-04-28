@@ -2,6 +2,7 @@ import { Flex, FlexItem, Stack, StackItem, Tab, Tabs } from '@patternfly/react-c
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 
+import { AppPageMain } from '../../../../app/AppPage'
 import { useAlerts } from '../../../../components/alerts'
 import { TestStepButton } from '../../panels/TestStepButton'
 
@@ -45,12 +46,12 @@ export function NodeFormTabsLayout({
           </FlexItem>
         </Flex>
       </StackItem>
-      <StackItem isFilled style={{ minHeight: 0, overflow: 'auto', paddingRight: 'var(--pf-t--global--spacer--md)' }}>
+      <AppPageMain style={{ overflow: 'auto', paddingRight: 'var(--pf-t--global--spacer--md)' }}>
         <Stack hasGutter>
           <StackItem>{activeTabKey === 0 ? parametersContent : (settingsContent ?? null)}</StackItem>
           <FormSubmitButton submitButtonText={submitButtonText} isDisabled={isSubmitDisabled} />
         </Stack>
-      </StackItem>
+      </AppPageMain>
     </Stack>
   )
 }

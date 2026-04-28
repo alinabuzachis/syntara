@@ -1,7 +1,7 @@
 import { StackItem, Tab, Tabs } from '@patternfly/react-core'
 import { useLocation } from 'wouter'
 
-import { AppPage } from '../../app/AppPage'
+import { AppPage, AppPageMain } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { AppRoute } from '../../app/AppRoute'
 import { AppPanel } from '../../components/AppPanel'
@@ -41,18 +41,18 @@ export function AccessManagement() {
   return (
     <AppPage>
       <AppPageHeader title="Access Management" />
-      <StackItem>
+      <StackItem style={{ flexShrink: 0 }}>
         <Tabs activeKey={resolvedIndex} onSelect={handleTabSelect}>
           {tabs.map((tab, index) => (
             <Tab key={tab.path} eventKey={index} title={tab.label} />
           ))}
         </Tabs>
       </StackItem>
-      <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+      <AppPageMain>
         <AppPanel isFullHeight>
           <ActiveTabComponent />
         </AppPanel>
-      </StackItem>
+      </AppPageMain>
     </AppPage>
   )
 }

@@ -1,7 +1,7 @@
 import { Button, Stack, StackItem, Tab, Tabs } from '@patternfly/react-core'
 import { useCallback, useMemo, useState } from 'react'
 
-import { AppPage } from '../../../app/AppPage'
+import { AppPage, AppPageMain } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { settingsClient } from '../../../client'
 import { useAlerts } from '../../../components/alerts'
@@ -116,9 +116,9 @@ export default function Settings() {
     return (
       <AppPage>
         <AppPageHeader title="Settings" />
-        <StackItem isFilled>
+        <AppPageMain>
           <AppPanel isFullHeight>{categoriesState}</AppPanel>
-        </StackItem>
+        </AppPageMain>
       </AppPage>
     )
   }
@@ -127,9 +127,9 @@ export default function Settings() {
     return (
       <AppPage>
         <AppPageHeader title="Settings" />
-        <StackItem isFilled>
+        <AppPageMain>
           <AppPanel isFullHeight>{settingsState}</AppPanel>
-        </StackItem>
+        </AppPageMain>
       </AppPage>
     )
   }
@@ -146,7 +146,7 @@ export default function Settings() {
           Save changes
         </Button>
       </AppPageHeader>
-      <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+      <AppPageMain>
         <AppPanel isFullHeight>
           <Stack hasGutter style={{ flex: 1, minHeight: 0, height: '100%' }}>
             <StackItem>
@@ -160,7 +160,7 @@ export default function Settings() {
                 ))}
               </Tabs>
             </StackItem>
-            <StackItem isFilled style={{ overflow: 'auto', padding: 'var(--pf-t--global--spacer--md)' }}>
+            <AppPageMain style={{ overflow: 'auto', padding: 'var(--pf-t--global--spacer--md)' }}>
               {categories[activeTab] && (
                 <SettingsCategoryTab
                   settings={settingsByCategory.get(categories[activeTab].slug) ?? []}
@@ -170,10 +170,10 @@ export default function Settings() {
                   onValidationChange={handleValidationChange}
                 />
               )}
-            </StackItem>
+            </AppPageMain>
           </Stack>
         </AppPanel>
-      </StackItem>
+      </AppPageMain>
     </AppPage>
   )
 }

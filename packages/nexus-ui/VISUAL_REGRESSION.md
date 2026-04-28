@@ -7,6 +7,7 @@ Automated screenshot testing for every page in the application.
 - **Baselines** are Linux-generated PNGs committed in the repo under `e2e/visual-regression/page-screenshots.spec.ts-snapshots/`.
 - **CI** builds the app against the mock API, takes screenshots on Ubuntu, and compares them pixel-by-pixel to the committed baselines.
 - **`/update-screenshots`** is a PR comment command that triggers a workflow to regenerate baselines on Ubuntu and commit them to your branch.
+- **Troubleshooting `/update-screenshots`:** The workflow only commits when Playwright actually writes new/changed PNGs. If the PR comment says **“already up to date”** but you deleted baselines, open the workflow run log and confirm **page-screenshots** tests ran (not skipped). Repository or organization Actions variables must **not** set `NEXUS_E2E_SKIP_WEB_SERVER` to a random non-empty value — only `1` / `true` / `yes` skip mock webServer + snapshot tests. The baseline workflow forces this var off at the job level as a safeguard.
 - **macOS snapshots** are gitignored. Only Linux baselines are used in CI.
 - **Explicit viewport** (1280x720) is set in `playwright.config.ts` so every screenshot uses identical dimensions regardless of the runner's display.
 - **`fullPage: true`** captures the entire scrollable page, including content below the fold.
@@ -56,6 +57,8 @@ If the route is intentionally unimplemented, add it to `excludedUnimplemented` i
 6. Baselines are regenerated and committed
 7. CI re-runs and the comment shows all screenshots matching
 
+**If you remove committed `*-linux.png` files** (for example to force a full regen when diffs stay under `maxDiffPixelRatio`), **run `/update-screenshots` or commit fresh Linux baselines before merge**. Otherwise CI diffs are misleading and other branches lack up-to-date references.
+
 ### Flow 3: Removing a Page
 
 1. Remove the route from `AppRoute.tsx`
@@ -79,6 +82,18 @@ A single page can have multiple registry entries for different visual states:
 See existing entries in `page-registry.ts` for examples.
 
 ## Running Locally
+
+From the **repo root** (uses `packages/nexus-ui` so `playwright.config.ts` and `webServer` start mock API + UI on **4173** / **3300**):
+
+```bash
+# Compare baselines
+npm run e2e:visual-regression
+
+# Update baselines locally (macOS — for local dev only; Linux PNGs are what CI uses)
+npm run e2e:visual-regression:update
+```
+
+From **`packages/nexus-ui`**:
 
 ```bash
 cd packages/nexus-ui

@@ -186,11 +186,18 @@ test.describe('User Detail — Group Membership', () => {
     test.skip(!hasUser, 'No admin user in mock data')
 
     await userLink.click()
+    await expect(app).toHaveURL(/\/access-management\/users\/[^/]+$/, { timeout: 30_000 })
+    // User detail loaded — do not wait on `role="tab"` "Details": PF horizontal overflow can move
+    // every sub-tab (including Details) behind overflow/scroll so no tab is a visible `tab`.
+    await expect(app.getByRole('button', { name: 'Edit user' })).toBeVisible({ timeout: 30_000 })
 
-    // Navigate to groups tab
-    await app.getByRole('tab', { name: /groups/i }).click()
+    // Open the Groups panel via URL (matches useDetailTab); avoids relying on any sub-tab click.
+    const userPath = new URL(app.url()).pathname
+    await app.goto(toAppUrl(`${userPath}/groups`))
+    await expect(app).toHaveURL(/\/access-management\/users\/[^/]+\/groups$/, { timeout: 30_000 })
 
-    // Should see add to group button
+    // Should see add to group button (panel content — do not require clicking the Groups tab:
+    // PF horizontal overflow can move "Groups" into an overflow menu where it is not role="tab".)
     await expect(app.getByRole('button', { name: /add to group/i })).toBeVisible({ timeout: 5000 })
   })
 })

@@ -16,7 +16,7 @@ import {
 import { useParams } from 'wouter'
 import { navigate } from 'wouter/use-browser-location'
 
-import { AppPage } from '../../../app/AppPage'
+import { AppPage, AppPageMain } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
 import { AppPanel } from '../../../components/AppPanel'
@@ -128,7 +128,7 @@ export function ProjectDetail() {
   return (
     <AppPage>
       <AppPageHeader title={<Title headingLevel="h1">{projectData.name}</Title>} />
-      <StackItem>
+      <StackItem style={{ flexShrink: 0 }}>
         <Tabs activeKey={activeTab} onSelect={(_event, key) => goToTab(key as ProjectTab)}>
           <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />
           <Tab eventKey="policies" title={<TabTitleText>Policies</TabTitleText>} />
@@ -136,14 +136,14 @@ export function ProjectDetail() {
           <Tab eventKey="role-assignments" title={<TabTitleText>Role Assignments</TabTitleText>} />
         </Tabs>
       </StackItem>
-      <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+      <AppPageMain>
         <AppPanel isFullHeight>
           {activeTab === 'details' && <ProjectDetailsTab project={projectData} />}
           {activeTab === 'role-assignments' && <ProjectRoleAssignmentsTab projectId={projectId ?? ''} />}
           {activeTab === 'roles' && <ProjectRolesTab projectId={projectId ?? ''} />}
           {activeTab === 'policies' && <ProjectPoliciesTab projectId={projectId ?? ''} />}
         </AppPanel>
-      </StackItem>
+      </AppPageMain>
     </AppPage>
   )
 }

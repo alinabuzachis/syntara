@@ -4,6 +4,7 @@ import { ActionsColumn, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/reac
 import type { IAction } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
 
+import { AppPageMain } from '../../../app/AppPage'
 import { useAlerts } from '../../../components/alerts'
 import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
@@ -177,16 +178,16 @@ export function GroupMembersPanel({ groupId, onMembershipChange }: Readonly<Grou
         </StackItem>
 
         {filteredMembers.length === 0 ? (
-          <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <AppPageMain style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <EmptyStateFilter
               clearAllFilters={() => {
                 clearAllFilters()
                 setPage(1)
               }}
             />
-          </StackItem>
+          </AppPageMain>
         ) : (
-          <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
+          <AppPageMain style={{ overflow: 'auto' }}>
             <Table aria-label="Group members table" isStriped style={{ width: '100%' }}>
               <Thead>
                 <Tr>
@@ -220,7 +221,7 @@ export function GroupMembersPanel({ groupId, onMembershipChange }: Readonly<Grou
                 ))}
               </Tbody>
             </Table>
-          </StackItem>
+          </AppPageMain>
         )}
 
         <PaginationFooter

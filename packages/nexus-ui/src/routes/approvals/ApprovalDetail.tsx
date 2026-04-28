@@ -16,7 +16,7 @@ import { RhUiBackwardsIcon, RhUiDislikeIcon, RhUiLikeIcon } from '@patternfly/re
 import { useState } from 'react'
 import { useLocation, useParams } from 'wouter'
 
-import { AppPage } from '../../app/AppPage'
+import { AppPage, AppPageMain } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { AppRoute } from '../../app/AppRoute'
 import { approvalsClient } from '../../client'
@@ -115,11 +115,11 @@ export default function ApprovalDetail() {
     return (
       <AppPage>
         <AppPageHeader title="Error" />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <AppPageMain>
           <AppPanel isFullHeight>
             <ErrorState title="Invalid approval" message="No approval ID provided" />
           </AppPanel>
-        </StackItem>
+        </AppPageMain>
       </AppPage>
     )
   }
@@ -129,9 +129,9 @@ export default function ApprovalDetail() {
     return (
       <AppPage>
         <AppPageHeader title="Approval details" />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <AppPageMain>
           <AppPanel isFullHeight>{queryState}</AppPanel>
-        </StackItem>
+        </AppPageMain>
       </AppPage>
     )
   }
@@ -229,12 +229,12 @@ export default function ApprovalDetail() {
           </Button>
         )}
       </AppPageHeader>
-      <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+      <AppPageMain>
         <AppPanel isFullHeight>
           <Stack hasGutter>
             {approval && (
               <>
-                <StackItem isFilled>
+                <StackItem>
                   <ApprovalSummaryList
                     workflowLink={workflowLink}
                     workflowName={workflowName}
@@ -242,7 +242,7 @@ export default function ApprovalDetail() {
                     onWorkflowClick={setLocation}
                   />
                 </StackItem>
-                <StackItem isFilled style={{ minHeight: 0 }}>
+                <StackItem isFilled style={{ minHeight: 0, display: 'flex', flexDirection: 'column' }}>
                   <CodeBlock jsonObject={approval} enableCopy fillHeight />
                 </StackItem>
                 <StackItem>{renderDecisionActions()}</StackItem>
@@ -250,7 +250,7 @@ export default function ApprovalDetail() {
             )}
           </Stack>
         </AppPanel>
-      </StackItem>
+      </AppPageMain>
     </AppPage>
   )
 }

@@ -2,7 +2,7 @@ import type { Execution, WorkflowAPI } from '@ansible/nexus-contracts'
 import { Content, Flex, FlexItem, Stack, StackItem } from '@patternfly/react-core'
 import { useQueryClient } from '@tanstack/react-query'
 import { useReactFlow, useNodesInitialized } from '@xyflow/react'
-import { useEffect, useMemo, useReducer, useState } from 'react'
+import { useEffect, useMemo, useReducer, useState, type CSSProperties } from 'react'
 import { useLocation } from 'wouter'
 
 import { AppPage } from '../../app/AppPage'
@@ -216,6 +216,27 @@ export function BuilderContent(props: BuilderContentProps) {
     [expandAllEvent, collapseAllEvent]
   )
 
+  /** Extra gutter so glass/raised panel shadows fit between canvas, run details, and run history without hard cuts */
+  const widenExecutionChrome = isViewingExecution && !!selectedExecutionId
+
+  const executionChromeInsetStyle: CSSProperties = widenExecutionChrome
+    ? {
+        /* Extra inset inside scrollport so top/bottom/side panel shadows clear before `compass__content` clips */
+        paddingInline: 'var(--pf-t--global--spacer--sm)',
+        paddingBlockStart: 'var(--pf-t--global--spacer--xs)',
+        paddingBlockEnd: 'var(--pf-t--global--spacer--sm)',
+      }
+    : {}
+
+  const executionFilledStackItemStyle: CSSProperties = {
+    minHeight: 0,
+    ...executionChromeInsetStyle,
+  }
+
+  const executionCanvasStackGap = widenExecutionChrome
+    ? 'var(--pf-t--global--spacer--lg)'
+    : 'var(--pf-t--global--spacer--sm)'
+
   return (
     <NodeActionsContext.Provider value={nodeActionsValue}>
       <NodeExpandedAllContext.Provider value={nodeExpandedAllContextValue}>
@@ -243,22 +264,16 @@ export function BuilderContent(props: BuilderContentProps) {
                 handleSaveWorkflow={handleSaveWorkflow}
               />
             </StackItem>
-            <StackItem
-              isFilled
-              style={{
-                minHeight: 0,
-                overflow: 'hidden',
-              }}
-            >
+            <StackItem isFilled style={executionFilledStackItemStyle}>
               <Flex
                 alignItems={{ default: 'alignItemsStretch' }}
                 flexWrap={{ default: 'nowrap' }}
-                gap={{ default: 'gapSm' }}
+                gap={{ default: widenExecutionChrome ? 'gapLg' : 'gapSm' }}
                 style={{
                   position: 'relative',
                   minWidth: 0,
                   height: '100%',
-                  overflow: 'hidden',
+                  overflow: 'visible',
                   display: 'flex',
                   flexDirection: 'row',
                   width: '100%',
@@ -270,16 +285,20 @@ export function BuilderContent(props: BuilderContentProps) {
                     minWidth: 0,
                     flexGrow: 1,
                     height: '100%',
-                    overflow: 'hidden',
                     pointerEvents: isNodeEditorOpen ? 'none' : 'auto',
                   }}
                 >
-                  <Stack style={{ height: '100%', overflow: 'hidden', gap: 'var(--pf-t--global--spacer--sm)' }}>
+                  <Stack
+                    style={{
+                      height: '100%',
+                      minHeight: 0,
+                      gap: executionCanvasStackGap,
+                    }}
+                  >
                     <StackItem
                       isFilled
                       style={{
                         minHeight: 0,
-                        overflow: 'hidden',
                       }}
                     >
                       {isViewingExecution && selectedExecutionId ? (
@@ -298,24 +317,32 @@ export function BuilderContent(props: BuilderContentProps) {
                             minWidth: 0,
                             width: '100%',
                             height: '100%',
-                            overflow: 'hidden',
                           }}
                         >
-                          <BuilderFlow
-                            workflowId={workflowId}
-                            panelOpen={isAddNodePanelOpen || !!selectedNode}
-                            activeEdgeButtonNodeId={isAddNodePanelOpen ? sourceNodeId : null}
-                            activeEdgeButtonHandle={isAddNodePanelOpen ? sourceHandle : null}
-                            activeEdgeId={isAddNodePanelOpen ? edgeIdToReplace : null}
-                            executionStatus={null}
-                            disableDeleteKey={isNodeEditorOpen}
-                            disableSpacePanning={isNodeEditorOpen}
-                            onNodeClick={handleNodeClick}
-                            onAddNodeFromEdge={handleAddNodeFromEdge}
-                            onNodesDeleted={handleNodesDeleted}
-                            newNodeDesiredPosition={state.newNodeDesiredPosition}
-                            onClearDesiredPosition={handleClearDesiredPosition}
-                          />
+                          <div
+                            style={{
+                              height: '100%',
+                              width: '100%',
+                              minHeight: 0,
+                              overflow: 'hidden',
+                            }}
+                          >
+                            <BuilderFlow
+                              workflowId={workflowId}
+                              panelOpen={isAddNodePanelOpen || !!selectedNode}
+                              activeEdgeButtonNodeId={isAddNodePanelOpen ? sourceNodeId : null}
+                              activeEdgeButtonHandle={isAddNodePanelOpen ? sourceHandle : null}
+                              activeEdgeId={isAddNodePanelOpen ? edgeIdToReplace : null}
+                              executionStatus={null}
+                              disableDeleteKey={isNodeEditorOpen}
+                              disableSpacePanning={isNodeEditorOpen}
+                              onNodeClick={handleNodeClick}
+                              onAddNodeFromEdge={handleAddNodeFromEdge}
+                              onNodesDeleted={handleNodesDeleted}
+                              newNodeDesiredPosition={state.newNodeDesiredPosition}
+                              onClearDesiredPosition={handleClearDesiredPosition}
+                            />
+                          </div>
                         </AppPanel>
                       )}
                     </StackItem>

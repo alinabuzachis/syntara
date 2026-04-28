@@ -12,6 +12,7 @@ import {
 } from '@patternfly/react-core'
 import { useEffect, useMemo } from 'react'
 
+import { AppPageMain } from '../../app/AppPage'
 import { executionsClient } from '../../client'
 import { AppPanel } from '../../components/AppPanel'
 import { useQueryState } from '../../components/states/useQueryState'
@@ -207,14 +208,12 @@ export function ExecutionDetailsPanel({ executionId, workflowDefinition }: Execu
   if (queryState || !execution) {
     return (
       <AppPanel
-        isGlass={false}
+        isFullHeight
         style={{
           height: '100%',
           maxHeight: '100%',
           width: '24rem',
           flexShrink: 0,
-          display: 'flex',
-          flexDirection: 'column',
         }}
       >
         <Stack>
@@ -223,9 +222,7 @@ export function ExecutionDetailsPanel({ executionId, workflowDefinition }: Execu
               Current run details
             </Title>
           </StackItem>
-          <StackItem isFilled style={{ padding: 'var(--pf-t--global--spacer--lg)' }}>
-            {queryState}
-          </StackItem>
+          <AppPageMain style={{ padding: 'var(--pf-t--global--spacer--lg)' }}>{queryState}</AppPageMain>
         </Stack>
       </AppPanel>
     )
@@ -234,46 +231,53 @@ export function ExecutionDetailsPanel({ executionId, workflowDefinition }: Execu
   return (
     <AppPanel
       hasNoPadding
-      isGlass={false}
+      isFullHeight
       style={{
         height: '100%',
         maxHeight: '100%',
         width: '100%',
         flexShrink: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
       }}
     >
-      <Stack style={{ height: '100%', overflow: 'hidden', padding: 'var(--pf-t--global--spacer--md)' }}>
-        {/* Header: title left, execution metadata right */}
-        <StackItem style={{ flexShrink: 0, paddingBottom: 'var(--pf-t--global--spacer--md)' }}>
-          <HeaderMetadata execution={execution} elapsedLabel={elapsedLabel} isRunning={isRunning} />
-        </StackItem>
-
-        {/* Execution-level error banner */}
-        {execution.status === 'failed' && execution.error_details && (
-          <StackItem style={{ flexShrink: 0, paddingBottom: 'var(--pf-t--global--spacer--sm)' }}>
-            <Alert variant="danger" isInline isPlain title="Execution failed">
-              <span style={{ color: 'var(--pf-t--global--color--status--danger--default)' }}>
-                {execution.error_details}
-              </span>
-            </Alert>
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
+        <Stack style={{ height: '100%', minHeight: 0, padding: 'var(--pf-t--global--spacer--md)' }}>
+          {/* Header: title left, execution metadata right */}
+          <StackItem style={{ flexShrink: 0, paddingBottom: 'var(--pf-t--global--spacer--md)' }}>
+            <HeaderMetadata execution={execution} elapsedLabel={elapsedLabel} isRunning={isRunning} />
           </StackItem>
-        )}
 
-        {/* Scrollable activity table */}
-        <StackItem isFilled style={{ minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
-          <ExecutionActivityTable
-            triggers={triggers}
-            activityStates={activityStates}
-            activityOrder={activityOrder}
-            executionStartedAt={startedAtValue}
-            now={now}
-            executionError={execution.error_details}
-          />
-        </StackItem>
-      </Stack>
+          {/* Execution-level error banner */}
+          {execution.status === 'failed' && execution.error_details && (
+            <StackItem style={{ flexShrink: 0, paddingBottom: 'var(--pf-t--global--spacer--sm)' }}>
+              <Alert variant="danger" isInline isPlain title="Execution failed">
+                <span style={{ color: 'var(--pf-t--global--color--status--danger--default)' }}>
+                  {execution.error_details}
+                </span>
+              </Alert>
+            </StackItem>
+          )}
+
+          {/* Scrollable activity table */}
+          <AppPageMain style={{ overflowY: 'auto', overflowX: 'hidden' }}>
+            <ExecutionActivityTable
+              triggers={triggers}
+              activityStates={activityStates}
+              activityOrder={activityOrder}
+              executionStartedAt={startedAtValue}
+              now={now}
+              executionError={execution.error_details}
+            />
+          </AppPageMain>
+        </Stack>
+      </div>
     </AppPanel>
   )
 }

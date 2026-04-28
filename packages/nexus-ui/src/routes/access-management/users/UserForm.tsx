@@ -3,7 +3,7 @@ import { Alert, Button, FlexItem, Form, Stack, StackItem } from '@patternfly/rea
 import { useForm, useWatch } from 'react-hook-form'
 import { navigate } from 'wouter/use-browser-location'
 
-import { AppPage } from '../../../app/AppPage'
+import { AppPage, AppPageMain } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
 import { AppPanel } from '../../../components/AppPanel'
@@ -72,7 +72,7 @@ export function UserForm({ mode }: Readonly<UserFormProps>) {
     return (
       <AppPage>
         <AppPageHeader title="Edit User" />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <AppPageMain>
           <AppPanel isFullHeight>
             <UserNotFoundState
               onBack={navigateBack}
@@ -81,7 +81,7 @@ export function UserForm({ mode }: Readonly<UserFormProps>) {
               }}
             />
           </AppPanel>
-        </StackItem>
+        </AppPageMain>
       </AppPage>
     )
   }
@@ -89,9 +89,9 @@ export function UserForm({ mode }: Readonly<UserFormProps>) {
     return (
       <AppPage>
         <AppPageHeader title={pageTitle} />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <AppPageMain>
           <AppPanel isFullHeight>{queryState}</AppPanel>
-        </StackItem>
+        </AppPageMain>
       </AppPage>
     )
   }
@@ -107,7 +107,7 @@ export function UserForm({ mode }: Readonly<UserFormProps>) {
           {submitLabel}
         </Button>
       </AppPageHeader>
-      <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+      <AppPageMain>
         <AppPanel isFullHeight panelMainBodyProps={{ style: { padding: 'var(--pf-t--global--spacer--xl)' } }}>
           <Stack hasGutter style={{ maxWidth: '600px' }}>
             {showDisableWarning && (
@@ -140,7 +140,7 @@ export function UserForm({ mode }: Readonly<UserFormProps>) {
             </StackItem>
           </Stack>
         </AppPanel>
-      </StackItem>
+      </AppPageMain>
     </AppPage>
   )
 }

@@ -1,7 +1,6 @@
-import { StackItem } from '@patternfly/react-core'
 import type { ReactNode } from 'react'
 
-import { AppPage } from '../../app/AppPage'
+import { AppPage, AppPageMain } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { AppPanel } from '../../components/AppPanel'
 
@@ -19,9 +18,9 @@ export function DetailPageShell({ title, children }: Readonly<DetailPageShellPro
   return (
     <AppPage>
       <AppPageHeader title={title} />
-      <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+      <AppPageMain>
         <AppPanel isFullHeight>{children}</AppPanel>
-      </StackItem>
+      </AppPageMain>
     </AppPage>
   )
 }

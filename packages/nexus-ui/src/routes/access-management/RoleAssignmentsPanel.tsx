@@ -4,6 +4,7 @@ import { ActionsColumn, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/reac
 import type { IAction, ThProps } from '@patternfly/react-table'
 import { type ReactNode, useMemo, useState } from 'react'
 
+import { AppPageMain } from '../../app/AppPage'
 import { useAlerts } from '../../components/alerts'
 import { ConfirmationDialog } from '../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
@@ -67,6 +68,12 @@ const sortFieldToRowKey: Record<string, keyof RoleAssignmentRow> = {
   project: 'scope',
   policies: 'roleName',
 }
+
+const CENTERED_PAGE_STYLE = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+} as const
 
 function sortRoleAssignmentRows(
   rows: RoleAssignmentRow[],
@@ -364,32 +371,32 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
   if (filteredRows.length === 0) {
     if (rows.length === 0) {
       tableContent = (
-        <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <AppPageMain style={CENTERED_PAGE_STYLE}>
           <EmptyStateNoData
             title="No role assignments"
             description={`No project-scoped roles have been assigned to this ${principalType}.`}
             buttonText="Assign role"
             addData={() => setAssignModalOpen(true)}
           />
-        </StackItem>
+        </AppPageMain>
       )
     } else {
       tableContent = (
-        <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <AppPageMain style={CENTERED_PAGE_STYLE}>
           <EmptyStateFilter
             clearAllFilters={() => {
               clearAllFilters()
               setPage(1)
             }}
           />
-        </StackItem>
+        </AppPageMain>
       )
     }
   } else {
     tableContent = (
-      <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
+      <AppPageMain style={{ overflow: 'auto' }}>
         <RoleAssignmentsTable rows={paginatedRows} getSortParams={getSortParams} onUnassign={setRowToUnassign} />
-      </StackItem>
+      </AppPageMain>
     )
   }
 

@@ -6,7 +6,7 @@ import type { IAction } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
 import { useLocation } from 'wouter'
 
-import { AppPage } from '../../app/AppPage'
+import { AppPage, AppPageMain } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { executionsClient, workflowClient } from '../../client'
 import { useAlerts } from '../../components/alerts'
@@ -219,9 +219,9 @@ export default function Automations() {
     return (
       <AppPage>
         <AppPageHeader title="Workflows" />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <AppPageMain>
           <AppPanel isFullHeight>{queryState}</AppPanel>
-        </StackItem>
+        </AppPageMain>
       </AppPage>
     )
   }
@@ -234,7 +234,7 @@ export default function Automations() {
         </Button>
       </AppPageHeader>
 
-      <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+      <AppPageMain>
         <AppPanel isFullHeight>
           <Stack style={{ height: '100%', flex: 1, minHeight: 0, padding: '0 var(--pf-t--global--spacer--sm)' }}>
             <StackItem>
@@ -247,7 +247,7 @@ export default function Automations() {
             </StackItem>
 
             {sortedWorkflows.length === 0 ? (
-              <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <AppPageMain style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {hasActiveFilters ? (
                   <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
                 ) : (
@@ -258,7 +258,7 @@ export default function Automations() {
                     addData={() => setLocation('/workflow-builder/new')}
                   />
                 )}
-              </StackItem>
+              </AppPageMain>
             ) : (
               <ScrollableTableContainer
                 aria-label="Workflows table"
@@ -289,7 +289,7 @@ export default function Automations() {
             )}
           </Stack>
         </AppPanel>
-      </StackItem>
+      </AppPageMain>
 
       <ConfirmationDialog
         isOpen={runDialog.isOpen}

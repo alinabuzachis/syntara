@@ -2,10 +2,12 @@ import { defineConfig } from '@playwright/test'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
+import { isSkipWebServerForPlaywrightTests } from './e2e/playwrightWebServerEnv'
+
 const uiPort = process.env.NEXUS_E2E_PORT ?? '4173'
 const apiPort = process.env.NEXUS_E2E_API_PORT ?? '3300'
 const baseURL = process.env.NEXUS_E2E_BASE_URL ?? `http://localhost:${uiPort}`
-const useWebServer = !process.env.NEXUS_E2E_SKIP_WEB_SERVER
+const useWebServer = !isSkipWebServerForPlaywrightTests()
 
 export default defineConfig({
   testDir: './e2e',

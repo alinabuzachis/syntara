@@ -14,6 +14,7 @@
 import { expect, test } from '@playwright/test'
 
 import { appBaseUrl, toAppUrl } from '../fixtures'
+import { isSkipWebServerForPlaywrightTests } from '../playwrightWebServerEnv'
 
 import { pages } from './page-registry'
 
@@ -33,7 +34,7 @@ test.describe('Page screenshots', { tag: '@local-only' }, () => {
   // The Visual Regression job in the PR workflow uses the mock API, so CI=true
   // alone is not a valid skip condition.
   test.skip(
-    !!process.env.NEXUS_E2E_SKIP_WEB_SERVER,
+    isSkipWebServerForPlaywrightTests(),
     'Page screenshot baselines require mock API seed data; skipped in real-backend E2E runs'
   )
 

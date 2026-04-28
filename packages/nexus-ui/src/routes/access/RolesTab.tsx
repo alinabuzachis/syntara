@@ -16,6 +16,7 @@ import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table
 import type { IAction, ThProps } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
 
+import { AppPageMain } from '../../app/AppPage'
 import { useAlerts } from '../../components/alerts'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
@@ -272,9 +273,9 @@ export function RolesTab() {
         </StackItem>
 
         {roles.length === 0 ? (
-          <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <AppPageMain style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <EmptyStateFilter clearAllFilters={clearAllFilters} />
-          </StackItem>
+          </AppPageMain>
         ) : (
           <ScrollableTableContainer
             aria-label="Roles"

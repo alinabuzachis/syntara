@@ -118,6 +118,7 @@ export function AddNodePanel(props: AddNodePanelProps) {
   return (
     <AppPanel
       hasNoPadding
+      isFullHeight
       isGlass={false}
       role="region"
       aria-label={panelTitle}
@@ -126,12 +127,9 @@ export function AddNodePanel(props: AddNodePanelProps) {
         maxHeight: '100%',
         width: '20rem',
         flexShrink: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
       }}
     >
-      <Stack>
+      <Stack style={{ flex: 1, minHeight: 0, height: '100%', overflow: 'hidden' }}>
         <AddNodePanelHeader
           panelTitle={panelTitle}
           isShowingSubtypeList={isShowingSubtypeList}
@@ -142,8 +140,9 @@ export function AddNodePanel(props: AddNodePanelProps) {
         <StackItem
           isFilled
           style={{
+            minHeight: 0,
             overflowY: 'auto',
-            overflowX: 'visible',
+            overflowX: 'hidden',
             paddingLeft: 'var(--pf-t--global--spacer--md)',
             paddingRight: 'var(--pf-t--global--spacer--md)',
             paddingBottom: 'var(--pf-t--global--spacer--md)',

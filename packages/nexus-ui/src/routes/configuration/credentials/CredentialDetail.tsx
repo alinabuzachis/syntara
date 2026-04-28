@@ -17,7 +17,7 @@ import type { IAction } from '@patternfly/react-table'
 import { useMemo, useState, type ReactNode } from 'react'
 import { useLocation, useParams } from 'wouter'
 
-import { AppPage } from '../../../app/AppPage'
+import { AppPage, AppPageMain } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
 import { credentialsClient } from '../../../client'
@@ -195,11 +195,11 @@ export default function CredentialDetail() {
     return (
       <AppPage>
         <AppPageHeader title="Error" />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <AppPageMain>
           <AppPanel isFullHeight>
             <ErrorState title="Invalid credential" message="No credential ID provided" />
           </AppPanel>
-        </StackItem>
+        </AppPageMain>
       </AppPage>
     )
   }
@@ -208,9 +208,9 @@ export default function CredentialDetail() {
     return (
       <AppPage>
         <AppPageHeader title="Credential" />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <AppPageMain>
           <AppPanel isFullHeight>{queryState}</AppPanel>
-        </StackItem>
+        </AppPageMain>
       </AppPage>
     )
   }
@@ -252,7 +252,7 @@ export default function CredentialDetail() {
         <ActionsColumn items={kebabActions} />
       </AppPageHeader>
 
-      <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+      <AppPageMain>
         <AppPanel isFullHeight>
           <Tabs activeKey={activeTab} onSelect={(_e, key) => setActiveTab(key as number)}>
             {/* Details Tab */}
@@ -328,7 +328,7 @@ export default function CredentialDetail() {
             </Tab>
           </Tabs>
         </AppPanel>
-      </StackItem>
+      </AppPageMain>
 
       <DisableCredentialDialog
         credential={credentialToDisable}

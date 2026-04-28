@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import { axe } from 'vitest-axe'
 
-import { AppPage } from './AppPage'
+import { AppPage, AppPageMain } from './AppPage'
 
 describe('AppPage', () => {
   it('renders children', () => {
@@ -29,14 +30,33 @@ describe('AppPage', () => {
     expect(screen.getByTestId('child3')).toBeInTheDocument()
   })
 
-  it('renders as a Stack with gutter', () => {
-    const { container } = render(
+  it('AppPageMain renders a filled stack item for main column content', () => {
+    render(
       <AppPage>
-        <div>Content</div>
+        <AppPageMain data-testid="app-page-main">
+          <div data-testid="main-region">Main</div>
+        </AppPageMain>
       </AppPage>
     )
 
-    const stack = container.querySelector('.pf-v6-l-stack')
-    expect(stack).toBeInTheDocument()
+    expect(screen.getByTestId('main-region')).toBeInTheDocument()
+    expect(screen.getByTestId('app-page-main')).toHaveClass('pf-m-fill')
+  })
+
+  describe('Accessibility', () => {
+    it('has no accessibility violations when AppPage wraps AppPageMain', async () => {
+      const { container } = render(
+        <AppPage>
+          <AppPageMain>
+            <main>
+              <h1>Page title</h1>
+              <p>Body</p>
+            </main>
+          </AppPageMain>
+        </AppPage>
+      )
+      const results = await axe(container)
+      expect(results).toHaveNoViolations()
+    })
   })
 })
