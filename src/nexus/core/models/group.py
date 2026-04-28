@@ -35,6 +35,15 @@ user_groups = Table(
     Column("group_id", ForeignKey("groups.id", ondelete="CASCADE"), primary_key=True),
 )
 
+# Tracks which groups an IdP auto-assigned to a user (for scoped sync on login)
+user_idp_groups = Table(
+    "user_idp_groups",
+    BaseResource.metadata,
+    Column("user_id", ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+    Column("identity_provider_id", ForeignKey("identity_providers.id", ondelete="CASCADE"), primary_key=True),
+    Column("group_id", ForeignKey("groups.id", ondelete="CASCADE"), primary_key=True),
+)
+
 
 class Group(SoftDeletableResource, table=True):
     """Group model for organizing users.
@@ -167,13 +176,28 @@ class GroupRead(BaseResource):
     member_count: int = 0
 
 
+class MembershipSource(SQLModel):
+    """Describes how a user got membership in a group."""
+
+    type: str = Field(description="Source type: 'manual' or 'idp'")
+    provider_name: str | None = Field(default=None, description="IdP name if source is 'idp'")
+    provider_id: UUID | None = Field(default=None, description="IdP ID if source is 'idp'")
+
+
+class UserGroupRead(GroupRead):
+    """Group response with membership source info for a specific user."""
+
+    membership_sources: list[MembershipSource] = Field(
+        default_factory=list, description="How this user was assigned to this group"
+    )
+
+
 # ============================================================================
 # List Response
 # ============================================================================
 
-
-class GroupListResponse(ResourcesResponse[GroupRead]):
-    """Paginated list response for groups."""
+GroupListResponse = ResourcesResponse[GroupRead]
+UserGroupListResponse = ResourcesResponse[UserGroupRead]
 
 
 class GroupListParams(BaseListParams):

@@ -6,7 +6,7 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.error_data import ErrorData
-from ...models.user_list_response import UserListResponse
+from ...models.resources_response_user_read import ResourcesResponseUserRead
 from ...types import UNSET, Response, Unset
 
 
@@ -69,9 +69,9 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> ErrorData | UserListResponse | None:
+) -> ErrorData | ResourcesResponseUserRead | None:
     if response.status_code == 200:
-        response_200 = UserListResponse.from_dict(response.json())
+        response_200 = ResourcesResponseUserRead.from_dict(response.json())
 
         return response_200
 
@@ -118,7 +118,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[ErrorData | UserListResponse]:
+) -> Response[ErrorData | ResourcesResponseUserRead]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -139,7 +139,7 @@ def sync_detailed(
     username: None | str | Unset = UNSET,
     full_name: None | str | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
-) -> Response[ErrorData | UserListResponse]:
+) -> Response[ErrorData | ResourcesResponseUserRead]:
     """List Users
 
      List users with filtering, sorting, and pagination.
@@ -159,7 +159,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorData | UserListResponse]
+        Response[ErrorData | ResourcesResponseUserRead]
     """
 
     kwargs = _get_kwargs(
@@ -188,7 +188,7 @@ def sync(
     include_total: bool | Unset = False,
     username: None | str | Unset = UNSET,
     full_name: None | str | Unset = UNSET,
-) -> ErrorData | UserListResponse | None:
+) -> ErrorData | ResourcesResponseUserRead | None:
     """List Users
 
      List users with filtering, sorting, and pagination.
@@ -208,7 +208,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorData | UserListResponse
+        ErrorData | ResourcesResponseUserRead
     """
 
     return sync_detailed(
@@ -231,7 +231,7 @@ async def asyncio_detailed(
     include_total: bool | Unset = False,
     username: None | str | Unset = UNSET,
     full_name: None | str | Unset = UNSET,
-) -> Response[ErrorData | UserListResponse]:
+) -> Response[ErrorData | ResourcesResponseUserRead]:
     """List Users
 
      List users with filtering, sorting, and pagination.
@@ -251,7 +251,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorData | UserListResponse]
+        Response[ErrorData | ResourcesResponseUserRead]
     """
 
     kwargs = _get_kwargs(
@@ -277,7 +277,7 @@ async def asyncio(
     include_total: bool | Unset = False,
     username: None | str | Unset = UNSET,
     full_name: None | str | Unset = UNSET,
-) -> ErrorData | UserListResponse | None:
+) -> ErrorData | ResourcesResponseUserRead | None:
     """List Users
 
      List users with filtering, sorting, and pagination.
@@ -297,7 +297,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorData | UserListResponse
+        ErrorData | ResourcesResponseUserRead
     """
 
     return (

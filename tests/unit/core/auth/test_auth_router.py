@@ -22,6 +22,7 @@ from nexus.auth.services.oidc_service import OIDCError
 from nexus.auth.services.token_service import TokenPayload
 from nexus.auth.session.session_store import SessionInfo
 from nexus.core.models import User
+from nexus.identity_providers.models.identity_provider_configuration import OIDCConfiguration
 
 
 @pytest.fixture
@@ -82,7 +83,7 @@ def _make_payload(
 def _make_user(
     *,
     user_id: str | None = None,
-    is_active: bool = True,
+    is_enabled: bool = True,
     password_hash: str | None = "$argon2id$v=19$m=65536,t=3,p=4$fakehash",  # noqa: S107
 ) -> User:
     return User(
@@ -90,7 +91,7 @@ def _make_user(
         username="testuser",
         email="test@example.com",
         full_name="Test User",
-        is_active=is_active,
+        is_enabled=is_enabled,
         password_hash=password_hash,
     )
 
@@ -246,7 +247,7 @@ class TestLoginEndpoint:
     @pytest.mark.asyncio
     async def test_login_rejects_inactive_user(self) -> None:
         """Login for inactive user raises AuthenticationRequiredError."""
-        user = _make_user(is_active=False)
+        user = _make_user(is_enabled=False)
         request = _make_request()
         response = _make_response()
         body = LoginRequest(username="testuser", password="correct")  # noqa: S106
@@ -411,7 +412,7 @@ class TestRefreshEndpoint:
     @pytest.mark.asyncio
     async def test_raises_when_user_inactive(self) -> None:
         """Refresh should raise AuthenticationRequiredError if user is inactive."""
-        user = _make_user(is_active=False)
+        user = _make_user(is_enabled=False)
         payload = _make_payload(sub=str(user.id))
 
         mock_token_service = MagicMock()
@@ -530,7 +531,9 @@ class TestLogoutEndpoint:
     @pytest.mark.asyncio
     async def test_clears_cookie_on_invalid_token(self) -> None:
         """Logout should clear cookie and re-raise InvalidTokenError."""
+        request = _make_request()
         response = _make_response()
+        db = AsyncMock()
 
         mock_token_service = MagicMock()
         mock_token_service.decode_token.side_effect = InvalidTokenError
@@ -540,14 +543,16 @@ class TestLogoutEndpoint:
             patch("nexus.auth.router.clear_refresh_cookie") as mock_clear,
             pytest.raises(InvalidTokenError),
         ):
-            await logout("bad-token", response)
+            await logout("bad-token", request, response, db)
 
         mock_clear.assert_called_once_with(response)
 
     @pytest.mark.asyncio
     async def test_clears_cookie_on_decode_exception(self) -> None:
         """Logout should clear cookie and raise AuthenticationRequiredError on unexpected decode error."""
+        request = _make_request()
         response = _make_response()
+        db = AsyncMock()
 
         mock_token_service = MagicMock()
         mock_token_service.decode_token.side_effect = RuntimeError("unexpected")
@@ -557,14 +562,16 @@ class TestLogoutEndpoint:
             patch("nexus.auth.router.clear_refresh_cookie") as mock_clear,
             pytest.raises(AuthenticationRequiredError),
         ):
-            await logout("bad-token", response)
+            await logout("bad-token", request, response, db)
 
         mock_clear.assert_called_once_with(response)
 
     @pytest.mark.asyncio
     async def test_clears_cookie_when_jti_missing(self) -> None:
         """Logout should clear cookie and raise when payload has no JTI."""
+        request = _make_request()
         response = _make_response()
+        db = AsyncMock()
 
         payload = _make_payload(jti="")
         payload.jti = None
@@ -577,20 +584,23 @@ class TestLogoutEndpoint:
             patch("nexus.auth.router.clear_refresh_cookie") as mock_clear,
             pytest.raises(AuthenticationRequiredError),
         ):
-            await logout("valid-token", response)
+            await logout("valid-token", request, response, db)
 
         mock_clear.assert_called_once_with(response)
 
     @pytest.mark.asyncio
     async def test_success_revokes_session_and_clears_cookie(self) -> None:
         """Successful logout revokes session in Redis and clears cookie."""
+        request = _make_request()
         response = _make_response()
+        db = AsyncMock()
 
         payload = _make_payload(jti="jti-123")
         mock_token_service = MagicMock()
         mock_token_service.decode_token.return_value = payload
 
         mock_store = AsyncMock()
+        mock_store.get.return_value = None  # No session metadata (local logout)
         mock_store.revoke.return_value = True
 
         with (
@@ -598,7 +608,7 @@ class TestLogoutEndpoint:
             patch("nexus.auth.router.SessionStore", _patch_session_store(mock_store)),
             patch("nexus.auth.router.clear_refresh_cookie") as mock_clear,
         ):
-            result = await logout("the-refresh-jwt", response)
+            result = await logout("the-refresh-jwt", request, response, db)
 
         assert result == {"detail": "Successfully logged out"}
         mock_store.revoke.assert_called_once_with("jti-123")
@@ -618,18 +628,21 @@ class TestLogoutEndpoint:
             patch("nexus.auth.router.SessionStore", _patch_session_store_unavailable()),
             pytest.raises(SessionStoreUnavailableError),
         ):
-            await logout("the-refresh-jwt", response)
+            await logout("the-refresh-jwt", _make_request(), response, AsyncMock())
 
     @pytest.mark.asyncio
     async def test_success_when_session_already_expired(self) -> None:
         """Logout succeeds even when session was already expired in Redis."""
+        request = _make_request()
         response = _make_response()
+        db = AsyncMock()
 
         payload = _make_payload(jti="jti-456")
         mock_token_service = MagicMock()
         mock_token_service.decode_token.return_value = payload
 
         mock_store = AsyncMock()
+        mock_store.get.return_value = None  # No session metadata
         mock_store.revoke.return_value = False  # already expired
 
         with (
@@ -637,10 +650,219 @@ class TestLogoutEndpoint:
             patch("nexus.auth.router.SessionStore", _patch_session_store(mock_store)),
             patch("nexus.auth.router.clear_refresh_cookie") as mock_clear,
         ):
-            result = await logout("the-refresh-jwt", response)
+            result = await logout("the-refresh-jwt", request, response, db)
 
         assert result == {"detail": "Successfully logged out"}
         mock_clear.assert_called_once_with(response)
+
+    @pytest.mark.asyncio
+    async def test_rp_logout_returns_auth_error_when_endpoint_unresolvable(self) -> None:
+        """When RP-initiated logout is enabled but end_session_endpoint can't be resolved, return auth_error in JSON."""
+        request = _make_request()
+        response = _make_response()
+        db = AsyncMock()
+
+        payload = _make_payload(jti="jti-rp")
+        mock_token_service = MagicMock()
+        mock_token_service.decode_token.return_value = payload
+
+        mock_store = AsyncMock()
+        mock_store.get.return_value = SessionInfo(
+            jti="jti-rp",
+            user_id=str(uuid4()),
+            issued_at=datetime.now(UTC),
+            device=None,
+            ip_address=None,
+            ttl=3600,
+            idp_id=str(uuid4()),
+            idp="oidc",
+        )
+        mock_store.revoke.return_value = True
+
+        rp_info = {"auth_error": "Logged out of Nexus, but could not log out of Test IdP."}
+
+        with (
+            patch("nexus.auth.router._get_token_service", return_value=mock_token_service),
+            patch("nexus.auth.router.SessionStore", _patch_session_store(mock_store)),
+            patch("nexus.auth.router.clear_refresh_cookie"),
+            patch("nexus.auth.router._maybe_rp_logout", return_value=rp_info),
+        ):
+            result = await logout("the-refresh-jwt", request, response, db)
+
+        assert result["detail"] == "Successfully logged out"
+        assert "could not log out" in result["auth_error"]
+
+    @pytest.mark.asyncio
+    async def test_rp_logout_returns_redirect_url_on_success(self) -> None:
+        """When RP-initiated logout succeeds, return redirect_url in JSON response."""
+        request = _make_request()
+        response = _make_response()
+        db = AsyncMock()
+
+        payload = _make_payload(jti="jti-rp")
+        mock_token_service = MagicMock()
+        mock_token_service.decode_token.return_value = payload
+
+        mock_store = AsyncMock()
+        mock_store.get.return_value = SessionInfo(
+            jti="jti-rp",
+            user_id=str(uuid4()),
+            issued_at=datetime.now(UTC),
+            device=None,
+            ip_address=None,
+            ttl=3600,
+            idp_id=str(uuid4()),
+            idp="oidc",
+        )
+        mock_store.revoke.return_value = True
+
+        rp_info = {
+            "redirect_url": "https://idp.example.com/logout?id_token_hint=abc&post_logout_redirect_uri=https://app.example.com"
+        }
+
+        with (
+            patch("nexus.auth.router._get_token_service", return_value=mock_token_service),
+            patch("nexus.auth.router.SessionStore", _patch_session_store(mock_store)),
+            patch("nexus.auth.router.clear_refresh_cookie"),
+            patch("nexus.auth.router._maybe_rp_logout", return_value=rp_info),
+        ):
+            result = await logout("the-refresh-jwt", request, response, db)
+
+        assert result["detail"] == "Successfully logged out"
+        assert (
+            result["redirect_url"]
+            == "https://idp.example.com/logout?id_token_hint=abc&post_logout_redirect_uri=https://app.example.com"
+        )
+        assert "auth_error" not in result
+
+
+# =============================================================================
+# RP-initiated logout helper
+# =============================================================================
+
+
+class TestMaybeRpLogout:
+    """Tests for _maybe_rp_logout helper."""
+
+    @pytest.mark.asyncio
+    async def test_returns_none_for_local_session(self) -> None:
+        """Should return None when session has no idp_id (local session)."""
+        from nexus.auth.router import _maybe_rp_logout
+
+        session_info = SessionInfo(
+            jti="jti-local",
+            user_id=str(uuid4()),
+            issued_at=datetime.now(UTC),
+            device=None,
+            ip_address=None,
+            ttl=3600,
+        )
+
+        db = AsyncMock()
+        result = await _maybe_rp_logout(db, session_info, "https://app.example.com")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_returns_none_when_no_session(self) -> None:
+        """Should return None when session_info is None."""
+        from nexus.auth.router import _maybe_rp_logout
+
+        db = AsyncMock()
+        result = await _maybe_rp_logout(db, None, "https://app.example.com")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_returns_auth_error_when_endpoint_unresolvable(self) -> None:
+        """Should return dict with auth_error when end_session_endpoint can't be resolved."""
+        from nexus.auth.router import _maybe_rp_logout, _oidc_err_idp_logout_failed
+        from nexus.identity_providers.models.identity_provider import IdentityProvider
+        from nexus.identity_providers.models.identity_provider_configuration import OIDCConfiguration
+
+        idp_id = uuid4()
+        config = OIDCConfiguration(
+            issuer_url="https://idp.example.com",
+            client_id="client-id",
+            client_secret="client-secret",  # noqa: S106
+            redirect_uri="https://app.example.com/callback",
+            enable_rp_initiated_logout=True,
+            auto_discovery=False,
+            end_session_endpoint=None,
+        )
+        provider = IdentityProvider(
+            id=idp_id,
+            name="Test IdP",
+            slug="test-idp",
+            configuration=config,
+        )
+
+        session_info = SessionInfo(
+            jti="jti-rp",
+            user_id=str(uuid4()),
+            issued_at=datetime.now(UTC),
+            device=None,
+            ip_address=None,
+            ttl=3600,
+            idp_id=str(idp_id),
+            idp="oidc",
+        )
+
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = provider
+
+        db = AsyncMock()
+        db.exec.return_value = mock_result
+
+        result = await _maybe_rp_logout(db, session_info, "https://app.example.com")
+
+        assert result == {"auth_error": _oidc_err_idp_logout_failed("Test IdP")}
+
+    @pytest.mark.asyncio
+    async def test_returns_redirect_url_when_endpoint_available(self) -> None:
+        """Should return dict with redirect_url when end_session_endpoint is available."""
+        from nexus.auth.router import _maybe_rp_logout
+        from nexus.identity_providers.models.identity_provider import IdentityProvider
+        from nexus.identity_providers.models.identity_provider_configuration import OIDCConfiguration
+
+        idp_id = uuid4()
+        config = OIDCConfiguration(
+            issuer_url="https://idp.example.com",
+            client_id="client-id",
+            client_secret="client-secret",  # noqa: S106
+            redirect_uri="https://app.example.com/callback",
+            enable_rp_initiated_logout=True,
+            auto_discovery=False,
+            end_session_endpoint="https://idp.example.com/logout",
+        )
+        provider = IdentityProvider(
+            id=idp_id,
+            name="Test IdP",
+            slug="test-idp",
+            configuration=config,
+        )
+
+        session_info = SessionInfo(
+            jti="jti-rp",
+            user_id=str(uuid4()),
+            issued_at=datetime.now(UTC),
+            device=None,
+            ip_address=None,
+            ttl=3600,
+            idp_id=str(idp_id),
+            idp="oidc",
+        )
+
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = provider
+
+        db = AsyncMock()
+        db.exec.return_value = mock_result
+
+        result = await _maybe_rp_logout(db, session_info, "https://app.example.com")
+
+        assert result is not None
+        assert "redirect_url" in result
+        assert "https://idp.example.com/logout" in result["redirect_url"]
+        assert "post_logout_redirect_uri=https%3A%2F%2Fapp.example.com" in result["redirect_url"]
 
 
 # =============================================================================
@@ -663,12 +885,15 @@ class TestGetMeEndpoint:
         payload.groups = ["engineering", "admins"]
         payload.token_type = "access"  # noqa: S105
 
-        result = await get_me(payload)
+        request = _make_request()  # No refresh token in cookie
+
+        result = await get_me(request, payload)
 
         assert result.id == user_id
         assert result.username == "alice"
         assert result.email == "alice@example.com"
         assert result.groups == ["engineering", "admins"]
+        assert result.rp_logout_enabled is False  # No refresh token, so RP logout disabled
 
     @pytest.mark.asyncio
     async def test_handles_none_optional_fields(self) -> None:
@@ -680,11 +905,182 @@ class TestGetMeEndpoint:
         payload.email = None
         payload.groups = None
 
-        result = await get_me(payload)
+        request = _make_request()  # No refresh token in cookie
+
+        result = await get_me(request, payload)
 
         assert result.username == ""
         assert result.email == ""
         assert result.groups == []
+        assert result.rp_logout_enabled is False  # No refresh token
+
+    @pytest.mark.asyncio
+    @patch("nexus.auth.router.SessionStore")
+    @patch("nexus.auth.router._get_token_service")
+    async def test_rp_logout_enabled_true(
+        self,
+        mock_token_svc: MagicMock,
+        mock_session_store_cls: MagicMock,
+    ) -> None:
+        """get_me should return rp_logout_enabled=True when session has it set."""
+        from nexus.auth.router import get_me
+        from nexus.auth.session.session_store import SessionInfo
+
+        user_id = str(uuid4())
+        payload = _make_payload(sub=user_id, preferred_username="alice")
+        payload.email = "alice@example.com"
+        payload.groups = ["engineering"]
+        payload.token_type = "access"  # noqa: S105
+
+        # Mock refresh token in cookie
+        request = _make_request(cookie_value="fake-refresh-token")
+
+        # Mock token decode
+        refresh_payload = _make_payload(sub=user_id, jti="session-jti")
+        mock_token_svc.return_value.decode_token.return_value = refresh_payload
+
+        # Mock session store returning session with rp_logout_enabled=True
+        session = SessionInfo(
+            jti="session-jti",
+            user_id=user_id,
+            issued_at=datetime.now(UTC),
+            device="test-agent",
+            ip_address="127.0.0.1",
+            rp_logout_enabled=True,
+        )
+        mock_store = AsyncMock()
+        mock_store.get.return_value = session
+        mock_session_store_cls.return_value.__aenter__.return_value = mock_store
+
+        result = await get_me(request, payload)
+
+        assert result.rp_logout_enabled is True
+
+
+@pytest.mark.usefixtures("_mock_audit_dispatcher", "_mock_audit_emission")
+class TestVerifyIdpTestPermission:
+    """Tests for _verify_idp_test_permission session revocation check."""
+
+    @pytest.mark.asyncio
+    @patch("nexus.auth.router.SessionStore")
+    @patch("nexus.auth.router._get_token_service")
+    @patch("nexus.auth.router.get_refresh_token_from_cookie")
+    async def test_raises_when_session_revoked(
+        self,
+        mock_cookie: MagicMock,
+        mock_token_svc: MagicMock,
+        mock_session_store_cls: MagicMock,
+    ) -> None:
+        """Should raise OIDCError when the refresh token session has been revoked."""
+        from nexus.auth.router import _verify_idp_test_permission
+
+        mock_cookie.return_value = "fake-refresh-token"
+        payload = _make_payload(jti="revoked-jti")
+        mock_token_svc.return_value.decode_token.return_value = payload
+
+        mock_store = AsyncMock()
+        mock_store.get.return_value = None  # Session revoked
+        mock_session_store_cls.return_value.__aenter__.return_value = mock_store
+
+        request = _make_request(cookie_value="fake-refresh-token")
+        db = AsyncMock()
+
+        with pytest.raises(OIDCError, match="Session expired or revoked"):
+            await _verify_idp_test_permission(request, db)
+
+    @pytest.mark.asyncio
+    @patch("nexus.auth.router.get_opa_client")
+    @patch("nexus.auth.router.authorize", new_callable=AsyncMock)
+    @patch("nexus.auth.router._find_non_deleted_user", new_callable=AsyncMock)
+    @patch("nexus.auth.router.SessionStore")
+    @patch("nexus.auth.router._get_token_service")
+    @patch("nexus.auth.router.get_refresh_token_from_cookie")
+    async def test_proceeds_when_session_active(
+        self,
+        mock_cookie: MagicMock,
+        mock_token_svc: MagicMock,
+        mock_session_store_cls: MagicMock,
+        mock_find_user: AsyncMock,
+        mock_authorize: AsyncMock,
+        mock_opa: MagicMock,
+    ) -> None:
+        """Should not raise when session is active and user has permission."""
+        from nexus.auth.router import _verify_idp_test_permission
+
+        mock_cookie.return_value = "fake-refresh-token"
+        user_id = str(uuid4())
+        payload = _make_payload(sub=user_id, jti="active-jti")
+        mock_token_svc.return_value.decode_token.return_value = payload
+
+        session = SessionInfo(
+            jti="active-jti",
+            user_id=user_id,
+            issued_at=datetime.now(UTC),
+            device="test",
+            ip_address="127.0.0.1",
+        )
+        mock_store = AsyncMock()
+        mock_store.get.return_value = session
+        mock_session_store_cls.return_value.__aenter__.return_value = mock_store
+
+        mock_user = MagicMock()
+        mock_user.id = UUID(user_id)
+        mock_user.labels = {}
+        mock_user.authz_metadata = {}
+        mock_find_user.return_value = mock_user
+
+        mock_authz_result = MagicMock()
+        mock_authz_result.allowed = True
+        mock_authorize.return_value = mock_authz_result
+
+        request = _make_request(cookie_value="fake-refresh-token")
+        db = AsyncMock()
+
+        # Should not raise
+        await _verify_idp_test_permission(request, db)
+
+
+@pytest.mark.usefixtures("_mock_audit_dispatcher", "_mock_audit_emission")
+class TestResolveAndLoginUserRollback:
+    """Tests for rollback behavior when group matching denies login."""
+
+    @pytest.mark.asyncio
+    @patch("nexus.auth.router.sync_idp_groups", new_callable=AsyncMock)
+    @patch("nexus.auth.router._resolve_oidc_user", new_callable=AsyncMock)
+    async def test_rollback_on_no_group_match(
+        self,
+        mock_resolve: AsyncMock,
+        mock_sync: AsyncMock,
+    ) -> None:
+        """Should call db.rollback() when no groups matched and user has no other groups."""
+        from nexus.auth.router import _resolve_and_login_user
+        from nexus.identity_providers.models.identity_provider import IdentityProvider
+
+        user = User(id=uuid4(), username="testuser", email="t@t.com", full_name="Test", is_enabled=True)
+        identity = MagicMock()
+        mock_resolve.return_value = (user, identity)
+        mock_sync.return_value = False  # No groups matched
+
+        db = AsyncMock()
+        # The flush succeeds, but the subsequent group check returns no rows
+        other_groups_result = MagicMock()
+        other_groups_result.first.return_value = None
+        db.execute.return_value = other_groups_result
+
+        provider = MagicMock(spec=IdentityProvider)
+        provider.name = "TestIdP"
+        provider.configuration = OIDCConfiguration(
+            provider_type="oidc",
+            issuer_url="https://idp.example.com",
+            client_id="client-id",
+            client_secret="secret",  # noqa: S106
+            redirect_uri="http://localhost:8000/callback",
+        )
+
+        with pytest.raises(_OIDCCallbackError):
+            await _resolve_and_login_user(db, {"email": "t@t.com", "sub": "sub-1"}, {}, provider, None)
+
+        db.rollback.assert_called_once()
 
 
 class TestLoginAuditEvents:
@@ -1022,6 +1418,11 @@ class TestOIDCAuditEvents:
         state_data = {"origin": "http://localhost:3000", "redirect_to": "/dashboard"}
         mock_token_service, mock_session_store, mock_settings, request, db = _setup_oidc_callback_mocks()
 
+        identity = MagicMock()
+        identity.id = uuid4()
+        identity.issuer = "https://idp.example.com"
+        identity.subject = "sub-123"
+
         with (
             patch("nexus.auth.router._process_oidc_callback") as mock_process,
             patch("nexus.auth.router._get_token_service", return_value=mock_token_service),
@@ -1030,7 +1431,7 @@ class TestOIDCAuditEvents:
             patch("nexus.auth.router.set_refresh_cookie"),
             patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit,
         ):
-            mock_process.return_value = (user, provider, state_data, False)
+            mock_process.return_value = (user, provider, state_data, identity, {}, "id-token-raw", False)
 
             response = await oidc_callback(
                 state="valid-state",
@@ -1103,3 +1504,361 @@ class TestOIDCAuditEvents:
             EventCategory.SECURITY_EVENT,
             EventStatus.SUCCESS,
         )
+
+
+# =============================================================================
+# _get_user_group_names helper
+# =============================================================================
+
+
+class TestGetUserGroupNames:
+    """Tests for _get_user_group_names helper."""
+
+    @pytest.mark.asyncio
+    async def test_returns_groups_with_implicit_authenticated(self) -> None:
+        """Should return explicit groups plus implicit 'authenticated' group, sorted."""
+        from nexus.auth.router import _get_user_group_names
+
+        user_id = uuid4()
+        mock_result = MagicMock()
+        mock_result.all.return_value = ["engineering", "ops"]
+        db = AsyncMock()
+        db.exec.return_value = mock_result
+
+        names = await _get_user_group_names(db, user_id)
+
+        assert names == ["authenticated", "engineering", "ops"]
+
+    @pytest.mark.asyncio
+    async def test_no_explicit_groups_returns_only_authenticated(self) -> None:
+        """Should return just 'authenticated' when user has no explicit groups."""
+        from nexus.auth.router import _get_user_group_names
+
+        user_id = uuid4()
+        mock_result = MagicMock()
+        mock_result.all.return_value = []
+        db = AsyncMock()
+        db.exec.return_value = mock_result
+
+        names = await _get_user_group_names(db, user_id)
+
+        assert names == ["authenticated"]
+
+    @pytest.mark.asyncio
+    async def test_authenticated_already_present_not_duplicated(self) -> None:
+        """Should not duplicate 'authenticated' when it's already in the list."""
+        from nexus.auth.router import _get_user_group_names
+
+        user_id = uuid4()
+        mock_result = MagicMock()
+        mock_result.all.return_value = ["authenticated", "admins"]
+        db = AsyncMock()
+        db.exec.return_value = mock_result
+
+        names = await _get_user_group_names(db, user_id)
+
+        assert names == ["authenticated", "admins"]
+        assert names.count("authenticated") == 1
+
+    @pytest.mark.asyncio
+    async def test_single_group_sorted_with_authenticated(self) -> None:
+        """Should sort correctly when one group is present."""
+        from nexus.auth.router import _get_user_group_names
+
+        user_id = uuid4()
+        mock_result = MagicMock()
+        mock_result.all.return_value = ["zebra-team"]
+        db = AsyncMock()
+        db.exec.return_value = mock_result
+
+        names = await _get_user_group_names(db, user_id)
+
+        assert names == ["authenticated", "zebra-team"]
+
+
+# =============================================================================
+# _build_rp_logout_url helper
+# =============================================================================
+
+
+class TestBuildRpLogoutUrl:
+    """Tests for _build_rp_logout_url helper."""
+
+    def test_all_params(self) -> None:
+        """Should build URL with both id_token_hint and post_logout_redirect_uri."""
+        from nexus.auth.router import _build_rp_logout_url
+
+        url = _build_rp_logout_url(
+            end_session_endpoint="https://idp.example.com/logout",
+            id_token_hint="my-id-token",  # noqa: S106
+            post_logout_redirect_uri="https://app.example.com",
+        )
+
+        assert url.startswith("https://idp.example.com/logout?")
+        assert "id_token_hint=my-id-token" in url
+        assert "post_logout_redirect_uri=https%3A%2F%2Fapp.example.com" in url
+
+    def test_only_post_logout_redirect_uri(self) -> None:
+        """Should build URL with only post_logout_redirect_uri when no id_token_hint."""
+        from nexus.auth.router import _build_rp_logout_url
+
+        url = _build_rp_logout_url(
+            end_session_endpoint="https://idp.example.com/logout",
+            id_token_hint=None,
+            post_logout_redirect_uri="https://app.example.com",
+        )
+
+        assert "post_logout_redirect_uri=https%3A%2F%2Fapp.example.com" in url
+        assert "id_token_hint" not in url
+
+    def test_no_params_returns_bare_endpoint(self) -> None:
+        """Should return bare endpoint when both optional params are empty."""
+        from nexus.auth.router import _build_rp_logout_url
+
+        url = _build_rp_logout_url(
+            end_session_endpoint="https://idp.example.com/logout",
+            id_token_hint=None,
+            post_logout_redirect_uri="",
+        )
+
+        assert url == "https://idp.example.com/logout"
+
+    def test_only_id_token_hint(self) -> None:
+        """Should build URL with only id_token_hint when post_logout_redirect_uri is empty."""
+        from nexus.auth.router import _build_rp_logout_url
+
+        url = _build_rp_logout_url(
+            end_session_endpoint="https://idp.example.com/logout",
+            id_token_hint="my-id-token",  # noqa: S106
+            post_logout_redirect_uri="",
+        )
+
+        assert "id_token_hint=my-id-token" in url
+        assert "post_logout_redirect_uri" not in url
+
+
+# =============================================================================
+# _resolve_end_session_endpoint helper
+# =============================================================================
+
+
+class TestResolveEndSessionEndpoint:
+    """Tests for _resolve_end_session_endpoint helper."""
+
+    @pytest.mark.asyncio
+    async def test_returns_static_endpoint(self) -> None:
+        """Should prefer static end_session_endpoint from config."""
+        from nexus.auth.router import _resolve_end_session_endpoint
+        from nexus.identity_providers.models.identity_provider_configuration import OIDCConfiguration
+
+        config = OIDCConfiguration(
+            issuer_url="https://idp.example.com",
+            client_id="c",
+            client_secret="s",  # noqa: S106
+            redirect_uri="http://localhost/callback",
+            end_session_endpoint="https://idp.example.com/logout",
+        )
+
+        result = await _resolve_end_session_endpoint(config)
+
+        assert result == "https://idp.example.com/logout"
+
+    @pytest.mark.asyncio
+    async def test_returns_none_when_no_static_and_no_auto_discovery(self) -> None:
+        """Should return None when no static endpoint and auto_discovery is False."""
+        from nexus.auth.router import _resolve_end_session_endpoint
+        from nexus.identity_providers.models.identity_provider_configuration import OIDCConfiguration
+
+        config = OIDCConfiguration(
+            issuer_url="https://idp.example.com",
+            client_id="c",
+            client_secret="s",  # noqa: S106
+            redirect_uri="http://localhost/callback",
+            auto_discovery=False,
+            end_session_endpoint=None,
+        )
+
+        result = await _resolve_end_session_endpoint(config)
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_discovers_endpoint_via_oidc_service(self) -> None:
+        """Should fall back to OIDC discovery when auto_discovery is True."""
+        from nexus.auth.router import _resolve_end_session_endpoint
+        from nexus.identity_providers.models.identity_provider_configuration import OIDCConfiguration
+
+        config = OIDCConfiguration(
+            issuer_url="https://idp.example.com",
+            client_id="c",
+            client_secret="s",  # noqa: S106
+            redirect_uri="http://localhost/callback",
+            auto_discovery=True,
+            end_session_endpoint=None,
+        )
+
+        mock_service = AsyncMock()
+        mock_service.fetch_discovery_config = AsyncMock(
+            return_value={"end_session_endpoint": "https://idp.example.com/discovered-logout"}
+        )
+
+        with patch("nexus.auth.router.OIDCService") as mock_cls:
+            mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_service)
+            mock_cls.return_value.__aexit__ = AsyncMock(return_value=None)
+
+            result = await _resolve_end_session_endpoint(config)
+
+        assert result == "https://idp.example.com/discovered-logout"
+
+    @pytest.mark.asyncio
+    async def test_returns_none_on_discovery_failure(self) -> None:
+        """Should return None when OIDC discovery fails."""
+        from nexus.auth.router import _resolve_end_session_endpoint
+        from nexus.identity_providers.models.identity_provider_configuration import OIDCConfiguration
+
+        config = OIDCConfiguration(
+            issuer_url="https://idp.example.com",
+            client_id="c",
+            client_secret="s",  # noqa: S106
+            redirect_uri="http://localhost/callback",
+            auto_discovery=True,
+            end_session_endpoint=None,
+        )
+
+        with patch("nexus.auth.router.OIDCService") as mock_cls:
+            mock_cls.return_value.__aenter__ = AsyncMock(side_effect=OIDCError("Discovery failed"))
+
+            result = await _resolve_end_session_endpoint(config)
+
+        assert result is None
+
+
+# =============================================================================
+# _maybe_rp_logout: additional edge cases
+# =============================================================================
+
+
+class TestMaybeRpLogoutEdgeCases:
+    """Additional edge-case tests for _maybe_rp_logout helper."""
+
+    @pytest.mark.asyncio
+    async def test_returns_redirect_url_when_decryption_fails(self) -> None:
+        """Should still return redirect_url (without hint) when decrypt fails."""
+        from nexus.auth.router import _maybe_rp_logout
+        from nexus.identity_providers.models.identity_provider import IdentityProvider
+        from nexus.identity_providers.models.identity_provider_configuration import OIDCConfiguration
+
+        idp_id = uuid4()
+        config = OIDCConfiguration(
+            issuer_url="https://idp.example.com",
+            client_id="client-id",
+            client_secret="client-secret",  # noqa: S106
+            redirect_uri="https://app.example.com/callback",
+            enable_rp_initiated_logout=True,
+            auto_discovery=False,
+            end_session_endpoint="https://idp.example.com/logout",
+        )
+        provider = IdentityProvider(
+            id=idp_id,
+            name="Test IdP",
+            slug="test-idp",
+            configuration=config,
+        )
+
+        session_info = SessionInfo(
+            jti="jti-rp",
+            user_id=str(uuid4()),
+            issued_at=datetime.now(UTC),
+            device=None,
+            ip_address=None,
+            ttl=3600,
+            idp_id=str(idp_id),
+            idp="oidc",
+            id_token_hint="encrypted-hint",  # noqa: S106
+        )
+
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = provider
+
+        db = AsyncMock()
+        db.exec.return_value = mock_result
+
+        with patch("nexus.auth.router.get_settings") as mock_settings:
+            mock_settings.return_value.secret_encryption_key.get_secret_value.return_value = "bad-key"
+            with patch("nexus.auth.router.key_from_string", side_effect=ValueError("bad key")):
+                result = await _maybe_rp_logout(db, session_info, "https://app.example.com")
+
+        assert result is not None
+        assert "redirect_url" in result
+        assert "https://idp.example.com/logout" in result["redirect_url"]
+        # No id_token_hint in the URL because decryption failed
+        assert "id_token_hint" not in result["redirect_url"]
+
+    @pytest.mark.asyncio
+    async def test_returns_none_when_provider_not_found(self) -> None:
+        """Should return None when IdP does not exist in DB."""
+        from nexus.auth.router import _maybe_rp_logout
+
+        session_info = SessionInfo(
+            jti="jti-rp",
+            user_id=str(uuid4()),
+            issued_at=datetime.now(UTC),
+            device=None,
+            ip_address=None,
+            ttl=3600,
+            idp_id=str(uuid4()),
+            idp="oidc",
+        )
+
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = None
+
+        db = AsyncMock()
+        db.exec.return_value = mock_result
+
+        result = await _maybe_rp_logout(db, session_info, "https://app.example.com")
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_returns_none_when_rp_logout_disabled(self) -> None:
+        """Should return None when enable_rp_initiated_logout is False."""
+        from nexus.auth.router import _maybe_rp_logout
+        from nexus.identity_providers.models.identity_provider import IdentityProvider
+        from nexus.identity_providers.models.identity_provider_configuration import OIDCConfiguration
+
+        idp_id = uuid4()
+        config = OIDCConfiguration(
+            issuer_url="https://idp.example.com",
+            client_id="client-id",
+            client_secret="client-secret",  # noqa: S106
+            redirect_uri="https://app.example.com/callback",
+            enable_rp_initiated_logout=False,
+        )
+        provider = IdentityProvider(
+            id=idp_id,
+            name="Test IdP",
+            slug="test-idp",
+            configuration=config,
+        )
+
+        session_info = SessionInfo(
+            jti="jti-rp",
+            user_id=str(uuid4()),
+            issued_at=datetime.now(UTC),
+            device=None,
+            ip_address=None,
+            ttl=3600,
+            idp_id=str(idp_id),
+            idp="oidc",
+        )
+
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = provider
+
+        db = AsyncMock()
+        db.exec.return_value = mock_result
+
+        result = await _maybe_rp_logout(db, session_info, "https://app.example.com")
+
+        assert result is None

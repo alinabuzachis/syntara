@@ -30,6 +30,7 @@ from nexus.auth.services.oidc_service import (
     OIDCError,
     OIDCService,
 )
+from nexus.identity_providers.models.identity_provider_configuration import OIDCClaimMapping
 
 
 @pytest.fixture
@@ -223,15 +224,16 @@ class TestStoreOidcState:
         await oidc_service.store_oidc_state(state, provider_id, nonce, code_verifier)
 
         expected_key = f"{OIDC_STATE_KEY_PREFIX}{state}"
-        expected_data = json.dumps(
-            {
-                "provider_id": str(provider_id),
-                "nonce": nonce,
-                "code_verifier": code_verifier,
-            }
-        )
-
-        mock_redis.setex.assert_called_once_with(expected_key, OIDC_STATE_TTL_SECONDS, expected_data)
+        mock_redis.setex.assert_called_once()
+        call_args = mock_redis.setex.call_args
+        assert call_args[0][0] == expected_key
+        assert call_args[0][1] == OIDC_STATE_TTL_SECONDS
+        # Verify stored envelope contains data and HMAC
+        envelope = json.loads(call_args[0][2])
+        assert envelope["data"]["provider_id"] == str(provider_id)
+        assert envelope["data"]["nonce"] == nonce
+        assert envelope["data"]["code_verifier"] == code_verifier
+        assert "mac" in envelope
 
 
 class TestRetrieveOidcState:
@@ -242,13 +244,14 @@ class TestRetrieveOidcState:
         """Test that state is retrieved and deleted from Redis."""
         state = "test-state-123"
         provider_id = str(uuid4())
-        stored_data = json.dumps(
-            {
-                "provider_id": provider_id,
-                "nonce": "test-nonce",
-                "code_verifier": "test-verifier",
-            }
-        )
+        payload = {
+            "provider_id": provider_id,
+            "nonce": "test-nonce",
+            "code_verifier": "test-verifier",
+        }
+        raw = json.dumps(payload, sort_keys=True)
+        mac = OIDCService._compute_state_hmac(raw)
+        stored_data = json.dumps({"data": payload, "mac": mac})
 
         mock_pipeline = AsyncMock()
         mock_pipeline.get = MagicMock()
@@ -737,6 +740,60 @@ class TestExtractUserClaims:
         assert result["email"] is None
         assert result["name"] is None
         assert result["preferred_username"] is None
+
+    def test_custom_claim_mapping(self, oidc_service: OIDCService) -> None:
+        """Test extraction with custom claim mapping (e.g. Azure AD 'mail' instead of 'email')."""
+        mapping = OIDCClaimMapping(
+            subject="sub",
+            email="mail",
+            username="upn",
+            full_name="displayName",
+        )
+        id_token_claims = {
+            "sub": "user-456",
+            "mail": "azure-user@example.com",
+            "upn": "azure-user",
+            "displayName": "Azure User",
+        }
+
+        result = oidc_service.extract_user_claims(id_token_claims, mapping)
+
+        assert result["sub"] == "user-456"
+        assert result["email"] == "azure-user@example.com"
+        assert result["preferred_username"] == "azure-user"
+        assert result["name"] == "Azure User"
+
+    def test_custom_claim_mapping_with_groups(self, oidc_service: OIDCService) -> None:
+        """Test extraction with groups claim mapping."""
+        mapping = OIDCClaimMapping(
+            subject="sub",
+            email="email",
+            username="preferred_username",
+            full_name="name",
+            groups="memberOf",
+        )
+        id_token_claims = {
+            "sub": "user-789",
+            "email": "user@example.com",
+            "preferred_username": "testuser",
+            "name": "Test User",
+            "memberOf": "group1,group2",
+        }
+
+        result = oidc_service.extract_user_claims(id_token_claims, mapping)
+
+        assert result["groups"] == "group1,group2"
+
+    def test_default_mapping_has_no_groups_key(self, oidc_service: OIDCService) -> None:
+        """Test that default mapping does not include groups in result."""
+        id_token_claims = {
+            "sub": "user-123",
+            "groups": "should-be-ignored",
+        }
+
+        result = oidc_service.extract_user_claims(id_token_claims)
+
+        assert "groups" not in result
 
 
 class TestBuildAuthorizationUrl:

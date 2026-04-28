@@ -101,7 +101,7 @@ async def _seed_authz(test_db_session: AsyncSession) -> None:
         username="dev-user",
         email="dev@example.com",
         full_name="Development User",
-        is_active=True,
+        is_enabled=True,
     )
     test_db_session.add(dev_user)
     await test_db_session.flush()

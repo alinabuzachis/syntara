@@ -10,16 +10,20 @@ Tests cover:
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import insert
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth.exceptions import (
-    AdminDisableByNonAdminError,
-    UserEmailConflictError,
+    AdminDeleteError,
+    AdminDisableNoOtherAdminsError,
+    AdminModifyError,
     UserNotFoundError,
     UserUsernameConflictError,
 )
-from nexus.auth.passwords import verify_password
+from nexus.auth.passwords import hash_password, verify_password
 from nexus.core.models import User
+from nexus.core.models.group import Group, user_groups
+from nexus.core.models.user_schemas import UserRead
 from nexus.users.services.user_service import UsersService
 
 TEST_PASSWORD = "securepassword123"  # noqa: S105
@@ -40,7 +44,7 @@ async def test_create_user_success(test_db_session: AsyncSession, test_user: Use
     assert user.username == "newuser"
     assert user.email == "newuser@example.com"
     assert user.full_name == "New User"
-    assert user.is_active is True
+    assert user.is_enabled is True
     assert user.id is not None
     assert user.password_hash is not None
     assert verify_password(TEST_PASSWORD, user.password_hash)
@@ -48,7 +52,7 @@ async def test_create_user_success(test_db_session: AsyncSession, test_user: Use
 
 @pytest.mark.asyncio
 async def test_create_user_inactive(test_db_session: AsyncSession, test_user: User) -> None:
-    """Test user creation with is_active=False."""
+    """Test user creation with is_enabled=False."""
     service = UsersService(test_db_session, test_user)
 
     user = await service.create_user(
@@ -56,10 +60,10 @@ async def test_create_user_inactive(test_db_session: AsyncSession, test_user: Us
         email="inactive@example.com",
         full_name="Inactive User",
         password=TEST_PASSWORD,
-        is_active=False,
+        is_enabled=False,
     )
 
-    assert user.is_active is False
+    assert user.is_enabled is False
 
 
 @pytest.mark.asyncio
@@ -84,8 +88,8 @@ async def test_create_user_duplicate_username(test_db_session: AsyncSession, tes
 
 
 @pytest.mark.asyncio
-async def test_create_user_duplicate_email(test_db_session: AsyncSession, test_user: User) -> None:
-    """Test UserEmailConflictError on duplicate email."""
+async def test_create_user_duplicate_email_allowed(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test that duplicate emails are allowed for federated identity support."""
     service = UsersService(test_db_session, test_user)
 
     await service.create_user(
@@ -95,13 +99,14 @@ async def test_create_user_duplicate_email(test_db_session: AsyncSession, test_u
         password=TEST_PASSWORD,
     )
 
-    with pytest.raises(UserEmailConflictError):
-        await service.create_user(
-            username="emailuser2",
-            email="same@example.com",
-            full_name="Email User 2",
-            password=TEST_PASSWORD,
-        )
+    user2 = await service.create_user(
+        username="emailuser2",
+        email="same@example.com",
+        full_name="Email User 2",
+        password=TEST_PASSWORD,
+    )
+    assert user2.email == "same@example.com"
+    assert user2.username == "emailuser2"
 
 
 @pytest.mark.asyncio
@@ -185,9 +190,16 @@ async def test_update_user_email_normalizes_case(test_db_session: AsyncSession, 
 
 
 @pytest.mark.asyncio
-async def test_update_user_is_active(test_db_session: AsyncSession, test_user: User) -> None:
+async def test_update_user_is_enabled(test_db_session: AsyncSession, test_user: User) -> None:
     """Test disabling a user."""
     service = UsersService(test_db_session, test_user)
+
+    # Seed an admins group with a member so the guard allows disabling other users
+    admins_group = Group(id=uuid4(), name="admins", is_builtin=True, labels={})
+    test_db_session.add(admins_group)
+    await test_db_session.flush()
+    await test_db_session.execute(insert(user_groups).values(user_id=test_user.id, group_id=admins_group.id))
+    await test_db_session.flush()
 
     user = await service.create_user(
         username="disableuser",
@@ -196,14 +208,14 @@ async def test_update_user_is_active(test_db_session: AsyncSession, test_user: U
         password=TEST_PASSWORD,
     )
 
-    updated = await service.update_user(user.id, is_active=False)
+    updated = await service.update_user(user.id, is_enabled=False)
 
-    assert updated.is_active is False
+    assert updated.is_enabled is False
 
 
 @pytest.mark.asyncio
-async def test_update_user_email_conflict(test_db_session: AsyncSession, test_user: User) -> None:
-    """Test UserEmailConflictError on duplicate email update."""
+async def test_update_user_duplicate_email_allowed(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test that updating to a duplicate email is allowed."""
     service = UsersService(test_db_session, test_user)
 
     await service.create_user(
@@ -220,8 +232,8 @@ async def test_update_user_email_conflict(test_db_session: AsyncSession, test_us
         password=TEST_PASSWORD,
     )
 
-    with pytest.raises(UserEmailConflictError):
-        await service.update_user(user.id, email="taken@example.com")
+    updated = await service.update_user(user.id, email="taken@example.com")
+    assert updated.email == "taken@example.com"
 
 
 @pytest.mark.asyncio
@@ -253,40 +265,59 @@ async def test_update_user_updates_timestamp(test_db_session: AsyncSession, test
 
 @pytest.mark.asyncio
 async def test_admin_self_disable_allowed(test_db_session: AsyncSession) -> None:
-    """Test admin can disable itself."""
+    """Test builtin admin can disable itself when other admins exist."""
     from nexus.auth.passwords import hash_password
 
-    # Create admin user
+    # Create builtin admin user
     admin = User(
         id=uuid4(),
         username="admin",
         email="admin@example.com",
         full_name="Admin",
         password_hash=hash_password("adminpassword"),
+        is_builtin=True,
     )
     test_db_session.add(admin)
+
+    # Create another admin user so the guard allows disabling
+    other_admin = User(
+        id=uuid4(),
+        username="otheradmin",
+        email="other@example.com",
+        full_name="Other Admin",
+        password_hash=hash_password("otherpassword"),
+    )
+    test_db_session.add(other_admin)
+
+    # Seed admins group with both members
+    admins_group = Group(id=uuid4(), name="admins", is_builtin=True, labels={})
+    test_db_session.add(admins_group)
+    await test_db_session.flush()
+    await test_db_session.execute(insert(user_groups).values(user_id=admin.id, group_id=admins_group.id))
+    await test_db_session.execute(insert(user_groups).values(user_id=other_admin.id, group_id=admins_group.id))
     await test_db_session.commit()
 
     # Service running as admin
     service = UsersService(test_db_session, admin)
 
-    updated = await service.update_user(admin.id, is_active=False)
+    updated = await service.update_user(admin.id, is_enabled=False)
 
-    assert updated.is_active is False
+    assert updated.is_enabled is False
 
 
 @pytest.mark.asyncio
 async def test_non_admin_cannot_disable_admin(test_db_session: AsyncSession, test_user: User) -> None:
-    """Test non-admin user cannot disable the built-in admin."""
+    """Test non-admin user cannot modify the built-in admin."""
     from nexus.auth.passwords import hash_password
 
-    # Create admin user
+    # Create builtin admin user
     admin = User(
         id=uuid4(),
         username="admin",
         email="admin@example.com",
         full_name="Admin",
         password_hash=hash_password("adminpassword"),
+        is_builtin=True,
     )
     test_db_session.add(admin)
     await test_db_session.commit()
@@ -294,13 +325,13 @@ async def test_non_admin_cannot_disable_admin(test_db_session: AsyncSession, tes
     # Service running as non-admin test_user
     service = UsersService(test_db_session, test_user)
 
-    with pytest.raises(AdminDisableByNonAdminError):
-        await service.update_user(admin.id, is_active=False)
+    with pytest.raises(AdminModifyError):
+        await service.update_user(admin.id, is_enabled=False)
 
 
 @pytest.mark.asyncio
-async def test_non_admin_can_update_admin_other_fields(test_db_session: AsyncSession, test_user: User) -> None:
-    """Test non-admin can update admin's non-is_active fields."""
+async def test_non_admin_cannot_modify_admin_fields(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test non-admin cannot modify the built-in admin's fields."""
     from nexus.auth.passwords import hash_password
 
     admin = User(
@@ -309,15 +340,15 @@ async def test_non_admin_can_update_admin_other_fields(test_db_session: AsyncSes
         email="admin@example.com",
         full_name="Admin",
         password_hash=hash_password("adminpassword"),
+        is_builtin=True,
     )
     test_db_session.add(admin)
     await test_db_session.commit()
 
     service = UsersService(test_db_session, test_user)
 
-    updated = await service.update_user(admin.id, full_name="Updated Admin")
-
-    assert updated.full_name == "Updated Admin"
+    with pytest.raises(AdminModifyError):
+        await service.update_user(admin.id, full_name="Updated Admin")
 
 
 @pytest.mark.asyncio
@@ -380,24 +411,111 @@ async def test_is_duplicate_username_error(test_db_session: AsyncSession, test_u
 
 
 @pytest.mark.asyncio
-async def test_is_duplicate_email_error(test_db_session: AsyncSession, test_user: User) -> None:
-    """Test _is_duplicate_email_error detects email constraint violations."""
-    from sqlalchemy.exc import IntegrityError
+async def test_to_read_sets_has_password_true(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test to_read sets has_password=True when user has a password hash."""
+    service = UsersService(test_db_session, test_user)
+
+    user = await service.create_user(
+        username="withpass",
+        email="withpass@example.com",
+        full_name="With Password",
+        password=TEST_PASSWORD,
+    )
+
+    result = service.to_read(user)
+
+    assert isinstance(result, UserRead)
+    assert result.has_password is True
+    assert result.username == "withpass"
+
+
+@pytest.mark.asyncio
+async def test_to_read_sets_has_password_false(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test to_read sets has_password=False when user has no password hash (OIDC-only)."""
+    service = UsersService(test_db_session, test_user)
+
+    # Create a user without a password hash (simulates an OIDC-only user)
+    user = User(
+        id=uuid4(),
+        username="oidcuser",
+        email="oidc@example.com",
+        full_name="OIDC User",
+        password_hash=None,
+    )
+    test_db_session.add(user)
+    await test_db_session.commit()
+    await test_db_session.refresh(user)
+
+    result = service.to_read(user)
+
+    assert isinstance(result, UserRead)
+    assert result.has_password is False
+
+
+@pytest.mark.asyncio
+async def test_delete_user_success(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test successful soft deletion of a user."""
+    service = UsersService(test_db_session, test_user)
+
+    user = await service.create_user(
+        username="todelete",
+        email="todelete@example.com",
+        full_name="To Delete",
+        password=TEST_PASSWORD,
+    )
+
+    # Need an admins group with the test_user so _ensure_other_admins_exist passes
+    admins_group = Group(id=uuid4(), name="admins", is_builtin=True, labels={})
+    test_db_session.add(admins_group)
+    await test_db_session.flush()
+    await test_db_session.execute(insert(user_groups).values(user_id=test_user.id, group_id=admins_group.id))
+    await test_db_session.flush()
+
+    await service.delete_user(user.id)
+
+    await test_db_session.refresh(user)
+    assert user.deleted_at is not None
+
+
+@pytest.mark.asyncio
+async def test_delete_builtin_user_raises_admin_delete_error(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test deleting the built-in admin raises AdminDeleteError."""
+    admin = User(
+        id=uuid4(),
+        username="admin",
+        email="admin@example.com",
+        full_name="Admin",
+        password_hash=hash_password("adminpassword"),
+        is_builtin=True,
+    )
+    test_db_session.add(admin)
+    await test_db_session.commit()
 
     service = UsersService(test_db_session, test_user)
 
-    # Should detect constraint name
-    e1 = IntegrityError("ix_users_email_unique violated", None, BaseException())
-    assert service._is_duplicate_email_error(e1) is True
+    with pytest.raises(AdminDeleteError):
+        await service.delete_user(admin.id)
 
-    # Should detect Key (email) pattern from DETAIL
-    e2 = IntegrityError("DETAIL: Key (email)=(test@example.com) already exists.", None, BaseException())
-    assert service._is_duplicate_email_error(e2) is True
 
-    # Should not match unrelated errors
-    e3 = IntegrityError("foreign key constraint violated on user_id", None, BaseException())
-    assert service._is_duplicate_email_error(e3) is False
+@pytest.mark.asyncio
+async def test_delete_last_admin_raises_error(test_db_session: AsyncSession) -> None:
+    """Test deleting the last admin raises AdminDisableNoOtherAdminsError."""
+    sole_admin = User(
+        id=uuid4(),
+        username="soleadmin",
+        email="sole@example.com",
+        full_name="Sole Admin",
+        password_hash=hash_password("adminpassword"),
+    )
+    test_db_session.add(sole_admin)
 
-    # Should not match username constraint
-    e4 = IntegrityError("ix_users_username_unique violated", None, BaseException())
-    assert service._is_duplicate_email_error(e4) is False
+    admins_group = Group(id=uuid4(), name="admins", is_builtin=True, labels={})
+    test_db_session.add(admins_group)
+    await test_db_session.flush()
+    await test_db_session.execute(insert(user_groups).values(user_id=sole_admin.id, group_id=admins_group.id))
+    await test_db_session.commit()
+
+    service = UsersService(test_db_session, sole_admin)
+
+    with pytest.raises(AdminDisableNoOtherAdminsError):
+        await service.delete_user(sole_admin.id)

@@ -58,7 +58,7 @@ async def _make_user(session: AsyncSession, username: str) -> User:
         username=username,
         email=f"{username}@test.local",
         full_name=username.title(),
-        is_active=True,
+        is_enabled=True,
     )
     session.add(user)
     await session.flush()

@@ -37,6 +37,7 @@ class SettingCategory(str, Enum):
     SYSTEM = "system"
     CONTEXT_MANAGER = "context_manager"
     APPLICATION = "application"
+    AUTHENTICATION = "authentication"
 
 
 # Same PostgreSQL ENUM migration constraints as SettingCategory apply.

@@ -7,12 +7,15 @@ from typing import Any
 from ...client import AuthenticatedClient
 from ...types import Response
 from . import (
+    attach_user_identity,
     create_user,
     create_user_role_assignment,
     delete_user,
     delete_user_role_assignment,
+    detach_user_identity,
     get_user,
     list_user_groups,
+    list_user_identities,
     list_user_role_assignments,
     list_users,
     set_user_groups,
@@ -67,6 +70,24 @@ class UsersApi:
 
     async def async_set_groups(self, **kwargs: Any) -> Response[Any]:
         return await set_user_groups.asyncio_detailed(client=self._client, **kwargs)
+
+    def list_identities(self, **kwargs: Any) -> Response[Any]:
+        return list_user_identities.sync_detailed(client=self._client, **kwargs)
+
+    async def async_list_identities(self, **kwargs: Any) -> Response[Any]:
+        return await list_user_identities.asyncio_detailed(client=self._client, **kwargs)
+
+    def attach_identity(self, **kwargs: Any) -> Response[Any]:
+        return attach_user_identity.sync_detailed(client=self._client, **kwargs)
+
+    async def async_attach_identity(self, **kwargs: Any) -> Response[Any]:
+        return await attach_user_identity.asyncio_detailed(client=self._client, **kwargs)
+
+    def detach_identity(self, **kwargs: Any) -> Response[Any]:
+        return detach_user_identity.sync_detailed(client=self._client, **kwargs)
+
+    async def async_detach_identity(self, **kwargs: Any) -> Response[Any]:
+        return await detach_user_identity.asyncio_detailed(client=self._client, **kwargs)
 
     def list_role_assignments(self, **kwargs: Any) -> Response[Any]:
         return list_user_role_assignments.sync_detailed(client=self._client, **kwargs)

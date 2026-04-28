@@ -31,7 +31,7 @@ async def test_create_user_with_required_fields(
     assert user.username == default_user_data["username"]
     assert user.email == default_user_data["email"]
     assert user.full_name == default_user_data["full_name"]
-    assert user.is_active is True
+    assert user.is_enabled is True
     assert user.preferences == {}
     assert user.deleted_at is None
     assert user.deleted_by is None
@@ -50,14 +50,14 @@ async def test_create_user_with_all_fields(test_db_session: AsyncSession) -> Non
         username="fulluser",
         email="full@example.com",
         full_name="Full Test User",
-        is_active=True,
+        is_enabled=True,
         last_login=now,
         preferences=preferences,
     )
     test_db_session.add(user)
     await test_db_session.commit()
 
-    assert user.is_active is True
+    assert user.is_enabled is True
     assert user.last_login == now
     assert user.preferences == preferences
 
@@ -133,9 +133,9 @@ async def test_user_preferences_default(test_user: User) -> None:
 
 
 @pytest.mark.asyncio
-async def test_user_is_active_default(test_user: User) -> None:
-    """Test that is_active defaults to True."""
-    assert test_user.is_active is True
+async def test_user_is_enabled_default(test_user: User) -> None:
+    """Test that is_enabled defaults to True."""
+    assert test_user.is_enabled is True
 
 
 @pytest.mark.asyncio
@@ -146,7 +146,7 @@ async def test_user_inactive(user_factory: Callable[..., Awaitable[User]]) -> No
         username="inactiveuser",
         email="inactive@example.com",
         full_name="Inactive User",
-        is_active=False,
+        is_enabled=False,
     )
 
-    assert user.is_active is False
+    assert user.is_enabled is False

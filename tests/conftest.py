@@ -1226,20 +1226,31 @@ async def temporal_worker(temporal_env: WorkflowEnvironment) -> AsyncGenerator[W
         Worker: Configured Temporal worker
 
     """
+    import nexus.settings.cache.settings_cache as _settings_mod
+
     task_queue = "test-workflow-queue"
 
     logger.info("Starting test worker on queue: %s", task_queue)
 
-    async with Worker(
-        temporal_env.client,
-        task_queue=task_queue,
-        workflows=[NexusWorkflow],
-        activities=[execute_script_activity, manual_trigger, condition, converge],
-    ) as worker:
-        logger.info("Test worker started on queue: %s", task_queue)
-        yield worker
+    # Activities like execute_script_activity call get_runtime_settings()
+    # which requires the SettingsCache singleton to be initialised.
+    original = _settings_mod._runtime_settings
+    if original is None:
+        _settings_mod._runtime_settings = FakeSettingsCache()  # type: ignore[assignment]
 
-    logger.info("Test worker stopped")
+    try:
+        async with Worker(
+            temporal_env.client,
+            task_queue=task_queue,
+            workflows=[NexusWorkflow],
+            activities=[execute_script_activity, manual_trigger, condition, converge],
+        ) as worker:
+            logger.info("Test worker started on queue: %s", task_queue)
+            yield worker
+
+        logger.info("Test worker stopped")
+    finally:
+        _settings_mod._runtime_settings = original
 
 
 @pytest.fixture
@@ -1925,7 +1936,7 @@ async def multiple_local_users(test_db_session: AsyncSession, test_user: User) -
             email="alice@example.com",
             full_name="Alice Anderson",
             password_hash=hash_password("password123"),
-            is_active=True,
+            is_enabled=True,
         ),
         User(
             id=uuid4(),
@@ -1933,7 +1944,7 @@ async def multiple_local_users(test_db_session: AsyncSession, test_user: User) -
             email="bob@example.com",
             full_name="Bob Brown",
             password_hash=hash_password("password123"),
-            is_active=True,
+            is_enabled=True,
         ),
         User(
             id=uuid4(),
@@ -1941,7 +1952,7 @@ async def multiple_local_users(test_db_session: AsyncSession, test_user: User) -
             email="charlie@example.com",
             full_name="Charlie Clark",
             password_hash=hash_password("password123"),
-            is_active=False,
+            is_enabled=False,
         ),
         User(
             id=uuid4(),
@@ -1949,7 +1960,7 @@ async def multiple_local_users(test_db_session: AsyncSession, test_user: User) -
             email="diana@example.com",
             full_name="Diana Davis",
             password_hash=hash_password("password123"),
-            is_active=True,
+            is_enabled=True,
         ),
         User(
             id=uuid4(),
@@ -1957,7 +1968,7 @@ async def multiple_local_users(test_db_session: AsyncSession, test_user: User) -
             email="edward@example.com",
             full_name="Edward Evans",
             password_hash=hash_password("password123"),
-            is_active=True,
+            is_enabled=True,
         ),
         User(
             id=uuid4(),
@@ -1965,7 +1976,7 @@ async def multiple_local_users(test_db_session: AsyncSession, test_user: User) -
             email="fiona@example.com",
             full_name="Fiona Foster",
             password_hash=hash_password("password123"),
-            is_active=True,
+            is_enabled=True,
         ),
     ]
 

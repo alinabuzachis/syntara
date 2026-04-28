@@ -166,9 +166,10 @@ async def _seed_assignments_and_admin(
         admin_user = User(
             id=uuid4(),
             username="admin",
-            email="admin@nexus.local",
+            email="admin@example.com",
             full_name="Administrator",
-            is_active=True,
+            is_enabled=True,
+            is_builtin=True,
             password_hash=password_hash,
         )
         session.add(admin_user)

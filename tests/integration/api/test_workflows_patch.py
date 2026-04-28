@@ -151,7 +151,7 @@ async def test_patch_workflow_labels_not_strings(jwt_client: AsyncClient) -> Non
         response,
         error_type="https://api.nexus.com/errors/validation-error",
         title="Request Validation Error",
-        detail="Validation failed: labels: Value error, labels value for key 'env' must be a string, got int",
+        detail="Validation failed: labels: labels value for key 'env' must be a string, got int",
         code="REQUEST_VALIDATION_ERROR",
         retryable=False,
     )
@@ -222,7 +222,7 @@ async def test_patch_workflow_validation_errors(jwt_client: AsyncClient) -> None
         response,
         error_type="https://api.nexus.com/errors/validation-error",
         title="Request Validation Error",
-        detail="Validation failed: body -> name: String should have at least 1 character",
+        detail="Validation failed: name: String should have at least 1 character",
         code="REQUEST_VALIDATION_ERROR",
         retryable=False,
     )

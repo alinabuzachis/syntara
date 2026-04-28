@@ -9,6 +9,7 @@ Handles the full OpenID Connect authorization code flow with PKCE:
 """
 
 import hashlib
+import hmac
 import ipaddress
 import json
 import secrets
@@ -24,11 +25,14 @@ import httpx
 import jwt as pyjwt
 import redis.asyncio as aioredis
 import structlog
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from jwt import PyJWKClient
 from redis.exceptions import ConnectionError as RedisConnectionError
 from starlette import status
 
 from nexus.core.config.base import get_settings
+from nexus.identity_providers.models.identity_provider_configuration import OIDCClaimMapping
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -115,6 +119,19 @@ class OIDCService:
             msg = "OIDCService Redis client not connected. Use 'async with OIDCService()' as context manager."
             raise RuntimeError(msg)
         return self._client
+
+    @staticmethod
+    def _compute_state_hmac(data: str) -> str:
+        """Compute HMAC-SHA256 over OIDC state data for integrity verification.
+
+        Derives a purpose-specific key via HKDF (RFC 5869) to avoid using the
+        raw secret encryption key directly for HMAC.
+        """
+        settings = get_settings()
+        secret = settings.secret_encryption_key.get_secret_value()
+        hkdf = HKDF(algorithm=hashes.SHA256(), length=32, salt=None, info=b"oidc-state-hmac")
+        key = hkdf.derive(secret.encode())
+        return hmac.new(key, data.encode(), hashlib.sha256).hexdigest()
 
     def _validate_url(self, url: str) -> None:
         """Validate a URL to mitigate SSRF attacks.
@@ -264,6 +281,9 @@ class OIDCService:
         code_verifier: str,
         redirect_to: str | None = None,
         origin: str | None = None,
+        flow_type: str | None = None,
+        user_id: str | None = None,
+        session_jti: str | None = None,
     ) -> None:
         """Store OIDC state in Redis for callback verification.
 
@@ -274,6 +294,9 @@ class OIDCService:
             code_verifier: PKCE code verifier
             redirect_to: URL to redirect the user to after successful login
             origin: Frontend origin captured from the authorize request (Referer)
+            flow_type: Optional flow type (e.g. "link" for self-service identity linking)
+            user_id: Optional user ID (required when flow_type is "link")
+            session_jti: Optional session JTI for re-verification on callback (link flow)
 
         """
         client = self._ensure_connected()
@@ -287,7 +310,17 @@ class OIDCService:
             state_payload["redirect_to"] = redirect_to
         if origin:
             state_payload["origin"] = origin
-        await client.setex(key, OIDC_STATE_TTL_SECONDS, json.dumps(state_payload))
+        if flow_type:
+            state_payload["flow_type"] = flow_type
+        if user_id:
+            state_payload["user_id"] = user_id
+        if session_jti:
+            state_payload["session_jti"] = session_jti
+
+        raw = json.dumps(state_payload, sort_keys=True)
+        mac = self._compute_state_hmac(raw)
+        envelope = json.dumps({"data": state_payload, "mac": mac})
+        await client.setex(key, OIDC_STATE_TTL_SECONDS, envelope)
         logger.debug("Stored OIDC state", state=state[:8] + "...")
 
     async def retrieve_oidc_state(self, state: str) -> dict[str, str] | None:
@@ -311,7 +344,17 @@ class OIDCService:
         if data is None:
             return None
 
-        result: dict[str, str] = json.loads(data)
+        envelope = json.loads(data)
+        state_payload = envelope["data"]
+        expected_mac = envelope["mac"]
+
+        raw = json.dumps(state_payload, sort_keys=True)
+        actual_mac = self._compute_state_hmac(raw)
+        if not hmac.compare_digest(expected_mac, actual_mac):
+            logger.warning("OIDC state HMAC verification failed", state=state[:8] + "...")
+            return None
+
+        result: dict[str, str] = state_payload
         return result
 
     async def exchange_code_for_tokens(
@@ -492,22 +535,35 @@ class OIDCService:
             msg = "Userinfo response is not valid JSON"
             raise OIDCError(msg) from e
 
-    def extract_user_claims(self, id_token_claims: dict[str, Any]) -> dict[str, str | None]:
+    def extract_user_claims(
+        self,
+        id_token_claims: dict[str, Any],
+        claim_mapping: OIDCClaimMapping | None = None,
+    ) -> dict[str, str | None]:
         """Extract user information from ID token claims.
 
         Args:
             id_token_claims: Decoded ID token claims
+            claim_mapping: Optional mapping of Nexus fields to IdP claim names.
+                If None, uses default OIDC claim names.
 
         Returns:
-            Dict with sub, email, name, preferred_username
+            Dict with canonical keys: sub, email, name, preferred_username
+            (and optionally groups)
 
         """
-        return {
-            "sub": id_token_claims.get("sub"),
-            "email": id_token_claims.get("email"),
-            "name": id_token_claims.get("name"),
-            "preferred_username": id_token_claims.get("preferred_username"),
+        if claim_mapping is None:
+            claim_mapping = OIDCClaimMapping()
+
+        result: dict[str, str | None] = {
+            "sub": id_token_claims.get(claim_mapping.subject),
+            "email": id_token_claims.get(claim_mapping.email),
+            "name": id_token_claims.get(claim_mapping.full_name),
+            "preferred_username": id_token_claims.get(claim_mapping.username),
         }
+        if claim_mapping.groups:
+            result["groups"] = id_token_claims.get(claim_mapping.groups)
+        return result
 
     def build_authorization_url(
         self,

@@ -60,7 +60,7 @@ class TestValidationErrorHandler:
 
         assert response.status_code == 422
         data = json.loads(bytes(response.body).decode())
-        assert "body -> name: String too short" in data["detail"]
+        assert "name: String too short" in data["detail"]
         assert "query -> page: Not a valid integer" in data["detail"]
 
     def test_empty_error_list(self) -> None:
@@ -103,7 +103,8 @@ class TestValidationErrorHandler:
             response = validation_error_handler(request, exc)
 
         data = json.loads(bytes(response.body).decode())
-        assert "body -> user -> profile -> settings -> theme: Invalid theme" in data["detail"]
+        # "body" is stripped from the path as noise
+        assert "user -> profile -> settings -> theme: Invalid theme" in data["detail"]
 
     @pytest.mark.parametrize(
         ("error_data", "expected_field"),

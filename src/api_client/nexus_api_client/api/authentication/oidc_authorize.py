@@ -7,11 +7,16 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.error_data import ErrorData
+from ...models.oidc_authorize_flow_type_0 import OidcAuthorizeFlowType0
 from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
-    *, provider_id: UUID, redirect_to: None | str | Unset = UNSET, additional_params: dict[str, Any] | None = None
+    *,
+    provider_id: UUID,
+    redirect_to: None | str | Unset = UNSET,
+    flow: None | OidcAuthorizeFlowType0 | Unset = UNSET,
+    additional_params: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     params: dict[str, Any] = {}
     if isinstance(additional_params, dict):
@@ -26,6 +31,15 @@ def _get_kwargs(
     else:
         json_redirect_to = redirect_to
     params["redirect_to"] = json_redirect_to
+
+    json_flow: None | str | Unset
+    if isinstance(flow, Unset):
+        json_flow = UNSET
+    elif isinstance(flow, OidcAuthorizeFlowType0):
+        json_flow = flow.value
+    else:
+        json_flow = flow
+    params["flow"] = json_flow
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
@@ -104,6 +118,7 @@ def sync_detailed(
     client: AuthenticatedClient | Client,
     provider_id: UUID,
     redirect_to: None | str | Unset = UNSET,
+    flow: None | OidcAuthorizeFlowType0 | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[Any | ErrorData]:
     """Initiate OIDC login
@@ -116,8 +131,9 @@ def sync_detailed(
     instead of returning a JSON error response.
 
     Args:
-        provider_id (UUID):
-        redirect_to (None | str | Unset):
+        provider_id (UUID): UUID of the identity provider to use
+        redirect_to (None | str | Unset): URL to redirect to after successful login
+        flow (None | OidcAuthorizeFlowType0 | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -127,7 +143,9 @@ def sync_detailed(
         Response[Any | ErrorData]
     """
 
-    kwargs = _get_kwargs(provider_id=provider_id, redirect_to=redirect_to, additional_params=additional_params)
+    kwargs = _get_kwargs(
+        provider_id=provider_id, redirect_to=redirect_to, flow=flow, additional_params=additional_params
+    )
 
     response = client.get_httpx_client().request(
         **kwargs,
@@ -141,6 +159,7 @@ def sync(
     client: AuthenticatedClient | Client,
     provider_id: UUID,
     redirect_to: None | str | Unset = UNSET,
+    flow: None | OidcAuthorizeFlowType0 | Unset = UNSET,
 ) -> Any | ErrorData | None:
     """Initiate OIDC login
 
@@ -152,8 +171,9 @@ def sync(
     instead of returning a JSON error response.
 
     Args:
-        provider_id (UUID):
-        redirect_to (None | str | Unset):
+        provider_id (UUID): UUID of the identity provider to use
+        redirect_to (None | str | Unset): URL to redirect to after successful login
+        flow (None | OidcAuthorizeFlowType0 | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -167,6 +187,7 @@ def sync(
         client=client,
         provider_id=provider_id,
         redirect_to=redirect_to,
+        flow=flow,
     ).parsed
 
 
@@ -175,6 +196,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient | Client,
     provider_id: UUID,
     redirect_to: None | str | Unset = UNSET,
+    flow: None | OidcAuthorizeFlowType0 | Unset = UNSET,
 ) -> Response[Any | ErrorData]:
     """Initiate OIDC login
 
@@ -186,8 +208,9 @@ async def asyncio_detailed(
     instead of returning a JSON error response.
 
     Args:
-        provider_id (UUID):
-        redirect_to (None | str | Unset):
+        provider_id (UUID): UUID of the identity provider to use
+        redirect_to (None | str | Unset): URL to redirect to after successful login
+        flow (None | OidcAuthorizeFlowType0 | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -200,6 +223,7 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         provider_id=provider_id,
         redirect_to=redirect_to,
+        flow=flow,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -212,6 +236,7 @@ async def asyncio(
     client: AuthenticatedClient | Client,
     provider_id: UUID,
     redirect_to: None | str | Unset = UNSET,
+    flow: None | OidcAuthorizeFlowType0 | Unset = UNSET,
 ) -> Any | ErrorData | None:
     """Initiate OIDC login
 
@@ -223,8 +248,9 @@ async def asyncio(
     instead of returning a JSON error response.
 
     Args:
-        provider_id (UUID):
-        redirect_to (None | str | Unset):
+        provider_id (UUID): UUID of the identity provider to use
+        redirect_to (None | str | Unset): URL to redirect to after successful login
+        flow (None | OidcAuthorizeFlowType0 | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -239,5 +265,6 @@ async def asyncio(
             client=client,
             provider_id=provider_id,
             redirect_to=redirect_to,
+            flow=flow,
         )
     ).parsed

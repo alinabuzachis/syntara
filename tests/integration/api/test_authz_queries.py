@@ -440,7 +440,7 @@ async def test_who_can_excludes_inactive_users(
     assert test_group is not None
     await test_db_session.execute(insert(user_groups).values(user_id=inactive.id, group_id=test_group.id))
     # Deactivate
-    inactive.is_active = False
+    inactive.is_enabled = False
     test_db_session.add(inactive)
     await test_db_session.commit()
 

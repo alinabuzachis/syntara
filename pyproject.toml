@@ -57,6 +57,7 @@ dependencies = [
     "PyJWT[crypto]>=2.8.0",
     "argon2-cffi>=25.1.0",
     "cryptography>=42.0.0",
+    "jmespath>=1.0.0",
 ]
 
 [project.optional-dependencies]
@@ -191,6 +192,10 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "bs4.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "jmespath.*"
 ignore_missing_imports = true
 
 # Pytest configuration

@@ -2318,27 +2318,32 @@ paths:
       description: |-
         Terminate the current session by revoking the refresh token.
 
-            The refresh token is read from the ``ao_refresh_token`` HttpOnly cookie
-            and revoked in the session store.  The cookie is cleared in the response.
-            The associated access token remains valid until it expires (up to 15
-            minutes) since access tokens are stateless JWTs validated without a
-            server round-trip.
+        The refresh token is read from the ``ao_refresh_token`` HttpOnly cookie
+        and revoked in the session store.  The cookie is cleared in the response.
+        The associated access token remains valid until it expires (up to 15
+        minutes) since access tokens are stateless JWTs validated without a
+        server round-trip.
       operationId: logout
       tags:
         - Authentication
       x-app-permission:
         resource: null
         action: null
+      parameters:
+        - name: post_logout_redirect_uri
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Post Logout Redirect Uri
       responses:
         '200':
-          description: Successfully logged out
+          description: Successful Response
           content:
             application/json:
-              schema:
-                type: object
-                additionalProperties:
-                  type: string
-                title: Response Logout
+              schema: {}
         '400':
           description: Bad Request
           content:
@@ -2420,7 +2425,7 @@ paths:
       summary: Get current user
       description: |
         Returns information about the currently authenticated user
-        from the access token claims. No database round-trip is performed.
+        from the access token claims and session metadata.
       operationId: get_current_user
       tags:
         - Authentication
@@ -2643,6 +2648,7 @@ paths:
             type: string
             format: uuid
             title: Provider Id
+            description: UUID of the identity provider to use
         - name: redirect_to
           in: query
           required: false
@@ -2652,6 +2658,18 @@ paths:
               - type: string
               - type: 'null'
             title: Redirect To
+            description: URL to redirect to after successful login
+        - name: flow
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                enum:
+                  - link
+                  - test_signin
+              - type: 'null'
+            title: Flow
       responses:
         '200':
           description: Successful Response
@@ -14781,7 +14799,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserListResponse'
+                $ref: '#/components/schemas/ResourcesResponse_UserRead_'
         '400':
           description: Bad Request
           content:
@@ -15386,7 +15404,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GroupListResponse'
+                $ref: '#/components/schemas/ResourcesResponse_UserGroupRead_'
         '400':
           description: Bad Request
           content:
@@ -15508,7 +15526,354 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GroupListResponse'
+                $ref: '#/components/schemas/ResourcesResponse_UserGroupRead_'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+  /users/{user_id}/identities:
+    get:
+      summary: List User Identities
+      description: List federated identities for a user.
+      operationId: list_user_identities
+      x-app-permission:
+        resource: user_identity
+        action: read
+      tags:
+        - Users
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: User Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserIdentityListResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+    post:
+      summary: Attach User Identity
+      description: Attach a federated identity from another user to this user.
+      operationId: attach_user_identity
+      x-app-permission:
+        resource: user_identity
+        action: attach
+      tags:
+        - Users
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: User Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserIdentityAttach'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserIdentityRead'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+  /users/{user_id}/identities/{identity_id}:
+    delete:
+      summary: Detach User Identity
+      description: Detach (hard-delete) a federated identity from a user.
+      operationId: detach_user_identity
+      x-app-permission:
+        resource: user_identity
+        action: detach
+      tags:
+        - Users
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: User Id
+        - name: identity_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Identity Id
+      responses:
+        '204':
+          description: Successful Response
         '400':
           description: Bad Request
           content:
@@ -15654,7 +16019,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GroupListResponse'
+                $ref: '#/components/schemas/ResourcesResponse_GroupRead_'
         '400':
           description: Bad Request
           content:
@@ -16260,7 +16625,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserListResponse'
+                $ref: '#/components/schemas/ResourcesResponse_GroupMemberRead_'
         '400':
           description: Bad Request
           content:
@@ -20186,6 +20551,11 @@ components:
             type: string
           description: Group memberships
           title: Groups
+        rp_logout_enabled:
+          type: boolean
+          default: false
+          title: Rp Logout Enabled
+          description: Whether RP-initiated logout is enabled for this user's current session
     AuthProviderInfo:
       type: object
       title: AuthProviderInfo
@@ -20207,6 +20577,12 @@ components:
           type: string
           title: Provider Type
           description: Provider type (e.g. oidc)
+        provider_template:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Provider Template
+          description: Provider template (e.g. microsoft_entra, aap)
     AuthProvidersResponse:
       type: object
       title: AuthProvidersResponse
@@ -21524,6 +21900,56 @@ components:
             CONVERTING: Conversion in progress
             CONVERTED: Successfully converted to text/markdown
             CONVERSION_FAILED: Conversion failed with error
+    OIDCClaimMapping:
+      type: object
+      title: OIDCClaimMapping
+      description: Maps Nexus user fields to IdP-specific OIDC claim names.
+      additionalProperties: false
+      properties:
+        subject:
+          type: string
+          default: sub
+          title: Subject
+        email:
+          type: string
+          default: email
+          title: Email
+        username:
+          type: string
+          default: preferred_username
+          title: Username
+        full_name:
+          type: string
+          default: name
+          title: Full Name
+        groups:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Groups
+    OIDCGroupMappingEntry:
+      type: object
+      title: OIDCGroupMappingEntry
+      description: |-
+        API-facing schema for a single IdP-to-Nexus group mapping entry.
+
+        Used in API requests/responses. Actual storage is in the
+        ``idp_group_mapping_entries`` table.
+      required:
+        - idp_group_value
+        - nexus_group_id
+      additionalProperties: false
+      properties:
+        idp_group_value:
+          type: string
+          minLength: 1
+          title: Idp Group Value
+          description: Group value from the IdP token (e.g. GUID or role name)
+        nexus_group_id:
+          type: string
+          format: uuid
+          title: Nexus Group Id
+          description: ID of the Nexus group to map to
     OIDCConfiguration:
       type: object
       title: OIDCConfiguration
@@ -21532,7 +21958,6 @@ components:
       required:
         - issuer_url
         - client_id
-        - client_secret
         - redirect_uri
       properties:
         provider_type:
@@ -21540,6 +21965,12 @@ components:
           const: oidc
           default: oidc
           title: Provider Type
+        idp_type:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Idp Type
+          description: 'Identity provider type hint. Known values: aap, microsoft_entra, custom'
         auto_discovery:
           type: boolean
           default: true
@@ -21554,7 +21985,9 @@ components:
           title: Client Id
           description: OAuth 2.0 client ID
         client_secret:
-          type: string
+          anyOf:
+            - type: string
+            - type: 'null'
           title: Client Secret
           description: OAuth 2.0 client secret
         redirect_uri:
@@ -21590,6 +22023,36 @@ components:
             - type: 'null'
           title: Userinfo Endpoint
           description: Userinfo endpoint URL (optional)
+        end_session_endpoint:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: End Session Endpoint
+          description: OIDC end session endpoint URL for RP-initiated logout
+        enable_rp_initiated_logout:
+          type: boolean
+          default: false
+          title: Enable Rp Initiated Logout
+          description: Enable RP-initiated logout redirect to IdP when user logs out
+        claim_mapping:
+          $ref: '#/components/schemas/OIDCClaimMapping'
+        group_jmespath_expression:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Group Jmespath Expression
+          description: JMESPath expression to extract group values from token claims
+        group_mapping_entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/OIDCGroupMappingEntry'
+          title: Group Mapping Entries
+          description: IdP-to-Nexus group mapping entries
+        auto_create_groups:
+          type: boolean
+          default: false
+          title: Auto Create Groups
+          description: Auto-create Nexus groups from IdP group values on login
     OIDCConfigurationResponse:
       type: object
       title: OIDCConfigurationResponse
@@ -21605,6 +22068,12 @@ components:
           const: oidc
           default: oidc
           title: Provider Type
+        idp_type:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Idp Type
+          description: Identity provider type hint
         auto_discovery:
           type: boolean
           default: true
@@ -21651,6 +22120,36 @@ components:
             - type: 'null'
           title: Userinfo Endpoint
           description: Userinfo endpoint URL (optional)
+        end_session_endpoint:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: End Session Endpoint
+          description: OIDC end session endpoint URL for RP-initiated logout
+        enable_rp_initiated_logout:
+          type: boolean
+          default: false
+          title: Enable Rp Initiated Logout
+          description: Enable RP-initiated logout redirect to IdP when user logs out
+        claim_mapping:
+          $ref: '#/components/schemas/OIDCClaimMapping'
+        group_jmespath_expression:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Group Jmespath Expression
+          description: JMESPath expression for group extraction
+        group_mapping_entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/OIDCGroupMappingEntry'
+          title: Group Mapping Entries
+          description: IdP-to-Nexus group mapping entries
+        auto_create_groups:
+          type: boolean
+          default: false
+          title: Auto Create Groups
+          description: Auto-create Nexus groups from IdP group values on login
     OIDCConfigurationPatch:
       type: object
       title: OIDCConfigurationPatch
@@ -21666,6 +22165,12 @@ components:
           const: oidc
           default: oidc
           title: Provider Type
+        idp_type:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Idp Type
+          description: 'Identity provider type hint. Known values: aap, microsoft_entra, custom'
         auto_discovery:
           type: boolean
           default: true
@@ -21718,6 +22223,43 @@ components:
             - type: 'null'
           title: Userinfo Endpoint
           description: Userinfo endpoint URL (optional)
+        end_session_endpoint:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: End Session Endpoint
+          description: OIDC end session endpoint URL for RP-initiated logout (omit to keep existing)
+        enable_rp_initiated_logout:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Enable Rp Initiated Logout
+          description: Enable RP-initiated logout redirect to IdP when user logs out (omit to keep existing)
+        claim_mapping:
+          anyOf:
+            - $ref: '#/components/schemas/OIDCClaimMapping'
+            - type: 'null'
+          description: OIDC claim mapping (omit to keep existing)
+        group_jmespath_expression:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Group Jmespath Expression
+          description: JMESPath expression for group extraction (omit to keep existing)
+        group_mapping_entries:
+          anyOf:
+            - type: array
+              items:
+                $ref: '#/components/schemas/OIDCGroupMappingEntry'
+            - type: 'null'
+          title: Group Mapping Entries
+          description: IdP-to-Nexus group mapping entries (omit to keep existing)
+        auto_create_groups:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Auto Create Groups
+          description: Auto-create Nexus groups from IdP group values on login (omit to keep existing)
     IdentityProviderCreate:
       type: object
       title: IdentityProviderCreate
@@ -21974,6 +22516,26 @@ components:
                 type: string
             - type: 'null'
           title: Metadata
+        claims_supported:
+          anyOf:
+            - type: array
+              items:
+                type: string
+            - type: 'null'
+          title: Claims Supported
+        claim_aliases:
+          anyOf:
+            - type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: string
+            - type: 'null'
+          title: Claim Aliases
+        end_session_endpoint_supported:
+          type: boolean
+          default: false
+          title: End Session Endpoint Supported
     ComponentKPISummary:
       properties:
         component:
@@ -23909,7 +24471,6 @@ components:
         Excludes auto-generated fields: id, created_at, updated_at, last_login, preferences.
       required:
         - username
-        - email
         - full_name
         - password
       properties:
@@ -23920,10 +24481,12 @@ components:
           description: Unique username
           title: Username
         email:
-          type: string
-          format: email
-          maxLength: 255
-          description: Unique email address
+          anyOf:
+            - type: string
+              format: email
+              maxLength: 255
+            - type: 'null'
+          description: Email address
           title: Email
         full_name:
           type: string
@@ -23938,11 +24501,11 @@ components:
           minLength: 8
           description: Plaintext password (will be hashed)
           title: Password
-        is_active:
+        is_enabled:
           type: boolean
           default: true
-          description: Account activation status
-          title: Is Active
+          description: Whether the user account is enabled
+          title: Is Enabled
     UserUpdate:
       type: object
       title: UserUpdate
@@ -23951,6 +24514,14 @@ components:
 
         All fields are optional for partial updates.
       properties:
+        username:
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 255
+            - type: 'null'
+          description: Update username
+          title: Username
         full_name:
           anyOf:
             - type: string
@@ -23975,12 +24546,12 @@ components:
             - type: 'null'
           description: New password (will be hashed). Omit to keep current password.
           title: Password
-        is_active:
+        is_enabled:
           anyOf:
             - type: boolean
             - type: 'null'
           description: Enable or disable user account
-          title: Is Active
+          title: Is Enabled
     UserRead:
       type: object
       title: UserRead
@@ -23991,9 +24562,8 @@ components:
       required:
         - id
         - username
-        - email
         - full_name
-        - is_active
+        - is_enabled
         - created_at
         - updated_at
       properties:
@@ -24005,14 +24575,24 @@ components:
           type: string
           title: Username
         email:
-          type: string
+          anyOf:
+            - type: string
+            - type: 'null'
           title: Email
         full_name:
           type: string
           title: Full Name
-        is_active:
+        is_enabled:
           type: boolean
-          title: Is Active
+          title: Is Enabled
+        is_builtin:
+          type: boolean
+          default: false
+          title: Is Builtin
+        has_password:
+          type: boolean
+          default: false
+          title: Has Password
         last_login:
           anyOf:
             - type: string
@@ -24027,9 +24607,16 @@ components:
           type: string
           format: date-time
           title: Updated At
-    UserListResponse:
-      title: UserListResponse
-      description: Paginated list response for users.
+    ResourcesResponse_UserRead_:
+      type: object
+      title: ResourcesResponse[UserRead]
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
+      required:
+        - resources
       properties:
         next:
           anyOf:
@@ -24054,17 +24641,9 @@ components:
           type: array
           title: Resources
           description: Array of resources in current page
-          maxItems: 100
           items:
             $ref: '#/components/schemas/UserRead'
-      required:
-        - resources
-      type: object
-      examples:
-        - next: eyJpZCI6InV1aWQifQ
-          total: 150
-        - next: eyJpZCI6Im5leHQifQ
-          prev: eyJpZCI6InByZXYifQ
+          maxItems: 100
     UserGroupsSet:
       type: object
       title: UserGroupsSet
@@ -24081,6 +24660,104 @@ components:
             format: uuid
           description: Complete list of group IDs the user should belong to
           title: Group Ids
+    UserIdentityRead:
+      type: object
+      title: UserIdentityRead
+      description: Schema for user identity response.
+      required:
+        - id
+        - user_id
+        - identity_provider_id
+        - issuer
+        - subject
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        user_id:
+          type: string
+          format: uuid
+          title: User Id
+        identity_provider_id:
+          type: string
+          format: uuid
+          title: Identity Provider Id
+        issuer:
+          type: string
+          title: Issuer
+        subject:
+          type: string
+          title: Subject
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        last_used_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Last Used At
+        provider_name:
+          type: string
+          default: ''
+          title: Provider Name
+    UserIdentityListResponse:
+      type: object
+      title: UserIdentityListResponse
+      description: Paginated list of user identities.
+      required:
+        - resources
+      properties:
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Next
+          description: Cursor for next page of results
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Prev
+          description: Cursor for previous page of results
+        total:
+          anyOf:
+            - type: integer
+              minimum: 0.0
+            - type: 'null'
+          title: Total
+          description: Total count of resources (only when include_total=true)
+        resources:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/UserIdentityRead'
+          title: Resources
+          description: Array of resources in current page
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
+    UserIdentityAttach:
+      type: object
+      title: UserIdentityAttach
+      description: Schema for attaching an identity to a user.
+      required:
+        - identity_id
+      properties:
+        identity_id:
+          type: string
+          format: uuid
+          title: Identity Id
     GroupCreate:
       type: object
       title: GroupCreate
@@ -24193,9 +24870,170 @@ components:
       required:
         - name
       type: object
-    GroupListResponse:
-      title: GroupListResponse
-      description: Paginated list response for groups.
+    MembershipSource:
+      type: object
+      title: MembershipSource
+      description: Describes how a user got membership in a group.
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          title: Type
+          description: 'Source type: ''manual'' or ''idp'''
+        provider_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Provider Name
+          description: IdP name if source is 'idp'
+        provider_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Provider Id
+          description: IdP ID if source is 'idp'
+    UserGroupRead:
+      title: UserGroupRead
+      additionalProperties: false
+      description: Group response with membership source info for a specific user.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+          title: Resource ID
+          description: Unique identifier for the resource
+          example: 550e8400-e29b-41d4-a716-446655440000
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Created At
+          description: Timestamp when resource was created
+          example: '2025-10-09T12:00:00Z'
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Updated At
+          description: Timestamp when resource was last updated
+          example: '2025-10-09T12:30:00Z'
+        labels:
+          type: object
+          default: {}
+          title: Labels
+          description: Key-value pairs for resource labeling and filtering
+          additionalProperties:
+            type: string
+          example:
+            environment: production
+            region: us-east-1
+            team: platform
+        name:
+          type: string
+          title: Name
+        description:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Description
+        is_builtin:
+          type: boolean
+          default: false
+          title: Is Builtin
+        created_by:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Created By
+        source:
+          type: string
+          default: local
+          title: Source
+        member_count:
+          type: integer
+          default: 0
+          title: Member Count
+        membership_sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/MembershipSource'
+          title: Membership Sources
+          description: How this user was assigned to this group
+      required:
+        - name
+      type: object
+    GroupMemberRead:
+      type: object
+      title: GroupMemberRead
+      description: User response with membership source info for a specific group.
+      required:
+        - id
+        - username
+        - full_name
+        - is_enabled
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        username:
+          type: string
+          title: Username
+        email:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Email
+        full_name:
+          type: string
+          title: Full Name
+        is_enabled:
+          type: boolean
+          title: Is Enabled
+        is_builtin:
+          type: boolean
+          default: false
+          title: Is Builtin
+        has_password:
+          type: boolean
+          default: false
+          title: Has Password
+        last_login:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Last Login
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        membership_sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/MembershipSource'
+          title: Membership Sources
+          description: How this user was assigned to this group
+    ResourcesResponse_GroupRead_:
+      type: object
+      title: ResourcesResponse[GroupRead]
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
+      required:
+        - resources
       properties:
         next:
           anyOf:
@@ -24220,17 +25058,83 @@ components:
           type: array
           title: Resources
           description: Array of resources in current page
-          maxItems: 100
           items:
             $ref: '#/components/schemas/GroupRead'
-      required:
-        - resources
+          maxItems: 100
+    ResourcesResponse_UserGroupRead_:
       type: object
+      title: ResourcesResponse[UserGroupRead]
       examples:
         - next: eyJpZCI6InV1aWQifQ
           total: 150
         - next: eyJpZCI6Im5leHQifQ
           prev: eyJpZCI6InByZXYifQ
+      required:
+        - resources
+      properties:
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Next
+          description: Cursor for next page of results
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Prev
+          description: Cursor for previous page of results
+        total:
+          anyOf:
+            - minimum: 0.0
+              type: integer
+            - type: 'null'
+          title: Total
+          description: Total count of resources (only when include_total=true)
+        resources:
+          type: array
+          title: Resources
+          description: Array of resources in current page
+          items:
+            $ref: '#/components/schemas/UserGroupRead'
+          maxItems: 100
+    ResourcesResponse_GroupMemberRead_:
+      type: object
+      title: ResourcesResponse[GroupMemberRead]
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
+      required:
+        - resources
+      properties:
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Next
+          description: Cursor for next page of results
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Prev
+          description: Cursor for previous page of results
+        total:
+          anyOf:
+            - minimum: 0.0
+              type: integer
+            - type: 'null'
+          title: Total
+          description: Total count of resources (only when include_total=true)
+        resources:
+          type: array
+          title: Resources
+          description: Array of resources in current page
+          items:
+            $ref: '#/components/schemas/GroupMemberRead'
+          maxItems: 100
     GroupMemberAdd:
       type: object
       title: GroupMemberAdd

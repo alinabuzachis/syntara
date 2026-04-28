@@ -232,7 +232,7 @@ class TestDecideApprovalContract:
                 response,
                 error_type="https://api.nexus.com/errors/validation-error",
                 title="Request Validation Error",
-                detail=("Validation failed: body -> status: Input should be 'approved' or 'rejected'"),
+                detail=("Validation failed: status: Input should be 'approved' or 'rejected'"),
                 code="REQUEST_VALIDATION_ERROR",
                 retryable=False,
             )
@@ -263,7 +263,7 @@ class TestDecideApprovalContract:
             response,
             error_type="https://api.nexus.com/errors/validation-error",
             title="Request Validation Error",
-            detail="Validation failed: body -> status: Field required",
+            detail="Validation failed: status: Field required",
             code="REQUEST_VALIDATION_ERROR",
             retryable=False,
         )
@@ -275,7 +275,7 @@ class TestDecideApprovalContract:
             response,
             error_type="https://api.nexus.com/errors/validation-error",
             title="Request Validation Error",
-            detail="Validation failed: body -> status: Field required",
+            detail="Validation failed: status: Field required",
             code="REQUEST_VALIDATION_ERROR",
             retryable=False,
         )
@@ -473,7 +473,7 @@ class TestDecideApprovalContract:
             response,
             error_type="https://api.nexus.com/errors/validation-error",
             title="Request Validation Error",
-            detail="Validation failed: body -> notes: String should have at most 2000 characters",
+            detail="Validation failed: notes: String should have at most 2000 characters",
             code="REQUEST_VALIDATION_ERROR",
             retryable=False,
         )

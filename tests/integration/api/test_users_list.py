@@ -51,7 +51,7 @@ class TestUsersListContract:
             "username",
             "email",
             "full_name",
-            "is_active",
+            "is_enabled",
             "created_at",
             "updated_at",
         ]
@@ -138,16 +138,16 @@ class TestUsersListContract:
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("multiple_local_users")
-    async def test_list_users_filter_by_is_active(self, admin_client: AsyncClient) -> None:
-        """Test filtering by is_active status."""
-        response = await admin_client.get(USERS_URL, params={"is_active[eq]": "false"})
+    async def test_list_users_filter_by_is_enabled(self, admin_client: AsyncClient) -> None:
+        """Test filtering by is_enabled status."""
+        response = await admin_client.get(USERS_URL, params={"is_enabled[eq]": "false"})
 
         assert response.status_code == 200
 
         data = response.json()
         assert len(data["resources"]) >= 1
         for user in data["resources"]:
-            assert user["is_active"] is False
+            assert user["is_enabled"] is False
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("multiple_local_users")

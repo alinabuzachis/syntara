@@ -5,12 +5,15 @@ from uuid import UUID
 
 import structlog
 from fastapi import APIRouter, Depends, Query, Request, status
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth import get_current_user
+from nexus.auth.session.session_store import SessionStore
 from nexus.authz.dependencies import PermissionChecker
 from nexus.core.database.session import get_db
-from nexus.core.models import User
+from nexus.core.models import User, UserIdentity
+from nexus.core.services.secret_service import create_secret_service
 from nexus.identity_providers.models import IdentityProviderListParams
 from nexus.identity_providers.models.identity_provider import (
     IdentityProviderCreate,
@@ -42,7 +45,7 @@ def get_identity_provider_service(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> IdentityProviderService:
     """Dependency provider for IdentityProviderService."""
-    return IdentityProviderService(db, current_user)
+    return IdentityProviderService(db, current_user, create_secret_service(db))
 
 
 # ============================================================================
@@ -143,6 +146,19 @@ async def patch_identity_provider(
 async def delete_identity_provider(
     provider_id: UUID,
     service: Annotated[IdentityProviderService, Depends(get_identity_provider_service)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> None:
     """Soft delete an identity provider."""
+    # Find all users linked to this provider before deleting
+    result = await db.exec(
+        select(UserIdentity.user_id).where(col(UserIdentity.identity_provider_id) == provider_id).distinct()
+    )
+    affected_user_ids = result.all()
+
     await service.delete_provider(provider_id)
+
+    # Invalidate tokens for all affected users so they get logged out
+    if affected_user_ids:
+        async with SessionStore() as store:
+            for user_id in affected_user_ids:
+                await store.increment_token_version(user_id)

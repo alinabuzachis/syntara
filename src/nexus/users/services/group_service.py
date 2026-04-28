@@ -16,8 +16,10 @@ from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth.exceptions import (
+    BuiltinGroupDeleteError,
     GroupNameConflictError,
     GroupNotFoundError,
+    LastAdminRemovalError,
     UserAlreadyInGroupError,
     UserNotInGroupError,
 )
@@ -28,13 +30,18 @@ from nexus.core.models.group import (
     Group,
     GroupListResponse,
     GroupRead,
+    MembershipSource,
+    UserGroupListResponse,
+    UserGroupRead,
     user_groups,
+    user_idp_groups,
 )
-from nexus.core.models.user_schemas import UserListResponse, UserRead
+from nexus.core.models.user_schemas import GroupMemberListResponse, GroupMemberRead
 from nexus.core.queries.user_queries import get_user_by_id
 from nexus.core.services import BaseService
 from nexus.core.services.extensions import ConvertResourceMixin
 from nexus.core.utils.filters import Filter
+from nexus.identity_providers.models.identity_provider import IdentityProvider
 
 
 class GroupConvertResourceMixin(ConvertResourceMixin):
@@ -100,7 +107,7 @@ class GroupsService(BaseService):
             .select_from(User)
             .where(
                 User.deleted_at.is_(None),  # type: ignore[union-attr]
-                col(User.is_active) == True,  # noqa: E712
+                col(User.is_enabled) == True,  # noqa: E712
             )
         )
         count: int = result.one()
@@ -123,7 +130,11 @@ class GroupsService(BaseService):
 
         result = await self.session.exec(
             select(user_groups.c.group_id, func.count())
-            .where(user_groups.c.group_id.in_(group_ids))
+            .join(User, User.id == user_groups.c.user_id)  # type: ignore[arg-type]
+            .where(
+                user_groups.c.group_id.in_(group_ids),
+                User.deleted_at.is_(None),  # type: ignore[union-attr]
+            )
             .group_by(user_groups.c.group_id)
         )
         counts: dict[UUID, int] = dict(result.all())
@@ -322,9 +333,12 @@ class GroupsService(BaseService):
 
         Raises:
             GroupNotFoundError: If group not found
+            BuiltinGroupDeleteError: If group is a builtin system group
 
         """
         group = await self.get_group_by_id(group_id)
+        if group.is_builtin:
+            raise BuiltinGroupDeleteError(group.name)
         group.soft_delete(self.user.id)
         await self.session.commit()
 
@@ -386,8 +400,12 @@ class GroupsService(BaseService):
 
         """
         # Validate group and user exist
-        await self.get_group_by_id(group_id)
-        await get_user_by_id(self.session, user_id)
+        group = await self.get_group_by_id(group_id)
+        user = await get_user_by_id(self.session, user_id)
+
+        # Builtin users cannot be removed from builtin groups
+        if user.is_builtin and group.is_builtin:
+            raise LastAdminRemovalError
 
         # Check membership exists
         result = await self.session.exec(
@@ -398,6 +416,9 @@ class GroupsService(BaseService):
         )
         if result.one_or_none() is None:
             raise UserNotInGroupError(user_id, group_id)
+
+        # Prevent removing the last enabled admin from the admins group
+        await self._guard_last_admin_removal(group_id, exclude_user_id=user_id)
 
         # Delete membership
         await self.session.exec(
@@ -413,8 +434,10 @@ class GroupsService(BaseService):
         group_id: UUID,
         limit: int = 20,
         cursor: str | None = None,
-    ) -> UserListResponse:
+    ) -> GroupMemberListResponse:
         """List members of a group with cursor-based pagination.
+
+        Includes membership source info (manual vs IdP) for each member.
 
         Args:
             group_id: UUID of the group
@@ -422,7 +445,7 @@ class GroupsService(BaseService):
             cursor: Pagination cursor (user ID to start after)
 
         Returns:
-            UserListResponse with group members
+            GroupMemberListResponse with group members and membership sources
 
         Raises:
             GroupNotFoundError: If group not found
@@ -456,8 +479,18 @@ class GroupsService(BaseService):
 
         next_cursor = users[-1].username if has_next and users else None
 
-        return UserListResponse(
-            resources=[UserRead.model_validate(u) for u in users],
+        # Fetch membership sources for all users in this group
+        sources = await self._get_member_sources(group_id, [u.id for u in users])
+
+        resources = []
+        for u in users:
+            read = GroupMemberRead.model_validate(u)
+            read.has_password = u.password_hash is not None
+            read.membership_sources = sources.get(u.id, [MembershipSource(type="manual")])
+            resources.append(read)
+
+        return GroupMemberListResponse(
+            resources=resources,
             next=next_cursor,
         )
 
@@ -466,8 +499,10 @@ class GroupsService(BaseService):
         user_id: UUID,
         limit: int = 20,
         cursor: str | None = None,
-    ) -> GroupListResponse:
+    ) -> UserGroupListResponse:
         """List groups that a user belongs to with cursor-based pagination.
+
+        Includes membership source info (manual assignment vs IdP auto-sync).
 
         Args:
             user_id: UUID of the user
@@ -475,7 +510,7 @@ class GroupsService(BaseService):
             cursor: Pagination cursor (group name to start after)
 
         Returns:
-            GroupListResponse with user's groups
+            UserGroupListResponse with user's groups and membership sources
 
         Raises:
             UserNotFoundError: If user not found
@@ -509,12 +544,114 @@ class GroupsService(BaseService):
 
         next_cursor = groups[-1].name if has_next and groups else None
 
-        return GroupListResponse(
-            resources=[GroupRead.model_validate(g) for g in groups],
-            next=next_cursor,
-        )
+        # Fetch IdP sources for all groups in one query
+        group_ids = [g.id for g in groups]
+        sources = await self._get_membership_sources(user_id, group_ids)
 
-    async def set_user_groups(self, user_id: UUID, group_ids: list[UUID]) -> GroupListResponse:
+        resources = []
+        for g in groups:
+            read = UserGroupRead.model_validate(g)
+            read.membership_sources = sources.get(g.id, [MembershipSource(type="manual")])
+            resources.append(read)
+
+        return UserGroupListResponse(resources=resources, next=next_cursor)
+
+    async def _get_membership_sources(
+        self,
+        user_id: UUID,
+        group_ids: list[UUID],
+    ) -> dict[UUID, list[MembershipSource]]:
+        """Get membership sources for a user's groups.
+
+        Returns a dict mapping group_id to list of MembershipSource.
+        A group can have both manual and IdP sources simultaneously — e.g., when
+        a user is manually assigned AND assigned by an identity provider.  If a
+        group has no IdP tracking rows, it is considered manually assigned.
+        """
+        if not group_ids:
+            return {}
+
+        # Query IdP-managed group assignments with provider names
+        idp_query = (
+            select(
+                user_idp_groups.c.group_id,
+                col(IdentityProvider.id).label("provider_id"),
+                col(IdentityProvider.name).label("provider_name"),
+            )
+            .join(
+                IdentityProvider,
+                user_idp_groups.c.identity_provider_id == IdentityProvider.id,
+            )
+            .where(
+                user_idp_groups.c.user_id == user_id,
+                user_idp_groups.c.group_id.in_(group_ids),
+            )
+        )
+        idp_result = await self.session.execute(idp_query)
+
+        sources: dict[UUID, list[MembershipSource]] = {}
+        idp_managed_groups: set[UUID] = set()
+
+        for row in idp_result:
+            gid = row.group_id
+            idp_managed_groups.add(gid)
+            sources.setdefault(gid, []).append(
+                MembershipSource(type="idp", provider_name=row.provider_name, provider_id=row.provider_id)
+            )
+
+        # Groups without any IdP tracking rows are manually assigned.
+        # Dual-source (manual + IdP) is not possible because manual group assignment
+        # is restricted to local users only (enforced by _ensure_local_user / UserNotLocalError).
+        # IdP users get their groups exclusively through IdP sync.
+        for gid in group_ids:
+            if gid not in idp_managed_groups:
+                sources.setdefault(gid, []).append(MembershipSource(type="manual"))
+
+        return sources
+
+    async def _get_member_sources(
+        self,
+        group_id: UUID,
+        user_ids: list[UUID],
+    ) -> dict[UUID, list[MembershipSource]]:
+        """Get membership sources for users in a specific group.
+
+        Returns a dict mapping user_id to list of MembershipSource.
+        """
+        if not user_ids:
+            return {}
+
+        idp_query = (
+            select(
+                user_idp_groups.c.user_id,
+                col(IdentityProvider.id).label("provider_id"),
+                col(IdentityProvider.name).label("provider_name"),
+            )
+            .join(IdentityProvider, user_idp_groups.c.identity_provider_id == IdentityProvider.id)
+            .where(
+                user_idp_groups.c.group_id == group_id,
+                user_idp_groups.c.user_id.in_(user_ids),
+            )
+        )
+        idp_result = await self.session.execute(idp_query)
+
+        sources: dict[UUID, list[MembershipSource]] = {}
+        idp_managed_users: set[UUID] = set()
+
+        for row in idp_result:
+            uid = row.user_id
+            idp_managed_users.add(uid)
+            sources.setdefault(uid, []).append(
+                MembershipSource(type="idp", provider_name=row.provider_name, provider_id=row.provider_id)
+            )
+
+        for uid in user_ids:
+            if uid not in idp_managed_users:
+                sources.setdefault(uid, []).append(MembershipSource(type="manual"))
+
+        return sources
+
+    async def set_user_groups(self, user_id: UUID, group_ids: list[UUID]) -> UserGroupListResponse:
         """Set a user's group memberships declaratively.
 
         Replace all current memberships with the provided list of group IDs.
@@ -533,7 +670,7 @@ class GroupsService(BaseService):
 
         """
         # Validate user exists
-        await get_user_by_id(self.session, user_id)
+        user = await get_user_by_id(self.session, user_id)
 
         # Validate all desired groups exist (deduplicate first)
         desired = set(group_ids)
@@ -567,6 +704,21 @@ class GroupsService(BaseService):
 
         # Remove old memberships
         if to_remove:
+            # Block builtin users from being removed from builtin groups
+            if user.is_builtin:
+                builtin_result = await self.session.exec(
+                    select(Group.id).where(
+                        col(Group.id).in_(to_remove),
+                        col(Group.is_builtin) == True,  # noqa: E712
+                    )
+                )
+                if builtin_result.first() is not None:
+                    raise LastAdminRemovalError
+
+            # Check if any of the groups being removed is the admins group
+            for gid in to_remove:
+                await self._guard_last_admin_removal(gid, exclude_user_id=user_id)
+
             await self.session.exec(
                 delete(user_groups).where(
                     user_groups.c.user_id == user_id,
@@ -596,3 +748,37 @@ class GroupsService(BaseService):
 
         # Return updated group list
         return await self.list_user_groups(user_id)
+
+    async def _guard_last_admin_removal(self, group_id: UUID, *, exclude_user_id: UUID) -> None:
+        """Raise if removing this user would leave no enabled admins in the group.
+
+        Only applies to the builtin admins group. No-op for other groups.
+        """
+        # Check if this is the builtin admins group
+        result = await self.session.exec(
+            select(Group).where(
+                col(Group.id) == group_id,
+                col(Group.name) == "admins",
+                col(Group.is_builtin) == True,  # noqa: E712
+            )
+        )
+        if result.one_or_none() is None:
+            return  # Not the admins group — no guard needed
+
+        # Lock the group row to serialize concurrent removals
+        await self.session.exec(select(Group).where(col(Group.id) == group_id).with_for_update())
+
+        # Count remaining enabled admins excluding the user being removed
+        count_result = await self.session.exec(
+            select(func.count())
+            .select_from(user_groups)
+            .join(User, User.id == user_groups.c.user_id)  # type: ignore[arg-type]
+            .where(
+                user_groups.c.group_id == group_id,
+                col(User.id) != exclude_user_id,
+                User.deleted_at.is_(None),  # type: ignore[union-attr]
+                col(User.is_enabled) == True,  # noqa: E712
+            )
+        )
+        if count_result.one() < 1:
+            raise LastAdminRemovalError

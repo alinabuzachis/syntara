@@ -62,7 +62,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserListResponse'
+                $ref: '#/components/schemas/ResourcesResponse_UserRead_'
         '400':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         '401':
@@ -276,7 +276,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GroupListResponse'
+                $ref: '#/components/schemas/ResourcesResponse_UserGroupRead_'
         '400':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         '401':
@@ -327,7 +327,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GroupListResponse'
+                $ref: '#/components/schemas/ResourcesResponse_UserGroupRead_'
         '400':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         '401':
@@ -343,9 +343,145 @@ paths:
         '500':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
-      # ── Groups ──────────────────────────────────────────────────────────
       security:
         - bearerAuth: []
+
+  # ── User Identities ────────────────────────────────────────────────
+  /users/{user_id}/identities:
+    get:
+      summary: List User Identities
+      description: List federated identities for a user.
+      operationId: list_user_identities
+      x-app-permission:
+        resource: user_identity
+        action: read
+      tags:
+        - Users
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: User Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserIdentityListResponse'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+      security:
+        - bearerAuth: []
+
+    post:
+      summary: Attach User Identity
+      description: Attach a federated identity from another user to this user.
+      operationId: attach_user_identity
+      x-app-permission:
+        resource: user_identity
+        action: attach
+      tags:
+        - Users
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: User Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserIdentityAttach'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserIdentityRead'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+      security:
+        - bearerAuth: []
+
+  /users/{user_id}/identities/{identity_id}:
+    delete:
+      summary: Detach User Identity
+      description: Detach (hard-delete) a federated identity from a user.
+      operationId: detach_user_identity
+      x-app-permission:
+        resource: user_identity
+        action: detach
+      tags:
+        - Users
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: User Id
+        - name: identity_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Identity Id
+      responses:
+        '204':
+          description: Successful Response
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+      security:
+        - bearerAuth: []
+
+  # ── Groups ──────────────────────────────────────────────────────────
   /groups:
     get:
       summary: List Groups
@@ -367,7 +503,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GroupListResponse'
+                $ref: '#/components/schemas/ResourcesResponse_GroupRead_'
         '400':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         '401':
@@ -582,7 +718,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserListResponse'
+                $ref: '#/components/schemas/ResourcesResponse_GroupMemberRead_'
         '400':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         '401':
@@ -1015,7 +1151,6 @@ components:
         Excludes auto-generated fields: id, created_at, updated_at, last_login, preferences.
       required:
         - username
-        - email
         - full_name
         - password
       properties:
@@ -1026,10 +1161,12 @@ components:
           description: Unique username
           title: Username
         email:
-          type: string
-          format: email
-          maxLength: 255
-          description: Unique email address
+          anyOf:
+            - type: string
+              format: email
+              maxLength: 255
+            - type: 'null'
+          description: Email address
           title: Email
         full_name:
           type: string
@@ -1044,11 +1181,11 @@ components:
           minLength: 8
           description: Plaintext password (will be hashed)
           title: Password
-        is_active:
+        is_enabled:
           type: boolean
           default: true
-          description: Account activation status
-          title: Is Active
+          description: Whether the user account is enabled
+          title: Is Enabled
 
     UserUpdate:
       type: object
@@ -1058,6 +1195,14 @@ components:
 
         All fields are optional for partial updates.
       properties:
+        username:
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 255
+            - type: 'null'
+          description: Update username
+          title: Username
         full_name:
           anyOf:
             - type: string
@@ -1082,12 +1227,12 @@ components:
             - type: 'null'
           description: New password (will be hashed). Omit to keep current password.
           title: Password
-        is_active:
+        is_enabled:
           anyOf:
             - type: boolean
             - type: 'null'
           description: Enable or disable user account
-          title: Is Active
+          title: Is Enabled
 
     UserRead:
       type: object
@@ -1099,9 +1244,8 @@ components:
       required:
         - id
         - username
-        - email
         - full_name
-        - is_active
+        - is_enabled
         - created_at
         - updated_at
       properties:
@@ -1113,14 +1257,24 @@ components:
           type: string
           title: Username
         email:
-          type: string
+          anyOf:
+            - type: string
+            - type: 'null'
           title: Email
         full_name:
           type: string
           title: Full Name
-        is_active:
+        is_enabled:
           type: boolean
-          title: Is Active
+          title: Is Enabled
+        is_builtin:
+          type: boolean
+          default: false
+          title: Is Builtin
+        has_password:
+          type: boolean
+          default: false
+          title: Has Password
         last_login:
           anyOf:
             - type: string
@@ -1136,20 +1290,43 @@ components:
           format: date-time
           title: Updated At
 
-    UserListResponse:
-      allOf:
-        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
-        - type: object
-          required:
-            - resources
-          properties:
-            resources:
-              type: array
-              items:
-                $ref: '#/components/schemas/UserRead'
-              maxItems: 100
-      title: UserListResponse
-      description: Paginated list response for users.
+    ResourcesResponse_UserRead_:
+      type: object
+      title: ResourcesResponse[UserRead]
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
+      required:
+        - resources
+      properties:
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Next
+          description: Cursor for next page of results
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Prev
+          description: Cursor for previous page of results
+        total:
+          anyOf:
+            - minimum: 0.0
+              type: integer
+            - type: 'null'
+          title: Total
+          description: Total count of resources (only when include_total=true)
+        resources:
+          type: array
+          title: Resources
+          description: Array of resources in current page
+          items:
+            $ref: '#/components/schemas/UserRead'
+          maxItems: 100
 
     UserGroupsSet:
       type: object
@@ -1167,6 +1344,108 @@ components:
             format: uuid
           description: Complete list of group IDs the user should belong to
           title: Group Ids
+
+    # ── User Identity schemas ─────────────────────────────────────────
+    UserIdentityRead:
+      type: object
+      title: UserIdentityRead
+      description: Schema for user identity response.
+      required:
+        - id
+        - user_id
+        - identity_provider_id
+        - issuer
+        - subject
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        user_id:
+          type: string
+          format: uuid
+          title: User Id
+        identity_provider_id:
+          type: string
+          format: uuid
+          title: Identity Provider Id
+        issuer:
+          type: string
+          title: Issuer
+        subject:
+          type: string
+          title: Subject
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        last_used_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Last Used At
+        provider_name:
+          type: string
+          default: ''
+          title: Provider Name
+
+    UserIdentityListResponse:
+      type: object
+      title: UserIdentityListResponse
+      description: Paginated list of user identities.
+      required:
+        - resources
+      properties:
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Next
+          description: Cursor for next page of results
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Prev
+          description: Cursor for previous page of results
+        total:
+          anyOf:
+            - type: integer
+              minimum: 0.0
+            - type: 'null'
+          title: Total
+          description: Total count of resources (only when include_total=true)
+        resources:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/UserIdentityRead'
+          title: Resources
+          description: Array of resources in current page
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
+
+    UserIdentityAttach:
+      type: object
+      title: UserIdentityAttach
+      description: Schema for attaching an identity to a user.
+      required:
+        - identity_id
+      properties:
+        identity_id:
+          type: string
+          format: uuid
+          title: Identity Id
 
     # ── Group schemas ───────────────────────────────────────────────
     GroupCreate:
@@ -1256,20 +1535,247 @@ components:
               default: 0
               title: Member Count
 
-    GroupListResponse:
+    MembershipSource:
+      type: object
+      title: MembershipSource
+      description: Describes how a user got membership in a group.
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          title: Type
+          description: "Source type: 'manual' or 'idp'"
+        provider_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Provider Name
+          description: IdP name if source is 'idp'
+        provider_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Provider Id
+          description: IdP ID if source is 'idp'
+
+    UserGroupRead:
+      title: UserGroupRead
+      additionalProperties: false
+      description: Group response with membership source info for a specific user.
       allOf:
-        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
+        - $ref: "../base/shared-resources.openapi.yaml#/components/schemas/BaseResource"
         - type: object
+          title: UserGroupRead
           required:
-            - resources
+            - name
           properties:
-            resources:
+            name:
+              type: string
+              title: Name
+            description:
+              anyOf:
+                - type: string
+                - type: 'null'
+              title: Description
+            is_builtin:
+              type: boolean
+              default: false
+              title: Is Builtin
+            created_by:
+              anyOf:
+                - type: string
+                  format: uuid
+                - type: 'null'
+              title: Created By
+            source:
+              type: string
+              default: local
+              title: Source
+            member_count:
+              type: integer
+              default: 0
+              title: Member Count
+            membership_sources:
               type: array
               items:
-                $ref: '#/components/schemas/GroupRead'
-              maxItems: 100
-      title: GroupListResponse
-      description: Paginated list response for groups.
+                $ref: '#/components/schemas/MembershipSource'
+              title: Membership Sources
+              description: How this user was assigned to this group
+
+    GroupMemberRead:
+      type: object
+      title: GroupMemberRead
+      description: User response with membership source info for a specific group.
+      required:
+        - id
+        - username
+        - full_name
+        - is_enabled
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        username:
+          type: string
+          title: Username
+        email:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Email
+        full_name:
+          type: string
+          title: Full Name
+        is_enabled:
+          type: boolean
+          title: Is Enabled
+        is_builtin:
+          type: boolean
+          default: false
+          title: Is Builtin
+        has_password:
+          type: boolean
+          default: false
+          title: Has Password
+        last_login:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Last Login
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        membership_sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/MembershipSource'
+          title: Membership Sources
+          description: How this user was assigned to this group
+
+    ResourcesResponse_GroupRead_:
+      type: object
+      title: ResourcesResponse[GroupRead]
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
+      required:
+        - resources
+      properties:
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Next
+          description: Cursor for next page of results
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Prev
+          description: Cursor for previous page of results
+        total:
+          anyOf:
+            - minimum: 0.0
+              type: integer
+            - type: 'null'
+          title: Total
+          description: Total count of resources (only when include_total=true)
+        resources:
+          type: array
+          title: Resources
+          description: Array of resources in current page
+          items:
+            $ref: '#/components/schemas/GroupRead'
+          maxItems: 100
+
+    ResourcesResponse_UserGroupRead_:
+      type: object
+      title: ResourcesResponse[UserGroupRead]
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
+      required:
+        - resources
+      properties:
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Next
+          description: Cursor for next page of results
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Prev
+          description: Cursor for previous page of results
+        total:
+          anyOf:
+            - minimum: 0.0
+              type: integer
+            - type: 'null'
+          title: Total
+          description: Total count of resources (only when include_total=true)
+        resources:
+          type: array
+          title: Resources
+          description: Array of resources in current page
+          items:
+            $ref: '#/components/schemas/UserGroupRead'
+          maxItems: 100
+
+    ResourcesResponse_GroupMemberRead_:
+      type: object
+      title: ResourcesResponse[GroupMemberRead]
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
+      required:
+        - resources
+      properties:
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Next
+          description: Cursor for next page of results
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Prev
+          description: Cursor for previous page of results
+        total:
+          anyOf:
+            - minimum: 0.0
+              type: integer
+            - type: 'null'
+          title: Total
+          description: Total count of resources (only when include_total=true)
+        resources:
+          type: array
+          title: Resources
+          description: Array of resources in current page
+          items:
+            $ref: '#/components/schemas/GroupMemberRead'
+          maxItems: 100
 
     GroupMemberAdd:
       type: object

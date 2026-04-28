@@ -29,7 +29,7 @@ async def test_users(test_db_session: AsyncSession) -> list[User]:
             username="alice",
             email="alice@example.com",
             full_name="Alice Smith",
-            is_active=True,
+            is_enabled=True,
             labels={
                 "environment": "production",
                 "region": "us-east-1",
@@ -43,7 +43,7 @@ async def test_users(test_db_session: AsyncSession) -> list[User]:
             username="bob",
             email="bob@example.com",
             full_name="Bob Johnson",
-            is_active=True,
+            is_enabled=True,
             labels={
                 "environment": "production",
                 "region": "us-west-2",
@@ -57,7 +57,7 @@ async def test_users(test_db_session: AsyncSession) -> list[User]:
             username="charlie",
             email="charlie@example.com",
             full_name="Charlie Brown",
-            is_active=False,
+            is_enabled=False,
             labels={
                 "environment": "staging",
                 "region": "us-east-1",
@@ -71,7 +71,7 @@ async def test_users(test_db_session: AsyncSession) -> list[User]:
             username="diana",
             email="diana@example.com",
             full_name="Diana Prince",
-            is_active=True,
+            is_enabled=True,
             labels={
                 "environment": "production",
                 "region": "us-east-1",
@@ -85,7 +85,7 @@ async def test_users(test_db_session: AsyncSession) -> list[User]:
             username="eve",
             email="eve@example.com",
             full_name="Eve Davis",
-            is_active=False,
+            is_enabled=False,
             labels={"environment": "development", "region": "us-west-1", "team": "dev", "experimental": "true"},
             created_at=datetime(2025, 1, 5, 14, 0, 0),
         ),

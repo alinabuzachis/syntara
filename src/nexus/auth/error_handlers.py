@@ -17,16 +17,21 @@ if TYPE_CHECKING:
     from fastapi.responses import JSONResponse
 
     from nexus.auth.exceptions import (
-        AdminDisableByNonAdminError,
+        AdminDeleteError,
+        AdminDisableNoOtherAdminsError,
+        AdminModifyError,
         AuthenticationRequiredError,
+        BuiltinGroupDeleteError,
         GroupNameConflictError,
         GroupNotFoundError,
         InvalidTokenError,
+        LastAdminRemovalError,
+        LastSignInMethodError,
         RefreshTokenRevokedError,
         SessionStoreUnavailableError,
         TokenExpiredError,
         UserAlreadyInGroupError,
-        UserEmailConflictError,
+        UserIdentityNotFoundError,
         UserNotFoundError,
         UserNotInGroupError,
         UserNotLocalError,
@@ -244,6 +249,42 @@ def group_name_conflict_handler(
 # ============================================================================
 
 
+def user_identity_not_found_handler(
+    request: Request,
+    exc: UserIdentityNotFoundError,
+) -> JSONResponse:
+    """Handle UserIdentityNotFoundError with RFC 9457 format."""
+    logger.warning("User identity not found", exc_info=exc)
+
+    return create_problem_details_response(
+        status_code=status.HTTP_404_NOT_FOUND,
+        problem_type=PROBLEM_TYPES["resource_not_found"],
+        title="User Identity Not Found",
+        detail="The requested user identity was not found",
+        code="USER_IDENTITY_NOT_FOUND",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def last_sign_in_method_handler(
+    request: Request,
+    exc: LastSignInMethodError,
+) -> JSONResponse:
+    """Handle LastSignInMethodError with RFC 9457 format."""
+    logger.warning("Attempted to remove last sign-in method", exc_info=exc)
+
+    return create_problem_details_response(
+        status_code=status.HTTP_409_CONFLICT,
+        problem_type=PROBLEM_TYPES["resource_conflict"],
+        title="Last Sign-In Method",
+        detail=str(exc),
+        code="LAST_SIGN_IN_METHOD",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
 def user_not_found_handler(
     request: Request,
     exc: UserNotFoundError,
@@ -298,55 +339,136 @@ def user_username_conflict_handler(
     )
 
 
-def user_email_conflict_handler(
+def admin_modify_handler(
     request: Request,
-    exc: UserEmailConflictError,
+    exc: AdminModifyError,
 ) -> JSONResponse:
-    """Handle UserEmailConflictError with RFC 9457 format.
+    """Handle AdminModifyError with RFC 9457 format.
 
     Args:
         request: FastAPI request object
-        exc: The email conflict exception
-
-    Returns:
-        RFC 9457 compliant 409 error response
-
-    """
-    logger.warning("Email conflict", exc_info=exc)
-
-    return create_problem_details_response(
-        status_code=status.HTTP_409_CONFLICT,
-        problem_type=PROBLEM_TYPES["resource_conflict"],
-        title="Email Conflict",
-        detail="A user with this email already exists",
-        code="USER_EMAIL_CONFLICT",
-        retryable=False,
-        instance=str(request.url),
-    )
-
-
-def admin_disable_by_non_admin_handler(
-    request: Request,
-    exc: AdminDisableByNonAdminError,
-) -> JSONResponse:
-    """Handle AdminDisableByNonAdminError with RFC 9457 format.
-
-    Args:
-        request: FastAPI request object
-        exc: The admin self-disable exception
+        exc: The admin modify exception
 
     Returns:
         RFC 9457 compliant 403 error response
 
     """
-    logger.warning("Admin disable attempted by non-admin user", exc_info=exc)
+    logger.warning("Attempted to modify built-in admin properties", exc_info=exc)
 
     return create_problem_details_response(
         status_code=status.HTTP_403_FORBIDDEN,
         problem_type=PROBLEM_TYPES["forbidden"],
         title="Forbidden",
-        detail="The built-in admin account can only be disabled by itself",
-        code="ADMIN_SELF_DISABLE_REQUIRED",
+        detail="The built-in admin account properties cannot be modified",
+        code="ADMIN_MODIFY_FORBIDDEN",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def admin_delete_handler(
+    request: Request,
+    exc: AdminDeleteError,
+) -> JSONResponse:
+    """Handle AdminDeleteError with RFC 9457 format.
+
+    Args:
+        request: FastAPI request object
+        exc: The admin delete exception
+
+    Returns:
+        RFC 9457 compliant 403 error response
+
+    """
+    logger.warning("Attempted to delete built-in admin", exc_info=exc)
+
+    return create_problem_details_response(
+        status_code=status.HTTP_403_FORBIDDEN,
+        problem_type=PROBLEM_TYPES["forbidden"],
+        title="Forbidden",
+        detail="The built-in admin account cannot be deleted",
+        code="ADMIN_DELETE_FORBIDDEN",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def admin_disable_no_other_admins_handler(
+    request: Request,
+    exc: AdminDisableNoOtherAdminsError,
+) -> JSONResponse:
+    """Handle AdminDisableNoOtherAdminsError with RFC 9457 format.
+
+    Args:
+        request: FastAPI request object
+        exc: The exception
+
+    Returns:
+        RFC 9457 compliant 403 error response
+
+    """
+    logger.warning("Attempted to disable last enabled admin", exc_info=exc)
+
+    return create_problem_details_response(
+        status_code=status.HTTP_403_FORBIDDEN,
+        problem_type=PROBLEM_TYPES["forbidden"],
+        title="Forbidden",
+        detail="Cannot disable the last enabled user in the admins group",
+        code="ADMIN_DISABLE_NO_OTHER_ADMINS",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def last_admin_removal_handler(
+    request: Request,
+    exc: LastAdminRemovalError,
+) -> JSONResponse:
+    """Handle LastAdminRemovalError with RFC 9457 format.
+
+    Args:
+        request: FastAPI request object
+        exc: The exception
+
+    Returns:
+        RFC 9457 compliant 403 error response
+
+    """
+    logger.warning("Attempted to remove last admin from admins group", exc_info=exc)
+
+    return create_problem_details_response(
+        status_code=status.HTTP_403_FORBIDDEN,
+        problem_type=PROBLEM_TYPES["forbidden"],
+        title="Forbidden",
+        detail="Cannot remove the last enabled admin user from the admins group",
+        code="LAST_ADMIN_REMOVAL_FORBIDDEN",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def builtin_group_delete_handler(
+    request: Request,
+    exc: BuiltinGroupDeleteError,
+) -> JSONResponse:
+    """Handle BuiltinGroupDeleteError with RFC 9457 format.
+
+    Args:
+        request: FastAPI request object
+        exc: The exception
+
+    Returns:
+        RFC 9457 compliant 403 error response
+
+    """
+    logger.warning("Attempted to delete builtin group", exc_info=exc)
+
+    return create_problem_details_response(
+        status_code=status.HTTP_403_FORBIDDEN,
+        problem_type=PROBLEM_TYPES["forbidden"],
+        title="Forbidden",
+        detail=str(exc),
+        code="BUILTIN_GROUP_DELETE_FORBIDDEN",
         retryable=False,
         instance=str(request.url),
     )

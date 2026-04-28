@@ -23,7 +23,8 @@ from nexus.authz.services.role_assignment_service import RoleAssignmentService
 from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.core.models.base.query_params import BaseListParams
-from nexus.core.models.group import GroupListResponse, UserGroupsSet
+from nexus.core.models.group import UserGroupListResponse, UserGroupsSet
+from nexus.core.models.user_identity_schemas import UserIdentityAttach, UserIdentityListResponse, UserIdentityRead
 from nexus.core.models.user_schemas import (
     UserCreate,
     UserListParams,
@@ -34,6 +35,7 @@ from nexus.core.models.user_schemas import (
 from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
 from nexus.core.queries.user_queries import get_user_by_id as fetch_user
 from nexus.users.services.group_service import GroupsService
+from nexus.users.services.user_identity_service import UserIdentityService
 from nexus.users.services.user_service import UsersService
 
 router = NexusRouter(prefix="/users", tags=["Users"])
@@ -42,6 +44,9 @@ _user_create = PermissionChecker("user", "create")
 _user_read = PermissionChecker("user", "read")
 _user_update = PermissionChecker("user", "update")
 _user_delete = PermissionChecker("user", "delete")
+_identity_read = PermissionChecker("user_identity", "read", resource_id_param="user_id")
+_identity_attach = PermissionChecker("user_identity", "attach")
+_identity_detach = PermissionChecker("user_identity", "detach", resource_id_param="user_id")
 
 
 # ============================================================================
@@ -55,6 +60,14 @@ def get_user_service(
 ) -> UsersService:
     """Dependency provider for UsersService."""
     return UsersService(db, current_user)
+
+
+def get_identity_service(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: Annotated[User, Depends(get_current_user)],
+) -> UserIdentityService:
+    """Dependency provider for UserIdentityService."""
+    return UserIdentityService(db)
 
 
 def get_group_service(
@@ -88,15 +101,16 @@ def _get_role_assignment_service(
 async def create_user(
     request: UserCreate,
     service: Annotated[UsersService, Depends(get_user_service)],
-) -> User:
+) -> UserRead:
     """Create a new local user."""
-    return await service.create_user(
+    user = await service.create_user(
         username=request.username,
-        email=request.email,
         full_name=request.full_name,
         password=request.password.get_secret_value(),
-        is_active=request.is_active,
+        email=request.email,
+        is_enabled=request.is_enabled,
     )
+    return service.to_read(user)
 
 
 @router.get("", dependencies=[Depends(_user_read)], operation_id="list_users", response_description="List of users")
@@ -127,7 +141,7 @@ async def get_user(
 ) -> UserRead:
     """Get a user by ID."""
     user = await service.get_user_by_id(user_id)
-    return UserRead.model_validate(user)
+    return service.to_read(user)
 
 
 @router.patch(
@@ -146,19 +160,21 @@ async def update_user(
 
     user = await service.update_user(
         user_id,
+        username=request.username,
         full_name=request.full_name,
         email=request.email,
         password=password,
-        is_active=request.is_active,
+        is_enabled=request.is_enabled,
     )
 
-    # When a user's password is changed, revoke all their existing refresh
-    # token sessions.  This is a hard requirement — if Redis is unavailable,
-    # the request fails so that compromised sessions cannot persist.
+    # When a user's password is changed or their account is deactivated,
+    # revoke all their existing refresh token sessions.  This is a hard
+    # requirement — if Redis is unavailable, the request fails so that
+    # compromised sessions cannot persist.
     # Note: stateless access tokens remain valid until expiry (default 15
     # minutes) since they cannot be individually revoked.  A token blocklist
     # or generation counter would be needed to close this window completely.
-    if password is not None:
+    if password is not None or request.is_enabled is False:
         async with SessionStore() as store:
             await store.revoke_all_for_user(user_id)
 
@@ -183,6 +199,8 @@ async def delete_user(
 ) -> None:
     """Soft delete a user."""
     await service.delete_user(user_id)
+    async with SessionStore() as store:
+        await store.revoke_all_for_user(user_id)
 
     # Signal stale token so the deleted user's next request triggers a
     # refresh attempt, which will fail with 401 (user not found).
@@ -200,7 +218,7 @@ async def list_user_groups(
     user_id: UUID,
     service: Annotated[GroupsService, Depends(get_group_service)],
     params: Annotated[BaseListParams, Query()],
-) -> GroupListResponse:
+) -> UserGroupListResponse:
     """List groups that a user belongs to."""
     return await service.list_user_groups(
         user_id,
@@ -220,7 +238,7 @@ async def set_user_groups(
     request: UserGroupsSet,
     service: Annotated[GroupsService, Depends(get_group_service)],
     db: Annotated[AsyncSession, Depends(get_db)],
-) -> GroupListResponse:
+) -> UserGroupListResponse:
     """Set a user's group memberships declaratively.
 
     Replace all current memberships with the provided list of group IDs.
@@ -316,3 +334,52 @@ async def delete_user_role_assignment(
         assignment_id=assignment_id,
         service=service,
     )
+
+
+# ============================================================================
+# User Identity endpoints
+# ============================================================================
+
+
+@router.get("/{user_id}/identities", dependencies=[Depends(_identity_read)], operation_id="list_user_identities")
+async def list_user_identities(
+    user_id: UUID,
+    service: Annotated[UserIdentityService, Depends(get_identity_service)],
+) -> UserIdentityListResponse:
+    """List federated identities for a user."""
+    return await service.list_for_user(user_id)
+
+
+@router.post(
+    "/{user_id}/identities",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(_identity_attach)],
+    operation_id="attach_user_identity",
+)
+async def attach_user_identity(
+    user_id: UUID,
+    request: UserIdentityAttach,
+    service: Annotated[UserIdentityService, Depends(get_identity_service)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> UserIdentityRead:
+    """Attach a federated identity from another user to this user."""
+    result = await service.attach_identity(request.identity_id, user_id)
+    await db.commit()
+    return result
+
+
+@router.delete(
+    "/{user_id}/identities/{identity_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(_identity_detach)],
+    operation_id="detach_user_identity",
+)
+async def detach_user_identity(
+    user_id: UUID,
+    identity_id: UUID,
+    service: Annotated[UserIdentityService, Depends(get_identity_service)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> None:
+    """Detach (hard-delete) a federated identity from a user."""
+    await service.delete_identity(identity_id, expected_user_id=user_id)
+    await db.commit()

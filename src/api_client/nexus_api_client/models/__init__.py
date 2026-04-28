@@ -99,9 +99,9 @@ from .file_status import FileStatus
 from .file_upload_info import FileUploadInfo
 from .file_upload_response import FileUploadResponse
 from .group_create import GroupCreate
-from .group_list_response import GroupListResponse
 from .group_member_add import GroupMemberAdd
 from .group_member_add_response import GroupMemberAddResponse
+from .group_member_read import GroupMemberRead
 from .group_read import GroupRead
 from .group_read_labels import GroupReadLabels
 from .group_update import GroupUpdate
@@ -124,8 +124,8 @@ from .invocation_result_type_0 import InvocationResultType0
 from .invocation_status import InvocationStatus
 from .kpi_dashboard import KPIDashboard
 from .login_request import LoginRequest
-from .logout_response_logout import LogoutResponseLogout
 from .mcp_configuration import MCPConfiguration
+from .membership_source import MembershipSource
 from .metric_record import MetricRecord
 from .metric_record_labels import MetricRecordLabels
 from .metric_type import MetricType
@@ -134,11 +134,15 @@ from .metrics_record_page import MetricsRecordPage
 from .metrics_store_summary import MetricsStoreSummary
 from .metrics_store_summary_counters import MetricsStoreSummaryCounters
 from .metrics_store_summary_metric_type_counts import MetricsStoreSummaryMetricTypeCounts
+from .oidc_authorize_flow_type_0 import OidcAuthorizeFlowType0
+from .oidc_claim_mapping import OIDCClaimMapping
 from .oidc_configuration import OIDCConfiguration
 from .oidc_configuration_patch import OIDCConfigurationPatch
 from .oidc_configuration_response import OIDCConfigurationResponse
+from .oidc_group_mapping_entry import OIDCGroupMappingEntry
 from .oidc_test_request import OIDCTestRequest
 from .oidc_test_result import OIDCTestResult
+from .oidc_test_result_claim_aliases_type_0 import OIDCTestResultClaimAliasesType0
 from .oidc_test_result_metadata_type_0 import OIDCTestResultMetadataType0
 from .percentile_stats import PercentileStats
 from .permission_entry import PermissionEntry
@@ -169,6 +173,10 @@ from .provider_status import ProviderStatus
 from .reset_internal_metrics_store_response_reset_internal_metrics_store import (
     ResetInternalMetricsStoreResponseResetInternalMetricsStore,
 )
+from .resources_response_group_member_read import ResourcesResponseGroupMemberRead
+from .resources_response_group_read import ResourcesResponseGroupRead
+from .resources_response_user_group_read import ResourcesResponseUserGroupRead
+from .resources_response_user_read import ResourcesResponseUserRead
 from .role_assignment_create import RoleAssignmentCreate
 from .role_assignment_list_response import RoleAssignmentListResponse
 from .role_assignment_read import RoleAssignmentRead
@@ -219,9 +227,13 @@ from .tool_with_parameters_labels import ToolWithParametersLabels
 from .update_example_request import UpdateExampleRequest
 from .upload_files_body import UploadFilesBody
 from .user_create import UserCreate
+from .user_group_read import UserGroupRead
+from .user_group_read_labels import UserGroupReadLabels
 from .user_groups_set import UserGroupsSet
+from .user_identity_attach import UserIdentityAttach
+from .user_identity_list_response import UserIdentityListResponse
+from .user_identity_read import UserIdentityRead
 from .user_info import UserInfo
-from .user_list_response import UserListResponse
 from .user_read import UserRead
 from .user_reference import UserReference
 from .user_update import UserUpdate
@@ -348,9 +360,9 @@ __all__ = (
     "FileUploadInfo",
     "FileUploadResponse",
     "GroupCreate",
-    "GroupListResponse",
     "GroupMemberAdd",
     "GroupMemberAddResponse",
+    "GroupMemberRead",
     "GroupRead",
     "GroupReadLabels",
     "GroupUpdate",
@@ -373,8 +385,8 @@ __all__ = (
     "InvocationStatus",
     "KPIDashboard",
     "LoginRequest",
-    "LogoutResponseLogout",
     "MCPConfiguration",
+    "MembershipSource",
     "MetricRecord",
     "MetricRecordLabels",
     "MetricsCategoryType",
@@ -383,11 +395,15 @@ __all__ = (
     "MetricsStoreSummaryCounters",
     "MetricsStoreSummaryMetricTypeCounts",
     "MetricType",
+    "OidcAuthorizeFlowType0",
+    "OIDCClaimMapping",
     "OIDCConfiguration",
     "OIDCConfigurationPatch",
     "OIDCConfigurationResponse",
+    "OIDCGroupMappingEntry",
     "OIDCTestRequest",
     "OIDCTestResult",
+    "OIDCTestResultClaimAliasesType0",
     "OIDCTestResultMetadataType0",
     "PercentileStats",
     "PermissionEntry",
@@ -416,6 +432,10 @@ __all__ = (
     "ProjectUpdateLabelsType0",
     "ProviderStatus",
     "ResetInternalMetricsStoreResponseResetInternalMetricsStore",
+    "ResourcesResponseGroupMemberRead",
+    "ResourcesResponseGroupRead",
+    "ResourcesResponseUserGroupRead",
+    "ResourcesResponseUserRead",
     "RoleAssignmentCreate",
     "RoleAssignmentListResponse",
     "RoleAssignmentRead",
@@ -466,9 +486,13 @@ __all__ = (
     "UpdateExampleRequest",
     "UploadFilesBody",
     "UserCreate",
+    "UserGroupRead",
+    "UserGroupReadLabels",
     "UserGroupsSet",
+    "UserIdentityAttach",
+    "UserIdentityListResponse",
+    "UserIdentityRead",
     "UserInfo",
-    "UserListResponse",
     "UserRead",
     "UserReference",
     "UserUpdate",

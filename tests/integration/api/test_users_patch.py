@@ -8,7 +8,6 @@ from httpx import AsyncClient
 
 from nexus.auth import get_current_user
 from nexus.core.models import User
-from tests.helpers.error_data import assert_error_data
 
 USERS_URL = "/api/v1/users"
 
@@ -42,16 +41,16 @@ class TestUsersPatchContract:
         assert data["email"] == "newemail@example.com"
 
     @pytest.mark.asyncio
-    async def test_update_user_is_active(self, admin_client: AsyncClient, test_user: User) -> None:
-        """Test successful is_active update (disable user)."""
-        patch_data = {"is_active": False}
+    async def test_update_user_is_enabled(self, admin_client: AsyncClient, test_user: User) -> None:
+        """Test successful is_enabled update (disable user)."""
+        patch_data = {"is_enabled": False}
 
         response = await admin_client.patch(f"{USERS_URL}/{test_user.id}", json=patch_data)
 
         assert response.status_code == 200
 
         data = response.json()
-        assert data["is_active"] is False
+        assert data["is_enabled"] is False
 
     @pytest.mark.asyncio
     async def test_update_user_multiple_fields(self, admin_client: AsyncClient, test_user: User) -> None:
@@ -91,7 +90,7 @@ class TestUsersPatchContract:
         data = response.json()
         assert data["full_name"] == "Only Name Changed"
         assert data["email"] == test_user.email
-        assert data["is_active"] == test_user.is_active
+        assert data["is_enabled"] == test_user.is_enabled
 
     @pytest.mark.asyncio
     async def test_update_user_updates_timestamp(self, admin_client: AsyncClient, test_user: User) -> None:
@@ -108,8 +107,8 @@ class TestUsersPatchContract:
         assert data["updated_at"] != str(original_updated_at)
 
     @pytest.mark.asyncio
-    async def test_update_user_email_conflict(self, admin_client: AsyncClient, test_user: User) -> None:
-        """Test 409 conflict when updating to an existing email."""
+    async def test_update_user_duplicate_email_allowed(self, admin_client: AsyncClient, test_user: User) -> None:
+        """Test that updating to a duplicate email is allowed (federated users may share emails)."""
         # Create another user
         create_response = await admin_client.post(
             USERS_URL,
@@ -122,19 +121,11 @@ class TestUsersPatchContract:
         )
         assert create_response.status_code == 201
 
-        # Try to update test_user to the same email
+        # Update test_user to the same email — should succeed
         patch_data = {"email": "existing@example.com"}
         response = await admin_client.patch(f"{USERS_URL}/{test_user.id}", json=patch_data)
 
-        assert response.status_code == 409
-        assert_error_data(
-            response,
-            error_type="https://api.nexus.com/errors/resource-conflict",
-            title="Email Conflict",
-            detail="A user with this email already exists",
-            code="USER_EMAIL_CONFLICT",
-            retryable=False,
-        )
+        assert response.status_code == 200
 
     @pytest.mark.asyncio
     async def test_update_user_not_found(self, admin_client: AsyncClient) -> None:
@@ -171,14 +162,14 @@ class TestUsersPatchAdminRestrictions:
     @pytest.mark.asyncio
     async def test_admin_can_disable_self(self, auth_client_as_admin: AsyncClient, admin_user: User) -> None:
         """Test admin can disable their own account."""
-        patch_data = {"is_active": False}
+        patch_data = {"is_enabled": False}
 
         response = await auth_client_as_admin.patch(f"{USERS_URL}/{admin_user.id}", json=patch_data)
 
         assert response.status_code == 200
 
         data = response.json()
-        assert data["is_active"] is False
+        assert data["is_enabled"] is False
 
     @pytest.mark.asyncio
     async def test_non_admin_cannot_disable_admin(
@@ -201,7 +192,7 @@ class TestUsersPatchAdminRestrictions:
             return test_user
 
         app.dependency_overrides[get_current_user] = override_as_user
-        patch_data = {"is_active": False}
+        patch_data = {"is_enabled": False}
 
         response = await base_client.patch(f"{USERS_URL}/{admin_user.id}", json=patch_data)
 
@@ -210,7 +201,7 @@ class TestUsersPatchAdminRestrictions:
 
     @pytest.mark.asyncio
     async def test_non_admin_can_update_admin_other_fields(self, admin_client: AsyncClient, admin_user: User) -> None:
-        """Test non-admin can update admin's non-is_active fields."""
+        """Test non-admin can update admin's non-is_enabled fields."""
         patch_data = {"full_name": "Updated Admin Name"}
 
         response = await admin_client.patch(f"{USERS_URL}/{admin_user.id}", json=patch_data)
@@ -224,12 +215,12 @@ class TestUsersPatchAdminRestrictions:
     async def test_admin_can_disable_and_reenable_self(self, admin_client: AsyncClient, admin_user: User) -> None:
         """Test admin can disable and re-enable their own account."""
         # Step 1: Admin disables itself
-        disable_response = await admin_client.patch(f"{USERS_URL}/{admin_user.id}", json={"is_active": False})
+        disable_response = await admin_client.patch(f"{USERS_URL}/{admin_user.id}", json={"is_enabled": False})
         assert disable_response.status_code == 200
 
         # Step 2: Admin re-enables itself
-        enable_response = await admin_client.patch(f"{USERS_URL}/{admin_user.id}", json={"is_active": True})
+        enable_response = await admin_client.patch(f"{USERS_URL}/{admin_user.id}", json={"is_enabled": True})
         assert enable_response.status_code == 200
 
         data = enable_response.json()
-        assert data["is_active"] is True
+        assert data["is_enabled"] is True

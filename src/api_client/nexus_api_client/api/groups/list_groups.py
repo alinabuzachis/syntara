@@ -6,7 +6,7 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.error_data import ErrorData
-from ...models.group_list_response import GroupListResponse
+from ...models.resources_response_group_read import ResourcesResponseGroupRead
 from ...types import UNSET, Response, Unset
 
 
@@ -53,9 +53,9 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> ErrorData | GroupListResponse | None:
+) -> ErrorData | ResourcesResponseGroupRead | None:
     if response.status_code == 200:
-        response_200 = GroupListResponse.from_dict(response.json())
+        response_200 = ResourcesResponseGroupRead.from_dict(response.json())
 
         return response_200
 
@@ -102,7 +102,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[ErrorData | GroupListResponse]:
+) -> Response[ErrorData | ResourcesResponseGroupRead]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -121,7 +121,7 @@ def sync_detailed(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
     additional_params: dict[str, Any] | None = None,
-) -> Response[ErrorData | GroupListResponse]:
+) -> Response[ErrorData | ResourcesResponseGroupRead]:
     """List Groups
 
      Retrieve list of groups with filtering and pagination.
@@ -137,7 +137,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorData | GroupListResponse]
+        Response[ErrorData | ResourcesResponseGroupRead]
     """
 
     kwargs = _get_kwargs(
@@ -158,7 +158,7 @@ def sync(
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
-) -> ErrorData | GroupListResponse | None:
+) -> ErrorData | ResourcesResponseGroupRead | None:
     """List Groups
 
      Retrieve list of groups with filtering and pagination.
@@ -174,7 +174,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorData | GroupListResponse
+        ErrorData | ResourcesResponseGroupRead
     """
 
     return sync_detailed(
@@ -193,7 +193,7 @@ async def asyncio_detailed(
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
-) -> Response[ErrorData | GroupListResponse]:
+) -> Response[ErrorData | ResourcesResponseGroupRead]:
     """List Groups
 
      Retrieve list of groups with filtering and pagination.
@@ -209,7 +209,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorData | GroupListResponse]
+        Response[ErrorData | ResourcesResponseGroupRead]
     """
 
     kwargs = _get_kwargs(
@@ -231,7 +231,7 @@ async def asyncio(
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
-) -> ErrorData | GroupListResponse | None:
+) -> ErrorData | ResourcesResponseGroupRead | None:
     """List Groups
 
      Retrieve list of groups with filtering and pagination.
@@ -247,7 +247,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorData | GroupListResponse
+        ErrorData | ResourcesResponseGroupRead
     """
 
     return (

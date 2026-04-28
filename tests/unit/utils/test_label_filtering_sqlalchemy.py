@@ -213,7 +213,7 @@ class TestLabelFilteringSQLAlchemy:
     ) -> None:
         """Test complex scenario with multiple filters and query operations."""
         # Find all production users in us-east-1 region, ordered by creation time
-        query = select(User).where(User.is_active).order_by("created_at")
+        query = select(User).where(User.is_enabled).order_by("created_at")
 
         label_filters = {"environment": "production", "region": "us-east-1"}
 
@@ -224,7 +224,7 @@ class TestLabelFilteringSQLAlchemy:
         expected_users = [
             u
             for u in test_users
-            if u.is_active and u.labels.get("environment") == "production" and u.labels.get("region") == "us-east-1"
+            if u.is_enabled and u.labels.get("environment") == "production" and u.labels.get("region") == "us-east-1"
         ]
         expected_users_sorted = sorted(expected_users, key=lambda x: x.created_at)
         assert len(result) == len(expected_users)
@@ -262,7 +262,7 @@ class TestLabelFilteringSQLAlchemy:
             username="complex-user",
             email="complex@example.com",
             full_name="Complex User",
-            is_active=True,
+            is_enabled=True,
             labels={f"label_{i}": f"value_{i}" for i in range(20)},  # 20 labels
             created_at=datetime(2025, 1, 6, 15, 0, 0),
         )

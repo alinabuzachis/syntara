@@ -4,6 +4,13 @@ from pydantic import BaseModel
 
 from nexus.auth.services.oidc_service import OIDCError, OIDCService
 
+CLAIM_ALIASES: dict[str, list[str]] = {
+    "sub": ["sub"],
+    "email": ["email", "mail", "upn", "emailaddress"],
+    "username": ["preferred_username", "login", "uid", "sAMAccountName", "upn"],
+    "full_name": ["name", "displayName", "cn", "commonName"],
+}
+
 
 class OIDCTestResult(BaseModel):
     """Result of an OIDC connection test."""
@@ -11,6 +18,9 @@ class OIDCTestResult(BaseModel):
     success: bool
     message: str
     metadata: dict[str, str] | None = None
+    claims_supported: list[str] | None = None
+    claim_aliases: dict[str, list[str]] | None = None
+    end_session_endpoint_supported: bool = False
 
 
 async def test_oidc_connection(issuer_url: str) -> OIDCTestResult:
@@ -39,6 +49,9 @@ async def test_oidc_connection(issuer_url: str) -> OIDCTestResult:
                 "issuer": data["issuer"],
                 "jwks_uri": data["jwks_uri"],
             },
+            claims_supported=data.get("claims_supported"),
+            claim_aliases=CLAIM_ALIASES,
+            end_session_endpoint_supported="end_session_endpoint" in data,
         )
 
     except OIDCError as e:

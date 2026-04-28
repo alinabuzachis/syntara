@@ -6,12 +6,17 @@ from typing import Any, TypeVar
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-T = TypeVar("T", bound="LogoutResponseLogout")
+T = TypeVar("T", bound="UserGroupReadLabels")
 
 
 @_attrs_define
-class LogoutResponseLogout:
-    """ """
+class UserGroupReadLabels:
+    """Key-value pairs for resource labeling and filtering
+
+    Example:
+        {'environment': 'production', 'region': 'us-east-1', 'team': 'platform'}
+
+    """
 
     additional_properties: dict[str, str] = _attrs_field(init=False, factory=dict)
 
@@ -24,10 +29,10 @@ class LogoutResponseLogout:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        logout_response_logout = cls()
+        user_group_read_labels = cls()
 
-        logout_response_logout.additional_properties = d
-        return logout_response_logout
+        user_group_read_labels.additional_properties = d
+        return user_group_read_labels
 
     @property
     def additional_keys(self) -> list[str]:

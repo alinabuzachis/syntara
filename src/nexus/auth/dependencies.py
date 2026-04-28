@@ -99,7 +99,7 @@ def _user_from_payload(payload: TokenPayload) -> User:
         username=username,
         email=email,
         full_name=full_name,
-        is_active=True,
+        is_enabled=True,
     )
 
 

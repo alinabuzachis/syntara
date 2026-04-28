@@ -40,6 +40,8 @@ logger = structlog.stdlib.get_logger(__name__)
 
 # Key patterns
 REFRESH_TOKEN_KEY_PREFIX = "refresh_token:"  # noqa: S105
+IDP_SESSIONS_KEY_PREFIX = "idp_sessions:"
+IDENTITY_SESSIONS_KEY_PREFIX = "identity_sessions:"
 
 # Error messages
 _CLIENT_NOT_CONNECTED_ERROR = "Session store client not connected"
@@ -56,6 +58,11 @@ class RefreshTokenMetadata:
         ip_address: IP address of the client (for future session management UI)
         amr: Authentication method references (e.g., ["pwd"], ["fed"])
         idp: Identity provider name (e.g., "local", "okta")
+        identity_id: UserIdentity.id for federated sessions (None for local password sessions)
+        issuer: OIDC issuer URL for federated sessions
+        subject: OIDC subject claim for federated sessions
+        idp_id: Identity provider UUID for session indexing
+        id_token_hint: Encrypted ID token for RP-initiated logout (federated sessions only)
 
     """
 
@@ -65,6 +72,12 @@ class RefreshTokenMetadata:
     ip_address: str | None = None
     amr: list[str] | None = None
     idp: str | None = None
+    identity_id: str | None = None
+    issuer: str | None = None
+    subject: str | None = None
+    idp_id: str | None = None
+    id_token_hint: str | None = None
+    rp_logout_enabled: bool = False
 
     def to_json(self) -> str:
         """Serialize to JSON string."""
@@ -90,6 +103,11 @@ class SessionInfo:
         ttl: Remaining time-to-live in seconds
         amr: Authentication method references
         idp: Identity provider name
+        identity_id: UserIdentity.id for federated sessions
+        issuer: OIDC issuer URL for federated sessions
+        subject: OIDC subject claim for federated sessions
+        idp_id: Identity provider UUID for session indexing
+        id_token_hint: Encrypted ID token for RP-initiated logout
 
     """
 
@@ -101,6 +119,12 @@ class SessionInfo:
     ttl: int = field(default=-1)
     amr: list[str] | None = None
     idp: str | None = None
+    identity_id: str | None = None
+    issuer: str | None = None
+    subject: str | None = None
+    idp_id: str | None = None
+    id_token_hint: str | None = None
+    rp_logout_enabled: bool = False
 
 
 class SessionStore:
@@ -206,6 +230,12 @@ class SessionStore:
         ttl_seconds: int | None = None,
         amr: list[str] | None = None,
         idp: str | None = None,
+        idp_id: str | None = None,
+        identity_id: str | None = None,
+        issuer: str | None = None,
+        subject: str | None = None,
+        id_token_hint: str | None = None,
+        rp_logout_enabled: bool = False,
     ) -> None:
         """Store refresh token metadata in Redis.
 
@@ -216,7 +246,13 @@ class SessionStore:
             ip_address: Client IP address
             ttl_seconds: Time-to-live in seconds (defaults to refresh token lifetime)
             amr: Authentication method references (e.g., ["pwd"], ["fed"])
-            idp: Identity provider name (e.g., "local", "okta")
+            idp: Identity provider name (e.g., "local", "okta") — stored in metadata for display
+            idp_id: Identity provider UUID — used as the stable key for the IDP session index
+            identity_id: UserIdentity.id for federated sessions (None for local password sessions)
+            issuer: OIDC issuer URL for federated sessions
+            subject: OIDC subject claim for federated sessions
+            id_token_hint: Encrypted ID token for RP-initiated logout (federated sessions only)
+            rp_logout_enabled: Whether RP-initiated logout is enabled for this session
 
         Raises:
             RedisConnectionError: If connection fails
@@ -234,12 +270,36 @@ class SessionStore:
             ip_address=ip_address,
             amr=amr,
             idp=idp,
+            idp_id=idp_id,
+            identity_id=identity_id,
+            issuer=issuer,
+            subject=subject,
+            id_token_hint=id_token_hint,
+            rp_logout_enabled=rp_logout_enabled,
         )
 
         key = self._make_key(jti)
 
         try:
-            await client.setex(key, ttl_seconds, metadata.to_json())
+            pipe = client.pipeline()
+            pipe.setex(key, ttl_seconds, metadata.to_json())
+            # Maintain a secondary index of JTIs per IDP for efficient bulk revocation.
+            # Uses provider ID (stable) rather than name (mutable) as the index key.
+            # The set TTL is refreshed on each add to match the max session lifetime,
+            # preventing unbounded growth from expired JTIs.
+            if idp_id:
+                full_idp_key = f"{IDP_SESSIONS_KEY_PREFIX}{idp_id}"
+                pipe.sadd(full_idp_key, jti)
+                pipe.expire(full_idp_key, ttl_seconds)
+            # Maintain a secondary index of JTIs per identity for efficient bulk revocation.
+            # Enables O(m) revocation when an identity is moved or deleted, instead of
+            # scanning all session keys. The set TTL is refreshed on each add to match
+            # the max session lifetime, preventing unbounded growth from expired JTIs.
+            if identity_id:
+                full_identity_key = f"{IDENTITY_SESSIONS_KEY_PREFIX}{identity_id}"
+                pipe.sadd(full_identity_key, jti)
+                pipe.expire(full_identity_key, ttl_seconds)
+            await pipe.execute()
             logger.debug(
                 "Created refresh token session",
                 jti=jti,
@@ -290,6 +350,12 @@ class SessionStore:
                 ttl=max(0, ttl),
                 amr=metadata.amr,
                 idp=metadata.idp,
+                idp_id=metadata.idp_id,
+                identity_id=metadata.identity_id,
+                issuer=metadata.issuer,
+                subject=metadata.subject,
+                id_token_hint=metadata.id_token_hint,
+                rp_logout_enabled=metadata.rp_logout_enabled,
             )
 
         except (RedisConnectionError, ResponseError) as e:
@@ -401,6 +467,82 @@ class SessionStore:
             logger.exception("Failed to revoke all tokens for user", user_id=user_id_str)
             raise RedisConnectionError from e
 
+    async def revoke_by_idp(self, idp_id: str) -> int:
+        """Revoke all refresh tokens authenticated via a specific identity provider.
+
+        Uses a secondary Redis set index (idp_sessions:{idp_id}) maintained by
+        create() for O(m) lookup instead of scanning all session keys.
+
+        Args:
+            idp_id: UUID of the identity provider (as a string)
+
+        Returns:
+            Number of tokens revoked
+
+        """
+        client = self._ensure_connected()
+        idp_key = f"{IDP_SESSIONS_KEY_PREFIX}{idp_id}"
+
+        try:
+            jti_members: set[bytes] = await client.smembers(idp_key)  # type: ignore[misc]
+            if not jti_members:
+                logger.info("No sessions found for IDP", idp_id=idp_id)
+                return 0
+
+            # Build pipeline to delete all session keys at once
+            session_keys = [self._make_key(jti.decode() if isinstance(jti, bytes) else jti) for jti in jti_members]
+            revoked_count = await client.delete(*session_keys) if session_keys else 0
+
+            # Clean up the index set
+            await client.delete(idp_key)
+
+            logger.info("Revoked sessions by IDP", idp_id=idp_id, revoked_count=revoked_count)
+            return revoked_count
+
+        except (RedisConnectionError, ResponseError) as e:
+            logger.exception("Failed to revoke tokens by IDP", idp_id=idp_id)
+            raise RedisConnectionError from e
+
+    async def revoke_by_identity(self, identity_id: UUID | str) -> int:
+        """Revoke all refresh tokens authenticated via a specific user identity.
+
+        Uses a secondary Redis set index (identity_sessions:{identity_id}) maintained
+        by create() for O(m) lookup instead of scanning all session keys.
+
+        Args:
+            identity_id: UserIdentity UUID
+
+        Returns:
+            Number of tokens revoked
+
+        Raises:
+            RedisConnectionError: If connection fails
+
+        """
+        client = self._ensure_connected()
+        identity_id_str = str(identity_id)
+        identity_key = f"{IDENTITY_SESSIONS_KEY_PREFIX}{identity_id_str}"
+
+        try:
+            jti_members: set[bytes] = await client.smembers(identity_key)  # type: ignore[misc]
+            if not jti_members:
+                logger.info("No sessions found for identity", identity_id=identity_id_str)
+                return 0
+
+            # Build pipeline to delete all session keys at once
+            session_keys = [self._make_key(jti.decode() if isinstance(jti, bytes) else jti) for jti in jti_members]
+            revoked_count = await client.delete(*session_keys) if session_keys else 0
+
+            # Clean up the index set
+            await client.delete(identity_key)
+
+            logger.info("Revoked sessions by identity", identity_id=identity_id_str, revoked_count=revoked_count)
+            return revoked_count
+
+        except (RedisConnectionError, ResponseError) as e:
+            logger.exception("Failed to revoke tokens by identity", identity_id=identity_id_str)
+            raise RedisConnectionError from e
+
     async def _session_for_key(self, client: redis.Redis, key: str, user_id_str: str) -> SessionInfo | None:
         """Return a SessionInfo if the key belongs to the given user, else None."""
         pipe = client.pipeline()
@@ -428,6 +570,12 @@ class SessionStore:
             ttl=max(0, ttl),
             amr=metadata.amr,
             idp=metadata.idp,
+            idp_id=metadata.idp_id,
+            identity_id=metadata.identity_id,
+            issuer=metadata.issuer,
+            subject=metadata.subject,
+            id_token_hint=metadata.id_token_hint,
+            rp_logout_enabled=metadata.rp_logout_enabled,
         )
 
     # ========================================================================

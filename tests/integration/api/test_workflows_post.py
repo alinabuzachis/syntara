@@ -77,7 +77,7 @@ async def test_post_workflow_missing_name(jwt_client: AsyncClient) -> None:
         response,
         error_type="https://api.nexus.com/errors/validation-error",
         title="Request Validation Error",
-        detail="Validation failed: body -> name: Field required",
+        detail="Validation failed: name: Field required",
         code="REQUEST_VALIDATION_ERROR",
         retryable=False,
     )
@@ -223,7 +223,7 @@ async def test_post_workflow_with_labels_not_strings(jwt_client: AsyncClient) ->
         response,
         error_type="https://api.nexus.com/errors/validation-error",
         title="Request Validation Error",
-        detail="Validation failed: labels: Value error, labels value for key 'invalid' must be a string, got int",
+        detail="Validation failed: labels: labels value for key 'invalid' must be a string, got int",
         code="REQUEST_VALIDATION_ERROR",
         retryable=False,
     )
@@ -251,7 +251,7 @@ async def ***REMOVED***(jwt_client: AsyncClient) -> None:
         response,
         error_type="https://api.nexus.com/errors/validation-error",
         title="Request Validation Error",
-        detail="Validation failed: body -> description: String should have at most 2000 characters",
+        detail="Validation failed: description: String should have at most 2000 characters",
         code="REQUEST_VALIDATION_ERROR",
         retryable=False,
     )

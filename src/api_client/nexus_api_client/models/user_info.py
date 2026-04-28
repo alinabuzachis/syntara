@@ -20,12 +20,15 @@ class UserInfo:
         username (str): Username
         email (str): User email
         groups (list[str] | Unset): Group memberships
+        rp_logout_enabled (bool | Unset): Whether RP-initiated logout is enabled for this user's current session
+            Default: False.
     """
 
     id: str
     username: str
     email: str
     groups: list[str] | Unset = UNSET
+    rp_logout_enabled: bool | Unset = False
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -39,6 +42,8 @@ class UserInfo:
         if not isinstance(self.groups, Unset):
             groups = self.groups
 
+        rp_logout_enabled = self.rp_logout_enabled
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -50,6 +55,8 @@ class UserInfo:
         )
         if groups is not UNSET:
             field_dict["groups"] = groups
+        if rp_logout_enabled is not UNSET:
+            field_dict["rp_logout_enabled"] = rp_logout_enabled
 
         return field_dict
 
@@ -64,11 +71,14 @@ class UserInfo:
 
         groups = cast(list[str], d.pop("groups", UNSET))
 
+        rp_logout_enabled = d.pop("rp_logout_enabled", UNSET)
+
         user_info = cls(
             id=id,
             username=username,
             email=email,
             groups=groups,
+            rp_logout_enabled=rp_logout_enabled,
         )
 
         user_info.additional_properties = d

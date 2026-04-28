@@ -19,7 +19,6 @@ import tempfile
 import warnings
 from enum import StrEnum
 from functools import lru_cache
-from pathlib import Path
 from typing import Self
 from uuid import UUID
 
@@ -442,24 +441,6 @@ class ServerSettings(BaseSettings):
         ),
     )
 
-    # Database encryption key (Fernet, for encrypting sensitive fields at rest)
-    db_encryption_key: SecretStr | None = Field(
-        default=None,
-        description=(
-            "Fernet encryption key for encrypting sensitive fields at rest (e.g. client secrets). "
-            "Generate with: python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'. "
-            "Required for encrypting sensitive fields; operations will fail if not configured."
-        ),
-    )
-
-    db_encryption_key_path: str | None = Field(
-        default=None,
-        description=(
-            "Path to a file containing the Fernet encryption key. "
-            "Preferred over db_encryption_key to avoid exposing the key in the process environment."
-        ),
-    )
-
     # CORS configuration
     cors_allow_origins: list[str] = Field(
         default_factory=list,
@@ -489,13 +470,26 @@ class ServerSettings(BaseSettings):
         "When disabled, OIDC issuer URLs that resolve to private, loopback, or link-local IPs are rejected.",
     )
 
-    @model_validator(mode="after")
-    def _load_db_encryption_key_from_path(self) -> "ServerSettings":
-        """Load ``db_encryption_key`` from file if ``db_encryption_key_path`` is set."""
-        if self.db_encryption_key is None and self.db_encryption_key_path is not None:
-            key_text = Path(self.db_encryption_key_path).read_text().strip()
-            self.db_encryption_key = SecretStr(key_text)
-        return self
+    # OIDC logout configuration
+    oidc_post_logout_redirect_uri: str | None = Field(
+        default=None,
+        description="Global post-logout redirect URI for RP-initiated logout. "
+        "This is the URL where users are redirected after logging out from their IdP. "
+        "If not set, will be constructed from server_scheme://server_host:server_port. "
+        "Must be an allowed CORS origin for security.",
+    )
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def post_logout_redirect_uri(self) -> str:
+        """Get the post-logout redirect URI.
+
+        If oidc_post_logout_redirect_uri is set, use it directly.
+        Otherwise, compute from server_scheme, server_host, and server_port.
+        """
+        if self.oidc_post_logout_redirect_uri:
+            return self.oidc_post_logout_redirect_uri
+        return f"{self.server_scheme}://{self.server_host}:{self.server_port}"
 
     @model_validator(mode="after")
     def _validate_cors(self) -> "ServerSettings":

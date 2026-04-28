@@ -1,4 +1,4 @@
-"""add password_hash, remove auth_type and is_bootstrap_admin, seed admin user
+"""add password_hash, remove auth_type and is_bootstrap_admin
 
 Revision ID: b3a1f7c9d2e4
 Revises: 978d62a7ec86
@@ -6,15 +6,10 @@ Create Date: 2026-03-30 12:00:00.000000
 
 """
 
-import os
-import warnings
 from collections.abc import Sequence
-from pathlib import Path
-from uuid import uuid4
 
 import sqlalchemy as sa
 from alembic import op
-from argon2 import PasswordHasher
 
 # revision identifiers, used by Alembic.
 revision: str = "b3a1f7c9d2e4"
@@ -43,61 +38,9 @@ def upgrade() -> None:
     # Remove is_bootstrap_admin column (admin is identified by username convention)
     op.drop_column("users", "is_bootstrap_admin")
 
-    # CUSTOM: Seed admin user from password file
-    password_path = os.environ.get("APP_ADMIN_PASSWORD_PATH")
-    # TODO(alex,zack): Move away the admin password management to a runtime. AAP-71655
-    if not password_path:
-        warnings.warn(
-            "APP_ADMIN_PASSWORD_PATH not set — skipping admin user seeding. "
-            "Run 'make secrets-generate' and re-run migrations, or use "
-            "'uv run python tools/set_admin_password.py' to set the admin password.",
-            stacklevel=1,
-        )
-        return
-
-    password_file = Path(password_path)
-    if not password_file.exists() or not (password := password_file.read_text().strip()):
-        warnings.warn(
-            f"Admin password file missing or empty: {password_path} — skipping admin seeding.",
-            stacklevel=1,
-        )
-        return
-
-    hashed = PasswordHasher().hash(password)
-    admin_id = str(uuid4())
-
-    conn = op.get_bind()
-    conn.execute(
-        sa.text(
-            "INSERT INTO users "
-            "(id, username, email, full_name, role, "
-            "is_active, password_hash, preferences, created_at, updated_at) "
-            "VALUES "
-            "(CAST(:id AS uuid), :username, :email, :full_name, "
-            "CAST(:role AS userrole), "
-            ":is_active, :password_hash, :preferences, NOW(), NOW()) "
-            "ON CONFLICT DO NOTHING"
-        ),
-        {
-            "id": admin_id,
-            "username": "admin",
-            "email": "admin@nexus.local",
-            "full_name": "Administrator",
-            "role": "administrator",
-            "is_active": True,
-            "password_hash": hashed,
-            "preferences": "{}",
-        },
-    )
-    # END CUSTOM
-
 
 def downgrade() -> None:
     """Downgrade schema."""
-    # CUSTOM: Remove admin user
-    op.execute(sa.text("DELETE FROM users WHERE username = 'admin'"))
-    # END CUSTOM
-
     # Restore is_bootstrap_admin column
     op.add_column(
         "users",

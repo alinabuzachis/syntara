@@ -248,11 +248,20 @@ def validation_error_handler(request: Request, exc: PydanticValidationError | Re
     """Handle Pydantic ValidationError with RFC 9457 format."""
     logger.error("Validation error", exc_info=exc)
 
-    # Format Pydantic validation errors nicely
+    # Format Pydantic validation errors for user display.
+    # Strip internal path prefixes (body, configuration, provider type discriminator)
+    # and the "Value error, " prefix that Pydantic adds to field_validator messages.
+    loc_noise = {"body", "configuration", "oidc", "ldap", "saml"}
     error_details = []
     for error in exc.errors():
-        field = " -> ".join(str(x) for x in error["loc"]) if error["loc"] else "root"
-        error_details.append(f"{field}: {error['msg']}")
+        if error["loc"]:
+            parts = [str(x) for x in error["loc"] if str(x) not in loc_noise]
+            field = " -> ".join(parts) if parts else "root"
+        else:
+            field = "root"
+        msg = str(error["msg"])
+        msg = msg.removeprefix("Value error, ")
+        error_details.append(f"{field}: {msg}")
 
     detail = "Validation failed: " + "; ".join(error_details)
 

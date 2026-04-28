@@ -32,10 +32,36 @@ Both methods produce the same JWT access/refresh token pair. Passwords are hashe
 1. The refresh token session is revoked in Redis.
 2. The `ao_refresh_token` cookie is cleared.
 3. The access token remains valid until it naturally expires (stateless JWT — no server-side revocation).
+4. If the session was authenticated via an OIDC provider with RP-initiated logout enabled, the response includes a `redirect_url` the frontend should navigate to (`window.location.href`) to terminate the upstream IdP session.
+
+The logout endpoint always returns JSON (never a 302 redirect). The response includes:
+
+| Field | Description |
+|---|---|
+| `detail` | `"Successfully logged out"` |
+| `redirect_url` | *(optional)* IdP end-session URL for RP-initiated logout. Frontend should navigate to this URL. |
+| `auth_error` | *(optional)* Warning when RP-initiated logout is enabled but the IdP's end-session endpoint could not be resolved. |
+
+An optional `post_logout_redirect_uri` query parameter specifies where the IdP should redirect after logout. It is validated against CORS allowed origins (same rules as the login flow). Falls back to the global `APP_OIDC_POST_LOGOUT_REDIRECT_URI` setting.
+
+#### RP-Initiated Logout (OIDC)
+
+When `enable_rp_initiated_logout` is set to `true` on an OIDC provider's configuration, logging out of Nexus also terminates the user's session at the identity provider (per [OpenID Connect RP-Initiated Logout 1.0](https://openid.net/specs/openid-connect-rpinitiated-1_0.html)).
+
+**How it works:**
+
+1. During OIDC login, the ID token is encrypted (AES-256-GCM via `APP_SECRET_ENCRYPTION_KEY`) and stored in the Redis session as `id_token_hint`.
+2. On logout, the backend resolves the IdP's `end_session_endpoint` — first from the provider's static configuration, falling back to OIDC discovery (`.well-known/openid-configuration`).
+3. The backend builds a logout URL with `id_token_hint` (decrypted) and `post_logout_redirect_uri` parameters.
+4. The logout JSON response includes `redirect_url` — the frontend navigates to this URL to complete the IdP logout.
+
+**Failure handling:** If the `end_session_endpoint` cannot be resolved (static config missing and discovery fails), the response includes `auth_error` instead of `redirect_url`. The user is logged out of Nexus but remains logged in at the IdP. The frontend should display the warning.
+
+**Configuration:** Set `enable_rp_initiated_logout: true` and optionally `end_session_endpoint` in the provider's OIDC configuration. If `end_session_endpoint` is not set, it is discovered automatically via the OIDC well-known endpoint.
 
 ### Current User (`GET /api/v1/auth/me`)
 
-Returns the authenticated user's information from the access token claims (no database round-trip). Includes `id`, `username`, `email`, `role`, and `groups`.
+Returns the authenticated user's information from the access token claims (no database round-trip). Includes `id`, `username`, `email`, `role`, `groups`, and `rp_logout_enabled` (whether the user's current session supports RP-initiated logout).
 
 ## Token Details
 
@@ -57,8 +83,36 @@ Refresh token sessions are stored in Redis with the key pattern `refresh_token:<
 - `ip_address` — client IP
 - `amr` — authentication method references (e.g., `["pwd"]` for local, `["fed"]` for OIDC)
 - `idp` — identity provider name (e.g., `"local"`, `"Azure"`)
+- `identity_id` — UserIdentity UUID for federated sessions (None for local password sessions)
+- `issuer` — OIDC issuer URL for federated sessions
+- `subject` — OIDC subject claim for federated sessions
+- `id_token_hint` — encrypted ID token for RP-initiated logout (only stored when `enable_rp_initiated_logout` is enabled on the provider)
 
 Sessions are automatically expired by Redis TTL matching the refresh token lifetime.
+
+### Secondary Indexes
+
+Two secondary Redis set indexes are maintained for efficient bulk revocation:
+
+1. **`idp_sessions:<provider_id>`** — Tracks all sessions authenticated via a specific identity provider (by provider UUID). Enables O(m) revocation when a provider is deleted instead of scanning all session keys.
+
+2. **`identity_sessions:<identity_id>`** — Tracks all sessions created with a specific UserIdentity (by identity UUID). Enables O(m) revocation when an identity is moved to another user or deleted.
+
+### Session Revocation
+
+Sessions are explicitly revoked (all refresh tokens deleted from Redis) when:
+
+| Event | Scope | Method |
+|-------|-------|--------|
+| **Password change** | All sessions for user | User's password is updated via `PATCH /users/{id}` |
+| **Account disabled** | All sessions for user | User's `is_enabled` is set to `false` via `PATCH /users/{id}` |
+| **Account deletion** | All sessions for user | User is soft-deleted via `DELETE /users/{id}` |
+| **Logout** | Single session | User logs out via `POST /auth/logout` (revokes current session only) |
+| **Provider deletion** | All sessions for provider | Identity provider is deleted — uses `idp_sessions:<provider_id>` index |
+| **Identity re-association** | All sessions for source user | Identity moved to different user via `POST /auth/users/{user_id}/identities` |
+| **Identity deletion** | All sessions for user | Identity detached via `DELETE /auth/users/{user_id}/identities/{identity_id}` |
+
+Stateless access tokens cannot be individually revoked and remain valid until they expire (default 15 minutes). A token blocklist or generation counter would be needed to close this window completely.
 
 ### Redis Availability
 
@@ -101,7 +155,7 @@ Admin changes user's account (groups, profile, etc.)
 | `POST /groups/{id}/members` | User added to group |
 | `DELETE /groups/{id}/members/{user_id}` | User removed from group |
 | `PUT /users/{id}/groups` | User's group memberships replaced |
-| `PATCH /users/{id}` | User profile updated (name, email, active status, password) |
+| `PATCH /users/{id}` | User profile updated (name, email, enabled status, password) |
 | `DELETE /users/{id}` | User soft-deleted (next refresh fails → auto-logout) |
 
 #### Backend components
@@ -176,11 +230,39 @@ If the compromise is detected but not actively exploited (e.g., a key was accide
 
 ## Bootstrap Admin User
 
-On first application startup, an `admin` user is seeded with the password from `APP_ADMIN_PASSWORD_PATH`. This happens in the application lifespan handler via `authz/seed.py`, which reads the password file, hashes it with Argon2id, and creates the user if it doesn't already exist.
+On first application startup, an `admin` user is seeded with the password from `APP_ADMIN_PASSWORD_PATH`. This happens in the application lifespan handler via `authz/seed.py`, which reads the password file, hashes it with Argon2id, and creates the user if it doesn't already exist. The admin user is created with `is_builtin=True`, which identifies it as a system user with special protection rules.
 
 If the password file is not configured or missing, the application still starts but logs a warning — the admin user will be created without a password (unable to log in locally).
 
 > **Recommended**: Run `make secrets-generate` before first startup to create the password file.
+
+### Built-in Admin Protection
+
+The built-in admin user (identified by `is_builtin=True`) has special protection rules enforced at the API level:
+
+| Action | Who Can Do It | Guard |
+|--------|--------------|-------|
+| **Modify properties** (username, full_name, email) | Nobody | `AdminModifyError` (403) |
+| **Change password** | Only the admin itself | `AdminModifyError` (403) for non-self |
+| **Disable** (`is_enabled=false`) | Only the admin itself, and only when at least one other enabled user exists in the admins group | `AdminModifyError` (403) for non-self; `AdminDisableNoOtherAdminsError` (403) if no other enabled admins |
+| **Re-enable** (`is_enabled=true`) | Any admin user | Always allowed |
+| **Delete** | Nobody | `AdminDeleteError` (403) |
+
+The disable guard uses `SELECT ... FOR UPDATE` on the admins group row to prevent race conditions where two concurrent requests could both pass the "other admins exist" check and then both disable, leaving zero enabled admins.
+
+Additionally, disabling or deleting *any* user (not just the builtin admin) is blocked if it would leave zero enabled users in the admins group.
+
+### Built-in Group Protection
+
+Built-in groups (`admins`, `authenticated`) are identified by `is_builtin=True` and have the following protections:
+
+| Action | Guard |
+|--------|-------|
+| **Delete group** | Blocked — `BuiltinGroupDeleteError` (403). Built-in groups cannot be deleted. |
+| **Remove builtin user** | Blocked — `LastAdminRemovalError` (403). The built-in admin user cannot be removed from any built-in group (`admins`, `authenticated`). Applies to both `DELETE /groups/{id}/members/{user_id}` and `PUT /users/{id}/groups`. |
+| **Remove last enabled admin** | Blocked — `LastAdminRemovalError` (403). Removing *any* user from the `admins` group is blocked if it would leave zero enabled admin members. |
+
+The last-admin-removal guard uses `SELECT ... FOR UPDATE` on the group row to serialize concurrent operations.
 
 ### Providing a custom admin password
 
@@ -206,6 +288,32 @@ cat .secrets/admin-password
 
 Nexus supports external identity providers for federated authentication via OpenID Connect.
 
+### Federated Identity Model
+
+Federated identities are tracked in the `user_identities` table, keyed on `(issuer, sub)` — the OIDC issuer URL and subject claim. This replaces the previous email-only matching and enables proper federated identity management.
+
+Key concepts:
+
+- **Identities are keyed on `(issuer, sub)`**, not email. This prevents account confusion when different providers use the same email.
+- The `user_identities` table links federated identities to users. Each row represents one OIDC identity.
+- **Local users (password-based) have no `user_identities` rows.** The table is exclusively for federated identities.
+- A user can have **multiple federated identities** (from different providers) plus an optional local password.
+- Existing OIDC users get their `user_identities` row created automatically on next login.
+
+### Identity Management
+
+Admins can manage federated identities via the API:
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/auth/users/{user_id}/identities` | List federated identities for a user |
+| `POST` | `/auth/users/{user_id}/identities` | Attach an identity from another user (`{ identity_id }`) |
+| `DELETE` | `/auth/users/{user_id}/identities/{identity_id}` | Detach (hard-delete) an identity |
+
+When attaching an identity from User B to User A, User B's record is preserved even if they have no remaining identities or password. This supports audit trails — an admin can later re-attach an identity or set a password for User B.
+
+Identity management is also available in the UI under each user's "Identities" tab, which supports filtering, sorting, attaching identities from other users, and detaching identities with confirmation.
+
 ### OIDC Login Flow
 
 ```
@@ -216,8 +324,14 @@ User clicks "Log in with Azure"
   -> User authenticates at the provider
   -> Provider redirects to: GET /api/v1/auth/oidc/callback?code=X&state=Y
   -> Backend exchanges code for tokens, validates ID token
-  -> Backend creates/maps local user by email, creates JWT + refresh token
-  -> Backend sets refresh cookie, redirects to frontend
+  -> Backend looks up UserIdentity by (issuer, sub)
+     -> Found + user active: load linked user
+     -> Found + user deleted: remove stale identity, proceed as "not found"
+     -> Not found: create new user
+  -> Backend creates UserIdentity link (if new, with race condition handling)
+  -> Backend syncs group memberships from IdP token claims
+     -> If no groups resolved and user has no other groups: login denied
+  -> Backend creates JWT + refresh token, sets cookie, redirects to frontend
   -> Frontend's bootstrap refresh succeeds -> user is logged in
 ```
 
@@ -244,17 +358,32 @@ All management endpoints require authentication and are under `/api/v1/identity_
 
 ### OIDC Configuration
 
-When creating an OIDC identity provider, the configuration object includes:
+When creating an OIDC identity provider, the top-level fields are:
+
+| Field | Required | Description |
+|---|---|---|
+| `name` | Yes | Human-readable provider name |
+| `enabled` | No | Enable/disable the provider (default: `true`) |
+| `configuration` | Yes | OIDC configuration object (see below) |
+
+The `configuration` object includes:
 
 | Field | Required | Description |
 |---|---|---|
 | `provider_type` | Yes | Must be `"oidc"` |
+| `idp_type` | No | Provider type hint (`"aap"`, `"microsoft_entra"`, `"custom"`) for UI pre-configured defaults |
 | `issuer_url` | Yes | OIDC issuer URL (e.g., `https://accounts.google.com`) |
 | `client_id` | Yes | OAuth 2.0 client ID |
 | `client_secret` | Yes (create) | OAuth 2.0 client secret (excluded from responses, optional on patch) |
 | `redirect_uri` | Yes | OAuth 2.0 redirect URI (must match provider registration) |
 | `auto_discovery` | No | Use `.well-known` auto-discovery (default: `true`) |
 | `scopes` | No | Space-separated scopes (default: `"openid profile email"`) |
+| `claim_mapping` | No | Maps IdP-specific claim names to Nexus fields (see [Claim Mapping](#claim-mapping)) |
+| `group_jmespath_expression` | No | JMESPath expression to extract group values from token claims (see [Group Mapping and Login Enforcement](#group-mapping-and-login-enforcement)) |
+| `group_mapping_entries` | No | Maps IdP group values to Nexus groups (see [Group Mapping and Login Enforcement](#group-mapping-and-login-enforcement)) |
+| `auto_create_groups` | No | Auto-create Nexus groups from IdP group values on login (default: `false`) |
+| `enable_rp_initiated_logout` | No | Enable RP-initiated logout to terminate IdP sessions on Nexus logout (default: `false`) |
+| `end_session_endpoint` | No | IdP's end-session endpoint URL. Auto-discovered from `.well-known` if not set |
 
 #### Manual Endpoints (when auto_discovery is disabled)
 
@@ -271,17 +400,186 @@ PKCE (Proof Key for Code Exchange) is always used for all OIDC flows, following 
 
 ### User Auto-Provisioning
 
-When a user authenticates via OIDC for the first time:
+When a user authenticates via OIDC and no `UserIdentity` exists for their `(issuer, sub)`:
 
-1. The backend looks up the identity by `(issuer, sub)` — if found, the linked user is logged in
-2. If no identity exists, a new user is auto-created with:
-   - `username` from `preferred_username` claim (or email prefix, with hash suffix on collision), normalized to lowercase
-   - `email` from the `email` claim (must contain `@`; duplicate emails are allowed), normalized to lowercase
+1. The backend extracts `sub` and `email` claims from the ID token
+2. A new user is auto-created with:
+   - `username` from `preferred_username` claim (or email prefix). If taken, a 16-character random hex suffix is appended (e.g., `alice-a1b2c3d4e5f6g7h8`)
+   - `email` from the `email` claim (must contain `@`). Duplicate emails are allowed across users.
    - `full_name` from the `name` claim
    - `role` = `VIEWER` (default for auto-provisioned users)
    - `password_hash` = `null` (federated-only user, cannot use local login)
-3. A `UserIdentity` record is created linking the `(issuer, sub)` to the new user
-4. Inactive users (`is_active = false`) are rejected
+4. A `UserIdentity` row is created linking `(issuer, sub)` to the user
+5. Disabled users (`is_enabled = false`) are rejected
+6. If the linked user was deleted (stale identity), the identity is cleaned up and the flow restarts from step 2
+
+### Claim Mapping
+
+Different identity providers use different claim names for the same user information. For example, Azure AD uses `mail` for the email address, while the OIDC standard uses `email`. The `claim_mapping` configuration allows admins to map IdP-specific claim names to Nexus canonical fields.
+
+#### Default mapping
+
+| Nexus Field | Default Claim | Description |
+|---|---|---|
+| `subject` | `sub` | OIDC subject identifier |
+| `email` | `email` | User's email address |
+| `username` | `preferred_username` | Preferred username |
+| `full_name` | `name` | User's full name |
+| `groups` | *(not mapped)* | Groups claim (must be explicitly configured) |
+
+#### Example: Azure AD
+
+```json
+{
+  "claim_mapping": {
+    "email": "mail",
+    "username": "upn",
+    "full_name": "displayName",
+    "groups": "groups"
+  }
+}
+```
+
+When `groups` is set in the claim mapping, the groups claim is included in the extracted user claims. This is separate from `group_jmespath_expression` — `claim_mapping.groups` tells the backend *which claim name* contains groups, while `group_jmespath_expression` controls *how to extract values* from the raw token claims.
+
+### Test Sign-In Flow
+
+Admins can test an OIDC provider's sign-in flow without creating a session. This is useful for verifying claim mapping and group mapping configurations against real IdP token claims.
+
+```
+Admin clicks "Test Sign-In" in the IdP configuration UI
+  -> Browser opens popup to: GET /api/v1/auth/oidc/authorize?provider_id=X&flow=test_signin
+  -> Backend verifies admin's session via ao_refresh_token cookie
+  -> Normal OIDC flow proceeds (redirect to provider, callback)
+  -> On callback, no session or user is created
+  -> Backend base64-encodes the raw merged claims into a URL fragment
+  -> Backend redirects popup to: {frontend_origin}/auth/test-signin-callback#{base64_claims}
+  -> Frontend reads the hash, writes claims to localStorage, closes the popup
+  -> Admin can inspect the raw claims to verify their configuration
+```
+
+The test sign-in flow requires authentication — only logged-in admins can initiate it. The claims are passed via URL fragment (not query parameters) to avoid server-side logging of sensitive claim data.
+
+### Group Mapping and Login Enforcement
+
+When a user authenticates via OIDC, Nexus determines which groups they belong to based on the identity provider's group mapping configuration. **If no groups can be resolved, login is denied** — the user sees an "Access denied" error on the login page.
+
+#### How group resolution works
+
+1. The backend extracts group values from the ID token using the configured JMESPath expression (e.g., `groups[*]`, `realm_access.roles[*]`)
+2. Group values are matched against the mapping entries configured for that provider
+3. Matched entries determine which Nexus groups the user is placed in
+4. Groups are synced: new memberships are added, stale ones from this provider are removed
+5. Manually-assigned groups and groups from other providers are never affected
+
+#### Modes: manual mapping vs auto-create
+
+These two modes are **mutually exclusive** — a provider uses one or the other, never both:
+
+- **Manual mapping** (auto-create off) — Admins configure explicit mapping entries that map IdP group values to Nexus groups. Only matched entries grant group membership.
+- **Auto-create groups** (auto-create on) — Nexus automatically creates groups matching the IdP group names from the token. No manual mapping entries are used.
+
+Both modes respect the **JMESPath expression** configured on the provider. The expression is evaluated first to extract group values from the token claims, and only the extracted values are used for mapping or auto-creation. This means admins can use JMESPath to filter which groups are considered — for example, `groups[?starts_with(@, 'nexus-')]` would only extract groups prefixed with `nexus-`, ignoring all others in the token.
+
+**JMESPath validation**: Expressions are validated at configuration time — saving an invalid expression (e.g., `[[[bad`) returns a 422 error. If a valid expression fails at runtime (e.g., unexpected token claim structure), the group sync is aborted and login is denied rather than silently removing the user's groups.
+
+#### Login denial rules
+
+Login is denied if no groups can be resolved for the user from any source.
+
+**Manual mapping mode** (auto-create off):
+
+| Mapping entries exist? | Any match? | Groups from other sources? | Result |
+|---|---|---|---|
+| No | n/a | No | **Denied** |
+| No | n/a | Yes | Allowed |
+| Yes | Yes | n/a | Allowed |
+| Yes | No | No | **Denied** |
+| Yes | No | Yes | Allowed |
+
+**Auto-create mode** (auto-create on):
+
+| Groups in token? | Groups from other sources? | Result |
+|---|---|---|
+| Yes | n/a | Allowed (groups auto-created) |
+| No (empty/missing claim) | No | **Denied** |
+| No (empty/missing claim) | Yes | Allowed |
+
+**Key points:**
+
+- A user is only allowed to log in if they end up with at least one group membership — either from the current provider or from another source (manual assignment, another IdP).
+- **Auto-create groups** does not grant unconditional access. It creates Nexus groups matching the IdP group names from the token, but if the token contains no groups, no groups are created and login is denied.
+- **No mappings configured** (and auto-create off) means the provider cannot assign groups, so login is denied for users with no pre-existing group memberships.
+- "Other group sources" means: groups assigned manually by an admin, or groups assigned by a different identity provider.
+- The denial message shown to the user is: *"Access denied. Your identity provider groups do not match any configured group mappings. Contact your administrator."*
+
+#### Wildcard patterns in mapping entries
+
+The IdP Group Value field supports glob-style wildcard patterns (Python `fnmatch` syntax):
+
+| Pattern | Matches | Example |
+|---|---|---|
+| `*` | Everything — all users from this IdP | Maps everyone to a default group |
+| `admin*` | Any value starting with "admin" | `admin-prod`, `admin-staging` |
+| `*/engineers` | Path patterns | `org1/engineers`, `org2/engineers` |
+| `team-?` | Single character wildcard | `team-a`, `team-b` (not `team-ab`) |
+
+Wildcards are evaluated at login time when matching the user's IdP group values against configured mapping entries.
+
+#### Group mapping storage
+
+Mapping entries are stored in the `idp_group_mapping_entries` table (not in JSONB). Each entry has:
+
+- `identity_provider_id` — FK to `identity_providers` (CASCADE on delete)
+- `idp_group_value` — the pattern to match (exact or wildcard)
+- `nexus_group_id` — FK to `groups` (CASCADE on delete)
+- Unique constraint on `(identity_provider_id, idp_group_value)`
+
+Deleting a group automatically removes any mapping entries pointing to it. Deleting a provider removes all its mapping entries.
+
+#### Tracking table: `user_idp_groups`
+
+A separate `user_idp_groups` table tracks which groups each IdP assigned to each user. This enables scoped sync — on login, only groups managed by the authenticating provider are added/removed. Groups assigned by other providers or manually by an admin are never touched.
+
+#### Membership sources in API responses
+
+The group membership endpoints return enriched responses that indicate *how* each membership was established:
+
+- **`GET /users/{id}/groups`** returns `UserGroupRead` objects — each group includes a `membership_sources` list.
+- **`GET /groups/{id}/members`** returns `GroupMemberRead` objects — each user includes a `membership_sources` list.
+
+Each `MembershipSource` has:
+
+| Field | Description |
+|---|---|
+| `type` | `"manual"` (admin-assigned) or `"idp"` (assigned by an identity provider) |
+| `provider_name` | Name of the IdP (only for `type: "idp"`) |
+| `provider_id` | UUID of the IdP (only for `type: "idp"`) |
+
+A user can have multiple sources for the same group (e.g., manually assigned *and* assigned by an IdP). Removing the IdP mapping does not remove a manually-assigned membership, and vice versa.
+
+### User API Response
+
+The `UserRead` response schema includes:
+
+- **`is_enabled`** — whether the user account is enabled (renamed from `is_active`)
+- **`is_builtin`** — whether this is a built-in system user (e.g., the seeded admin). Built-in users have special protection rules (see [Built-in Admin Protection](#built-in-admin-protection)).
+- **`has_password`** — whether the user has a local password set. Used by the UI to determine if the user can log in locally (displayed as "Local" in the Identity Provider field alongside any federated providers).
+
+### `user_identities` Table
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | UUID | Primary key |
+| `user_id` | UUID | FK → `users.id` (ON DELETE CASCADE) |
+| `identity_provider_id` | UUID | FK → `identity_providers.id` (ON DELETE CASCADE) |
+| `issuer` | VARCHAR(2048) | OIDC issuer URL |
+| `subject` | VARCHAR(1024) | OIDC `sub` claim |
+| `created_at` | TIMESTAMPTZ | When the identity was linked |
+| `updated_at` | TIMESTAMPTZ | When the identity was last updated (e.g., re-attached) |
+| `last_used_at` | TIMESTAMPTZ | When the identity was last used to authenticate (nullable) |
+
+**Constraint**: `UNIQUE(issuer, subject)` — each `(issuer, sub)` pair can only be linked to one user.
 
 ### Self-Service Identity Linking
 
@@ -305,7 +603,8 @@ If the identity `(issuer, sub)` is already linked to another account, the flow r
 - **last_used_at** — updated on each OIDC login and on initial link, tracked per identity
 - **Disconnect** — users can disconnect their own identities (unless it's their only sign-in method and they have no password)
 - **Attach/Detach** — admins can manually move identities between users via the Attach Identity modal
-- **Provider deletion** — deleting an identity provider removes all linked user identities and revokes active sessions authenticated via that provider
+- **Provider deletion** — deleting an identity provider bulk-deletes all linked user identities and revokes active sessions authenticated via that provider (indexed by provider ID for efficient lookup)
+- **User disabled/deleted** — disabling or soft-deleting a user immediately revokes all their active sessions (see [Session Revocation](#session-revocation))
 
 ### Token Claims for Federated Users
 
@@ -320,6 +619,11 @@ These values are preserved across token refreshes via session metadata stored in
 ### Test Connection
 
 The `POST /test` endpoint accepts a full provider creation payload and fetches `{issuer_url}/.well-known/openid-configuration` to verify the OIDC provider is reachable and returns the required fields (`authorization_endpoint`, `token_endpoint`, `issuer`, `jwks_uri`). No data is persisted.
+
+On success, the response also includes:
+
+- `claims_supported` — list of claim names the provider advertises (from the discovery document's `claims_supported` field). Useful for configuring `claim_mapping`.
+- `claim_aliases` — a mapping of Nexus field names to common IdP claim aliases (e.g., `email` → `["mail", "upn", "preferred_username"]`). Helps the UI suggest claim mappings for the selected provider type.
 
 ## Configuration Reference
 
@@ -340,7 +644,7 @@ The `POST /test` endpoint accepts a full provider creation payload and fetches `
 | `APP_CORS_ALLOW_METHODS` | `["GET","POST","PUT","PATCH","DELETE","OPTIONS"]` | Allowed HTTP methods for CORS |
 | `APP_CORS_ALLOW_HEADERS` | `["Authorization","Content-Type","Accept"]` | Allowed headers for CORS |
 | `APP_OIDC_ALLOW_PRIVATE_NETWORKS` | `false` | Allow OIDC providers on private/internal networks. Enable for environments with internal IdPs (e.g., corporate Keycloak). When disabled, issuer URLs resolving to private/loopback IPs are rejected |
-| `APP_DB_ENCRYPTION_KEY_PATH` | — | Path to file containing Fernet encryption key (preferred; auto-loads into `db_encryption_key`) |
-| `APP_DB_ENCRYPTION_KEY` | — | Fernet key value directly (use `_PATH` variant to avoid process-list exposure). Encrypt/decrypt operations fail without a key configured |
+| `APP_OIDC_POST_LOGOUT_REDIRECT_URI` | *(computed)* | Global post-logout redirect URI for RP-initiated logout. Defaults to `{scheme}://{host}:{port}` if not set. Must be an allowed CORS origin |
+| `APP_SECRET_ENCRYPTION_KEY` | `"0" * 64` (dev only) | 64-character hex string (32 bytes) for AES-256-GCM encryption of sensitive fields (e.g., OIDC client secrets, credentials). **Must** be set to a secure random value in production |
 
 > **Tip**: Copy `.env.example` to `.env` for local development — it includes all auth-related settings pre-configured with paths to the generated secrets (e.g., `APP_JWT_PRIVATE_KEY_PATH=.secrets/jwt-primary.pem`) and `APP_SERVER_SCHEME=http` (which also disables the `Secure` cookie flag for local HTTP).

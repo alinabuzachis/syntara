@@ -6,25 +6,37 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.error_data import ErrorData
-from ...models.logout_response_logout import LogoutResponseLogout
-from ...types import Response
+from ...types import UNSET, Response, Unset
 
 
-def _get_kwargs() -> dict[str, Any]:
+def _get_kwargs(
+    *, post_logout_redirect_uri: None | str | Unset = UNSET, additional_params: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    params: dict[str, Any] = {}
+    if isinstance(additional_params, dict):
+        params = additional_params
+
+    json_post_logout_redirect_uri: None | str | Unset
+    if isinstance(post_logout_redirect_uri, Unset):
+        json_post_logout_redirect_uri = UNSET
+    else:
+        json_post_logout_redirect_uri = post_logout_redirect_uri
+    params["post_logout_redirect_uri"] = json_post_logout_redirect_uri
+
+    params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
+
     _kwargs: dict[str, Any] = {
         "method": "post",
         "url": "/auth/logout",
+        "params": params,
     }
 
     return _kwargs
 
 
-def _parse_response(
-    *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Any | ErrorData | LogoutResponseLogout | None:
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | ErrorData | None:
     if response.status_code == 200:
-        response_200 = LogoutResponseLogout.from_dict(response.json())
-
+        response_200 = response.json()
         return response_200
 
     if response.status_code == 400:
@@ -67,9 +79,7 @@ def _parse_response(
         return None
 
 
-def _build_response(
-    *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[Any | ErrorData | LogoutResponseLogout]:
+def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Any | ErrorData]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -83,26 +93,31 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
-) -> Response[Any | ErrorData | LogoutResponseLogout]:
+    post_logout_redirect_uri: None | str | Unset = UNSET,
+    additional_params: dict[str, Any] | None = None,
+) -> Response[Any | ErrorData]:
     """Terminate session
 
      Terminate the current session by revoking the refresh token.
 
-        The refresh token is read from the ``ao_refresh_token`` HttpOnly cookie
-        and revoked in the session store.  The cookie is cleared in the response.
-        The associated access token remains valid until it expires (up to 15
-        minutes) since access tokens are stateless JWTs validated without a
-        server round-trip.
+    The refresh token is read from the ``ao_refresh_token`` HttpOnly cookie
+    and revoked in the session store.  The cookie is cleared in the response.
+    The associated access token remains valid until it expires (up to 15
+    minutes) since access tokens are stateless JWTs validated without a
+    server round-trip.
+
+    Args:
+        post_logout_redirect_uri (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | ErrorData | LogoutResponseLogout]
+        Response[Any | ErrorData]
     """
 
-    kwargs = _get_kwargs()
+    kwargs = _get_kwargs(post_logout_redirect_uri=post_logout_redirect_uri, additional_params=additional_params)
 
     response = client.get_httpx_client().request(
         **kwargs,
@@ -114,53 +129,64 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient | Client,
-) -> Any | ErrorData | LogoutResponseLogout | None:
+    post_logout_redirect_uri: None | str | Unset = UNSET,
+) -> Any | ErrorData | None:
     """Terminate session
 
      Terminate the current session by revoking the refresh token.
 
-        The refresh token is read from the ``ao_refresh_token`` HttpOnly cookie
-        and revoked in the session store.  The cookie is cleared in the response.
-        The associated access token remains valid until it expires (up to 15
-        minutes) since access tokens are stateless JWTs validated without a
-        server round-trip.
+    The refresh token is read from the ``ao_refresh_token`` HttpOnly cookie
+    and revoked in the session store.  The cookie is cleared in the response.
+    The associated access token remains valid until it expires (up to 15
+    minutes) since access tokens are stateless JWTs validated without a
+    server round-trip.
+
+    Args:
+        post_logout_redirect_uri (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | ErrorData | LogoutResponseLogout
+        Any | ErrorData
     """
 
     return sync_detailed(
         client=client,
+        post_logout_redirect_uri=post_logout_redirect_uri,
     ).parsed
 
 
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
-) -> Response[Any | ErrorData | LogoutResponseLogout]:
+    post_logout_redirect_uri: None | str | Unset = UNSET,
+) -> Response[Any | ErrorData]:
     """Terminate session
 
      Terminate the current session by revoking the refresh token.
 
-        The refresh token is read from the ``ao_refresh_token`` HttpOnly cookie
-        and revoked in the session store.  The cookie is cleared in the response.
-        The associated access token remains valid until it expires (up to 15
-        minutes) since access tokens are stateless JWTs validated without a
-        server round-trip.
+    The refresh token is read from the ``ao_refresh_token`` HttpOnly cookie
+    and revoked in the session store.  The cookie is cleared in the response.
+    The associated access token remains valid until it expires (up to 15
+    minutes) since access tokens are stateless JWTs validated without a
+    server round-trip.
+
+    Args:
+        post_logout_redirect_uri (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | ErrorData | LogoutResponseLogout]
+        Response[Any | ErrorData]
     """
 
-    kwargs = _get_kwargs()
+    kwargs = _get_kwargs(
+        post_logout_redirect_uri=post_logout_redirect_uri,
+    )
 
     response = await client.get_async_httpx_client().request(**kwargs)
 
@@ -170,27 +196,32 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient | Client,
-) -> Any | ErrorData | LogoutResponseLogout | None:
+    post_logout_redirect_uri: None | str | Unset = UNSET,
+) -> Any | ErrorData | None:
     """Terminate session
 
      Terminate the current session by revoking the refresh token.
 
-        The refresh token is read from the ``ao_refresh_token`` HttpOnly cookie
-        and revoked in the session store.  The cookie is cleared in the response.
-        The associated access token remains valid until it expires (up to 15
-        minutes) since access tokens are stateless JWTs validated without a
-        server round-trip.
+    The refresh token is read from the ``ao_refresh_token`` HttpOnly cookie
+    and revoked in the session store.  The cookie is cleared in the response.
+    The associated access token remains valid until it expires (up to 15
+    minutes) since access tokens are stateless JWTs validated without a
+    server round-trip.
+
+    Args:
+        post_logout_redirect_uri (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | ErrorData | LogoutResponseLogout
+        Any | ErrorData
     """
 
     return (
         await asyncio_detailed(
             client=client,
+            post_logout_redirect_uri=post_logout_redirect_uri,
         )
     ).parsed

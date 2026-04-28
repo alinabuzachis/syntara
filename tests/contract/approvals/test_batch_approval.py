@@ -258,7 +258,7 @@ class TestBatchApprovalContract:
             response,
             error_type="https://api.nexus.com/errors/validation-error",
             title="Request Validation Error",
-            detail="Validation failed: body -> decisions: Field required",
+            detail="Validation failed: decisions: Field required",
             code="REQUEST_VALIDATION_ERROR",
             retryable=False,
         )
@@ -271,7 +271,7 @@ class TestBatchApprovalContract:
             response,
             error_type="https://api.nexus.com/errors/validation-error",
             title="Request Validation Error",
-            detail="Validation failed: body -> decisions: List should have at least 1 item after validation, not 0",
+            detail="Validation failed: decisions: List should have at least 1 item after validation, not 0",
             code="REQUEST_VALIDATION_ERROR",
             retryable=False,
         )
@@ -370,7 +370,7 @@ class TestBatchApprovalContract:
             response,
             error_type="https://api.nexus.com/errors/validation-error",
             title="Request Validation Error",
-            detail="Validation failed: body -> decisions -> 0 -> approval_id: Field required",
+            detail="Validation failed: decisions -> 0 -> approval_id: Field required",
             code="REQUEST_VALIDATION_ERROR",
             retryable=False,
         )
@@ -384,7 +384,7 @@ class TestBatchApprovalContract:
             error_type="https://api.nexus.com/errors/validation-error",
             title="Request Validation Error",
             detail=(
-                "Validation failed: body -> decisions -> 0 -> approval_id: Input should be a valid UUID, "
+                "Validation failed: decisions -> 0 -> approval_id: Input should be a valid UUID, "
                 "invalid character: expected an optional prefix of `urn:uuid:` followed by [0-9a-fA-F-], found `n` at 1"
             ),
             code="REQUEST_VALIDATION_ERROR",
@@ -399,7 +399,7 @@ class TestBatchApprovalContract:
             response,
             error_type="https://api.nexus.com/errors/validation-error",
             title="Request Validation Error",
-            detail="Validation failed: body -> decisions -> 0 -> status: Field required",
+            detail="Validation failed: decisions -> 0 -> status: Field required",
             code="REQUEST_VALIDATION_ERROR",
             retryable=False,
         )
@@ -413,7 +413,7 @@ class TestBatchApprovalContract:
             error_type="https://api.nexus.com/errors/validation-error",
             title="Request Validation Error",
             detail=(
-                "Validation failed: body -> decisions -> 0 -> status: "
+                "Validation failed: decisions -> 0 -> status: "
                 "Input should be 'approved', 'rejected', 'expired' or 'cancelled'"
             ),
             code="REQUEST_VALIDATION_ERROR",
@@ -513,7 +513,7 @@ class TestBatchApprovalContract:
             error_type="https://api.nexus.com/errors/validation-error",
             title="Request Validation Error",
             detail=(
-                "Validation failed: body -> decisions -> 0 -> status: "
+                "Validation failed: decisions -> 0 -> status: "
                 "Input should be 'approved', 'rejected', 'expired' or 'cancelled'"
             ),
             code="REQUEST_VALIDATION_ERROR",
@@ -539,7 +539,7 @@ class TestBatchApprovalContract:
             response,
             error_type="https://api.nexus.com/errors/validation-error",
             title="Request Validation Error",
-            detail="Validation failed: body: Field required",
+            detail="Validation failed: root: Field required",
             code="REQUEST_VALIDATION_ERROR",
             retryable=False,
         )
@@ -551,7 +551,7 @@ class TestBatchApprovalContract:
             response,
             error_type="https://api.nexus.com/errors/validation-error",
             title="Request Validation Error",
-            detail="Validation failed: body -> 0: JSON decode error",
+            detail="Validation failed: 0: JSON decode error",
             code="REQUEST_VALIDATION_ERROR",
             retryable=False,
         )

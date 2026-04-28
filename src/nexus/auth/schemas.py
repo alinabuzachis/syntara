@@ -25,6 +25,10 @@ class UserInfo(BaseModel):
     username: str = Field(description="Username")
     email: str = Field(description="User email")
     groups: list[str] = Field(default_factory=list, description="Group memberships")
+    rp_logout_enabled: bool = Field(
+        default=False,
+        description="Whether RP-initiated logout is enabled for this user's current session",
+    )
 
 
 class AuthProviderInfo(BaseModel):
@@ -33,6 +37,7 @@ class AuthProviderInfo(BaseModel):
     id: str = Field(description="Provider UUID")
     name: str = Field(description="Provider display name")
     provider_type: str = Field(description="Provider type (e.g. oidc)")
+    provider_template: str | None = Field(default=None, description="Provider template (e.g. microsoft_entra, aap)")
 
 
 class AuthProvidersResponse(BaseModel):

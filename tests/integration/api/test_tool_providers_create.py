@@ -71,7 +71,7 @@ class TestToolProvidersCreateContract:
         # New RFC 9457 Problem Details format
         assert "detail" in data
         assert isinstance(data["detail"], str)
-        assert "body -> description: String should have at most 2000 characters" in data["detail"]
+        assert "description: String should have at most 2000 characters" in data["detail"]
 
         # Check RFC 9457 fields
         assert "type" in data

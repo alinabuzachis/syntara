@@ -428,7 +428,7 @@ class TokenService:
         self,
         user_id: UUID | str,
         username: str,
-        email: str,
+        email: str | None = None,
         full_name: str | None = None,
         amr: list[str] | None = None,
         idp: str = "local",

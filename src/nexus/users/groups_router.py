@@ -33,7 +33,7 @@ from nexus.core.models.group import (
     GroupRead,
     GroupUpdate,
 )
-from nexus.core.models.user_schemas import UserListResponse
+from nexus.core.models.user_schemas import GroupMemberListResponse
 from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
 from nexus.core.queries.user_queries import get_user_by_id as get_user
 from nexus.users.services.group_service import GroupsService
@@ -237,7 +237,7 @@ async def list_members(
     group_id: UUID,
     service: Annotated[GroupsService, Depends(get_group_service)],
     params: Annotated[BaseListParams, Query()],
-) -> UserListResponse:
+) -> GroupMemberListResponse:
     """List members of a group with pagination."""
     return await service.list_members(
         group_id,

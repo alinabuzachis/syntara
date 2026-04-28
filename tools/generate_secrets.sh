@@ -132,16 +132,6 @@ main() {
         info "  Password file: $SECRETS_DIR/admin-password"
     fi
 
-    # Generate database encryption key (Fernet)
-    if [[ -f "$SECRETS_DIR/db-encryption-key" ]] && [[ "$force" != true ]]; then
-        info "DB encryption key already exists, skipping (use --force to regenerate)"
-    else
-        info "Generating DB encryption key (Fernet)..."
-        uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode(), end='')" > "$SECRETS_DIR/db-encryption-key"
-        chmod 600 "$SECRETS_DIR/db-encryption-key"
-        info "  Encryption key: $SECRETS_DIR/db-encryption-key"
-    fi
-
     # Prevent permissions issues once secrets are mounted to nexus containers
     chmod -R +r "${SECRETS_DIR}"
 

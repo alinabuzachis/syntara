@@ -66,6 +66,12 @@ CATEGORY_CATALOG: list[CategoryDefinition] = [
         description="Application-level settings including document conversion",
         display_order=40,
     ),
+    CategoryDefinition(
+        slug="authentication",
+        name="Authentication",
+        description="Authentication, identity provider, and group sync settings",
+        display_order=45,
+    ),
 ]
 
 
@@ -125,6 +131,12 @@ class SettingDefinition:
     requires_restart: bool = False
     cache_ttl_seconds: int | None = None
     validation_schema: dict[str, Any] | None = field(default=None)
+
+
+class AuthenticationGroup(StrEnum):
+    """Group names for authentication settings."""
+
+    GROUP_MAPPING = "Group mapping"
 
 
 class MetricsGroup(StrEnum):
@@ -432,6 +444,21 @@ SETTINGS_CATALOG: list[SettingDefinition] = [
         description="Maximum prompt length for agentic activities in characters (100KB)",
         group=WorkflowEngineGroup.EXECUTION,
         validation_schema={"min": 1000},
+    ),
+    # Authentication — Group sync
+    SettingDefinition(
+        key="authentication.max_auto_create_groups",
+        name="Max auto-created groups per login",
+        category=SettingCategory.AUTHENTICATION,
+        value_type=SettingValueType.INTEGER,
+        default_value=25,
+        description=(
+            "Maximum number of groups that can be auto-created from a single IdP login. "
+            "If the token contains more groups than this limit, the login is denied. "
+            "Set to 0 for no limit."
+        ),
+        group=AuthenticationGroup.GROUP_MAPPING,
+        validation_schema={"min": 0},
     ),
     # Application — Document Conversion
     SettingDefinition(

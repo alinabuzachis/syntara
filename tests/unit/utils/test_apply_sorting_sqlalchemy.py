@@ -67,18 +67,18 @@ class TestApplySortingSQLAlchemy:
         """Test applying multiple field sorting."""
         query = select(User)
         sort_tuples = [
-            ("is_active", SortDirection.DESC),  # Active users first (True > False)
+            ("is_enabled", SortDirection.DESC),  # Active users first (True > False)
             ("username", SortDirection.ASC),  # Then by username ascending
         ]
 
         sorted_query = apply_sorting(query, sort_tuples, User)
         result = (await test_db_session.exec(sorted_query)).all()
 
-        # Should be sorted by is_active DESC, then username ASC
+        # Should be sorted by is_enabled DESC, then username ASC
         # Active users (True): alice, bob, diana
         # Inactive users (False): charlie, eve
         assert len(result) == len(test_users)
-        expected_usernames = [u.username for u in sorted(test_users, key=lambda x: (-x.is_active, x.username))]
+        expected_usernames = [u.username for u in sorted(test_users, key=lambda x: (-x.is_enabled, x.username))]
         usernames = [user.username for user in result]
         assert usernames == expected_usernames
 
@@ -98,14 +98,14 @@ class TestApplySortingSQLAlchemy:
 
     async def test_apply_sorting_with_where_clause(self, test_users: list[User], test_db_session: AsyncSession) -> None:
         """Test sorting combined with WHERE clause."""
-        query = select(User).where(User.is_active == True)  # noqa: E712
+        query = select(User).where(User.is_enabled == True)  # noqa: E712
         sort_tuples = [("username", SortDirection.DESC)]
 
         sorted_query = apply_sorting(query, sort_tuples, User)
         result = (await test_db_session.exec(sorted_query)).all()
 
         # Should filter active users and sort by username descending
-        active_users = [u for u in test_users if u.is_active]
+        active_users = [u for u in test_users if u.is_enabled]
         assert len(result) == len(active_users)
         usernames = [user.username for user in result]
         expected_usernames = [u.username for u in sorted(active_users, key=lambda x: x.username, reverse=True)]
@@ -131,7 +131,7 @@ class TestApplySortingSQLAlchemy:
         """Test complex multi-field sorting scenario."""
         query = select(User)
         sort_tuples = [
-            ("is_active", SortDirection.ASC),  # Inactive first (False < True)
+            ("is_enabled", SortDirection.ASC),  # Inactive first (False < True)
             ("full_name", SortDirection.ASC),  # Then by full_name ascending
             ("username", SortDirection.ASC),  # Then by username ascending
         ]
@@ -142,12 +142,12 @@ class TestApplySortingSQLAlchemy:
         assert len(result) == len(test_users)
         usernames = [user.username for user in result]
         expected_usernames = [
-            u.username for u in sorted(test_users, key=lambda x: (x.is_active, x.full_name, x.username))
+            u.username for u in sorted(test_users, key=lambda x: (x.is_enabled, x.full_name, x.username))
         ]
         assert usernames == expected_usernames
         # Verify the expected split between inactive and active users
-        inactive_count = len([u for u in test_users if not u.is_active])
-        active_count = len([u for u in test_users if u.is_active])
+        inactive_count = len([u for u in test_users if not u.is_enabled])
+        active_count = len([u for u in test_users if u.is_enabled])
         inactive_users = usernames[:inactive_count]
         active_users = usernames[inactive_count:]
         assert len(inactive_users) == inactive_count
@@ -179,48 +179,48 @@ class TestApplySortingSQLAlchemy:
         query = select(User)
 
         # Test ASC + ASC
-        sort_tuples = [("is_active", SortDirection.ASC), ("username", SortDirection.ASC)]
+        sort_tuples = [("is_enabled", SortDirection.ASC), ("username", SortDirection.ASC)]
         sorted_query = apply_sorting(query, sort_tuples, User)
         result = (await test_db_session.exec(sorted_query)).all()
         usernames = [user.username for user in result]
-        expected_usernames = [u.username for u in sorted(test_users, key=lambda x: (x.is_active, x.username))]
+        expected_usernames = [u.username for u in sorted(test_users, key=lambda x: (x.is_enabled, x.username))]
         assert usernames == expected_usernames
 
         # Test DESC + ASC
-        sort_tuples = [("is_active", SortDirection.DESC), ("username", SortDirection.ASC)]
+        sort_tuples = [("is_enabled", SortDirection.DESC), ("username", SortDirection.ASC)]
         sorted_query = apply_sorting(query, sort_tuples, User)
         result = (await test_db_session.exec(sorted_query)).all()
         usernames = [user.username for user in result]
-        expected_usernames = [u.username for u in sorted(test_users, key=lambda x: (-x.is_active, x.username))]
+        expected_usernames = [u.username for u in sorted(test_users, key=lambda x: (-x.is_enabled, x.username))]
         assert usernames == expected_usernames
 
         # Test ASC + DESC
-        sort_tuples = [("is_active", SortDirection.ASC), ("username", SortDirection.DESC)]
+        sort_tuples = [("is_enabled", SortDirection.ASC), ("username", SortDirection.DESC)]
         sorted_query = apply_sorting(query, sort_tuples, User)
         result = (await test_db_session.exec(sorted_query)).all()
         usernames = [user.username for user in result]
         expected_usernames = []
         users_by_active: dict[bool, list[User]] = {}
         for user in test_users:
-            users_by_active.setdefault(user.is_active, []).append(user)
+            users_by_active.setdefault(user.is_enabled, []).append(user)
 
-        # Sort is_active ASC (False first), then usernames DESC within each group
+        # Sort is_enabled ASC (False first), then usernames DESC within each group
         for active_key in sorted(users_by_active.keys()):
             group_users = sorted(users_by_active[active_key], key=lambda x: x.username, reverse=True)
             expected_usernames.extend([u.username for u in group_users])
         assert usernames == expected_usernames
 
         # Test DESC + DESC
-        sort_tuples = [("is_active", SortDirection.DESC), ("username", SortDirection.DESC)]
+        sort_tuples = [("is_enabled", SortDirection.DESC), ("username", SortDirection.DESC)]
         sorted_query = apply_sorting(query, sort_tuples, User)
         result = (await test_db_session.exec(sorted_query)).all()
         usernames = [user.username for user in result]
         expected_usernames = []
         users_by_active = {}
         for user in test_users:
-            users_by_active.setdefault(user.is_active, []).append(user)
+            users_by_active.setdefault(user.is_enabled, []).append(user)
 
-        # Sort is_active DESC (True first), then usernames DESC within each group
+        # Sort is_enabled DESC (True first), then usernames DESC within each group
         for active_key in sorted(users_by_active.keys(), reverse=True):
             group_users = sorted(users_by_active[active_key], key=lambda x: x.username, reverse=True)
             expected_usernames.extend([u.username for u in group_users])
@@ -233,7 +233,7 @@ class TestApplySortingSQLAlchemy:
         query = select(User)
         # Create multiple sort criteria
         sort_tuples = [
-            ("is_active", SortDirection.ASC),
+            ("is_enabled", SortDirection.ASC),
             ("username", SortDirection.DESC),
             ("full_name", SortDirection.ASC),
             ("email", SortDirection.DESC),
@@ -270,19 +270,19 @@ class TestApplySortingSQLAlchemy:
     ) -> None:
         """Test sorting boolean fields."""
         query = select(User)
-        sort_tuples = [("is_active", SortDirection.ASC)]
+        sort_tuples = [("is_enabled", SortDirection.ASC)]
 
         sorted_query = apply_sorting(query, sort_tuples, User)
         result = (await test_db_session.exec(sorted_query)).all()
 
-        # Should be sorted by is_active ascending (False < True)
+        # Should be sorted by is_enabled ascending (False < True)
         assert len(result) == len(test_users)
-        is_active_values = [user.is_active for user in result]
+        is_enabled_values = [user.is_enabled for user in result]
         # Split based on actual test data
-        inactive_count = len([u for u in test_users if not u.is_active])
-        active_count = len([u for u in test_users if u.is_active])
-        assert is_active_values[:inactive_count] == [False] * inactive_count
-        assert is_active_values[inactive_count:] == [True] * active_count
+        inactive_count = len([u for u in test_users if not u.is_enabled])
+        active_count = len([u for u in test_users if u.is_enabled])
+        assert is_enabled_values[:inactive_count] == [False] * inactive_count
+        assert is_enabled_values[inactive_count:] == [True] * active_count
 
     async def test_apply_sorting_primary_key_field(self, test_users: list[User], test_db_session: AsyncSession) -> None:
         """Test sorting by primary key field."""
@@ -306,18 +306,18 @@ class TestApplySortingSQLAlchemy:
     ) -> None:
         """Test that apply_sorting works with other SQLAlchemy query operations."""
         # Start with a complex query including WHERE, ORDER BY combination
-        base_query = select(User).where(User.is_active == False)  # noqa: E712
+        base_query = select(User).where(User.is_enabled == False)  # noqa: E712
         sort_tuples = [("created_at", SortDirection.DESC)]
 
         sorted_query = apply_sorting(base_query, sort_tuples, User)
         result = (await test_db_session.exec(sorted_query)).all()
 
         # Should filter inactive users and sort by created_at DESC
-        inactive_users = [u for u in test_users if not u.is_active]
+        inactive_users = [u for u in test_users if not u.is_enabled]
         assert len(result) == len(inactive_users)
         usernames = [user.username for user in result]
         expected_usernames = [u.username for u in sorted(inactive_users, key=lambda x: x.created_at, reverse=True)]
         assert usernames == expected_usernames
 
         # Verify all are inactive
-        assert all(not user.is_active for user in result)
+        assert all(not user.is_enabled for user in result)

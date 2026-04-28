@@ -262,6 +262,58 @@ paths:
         - bearerAuth: []
 components:
   schemas:
+    OIDCClaimMapping:
+      type: object
+      title: OIDCClaimMapping
+      description: Maps Nexus user fields to IdP-specific OIDC claim names.
+      additionalProperties: false
+      properties:
+        subject:
+          type: string
+          default: sub
+          title: Subject
+        email:
+          type: string
+          default: email
+          title: Email
+        username:
+          type: string
+          default: preferred_username
+          title: Username
+        full_name:
+          type: string
+          default: name
+          title: Full Name
+        groups:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Groups
+
+    OIDCGroupMappingEntry:
+      type: object
+      title: OIDCGroupMappingEntry
+      description: |-
+        API-facing schema for a single IdP-to-Nexus group mapping entry.
+
+        Used in API requests/responses. Actual storage is in the
+        ``idp_group_mapping_entries`` table.
+      required:
+        - idp_group_value
+        - nexus_group_id
+      additionalProperties: false
+      properties:
+        idp_group_value:
+          type: string
+          minLength: 1
+          title: Idp Group Value
+          description: Group value from the IdP token (e.g. GUID or role name)
+        nexus_group_id:
+          type: string
+          format: uuid
+          title: Nexus Group Id
+          description: ID of the Nexus group to map to
+
     OIDCConfiguration:
       type: object
       title: OIDCConfiguration
@@ -270,7 +322,6 @@ components:
       required:
         - issuer_url
         - client_id
-        - client_secret
         - redirect_uri
       properties:
         provider_type:
@@ -278,6 +329,12 @@ components:
           const: oidc
           default: oidc
           title: Provider Type
+        idp_type:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Idp Type
+          description: "Identity provider type hint. Known values: aap, microsoft_entra, custom"
         auto_discovery:
           type: boolean
           default: true
@@ -292,7 +349,9 @@ components:
           title: Client Id
           description: OAuth 2.0 client ID
         client_secret:
-          type: string
+          anyOf:
+            - type: string
+            - type: 'null'
           title: Client Secret
           description: OAuth 2.0 client secret
         redirect_uri:
@@ -328,6 +387,36 @@ components:
             - type: "null"
           title: Userinfo Endpoint
           description: Userinfo endpoint URL (optional)
+        end_session_endpoint:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: End Session Endpoint
+          description: OIDC end session endpoint URL for RP-initiated logout
+        enable_rp_initiated_logout:
+          type: boolean
+          default: false
+          title: Enable Rp Initiated Logout
+          description: Enable RP-initiated logout redirect to IdP when user logs out
+        claim_mapping:
+          $ref: '#/components/schemas/OIDCClaimMapping'
+        group_jmespath_expression:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Group Jmespath Expression
+          description: JMESPath expression to extract group values from token claims
+        group_mapping_entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/OIDCGroupMappingEntry'
+          title: Group Mapping Entries
+          description: IdP-to-Nexus group mapping entries
+        auto_create_groups:
+          type: boolean
+          default: false
+          title: Auto Create Groups
+          description: Auto-create Nexus groups from IdP group values on login
 
     OIDCConfigurationResponse:
       type: object
@@ -344,6 +433,12 @@ components:
           const: oidc
           default: oidc
           title: Provider Type
+        idp_type:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Idp Type
+          description: Identity provider type hint
         auto_discovery:
           type: boolean
           default: true
@@ -363,33 +458,63 @@ components:
           description: OAuth 2.0 redirect URI
         scopes:
           type: string
-          default: openid profile email
+          default: "openid profile email"
           title: Scopes
           description: Space-separated list of OAuth 2.0 scopes
         authorization_endpoint:
           anyOf:
             - type: string
-            - type: "null"
+            - type: 'null'
           title: Authorization Endpoint
           description: Authorization endpoint URL
         token_endpoint:
           anyOf:
             - type: string
-            - type: "null"
+            - type: 'null'
           title: Token Endpoint
           description: Token endpoint URL
         jwks_uri:
           anyOf:
             - type: string
-            - type: "null"
+            - type: 'null'
           title: Jwks Uri
           description: JWKS URI for token verification
         userinfo_endpoint:
           anyOf:
             - type: string
-            - type: "null"
+            - type: 'null'
           title: Userinfo Endpoint
           description: Userinfo endpoint URL (optional)
+        end_session_endpoint:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: End Session Endpoint
+          description: OIDC end session endpoint URL for RP-initiated logout
+        enable_rp_initiated_logout:
+          type: boolean
+          default: false
+          title: Enable Rp Initiated Logout
+          description: Enable RP-initiated logout redirect to IdP when user logs out
+        claim_mapping:
+          $ref: '#/components/schemas/OIDCClaimMapping'
+        group_jmespath_expression:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Group Jmespath Expression
+          description: JMESPath expression for group extraction
+        group_mapping_entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/OIDCGroupMappingEntry'
+          title: Group Mapping Entries
+          description: IdP-to-Nexus group mapping entries
+        auto_create_groups:
+          type: boolean
+          default: false
+          title: Auto Create Groups
+          description: Auto-create Nexus groups from IdP group values on login
 
     OIDCConfigurationPatch:
       type: object
@@ -406,6 +531,12 @@ components:
           const: oidc
           default: oidc
           title: Provider Type
+        idp_type:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Idp Type
+          description: "Identity provider type hint. Known values: aap, microsoft_entra, custom"
         auto_discovery:
           type: boolean
           default: true
@@ -458,6 +589,43 @@ components:
             - type: "null"
           title: Userinfo Endpoint
           description: Userinfo endpoint URL (optional)
+        end_session_endpoint:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: End Session Endpoint
+          description: OIDC end session endpoint URL for RP-initiated logout (omit to keep existing)
+        enable_rp_initiated_logout:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Enable Rp Initiated Logout
+          description: Enable RP-initiated logout redirect to IdP when user logs out (omit to keep existing)
+        claim_mapping:
+          anyOf:
+            - $ref: '#/components/schemas/OIDCClaimMapping'
+            - type: 'null'
+          description: OIDC claim mapping (omit to keep existing)
+        group_jmespath_expression:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Group Jmespath Expression
+          description: JMESPath expression for group extraction (omit to keep existing)
+        group_mapping_entries:
+          anyOf:
+            - type: array
+              items:
+                $ref: '#/components/schemas/OIDCGroupMappingEntry'
+            - type: 'null'
+          title: Group Mapping Entries
+          description: IdP-to-Nexus group mapping entries (omit to keep existing)
+        auto_create_groups:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Auto Create Groups
+          description: Auto-create Nexus groups from IdP group values on login (omit to keep existing)
 
     IdentityProviderCreate:
       type: object
@@ -617,3 +785,23 @@ components:
                 type: string
             - type: "null"
           title: Metadata
+        claims_supported:
+          anyOf:
+            - type: array
+              items:
+                type: string
+            - type: 'null'
+          title: Claims Supported
+        claim_aliases:
+          anyOf:
+            - type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: string
+            - type: 'null'
+          title: Claim Aliases
+        end_session_endpoint_supported:
+          type: boolean
+          default: false
+          title: End Session Endpoint Supported

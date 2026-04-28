@@ -192,7 +192,6 @@ dev: check-deps _ensure-secrets ## Run development server with auto-reload
 	@echo ""
 	APP_JWT_PRIVATE_KEY_PATH=.secrets/jwt-primary.pem \
 	APP_JWT_BACKUP_KEYS='[{"key_id":"nexus-backup","key_path":".secrets/jwt-backup.pem"}]' \
-	APP_DB_ENCRYPTION_KEY_PATH=.secrets/db-encryption-key \
 	uv run python -m nexus.api.main
 
 

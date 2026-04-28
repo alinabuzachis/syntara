@@ -40,7 +40,7 @@ class TestUsersGetContract:
             "username",
             "email",
             "full_name",
-            "is_active",
+            "is_enabled",
             "last_login",
             "created_at",
             "updated_at",

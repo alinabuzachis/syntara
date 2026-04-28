@@ -5,6 +5,7 @@ with identity provider specific fields as defined in the OpenAPI specification.
 """
 
 from typing import ClassVar
+from uuid import UUID
 
 from pydantic import ConfigDict
 from sqlalchemy import Index, String, text
@@ -60,6 +61,13 @@ class IdentityProvider(IdentityProviderBase, table=True):
     configuration: IdentityProviderConfigurationTypes = Field(
         sa_type=DiscriminatedJSONB(IdentityProviderConfiguration),  # type: ignore[call-overload]
         description="Provider-specific configuration",
+    )
+
+    secret_id: UUID | None = Field(
+        default=None,
+        foreign_key="secrets.id",
+        description="FK to secret routing record containing encrypted client_secret",
+        index=True,
     )
 
     __table_args__ = (

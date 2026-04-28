@@ -14,6 +14,7 @@ from sqlmodel import Field, SQLModel
 
 from nexus.core.constants import FieldLimits
 from nexus.core.models.base.query_params import BaseListParams
+from nexus.core.models.group import MembershipSource
 from nexus.core.models.pagination import ResourcesResponse
 
 
@@ -24,10 +25,10 @@ class UserCreate(SQLModel):
     """
 
     username: str = Field(..., min_length=1, max_length=FieldLimits.NAME_MAX_LENGTH, description="Unique username")
-    email: EmailStr = Field(..., max_length=FieldLimits.NAME_MAX_LENGTH, description="Unique email address")
+    email: EmailStr | None = Field(default=None, max_length=FieldLimits.NAME_MAX_LENGTH, description="Email address")
     full_name: str = Field(..., min_length=1, max_length=FieldLimits.NAME_MAX_LENGTH, description="User's display name")
     password: SecretStr = Field(..., min_length=8, description="Plaintext password (will be hashed)")
-    is_active: bool = Field(default=True, description="Account activation status")
+    is_enabled: bool = Field(default=True, description="Whether the user account is enabled")
 
 
 class UserUpdate(SQLModel):
@@ -36,6 +37,9 @@ class UserUpdate(SQLModel):
     All fields are optional for partial updates.
     """
 
+    username: str | None = Field(
+        None, min_length=1, max_length=FieldLimits.NAME_MAX_LENGTH, description="Update username"
+    )
     full_name: str | None = Field(
         None, min_length=1, max_length=FieldLimits.NAME_MAX_LENGTH, description="Update display name"
     )
@@ -43,7 +47,7 @@ class UserUpdate(SQLModel):
     password: SecretStr | None = Field(
         None, description="New password (will be hashed). Omit to keep current password."
     )
-    is_active: bool | None = Field(None, description="Enable or disable user account")
+    is_enabled: bool | None = Field(None, description="Enable or disable user account")
 
 
 class UserRead(SQLModel):
@@ -56,21 +60,30 @@ class UserRead(SQLModel):
 
     id: UUID
     username: str
-    email: str
+    email: str | None = None
     full_name: str
-    is_active: bool
+    is_enabled: bool
+    is_builtin: bool = False
+    has_password: bool = False
     last_login: datetime | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class GroupMemberRead(UserRead):
+    """User response with membership source info for a specific group."""
+
+    membership_sources: list[MembershipSource] = Field(
+        default_factory=list, description="How this user was assigned to this group"
+    )
 
 
 # ============================================================================
 # List Response
 # ============================================================================
 
-
-class UserListResponse(ResourcesResponse[UserRead]):
-    """Paginated list response for users."""
+UserListResponse = ResourcesResponse[UserRead]
+GroupMemberListResponse = ResourcesResponse[GroupMemberRead]
 
 
 class UserListParams(BaseListParams):

@@ -211,7 +211,7 @@ async def who_can(
         query = (
             select(User)
             .where(
-                User.is_active.is_(True),  # type: ignore[attr-defined]
+                User.is_enabled.is_(True),  # type: ignore[attr-defined]
                 User.deleted_at.is_(None),  # type: ignore[union-attr]
             )
             .order_by(User.id)  # type: ignore[arg-type]

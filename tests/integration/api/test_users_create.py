@@ -32,7 +32,7 @@ class TestUsersCreateContract:
         assert data["username"] == "newuser"
         assert data["email"] == "newuser@example.com"
         assert data["full_name"] == "New User"
-        assert data["is_active"] is True  # default
+        assert data["is_enabled"] is True  # default
 
     @pytest.mark.asyncio
     async def test_create_user_with_all_fields(self, admin_client: AsyncClient) -> None:
@@ -42,7 +42,7 @@ class TestUsersCreateContract:
             "email": "fulluser@example.com",
             "full_name": "Full User",
             "password": "securepassword123",
-            "is_active": False,
+            "is_enabled": False,
         }
 
         response = await admin_client.post(USERS_URL, json=user_data)
@@ -51,7 +51,7 @@ class TestUsersCreateContract:
 
         data = response.json()
         assert data["username"] == "fulluser"
-        assert data["is_active"] is False
+        assert data["is_enabled"] is False
 
     @pytest.mark.asyncio
     async def test_create_user_response_schema(self, admin_client: AsyncClient) -> None:
@@ -73,7 +73,7 @@ class TestUsersCreateContract:
             "username",
             "email",
             "full_name",
-            "is_active",
+            "is_enabled",
             "last_login",
             "created_at",
             "updated_at",
@@ -133,7 +133,7 @@ class TestUsersCreateContract:
 
     @pytest.mark.asyncio
     async def test_create_user_duplicate_email(self, admin_client: AsyncClient) -> None:
-        """Test 409 conflict when email already exists."""
+        """Test that duplicate emails are allowed (federated users may share emails)."""
         user_data = {
             "username": "emailuser1",
             "email": "same@example.com",
@@ -145,20 +145,12 @@ class TestUsersCreateContract:
         response1 = await admin_client.post(USERS_URL, json=user_data)
         assert response1.status_code == 201
 
-        # Try to create second user with same email
+        # Create second user with same email — should succeed
         user_data["username"] = "emailuser2"
         user_data["full_name"] = "Email User 2"
         response2 = await admin_client.post(USERS_URL, json=user_data)
 
-        assert response2.status_code == 409
-        assert_error_data(
-            response2,
-            error_type="https://api.nexus.com/errors/resource-conflict",
-            title="Email Conflict",
-            detail="A user with this email already exists",
-            code="USER_EMAIL_CONFLICT",
-            retryable=False,
-        )
+        assert response2.status_code == 201
 
     @pytest.mark.asyncio
     async def test_create_user_missing_username(self, admin_client: AsyncClient) -> None:
@@ -174,8 +166,8 @@ class TestUsersCreateContract:
         assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_create_user_missing_email(self, admin_client: AsyncClient) -> None:
-        """Test 422 when email is missing."""
+    async def test_create_user_without_email(self, admin_client: AsyncClient) -> None:
+        """Test user can be created without email."""
         user_data = {
             "username": "noemail",
             "full_name": "No Email",
@@ -184,7 +176,10 @@ class TestUsersCreateContract:
 
         response = await admin_client.post(USERS_URL, json=user_data)
 
-        assert response.status_code == 422
+        assert response.status_code == 201
+        data = response.json()
+        assert data["username"] == "noemail"
+        assert data["email"] is None
 
     @pytest.mark.asyncio
     async def test_create_user_missing_password(self, admin_client: AsyncClient) -> None:

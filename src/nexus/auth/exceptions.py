@@ -164,6 +164,30 @@ class UserError(AuthError):
     """Base exception for all user errors."""
 
 
+@fastapi_exception(handler="nexus.auth.error_handlers.user_identity_not_found_handler")
+class UserIdentityNotFoundError(UserError):
+    """Raised when a user identity is not found."""
+
+    def __init__(self, identity_id: UUID) -> None:
+        """Initialize exception with identity ID.
+
+        Args:
+            identity_id: UUID of the identity that was not found
+
+        """
+        self.identity_id = identity_id
+        super().__init__(f"User identity {identity_id} not found")
+
+
+@fastapi_exception(handler="nexus.auth.error_handlers.last_sign_in_method_handler")
+class LastSignInMethodError(UserError):
+    """Raised when attempting to remove the only sign-in method for a user."""
+
+    def __init__(self) -> None:
+        """Initialize exception."""
+        super().__init__("Cannot remove the only sign-in method. Add a password or another identity first.")
+
+
 @fastapi_exception(handler="nexus.auth.error_handlers.user_not_found_handler")
 class UserNotFoundError(UserError):
     """Raised when a user is not found."""
@@ -194,28 +218,31 @@ class UserUsernameConflictError(UserError):
         super().__init__(f"User with username '{username}' already exists")
 
 
-@fastapi_exception(handler="nexus.auth.error_handlers.user_email_conflict_handler")
-class UserEmailConflictError(UserError):
-    """Raised when an email already exists."""
-
-    def __init__(self, email: str) -> None:
-        """Initialize exception with email.
-
-        Args:
-            email: The conflicting email address
-
-        """
-        self.email = email
-        super().__init__(f"User with email '{email}' already exists")
-
-
-@fastapi_exception(handler="nexus.auth.error_handlers.admin_disable_by_non_admin_handler")
-class AdminDisableByNonAdminError(UserError):
-    """Raised when a non-admin user tries to disable the built-in admin."""
+@fastapi_exception(handler="nexus.auth.error_handlers.admin_modify_handler")
+class AdminModifyError(UserError):
+    """Raised when attempting to modify protected properties of the built-in admin."""
 
     def __init__(self) -> None:
         """Initialize exception."""
-        super().__init__("The built-in admin account can only be disabled by itself")
+        super().__init__("The built-in admin account properties cannot be modified")
+
+
+@fastapi_exception(handler="nexus.auth.error_handlers.admin_delete_handler")
+class AdminDeleteError(UserError):
+    """Raised when attempting to delete the built-in admin."""
+
+    def __init__(self) -> None:
+        """Initialize exception."""
+        super().__init__("The built-in admin account cannot be deleted")
+
+
+@fastapi_exception(handler="nexus.auth.error_handlers.admin_disable_no_other_admins_handler")
+class AdminDisableNoOtherAdminsError(UserError):
+    """Raised when disabling a user would leave no enabled members in the admins group."""
+
+    def __init__(self) -> None:
+        """Initialize exception."""
+        super().__init__("Cannot disable the last enabled user in the admins group")
 
 
 # ============================================================================
@@ -223,7 +250,25 @@ class AdminDisableByNonAdminError(UserError):
 # ============================================================================
 
 
-class MembershipError(AuthError):
+@fastapi_exception(handler="nexus.auth.error_handlers.last_admin_removal_handler")
+class LastAdminRemovalError(UserError):
+    """Raised when removing the last enabled admin from the admins group."""
+
+    def __init__(self) -> None:
+        """Initialize exception."""
+        super().__init__("Cannot remove the last enabled admin user from the admins group")
+
+
+@fastapi_exception(handler="nexus.auth.error_handlers.builtin_group_delete_handler")
+class BuiltinGroupDeleteError(UserError):
+    """Raised when attempting to delete a builtin system group."""
+
+    def __init__(self, group_name: str) -> None:
+        """Initialize exception."""
+        super().__init__(f"The built-in '{group_name}' group cannot be deleted")
+
+
+class MembershipError(NexusError):
     """Base exception for all membership errors."""
 
 

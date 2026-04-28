@@ -87,7 +87,7 @@ def sync_detailed(
     """Get current user
 
      Returns information about the currently authenticated user
-    from the access token claims. No database round-trip is performed.
+    from the access token claims and session metadata.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -113,7 +113,7 @@ def sync(
     """Get current user
 
      Returns information about the currently authenticated user
-    from the access token claims. No database round-trip is performed.
+    from the access token claims and session metadata.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -135,7 +135,7 @@ async def asyncio_detailed(
     """Get current user
 
      Returns information about the currently authenticated user
-    from the access token claims. No database round-trip is performed.
+    from the access token claims and session metadata.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -159,7 +159,7 @@ async def asyncio(
     """Get current user
 
      Returns information about the currently authenticated user
-    from the access token claims. No database round-trip is performed.
+    from the access token claims and session metadata.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

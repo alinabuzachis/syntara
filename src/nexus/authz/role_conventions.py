@@ -134,6 +134,12 @@ BUILTIN_POLICIES: list[PolicyInfo] = [
     PolicyInfo("group", "update", roles=("admin",)),
     PolicyInfo("group", "delete", roles=("admin",)),
     PolicyInfo("group", "manage-members", roles=("admin",)),
+    # user identities (federated identity links)
+    PolicyInfo("user_identity", "read", scope="self", roles=("admin", "default")),
+    PolicyInfo("user_identity", "read", roles=("admin",)),
+    PolicyInfo("user_identity", "attach", roles=("admin",)),
+    PolicyInfo("user_identity", "detach", scope="self", roles=("admin", "default")),
+    PolicyInfo("user_identity", "detach", roles=("admin",)),
     # identity providers
     PolicyInfo("identity-provider", "create", roles=("admin",)),
     PolicyInfo("identity-provider", "read", roles=("admin",)),

@@ -6,15 +6,20 @@ from typing import Any, NoReturn
 from uuid import UUID
 
 import structlog
-from sqlalchemy import Select, text
+from sqlalchemy import Select, exists, text
+from sqlalchemy import delete as sa_delete
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import select
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
-from nexus.core.models import User
+from nexus.auth.exceptions import GroupNotFoundError
+from nexus.auth.session.session_store import SessionStore
+from nexus.core.models import User, UserIdentity
+from nexus.core.models.group import Group, user_groups, user_idp_groups
 from nexus.core.services import BaseService
-from nexus.core.utils.crypto import encrypt_secret
+from nexus.core.services.secret_consumer_mixin import SecretConsumerMixin
+from nexus.core.services.secret_service import SecretService
 from nexus.core.utils.filters import Filter
 from nexus.identity_providers.exceptions import (
     IdentityProviderNameConflictError,
@@ -27,18 +32,26 @@ from nexus.identity_providers.models.identity_provider import (
     IdentityProviderPatch,
     IdentityProviderResponse,
 )
+from nexus.identity_providers.models.identity_provider_configuration import (
+    IdentityProviderConfigurationPatchTypes,
+    OIDCConfiguration,
+    OIDCConfigurationResponse,
+    OIDCGroupMappingEntry,
+)
+from nexus.identity_providers.models.idp_group_mapping import IdpGroupMappingEntry
 
 SelectIdentityProvider = Select[tuple[IdentityProvider]] | SelectOfScalar[tuple[IdentityProvider]]
 
 logger = structlog.stdlib.get_logger(__name__)
 
 
-class IdentityProviderService(BaseService):
+class IdentityProviderService(BaseService, SecretConsumerMixin):
     """Service for Identity Provider CRUD operations and business logic."""
 
-    def __init__(self, session: AsyncSession, user: User) -> None:
-        """Initialize service with database session and current user."""
+    def __init__(self, session: AsyncSession, user: User, secret_service: SecretService) -> None:
+        """Initialize service with database session, current user, and secret service."""
         super().__init__(session, user)
+        self._secret_service = secret_service
 
     def _is_duplicate_name_error(self, e: IntegrityError) -> bool:
         """Check if IntegrityError is due to duplicate provider name."""
@@ -107,18 +120,100 @@ class IdentityProviderService(BaseService):
             msg = f"Identity provider {provider_id} not found"
             raise IdentityProviderNotFoundError(msg)
 
-        return IdentityProviderResponse.model_validate(provider)
+        response = IdentityProviderResponse.model_validate(provider)
+        return await self._populate_response_entries(response)
+
+    @staticmethod
+    def _extract_group_mapping_entries(
+        configuration: OIDCConfiguration | IdentityProviderConfigurationPatchTypes,
+    ) -> list[OIDCGroupMappingEntry]:
+        """Extract mapping entries to be saved in the dedicated DB table."""
+        entries = configuration.group_mapping_entries
+        if entries is None or len(entries) == 0:
+            return []
+        return list(entries)
+
+    async def _save_group_mapping_entries(
+        self,
+        provider_id: UUID,
+        entries: list[OIDCGroupMappingEntry],
+    ) -> None:
+        """Insert group mapping entries into the DB table.
+
+        Raises:
+            GroupNotFoundError: If any nexus_group_id does not exist or is soft-deleted.
+
+        """
+        if entries:
+            requested_ids = {e.nexus_group_id for e in entries}
+            result = await self.session.execute(
+                select(Group.id).where(
+                    col(Group.id).in_(requested_ids),
+                    Group.deleted_at.is_(None),  # type: ignore[union-attr]
+                )
+            )
+            found_ids = {row[0] for row in result.all()}
+            missing = requested_ids - found_ids
+            if missing:
+                raise GroupNotFoundError(next(iter(missing)))
+
+        for entry in entries:
+            row = IdpGroupMappingEntry(
+                identity_provider_id=provider_id,
+                idp_group_value=entry.idp_group_value,
+                nexus_group_id=entry.nexus_group_id,
+            )
+            self.session.add(row)
+
+    async def _replace_group_mapping_entries(
+        self,
+        provider_id: UUID,
+        entries: list[OIDCGroupMappingEntry],
+    ) -> None:
+        """Delete existing entries for provider and insert new ones."""
+        await self.session.execute(
+            sa_delete(IdpGroupMappingEntry).where(col(IdpGroupMappingEntry.identity_provider_id) == provider_id)
+        )
+        await self._save_group_mapping_entries(provider_id, entries)
+
+    async def _load_group_mapping_entries(self, provider_id: UUID) -> list[OIDCGroupMappingEntry]:
+        """Load group mapping entries from DB for a provider."""
+        result = await self.session.exec(
+            select(IdpGroupMappingEntry).where(IdpGroupMappingEntry.identity_provider_id == provider_id)
+        )
+        return [
+            OIDCGroupMappingEntry(
+                idp_group_value=row.idp_group_value,
+                nexus_group_id=row.nexus_group_id,
+            )
+            for row in result.all()
+        ]
+
+    async def _populate_response_entries(
+        self,
+        response: IdentityProviderResponse,
+    ) -> IdentityProviderResponse:
+        """Populate group_mapping_entries on a response from the DB table."""
+        config = response.configuration
+        if isinstance(config, (OIDCConfiguration, OIDCConfigurationResponse)):
+            config.group_mapping_entries = await self._load_group_mapping_entries(response.id)
+        return response
 
     async def create_provider(self, provider_create: IdentityProviderCreate) -> IdentityProviderResponse:
         """Create a new identity provider."""
-        # Encrypt client_secret before persisting
-        if hasattr(provider_create.configuration, "client_secret") and provider_create.configuration.client_secret:
-            provider_create.configuration.client_secret = encrypt_secret(provider_create.configuration.client_secret)
+        # Extract entries for the dedicated table before splitting config
+        entries: list[OIDCGroupMappingEntry] = []
+        if isinstance(provider_create.configuration, OIDCConfiguration):
+            entries = self._extract_group_mapping_entries(provider_create.configuration)
+
+        # Encrypt sensitive fields via SecretService (splits client_secret out of JSONB)
+        safe_config, secret_id = await self._store_config(provider_create.configuration)
 
         provider = IdentityProvider(
             name=provider_create.name,
             description=provider_create.description,
-            configuration=provider_create.configuration,
+            configuration=safe_config,
+            secret_id=secret_id,
             enabled=True,
             created_by=self.user.id,
             updated_by=self.user.id,
@@ -128,11 +223,49 @@ class IdentityProviderService(BaseService):
 
         try:
             await self.session.flush()
+            if entries:
+                await self._save_group_mapping_entries(provider.id, entries)
+                await self.session.flush()
             logger.info("Successfully created identity provider", provider_name=provider.name)
-            return IdentityProviderResponse.model_validate(provider)
+            response = IdentityProviderResponse.model_validate(provider)
+            return await self._populate_response_entries(response)
 
         except IntegrityError as e:
             await self._handle_integrity_error(e, provider_create.name)
+
+    async def _apply_configuration_patch(
+        self,
+        provider: IdentityProvider,
+        patch_config: IdentityProviderConfigurationPatchTypes,
+        *,
+        group_mapping_provided: bool,
+    ) -> list[OIDCGroupMappingEntry] | None:
+        """Apply configuration patch, preserving unset fields.
+
+        Returns extracted group mapping entries when group_mapping was explicitly
+        provided, or None to leave the entries table untouched.
+        """
+        # Preserve existing claim_mapping if not provided in patch
+        if patch_config.claim_mapping is None:
+            patch_config.claim_mapping = provider.configuration.claim_mapping
+        # Preserve existing group_jmespath_expression if not provided in patch
+        if patch_config.group_jmespath_expression is None:
+            patch_config.group_jmespath_expression = provider.configuration.group_jmespath_expression
+        # Preserve existing auto_create_groups if not provided in patch
+        if patch_config.auto_create_groups is None:
+            patch_config.auto_create_groups = provider.configuration.auto_create_groups
+
+        # Encrypt/preserve client_secret via SecretService
+        safe_config, new_secret_id = await self._update_config(patch_config, provider.secret_id)
+        provider.secret_id = new_secret_id
+
+        # Only extract/replace entries when group_mapping_entries was explicitly provided
+        patch_entries: list[OIDCGroupMappingEntry] | None = None
+        if group_mapping_provided:
+            patch_entries = self._extract_group_mapping_entries(patch_config)
+
+        provider.configuration = safe_config  # type: ignore[assignment]
+        return patch_entries
 
     async def patch_provider(
         self, provider_id: UUID, provider_patch: IdentityProviderPatch
@@ -161,27 +294,36 @@ class IdentityProviderService(BaseService):
         if provider_patch.enabled is not None:
             provider.enabled = provider_patch.enabled
 
+        patch_entries: list[OIDCGroupMappingEntry] | None = None
         if provider_patch.configuration is not None:
-            # Preserve existing client_secret if not provided in patch
-            if provider_patch.configuration.client_secret is None:
-                provider_patch.configuration.client_secret = provider.configuration.client_secret
-            else:
-                # New secret provided — encrypt before persisting
-                provider_patch.configuration.client_secret = encrypt_secret(provider_patch.configuration.client_secret)
-            provider.configuration = provider_patch.configuration  # type: ignore[assignment]
+            # Detect whether group_mapping_entries was explicitly provided before preservation logic runs
+            group_mapping_provided = provider_patch.configuration.group_mapping_entries is not None
+            patch_entries = await self._apply_configuration_patch(
+                provider,
+                provider_patch.configuration,
+                group_mapping_provided=group_mapping_provided,
+            )
 
         provider.updated_by = self.user.id
         provider.updated_at = datetime.now(UTC)
 
         try:
             await self.session.flush()
+            if patch_entries is not None:
+                await self._replace_group_mapping_entries(provider.id, patch_entries)
+                await self.session.flush()
             return await self.get_provider(provider.id)
 
         except IntegrityError as e:
             await self._handle_integrity_error(e, provider_name)
 
+    async def get_decrypted_config(self, provider: IdentityProvider) -> OIDCConfiguration:
+        """Load provider configuration with decrypted secrets for internal use (e.g. OIDC token exchange)."""
+        config_data = provider.configuration.model_dump()
+        return await self._load_config(OIDCConfiguration, config_data, provider.secret_id)  # type: ignore[return-value]
+
     async def delete_provider(self, provider_id: UUID) -> None:
-        """Soft delete an identity provider."""
+        """Soft delete an identity provider and clean up linked identities and sessions."""
         query = select(IdentityProvider).filter(
             IdentityProvider.id == provider_id,  # type: ignore[arg-type]
             IdentityProvider.deleted_at.is_(None),  # type: ignore[union-attr]
@@ -193,6 +335,70 @@ class IdentityProviderService(BaseService):
         if not provider:
             msg = f"Identity provider {provider_id} not found"
             raise IdentityProviderNotFoundError(msg)
+
+        # Bulk-delete all user identities linked to this provider
+        delete_result = await self.session.execute(
+            sa_delete(UserIdentity).where(col(UserIdentity.identity_provider_id) == provider_id)
+        )
+        deleted_count = getattr(delete_result, "rowcount", 0)
+        if deleted_count:
+            logger.info(
+                "Deleted user identities for removed provider",
+                provider_id=str(provider_id),
+                count=deleted_count,
+            )
+
+        # Clean up IdP group memberships for this provider (2 queries total).
+        # 1. Remove user_groups rows whose sole IdP source was this provider.
+        #    Scoped to affected users via subquery; EXISTS/NOT EXISTS keeps
+        #    memberships that are also tracked by another provider.
+        affected_users_sq = (
+            select(user_idp_groups.c.user_id).where(user_idp_groups.c.identity_provider_id == provider_id).distinct()
+        )
+        memberships_result = await self.session.execute(
+            sa_delete(user_groups).where(
+                user_groups.c.user_id.in_(affected_users_sq),
+                exists().where(
+                    user_idp_groups.c.user_id == user_groups.c.user_id,
+                    user_idp_groups.c.group_id == user_groups.c.group_id,
+                    user_idp_groups.c.identity_provider_id == provider_id,
+                ),
+                ~exists().where(
+                    user_idp_groups.c.user_id == user_groups.c.user_id,
+                    user_idp_groups.c.group_id == user_groups.c.group_id,
+                    user_idp_groups.c.identity_provider_id != provider_id,
+                ),
+            )
+        )
+        memberships_removed = getattr(memberships_result, "rowcount", 0)
+
+        # 2. Delete all tracking rows for this provider.
+        tracking_result = await self.session.execute(
+            sa_delete(user_idp_groups).where(
+                user_idp_groups.c.identity_provider_id == provider_id,
+            )
+        )
+        tracking_deleted = getattr(tracking_result, "rowcount", 0)
+
+        if tracking_deleted:
+            logger.info(
+                "Cleaned up IdP group memberships for deleted provider",
+                provider_id=str(provider_id),
+                tracking_rows=tracking_deleted,
+                memberships_removed=memberships_removed,
+            )
+
+        # Revoke all sessions authenticated via this provider (indexed by ID)
+        async with SessionStore() as store:
+            revoked = await store.revoke_by_idp(str(provider_id))
+            if revoked > 0:
+                logger.info("Revoked sessions for deleted provider", provider=provider.name, count=revoked)
+
+        # Delete encrypted secrets — null FK first to avoid constraint violation
+        secret_id = provider.secret_id
+        provider.secret_id = None
+        if secret_id:
+            await self._secret_service.delete_secret(secret_id)
 
         provider.deleted_at = datetime.now(UTC)
         provider.deleted_by = self.user.id

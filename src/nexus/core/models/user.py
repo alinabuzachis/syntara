@@ -29,10 +29,10 @@ class User(SoftDeletableResource, table=True):
         deleted_at: Soft delete timestamp (from SoftDeletableResource)
         deleted_by: UUID of user who performed soft delete (from SoftDeletableResource)
         username: Unique username for authentication
-        email: Unique email address
+        email: Email address
         full_name: User's display name
         password_hash: Argon2id hash for local auth (null for federated-only users)
-        is_active: Account activation status
+        is_enabled: Whether the user account is enabled
         last_login: Timestamp of last successful login
         preferences: JSON field for user preferences and settings
 
@@ -48,7 +48,7 @@ class User(SoftDeletableResource, table=True):
         "username",
         "email",
         "full_name",
-        "is_active",
+        "is_enabled",
     ]
 
     # Sortable fields for API list endpoints
@@ -70,11 +70,11 @@ class User(SoftDeletableResource, table=True):
         index=True,
     )
 
-    email: str = Field(
-        min_length=1,
+    email: str | None = Field(
+        default=None,
         max_length=FieldLimits.NAME_MAX_LENGTH,
         sa_type=String(FieldLimits.NAME_MAX_LENGTH),  # type: ignore[call-overload]
-        description="Unique email address",
+        description="Email address",
         index=True,
     )
 
@@ -93,10 +93,18 @@ class User(SoftDeletableResource, table=True):
     )
 
     # Optional fields with defaults
-    is_active: bool = Field(
+    is_enabled: bool = Field(
         default=True,
-        description="Account activation status",
+        description="Whether the user account is enabled",
         index=True,
+        sa_column_kwargs={"server_default": text("true")},
+    )
+
+    is_builtin: bool = Field(
+        default=False,
+        description="Whether this is a built-in system user",
+        index=True,
+        sa_column_kwargs={"server_default": text("false")},
     )
 
     last_login: datetime | None = Field(
@@ -124,13 +132,6 @@ class User(SoftDeletableResource, table=True):
         Index(
             "ix_users_username_unique",
             "username",
-            unique=True,
-            postgresql_where=text("deleted_at IS NULL"),
-        ),
-        # Partial unique index for email (only for non-deleted users)
-        Index(
-            "ix_users_email_unique",
-            "email",
             unique=True,
             postgresql_where=text("deleted_at IS NULL"),
         ),

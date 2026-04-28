@@ -132,13 +132,13 @@ class TestFilterParserSQLAlchemy:
     async def test_apply_filters_boolean_field(self, test_users: list[User], test_db_session: AsyncSession) -> None:
         """Test applying filter to boolean field."""
         query = select(User)
-        filters = [Filter(field="is_active", operator=FilterOperator.EQ, value=True)]
+        filters = [Filter(field="is_enabled", operator=FilterOperator.EQ, value=True)]
 
         filtered_query = apply_filters(query, filters, User)
         result = (await test_db_session.exec(filtered_query)).all()
 
         # Should match active users
-        expected_users = [u for u in test_users if u.is_active]
+        expected_users = [u for u in test_users if u.is_enabled]
         assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
         expected_usernames = {u.username for u in expected_users}
@@ -150,7 +150,7 @@ class TestFilterParserSQLAlchemy:
         """Test applying multiple filters with AND logic."""
         query = select(User)
         filters = [
-            Filter(field="is_active", operator=FilterOperator.EQ, value=True),
+            Filter(field="is_enabled", operator=FilterOperator.EQ, value=True),
             Filter(field="created_at", operator=FilterOperator.GTE, value=datetime(2025, 1, 2, 11, 0, 0)),
         ]
 
@@ -158,7 +158,7 @@ class TestFilterParserSQLAlchemy:
         result = (await test_db_session.exec(filtered_query)).all()
 
         # Should match active users created on/after Jan 2nd
-        expected_users = [u for u in test_users if u.is_active and u.created_at >= datetime(2025, 1, 2, 11, 0, 0)]
+        expected_users = [u for u in test_users if u.is_enabled and u.created_at >= datetime(2025, 1, 2, 11, 0, 0)]
         assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
         expected_usernames = {u.username for u in expected_users}
@@ -179,14 +179,14 @@ class TestFilterParserSQLAlchemy:
         # Parse filters from query parameters
         params = {
             "username[starts_with]": "a",
-            "is_active": "1",  # String representation of boolean
+            "is_enabled": "1",  # String representation of boolean
         }
-        allowed_fields = ["username", "is_active"]
+        allowed_fields = ["username", "is_enabled"]
         filters = parse_filters(params, allowed_fields)
 
         # Convert string "1" to boolean
         for filter_obj in filters:
-            if filter_obj.field == "is_active":
+            if filter_obj.field == "is_enabled":
                 filter_obj.value = bool(int(str(filter_obj.value)))
 
         # Apply to query
@@ -195,7 +195,7 @@ class TestFilterParserSQLAlchemy:
         result = (await test_db_session.exec(filtered_query)).all()
 
         # Should match users starting with 'a' and active
-        expected_users = [u for u in test_users if u.username.startswith("a") and u.is_active]
+        expected_users = [u for u in test_users if u.username.startswith("a") and u.is_enabled]
         assert len(result) == len(expected_users)
         assert result[0].username == expected_users[0].username
 
@@ -267,24 +267,24 @@ class TestFilterParserSQLAlchemy:
         query = select(User)
 
         # Test "true" string converts to True boolean
-        filters = [Filter(field="is_active", operator=FilterOperator.EQ, value="true")]
+        filters = [Filter(field="is_enabled", operator=FilterOperator.EQ, value="true")]
         filtered_query = apply_filters(query, filters, User)
         result = (await test_db_session.exec(filtered_query)).all()
 
         # Should match active users
-        expected_users = [u for u in test_users if u.is_active]
+        expected_users = [u for u in test_users if u.is_enabled]
         assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
         expected_usernames = {u.username for u in expected_users}
         assert usernames == expected_usernames
 
         # Test "false" string converts to False boolean
-        filters = [Filter(field="is_active", operator=FilterOperator.EQ, value="false")]
+        filters = [Filter(field="is_enabled", operator=FilterOperator.EQ, value="false")]
         filtered_query = apply_filters(query, filters, User)
         result = (await test_db_session.exec(filtered_query)).all()
 
         # Should match inactive users
-        expected_users = [u for u in test_users if not u.is_active]
+        expected_users = [u for u in test_users if not u.is_enabled]
         assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
         expected_usernames = {u.username for u in expected_users}
@@ -297,24 +297,24 @@ class TestFilterParserSQLAlchemy:
         query = select(User)
 
         # Test "1" string converts to True boolean
-        filters = [Filter(field="is_active", operator=FilterOperator.EQ, value="1")]
+        filters = [Filter(field="is_enabled", operator=FilterOperator.EQ, value="1")]
         filtered_query = apply_filters(query, filters, User)
         result = (await test_db_session.exec(filtered_query)).all()
 
         # Should match active users
-        expected_users = [u for u in test_users if u.is_active]
+        expected_users = [u for u in test_users if u.is_enabled]
         assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
         expected_usernames = {u.username for u in expected_users}
         assert usernames == expected_usernames
 
         # Test "0" string converts to False boolean
-        filters = [Filter(field="is_active", operator=FilterOperator.EQ, value="0")]
+        filters = [Filter(field="is_enabled", operator=FilterOperator.EQ, value="0")]
         filtered_query = apply_filters(query, filters, User)
         result = (await test_db_session.exec(filtered_query)).all()
 
         # Should match inactive users
-        expected_users = [u for u in test_users if not u.is_active]
+        expected_users = [u for u in test_users if not u.is_enabled]
         assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
         expected_usernames = {u.username for u in expected_users}
@@ -327,48 +327,48 @@ class TestFilterParserSQLAlchemy:
         query = select(User)
 
         # Test "yes" string converts to True boolean
-        filters = [Filter(field="is_active", operator=FilterOperator.EQ, value="yes")]
+        filters = [Filter(field="is_enabled", operator=FilterOperator.EQ, value="yes")]
         filtered_query = apply_filters(query, filters, User)
         result = (await test_db_session.exec(filtered_query)).all()
 
         # Should match active users
-        expected_users = [u for u in test_users if u.is_active]
+        expected_users = [u for u in test_users if u.is_enabled]
         assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
         expected_usernames = {u.username for u in expected_users}
         assert usernames == expected_usernames
 
         # Test "no" string converts to False boolean
-        filters = [Filter(field="is_active", operator=FilterOperator.EQ, value="no")]
+        filters = [Filter(field="is_enabled", operator=FilterOperator.EQ, value="no")]
         filtered_query = apply_filters(query, filters, User)
         result = (await test_db_session.exec(filtered_query)).all()
 
         # Should match inactive users
-        expected_users = [u for u in test_users if not u.is_active]
+        expected_users = [u for u in test_users if not u.is_enabled]
         assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
         expected_usernames = {u.username for u in expected_users}
         assert usernames == expected_usernames
 
         # Test "on" string converts to True boolean
-        filters = [Filter(field="is_active", operator=FilterOperator.EQ, value="on")]
+        filters = [Filter(field="is_enabled", operator=FilterOperator.EQ, value="on")]
         filtered_query = apply_filters(query, filters, User)
         result = (await test_db_session.exec(filtered_query)).all()
 
         # Should match active users
-        expected_users = [u for u in test_users if u.is_active]
+        expected_users = [u for u in test_users if u.is_enabled]
         assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
         expected_usernames = {u.username for u in expected_users}
         assert usernames == expected_usernames
 
         # Test "off" string converts to False boolean
-        filters = [Filter(field="is_active", operator=FilterOperator.EQ, value="off")]
+        filters = [Filter(field="is_enabled", operator=FilterOperator.EQ, value="off")]
         filtered_query = apply_filters(query, filters, User)
         result = (await test_db_session.exec(filtered_query)).all()
 
         # Should match inactive users
-        expected_users = [u for u in test_users if not u.is_active]
+        expected_users = [u for u in test_users if not u.is_enabled]
         assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
         expected_usernames = {u.username for u in expected_users}
@@ -383,12 +383,12 @@ class TestFilterParserSQLAlchemy:
         # Test various case combinations for "true"
         true_variations = ["TRUE", "True", "TrUe", "tRUE"]
         for true_value in true_variations:
-            filters = [Filter(field="is_active", operator=FilterOperator.EQ, value=true_value)]
+            filters = [Filter(field="is_enabled", operator=FilterOperator.EQ, value=true_value)]
             filtered_query = apply_filters(query, filters, User)
             result = (await test_db_session.exec(filtered_query)).all()
 
             # Should match active users
-            expected_users = [u for u in test_users if u.is_active]
+            expected_users = [u for u in test_users if u.is_enabled]
             assert len(result) == len(expected_users)
             usernames = {user.username for user in result}
             expected_usernames = {u.username for u in expected_users}
@@ -397,12 +397,12 @@ class TestFilterParserSQLAlchemy:
         # Test various case combinations for "false"
         false_variations = ["FALSE", "False", "FaLsE", "fALSE"]
         for false_value in false_variations:
-            filters = [Filter(field="is_active", operator=FilterOperator.EQ, value=false_value)]
+            filters = [Filter(field="is_enabled", operator=FilterOperator.EQ, value=false_value)]
             filtered_query = apply_filters(query, filters, User)
             result = (await test_db_session.exec(filtered_query)).all()
 
             # Should match inactive users
-            expected_users = [u for u in test_users if not u.is_active]
+            expected_users = [u for u in test_users if not u.is_enabled]
             assert len(result) == len(expected_users)
             usernames = {user.username for user in result}
             expected_usernames = {u.username for u in expected_users}
@@ -416,7 +416,7 @@ class TestFilterParserSQLAlchemy:
         invalid_values = ["invalid", "maybe", "sometimes", "2", "-1", "null", ""]
 
         for invalid_value in invalid_values:
-            filters = [Filter(field="is_active", operator=FilterOperator.EQ, value=invalid_value)]
+            filters = [Filter(field="is_enabled", operator=FilterOperator.EQ, value=invalid_value)]
 
             with pytest.raises(SafeValueError, match="Invalid boolean value"):
                 apply_filters(query, filters, User)
@@ -426,8 +426,8 @@ class TestFilterParserSQLAlchemy:
     ) -> None:
         """Test complete workflow: parse boolean query parameters and apply filters."""
         # Test the exact scenario that was failing: enabled[eq]=false
-        params = {"is_active[eq]": "false"}
-        allowed_fields = ["is_active"]
+        params = {"is_enabled[eq]": "false"}
+        allowed_fields = ["is_enabled"]
 
         # Parse filters from query parameters
         filters = parse_filters(params, allowed_fields)
@@ -438,16 +438,16 @@ class TestFilterParserSQLAlchemy:
         result = (await test_db_session.exec(filtered_query)).all()
 
         # Should match inactive users
-        expected_users = [u for u in test_users if not u.is_active]
+        expected_users = [u for u in test_users if not u.is_enabled]
         assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
         expected_usernames = {u.username for u in expected_users}
         assert usernames == expected_usernames
         for user in result:
-            assert user.is_active is False
+            assert user.is_enabled is False
 
         # Test the opposite: enabled[eq]=true
-        params = {"is_active[eq]": "true"}
+        params = {"is_enabled[eq]": "true"}
         filters = parse_filters(params, allowed_fields)
 
         query = select(User)
@@ -455,21 +455,21 @@ class TestFilterParserSQLAlchemy:
         result = (await test_db_session.exec(filtered_query)).all()
 
         # Should match active users
-        expected_users = [u for u in test_users if u.is_active]
+        expected_users = [u for u in test_users if u.is_enabled]
         assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
         expected_usernames = {u.username for u in expected_users}
         assert usernames == expected_usernames
         for user in result:
-            assert user.is_active is True
+            assert user.is_enabled is True
 
     async def test_boolean_filtering_mixed_with_other_filters(
         self, test_users: list[User], test_db_session: AsyncSession
     ) -> None:
         """Test boolean filtering combined with other filter types."""
         # Test boolean + datetime filter
-        params = {"is_active[eq]": "true", "created_at[gte]": "2025-01-02T11:00:00"}
-        allowed_fields = ["is_active", "created_at"]
+        params = {"is_enabled[eq]": "true", "created_at[gte]": "2025-01-02T11:00:00"}
+        allowed_fields = ["is_enabled", "created_at"]
         filters = parse_filters(params, allowed_fields)
 
         query = select(User)
@@ -477,15 +477,15 @@ class TestFilterParserSQLAlchemy:
         result = (await test_db_session.exec(filtered_query)).all()
 
         # Should match active users created on/after Jan 2nd
-        expected_users = [u for u in test_users if u.is_active and u.created_at >= datetime(2025, 1, 2, 11, 0, 0)]
+        expected_users = [u for u in test_users if u.is_enabled and u.created_at >= datetime(2025, 1, 2, 11, 0, 0)]
         assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
         expected_usernames = {u.username for u in expected_users}
         assert usernames == expected_usernames
 
         # Test boolean + string filter
-        params = {"is_active[eq]": "false", "username[starts_with]": "c"}
-        allowed_fields = ["is_active", "username"]
+        params = {"is_enabled[eq]": "false", "username[starts_with]": "c"}
+        allowed_fields = ["is_enabled", "username"]
         filters = parse_filters(params, allowed_fields)
 
         query = select(User)
@@ -493,10 +493,10 @@ class TestFilterParserSQLAlchemy:
         result = (await test_db_session.exec(filtered_query)).all()
 
         # Should match inactive users whose username starts with 'c'
-        expected_users = [u for u in test_users if not u.is_active and u.username.startswith("c")]
+        expected_users = [u for u in test_users if not u.is_enabled and u.username.startswith("c")]
         assert len(result) == len(expected_users)
         assert result[0].username == expected_users[0].username
-        assert result[0].is_active is False
+        assert result[0].is_enabled is False
 
 
 @pytest.mark.asyncio
@@ -801,9 +801,9 @@ class TestLogicalORFiltering:
 
     async def test_logical_or_with_boolean_values(self, test_users: list[User], test_db_session: AsyncSession) -> None:
         """Test OR logic with boolean values (though OR with boolean is unusual)."""
-        # Test is_active = true OR = false (which should match everyone)
-        params = {"is_active": "true,false"}
-        allowed_fields = ["is_active"]
+        # Test is_enabled = true OR = false (which should match everyone)
+        params = {"is_enabled": "true,false"}
+        allowed_fields = ["is_enabled"]
         filters = parse_filters(params, allowed_fields)
 
         # Apply to query
@@ -818,15 +818,15 @@ class TestLogicalORFiltering:
         self, test_users: list[User], test_db_session: AsyncSession
     ) -> None:
         """Test OR conditions mixed with AND conditions across different fields."""
-        # username = 'alice' OR 'bob' OR 'charlie' AND is_active = true
+        # username = 'alice' OR 'bob' OR 'charlie' AND is_enabled = true
         params = {
             "username": "alice,bob,charlie",  # OR logic within username field
-            "is_active": "true",  # AND logic with is_active field
+            "is_enabled": "true",  # AND logic with is_enabled field
         }
-        allowed_fields = ["username", "is_active"]
+        allowed_fields = ["username", "is_enabled"]
         filters = parse_filters(params, allowed_fields)
 
-        # Should create 4 filters total: 3 for username OR + 1 for is_active
+        # Should create 4 filters total: 3 for username OR + 1 for is_enabled
         assert len(filters) == 4
 
         # Apply to query
@@ -836,7 +836,7 @@ class TestLogicalORFiltering:
 
         # Should match users in username list who are active
         target_usernames = ["alice", "bob", "charlie"]
-        expected_users = [u for u in test_users if u.username in target_usernames and u.is_active]
+        expected_users = [u for u in test_users if u.username in target_usernames and u.is_enabled]
         assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
         expected_usernames = {u.username for u in expected_users}
@@ -914,13 +914,13 @@ class TestLogicalORFiltering:
         self, test_users: list[User], test_db_session: AsyncSession
     ) -> None:
         """Test complex scenario with OR logic across multiple fields and operators."""
-        # Complex query: (username = 'alice' OR 'eve') AND (created_at >= Jan1 OR >= Jan3) AND is_active
+        # Complex query: (username = 'alice' OR 'eve') AND (created_at >= Jan1 OR >= Jan3) AND is_enabled
         params = {
             "username": "alice,eve",  # OR within username
             "created_at[gte]": "2025-01-01T00:00:00,2025-01-03T00:00:00",  # OR within created_at
-            "is_active": "true",  # Single condition
+            "is_enabled": "true",  # Single condition
         }
-        allowed_fields = ["username", "created_at", "is_active"]
+        allowed_fields = ["username", "created_at", "is_enabled"]
         filters = parse_filters(params, allowed_fields)
 
         # Should create 5 filters total: 2 + 2 + 1
@@ -931,8 +931,8 @@ class TestLogicalORFiltering:
         filtered_query = apply_filters(query, filters, User)
         result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match only alice (username='alice' AND created_at>=Jan1 AND is_active=true)
-        # eve is excluded because is_active=false
+        # Should match only alice (username='alice' AND created_at>=Jan1 AND is_enabled=true)
+        # eve is excluded because is_enabled=false
         alice_user = next(u for u in test_users if u.username == "alice")
         assert len(result) == 1
         assert result[0].username == alice_user.username
@@ -988,9 +988,9 @@ class TestLogicalORFiltering:
         # Test a more permissive scenario
         params = {
             "username": "alice,bob",  # Users alice and bob
-            "is_active": "true",  # Both are active
+            "is_enabled": "true",  # Both are active
         }
-        filters = parse_filters(params, [*allowed_fields, "is_active"])
+        filters = parse_filters(params, [*allowed_fields, "is_enabled"])
 
         query = select(User)
         filtered_query = apply_filters(query, filters, User)
@@ -998,7 +998,7 @@ class TestLogicalORFiltering:
 
         # Should match users in the list who are active
         target_usernames = ["alice", "bob"]
-        expected_users = [u for u in test_users if u.username in target_usernames and u.is_active]
+        expected_users = [u for u in test_users if u.username in target_usernames and u.is_enabled]
         assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
         expected_usernames = {u.username for u in expected_users}
@@ -1109,9 +1109,9 @@ class TestLogicalANDFiltering:
         params = {
             "created_at[gte]": "2025-01-02T00:00:00",
             "created_at[lte]": "2025-01-05T00:00:00",
-            "is_active": "true",
+            "is_enabled": "true",
         }
-        filters = parse_filters(params, ["created_at", "is_active"])
+        filters = parse_filters(params, ["created_at", "is_enabled"])
 
         query = apply_filters(select(User), filters, User)
         result = (await test_db_session.exec(query)).all()

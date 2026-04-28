@@ -7,14 +7,22 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 from nexus.auth.exceptions import SessionStoreUnavailableError
 from nexus.auth.router import (
     _auto_create_user,
+    _build_callback_error_redirect,
+    _build_link_success_redirect,
+    _build_test_signin_response,
+    _create_identity_with_race_handling,
     _exchange_and_validate_tokens,
-    _find_or_create_oidc_user,
     _get_oidc_endpoints,
+    _handle_link_flow,
+    _load_active_user,
     _load_enabled_provider,
+    _OIDCCallbackError,
+    _resolve_oidc_user,
     _revalidate_origin,
     _safe_redirect_url,
     list_auth_providers,
@@ -22,7 +30,7 @@ from nexus.auth.router import (
     oidc_callback,
 )
 from nexus.auth.services.oidc_service import OIDCError, OIDCService
-from nexus.core.models import User
+from nexus.core.models import User, UserIdentity
 from nexus.identity_providers.models.identity_provider import IdentityProvider
 from nexus.identity_providers.models.identity_provider_configuration import OIDCConfiguration
 
@@ -46,7 +54,7 @@ def _make_user(
     user_id: str | None = None,
     email: str = "test@example.com",
     username: str = "testuser",
-    is_active: bool = True,
+    is_enabled: bool = True,
     password_hash: str | None = None,
 ) -> User:
     return User(
@@ -54,8 +62,26 @@ def _make_user(
         username=username,
         email=email,
         full_name="Test User",
-        is_active=is_active,
+        is_enabled=is_enabled,
         password_hash=password_hash,
+    )
+
+
+def _make_identity(
+    *,
+    identity_id: str | None = None,
+    user_id: UUID | None = None,
+    provider_id: UUID | None = None,
+    issuer: str = "https://idp.example.com",
+    subject: str = "test-subject-123",
+) -> UserIdentity:
+    """Build a mock UserIdentity for testing."""
+    return UserIdentity(
+        id=UUID(identity_id) if identity_id else uuid4(),
+        user_id=user_id or uuid4(),
+        identity_provider_id=provider_id or uuid4(),
+        issuer=issuer,
+        subject=subject,
     )
 
 
@@ -281,6 +307,9 @@ class TestOidcAuthorize:
             code_verifier="verifier-123",
             redirect_to=None,
             origin=None,
+            flow_type=None,
+            user_id=None,
+            session_jti=None,
         )
 
     @pytest.mark.asyncio
@@ -449,7 +478,7 @@ class TestOidcCallback:
             )
 
         assert response.status_code == 302
-        assert "auth_error=Requested%20scope%20is%20invalid" in response.headers["location"]
+        assert "auth_error=Authentication%20failed" in response.headers["location"]
 
     @pytest.mark.asyncio
     async def test_handles_missing_code_parameter(self) -> None:
@@ -505,6 +534,8 @@ class TestOidcCallback:
     async def test_successfully_creates_new_user_from_oidc_claims(self) -> None:
         """Should create new user when email doesn't exist."""
         provider = _make_provider(name="Google")
+        new_user = _make_user(email="newuser@example.com", username="newuser")
+        new_identity = _make_identity(user_id=new_user.id, provider_id=provider.id)
         request = _make_request()
 
         state_data = {
@@ -519,14 +550,7 @@ class TestOidcCallback:
         # Provider query
         provider_result = MagicMock()
         provider_result.one_or_none.return_value = provider
-        # User query (no existing user)
-        user_result = MagicMock()
-        user_result.one_or_none.return_value = None
-        # Username collision check (no collision)
-        username_result = MagicMock()
-        username_result.one_or_none.return_value = None
-
-        db.exec.side_effect = [provider_result, user_result, username_result]
+        db.exec.return_value = provider_result
 
         mock_oidc_service = _make_oidc_service_mock(state_data=state_data, user_claims=user_claims)
 
@@ -546,6 +570,8 @@ class TestOidcCallback:
             patch("nexus.auth.router.SessionStore", _patch_session_store(mock_store)),
             patch("nexus.auth.router.get_settings", return_value=mock_settings),
             patch("nexus.auth.router.set_refresh_cookie") as mock_set_cookie,
+            patch("nexus.auth.router._resolve_oidc_user", AsyncMock(return_value=(new_user, new_identity))),
+            patch("nexus.auth.router.sync_idp_groups", AsyncMock()),
         ):
             response = await oidc_callback(
                 state="valid-state",
@@ -557,13 +583,13 @@ class TestOidcCallback:
         assert response.status_code == 302
         assert response.headers["location"] == "http://localhost:3000"
         mock_set_cookie.assert_called_once()
-        db.commit.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_matches_existing_user_by_email(self) -> None:
         """Should find and use existing user when email matches."""
         provider = _make_provider(name="Azure")
         existing_user = _make_user(email="existing@example.com", username="existinguser")
+        existing_identity = _make_identity(user_id=existing_user.id, provider_id=provider.id)
         request = _make_request()
 
         state_data = {
@@ -578,11 +604,7 @@ class TestOidcCallback:
         # Provider query
         provider_result = MagicMock()
         provider_result.one_or_none.return_value = provider
-        # User query (existing user found)
-        user_result = MagicMock()
-        user_result.one_or_none.return_value = existing_user
-
-        db.exec.side_effect = [provider_result, user_result]
+        db.exec.return_value = provider_result
 
         mock_oidc_service = _make_oidc_service_mock(state_data=state_data, user_claims=user_claims)
 
@@ -602,6 +624,8 @@ class TestOidcCallback:
             patch("nexus.auth.router.SessionStore", _patch_session_store(mock_store)),
             patch("nexus.auth.router.get_settings", return_value=mock_settings),
             patch("nexus.auth.router.set_refresh_cookie"),
+            patch("nexus.auth.router._resolve_oidc_user", AsyncMock(return_value=(existing_user, existing_identity))),
+            patch("nexus.auth.router.sync_idp_groups", AsyncMock()),
         ):
             response = await oidc_callback(
                 state="valid-state",
@@ -611,14 +635,11 @@ class TestOidcCallback:
             )
 
         assert response.status_code == 302
-        # Should not have created a new user (no db.add for user)
-        db.commit.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_rejects_inactive_user(self) -> None:
         """Should redirect to login with error for inactive user."""
         provider = _make_provider()
-        inactive_user = _make_user(email="inactive@example.com", is_active=False)
         request = _make_request()
 
         state_data = {
@@ -633,11 +654,7 @@ class TestOidcCallback:
         # Provider query
         provider_result = MagicMock()
         provider_result.one_or_none.return_value = provider
-        # User query (inactive user found)
-        user_result = MagicMock()
-        user_result.one_or_none.return_value = inactive_user
-
-        db.exec.side_effect = [provider_result, user_result]
+        db.exec.return_value = provider_result
 
         mock_oidc_service = _make_oidc_service_mock(state_data=state_data, user_claims=user_claims)
 
@@ -648,6 +665,9 @@ class TestOidcCallback:
         with (
             patch("nexus.auth.router.OIDCService", return_value=mock_oidc_service),
             patch("nexus.auth.router.get_settings", return_value=mock_settings),
+            patch(
+                "nexus.auth.router._resolve_oidc_user", AsyncMock(side_effect=OIDCError("User account is deactivated"))
+            ),
         ):
             response = await oidc_callback(
                 state="valid-state",
@@ -661,7 +681,7 @@ class TestOidcCallback:
 
     @pytest.mark.asyncio
     async def test_handles_username_collision(self) -> None:
-        """Should raise OIDCError when preferred_username already exists."""
+        """Should redirect with error when _resolve_oidc_user fails."""
         provider = _make_provider()
         request = _make_request()
 
@@ -673,21 +693,11 @@ class TestOidcCallback:
 
         user_claims = _make_user_claims(email="newuser@example.com", preferred_username="alice")
 
-        # Existing user with username 'alice'
-        existing_username_user = _make_user(username="alice", email="different@example.com")
-
         db = AsyncMock()
         # Provider query
         provider_result = MagicMock()
         provider_result.one_or_none.return_value = provider
-        # User email query (no existing user with this email)
-        user_result = MagicMock()
-        user_result.one_or_none.return_value = None
-        # Username collision check (collision found)
-        username_collision_result = MagicMock()
-        username_collision_result.one_or_none.return_value = existing_username_user
-
-        db.exec.side_effect = [provider_result, user_result, username_collision_result]
+        db.exec.return_value = provider_result
 
         mock_oidc_service = _make_oidc_service_mock(state_data=state_data, user_claims=user_claims)
 
@@ -698,6 +708,7 @@ class TestOidcCallback:
         with (
             patch("nexus.auth.router.OIDCService", return_value=mock_oidc_service),
             patch("nexus.auth.router.get_settings", return_value=mock_settings),
+            patch("nexus.auth.router._resolve_oidc_user", AsyncMock(side_effect=OIDCError("Username already taken"))),
         ):
             response = await oidc_callback(
                 state="valid-state",
@@ -713,6 +724,8 @@ class TestOidcCallback:
     async def test_sets_refresh_cookie_and_redirects_to_base_url(self) -> None:
         """Should set refresh cookie and redirect to base URL."""
         provider = _make_provider()
+        test_user = _make_user(email="user@example.com")
+        test_identity = _make_identity(user_id=test_user.id, provider_id=provider.id)
         request = _make_request()
 
         state_data = {
@@ -724,17 +737,9 @@ class TestOidcCallback:
         user_claims = _make_user_claims()
 
         db = AsyncMock()
-        # Provider query
         provider_result = MagicMock()
         provider_result.one_or_none.return_value = provider
-        # User query (no existing user)
-        user_result = MagicMock()
-        user_result.one_or_none.return_value = None
-        # Username check (no collision)
-        username_result = MagicMock()
-        username_result.one_or_none.return_value = None
-
-        db.exec.side_effect = [provider_result, user_result, username_result]
+        db.exec.return_value = provider_result
 
         mock_oidc_service = _make_oidc_service_mock(state_data=state_data, user_claims=user_claims)
 
@@ -754,6 +759,8 @@ class TestOidcCallback:
             patch("nexus.auth.router.SessionStore", _patch_session_store(mock_store)),
             patch("nexus.auth.router.get_settings", return_value=mock_settings),
             patch("nexus.auth.router.set_refresh_cookie") as mock_set_cookie,
+            patch("nexus.auth.router._resolve_oidc_user", AsyncMock(return_value=(test_user, test_identity))),
+            patch("nexus.auth.router.sync_idp_groups", AsyncMock()),
         ):
             response = await oidc_callback(
                 state="valid-state",
@@ -773,6 +780,8 @@ class TestOidcCallback:
     async def test_stores_amr_fed_and_idp_in_session(self) -> None:
         """Should store amr=['fed'] and idp in session."""
         provider = _make_provider(name="Okta")
+        test_user = _make_user(email="user@example.com")
+        test_identity = _make_identity(user_id=test_user.id, provider_id=provider.id)
         request = _make_request()
 
         state_data = {
@@ -784,17 +793,9 @@ class TestOidcCallback:
         user_claims = _make_user_claims()
 
         db = AsyncMock()
-        # Provider query
         provider_result = MagicMock()
         provider_result.one_or_none.return_value = provider
-        # User query
-        user_result = MagicMock()
-        user_result.one_or_none.return_value = None
-        # Username check
-        username_result = MagicMock()
-        username_result.one_or_none.return_value = None
-
-        db.exec.side_effect = [provider_result, user_result, username_result]
+        db.exec.return_value = provider_result
 
         mock_oidc_service = _make_oidc_service_mock(state_data=state_data, user_claims=user_claims)
 
@@ -814,6 +815,8 @@ class TestOidcCallback:
             patch("nexus.auth.router.SessionStore", _patch_session_store(mock_store)),
             patch("nexus.auth.router.get_settings", return_value=mock_settings),
             patch("nexus.auth.router.set_refresh_cookie"),
+            patch("nexus.auth.router._resolve_oidc_user", AsyncMock(return_value=(test_user, test_identity))),
+            patch("nexus.auth.router.sync_idp_groups", AsyncMock()),
         ):
             await oidc_callback(
                 state="valid-state",
@@ -865,6 +868,7 @@ class TestOidcCallback:
             patch("nexus.auth.router._get_token_service", return_value=mock_token_service),
             patch("nexus.auth.router.SessionStore", _patch_session_store_unavailable()),
             patch("nexus.auth.router.get_settings", return_value=mock_settings),
+            patch("nexus.auth.router.sync_idp_groups", new_callable=AsyncMock, return_value=True),
             pytest.raises(SessionStoreUnavailableError),
         ):
             await oidc_callback(
@@ -874,7 +878,6 @@ class TestOidcCallback:
                 code="auth-code-123",
             )
 
-        db.rollback.assert_called_once()
         db.commit.assert_not_called()
 
 
@@ -933,7 +936,7 @@ class TestExchangeAndValidateTokens:
         config = _make_oidc_config()
         mock_oidc_service = _make_oidc_service_mock(user_claims=_make_user_claims())
 
-        result = await _exchange_and_validate_tokens(
+        user_claims, _raw_merged, id_token_raw = await _exchange_and_validate_tokens(
             oidc_service=mock_oidc_service,
             discovery=discovery,
             config=config,
@@ -943,7 +946,9 @@ class TestExchangeAndValidateTokens:
             nonce="nonce-xyz",
         )
 
-        assert result["email"] == "user@example.com"
+        assert user_claims["email"] == "user@example.com"
+        assert isinstance(_raw_merged, dict)
+        assert isinstance(id_token_raw, str)
         mock_oidc_service.exchange_code_for_tokens.assert_called_once()
         mock_oidc_service.validate_id_token.assert_called_once()
 
@@ -1033,7 +1038,7 @@ class TestExchangeAndValidateTokens:
             }
         )
 
-        result = await _exchange_and_validate_tokens(
+        user_claims, _raw_merged, _id_token_raw = await _exchange_and_validate_tokens(
             oidc_service=mock_oidc_service,
             discovery=discovery,
             config=config,
@@ -1043,8 +1048,8 @@ class TestExchangeAndValidateTokens:
             nonce="nonce",
         )
 
-        assert result["email"] == "user@example.com"
-        assert result["name"] == "Test User"
+        assert user_claims["email"] == "user@example.com"
+        assert user_claims["name"] == "Test User"
         mock_oidc_service.fetch_userinfo.assert_called_once_with(
             "https://idp.example.com/oauth/userinfo", "access-token-123"
         )
@@ -1078,7 +1083,7 @@ class TestExchangeAndValidateTokens:
             }
         )
 
-        result = await _exchange_and_validate_tokens(
+        user_claims, _raw_merged, _id_token_raw = await _exchange_and_validate_tokens(
             oidc_service=mock_oidc_service,
             discovery=discovery,
             config=config,
@@ -1089,9 +1094,9 @@ class TestExchangeAndValidateTokens:
         )
 
         # email from ID token must not be overwritten
-        assert result["email"] == "idtoken@example.com"
+        assert user_claims["email"] == "idtoken@example.com"
         # name should come from userinfo since it was missing
-        assert result["name"] == "Userinfo Name"
+        assert user_claims["name"] == "Userinfo Name"
 
     @pytest.mark.asyncio
     async def test_skips_userinfo_when_claims_complete(self) -> None:
@@ -1168,7 +1173,7 @@ class TestExchangeAndValidateTokens:
         mock_oidc_service.fetch_userinfo = AsyncMock(side_effect=OIDCError("Userinfo failed"))
 
         # Should NOT raise — userinfo failure is non-fatal
-        result = await _exchange_and_validate_tokens(
+        user_claims, _raw_merged, _id_token_raw = await _exchange_and_validate_tokens(
             oidc_service=mock_oidc_service,
             discovery=discovery,
             config=config,
@@ -1178,7 +1183,7 @@ class TestExchangeAndValidateTokens:
             nonce="nonce",
         )
 
-        assert result["email"] is None
+        assert user_claims["email"] is None
 
 
 # =============================================================================
@@ -1186,72 +1191,82 @@ class TestExchangeAndValidateTokens:
 # =============================================================================
 
 
-class TestFindOrCreateOidcUser:
-    """Tests for the _find_or_create_oidc_user helper function."""
+class TestResolveOidcUser:
+    """Tests for the _resolve_oidc_user helper function."""
 
     @pytest.mark.asyncio
-    async def test_returns_existing_user_matched_by_email(self) -> None:
-        """Should return existing user when email matches."""
+    @patch("nexus.auth.router.UserIdentityService")
+    async def test_returns_user_linked_by_identity(self, mock_svc_cls: MagicMock) -> None:
+        """Should return user when identity (issuer, sub) is found."""
         existing_user = _make_user(email="existing@example.com")
+        provider = _make_provider()
         user_claims = _make_user_claims(email="existing@example.com")
 
+        mock_svc = mock_svc_cls.return_value
+        mock_identity = MagicMock()
+        mock_identity.user_id = existing_user.id
+        mock_svc.find_by_issuer_and_subject = AsyncMock(return_value=mock_identity)
+
         db = AsyncMock()
         mock_result = MagicMock()
         mock_result.one_or_none.return_value = existing_user
         db.exec.return_value = mock_result
 
-        result = await _find_or_create_oidc_user(db, user_claims, "Test Provider")
-
-        assert result == existing_user
-        # Should not have added a new user
-        db.add.assert_not_called()
+        user, identity = await _resolve_oidc_user(db, user_claims, provider)
+        assert user == existing_user
+        assert identity == mock_identity
 
     @pytest.mark.asyncio
-    async def test_creates_new_user_when_none_exists(self) -> None:
-        """Should create new user when no existing user with email."""
-        user_claims = _make_user_claims(email="newuser@example.com", preferred_username="newuser")
+    @patch("nexus.auth.router.UserIdentityService")
+    async def test_creates_new_user_when_identity_not_found(self, mock_svc_cls: MagicMock) -> None:
+        """Should create a new user when no identity exists for (issuer, sub)."""
+        provider = _make_provider()
+        user_claims = _make_user_claims(email="new@example.com", preferred_username="newuser")
+
+        mock_svc = mock_svc_cls.return_value
+        mock_svc.find_by_issuer_and_subject = AsyncMock(return_value=None)
+        mock_svc.create_identity = AsyncMock()
 
         db = AsyncMock()
-        # User email query (no existing user)
-        user_result = MagicMock()
-        user_result.one_or_none.return_value = None
-        # Username collision check (no collision)
-        username_result = MagicMock()
-        username_result.one_or_none.return_value = None
+        # Username check (not taken)
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = None
+        db.exec.return_value = mock_result
 
-        db.exec.side_effect = [user_result, username_result]
-
-        result = await _find_or_create_oidc_user(db, user_claims, "Test Provider")
-
-        assert result.email == "newuser@example.com"
-        assert result.username == "newuser"
-        assert result.is_active is True
-        assert result.password_hash is None
-        db.add.assert_called_once()
-        db.flush.assert_called_once()
+        user, identity = await _resolve_oidc_user(db, user_claims, provider)
+        assert user.username == "newuser"
+        mock_svc.create_identity.assert_called_once()
+        assert identity is not None
 
     @pytest.mark.asyncio
-    async def test_normalizes_email_to_lowercase_for_lookup(self) -> None:
-        """Should normalize email to lowercase before looking up existing user."""
-        existing_user = _make_user(email="user@example.com")
+    @patch("nexus.auth.router.UserIdentityService")
+    async def test_creates_new_user_with_mixed_case_email(self, mock_svc_cls: MagicMock) -> None:
+        """Should create a new user when identity not found, preserving email from claim."""
+        provider = _make_provider()
         user_claims = _make_user_claims(email="User@Example.COM")
 
+        mock_svc = mock_svc_cls.return_value
+        mock_svc.find_by_issuer_and_subject = AsyncMock(return_value=None)
+        mock_svc.create_identity = AsyncMock()
+
         db = AsyncMock()
+        # Username check (not taken)
         mock_result = MagicMock()
-        mock_result.one_or_none.return_value = existing_user
+        mock_result.one_or_none.return_value = None
         db.exec.return_value = mock_result
 
-        result = await _find_or_create_oidc_user(db, user_claims, "Test Provider")
+        result = await _resolve_oidc_user(db, user_claims, provider)
 
-        assert result == existing_user
-        db.add.assert_not_called()
+        assert result is not None
+        mock_svc.create_identity.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_raises_when_no_email_claim(self) -> None:
         """Should raise OIDCError when email claim is missing."""
+        provider = _make_provider()
         user_claims: dict[str, str | None] = {
             "sub": "user-sub",
-            "email": None,  # Missing email
+            "email": None,
             "name": "Test User",
             "preferred_username": "testuser",
         }
@@ -1259,14 +1274,15 @@ class TestFindOrCreateOidcUser:
         db = AsyncMock()
 
         with pytest.raises(OIDCError):
-            await _find_or_create_oidc_user(db, user_claims, "Test Provider")
+            await _resolve_oidc_user(db, user_claims, provider)
 
     @pytest.mark.asyncio
-    async def test_raises_when_email_has_invalid_format(self) -> None:
-        """Should raise OIDCError when email has no @ sign."""
+    async def test_raises_when_no_sub_claim(self) -> None:
+        """Should raise OIDCError when sub claim is missing."""
+        provider = _make_provider()
         user_claims: dict[str, str | None] = {
-            "sub": "user-sub",
-            "email": "not-an-email",
+            "sub": None,
+            "email": "user@example.com",
             "name": "Test User",
             "preferred_username": "testuser",
         }
@@ -1274,13 +1290,20 @@ class TestFindOrCreateOidcUser:
         db = AsyncMock()
 
         with pytest.raises(OIDCError):
-            await _find_or_create_oidc_user(db, user_claims, "Test Provider")
+            await _resolve_oidc_user(db, user_claims, provider)
 
     @pytest.mark.asyncio
-    async def test_raises_when_user_is_inactive(self) -> None:
-        """Should raise OIDCError when matched user is inactive."""
-        inactive_user = _make_user(email="inactive@example.com", is_active=False)
+    @patch("nexus.auth.router.UserIdentityService")
+    async def test_raises_when_user_is_inactive(self, mock_svc_cls: MagicMock) -> None:
+        """Should raise OIDCError when linked user is inactive."""
+        inactive_user = _make_user(email="inactive@example.com", is_enabled=False)
+        provider = _make_provider()
         user_claims = _make_user_claims(email="inactive@example.com")
+
+        mock_svc = mock_svc_cls.return_value
+        mock_identity = MagicMock()
+        mock_identity.user_id = inactive_user.id
+        mock_svc.find_by_issuer_and_subject = AsyncMock(return_value=mock_identity)
 
         db = AsyncMock()
         mock_result = MagicMock()
@@ -1288,7 +1311,62 @@ class TestFindOrCreateOidcUser:
         db.exec.return_value = mock_result
 
         with pytest.raises(OIDCError):
-            await _find_or_create_oidc_user(db, user_claims, "Test Provider")
+            await _resolve_oidc_user(db, user_claims, provider)
+
+    @pytest.mark.asyncio
+    @patch("nexus.auth.router.UserIdentityService")
+    async def test_removes_stale_identity_for_deleted_user_and_creates_new(self, mock_svc_cls: MagicMock) -> None:
+        """Should remove stale identity when linked user is soft-deleted and create a new user."""
+        deleted_user_id = uuid4()
+        provider = _make_provider()
+        user_claims = _make_user_claims(email="relinked@example.com", preferred_username="relinked")
+
+        mock_svc = mock_svc_cls.return_value
+        mock_identity = MagicMock()
+        mock_identity.id = uuid4()
+        mock_identity.user_id = deleted_user_id
+        mock_svc.find_by_issuer_and_subject = AsyncMock(return_value=mock_identity)
+        mock_svc.delete_identity = AsyncMock()
+        mock_svc.create_identity = AsyncMock()
+
+        db = AsyncMock()
+        # First exec: look up linked user (returns None — soft-deleted)
+        # Subsequent execs: username check (not taken) in _auto_create_user
+        deleted_result = MagicMock()
+        deleted_result.one_or_none.return_value = None
+        not_taken_result = MagicMock()
+        not_taken_result.one_or_none.return_value = None
+        db.exec.side_effect = [deleted_result, not_taken_result]
+
+        user, identity = await _resolve_oidc_user(db, user_claims, provider)
+
+        mock_svc.delete_identity.assert_called_once_with(mock_identity.id, force=True)
+        assert user.username == "relinked"
+        assert identity is not None
+
+    @pytest.mark.asyncio
+    @patch("nexus.auth.router.UserIdentityService")
+    async def test_retries_user_resolution_on_toctou_race(self, mock_svc_cls: MagicMock) -> None:
+        """Should retry once when concurrent user creation causes OIDCError."""
+        provider = _make_provider()
+        user_claims = _make_user_claims(email="race@example.com", preferred_username="racer")
+
+        mock_svc = mock_svc_cls.return_value
+        mock_svc.find_by_issuer_and_subject = AsyncMock(return_value=None)
+        mock_svc.create_identity = AsyncMock()
+
+        db = AsyncMock()
+        not_taken = MagicMock()
+        not_taken.one_or_none.return_value = None
+        db.exec.return_value = not_taken
+        # Attempt 1: flush fails with IntegrityError (wrapped to OIDCError by _auto_create_user)
+        # Attempt 2: flush succeeds
+        db.flush.side_effect = [IntegrityError("race condition", params=None, orig=Exception()), None]
+
+        user, identity = await _resolve_oidc_user(db, user_claims, provider)
+
+        assert user.username == "racer"
+        assert identity is not None
 
 
 # =============================================================================
@@ -1316,7 +1394,7 @@ class TestAutoCreateUser:
         assert result.username == "alice"
         assert result.email == email
         assert result.full_name == "Alice Smith"
-        assert result.is_active is True
+        assert result.is_enabled is True
         assert result.password_hash is None
         db.add.assert_called_once()
         db.flush.assert_called_once()
@@ -1361,20 +1439,79 @@ class TestAutoCreateUser:
             await _auto_create_user(db, email, user_claims, "Okta")
 
     @pytest.mark.asyncio
-    async def test_normalizes_username_and_email_to_lowercase(self) -> None:
-        """Should normalize username and email to lowercase."""
-        email = "Dave@Example.COM"
-        user_claims = _make_user_claims(email=email, preferred_username="DaveSmith", name="Dave Smith")
+    async def test_disambiguates_username_with_random_suffix(self) -> None:
+        """Should append a random hex suffix when username collides."""
+        email = "eve@example.com"
+        sub = "oidc-sub-predictable"
+        user_claims: dict[str, str | None] = {
+            "sub": sub,
+            "email": email,
+            "name": "Eve",
+            "preferred_username": "eve",
+        }
+
+        existing_user = _make_user(username="eve", email="other@example.com")
+
+        db = AsyncMock()
+        # First check: "eve" is taken. Second check: "eve-<suffix>" is not taken.
+        taken_result = MagicMock()
+        taken_result.one_or_none.return_value = existing_user
+        not_taken_result = MagicMock()
+        not_taken_result.one_or_none.return_value = None
+        db.exec.side_effect = [taken_result, not_taken_result]
+
+        result = await _auto_create_user(db, email, user_claims, "Azure")
+
+        assert result.username.startswith("eve-")
+        suffix = result.username.removeprefix("eve-")
+        # Random hex suffix should be 16 chars (token_hex(8))
+        assert len(suffix) == 16
+        # Verify it's hex
+        int(suffix, 16)
+
+    @pytest.mark.asyncio
+    async def test_handles_concurrent_username_collision_on_flush(self) -> None:
+        """Should raise OIDCError when flush hits IntegrityError (TOCTOU race)."""
+        email = "race@example.com"
+        user_claims: dict[str, str | None] = {
+            "sub": "user-sub",
+            "email": email,
+            "name": "Racer",
+            "preferred_username": "racer",
+        }
+
+        db = AsyncMock()
+        # Pre-checks pass (no collision found)
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = None
+        db.exec.return_value = mock_result
+        # But flush fails due to concurrent insert
+        db.flush.side_effect = IntegrityError("ix_users_username_unique", params=None, orig=Exception())
+
+        with pytest.raises(OIDCError, match="Unable to create account"):
+            await _auto_create_user(db, email, user_claims, "Azure")
+
+        db.rollback.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_handles_concurrent_email_collision_on_flush(self) -> None:
+        """Should raise OIDCError when flush hits IntegrityError (TOCTOU race)."""
+        email = "race@example.com"
+        user_claims: dict[str, str | None] = {
+            "sub": "user-sub",
+            "email": email,
+            "name": "Racer",
+            "preferred_username": "racer",
+        }
 
         db = AsyncMock()
         mock_result = MagicMock()
         mock_result.one_or_none.return_value = None
         db.exec.return_value = mock_result
+        db.flush.side_effect = IntegrityError("ix_users_email_unique", params=None, orig=Exception())
 
-        result = await _auto_create_user(db, email, user_claims, "Azure")
-
-        assert result.username == "davesmith"
-        assert result.email == "dave@example.com"
+        with pytest.raises(OIDCError, match="Unable to create account"):
+            await _auto_create_user(db, email, user_claims, "Azure")
 
     @pytest.mark.asyncio
     async def test_uses_preferred_username_as_full_name_fallback(self) -> None:
@@ -1441,22 +1578,31 @@ class TestRevalidateOrigin:
 class TestSafeRedirectUrl:
     """Tests for the _safe_redirect_url open-redirect protection."""
 
-    def test_allows_relative_path(self) -> None:
-        """Should allow simple relative paths."""
-        assert _safe_redirect_url("/dashboard", origin="https://app.example.com") == "/dashboard"
+    def _mock_settings(self, cors_origins: list[str] | None = None) -> MagicMock:
+        mock = MagicMock()
+        mock.cors_allow_origins = cors_origins or ["https://app.example.com"]
+        mock.jwt_issuer = "https://api.example.com"
+        return mock
 
-    def test_allows_matching_origin(self) -> None:
-        """Should allow absolute URLs with the same origin as the stored origin."""
-        assert (
-            _safe_redirect_url("https://app.example.com/page", origin="https://app.example.com")
-            == "https://app.example.com/page"
-        )
+    def test_resolves_relative_path_against_origin(self) -> None:
+        """Should resolve relative paths against the frontend origin."""
+        assert _safe_redirect_url("/dashboard", origin="https://app.example.com") == "https://app.example.com/dashboard"
 
-    def test_rejects_different_origin(self) -> None:
-        """Should reject URLs with a different origin and fall back to stored origin."""
-        assert (
-            _safe_redirect_url("https://evil.com/steal", origin="https://app.example.com") == "https://app.example.com"
-        )
+    def test_allows_url_in_cors_origins(self) -> None:
+        """Should allow absolute URLs whose origin is in CORS_ALLOW_ORIGINS."""
+        with patch("nexus.auth.router.get_settings", return_value=self._mock_settings()):
+            assert (
+                _safe_redirect_url("https://app.example.com/page", origin="https://app.example.com")
+                == "https://app.example.com/page"
+            )
+
+    def test_rejects_url_not_in_cors_origins(self) -> None:
+        """Should reject URLs whose origin is not in CORS_ALLOW_ORIGINS."""
+        with patch("nexus.auth.router.get_settings", return_value=self._mock_settings()):
+            assert (
+                _safe_redirect_url("https://evil.com/steal", origin="https://app.example.com")
+                == "https://app.example.com"
+            )
 
     def test_rejects_protocol_relative_url(self) -> None:
         """Should reject protocol-relative URLs like //evil.com."""
@@ -1472,19 +1618,631 @@ class TestSafeRedirectUrl:
 
     def test_falls_back_to_jwt_issuer_when_no_origin(self) -> None:
         """Should fall back to jwt_issuer when no stored origin is available."""
-        mock_settings = MagicMock()
-        mock_settings.jwt_issuer = "https://api.example.com"
-
-        with patch("nexus.auth.router.get_settings", return_value=mock_settings):
+        with patch("nexus.auth.router.get_settings", return_value=self._mock_settings()):
             assert _safe_redirect_url(None) == "https://api.example.com"
 
     def test_rejects_different_scheme(self) -> None:
-        """Should reject URLs with a different scheme (e.g. http vs https)."""
-        assert (
-            _safe_redirect_url("http://app.example.com/page", origin="https://app.example.com")
-            == "https://app.example.com"
-        )
+        """Should reject URLs with different scheme even if netloc matches."""
+        with patch("nexus.auth.router.get_settings", return_value=self._mock_settings()):
+            assert (
+                _safe_redirect_url("http://app.example.com/page", origin="https://app.example.com")
+                == "https://app.example.com"
+            )
 
     def test_rejects_javascript_uri(self) -> None:
         """Should reject javascript: URIs."""
-        assert _safe_redirect_url("javascript:alert(1)", origin="https://app.example.com") == "https://app.example.com"
+        with patch("nexus.auth.router.get_settings", return_value=self._mock_settings()):
+            assert (
+                _safe_redirect_url("javascript:alert(1)", origin="https://app.example.com") == "https://app.example.com"
+            )
+
+    def test_rejects_when_cors_origins_contains_wildcard(self) -> None:
+        """Should reject absolute URLs when CORS origins contain a wildcard."""
+        with patch("nexus.auth.router.get_settings", return_value=self._mock_settings(cors_origins=["*"])):
+            assert (
+                _safe_redirect_url("https://app.example.com/page", origin="https://app.example.com")
+                == "https://app.example.com"
+            )
+
+
+# =============================================================================
+# Handle Link Flow
+# =============================================================================
+
+
+class TestHandleLinkFlow:
+    """Tests for the _handle_link_flow helper function."""
+
+    @pytest.mark.asyncio
+    @patch("nexus.auth.router.SessionStore")
+    async def test_rejects_when_session_expired(self, mock_store_cls: MagicMock) -> None:
+        """Should raise OIDCError when the session JTI is no longer valid."""
+        provider = _make_provider()
+        user_claims = _make_user_claims(email="user@example.com")
+        state_data = {
+            "user_id": str(uuid4()),
+            "session_jti": "expired-jti",
+        }
+
+        mock_store = AsyncMock()
+        mock_store.get = AsyncMock(return_value=None)
+        mock_store_cls.return_value.__aenter__ = AsyncMock(return_value=mock_store)
+        mock_store_cls.return_value.__aexit__ = AsyncMock(return_value=None)
+
+        db = AsyncMock()
+
+        with pytest.raises(OIDCError, match="Session expired"):
+            await _handle_link_flow(db, state_data, user_claims, provider)
+
+    @pytest.mark.asyncio
+    @patch("nexus.auth.router.UserIdentityService")
+    @patch("nexus.auth.router.SessionStore")
+    async def test_succeeds_when_session_is_valid(self, mock_store_cls: MagicMock, mock_svc_cls: MagicMock) -> None:
+        """Should create identity when session is still active."""
+        user = _make_user(email="user@example.com")
+        provider = _make_provider()
+        user_claims = _make_user_claims(email="user@example.com")
+        state_data = {
+            "user_id": str(user.id),
+            "session_jti": "valid-jti",
+        }
+
+        # Session store returns valid session with matching user_id
+        mock_session = MagicMock()
+        mock_session.user_id = str(user.id)
+        mock_store = AsyncMock()
+        mock_store.get = AsyncMock(return_value=mock_session)
+        mock_store_cls.return_value.__aenter__ = AsyncMock(return_value=mock_store)
+        mock_store_cls.return_value.__aexit__ = AsyncMock(return_value=None)
+
+        # Identity service
+        mock_svc = mock_svc_cls.return_value
+        mock_svc.find_by_issuer_and_subject = AsyncMock(return_value=None)
+        mock_svc.create_identity = AsyncMock()
+
+        # DB: _load_active_user returns user
+        db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = user
+        db.exec.return_value = mock_result
+
+        result = await _handle_link_flow(db, state_data, user_claims, provider)
+
+        assert result == user
+        mock_svc.create_identity.assert_called_once()
+
+    @pytest.mark.asyncio
+    @patch("nexus.auth.router.UserIdentityService")
+    async def test_proceeds_without_session_jti(self, mock_svc_cls: MagicMock) -> None:
+        """Should skip session verification when no session_jti in state (backwards compat)."""
+        user = _make_user(email="user@example.com")
+        provider = _make_provider()
+        user_claims = _make_user_claims(email="user@example.com")
+        state_data = {
+            "user_id": str(user.id),
+            # no session_jti
+        }
+
+        mock_svc = mock_svc_cls.return_value
+        mock_svc.find_by_issuer_and_subject = AsyncMock(return_value=None)
+        mock_svc.create_identity = AsyncMock()
+
+        db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = user
+        db.exec.return_value = mock_result
+
+        result = await _handle_link_flow(db, state_data, user_claims, provider)
+
+        assert result == user
+
+    @pytest.mark.asyncio
+    @patch("nexus.auth.router.UserIdentityService")
+    async def test_rejects_identity_already_linked_to_same_user(self, mock_svc_cls: MagicMock) -> None:
+        """Should raise when identity is already linked to the requesting user."""
+        user = _make_user(email="user@example.com")
+        provider = _make_provider()
+        user_claims = _make_user_claims(email="user@example.com")
+        state_data = {"user_id": str(user.id)}
+
+        mock_svc = mock_svc_cls.return_value
+        existing_identity = MagicMock()
+        existing_identity.user_id = user.id
+        mock_svc.find_by_issuer_and_subject = AsyncMock(return_value=existing_identity)
+
+        db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = user
+        db.exec.return_value = mock_result
+
+        with pytest.raises(OIDCError, match="already linked to your account"):
+            await _handle_link_flow(db, state_data, user_claims, provider)
+
+    @pytest.mark.asyncio
+    @patch("nexus.auth.router.UserIdentityService")
+    async def test_rejects_identity_linked_to_another_user(self, mock_svc_cls: MagicMock) -> None:
+        """Should raise when identity is already linked to a different user."""
+        user = _make_user(email="user@example.com")
+        other_user = _make_user(email="other@example.com")
+        provider = _make_provider()
+        user_claims = _make_user_claims(email="user@example.com")
+        state_data = {"user_id": str(user.id)}
+
+        mock_svc = mock_svc_cls.return_value
+        existing_identity = MagicMock()
+        existing_identity.user_id = other_user.id
+        mock_svc.find_by_issuer_and_subject = AsyncMock(return_value=existing_identity)
+
+        db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = other_user
+        db.exec.return_value = mock_result
+
+        with pytest.raises(OIDCError, match="already linked to another account"):
+            await _handle_link_flow(db, state_data, user_claims, provider)
+
+
+# =============================================================================
+# Auto Create User (from resolve flow)
+# =============================================================================
+
+
+class TestAutoCreateUserFromResolveFlow:
+    """Tests for _auto_create_user when called from the identity resolve flow."""
+
+    @pytest.mark.asyncio
+    async def test_always_creates_new_user(self) -> None:
+        """Should always create a new user."""
+        user_claims = _make_user_claims(email="user@example.com", preferred_username="newuser")
+
+        db = AsyncMock()
+        # Username check (not taken)
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = None
+        db.exec.return_value = mock_result
+
+        result = await _auto_create_user(db, "user@example.com", user_claims, "test-provider")
+
+        assert result.username == "newuser"
+        db.add.assert_called_once()
+        db.flush.assert_called_once()
+
+
+# =============================================================================
+# Create Identity with Race Handling
+# =============================================================================
+
+
+class TestCreateIdentityWithRaceHandling:
+    """Tests for the _create_identity_with_race_handling helper function."""
+
+    @pytest.mark.asyncio
+    async def test_creates_identity_on_success(self) -> None:
+        """Should create identity and return refreshed user on success."""
+        user = _make_user(email="user@example.com")
+        provider = _make_provider()
+
+        identity_service = AsyncMock()
+        identity_service.create_identity = AsyncMock()
+
+        db = AsyncMock()
+
+        result_user, result_identity = await _create_identity_with_race_handling(
+            db, identity_service, user, provider, "https://idp.example.com", "sub-123"
+        )
+
+        identity_service.create_identity.assert_called_once_with(
+            user_id=user.id,
+            identity_provider_id=provider.id,
+            issuer="https://idp.example.com",
+            subject="sub-123",
+        )
+        db.refresh.assert_called_once_with(user)
+        assert result_user == user
+        assert result_identity is not None
+
+    @pytest.mark.asyncio
+    async def test_handles_integrity_error_by_resolving_existing(self) -> None:
+        """Should handle IntegrityError by looking up the winning identity."""
+        user = _make_user(email="user@example.com")
+        winner_user = _make_user(email="winner@example.com")
+        provider = _make_provider()
+
+        identity_service = AsyncMock()
+        identity_service.create_identity = AsyncMock(
+            side_effect=IntegrityError("duplicate", params=None, orig=Exception())
+        )
+        mock_identity = MagicMock()
+        mock_identity.user_id = winner_user.id
+        identity_service.find_by_issuer_and_subject = AsyncMock(return_value=mock_identity)
+
+        db = AsyncMock()
+        # After rollback, _load_active_user query
+        user_result = MagicMock()
+        user_result.one_or_none.return_value = winner_user
+        db.exec.return_value = user_result
+
+        result_user, result_identity = await _create_identity_with_race_handling(
+            db, identity_service, user, provider, "https://idp.example.com", "sub-123"
+        )
+
+        db.rollback.assert_called_once()
+        identity_service.find_by_issuer_and_subject.assert_called_once_with("https://idp.example.com", "sub-123")
+        assert result_user == winner_user
+        assert result_identity == mock_identity
+
+    @pytest.mark.asyncio
+    async def test_raises_oidc_error_when_race_identity_not_found(self) -> None:
+        """Should raise OIDCError when IntegrityError occurs but identity can't be found."""
+        user = _make_user(email="user@example.com")
+        provider = _make_provider()
+
+        identity_service = AsyncMock()
+        identity_service.create_identity = AsyncMock(
+            side_effect=IntegrityError("duplicate", params=None, orig=Exception())
+        )
+        identity_service.find_by_issuer_and_subject = AsyncMock(return_value=None)
+
+        db = AsyncMock()
+
+        with pytest.raises(OIDCError, match="Unable to sign in"):
+            await _create_identity_with_race_handling(
+                db, identity_service, user, provider, "https://idp.example.com", "sub-123"
+            )
+
+
+# =============================================================================
+# Load Active User
+# =============================================================================
+
+
+class TestLoadActiveUser:
+    """Tests for the _load_active_user helper function."""
+
+    @pytest.mark.asyncio
+    async def test_returns_active_user(self) -> None:
+        """Should return the user when they exist and are active."""
+        user = _make_user(email="active@example.com")
+        db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = user
+        db.exec.return_value = mock_result
+
+        result = await _load_active_user(db, user.id)
+        assert result == user
+
+    @pytest.mark.asyncio
+    async def test_raises_when_user_deleted(self) -> None:
+        """Should raise OIDCError when user is soft-deleted."""
+        db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = None
+        db.exec.return_value = mock_result
+
+        with pytest.raises(OIDCError, match="deleted"):
+            await _load_active_user(db, uuid4())
+
+    @pytest.mark.asyncio
+    async def test_raises_when_user_inactive(self) -> None:
+        """Should raise OIDCError when user is deactivated."""
+        user = _make_user(email="inactive@example.com", is_enabled=False)
+        db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = user
+        db.exec.return_value = mock_result
+
+        with pytest.raises(OIDCError, match="deactivated"):
+            await _load_active_user(db, user.id)
+
+
+# =============================================================================
+# OIDC Callback — link flow and safety net
+# =============================================================================
+
+
+class TestOidcCallbackLinkFlow:
+    """Tests for link flow and safety-net paths in oidc_callback."""
+
+    @pytest.mark.asyncio
+    async def test_link_flow_redirects_without_creating_session(self) -> None:
+        """Should redirect to redirect_to on successful link flow without creating a session."""
+        user = _make_user(email="user@example.com")
+        provider = _make_provider(name="Azure")
+        request = _make_request()
+
+        state_data = {
+            "provider_id": str(provider.id),
+            "nonce": "nonce-xyz",
+            "code_verifier": "verifier-123",
+            "flow_type": "link",
+            "origin": "https://app.example.com",
+            "redirect_to": "/settings/identities",
+        }
+
+        db = AsyncMock()
+        provider_result = MagicMock()
+        provider_result.one_or_none.return_value = provider
+        db.exec.return_value = provider_result
+
+        mock_oidc_service = _make_oidc_service_mock(state_data=state_data, user_claims=_make_user_claims())
+        mock_settings = MagicMock()
+        mock_settings.jwt_issuer = "https://app.example.com"
+        mock_settings.cors_allow_origins = ["https://app.example.com"]
+
+        with (
+            patch("nexus.auth.router.OIDCService", return_value=mock_oidc_service),
+            patch("nexus.auth.router.get_settings", return_value=mock_settings),
+            patch("nexus.auth.router._process_link_callback", AsyncMock(return_value=user)),
+        ):
+            response = await oidc_callback(
+                state="valid-state",
+                request=request,
+                db=db,
+                code="auth-code",
+            )
+
+        assert response.status_code == 302
+        assert "/settings/identities" in response.headers["location"]
+
+    @pytest.mark.asyncio
+    async def test_link_flow_error_redirects_with_link_error(self) -> None:
+        """Should redirect to redirect_to with link_error param on link flow failure."""
+        from nexus.auth.router import _OIDCCallbackError
+
+        request = _make_request()
+        db = AsyncMock()
+
+        error = _OIDCCallbackError(
+            "This identity is already linked",
+            origin="https://app.example.com",
+            redirect_to="https://app.example.com/settings/identities",
+        )
+
+        mock_settings = MagicMock()
+        mock_settings.jwt_issuer = "https://app.example.com"
+        mock_settings.cors_allow_origins = ["https://app.example.com"]
+
+        with (
+            patch("nexus.auth.router._process_oidc_callback", AsyncMock(side_effect=error)),
+            patch("nexus.auth.router.get_settings", return_value=mock_settings),
+        ):
+            response = await oidc_callback(
+                state="valid-state",
+                request=request,
+                db=db,
+                code="auth-code",
+            )
+
+        assert response.status_code == 302
+        location = response.headers["location"]
+        assert "link_error=" in location
+        assert "settings/identities" in location
+
+    @pytest.mark.asyncio
+    async def test_unexpected_exception_returns_generic_error(self) -> None:
+        """Should catch unexpected exceptions and redirect with generic auth_error."""
+        request = _make_request()
+        db = AsyncMock()
+        mock_settings = MagicMock()
+        mock_settings.jwt_issuer = "http://localhost:3000"
+        mock_settings.cors_allow_origins = ["http://localhost:3000"]
+
+        with (
+            patch("nexus.auth.router._process_oidc_callback", AsyncMock(side_effect=RuntimeError("unexpected"))),
+            patch("nexus.auth.router.get_settings", return_value=mock_settings),
+        ):
+            response = await oidc_callback(
+                state="valid-state",
+                request=request,
+                db=db,
+                code="auth-code",
+            )
+
+        assert response.status_code == 302
+        assert "auth_error=" in response.headers["location"]
+
+
+class TestResolveOidcUserRetryExhausted:
+    """Tests for _resolve_oidc_user when retry is exhausted."""
+
+    @pytest.mark.asyncio
+    @patch("nexus.auth.router.UserIdentityService")
+    async def test_raises_after_two_failures(self, mock_svc_cls: MagicMock) -> None:
+        """Should raise OIDCError when both creation attempts fail."""
+        provider = _make_provider()
+        user_claims = _make_user_claims(email="retry@example.com", preferred_username="retry")
+
+        mock_svc = mock_svc_cls.return_value
+        mock_svc.find_by_issuer_and_subject = AsyncMock(return_value=None)
+
+        db = AsyncMock()
+        not_taken = MagicMock()
+        not_taken.one_or_none.return_value = None
+        db.exec.return_value = not_taken
+        # Both flush attempts fail
+        db.flush.side_effect = [
+            IntegrityError("race", params=None, orig=Exception()),
+            IntegrityError("race again", params=None, orig=Exception()),
+        ]
+
+        with pytest.raises(OIDCError):
+            await _resolve_oidc_user(db, user_claims, provider)
+
+
+# =============================================================================
+# Test Sign-In Flow
+# =============================================================================
+
+
+class TestBuildTestSigninResponse:
+    """Tests for the _build_test_signin_response helper."""
+
+    def test_encodes_claims_as_base64_in_fragment(self) -> None:
+        """Should redirect with base64-encoded claims in the URL fragment."""
+        import base64
+        import json
+
+        claims = {"sub": "user-123", "email": "test@example.com", "groups": ["admin"]}
+
+        mock_settings = MagicMock()
+        mock_settings.jwt_issuer = "http://localhost:3000"
+        mock_settings.cors_allow_origins = ["http://localhost:3000"]
+
+        with patch("nexus.auth.router.get_settings", return_value=mock_settings):
+            response = _build_test_signin_response(claims, "http://localhost:3000")
+
+        assert response.status_code == 302
+        location = response.headers["location"]
+        assert "/auth/test-signin-callback#" in location
+
+        # Extract and decode the fragment
+        fragment = location.split("#", 1)[1]
+        decoded = json.loads(base64.urlsafe_b64decode(fragment))
+        assert decoded["sub"] == "user-123"
+        assert decoded["email"] == "test@example.com"
+        assert decoded["groups"] == ["admin"]
+
+    def test_uses_origin_for_redirect_url(self) -> None:
+        """Should use the provided origin as the base URL."""
+        mock_settings = MagicMock()
+        mock_settings.jwt_issuer = "http://localhost:3000"
+        mock_settings.cors_allow_origins = ["http://app.example.com"]
+
+        with patch("nexus.auth.router.get_settings", return_value=mock_settings):
+            response = _build_test_signin_response({"sub": "x"}, "http://app.example.com")
+
+        assert response.headers["location"].startswith("http://app.example.com/auth/test-signin-callback#")
+
+    def test_handles_non_serializable_values(self) -> None:
+        """Should handle non-JSON-serializable values via default=str."""
+        claims = {"sub": "user-123", "id": uuid4()}
+
+        mock_settings = MagicMock()
+        mock_settings.jwt_issuer = "http://localhost:3000"
+        mock_settings.cors_allow_origins = ["http://localhost:3000"]
+
+        with patch("nexus.auth.router.get_settings", return_value=mock_settings):
+            response = _build_test_signin_response(claims, "http://localhost:3000")
+
+        assert response.status_code == 302
+
+
+class TestBuildCallbackErrorRedirect:
+    """Tests for the _build_callback_error_redirect helper."""
+
+    def test_auth_error_redirect(self) -> None:
+        """Should redirect with auth_error param for non-link errors."""
+        mock_settings = MagicMock()
+        mock_settings.jwt_issuer = "http://localhost:3000"
+        mock_settings.cors_allow_origins = ["http://localhost:3000"]
+
+        error = _OIDCCallbackError("Something went wrong", origin="http://localhost:3000")
+
+        with patch("nexus.auth.router.get_settings", return_value=mock_settings):
+            response = _build_callback_error_redirect(error)
+
+        assert response.status_code == 302
+        assert "auth_error=Something%20went%20wrong" in response.headers["location"]
+
+    def test_link_error_redirect(self) -> None:
+        """Should redirect with link_error param for link flow errors."""
+        mock_settings = MagicMock()
+        mock_settings.jwt_issuer = "http://localhost:3000"
+        mock_settings.cors_allow_origins = ["http://localhost:3000"]
+
+        error = _OIDCCallbackError(
+            "Identity already linked",
+            origin="http://localhost:3000",
+            redirect_to="http://localhost:3000/settings",
+        )
+
+        with patch("nexus.auth.router.get_settings", return_value=mock_settings):
+            response = _build_callback_error_redirect(error)
+
+        assert response.status_code == 302
+        location = response.headers["location"]
+        assert "link_error=Identity%20already%20linked" in location
+        assert location.startswith("http://localhost:3000/settings")
+
+
+class TestBuildLinkSuccessRedirect:
+    """Tests for the _build_link_success_redirect helper."""
+
+    def test_redirects_to_stored_redirect_to(self) -> None:
+        """Should redirect to the stored redirect_to URL."""
+        user = _make_user()
+        provider = _make_provider(name="TestIdP")
+        state_data = {
+            "origin": "http://localhost:3000",
+            "redirect_to": "http://localhost:3000/settings/identity",
+        }
+
+        mock_settings = MagicMock()
+        mock_settings.cors_allow_origins = ["http://localhost:3000"]
+
+        with patch("nexus.auth.router.get_settings", return_value=mock_settings):
+            response = _build_link_success_redirect(user, provider, state_data)
+
+        assert response.status_code == 302
+        assert response.headers["location"] == "http://localhost:3000/settings/identity"
+
+    def test_handles_none_user(self) -> None:
+        """Should not crash when user is None."""
+        provider = _make_provider(name="TestIdP")
+        state_data = {"origin": "http://localhost:3000"}
+
+        mock_settings = MagicMock()
+        mock_settings.cors_allow_origins = ["http://localhost:3000"]
+
+        with patch("nexus.auth.router.get_settings", return_value=mock_settings):
+            response = _build_link_success_redirect(None, provider, state_data)
+
+        assert response.status_code == 302
+
+
+class TestOIDCCallbackTestSigninFlow:
+    """Tests for test-signin flow through the oidc_callback endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_test_signin_returns_claims_redirect(self) -> None:
+        """Should redirect with claims in fragment for test_signin flow."""
+        provider = _make_provider(name="TestIdP")
+        request = _make_request()
+        raw_claims = {"sub": "user-123", "email": "test@example.com"}
+
+        state_data = {
+            "provider_id": str(provider.id),
+            "nonce": "test-nonce",
+            "code_verifier": "test-verifier",
+            "flow_type": "test_signin",
+            "origin": "http://localhost:3000",
+        }
+
+        mock_oidc_service = _make_oidc_service_mock(state_data=state_data, user_claims=_make_user_claims())
+
+        db = AsyncMock()
+        provider_result = MagicMock()
+        provider_result.one_or_none.return_value = provider
+        db.exec.return_value = provider_result
+
+        mock_settings = MagicMock()
+        mock_settings.jwt_issuer = "http://localhost:3000"
+        mock_settings.cors_allow_origins = ["http://localhost:3000"]
+
+        with (
+            patch("nexus.auth.router.OIDCService", return_value=mock_oidc_service),
+            patch("nexus.auth.router.get_settings", return_value=mock_settings),
+            patch(
+                "nexus.auth.router._exchange_and_validate_tokens",
+                AsyncMock(return_value=(_make_user_claims(), raw_claims, "fake-id-token")),
+            ),
+        ):
+            response = await oidc_callback(
+                state="valid-state",
+                request=request,
+                db=db,
+                code="auth-code-123",
+            )
+
+        assert response.status_code == 302
+        assert "/auth/test-signin-callback#" in response.headers["location"]

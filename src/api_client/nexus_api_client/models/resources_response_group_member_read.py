@@ -9,24 +9,23 @@ from attrs import field as _attrs_field
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.group_read import GroupRead
+    from ..models.group_member_read import GroupMemberRead
 
 
-T = TypeVar("T", bound="GroupListResponse")
+T = TypeVar("T", bound="ResourcesResponseGroupMemberRead")
 
 
 @_attrs_define
-class GroupListResponse:
-    """Paginated list response for groups.
-
+class ResourcesResponseGroupMemberRead:
+    """
     Attributes:
-        resources (list[GroupRead]): Array of resources in current page
+        resources (list[GroupMemberRead]): Array of resources in current page
         next_ (None | str | Unset): Cursor for next page of results
         prev (None | str | Unset): Cursor for previous page of results
         total (int | None | Unset): Total count of resources (only when include_total=true)
     """
 
-    resources: list[GroupRead]
+    resources: list[GroupMemberRead]
     next_: None | str | Unset = UNSET
     prev: None | str | Unset = UNSET
     total: int | None | Unset = UNSET
@@ -74,13 +73,13 @@ class GroupListResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.group_read import GroupRead
+        from ..models.group_member_read import GroupMemberRead
 
         d = dict(src_dict)
         resources = []
         _resources = d.pop("resources")
         for resources_item_data in _resources:
-            resources_item = GroupRead.from_dict(resources_item_data)
+            resources_item = GroupMemberRead.from_dict(resources_item_data)
 
             resources.append(resources_item)
 
@@ -111,15 +110,15 @@ class GroupListResponse:
 
         total = _parse_total(d.pop("total", UNSET))
 
-        group_list_response = cls(
+        resources_response_group_member_read = cls(
             resources=resources,
             next_=next_,
             prev=prev,
             total=total,
         )
 
-        group_list_response.additional_properties = d
-        return group_list_response
+        resources_response_group_member_read.additional_properties = d
+        return resources_response_group_member_read
 
     @property
     def additional_keys(self) -> list[str]:

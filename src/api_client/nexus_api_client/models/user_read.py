@@ -23,21 +23,25 @@ class UserRead:
         Attributes:
             id (UUID):
             username (str):
-            email (str):
             full_name (str):
-            is_active (bool):
+            is_enabled (bool):
             created_at (datetime.datetime):
             updated_at (datetime.datetime):
+            email (None | str | Unset):
+            is_builtin (bool | Unset):  Default: False.
+            has_password (bool | Unset):  Default: False.
             last_login (datetime.datetime | None | Unset):
     """
 
     id: UUID
     username: str
-    email: str
     full_name: str
-    is_active: bool
+    is_enabled: bool
     created_at: datetime.datetime
     updated_at: datetime.datetime
+    email: None | str | Unset = UNSET
+    is_builtin: bool | Unset = False
+    has_password: bool | Unset = False
     last_login: datetime.datetime | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
@@ -46,15 +50,23 @@ class UserRead:
 
         username = self.username
 
-        email = self.email
-
         full_name = self.full_name
 
-        is_active = self.is_active
+        is_enabled = self.is_enabled
 
         created_at = self.created_at.isoformat()
 
         updated_at = self.updated_at.isoformat()
+
+        email: None | str | Unset
+        if isinstance(self.email, Unset):
+            email = UNSET
+        else:
+            email = self.email
+
+        is_builtin = self.is_builtin
+
+        has_password = self.has_password
 
         last_login: None | str | Unset
         if isinstance(self.last_login, Unset):
@@ -70,13 +82,18 @@ class UserRead:
             {
                 "id": id,
                 "username": username,
-                "email": email,
                 "full_name": full_name,
-                "is_active": is_active,
+                "is_enabled": is_enabled,
                 "created_at": created_at,
                 "updated_at": updated_at,
             }
         )
+        if email is not UNSET:
+            field_dict["email"] = email
+        if is_builtin is not UNSET:
+            field_dict["is_builtin"] = is_builtin
+        if has_password is not UNSET:
+            field_dict["has_password"] = has_password
         if last_login is not UNSET:
             field_dict["last_login"] = last_login
 
@@ -89,15 +106,26 @@ class UserRead:
 
         username = d.pop("username")
 
-        email = d.pop("email")
-
         full_name = d.pop("full_name")
 
-        is_active = d.pop("is_active")
+        is_enabled = d.pop("is_enabled")
 
         created_at = isoparse(d.pop("created_at"))
 
         updated_at = isoparse(d.pop("updated_at"))
+
+        def _parse_email(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        email = _parse_email(d.pop("email", UNSET))
+
+        is_builtin = d.pop("is_builtin", UNSET)
+
+        has_password = d.pop("has_password", UNSET)
 
         def _parse_last_login(data: object) -> datetime.datetime | None | Unset:
             if data is None:
@@ -119,11 +147,13 @@ class UserRead:
         user_read = cls(
             id=id,
             username=username,
-            email=email,
             full_name=full_name,
-            is_active=is_active,
+            is_enabled=is_enabled,
             created_at=created_at,
             updated_at=updated_at,
+            email=email,
+            is_builtin=is_builtin,
+            has_password=has_password,
             last_login=last_login,
         )
 

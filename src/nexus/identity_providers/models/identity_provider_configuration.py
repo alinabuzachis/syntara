@@ -5,16 +5,82 @@ Each configuration class defines the required and optional parameters for
 connecting to and interacting with a specific provider type.
 """
 
+from enum import StrEnum
 from typing import Annotated, ClassVar, Literal
+from uuid import UUID
 
-from pydantic import ConfigDict, Field
+import jmespath
+from pydantic import ConfigDict, Field, field_validator
 from sqlmodel import SQLModel
 
+from nexus.core.lib.consumer_configuration import BaseConsumerConfiguration
 
-class OIDCConfiguration(SQLModel):
+
+class OIDCIdpType(StrEnum):
+    """Known OIDC identity provider types for pre-configured UI defaults."""
+
+    AAP = "aap"
+    MICROSOFT_ENTRA = "microsoft_entra"
+    CUSTOM = "custom"
+
+
+class OIDCClaimMapping(SQLModel):
+    """Maps Nexus user fields to IdP-specific OIDC claim names."""
+
+    subject: str = Field(default="sub")
+    email: str = Field(default="email")
+    username: str = Field(default="preferred_username")
+    full_name: str = Field(default="name")
+    groups: str | None = Field(default=None)
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")  # type: ignore[assignment]
+
+
+class OIDCGroupMappingEntry(SQLModel):
+    """API-facing schema for a single IdP-to-Nexus group mapping entry.
+
+    Used in API requests/responses. Actual storage is in the
+    ``idp_group_mapping_entries`` table.
+    """
+
+    idp_group_value: str = Field(min_length=1, description="Group value from the IdP token (e.g. GUID or role name)")
+    nexus_group_id: UUID = Field(description="ID of the Nexus group to map to")
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")  # type: ignore[assignment]
+
+
+def _validate_jmespath(v: str | None) -> str | None:
+    """Validate a JMESPath expression, returning it unchanged or raising ValueError."""
+    if v is None:
+        return v
+    try:
+        jmespath.compile(v)
+    except jmespath.exceptions.JMESPathError as e:
+        msg = f"Invalid group extraction expression: '{v}' is not a valid JMESPath expression"
+        raise ValueError(msg) from e
+    return v
+
+
+def _validate_idp_type(v: str | None) -> str | None:
+    """Validate idp_type against known provider types."""
+    if v is None:
+        return v
+    known = {e.value for e in OIDCIdpType}
+    if v not in known:
+        msg = f"Unknown idp_type '{v}'. Known values: {', '.join(sorted(known))}"
+        raise ValueError(msg)
+    return v
+
+
+class OIDCConfiguration(BaseConsumerConfiguration):
     """Configuration for OIDC (OpenID Connect) providers."""
 
     provider_type: Literal["oidc"] = "oidc"
+
+    idp_type: str | None = Field(
+        default=None,
+        description=f"Identity provider type hint. Known values: {', '.join(v.value for v in OIDCIdpType)}",
+    )
 
     auto_discovery: bool = Field(default=True, description="Use OIDC auto-discovery via .well-known endpoint")
 
@@ -22,7 +88,7 @@ class OIDCConfiguration(SQLModel):
 
     client_id: str = Field(description="OAuth 2.0 client ID")
 
-    client_secret: str = Field(description="OAuth 2.0 client secret")
+    client_secret: str | None = Field(default=None, description="OAuth 2.0 client secret")
 
     redirect_uri: str = Field(description="OAuth 2.0 redirect URI")
 
@@ -33,16 +99,56 @@ class OIDCConfiguration(SQLModel):
     token_endpoint: str | None = Field(default=None, description="Token endpoint URL")
     jwks_uri: str | None = Field(default=None, description="JWKS URI for token verification")
     userinfo_endpoint: str | None = Field(default=None, description="Userinfo endpoint URL (optional)")
+    end_session_endpoint: str | None = Field(
+        default=None, description="OIDC end session endpoint URL for RP-initiated logout"
+    )
 
-    model_config: ClassVar[ConfigDict] = ConfigDict(
-        extra="forbid",
-    )  # type: ignore[assignment]
+    # RP-initiated logout configuration
+    enable_rp_initiated_logout: bool = Field(
+        default=False,
+        description="Enable RP-initiated logout redirect to IdP when user logs out",
+    )
+
+    claim_mapping: OIDCClaimMapping = Field(default_factory=OIDCClaimMapping)
+
+    # Group mapping — jmespath_expression is persisted in JSONB;
+    # group_mapping_entries is a pass-through stored in the idp_group_mapping_entries table.
+    group_jmespath_expression: str | None = Field(
+        default=None, description="JMESPath expression to extract group values from token claims"
+    )
+    group_mapping_entries: list[OIDCGroupMappingEntry] = Field(
+        default_factory=list,
+        exclude=True,
+        description="IdP-to-Nexus group mapping entries",
+    )
+    auto_create_groups: bool = Field(
+        default=False, description="Auto-create Nexus groups from IdP group values on login"
+    )
+
+    @field_validator("idp_type")
+    @classmethod
+    def validate_idp_type(cls, v: str | None) -> str | None:
+        """Validate idp_type against known provider types."""
+        return _validate_idp_type(v)
+
+    @field_validator("group_jmespath_expression")
+    @classmethod
+    def validate_group_jmespath_expression(cls, v: str | None) -> str | None:
+        """Reject syntactically invalid JMESPath expressions at configuration time."""
+        return _validate_jmespath(v)
+
+    @classmethod
+    def sensitive_fields(cls) -> frozenset[str]:
+        """Declare client_secret as a sensitive field for SecretService encryption."""
+        return frozenset({"client_secret"})
 
 
 class OIDCConfigurationResponse(SQLModel):
     """Response schema for OIDC configuration (excludes client_secret)."""
 
     provider_type: Literal["oidc"] = "oidc"
+
+    idp_type: str | None = Field(default=None, description="Identity provider type hint")
 
     auto_discovery: bool = Field(default=True, description="Use OIDC auto-discovery via .well-known endpoint")
 
@@ -58,6 +164,23 @@ class OIDCConfigurationResponse(SQLModel):
     token_endpoint: str | None = Field(default=None, description="Token endpoint URL")
     jwks_uri: str | None = Field(default=None, description="JWKS URI for token verification")
     userinfo_endpoint: str | None = Field(default=None, description="Userinfo endpoint URL (optional)")
+    end_session_endpoint: str | None = Field(
+        default=None, description="OIDC end session endpoint URL for RP-initiated logout"
+    )
+
+    enable_rp_initiated_logout: bool = Field(
+        default=False,
+        description="Enable RP-initiated logout redirect to IdP when user logs out",
+    )
+
+    claim_mapping: OIDCClaimMapping = Field(default_factory=OIDCClaimMapping)
+    group_jmespath_expression: str | None = Field(default=None, description="JMESPath expression for group extraction")
+    group_mapping_entries: list[OIDCGroupMappingEntry] = Field(
+        default_factory=list, description="IdP-to-Nexus group mapping entries"
+    )
+    auto_create_groups: bool = Field(
+        default=False, description="Auto-create Nexus groups from IdP group values on login"
+    )
 
     model_config: ClassVar[ConfigDict] = ConfigDict(
         extra="forbid",
@@ -73,10 +196,15 @@ IdentityProviderConfiguration = Annotated[
 ]
 
 
-class OIDCConfigurationPatch(SQLModel):
+class OIDCConfigurationPatch(BaseConsumerConfiguration):
     """Patch schema for OIDC configuration (client_secret optional — preserves existing if omitted)."""
 
     provider_type: Literal["oidc"] = "oidc"
+
+    idp_type: str | None = Field(
+        default=None,
+        description=f"Identity provider type hint. Known values: {', '.join(v.value for v in OIDCIdpType)}",
+    )
 
     auto_discovery: bool = Field(default=True, description="Use OIDC auto-discovery via .well-known endpoint")
 
@@ -94,10 +222,46 @@ class OIDCConfigurationPatch(SQLModel):
     token_endpoint: str | None = Field(default=None, description="Token endpoint URL")
     jwks_uri: str | None = Field(default=None, description="JWKS URI for token verification")
     userinfo_endpoint: str | None = Field(default=None, description="Userinfo endpoint URL (optional)")
+    end_session_endpoint: str | None = Field(
+        default=None, description="OIDC end session endpoint URL for RP-initiated logout (omit to keep existing)"
+    )
 
-    model_config: ClassVar[ConfigDict] = ConfigDict(
-        extra="forbid",
-    )  # type: ignore[assignment]
+    enable_rp_initiated_logout: bool | None = Field(
+        default=None,
+        description="Enable RP-initiated logout redirect to IdP when user logs out (omit to keep existing)",
+    )
+
+    claim_mapping: OIDCClaimMapping | None = Field(
+        default=None, description="OIDC claim mapping (omit to keep existing)"
+    )
+    group_jmespath_expression: str | None = Field(
+        default=None, description="JMESPath expression for group extraction (omit to keep existing)"
+    )
+    group_mapping_entries: list[OIDCGroupMappingEntry] | None = Field(
+        default=None,
+        exclude=True,
+        description="IdP-to-Nexus group mapping entries (omit to keep existing)",
+    )
+    auto_create_groups: bool | None = Field(
+        default=None, description="Auto-create Nexus groups from IdP group values on login (omit to keep existing)"
+    )
+
+    @field_validator("idp_type")
+    @classmethod
+    def validate_idp_type(cls, v: str | None) -> str | None:
+        """Validate idp_type against known provider types."""
+        return _validate_idp_type(v)
+
+    @field_validator("group_jmespath_expression")
+    @classmethod
+    def validate_group_jmespath_expression(cls, v: str | None) -> str | None:
+        """Reject syntactically invalid JMESPath expressions at configuration time."""
+        return _validate_jmespath(v)
+
+    @classmethod
+    def sensitive_fields(cls) -> frozenset[str]:
+        """Declare client_secret as a sensitive field for SecretService encryption."""
+        return frozenset({"client_secret"})
 
 
 IdentityProviderConfigurationPatchTypes = OIDCConfigurationPatch

@@ -49,7 +49,7 @@ class TestUserFromPayload:
         assert user.id == user_id
         assert user.username == "alice"
         assert user.email == "alice@x.com"
-        assert user.is_active is True
+        assert user.is_enabled is True
 
     def test_raises_invalid_token_for_non_uuid_sub(self) -> None:
         """Should raise InvalidTokenError when sub is not a valid UUID."""

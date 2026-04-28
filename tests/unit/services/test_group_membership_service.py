@@ -1,4 +1,4 @@
-"""Unit tests for GroupsService membership operations.
+"""Unit tests for GroupsService membership and CRUD operations.
 
 Tests cover:
 - Adding members to groups
@@ -6,23 +6,32 @@ Tests cover:
 - Listing group members
 - Listing user groups
 - Declarative set_user_groups
+- Group CRUD (create, update, delete)
+- Helper methods (member counts, enrich, duplicate checks)
 - Error conditions (not found, duplicate)
 """
 
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth.exceptions import (
+    GroupNameConflictError,
     GroupNotFoundError,
     UserAlreadyInGroupError,
     UserNotFoundError,
     UserNotInGroupError,
 )
 from nexus.auth.passwords import hash_password
-from nexus.core.models import User
-from nexus.core.models.group import Group
+from nexus.auth.services.idp_group_sync import sync_idp_groups
+from nexus.core.exceptions import SafeValueError
+from nexus.core.models import User, UserIdentity
+from nexus.core.models.group import Group, user_groups, user_idp_groups
+from nexus.identity_providers.models.identity_provider import IdentityProvider
+from nexus.identity_providers.models.identity_provider_configuration import OIDCConfiguration
+from nexus.identity_providers.models.idp_group_mapping import IdpGroupMappingEntry
 from nexus.users.services.group_service import GroupsService
 
 TEST_PASSWORD = "securepassword123"  # noqa: S105
@@ -379,3 +388,511 @@ async def test_set_user_groups_idempotent(test_db_session: AsyncSession, test_us
     ids1 = {r.id for r in result1.resources}
     ids2 = {r.id for r in result2.resources}
     assert ids1 == ids2
+
+
+# ============================================================================
+# Group CRUD tests
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_create_group_success(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test creating a group via the service."""
+    service = GroupsService(test_db_session, test_user)
+
+    group = await service.create_group(name="new-group", description="A test group")
+
+    assert group.name == "new-group"
+    assert group.description == "A test group"
+    assert group.created_by == test_user.id
+
+
+@pytest.mark.asyncio
+async def test_create_group_duplicate_name(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test GroupNameConflictError on duplicate group name."""
+    service = GroupsService(test_db_session, test_user)
+
+    await service.create_group(name="unique-group", description=None)
+
+    with pytest.raises(GroupNameConflictError):
+        await service.create_group(name="unique-group", description=None)
+
+
+@pytest.mark.asyncio
+async def test_update_group_name(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test updating a group's name."""
+    service = GroupsService(test_db_session, test_user)
+    group = await service.create_group(name="old-name", description=None)
+
+    updated = await service.update_group(group.id, name="new-name")
+
+    assert updated.name == "new-name"
+
+
+@pytest.mark.asyncio
+async def test_update_group_description(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test updating a group's description."""
+    service = GroupsService(test_db_session, test_user)
+    group = await service.create_group(name="desc-group", description="old desc")
+
+    updated = await service.update_group(group.id, description="new desc")
+
+    assert updated.description == "new desc"
+
+
+@pytest.mark.asyncio
+async def test_update_group_empty_name_raises(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test SafeValueError when setting group name to empty string."""
+    service = GroupsService(test_db_session, test_user)
+    group = await service.create_group(name="valid-name", description=None)
+
+    with pytest.raises(SafeValueError, match="cannot be empty"):
+        await service.update_group(group.id, name="")
+
+
+@pytest.mark.asyncio
+async def test_update_group_not_found(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test GroupNotFoundError when updating non-existent group."""
+    service = GroupsService(test_db_session, test_user)
+
+    with pytest.raises(GroupNotFoundError):
+        await service.update_group(uuid4(), name="whatever")
+
+
+@pytest.mark.asyncio
+async def test_update_group_duplicate_name(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test GroupNameConflictError when renaming to an existing name."""
+    service = GroupsService(test_db_session, test_user)
+    await service.create_group(name="taken-name", description=None)
+    group = await service.create_group(name="other-name", description=None)
+
+    with pytest.raises(GroupNameConflictError):
+        await service.update_group(group.id, name="taken-name")
+
+
+@pytest.mark.asyncio
+async def test_delete_group(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test soft deleting a group."""
+    service = GroupsService(test_db_session, test_user)
+    group = await service.create_group(name="delete-me", description=None)
+
+    await service.delete_group(group.id)
+
+    # Should not be findable after soft delete
+    with pytest.raises(GroupNotFoundError):
+        await service.get_group_by_id(group.id)
+
+
+@pytest.mark.asyncio
+async def test_delete_group_not_found(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test GroupNotFoundError when deleting non-existent group."""
+    service = GroupsService(test_db_session, test_user)
+
+    with pytest.raises(GroupNotFoundError):
+        await service.delete_group(uuid4())
+
+
+# ============================================================================
+# Helper method tests
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_member_count(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test getting member count for a single group."""
+    service = GroupsService(test_db_session, test_user)
+    group = await service.create_group(name="count-group", description=None)
+
+    assert await service.get_member_count(group) == 0
+
+    member = await _create_test_user(test_db_session, "countuser", "count@example.com")
+    await service.add_member(group.id, member.id)
+
+    assert await service.get_member_count(group) == 1
+
+
+@pytest.mark.asyncio
+async def test_get_member_counts_empty(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test get_member_counts with empty list."""
+    service = GroupsService(test_db_session, test_user)
+
+    result = await service.get_member_counts([])
+    assert result == {}
+
+
+@pytest.mark.asyncio
+async def test_get_member_counts_multiple_groups(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test get_member_counts returns correct counts for multiple groups."""
+    service = GroupsService(test_db_session, test_user)
+    group_a = await service.create_group(name="count-a", description=None)
+    group_b = await service.create_group(name="count-b", description=None)
+
+    member1 = await _create_test_user(test_db_session, "cntuser1", "cnt1@example.com")
+    member2 = await _create_test_user(test_db_session, "cntuser2", "cnt2@example.com")
+
+    await service.add_member(group_a.id, member1.id)
+    await service.add_member(group_a.id, member2.id)
+    await service.add_member(group_b.id, member1.id)
+
+    counts = await service.get_member_counts(
+        [group_a.id, group_b.id],
+        [group_a.name, group_b.name],
+    )
+    assert counts[group_a.id] == 2
+    assert counts[group_b.id] == 1
+
+
+@pytest.mark.asyncio
+async def test_enrich_group_read(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test enrich_group_read converts Group to GroupRead with member_count."""
+    service = GroupsService(test_db_session, test_user)
+    group = await service.create_group(name="enrich-group", description="test")
+
+    read = service.enrich_group_read(group, member_count=42)
+
+    assert read.name == "enrich-group"
+    assert read.member_count == 42
+
+
+@pytest.mark.asyncio
+async def test_convert_resource_mixin(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test GroupConvertResourceMixin.convert_resource."""
+    service = GroupsService(test_db_session, test_user)
+    group = await service.create_group(name="convert-group", description="test")
+
+    read = service.convert_resource_mixin.convert_resource(group)
+
+    assert read.name == "convert-group"
+    assert read.id == group.id
+
+
+# ============================================================================
+# Membership source tests
+# ============================================================================
+
+
+async def _create_identity_provider(session: AsyncSession, name: str, created_by: User) -> IdentityProvider:
+    """Create a test identity provider."""
+    provider = IdentityProvider(
+        id=uuid4(),
+        name=name,
+        description=f"Test provider {name}",
+        enabled=True,
+        configuration=OIDCConfiguration(
+            provider_type="oidc",
+            issuer_url=f"https://{name}.example.com",
+            client_id="test-client",
+            client_secret="test-secret",  # noqa: S106
+            redirect_uri="http://localhost:8000/callback",
+        ),
+        created_by=created_by.id,
+        updated_by=created_by.id,
+    )
+    session.add(provider)
+    await session.commit()
+    await session.refresh(provider)
+    return provider
+
+
+@pytest.mark.asyncio
+async def test_list_members_manual_source(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test that manually added members have 'manual' membership source."""
+    service = GroupsService(test_db_session, test_user)
+    group = await _create_test_group(test_db_session, "source-manual-group", test_user)
+    member = await _create_test_user(test_db_session, "src-manual", "srcmanual@example.com")
+
+    await service.add_member(group.id, member.id)
+
+    result = await service.list_members(group.id)
+    assert len(result.resources) == 1
+    assert len(result.resources[0].membership_sources) == 1
+    assert result.resources[0].membership_sources[0].type == "manual"
+    assert result.resources[0].membership_sources[0].provider_name is None
+
+
+@pytest.mark.asyncio
+async def test_list_members_idp_source(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test that IdP-tracked members have 'idp' membership source with provider info."""
+    service = GroupsService(test_db_session, test_user)
+    group = await _create_test_group(test_db_session, "source-idp-group", test_user)
+    member = await _create_test_user(test_db_session, "src-idp", "srcidp@example.com")
+    provider = await _create_identity_provider(test_db_session, "azure-idp", test_user)
+
+    await service.add_member(group.id, member.id)
+
+    # Simulate IdP tracking entry
+    await test_db_session.execute(
+        user_idp_groups.insert().values(
+            user_id=member.id,
+            identity_provider_id=provider.id,
+            group_id=group.id,
+        )
+    )
+    await test_db_session.commit()
+
+    result = await service.list_members(group.id)
+    assert len(result.resources) == 1
+    sources = result.resources[0].membership_sources
+    assert any(s.type == "idp" and s.provider_name == "azure-idp" for s in sources)
+
+
+@pytest.mark.asyncio
+async def test_list_user_groups_manual_source(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test that user groups without IdP tracking show 'manual' source."""
+    service = GroupsService(test_db_session, test_user)
+    group = await _create_test_group(test_db_session, "usr-src-manual", test_user)
+    member = await _create_test_user(test_db_session, "usr-manual", "usrmanual@example.com")
+
+    await service.add_member(group.id, member.id)
+
+    result = await service.list_user_groups(member.id)
+    assert len(result.resources) == 1
+    assert len(result.resources[0].membership_sources) == 1
+    assert result.resources[0].membership_sources[0].type == "manual"
+
+
+@pytest.mark.asyncio
+async def test_list_user_groups_idp_source(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test that user groups with IdP tracking show 'idp' source."""
+    service = GroupsService(test_db_session, test_user)
+    group = await _create_test_group(test_db_session, "usr-src-idp", test_user)
+    member = await _create_test_user(test_db_session, "usr-idp", "usridp@example.com")
+    provider = await _create_identity_provider(test_db_session, "keycloak-idp", test_user)
+
+    await service.add_member(group.id, member.id)
+
+    await test_db_session.execute(
+        user_idp_groups.insert().values(
+            user_id=member.id,
+            identity_provider_id=provider.id,
+            group_id=group.id,
+        )
+    )
+    await test_db_session.commit()
+
+    result = await service.list_user_groups(member.id)
+    assert len(result.resources) == 1
+    sources = result.resources[0].membership_sources
+    assert any(s.type == "idp" and s.provider_name == "keycloak-idp" for s in sources)
+
+
+@pytest.mark.asyncio
+async def test_membership_sources_empty_groups(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test that _get_membership_sources returns empty dict for empty group list."""
+    service = GroupsService(test_db_session, test_user)
+    result = await service._get_membership_sources(test_user.id, [])
+    assert result == {}
+
+
+@pytest.mark.asyncio
+async def test_member_sources_empty_users(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test that _get_member_sources returns empty dict for empty user list."""
+    service = GroupsService(test_db_session, test_user)
+    result = await service._get_member_sources(uuid4(), [])
+    assert result == {}
+
+
+# ============================================================================
+# sync_idp_groups integration tests (real DB)
+# ============================================================================
+
+
+async def _create_user_identity(session: AsyncSession, user: User, provider: IdentityProvider) -> UserIdentity:
+    """Create a UserIdentity linking a user to a provider."""
+    identity = UserIdentity(
+        id=uuid4(),
+        user_id=user.id,
+        identity_provider_id=provider.id,
+        issuer=provider.configuration.issuer_url,
+        subject=f"sub-{user.username}",
+    )
+    session.add(identity)
+    await session.commit()
+    await session.refresh(identity)
+    return identity
+
+
+async def _create_mapping_entry(
+    session: AsyncSession,
+    provider_id: UUID,
+    idp_value: str,
+    group_id: UUID,
+) -> IdpGroupMappingEntry:
+    """Create an IdP group mapping entry."""
+    entry = IdpGroupMappingEntry(
+        identity_provider_id=provider_id,
+        idp_group_value=idp_value,
+        nexus_group_id=group_id,
+    )
+    session.add(entry)
+    await session.commit()
+    return entry
+
+
+async def _get_user_group_ids(session: AsyncSession, user_id: UUID) -> set[UUID]:
+    """Get all group IDs a user belongs to."""
+    result = await session.execute(select(user_groups.c.group_id).where(user_groups.c.user_id == user_id))
+    return {row[0] for row in result}
+
+
+async def _get_user_idp_group_ids(
+    session: AsyncSession,
+    user_id: UUID,
+    provider_id: UUID,
+) -> set[UUID]:
+    """Get group IDs tracked by a specific provider for a user."""
+    result = await session.execute(
+        select(user_idp_groups.c.group_id).where(
+            user_idp_groups.c.user_id == user_id,
+            user_idp_groups.c.identity_provider_id == provider_id,
+        )
+    )
+    return {row[0] for row in result}
+
+
+@pytest.mark.asyncio
+async def test_sync_idp_groups_adds_memberships(test_db_session: AsyncSession, test_user: User) -> None:
+    """sync_idp_groups should add user to matched groups and track in user_idp_groups."""
+    provider = await _create_identity_provider(test_db_session, "sync-add-idp", test_user)
+    member = await _create_test_user(test_db_session, "sync-add-user", "syncadd@example.com")
+    identity = await _create_user_identity(test_db_session, member, provider)
+
+    group_a = await _create_test_group(test_db_session, "sync-group-a", test_user)
+    group_b = await _create_test_group(test_db_session, "sync-group-b", test_user)
+
+    await _create_mapping_entry(test_db_session, provider.id, "idp-admins", group_a.id)
+    await _create_mapping_entry(test_db_session, provider.id, "idp-devs", group_b.id)
+
+    config = OIDCConfiguration(
+        provider_type="oidc",
+        issuer_url=provider.configuration.issuer_url,
+        client_id="c",
+        client_secret="s",  # noqa: S106
+        redirect_uri="http://localhost/cb",
+        group_jmespath_expression="groups[*]",
+    )
+
+    result = await sync_idp_groups(
+        test_db_session,
+        member,
+        identity,
+        {"groups": ["idp-admins", "idp-devs"]},
+        config,
+    )
+    await test_db_session.commit()
+
+    assert result is True
+    assert await _get_user_group_ids(test_db_session, member.id) == {group_a.id, group_b.id}
+    assert await _get_user_idp_group_ids(test_db_session, member.id, provider.id) == {group_a.id, group_b.id}
+
+
+@pytest.mark.asyncio
+async def test_sync_idp_groups_removes_stale_memberships(test_db_session: AsyncSession, test_user: User) -> None:
+    """sync_idp_groups should remove groups no longer in the token."""
+    provider = await _create_identity_provider(test_db_session, "sync-rm-idp", test_user)
+    member = await _create_test_user(test_db_session, "sync-rm-user", "syncrm@example.com")
+    identity = await _create_user_identity(test_db_session, member, provider)
+
+    group_keep = await _create_test_group(test_db_session, "sync-keep", test_user)
+    group_remove = await _create_test_group(test_db_session, "sync-remove", test_user)
+
+    await _create_mapping_entry(test_db_session, provider.id, "keep-role", group_keep.id)
+    await _create_mapping_entry(test_db_session, provider.id, "remove-role", group_remove.id)
+
+    config = OIDCConfiguration(
+        provider_type="oidc",
+        issuer_url=provider.configuration.issuer_url,
+        client_id="c",
+        client_secret="s",  # noqa: S106
+        redirect_uri="http://localhost/cb",
+        group_jmespath_expression="groups[*]",
+    )
+
+    # First sync: both groups
+    await sync_idp_groups(
+        test_db_session,
+        member,
+        identity,
+        {"groups": ["keep-role", "remove-role"]},
+        config,
+    )
+    await test_db_session.commit()
+    assert await _get_user_group_ids(test_db_session, member.id) == {group_keep.id, group_remove.id}
+
+    # Second sync: only keep-role in token
+    result = await sync_idp_groups(
+        test_db_session,
+        member,
+        identity,
+        {"groups": ["keep-role"]},
+        config,
+    )
+    await test_db_session.commit()
+
+    assert result is True
+    assert await _get_user_group_ids(test_db_session, member.id) == {group_keep.id}
+    assert await _get_user_idp_group_ids(test_db_session, member.id, provider.id) == {group_keep.id}
+
+
+@pytest.mark.asyncio
+async def test_sync_idp_groups_no_match_returns_false(test_db_session: AsyncSession, test_user: User) -> None:
+    """sync_idp_groups should return False when no mapping entries match."""
+    provider = await _create_identity_provider(test_db_session, "sync-nomatch-idp", test_user)
+    member = await _create_test_user(test_db_session, "sync-nomatch-user", "syncnomatch@example.com")
+    identity = await _create_user_identity(test_db_session, member, provider)
+
+    group = await _create_test_group(test_db_session, "sync-nomatch-group", test_user)
+    await _create_mapping_entry(test_db_session, provider.id, "admin-role", group.id)
+
+    config = OIDCConfiguration(
+        provider_type="oidc",
+        issuer_url=provider.configuration.issuer_url,
+        client_id="c",
+        client_secret="s",  # noqa: S106
+        redirect_uri="http://localhost/cb",
+        group_jmespath_expression="groups[*]",
+    )
+
+    result = await sync_idp_groups(
+        test_db_session,
+        member,
+        identity,
+        {"groups": ["unrelated-role"]},
+        config,
+    )
+    await test_db_session.commit()
+
+    assert result is False
+    assert await _get_user_group_ids(test_db_session, member.id) == set()
+
+
+@pytest.mark.asyncio
+async def test_sync_idp_groups_wildcard_matching(test_db_session: AsyncSession, test_user: User) -> None:
+    """sync_idp_groups should support glob wildcard patterns in mapping entries."""
+    provider = await _create_identity_provider(test_db_session, "sync-wild-idp", test_user)
+    member = await _create_test_user(test_db_session, "sync-wild-user", "syncwild@example.com")
+    identity = await _create_user_identity(test_db_session, member, provider)
+
+    group = await _create_test_group(test_db_session, "sync-wild-group", test_user)
+    await _create_mapping_entry(test_db_session, provider.id, "team-*", group.id)
+
+    config = OIDCConfiguration(
+        provider_type="oidc",
+        issuer_url=provider.configuration.issuer_url,
+        client_id="c",
+        client_secret="s",  # noqa: S106
+        redirect_uri="http://localhost/cb",
+        group_jmespath_expression="groups[*]",
+    )
+
+    result = await sync_idp_groups(
+        test_db_session,
+        member,
+        identity,
+        {"groups": ["team-platform", "other"]},
+        config,
+    )
+    await test_db_session.commit()
+
+    assert result is True
+    assert await _get_user_group_ids(test_db_session, member.id) == {group.id}

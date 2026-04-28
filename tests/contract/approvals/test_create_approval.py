@@ -209,7 +209,7 @@ class TestCreateApprovalContract:
             error_type="https://api.nexus.com/errors/validation-error",
             title="Request Validation Error",
             detail=(
-                "Validation failed: body -> execution_id: Input should be a valid UUID, "
+                "Validation failed: execution_id: Input should be a valid UUID, "
                 "invalid character: expected an optional prefix of `urn:uuid:` followed by [0-9a-fA-F-], found `n` at 1"
             ),
             code="REQUEST_VALIDATION_ERROR",
@@ -231,7 +231,7 @@ class TestCreateApprovalContract:
             error_type="https://api.nexus.com/errors/validation-error",
             title="Request Validation Error",
             detail=(
-                "Validation failed: body -> workflow_context -> workflow_version_id: Input should be a valid UUID, "
+                "Validation failed: workflow_context -> workflow_version_id: Input should be a valid UUID, "
                 "invalid character: expected an optional prefix of `urn:uuid:` followed by [0-9a-fA-F-], found `n` at 1"
             ),
             code="REQUEST_VALIDATION_ERROR",
@@ -271,7 +271,7 @@ class TestCreateApprovalContract:
             response,
             error_type="https://api.nexus.com/errors/validation-error",
             title="Request Validation Error",
-            detail="Validation failed: body -> execution_id: Field required",
+            detail="Validation failed: execution_id: Field required",
             code="REQUEST_VALIDATION_ERROR",
             retryable=False,
         )
@@ -285,7 +285,7 @@ class TestCreateApprovalContract:
             response,
             error_type="https://api.nexus.com/errors/validation-error",
             title="Request Validation Error",
-            detail="Validation failed: body -> approval_node_id: Field required",
+            detail="Validation failed: approval_node_id: Field required",
             code="REQUEST_VALIDATION_ERROR",
             retryable=False,
         )
@@ -299,7 +299,7 @@ class TestCreateApprovalContract:
             response,
             error_type="https://api.nexus.com/errors/validation-error",
             title="Request Validation Error",
-            detail="Validation failed: body -> name: Field required",
+            detail="Validation failed: name: Field required",
             code="REQUEST_VALIDATION_ERROR",
             retryable=False,
         )
@@ -313,7 +313,7 @@ class TestCreateApprovalContract:
             response,
             error_type="https://api.nexus.com/errors/validation-error",
             title="Request Validation Error",
-            detail="Validation failed: body -> workflow_context: Field required",
+            detail="Validation failed: workflow_context: Field required",
             code="REQUEST_VALIDATION_ERROR",
             retryable=False,
         )
@@ -373,7 +373,7 @@ class TestCreateApprovalContract:
             response,
             error_type="https://api.nexus.com/errors/validation-error",
             title="Request Validation Error",
-            detail="Validation failed: body -> next_step_approved -> type: Field required",
+            detail="Validation failed: next_step_approved -> type: Field required",
             code="REQUEST_VALIDATION_ERROR",
             retryable=False,
         )
@@ -441,7 +441,7 @@ class TestCreateApprovalContract:
             response,
             error_type="https://api.nexus.com/errors/validation-error",
             title="Request Validation Error",
-            detail="Validation failed: body -> workflow_context -> workflow_name: Field required",
+            detail="Validation failed: workflow_context -> workflow_name: Field required",
             code="REQUEST_VALIDATION_ERROR",
             retryable=False,
         )

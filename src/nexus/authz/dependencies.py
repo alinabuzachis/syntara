@@ -131,7 +131,12 @@ class PermissionChecker:
             Tuple of (resource_id, resource_project).
 
         """
-        resource_id = request.path_params.get("id", request.path_params.get("workflow_id", ""))
+        # Extract resource_id: use resource_id_param if specified, else default to "id" or "workflow_id"
+        if self.resource_id_param:
+            resource_id = request.path_params.get(self.resource_id_param, "")
+        else:
+            resource_id = request.path_params.get("id", request.path_params.get("workflow_id", ""))
+
         resource_project = ""
 
         # Option 1: project_id in path params
@@ -143,9 +148,8 @@ class PermissionChecker:
                     resource_id = str(project_id)
 
         # Option 2: look up project from the resource itself
-        if not resource_project and self.resource_model and self.resource_id_param:
-            rid = request.path_params.get(self.resource_id_param, "")
-            resource_project = await self._resolve_project_from_resource(db, rid)
+        if not resource_project and self.resource_model and self.resource_id_param and resource_id:
+            resource_project = await self._resolve_project_from_resource(db, resource_id)
 
         # Option 3: extract project_id from request body
         if not resource_project and self.body_project_field:
