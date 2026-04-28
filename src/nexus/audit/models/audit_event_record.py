@@ -146,6 +146,8 @@ class AuditEventRecord(BaseResource, table=True):
         Index("ix_audit_events_activity_id_created_at_id", "activity_id", "created_at", "id"),
         # event_severity queries with date ordering (e.g., "show me errors/warnings")
         Index("ix_audit_events_event_severity_created_at_id", "event_severity", "created_at", "id"),
+        # resource_urn queries with date ordering (e.g., "show me events for resource URN X")
+        Index("ix_audit_events_resource_urn_created_at_id", "resource_urn", "created_at", "id"),
     )
 
     # ------------------------------------------------------------------ #
