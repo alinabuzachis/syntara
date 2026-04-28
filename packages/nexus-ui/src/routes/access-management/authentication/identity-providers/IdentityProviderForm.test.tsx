@@ -25,6 +25,7 @@ vi.mock('../../../../client', () => ({
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
+  OIDC_REDIRECT_URI: 'http://localhost/api/v1/auth/oidc/callback',
 }))
 
 const mockUseParams = vi.fn(() => ({}))
@@ -99,10 +100,10 @@ describe('IdentityProviderForm', () => {
       setupMocks()
       render(<IdentityProviderForm mode="add" />, { wrapper })
 
-      expect(screen.getByLabelText(/Provider Name/)).toBeInTheDocument()
+      expect(screen.getByLabelText(/Provider name/)).toBeInTheDocument()
       expect(screen.getByLabelText(/Issuer URL/)).toBeInTheDocument()
       expect(screen.getByLabelText(/Client ID/)).toBeInTheDocument()
-      expect(screen.getByLabelText(/Client Secret/)).toBeInTheDocument()
+      expect(screen.getByLabelText(/Client secret/)).toBeInTheDocument()
       expect(screen.getByLabelText(/Scopes/)).toBeInTheDocument()
     })
 
@@ -123,10 +124,10 @@ describe('IdentityProviderForm', () => {
       const autoDiscoverySwitch = screen.getByLabelText(/Use OIDC Discovery/)
       await user.click(autoDiscoverySwitch)
 
-      expect(screen.getByLabelText(/Authorization Endpoint/)).toBeInTheDocument()
-      expect(screen.getByLabelText(/Token Endpoint/)).toBeInTheDocument()
+      expect(screen.getByLabelText(/Authorization endpoint/)).toBeInTheDocument()
+      expect(screen.getByLabelText(/Token endpoint/)).toBeInTheDocument()
       expect(screen.getByLabelText(/JWKS URI/)).toBeInTheDocument()
-      expect(screen.getByLabelText(/Userinfo Endpoint/)).toBeInTheDocument()
+      expect(screen.getByLabelText(/Userinfo endpoint/)).toBeInTheDocument()
     })
 
     it('has no accessibility violations', async () => {
@@ -184,11 +185,12 @@ describe('IdentityProviderForm', () => {
     })
 
     it('shows not found state when provider does not exist', () => {
+      const notFoundError = Object.assign(new Error('Not found'), { status: 404 })
       vi.mocked(identityProvidersClient.useQuery).mockReturnValue({
         data: undefined,
         isLoading: false,
         isError: true,
-        error: new Error('Not found'),
+        error: notFoundError,
         refetch: vi.fn(),
       } as never)
       vi.mocked(identityProvidersClient.useMutation).mockReturnValue({
@@ -267,7 +269,7 @@ describe('IdentityProviderForm', () => {
       setupMocks()
 
       vi.mocked(identityProvidersClient.useMutation).mockImplementation(((_method: string, path: string) => {
-        if (path === '/') {
+        if (path === '/identity_providers/') {
           return { mutate: mockCreate, isPending: false }
         }
         return { mutate: vi.fn(), isPending: false }
@@ -277,10 +279,13 @@ describe('IdentityProviderForm', () => {
       render(<IdentityProviderForm mode="add" />, { wrapper })
 
       // Fill required fields
-      await user.type(screen.getByLabelText(/Provider Name/), 'My Provider')
+      // Select Provider Template via PF6 Select dropdown
+      await user.click(screen.getByRole('button', { name: /Select a provider template/ }))
+      await user.click(screen.getByRole('option', { name: /Custom/ }))
+      await user.type(screen.getByLabelText(/Provider name/), 'My Provider')
       await user.type(screen.getByLabelText(/Issuer URL/), 'https://issuer.example.com')
       await user.type(screen.getByLabelText(/Client ID/), 'client-id')
-      await user.type(screen.getByLabelText(/Client Secret/), 'client-secret')
+      await user.type(screen.getByLabelText(/Client secret/), 'client-secret')
 
       await user.click(screen.getByRole('button', { name: 'Add provider' }))
 
@@ -300,7 +305,7 @@ describe('IdentityProviderForm', () => {
       setupMocks()
 
       vi.mocked(identityProvidersClient.useMutation).mockImplementation(((_method: string, path: string) => {
-        if (path === '/') {
+        if (path === '/identity_providers/') {
           return { mutate: mockCreate, isPending: false }
         }
         return { mutate: vi.fn(), isPending: false }
@@ -309,10 +314,13 @@ describe('IdentityProviderForm', () => {
       const user = userEvent.setup()
       render(<IdentityProviderForm mode="add" />, { wrapper })
 
-      await user.type(screen.getByLabelText(/Provider Name/), 'Duplicate')
+      // Select Provider Template via PF6 Select dropdown
+      await user.click(screen.getByRole('button', { name: /Select a provider template/ }))
+      await user.click(screen.getByRole('option', { name: /Custom/ }))
+      await user.type(screen.getByLabelText(/Provider name/), 'Duplicate')
       await user.type(screen.getByLabelText(/Issuer URL/), 'https://issuer.example.com')
       await user.type(screen.getByLabelText(/Client ID/), 'client-id')
-      await user.type(screen.getByLabelText(/Client Secret/), 'secret')
+      await user.type(screen.getByLabelText(/Client secret/), 'secret')
 
       await user.click(screen.getByRole('button', { name: 'Add provider' }))
 
@@ -331,12 +339,12 @@ describe('IdentityProviderForm', () => {
       })
     })
 
-    it('handles test connection success', async () => {
+    it('handles test connection success with RP-logout supported', async () => {
       const mockTest = vi.fn()
       setupMocks()
 
       vi.mocked(identityProvidersClient.useMutation).mockImplementation(((method: string, path: string) => {
-        if (method === 'post' && path === '/test') {
+        if (method === 'post' && path === '/identity_providers/test') {
           return { mutate: mockTest, isPending: false }
         }
         return { mutate: vi.fn(), isPending: false }
@@ -352,15 +360,59 @@ describe('IdentityProviderForm', () => {
         expect(mockTest).toHaveBeenCalled()
       })
 
-      // Simulate success
+      // Simulate success with end_session_endpoint_supported
       act(() => {
-        getMutationCallbacks(mockTest).onSuccess?.({ success: true, message: 'Connected' })
+        getMutationCallbacks(mockTest).onSuccess?.({
+          success: true,
+          message: 'Connected',
+          end_session_endpoint_supported: true,
+        })
       })
 
+      // Toast alerts are shown via showAlert — title renders as the PF Alert heading
+      await waitFor(() => {
+        expect(screen.getByText('Connection successful')).toBeInTheDocument()
+        expect(screen.getByText('Connected')).toBeInTheDocument()
+        expect(screen.getByText('Single logout supported')).toBeInTheDocument()
+      })
+    })
+
+    it('handles test connection success without single logout support', async () => {
+      const mockTest = vi.fn()
+      setupMocks()
+
+      vi.mocked(identityProvidersClient.useMutation).mockImplementation(((method: string, path: string) => {
+        if (method === 'post' && path === '/identity_providers/test') {
+          return { mutate: mockTest, isPending: false }
+        }
+        return { mutate: vi.fn(), isPending: false }
+      }) as never)
+
+      const user = userEvent.setup()
+      render(<IdentityProviderForm mode="add" />, { wrapper })
+
+      await user.type(screen.getByLabelText(/Issuer URL/), 'https://issuer.example.com')
+      await user.click(screen.getByRole('button', { name: 'Test connection' }))
+
+      await waitFor(() => {
+        expect(mockTest).toHaveBeenCalled()
+      })
+
+      // Simulate success without end_session_endpoint_supported
+      act(() => {
+        getMutationCallbacks(mockTest).onSuccess?.({
+          success: true,
+          message: 'Connected',
+          end_session_endpoint_supported: false,
+        })
+      })
+
+      // Only the success toast is shown — no separate single logout toast
       await waitFor(() => {
         expect(screen.getByText('Connection successful')).toBeInTheDocument()
         expect(screen.getByText('Connected')).toBeInTheDocument()
       })
+      expect(screen.queryByText('Single logout supported')).not.toBeInTheDocument()
     })
 
     it('handles test connection failure', async () => {
@@ -368,7 +420,7 @@ describe('IdentityProviderForm', () => {
       setupMocks()
 
       vi.mocked(identityProvidersClient.useMutation).mockImplementation(((method: string, path: string) => {
-        if (method === 'post' && path === '/test') {
+        if (method === 'post' && path === '/identity_providers/test') {
           return { mutate: mockTest, isPending: false }
         }
         return { mutate: vi.fn(), isPending: false }

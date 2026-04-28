@@ -109,14 +109,34 @@ settingsFetchClient.use(authMiddleware)
 export const settingsClient = createClient(settingsFetchClient)
 
 const identityProvidersFetchClient = createFetchClient<IdentityProvidersAPI.paths>({
-  baseUrl: '/api/v1/identity_providers',
+  baseUrl: '/api/v1',
 })
 identityProvidersFetchClient.use(authMiddleware)
 export const identityProvidersClient = createClient(identityProvidersFetchClient)
 
-const authFetchClient = createFetchClient<AuthAPI.paths>({ baseUrl: '/api/v1/auth' })
+const authFetchClient = createFetchClient<AuthAPI.paths>({ baseUrl: '/api/v1' })
 authFetchClient.use(authMiddleware)
 export const authClient = createClient(authFetchClient)
+
+/**
+ * OIDC redirect URLs — full-page navigations handled by the backend, not JSON API calls.
+ * These are not in the OpenAPI contract because the browser navigates to them directly.
+ */
+function resolveBackendOrigin(): string {
+  const raw: unknown = import.meta.env.VITE_API_URL
+  if (typeof raw === 'string' && raw) {
+    try {
+      return new URL(raw).origin
+    } catch {
+      // fall through to default
+    }
+  }
+  return globalThis.location.origin
+}
+
+const backendOrigin = resolveBackendOrigin()
+export const OIDC_REDIRECT_URI = `${backendOrigin}/api/v1/auth/oidc/callback`
+export const OIDC_AUTHORIZE_PATH = '/api/v1/auth/oidc/authorize'
 
 const usersFetchClient = createFetchClient<UsersAPI.paths>({ baseUrl: '/api/v1' })
 usersFetchClient.use(authMiddleware)

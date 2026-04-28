@@ -97,9 +97,11 @@ test.describe('Group Detail — Navigation & Tabs', () => {
     const selectInput = dialog.getByPlaceholder('Search for a user...')
     await selectInput.click()
 
-    // Wait for either options or "No results match" to appear
-    const noResults = dialog.getByText(/No results match/)
-    const firstOption = dialog.getByRole('option').first()
+    // Wait for either options or "No results match" to appear.
+    // PF6 Select renders the listbox in a portal outside the dialog DOM,
+    // so we must query at page level, not scoped to the dialog.
+    const noResults = app.getByRole('option', { name: /No results match/ })
+    const firstOption = app.getByRole('option').first()
     await expect(noResults.or(firstOption)).toBeVisible({ timeout: 15_000 })
 
     if (await noResults.isVisible()) {
@@ -108,23 +110,28 @@ test.describe('Group Detail — Navigation & Tabs', () => {
       return
     }
 
-    const userName = await firstOption.textContent()
+    // The option contains two child spans: username + display name.
+    // Extract just the username (first child text) for later verification.
+    const userName = await firstOption.locator('> *').first().textContent()
     await firstOption.click()
 
     // Submit
     await dialog.getByRole('button', { name: 'Add', exact: true }).click()
 
-    // Verify success
+    // Verify success — wait for the dialog to close and alert to appear
+    await expect(dialog).not.toBeVisible()
     await expect(app.getByText(/member added/i)).toBeVisible()
 
-    // The new member should appear
+    // The new member should appear in the Username column.
+    // The table refetches after a successful add, so allow extra time.
+    // PF6 uses role="grid" / role="gridcell", so match with 'gridcell'.
     if (userName) {
       const memberName = userName.trim()
-      await expect(app.getByRole('cell', { name: memberName })).toBeVisible({ timeout: 5000 })
+      await expect(app.getByRole('gridcell', { name: memberName, exact: true })).toBeVisible({ timeout: 10_000 })
 
       // Now remove the member via kebab menu
       const memberRow = app.getByRole('row').filter({ hasText: memberName })
-      await memberRow.getByRole('button', { name: /actions/i }).click()
+      await memberRow.getByRole('button', { name: /kebab toggle/i }).click()
       await app.getByRole('menuitem', { name: 'Remove' }).click()
 
       // Confirm removal dialog

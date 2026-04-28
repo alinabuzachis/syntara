@@ -14,7 +14,7 @@ const defaultValues: UserFormData = {
   last_name: '',
   email: '',
   password: '',
-  is_active: true,
+  is_enabled: true,
 }
 
 function TestWrapper({ isEdit = false }: { isEdit?: boolean }) {
@@ -40,17 +40,11 @@ describe('UserFormFields', () => {
     expect(screen.getByLabelText('Last Name')).toBeInTheDocument()
     expect(screen.getByLabelText('Email')).toBeInTheDocument()
     expect(screen.getByLabelText('Password')).toBeInTheDocument()
-    expect(screen.getByLabelText('Active')).toBeInTheDocument()
+    expect(screen.getByLabelText('Enabled')).toBeInTheDocument()
   })
 
-  it('disables username field in edit mode', () => {
+  it('enables username field in edit mode', () => {
     render(<TestWrapper isEdit />)
-
-    expect(screen.getByLabelText('Username')).toBeDisabled()
-  })
-
-  it('enables username field in create mode', () => {
-    render(<TestWrapper isEdit={false} />)
 
     expect(screen.getByLabelText('Username')).toBeEnabled()
   })
@@ -67,19 +61,19 @@ describe('UserFormFields', () => {
     expect(screen.getByPlaceholderText('Leave blank to keep current password')).toBeInTheDocument()
   })
 
-  it('shows "Active" label on the status switch by default', () => {
+  it('shows "Enabled" label on the status switch by default', () => {
     render(<TestWrapper />)
 
-    expect(screen.getByText('Active')).toBeInTheDocument()
+    expect(screen.getByText('Enabled')).toBeInTheDocument()
   })
 
-  it('shows "Inactive" label when status switch is toggled off', async () => {
+  it('shows "Disabled" label when status switch is toggled off', async () => {
     const user = userEvent.setup()
     render(<TestWrapper />)
 
-    await user.click(screen.getByLabelText('Active'))
+    await user.click(screen.getByLabelText('Enabled'))
 
-    expect(screen.getByText('Inactive')).toBeInTheDocument()
+    expect(screen.getByText('Disabled')).toBeInTheDocument()
   })
 
   it('allows typing into text fields', async () => {

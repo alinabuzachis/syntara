@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useForm, FormProvider } from 'react-hook-form'
@@ -7,17 +8,36 @@ import { axe } from 'vitest-axe'
 import { IdentityProviderFormFields } from './IdentityProviderFormFields'
 import { identityProviderDefaults, type IdentityProviderFormData } from './identityProviderFormSchema'
 
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false } },
+})
+
+const completedDefaults = {
+  ...identityProviderDefaults,
+  idpType: 'custom',
+  issuerUrl: 'https://example.com',
+  clientId: 'test-client',
+}
+
 function TestWrapper({ isEdit = false }: { isEdit?: boolean }) {
   const methods = useForm<IdentityProviderFormData>({
-    defaultValues: identityProviderDefaults,
+    defaultValues: completedDefaults,
   })
 
   return (
-    <FormProvider {...methods}>
-      <form>
-        <IdentityProviderFormFields control={methods.control} isEdit={isEdit} />
-      </form>
-    </FormProvider>
+    <QueryClientProvider client={queryClient}>
+      <FormProvider {...methods}>
+        <form>
+          <IdentityProviderFormFields
+            control={methods.control}
+            setValue={methods.setValue}
+            trigger={methods.trigger}
+            isEdit={isEdit}
+            testResult={null}
+          />
+        </form>
+      </FormProvider>
+    </QueryClientProvider>
   )
 }
 
@@ -25,7 +45,7 @@ describe('IdentityProviderFormFields', () => {
   it('renders provider name field', () => {
     render(<TestWrapper />)
 
-    expect(screen.getByLabelText(/Provider Name/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Provider name/)).toBeInTheDocument()
   })
 
   it('renders enable provider switch', () => {
@@ -55,7 +75,7 @@ describe('IdentityProviderFormFields', () => {
   it('renders client secret field as required in add mode', () => {
     render(<TestWrapper />)
 
-    expect(screen.getByLabelText(/Client Secret/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Client secret/)).toBeInTheDocument()
   })
 
   it('renders redirect URI as read-only clipboard copy', () => {
@@ -76,8 +96,8 @@ describe('IdentityProviderFormFields', () => {
   it('hides manual endpoint fields when auto-discovery is enabled', () => {
     render(<TestWrapper />)
 
-    expect(screen.queryByLabelText(/Authorization Endpoint/)).not.toBeInTheDocument()
-    expect(screen.queryByLabelText(/Token Endpoint/)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/Authorization endpoint/)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/Token endpoint/)).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/JWKS URI/)).not.toBeInTheDocument()
   })
 
@@ -87,16 +107,64 @@ describe('IdentityProviderFormFields', () => {
 
     await user.click(screen.getByLabelText(/Use OIDC Discovery/))
 
-    expect(screen.getByLabelText(/Authorization Endpoint/)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Token Endpoint/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Authorization endpoint/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Token endpoint/)).toBeInTheDocument()
     expect(screen.getByLabelText(/JWKS URI/)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Userinfo Endpoint/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Userinfo endpoint/)).toBeInTheDocument()
   })
 
   it('shows hint text for client secret in edit mode', () => {
     render(<TestWrapper isEdit />)
 
     expect(screen.getByText(/Leave empty to keep the existing secret/)).toBeInTheDocument()
+  })
+
+  it('renders wizard with two steps', () => {
+    render(<TestWrapper />)
+
+    expect(screen.getByRole('button', { name: /Provider configuration/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Claim mapping/ })).toBeInTheDocument()
+  })
+
+  it('shows claim mapping fields including groups on second step', async () => {
+    const user = userEvent.setup()
+    render(<TestWrapper />)
+
+    await user.click(screen.getByRole('button', { name: /Claim mapping/ }))
+
+    expect(screen.getByText('Subject claim')).toBeInTheDocument()
+    expect(screen.getByText('Email claim')).toBeInTheDocument()
+    expect(screen.getByText('Username claim')).toBeInTheDocument()
+    expect(screen.getByText('Full name claim')).toBeInTheDocument()
+  })
+
+  it('shows Next button on first step', () => {
+    render(<TestWrapper />)
+
+    expect(screen.getByRole('button', { name: 'Next' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Back' })).not.toBeInTheDocument()
+  })
+
+  it('shows Back button and no Next on last step', async () => {
+    const user = userEvent.setup()
+    render(<TestWrapper />)
+
+    await user.click(screen.getByRole('button', { name: /Claim mapping/ }))
+
+    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Next' })).not.toBeInTheDocument()
+  })
+
+  it('renders single logout switch with accessible label', () => {
+    render(<TestWrapper />)
+
+    expect(screen.getByLabelText(/Single logout/)).toBeInTheDocument()
+  })
+
+  it('renders auto-create groups switch', () => {
+    render(<TestWrapper />)
+
+    expect(screen.getByLabelText(/Auto-create groups/)).toBeInTheDocument()
   })
 
   it('has no accessibility violations', async () => {

@@ -7,6 +7,7 @@ import {
 } from './identityProviderFormSchema'
 
 const validAddData = {
+  idpType: 'custom',
   name: 'My Provider',
   enabled: true,
   autoDiscovery: true,
@@ -18,6 +19,17 @@ const validAddData = {
   tokenEndpoint: '',
   jwksUri: '',
   userinfoEndpoint: '',
+  endSessionEndpoint: '',
+  claimMapping: {
+    subject: 'sub',
+    email: 'email',
+    username: 'preferred_username',
+    fullName: 'name',
+    groups: null,
+  },
+  groupMapping: null,
+  autoCreateGroups: false,
+  enableRpInitiatedLogout: false,
 } as const
 
 /** Helper that returns flat field-level error paths from a safeParse result. */
@@ -182,9 +194,52 @@ describe('identityProviderEditSchema', () => {
   })
 })
 
+describe('endSessionEndpoint conditional validation', () => {
+  it('requires endSessionEndpoint when RP logout enabled and autoDiscovery is false', () => {
+    const result = identityProviderAddSchema.safeParse({
+      ...validAddData,
+      autoDiscovery: false,
+      enableRpInitiatedLogout: true,
+      authorizationEndpoint: 'https://auth.example.com/authorize',
+      tokenEndpoint: 'https://auth.example.com/token',
+      jwksUri: 'https://auth.example.com/.well-known/jwks.json',
+      endSessionEndpoint: '',
+    })
+
+    expect(result.success).toBe(false)
+    expect(getErrorPaths(result)).toContain('endSessionEndpoint')
+  })
+
+  it('allows empty endSessionEndpoint when RP logout is disabled and autoDiscovery is false', () => {
+    const result = identityProviderAddSchema.safeParse({
+      ...validAddData,
+      autoDiscovery: false,
+      enableRpInitiatedLogout: false,
+      authorizationEndpoint: 'https://auth.example.com/authorize',
+      tokenEndpoint: 'https://auth.example.com/token',
+      jwksUri: 'https://auth.example.com/.well-known/jwks.json',
+      endSessionEndpoint: '',
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('allows empty endSessionEndpoint when autoDiscovery is true even with RP logout enabled', () => {
+    const result = identityProviderAddSchema.safeParse({
+      ...validAddData,
+      autoDiscovery: true,
+      enableRpInitiatedLogout: true,
+      endSessionEndpoint: '',
+    })
+
+    expect(result.success).toBe(true)
+  })
+})
+
 describe('identityProviderDefaults', () => {
   it('has expected default values', () => {
     expect(identityProviderDefaults).toEqual({
+      idpType: '',
       name: '',
       enabled: false,
       autoDiscovery: true,
@@ -196,6 +251,17 @@ describe('identityProviderDefaults', () => {
       tokenEndpoint: '',
       jwksUri: '',
       userinfoEndpoint: '',
+      endSessionEndpoint: '',
+      claimMapping: {
+        subject: 'sub',
+        email: 'email',
+        username: 'preferred_username',
+        fullName: 'name',
+        groups: null,
+      },
+      groupMapping: null,
+      autoCreateGroups: false,
+      enableRpInitiatedLogout: false,
     })
   })
 

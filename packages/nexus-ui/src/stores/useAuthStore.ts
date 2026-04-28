@@ -69,6 +69,70 @@ const INITIAL_STATE: AuthState = {
 // Helpers
 // ============================================================================
 
+type LogoutResponse = {
+  error: Error | null
+  /** URL to redirect the browser to for RP-initiated IdP logout. */
+  redirectUrl?: string
+  /** User-facing error from the backend when IdP logout fails. */
+  authError?: string
+}
+
+/**
+ * Revoke the session server-side via POST to the logout endpoint.
+ *
+ * The backend always returns JSON. When RP-initiated logout is active and
+ * the IdP's end_session_endpoint is resolvable, the response includes a
+ * `redirect_url` that the caller should navigate to via
+ * `window.location.href` so the browser sends first-party IdP cookies.
+ */
+async function revokeServerSession(accessToken: string | null): Promise<LogoutResponse> {
+  try {
+    const logoutUrl = new URL(AUTH_LOGOUT_URL, window.location.origin)
+    logoutUrl.searchParams.set('post_logout_redirect_uri', `${window.location.origin}/`)
+
+    const response = await fetch(logoutUrl.toString(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+      credentials: 'include',
+    })
+
+    if (!response.ok) {
+      const text = await response.text()
+      let detail = `Sign out failed (${response.status})`
+      try {
+        const parsed: Record<string, unknown> = JSON.parse(text) as Record<string, unknown>
+        const msg = parsed.detail ?? parsed.message
+        if (typeof msg === 'string') detail = msg
+      } catch {
+        if (text) detail = text
+      }
+      return { error: new Error(detail) }
+    }
+
+    // Parse optional redirect_url and auth_error from the response body.
+    let redirectUrl: string | undefined
+    let authError: string | undefined
+    try {
+      const body: Record<string, unknown> = (await response.json()) as Record<string, unknown>
+      if (typeof body.redirect_url === 'string') {
+        redirectUrl = body.redirect_url
+      }
+      if (typeof body.auth_error === 'string') {
+        authError = body.auth_error
+      }
+    } catch {
+      // Empty or non-JSON body — no redirect needed.
+    }
+
+    return { error: null, redirectUrl, authError }
+  } catch (err) {
+    return { error: err instanceof Error ? err : new Error(String(err)) }
+  }
+}
+
 function isTokenExpired(expiresAt: number | null): boolean {
   if (expiresAt === null) return true
   return Date.now() >= expiresAt - EXPIRY_BUFFER_MS
@@ -191,34 +255,37 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   logout: async () => {
-    // Clear local session first so the user is never stuck appearing signed in if the server is down
-    // or returns an error. Server-side invalidation is best-effort; callers may still show a warning.
     const { accessToken, logoutCount } = get()
     // Drop any in-flight refresh waiters — otherwise AppLogin bootstrap can await this forever and
     // never leave the loading state. Stale refresh completions are ignored via `logoutCount` / epoch.
     refreshPromise = null
+
+    // Revoke the session server-side FIRST so the HttpOnly cookie is cleared
+    // before we reset local state. Otherwise AppLoginForm mounts and its
+    // bootstrap useEffect fires a refresh() that races the logout POST —
+    // the cookie is still present, so the refresh succeeds and the user
+    // appears logged back in.
+    const { error, redirectUrl, authError } = await revokeServerSession(accessToken)
+
+    // Always clear local state, even if the server call failed
     set({ ...INITIAL_STATE, logoutCount: logoutCount + 1 })
 
-    const response = await fetch(AUTH_LOGOUT_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      },
-      credentials: 'include',
-    })
+    if (error) {
+      throw error
+    }
 
-    if (!response.ok) {
-      const text = await response.text()
-      let detail = `Sign out failed (${response.status})`
-      try {
-        const parsed: Record<string, unknown> = JSON.parse(text) as Record<string, unknown>
-        const msg = parsed.detail ?? parsed.message
-        if (typeof msg === 'string') detail = msg
-      } catch {
-        if (text) detail = text
-      }
-      throw new Error(detail)
+    // RP-initiated logout: the backend returned a redirect URL pointing to
+    // the IdP's end_session_endpoint.  Navigate via window.location.href so
+    // the browser sends first-party IdP cookies (HttpOnly included) and the
+    // IdP session is terminated.
+    if (redirectUrl) {
+      window.location.href = redirectUrl
+    } else if (authError) {
+      // IdP logout failed (e.g. end_session_endpoint unresolvable) — pass the
+      // error to the login page via URL param so it displays on mount.
+      const loginUrl = new URL('/', window.location.origin)
+      loginUrl.searchParams.set('auth_error', authError)
+      window.location.href = loginUrl.toString()
     }
   },
 

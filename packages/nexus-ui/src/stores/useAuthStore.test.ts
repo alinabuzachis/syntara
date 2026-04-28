@@ -231,8 +231,12 @@ describe('useAuthStore', () => {
       await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
       expect(useAuthStore.getState().isAuthenticated).toBe(true)
 
-      // Then logout (logout endpoint returns 200 with no body)
-      mockFetch.mockResolvedValueOnce({ ok: true, status: 200 })
+      // Then logout
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ detail: 'Successfully logged out' }),
+      })
 
       await useAuthStore.getState().logout()
 
@@ -247,17 +251,16 @@ describe('useAuthStore', () => {
       mockFetchSuccess(createTokenResponse({ access_token: 'my-token' }))
       await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
 
-      mockFetch.mockResolvedValueOnce({ ok: true, status: 200 })
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ detail: 'Successfully logged out' }),
+      })
       await useAuthStore.getState().logout()
 
-      expect(mockFetch).toHaveBeenLastCalledWith(AUTH_LOGOUT_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer my-token',
-        },
-        credentials: 'include',
-      })
+      const calledUrl = mockFetch.mock.calls[mockFetch.mock.calls.length - 1][0] as string
+      expect(calledUrl).toContain(AUTH_LOGOUT_URL)
+      expect(calledUrl).toContain('post_logout_redirect_uri')
     })
 
     it('clears local state when logout request fails (network), then rejects', async () => {
@@ -286,6 +289,60 @@ describe('useAuthStore', () => {
 
       expect(useAuthStore.getState().isAuthenticated).toBe(false)
       expect(useAuthStore.getState().accessToken).toBeNull()
+    })
+
+    it('navigates to redirect_url when backend returns one (RP-initiated logout)', async () => {
+      mockFetchSuccess(createTokenResponse())
+      await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
+      expect(useAuthStore.getState().isAuthenticated).toBe(true)
+
+      // Mock window.location.href assignment
+      const locationHrefSpy = vi.spyOn(window, 'location', 'get').mockReturnValue({
+        ...window.location,
+        href: window.location.href,
+      })
+      const hrefSetter = vi.fn()
+      Object.defineProperty(window.location, 'href', { set: hrefSetter, configurable: true })
+
+      const idpLogoutUrl = 'https://idp.example.com/logout?post_logout_redirect_uri=http%3A%2F%2Flocalhost%2F'
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ detail: 'Successfully logged out', redirect_url: idpLogoutUrl }),
+      })
+
+      await useAuthStore.getState().logout()
+
+      // Should navigate to IdP logout endpoint
+      expect(hrefSetter).toHaveBeenCalledWith(idpLogoutUrl)
+
+      // Should clear local auth state
+      const state = useAuthStore.getState()
+      expect(state.isAuthenticated).toBe(false)
+      expect(state.accessToken).toBeNull()
+      expect(state.logoutCount).toBe(1)
+
+      locationHrefSpy.mockRestore()
+    })
+
+    it('does not navigate when backend returns no redirect_url', async () => {
+      mockFetchSuccess(createTokenResponse({ access_token: 'my-token' }))
+      await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ detail: 'Successfully logged out' }),
+      })
+      await useAuthStore.getState().logout()
+
+      // Should use fetch with post_logout_redirect_uri
+      const calledUrl = mockFetch.mock.calls[mockFetch.mock.calls.length - 1][0] as string
+      expect(calledUrl).toContain(AUTH_LOGOUT_URL)
+      expect(calledUrl).toContain('post_logout_redirect_uri')
+
+      // Should clear local auth state
+      expect(useAuthStore.getState().isAuthenticated).toBe(false)
     })
   })
 

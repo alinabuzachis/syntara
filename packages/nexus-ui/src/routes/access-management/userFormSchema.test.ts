@@ -9,7 +9,7 @@ describe('userFormSchema', () => {
     first_name: 'John',
     last_name: 'Doe',
     password: 'securepass123',
-    is_active: true,
+    is_enabled: true,
   }
 
   describe('valid data', () => {
@@ -55,19 +55,23 @@ describe('userFormSchema', () => {
       }
     })
 
-    it('rejects empty last_name', () => {
+    it('accepts empty last_name', () => {
       const result = userFormSchema.safeParse({ ...validData, last_name: '' })
-      expect(result.success).toBe(false)
-      if (!result.success) {
-        expect(result.error.issues[0].message).toBe('Last name is required')
-      }
+      expect(result.success).toBe(true)
     })
   })
 
   describe('email validation', () => {
-    it('rejects empty email', () => {
+    it('accepts empty email (optional)', () => {
       const result = userFormSchema.safeParse({ ...validData, email: '' })
-      expect(result.success).toBe(false)
+      expect(result.success).toBe(true)
+    })
+
+    it('accepts undefined email (optional)', () => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { email: _, ...dataWithoutEmail } = validData
+      const result = userFormSchema.safeParse(dataWithoutEmail)
+      expect(result.success).toBe(true)
     })
 
     it('rejects invalid email', () => {
@@ -97,7 +101,7 @@ describe('userCreateSchema', () => {
     first_name: 'John',
     last_name: 'Doe',
     password: 'securepass123',
-    is_active: true,
+    is_enabled: true,
   }
 
   it('accepts valid create data with password', () => {

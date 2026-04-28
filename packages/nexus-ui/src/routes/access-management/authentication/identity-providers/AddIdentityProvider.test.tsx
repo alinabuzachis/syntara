@@ -14,6 +14,7 @@ vi.mock('../../../../client', () => ({
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
+  OIDC_REDIRECT_URI: 'http://localhost/api/v1/auth/oidc/callback',
 }))
 
 vi.mock('wouter', () => ({
@@ -69,10 +70,10 @@ describe('AddIdentityProvider', () => {
     setupMocks()
     render(<AddIdentityProvider />, { wrapper })
 
-    expect(screen.getByLabelText(/Provider Name/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Provider name/)).toBeInTheDocument()
     expect(screen.getByLabelText(/Issuer URL/)).toBeInTheDocument()
     expect(screen.getByLabelText(/Client ID/)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Client Secret/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Client secret/)).toBeInTheDocument()
   })
 
   it('has no accessibility violations', async () => {

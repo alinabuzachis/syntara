@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-  '/login': {
+  '/auth/login': {
     parameters: {
       query?: never
       header?: never
@@ -27,7 +27,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/refresh': {
+  '/auth/refresh': {
     parameters: {
       query?: never
       header?: never
@@ -52,7 +52,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/logout': {
+  '/auth/logout': {
     parameters: {
       query?: never
       header?: never
@@ -65,8 +65,11 @@ export interface paths {
      * Terminate session
      * @description Terminate the current session by revoking the refresh token.
      *
-     *     The refresh token is read from the `ao_refresh_token` HttpOnly cookie
-     *     and revoked in the session store. The cookie is cleared in the response.
+     *     The refresh token is read from the ``ao_refresh_token`` HttpOnly cookie
+     *     and revoked in the session store.  The cookie is cleared in the response.
+     *     The associated access token remains valid until it expires (up to 15
+     *     minutes) since access tokens are stateless JWTs validated without a
+     *     server round-trip.
      */
     post: operations['logout']
     delete?: never
@@ -75,7 +78,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/me': {
+  '/auth/me': {
     parameters: {
       query?: never
       header?: never
@@ -85,7 +88,7 @@ export interface paths {
     /**
      * Get current user
      * @description Returns information about the currently authenticated user
-     *     from the access token claims. No database round-trip is performed.
+     *     from the access token claims and session metadata.
      */
     get: operations['get_current_user']
     put?: never
@@ -96,7 +99,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/providers': {
+  '/auth/providers': {
     parameters: {
       query?: never
       header?: never
@@ -118,104 +121,362 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/auth/oidc/authorize': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Initiate OIDC login
+     * @description Initiates the OIDC authorization code flow. Redirects the user's browser
+     *     to the identity provider's authorization endpoint.
+     *
+     *     This is a public endpoint (no authentication required). On any error it
+     *     redirects to the frontend login page with an `auth_error` query parameter
+     *     instead of returning a JSON error response.
+     */
+    get: operations['oidc_authorize']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/auth/oidc/callback': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * OIDC callback
+     * @description Handles the OIDC callback after the user authenticates at the identity provider.
+     *     Exchanges the authorization code for tokens, validates the ID token,
+     *     creates or maps a local user, and establishes a session.
+     */
+    get: operations['oidc_callback']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
 }
 export type webhooks = Record<string, never>
 export interface components {
   schemas: {
+    /**
+     * LoginRequest
+     * @description Login request with username and password.
+     */
     LoginRequest: {
-      /** @description Username */
+      /**
+       * Username
+       * @description Username
+       */
       username: string
       /**
+       * Password
        * Format: password
        * @description Password
        */
       password: string
     }
+    /**
+     * AccessTokenResponse
+     * @description Access token response (refresh token is sent via HttpOnly cookie).
+     */
     AccessTokenResponse: {
-      /** @description JWT access token */
+      /**
+       * Access Token
+       * @description JWT access token
+       */
       access_token: string
       /**
+       * Token Type
        * @description Token type
        * @default Bearer
        */
-      token_type: string
-      /** @description Access token lifetime in seconds */
+      token_type?: string
+      /**
+       * Expires In
+       * @description Access token lifetime in seconds
+       */
       expires_in: number
     }
+    /**
+     * UserInfo
+     * @description Current user information derived from access token claims.
+     */
     UserInfo: {
-      /** @description User UUID */
+      /**
+       * Id
+       * @description User UUID
+       */
       id: string
-      /** @description Username */
+      /**
+       * Username
+       * @description Username
+       */
       username: string
-      /** @description User email */
+      /**
+       * Email
+       * @description User email
+       */
       email: string
       /**
+       * Groups
        * @description Group memberships
-       * @default []
        */
       groups?: string[]
+      /**
+       * Rp Logout Enabled
+       * @description Whether RP-initiated logout is enabled for this user's current session
+       * @default false
+       */
+      rp_logout_enabled?: boolean
     }
+    /**
+     * AuthProviderInfo
+     * @description Public identity provider info for the login page.
+     */
     AuthProviderInfo: {
-      /** @description Provider UUID */
+      /**
+       * Id
+       * @description Provider UUID
+       */
       id: string
-      /** @description Provider display name */
+      /**
+       * Name
+       * @description Provider display name
+       */
       name: string
-      /** @description Provider type (e.g. oidc) */
+      /**
+       * Provider Type
+       * @description Provider type (e.g. oidc)
+       */
       provider_type: string
+      /**
+       * Provider Template
+       * @description Provider template (e.g. microsoft_entra, aap)
+       */
+      provider_template?: string | null
     }
+    /**
+     * AuthProvidersResponse
+     * @description Response for the public providers listing endpoint.
+     */
     AuthProvidersResponse: {
       /**
+       * Providers
        * @description Enabled identity providers
-       * @default []
        */
       providers?: components['schemas']['AuthProviderInfo'][]
     }
     /**
-     * RFC 9457 Problem Details
-     * @description RFC 9457 Problem Details format for error responses.
-     *     This format provides machine-readable and human-readable error information
-     *     with consistent structure for all API error responses.
+     * ErrorData
+     * @description RFC 9457 Problem Details format for error event data.
+     *     This model is used for streaming error events and follows the RFC 9457 Problem Details specification. It provides machine-readable and human-readable error information with consistent structure.
+     *     Attributes:
+     *         type: URI reference identifying the problem type
+     *         title: Short, human-readable summary of the problem
+     *         detail: Human-readable explanation specific to this occurrence
+     *         code: Machine-readable error code for programmatic handling
+     *         retryable: Whether this error can be retried by creating a new invocation
+     *         instance: Optional URI reference identifying the specific occurrence
+     * @example {
+     *       "type": "https://api.nexus.com/errors/llm-error",
+     *       "title": "LLM Rate Limit Exceeded",
+     *       "detail": "OpenRouter API rate limit exceeded. Please try again in a few moments.",
+     *       "code": "RATE_LIMIT_EXCEEDED",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
+     * @example {
+     *       "type": "https://api.nexus.com/errors/timeout-error",
+     *       "title": "Streaming Timeout",
+     *       "detail": "LLM streaming timed out after 30 seconds",
+     *       "code": "STREAM_TIMEOUT",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
      */
     ErrorData: {
       /**
-       * Problem Type URI
+       * Type
        * @description URI reference identifying the problem type
-       * @example https://api.nexus.com/errors/validation-error
+       * @example https://api.nexus.com/errors/llm-error
        */
       type: string
       /**
-       * Problem Title
+       * Title
        * @description Short, human-readable summary of the problem
-       * @example Validation Error
+       * @example LLM Service Unavailable
        */
       title: string
       /**
-       * Problem Detail
+       * Detail
        * @description Human-readable explanation specific to this occurrence
-       * @example Field 'name' must be between 1 and 255 characters
+       * @example OpenRouter API returned error: rate limit exceeded. Please try again in a few moments.
        */
       detail: string
       /**
-       * Error Code
+       * Code
        * @description Machine-readable error code for programmatic handling
-       * @example VALIDATION_ERROR
+       * @example RATE_LIMIT_EXCEEDED
        */
       code: string
       /**
-       * Retryable Flag
-       * @description Whether this error can be retried
-       * @example false
+       * Retryable
+       * @description Whether this error can be retried by creating a new invocation
+       * @example true
        */
       retryable: boolean
       /**
-       * Problem Instance
-       * @description URI reference identifying the specific occurrence
-       * @example /api/v1/workflows
+       * Instance
+       * @description Optional URI reference identifying the specific occurrence
+       * @example /invocations/550e8400-e29b-41d4-a716-446655440000
        */
       instance?: string | null
     }
   }
-  responses: never
+  responses: {
+    /** @description Bad Request */
+    BadRequestError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/bad-request",
+         *       "title": "Bad Request",
+         *       "detail": "The request was malformed or contained invalid parameters",
+         *       "code": "BAD_REQUEST",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Forbidden */
+    ForbiddenError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/forbidden",
+         *       "title": "Forbidden",
+         *       "detail": "You do not have permission to access this resource",
+         *       "code": "FORBIDDEN",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Not Found */
+    NotFoundError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/not-found",
+         *       "title": "Resource Not Found",
+         *       "detail": "No resource exists with the provided identifier",
+         *       "code": "NOT_FOUND",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Conflict */
+    ConflictError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/conflict",
+         *       "title": "Conflict",
+         *       "detail": "The request conflicts with the current state of the resource",
+         *       "code": "CONFLICT",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Validation Error */
+    ValidationError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/validation-error",
+         *       "title": "Validation Error",
+         *       "detail": "Field 'name' must be between 1 and 255 characters",
+         *       "code": "VALIDATION_ERROR",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Internal Server Error */
+    InternalServerError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/internal-error",
+         *       "title": "Internal Server Error",
+         *       "detail": "An unexpected error occurred",
+         *       "code": "INTERNAL_ERROR",
+         *       "retryable": true
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Unauthorized */
+    UnauthorizedError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/unauthorized",
+         *       "title": "Unauthorized",
+         *       "detail": "Authentication is required to access this resource",
+         *       "code": "UNAUTHORIZED",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+  }
   parameters: never
   requestBodies: never
   headers: never
@@ -245,15 +506,19 @@ export interface operations {
           'application/json': components['schemas']['AccessTokenResponse']
         }
       }
+      400: components['responses']['BadRequestError']
       /** @description Invalid username or password */
       401: {
         headers: {
           [name: string]: unknown
         }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
+        content?: never
       }
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   refresh_token: {
@@ -274,47 +539,54 @@ export interface operations {
           'application/json': components['schemas']['AccessTokenResponse']
         }
       }
+      400: components['responses']['BadRequestError']
       /** @description Invalid or expired refresh token */
       401: {
         headers: {
           [name: string]: unknown
         }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
+        content?: never
       }
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   logout: {
     parameters: {
-      query?: never
+      query?: {
+        post_logout_redirect_uri?: string | null
+      }
       header?: never
       path?: never
       cookie?: never
     }
     requestBody?: never
     responses: {
-      /** @description Successfully logged out */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': {
-            /** @example Successfully logged out */
-            detail?: string
-          }
+          'application/json': unknown
         }
       }
+      400: components['responses']['BadRequestError']
       /** @description Invalid or expired refresh token */
       401: {
         headers: {
           [name: string]: unknown
         }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
+        content?: never
       }
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   get_current_user: {
@@ -335,15 +607,19 @@ export interface operations {
           'application/json': components['schemas']['UserInfo']
         }
       }
+      400: components['responses']['BadRequestError']
       /** @description Invalid or missing authentication */
       401: {
         headers: {
           [name: string]: unknown
         }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
+        content?: never
       }
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   list_auth_providers: {
@@ -364,6 +640,102 @@ export interface operations {
           'application/json': components['schemas']['AuthProvidersResponse']
         }
       }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  oidc_authorize: {
+    parameters: {
+      query: {
+        /** @description UUID of the identity provider to use */
+        provider_id: string
+        /** @description URL to redirect to after successful login */
+        redirect_to?: string | null
+        flow?: ('link' | 'test_signin') | null
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': unknown
+        }
+      }
+      /** @description Redirect to identity provider or frontend on error */
+      302: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  oidc_callback: {
+    parameters: {
+      query: {
+        /** @description OIDC state parameter for CSRF protection */
+        state: string
+        /** @description Authorization code from identity provider */
+        code?: string | null
+        /** @description Error code from identity provider */
+        error?: string | null
+        /** @description Human-readable error description from identity provider */
+        error_description?: string | null
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': unknown
+        }
+      }
+      /** @description Redirect to frontend after successful login */
+      302: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      400: components['responses']['BadRequestError']
+      /** @description Authentication failed */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
 }

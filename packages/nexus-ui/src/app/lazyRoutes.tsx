@@ -23,6 +23,11 @@ export const AddIdentityProvider = lazy(() =>
     default: m.AddIdentityProvider,
   }))
 )
+export const IdentityProviderDetail = lazy(() =>
+  import('../routes/access-management/authentication/identity-providers/IdentityProviderDetail').then((m) => ({
+    default: m.IdentityProviderDetail,
+  }))
+)
 export const EditIdentityProvider = lazy(() =>
   import('../routes/access-management/authentication/identity-providers/EditIdentityProvider').then((m) => ({
     default: m.EditIdentityProvider,

@@ -136,6 +136,12 @@ export async function selectProjectIfRequired(page: Page, projectName?: string) 
     .catch(() => false)
   if (!needsSelection) return
 
+  // The placeholder is briefly "Select a project" before the Zustand store
+  // restores a previously selected project and re-renders the toggle.
+  // Re-check that the locator still matches; if it vanished, a project is
+  // already selected and no action is needed.
+  if ((await projectInput.count()) === 0) return
+
   await projectInput.click()
   await page.getByRole('option').first().waitFor({ state: 'visible', timeout: 10_000 })
 

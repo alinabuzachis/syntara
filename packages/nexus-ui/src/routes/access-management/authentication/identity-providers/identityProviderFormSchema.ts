@@ -2,16 +2,28 @@ import { z } from 'zod'
 
 const optionalUrl = z.string().url('Must be a valid URL').or(z.literal(''))
 
-/**
- * The OIDC callback is always handled by the Nexus backend at this fixed path.
- * In dev the backend runs on a different port (VITE_API_URL), while in production
- * the frontend and backend share the same origin.
- */
-const rawApiUrl = import.meta.env.VITE_API_URL as string | undefined
-const backendOrigin = rawApiUrl ? new URL(rawApiUrl).origin : globalThis.location.origin
-export const OIDC_REDIRECT_URI = `${backendOrigin}/api/v1/auth/oidc/callback`
+const claimMappingSchema = z.object({
+  subject: z.string().min(1, 'Subject claim is required'),
+  email: z.string().min(1, 'Email claim is required'),
+  username: z.string().min(1, 'Username claim is required'),
+  fullName: z.string().min(1, 'Full name claim is required'),
+  groups: z.string().nullable(),
+})
+
+const groupMappingEntrySchema = z.object({
+  idpGroupValue: z.string().min(1, 'IdP group value is required'),
+  nexusGroupId: z.string().uuid('Must be a valid group ID'),
+})
+
+const groupMappingSchema = z
+  .object({
+    jmespathExpression: z.string().min(1, 'Group extraction expression is required'),
+    entries: z.array(groupMappingEntrySchema),
+  })
+  .nullable()
 
 const baseFields = {
+  idpType: z.string().min(1, 'Provider type is required'),
   name: z.string().min(1, 'Provider name is required'),
   enabled: z.boolean(),
   autoDiscovery: z.boolean(),
@@ -31,10 +43,23 @@ const baseFields = {
   tokenEndpoint: optionalUrl,
   jwksUri: optionalUrl,
   userinfoEndpoint: optionalUrl,
+  endSessionEndpoint: optionalUrl,
+  // Single logout
+  enableRpInitiatedLogout: z.boolean(),
+  claimMapping: claimMappingSchema,
+  groupMapping: groupMappingSchema,
+  autoCreateGroups: z.boolean(),
 }
 
 const manualEndpointRefinement = (
-  data: { autoDiscovery: boolean; authorizationEndpoint: string; tokenEndpoint: string; jwksUri: string },
+  data: {
+    autoDiscovery: boolean
+    authorizationEndpoint: string
+    tokenEndpoint: string
+    jwksUri: string
+    endSessionEndpoint: string
+    enableRpInitiatedLogout: boolean
+  },
   ctx: z.RefinementCtx
 ) => {
   if (!data.autoDiscovery) {
@@ -59,6 +84,13 @@ const manualEndpointRefinement = (
         path: ['jwksUri'],
       })
     }
+    if (data.enableRpInitiatedLogout && !data.endSessionEndpoint) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Required when single logout is enabled and auto-discovery is disabled',
+        path: ['endSessionEndpoint'],
+      })
+    }
   }
 }
 
@@ -79,6 +111,7 @@ export const identityProviderEditSchema = z
 export type IdentityProviderFormData = z.infer<typeof identityProviderAddSchema>
 
 export const identityProviderDefaults: IdentityProviderFormData = {
+  idpType: '',
   name: '',
   enabled: false,
   autoDiscovery: true,
@@ -90,4 +123,15 @@ export const identityProviderDefaults: IdentityProviderFormData = {
   tokenEndpoint: '',
   jwksUri: '',
   userinfoEndpoint: '',
+  endSessionEndpoint: '',
+  enableRpInitiatedLogout: false,
+  claimMapping: {
+    subject: 'sub',
+    email: 'email',
+    username: 'preferred_username',
+    fullName: 'name',
+    groups: null,
+  },
+  groupMapping: null,
+  autoCreateGroups: false,
 }

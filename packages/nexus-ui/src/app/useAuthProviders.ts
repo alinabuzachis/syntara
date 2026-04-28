@@ -4,6 +4,7 @@ export type AuthProvider = {
   id: string
   name: string
   provider_type: string
+  provider_template?: string | null
 }
 
 function isAuthProvider(value: unknown): value is AuthProvider {

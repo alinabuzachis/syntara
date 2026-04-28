@@ -26,10 +26,38 @@ vi.mock('../../components/states/useQueryState', () => ({
   useQueryState: vi.fn(),
 }))
 
+// Reactive wouter mock: useLocation and useSearch share state so that
+// navigate() updates both the path and the search string.
+const mockUrl = { current: '/access-management/roles', listeners: new Set<() => void>() }
+function setMockUrl(url: string) {
+  mockUrl.current = url
+  mockUrl.listeners.forEach((l) => l())
+}
+
 vi.mock('wouter', async () => {
   const React = await import('react')
+  function useMockUrl() {
+    const [, rerender] = React.useState(0)
+    React.useEffect(() => {
+      const listener = () => rerender((n) => n + 1)
+      mockUrl.listeners.add(listener)
+      return () => {
+        mockUrl.listeners.delete(listener)
+      }
+    }, [])
+    return mockUrl.current
+  }
   return {
-    useLocation: () => ['/access-management/roles', vi.fn()],
+    useLocation: () => {
+      const url = useMockUrl()
+      const path = url.split('?')[0]
+      return [path, setMockUrl] as const
+    },
+    useSearch: () => {
+      const url = useMockUrl()
+      const idx = url.indexOf('?')
+      return idx >= 0 ? url.slice(idx) : ''
+    },
     useSearchParams: () => React.useState(new URLSearchParams()),
   }
 })
@@ -89,6 +117,7 @@ describe('RolesTab', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mockUrl.current = '/access-management/roles'
 
     // Default: useQueryState returns null (success state)
     vi.mocked(useQueryState).mockReturnValue(null)

@@ -22,7 +22,7 @@ import { activityExecutions } from './resources/activityExecutions'
 import { approvals } from './resources/approvals'
 import { settings, settingsCategories } from './resources/settings'
 import { identityProviders, type IdentityProvider } from './resources/identityProviders'
-import { users, type UserRead } from './resources/users'
+import { users, userIdentities, type UserRead, type UserIdentityRead } from './resources/users'
 import { groups, userGroupMemberships, type GroupRead } from './resources/groups'
 import {
   mockProjects,
@@ -836,6 +836,7 @@ export const handlers = [
         id: p.id,
         name: p.name,
         provider_type: p.configuration?.provider_type ?? 'oidc',
+        provider_template: p.configuration?.idp_type ?? null,
       })),
     })
   }),
@@ -864,12 +865,15 @@ export const handlers = [
   }),
 
   // Current user (mock profile)
+  // Toggle RP-initiated logout via RP_LOGOUT_ENABLED env var (e.g. RP_LOGOUT_ENABLED=true npm start)
   http.get('/api/v1/auth/me', () => {
+    const rpLogoutEnabled = process.env.RP_LOGOUT_ENABLED === 'true'
     return HttpResponse.json({
       id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
       username: 'demo',
       email: 'demo@nexus.local',
       groups: ['admins', 'platform-admins', 'authenticated'],
+      rp_logout_enabled: rpLogoutEnabled,
     })
   }),
 
@@ -1061,6 +1065,14 @@ export const handlers = [
       success: true,
       message: `Successfully connected to ${issuerUrl}`,
       metadata: { issuer: issuerUrl },
+      claims_supported: ['sub', 'email', 'preferred_username', 'name', 'groups'],
+      claim_aliases: {
+        email: ['email'],
+        username: ['preferred_username'],
+        full_name: ['name'],
+        groups: ['groups'],
+      },
+      end_session_endpoint_supported: true,
     })
   }),
 
@@ -1134,7 +1146,7 @@ export const handlers = [
       email?: string
       full_name?: string
       password?: string
-      is_active?: boolean
+      is_enabled?: boolean
     }
 
     const existing = users.find(
@@ -1161,7 +1173,7 @@ export const handlers = [
       username: body.username ?? '',
       email: body.email ?? '',
       full_name: body.full_name ?? '',
-      is_active: body.is_active ?? true,
+      is_enabled: body.is_enabled ?? true,
       last_login: null,
       created_at: now,
       updated_at: now,
@@ -1208,7 +1220,7 @@ export const handlers = [
       full_name?: string
       email?: string
       password?: string
-      is_active?: boolean
+      is_enabled?: boolean
     }
 
     if (body.email && body.email.toLowerCase() !== user.email.toLowerCase()) {
@@ -1233,7 +1245,7 @@ export const handlers = [
       ...user,
       ...(body.full_name !== undefined && { full_name: body.full_name }),
       ...(body.email !== undefined && { email: body.email }),
-      ...(body.is_active !== undefined && { is_active: body.is_active }),
+      ...(body.is_enabled !== undefined && { is_enabled: body.is_enabled }),
       updated_at: new Date().toISOString(),
     }
     users[index] = updated
@@ -1307,6 +1319,108 @@ export const handlers = [
 
     const userGroups = groups.filter((g) => (body.group_ids ?? []).includes(g.id))
     return HttpResponse.json({ resources: userGroups, next: null, prev: null })
+  }),
+
+  // User identity handlers
+  http.get('/api/v1/users/:userId/identities', ({ params }) => {
+    const user = users.find((u) => u.id === params.userId)
+    if (!user) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/user-not-found',
+          title: 'User Not Found',
+          detail: `User with id '${params.userId as string}' not found`,
+          code: 'USER_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/users/${params.userId as string}/identities`,
+        },
+        { status: 404 }
+      )
+    }
+    return HttpResponse.json(userIdentities.get(user.id) ?? [])
+  }),
+
+  http.post('/api/v1/users/:userId/identities', async ({ params, request }) => {
+    const user = users.find((u) => u.id === params.userId)
+    if (!user) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/user-not-found',
+          title: 'User Not Found',
+          detail: `User with id '${params.userId as string}' not found`,
+          code: 'USER_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/users/${params.userId as string}/identities`,
+        },
+        { status: 404 }
+      )
+    }
+    const body = (await request.json()) as { identity_id: string }
+
+    // Find and move the identity from its current owner
+    let found: UserIdentityRead | undefined
+    for (const [ownerId, identities] of userIdentities.entries()) {
+      const idx = identities.findIndex((i) => i.id === body.identity_id)
+      if (idx !== -1) {
+        found = identities[idx]
+        identities.splice(idx, 1)
+        if (identities.length === 0) userIdentities.delete(ownerId)
+        break
+      }
+    }
+    if (!found) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/identity-not-found',
+          title: 'Identity Not Found',
+          detail: `Identity with id '${body.identity_id}' not found`,
+          code: 'IDENTITY_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/users/${params.userId as string}/identities`,
+        },
+        { status: 404 }
+      )
+    }
+
+    const attached: UserIdentityRead = { ...found, user_id: user.id }
+    const existing = userIdentities.get(user.id) ?? []
+    existing.push(attached)
+    userIdentities.set(user.id, existing)
+    return HttpResponse.json(attached, { status: 201 })
+  }),
+
+  http.delete('/api/v1/users/:userId/identities/:identityId', ({ params }) => {
+    const identities = userIdentities.get(params.userId as string)
+    if (!identities) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/identity-not-found',
+          title: 'Identity Not Found',
+          detail: `Identity with id '${params.identityId as string}' not found`,
+          code: 'IDENTITY_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/users/${params.userId as string}/identities/${params.identityId as string}`,
+        },
+        { status: 404 }
+      )
+    }
+    const idx = identities.findIndex((i) => i.id === params.identityId)
+    if (idx === -1) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/identity-not-found',
+          title: 'Identity Not Found',
+          detail: `Identity with id '${params.identityId as string}' not found`,
+          code: 'IDENTITY_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/users/${params.userId as string}/identities/${params.identityId as string}`,
+        },
+        { status: 404 }
+      )
+    }
+    identities.splice(idx, 1)
+    if (identities.length === 0) userIdentities.delete(params.userId as string)
+    return new HttpResponse(null, { status: 204 })
   }),
 
   // Group handlers
@@ -2004,6 +2118,41 @@ export const handlers = [
     }
     mockProjects.splice(idx, 1)
     return new HttpResponse(null, { status: 204 })
+  }),
+
+  // ── Project-scoped workflows ────────────────────────────────────────────
+  http.get('/api/v1/projects/:project_id/workflows', ({ params, request }) => {
+    const url = new URL(request.url)
+    const projectId = params.project_id as string
+    const nameStartsWith = url.searchParams.get('name[starts_with]')
+    const nameContains = url.searchParams.get('name[contains]')
+    const isEnabled = url.searchParams.get('is_enabled')
+    const cursor = url.searchParams.get('cursor')
+    const parsedLimit = Number.parseInt(url.searchParams.get('limit') ?? '20', 10)
+    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 20
+    const includeTotal = url.searchParams.get('include_total') === 'true'
+
+    // Filter by project
+    let resources = workflows.filter((w) => w.project_id === projectId)
+
+    // Apply name filters
+    if (nameStartsWith) {
+      const prefix = nameStartsWith.toLowerCase()
+      resources = resources.filter((w) => (w.name ?? '').toLowerCase().startsWith(prefix))
+    }
+    if (nameContains) {
+      const searchTerm = nameContains.toLowerCase()
+      resources = resources.filter((w) => (w.name ?? '').toLowerCase().includes(searchTerm))
+    }
+
+    // Apply is_enabled filter
+    if (isEnabled !== null) {
+      const enabled = isEnabled === 'true'
+      resources = resources.filter((w) => w.is_enabled === enabled)
+    }
+
+    const body: WorkflowsResponse = paginate(resources, cursor, limit, includeTotal)
+    return HttpResponse.json(body)
   }),
 
   // ── Access Management: Project Role Assignments ─────────────────────────

@@ -68,11 +68,16 @@ test.describe('Credential Selector', () => {
 
       // Act - Navigate to API action form, open dropdown and select the credential
       await navigateToApiActionForm(app)
-      await app.getByRole('button', { name: 'Authentication credential', exact: true }).click()
-      await app.getByRole('option', { name: credName, exact: true }).click()
+      const credToggle = app.getByRole('button', { name: 'Authentication credential', exact: true })
+      await credToggle.click()
+
+      // Wait for the option to appear (it may be further down in a grouped list)
+      const option = app.getByRole('option', { name: credName, exact: true })
+      await option.scrollIntoViewIfNeeded()
+      await option.click()
 
       // Assert - Toggle now shows the selected credential name
-      await expect(app.getByRole('button', { name: 'Authentication credential', exact: true })).toContainText(credName)
+      await expect(credToggle).toContainText(credName)
     } finally {
       await deleteCredentialByName(app, credName)
     }
@@ -188,10 +193,16 @@ test.describe('Inline Credential Creation', () => {
       // The pre-selected type is HTTP Bearer Token (first compatible type for API action)
       await expect(modal.getByRole('textbox', { name: 'Token' })).toBeVisible()
       await modal.getByRole('textbox', { name: 'Token' }).fill('inline-test-token')
+
+      // Wait for both the POST (create) and the GET (refetch) to complete
+      const credentialsRefetched = app.waitForResponse(
+        (resp) => resp.url().includes('/credentials') && resp.request().method() === 'GET' && resp.status() === 200
+      )
       await modal.getByRole('button', { name: 'Create credential' }).click()
 
-      // Assert - Success and auto-selected
+      // Assert - Success and auto-selected (wait for refetch so the toggle label updates)
       await expect(app.getByText('Credential created')).toBeVisible()
+      await credentialsRefetched
       await expect(app.getByRole('button', { name: 'Authentication credential', exact: true })).toContainText(credName)
     } finally {
       await deleteCredentialByName(app, credName)
@@ -248,14 +259,22 @@ test.describe('Inline Credential Creation', () => {
       const modal = app.getByRole('dialog')
       await modal.getByRole('textbox', { name: 'Credential name' }).fill(credName)
       await modal.getByRole('textbox', { name: 'Token' }).fill('availability-test-token')
+
+      // Wait for the GET (refetch) after creation so the dropdown has fresh data
+      const credentialsRefetched = app.waitForResponse(
+        (resp) => resp.url().includes('/credentials') && resp.request().method() === 'GET' && resp.status() === 200
+      )
       await modal.getByRole('button', { name: 'Create credential' }).click()
       await expect(app.getByText('Credential created')).toBeVisible()
+      await credentialsRefetched
 
       // Act - Open the selector dropdown again
       await app.getByRole('button', { name: 'Authentication credential', exact: true }).click()
 
       // Assert - Newly created credential appears in the list
-      await expect(app.getByRole('option', { name: credName, exact: true })).toBeVisible()
+      const option = app.getByRole('option', { name: credName, exact: true })
+      await option.scrollIntoViewIfNeeded()
+      await expect(option).toBeVisible()
     } finally {
       await deleteCredentialByName(app, credName)
     }

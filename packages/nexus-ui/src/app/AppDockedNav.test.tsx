@@ -24,11 +24,12 @@ vi.mock('./useUnsavedChanges', () => ({
 }))
 
 // Mock useAuthStore used by UserMenuDropdown
+const mockLogout = vi.fn().mockResolvedValue(undefined)
 vi.mock('../stores/useAuthStore', () => ({
   useAuthStore: vi.fn((selector: unknown) =>
     typeof selector === 'function'
-      ? (selector as (state: { logout: ReturnType<typeof vi.fn> }) => unknown)({ logout: vi.fn() })
-      : { logout: vi.fn() }
+      ? (selector as (state: { logout: ReturnType<typeof vi.fn> }) => unknown)({ logout: mockLogout })
+      : { logout: mockLogout }
   ),
 }))
 
@@ -205,5 +206,17 @@ describe('AppDockedNav', () => {
       rules: { 'aria-required-children': { enabled: false } },
     })
     expect(results).toHaveNoViolations()
+  })
+
+  it('calls logout directly when Logout is clicked', async () => {
+    const user = userEvent.setup()
+    renderDockedNav()
+
+    await user.click(screen.getByRole('button', { name: 'User menu' }))
+    await user.click(screen.getByText('Logout'))
+
+    // Should call logout directly — no modal
+    expect(mockLogout).toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })

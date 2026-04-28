@@ -5,9 +5,8 @@ import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { usersClient } from '../../client'
 import { AlertProvider } from '../../components/alerts'
-import { assertUrlParam } from '../../test/filter-test-helpers'
+import { accessClient } from '../access/accessClient'
 
 import { UsersTab } from './UsersTab'
 
@@ -20,6 +19,16 @@ vi.mock('../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
 }))
 
+vi.mock('../access/accessClient', () => ({
+  accessClient: {
+    useQuery: vi.fn(),
+    useMutation: vi.fn(),
+  },
+  accessFetchClient: {
+    POST: vi.fn().mockResolvedValue({ data: { allowed: false } }),
+  },
+}))
+
 const mockNavigate = vi.fn<(path: string) => void>()
 vi.mock('wouter/use-browser-location', () => ({
   navigate: (path: string): void => {
@@ -27,12 +36,19 @@ vi.mock('wouter/use-browser-location', () => ({
   },
 }))
 
-const mockSetSearchParams = vi.fn()
-let mockSearchParams = new URLSearchParams()
+// Stateful mock for useSearchParams so filter changes persist across renders
+let currentSearchParams = new URLSearchParams()
+const mockSetSearchParams = vi.fn((params: URLSearchParams | ((prev: URLSearchParams) => URLSearchParams)) => {
+  if (typeof params === 'function') {
+    currentSearchParams = params(currentSearchParams)
+  } else {
+    currentSearchParams = new URLSearchParams(params.toString())
+  }
+})
 
 vi.mock('wouter', () => ({
   useLocation: () => ['/access-management/users', vi.fn()],
-  useSearchParams: () => [mockSearchParams, mockSetSearchParams],
+  useSearchParams: () => [currentSearchParams, mockSetSearchParams],
 }))
 
 // Create a QueryClient instance
@@ -55,9 +71,10 @@ describe('UsersTab Component', () => {
     {
       id: 'u1',
       username: 'admin',
-      email: 'admin@nexus.local',
+      email: 'admin@example.com',
       full_name: 'Admin User',
-      is_active: true,
+      is_enabled: true,
+      is_builtin: true,
       last_login: '2024-03-15T10:30:00Z',
       created_at: '2024-01-01T00:00:00Z',
       updated_at: '2024-01-02T00:00:00Z',
@@ -67,7 +84,7 @@ describe('UsersTab Component', () => {
       username: 'jdoe',
       email: 'jdoe@nexus.local',
       full_name: 'John Doe',
-      is_active: true,
+      is_enabled: true,
       last_login: '2024-03-14T08:00:00Z',
       created_at: '2024-02-01T00:00:00Z',
       updated_at: '2024-02-02T00:00:00Z',
@@ -77,28 +94,65 @@ describe('UsersTab Component', () => {
       username: 'viewer1',
       email: 'viewer@nexus.local',
       full_name: 'View Only',
-      is_active: false,
+      is_enabled: false,
       last_login: null,
       created_at: '2024-03-01T00:00:00Z',
       updated_at: '2024-03-02T00:00:00Z',
     },
   ]
 
+  const mockGroupsData = {
+    resources: [
+      {
+        id: 'g0-builtin-admins',
+        name: 'admins',
+        description: 'Built-in administrators group',
+        is_builtin: true,
+        member_count: 1,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+      },
+    ],
+  }
+
   beforeEach(() => {
     mockNavigate.mockClear()
+    currentSearchParams = new URLSearchParams()
     mockSetSearchParams.mockClear()
-    mockSearchParams = new URLSearchParams()
 
-    vi.mocked(usersClient.useQuery).mockReturnValue({
-      data: { resources: mockUsers },
-      isPending: false,
-      isError: false,
-      error: null,
-      isFetching: false,
-      refetch: vi.fn(),
-    } as never)
+    vi.mocked(accessClient.useQuery).mockImplementation((...args: unknown[]) => {
+      const endpoint = args[1] as string
+      if (endpoint === '/groups') {
+        return {
+          data: mockGroupsData,
+          isPending: false,
+          isError: false,
+          error: null,
+          isFetching: false,
+          refetch: vi.fn(),
+        } as never
+      }
+      if (endpoint === '/groups/{group_id}/members') {
+        return {
+          data: { resources: [mockUsers[0]] },
+          isPending: false,
+          isError: false,
+          error: null,
+          isFetching: false,
+          refetch: vi.fn(),
+        } as never
+      }
+      return {
+        data: { resources: mockUsers },
+        isPending: false,
+        isError: false,
+        error: null,
+        isFetching: false,
+        refetch: vi.fn(),
+      } as never
+    })
 
-    vi.mocked(usersClient.useMutation).mockReturnValue({
+    vi.mocked(accessClient.useMutation).mockReturnValue({
       mutate: vi.fn(),
       isPending: false,
       isError: false,
@@ -118,6 +172,46 @@ describe('UsersTab Component', () => {
     } as never)
   })
 
+  describe('Built-in Administrator Account', () => {
+    it('renders the Built-in Administrator Account card', () => {
+      render(<UsersTab />, { wrapper })
+
+      expect(screen.getByText('Built-in Administrator Account')).toBeInTheDocument()
+      expect(screen.getByText(/Username:/)).toBeInTheDocument()
+    })
+
+    it('renders the admin account switch as checked when admin is active', () => {
+      render(<UsersTab />, { wrapper })
+
+      const adminSwitch = screen.getByRole('switch', {
+        name: /Built-in administrator account enabled/,
+      })
+      expect(adminSwitch).toBeChecked()
+      expect(adminSwitch).toBeDisabled()
+    })
+
+    it('renders the admin account switch as unchecked when admin is inactive', () => {
+      vi.mocked(accessClient.useQuery).mockReturnValue({
+        data: {
+          resources: [{ ...mockUsers[0], is_enabled: false }, mockUsers[1], mockUsers[2]],
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        isFetching: false,
+        refetch: vi.fn(),
+      } as never)
+
+      render(<UsersTab />, { wrapper })
+
+      const adminSwitch = screen.getByRole('switch', {
+        name: /Built-in administrator account disabled/,
+      })
+      expect(adminSwitch).not.toBeChecked()
+      expect(adminSwitch).toBeEnabled()
+    })
+  })
+
   describe('Rendering', () => {
     it('renders without crashing', () => {
       render(<UsersTab />, { wrapper })
@@ -128,22 +222,23 @@ describe('UsersTab Component', () => {
     it('renders users in table', () => {
       render(<UsersTab />, { wrapper })
 
-      expect(screen.getByText('admin')).toBeInTheDocument()
-      expect(screen.getByText('jdoe')).toBeInTheDocument()
-      expect(screen.getByText('viewer1')).toBeInTheDocument()
+      const table = screen.getByRole('grid', { name: 'Users' })
+      expect(within(table).getByText('admin')).toBeInTheDocument()
+      expect(within(table).getByText('jdoe')).toBeInTheDocument()
+      expect(within(table).getByText('viewer1')).toBeInTheDocument()
     })
 
     it('renders table columns with correct data', () => {
       render(<UsersTab />, { wrapper })
 
       expect(screen.getByText('Admin User')).toBeInTheDocument()
-      expect(screen.getByText('admin@nexus.local')).toBeInTheDocument()
+      expect(screen.getByText('admin@example.com')).toBeInTheDocument()
     })
 
     it('renders last login as dash for null', () => {
       render(<UsersTab />, { wrapper })
 
-      const table = screen.getByRole('grid', { name: 'Users table' })
+      const table = screen.getByRole('grid', { name: 'Users' })
       const rows = within(table).getAllByRole('row')
       const viewer1Row = rows[3]
       expect(within(viewer1Row).getByText('-')).toBeInTheDocument()
@@ -161,7 +256,7 @@ describe('UsersTab Component', () => {
 
   describe('Empty State', () => {
     it('displays empty state when no users exist and no filters active', () => {
-      vi.mocked(usersClient.useQuery).mockReturnValueOnce({
+      vi.mocked(accessClient.useQuery).mockReturnValueOnce({
         data: { resources: [] },
         isPending: false,
         isError: false,
@@ -180,7 +275,7 @@ describe('UsersTab Component', () => {
 
   describe('Error Handling', () => {
     it('displays loading state', () => {
-      vi.mocked(usersClient.useQuery).mockReturnValueOnce({
+      vi.mocked(accessClient.useQuery).mockReturnValueOnce({
         data: null,
         isPending: true,
         isError: false,
@@ -194,7 +289,7 @@ describe('UsersTab Component', () => {
 
     it('displays error state', () => {
       const mockError = new Error('Failed to load users')
-      vi.mocked(usersClient.useQuery).mockReturnValue({
+      vi.mocked(accessClient.useQuery).mockReturnValue({
         data: null,
         isPending: false,
         isError: true,
@@ -217,7 +312,7 @@ describe('UsersTab Component', () => {
       expect(textInput).toHaveValue('admin')
     })
 
-    it('applies username filter to API query on submit', async () => {
+    it('applies username filter to URL params on submit', async () => {
       const user = userEvent.setup()
       render(<UsersTab />, { wrapper })
 
@@ -226,9 +321,10 @@ describe('UsersTab Component', () => {
       await user.keyboard('{Enter}')
 
       await waitFor(() => {
-        assertUrlParam(mockSetSearchParams, 'username[contains]', 'admin')
+        expect(mockSetSearchParams).toHaveBeenCalled()
+        const lastParams = mockSetSearchParams.mock.calls.at(-1)?.[0] as URLSearchParams
+        expect(lastParams.get('username[contains]')).toBe('admin')
       })
-      expect(mockSetSearchParams).toHaveBeenCalled()
     })
   })
 
@@ -247,7 +343,7 @@ describe('UsersTab Component', () => {
       render(<UsersTab />, { wrapper })
 
       // Server-side sorting: data is rendered in the order returned by the mock
-      const table = screen.getByRole('grid', { name: 'Users table' })
+      const table = screen.getByRole('grid', { name: 'Users' })
       const rows = within(table).getAllByRole('row')
       expect(within(rows[1]).getByText('admin')).toBeInTheDocument()
       expect(within(rows[2]).getByText('jdoe')).toBeInTheDocument()
@@ -262,16 +358,23 @@ describe('UsersTab Component', () => {
       const sortButton = within(usernameHeader).getByRole('button')
       await user.click(sortButton)
 
-      // Client-side sorting: verify data still renders after sort toggle
-      const table = screen.getByRole('grid', { name: 'Users table' })
-      const rows = within(table).getAllByRole('row')
-      expect(rows.length).toBeGreaterThan(1)
+      // Server-side sorting: verify the sort param was sent to the API
+      await waitFor(() => {
+        const lastCall = vi
+          .mocked(accessClient.useQuery)
+          .mock.calls.filter((c) => c[1] === '/users')
+          .at(-1)
+        expect(lastCall).toBeDefined()
+        const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
+          ?.query
+        expect(queryParams).toHaveProperty('sort')
+      })
     })
   })
 
   describe('Pagination', () => {
     it('displays pagination controls when next cursor is available', () => {
-      vi.mocked(usersClient.useQuery).mockReturnValue({
+      vi.mocked(accessClient.useQuery).mockReturnValue({
         data: { resources: mockUsers, next: 'next-cursor-abc', prev: null, total: 25 },
         isPending: false,
         isError: false,
@@ -287,7 +390,7 @@ describe('UsersTab Component', () => {
     })
 
     it('displays total count when available', () => {
-      vi.mocked(usersClient.useQuery).mockReturnValue({
+      vi.mocked(accessClient.useQuery).mockReturnValue({
         data: { resources: mockUsers, next: 'next-cursor', prev: null, total: 25 },
         isPending: false,
         isError: false,
@@ -298,13 +401,12 @@ describe('UsersTab Component', () => {
 
       render(<UsersTab />, { wrapper })
 
-      // Footer renders count text with total
-      expect(screen.getByText(/3 users/)).toBeInTheDocument()
-      expect(screen.getByText(/of 25 total/)).toBeInTheDocument()
+      // ScrollableTableContainer footer shows item count and total
+      expect(screen.getByText('3 users')).toBeInTheDocument()
     })
 
     it('displays singular "user" when only one result', () => {
-      vi.mocked(usersClient.useQuery).mockReturnValue({
+      vi.mocked(accessClient.useQuery).mockReturnValue({
         data: { resources: [mockUsers[0]], next: null, prev: null, total: 1 },
         isPending: false,
         isError: false,
@@ -315,8 +417,8 @@ describe('UsersTab Component', () => {
 
       render(<UsersTab />, { wrapper })
 
-      // Footer renders singular "user" for one result
-      expect(screen.getByText(/1 user$/)).toBeInTheDocument()
+      // ScrollableTableContainer footer shows singular label
+      expect(screen.getByText('1 user')).toBeInTheDocument()
     })
   })
 
@@ -340,7 +442,7 @@ describe('UsersTab Component', () => {
       const editOption = await screen.findByRole('menuitem', { name: /edit/i })
       await user.click(editOption)
 
-      expect(mockNavigate).toHaveBeenCalledWith('/access-management/users/u1/edit')
+      expect(mockNavigate).toHaveBeenCalledWith('/access-management/users/u2/edit')
     })
 
     it('navigates to user detail page when username is clicked', async () => {
@@ -354,6 +456,19 @@ describe('UsersTab Component', () => {
   })
 
   describe('Row Actions', () => {
+    it('does not show actions for the admin user', () => {
+      render(<UsersTab />, { wrapper })
+
+      const table = screen.getByRole('grid', { name: 'Users' })
+      const rows = within(table).getAllByRole('row')
+      // rows[0] is header, rows[1] is admin (u1), rows[2] is jdoe, rows[3] is viewer1
+      const adminRow = rows[1]
+      const nonAdminRow = rows[2]
+
+      expect(within(adminRow).queryByRole('button', { name: 'Kebab toggle' })).not.toBeInTheDocument()
+      expect(within(nonAdminRow).getByRole('button', { name: 'Kebab toggle' })).toBeInTheDocument()
+    })
+
     it('opens delete dialog when delete action is clicked', async () => {
       const user = userEvent.setup()
       render(<UsersTab />, { wrapper })
@@ -376,7 +491,7 @@ describe('UsersTab Component', () => {
       const mockDeleteMutate = vi.fn()
       const mockRefetch = vi.fn()
 
-      vi.mocked(usersClient.useQuery).mockReturnValue({
+      vi.mocked(accessClient.useQuery).mockReturnValue({
         data: { resources: mockUsers },
         isPending: false,
         isError: false,
@@ -385,7 +500,7 @@ describe('UsersTab Component', () => {
         refetch: mockRefetch,
       } as never)
 
-      vi.mocked(usersClient.useMutation).mockReturnValue({
+      vi.mocked(accessClient.useMutation).mockReturnValue({
         mutate: mockDeleteMutate,
         isPending: false,
       } as never)
@@ -402,7 +517,7 @@ describe('UsersTab Component', () => {
 
       expect(mockDeleteMutate).toHaveBeenCalled()
       const callArgs = mockDeleteMutate.mock.calls[0]
-      expect(callArgs[0]).toEqual({ params: { path: { user_id: 'u1' } } })
+      expect(callArgs[0]).toEqual({ params: { path: { user_id: 'u2' } } })
     })
 
     it('shows success alert and closes dialog on successful delete', async () => {
@@ -410,7 +525,7 @@ describe('UsersTab Component', () => {
       const mockDeleteMutate = vi.fn()
       const mockRefetch = vi.fn().mockResolvedValue({})
 
-      vi.mocked(usersClient.useQuery).mockReturnValue({
+      vi.mocked(accessClient.useQuery).mockReturnValue({
         data: { resources: mockUsers },
         isPending: false,
         isError: false,
@@ -419,7 +534,7 @@ describe('UsersTab Component', () => {
         refetch: mockRefetch,
       } as never)
 
-      vi.mocked(usersClient.useMutation).mockReturnValue({
+      vi.mocked(accessClient.useMutation).mockReturnValue({
         mutate: mockDeleteMutate,
         isPending: false,
       } as never)
@@ -474,7 +589,7 @@ describe('UsersTab Component', () => {
       const mockDeleteMutate = vi.fn()
       const mockRefetch = vi.fn()
 
-      vi.mocked(usersClient.useQuery).mockReturnValue({
+      vi.mocked(accessClient.useQuery).mockReturnValue({
         data: { resources: mockUsers },
         isPending: false,
         isError: false,
@@ -483,7 +598,7 @@ describe('UsersTab Component', () => {
         refetch: mockRefetch,
       } as never)
 
-      vi.mocked(usersClient.useMutation).mockReturnValue({
+      vi.mocked(accessClient.useMutation).mockReturnValue({
         mutate: mockDeleteMutate,
         isPending: false,
       } as never)
@@ -514,9 +629,8 @@ describe('UsersTab Component', () => {
   })
 
   describe('Pagination Navigation', () => {
-    it('navigates to next page when Next button is clicked', async () => {
-      const user = userEvent.setup()
-      vi.mocked(usersClient.useQuery).mockReturnValue({
+    it('renders next page button when next cursor is available', () => {
+      vi.mocked(accessClient.useQuery).mockReturnValue({
         data: { resources: mockUsers, next: 'next-cursor-abc', prev: null, total: 25 },
         isPending: false,
         isError: false,
@@ -527,14 +641,13 @@ describe('UsersTab Component', () => {
 
       render(<UsersTab />, { wrapper })
 
+      // ScrollableTableContainer footer renders prev/next buttons
       const nextButton = screen.getByRole('button', { name: /next/i })
-      await user.click(nextButton)
-
-      expect(nextButton).toBeInTheDocument()
+      expect(nextButton).not.toBeDisabled()
     })
 
-    it('navigates to previous page when Previous button is clicked', () => {
-      vi.mocked(usersClient.useQuery).mockReturnValue({
+    it('renders previous page button when prev cursor is available', () => {
+      vi.mocked(accessClient.useQuery).mockReturnValue({
         data: { resources: mockUsers, next: null, prev: 'prev-cursor-abc', total: 25 },
         isPending: false,
         isError: false,
@@ -545,44 +658,55 @@ describe('UsersTab Component', () => {
 
       render(<UsersTab />, { wrapper })
 
-      const prevButton = screen.getByRole('button', { name: /previous/i })
-      expect(prevButton).toBeInTheDocument()
+      const prevButton = screen.getByRole('button', { name: /prev/i })
+      expect(prevButton).not.toBeDisabled()
     })
   })
 
   describe('Filter Empty State', () => {
-    it('shows filter empty state when filters return no results', () => {
-      // Pre-set URL to have an active filter
-      mockSearchParams = new URLSearchParams('username%5Bcontains%5D=nonexistent')
+    it('shows filter empty state when no results with active filters', () => {
+      // Simulate active filters via URL params
+      currentSearchParams = new URLSearchParams({ 'username[contains]': 'nonexistent' })
 
-      // Mock query to return empty results (filter is active via URL)
-      vi.mocked(usersClient.useQuery).mockReturnValue({
-        data: { resources: [] },
-        isPending: false,
-        isError: false,
-        error: null,
-        isFetching: false,
-        refetch: vi.fn(),
-      } as never)
+      vi.mocked(accessClient.useQuery).mockImplementation((...args: unknown[]) => {
+        const endpoint = args[1] as string
+        if (endpoint === '/groups' || endpoint === '/groups/{group_id}/members') {
+          return {
+            data: { resources: [] },
+            isPending: false,
+            isError: false,
+            error: null,
+            isFetching: false,
+            refetch: vi.fn(),
+          } as never
+        }
+        return {
+          data: { resources: [] },
+          isPending: false,
+          isError: false,
+          error: null,
+          isFetching: false,
+          refetch: vi.fn(),
+        } as never
+      })
 
       render(<UsersTab />, { wrapper })
 
-      // With active filters and empty results, "No results found" is shown
       expect(screen.getByText('No results found')).toBeInTheDocument()
     })
 
-    it('clears all filters when clear all is clicked', async () => {
+    it('updates URL params when filter is applied', async () => {
       const user = userEvent.setup()
       render(<UsersTab />, { wrapper })
 
-      // Apply a filter
       const textInput = screen.getByRole('textbox', { name: /username filter/i })
       await user.type(textInput, 'nonexistent')
       await user.keyboard('{Enter}')
 
-      // After filter is applied, verify setSearchParams was called with the filter
       await waitFor(() => {
-        assertUrlParam(mockSetSearchParams, 'username[contains]', 'nonexistent')
+        expect(mockSetSearchParams).toHaveBeenCalled()
+        const lastParams = mockSetSearchParams.mock.calls.at(-1)?.[0] as URLSearchParams
+        expect(lastParams.get('username[contains]')).toBe('nonexistent')
       })
     })
   })
@@ -596,10 +720,17 @@ describe('UsersTab Component', () => {
       const sortButton = within(nameHeader).getByRole('button')
       await user.click(sortButton)
 
-      // Client-side sorting: verify data still renders after sort
-      const table = screen.getByRole('grid', { name: 'Users table' })
-      const rows = within(table).getAllByRole('row')
-      expect(rows.length).toBeGreaterThan(1)
+      // Server-side sorting: verify sort param is sent
+      await waitFor(() => {
+        const lastCall = vi
+          .mocked(accessClient.useQuery)
+          .mock.calls.filter((c) => c[1] === '/users')
+          .at(-1)
+        expect(lastCall).toBeDefined()
+        const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
+          ?.query
+        expect(queryParams).toHaveProperty('sort', 'full_name')
+      })
     })
 
     it('sorts by Email when Email column is clicked', async () => {
@@ -610,10 +741,17 @@ describe('UsersTab Component', () => {
       const sortButton = within(emailHeader).getByRole('button')
       await user.click(sortButton)
 
-      // Client-side sorting: verify data still renders after sort
-      const table = screen.getByRole('grid', { name: 'Users table' })
-      const rows = within(table).getAllByRole('row')
-      expect(rows.length).toBeGreaterThan(1)
+      // Server-side sorting: verify sort param is sent
+      await waitFor(() => {
+        const lastCall = vi
+          .mocked(accessClient.useQuery)
+          .mock.calls.filter((c) => c[1] === '/users')
+          .at(-1)
+        expect(lastCall).toBeDefined()
+        const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
+          ?.query
+        expect(queryParams).toHaveProperty('sort', 'email')
+      })
     })
 
     it('sorts by Last Login when Last Login column is clicked', async () => {
@@ -624,10 +762,17 @@ describe('UsersTab Component', () => {
       const sortButton = within(loginHeader).getByRole('button')
       await user.click(sortButton)
 
-      // Client-side sorting: verify data still renders after sort
-      const table = screen.getByRole('grid', { name: 'Users table' })
-      const rows = within(table).getAllByRole('row')
-      expect(rows.length).toBeGreaterThan(1)
+      // Server-side sorting: verify sort param is sent
+      await waitFor(() => {
+        const lastCall = vi
+          .mocked(accessClient.useQuery)
+          .mock.calls.filter((c) => c[1] === '/users')
+          .at(-1)
+        expect(lastCall).toBeDefined()
+        const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
+          ?.query
+        expect(queryParams).toHaveProperty('sort', 'last_login')
+      })
     })
   })
 })

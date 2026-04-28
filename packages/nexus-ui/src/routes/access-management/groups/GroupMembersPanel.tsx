@@ -1,20 +1,11 @@
-import {
-  Button,
-  Flex,
-  FlexItem,
-  Modal,
-  ModalBody,
-  ModalFooter,
-  ModalHeader,
-  Stack,
-  StackItem,
-} from '@patternfly/react-core'
+import { Button, Flex, FlexItem, Stack, StackItem } from '@patternfly/react-core'
 import { PlusIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
 
 import { useAlerts } from '../../../components/alerts'
+import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
 import { FilterBar } from '../../../components/filters'
@@ -24,9 +15,12 @@ import { useFilterState } from '../../../hooks/useFilterState'
 import type { FilterFieldDefinition } from '../../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../../types/filters'
 import { getErrorMessage } from '../../../utils/apiErrors'
-import { formatDateTime } from '../../../utils/dateUtils'
+import { detachPromise } from '../../../utils/detachPromise'
 import { accessClient } from '../../access/accessClient'
 import { PaginationFooter } from '../../access/PaginationFooter'
+import { DisabledBadge } from '../DisabledBadge'
+import { MembershipSourceLabels } from '../MembershipSourceLabels'
+import { getMembershipSources } from '../membershipSourceUtils'
 
 import { AddMemberModal } from './AddMemberModal'
 
@@ -49,33 +43,6 @@ type GroupMembersPanelProps = {
 type MemberInfo = {
   id: string
   username: string
-}
-
-function RemoveMemberDialog({
-  member,
-  isOpen,
-  onClose,
-  onConfirm,
-}: Readonly<{
-  member: MemberInfo | null
-  isOpen: boolean
-  onClose: () => void
-  onConfirm: () => void
-}>) {
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} variant="small">
-      <ModalHeader title="Remove member" />
-      <ModalBody>Are you sure you want to remove &quot;{member?.username}&quot; from this group?</ModalBody>
-      <ModalFooter>
-        <Button variant="danger" onClick={onConfirm}>
-          Remove
-        </Button>
-        <Button variant="link" onClick={onClose}>
-          Cancel
-        </Button>
-      </ModalFooter>
-    </Modal>
-  )
 }
 
 function getMemberActions(member: MemberInfo, onRemove: (m: MemberInfo) => void): IAction[] {
@@ -137,7 +104,7 @@ export function GroupMembersPanel({ groupId, onMembershipChange }: Readonly<Grou
             variant: 'success',
             autoDismiss: true,
           })
-          query.refetch().catch(() => {})
+          detachPromise(query.refetch())
           onMembershipChange()
         },
         onError: (err: unknown) => {
@@ -154,15 +121,13 @@ export function GroupMembersPanel({ groupId, onMembershipChange }: Readonly<Grou
   }
 
   const handleMemberAdded = () => {
-    query.refetch().catch(() => {})
+    detachPromise(query.refetch())
     onMembershipChange()
   }
 
   const queryState = useQueryState(query, {
     title: 'Error loading members',
-    onRetry: () => {
-      query.refetch().catch(() => {})
-    },
+    onRetry: () => detachPromise(query.refetch()),
   })
   if (queryState) return queryState
 
@@ -228,21 +193,28 @@ export function GroupMembersPanel({ groupId, onMembershipChange }: Readonly<Grou
                   <Th>Username</Th>
                   <Th>Name</Th>
                   <Th>Email</Th>
-                  <Th>Last Login</Th>
+                  <Th>Source</Th>
                   <Th screenReaderText="Actions" />
                 </Tr>
               </Thead>
               <Tbody>
                 {paginatedMembers.map((member) => (
                   <Tr key={member.id}>
-                    <Td dataLabel="Username">{member.username}</Td>
+                    <Td dataLabel="Username">
+                      {member.username}
+                      {!member.is_enabled && <DisabledBadge />}
+                    </Td>
                     <Td dataLabel="Name">{member.full_name ?? ''}</Td>
                     <Td dataLabel="Email">{member.email}</Td>
-                    <Td dataLabel="Last Login">{formatDateTime(member.last_login)}</Td>
+                    <Td dataLabel="Source">
+                      <MembershipSourceLabels sources={getMembershipSources(member)} />
+                    </Td>
                     <Td isActionCell>
-                      <ActionsColumn
-                        items={getMemberActions({ id: member.id, username: member.username }, setMemberToRemove)}
-                      />
+                      {!member.is_builtin && (
+                        <ActionsColumn
+                          items={getMemberActions({ id: member.id, username: member.username }, setMemberToRemove)}
+                        />
+                      )}
                     </Td>
                   </Tr>
                 ))}
@@ -270,12 +242,17 @@ export function GroupMembersPanel({ groupId, onMembershipChange }: Readonly<Grou
         existingMemberIds={members.map((m) => m.id)}
       />
 
-      <RemoveMemberDialog
-        member={memberToRemove}
+      <ConfirmationDialog
         isOpen={!!memberToRemove}
         onClose={() => setMemberToRemove(null)}
         onConfirm={handleRemove}
-      />
+        title="Remove member"
+        confirmLabel="Remove"
+        confirmVariant="danger"
+        titleIconVariant="warning"
+      >
+        Are you sure you want to remove &quot;{memberToRemove?.username}&quot; from this group?
+      </ConfirmationDialog>
     </>
   )
 }

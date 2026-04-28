@@ -14,6 +14,7 @@ vi.mock('../../../../client', () => ({
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
+  OIDC_REDIRECT_URI: 'http://localhost/api/v1/auth/oidc/callback',
 }))
 
 vi.mock('wouter', () => ({
@@ -88,11 +89,12 @@ describe('EditIdentityProvider', () => {
   })
 
   it('renders error state when provider not found', () => {
+    const notFoundError = Object.assign(new Error('Not found'), { status: 404 })
     vi.mocked(identityProvidersClient.useQuery).mockReturnValue({
       data: undefined,
       isLoading: false,
       isError: true,
-      error: new Error('Not found'),
+      error: notFoundError,
       refetch: vi.fn(),
     } as never)
     vi.mocked(identityProvidersClient.useMutation).mockReturnValue({

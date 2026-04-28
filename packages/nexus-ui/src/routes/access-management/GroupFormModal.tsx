@@ -27,6 +27,8 @@ import { groupFormSchema, type GroupFormData } from './groupFormSchema'
 export type GroupFormModalProps = {
   /** Group to edit, or null/undefined to create a new group */
   group?: Group | null
+  /** Pre-fill the group name when creating (e.g. from an IdP group value) */
+  initialName?: string
   /** Whether the modal is open */
   isOpen: boolean
   /** Callback when the modal is closed (cancel or after success) */
@@ -35,7 +37,7 @@ export type GroupFormModalProps = {
   onSuccess: () => void
 }
 
-export function GroupFormModal({ group, isOpen, onClose, onSuccess }: Readonly<GroupFormModalProps>) {
+export function GroupFormModal({ group, initialName, isOpen, onClose, onSuccess }: Readonly<GroupFormModalProps>) {
   const isEditMode = Boolean(group)
   const title = isEditMode ? 'Edit group' : 'Add group'
 
@@ -52,11 +54,11 @@ export function GroupFormModal({ group, isOpen, onClose, onSuccess }: Readonly<G
   useEffect(() => {
     if (isOpen) {
       reset({
-        name: group?.name ?? '',
+        name: group?.name ?? initialName ?? '',
         description: group?.description ?? '',
       })
     }
-  }, [isOpen, group, reset])
+  }, [isOpen, group, initialName, reset])
 
   const handleError = useFormMutationErrorHandler<GroupFormData>(setError)
 

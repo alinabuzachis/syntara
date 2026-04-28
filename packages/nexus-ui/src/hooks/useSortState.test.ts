@@ -4,11 +4,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 import { useSortState } from './useSortState'
 
-const mockSetSearchParams = vi.fn()
-let mockSearchParams = new URLSearchParams()
+const mockNavigate = vi.fn()
+let mockSearch = ''
+let mockLocation = '/access-management/roles'
 
 vi.mock('wouter', () => ({
-  useSearchParams: () => [mockSearchParams, mockSetSearchParams],
+  useSearch: () => mockSearch,
+  useLocation: () => [mockLocation, mockNavigate],
 }))
 
 const sortFieldByColumn: Record<number, string> = {
@@ -19,8 +21,14 @@ const sortFieldByColumn: Record<number, string> = {
 
 describe('useSortState', () => {
   beforeEach(() => {
-    mockSearchParams = new URLSearchParams()
-    mockSetSearchParams.mockClear()
+    mockSearch = ''
+    mockLocation = '/access-management/roles'
+    mockNavigate.mockClear()
+    // Sync window.location.search for live-read in onSort
+    Object.defineProperty(window, 'location', {
+      value: { ...window.location, search: '' },
+      writable: true,
+    })
   })
 
   describe('parsing', () => {
@@ -33,7 +41,7 @@ describe('useSortState', () => {
     })
 
     it('should parse ascending sort from URL', () => {
-      mockSearchParams = new URLSearchParams('sort=name')
+      mockSearch = '?sort=name'
 
       const { result } = renderHook(() => useSortState(sortFieldByColumn))
 
@@ -43,7 +51,7 @@ describe('useSortState', () => {
     })
 
     it('should parse descending sort from URL', () => {
-      mockSearchParams = new URLSearchParams('sort=-name')
+      mockSearch = '?sort=-name'
 
       const { result } = renderHook(() => useSortState(sortFieldByColumn))
 
@@ -53,7 +61,7 @@ describe('useSortState', () => {
     })
 
     it('should parse non-zero column index', () => {
-      mockSearchParams = new URLSearchParams('sort=is_builtin')
+      mockSearch = '?sort=is_builtin'
 
       const { result } = renderHook(() => useSortState(sortFieldByColumn))
 
@@ -62,7 +70,7 @@ describe('useSortState', () => {
     })
 
     it('should return undefined activeSortIndex for unknown sort field', () => {
-      mockSearchParams = new URLSearchParams('sort=unknown_field')
+      mockSearch = '?sort=unknown_field'
 
       const { result } = renderHook(() => useSortState(sortFieldByColumn))
 
@@ -73,7 +81,7 @@ describe('useSortState', () => {
 
   describe('getSortParams', () => {
     it('should return correct sort params for a column', () => {
-      mockSearchParams = new URLSearchParams('sort=name')
+      mockSearch = '?sort=name'
 
       const { result } = renderHook(() => useSortState(sortFieldByColumn))
       const sortParams = result.current.getSortParams(0)
@@ -98,8 +106,10 @@ describe('useSortState', () => {
         sortParams!.onSort!(new MouseEvent('click') as never, 0, SortByDirection.asc, {})
       })
 
-      const calledParams = mockSetSearchParams.mock.calls[0][0] as URLSearchParams
-      expect(calledParams.get('sort')).toBe('name')
+      expect(mockNavigate).toHaveBeenCalledTimes(1)
+      const navigatedUrl = mockNavigate.mock.calls[0][0] as string
+      const params = new URLSearchParams(navigatedUrl.split('?')[1])
+      expect(params.get('sort')).toBe('name')
     })
 
     it('should write descending sort param to URL on sort', () => {
@@ -110,8 +120,10 @@ describe('useSortState', () => {
         sortParams!.onSort!(new MouseEvent('click') as never, 0, SortByDirection.desc, {})
       })
 
-      const calledParams = mockSetSearchParams.mock.calls[0][0] as URLSearchParams
-      expect(calledParams.get('sort')).toBe('-name')
+      expect(mockNavigate).toHaveBeenCalledTimes(1)
+      const navigatedUrl = mockNavigate.mock.calls[0][0] as string
+      const params = new URLSearchParams(navigatedUrl.split('?')[1])
+      expect(params.get('sort')).toBe('-name')
     })
 
     it('should ignore sort for unknown column index', () => {
@@ -122,11 +134,16 @@ describe('useSortState', () => {
         sortParams!.onSort!(new MouseEvent('click') as never, 99, SortByDirection.asc, {})
       })
 
-      expect(mockSetSearchParams).not.toHaveBeenCalled()
+      expect(mockNavigate).not.toHaveBeenCalled()
     })
 
     it('should preserve other search params when sorting', () => {
-      mockSearchParams = new URLSearchParams('name[contains]=deploy&sort=name')
+      mockSearch = '?name%5Bcontains%5D=deploy&sort=name'
+      // Sync window.location.search so onSort reads live params
+      Object.defineProperty(window, 'location', {
+        value: { ...window.location, search: '?name%5Bcontains%5D=deploy&sort=name' },
+        writable: true,
+      })
 
       const { result } = renderHook(() => useSortState(sortFieldByColumn))
       const sortParams = result.current.getSortParams(3)
@@ -135,9 +152,11 @@ describe('useSortState', () => {
         sortParams!.onSort!(new MouseEvent('click') as never, 3, SortByDirection.desc, {})
       })
 
-      const calledParams = mockSetSearchParams.mock.calls[0][0] as URLSearchParams
-      expect(calledParams.get('sort')).toBe('-is_builtin')
-      expect(calledParams.get('name[contains]')).toBe('deploy')
+      expect(mockNavigate).toHaveBeenCalledTimes(1)
+      const navigatedUrl = mockNavigate.mock.calls[0][0] as string
+      const params = new URLSearchParams(navigatedUrl.split('?')[1])
+      expect(params.get('sort')).toBe('-is_builtin')
+      expect(params.get('name[contains]')).toBe('deploy')
     })
   })
 

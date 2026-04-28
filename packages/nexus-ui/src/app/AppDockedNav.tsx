@@ -44,6 +44,7 @@ import { useAlerts } from '../components/alerts'
 import { useAuthStore } from '../stores/useAuthStore'
 import { useColorScheme } from '../theme/useColorScheme'
 import { getErrorMessage } from '../utils/apiErrors'
+import { detachPromise } from '../utils/detachPromise'
 
 import { AppRoute } from './AppRoute'
 import type { INavigationItem } from './navigationItems'
@@ -157,6 +158,20 @@ function UserMenuDropdown() {
   const logout = useAuthStore((s) => s.logout)
   const { showAlert } = useAlerts()
 
+  const handleLogoutClick = () => {
+    setIsOpen(false)
+    detachPromise(logout(), {
+      onReject: (error: unknown) => {
+        showAlert({
+          title: 'Sign out failed',
+          description: getErrorMessage(error),
+          variant: 'danger',
+          autoDismiss: false,
+        })
+      },
+    })
+  }
+
   const toggle = (toggleRef: React.Ref<MenuToggleElement>) => (
     <MenuToggle
       ref={toggleRef}
@@ -188,22 +203,8 @@ function UserMenuDropdown() {
           >
             My Profile
           </DropdownItem>
-          <DropdownItem
-            key="logout"
-            onClick={async () => {
-              setIsOpen(false)
-              try {
-                await logout()
-              } catch (error: unknown) {
-                showAlert({
-                  title: 'Sign out failed',
-                  description: getErrorMessage(error),
-                  variant: 'danger',
-                  autoDismiss: false,
-                })
-              }
-            }}
-          >
+          <DropdownItem key="settings">Settings</DropdownItem>
+          <DropdownItem key="logout" onClick={handleLogoutClick}>
             Logout
           </DropdownItem>
         </DropdownList>

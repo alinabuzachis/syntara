@@ -7,18 +7,11 @@ import {
   EmptyStateFooter,
   Flex,
   FlexItem,
-  Label,
   Stack,
   StackItem,
+  Switch,
 } from '@patternfly/react-core'
-import {
-  PlusIcon,
-  RhUiCheckCircleIcon,
-  RhUiCloseCircleIcon,
-  RhUiEditIcon,
-  RhUiSecurityIcon,
-  RhUiTrashIcon,
-} from '@patternfly/react-icons'
+import { PlusIcon, RhUiEditIcon, RhUiSecurityIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useMemo, useReducer } from 'react'
@@ -26,21 +19,24 @@ import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../../app/AppRoute'
 import { identityProvidersClient } from '../../../client'
+import { useAlerts } from '../../../components/alerts'
 import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { FilterBar } from '../../../components/filters/FilterBar'
 import { IconLabel } from '../../../components/IconLabel'
+import { ProviderIcon } from '../../../components/ProviderIcon'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
 import { useCursorPagination } from '../../../hooks/useCursorPagination'
 import { useDeleteAction } from '../../../hooks/useDeleteAction'
 import { useTableSort } from '../../../hooks/useTableSort'
 import type { FilterFieldDefinition } from '../../../types/filters'
+import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 
 import { getProviderNameFilterDefinition, getProviderStatusFilterDefinition } from './identityProviderFilters'
 
-const SORT_FIELDS = ['name', 'enabled', 'issuer_url', 'client_id'] as const
+const SORT_FIELDS = ['name', 'issuer_url', 'client_id', 'enabled'] as const
 
 type IdentityProvider = IdentityProvidersAPI.components['schemas']['IdentityProviderResponse']
 
@@ -62,29 +58,22 @@ function deleteDialogReducer(state: DeleteDialogState, action: DeleteDialogActio
   }
 }
 
-function StatusLabel({ enabled }: Readonly<{ enabled?: boolean }>) {
-  if (enabled) {
-    return (
-      <Label variant="outline" status="success" icon={<RhUiCheckCircleIcon />}>
-        Enabled
-      </Label>
-    )
-  }
-  return (
-    <Label variant="outline" status="danger" icon={<RhUiCloseCircleIcon />}>
-      Disabled
-    </Label>
-  )
-}
-
 function getRowActions(provider: IdentityProvider, onDelete: (provider: IdentityProvider) => void): IAction[] {
   return [
     {
-      title: <IconLabel icon={<RhUiEditIcon />}>Edit</IconLabel>,
+      title: <IconLabel icon={<RhUiEditIcon />}>Edit provider</IconLabel>,
       isDisabled: !provider.id,
       onClick: () => {
         if (!provider.id) return
         navigate(AppRoute.AccessManagement.Authentication.EditIdentityProvider.replace(':providerId', provider.id))
+      },
+    },
+    {
+      title: <IconLabel icon={<RhUiEditIcon />}>Edit mapping</IconLabel>,
+      isDisabled: !provider.id,
+      onClick: () => {
+        if (!provider.id) return
+        navigate(`${providerDetailPath(provider.id)}/group-mapping`)
       },
     },
     { isSeparator: true },
@@ -108,6 +97,13 @@ function AddProviderButton() {
     >
       Add OIDC provider
     </Button>
+  )
+}
+
+function providerDetailPath(providerId: string): string {
+  return AppRoute.AccessManagement.Authentication.IdentityProviderDetail.replace(':providerId', providerId).replace(
+    '/:tab?',
+    ''
   )
 }
 
@@ -139,13 +135,15 @@ export function IdentityProvidersTab() {
 
   const finalQueryParams = useMemo(() => ({ ...queryParams, sort: sortParam }), [queryParams, sortParam])
 
-  const query = identityProvidersClient.useQuery('get', '/', {
+  const query = identityProvidersClient.useQuery('get', '/identity_providers/', {
     params: { query: finalQueryParams },
   })
 
   const providers = query.data?.resources ?? []
 
-  const { mutate: deleteProvider } = identityProvidersClient.useMutation('delete', '/{provider_id}')
+  const { showAlert } = useAlerts()
+  const { mutate: deleteProvider } = identityProvidersClient.useMutation('delete', '/identity_providers/{provider_id}')
+  const { mutate: patchProvider } = identityProvidersClient.useMutation('patch', '/identity_providers/{provider_id}')
 
   const handleDelete = useDeleteAction({
     deleteFn: deleteProvider,
@@ -157,6 +155,32 @@ export function IdentityProvidersTab() {
     },
     onSettled: () => dispatch({ type: 'CLOSE_DELETE_DIALOG' }),
   })
+
+  function handleToggleEnabled(provider: IdentityProvider) {
+    if (!provider.id) return
+    const newEnabled = !provider.enabled
+    patchProvider(
+      { params: { path: { provider_id: provider.id } }, body: { enabled: newEnabled } },
+      {
+        onSuccess: () => {
+          showAlert({
+            title: `Identity provider ${newEnabled ? 'enabled' : 'disabled'}`,
+            variant: 'success',
+            autoDismiss: true,
+          })
+          detachPromise(query.refetch())
+        },
+        onError: (error: unknown) => {
+          showAlert({
+            title: `Failed to ${newEnabled ? 'enable' : 'disable'} identity provider`,
+            description: getErrorMessage(error),
+            variant: 'danger',
+            autoDismiss: true,
+          })
+        },
+      }
+    )
+  }
 
   const queryState = useQueryState(query, {
     title: 'Error loading identity providers',
@@ -207,21 +231,46 @@ export function IdentityProvidersTab() {
             <Thead>
               <Tr>
                 <Th sort={getSortParams(0)}>Name</Th>
-                <Th sort={getSortParams(1)}>Status</Th>
-                <Th sort={getSortParams(2)}>Issuer URL</Th>
-                <Th sort={getSortParams(3)}>Client ID</Th>
+                <Th sort={getSortParams(1)}>Issuer URL</Th>
+                <Th sort={getSortParams(2)}>Client ID</Th>
+                <Th sort={getSortParams(3)}>State</Th>
                 <Th screenReaderText="Actions" />
               </Tr>
             </Thead>
             <Tbody>
               {providers.map((provider) => (
                 <Tr key={provider.id}>
-                  <Td dataLabel="Name">{provider.name}</Td>
-                  <Td dataLabel="Status">
-                    <StatusLabel enabled={provider.enabled} />
+                  <Td dataLabel="Name">
+                    <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
+                      <FlexItem>
+                        <ProviderIcon name={provider.name ?? ''} idpType={provider.configuration?.idp_type} />
+                      </FlexItem>
+                      <FlexItem>
+                        {provider.id ? (
+                          <Button
+                            variant="link"
+                            isInline
+                            onClick={() => navigate(providerDetailPath(provider.id ?? ''))}
+                          >
+                            {provider.name}
+                          </Button>
+                        ) : (
+                          provider.name
+                        )}
+                      </FlexItem>
+                    </Flex>
                   </Td>
                   <Td dataLabel="Issuer URL">{provider.configuration?.issuer_url ?? ''}</Td>
                   <Td dataLabel="Client ID">{provider.configuration?.client_id ?? ''}</Td>
+                  <Td dataLabel="State">
+                    <Switch
+                      id={`provider-toggle-${provider.id}`}
+                      label="Enabled"
+                      isChecked={provider.enabled}
+                      onChange={() => handleToggleEnabled(provider)}
+                      aria-label={`Toggle ${provider.name}`}
+                    />
+                  </Td>
                   <Td isActionCell>
                     <ActionsColumn
                       items={getRowActions(provider, (p) => dispatch({ type: 'OPEN_DELETE_DIALOG', payload: p }))}
@@ -241,7 +290,20 @@ export function IdentityProvidersTab() {
         confirmLabel="Delete"
         confirmVariant="danger"
       >
-        Are you sure you want to delete &quot;{providerToDelete?.name}&quot;? This action cannot be undone.
+        <Stack hasGutter>
+          <StackItem>Are you sure you want to delete &quot;{providerToDelete?.name}&quot;?</StackItem>
+          <StackItem>This will immediately:</StackItem>
+          <StackItem>
+            <ul style={{ paddingLeft: 'var(--pf-t--global--spacer--lg)', margin: 0 }}>
+              <li>Remove all user identities linked to this provider</li>
+              <li>Revoke active sessions authenticated via this provider</li>
+              <li>Prevent users from signing in with this provider</li>
+            </ul>
+          </StackItem>
+          <StackItem>
+            <strong>This action cannot be undone.</strong>
+          </StackItem>
+        </Stack>
       </ConfirmationDialog>
     </Stack>
   )

@@ -6,7 +6,6 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../../../components/alerts'
-import { formatDateTime } from '../../../utils/dateUtils'
 import { accessClient } from '../../access/accessClient'
 
 import { UserGroupsPanel } from './UserGroupsPanel'
@@ -108,8 +107,8 @@ describe('UserGroupsPanel', () => {
       render(<UserGroupsPanel userId="user-123" />, { wrapper })
 
       expect(screen.getByRole('columnheader', { name: 'Name' })).toBeInTheDocument()
+      expect(screen.getByRole('columnheader', { name: 'Source' })).toBeInTheDocument()
       expect(screen.getByRole('columnheader', { name: 'Description' })).toBeInTheDocument()
-      expect(screen.getByRole('columnheader', { name: 'Created' })).toBeInTheDocument()
     })
 
     it('displays group names in each row', () => {
@@ -128,16 +127,6 @@ describe('UserGroupsPanel', () => {
       expect(screen.getByText('Full admins')).toBeInTheDocument()
       // null description renders as empty string, so the row renders without error
       expect(screen.getByText('developers')).toBeInTheDocument()
-    })
-
-    it('displays formatted created dates', () => {
-      render(<UserGroupsPanel userId="user-123" />, { wrapper })
-
-      const expectedDate1 = formatDateTime('2026-01-01T00:00:00Z')
-      const expectedDate2 = formatDateTime('2026-01-15T00:00:00Z')
-
-      expect(screen.getByText(expectedDate1)).toBeInTheDocument()
-      expect(screen.getByText(expectedDate2)).toBeInTheDocument()
     })
   })
 

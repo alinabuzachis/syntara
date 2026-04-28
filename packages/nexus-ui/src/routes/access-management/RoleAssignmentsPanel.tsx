@@ -16,7 +16,7 @@ import { useFilterState } from '../../hooks/useFilterState'
 import { useSortState } from '../../hooks/useSortState'
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
-import { getErrorMessage, getErrorStatus } from '../../utils/apiErrors'
+import { getErrorCode, getErrorMessage, getErrorStatus } from '../../utils/apiErrors'
 import { detachPromise } from '../../utils/detachPromise'
 import { accessClient } from '../access/accessClient'
 import { PaginationFooter } from '../access/PaginationFooter'
@@ -212,8 +212,7 @@ function useRoleAssignmentData(principalType: 'user' | 'group', principalId: str
     if (!activeQuery.isError) return false
     const status = getErrorStatus(activeQuery.error)
     if (status === 403) return true
-    const errBody = activeQuery.error as { code?: string } | null
-    return errBody?.code === 'AUTHORIZATION_DENIED'
+    return getErrorCode(activeQuery.error) === 'AUTHORIZATION_DENIED'
   }, [activeQuery.isError, activeQuery.error])
 
   const assignmentRows = useMemo((): RoleAssignmentRow[] => {

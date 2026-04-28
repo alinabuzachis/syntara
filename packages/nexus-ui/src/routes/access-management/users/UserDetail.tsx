@@ -6,20 +6,24 @@ import {
   DescriptionListDescription,
   DescriptionListGroup,
   DescriptionListTerm,
+  Flex,
   FlexItem,
+  Label,
+  LabelGroup,
   StackItem,
   Tab,
   TabTitleText,
   Tabs,
   Title,
 } from '@patternfly/react-core'
-import { RhUiEditIcon } from '@patternfly/react-icons'
+import { RhUiArrowLeftIcon, RhUiEditIcon } from '@patternfly/react-icons'
 import { useParams } from 'wouter'
 import { navigate } from 'wouter/use-browser-location'
 
 import { AppPage } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
+import { authClient } from '../../../client'
 import { AppPanel } from '../../../components/AppPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { useDetailTab } from '../../../hooks/useDetailTab'
@@ -28,14 +32,77 @@ import { detachPromise } from '../../../utils/detachPromise'
 import { isValidUUID } from '../../../utils/generateUUID'
 import { accessClient } from '../../access/accessClient'
 import { DetailPageShell } from '../DetailPageShell'
+import { DisabledBadge } from '../DisabledBadge'
 import { RoleAssignmentsPanel } from '../RoleAssignmentsPanel'
 import { splitFullName } from '../userFormSchema'
 
+import type { UserIdentity } from './identityUtils'
 import { UserGroupsPanel } from './UserGroupsPanel'
+import { UserIdentitiesPanel } from './UserIdentitiesPanel'
 import { UserNotFoundState } from './UserNotFoundState'
 
-function UserDetailsTab({ user }: Readonly<{ user: User }>) {
+function computeGroupCount(groupsData: { total?: number | null; resources?: { name: string }[] } | undefined): number {
+  const apiGroupCount = groupsData?.total ?? groupsData?.resources?.length ?? 0
+  const hasAuthenticatedGroup = (groupsData?.resources ?? []).some((g) => g.name === 'authenticated')
+  return hasAuthenticatedGroup ? apiGroupCount : apiGroupCount + 1
+}
+
+function useUserDetailData(userId: string | undefined) {
+  const isValidId = !!userId && isValidUUID(userId)
+  const safeUserId = userId ?? ''
+
+  const userQuery = accessClient.useQuery(
+    'get',
+    '/users/{user_id}',
+    { params: { path: { user_id: safeUserId } } },
+    { enabled: isValidId, retry: false }
+  )
+
+  const groupsQuery = accessClient.useQuery(
+    'get',
+    '/users/{user_id}/groups',
+    { params: { path: { user_id: safeUserId } } },
+    { enabled: isValidId }
+  )
+
+  const identitiesQuery = accessClient.useQuery(
+    'get',
+    '/users/{user_id}/identities',
+    { params: { path: { user_id: safeUserId } } },
+    { enabled: isValidId }
+  )
+
+  const meQuery = authClient.useQuery('get', '/auth/me')
+
+  const groupCount = computeGroupCount(groupsQuery.data)
+  const identitiesData = identitiesQuery.data ?? []
+
+  return {
+    userQuery,
+    groupCount,
+    identitiesData,
+    currentUserId: meQuery.data?.id,
+  }
+}
+
+function UserDetailsTab({
+  user,
+  identities,
+}: {
+  user: User
+  identities: Pick<UserIdentity, 'provider_name' | 'identity_provider_id'>[]
+}) {
   const { first_name, last_name } = splitFullName(user.full_name ?? '')
+
+  const uniqueProviders = identities.reduce<Map<string, string>>((acc, i) => {
+    if (!acc.has(i.identity_provider_id)) {
+      acc.set(i.identity_provider_id, i.provider_name ?? '')
+    }
+    return acc
+  }, new Map())
+  const hasLocal = user.has_password === true
+  const totalProviders = uniqueProviders.size + (hasLocal ? 1 : 0)
+  const providerLabel = totalProviders > 1 ? 'Identity Providers' : 'Identity Provider'
 
   return (
     <DescriptionList isHorizontal isAutoColumnWidths>
@@ -56,8 +123,32 @@ function UserDetailsTab({ user }: Readonly<{ user: User }>) {
         <DescriptionListDescription>{user.email}</DescriptionListDescription>
       </DescriptionListGroup>
       <DescriptionListGroup>
-        <DescriptionListTerm>Identity Provider</DescriptionListTerm>
-        <DescriptionListDescription>Local</DescriptionListDescription>
+        <DescriptionListTerm>{providerLabel}</DescriptionListTerm>
+        <DescriptionListDescription>
+          {totalProviders === 0 ? (
+            '-'
+          ) : (
+            <LabelGroup>
+              {hasLocal && <Label isCompact>Local</Label>}
+              {[...uniqueProviders.entries()].map(([id, name]) => (
+                <Label
+                  key={id}
+                  isCompact
+                  onClick={() =>
+                    navigate(
+                      AppRoute.AccessManagement.Authentication.IdentityProviderDetail.replace(
+                        ':providerId',
+                        id
+                      ).replace('/:tab?', '')
+                    )
+                  }
+                >
+                  {name}
+                </Label>
+              ))}
+            </LabelGroup>
+          )}
+        </DescriptionListDescription>
       </DescriptionListGroup>
       <DescriptionListGroup>
         <DescriptionListTerm>Last Login</DescriptionListTerm>
@@ -71,34 +162,33 @@ function UserDetailsTab({ user }: Readonly<{ user: User }>) {
   )
 }
 
-function getGroupCount(data: { total?: number | null; resources?: { name: string }[] } | undefined): number {
-  const apiCount = data?.total ?? data?.resources?.length ?? 0
-  const hasAuthenticated = data?.resources?.some((g) => g.name === 'authenticated') ?? false
-  return hasAuthenticated ? apiCount : apiCount + 1
+function UserDetailHeaderTitle({ userData, onBack }: Readonly<{ userData: User; onBack: () => void }>) {
+  return (
+    <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
+      <FlexItem>
+        <Button variant="plain" aria-label="Back to users" onClick={onBack}>
+          <RhUiArrowLeftIcon />
+        </Button>
+      </FlexItem>
+      <FlexItem>
+        <Title headingLevel="h1">{userData.full_name ?? userData.username}</Title>
+      </FlexItem>
+      {!userData.is_enabled && (
+        <FlexItem>
+          <DisabledBadge />
+        </FlexItem>
+      )}
+    </Flex>
+  )
 }
 
 export function UserDetail() {
   const { userId } = useParams<{ userId: string }>()
   const basePath = AppRoute.AccessManagement.UserDetail.replace(':userId', userId ?? '')
-  type UserTab = 'details' | 'groups' | 'roles'
+  type UserTab = 'details' | 'groups' | 'identities' | 'roles'
   const [activeTab, goToTab] = useDetailTab<UserTab>(basePath)
-  const isValidId = !!userId && isValidUUID(userId)
 
-  const userQuery = accessClient.useQuery(
-    'get',
-    '/users/{user_id}',
-    { params: { path: { user_id: userId ?? '' } } },
-    { enabled: isValidId, retry: false }
-  )
-
-  const groupsQuery = accessClient.useQuery(
-    'get',
-    '/users/{user_id}/groups',
-    { params: { path: { user_id: userId ?? '' } } },
-    { enabled: isValidId }
-  )
-
-  const groupCount = getGroupCount(groupsQuery.data)
+  const { userQuery, groupCount, identitiesData, currentUserId } = useUserDetailData(userId)
 
   const navigateBack = () => navigate(AppRoute.AccessManagement.Users)
   const navigateEdit = () => navigate(AppRoute.AccessManagement.EditUser.replace(':userId', userId ?? ''))
@@ -133,7 +223,7 @@ export function UserDetail() {
 
   return (
     <AppPage>
-      <AppPageHeader title={<Title headingLevel="h1">{userData.full_name ?? userData.username}</Title>}>
+      <AppPageHeader title={<UserDetailHeaderTitle userData={userData} onBack={navigateBack} />}>
         <FlexItem grow={{ default: 'grow' }} />
         <Button variant="secondary" icon={<RhUiEditIcon />} onClick={navigateEdit}>
           Edit user
@@ -150,13 +240,28 @@ export function UserDetail() {
               </TabTitleText>
             }
           />
+          <Tab
+            eventKey="identities"
+            title={
+              <TabTitleText>
+                Identities <Badge isRead>{identitiesData.length}</Badge>
+              </TabTitleText>
+            }
+          />
           <Tab eventKey="roles" title={<TabTitleText>Role Assignments</TabTitleText>} />
         </Tabs>
       </StackItem>
       <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
         <AppPanel isFullHeight>
-          {activeTab === 'details' && <UserDetailsTab user={userData} />}
+          {activeTab === 'details' && <UserDetailsTab user={userData} identities={identitiesData} />}
           {activeTab === 'groups' && <UserGroupsPanel userId={userId ?? ''} />}
+          {activeTab === 'identities' && (
+            <UserIdentitiesPanel
+              userId={userId ?? ''}
+              currentUserId={currentUserId}
+              hasPassword={userData?.has_password ?? false}
+            />
+          )}
           {activeTab === 'roles' && <RoleAssignmentsPanel principalType="user" principalId={userId ?? ''} />}
         </AppPanel>
       </StackItem>

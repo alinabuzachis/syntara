@@ -175,9 +175,15 @@ test.describe('Access Management — Roles Tab Sorting', () => {
     await app.getByPlaceholder('Filter by name').fill('admin')
     await app.getByRole('button', { name: 'Apply filter' }).click()
 
-    // Apply sort
+    // Wait for filter chip to confirm UI has settled
+    const nameChipGroup = app.locator('.pf-v6-c-label-group').filter({ hasText: 'Name' })
+    await expect(nameChipGroup.getByText('admin')).toBeVisible()
+
+    // Apply sort — click the table header's sort button.
+    // A PF6 tooltip may overlay the button when the column name is truncated,
+    // so click via dispatchEvent to bypass overlay interception.
     const nameHeader = app.getByRole('columnheader', { name: 'Name' })
-    await nameHeader.getByRole('button').click()
+    await nameHeader.getByRole('button').dispatchEvent('click')
     await expect(nameHeader).toHaveAttribute('aria-sort', 'ascending')
 
     // URL has both
@@ -209,8 +215,13 @@ test.describe('Access Management — Shareable URLs', () => {
     await app.getByPlaceholder('Filter by name').fill('admin')
     await app.getByRole('button', { name: 'Apply filter' }).click()
 
+    // Wait for filter chip to confirm UI has settled
+    const nameChipGroup = app.locator('.pf-v6-c-label-group').filter({ hasText: 'Name' })
+    await expect(nameChipGroup.getByText('admin')).toBeVisible()
+
+    // Click sort — use dispatchEvent to bypass PF6 tooltip overlay on truncated header
     const nameHeader = app.getByRole('columnheader', { name: 'Name' })
-    await nameHeader.getByRole('button').click()
+    await nameHeader.getByRole('button').dispatchEvent('click')
 
     const fullUrl = app.url()
     expect(fullUrl).toContain('name%5Bcontains%5D=admin')

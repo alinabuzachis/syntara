@@ -34,7 +34,7 @@ test('user configures an integration and verifies it appears', async ({ app }) =
         .getByRole('button', { name: /Actions|Kebab toggle/i })
         .first()
         .click({ force: true })
-      await app.getByRole('menuitem', { name: /Delete/i }).click()
+      await app.getByRole('menuitem', { name: /Uninstall/i }).click()
       await app.getByRole('button', { name: 'Delete' }).click()
     }
   }

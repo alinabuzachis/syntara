@@ -42,7 +42,7 @@ const avatarStyle: React.CSSProperties = {
 }
 
 export function MyProfile() {
-  const query = authClient.useQuery('get', '/me')
+  const query = authClient.useQuery('get', '/auth/me')
   const { data: profile } = query
 
   const queryState = useQueryState(query, {

@@ -93,7 +93,7 @@ describe('IdentityProviderButtons', () => {
     expect(mockAssign).toHaveBeenCalledWith('/api/v1/auth/oidc/authorize?provider_id=provider%20with%20spaces')
   })
 
-  it('displays provider icon with first letter of name', () => {
+  it('displays provider icon for known provider', () => {
     // Arrange
     const providers: AuthProvider[] = [{ id: 'okta-1', name: 'Okta', provider_type: 'oidc' }]
 
@@ -102,11 +102,11 @@ describe('IdentityProviderButtons', () => {
 
     // Assert
     const button = screen.getByRole('button', { name: /log in with okta/i })
-    expect(button).toHaveTextContent('O')
+    expect(button.querySelector('svg')).toBeInTheDocument()
     expect(button).toHaveTextContent('Log in with Okta')
   })
 
-  it('displays uppercase first letter for unknown provider icon', () => {
+  it('displays globe icon for unknown provider', () => {
     // Arrange
     const providers: AuthProvider[] = [{ id: 'custom-1', name: 'Custom IDP', provider_type: 'oidc' }]
 
@@ -115,7 +115,7 @@ describe('IdentityProviderButtons', () => {
 
     // Assert
     const button = screen.getByRole('button', { name: /log in with custom idp/i })
-    expect(button).toHaveTextContent('C')
+    expect(button.querySelector('svg')).toBeInTheDocument()
   })
 
   it('renders known brand icon for azure provider', () => {
@@ -237,7 +237,7 @@ describe('IdentityProviderButtons', () => {
     expect(button).toBeInTheDocument()
   })
 
-  it('displays different icons for different providers', () => {
+  it('displays icons for different providers', () => {
     // Arrange
     const providers: AuthProvider[] = [
       { id: 'google', name: 'Google', provider_type: 'oidc' },
@@ -248,18 +248,18 @@ describe('IdentityProviderButtons', () => {
     // Act
     render(<IdentityProviderButtons providers={providers} />)
 
-    // Assert
+    // Assert - each button has an SVG icon
     const googleButton = screen.getByRole('button', { name: /log in with google/i })
-    expect(googleButton).toHaveTextContent('G')
+    expect(googleButton.querySelector('svg')).toBeInTheDocument()
 
     const microsoftButton = screen.getByRole('button', { name: /log in with microsoft/i })
-    expect(microsoftButton).toHaveTextContent('M')
+    expect(microsoftButton.querySelector('svg')).toBeInTheDocument()
 
     const auth0Button = screen.getByRole('button', { name: /log in with auth0/i })
-    expect(auth0Button).toHaveTextContent('A')
+    expect(auth0Button.querySelector('svg')).toBeInTheDocument()
   })
 
-  it('displays correct icon letter for each provider', () => {
+  it('displays globe icon for each unknown provider', () => {
     // Arrange
     const providers: AuthProvider[] = [
       { id: 'test1', name: 'Zebra Auth', provider_type: 'oidc' },
@@ -270,9 +270,9 @@ describe('IdentityProviderButtons', () => {
     // Act
     render(<IdentityProviderButtons providers={providers} />)
 
-    // Assert - Each button shows the uppercase first letter
-    expect(screen.getByRole('button', { name: /zebra auth/i })).toHaveTextContent('Z')
-    expect(screen.getByRole('button', { name: /yellow idp/i })).toHaveTextContent('Y')
-    expect(screen.getByRole('button', { name: /xauthprovider/i })).toHaveTextContent('X')
+    // Assert - Each button shows an SVG globe icon
+    expect(screen.getByRole('button', { name: /zebra auth/i }).querySelector('svg')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /yellow idp/i }).querySelector('svg')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /xauthprovider/i }).querySelector('svg')).toBeInTheDocument()
   })
 })

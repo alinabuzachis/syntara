@@ -17,6 +17,7 @@ import type { IAction } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
 
 import { useAlerts } from '../../../components/alerts'
+import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
 import { FilterBar } from '../../../components/filters'
@@ -26,11 +27,12 @@ import { useFilterState } from '../../../hooks/useFilterState'
 import type { FilterFieldDefinition } from '../../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../../types/filters'
 import { getErrorMessage } from '../../../utils/apiErrors'
-import { formatDateTime } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
 import { accessClient } from '../../access/accessClient'
 import { PaginationFooter } from '../../access/PaginationFooter'
 import { TypeaheadSelect } from '../../access/TypeaheadSelect'
+import { MembershipSourceLabels } from '../MembershipSourceLabels'
+import { getMembershipSources } from '../membershipSourceUtils'
 
 const filterFieldDefinitions: FilterFieldDefinition[] = [
   {
@@ -58,33 +60,6 @@ type UserGroupsPanelProps = {
 type GroupInfo = {
   id: string
   name: string
-}
-
-function RemoveFromGroupDialog({
-  group,
-  isOpen,
-  onClose,
-  onConfirm,
-}: Readonly<{
-  group: GroupInfo | null
-  isOpen: boolean
-  onClose: () => void
-  onConfirm: () => void
-}>) {
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} variant="small">
-      <ModalHeader title="Remove from group" />
-      <ModalBody>Are you sure you want to remove this user from group &quot;{group?.name}&quot;?</ModalBody>
-      <ModalFooter>
-        <Button variant="danger" onClick={onConfirm}>
-          Remove
-        </Button>
-        <Button variant="link" onClick={onClose}>
-          Cancel
-        </Button>
-      </ModalFooter>
-    </Modal>
-  )
 }
 
 function AddToGroupModal({
@@ -274,7 +249,7 @@ export function UserGroupsPanel({ userId }: Readonly<UserGroupsPanelProps>) {
             variant: 'success',
             autoDismiss: true,
           })
-          query.refetch().catch(() => {})
+          detachPromise(query.refetch())
         },
         onError: (err: unknown) => {
           showAlert({
@@ -308,9 +283,7 @@ export function UserGroupsPanel({ userId }: Readonly<UserGroupsPanelProps>) {
           userId={userId}
           isOpen={addModalOpen}
           onClose={() => setAddModalOpen(false)}
-          onSuccess={() => {
-            query.refetch().catch(() => {})
-          }}
+          onSuccess={() => detachPromise(query.refetch())}
           existingGroupIds={[]}
         />
       </>
@@ -358,8 +331,7 @@ export function UserGroupsPanel({ userId }: Readonly<UserGroupsPanelProps>) {
                 <Tr>
                   <Th>Name</Th>
                   <Th>Description</Th>
-                  <Th>Created</Th>
-                  <Th>Updated</Th>
+                  <Th>Source</Th>
                   <Th screenReaderText="Actions" />
                 </Tr>
               </Thead>
@@ -378,8 +350,9 @@ export function UserGroupsPanel({ userId }: Readonly<UserGroupsPanelProps>) {
                       )}
                     </Td>
                     <Td dataLabel="Description">{group.description ?? ''}</Td>
-                    <Td dataLabel="Created">{formatDateTime(group.created_at)}</Td>
-                    <Td dataLabel="Updated">{formatDateTime(group.updated_at)}</Td>
+                    <Td dataLabel="Source">
+                      <MembershipSourceLabels sources={getMembershipSources(group)} />
+                    </Td>
                     <Td isActionCell>
                       {!group.is_builtin && <ActionsColumn items={getGroupActions(group as Group, setGroupToRemove)} />}
                     </Td>
@@ -405,18 +378,21 @@ export function UserGroupsPanel({ userId }: Readonly<UserGroupsPanelProps>) {
         userId={userId}
         isOpen={addModalOpen}
         onClose={() => setAddModalOpen(false)}
-        onSuccess={() => {
-          query.refetch().catch(() => {})
-        }}
+        onSuccess={() => detachPromise(query.refetch())}
         existingGroupIds={groups.flatMap((g) => (g.id ? [g.id] : []))}
       />
 
-      <RemoveFromGroupDialog
-        group={groupToRemove}
+      <ConfirmationDialog
         isOpen={!!groupToRemove}
         onClose={() => setGroupToRemove(null)}
         onConfirm={handleRemove}
-      />
+        title="Remove from group"
+        confirmLabel="Remove"
+        confirmVariant="danger"
+        titleIconVariant="warning"
+      >
+        Are you sure you want to remove this user from group &quot;{groupToRemove?.name}&quot;?
+      </ConfirmationDialog>
     </>
   )
 }

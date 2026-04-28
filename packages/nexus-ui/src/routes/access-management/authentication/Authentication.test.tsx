@@ -56,24 +56,6 @@ describe('Authentication', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Identity Providers' })).toBeInTheDocument()
   })
 
-  it('renders the Built-in Administrator Account card', () => {
-    setupEmptyProviders()
-    render(<Authentication />, { wrapper })
-
-    expect(screen.getByText('Built-in Administrator Account')).toBeInTheDocument()
-    expect(screen.getByText(/Username:/)).toBeInTheDocument()
-    expect(screen.getByText('admin')).toBeInTheDocument()
-  })
-
-  it('renders the admin account switch as disabled', () => {
-    setupEmptyProviders()
-    render(<Authentication />, { wrapper })
-
-    const adminSwitch = screen.getByLabelText(/Enabled/)
-    expect(adminSwitch).toBeChecked()
-    expect(adminSwitch).toBeDisabled()
-  })
-
   it('renders empty state when no providers configured', () => {
     setupEmptyProviders()
     render(<Authentication />, { wrapper })

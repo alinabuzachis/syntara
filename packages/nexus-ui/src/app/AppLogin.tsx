@@ -203,7 +203,9 @@ function AppLoginForm() {
       {loginError && (
         <Alert
           variant="danger"
-          title="Authentication failed"
+          title={
+            loginError.toLowerCase().includes('log out') ? 'Identity provider sign-out failed' : 'Authentication failed'
+          }
           isInline
           style={{ marginBottom: 'var(--pf-t--global--spacer--md)' }}
         >

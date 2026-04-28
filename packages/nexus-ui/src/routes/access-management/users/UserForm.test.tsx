@@ -24,13 +24,6 @@ vi.mock('../../access/accessClient', () => ({
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
-}))
-
-vi.mock('../../access/accessClient', () => ({
-  accessClient: {
-    useQuery: vi.fn(),
-    useMutation: vi.fn(),
-  },
   accessFetchClient: {
     POST: vi.fn().mockResolvedValue({ data: { allowed: false } }),
   },
@@ -93,7 +86,7 @@ const mockUserData = {
   username: 'jdoe',
   email: 'jdoe@nexus.local',
   full_name: 'John Doe',
-  is_active: true,
+  is_enabled: true,
 }
 
 function setupEditMocks(mutateOverrides?: Partial<ReturnType<typeof vi.fn>>) {
@@ -176,7 +169,7 @@ describe('UserForm', () => {
           email: 'new@nexus.local',
           full_name: 'New User',
           password: 'securepass123',
-          is_active: true,
+          is_enabled: true,
         },
       })
     })
@@ -298,9 +291,10 @@ describe('UserForm', () => {
       expect(callArgs[0]).toEqual({
         params: { path: { user_id: VALID_UUID } },
         body: {
+          username: 'jdoe',
           full_name: 'John Doe',
           email: 'updated@nexus.local',
-          is_active: true,
+          is_enabled: true,
         },
       })
     })

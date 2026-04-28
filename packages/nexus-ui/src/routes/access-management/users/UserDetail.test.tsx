@@ -15,11 +15,10 @@ import { UserDetail } from './UserDetail'
 // ---------------------------------------------------------------------------
 
 vi.mock('../../../client', () => ({
-  usersClient: {
-    useQuery: vi.fn(),
-    useMutation: vi.fn(),
-  },
   authMiddleware: { onRequest: vi.fn() },
+  authClient: {
+    useQuery: vi.fn().mockReturnValue({ data: undefined, isPending: false, isError: false, error: null }),
+  },
 }))
 
 vi.mock('../../access/accessClient', () => ({
@@ -62,11 +61,20 @@ const mockUser = {
   username: 'jdoe',
   email: 'jdoe@nexus.local',
   full_name: 'John Doe',
-  is_active: true,
+  is_enabled: true,
+  has_password: true,
   last_login: '2026-03-28T09:15:00Z',
   created_at: '2026-01-15T00:00:00Z',
   updated_at: '2026-02-10T00:00:00Z',
 }
+
+const emptyIdentitiesResult = {
+  data: [],
+  isPending: false,
+  isError: false,
+  error: null,
+  refetch: vi.fn(),
+} as never
 
 const mockGroupsData = {
   resources: [{ id: 'g1', name: 'developers' }],
@@ -87,12 +95,21 @@ const wrapper = ({ children }: { children: ReactNode }) => (
   </QueryClientProvider>
 )
 
-/** Default mock return for a successful user + groups query pair. */
+/** Default mock return for a successful user + groups + identities query set. */
 function mockSuccessQueries() {
   vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
     if (path === '/users/{user_id}') {
       return {
         data: mockUser,
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      } as never
+    }
+    if (path === '/users/{user_id}/identities') {
+      return {
+        data: [],
         isPending: false,
         isError: false,
         error: null,
@@ -169,6 +186,7 @@ describe('UserDetail', () => {
             refetch: vi.fn(),
           } as never
         }
+        if (path === '/users/{user_id}/identities') return emptyIdentitiesResult
         return {
           data: mockGroupsData,
           isPending: false,
@@ -194,6 +212,7 @@ describe('UserDetail', () => {
             refetch: vi.fn(),
           } as never
         }
+        if (path === '/users/{user_id}/identities') return emptyIdentitiesResult
         return {
           data: mockGroupsData,
           isPending: false,
@@ -220,6 +239,7 @@ describe('UserDetail', () => {
             refetch: vi.fn(),
           } as never
         }
+        if (path === '/users/{user_id}/identities') return emptyIdentitiesResult
         return {
           data: {
             resources: [
@@ -236,8 +256,8 @@ describe('UserDetail', () => {
 
       render(<UserDetail />, { wrapper })
 
-      // getGroupCount: total is undefined, so apiCount = resources.length = 2
-      // No 'authenticated' group in resources, so it adds 1 => 3
+      // groupCount: total is undefined, so count = resources.length = 2
+      // +1 for implicit 'authenticated' group (not in the list)
       const groupsTab = screen.getByRole('tab', { name: /Groups/i })
       expect(groupsTab).toHaveTextContent('3')
     })
@@ -257,6 +277,7 @@ describe('UserDetail', () => {
             refetch: vi.fn(),
           } as never
         }
+        if (path === '/users/{user_id}/identities') return emptyIdentitiesResult
         return {
           data: mockGroupsData,
           isPending: false,
@@ -286,6 +307,7 @@ describe('UserDetail', () => {
             refetch: vi.fn(),
           } as never
         }
+        if (path === '/users/{user_id}/identities') return emptyIdentitiesResult
         return {
           data: mockGroupsData,
           isPending: false,
@@ -314,6 +336,7 @@ describe('UserDetail', () => {
             refetch: vi.fn(),
           } as never
         }
+        if (path === '/users/{user_id}/identities') return emptyIdentitiesResult
         return {
           data: undefined,
           isPending: false,
@@ -339,6 +362,7 @@ describe('UserDetail', () => {
             refetch: vi.fn(),
           } as never
         }
+        if (path === '/users/{user_id}/identities') return emptyIdentitiesResult
         return {
           data: undefined,
           isPending: false,
@@ -367,6 +391,7 @@ describe('UserDetail', () => {
             refetch: mockRefetch,
           } as never
         }
+        if (path === '/users/{user_id}/identities') return emptyIdentitiesResult
         return {
           data: undefined,
           isPending: false,
@@ -409,6 +434,7 @@ describe('UserDetail', () => {
             refetch: vi.fn(),
           } as never
         }
+        if (path === '/users/{user_id}/identities') return emptyIdentitiesResult
         return {
           data: undefined,
           isPending: false,
@@ -464,11 +490,9 @@ describe('UserDetail', () => {
     it('displays group count badge on Groups tab', () => {
       render(<UserDetail />, { wrapper })
 
-      // The badge should show "1" (one group) + 1 for authenticated = 2
-      // The getGroupCount function adds 1 for authenticated group when it's not in the list
+      // The badge should show the group count (1 group)
       const groupsTab = screen.getByRole('tab', { name: /Groups/i })
-      // The mock returns 1 group (developers) with total=1, and authenticated
-      // group is not in the list, so getGroupCount returns total + 1 = 2
+      // The mock returns 1 group (developers) with total=1
       expect(groupsTab).toHaveTextContent(/\d+/)
     })
 
@@ -483,6 +507,7 @@ describe('UserDetail', () => {
             refetch: vi.fn(),
           } as never
         }
+        if (path === '/users/{user_id}/identities') return emptyIdentitiesResult
         return {
           data: { resources: [], total: 0 },
           isPending: false,
@@ -495,7 +520,7 @@ describe('UserDetail', () => {
       render(<UserDetail />, { wrapper })
 
       const groupsTab = screen.getByRole('tab', { name: /Groups/i })
-      // getGroupCount: total=0, no authenticated group in resources => 0 + 1 = 1
+      // groupCount: total=0 (no groups)
       expect(groupsTab).toHaveTextContent(/\d+/)
     })
   })
@@ -530,6 +555,7 @@ describe('UserDetail', () => {
             refetch: vi.fn(),
           } as never
         }
+        if (path === '/users/{user_id}/identities') return emptyIdentitiesResult
         return {
           data: undefined,
           isPending: false,

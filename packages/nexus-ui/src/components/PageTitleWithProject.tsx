@@ -1,4 +1,4 @@
-import { Flex, FlexItem } from '@patternfly/react-core'
+import { Flex, FlexItem, Title } from '@patternfly/react-core'
 
 /** Renders a page title with an inline project selector. */
 export function PageTitleWithProject({
@@ -8,7 +8,7 @@ export function PageTitleWithProject({
   return (
     <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
       <FlexItem>
-        <span style={{ fontSize: 'var(--pf-t--global--font--size--heading--h1)', fontWeight: 'bold' }}>{title}</span>
+        <Title headingLevel="h1">{title}</Title>
       </FlexItem>
       <FlexItem>{projectSelector}</FlexItem>
     </Flex>

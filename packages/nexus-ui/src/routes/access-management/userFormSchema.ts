@@ -7,10 +7,10 @@ import { z } from 'zod'
 const baseSchema = z.object({
   username: z.string().min(1, 'Username is required').max(255, 'Username must be 255 characters or fewer'),
   first_name: z.string().min(1, 'First name is required').max(127, 'First name must be 127 characters or fewer'),
-  last_name: z.string().min(1, 'Last name is required').max(127, 'Last name must be 127 characters or fewer'),
-  email: z.string().min(1, 'Email is required').email('Must be a valid email address').max(255),
+  last_name: z.string().max(127, 'Last name must be 127 characters or fewer').optional().or(z.literal('')),
+  email: z.string().email('Must be a valid email address').max(255).optional().or(z.literal('')),
   password: z.string().min(8, 'Password must be at least 8 characters').optional().or(z.literal('')),
-  is_active: z.boolean(),
+  is_enabled: z.boolean(),
 })
 
 /** Schema that enforces password on create mode */

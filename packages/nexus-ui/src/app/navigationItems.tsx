@@ -16,6 +16,7 @@ import {
   Credentials,
   EditIdentityProvider,
   EditUser,
+  IdentityProviderDetail,
   ExecutionDetail,
   Executions,
   Glossary,
@@ -150,15 +151,15 @@ export const navigationItems: INavigationItem[] = [
             hidden: true,
           },
           {
-            label: 'User Detail',
-            path: AppRoute.AccessManagement.UserDetail,
-            element: <UserDetail />,
-            hidden: true,
-          },
-          {
             label: 'Edit User',
             path: AppRoute.AccessManagement.EditUser,
             element: <EditUser />,
+            hidden: true,
+          },
+          {
+            label: 'User Detail',
+            path: AppRoute.AccessManagement.UserDetail,
+            element: <UserDetail />,
             hidden: true,
           },
           {
@@ -184,6 +185,11 @@ export const navigationItems: INavigationItem[] = [
             label: 'Edit Identity Provider',
             path: AppRoute.AccessManagement.Authentication.EditIdentityProvider,
             element: <EditIdentityProvider />,
+          },
+          {
+            label: 'Identity Provider Details',
+            path: AppRoute.AccessManagement.Authentication.IdentityProviderDetail,
+            element: <IdentityProviderDetail />,
           },
         ],
       },

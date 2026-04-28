@@ -7,7 +7,7 @@
 
 import { Flex, FormHelperText, HelperText, HelperTextItem, Label } from '@patternfly/react-core'
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
 export type TagInputProps = {
   /** Current list of items */
@@ -22,6 +22,8 @@ export type TagInputProps = {
   placeholder?: string
   /** Helper text below the control */
   helperText?: string
+  /** Whether the input is disabled */
+  isDisabled?: boolean
 }
 
 const containerStyle = {
@@ -44,8 +46,9 @@ const inlineInputStyle: CSSProperties = {
   fontSize: 'inherit',
 }
 
-export function TagInput({ value, onChange, id, ariaLabel, placeholder = '', helperText }: TagInputProps) {
+export function TagInput({ value, onChange, id, ariaLabel, placeholder = '', helperText, isDisabled }: TagInputProps) {
   const [inputValue, setInputValue] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
 
   const handleAdd = (e: ReactKeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' || e.key === ',') {
@@ -65,12 +68,14 @@ export function TagInput({ value, onChange, id, ariaLabel, placeholder = '', hel
     onChange(value.filter((item) => item !== itemToRemove))
   }
 
-  const focusInput = () => document.getElementById(id)?.focus()
+  const focusInput = () => {
+    if (!isDisabled) inputRef.current?.focus()
+  }
 
   return (
     <>
       <Flex
-        className="pf-v6-c-form-control"
+        className={`pf-v6-c-form-control${isDisabled ? ' pf-m-disabled' : ''}`}
         flexWrap={{ default: 'wrap' }}
         alignItems={{ default: 'alignItemsCenter' }}
         columnGap={{ default: 'columnGapSm' }}
@@ -78,30 +83,39 @@ export function TagInput({ value, onChange, id, ariaLabel, placeholder = '', hel
         style={containerStyle}
         onClick={focusInput}
       >
-        {value.map((item) => (
-          <Label
-            key={item}
-            color="grey"
-            onClose={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              handleRemove(item)
-            }}
-            closeBtnAriaLabel={`Remove ${item}`}
-          >
-            {item}
-          </Label>
-        ))}
-        <input
-          id={id}
-          type="text"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onKeyDown={handleAdd}
-          placeholder={value.length === 0 ? placeholder : ''}
-          aria-label={ariaLabel}
-          style={inlineInputStyle}
-        />
+        {value.map((item) =>
+          isDisabled ? (
+            <Label key={item} color="grey">
+              {item}
+            </Label>
+          ) : (
+            <Label
+              key={item}
+              color="grey"
+              onClose={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                handleRemove(item)
+              }}
+              closeBtnAriaLabel={`Remove ${item}`}
+            >
+              {item}
+            </Label>
+          )
+        )}
+        {!isDisabled && (
+          <input
+            ref={inputRef}
+            id={id}
+            type="text"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={handleAdd}
+            placeholder={value.length === 0 ? placeholder : ''}
+            aria-label={ariaLabel}
+            style={inlineInputStyle}
+          />
+        )}
       </Flex>
       {helperText && (
         <FormHelperText>

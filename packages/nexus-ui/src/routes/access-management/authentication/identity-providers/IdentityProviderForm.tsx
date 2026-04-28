@@ -1,13 +1,12 @@
+import { type IdentityProvidersAPI } from '@ansible/nexus-contracts'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
-  Alert,
   Button,
   EmptyState,
   EmptyStateActions,
   EmptyStateBody,
   EmptyStateFooter,
   FlexItem,
-  Form,
   StackItem,
 } from '@patternfly/react-core'
 import { RhUiArrowLeftIcon, RhUiSearchIcon, RhUiSyncIcon } from '@patternfly/react-icons'
@@ -19,20 +18,21 @@ import { navigate } from 'wouter/use-browser-location'
 import { AppPage } from '../../../../app/AppPage'
 import { AppPageHeader } from '../../../../app/AppPageHeader'
 import { AppRoute } from '../../../../app/AppRoute'
-import { identityProvidersClient } from '../../../../client'
+import { identityProvidersClient, OIDC_REDIRECT_URI } from '../../../../client'
 import { useAlerts } from '../../../../components/alerts'
 import { AppPanel } from '../../../../components/AppPanel'
 import { useQueryState } from '../../../../components/states/useQueryState'
 import { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationErrorHandler'
-import { getErrorMessage, isConflictError } from '../../../../utils/apiErrors'
+import { getErrorMessage, getErrorStatus, isConflictError } from '../../../../utils/apiErrors'
 import { detachPromise } from '../../../../utils/detachPromise'
+import { trimTrailingSlashes } from '../../../../utils/urlUtils'
 
+import { autoSelectClaimMappings } from './claimMappingUtils'
 import { IdentityProviderFormFields } from './IdentityProviderFormFields'
 import {
   identityProviderDefaults,
   identityProviderAddSchema,
   identityProviderEditSchema,
-  OIDC_REDIRECT_URI,
   type IdentityProviderFormData,
 } from './identityProviderFormSchema'
 
@@ -48,6 +48,33 @@ function endpointFields(formData: IdentityProviderFormData) {
     token_endpoint: formData.autoDiscovery ? null : formData.tokenEndpoint || null,
     jwks_uri: formData.autoDiscovery ? null : formData.jwksUri || null,
     userinfo_endpoint: formData.autoDiscovery ? null : formData.userinfoEndpoint || null,
+    end_session_endpoint: formData.autoDiscovery ? null : formData.endSessionEndpoint || null,
+  }
+}
+
+function claimMappingPayload(formData: IdentityProviderFormData) {
+  return {
+    subject: formData.claimMapping.subject,
+    email: formData.claimMapping.email,
+    username: formData.claimMapping.username,
+    full_name: formData.claimMapping.fullName,
+    groups: formData.claimMapping.groups,
+  }
+}
+
+function groupMappingFields(formData: IdentityProviderFormData) {
+  if (!formData.groupMapping) {
+    return {
+      group_jmespath_expression: null,
+      group_mapping_entries: [],
+    }
+  }
+  return {
+    group_jmespath_expression: formData.groupMapping.jmespathExpression,
+    group_mapping_entries: formData.groupMapping.entries.map((e) => ({
+      idp_group_value: e.idpGroupValue,
+      nexus_group_id: e.nexusGroupId,
+    })),
   }
 }
 
@@ -57,13 +84,18 @@ function toCreatePayload(formData: IdentityProviderFormData) {
     enabled: formData.enabled,
     configuration: {
       provider_type: PROVIDER_TYPE_OIDC,
+      idp_type: formData.idpType,
       auto_discovery: formData.autoDiscovery,
-      issuer_url: formData.issuerUrl,
+      issuer_url: trimTrailingSlashes(formData.issuerUrl),
       client_id: formData.clientId,
       client_secret: formData.clientSecret,
       redirect_uri: OIDC_REDIRECT_URI,
       scopes: formData.scopes,
       ...endpointFields(formData),
+      enable_rp_initiated_logout: formData.enableRpInitiatedLogout,
+      claim_mapping: claimMappingPayload(formData),
+      ...groupMappingFields(formData),
+      auto_create_groups: formData.autoCreateGroups,
     },
   }
 }
@@ -74,30 +106,48 @@ function toPatchPayload(formData: IdentityProviderFormData) {
     enabled: formData.enabled,
     configuration: {
       provider_type: PROVIDER_TYPE_OIDC,
+      idp_type: formData.idpType,
       auto_discovery: formData.autoDiscovery,
-      issuer_url: formData.issuerUrl,
+      issuer_url: trimTrailingSlashes(formData.issuerUrl),
       client_id: formData.clientId,
       ...(formData.clientSecret ? { client_secret: formData.clientSecret } : {}),
       redirect_uri: OIDC_REDIRECT_URI,
       scopes: formData.scopes,
       ...endpointFields(formData),
+      enable_rp_initiated_logout: formData.enableRpInitiatedLogout,
+      claim_mapping: claimMappingPayload(formData),
+      ...groupMappingFields(formData),
+      auto_create_groups: formData.autoCreateGroups,
     },
   }
 }
 
-type ProviderConfig = {
-  auto_discovery?: boolean
-  issuer_url?: string
-  client_id?: string
-  scopes?: string
-  authorization_endpoint?: string | null
-  token_endpoint?: string | null
-  jwks_uri?: string | null
-  userinfo_endpoint?: string | null
-}
+type ProviderConfig = IdentityProvidersAPI.components['schemas']['OIDCConfigurationResponse']
 
 function stringOrEmpty(value?: string | null): string {
   return value ?? ''
+}
+
+function toClaimMappingValues(cm?: ProviderConfig['claim_mapping']): IdentityProviderFormData['claimMapping'] {
+  return {
+    subject: cm?.subject ?? 'sub',
+    email: cm?.email ?? 'email',
+    username: cm?.username ?? 'preferred_username',
+    fullName: cm?.full_name ?? 'name',
+    groups: cm?.groups ?? null,
+  }
+}
+
+function toGroupMappingValues(config?: ProviderConfig): IdentityProviderFormData['groupMapping'] {
+  const entries = config?.group_mapping_entries
+  if (!entries?.length && !config?.group_jmespath_expression) return null
+  return {
+    jmespathExpression: config?.group_jmespath_expression ?? 'groups[*]',
+    entries: (entries ?? []).map((e) => ({
+      idpGroupValue: e.idp_group_value ?? '',
+      nexusGroupId: e.nexus_group_id ?? '',
+    })),
+  }
 }
 
 function toFormValues(provider: {
@@ -107,6 +157,7 @@ function toFormValues(provider: {
 }): IdentityProviderFormData {
   const c = provider.configuration
   return {
+    idpType: c?.idp_type ?? 'custom',
     name: stringOrEmpty(provider.name),
     enabled: provider.enabled ?? false,
     autoDiscovery: c?.auto_discovery ?? true,
@@ -118,9 +169,72 @@ function toFormValues(provider: {
     tokenEndpoint: stringOrEmpty(c?.token_endpoint),
     jwksUri: stringOrEmpty(c?.jwks_uri),
     userinfoEndpoint: stringOrEmpty(c?.userinfo_endpoint),
+    endSessionEndpoint: stringOrEmpty(c?.end_session_endpoint),
+    enableRpInitiatedLogout: c?.enable_rp_initiated_logout ?? false,
+    claimMapping: toClaimMappingValues(c?.claim_mapping),
+    groupMapping: toGroupMappingValues(c),
+    autoCreateGroups: c?.auto_create_groups ?? false,
   }
 }
 
+function mapTestConnectionResult(data: {
+  success?: boolean
+  message?: string
+  claims_supported?: string[] | null
+  claim_aliases?: Record<string, string[]> | null
+  end_session_endpoint_supported?: boolean
+}) {
+  return {
+    success: data.success ?? false,
+    message: data.message ?? 'Unknown result',
+    claimsSupported: data.claims_supported,
+    claimAliases: data.claim_aliases,
+    endSessionEndpointSupported: data.end_session_endpoint_supported ?? false,
+  }
+}
+
+function ProviderNotFound({ onBack, onRetry }: Readonly<{ onBack: () => void; onRetry: () => void }>) {
+  return (
+    <AppPage>
+      <AppPageHeader title="Edit OIDC provider" />
+      <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <AppPanel isFullHeight>
+          <EmptyState headingLevel="h2" titleText="Identity provider not found" icon={RhUiSearchIcon} isFullHeight>
+            <EmptyStateBody>
+              The identity provider you are looking for does not exist or may have been deleted.
+            </EmptyStateBody>
+            <EmptyStateFooter>
+              <EmptyStateActions>
+                <Button variant="primary" icon={<RhUiArrowLeftIcon />} onClick={onBack}>
+                  Back to identity providers
+                </Button>
+                <Button variant="link" icon={<RhUiSyncIcon />} onClick={onRetry}>
+                  Retry
+                </Button>
+              </EmptyStateActions>
+            </EmptyStateFooter>
+          </EmptyState>
+        </AppPanel>
+      </StackItem>
+    </AppPage>
+  )
+}
+
+/**
+ * Add / Edit form for OIDC identity providers.
+ *
+ * Form state rationale:
+ * - Uses react-hook-form with `values` (not just `defaultValues`) for edit mode so that
+ *   the form re-syncs when the provider query refetches. `defaultValues` alone would only
+ *   populate on first mount, leaving stale data after background refetches.
+ * - `discoveredClaims` — cached claim metadata from the last "Test connection" call.
+ *   Stored in local state (not the form) because it drives the dropdown options in
+ *   `ClaimMappingFields` and should survive form resets. On a successful test, the
+ *   `autoSelectClaimMappings` helper also writes best-guess values into the form fields
+ *   so the user doesn't have to map claims manually.
+ * - `testAlert` — transient success/failure feedback from the test connection call.
+ *   Kept separate from the form because it is display-only and should not be submitted.
+ */
 export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProps>) {
   const isEdit = mode === 'edit'
   const pageTitle = isEdit ? 'Edit OIDC provider' : 'Add OIDC provider'
@@ -130,27 +244,37 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
 
   const providerQuery = identityProvidersClient.useQuery(
     'get',
-    '/{provider_id}',
+    '/identity_providers/{provider_id}',
     { params: { path: { provider_id: providerId ?? '' } } },
     { enabled: isEdit && !!providerId, retry: false }
   )
 
-  const { mutate: createProvider, isPending: isCreating } = identityProvidersClient.useMutation('post', '/')
+  const { mutate: createProvider, isPending: isCreating } = identityProvidersClient.useMutation(
+    'post',
+    '/identity_providers/'
+  )
   const { mutate: patchProvider, isPending: isPatching } = identityProvidersClient.useMutation(
     'patch',
-    '/{provider_id}'
+    '/identity_providers/{provider_id}'
   )
-  const { mutate: testConnection, isPending: isTesting } = identityProvidersClient.useMutation('post', '/test')
+  const { mutate: testConnection, isPending: isTesting } = identityProvidersClient.useMutation(
+    'post',
+    '/identity_providers/test'
+  )
 
   const { showAlert } = useAlerts()
-  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
+  const [discoveredClaims, setDiscoveredClaims] = useState<{
+    claimsSupported?: string[] | null
+    claimAliases?: Record<string, string[]> | null
+  } | null>(null)
 
   const providerData = providerQuery.data
   const formValues = providerData ? toFormValues(providerData) : undefined
 
   const schema = isEdit ? identityProviderEditSchema : identityProviderAddSchema
-  const { control, handleSubmit, setError, getValues, trigger } = useForm<IdentityProviderFormData>({
+  const { control, handleSubmit, setError, getValues, setValue, trigger } = useForm<IdentityProviderFormData>({
     resolver: zodResolver(schema, undefined, { mode: 'sync' }),
+    mode: 'onBlur',
     defaultValues: formValues ?? identityProviderDefaults,
     values: isEdit && formValues ? formValues : undefined,
   })
@@ -160,6 +284,7 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
 
   const onSubmit = (formData: IdentityProviderFormData) => {
     const context = formData.name ? `Identity provider "${formData.name}"` : undefined
+    const errorTitle = isEdit ? 'Failed to update identity provider' : 'Failed to add identity provider'
 
     const onConflict = (error: unknown) => {
       if (isConflictError(error)) {
@@ -168,34 +293,22 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
         })
         return
       }
-      handleError({
-        title: isEdit ? 'Failed to update identity provider' : 'Failed to add identity provider',
-        context,
-      })(error)
+      handleError({ title: errorTitle, context })(error)
+    }
+
+    const successTitle = isEdit ? 'Identity provider updated' : 'Identity provider created'
+    const onSuccess = () => {
+      showAlert({ title: successTitle, variant: 'success', autoDismiss: true })
+      navigateBack()
     }
 
     if (isEdit && providerId) {
       patchProvider(
         { params: { path: { provider_id: providerId } }, body: toPatchPayload(formData) },
-        {
-          onSuccess: () => {
-            showAlert({ title: 'Identity provider updated', variant: 'success', autoDismiss: true })
-            navigateBack()
-          },
-          onError: onConflict,
-        }
+        { onSuccess, onError: onConflict }
       )
     } else {
-      createProvider(
-        { body: toCreatePayload(formData) },
-        {
-          onSuccess: () => {
-            showAlert({ title: 'Identity provider created', variant: 'success', autoDismiss: true })
-            navigateBack()
-          },
-          onError: onConflict,
-        }
-      )
+      createProvider({ body: toCreatePayload(formData) }, { onSuccess, onError: onConflict })
     }
   }
 
@@ -211,59 +324,51 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
     if (!payload.name) {
       payload.name = 'connection-test'
     }
-    setTestResult(null)
-
     testConnection(
       { body: payload },
       {
         onSuccess: (data) => {
-          setTestResult({ success: data.success ?? false, message: data.message ?? 'Unknown result' })
+          const result = mapTestConnectionResult(data)
+          showAlert({
+            title: result.success ? 'Connection successful' : 'Connection failed',
+            description: result.message,
+            variant: result.success ? 'success' : 'danger',
+            autoDismiss: true,
+          })
+          if (result.success && result.endSessionEndpointSupported && !getValues('enableRpInitiatedLogout')) {
+            showAlert({
+              title: 'Single logout supported',
+              description: 'This provider supports single logout. You can enable it in the provider configuration.',
+              variant: 'info',
+              autoDismiss: true,
+            })
+          }
+          setDiscoveredClaims({ claimsSupported: result.claimsSupported, claimAliases: result.claimAliases })
+          if (result.claimsSupported && result.claimAliases) {
+            autoSelectClaimMappings(result.claimsSupported, result.claimAliases, getValues('claimMapping'), setValue)
+          }
         },
         onError: (error: unknown) => {
-          setTestResult({ success: false, message: getErrorMessage(error) })
+          showAlert({
+            title: 'Connection failed',
+            description: getErrorMessage(error),
+            variant: 'danger',
+            autoDismiss: true,
+          })
         },
       }
     )
-  }, [trigger, getValues, testConnection])
+  }, [trigger, getValues, setValue, testConnection, showAlert])
 
   const isSaving = isCreating || isPatching
 
   const refetchProvider = providerQuery.refetch
   const queryState = useQueryState(providerQuery, {
     title: 'Error loading identity provider',
-    onRetry: () => refetchProvider(),
+    onRetry: () => detachPromise(refetchProvider()),
   })
-  if (isEdit && providerQuery.error) {
-    return (
-      <AppPage>
-        <AppPageHeader title="Edit OIDC provider" />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <AppPanel isFullHeight>
-            <EmptyState headingLevel="h2" titleText="Identity provider not found" icon={RhUiSearchIcon} isFullHeight>
-              <EmptyStateBody>
-                The identity provider you are looking for does not exist or may have been deleted.
-              </EmptyStateBody>
-              <EmptyStateFooter>
-                <EmptyStateActions>
-                  <Button variant="primary" icon={<RhUiArrowLeftIcon />} onClick={navigateBack}>
-                    Back to identity providers
-                  </Button>
-                  <Button
-                    variant="link"
-                    icon={<RhUiSyncIcon />}
-                    onClick={async () => {
-                      await refetchProvider()
-                    }}
-                  >
-                    Retry
-                  </Button>
-                </EmptyStateActions>
-              </EmptyStateFooter>
-            </EmptyState>
-          </AppPanel>
-        </StackItem>
-      </AppPage>
-    )
+  if (isEdit && getErrorStatus(providerQuery.error) === 404) {
+    return <ProviderNotFound onBack={navigateBack} onRetry={() => detachPromise(refetchProvider())} />
   }
   if (isEdit && queryState) {
     return (
@@ -283,16 +388,6 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
         <Button type="submit" form="identity-provider-form" isLoading={isSaving} isDisabled={isSaving}>
           {submitLabel}
         </Button>
-        <Button
-          variant="secondary"
-          onClick={() => {
-            detachPromise(onTestConnection())
-          }}
-          isLoading={isTesting}
-          isDisabled={isTesting}
-        >
-          Test connection
-        </Button>
         <Button variant="link" onClick={navigateBack}>
           Cancel
         </Button>
@@ -301,23 +396,18 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
         <AppPanel
           isFullHeight
           isScrollable
-          panelMainBodyProps={{ style: { padding: 'var(--pf-t--global--spacer--xl)' } }}
+          panelMainBodyProps={{ style: { padding: 'var(--pf-t--global--spacer--lg)' } }}
         >
-          <div style={{ maxWidth: '600px' }}>
-            {testResult && (
-              <Alert
-                variant={testResult.success ? 'success' : 'danger'}
-                title={testResult.success ? 'Connection successful' : 'Connection failed'}
-                isInline
-                style={{ marginBottom: 'var(--pf-t--global--spacer--md)' }}
-              >
-                {testResult.message}
-              </Alert>
-            )}
-            <Form id="identity-provider-form" onSubmit={handleSubmit(onSubmit)}>
-              <IdentityProviderFormFields control={control} isEdit={isEdit} />
-            </Form>
-          </div>
+          <form id="identity-provider-form" onSubmit={handleSubmit(onSubmit)} hidden />
+          <IdentityProviderFormFields
+            control={control}
+            setValue={setValue}
+            trigger={trigger}
+            isEdit={isEdit}
+            testResult={discoveredClaims}
+            onTestConnection={onTestConnection}
+            isTesting={isTesting}
+          />
         </AppPanel>
       </StackItem>
     </AppPage>

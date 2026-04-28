@@ -87,6 +87,50 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/users/{user_id}/identities': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List User Identities
+     * @description List federated identities for a user.
+     */
+    get: operations['list_user_identities']
+    put?: never
+    /**
+     * Attach User Identity
+     * @description Attach a federated identity from another user to this user.
+     */
+    post: operations['attach_user_identity']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/users/{user_id}/identities/{identity_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /**
+     * Detach User Identity
+     * @description Detach (hard-delete) a federated identity from a user.
+     */
+    delete: operations['detach_user_identity']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/groups': {
     parameters: {
       query?: never
@@ -289,10 +333,9 @@ export interface components {
       username: string
       /**
        * Email
-       * Format: email
-       * @description Unique email address
+       * @description Email address
        */
-      email: string
+      email?: string | null
       /**
        * Full Name
        * @description User's display name
@@ -305,11 +348,11 @@ export interface components {
        */
       password: string
       /**
-       * Is Active
-       * @description Account activation status
+       * Is Enabled
+       * @description Whether the user account is enabled
        * @default true
        */
-      is_active?: boolean
+      is_enabled?: boolean
     }
     /**
      * UserUpdate
@@ -318,6 +361,11 @@ export interface components {
      *     All fields are optional for partial updates.
      */
     UserUpdate: {
+      /**
+       * Username
+       * @description Update username
+       */
+      username?: string | null
       /**
        * Full Name
        * @description Update display name
@@ -334,10 +382,10 @@ export interface components {
        */
       password?: string | null
       /**
-       * Is Active
+       * Is Enabled
        * @description Enable or disable user account
        */
-      is_active?: boolean | null
+      is_enabled?: boolean | null
     }
     /**
      * UserRead
@@ -354,11 +402,21 @@ export interface components {
       /** Username */
       username: string
       /** Email */
-      email: string
+      email?: string | null
       /** Full Name */
       full_name: string
-      /** Is Active */
-      is_active: boolean
+      /** Is Enabled */
+      is_enabled: boolean
+      /**
+       * Is Builtin
+       * @default false
+       */
+      is_builtin?: boolean
+      /**
+       * Has Password
+       * @default false
+       */
+      has_password?: boolean
       /** Last Login */
       last_login?: string | null
       /**
@@ -373,10 +431,36 @@ export interface components {
       updated_at: string
     }
     /**
-     * UserListResponse
-     * @description Paginated list response for users.
+     * ResourcesResponse[UserRead]
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
      */
-    UserListResponse: components['schemas']['ResourcesResponseBase'] & {
+    ResourcesResponse_UserRead_: {
+      /**
+       * Next
+       * @description Cursor for next page of results
+       */
+      next?: string | null
+      /**
+       * Prev
+       * @description Cursor for previous page of results
+       */
+      prev?: string | null
+      /**
+       * Total
+       * @description Total count of resources (only when include_total=true)
+       */
+      total?: number | null
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
       resources: components['schemas']['UserRead'][]
     }
     /**
@@ -392,6 +476,59 @@ export interface components {
        * @description Complete list of group IDs the user should belong to
        */
       group_ids?: string[]
+    }
+    /**
+     * UserIdentityRead
+     * @description Schema for user identity response.
+     */
+    UserIdentityRead: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /**
+       * User Id
+       * Format: uuid
+       */
+      user_id: string
+      /**
+       * Identity Provider Id
+       * Format: uuid
+       */
+      identity_provider_id: string
+      /** Issuer */
+      issuer: string
+      /** Subject */
+      subject: string
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string
+      /** Last Used At */
+      last_used_at?: string | null
+      /**
+       * Provider Name
+       * @default
+       */
+      provider_name?: string
+    }
+    /**
+     * UserIdentityAttach
+     * @description Schema for attaching an identity to a user.
+     */
+    UserIdentityAttach: {
+      /**
+       * Identity Id
+       * Format: uuid
+       */
+      identity_id: string
     }
     /**
      * GroupCreate
@@ -457,11 +594,202 @@ export interface components {
       member_count?: number
     }
     /**
-     * GroupListResponse
-     * @description Paginated list response for groups.
+     * MembershipSource
+     * @description Describes how a user got membership in a group.
      */
-    GroupListResponse: components['schemas']['ResourcesResponseBase'] & {
+    MembershipSource: {
+      /**
+       * Type
+       * @description Source type: 'manual' or 'idp'
+       */
+      type: string
+      /**
+       * Provider Name
+       * @description IdP name if source is 'idp'
+       */
+      provider_name?: string | null
+      /**
+       * Provider Id
+       * @description IdP ID if source is 'idp'
+       */
+      provider_id?: string | null
+    }
+    /**
+     * UserGroupRead
+     * @description Group response with membership source info for a specific user.
+     */
+    UserGroupRead: components['schemas']['BaseResource'] & {
+      /** Name */
+      name: string
+      /** Description */
+      description?: string | null
+      /**
+       * Is Builtin
+       * @default false
+       */
+      is_builtin?: boolean
+      /** Created By */
+      created_by?: string | null
+      /**
+       * Source
+       * @default local
+       */
+      source?: string
+      /**
+       * Member Count
+       * @default 0
+       */
+      member_count?: number
+      /**
+       * Membership Sources
+       * @description How this user was assigned to this group
+       */
+      membership_sources?: components['schemas']['MembershipSource'][]
+    }
+    /**
+     * GroupMemberRead
+     * @description User response with membership source info for a specific group.
+     */
+    GroupMemberRead: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /** Username */
+      username: string
+      /** Email */
+      email?: string | null
+      /** Full Name */
+      full_name: string
+      /** Is Enabled */
+      is_enabled: boolean
+      /**
+       * Is Builtin
+       * @default false
+       */
+      is_builtin?: boolean
+      /**
+       * Has Password
+       * @default false
+       */
+      has_password?: boolean
+      /** Last Login */
+      last_login?: string | null
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string
+      /**
+       * Membership Sources
+       * @description How this user was assigned to this group
+       */
+      membership_sources?: components['schemas']['MembershipSource'][]
+    }
+    /**
+     * ResourcesResponse[GroupRead]
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
+     */
+    ResourcesResponse_GroupRead_: {
+      /**
+       * Next
+       * @description Cursor for next page of results
+       */
+      next?: string | null
+      /**
+       * Prev
+       * @description Cursor for previous page of results
+       */
+      prev?: string | null
+      /**
+       * Total
+       * @description Total count of resources (only when include_total=true)
+       */
+      total?: number | null
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
       resources: components['schemas']['GroupRead'][]
+    }
+    /**
+     * ResourcesResponse[UserGroupRead]
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
+     */
+    ResourcesResponse_UserGroupRead_: {
+      /**
+       * Next
+       * @description Cursor for next page of results
+       */
+      next?: string | null
+      /**
+       * Prev
+       * @description Cursor for previous page of results
+       */
+      prev?: string | null
+      /**
+       * Total
+       * @description Total count of resources (only when include_total=true)
+       */
+      total?: number | null
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources: components['schemas']['UserGroupRead'][]
+    }
+    /**
+     * ResourcesResponse[GroupMemberRead]
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
+     */
+    ResourcesResponse_GroupMemberRead_: {
+      /**
+       * Next
+       * @description Cursor for next page of results
+       */
+      next?: string | null
+      /**
+       * Prev
+       * @description Cursor for previous page of results
+       */
+      prev?: string | null
+      /**
+       * Total
+       * @description Total count of resources (only when include_total=true)
+       */
+      total?: number | null
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources: components['schemas']['GroupMemberRead'][]
     }
     /**
      * GroupMemberAdd
@@ -488,38 +816,58 @@ export interface components {
       message?: string
     }
     /**
-     * Paginated Response Base
-     * @description Pagination metadata structure for list responses
-     * @example {
-     *       "next": "eyJpZCI6InV1aWQifQ",
-     *       "total": 150
-     *     }
-     * @example {
-     *       "next": "eyJpZCI6Im5leHQifQ",
-     *       "prev": "eyJpZCI6InByZXYifQ"
-     *     }
+     * SubResourceRoleAssignmentCreate
+     * @description Request body for creating a role assignment from a sub-resource endpoint.
+     *
+     *     principal_type and principal_id come from the URL path.
      */
-    ResourcesResponseBase: {
+    SubResourceRoleAssignmentCreate: {
+      /** Role Name */
+      role_name: string
+      /** Project Id */
+      project_id?: string | null
+    }
+    /**
+     * RoleAssignmentRead
+     * @description Response body for a role assignment.
+     */
+    RoleAssignmentRead: {
       /**
-       * Next
-       * @description Cursor for next page of results
+       * Id
+       * Format: uuid
        */
-      next?: string | null
+      id: string
+      /** Principal Type */
+      principal_type: string
       /**
-       * Prev
-       * @description Cursor for previous page of results
+       * Principal Id
+       * Format: uuid
        */
-      prev?: string | null
+      principal_id: string
+      /** Principal Name */
+      principal_name: string
+      /** Role Name */
+      role_name: string
+      /** Role Description */
+      role_description?: string | null
       /**
-       * Total
-       * @description Total count of resources (only when include_total=true)
+       * Role Policies
+       * @default []
        */
-      total?: number | null
-      /**
-       * Resources
-       * @description Array of resources in current page
-       */
-      resources?: unknown[]
+      role_policies?: string[]
+      /** Project Id */
+      project_id?: string | null
+      /** Project Name */
+      project_name?: string | null
+      /** Created At */
+      created_at?: string | null
+    }
+    /**
+     * RoleAssignmentListResponse
+     * @description Paginated response for role assignments.
+     */
+    RoleAssignmentListResponse: WithRequired<components['schemas']['ResourcesResponseBase'], 'resources'> & {
+      resources: components['schemas']['RoleAssignmentRead'][]
     }
     /**
      * ErrorData
@@ -628,68 +976,38 @@ export interface components {
       }
     }
     /**
-     * RoleAssignmentRead
-     * @description Response body for a role assignment.
+     * Paginated Response Base
+     * @description Pagination metadata structure for list responses
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
      */
-    RoleAssignmentRead: {
+    ResourcesResponseBase: {
       /**
-       * Id
-       * Format: uuid
+       * Next
+       * @description Cursor for next page of results
        */
-      id: string
-      /** Principal Type */
-      principal_type: string
+      next?: string | null
       /**
-       * Principal Id
-       * Format: uuid
+       * Prev
+       * @description Cursor for previous page of results
        */
-      principal_id: string
+      prev?: string | null
       /**
-       * Principal Name
-       * @description Resolved username or group name
+       * Total
+       * @description Total count of resources (only when include_total=true)
        */
-      principal_name: string
-      /** Role Name */
-      role_name: string
+      total?: number | null
       /**
-       * Role Description
-       * @description Human-readable description of the role
+       * Resources
+       * @description Array of resources in current page
        */
-      role_description?: string | null
-      /**
-       * Role Policies
-       * @description Policy names included in this role
-       */
-      role_policies?: string[]
-      /** Project Id */
-      project_id?: string | null
-      /** Project Name */
-      project_name?: string | null
-      /** Created At */
-      created_at?: string | null
-    }
-    /**
-     * RoleAssignmentListResponse
-     * @description Paginated response for role assignments.
-     */
-    RoleAssignmentListResponse: components['schemas']['ResourcesResponseBase'] & {
-      resources?: components['schemas']['RoleAssignmentRead'][]
-    }
-    /**
-     * SubResourceRoleAssignmentCreate
-     * @description Request body for creating a role assignment from a sub-resource endpoint (principal comes from URL).
-     */
-    SubResourceRoleAssignmentCreate: {
-      /**
-       * Role Name
-       * @description Name of the role to assign
-       */
-      role_name: string
-      /**
-       * Project Id
-       * @description Project scope (null for global assignment)
-       */
-      project_id?: string | null
+      resources?: unknown[]
     }
   }
   responses: {
@@ -849,9 +1167,7 @@ export interface operations {
         sort?: components['parameters']['sortParam']
         /** @description Include total count in response (expensive) */
         include_total?: components['parameters']['includeTotalParam']
-        /** @description Filter by username */
         username?: string | null
-        /** @description Filter by full name */
         full_name?: string | null
       }
       header?: never
@@ -866,7 +1182,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['UserListResponse']
+          'application/json': components['schemas']['ResourcesResponse_UserRead_']
         }
       }
       400: components['responses']['BadRequestError']
@@ -1024,7 +1340,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['GroupListResponse']
+          'application/json': components['schemas']['ResourcesResponse_UserGroupRead_']
         }
       }
       400: components['responses']['BadRequestError']
@@ -1057,8 +1373,98 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['GroupListResponse']
+          'application/json': components['schemas']['ResourcesResponse_UserGroupRead_']
         }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  list_user_identities: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        user_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['UserIdentityRead'][]
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  attach_user_identity: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        user_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UserIdentityAttach']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['UserIdentityRead']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  detach_user_identity: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        user_id: string
+        identity_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
       }
       400: components['responses']['BadRequestError']
       401: components['responses']['UnauthorizedError']
@@ -1093,7 +1499,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['GroupListResponse']
+          'application/json': components['schemas']['ResourcesResponse_GroupRead_']
         }
       }
       400: components['responses']['BadRequestError']
@@ -1255,7 +1661,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['UserListResponse']
+          'application/json': components['schemas']['ResourcesResponse_GroupMemberRead_']
         }
       }
       400: components['responses']['BadRequestError']
@@ -1341,10 +1747,7 @@ export interface operations {
         sort?: components['parameters']['sortParam']
         /** @description Include total count in response (expensive) */
         include_total?: components['parameters']['includeTotalParam']
-        /** @description Filter by role name (exact match) */
         role_name?: string | null
-        /** @description Filter by role name (substring, case-insensitive) */
-        'role_name[contains]'?: string | null
         project_id?: string | null
       }
       header?: never
@@ -1445,10 +1848,7 @@ export interface operations {
         sort?: components['parameters']['sortParam']
         /** @description Include total count in response (expensive) */
         include_total?: components['parameters']['includeTotalParam']
-        /** @description Filter by role name (exact match) */
         role_name?: string | null
-        /** @description Filter by role name (substring, case-insensitive) */
-        'role_name[contains]'?: string | null
         project_id?: string | null
       }
       header?: never
@@ -1538,4 +1938,7 @@ export interface operations {
       500: components['responses']['InternalServerError']
     }
   }
+}
+type WithRequired<T, K extends keyof T> = T & {
+  [P in K]-?: T[P]
 }

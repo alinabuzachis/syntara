@@ -49,8 +49,12 @@ export const AppRoute = {
     Authentication: {
       Root: '/access-management/authentication',
       AddIdentityProvider: '/access-management/authentication/identity-providers/add',
-      EditIdentityProvider: '/access-management/authentication/identity-providers/:providerId',
+      IdentityProviderDetail: '/access-management/authentication/identity-providers/:providerId/:tab?',
+      EditIdentityProvider: '/access-management/authentication/identity-providers/:providerId/edit',
     },
+  },
+  Auth: {
+    TestSignInCallback: '/auth/test-signin-callback',
   },
   Profile: '/profile',
   Support: {

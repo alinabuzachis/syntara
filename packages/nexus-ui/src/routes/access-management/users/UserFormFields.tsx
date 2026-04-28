@@ -1,4 +1,12 @@
-import { FormGroup, FormHelperText, HelperText, HelperTextItem, Switch, TextInput } from '@patternfly/react-core'
+import {
+  FormGroup,
+  FormHelperText,
+  HelperText,
+  HelperTextItem,
+  Switch,
+  TextInput,
+  Tooltip,
+} from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
 import type { Control } from 'react-hook-form'
 import { Controller } from 'react-hook-form'
@@ -62,9 +70,19 @@ function ControlledTextField({
 type UserFormFieldsProps = {
   control: Control<UserFormData>
   isEdit: boolean
+  isBuiltinUser?: boolean
+  isBuiltinSelf?: boolean
+  /** When set, the status toggle is disabled and this text is shown in a tooltip. */
+  statusToggleDisabledReason?: string
 }
 
-export function UserFormFields({ control, isEdit }: Readonly<UserFormFieldsProps>) {
+export function UserFormFields({
+  control,
+  isEdit,
+  isBuiltinUser = false,
+  isBuiltinSelf = false,
+  statusToggleDisabledReason,
+}: Readonly<UserFormFieldsProps>) {
   return (
     <>
       <ControlledTextField
@@ -74,7 +92,7 @@ export function UserFormFields({ control, isEdit }: Readonly<UserFormFieldsProps
         fieldId="user-username"
         placeholder="Enter username"
         isRequired
-        isDisabled={isEdit}
+        isDisabled={isBuiltinUser}
       />
       <ControlledTextField
         name="first_name"
@@ -83,6 +101,7 @@ export function UserFormFields({ control, isEdit }: Readonly<UserFormFieldsProps
         fieldId="user-first-name"
         placeholder="Enter first name"
         isRequired
+        isDisabled={isBuiltinUser}
       />
       <ControlledTextField
         name="last_name"
@@ -90,7 +109,7 @@ export function UserFormFields({ control, isEdit }: Readonly<UserFormFieldsProps
         label="Last Name"
         fieldId="user-last-name"
         placeholder="Enter last name"
-        isRequired
+        isDisabled={isBuiltinUser}
       />
       <ControlledTextField
         name="email"
@@ -98,7 +117,7 @@ export function UserFormFields({ control, isEdit }: Readonly<UserFormFieldsProps
         label="Email"
         fieldId="user-email"
         placeholder="Enter email address"
-        isRequired
+        isDisabled={isBuiltinUser}
       />
       <ControlledTextField
         name="password"
@@ -108,21 +127,36 @@ export function UserFormFields({ control, isEdit }: Readonly<UserFormFieldsProps
         placeholder={isEdit ? 'Leave blank to keep current password' : 'Enter password'}
         type="password"
         isRequired={!isEdit}
+        isDisabled={isBuiltinUser && !isBuiltinSelf}
       />
       <Controller
-        name="is_active"
+        name="is_enabled"
         control={control}
-        render={({ field }) => (
-          <FormGroup label="Status" fieldId="user-is-active">
+        render={({ field }) => {
+          const statusSwitch = (
             <Switch
-              id="user-is-active"
-              aria-label="Active"
-              label={field.value ? 'Active' : 'Inactive'}
+              id="user-is-enabled"
+              aria-label="Enabled"
+              label={field.value ? 'Enabled' : 'Disabled'}
               isChecked={field.value}
+              isDisabled={!!statusToggleDisabledReason}
               onChange={(_event, checked) => field.onChange(checked)}
             />
-          </FormGroup>
-        )}
+          )
+
+          return (
+            <FormGroup label="Status" fieldId="user-is-enabled">
+              {statusToggleDisabledReason ? (
+                <Tooltip content={statusToggleDisabledReason}>
+                  {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
+                  <span tabIndex={0}>{statusSwitch}</span>
+                </Tooltip>
+              ) : (
+                statusSwitch
+              )}
+            </FormGroup>
+          )
+        }}
       />
     </>
   )

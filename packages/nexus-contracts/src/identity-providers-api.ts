@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-  '/': {
+  '/identity_providers/': {
     parameters: {
       query?: never
       header?: never
@@ -12,14 +12,14 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List identity providers
-     * @description Retrieve list of identity providers with filtering and pagination
+     * List Identity Providers
+     * @description List identity providers with filtering, sorting, and pagination.
      */
     get: operations['list_identity_providers']
     put?: never
     /**
-     * Create identity provider
-     * @description Register a new identity provider
+     * Create Identity Provider
+     * @description Create a new identity provider.
      */
     post: operations['create_identity_provider']
     delete?: never
@@ -28,7 +28,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/{provider_id}': {
+  '/identity_providers/{provider_id}': {
     parameters: {
       query?: never
       header?: never
@@ -36,27 +36,27 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get identity provider
-     * @description Retrieve identity provider details by ID
+     * Get Identity Provider
+     * @description Get identity provider details by ID.
      */
     get: operations['get_identity_provider']
     put?: never
     post?: never
     /**
-     * Delete identity provider
-     * @description Soft delete an identity provider
+     * Delete Identity Provider
+     * @description Soft delete an identity provider.
      */
     delete: operations['delete_identity_provider']
     options?: never
     head?: never
     /**
-     * Update identity provider
-     * @description Partially update an identity provider
+     * Patch Identity Provider
+     * @description Patch an identity provider.
      */
     patch: operations['patch_identity_provider']
     trace?: never
   }
-  '/test': {
+  '/identity_providers/test': {
     parameters: {
       query?: never
       header?: never
@@ -66,8 +66,8 @@ export interface paths {
     get?: never
     put?: never
     /**
-     * Test identity provider connection
-     * @description Test OIDC connection without saving the provider
+     * Test Identity Provider
+     * @description Test identity provider connection without saving. Requires authentication.
      */
     post: operations['test_identity_provider']
     delete?: never
@@ -80,276 +80,781 @@ export interface paths {
 export type webhooks = Record<string, never>
 export interface components {
   schemas: {
-    OIDCConfiguration: {
-      /** @enum {string} */
-      provider_type: 'oidc'
-      /** @default true */
-      auto_discovery?: boolean
-      issuer_url: string
-      client_id: string
-      client_secret: string
-      redirect_uri: string
-      /** @default openid profile email */
-      scopes?: string
-      authorization_endpoint?: string | null
-      token_endpoint?: string | null
-      jwks_uri?: string | null
-      userinfo_endpoint?: string | null
-    }
-    OIDCConfigurationResponse: {
-      /** @enum {string} */
-      provider_type?: 'oidc'
-      /** @default true */
-      auto_discovery?: boolean
-      issuer_url?: string
-      client_id?: string
-      redirect_uri?: string
-      /** @default openid profile email */
-      scopes?: string
-      authorization_endpoint?: string | null
-      token_endpoint?: string | null
-      jwks_uri?: string | null
-      userinfo_endpoint?: string | null
-    }
-    OIDCConfigurationPatch: {
-      /** @enum {string} */
-      provider_type: 'oidc'
-      /** @default true */
-      auto_discovery?: boolean
-      issuer_url: string
-      client_id: string
-      client_secret?: string | null
-      redirect_uri: string
-      /** @default openid profile email */
-      scopes?: string
-      authorization_endpoint?: string | null
-      token_endpoint?: string | null
-      jwks_uri?: string | null
-      userinfo_endpoint?: string | null
-    }
-    IdentityProviderCreate: {
-      name: string
-      description?: string
+    /**
+     * OIDCClaimMapping
+     * @description Maps Nexus user fields to IdP-specific OIDC claim names.
+     */
+    OIDCClaimMapping: {
       /**
-       * @description Whether the provider is enabled after creation
+       * Subject
+       * @default sub
+       */
+      subject?: string
+      /**
+       * Email
+       * @default email
+       */
+      email?: string
+      /**
+       * Username
+       * @default preferred_username
+       */
+      username?: string
+      /**
+       * Full Name
+       * @default name
+       */
+      full_name?: string
+      /** Groups */
+      groups?: string | null
+    }
+    /**
+     * OIDCGroupMappingEntry
+     * @description API-facing schema for a single IdP-to-Nexus group mapping entry.
+     *
+     *     Used in API requests/responses. Actual storage is in the
+     *     ``idp_group_mapping_entries`` table.
+     */
+    OIDCGroupMappingEntry: {
+      /**
+       * Idp Group Value
+       * @description Group value from the IdP token (e.g. GUID or role name)
+       */
+      idp_group_value: string
+      /**
+       * Nexus Group Id
+       * Format: uuid
+       * @description ID of the Nexus group to map to
+       */
+      nexus_group_id: string
+    }
+    /**
+     * OIDCConfiguration
+     * @description Configuration for OIDC (OpenID Connect) providers.
+     */
+    OIDCConfiguration: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      provider_type: 'oidc'
+      /**
+       * Idp Type
+       * @description Identity provider type hint. Known values: aap, microsoft_entra, custom
+       */
+      idp_type?: string | null
+      /**
+       * Auto Discovery
+       * @description Use OIDC auto-discovery via .well-known endpoint
+       * @default true
+       */
+      auto_discovery?: boolean
+      /**
+       * Issuer Url
+       * @description OIDC issuer URL (e.g. https://accounts.google.com)
+       */
+      issuer_url: string
+      /**
+       * Client Id
+       * @description OAuth 2.0 client ID
+       */
+      client_id: string
+      /**
+       * Client Secret
+       * @description OAuth 2.0 client secret
+       */
+      client_secret?: string | null
+      /**
+       * Redirect Uri
+       * @description OAuth 2.0 redirect URI
+       */
+      redirect_uri: string
+      /**
+       * Scopes
+       * @description Space-separated list of OAuth 2.0 scopes
+       * @default openid profile email
+       */
+      scopes?: string
+      /**
+       * Authorization Endpoint
+       * @description Authorization endpoint URL
+       */
+      authorization_endpoint?: string | null
+      /**
+       * Token Endpoint
+       * @description Token endpoint URL
+       */
+      token_endpoint?: string | null
+      /**
+       * Jwks Uri
+       * @description JWKS URI for token verification
+       */
+      jwks_uri?: string | null
+      /**
+       * Userinfo Endpoint
+       * @description Userinfo endpoint URL (optional)
+       */
+      userinfo_endpoint?: string | null
+      /**
+       * End Session Endpoint
+       * @description OIDC end session endpoint URL for RP-initiated logout
+       */
+      end_session_endpoint?: string | null
+      /**
+       * Enable Rp Initiated Logout
+       * @description Enable RP-initiated logout redirect to IdP when user logs out
+       * @default false
+       */
+      enable_rp_initiated_logout?: boolean
+      claim_mapping?: components['schemas']['OIDCClaimMapping']
+      /**
+       * Group Jmespath Expression
+       * @description JMESPath expression to extract group values from token claims
+       */
+      group_jmespath_expression?: string | null
+      /**
+       * Group Mapping Entries
+       * @description IdP-to-Nexus group mapping entries
+       */
+      group_mapping_entries?: components['schemas']['OIDCGroupMappingEntry'][]
+      /**
+       * Auto Create Groups
+       * @description Auto-create Nexus groups from IdP group values on login
+       * @default false
+       */
+      auto_create_groups?: boolean
+    }
+    /**
+     * OIDCConfigurationResponse
+     * @description Response schema for OIDC configuration (excludes client_secret).
+     */
+    OIDCConfigurationResponse: {
+      /**
+       * Provider Type
+       * @default oidc
+       * @constant
+       */
+      provider_type?: 'oidc'
+      /**
+       * Idp Type
+       * @description Identity provider type hint
+       */
+      idp_type?: string | null
+      /**
+       * Auto Discovery
+       * @description Use OIDC auto-discovery via .well-known endpoint
+       * @default true
+       */
+      auto_discovery?: boolean
+      /**
+       * Issuer Url
+       * @description OIDC issuer URL (e.g. https://accounts.google.com)
+       */
+      issuer_url: string
+      /**
+       * Client Id
+       * @description OAuth 2.0 client ID
+       */
+      client_id: string
+      /**
+       * Redirect Uri
+       * @description OAuth 2.0 redirect URI
+       */
+      redirect_uri: string
+      /**
+       * Scopes
+       * @description Space-separated list of OAuth 2.0 scopes
+       * @default openid profile email
+       */
+      scopes?: string
+      /**
+       * Authorization Endpoint
+       * @description Authorization endpoint URL
+       */
+      authorization_endpoint?: string | null
+      /**
+       * Token Endpoint
+       * @description Token endpoint URL
+       */
+      token_endpoint?: string | null
+      /**
+       * Jwks Uri
+       * @description JWKS URI for token verification
+       */
+      jwks_uri?: string | null
+      /**
+       * Userinfo Endpoint
+       * @description Userinfo endpoint URL (optional)
+       */
+      userinfo_endpoint?: string | null
+      /**
+       * End Session Endpoint
+       * @description OIDC end session endpoint URL for RP-initiated logout
+       */
+      end_session_endpoint?: string | null
+      /**
+       * Enable Rp Initiated Logout
+       * @description Enable RP-initiated logout redirect to IdP when user logs out
+       * @default false
+       */
+      enable_rp_initiated_logout?: boolean
+      claim_mapping?: components['schemas']['OIDCClaimMapping']
+      /**
+       * Group Jmespath Expression
+       * @description JMESPath expression for group extraction
+       */
+      group_jmespath_expression?: string | null
+      /**
+       * Group Mapping Entries
+       * @description IdP-to-Nexus group mapping entries
+       */
+      group_mapping_entries?: components['schemas']['OIDCGroupMappingEntry'][]
+      /**
+       * Auto Create Groups
+       * @description Auto-create Nexus groups from IdP group values on login
+       * @default false
+       */
+      auto_create_groups?: boolean
+    }
+    /**
+     * OIDCConfigurationPatch
+     * @description Patch schema for OIDC configuration (client_secret optional — preserves existing if omitted).
+     */
+    OIDCConfigurationPatch: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      provider_type: 'oidc'
+      /**
+       * Idp Type
+       * @description Identity provider type hint. Known values: aap, microsoft_entra, custom
+       */
+      idp_type?: string | null
+      /**
+       * Auto Discovery
+       * @description Use OIDC auto-discovery via .well-known endpoint
+       * @default true
+       */
+      auto_discovery?: boolean
+      /**
+       * Issuer Url
+       * @description OIDC issuer URL (e.g. https://accounts.google.com)
+       */
+      issuer_url: string
+      /**
+       * Client Id
+       * @description OAuth 2.0 client ID
+       */
+      client_id: string
+      /**
+       * Client Secret
+       * @description OAuth 2.0 client secret (omit to keep existing)
+       */
+      client_secret?: string | null
+      /**
+       * Redirect Uri
+       * @description OAuth 2.0 redirect URI
+       */
+      redirect_uri: string
+      /**
+       * Scopes
+       * @description Space-separated list of OAuth 2.0 scopes
+       * @default openid profile email
+       */
+      scopes?: string
+      /**
+       * Authorization Endpoint
+       * @description Authorization endpoint URL
+       */
+      authorization_endpoint?: string | null
+      /**
+       * Token Endpoint
+       * @description Token endpoint URL
+       */
+      token_endpoint?: string | null
+      /**
+       * Jwks Uri
+       * @description JWKS URI for token verification
+       */
+      jwks_uri?: string | null
+      /**
+       * Userinfo Endpoint
+       * @description Userinfo endpoint URL (optional)
+       */
+      userinfo_endpoint?: string | null
+      /**
+       * End Session Endpoint
+       * @description OIDC end session endpoint URL for RP-initiated logout (omit to keep existing)
+       */
+      end_session_endpoint?: string | null
+      /**
+       * Enable Rp Initiated Logout
+       * @description Enable RP-initiated logout redirect to IdP when user logs out (omit to keep existing)
+       */
+      enable_rp_initiated_logout?: boolean | null
+      /** @description OIDC claim mapping (omit to keep existing) */
+      claim_mapping?: components['schemas']['OIDCClaimMapping'] | null
+      /**
+       * Group Jmespath Expression
+       * @description JMESPath expression for group extraction (omit to keep existing)
+       */
+      group_jmespath_expression?: string | null
+      /**
+       * Group Mapping Entries
+       * @description IdP-to-Nexus group mapping entries (omit to keep existing)
+       */
+      group_mapping_entries?: components['schemas']['OIDCGroupMappingEntry'][] | null
+      /**
+       * Auto Create Groups
+       * @description Auto-create Nexus groups from IdP group values on login (omit to keep existing)
+       */
+      auto_create_groups?: boolean | null
+    }
+    /**
+     * IdentityProviderCreate
+     * @description Schema for creating a new identity provider.
+     */
+    IdentityProviderCreate: {
+      /**
+       * Name
+       * @description Human-readable name for the provider
+       */
+      name: string
+      /**
+       * Description
+       * @description Detailed description of the provider
+       */
+      description?: string | null
+      /**
+       * Configuration
+       * @description Provider configuration
+       */
+      configuration: components['schemas']['OIDCConfiguration']
+    }
+    /**
+     * IdentityProviderPatch
+     * @description Schema for partially updating an identity provider.
+     */
+    IdentityProviderPatch: {
+      /**
+       * Name
+       * @description Human-readable name for the provider
+       */
+      name?: string | null
+      /**
+       * Description
+       * @description Detailed description of the provider
+       */
+      description?: string | null
+      /**
+       * Configuration
+       * @description Provider-specific configuration (client_secret optional — preserves existing if omitted)
+       */
+      configuration?: components['schemas']['OIDCConfigurationPatch'] | null
+      /**
+       * Enabled
+       * @description Enable/disable the provider
+       */
+      enabled?: boolean | null
+    }
+    /**
+     * IdentityProviderResponse
+     * @description Schema for IdentityProvider response with configuration details (excludes secrets).
+     */
+    IdentityProviderResponse: components['schemas']['Resource'] & {
+      /** @description Human-readable provider name */
+      name?: unknown
+      /**
+       * Enabled
+       * @description Enable/disable the identity provider
        * @default true
        */
       enabled?: boolean
+      /** @description Identity provider configuration */
+      configuration: components['schemas']['OIDCConfigurationResponse']
+    }
+    /**
+     * IdentityProviderListResponse
+     * @description Paginated list response for identity providers.
+     */
+    IdentityProviderListResponse: components['schemas']['ResourcesResponseBase'] & {
+      resources: components['schemas']['IdentityProviderResponse'][]
+    }
+    /**
+     * OIDCTestRequest
+     * @description Request body for testing an OIDC connection.
+     */
+    OIDCTestRequest: {
+      /**
+       * Name
+       * @description Human-readable name for the provider
+       */
+      name: string
+      /**
+       * Description
+       * @description Detailed description of the provider
+       */
+      description?: string | null
+      /**
+       * Configuration
+       * @description Provider configuration
+       */
       configuration: components['schemas']['OIDCConfiguration']
     }
-    IdentityProviderPatch: {
-      name?: string
-      description?: string
-      configuration?: components['schemas']['OIDCConfigurationPatch']
-      enabled?: boolean
-    }
-    IdentityProviderResponse: {
-      /** Format: uuid */
-      id?: string
-      name?: string
-      description?: string
-      enabled?: boolean
-      configuration?: components['schemas']['OIDCConfigurationResponse']
-      /** Format: date-time */
-      created_at?: string
-      /** Format: date-time */
-      updated_at?: string
-    }
-    IdentityProviderListResponse: {
-      resources?: components['schemas']['IdentityProviderResponse'][]
-      next?: string | null
-      prev?: string | null
-      total?: number | null
-    }
+    /**
+     * OIDCTestResult
+     * @description Result of an OIDC connection test.
+     */
     OIDCTestResult: {
-      success?: boolean
-      message?: string
+      /** Success */
+      success: boolean
+      /** Message */
+      message: string
+      /** Metadata */
       metadata?: {
         [key: string]: string
       } | null
+      /** Claims Supported */
+      claims_supported?: string[] | null
+      /** Claim Aliases */
+      claim_aliases?: {
+        [key: string]: string[]
+      } | null
+      /**
+       * End Session Endpoint Supported
+       * @default false
+       */
+      end_session_endpoint_supported?: boolean
     }
     /**
-     * RFC 9457 Problem Details
-     * @description RFC 9457 Problem Details format for error responses.
-     *     This format provides machine-readable and human-readable error information
-     *     with consistent structure for all API error responses.
+     * Paginated Response Base
+     * @description Pagination metadata structure for list responses
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
+     */
+    ResourcesResponseBase: {
+      /**
+       * Next
+       * @description Cursor for next page of results
+       */
+      next?: string | null
+      /**
+       * Prev
+       * @description Cursor for previous page of results
+       */
+      prev?: string | null
+      /**
+       * Total
+       * @description Total count of resources (only when include_total=true)
+       */
+      total?: number | null
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources?: unknown[]
+    }
+    /**
+     * Base Resource
+     * @description Foundational schema for all API resources with system-managed metadata
+     */
+    BaseResource: {
+      /**
+       * Resource ID
+       * Format: uuid
+       * @description Unique identifier for the resource
+       * @example 550e8400-e29b-41d4-a716-446655440000
+       */
+      readonly id?: string
+      /**
+       * Created At
+       * Format: date-time
+       * @description Timestamp when resource was created
+       * @example 2025-10-09T12:00:00Z
+       */
+      readonly created_at?: string
+      /**
+       * Updated At
+       * Format: date-time
+       * @description Timestamp when resource was last updated
+       * @example 2025-10-09T12:30:00Z
+       */
+      readonly updated_at?: string
+      /**
+       * Labels
+       * @description Key-value pairs for resource labeling and filtering
+       * @default {}
+       * @example {
+       *       "environment": "production",
+       *       "region": "us-east-1",
+       *       "team": "platform"
+       *     }
+       */
+      labels?: {
+        [key: string]: string
+      }
+    }
+    UserOwnedResource: components['schemas']['BaseResource'] & {
+      /**
+       * Created By
+       * Format: uuid
+       * @description User who created the resource
+       * @example 770e8400-e29b-41d4-a716-446655440000
+       */
+      readonly created_by: string
+      /**
+       * Updated By
+       * @description User who last updated the resource
+       * @example 880e8400-e29b-41d4-a716-446655440000
+       */
+      readonly updated_by?: string | null
+    }
+    SoftDeletableResource: components['schemas']['BaseResource'] & {
+      /**
+       * Deleted At
+       * @description Timestamp when resource was soft deleted
+       * @example 2025-10-09T14:00:00Z
+       */
+      readonly deleted_at?: string | null
+      /**
+       * Deleted By
+       * @description User who performed the soft delete
+       * @example 660e8400-e29b-41d4-a716-446655440000
+       */
+      readonly deleted_by?: string | null
+    }
+    NamedResource: components['schemas']['BaseResource'] & {
+      /**
+       * Name
+       * @description Human-readable name for the resource
+       * @example Authentication Service
+       */
+      name: string
+      /**
+       * Description
+       * @description Detailed description of the resource
+       * @example Handles user authentication and authorization workflows
+       */
+      description?: string | null
+    }
+    /**
+     * Resource
+     * @description Composite resource combining named, soft-deletable, and user-owned capabilities
+     */
+    Resource: components['schemas']['UserOwnedResource'] &
+      components['schemas']['SoftDeletableResource'] &
+      components['schemas']['NamedResource']
+    /**
+     * ErrorData
+     * @description RFC 9457 Problem Details format for error event data.
+     *     This model is used for streaming error events and follows the RFC 9457 Problem Details specification. It provides machine-readable and human-readable error information with consistent structure.
+     *     Attributes:
+     *         type: URI reference identifying the problem type
+     *         title: Short, human-readable summary of the problem
+     *         detail: Human-readable explanation specific to this occurrence
+     *         code: Machine-readable error code for programmatic handling
+     *         retryable: Whether this error can be retried by creating a new invocation
+     *         instance: Optional URI reference identifying the specific occurrence
+     * @example {
+     *       "type": "https://api.nexus.com/errors/llm-error",
+     *       "title": "LLM Rate Limit Exceeded",
+     *       "detail": "OpenRouter API rate limit exceeded. Please try again in a few moments.",
+     *       "code": "RATE_LIMIT_EXCEEDED",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
+     * @example {
+     *       "type": "https://api.nexus.com/errors/timeout-error",
+     *       "title": "Streaming Timeout",
+     *       "detail": "LLM streaming timed out after 30 seconds",
+     *       "code": "STREAM_TIMEOUT",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
      */
     ErrorData: {
       /**
-       * Problem Type URI
+       * Type
        * @description URI reference identifying the problem type
-       * @example https://api.nexus.com/errors/validation-error
+       * @example https://api.nexus.com/errors/llm-error
        */
       type: string
       /**
-       * Problem Title
+       * Title
        * @description Short, human-readable summary of the problem
-       * @example Validation Error
+       * @example LLM Service Unavailable
        */
       title: string
       /**
-       * Problem Detail
+       * Detail
        * @description Human-readable explanation specific to this occurrence
-       * @example Field 'name' must be between 1 and 255 characters
+       * @example OpenRouter API returned error: rate limit exceeded. Please try again in a few moments.
        */
       detail: string
       /**
-       * Error Code
+       * Code
        * @description Machine-readable error code for programmatic handling
-       * @example VALIDATION_ERROR
+       * @example RATE_LIMIT_EXCEEDED
        */
       code: string
       /**
-       * Retryable Flag
-       * @description Whether this error can be retried
-       * @example false
+       * Retryable
+       * @description Whether this error can be retried by creating a new invocation
+       * @example true
        */
       retryable: boolean
       /**
-       * Problem Instance
-       * @description URI reference identifying the specific occurrence
-       * @example /api/v1/workflows
+       * Instance
+       * @description Optional URI reference identifying the specific occurrence
+       * @example /invocations/550e8400-e29b-41d4-a716-446655440000
        */
       instance?: string | null
     }
   }
-  responses: never
+  responses: {
+    /** @description Bad Request */
+    BadRequestError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/bad-request",
+         *       "title": "Bad Request",
+         *       "detail": "The request was malformed or contained invalid parameters",
+         *       "code": "BAD_REQUEST",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Unauthorized */
+    UnauthorizedError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/unauthorized",
+         *       "title": "Unauthorized",
+         *       "detail": "Authentication is required to access this resource",
+         *       "code": "UNAUTHORIZED",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Forbidden */
+    ForbiddenError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/forbidden",
+         *       "title": "Forbidden",
+         *       "detail": "You do not have permission to access this resource",
+         *       "code": "FORBIDDEN",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Not Found */
+    NotFoundError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/not-found",
+         *       "title": "Resource Not Found",
+         *       "detail": "No resource exists with the provided identifier",
+         *       "code": "NOT_FOUND",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Conflict */
+    ConflictError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/conflict",
+         *       "title": "Conflict",
+         *       "detail": "The request conflicts with the current state of the resource",
+         *       "code": "CONFLICT",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Validation Error */
+    ValidationError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/validation-error",
+         *       "title": "Validation Error",
+         *       "detail": "Field 'name' must be between 1 and 255 characters",
+         *       "code": "VALIDATION_ERROR",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Internal Server Error */
+    InternalServerError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/internal-error",
+         *       "title": "Internal Server Error",
+         *       "detail": "An unexpected error occurred",
+         *       "code": "INTERNAL_ERROR",
+         *       "retryable": true
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+  }
   parameters: {
-    /**
-     * @description Number of resources to return per page
-     * @example 20
-     */
-    limitParam: number
-    /**
-     * @description Opaque cursor for pagination (from previous response)
-     * @example eyJpZCI6InV1aWQifQ
-     */
-    cursorParam: string
-    /**
-     * @description Whether to include total count in response (may impact performance)
-     * @example true
-     */
+    /** @description Pagination cursor from previous response */
+    cursorParam: string | null
+    /** @description Sort parameter (e.g., 'name', '-created_at') */
+    sortParam: string | null
+    /** @description Include total count in response (expensive) */
     includeTotalParam: boolean
-    /**
-     * @description Filter resources by name.
-     *     - Exact match: `name=value`
-     *     - Contains: `name[contains]=value`
-     * @example auth
-     */
-    nameFilterParam: string & {
-      /**
-       * Contains
-       * @description Substring to match within the name (case-insensitive). ?name[contains]=<substring>
-       */
-      contains?: string
-      /**
-       * Starts With
-       * @description Prefix to match at the start of the name (case-insensitive). ?name[starts_with]=<prefix>
-       */
-      starts_with?: string
-      /**
-       * Equals
-       * @description Exact match of the name (case-insensitive). ?name[eq]=<name>
-       */
-      eq?: string
-      /**
-       * Greater Than
-       * @description Greater than comparison (lexicographical). ?name[gt]=<name>
-       */
-      gt?: string
-      /**
-       * Greater Than Or Equal
-       * @description Greater than or equal comparison (lexicographical). ?name[gte]=<name>
-       */
-      gte?: string
-      /**
-       * Less Than
-       * @description Less than comparison (lexicographical). ?name[lt]=<name>
-       */
-      lt?: string
-      /**
-       * Less Than Or Equal
-       * @description Less than or equal comparison (lexicographical). ?name[lte]=<name>
-       */
-      lte?: string
-    }
-    createdAtFilterParam: string & {
-      /**
-       * Equals
-       * Format: date-time
-       * @description Exact match of creation timestamp. ?created_at[eq]=<timestamp>
-       */
-      eq?: string
-      /**
-       * Greater Than
-       * Format: date-time
-       * @description Greater than comparison. ?created_at[gt]=<timestamp>
-       */
-      gt?: string
-      /**
-       * Greater Than Or Equal
-       * Format: date-time
-       * @description Greater than or equal comparison. ?created_at[gte]=<timestamp>
-       */
-      gte?: string
-      /**
-       * Less Than
-       * Format: date-time
-       * @description Less than comparison. ?created_at[lt]=<timestamp>
-       */
-      lt?: string
-      /**
-       * Less Than Or Equal
-       * Format: date-time
-       * @description Less than or equal comparison. ?created_at[lte]=<timestamp>
-       */
-      lte?: string
-    }
-    updatedAtFilterParam: string & {
-      /**
-       * Equals
-       * Format: date-time
-       * @description Exact match of last update timestamp. ?updated_at[eq]=<timestamp>
-       */
-      eq?: string
-      /**
-       * Greater Than
-       * Format: date-time
-       * @description Greater than comparison. ?updated_at[gt]=<timestamp>
-       */
-      gt?: string
-      /**
-       * Greater Than Or Equal
-       * Format: date-time
-       * @description Greater than or equal comparison. ?updated_at[gte]=<timestamp>
-       */
-      gte?: string
-      /**
-       * Less Than
-       * Format: date-time
-       * @description Less than comparison. ?updated_at[lt]=<timestamp>
-       */
-      lt?: string
-      /**
-       * Less Than Or Equal
-       * Format: date-time
-       * @description Less than or equal comparison. ?updated_at[lte]=<timestamp>
-       */
-      lte?: string
-    }
-    /**
-     * @description Filter resources by label key-value pairs.
-     *     - Single label: `labels[environment]=production`
-     *     - Multiple labels: `labels[environment]=production&labels[region]=us-east-1`
-     *     All specified labels must match (AND logic).
-     * @example {
-     *       "environment": "production",
-     *       "region": "us-east-1"
-     *     }
-     */
-    labelsFilterParam: {
-      [key: string]: string
-    }
   }
   requestBodies: never
   headers: never
@@ -360,45 +865,13 @@ export interface operations {
   list_identity_providers: {
     parameters: {
       query?: {
-        /** @description Filter by enabled status */
-        enabled?: boolean
-        /** @description Sort field and direction (e.g., 'name', '-created_at') */
-        sort?: string
-        /**
-         * @description Number of resources to return per page
-         * @example 20
-         */
-        limit?: components['parameters']['limitParam']
-        /**
-         * @description Opaque cursor for pagination (from previous response)
-         * @example eyJpZCI6InV1aWQifQ
-         */
+        limit?: number
+        /** @description Pagination cursor from previous response */
         cursor?: components['parameters']['cursorParam']
-        /**
-         * @description Whether to include total count in response (may impact performance)
-         * @example true
-         */
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
+        sort?: components['parameters']['sortParam']
+        /** @description Include total count in response (expensive) */
         include_total?: components['parameters']['includeTotalParam']
-        /**
-         * @description Filter resources by name.
-         *     - Exact match: `name=value`
-         *     - Contains: `name[contains]=value`
-         * @example auth
-         */
-        name?: components['parameters']['nameFilterParam']
-        created_at?: components['parameters']['createdAtFilterParam']
-        updated_at?: components['parameters']['updatedAtFilterParam']
-        /**
-         * @description Filter resources by label key-value pairs.
-         *     - Single label: `labels[environment]=production`
-         *     - Multiple labels: `labels[environment]=production&labels[region]=us-east-1`
-         *     All specified labels must match (AND logic).
-         * @example {
-         *       "environment": "production",
-         *       "region": "us-east-1"
-         *     }
-         */
-        labels?: components['parameters']['labelsFilterParam']
       }
       header?: never
       path?: never
@@ -415,6 +888,13 @@ export interface operations {
           'application/json': components['schemas']['IdentityProviderListResponse']
         }
       }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   create_identity_provider: {
@@ -439,15 +919,13 @@ export interface operations {
           'application/json': components['schemas']['IdentityProviderResponse']
         }
       }
-      /** @description Name conflict */
-      409: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   get_identity_provider: {
@@ -470,13 +948,13 @@ export interface operations {
           'application/json': components['schemas']['IdentityProviderResponse']
         }
       }
-      /** @description Identity provider not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   delete_identity_provider: {
@@ -497,13 +975,13 @@ export interface operations {
         }
         content?: never
       }
-      /** @description Identity provider not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   patch_identity_provider: {
@@ -521,7 +999,7 @@ export interface operations {
       }
     }
     responses: {
-      /** @description Updated identity provider */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
@@ -530,22 +1008,13 @@ export interface operations {
           'application/json': components['schemas']['IdentityProviderResponse']
         }
       }
-      /** @description Identity provider not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-      /** @description Name conflict */
-      409: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   test_identity_provider: {
@@ -557,11 +1026,11 @@ export interface operations {
     }
     requestBody: {
       content: {
-        'application/json': components['schemas']['IdentityProviderCreate']
+        'application/json': components['schemas']['OIDCTestRequest']
       }
     }
     responses: {
-      /** @description Test result */
+      /** @description Test results */
       200: {
         headers: {
           [name: string]: unknown
@@ -570,6 +1039,13 @@ export interface operations {
           'application/json': components['schemas']['OIDCTestResult']
         }
       }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
 }
