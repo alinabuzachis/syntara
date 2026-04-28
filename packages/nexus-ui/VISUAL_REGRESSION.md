@@ -95,10 +95,15 @@ node scripts/check-visual-baselines.js
 
 ## Reviewing Screenshot Diffs in PRs
 
-When the PR comment reports diffs:
+The PR comment is built by [`actions/github-script`](https://github.com/actions/github-script) inline in `.github/workflows/pull-request.yml`. When screenshots differ, `generate-visual-diff-report.js` writes `visual-diff-summary.json`, then the workflow pushes each diff/actual/expected PNG to a temporary orphan branch (`visual-diffs/pr-<number>`) and posts a table with links to each image in the PR comment. Click any link to view the image in GitHub's file viewer.
 
-1. Download the `visual-regression-diffs` artifact from the workflow run
-2. For each changed page you will find `*-expected.png`, `*-actual.png`, and `*-diff.png`
-3. If the changes are intentional, comment `/update-screenshots`
+The temporary branch is automatically deleted when the PR closes (see `.github/workflows/cleanup-visual-diffs.yml`). A "Browse all diff images" link in the comment opens the branch's `diffs/` directory so you can review all screenshots in one place.
+
+`inlineImages` in the JSON summary (total on-disk size of those PNGs vs. a Step Summary byte budget) controls whether the **Job Summary** tab renders image markdown or a text-only list.
+
+1. Read the PR comment for a pass/fail summary and inline diff images (when available, up to 10 screenshots per the report script’s `MAX_FILES`)
+2. For more than 10 diffs, or for an interactive side-by-side comparison, download the `visual-regression-html-report` artifact and open `index.html`
+3. For raw diff PNGs, download the `visual-regression-diffs` artifact
+4. If the changes are intentional, comment `/update-screenshots`
 
 After baselines are updated, review image diffs in the PR's **Files Changed** tab using GitHub's 2-up, swipe, or onion skin modes.

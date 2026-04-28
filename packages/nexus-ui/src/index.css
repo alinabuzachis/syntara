@@ -139,6 +139,11 @@ table.pf-v6-c-table.pf-m-sticky-header > .pf-v6-c-table__thead {
   inset-block-start: 132px;
 }
 
+/* TEST: deliberate visual change to verify inline diff rendering — revert before merge */
+.pf-v6-c-page__main-section:first-of-type {
+  border-block-end: 2px solid var(--pf-t--global--border--color--status--info--default);
+}
+
 /**
  * Fix z-index for NavItem flyout menus in docked vertical navigation.
  * Ensures the flyout menu appears above the main content panel.

@@ -190,6 +190,9 @@ jobs:
   visual-regression:
     name: Visual Regression
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v6
 
@@ -234,6 +237,114 @@ jobs:
           path: packages/nexus-ui/test-results/
           retention-days: 30
 
+      - name: Upload HTML report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: visual-regression-html-report
+          path: packages/nexus-ui/playwright-report/
+          retention-days: 30
+
+      - name: Generate visual diff report
+        if: steps.screenshots.outcome == 'failure'
+        id: diff-report
+        continue-on-error: true
+        run: node scripts/generate-visual-diff-report.js
+        working-directory: packages/nexus-ui
+
+      - name: Write visual diff to Job Summary
+        if: steps.diff-report.outcome == 'success'
+        run: |
+          SUMMARY_FILE="packages/nexus-ui/visual-diff-summary.json"
+          if [ ! -f "$SUMMARY_FILE" ]; then exit 0; fi
+
+          COUNT=$(jq '.count' "$SUMMARY_FILE")
+          INLINE=$(jq -r '.inlineImages // false' "$SUMMARY_FILE")
+
+          echo "### Visual Regression — ${COUNT} screenshot(s) differ" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$INLINE" = "true" ]; then
+            echo "| Screenshot | Expected | Actual | Diff |" >> $GITHUB_STEP_SUMMARY
+            echo "|------------|----------|--------|------|" >> $GITHUB_STEP_SUMMARY
+            jq -r '.files[] | "| `\(.name)` | ![\(.name)-expected](\(.expectedPath // "—")) | ![\(.name)-actual](\(.actualPath // "—")) | ![\(.name)-diff](\(.diffPath)) |"' "$SUMMARY_FILE" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Screenshot | Status |" >> $GITHUB_STEP_SUMMARY
+            echo "|------------|--------|" >> $GITHUB_STEP_SUMMARY
+            jq -r '.changed[] | "| `\(.)` | :x: changed |"' "$SUMMARY_FILE" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Download the **visual-regression-diffs** artifact for full image comparison." >> $GITHUB_STEP_SUMMARY
+
+      - name: Publish diff images to temporary branch
+        if: steps.diff-report.outcome == 'success'
+        id: publish-diffs
+        continue-on-error: true
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const summaryPath = path.resolve('packages/nexus-ui/visual-diff-summary.json');
+            let summary;
+            try { summary = JSON.parse(fs.readFileSync(summaryPath, 'utf-8')); } catch { return; }
+            if (!summary.files || summary.files.length === 0) return;
+
+            const prNumber = context.issue.number;
+            const runId = context.runId;
+            const branch = `visual-diffs/pr-${prNumber}`;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const repoUrl = `https://github.com/${owner}/${repo}`;
+
+            const blobs = [];
+            const viewUrls = {};
+
+            for (const file of summary.files) {
+              for (const [suffix, filePath] of [['diff', file.diffPath], ['actual', file.actualPath], ['expected', file.expectedPath]]) {
+                if (!filePath || !fs.existsSync(filePath)) continue;
+                const content = fs.readFileSync(filePath).toString('base64');
+                const safeName = file.name.replace(/[/\\]/g, '--');
+                const blobPath = `diffs/${safeName}-${suffix}.png`;
+
+                const { data: blob } = await github.rest.git.createBlob({
+                  owner, repo,
+                  content,
+                  encoding: 'base64',
+                });
+                blobs.push({ path: blobPath, mode: '100644', type: 'blob', sha: blob.sha });
+
+                const key = `${file.name}:${suffix}`;
+                viewUrls[key] = `${repoUrl}/blob/${branch}/${blobPath}`;
+              }
+            }
+
+            if (blobs.length === 0) return;
+
+            const { data: tree } = await github.rest.git.createTree({
+              owner, repo,
+              tree: blobs,
+            });
+
+            const { data: commit } = await github.rest.git.createCommit({
+              owner, repo,
+              message: `Visual regression diffs for PR #${prNumber} (run ${runId})`,
+              tree: tree.sha,
+              parents: [],
+            });
+
+            const ref = `refs/heads/${branch}`;
+            try {
+              await github.rest.git.updateRef({ owner, repo, ref: `heads/${branch}`, sha: commit.sha, force: true });
+            } catch {
+              await github.rest.git.createRef({ owner, repo, ref, sha: commit.sha });
+            }
+
+            core.setOutput('view-urls', JSON.stringify(viewUrls));
+            core.setOutput('diff-branch', branch);
+
       - name: Post visual regression report on PR
         if: >-
           always()
@@ -241,42 +352,128 @@ jobs:
         uses: actions/github-script@v9
         with:
           script: |
+            const fs = require('fs');
+            const path = require('path');
             const marker = '<!-- visual-regression-report -->';
-            const screenshotResult = '${{ steps.screenshots.outcome }}';
-            const baselineResult = '${{ steps.baselines.outcome }}';
-            const allPassed = screenshotResult === 'success' && baselineResult === 'success';
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
 
-            let body;
-            if (allPassed) {
+            let viewUrls = {};
+            try { viewUrls = JSON.parse('${{ steps.publish-diffs.outputs.view-urls }}' || '{}'); } catch {}
+            const diffBranch = '${{ steps.publish-diffs.outputs.diff-branch }}';
+
+            // Read test results from Playwright JSON reporter
+            const resultsPath = path.resolve('packages/nexus-ui/test-results/results.json');
+            let totalTests = 0;
+            let passedTests = 0;
+            let failedTests = 0;
+            let durationMs = 0;
+            try {
+              const results = JSON.parse(fs.readFileSync(resultsPath, 'utf-8'));
+              durationMs = (results.stats && results.stats.duration) || 0;
+              for (const suite of results.suites || []) {
+                for (const spec of suite.specs || []) {
+                  for (const test of spec.tests || []) {
+                    totalTests++;
+                    if (test.status === 'expected') passedTests++;
+                    else failedTests++;
+                  }
+                }
+              }
+            } catch { /* results unavailable */ }
+
+            const durationMin = Math.round(durationMs / 60000);
+            const durationStr = durationMin > 0 ? `in ${durationMin} minute${durationMin !== 1 ? 's' : ''}` : '';
+
+            let body = '';
+
+            if ('${{ steps.screenshots.outcome }}' === 'failure') {
+              const summaryPath = path.resolve('packages/nexus-ui/visual-diff-summary.json');
+              let summary = { changed: [], count: 0, files: [] };
+              try { summary = JSON.parse(fs.readFileSync(summaryPath, 'utf-8')); } catch { /* no summary */ }
+
+              const countLine = totalTests > 0
+                ? `${failedTests} of ${totalTests} screenshot tests failed — UI has changed from baseline`
+                : `${summary.count} screenshot(s) differ from baselines`;
+
+              const lines = [
+                marker,
+                `### :x: Visual Regression — diffs detected`,
+                '',
+                countLine,
+                '',
+              ];
+
+              const hasViewUrls = Object.keys(viewUrls).length > 0;
+
+              if (hasViewUrls && summary.files && summary.files.length > 0) {
+                lines.push('| Screenshot | Expected | Actual | Diff |');
+                lines.push('|------------|----------|--------|------|');
+
+                for (const file of summary.files) {
+                  const diffUrl = viewUrls[`${file.name}:diff`];
+                  const actualUrl = viewUrls[`${file.name}:actual`];
+                  const expectedUrl = viewUrls[`${file.name}:expected`];
+
+                  if (!diffUrl) continue;
+
+                  const expected = expectedUrl ? `[Expected](${expectedUrl})` : '—';
+                  const actual = actualUrl ? `[Actual](${actualUrl})` : '—';
+                  const diff = `[**Diff**](${diffUrl})`;
+
+                  lines.push(`| \`${file.name}\` | ${expected} | ${actual} | ${diff} |`);
+                }
+                lines.push('');
+
+                if (diffBranch) {
+                  const branchUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/tree/${diffBranch}/diffs`;
+                  lines.push(`> **[Browse all diff images](${branchUrl})** — click any PNG to see the visual change`);
+                  lines.push('');
+                }
+              } else {
+                lines.push('Changed screenshots:');
+                lines.push('');
+                for (const name of summary.changed.slice(0, 10)) {
+                  lines.push(`- \`${name}\``);
+                }
+                if (summary.count > 10) {
+                  lines.push(`- _...and ${summary.count - 10} more_`);
+                }
+                lines.push('');
+              }
+
+              lines.push('**To update baselines:**');
+              lines.push('1. Comment `/update-screenshots` on this PR');
+              lines.push(`2. Or download the \`visual-regression-diffs\` artifact from the [workflow run](${runUrl})`);
+              lines.push('3. Or run locally: `npx playwright test page-screenshots --update-snapshots`');
+
+              body = lines.join('\n');
+            } else if ('${{ steps.baselines.outcome }}' === 'failure') {
               body = [
                 marker,
-                '### :white_check_mark: Visual regression — all screenshots match baselines',
+                '### :warning: Visual Regression — missing baselines',
                 '',
-                'Download the [visual-regression-screenshots](' +
-                  `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}` +
-                  ') artifact to review all page screenshots.',
+                'Missing baselines or uncovered routes detected.',
+                `See the [workflow run](${runUrl}) for details.`,
+                '',
+                '**To fix:** add entries to `e2e/visual-regression/page-registry.ts` and comment `/update-screenshots`.',
               ].join('\n');
             } else {
-              const issues = [];
-              if (screenshotResult === 'failure') {
-                issues.push('- Screenshot diffs detected — UI has changed from baseline');
-              }
-              if (baselineResult === 'failure') {
-                issues.push('- Missing baselines or uncovered routes');
-              }
+              const statsLine = totalTests > 0
+                ? `${totalTests} tests passed ${durationStr}`.trim()
+                : '';
 
-              body = [
+              const lines = [
                 marker,
-                '### :x: Visual regression — diffs detected',
-                '',
-                ...issues,
-                '',
-                '**To update baselines:**',
-                '1. Download the `visual-regression-diffs` artifact from the [workflow run](' +
-                  `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
-                '2. Copy the `*-actual.png` files as the new baselines',
-                '3. Or run locally: `npx playwright test page-screenshots --update-snapshots`',
-              ].join('\n');
+                '### :white_check_mark: Visual Regression — all screenshots match baselines',
+              ];
+              if (statsLine) {
+                lines.push('');
+                lines.push(statsLine);
+              }
+              lines.push('');
+              lines.push(`Download the [visual-regression-html-report](${runUrl}#artifacts) artifact for interactive review.`);
+
+              body = lines.join('\n');
             }
 
             const comments = await github.paginate(github.rest.issues.listComments, {
