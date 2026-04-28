@@ -114,7 +114,7 @@ export function createScriptActivity(
     config: {
       language,
       code,
-      ...(credentialId && { credentialId }),
+      ...(credentialId && { credential_id: credentialId }),
     },
   }
 }
@@ -170,7 +170,7 @@ export function createApiActivity(options: CreateApiActivityOptions): Activity {
     name,
     config: {
       ...config,
-      ...(credentialId && { credentialId }),
+      ...(credentialId && { credential_id: credentialId }),
     },
   }
 }
@@ -197,7 +197,7 @@ export function createAgenticActivity(options: CreateAgenticActivityOptions): Ac
   if (model) config.model = model
   if (tools && tools.length > 0) config.tool_selections = tools
   if (fileIds && fileIds.length > 0) config.file_ids = fileIds
-  if (credentialId) config.credentialId = credentialId
+  if (credentialId) config.credential_id = credentialId
 
   return {
     id,
