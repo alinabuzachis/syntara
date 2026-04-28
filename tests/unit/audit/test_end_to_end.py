@@ -32,14 +32,6 @@ if TYPE_CHECKING:
 RunMode = Literal["success", "error"]
 
 
-@pytest.fixture(autouse=True)
-def _register_audit_event_handler() -> Any:  # noqa: ANN401
-    """Register FunctionExecutionHandler for end-to-end tests."""
-    AuditEventDispatcher.register({FunctionExecutionEvent: FunctionExecutionHandler()})
-    yield
-    AuditEventDispatcher.reset()
-
-
 # ------------------------------------------------------------------ #
 # Decorated functions — decorator config is static, so one per scenario.
 # ------------------------------------------------------------------ #
@@ -116,115 +108,126 @@ async def audit_writer(test_db_session: AsyncSession) -> AsyncGenerator[AuditEve
 # ------------------------------------------------------------------ #
 
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    ("call", "mode", "expected"),
-    [
-        pytest.param(
-            lambda: _tracked_no_capture(7),
-            "success",
-            {
-                "event_action": "no_capture_action",
-                "event_category": "user_action",
-                "event_status": "success",
-                "event_severity": "info",
-                "function_args": {},
-                "function_result": None,
-                "error_type": None,
-                "error_message": None,
-            },
-            id="no_capture",
-        ),
-        pytest.param(
-            lambda: _tracked_capture_args(alpha="hello", beta=3),
-            "success",
-            {
-                "event_action": "capture_args_action",
-                "event_category": "user_action",
-                "event_status": "success",
-                "event_severity": "info",
-                "function_args": {"alpha": "hello", "beta": 3},
-                "function_result": None,
-                "error_type": None,
-                "error_message": None,
-            },
-            id="capture_args",
-        ),
-        pytest.param(
-            lambda: _tracked_capture_all("widget", 4),
-            "success",
-            {
-                "event_action": "capture_all_action",
-                "event_category": "api_execution",
-                "event_status": "success",
-                "event_severity": "info",
-                "function_args": {"name": "widget", "count": 4},
-                "function_result": {"name": "widget", "count": 4, "summary": "widgetx4"},
-                "error_type": None,
-                "error_message": None,
-            },
-            id="capture_args_and_result",
-        ),
-        pytest.param(
-            lambda: _tracked_raises("boom"),
-            "error",
-            {
-                "event_action": "failing_action_error",
-                "event_category": "system_operation",
-                "event_status": "error",
-                "event_severity": "error",  # escalated from info on exception
-                "function_args": {"reason": "boom"},
-                "function_result": None,
-                "error_type": "ValueError",
-                "error_message": "Look at the Operational Logs for full diagnosis",
-            },
-            id="error_path",
-        ),
-    ],
-)
-async def test_audit_end_to_end(
-    call: Callable[[], Any],
-    mode: RunMode,
-    expected: dict[str, Any],
-    audit_writer: AuditEventWriter,
-    test_db_session: AsyncSession,
-    test_user: User,
-) -> None:
-    """@audit -> writer -> DB -> AuditEventService, with typed structured_data."""
-    with actor_context(actor=test_user):
-        if mode == "error":
-            with pytest.raises(ValueError):
-                call()
-        else:
-            call()
+class TestAuditEndToEnd:
+    """End-to-end audit event lifecycle tests."""
 
-    await audit_writer.drain()
+    def setup_method(self) -> None:
+        AuditEventDispatcher.reset()
+        AuditEventDispatcher.register({FunctionExecutionEvent: FunctionExecutionHandler()})
 
-    service = AuditEventService(test_db_session, test_user)
-    response = await service.list_resources(
-        model=AuditEventRecord,
-        response_type=AuditEventListResponse,
+    def teardown_method(self) -> None:
+        AuditEventDispatcher.reset()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("call", "mode", "expected"),
+        [
+            pytest.param(
+                lambda: _tracked_no_capture(7),
+                "success",
+                {
+                    "event_action": "no_capture_action",
+                    "event_category": "user_action",
+                    "event_status": "success",
+                    "event_severity": "info",
+                    "function_args": {},
+                    "function_result": None,
+                    "error_type": None,
+                    "error_message": None,
+                },
+                id="no_capture",
+            ),
+            pytest.param(
+                lambda: _tracked_capture_args(alpha="hello", beta=3),
+                "success",
+                {
+                    "event_action": "capture_args_action",
+                    "event_category": "user_action",
+                    "event_status": "success",
+                    "event_severity": "info",
+                    "function_args": {"alpha": "hello", "beta": 3},
+                    "function_result": None,
+                    "error_type": None,
+                    "error_message": None,
+                },
+                id="capture_args",
+            ),
+            pytest.param(
+                lambda: _tracked_capture_all("widget", 4),
+                "success",
+                {
+                    "event_action": "capture_all_action",
+                    "event_category": "api_execution",
+                    "event_status": "success",
+                    "event_severity": "info",
+                    "function_args": {"name": "widget", "count": 4},
+                    "function_result": {"name": "widget", "count": 4, "summary": "widgetx4"},
+                    "error_type": None,
+                    "error_message": None,
+                },
+                id="capture_args_and_result",
+            ),
+            pytest.param(
+                lambda: _tracked_raises("boom"),
+                "error",
+                {
+                    "event_action": "failing_action_error",
+                    "event_category": "system_operation",
+                    "event_status": "error",
+                    "event_severity": "error",  # escalated from info on exception
+                    "function_args": {"reason": "boom"},
+                    "function_result": None,
+                    "error_type": "ValueError",
+                    "error_message": "Look at the Operational Logs for full diagnosis",
+                },
+                id="error_path",
+            ),
+        ],
     )
+    async def test_audit_end_to_end(
+        self,
+        call: Callable[[], Any],
+        mode: RunMode,
+        expected: dict[str, Any],
+        audit_writer: AuditEventWriter,
+        test_db_session: AsyncSession,
+        test_user: User,
+    ) -> None:
+        """@audit -> writer -> DB -> AuditEventService, with typed structured_data."""
+        with actor_context(actor=test_user):
+            if mode == "error":
+                with pytest.raises(ValueError):
+                    call()
+            else:
+                call()
 
-    assert len(response.resources) == 1
-    read = response.resources[0]
+        await audit_writer.drain()
 
-    # Scalar envelope fields survive the round-trip.
-    assert read.event_action == expected["event_action"]
-    assert read.event_category == expected["event_category"]
-    assert read.event_status == expected["event_status"]
-    assert read.event_severity == expected["event_severity"]
-    assert read.source_component == __name__
+        service = AuditEventService(test_db_session, test_user)
+        response = await service.list_resources(
+            model=AuditEventRecord,
+            response_type=AuditEventListResponse,
+        )
 
-    # Actor fields are extracted from context and survive the round-trip.
-    assert read.actor_id == test_user.id
-    assert read.actor_type == "user"
-    assert read.actor_username == test_user.username
+        assert len(response.resources) == 1
+        read = response.resources[0]
 
-    # structured_data is discriminated back to AuditContextData with the expected content.
-    assert isinstance(read.structured_data, AuditContextData)
-    sd = read.structured_data
-    assert getattr(sd, "function_args", None) == expected["function_args"]
-    assert getattr(sd, "function_result", None) == expected["function_result"]
-    assert sd.error_type == expected["error_type"]
-    assert sd.error_message == expected["error_message"]
+        # Scalar envelope fields survive the round-trip.
+        assert read.event_action == expected["event_action"]
+        assert read.event_category == expected["event_category"]
+        assert read.event_status == expected["event_status"]
+        assert read.event_severity == expected["event_severity"]
+        assert read.source_component == __name__
+
+        # Actor fields are extracted from context and survive the round-trip.
+        assert read.actor_id == test_user.id
+        assert read.actor_type == "user"
+        assert read.actor_username == test_user.username
+
+        # structured_data is discriminated back to AuditContextData with the expected content.
+        assert isinstance(read.structured_data, AuditContextData)
+        sd = read.structured_data
+        assert getattr(sd, "function_args", None) == expected["function_args"]
+        assert getattr(sd, "function_result", None) == expected["function_result"]
+        assert sd.error_type == expected["error_type"]
+        assert sd.error_message == expected["error_message"]

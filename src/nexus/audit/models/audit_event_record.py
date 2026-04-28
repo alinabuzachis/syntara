@@ -81,6 +81,12 @@ class AuditEventRecord(BaseResource, table=True):
         index=True,
     )
     source_component: str = Field(description="Component that generated the event")
+    resource_urn: str | None = Field(
+        default=None,
+        sa_type=String(1024),  # type: ignore[call-overload]
+        description="RFC 8141 compliant URN identifying the resource",
+        index=True,
+    )
 
     # -- Context tracking ------------------------------------------------------
     workflow_id: UUID | None = Field(default=None, index=True, description="Workflow identifier")
@@ -108,6 +114,7 @@ class AuditEventRecord(BaseResource, table=True):
         "actor_type",
         "actor_username",
         "source_component",
+        "resource_urn",
         "workflow_id",
         "activity_id",
         "execution_id",
@@ -162,6 +169,7 @@ class AuditEventRecord(BaseResource, table=True):
             actor_type=event.actor_type,
             actor_username=event.actor_username,
             source_component=event.source_component,
+            resource_urn=event.resource_urn,
             workflow_id=event.workflow_id,
             activity_id=event.activity_id,
             execution_id=event.execution_id,

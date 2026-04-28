@@ -32,18 +32,17 @@ from nexus.audit.models.structured_data import AuditContextData
 from nexus.core.models.user import User
 
 
-@pytest.fixture(autouse=True)
-def _register_audit_event_handlers() -> Any:  # noqa: ANN401
-    """Register AuditContextHandler and FunctionExecutionHandler for context manager tests."""
-    AuditEventDispatcher.register(
-        {AuditContextEvent: AuditContextHandler(), FunctionExecutionEvent: FunctionExecutionHandler()}
-    )
-    yield
-    AuditEventDispatcher.reset()
-
-
 class TestActorContext:
     """Test the actor_context context manager."""
+
+    def setup_method(self) -> None:
+        AuditEventDispatcher.reset()
+        AuditEventDispatcher.register(
+            {AuditContextEvent: AuditContextHandler(), FunctionExecutionEvent: FunctionExecutionHandler()}
+        )
+
+    def teardown_method(self) -> None:
+        AuditEventDispatcher.reset()
 
     async def test_actor_context_sets_and_resets_context_variables(self, test_user: User) -> None:
         """Test that actor_context properly sets and resets context variables."""
@@ -129,6 +128,15 @@ class TestActorContext:
 class TestAuditContext:
     """Test the audit_context context manager."""
 
+    def setup_method(self) -> None:
+        AuditEventDispatcher.reset()
+        AuditEventDispatcher.register(
+            {AuditContextEvent: AuditContextHandler(), FunctionExecutionEvent: FunctionExecutionHandler()}
+        )
+
+    def teardown_method(self) -> None:
+        AuditEventDispatcher.reset()
+
     @patch("nexus.audit.emitter._do_emit_audit_event")
     async def test_audit_context_success_emits_audit_event(self, mock_emit: Mock, test_user: User) -> None:
         """Test that audit_context emits success event when no exception occurs."""
@@ -164,6 +172,60 @@ class TestAuditContext:
         # Access additional fields through model_dump since extra="allow"
         structured_dict = emitted_event.structured_data.model_dump()
         assert structured_dict["test_field"] == "test_value"
+
+    @patch("nexus.audit.emitter._do_emit_audit_event")
+    async def test_audit_context_with_valid_resource_urn(self, mock_emit: Mock, test_user: User) -> None:
+        """Test that audit_context includes valid resource_urn in emitted event."""
+        # Arrange
+        valid_urn = "urn:nexus:test:resource:12345"
+
+        # Act
+        with audit_context(
+            event_category=EventCategory.USER_ACTION,
+            event_action="test_action",
+            source_component="test.component",
+            actor=test_user,
+            resource_urn=valid_urn,
+        ):
+            pass  # Successful execution
+
+        # Assert
+        mock_emit.assert_called_once()
+        emitted_event = mock_emit.call_args[0][0]
+
+        assert isinstance(emitted_event, AuditEvent)
+        assert emitted_event.resource_urn == valid_urn
+        assert emitted_event.event_category == EventCategory.USER_ACTION
+        assert emitted_event.event_status == EventStatus.SUCCESS
+
+    @patch("nexus.audit.emitter._do_emit_audit_event")
+    async def test_audit_context_with_invalid_resource_urn(
+        self, mock_emit: Mock, test_user: User, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Test that audit_context drops invalid resource_urn with warning."""
+        # Arrange
+        invalid_urn = "invalid-urn-format"
+
+        # Act
+        with audit_context(
+            event_category=EventCategory.USER_ACTION,
+            event_action="test_action",
+            source_component="test.component",
+            actor=test_user,
+            resource_urn=invalid_urn,
+        ):
+            pass  # Successful execution
+
+        # Assert
+        mock_emit.assert_called_once()
+        emitted_event = mock_emit.call_args[0][0]
+
+        assert isinstance(emitted_event, AuditEvent)
+        assert emitted_event.resource_urn is None
+        assert emitted_event.event_category == EventCategory.USER_ACTION
+        assert emitted_event.event_status == EventStatus.SUCCESS
+        # Verify warning was logged
+        assert "does not conform to RFC 8141" in caplog.text
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
     async def test_audit_context_error_emits_error_event(self, mock_emit: Mock) -> None:
@@ -434,6 +496,15 @@ class TestAuditContext:
 class TestContextManagersWithTrackEventDecorator:
     """Test context managers working with @audit decorator."""
 
+    def setup_method(self) -> None:
+        AuditEventDispatcher.reset()
+        AuditEventDispatcher.register(
+            {AuditContextEvent: AuditContextHandler(), FunctionExecutionEvent: FunctionExecutionHandler()}
+        )
+
+    def teardown_method(self) -> None:
+        AuditEventDispatcher.reset()
+
     @patch("nexus.audit.emitter._do_emit_audit_event")
     async def test_actor_context_with_audit_decorator(self, mock_emit: Mock, test_user: User) -> None:
         """Test that actor_context provides context for @audit decorated function."""
@@ -597,6 +668,15 @@ class TestContextManagersWithTrackEventDecorator:
 class TestActorContextSanitizationAndTruncation:
     """Test that events emitted within actor_context have sanitized and truncated payloads."""
 
+    def setup_method(self) -> None:
+        AuditEventDispatcher.reset()
+        AuditEventDispatcher.register(
+            {AuditContextEvent: AuditContextHandler(), FunctionExecutionEvent: FunctionExecutionHandler()}
+        )
+
+    def teardown_method(self) -> None:
+        AuditEventDispatcher.reset()
+
     @patch("nexus.audit.emitter._do_emit_audit_event")
     async def test_actor_context_emitted_event_has_sanitized_payload(self, mock_emit: Mock, test_user: User) -> None:
         """Test that sensitive data in captured arguments is redacted when using actor_context."""
@@ -644,6 +724,15 @@ class TestActorContextSanitizationAndTruncation:
 
 class TestAuditContextSanitizationAndTruncation:
     """Test that events emitted by audit_context have sanitized and truncated payloads."""
+
+    def setup_method(self) -> None:
+        AuditEventDispatcher.reset()
+        AuditEventDispatcher.register(
+            {AuditContextEvent: AuditContextHandler(), FunctionExecutionEvent: FunctionExecutionHandler()}
+        )
+
+    def teardown_method(self) -> None:
+        AuditEventDispatcher.reset()
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
     async def test_audit_context_emitted_event_has_sanitized_payload(self, mock_emit: Mock, test_user: User) -> None:

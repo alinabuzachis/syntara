@@ -48,6 +48,7 @@ class AuditEventRead:
         actor_id (None | Unset | UUID): User, system, or service that performed the action
         actor_type (ActorType | None | Unset): Type of actor (user|system|service)
         actor_username (None | str | Unset): Username of the actor
+        resource_urn (None | str | Unset): RFC 8141 compliant URN identifying the resource
         workflow_id (None | Unset | UUID): Workflow identifier for workflow-scoped events
         activity_id (None | str | Unset): Activity identifier for activity-level events
         execution_id (None | Unset | UUID): Execution identifier for execution tracing
@@ -67,6 +68,7 @@ class AuditEventRead:
     actor_id: None | Unset | UUID = UNSET
     actor_type: ActorType | None | Unset = UNSET
     actor_username: None | str | Unset = UNSET
+    resource_urn: None | str | Unset = UNSET
     workflow_id: None | Unset | UUID = UNSET
     activity_id: None | str | Unset = UNSET
     execution_id: None | Unset | UUID = UNSET
@@ -132,6 +134,12 @@ class AuditEventRead:
         else:
             actor_username = self.actor_username
 
+        resource_urn: None | str | Unset
+        if isinstance(self.resource_urn, Unset):
+            resource_urn = UNSET
+        else:
+            resource_urn = self.resource_urn
+
         workflow_id: None | str | Unset
         if isinstance(self.workflow_id, Unset):
             workflow_id = UNSET
@@ -183,6 +191,8 @@ class AuditEventRead:
             field_dict["actor_type"] = actor_type
         if actor_username is not UNSET:
             field_dict["actor_username"] = actor_username
+        if resource_urn is not UNSET:
+            field_dict["resource_urn"] = resource_urn
         if workflow_id is not UNSET:
             field_dict["workflow_id"] = workflow_id
         if activity_id is not UNSET:
@@ -303,6 +313,15 @@ class AuditEventRead:
 
         actor_username = _parse_actor_username(d.pop("actor_username", UNSET))
 
+        def _parse_resource_urn(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        resource_urn = _parse_resource_urn(d.pop("resource_urn", UNSET))
+
         def _parse_workflow_id(data: object) -> None | Unset | UUID:
             if data is None:
                 return data
@@ -361,6 +380,7 @@ class AuditEventRead:
             actor_id=actor_id,
             actor_type=actor_type,
             actor_username=actor_username,
+            resource_urn=resource_urn,
             workflow_id=workflow_id,
             activity_id=activity_id,
             execution_id=execution_id,

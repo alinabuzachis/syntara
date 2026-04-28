@@ -16,14 +16,6 @@ from nexus.audit.models.structured_data import AuditContextData
 from nexus.core.models.user import User
 
 
-@pytest.fixture(autouse=True)
-def _register_audit_event_handler() -> Any:  # noqa: ANN401
-    """Register FunctionExecutionHandler for decorator tests."""
-    AuditEventDispatcher.register({FunctionExecutionEvent: FunctionExecutionHandler()})
-    yield
-    AuditEventDispatcher.reset()
-
-
 def _assert_audit_event_fields(
     event_obj: AuditEvent,
     expected_category: EventCategory,
@@ -69,6 +61,13 @@ def _assert_audit_event_fields(
 
 class TestTrackEventDecorator:
     """Test the audit decorator functionality."""
+
+    def setup_method(self) -> None:
+        AuditEventDispatcher.reset()
+        AuditEventDispatcher.register({FunctionExecutionEvent: FunctionExecutionHandler()})
+
+    def teardown_method(self) -> None:
+        AuditEventDispatcher.reset()
 
     def test_audit_basic_decoration(self) -> None:
         """Test basic function decoration and execution."""
@@ -524,6 +523,13 @@ class TestTrackEventDecorator:
 
 class TestTrackEventEdgeCases:
     """Test edge cases and error conditions for audit decorator."""
+
+    def setup_method(self) -> None:
+        AuditEventDispatcher.reset()
+        AuditEventDispatcher.register({FunctionExecutionEvent: FunctionExecutionHandler()})
+
+    def teardown_method(self) -> None:
+        AuditEventDispatcher.reset()
 
     def test_audit_multiple_decorators(self) -> None:
         """Test function with multiple audit decorators."""
@@ -1011,6 +1017,13 @@ class TestTrackEventEdgeCases:
 class TestTrackEventSanitizationAndTruncation:
     """Test that emitted audit events from @audit have sanitized and truncated payloads."""
 
+    def setup_method(self) -> None:
+        AuditEventDispatcher.reset()
+        AuditEventDispatcher.register({FunctionExecutionEvent: FunctionExecutionHandler()})
+
+    def teardown_method(self) -> None:
+        AuditEventDispatcher.reset()
+
     def test_audit_emitted_event_has_sanitized_payload(self) -> None:
         """Test that sensitive data in captured arguments is redacted in the emitted event."""
 
@@ -1055,6 +1068,13 @@ class TestTrackEventSanitizationAndTruncation:
 
 class TestEventSeverity:
     """Test event severity override functionality."""
+
+    def setup_method(self) -> None:
+        AuditEventDispatcher.reset()
+        AuditEventDispatcher.register({FunctionExecutionEvent: FunctionExecutionHandler()})
+
+    def teardown_method(self) -> None:
+        AuditEventDispatcher.reset()
 
     def test_audit_default_severity_info(self) -> None:
         """Test that the default event severity is INFO."""
@@ -1205,6 +1225,13 @@ class TestEventSeverity:
 
 class TestTrackEventAttemptingEvent:
     """Tests for event emission timing."""
+
+    def setup_method(self) -> None:
+        AuditEventDispatcher.reset()
+        AuditEventDispatcher.register({FunctionExecutionEvent: FunctionExecutionHandler()})
+
+    def teardown_method(self) -> None:
+        AuditEventDispatcher.reset()
 
     def test_single_event_emitted_on_success(self) -> None:
         """Only one event is emitted on successful function completion."""

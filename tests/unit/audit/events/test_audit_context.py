@@ -25,6 +25,7 @@ class TestAuditContextHandler:
             source_component="test.component",
             actor=test_user,
             event_severity=EventSeverity.INFO,
+            resource_urn="urn:nexus:test:resource:12345",
             error_type=None,
             error_message=None,
             context_data={"test_field": "test_value"},
@@ -39,6 +40,7 @@ class TestAuditContextHandler:
         assert result.event_action == "test_action"
         assert result.event_message == "Operation test_action completed successfully"
         assert result.source_component == "test.component"
+        assert result.resource_urn == "urn:nexus:test:resource:12345"
         assert result.actor_id == test_user.id
         assert result.actor_type == ActorType.USER
         assert result.actor_username == test_user.username
@@ -55,6 +57,7 @@ class TestAuditContextHandler:
             source_component="test.component",
             actor=None,  # SYSTEM actor
             event_severity=EventSeverity.ERROR,
+            resource_urn="urn:nexus:api:endpoint:test_endpoint",
             error_type="ValueError",
             error_message="Look at the Operational Logs for full diagnosis",
             context_data={"test_field": "test_value"},
@@ -69,6 +72,7 @@ class TestAuditContextHandler:
         assert result.event_action == "test_action_error"
         assert result.event_message == "Operation test_action failed with ValueError"
         assert result.source_component == "test.component"
+        assert result.resource_urn == "urn:nexus:api:endpoint:test_endpoint"
         assert result.actor_id is None
         assert result.actor_type == ActorType.SYSTEM
         assert result.actor_username is None

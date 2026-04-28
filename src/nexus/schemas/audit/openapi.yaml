@@ -163,6 +163,16 @@ paths:
               - type: 'null'
             title: Source Component
             description: Filter by source component
+        - name: resource_urn
+          in: query
+          required: false
+          description: Filter by resource URN
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Resource Urn
+            description: Filter by resource URN
         - name: workflow_id
           in: query
           required: false
@@ -292,6 +302,13 @@ components:
               type: string
               title: Source Component
               description: Component that generated the event
+            resource_urn:
+              anyOf:
+                - type: string
+                  maxLength: 1024
+                - type: 'null'
+              title: Resource Urn
+              description: RFC 8141 compliant URN identifying the resource
             workflow_id:
               anyOf:
                 - type: string

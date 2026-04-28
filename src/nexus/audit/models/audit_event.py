@@ -1,12 +1,29 @@
 """Audit event model and enums for tracking system activities."""
 
+import re
 from enum import StrEnum
+from typing import Any
 from uuid import UUID, uuid4
 
-from pydantic import SerializeAsAny
+import structlog
+from pydantic import SerializeAsAny, field_validator
 from sqlmodel import Field, SQLModel
 
 from nexus.audit.models.structured_data import AuditContextData
+
+logger = structlog.stdlib.get_logger(__name__)
+
+# RFC 8141 URN pattern
+# Format: urn:<nid>:<nss>
+# - NID: 2-32 characters, starts with alphanumeric, rest can include hyphens
+# - NSS: 1+ characters from RFC 8141 allowed set
+#   unreserved: a-z 0-9 ( ) + , - . : = @ ; $ _ ! * ' %
+#   pct-encoded: % (already included)
+#   sub-delims: / ? ~ &
+_URN_PATTERN = re.compile(
+    r"^urn:[a-z0-9][a-z0-9-]{1,31}:[a-z0-9()+,\-.:=@;$_!*'%/?~&]+$",
+    re.IGNORECASE,
+)
 
 
 class EventCategory(StrEnum):
@@ -62,6 +79,9 @@ class AuditEvent(SQLModel):
     actor_type: ActorType | None = Field(default=None, description="Type of actor (user|system|service)")
     actor_username: str | None = Field(default=None, description="Username of the actor")
     source_component: str = Field(description="Component that generated event")
+    resource_urn: str | None = Field(
+        default=None, max_length=1024, description="RFC 8141 compliant URN identifying the resource"
+    )
 
     # Context tracking
     workflow_id: UUID | None = Field(default=None, description="Workflow identifier for workflow-scoped events")
@@ -73,3 +93,42 @@ class AuditEvent(SQLModel):
 
     # Event data (sanitized)
     structured_data: SerializeAsAny[AuditContextData] = Field(description="Structured event data (sanitized)")
+
+    @field_validator("resource_urn", mode="before")
+    @classmethod
+    def validate_resource_urn(cls, v: Any) -> str | None:  # noqa: ANN401
+        """Validate resource_urn conforms to RFC 8141 URN format.
+
+        RFC 8141 URN format: urn:<nid>:<nss>
+        - nid (Namespace Identifier): 2-32 characters, starts with alphanumeric,
+          rest can be alphanumeric or hyphen
+        - nss (Namespace Specific String): 1+ characters from RFC 8141 allowed set
+
+        If invalid, log a warning and return None to prevent storing malformed URNs.
+        This ensures audit event emission never fails due to invalid URN format.
+
+        Args:
+            v: The resource_urn value to validate
+
+        Returns:
+            The validated URN string, or None if invalid or not provided
+
+        """
+        if v is None:
+            return None
+
+        if not isinstance(v, str):
+            logger.warning(
+                "resource_urn must be a string, dropping invalid value",
+                provided_type=type(v).__name__,
+            )
+            return None
+
+        if not _URN_PATTERN.match(v):
+            logger.warning(
+                "resource_urn does not conform to RFC 8141 URN format (urn:<nid>:<nss>), dropping invalid value",
+                provided_value=v,
+            )
+            return None
+
+        return v

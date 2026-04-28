@@ -2,7 +2,6 @@
 
 from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
@@ -37,14 +36,6 @@ def _mock_audit_emission() -> Generator[None, None, None]:
     """Prevent @audit emission side effects in unit tests."""
     with patch("nexus.audit.emitter.emit_audit_event"):
         yield
-
-
-@pytest.fixture(autouse=True)
-def _register_audit_event_handler() -> Any:  # noqa: ANN401
-    """Register FunctionExecutionHandler for tests."""
-    AuditEventDispatcher.register({FunctionExecutionEvent: FunctionExecutionHandler()})
-    yield
-    AuditEventDispatcher.reset()
 
 
 def _make_request(*, cookie_value: str | None = None) -> MagicMock:
@@ -704,6 +695,28 @@ class TestLoginAuditEvents:
     at the lowest level (_do_emit_audit_event) to verify ordering.
     """
 
+    def setup_method(self) -> None:
+        from nexus.auth.audit.login_attempt import (
+            LoginAttemptEvent,
+            LoginAttemptHandler,
+        )
+        from nexus.auth.audit.session_lifecycle import (
+            SessionLifecycleEvent,
+            SessionLifecycleHandler,
+        )
+
+        AuditEventDispatcher.reset()
+        AuditEventDispatcher.register(
+            {
+                LoginAttemptEvent: LoginAttemptHandler(),
+                SessionLifecycleEvent: SessionLifecycleHandler(),
+                FunctionExecutionEvent: FunctionExecutionHandler(),
+            }
+        )
+
+    def teardown_method(self) -> None:
+        AuditEventDispatcher.reset()
+
     @pytest.mark.asyncio
     @patch("nexus.auth.router._get_token_service")
     @patch("nexus.auth.router.SessionStore")
@@ -723,17 +736,8 @@ class TestLoginAuditEvents:
         2. LoginAttemptEvent -> "login" (USER_ACTION, SUCCESS, error_type=None)
         3. @audit "login" (SECURITY_EVENT, SUCCESS)
         """
-        from nexus.audit.dispatcher import AuditEventDispatcher
         from nexus.audit.models.audit_event import AuditEvent, EventCategory, EventStatus
         from nexus.audit.models.structured_data import AuditContextData
-        from nexus.auth.audit.login_attempt import (
-            LoginAttemptEvent,
-            LoginAttemptHandler,
-        )
-        from nexus.auth.audit.session_lifecycle import (
-            SessionLifecycleEvent,
-            SessionLifecycleHandler,
-        )
 
         user = _make_user()
         mock_db = AsyncMock()
@@ -755,56 +759,39 @@ class TestLoginAuditEvents:
         request = _make_request()
         response = _make_response()
 
-        # Wire up a real dispatcher with real handlers so domain events
-        # flow through the full pipeline. Capture at _do_emit_audit_event
-        # to see the complete ordered event stream.
-        from nexus.audit.events.function_execution import FunctionExecutionEvent, FunctionExecutionHandler
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit:
+            await login(
+                body=LoginRequest(username="testuser", password="password123"),  # noqa: S106
+                request=request,
+                response=response,
+                db=mock_db,
+            )
 
-        AuditEventDispatcher.reset()
-        AuditEventDispatcher.register(
-            {
-                LoginAttemptEvent: LoginAttemptHandler(),
-                SessionLifecycleEvent: SessionLifecycleHandler(),
-                FunctionExecutionEvent: FunctionExecutionHandler(),
-            }
-        )
+        assert mock_do_emit.call_count == 3
+        events: list[AuditEvent] = [call.args[0] for call in mock_do_emit.call_args_list]
 
-        try:
-            with patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit:
-                await login(
-                    body=LoginRequest(username="testuser", password="password123"),  # noqa: S106
-                    request=request,
-                    response=response,
-                    db=mock_db,
-                )
+        # Event 1: SessionLifecycleEvent -> "session_created"
+        assert events[0].event_action == "session_created"
+        assert events[0].event_category == EventCategory.USER_ACTION
+        assert events[0].event_status == EventStatus.SUCCESS
+        assert events[0].actor_username == "testuser"
+        assert isinstance(events[0].structured_data, AuditContextData)
+        assert events[0].structured_data.lifecycle_action == "create"  # type: ignore[attr-defined]
+        assert events[0].structured_data.jti == "jti-123"  # type: ignore[attr-defined]
 
-            assert mock_do_emit.call_count == 3
-            events: list[AuditEvent] = [call.args[0] for call in mock_do_emit.call_args_list]
+        # Event 2: LoginAttemptEvent -> "login" (error_type=None)
+        assert events[1].event_action == "login"
+        assert events[1].event_category == EventCategory.USER_ACTION
+        assert events[1].event_status == EventStatus.SUCCESS
+        assert isinstance(events[1].structured_data, AuditContextData)
+        assert events[1].structured_data.method == "password"  # type: ignore[attr-defined]
+        assert events[1].actor_username == "testuser"
+        assert events[1].actor_id == user.id
 
-            # Event 1: SessionLifecycleEvent -> "session_created"
-            assert events[0].event_action == "session_created"
-            assert events[0].event_category == EventCategory.USER_ACTION
-            assert events[0].event_status == EventStatus.SUCCESS
-            assert events[0].actor_username == "testuser"
-            assert isinstance(events[0].structured_data, AuditContextData)
-            assert events[0].structured_data.lifecycle_action == "create"  # type: ignore[attr-defined]
-            assert events[0].structured_data.jti == "jti-123"  # type: ignore[attr-defined]
-
-            # Event 2: LoginAttemptEvent -> "login" (error_type=None)
-            assert events[1].event_action == "login"
-            assert events[1].event_category == EventCategory.USER_ACTION
-            assert events[1].event_status == EventStatus.SUCCESS
-            assert isinstance(events[1].structured_data, AuditContextData)
-            assert events[1].structured_data.method == "password"  # type: ignore[attr-defined]
-            assert events[1].actor_username == "testuser"
-            assert events[1].actor_id == user.id
-
-            # Event 3: @audit "login"
-            assert events[2].event_action == "login"
-            assert events[2].event_category == EventCategory.SECURITY_EVENT
-            assert events[2].event_status == EventStatus.SUCCESS
-        finally:
-            AuditEventDispatcher.reset()
+        # Event 3: @audit "login"
+        assert events[2].event_action == "login"
+        assert events[2].event_category == EventCategory.SECURITY_EVENT
+        assert events[2].event_status == EventStatus.SUCCESS
 
 
 def _setup_oidc_callback_mocks() -> tuple[MagicMock, MagicMock, MagicMock, MagicMock, AsyncMock]:
@@ -841,245 +828,11 @@ class TestOIDCAuditEvents:
     handlers to test the full pipeline.
     """
 
-    @pytest.mark.asyncio
-    async def test_authorize_oidc_error_emits_event_with_error_type(self) -> None:
-        """oidc_authorize with OIDCError emits audit event with error_type and provider_id."""
-        from nexus.audit.dispatcher import AuditEventDispatcher
-        from nexus.audit.events.function_execution import FunctionExecutionEvent, FunctionExecutionHandler
-        from nexus.audit.models.audit_event import AuditEvent, EventCategory, EventSeverity, EventStatus
-        from nexus.audit.models.structured_data import AuditContextData
-        from nexus.auth.audit.oidc_flow import OIDCFlowEvent, OIDCFlowHandler
-
-        provider_id = uuid4()
-
-        AuditEventDispatcher.reset()
-        AuditEventDispatcher.register(
-            {
-                OIDCFlowEvent: OIDCFlowHandler(),
-                FunctionExecutionEvent: FunctionExecutionHandler(),
-            }
-        )
-
-        try:
-            # Mock the underlying function to raise OIDCError
-            with patch("nexus.auth.router._build_oidc_authorize_redirect") as mock_build:
-                mock_build.side_effect = OIDCError("Provider not available")
-
-                # Mock request and db
-                request = MagicMock()
-                request.headers.get.return_value = None
-                db = AsyncMock()
-
-                # Capture emitted events
-                with patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit:
-                    # Call oidc_authorize - should redirect to login with error
-                    response = await oidc_authorize(provider_id=provider_id, request=request, db=db)
-                    assert response.status_code == 302
-                    assert "auth_error=" in response.headers["location"]
-
-                # Verify audit events were emitted
-                # @audit emits 1 event + OIDCFlowEvent dispatch = 2 total
-                assert mock_do_emit.call_count == 2
-                events: list[AuditEvent] = [call.args[0] for call in mock_do_emit.call_args_list]
-
-                # Find the OIDCFlowEvent-generated event
-                oidc_event = next(e for e in events if e.event_action == "oidc_authorize")
-
-                assert oidc_event.event_category == EventCategory.SECURITY_EVENT
-                assert oidc_event.event_severity == EventSeverity.ERROR
-                assert oidc_event.event_status == EventStatus.ERROR
-                assert isinstance(oidc_event.structured_data, AuditContextData)
-                assert oidc_event.structured_data.error_type == "OIDCError"
-                assert oidc_event.structured_data.provider_id == str(provider_id)  # type: ignore[attr-defined]
-        finally:
-            AuditEventDispatcher.reset()
-
-    @pytest.mark.asyncio
-    async def test_authorize_callback_error_emits_event_with_error_type(self) -> None:
-        """oidc_authorize with _OIDCCallbackError emits audit event with error_type and provider_id."""
-        from nexus.audit.dispatcher import AuditEventDispatcher
-        from nexus.audit.events.function_execution import FunctionExecutionEvent, FunctionExecutionHandler
-        from nexus.audit.models.audit_event import AuditEvent, EventCategory, EventSeverity, EventStatus
-        from nexus.audit.models.structured_data import AuditContextData
-        from nexus.auth.audit.oidc_flow import OIDCFlowEvent, OIDCFlowHandler
-
-        provider_id = uuid4()
-
-        AuditEventDispatcher.reset()
-        AuditEventDispatcher.register(
-            {
-                OIDCFlowEvent: OIDCFlowHandler(),
-                FunctionExecutionEvent: FunctionExecutionHandler(),
-            }
-        )
-
-        try:
-            # Mock the underlying function to raise _OIDCCallbackError
-            with patch("nexus.auth.router._build_oidc_authorize_redirect") as mock_build:
-                mock_build.side_effect = _OIDCCallbackError("Invalid state", origin="http://localhost:3000")
-
-                # Mock request and db
-                request = MagicMock()
-                request.headers.get.return_value = None
-                db = AsyncMock()
-
-                # Capture emitted events
-                with patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit:
-                    # Call oidc_authorize - should redirect to login with error
-                    response = await oidc_authorize(provider_id=provider_id, request=request, db=db)
-                    assert response.status_code == 302
-
-                # Verify audit events were emitted
-                # @audit emits 1 event + OIDCFlowEvent dispatch = 2 total
-                assert mock_do_emit.call_count == 2
-                events: list[AuditEvent] = [call.args[0] for call in mock_do_emit.call_args_list]
-
-                # Find the OIDCFlowEvent-generated event
-                oidc_event = next(e for e in events if e.event_action == "oidc_authorize")
-
-                assert oidc_event.event_category == EventCategory.SECURITY_EVENT
-                assert oidc_event.event_severity == EventSeverity.ERROR
-                assert oidc_event.event_status == EventStatus.ERROR
-                assert isinstance(oidc_event.structured_data, AuditContextData)
-                assert oidc_event.structured_data.error_type == "_OIDCCallbackError"
-                assert oidc_event.structured_data.provider_id == str(provider_id)  # type: ignore[attr-defined]
-        finally:
-            AuditEventDispatcher.reset()
-
-    @pytest.mark.asyncio
-    async def test_authorize_generic_exception_emits_event_with_error_type(self) -> None:
-        """oidc_authorize with generic Exception emits audit event with error_type and provider_id."""
-        from nexus.audit.dispatcher import AuditEventDispatcher
-        from nexus.audit.events.function_execution import FunctionExecutionEvent, FunctionExecutionHandler
-        from nexus.audit.models.audit_event import AuditEvent, EventCategory, EventSeverity, EventStatus
-        from nexus.audit.models.structured_data import AuditContextData
-        from nexus.auth.audit.oidc_flow import OIDCFlowEvent, OIDCFlowHandler
-
-        provider_id = uuid4()
-
-        AuditEventDispatcher.reset()
-        AuditEventDispatcher.register(
-            {
-                OIDCFlowEvent: OIDCFlowHandler(),
-                FunctionExecutionEvent: FunctionExecutionHandler(),
-            }
-        )
-
-        try:
-            # Mock the underlying function to raise RuntimeError
-            with patch("nexus.auth.router._build_oidc_authorize_redirect") as mock_build:
-                mock_build.side_effect = RuntimeError("Unexpected error")
-
-                # Mock request and db
-                request = MagicMock()
-                request.headers.get.return_value = None
-                db = AsyncMock()
-
-                # Capture emitted events
-                with patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit:
-                    # Call oidc_authorize - should redirect to login with error
-                    response = await oidc_authorize(provider_id=provider_id, request=request, db=db)
-                    assert response.status_code == 302
-
-                # Verify audit events were emitted
-                # @audit emits 1 event + OIDCFlowEvent dispatch = 2 total
-                assert mock_do_emit.call_count == 2
-                events: list[AuditEvent] = [call.args[0] for call in mock_do_emit.call_args_list]
-
-                # Find the OIDCFlowEvent-generated event
-                oidc_event = next(e for e in events if e.event_action == "oidc_authorize")
-
-                assert oidc_event.event_category == EventCategory.SECURITY_EVENT
-                assert oidc_event.event_severity == EventSeverity.ERROR
-                assert oidc_event.event_status == EventStatus.ERROR
-                assert isinstance(oidc_event.structured_data, AuditContextData)
-                assert oidc_event.structured_data.error_type == "RuntimeError"
-                assert oidc_event.structured_data.provider_id == str(provider_id)  # type: ignore[attr-defined]
-        finally:
-            AuditEventDispatcher.reset()
-
-    @pytest.mark.asyncio
-    async def test_callback_error_emits_event_with_none_provider_id(self) -> None:
-        """oidc_callback with _OIDCCallbackError emits audit event with provider_id=None."""
-        from nexus.audit.dispatcher import AuditEventDispatcher
-        from nexus.audit.events.function_execution import FunctionExecutionEvent, FunctionExecutionHandler
-        from nexus.audit.models.audit_event import AuditEvent, EventCategory, EventSeverity, EventStatus
-        from nexus.audit.models.structured_data import AuditContextData
-        from nexus.auth.audit.oidc_flow import OIDCFlowEvent, OIDCFlowHandler
-
-        AuditEventDispatcher.reset()
-        AuditEventDispatcher.register(
-            {
-                OIDCFlowEvent: OIDCFlowHandler(),
-                FunctionExecutionEvent: FunctionExecutionHandler(),
-            }
-        )
-
-        try:
-            # Mock the underlying function to raise _OIDCCallbackError
-            with patch("nexus.auth.router._process_oidc_callback") as mock_process:
-                mock_process.side_effect = _OIDCCallbackError("Invalid code", origin="http://localhost:3000")
-
-                # Mock request and db
-                request = MagicMock()
-                request.headers.get.return_value = None
-                request.client = MagicMock()
-                request.client.host = "127.0.0.1"
-                db = AsyncMock()
-
-                # Capture emitted events
-                with patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit:
-                    # Call oidc_callback - should redirect to login with error
-                    response = await oidc_callback(state="test-state", request=request, db=db, code="test-code")
-                    assert response.status_code == 302
-
-                # Verify audit events were emitted
-                # @audit emits 1 event + OIDCFlowEvent dispatch = 2 total
-                assert mock_do_emit.call_count == 2
-                events: list[AuditEvent] = [call.args[0] for call in mock_do_emit.call_args_list]
-
-                # Find the OIDCFlowEvent-generated event
-                oidc_event = next(e for e in events if e.event_action == "oidc_callback")
-
-                assert oidc_event.event_category == EventCategory.SECURITY_EVENT
-                assert oidc_event.event_severity == EventSeverity.ERROR
-                assert oidc_event.event_status == EventStatus.ERROR
-                assert isinstance(oidc_event.structured_data, AuditContextData)
-                assert oidc_event.structured_data.error_type == "_OIDCCallbackError"
-                # Critical: callback errors have provider_id=None
-                assert oidc_event.structured_data.provider_id is None  # type: ignore[attr-defined]
-        finally:
-            AuditEventDispatcher.reset()
-
-    @pytest.mark.asyncio
-    async def test_successful_oidc_callback_emits_all_events_in_order(self) -> None:
-        """Happy OIDC callback flow emits all audit events in correct chronological order.
-
-        Expected order:
-        1. OIDCFlowEvent -> "oidc_callback" (USER_ACTION, SUCCESS)
-        2. SessionLifecycleEvent -> "session_created" (USER_ACTION, SUCCESS)
-        3. UserLoginEvent -> "user_login" (USER_ACTION, SUCCESS)
-        4. LoginAttemptEvent -> "login" (USER_ACTION, SUCCESS, method=OIDC)
-        5. @audit "oidc_callback" (SECURITY_EVENT, SUCCESS)
-        """
-        from nexus.audit.dispatcher import AuditEventDispatcher
-        from nexus.audit.models.audit_event import AuditEvent, EventCategory, EventStatus
-        from nexus.audit.models.structured_data import AuditContextData
+    def setup_method(self) -> None:
         from nexus.auth.audit.login_attempt import LoginAttemptEvent, LoginAttemptHandler
         from nexus.auth.audit.oidc_flow import OIDCFlowEvent, OIDCFlowHandler
         from nexus.auth.audit.session_lifecycle import SessionLifecycleEvent, SessionLifecycleHandler
         from nexus.auth.audit.user_login import UserLoginEvent, UserLoginHandler
-
-        provider = MagicMock()
-        provider.id, provider.name = uuid4(), "TestProvider"
-        user = _make_user()
-        state_data = {"origin": "http://localhost:3000", "redirect_to": "/dashboard"}
-        mock_token_service, mock_session_store, mock_settings, request, db = _setup_oidc_callback_mocks()
-
-        # Wire up a real dispatcher with real handlers so domain events
-        # flow through the full pipeline. Capture at _do_emit_audit_event
-        # to see the complete ordered event stream.
-        from nexus.audit.events.function_execution import FunctionExecutionEvent, FunctionExecutionHandler
 
         AuditEventDispatcher.reset()
         AuditEventDispatcher.register(
@@ -1092,87 +845,261 @@ class TestOIDCAuditEvents:
             }
         )
 
-        try:
-            with (
-                patch("nexus.auth.router._process_oidc_callback") as mock_process,
-                patch("nexus.auth.router._get_token_service", return_value=mock_token_service),
-                patch("nexus.auth.router.SessionStore", return_value=mock_session_store),
-                patch("nexus.auth.router.get_settings", return_value=mock_settings),
-                patch("nexus.auth.router.set_refresh_cookie"),
-                patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit,
-            ):
-                mock_process.return_value = (user, provider, state_data, False)
+    def teardown_method(self) -> None:
+        AuditEventDispatcher.reset()
 
-                response = await oidc_callback(
-                    state="valid-state",
-                    request=request,
-                    db=db,
-                    code="auth-code-123",
-                )
+    @pytest.mark.asyncio
+    async def test_authorize_oidc_error_emits_event_with_error_type(self) -> None:
+        """oidc_authorize with OIDCError emits audit event with error_type and provider_id."""
+        from nexus.audit.models.audit_event import AuditEvent, EventCategory, EventSeverity, EventStatus
+        from nexus.audit.models.structured_data import AuditContextData
 
+        provider_id = uuid4()
+
+        # Mock the underlying function to raise OIDCError
+        with patch("nexus.auth.router._build_oidc_authorize_redirect") as mock_build:
+            mock_build.side_effect = OIDCError("Provider not available")
+
+            # Mock request and db
+            request = MagicMock()
+            request.headers.get.return_value = None
+            db = AsyncMock()
+
+            # Capture emitted events
+            with patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit:
+                # Call oidc_authorize - should redirect to login with error
+                response = await oidc_authorize(provider_id=provider_id, request=request, db=db)
                 assert response.status_code == 302
+                assert "auth_error=" in response.headers["location"]
 
-            # Verify all 5 events were emitted in the correct order
-            assert mock_do_emit.call_count == 5
+            # Verify audit events were emitted
+            # @audit emits 1 event + OIDCFlowEvent dispatch = 2 total
+            assert mock_do_emit.call_count == 2
             events: list[AuditEvent] = [call.args[0] for call in mock_do_emit.call_args_list]
 
-            # Event 1: OIDCFlowEvent -> "oidc_callback" (USER_ACTION, SUCCESS)
-            e0 = events[0]
-            assert (e0.event_action, e0.event_category, e0.event_status, e0.actor_id) == (
-                "oidc_callback",
-                EventCategory.USER_ACTION,
-                EventStatus.SUCCESS,
-                user.id,
-            )
-            assert e0.actor_username == "testuser"
-            assert isinstance(e0.structured_data, AuditContextData)
-            assert e0.structured_data.provider_id == str(provider.id)  # type: ignore[attr-defined]
-            assert e0.structured_data.stage == "callback"  # type: ignore[attr-defined]
+            # Find the OIDCFlowEvent-generated event
+            oidc_event = next(e for e in events if e.event_action == "oidc_authorize")
 
-            # Event 2: SessionLifecycleEvent -> "session_created" (USER_ACTION, SUCCESS)
-            e1 = events[1]
-            assert (e1.event_action, e1.event_category, e1.event_status, e1.actor_id) == (
-                "session_created",
-                EventCategory.USER_ACTION,
-                EventStatus.SUCCESS,
-                user.id,
-            )
-            assert isinstance(e1.structured_data, AuditContextData)
-            assert (
-                e1.structured_data.lifecycle_action,  # type: ignore[attr-defined]
-                e1.structured_data.jti,  # type: ignore[attr-defined]
-                e1.structured_data.idp,  # type: ignore[attr-defined]
-            ) == ("create", "jti-123", "TestProvider")
+            assert oidc_event.event_category == EventCategory.SECURITY_EVENT
+            assert oidc_event.event_severity == EventSeverity.ERROR
+            assert oidc_event.event_status == EventStatus.ERROR
+            assert isinstance(oidc_event.structured_data, AuditContextData)
+            assert oidc_event.structured_data.error_type == "OIDCError"
+            assert oidc_event.structured_data.provider_id == str(provider_id)  # type: ignore[attr-defined]
 
-            # Event 3: UserLoginEvent -> "user_login" (USER_ACTION, SUCCESS)
-            e2 = events[2]
-            assert (e2.event_action, e2.event_category, e2.event_status, e2.actor_id) == (
-                "user_login",
-                EventCategory.USER_ACTION,
-                EventStatus.SUCCESS,
-                user.id,
+    @pytest.mark.asyncio
+    async def test_authorize_callback_error_emits_event_with_error_type(self) -> None:
+        """oidc_authorize with _OIDCCallbackError emits audit event with error_type and provider_id."""
+        from nexus.audit.models.audit_event import AuditEvent, EventCategory, EventSeverity, EventStatus
+        from nexus.audit.models.structured_data import AuditContextData
+
+        provider_id = uuid4()
+
+        # Mock the underlying function to raise _OIDCCallbackError
+        with patch("nexus.auth.router._build_oidc_authorize_redirect") as mock_build:
+            mock_build.side_effect = _OIDCCallbackError("Invalid state", origin="http://localhost:3000")
+
+            # Mock request and db
+            request = MagicMock()
+            request.headers.get.return_value = None
+            db = AsyncMock()
+
+            # Capture emitted events
+            with patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit:
+                # Call oidc_authorize - should redirect to login with error
+                response = await oidc_authorize(provider_id=provider_id, request=request, db=db)
+                assert response.status_code == 302
+
+            # Verify audit events were emitted
+            # @audit emits 1 event + OIDCFlowEvent dispatch = 2 total
+            assert mock_do_emit.call_count == 2
+            events: list[AuditEvent] = [call.args[0] for call in mock_do_emit.call_args_list]
+
+            # Find the OIDCFlowEvent-generated event
+            oidc_event = next(e for e in events if e.event_action == "oidc_authorize")
+
+            assert oidc_event.event_category == EventCategory.SECURITY_EVENT
+            assert oidc_event.event_severity == EventSeverity.ERROR
+            assert oidc_event.event_status == EventStatus.ERROR
+            assert isinstance(oidc_event.structured_data, AuditContextData)
+            assert oidc_event.structured_data.error_type == "_OIDCCallbackError"
+            assert oidc_event.structured_data.provider_id == str(provider_id)  # type: ignore[attr-defined]
+
+    @pytest.mark.asyncio
+    async def test_authorize_generic_exception_emits_event_with_error_type(self) -> None:
+        """oidc_authorize with generic Exception emits audit event with error_type and provider_id."""
+        from nexus.audit.models.audit_event import AuditEvent, EventCategory, EventSeverity, EventStatus
+        from nexus.audit.models.structured_data import AuditContextData
+
+        provider_id = uuid4()
+
+        # Mock the underlying function to raise RuntimeError
+        with patch("nexus.auth.router._build_oidc_authorize_redirect") as mock_build:
+            mock_build.side_effect = RuntimeError("Unexpected error")
+
+            # Mock request and db
+            request = MagicMock()
+            request.headers.get.return_value = None
+            db = AsyncMock()
+
+            # Capture emitted events
+            with patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit:
+                # Call oidc_authorize - should redirect to login with error
+                response = await oidc_authorize(provider_id=provider_id, request=request, db=db)
+                assert response.status_code == 302
+
+            # Verify audit events were emitted
+            # @audit emits 1 event + OIDCFlowEvent dispatch = 2 total
+            assert mock_do_emit.call_count == 2
+            events: list[AuditEvent] = [call.args[0] for call in mock_do_emit.call_args_list]
+
+            # Find the OIDCFlowEvent-generated event
+            oidc_event = next(e for e in events if e.event_action == "oidc_authorize")
+
+            assert oidc_event.event_category == EventCategory.SECURITY_EVENT
+            assert oidc_event.event_severity == EventSeverity.ERROR
+            assert oidc_event.event_status == EventStatus.ERROR
+            assert isinstance(oidc_event.structured_data, AuditContextData)
+            assert oidc_event.structured_data.error_type == "RuntimeError"
+            assert oidc_event.structured_data.provider_id == str(provider_id)  # type: ignore[attr-defined]
+
+    @pytest.mark.asyncio
+    async def test_callback_error_emits_event_with_none_provider_id(self) -> None:
+        """oidc_callback with _OIDCCallbackError emits audit event with provider_id=None."""
+        from nexus.audit.models.audit_event import AuditEvent, EventCategory, EventSeverity, EventStatus
+        from nexus.audit.models.structured_data import AuditContextData
+
+        # Mock the underlying function to raise _OIDCCallbackError
+        with patch("nexus.auth.router._process_oidc_callback") as mock_process:
+            mock_process.side_effect = _OIDCCallbackError("Invalid code", origin="http://localhost:3000")
+
+            # Mock request and db
+            request = MagicMock()
+            request.headers.get.return_value = None
+            request.client = MagicMock()
+            request.client.host = "127.0.0.1"
+            db = AsyncMock()
+
+            # Capture emitted events
+            with patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit:
+                # Call oidc_callback - should redirect to login with error
+                response = await oidc_callback(state="test-state", request=request, db=db, code="test-code")
+                assert response.status_code == 302
+
+            # Verify audit events were emitted
+            # @audit emits 1 event + OIDCFlowEvent dispatch = 2 total
+            assert mock_do_emit.call_count == 2
+            events: list[AuditEvent] = [call.args[0] for call in mock_do_emit.call_args_list]
+
+            # Find the OIDCFlowEvent-generated event
+            oidc_event = next(e for e in events if e.event_action == "oidc_callback")
+
+            assert oidc_event.event_category == EventCategory.SECURITY_EVENT
+            assert oidc_event.event_severity == EventSeverity.ERROR
+            assert oidc_event.event_status == EventStatus.ERROR
+            assert isinstance(oidc_event.structured_data, AuditContextData)
+            assert oidc_event.structured_data.error_type == "_OIDCCallbackError"
+            # Critical: callback errors have provider_id=None
+            assert oidc_event.structured_data.provider_id is None  # type: ignore[attr-defined]
+
+    @pytest.mark.asyncio
+    async def test_successful_oidc_callback_emits_all_events_in_order(self) -> None:
+        """Happy OIDC callback flow emits all audit events in correct chronological order.
+
+        Expected order:
+        1. OIDCFlowEvent -> "oidc_callback" (USER_ACTION, SUCCESS)
+        2. SessionLifecycleEvent -> "session_created" (USER_ACTION, SUCCESS)
+        3. UserLoginEvent -> "user_login" (USER_ACTION, SUCCESS)
+        4. LoginAttemptEvent -> "login" (USER_ACTION, SUCCESS, method=OIDC)
+        5. @audit "oidc_callback" (SECURITY_EVENT, SUCCESS)
+        """
+        from nexus.audit.models.audit_event import AuditEvent, EventCategory, EventStatus
+        from nexus.audit.models.structured_data import AuditContextData
+
+        provider = MagicMock()
+        provider.id, provider.name = uuid4(), "TestProvider"
+        user = _make_user()
+        state_data = {"origin": "http://localhost:3000", "redirect_to": "/dashboard"}
+        mock_token_service, mock_session_store, mock_settings, request, db = _setup_oidc_callback_mocks()
+
+        with (
+            patch("nexus.auth.router._process_oidc_callback") as mock_process,
+            patch("nexus.auth.router._get_token_service", return_value=mock_token_service),
+            patch("nexus.auth.router.SessionStore", return_value=mock_session_store),
+            patch("nexus.auth.router.get_settings", return_value=mock_settings),
+            patch("nexus.auth.router.set_refresh_cookie"),
+            patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit,
+        ):
+            mock_process.return_value = (user, provider, state_data, False)
+
+            response = await oidc_callback(
+                state="valid-state",
+                request=request,
+                db=db,
+                code="auth-code-123",
             )
 
-            # Event 4: LoginAttemptEvent -> "login" (USER_ACTION, SUCCESS, method=OIDC)
-            e3 = events[3]
-            assert (e3.event_action, e3.event_category, e3.event_status, e3.actor_id) == (
-                "login",
-                EventCategory.USER_ACTION,
-                EventStatus.SUCCESS,
-                user.id,
-            )
-            assert isinstance(e3.structured_data, AuditContextData)
-            assert (
-                e3.structured_data.method,  # type: ignore[attr-defined]
-                e3.actor_username,
-            ) == ("oidc", "testuser")
+            assert response.status_code == 302
 
-            # Event 5: @audit "oidc_callback" (SECURITY_EVENT, SUCCESS)
-            e4 = events[4]
-            assert (e4.event_action, e4.event_category, e4.event_status) == (
-                "oidc_callback",
-                EventCategory.SECURITY_EVENT,
-                EventStatus.SUCCESS,
-            )
-        finally:
-            AuditEventDispatcher.reset()
+        # Verify all 5 events were emitted in the correct order
+        assert mock_do_emit.call_count == 5
+        events: list[AuditEvent] = [call.args[0] for call in mock_do_emit.call_args_list]
+
+        # Event 1: OIDCFlowEvent -> "oidc_callback" (USER_ACTION, SUCCESS)
+        e0 = events[0]
+        assert (e0.event_action, e0.event_category, e0.event_status, e0.actor_id) == (
+            "oidc_callback",
+            EventCategory.USER_ACTION,
+            EventStatus.SUCCESS,
+            user.id,
+        )
+        assert e0.actor_username == "testuser"
+        assert isinstance(e0.structured_data, AuditContextData)
+        assert e0.structured_data.provider_id == str(provider.id)  # type: ignore[attr-defined]
+        assert e0.structured_data.stage == "callback"  # type: ignore[attr-defined]
+
+        # Event 2: SessionLifecycleEvent -> "session_created" (USER_ACTION, SUCCESS)
+        e1 = events[1]
+        assert (e1.event_action, e1.event_category, e1.event_status, e1.actor_id) == (
+            "session_created",
+            EventCategory.USER_ACTION,
+            EventStatus.SUCCESS,
+            user.id,
+        )
+        assert isinstance(e1.structured_data, AuditContextData)
+        assert (
+            e1.structured_data.lifecycle_action,  # type: ignore[attr-defined]
+            e1.structured_data.jti,  # type: ignore[attr-defined]
+            e1.structured_data.idp,  # type: ignore[attr-defined]
+        ) == ("create", "jti-123", "TestProvider")
+
+        # Event 3: UserLoginEvent -> "user_login" (USER_ACTION, SUCCESS)
+        e2 = events[2]
+        assert (e2.event_action, e2.event_category, e2.event_status, e2.actor_id) == (
+            "user_login",
+            EventCategory.USER_ACTION,
+            EventStatus.SUCCESS,
+            user.id,
+        )
+
+        # Event 4: LoginAttemptEvent -> "login" (USER_ACTION, SUCCESS, method=OIDC)
+        e3 = events[3]
+        assert (e3.event_action, e3.event_category, e3.event_status, e3.actor_id) == (
+            "login",
+            EventCategory.USER_ACTION,
+            EventStatus.SUCCESS,
+            user.id,
+        )
+        assert isinstance(e3.structured_data, AuditContextData)
+        assert (
+            e3.structured_data.method,  # type: ignore[attr-defined]
+            e3.actor_username,
+        ) == ("oidc", "testuser")
+
+        # Event 5: @audit "oidc_callback" (SECURITY_EVENT, SUCCESS)
+        e4 = events[4]
+        assert (e4.event_action, e4.event_category, e4.event_status) == (
+            "oidc_callback",
+            EventCategory.SECURITY_EVENT,
+            EventStatus.SUCCESS,
+        )

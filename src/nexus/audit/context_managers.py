@@ -73,6 +73,7 @@ def audit_context(
     *,
     actor: User | None,
     event_severity: EventSeverity = EventSeverity.INFO,
+    resource_urn: str | None = None,
     **context_data: Any,  # noqa: ANN401
 ) -> Generator[None, None, None]:
     """Context manager for capturing audit events with additional context.
@@ -89,6 +90,7 @@ def audit_context(
         event_severity: Severity level of the audit event (defaults to INFO).
             On exception, severity is escalated to at least ERROR; a
             caller-declared CRITICAL severity is preserved.
+        resource_urn: RFC 8141 compliant URN identifying the resource
         **context_data: Additional structured data for the event
 
     """
@@ -125,6 +127,7 @@ def audit_context(
             source_component=source_component,
             actor=actor,
             event_severity=event_severity,
+            resource_urn=resource_urn,
             error_type=error_type,
             error_message=error_message,
             context_data=context_data,

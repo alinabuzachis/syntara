@@ -255,6 +255,7 @@ class TestAuditEventRecordTableConfig:
             "actor_type",
             "actor_username",
             "source_component",
+            "resource_urn",
             "workflow_id",
             "activity_id",
             "execution_id",

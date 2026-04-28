@@ -1,0 +1,142 @@
+"""Unit tests for AuditEvent model."""
+
+from typing import Any
+
+import pytest
+from pydantic import ValidationError
+
+from nexus.audit.models.audit_event import AuditEvent, EventCategory
+from nexus.audit.models.structured_data import AuditContextData
+
+
+class TestAuditEventResourceUrnValidation:
+    """Tests for resource_urn RFC 8141 validation."""
+
+    @pytest.mark.parametrize(
+        ("input_urn", "expected_urn", "expected_log_fragment"),
+        [
+            # Valid URNs - should be accepted as-is
+            pytest.param(
+                "urn:nexus:workflow:uuid:123e4567-e89b-12d3-a456-426614174000",
+                "urn:nexus:workflow:uuid:123e4567-e89b-12d3-a456-426614174000",
+                None,
+                id="valid_urn_nexus_workflow",
+            ),
+            pytest.param("urn:isbn:0451450523", "urn:isbn:0451450523", None, id="valid_urn_isbn"),
+            pytest.param("urn:ietf:rfc:2648", "urn:ietf:rfc:2648", None, id="valid_urn_ietf"),
+            pytest.param(
+                "urn:uuid:6e8bc430-9c3a-11d9-9669-0800200c9a66",
+                "urn:uuid:6e8bc430-9c3a-11d9-9669-0800200c9a66",
+                None,
+                id="valid_urn_uuid",
+            ),
+            pytest.param("urn:nexus:resource:12345", "urn:nexus:resource:12345", None, id="valid_urn_nexus_resource"),
+            pytest.param(
+                "urn:example:animal:ferret:nose",
+                "urn:example:animal:ferret:nose",
+                None,
+                id="valid_urn_example_animal",
+            ),
+            pytest.param(
+                "URN:EXAMPLE:a123,456",
+                "URN:EXAMPLE:a123,456",
+                None,
+                id="valid_urn_case_insensitive",
+            ),
+            # RFC 8141 compliance - newly allowed characters (tilde, ampersand)
+            pytest.param(
+                "urn:nexus:resource~1",
+                "urn:nexus:resource~1",
+                None,
+                id="valid_urn_with_tilde",
+            ),
+            pytest.param(
+                "urn:nexus:a&b",
+                "urn:nexus:a&b",
+                None,
+                id="valid_urn_with_ampersand",
+            ),
+            pytest.param(
+                "urn:example:data~backup&filter",
+                "urn:example:data~backup&filter",
+                None,
+                id="valid_urn_with_tilde_and_ampersand",
+            ),
+            # Max length validation (1024 chars)
+            pytest.param(
+                "urn:nexus:" + "x" * 1013,  # Total = 11 + 1013 = 1024
+                "urn:nexus:" + "x" * 1013,
+                None,
+                id="valid_urn_at_max_length_1024",
+            ),
+            # None and omitted values - should result in None
+            pytest.param(None, None, None, id="none_value_accepted"),
+            # Invalid URNs - should be dropped with warnings
+            pytest.param(
+                "nexus:workflow:123",
+                None,
+                "does not conform to RFC 8141",
+                id="invalid_missing_urn_prefix",
+            ),
+            pytest.param("urn:nexus", None, "does not conform to RFC 8141", id="invalid_missing_nss"),
+            pytest.param("urn:a:resource", None, "does not conform to RFC 8141", id="invalid_nid_too_short"),
+            pytest.param(
+                "urn:this-is-a-very-long-namespace-identifier-over-thirty-two-chars:resource",
+                None,
+                "does not conform to RFC 8141",
+                id="invalid_nid_too_long",
+            ),
+            pytest.param("", None, "does not conform to RFC 8141", id="invalid_empty_string"),
+            pytest.param(12345, None, "must be a string", id="invalid_wrong_type"),
+            pytest.param("invalid-urn-format", None, "does not conform to RFC 8141", id="invalid_format"),
+            # RFC 8141 compliance - hash is a fragment delimiter and not allowed in NSS
+            pytest.param(
+                "urn:nexus:resource#fragment",
+                None,
+                "does not conform to RFC 8141",
+                id="invalid_urn_with_hash_fragment",
+            ),
+        ],
+    )
+    def test_resource_urn_validation(
+        self,
+        input_urn: Any,  # noqa: ANN401
+        expected_urn: str | None,
+        expected_log_fragment: str | None,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Test resource_urn RFC 8141 validation with various inputs."""
+        # Create event with the input URN (or omit if None and testing omission)
+        event = AuditEvent(
+            event_category=EventCategory.USER_ACTION,
+            event_action="test",
+            source_component="test",
+            resource_urn=input_urn if input_urn is not None else None,
+            event_message="test",
+            structured_data=AuditContextData(data_type="test"),
+        )
+
+        # Verify the URN is set to the expected value
+        assert event.resource_urn == expected_urn
+
+        # Verify expected log message if provided
+        if expected_log_fragment:
+            assert expected_log_fragment in caplog.text
+
+    def test_resource_urn_max_length_validation(self) -> None:
+        """Test that resource_urn exceeding 1024 characters raises ValidationError."""
+        # URN exceeding max_length should raise ValidationError from Pydantic
+        with pytest.raises(ValidationError) as exc_info:
+            AuditEvent(
+                event_category=EventCategory.USER_ACTION,
+                event_action="test",
+                source_component="test",
+                resource_urn="urn:nexus:" + "x" * 1015,  # Total = 1026 chars (exceeds 1024)
+                event_message="test",
+                structured_data=AuditContextData(data_type="test"),
+            )
+
+        # Verify the error is specifically about string length
+        error = exc_info.value.errors()[0]
+        assert error["type"] == "string_too_long"
+        assert error["loc"] == ("resource_urn",)

@@ -68,6 +68,7 @@ def mock_registry() -> MagicMock:
 @pytest.fixture
 def test_app() -> Generator[FastAPI]:
     """Return a FastAPI test app with audit middleware and telemetry handler."""
+    AuditEventDispatcher.reset()
     AuditEventDispatcher.register({HTTPRequestEvent: APICallTelemetryHandler()})
     yield _create_test_app()
     AuditEventDispatcher.reset()
