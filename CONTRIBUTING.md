@@ -4,6 +4,8 @@
 
 We're excited that you're interested in contributing to the Nexus UI project. This document provides guidelines to help you contribute effectively.
 
+All pull requests must pass the `Success` CI gate before merging. This includes unit tests, SonarCloud analysis, E2E tests, and other required checks.
+
 ## Prerequisites
 
 - Node.js 22+ (see package.json for exact requirements)
