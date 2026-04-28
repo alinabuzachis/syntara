@@ -248,7 +248,9 @@ async def login(
     # Commit last_login only after Redis session is successfully created
     await db.commit()
     AuditEventDispatcher.dispatch(
-        UserLoginEvent(user_id=user.id, amr=[AMR.PASSWORD], idp="local", is_first_login=is_first_login)
+        UserLoginEvent(
+            user_id=user.id, username=user.username, amr=[AMR.PASSWORD], idp="local", is_first_login=is_first_login
+        )
     )
     logger.info("User logged in", user_id=str(user.id), username=user.username, amr=[AMR.PASSWORD], idp="local")
 
@@ -1447,7 +1449,13 @@ async def _build_login_session_redirect(
     set_refresh_cookie(response, refresh_token_str, max_age=cookie_max_age)
 
     AuditEventDispatcher.dispatch(
-        UserLoginEvent(user_id=user.id, amr=[AMR.FEDERATED], idp=provider.name, is_first_login=is_first_login)
+        UserLoginEvent(
+            user_id=user.id,
+            username=user.username,
+            amr=[AMR.FEDERATED],
+            idp=provider.name,
+            is_first_login=is_first_login,
+        )
     )
     logger.info("OIDC login successful", user_id=str(user.id), provider=provider.name)
     AuditEventDispatcher.dispatch(LoginAttemptEvent(username=user.username, method=LoginMethod.OIDC, user_id=user.id))

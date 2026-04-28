@@ -38,6 +38,7 @@ class UserLoginEvent:
     """
 
     user_id: UUID
+    username: str | None = None
     amr: list[AMR] = field(default_factory=list)
     idp: str = "local"
     is_first_login: bool = False
@@ -68,4 +69,5 @@ class UserLoginHandler(AuditEventHandler[UserLoginEvent]):
             structured_data=data,
             actor_id=event.user_id,
             actor_type=ActorType.USER,
+            actor_username=event.username,
         )

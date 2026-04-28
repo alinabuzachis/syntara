@@ -16,7 +16,7 @@ class TestUserLoginHandler:
 
     def test_audit_event_fields_password(self) -> None:
         user_id = uuid4()
-        event = UserLoginEvent(user_id=user_id, amr=[AMR.PASSWORD], idp="local")
+        event = UserLoginEvent(user_id=user_id, username="alice", amr=[AMR.PASSWORD], idp="local")
         audit = UserLoginHandler().handle(event)
 
         assert audit is not None
@@ -26,18 +26,20 @@ class TestUserLoginHandler:
         assert audit.event_status == EventStatus.SUCCESS
         assert audit.actor_id == user_id
         assert audit.actor_type == ActorType.USER
+        assert audit.actor_username == "alice"
         assert audit.source_component == "nexus.auth.login"
         assert "local" in audit.event_message
 
     def test_audit_event_fields_oidc(self) -> None:
         user_id = uuid4()
-        event = UserLoginEvent(user_id=user_id, amr=[AMR.FEDERATED], idp="okta")
+        event = UserLoginEvent(user_id=user_id, username="bob", amr=[AMR.FEDERATED], idp="okta")
         audit = UserLoginHandler().handle(event)
 
         assert audit is not None
         assert audit.event_action == "user_login"
         assert "okta" in audit.event_message
         assert audit.actor_id == user_id
+        assert audit.actor_username == "bob"
 
     def test_first_login_produces_new_user_login_action(self) -> None:
         user_id = uuid4()
