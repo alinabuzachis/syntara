@@ -4,7 +4,7 @@ import hashlib
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
-from nexus.auth.audit.user_login import UserLoginEvent
+from nexus.auth.audit.user_login import AMR, UserLoginEvent
 from nexus.telemetry.events.new_user import NewUserEvent
 from nexus.telemetry.events.user_login import UserLoginEvent as UserLoginTelemetryEvent
 from nexus.telemetry.handlers.user_login import UserLoginTelemetryHandler
@@ -21,7 +21,7 @@ class TestUserLoginHandlerTelemetry:
         mock_get_registry.return_value = registry
 
         user_id = uuid4()
-        domain_event = UserLoginEvent(user_id=user_id, amr=["fed"], idp="okta")
+        domain_event = UserLoginEvent(user_id=user_id, amr=[AMR.FEDERATED], idp="okta")
         result = UserLoginTelemetryHandler().handle(domain_event)
 
         assert result is None
@@ -41,7 +41,7 @@ class TestUserLoginHandlerTelemetry:
         mock_get_registry.return_value = registry
 
         user_id = uuid4()
-        domain_event = UserLoginEvent(user_id=user_id, amr=["pwd"], idp="local", is_first_login=True)
+        domain_event = UserLoginEvent(user_id=user_id, amr=[AMR.PASSWORD], idp="local", is_first_login=True)
         result = UserLoginTelemetryHandler().handle(domain_event)
 
         assert result is None
@@ -59,7 +59,7 @@ class TestUserLoginHandlerTelemetry:
         registry.entitlement_id = ""
         mock_get_registry.return_value = registry
 
-        domain_event = UserLoginEvent(user_id=uuid4(), amr=["pwd"], idp="local", is_first_login=False)
+        domain_event = UserLoginEvent(user_id=uuid4(), amr=[AMR.PASSWORD], idp="local", is_first_login=False)
         UserLoginTelemetryHandler().handle(domain_event)
 
         registry.send_event.assert_called_once()
@@ -71,7 +71,7 @@ class TestUserLoginHandlerTelemetry:
         registry.is_initialized.return_value = False
         mock_get_registry.return_value = registry
 
-        domain_event = UserLoginEvent(user_id=uuid4(), amr=["pwd"], idp="local")
+        domain_event = UserLoginEvent(user_id=uuid4(), amr=[AMR.PASSWORD], idp="local")
         result = UserLoginTelemetryHandler().handle(domain_event)
 
         assert result is None
@@ -81,7 +81,7 @@ class TestUserLoginHandlerTelemetry:
     def test_does_not_raise_on_telemetry_error(self, mock_get_registry: MagicMock) -> None:
         mock_get_registry.side_effect = RuntimeError("boom")
 
-        domain_event = UserLoginEvent(user_id=uuid4(), amr=["pwd"], idp="local")
+        domain_event = UserLoginEvent(user_id=uuid4(), amr=[AMR.PASSWORD], idp="local")
         result = UserLoginTelemetryHandler().handle(domain_event)
         assert result is None
 
@@ -92,7 +92,7 @@ class TestUserLoginHandlerTelemetry:
         registry.entitlement_id = ""
         mock_get_registry.return_value = registry
 
-        domain_event = UserLoginEvent(user_id=uuid4(), amr=["fed"], idp="okta")
+        domain_event = UserLoginEvent(user_id=uuid4(), amr=[AMR.FEDERATED], idp="okta")
         UserLoginTelemetryHandler().handle(domain_event)
 
         event = registry.send_event.call_args[0][0]
@@ -106,7 +106,7 @@ class TestUserLoginHandlerTelemetry:
         registry.entitlement_id = ""
         mock_get_registry.return_value = registry
 
-        domain_event = UserLoginEvent(user_id=uuid4(), amr=["pwd"], idp="local")
+        domain_event = UserLoginEvent(user_id=uuid4(), amr=[AMR.PASSWORD], idp="local")
         UserLoginTelemetryHandler().handle(domain_event)
 
         event = registry.send_event.call_args[0][0]

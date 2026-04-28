@@ -8,6 +8,7 @@ Requirement: AAP-72352
 """
 
 from dataclasses import dataclass, field
+from enum import StrEnum
 from uuid import UUID
 
 from nexus.audit.handler import AuditEventHandler
@@ -21,6 +22,13 @@ from nexus.audit.models.audit_event import (
 from nexus.audit.models.structured_data import AuditContextData
 
 
+class AMR(StrEnum):
+    """Authentication method reference values (RFC 8176)."""
+
+    PASSWORD = "pwd"  # noqa: S105
+    FEDERATED = "fed"
+
+
 @dataclass
 class UserLoginEvent:
     """Domain event representing a successful user login.
@@ -30,7 +38,7 @@ class UserLoginEvent:
     """
 
     user_id: UUID
-    amr: list[str] = field(default_factory=list)
+    amr: list[AMR] = field(default_factory=list)
     idp: str = "local"
     is_first_login: bool = False
 

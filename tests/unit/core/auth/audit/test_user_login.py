@@ -8,7 +8,7 @@ from nexus.audit.models.audit_event import (
     EventSeverity,
     EventStatus,
 )
-from nexus.auth.audit.user_login import UserLoginEvent, UserLoginHandler
+from nexus.auth.audit.user_login import AMR, UserLoginEvent, UserLoginHandler
 
 
 class TestUserLoginHandler:
@@ -16,7 +16,7 @@ class TestUserLoginHandler:
 
     def test_audit_event_fields_password(self) -> None:
         user_id = uuid4()
-        event = UserLoginEvent(user_id=user_id, amr=["pwd"], idp="local")
+        event = UserLoginEvent(user_id=user_id, amr=[AMR.PASSWORD], idp="local")
         audit = UserLoginHandler().handle(event)
 
         assert audit is not None
@@ -31,7 +31,7 @@ class TestUserLoginHandler:
 
     def test_audit_event_fields_oidc(self) -> None:
         user_id = uuid4()
-        event = UserLoginEvent(user_id=user_id, amr=["fed"], idp="okta")
+        event = UserLoginEvent(user_id=user_id, amr=[AMR.FEDERATED], idp="okta")
         audit = UserLoginHandler().handle(event)
 
         assert audit is not None
@@ -41,7 +41,7 @@ class TestUserLoginHandler:
 
     def test_first_login_produces_new_user_login_action(self) -> None:
         user_id = uuid4()
-        event = UserLoginEvent(user_id=user_id, amr=["pwd"], idp="local", is_first_login=True)
+        event = UserLoginEvent(user_id=user_id, amr=[AMR.PASSWORD], idp="local", is_first_login=True)
         audit = UserLoginHandler().handle(event)
 
         assert audit is not None
@@ -49,7 +49,7 @@ class TestUserLoginHandler:
         assert "First login" in audit.event_message
 
     def test_structured_data_contains_amr_and_idp(self) -> None:
-        event = UserLoginEvent(user_id=uuid4(), amr=["fed"], idp="okta")
+        event = UserLoginEvent(user_id=uuid4(), amr=[AMR.FEDERATED], idp="okta")
         audit = UserLoginHandler().handle(event)
 
         assert audit is not None
@@ -60,7 +60,7 @@ class TestUserLoginHandler:
         assert data["is_first_login"] is False
 
     def test_structured_data_is_first_login_true(self) -> None:
-        event = UserLoginEvent(user_id=uuid4(), amr=["pwd"], idp="local", is_first_login=True)
+        event = UserLoginEvent(user_id=uuid4(), amr=[AMR.PASSWORD], idp="local", is_first_login=True)
         audit = UserLoginHandler().handle(event)
 
         assert audit is not None

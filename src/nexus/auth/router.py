@@ -31,7 +31,7 @@ from nexus.audit.models.audit_event import EventCategory
 from nexus.auth.audit.login_attempt import LoginAttemptEvent, LoginErrorReason, LoginMethod
 from nexus.auth.audit.oidc_flow import OIDCFlowEvent, OIDCStage
 from nexus.auth.audit.session_lifecycle import SessionAction, SessionLifecycleEvent
-from nexus.auth.audit.user_login import UserLoginEvent
+from nexus.auth.audit.user_login import AMR, UserLoginEvent
 from nexus.auth.cookies import (
     clear_refresh_cookie,
     get_refresh_token_from_cookie,
@@ -73,10 +73,6 @@ from nexus.identity_providers.models.identity_provider_configuration import (
 from nexus.users.services.user_identity_service import UserIdentityService
 
 logger = structlog.stdlib.get_logger(__name__)
-
-# Authentication method reference constants (RFC 8176)
-AMR_PASSWORD = "pwd"  # noqa: S105
-AMR_FEDERATED = "fed"
 
 
 async def _get_user_group_names(db: AsyncSession, user_id: UUID) -> list[str]:
@@ -207,7 +203,7 @@ async def login(
         username=user.username,
         email=user.email,
         full_name=user.full_name,
-        amr=[AMR_PASSWORD],
+        amr=[AMR.PASSWORD],
         idp="local",
         groups=user_group_names,
         token_version=token_version,
@@ -224,7 +220,7 @@ async def login(
                 # Stored for future session management UI (e.g., "list active sessions")
                 device=user_agent,
                 ip_address=client_host,
-                amr=[AMR_PASSWORD],
+                amr=[AMR.PASSWORD],
                 idp="local",
             )
     except (OSError, RedisConnectionError, RuntimeError) as exc:
@@ -252,9 +248,9 @@ async def login(
     # Commit last_login only after Redis session is successfully created
     await db.commit()
     AuditEventDispatcher.dispatch(
-        UserLoginEvent(user_id=user.id, amr=[AMR_PASSWORD], idp="local", is_first_login=is_first_login)
+        UserLoginEvent(user_id=user.id, amr=[AMR.PASSWORD], idp="local", is_first_login=is_first_login)
     )
-    logger.info("User logged in", user_id=str(user.id), username=user.username, amr=[AMR_PASSWORD], idp="local")
+    logger.info("User logged in", user_id=str(user.id), username=user.username, amr=[AMR.PASSWORD], idp="local")
 
     # Set refresh cookie
     cookie_max_age = settings.jwt_refresh_token_lifetime_hours * 3600
@@ -1408,7 +1404,7 @@ async def _build_login_session_redirect(
                 user_id=user.id,
                 device=user_agent,
                 ip_address=client_host,
-                amr=[AMR_FEDERATED],
+                amr=[AMR.FEDERATED],
                 idp=provider.name,
                 idp_id=str(provider.id),
                 identity_id=str(identity.id),
@@ -1451,7 +1447,7 @@ async def _build_login_session_redirect(
     set_refresh_cookie(response, refresh_token_str, max_age=cookie_max_age)
 
     AuditEventDispatcher.dispatch(
-        UserLoginEvent(user_id=user.id, amr=[AMR_FEDERATED], idp=provider.name, is_first_login=is_first_login)
+        UserLoginEvent(user_id=user.id, amr=[AMR.FEDERATED], idp=provider.name, is_first_login=is_first_login)
     )
     logger.info("OIDC login successful", user_id=str(user.id), provider=provider.name)
     AuditEventDispatcher.dispatch(LoginAttemptEvent(username=user.username, method=LoginMethod.OIDC, user_id=user.id))
