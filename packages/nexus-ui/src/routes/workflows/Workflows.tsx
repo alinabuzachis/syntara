@@ -91,18 +91,30 @@ export default function Workflows() {
   const projectId = selectedProject?.id
   const projectSelectorReady = isAllProjects || !!projectId
 
-  const allWorkflowsQuery = workflowClient.useQuery('get', '/workflows', {
-    params: { query: queryParams },
-    enabled: projectSelectorReady && isAllProjects,
-  })
-
-  const projectWorkflowsQuery = accessClient.useQuery('get', '/projects/{project_id}/workflows', {
-    params: {
-      path: { project_id: projectId ?? 'none' },
-      query: queryParams,
+  const allWorkflowsQuery = workflowClient.useQuery(
+    'get',
+    '/workflows',
+    {
+      params: { query: queryParams },
     },
-    enabled: projectSelectorReady && !isAllProjects,
-  })
+    {
+      enabled: projectSelectorReady && isAllProjects,
+    }
+  )
+
+  const projectWorkflowsQuery = accessClient.useQuery(
+    'get',
+    '/projects/{project_id}/workflows',
+    {
+      params: {
+        path: { project_id: projectId ?? '' },
+        query: queryParams,
+      },
+    },
+    {
+      enabled: !!projectId && !isAllProjects,
+    }
+  )
 
   const workflowsQuery = isAllProjects ? allWorkflowsQuery : projectWorkflowsQuery
   const workflows = (workflowsQuery.data?.resources ?? []) as Workflow[]

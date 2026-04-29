@@ -114,18 +114,30 @@ export default function Approvals() {
   const projectId = selectedProject?.id
   const projectSelectorReady = isAllProjects || !!projectId
 
-  const allApprovalsQuery = approvalsClient.useQuery('get', '/approvals', {
-    params: { query: queryParams },
-    enabled: projectSelectorReady && isAllProjects,
-  })
-
-  const projectApprovalsQuery = accessClient.useQuery('get', '/projects/{project_id}/approvals', {
-    params: {
-      path: { project_id: projectId ?? 'none' },
-      query: queryParams,
+  const allApprovalsQuery = approvalsClient.useQuery(
+    'get',
+    '/approvals',
+    {
+      params: { query: queryParams },
     },
-    enabled: projectSelectorReady && !isAllProjects,
-  })
+    {
+      enabled: projectSelectorReady && isAllProjects,
+    }
+  )
+
+  const projectApprovalsQuery = accessClient.useQuery(
+    'get',
+    '/projects/{project_id}/approvals',
+    {
+      params: {
+        path: { project_id: projectId ?? '' },
+        query: queryParams,
+      },
+    },
+    {
+      enabled: !!projectId && !isAllProjects,
+    }
+  )
 
   const approvalsQuery = isAllProjects ? allApprovalsQuery : projectApprovalsQuery
   const approvalsData = approvalsQuery.data

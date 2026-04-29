@@ -1,34 +1,30 @@
 import {
-  Button,
+  Content,
+  ContentVariants,
   Divider,
-  Form,
-  FormGroup,
+  MenuFooter,
   MenuToggle,
-  Modal,
-  ModalBody,
-  ModalFooter,
-  ModalHeader,
   Select,
   SelectList,
   SelectOption,
-  TextInput,
+  Spinner,
   TextInputGroup,
   TextInputGroupMain,
 } from '@patternfly/react-core'
 import { PlusIcon } from '@patternfly/react-icons'
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useCallback, useEffect, useState } from 'react'
 
-import { useAlerts } from '../components/alerts'
-import { accessClient } from '../routes/access/accessClient'
-import type { ProjectCreate, ProjectRead } from '../routes/access/types'
+import type { ProjectRead } from '../routes/access/types'
+import { ProjectFormModal } from '../routes/access-management/ProjectFormModal'
 import { useProjectStore } from '../stores/useProjectStore'
-import { getErrorMessage } from '../utils/apiErrors'
+import { detachPromise } from '../utils/detachPromise'
 
 import { PROJECT_SELECTOR_MAX_WIDTH, projectSelectorUx } from './projectSelectorUtils'
+import { usePaginatedProjects } from './usePaginatedProjects'
 
 const ALL_PROJECTS_VALUE = '__all__'
 const CREATE_PROJECT_VALUE = '__create__'
+const VIEW_MORE_VALUE = '__view_more__'
 
 type UseProjectSelectorOptions = {
   /** When true, hides the "All projects" option and shows "Select a project" as placeholder. */
@@ -44,81 +40,61 @@ type UseProjectSelectorResult = {
 
 /**
  * Hook that provides a project selector dropdown and the currently selected project.
- * When "All projects" is selected, selectedProject is null and no project_id filter is applied.
- * Selection persists across page navigation via Zustand store with localStorage.
- *
- * When `requireProject` is true, the "All projects" option is hidden and the toggle shows
- * `projectSelectorUx.selectProjectPlaceholder` when nothing is selected.
- *
- * Includes a "Create project" option in the dropdown that opens a modal dialog.
+ * Uses server-side filtering with debounced typeahead and progressive "View more" loading.
  */
 export function useProjectSelector(options?: UseProjectSelectorOptions): UseProjectSelectorResult {
   const { requireProject = false } = options ?? {}
   const { selectedProjectId, setSelectedProjectId } = useProjectStore()
   const [isOpen, setIsOpen] = useState(false)
-  const [filterValue, setFilterValue] = useState('')
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
-  const searchInputRef = useRef<HTMLInputElement>(null)
-  const { showSuccess, showError } = useAlerts()
 
-  const projectsQuery = accessClient.useQuery('get', '/projects')
-  const projects = useMemo(() => projectsQuery.data ?? [], [projectsQuery.data])
+  const {
+    projects,
+    filterValue,
+    debouncedFilter,
+    updateFilter,
+    resetPagination,
+    hasMore,
+    isLoadingMore,
+    isInitialPage,
+    loadMore,
+    query: projectsQuery,
+  } = usePaginatedProjects()
+
   const selectedProject = selectedProjectId ? (projects.find((p) => p.id === selectedProjectId) ?? null) : null
 
-  // Clear stale project ID if it doesn't match any known project
-  const projectsData = projectsQuery.data
   useEffect(() => {
     if (
       selectedProjectId &&
-      projectsData &&
-      projectsData.length > 0 &&
-      !projectsData.some((p) => p.id === selectedProjectId)
+      isInitialPage &&
+      projects.length > 0 &&
+      !projects.some((p) => p.id === selectedProjectId)
     ) {
       setSelectedProjectId(null)
     }
-  }, [selectedProjectId, projectsData, setSelectedProjectId])
-
-  const { mutate: createProject, isPending: isCreatingProject } = accessClient.useMutation('post', '/projects')
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<ProjectCreate>()
-
-  const handleCreateProject = (data: ProjectCreate) => {
-    createProject(
-      { body: data },
-      {
-        onSuccess: (created) => {
-          showSuccess('Project created', `Project "${created.name}" created`)
-          reset()
-          setCreateDialogOpen(false)
-          projectsQuery.refetch().catch(() => {})
-          setSelectedProjectId(created.id ?? null)
-        },
-        onError: (error: unknown) => {
-          showError('Failed to create project', getErrorMessage(error))
-        },
-      }
-    )
-  }
-
-  const filteredProjects = useMemo(() => {
-    if (!filterValue) return projects
-    const term = filterValue.toLowerCase()
-    return projects.filter((p) => p.name.toLowerCase().includes(term))
-  }, [projects, filterValue])
-
-  useEffect(() => {
-    if (isOpen) {
-      setTimeout(() => searchInputRef.current?.focus(), 0)
-    }
-  }, [isOpen])
+  }, [selectedProjectId, projects, setSelectedProjectId, isInitialPage])
 
   const toggleLabel =
     selectedProject?.name ??
     (requireProject ? projectSelectorUx.selectProjectPlaceholder : projectSelectorUx.allProjectsOptionLabel)
+
+  const noResults = projects.length === 0 && !!debouncedFilter && !projectsQuery.isPending
+
+  const handleSelect = useCallback(
+    (_event: React.MouseEvent | undefined, value: string | number | undefined) => {
+      if (value === CREATE_PROJECT_VALUE) {
+        setIsOpen(false)
+        setCreateDialogOpen(true)
+        return
+      }
+      if (value === VIEW_MORE_VALUE) return
+      const projectId = typeof value === 'string' ? value : null
+      setSelectedProjectId(projectId === ALL_PROJECTS_VALUE ? null : projectId)
+      setIsOpen(false)
+      resetPagination()
+    },
+    [setSelectedProjectId, resetPagination]
+  )
 
   const ProjectSelector = (
     <>
@@ -126,19 +102,10 @@ export function useProjectSelector(options?: UseProjectSelectorOptions): UseProj
         isOpen={isOpen}
         onOpenChange={(open) => {
           setIsOpen(open)
-          if (!open) setFilterValue('')
+          if (!open) resetPagination()
         }}
         popperProps={{ maxWidth: PROJECT_SELECTOR_MAX_WIDTH }}
-        onSelect={(_event, value) => {
-          if (value === CREATE_PROJECT_VALUE) {
-            setIsOpen(false)
-            setCreateDialogOpen(true)
-            return
-          }
-          setSelectedProjectId(value === ALL_PROJECTS_VALUE ? null : (value as string))
-          setIsOpen(false)
-          setFilterValue('')
-        }}
+        onSelect={handleSelect}
         selected={selectedProjectId ?? (requireProject ? undefined : ALL_PROJECTS_VALUE)}
         toggle={(toggleRef) => (
           <MenuToggle ref={toggleRef} variant="typeahead" onClick={() => setIsOpen(!isOpen)} isExpanded={isOpen}>
@@ -146,7 +113,7 @@ export function useProjectSelector(options?: UseProjectSelectorOptions): UseProj
               <TextInputGroupMain
                 value={isOpen ? filterValue : toggleLabel}
                 onChange={(_e, val) => {
-                  setFilterValue(val)
+                  updateFilter(val)
                   if (!isOpen) setIsOpen(true)
                 }}
                 onClick={() => {
@@ -154,7 +121,6 @@ export function useProjectSelector(options?: UseProjectSelectorOptions): UseProj
                 }}
                 placeholder={toggleLabel}
                 autoComplete="off"
-                innerRef={searchInputRef}
               />
             </TextInputGroup>
           </MenuToggle>
@@ -173,66 +139,48 @@ export function useProjectSelector(options?: UseProjectSelectorOptions): UseProj
               <Divider key="divider-all" />
             </>
           )}
-          {filteredProjects.map((p) => {
-            const descriptionText = p.description?.trim()
-            return (
-              <SelectOption key={p.id} value={p.id} description={descriptionText || undefined}>
-                {p.name}
-              </SelectOption>
-            )
-          })}
+          {noResults && (
+            <SelectOption key="no-results" isAriaDisabled value="no-results">
+              {`No results found for "${debouncedFilter}"`}
+            </SelectOption>
+          )}
+          {projects.map((p) => (
+            <SelectOption key={p.id} value={p.id} description={p.description?.trim() || undefined}>
+              {p.name}
+            </SelectOption>
+          ))}
+          {hasMore && (
+            <SelectOption
+              key={VIEW_MORE_VALUE}
+              value={VIEW_MORE_VALUE}
+              isLoadButton={!isLoadingMore}
+              isLoading={isLoadingMore}
+              onClick={loadMore}
+            >
+              {isLoadingMore ? <Spinner size="lg" /> : 'View more'}
+            </SelectOption>
+          )}
           <Divider key="divider-create" />
           <SelectOption key={CREATE_PROJECT_VALUE} value={CREATE_PROJECT_VALUE} icon={<PlusIcon />}>
             Create project
           </SelectOption>
         </SelectList>
+        {hasMore && !noResults && (
+          <MenuFooter>
+            <Content component={ContentVariants.small}>Type to refine results</Content>
+          </MenuFooter>
+        )}
       </Select>
 
-      <Modal
+      <ProjectFormModal
         isOpen={createDialogOpen}
-        onClose={() => {
+        onClose={() => setCreateDialogOpen(false)}
+        onSuccess={() => detachPromise(projectsQuery.refetch())}
+        onCreated={(created) => {
           setCreateDialogOpen(false)
-          reset()
+          setSelectedProjectId(created.id ?? null)
         }}
-        variant="small"
-      >
-        <ModalHeader title="Create project" />
-        <ModalBody>
-          <Form id="create-project-form" onSubmit={handleSubmit(handleCreateProject)}>
-            <FormGroup label="Name" isRequired fieldId="project-name">
-              <TextInput
-                id="project-name"
-                isRequired
-                aria-label="Project name"
-                validated={errors.name ? 'error' : 'default'}
-                {...register('name', { required: true })}
-              />
-            </FormGroup>
-            <FormGroup label="Description" fieldId="project-description">
-              <TextInput
-                id="project-description"
-                aria-label="Project description"
-                validated="default"
-                {...register('description')}
-              />
-            </FormGroup>
-          </Form>
-        </ModalBody>
-        <ModalFooter>
-          <Button variant="primary" form="create-project-form" type="submit" isLoading={isCreatingProject}>
-            Create
-          </Button>
-          <Button
-            variant="link"
-            onClick={() => {
-              setCreateDialogOpen(false)
-              reset()
-            }}
-          >
-            Cancel
-          </Button>
-        </ModalFooter>
-      </Modal>
+      />
     </>
   )
 

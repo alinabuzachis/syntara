@@ -112,8 +112,10 @@ function AccessResult({
 }
 
 export function CheckAccessView({ resourceTypes, actionsByResource }: Readonly<ResourceActionMap>) {
-  const projectsQuery = accessClient.useQuery('get', '/projects')
-  const projects = projectsQuery.data ?? []
+  const projectsQuery = accessClient.useQuery('get', '/projects', {
+    params: { query: { limit: 100 } },
+  })
+  const projects = projectsQuery.data?.resources ?? []
 
   const { control, handleSubmit, watch, setValue, getValues } = useForm<CheckAccessFormData>({
     resolver: zodResolver(checkAccessSchema, undefined, { mode: 'sync' }),

@@ -104,7 +104,7 @@ describe('AssignRoleModal', () => {
       (_method: string, path: string, options?: { params?: { query?: { scope?: string; is_builtin?: boolean } } }) => {
         if (path === '/projects') {
           return {
-            data: mockProjects,
+            data: { resources: mockProjects, next: null },
             isPending: false,
             isError: false,
             error: null,

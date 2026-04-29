@@ -97,8 +97,10 @@ export function useAssignmentsData() {
     setAllFilters(newFilters)
   }
 
-  const projectsQuery = accessClient.useQuery('get', '/projects')
-  const projects = useMemo(() => projectsQuery.data ?? [], [projectsQuery.data])
+  const projectsQuery = accessClient.useQuery('get', '/projects', {
+    params: { query: { limit: 100 } },
+  })
+  const projects = useMemo(() => projectsQuery.data?.resources ?? [], [projectsQuery.data])
   const projectNameMap = useMemo(
     () => new Map(projects.filter((p): p is typeof p & { id: string } => !!p.id).map((p) => [p.id, p.name])),
     [projects]

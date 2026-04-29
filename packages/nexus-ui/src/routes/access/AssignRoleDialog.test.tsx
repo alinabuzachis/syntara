@@ -139,7 +139,7 @@ function setupDefaultMocks() {
     if (path === '/projects') {
       return {
         ...defaultQueryReturn,
-        data: mockProjects,
+        data: { resources: mockProjects, next: null },
       } as never
     }
     if (path === '/roles') {

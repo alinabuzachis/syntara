@@ -67,10 +67,12 @@ export function AddRoleDialog({ onClose, onSuccess }: Readonly<AddRoleDialogProp
     setValue('policies', [])
   }
 
-  const projectsQuery = accessClient.useQuery('get', '/projects')
+  const projectsQuery = accessClient.useQuery('get', '/projects', {
+    params: { query: { limit: 100 } },
+  })
   const projectOptions = useMemo(
     () =>
-      (projectsQuery.data ?? [])
+      (projectsQuery.data?.resources ?? [])
         .filter((p): p is typeof p & { id: string } => !!p.id)
         .map((p) => ({ value: p.id, label: p.name })),
     [projectsQuery.data]

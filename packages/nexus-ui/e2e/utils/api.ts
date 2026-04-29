@@ -66,8 +66,8 @@ export async function ensureProject(app: Page, name = 'default'): Promise<{ id: 
     const listResp = await apiRequest(app, 'get', '/projects', { token })
     if (!listResp.ok()) return null
 
-    const projects = (await listResp.json()) as Array<{ id: string; name: string }>
-    const existing = projects.find((p) => p.name === name)
+    const body = (await listResp.json()) as { resources: Array<{ id: string; name: string }> }
+    const existing = body.resources.find((p) => p.name === name)
     if (existing) return existing
 
     const createResp = await apiRequest(app, 'post', '/projects', {

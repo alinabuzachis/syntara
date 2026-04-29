@@ -243,10 +243,12 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
     setValue('groupId', '')
   }, [principalType, setValue])
 
-  const projectsQuery = accessClient.useQuery('get', '/projects')
+  const projectsQuery = accessClient.useQuery('get', '/projects', {
+    params: { query: { limit: 100 } },
+  })
   const projectOptions = useMemo(
     () =>
-      (projectsQuery.data ?? [])
+      (projectsQuery.data?.resources ?? [])
         .filter((p): p is typeof p & { id: string } => !!p.id)
         .map((p) => ({ value: p.id, label: p.name })),
     [projectsQuery.data]

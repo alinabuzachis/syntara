@@ -1567,7 +1567,8 @@ describe('Workflows Component', () => {
               include_total: true,
             }) as unknown,
           },
-        }) as unknown
+        }) as unknown,
+        expect.objectContaining({ enabled: false }) as unknown
       )
     })
   })

@@ -19,8 +19,11 @@ export interface paths {
     put?: never
     /**
      * Create Project
-     * @description Create a new project. The creator is automatically assigned
-     *     the project-admin role. Requires: project:create permission.
+     * @description Create a new project.
+     *
+     *     The creator is automatically assigned the project-admin role.
+     *
+     *     Requires: project:create permission.
      */
     post: operations['create_project']
     delete?: never
@@ -118,7 +121,8 @@ export interface paths {
      * List Project Role Assignments
      * @description List role assignments for a project.
      *
-     *     Admin/auditor/project-admin see all assignments; other users see only their own.
+     *     Admin/auditor/project-admin see all assignments in the project;
+     *     other users see only their own.
      */
     get: operations['list_project_role_assignments']
     put?: never
@@ -318,6 +322,17 @@ export interface components {
        * @default false
        */
       is_default?: boolean
+    }
+    /**
+     * ProjectListResponse
+     * @description Paginated list response for projects.
+     */
+    ProjectListResponse: components['schemas']['ResourcesResponseBase'] & {
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources: components['schemas']['ProjectRead'][]
     }
     /**
      * ProjectRoleCreate
@@ -594,6 +609,98 @@ export interface components {
      */
     ApprovalRequestStatus: 'pending' | 'approved' | 'rejected' | 'expired' | 'cancelled'
     /**
+     * RoleAssignmentCreate
+     * @description Request body for creating a role assignment.
+     */
+    RoleAssignmentCreate: {
+      principal_type: components['schemas']['PrincipalType']
+      /**
+       * Principal Id
+       * Format: uuid
+       */
+      principal_id: string
+      /** Role Name */
+      role_name: string
+      /** Project Id */
+      project_id?: string | null
+    }
+    /**
+     * RoleAssignmentRead
+     * @description Response body for a role assignment.
+     */
+    RoleAssignmentRead: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /** Principal Type */
+      principal_type: string
+      /**
+       * Principal Id
+       * Format: uuid
+       */
+      principal_id: string
+      /** Principal Name */
+      principal_name: string
+      /** Role Name */
+      role_name: string
+      /** Role Description */
+      role_description?: string | null
+      /**
+       * Role Policies
+       * @default []
+       */
+      role_policies?: string[]
+      /** Project Id */
+      project_id?: string | null
+      /** Project Name */
+      project_name?: string | null
+      /** Created At */
+      created_at?: string | null
+    }
+    /**
+     * RoleAssignmentListResponse
+     * @description Paginated response for role assignments.
+     */
+    RoleAssignmentListResponse: WithRequired<components['schemas']['ResourcesResponseBase'], 'resources'> & {
+      resources: components['schemas']['RoleAssignmentRead'][]
+    }
+    /**
+     * Paginated Response Base
+     * @description Pagination metadata structure for list responses
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
+     */
+    ResourcesResponseBase: {
+      /**
+       * Next
+       * @description Cursor for next page of results
+       */
+      next?: string | null
+      /**
+       * Prev
+       * @description Cursor for previous page of results
+       */
+      prev?: string | null
+      /**
+       * Total
+       * @description Total count of resources (only when include_total=true)
+       */
+      total?: number | null
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources?: unknown[]
+    }
+    /**
      * Base Resource
      * @description Foundational schema for all API resources with system-managed metadata
      */
@@ -698,40 +805,6 @@ export interface components {
        * @example /invocations/550e8400-e29b-41d4-a716-446655440000
        */
       instance?: string | null
-    }
-    /**
-     * Paginated Response Base
-     * @description Pagination metadata structure for list responses
-     * @example {
-     *       "next": "eyJpZCI6InV1aWQifQ",
-     *       "total": 150
-     *     }
-     * @example {
-     *       "next": "eyJpZCI6Im5leHQifQ",
-     *       "prev": "eyJpZCI6InByZXYifQ"
-     *     }
-     */
-    ResourcesResponseBase: {
-      /**
-       * Next
-       * @description Cursor for next page of results
-       */
-      next?: string | null
-      /**
-       * Prev
-       * @description Cursor for previous page of results
-       */
-      prev?: string | null
-      /**
-       * Total
-       * @description Total count of resources (only when include_total=true)
-       */
-      total?: number | null
-      /**
-       * Resources
-       * @description Array of resources in current page
-       */
-      resources?: unknown[]
     }
     /**
      * WorkflowRead
@@ -877,81 +950,11 @@ export interface components {
       decision_notes?: string | null
     }
     /**
-     * RoleAssignmentRead
-     * @description Response body for a role assignment.
+     * PrincipalType
+     * @description Type of principal receiving a role assignment.
+     * @enum {string}
      */
-    RoleAssignmentRead: {
-      /**
-       * Id
-       * Format: uuid
-       */
-      id: string
-      /** Principal Type */
-      principal_type: string
-      /**
-       * Principal Id
-       * Format: uuid
-       */
-      principal_id: string
-      /**
-       * Principal Name
-       * @description Resolved username or group name
-       */
-      principal_name: string
-      /** Role Name */
-      role_name: string
-      /**
-       * Role Description
-       * @description Human-readable description of the role
-       */
-      role_description?: string | null
-      /**
-       * Role Policies
-       * @description Policy names included in this role
-       */
-      role_policies?: string[]
-      /** Project Id */
-      project_id?: string | null
-      /** Project Name */
-      project_name?: string | null
-      /** Created At */
-      created_at?: string | null
-    }
-    /**
-     * RoleAssignmentListResponse
-     * @description Paginated response for role assignments.
-     */
-    RoleAssignmentListResponse: components['schemas']['ResourcesResponseBase'] & {
-      resources?: components['schemas']['RoleAssignmentRead'][]
-    }
-    /**
-     * RoleAssignmentCreate
-     * @description Request body for creating a role assignment.
-     */
-    RoleAssignmentCreate: {
-      /**
-       * Principal Type
-       * @description Type of principal receiving the role
-       * @enum {string}
-       */
-      principal_type: 'user' | 'group'
-      /**
-       * Principal Id
-       * Format: uuid
-       * @description UUID of the user or group
-       */
-      principal_id: string
-      /**
-       * Role Name
-       * @description Name of the role to assign
-       */
-      role_name: string
-      /**
-       * Project Id
-       * @description Project scope (null for global assignment)
-       */
-      project_id?: string | null
-    }
+    PrincipalType: 'user' | 'group'
   }
   responses: {
     /** @description Bad Request */
@@ -1107,20 +1110,33 @@ export type $defs = Record<string, never>
 export interface operations {
   list_projects: {
     parameters: {
-      query?: never
+      query?: {
+        /** @description Maximum number of results per page */
+        limit?: components['parameters']['limitParam']
+        /** @description Pagination cursor from previous response */
+        cursor?: components['parameters']['cursorParam']
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
+        sort?: components['parameters']['sortParam']
+        /** @description Include total count in response (expensive) */
+        include_total?: components['parameters']['includeTotalParam']
+        /** @description Filter by project name */
+        name?: string | null
+        /** @description Filter by default project status */
+        is_default?: boolean | null
+      }
       header?: never
       path?: never
       cookie?: never
     }
     requestBody?: never
     responses: {
-      /** @description List of accessible projects */
+      /** @description Paginated list of accessible projects */
       200: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['ProjectRead'][]
+          'application/json': components['schemas']['ProjectListResponse']
         }
       }
       400: components['responses']['BadRequestError']
@@ -1382,18 +1398,10 @@ export interface operations {
         sort?: components['parameters']['sortParam']
         /** @description Include total count in response (expensive) */
         include_total?: components['parameters']['includeTotalParam']
-        /** @description Filter by principal type (user or group) */
         principal_type?: string | null
-        /** @description Filter by principal ID (user or group UUID) */
         principal_id?: string | null
-        /** @description Filter by principal name (exact match) */
         principal_name?: string | null
-        /** @description Filter by principal name (substring, case-insensitive) */
-        'principal_name[contains]'?: string | null
-        /** @description Filter by role name (exact match) */
         role_name?: string | null
-        /** @description Filter by role name (substring, case-insensitive) */
-        'role_name[contains]'?: string | null
       }
       header?: never
       path: {
@@ -1507,13 +1515,13 @@ export interface operations {
       header?: never
       path: {
         /** @description Project UUID */
-        project_id: components['parameters']['projectIdParam']
+        project_id: string | null
       }
       cookie?: never
     }
     requestBody?: never
     responses: {
-      /** @description Paginated list of roles in the project */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
@@ -1547,7 +1555,7 @@ export interface operations {
       }
     }
     responses: {
-      /** @description Role created */
+      /** @description Successful Response */
       201: {
         headers: {
           [name: string]: unknown
@@ -1579,7 +1587,7 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Role details */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
@@ -1615,7 +1623,7 @@ export interface operations {
       }
     }
     responses: {
-      /** @description Updated role */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
@@ -1647,7 +1655,7 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Role deleted */
+      /** @description Successful Response */
       204: {
         headers: {
           [name: string]: unknown
@@ -1681,7 +1689,7 @@ export interface operations {
       }
     }
     responses: {
-      /** @description Updated role */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
@@ -1722,13 +1730,13 @@ export interface operations {
       header?: never
       path: {
         /** @description Project UUID */
-        project_id: components['parameters']['projectIdParam']
+        project_id: string | null
       }
       cookie?: never
     }
     requestBody?: never
     responses: {
-      /** @description Paginated list of policies in the project */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
@@ -1762,7 +1770,7 @@ export interface operations {
       }
     }
     responses: {
-      /** @description Policy created */
+      /** @description Successful Response */
       201: {
         headers: {
           [name: string]: unknown
@@ -1794,7 +1802,7 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Policy details */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
@@ -1830,7 +1838,7 @@ export interface operations {
       }
     }
     responses: {
-      /** @description Updated policy */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
@@ -1862,7 +1870,7 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Policy deleted */
+      /** @description Successful Response */
       204: {
         headers: {
           [name: string]: unknown
@@ -1896,7 +1904,7 @@ export interface operations {
       }
     }
     responses: {
-      /** @description Updated policy */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
@@ -1914,4 +1922,7 @@ export interface operations {
       500: components['responses']['InternalServerError']
     }
   }
+}
+type WithRequired<T, K extends keyof T> = T & {
+  [P in K]-?: T[P]
 }

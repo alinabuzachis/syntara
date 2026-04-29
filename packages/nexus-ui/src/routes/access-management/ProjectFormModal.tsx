@@ -33,9 +33,11 @@ export type ProjectFormModalProps = {
   onClose: () => void
   /** Callback after a successful create/update to refresh the list */
   onSuccess: () => void
+  /** Optional callback with the newly created project (create-mode only) */
+  onCreated?: (project: ProjectRead) => void
 }
 
-export function ProjectFormModal({ project, isOpen, onClose, onSuccess }: Readonly<ProjectFormModalProps>) {
+export function ProjectFormModal({ project, isOpen, onClose, onSuccess, onCreated }: Readonly<ProjectFormModalProps>) {
   const isEditMode = Boolean(project)
   const title = isEditMode ? 'Edit project' : 'Add project'
 
@@ -106,7 +108,7 @@ export function ProjectFormModal({ project, isOpen, onClose, onSuccess }: Readon
           },
         },
         {
-          onSuccess: () => {
+          onSuccess: (created) => {
             showAlert({
               title: 'Project created',
               description: `Project "${formData.name}" has been created successfully.`,
@@ -115,6 +117,7 @@ export function ProjectFormModal({ project, isOpen, onClose, onSuccess }: Readon
             })
             handleClose()
             onSuccess()
+            onCreated?.(created)
           },
           onError: handleError({ title: 'Failed to create project', context: alertContext }),
         }

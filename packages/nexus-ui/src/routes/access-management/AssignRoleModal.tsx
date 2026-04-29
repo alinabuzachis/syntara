@@ -123,7 +123,9 @@ export function AssignRoleModal({
     }
   }, [isOpen, reset])
 
-  const projectsQuery = accessClient.useQuery('get', '/projects')
+  const projectsQuery = accessClient.useQuery('get', '/projects', {
+    params: { query: { limit: 100 } },
+  })
 
   // ── Server-side role search ──────────────────────────────────────────────
   const [roleSearch, setRoleSearch] = useState('')
@@ -152,7 +154,7 @@ export function AssignRoleModal({
   }
 
   const projectOptions = useMemo(() => {
-    return (projectsQuery.data ?? [])
+    return (projectsQuery.data?.resources ?? [])
       .filter((p): p is typeof p & { id: string } => !!p.id)
       .map((p) => ({ value: p.id, label: p.name }))
   }, [projectsQuery.data])

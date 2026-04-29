@@ -80,7 +80,7 @@ describe('ProjectsTab', () => {
     vi.clearAllMocks()
 
     vi.mocked(accessClient.useQuery).mockReturnValue({
-      data: mockProjects,
+      data: { resources: mockProjects, next: null },
       isPending: false,
       isError: false,
       error: null,
@@ -151,7 +151,7 @@ describe('ProjectsTab', () => {
   describe('Empty State', () => {
     it('displays empty state when no projects exist', () => {
       vi.mocked(accessClient.useQuery).mockReturnValue({
-        data: [],
+        data: { resources: [], next: null },
         isPending: false,
         isError: false,
         error: null,
@@ -170,7 +170,7 @@ describe('ProjectsTab', () => {
       const user = userEvent.setup()
 
       vi.mocked(accessClient.useQuery).mockReturnValue({
-        data: [],
+        data: { resources: [], next: null },
         isPending: false,
         isError: false,
         error: null,
@@ -325,7 +325,7 @@ describe('ProjectsTab', () => {
       const mockRefetch = vi.fn()
 
       vi.mocked(accessClient.useQuery).mockReturnValue({
-        data: mockProjects,
+        data: { resources: mockProjects, next: null },
         isPending: false,
         isError: false,
         error: null,
@@ -359,7 +359,7 @@ describe('ProjectsTab', () => {
       const mockRefetch = vi.fn().mockResolvedValue({})
 
       vi.mocked(accessClient.useQuery).mockReturnValue({
-        data: mockProjects,
+        data: { resources: mockProjects, next: null },
         isPending: false,
         isError: false,
         error: null,
@@ -494,7 +494,7 @@ describe('ProjectsTab', () => {
     it('refetches after successful create from empty state', async () => {
       const mockRefetch = vi.fn().mockResolvedValue({})
       vi.mocked(accessClient.useQuery).mockReturnValue({
-        data: [],
+        data: { resources: [], next: null },
         isPending: false,
         isError: false,
         error: null,
@@ -536,7 +536,7 @@ describe('ProjectsTab', () => {
     it('refetches after successful create from table view', async () => {
       const mockRefetch = vi.fn().mockResolvedValue({})
       vi.mocked(accessClient.useQuery).mockReturnValue({
-        data: mockProjects,
+        data: { resources: mockProjects, next: null },
         isPending: false,
         isError: false,
         error: null,
@@ -596,7 +596,7 @@ describe('ProjectsTab', () => {
       }))
 
       vi.mocked(accessClient.useQuery).mockReturnValue({
-        data: manyProjects,
+        data: { resources: manyProjects, next: null },
         isPending: false,
         isError: false,
         error: null,
@@ -628,7 +628,7 @@ describe('ProjectsTab', () => {
       }))
 
       vi.mocked(accessClient.useQuery).mockReturnValue({
-        data: manyProjects,
+        data: { resources: manyProjects, next: null },
         isPending: false,
         isError: false,
         error: null,
@@ -663,7 +663,7 @@ describe('ProjectsTab', () => {
 
     it('has no accessibility violations in empty state', async () => {
       vi.mocked(accessClient.useQuery).mockReturnValue({
-        data: [],
+        data: { resources: [], next: null },
         isPending: false,
         isError: false,
         error: null,

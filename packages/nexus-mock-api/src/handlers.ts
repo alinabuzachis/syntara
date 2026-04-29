@@ -2061,8 +2061,28 @@ export const handlers = [
 
   // ── Access Management: Projects ─────────────────────────────────────────
 
-  http.get('/api/v1/projects', () => {
-    return HttpResponse.json(mockProjects)
+  http.get('/api/v1/projects', ({ request }) => {
+    const url = new URL(request.url)
+    const name = url.searchParams.get('name')
+    const isDefault = url.searchParams.get('is_default')
+    const cursor = url.searchParams.get('cursor')
+    const parsedLimit = Number.parseInt(url.searchParams.get('limit') ?? '20', 10)
+    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 20
+    const includeTotal = url.searchParams.get('include_total') === 'true'
+
+    let resources = mockProjects
+
+    if (name) {
+      const term = name.toLowerCase()
+      resources = resources.filter((p) => p.name.toLowerCase().includes(term))
+    }
+
+    if (isDefault !== null) {
+      resources = resources.filter((p) => p.is_default === (isDefault === 'true'))
+    }
+
+    const body = paginate(resources, cursor, limit, includeTotal)
+    return HttpResponse.json(body)
   }),
 
   http.post('/api/v1/projects', async ({ request }) => {

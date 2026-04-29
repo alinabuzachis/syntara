@@ -172,8 +172,10 @@ export function ProjectsTab() {
     setPage(1)
   }
 
-  const query = accessClient.useQuery('get', '/projects')
-  const allProjects = query.data ?? []
+  const query = accessClient.useQuery('get', '/projects', {
+    params: { query: { limit: 100, include_total: true } },
+  })
+  const allProjects = query.data?.resources ?? []
 
   // Client-side filtering
   const filteredProjects = allProjects.filter((project) =>

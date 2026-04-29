@@ -312,7 +312,6 @@ export function BuilderContent(props: BuilderContentProps) {
                         <AppPanel
                           hasNoPadding
                           isFullHeight
-                          isGlass={false}
                           style={{
                             position: 'relative',
                             minWidth: 0,

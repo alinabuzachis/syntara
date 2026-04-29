@@ -155,7 +155,7 @@ function setupDefaultMocks() {
   vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
     if (path === '/projects') {
       return {
-        data: mockProjects,
+        data: { resources: mockProjects, next: null },
         isPending: false,
         isError: false,
         error: null,

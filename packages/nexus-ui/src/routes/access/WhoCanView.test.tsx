@@ -15,7 +15,7 @@ const { mockMutate } = vi.hoisted(() => ({
 
 vi.mock('./accessClient', () => ({
   accessClient: {
-    useQuery: vi.fn().mockReturnValue({ data: [], isPending: false, error: null }),
+    useQuery: vi.fn().mockReturnValue({ data: { resources: [], next: null }, isPending: false, error: null }),
     useMutation: vi.fn().mockReturnValue({
       mutate: mockMutate,
       mutateAsync: vi.fn(),
@@ -269,7 +269,7 @@ describe('WhoCanView', () => {
 
       // Mock projects query
       vi.mocked(accessClient.useQuery).mockReturnValue({
-        data: [{ id: 'proj-1', name: 'default' }],
+        data: { resources: [{ id: 'proj-1', name: 'default' }], next: null },
         isPending: false,
         error: null,
       } as never)
