@@ -5,6 +5,15 @@ import { createCredentialViaApi, deleteCredentialViaApi, ensureProject, listCred
 
 import { buildUniqueName, selectFirstProject } from './workflows'
 
+/** Open the Create Credential modal and return the dialog locator. */
+export async function openCreateModal(app: Page) {
+  await goToCredentialsList(app, { ensureCreateEnabled: true })
+  await app.getByRole('button', { name: 'Create credential' }).first().click()
+  const modal = app.getByRole('dialog')
+  await expect(modal).toBeVisible()
+  return modal
+}
+
 /** Navigate to the credentials list page and wait for it to load */
 export async function goToCredentialsList(app: Page, options?: { ensureCreateEnabled?: boolean }) {
   if (options?.ensureCreateEnabled) {
@@ -106,6 +115,39 @@ export async function deleteCredentialByName(app: Page, name: string) {
 export async function deleteCredentialById(app: Page, credentialId: string | null) {
   if (!credentialId || app.isClosed()) return
   await deleteCredentialViaApi(app, credentialId)
+}
+
+/**
+ * Create a credential of any type via the UI.
+ * Navigates to credentials list, opens create modal, fills fields, and submits.
+ */
+export async function createCredentialOfTypeViaUI(
+  app: Page,
+  options: {
+    name: string
+    type: string
+    fields: Record<string, string>
+  }
+) {
+  await goToCredentialsList(app, { ensureCreateEnabled: true })
+  await app.getByRole('button', { name: 'Create credential' }).first().click()
+
+  const modal = app.getByRole('dialog')
+  await modal.getByRole('textbox', { name: 'Credential name' }).fill(options.name)
+  await modal.getByRole('combobox', { name: 'Credential type' }).selectOption({ label: options.type })
+
+  for (const [fieldName, value] of Object.entries(options.fields)) {
+    await modal.getByRole('textbox', { name: fieldName }).fill(value)
+  }
+
+  await modal.getByRole('button', { name: 'Create credential' }).click()
+  await expect(app.getByText('Credential created')).toBeVisible()
+}
+
+/** Filter the credentials list by keyword. */
+export async function filterCredentialByName(app: Page, name: string) {
+  await app.getByPlaceholder('Filter by keyword').fill(name)
+  await app.getByRole('button', { name: 'Apply filter' }).click()
 }
 
 /**

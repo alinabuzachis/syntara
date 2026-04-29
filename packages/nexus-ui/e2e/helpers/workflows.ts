@@ -271,3 +271,53 @@ export async function createBasicWorkflow(page: Page, workflowName: string, acti
 
   await expect(page).toHaveURL(/workflow-builder\/.+/)
 }
+
+/**
+ * Start a new workflow with a manual trigger.
+ * Returns after the trigger is added and the editor panel is closed.
+ */
+export async function startWorkflowWithTrigger(page: Page) {
+  await ensureProject(page)
+  await page.goto(toAppUrl('/workflow-builder/new'))
+  await expect(page.getByRole('heading', { name: 'Select a trigger step' })).toBeVisible()
+
+  await selectProjectIfRequired(page)
+
+  await page.getByRole('button', { name: 'Manual trigger' }).click()
+  await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Manual trigger')
+  await page.getByRole('button', { name: /^Add step$/ }).click()
+}
+
+/** Save the workflow with the given name. Waits for URL to confirm persistence. */
+export async function saveWorkflow(page: Page, workflowName: string) {
+  await selectProjectIfRequired(page)
+  await page.getByPlaceholder('Workflow name').fill(workflowName)
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page).toHaveURL(/workflow-builder\/.+/)
+}
+
+/**
+ * Navigate to the workflow builder and add an API action node form
+ * where the credential selector is visible and enabled.
+ */
+export async function navigateToApiActionForm(page: Page) {
+  await ensureProject(page)
+  await page.goto(toAppUrl('/workflow-builder/new'))
+  await expect(page.getByRole('heading', { name: 'Select a trigger step' })).toBeVisible()
+
+  await selectProjectIfRequired(page)
+
+  await page.getByRole('button', { name: 'Manual trigger' }).click()
+  await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Manual trigger')
+  await page.getByRole('button', { name: /^Add step$/ }).click()
+
+  const credentialsLoaded = page.waitForResponse((resp) => resp.url().includes('/credentials') && resp.status() === 200)
+  const panel = await clickAddConnectedStep(page)
+  await panel.getByRole('button', { name: 'Action', exact: true }).click()
+  await panel.getByRole('button', { name: 'REST API', exact: true }).click()
+
+  await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible()
+  await credentialsLoaded
+  const credToggle = page.getByRole('button', { name: 'Authentication credential', exact: true })
+  await expect(credToggle).toBeEnabled({ timeout: 10_000 })
+}
