@@ -17,6 +17,7 @@ import pytest
 from external_services.k8s.types import K8sProvider
 from external_services.plugin import ServiceCatalog
 from external_services.types import TCPService
+from external_services.utils import WaitException
 
 from tests.fixtures.external_services.connectivity_check import verify_service_connectivity
 
@@ -136,6 +137,9 @@ def openldap_service(
         address_retriever=get_ingress_address,
     )
     request.addfinalizer(service.stop)  # noqa: PT021
-    service.start()
+    try:
+        service.start()
+    except WaitException:
+        pytest.skip("OpenLDAP service not available on GKE (timed out waiting for readiness)")
     verify_service_connectivity("LDAP", service)
     return OpenldapServiceWrapper(deployment=service)

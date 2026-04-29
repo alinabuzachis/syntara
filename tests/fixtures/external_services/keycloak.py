@@ -12,6 +12,7 @@ import pytest
 from external_services.k8s.types import K8sProvider
 from external_services.plugin import ServiceCatalog
 from external_services.types import HttpApiService
+from external_services.utils import WaitException
 
 from tests.fixtures.external_services.connectivity_check import verify_service_connectivity
 
@@ -84,7 +85,10 @@ def keycloak_service(
         service_name="keycloak", url_retriever=gke_ext_service_url_retriever
     )
     request.addfinalizer(service.stop)  # noqa: PT021
-    service.start()
+    try:
+        service.start()
+    except WaitException:
+        pytest.skip("Keycloak service not available on GKE (timed out waiting for readiness)")
     verify_service_connectivity("Keycloak", service)
     _setup_nexus_realm(service.url)
     return service

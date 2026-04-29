@@ -10,6 +10,7 @@ import pytest
 from external_services.k8s.types import K8sProvider
 from external_services.plugin import ServiceCatalog
 from external_services.types import HttpApiService
+from external_services.utils import WaitException
 
 
 @pytest.fixture(scope="class")
@@ -22,8 +23,11 @@ def logstash_service(
     service = ServiceCatalog(provider=gke_ext_service_provider).get_service(
         service_name="logstash", url_retriever=gke_ext_service_url_retriever
     )
-    service.start()
     request.addfinalizer(service.stop)  # noqa: PT021
+    try:
+        service.start()
+    except WaitException:
+        pytest.skip("Logstash service not available on GKE (timed out waiting for readiness)")
     return service
 
 
