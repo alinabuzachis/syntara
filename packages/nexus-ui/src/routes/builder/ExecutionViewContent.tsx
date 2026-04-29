@@ -155,6 +155,7 @@ function ExecutionViewContentInner(props: ExecutionViewContentProps) {
     <AppPanel
       hasNoPadding
       isFullHeight
+      isGlass={false}
       style={{
         position: 'relative',
         minWidth: 0,

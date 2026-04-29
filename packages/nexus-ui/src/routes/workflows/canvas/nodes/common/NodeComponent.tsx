@@ -26,6 +26,11 @@ type ExecutionState = {
 const DEFAULT_NODE_WIDTH = 240
 const WIDE_NODE_WIDTH = 360
 
+/** `variant="raised"` maps to PF small radius; override so canvas nodes match default card rounding (and `::before`). */
+const WORKFLOW_NODE_PANEL_RADIUS_STYLE = {
+  '--pf-v6-c-panel--BorderRadius': 'var(--pf-t--global--border--radius--medium)',
+} as React.CSSProperties
+
 const isWideTaskNode = (nodeProps: NodeProps) => {
   if (nodeProps.type === FlowNodeType.GENERIC) {
     return true
@@ -119,6 +124,7 @@ export function NodeComponent(props: {
     width: `${nodeWidth}px`, // Fixed width for consistent node sizing
     minWidth: `${nodeWidth}px`,
     maxWidth: `${nodeWidth}px`,
+    ...WORKFLOW_NODE_PANEL_RADIUS_STYLE,
     ...(isSemanticZoom
       ? {
           border: 'none',
@@ -161,7 +167,7 @@ export function NodeComponent(props: {
     <NodeExpandedContext.Provider value={expandedContext}>
       <AppPanel
         hasNoPadding
-        isGlass={false}
+        variant="raised"
         className={props.className}
         data-testid={props.rootTestId}
         onClick={props.onClick}

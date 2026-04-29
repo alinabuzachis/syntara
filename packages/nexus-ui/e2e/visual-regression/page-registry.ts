@@ -565,6 +565,10 @@ export const excludedDynamic: string[] = [
   '/workflow-builder/new',
   // No seeded identity providers in mock API — would need a setup step to create one first
   '/access-management/authentication/identity-providers/:providerId',
+  '/access-management/authentication/identity-providers/:providerId/:tab?',
+  '/access-management/authentication/identity-providers/:providerId/edit',
+  // OAuth/test callback — not a navigable app screen for screenshots
+  '/auth/test-signin-callback',
   // Redirects to /access-management/users
   '/access-management',
   // Parameterized routes that require specific IDs from the mock API
