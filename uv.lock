@@ -111,19 +111,6 @@ wheels = [
 ]
 
 [[package]]
-name = "alembic-postgresql-enum"
-version = "1.10.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "alembic" },
-    { name = "sqlalchemy" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/63/cf/b5147b926441e7cdc12f306465dac488ff22364b1467a09a5d43743b8cfc/alembic_postgresql_enum-1.10.0.tar.gz", hash = "sha256:ea23481de3d6a00d68d369f92a46ff4fa27b2575e39c583145f1e23ea9c7511d", size = 18557, upload-time = "2026-02-23T16:15:04.148Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/58/8a/4db3821584824ac68df00a6ca27331d3f41f40105f22a8dc1b30b1ec83af/alembic_postgresql_enum-1.10.0-py3-none-any.whl", hash = "sha256:39297cb5dc0e71a3e08df1feeab9ffcc1b6aac0be02bf578748d74c442cd3fbf", size = 27774, upload-time = "2026-02-23T16:15:02.789Z" },
-]
-
-[[package]]
 name = "annotated-doc"
 version = "0.0.4"
 source = { registry = "https://pypi.org/simple" }
@@ -735,7 +722,7 @@ wheels = [
 
 [[package]]
 name = "external-services"
-version = "26.4.28.0"
+version = "26.4.29.0"
 source = { git = "#fa008895dbdfc4883bc4ef90219a44e51feb4321" }
 dependencies = [
     { name = "dnspython" },
@@ -1838,10 +1825,8 @@ source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },
     { name = "alembic" },
-    { name = "alembic-postgresql-enum" },
     { name = "argon2-cffi" },
     { name = "asyncpg" },
-    { name = "beartype" },
     { name = "cryptography" },
     { name = "fastapi" },
     { name = "filelock" },
@@ -1857,7 +1842,6 @@ dependencies = [
     { name = "pyjwt", extra = ["crypto"] },
     { name = "pymupdf" },
     { name = "pypandoc" },
-    { name = "python-dotenv" },
     { name = "python-magic" },
     { name = "python-multipart" },
     { name = "pyyaml" },
@@ -1919,17 +1903,14 @@ dev = [
 requires-dist = [
     { name = "aiofiles", specifier = ">=24.1.0" },
     { name = "alembic", specifier = ">=1.12.0" },
-    { name = "alembic-postgresql-enum", specifier = ">=1.8.0" },
     { name = "argon2-cffi", specifier = ">=25.1.0" },
     { name = "asyncpg", specifier = ">=0.30.0" },
     { name = "azure-identity", marker = "extra == 'dev'", specifier = ">=1.19.0" },
-    { name = "beartype", specifier = ">=0.22.5" },
     { name = "cryptography", specifier = ">=42.0.0" },
     { name = "external-services", marker = "extra == 'integration'", git = "" },
     { name = "fastapi", specifier = ">=0.104.0,<0.122" },
     { name = "fastmcp", marker = "extra == 'dev'", specifier = ">=3.2.0,<4.0.0" },
     { name = "filelock", specifier = ">=3.20.0" },
-    { name = "httpx", specifier = ">=0.25.0" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.25.0" },
     { name = "jmespath", specifier = ">=1.0.0" },
@@ -1955,7 +1936,6 @@ requires-dist = [
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=1.3.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=7.0.0" },
     { name = "pytest-xdist", marker = "extra == 'dev'", specifier = ">=3.8.0" },
-    { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "python-magic", specifier = ">=0.4.27" },
     { name = "python-multipart", specifier = ">=0.0.6" },
     { name = "pyyaml", specifier = ">=6.0.0" },
