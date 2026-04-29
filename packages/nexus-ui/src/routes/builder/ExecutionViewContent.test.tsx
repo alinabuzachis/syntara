@@ -57,8 +57,7 @@ describe('ExecutionViewContent', () => {
     })
   })
 
-  it('logs a warning for invalid workflow structure', async () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+  it('does not load workflow for invalid workflow structure', async () => {
     const workflow = {
       id: 'workflow-invalid',
       triggers: [],
@@ -68,11 +67,8 @@ describe('ExecutionViewContent', () => {
     render(<ExecutionViewContent workflow={workflow} executionId="exec-1" executionStatus={null} />)
 
     await waitFor(() => {
-      expect(warnSpy).toHaveBeenCalled()
       expect(mockLoadWorkflowWithEdges).not.toHaveBeenCalled()
     })
-
-    warnSpy.mockRestore()
   })
 
   it('adds trigger edges for parallel workflows', async () => {

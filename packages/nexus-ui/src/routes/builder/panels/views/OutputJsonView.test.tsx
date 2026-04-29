@@ -67,7 +67,7 @@ describe('OutputJsonView', () => {
     expect(screen.getByRole('textbox', { name: 'Search json output' })).toBeInTheDocument()
   })
 
-  it('filters visible JSON content when searching', async () => {
+  it('filters lines when searching', async () => {
     const user = userEvent.setup()
     const data = { greeting: 'hello', farewell: 'goodbye' }
     render(<OutputJsonView data={data} />)
@@ -76,9 +76,9 @@ describe('OutputJsonView', () => {
     await user.type(searchInput, 'greeting')
 
     await waitFor(() => {
-      expect(screen.getByText(/"greeting"/)).toBeInTheDocument()
+      expect(screen.getByText(/greeting/)).toBeInTheDocument()
+      expect(screen.queryByText(/farewell/)).not.toBeInTheDocument()
     })
-    expect(screen.queryByText(/"farewell"/)).not.toBeInTheDocument()
   })
 
   it('has no accessibility violations', async () => {

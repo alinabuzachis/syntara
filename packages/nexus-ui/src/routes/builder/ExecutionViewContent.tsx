@@ -1,4 +1,5 @@
 import type { Activity, ExecutionsAPI } from '@ansible/nexus-contracts'
+import type { NodeMouseHandler } from '@xyflow/react'
 import { ReactFlowProvider } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { useEffect, useRef } from 'react'
@@ -34,6 +35,10 @@ type ExecutionViewContentProps = {
   executionStatus?: string | null
   executionActivities?: ActivityInput[]
   executionId: string
+  /** Optional handler for node clicks (e.g., approval nodes in waiting status). */
+  onNodeClick?: NodeMouseHandler
+  /** Activity ID of the externally selected node (e.g. from table row click). */
+  selectedActivityId?: string | null
 }
 
 /**
@@ -41,7 +46,7 @@ type ExecutionViewContentProps = {
  * Handles workflow loading and execution state synchronization
  */
 function ExecutionViewContentInner(props: ExecutionViewContentProps) {
-  const { workflow, executionStatus, executionActivities, executionId } = props
+  const { workflow, executionStatus, executionActivities, executionId, onNodeClick, selectedActivityId } = props
   const { loadWorkflowWithEdges, setWorkflow: setWorkflowInStore, setEdges: setStoredEdges } = useWorkflowStoreActions()
   const { setActivityExecutions } = useExecutionStoreActions()
   const hasLoadedRef = useRef(false)
@@ -101,8 +106,6 @@ function ExecutionViewContentInner(props: ExecutionViewContentProps) {
       }>
 
       if (nodes.length === 0 && triggers.length === 0) {
-        // eslint-disable-next-line no-console
-        console.warn('ExecutionViewContent: No nodes or triggers in workflow', workflow)
         return
       }
 
@@ -162,32 +165,22 @@ function ExecutionViewContentInner(props: ExecutionViewContentProps) {
         height: '100%',
       }}
     >
-      <div
-        style={{
-          height: '100%',
-          width: '100%',
-          minHeight: 0,
-          overflow: 'hidden',
+      <BuilderFlow
+        workflowId={workflow?.id ?? null}
+        panelOpen={false}
+        activeEdgeButtonNodeId={null}
+        activeEdgeButtonHandle={null}
+        activeEdgeId={null}
+        executionStatus={executionStatus}
+        onNodeClick={onNodeClick}
+        selectedActivityId={selectedActivityId}
+        onAddNodeFromEdge={() => {
+          // No-op: cannot add steps in execution view
         }}
-      >
-        <BuilderFlow
-          workflowId={workflow?.id ?? null}
-          panelOpen={false}
-          activeEdgeButtonNodeId={null}
-          activeEdgeButtonHandle={null}
-          activeEdgeId={null}
-          executionStatus={executionStatus}
-          onNodeClick={() => {
-            // No-op: nodes are not clickable in execution view
-          }}
-          onAddNodeFromEdge={() => {
-            // No-op: cannot add steps in execution view
-          }}
-          onNodesDeleted={() => {
-            // No-op: cannot delete steps in execution view
-          }}
-        />
-      </div>
+        onNodesDeleted={() => {
+          // No-op: cannot delete steps in execution view
+        }}
+      />
     </AppPanel>
   )
 }
@@ -201,7 +194,7 @@ function ExecutionViewContentInner(props: ExecutionViewContentProps) {
  * - No NodeDetailsPanel
  * - No WorkflowSidepanel
  * - No save/run buttons
- * - No node click handlers
+ * - Node clicks only for approval nodes in waiting status (via onNodeClick prop)
  * - No edge button creation
  */
 export function ExecutionViewContent(props: ExecutionViewContentProps) {

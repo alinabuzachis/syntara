@@ -358,6 +358,8 @@ export interface components {
        * @example Connection timeout to external service
        */
       error_details?: string | null
+      /** @description Activity output data (response body, status code, etc.) */
+      output_data?: Record<string, unknown> | null
       /**
        * Format: date-time
        * @description When activity started execution

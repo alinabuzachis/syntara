@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react'
+import { createContext, useContext, type ReactNode } from 'react'
 
 export type AlertVariant = 'success' | 'danger' | 'warning' | 'info' | 'custom'
 
@@ -7,7 +7,7 @@ export type AlertConfig = {
   id?: string
   variant?: AlertVariant | 'error' // Accept 'error' and map to 'danger'
   title: string
-  description?: string
+  description?: string | ReactNode
   autoDismiss?: boolean
   timeout?: number // milliseconds, defaults to 8000 if autoDismiss is true
 }

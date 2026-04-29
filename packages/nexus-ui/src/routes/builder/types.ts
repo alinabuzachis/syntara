@@ -43,6 +43,8 @@ export type BuilderFlowProps = {
   disableDeleteKey?: boolean
   /** Disable space key panning (e.g., while editor overlay with code editor is open) */
   disableSpacePanning?: boolean
+  /** Activity ID of the externally selected node (e.g. from table row click). */
+  selectedActivityId?: string | null
 }
 
 /**

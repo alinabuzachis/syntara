@@ -92,6 +92,49 @@ export function formatElapsedTime(elapsedMs: number): string {
 }
 
 /**
+ * Format an ISO date string as time only (e.g. "10:00:00 AM").
+ * Used when the date portion is redundant (same-day ranges).
+ * Returns '-' for invalid or empty input.
+ */
+export function formatExecutionTime(isoString: string): string {
+  if (!isoString) return '-'
+  try {
+    const date = parseISO(isoString)
+    if (Number.isNaN(date.getTime())) return '-'
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+    })
+  } catch {
+    return '-'
+  }
+}
+
+/**
+ * Check whether two ISO date strings fall on the same calendar day.
+ */
+export function isSameDay(a: string, b: string): boolean {
+  const da = parseISO(a)
+  const db = parseISO(b)
+  return da.getFullYear() === db.getFullYear() && da.getMonth() === db.getMonth() && da.getDate() === db.getDate()
+}
+
+/**
+ * Format a start–end time range for compact display.
+ * When both timestamps share the same calendar day, the start shows time only
+ * and the end includes the full date (e.g. "10:00:00 AM - 10:01:30 AM, 16 Apr 2026").
+ * When they span different days, both include the full date.
+ */
+export function formatTimeRange(startedAt?: string | null, completedAt?: string | null): string | undefined {
+  if (!startedAt) return undefined
+  if (!completedAt) return formatExecutionDateTime(startedAt)
+  const start = isSameDay(startedAt, completedAt) ? formatExecutionTime(startedAt) : formatExecutionDateTime(startedAt)
+  return `${start} - ${formatExecutionDateTime(completedAt)}`
+}
+
+/**
  * Format a Date object to ISO 8601 string for API compatibility.
  * Use this for sending dates to the API in filter parameters.
  *

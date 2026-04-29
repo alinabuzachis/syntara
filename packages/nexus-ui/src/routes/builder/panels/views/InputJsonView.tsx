@@ -11,7 +11,7 @@ export function InputJsonView({ data }: Readonly<InputJsonViewProps>) {
 
   return (
     <section aria-label="JSON input">
-      <CodeBlock jsonObject={data} enableCopy noMaxHeight />
+      <CodeBlock jsonObject={data} enableCopy enableExpand expandTitle="Input JSON" noMaxHeight />
     </section>
   )
 }

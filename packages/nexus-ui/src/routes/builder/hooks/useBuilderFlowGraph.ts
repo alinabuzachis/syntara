@@ -68,6 +68,7 @@ export function useBuilderFlowGraph({
         details,
         triggerType: trigger.type,
         inputs: currentWorkflow?.inputs ?? {},
+        definitionId: trigger.id,
       }
       const enrichedTriggerData = executionStateEnricher.enrichTriggerNode(
         triggerId,

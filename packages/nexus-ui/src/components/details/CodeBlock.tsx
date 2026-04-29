@@ -1,7 +1,29 @@
-import { CodeBlock as PFCodeBlock, CodeBlockAction, CodeBlockCode, ClipboardCopyButton } from '@patternfly/react-core'
+import {
+  Button,
+  CodeBlock as PFCodeBlock,
+  CodeBlockAction,
+  CodeBlockCode,
+  ClipboardCopyButton,
+  Modal,
+  ModalBody,
+  ModalHeader,
+  Tooltip,
+} from '@patternfly/react-core'
+import { RhUiExternalLinkIcon } from '@patternfly/react-icons'
 import { useId, useState } from 'react'
 
 import { detachPromise } from '../../utils/detachPromise'
+
+function resolveCopyText(
+  codeContent: React.ReactNode,
+  jsonObject: object | undefined,
+  copyContent: string | undefined
+): string {
+  if (copyContent) return copyContent
+  if (typeof codeContent === 'string') return codeContent
+  if (jsonObject) return JSON.stringify(jsonObject, undefined, 2)
+  return ''
+}
 
 export function CodeBlock(props: {
   children?: React.ReactNode
@@ -10,19 +32,14 @@ export function CodeBlock(props: {
   enableCopy?: boolean
   fillHeight?: boolean
   copyContent?: string
+  enableExpand?: boolean
+  expandTitle?: string
 }) {
   const codeContent = props.children ?? (props.jsonObject && JSON.stringify(props.jsonObject, undefined, 2))
-
-  let copyText = props.copyContent ?? ''
-  if (!copyText) {
-    if (typeof codeContent === 'string') {
-      copyText = codeContent
-    } else if (props.jsonObject) {
-      copyText = JSON.stringify(props.jsonObject, undefined, 2)
-    }
-  }
+  const copyText = resolveCopyText(codeContent, props.jsonObject, props.copyContent)
   const copyButtonId = useId()
   const [isCopied, setIsCopied] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   const handleCopy = () => {
     if (!copyText || !navigator.clipboard?.writeText) return
@@ -39,35 +56,87 @@ export function CodeBlock(props: {
     )
   }
 
-  const copyAction = props.enableCopy ? (
+  const actions = (props.enableCopy || props.enableExpand) && (
+    <>
+      {props.enableExpand && (
+        <CodeBlockAction>
+          <Tooltip content="Expand">
+            <Button
+              variant="plain"
+              aria-label="Expand code"
+              icon={<RhUiExternalLinkIcon />}
+              onClick={() => setIsModalOpen(true)}
+            />
+          </Tooltip>
+        </CodeBlockAction>
+      )}
+      {props.enableCopy && (
+        <CodeBlockAction>
+          <ClipboardCopyButton variant="plain" id={copyButtonId} aria-label="Copy to clipboard" onClick={handleCopy}>
+            {isCopied ? 'Copied to clipboard' : 'Copy to clipboard'}
+          </ClipboardCopyButton>
+        </CodeBlockAction>
+      )}
+    </>
+  )
+
+  const modalActions = props.enableCopy && (
     <CodeBlockAction>
-      <ClipboardCopyButton variant="plain" id={copyButtonId} aria-label="Copy to clipboard" onClick={handleCopy}>
+      <ClipboardCopyButton
+        variant="plain"
+        id={`${copyButtonId}-modal`}
+        aria-label="Copy to clipboard"
+        onClick={handleCopy}
+      >
         {isCopied ? 'Copied to clipboard' : 'Copy to clipboard'}
       </ClipboardCopyButton>
     </CodeBlockAction>
-  ) : undefined
+  )
+
+  const expandModal = props.enableExpand && (
+    <Modal
+      isOpen={isModalOpen}
+      onClose={() => setIsModalOpen(false)}
+      variant="large"
+      aria-label={props.expandTitle ?? 'Code detail'}
+    >
+      <ModalHeader title={props.expandTitle ?? 'Code detail'} />
+      <ModalBody>
+        <PFCodeBlock actions={modalActions || undefined}>
+          <CodeBlockCode>{codeContent}</CodeBlockCode>
+        </PFCodeBlock>
+      </ModalBody>
+    </Modal>
+  )
+
+  const codeBlock = (
+    <PFCodeBlock actions={actions || undefined}>
+      <CodeBlockCode>{codeContent}</CodeBlockCode>
+    </PFCodeBlock>
+  )
 
   if (props.noMaxHeight) {
-    // When noMaxHeight is true, render without scrollable container to allow parent scrolling
     return (
-      <PFCodeBlock actions={copyAction}>
-        <CodeBlockCode>{codeContent}</CodeBlockCode>
-      </PFCodeBlock>
+      <>
+        {codeBlock}
+        {expandModal}
+      </>
     )
   }
 
   return (
-    <div
-      style={{
-        maxHeight: props.fillHeight ? 'none' : '24rem',
-        height: props.fillHeight ? '100%' : undefined,
-        overflowY: 'auto',
-        overflowX: 'hidden',
-      }}
-    >
-      <PFCodeBlock actions={copyAction}>
-        <CodeBlockCode>{codeContent}</CodeBlockCode>
-      </PFCodeBlock>
-    </div>
+    <>
+      <div
+        style={{
+          maxHeight: props.fillHeight ? 'none' : '24rem',
+          height: props.fillHeight ? '100%' : undefined,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+        }}
+      >
+        {codeBlock}
+      </div>
+      {expandModal}
+    </>
   )
 }

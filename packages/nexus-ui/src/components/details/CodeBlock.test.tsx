@@ -172,4 +172,77 @@ describe('CodeBlock', () => {
     const copyButton = screen.getByRole('button', { name: 'Copy to clipboard' })
     await expect(userEvent.click(copyButton)).resolves.toBeUndefined()
   })
+
+  describe('expand modal', () => {
+    it('does not render expand button by default', () => {
+      render(<CodeBlock>code</CodeBlock>)
+
+      expect(screen.queryByRole('button', { name: 'Expand code' })).not.toBeInTheDocument()
+    })
+
+    it('renders expand button when enableExpand is true', () => {
+      render(<CodeBlock enableExpand>code</CodeBlock>)
+
+      expect(screen.getByRole('button', { name: 'Expand code' })).toBeInTheDocument()
+    })
+
+    it('opens modal when expand button is clicked', async () => {
+      const user = userEvent.setup()
+      render(
+        <CodeBlock enableExpand expandTitle="Output JSON">
+          code content
+        </CodeBlock>
+      )
+
+      await user.click(screen.getByRole('button', { name: 'Expand code' }))
+
+      expect(screen.getByRole('dialog', { name: 'Output JSON' })).toBeInTheDocument()
+      expect(screen.getAllByText('code content').length).toBeGreaterThan(0)
+    })
+
+    it('closes modal when X button is clicked', async () => {
+      const user = userEvent.setup()
+      render(
+        <CodeBlock enableExpand expandTitle="Output JSON">
+          code content
+        </CodeBlock>
+      )
+
+      await user.click(screen.getByRole('button', { name: 'Expand code' }))
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: 'Close' }))
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+
+    it('shows copy button inside modal when enableCopy is true', async () => {
+      const user = userEvent.setup()
+      render(
+        <CodeBlock enableExpand enableCopy expandTitle="Output JSON">
+          code content
+        </CodeBlock>
+      )
+
+      await user.click(screen.getByRole('button', { name: 'Expand code' }))
+
+      const dialog = screen.getByRole('dialog')
+      expect(dialog).toBeInTheDocument()
+      // copy button is inside the modal's PFCodeBlock actions, not in a footer
+      const copyButtons = screen.getAllByRole('button', { name: 'Copy to clipboard' })
+      expect(copyButtons.length).toBeGreaterThan(0)
+    })
+
+    it('modal has no footer element', async () => {
+      const user = userEvent.setup()
+      const { container } = render(
+        <CodeBlock enableExpand expandTitle="Output JSON">
+          code
+        </CodeBlock>
+      )
+
+      await user.click(screen.getByRole('button', { name: 'Expand code' }))
+
+      expect(container.querySelector('.pf-v6-c-modal-box__footer')).not.toBeInTheDocument()
+    })
+  })
 })

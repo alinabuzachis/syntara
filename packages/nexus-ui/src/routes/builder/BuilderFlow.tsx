@@ -45,6 +45,7 @@ import { useButtonEdgeMaintenance } from './hooks/useButtonEdgeMaintenance'
 import { useConnectionHandlers } from './hooks/useConnectionHandlers'
 import { useEdgeActiveState } from './hooks/useEdgeActiveState'
 import { useEdgeSynchronization } from './hooks/useEdgeSynchronization'
+import { useExternalNodeSelection } from './hooks/useExternalNodeSelection'
 import { useLoopBackNodeTypes } from './hooks/useLoopBackNodeTypes'
 import { useNodeDeletion } from './hooks/useNodeDeletion'
 import { useNodePositioning } from './hooks/useNodePositioning'
@@ -90,6 +91,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     disableSpacePanning,
     newNodeDesiredPosition,
     onClearDesiredPosition,
+    selectedActivityId,
   } = props
 
   // Use typed selectors for optimized subscriptions
@@ -290,6 +292,8 @@ export function BuilderFlow(props: BuilderFlowProps) {
   const onNodesChange = useCallback((changes: NodeChange<NodeType>[]) => {
     setNodes((nds) => applyNodeChanges(changes, nds))
   }, [])
+
+  useExternalNodeSelection(selectedActivityId, setNodes)
 
   // Persist final drag positions to the Zustand store for undo/redo tracking.
   // This fires reliably for ALL node types when a drag completes.
@@ -604,7 +608,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
         onNodeDragStop={isExecutionView ? undefined : onNodeDragStop}
         onEdgesChange={onEdgesChange}
         onNodesDelete={isExecutionView ? undefined : onNodesDelete}
-        onNodeClick={isExecutionView ? undefined : onNodeClick}
+        onNodeClick={onNodeClick}
         onConnect={isExecutionView ? undefined : onConnect}
         onConnectStart={isExecutionView ? undefined : onConnectStart}
         onConnectEnd={isExecutionView ? undefined : onConnectEnd}

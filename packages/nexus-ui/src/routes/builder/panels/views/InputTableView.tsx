@@ -1,8 +1,11 @@
 import { Table, Thead, Tr, Th, Tbody, Td } from '@patternfly/react-table'
 import { useCallback, useMemo } from 'react'
 
+import { highlightText } from '../../../../utils/highlightText'
+
 export type InputTableViewProps = {
   data: Record<string, unknown> | Record<string, unknown>[] | null
+  searchTerm?: string
 }
 
 function toSafeString(value: unknown): string {
@@ -20,7 +23,7 @@ function buildRowKey(row: Record<string, unknown>, columns: string[]): string {
   return columns.map((col) => toSafeString(row[col])).join('|')
 }
 
-export function InputTableView({ data }: Readonly<InputTableViewProps>) {
+export function InputTableView({ data, searchTerm }: Readonly<InputTableViewProps>) {
   const { columns, rows } = useMemo(() => {
     if (!data) return { columns: [] as string[], rows: [] as Record<string, unknown>[] }
 
@@ -48,18 +51,21 @@ export function InputTableView({ data }: Readonly<InputTableViewProps>) {
       <Thead>
         <Tr>
           {columns.map((col) => (
-            <Th key={col}>{col}</Th>
+            <Th key={col}>{searchTerm ? highlightText(col, searchTerm) : col}</Th>
           ))}
         </Tr>
       </Thead>
       <Tbody>
         {rows.map((row, rowIndex) => (
           <Tr key={getRowKey(row, rowIndex)}>
-            {columns.map((col) => (
-              <Td key={col} dataLabel={col}>
-                {toSafeString(row[col])}
-              </Td>
-            ))}
+            {columns.map((col) => {
+              const text = toSafeString(row[col])
+              return (
+                <Td key={col} dataLabel={col}>
+                  {searchTerm ? highlightText(text, searchTerm) : text}
+                </Td>
+              )
+            })}
           </Tr>
         ))}
       </Tbody>

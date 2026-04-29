@@ -1,10 +1,10 @@
 import { act, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { ExecutionDetailsPanel, type WorkflowDefShape } from './ExecutionDetailsPanel'
 
 const WORKFLOW_DEF = {
-  triggers: [{ type: 'manual' }],
   workflow: {
     activities: [
       { id: 'task-1', name: 'Process data', type: 'task' },
@@ -71,31 +71,23 @@ describe('ExecutionDetailsPanel', () => {
 
       vi.useRealTimers()
     })
-
-    it('spans full width', () => {
-      const { container } = renderPanel(WORKFLOW_DEF)
-
-      expect(container.querySelector('[style*="width"]')).toHaveStyle({ width: '100%' })
-    })
   })
 
   describe('table rows', () => {
-    it('renders trigger, then activity names from workflow definition', () => {
+    it('renders activity names from workflow definition', () => {
       renderPanel(WORKFLOW_DEF)
 
-      expect(screen.getByText('Manual')).toBeInTheDocument()
       expect(screen.getByText('Process data')).toBeInTheDocument()
       expect(screen.getByText('Send notification')).toBeInTheDocument()
     })
 
-    it('renders a status label per trigger and activity (3 total)', () => {
+    it('renders a status label per activity', () => {
       renderPanel(WORKFLOW_DEF)
 
       const labels = screen.getAllByTestId('activity-status-label')
-      expect(labels).toHaveLength(3)
+      expect(labels).toHaveLength(2)
       expect(labels[0]).toHaveTextContent('completed')
-      expect(labels[1]).toHaveTextContent('completed')
-      expect(labels[2]).toHaveTextContent('running')
+      expect(labels[1]).toHaveTextContent('running')
     })
   })
 
@@ -105,6 +97,44 @@ describe('ExecutionDetailsPanel', () => {
 
       expect(screen.getByText('task-1')).toBeInTheDocument()
       expect(screen.getByText('task-2')).toBeInTheDocument()
+    })
+  })
+
+  describe('view mode toggle', () => {
+    it('renders Overview and Details tabs', () => {
+      renderPanel(WORKFLOW_DEF)
+
+      expect(screen.getByRole('tab', { name: 'Overview' })).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: 'Details' })).toBeInTheDocument()
+    })
+
+    it('defaults to Overview mode with activity table visible', () => {
+      renderPanel(WORKFLOW_DEF)
+
+      expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true')
+      expect(screen.getByRole('tab', { name: 'Details' })).toHaveAttribute('aria-selected', 'false')
+      expect(screen.getByText('Process data')).toBeInTheDocument()
+    })
+
+    it('switches to Details mode showing no-selection state', async () => {
+      const user = userEvent.setup()
+      renderPanel(WORKFLOW_DEF)
+
+      await user.click(screen.getByRole('tab', { name: 'Details' }))
+
+      expect(screen.getByRole('tab', { name: 'Details' })).toHaveAttribute('aria-selected', 'true')
+      expect(screen.getByText(/Select a step/)).toBeInTheDocument()
+    })
+
+    it('switches back to Overview mode', async () => {
+      const user = userEvent.setup()
+      renderPanel(WORKFLOW_DEF)
+
+      await user.click(screen.getByRole('tab', { name: 'Details' }))
+      await user.click(screen.getByRole('tab', { name: 'Overview' }))
+
+      expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true')
+      expect(screen.getByText('Process data')).toBeInTheDocument()
     })
   })
 })

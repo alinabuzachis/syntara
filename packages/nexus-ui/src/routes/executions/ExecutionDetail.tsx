@@ -1,15 +1,29 @@
 import type { ExecutionsAPI } from '@ansible/nexus-contracts'
-import { Button, Flex, FlexItem, Label, Stack, StackItem, Title, TitleSizes } from '@patternfly/react-core'
+import {
+  Alert,
+  AlertActionCloseButton,
+  Button,
+  Content,
+  ContentVariants,
+  Flex,
+  FlexItem,
+  Label,
+  Title,
+  TitleSizes,
+} from '@patternfly/react-core'
 import { useQueryClient } from '@tanstack/react-query'
+import type React from 'react'
 import '@xyflow/react/dist/style.css'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useParams, useSearch } from 'wouter'
 
 import { AppPage, AppPageMain } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { executionsClient } from '../../client'
+import { ALERT_WIDTH } from '../../components/alerts/alertConstants'
 import { AppPanel } from '../../components/AppPanel'
 import { ConnectionBanner } from '../../components/ConnectionBanner'
+import { ResizableDivider } from '../../components/ResizableDivider'
 import { ErrorState } from '../../components/states/ErrorState'
 import { LoadingState } from '../../components/states/LoadingState'
 import type { FilterConfig } from '../../types/filters'
@@ -23,6 +37,8 @@ import { RunHistoryToggleButton } from '../builder/RunHistoryToggleButton'
 import { WorkflowHistoryCard } from '../builder/WorkflowHistoryCard'
 import { useExecutionWebSocket } from '../workflows/hooks/useExecutionWebSocket'
 import { useExecutionStore } from '../workflows/stores/useExecutionStore'
+
+import { useExecutionNodeClick } from './hooks/useExecutionNodeClick'
 
 type Execution = ExecutionsAPI.components['schemas']['Execution']
 type ActivityData = ExecutionsAPI.components['schemas']['ActivityData']
@@ -53,6 +69,11 @@ function ExecutionDetailContent({
   setLocation,
   filters,
   onFilterChange,
+  onNodeClick,
+  selectedNodeId,
+  selectedNodeName,
+  onNodeSelect,
+  onDeselectNode,
 }: {
   historyCardOpen: boolean
   workflow?: ExecutionWorkflow
@@ -69,9 +90,28 @@ function ExecutionDetailContent({
   setLocation: (path: string) => void
   filters: FilterConfig[]
   onFilterChange: (filters: FilterConfig[]) => void
+  onNodeClick?: (event: React.MouseEvent, node: { id: string; type?: string; data: Record<string, unknown> }) => void
+  selectedNodeId: string | null
+  selectedNodeName: string | null
+  onNodeSelect: (nodeId: string, nodeName: string) => void
+  onDeselectNode: () => void
 }) {
   const isStale = useExecutionStore((state) => state.isStale)
   const isComplete = useExecutionStore((state) => state.isComplete)
+  const showFailureAlert = execution?.status === 'failed'
+  const [alertDismissed, setAlertDismissed] = useState(false)
+  const [panelHeight, setPanelHeight] = useState(300)
+
+  const MIN_PANEL_HEIGHT = 100
+  const MAX_PANEL_HEIGHT = 600
+
+  const handleResize = useCallback((deltaY: number) => {
+    setPanelHeight((prev) => Math.min(MAX_PANEL_HEIGHT, Math.max(MIN_PANEL_HEIGHT, prev - deltaY)))
+  }, [])
+
+  const panelHeightPercent = Math.round(
+    ((panelHeight - MIN_PANEL_HEIGHT) / (MAX_PANEL_HEIGHT - MIN_PANEL_HEIGHT)) * 100
+  )
 
   return (
     <Flex
@@ -114,31 +154,61 @@ function ExecutionDetailContent({
             </FlexItem>
           </Flex>
         )}
-        <Stack
-          style={{
-            height: '100%',
-            minHeight: 0,
-            gap: 'var(--pf-t--global--spacer--lg)',
-          }}
-        >
-          {/* Workflow Canvas - use ExecutionViewContent for read-only viewing */}
-          <AppPageMain>
+        {showFailureAlert && !alertDismissed && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 'var(--pf-t--global--spacer--md)',
+              right: 0,
+              zIndex: 10,
+              width: ALERT_WIDTH,
+            }}
+          >
+            {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- event-stopping layer to prevent clicks from propagating to canvas below */}
+            <div
+              style={{ pointerEvents: 'auto' }}
+              onMouseDown={(event) => event.stopPropagation()}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <Alert
+                variant="danger"
+                title={`${workflow?.name ?? 'Automation'} run failed`}
+                actionClose={<AlertActionCloseButton onClose={() => setAlertDismissed(true)} />}
+              >
+                <Content component={ContentVariants.p} style={{ margin: 0 }}>
+                  View the run logs and copy to the editor to debug within the editor
+                </Content>
+              </Alert>
+            </div>
+          </div>
+        )}
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+          {/* Workflow Canvas */}
+          <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
             <ExecutionViewContent
               workflow={workflow}
               executionStatus={execution?.status ?? null}
               executionActivities={activities}
               executionId={executionId}
+              onNodeClick={onNodeClick}
+              selectedActivityId={selectedNodeId}
             />
-          </AppPageMain>
+          </div>
+
+          <ResizableDivider onResize={handleResize} currentValue={panelHeightPercent} />
 
           {/* Execution Details Panel */}
-          <StackItem style={{ flexShrink: 0, height: '300px' }}>
+          <div style={{ height: `${String(panelHeight)}px`, flexShrink: 0, overflow: 'hidden' }}>
             <ExecutionDetailsPanel
               executionId={executionId}
               workflowDefinition={workflow?.version.workflow_definition}
+              selectedNodeId={selectedNodeId}
+              selectedNodeName={selectedNodeName}
+              onNodeSelect={onNodeSelect}
+              onDeselectNode={onDeselectNode}
             />
-          </StackItem>
-        </Stack>
+          </div>
+        </div>
       </FlexItem>
 
       {/* History Card Panel */}
@@ -293,6 +363,10 @@ export default function ExecutionDetail() {
     }
   }, [execution])
 
+  // Node click handling: approval detection + node details panel toggle
+  const { selectedNodeId, selectedNodeName, selectNode, deselectNode, handleNodeClick } =
+    useExecutionNodeClick(executionId)
+
   // Guard against missing executionId
   if (!executionId) {
     return (
@@ -314,7 +388,11 @@ export default function ExecutionDetail() {
         <AppPageHeader title="Error loading execution" />
         <AppPageMain>
           <AppPanel isFullHeight>
-            <ErrorState title="Error loading execution" message={executionQuery.error} />
+            <ErrorState
+              title="Error loading execution"
+              message={executionQuery.error}
+              onRetry={() => detachPromise(executionQuery.refetch())}
+            />
           </AppPanel>
         </AppPageMain>
       </AppPage>
@@ -386,6 +464,11 @@ export default function ExecutionDetail() {
           setLocation={setLocation}
           filters={executionFilters}
           onFilterChange={setExecutionFilters}
+          onNodeClick={handleNodeClick}
+          selectedNodeId={selectedNodeId}
+          selectedNodeName={selectedNodeName}
+          onNodeSelect={selectNode}
+          onDeselectNode={deselectNode}
         />
       </AppPageMain>
     </AppPage>

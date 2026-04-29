@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
-import { userEvent } from '@testing-library/user-event'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { executionsClient } from '../../client'
@@ -84,6 +84,15 @@ vi.mock('../../client', () => ({
       }
       return { data: null, isLoading: false, error: null }
     }),
+  },
+  approvalsClient: {
+    useQuery: vi.fn(() => ({
+      data: null,
+      isPending: false,
+      error: null,
+      isError: false,
+      refetch: vi.fn(),
+    })),
   },
 }))
 

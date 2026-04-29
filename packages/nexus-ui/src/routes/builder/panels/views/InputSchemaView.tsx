@@ -3,6 +3,7 @@ import { TreeView, type TreeViewDataItem } from '@patternfly/react-core'
 import { useCallback, useMemo } from 'react'
 
 import { buildExpression } from '../../../../utils/expressions/templateBuilder'
+import { highlightText } from '../../../../utils/highlightText'
 import { CopyExpressionAction, DraggableTreeLeaf } from '../components/DraggableTreeLeaf'
 import { DRAG_TYPE_FIELD, type FieldDragData } from '../utils/dragTypes'
 import { getTypeLabelFromValue } from '../utils/typeLabels'
@@ -10,6 +11,7 @@ import { getTypeLabelFromValue } from '../utils/typeLabels'
 export type InputSchemaViewProps = {
   data: Record<string, unknown> | null
   nodeId: string
+  searchTerm?: string
 }
 
 function isExpandable(value: unknown): value is Record<string, unknown> {
@@ -24,7 +26,12 @@ function formatLeafValue(value: unknown): string {
   return String(value)
 }
 
-function buildTreeData(data: Record<string, unknown>, nodeId: string, parentPath: string[] = []): TreeViewDataItem[] {
+function buildTreeData(
+  data: Record<string, unknown>,
+  nodeId: string,
+  parentPath: string[] = [],
+  searchTerm?: string
+): TreeViewDataItem[] {
   return Object.entries(data).map(([key, value]) => {
     const currentPath = [...parentPath, key]
     const typeLabel = getTypeLabelFromValue(value)
@@ -34,12 +41,12 @@ function buildTreeData(data: Record<string, unknown>, nodeId: string, parentPath
         id: currentPath.join('.'),
         name: (
           <Label isCompact color="grey">
-            {typeLabel} {key}
+            {typeLabel} {searchTerm ? highlightText(key, searchTerm) : key}
           </Label>
         ),
         defaultExpanded: true,
         hasBadge: false,
-        children: buildTreeData(value, nodeId, currentPath),
+        children: buildTreeData(value, nodeId, currentPath, searchTerm),
       }
     }
 
@@ -47,7 +54,16 @@ function buildTreeData(data: Record<string, unknown>, nodeId: string, parentPath
     const expression = buildExpression({ nodeId, fieldPath: currentPath })
     return {
       id: pathKey,
-      name: <LeafNode fieldKey={key} value={value} typeLabel={typeLabel} nodeId={nodeId} pathKey={pathKey} />,
+      name: (
+        <LeafNode
+          fieldKey={key}
+          value={value}
+          typeLabel={typeLabel}
+          nodeId={nodeId}
+          pathKey={pathKey}
+          searchTerm={searchTerm}
+        />
+      ),
       action: <CopyExpressionAction expressionText={expression} />,
       hasBadge: false,
     }
@@ -60,9 +76,10 @@ type LeafNodeProps = {
   typeLabel: string
   nodeId: string
   pathKey: string
+  searchTerm?: string
 }
 
-function LeafNode({ fieldKey, value, typeLabel, nodeId, pathKey }: Readonly<LeafNodeProps>) {
+function LeafNode({ fieldKey, value, typeLabel, nodeId, pathKey, searchTerm }: Readonly<LeafNodeProps>) {
   const fieldPath = useMemo(() => pathKey.split('.'), [pathKey])
   const expression = useMemo(() => buildExpression({ nodeId, fieldPath }), [nodeId, fieldPath])
 
@@ -80,22 +97,25 @@ function LeafNode({ fieldKey, value, typeLabel, nodeId, pathKey }: Readonly<Leaf
     [nodeId, fieldPath, expression]
   )
 
+  const label = `${typeLabel} ${fieldKey}`
+  const secondary = formatLeafValue(value)
+
   return (
     <DraggableTreeLeaf
-      label={`${typeLabel} ${fieldKey}`}
-      secondaryText={formatLeafValue(value)}
+      label={searchTerm ? highlightText(label, searchTerm) : label}
+      secondaryText={searchTerm ? highlightText(secondary, searchTerm) : secondary}
       onDragStart={handleDragStart}
     />
   )
 }
 
-export function InputSchemaView({ data, nodeId }: Readonly<InputSchemaViewProps>) {
+export function InputSchemaView({ data, nodeId, searchTerm }: Readonly<InputSchemaViewProps>) {
   const treeData = useMemo(() => {
     if (!data) return []
-    return buildTreeData(data, nodeId)
-  }, [data, nodeId])
+    return buildTreeData(data, nodeId, [], searchTerm)
+  }, [data, nodeId, searchTerm])
 
-  if (!data) {
+  if (!data || treeData.length === 0) {
     return null
   }
 

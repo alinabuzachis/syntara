@@ -1,5 +1,6 @@
 import { Button, Label, Tooltip } from '@patternfly/react-core'
 import { CopyIcon } from '@patternfly/react-icons'
+import type { ReactNode } from 'react'
 import { useCallback, useRef, useState } from 'react'
 
 import { useCopyToClipboard } from '../../../../hooks/useCopyToClipboard'
@@ -7,8 +8,17 @@ import { useCopyToClipboard } from '../../../../hooks/useCopyToClipboard'
 import styles from './DraggableTreeLeaf.module.css'
 
 type DraggableTreeLeafProps = {
-  label: string
-  secondaryText?: string
+  /**
+   * Label text or ReactNode. Accepts ReactNode to support search highlighting
+   * (e.g., text wrapped in `<mark>` elements). When dragging or copying, the
+   * text content is extracted from the ReactNode.
+   */
+  label: ReactNode
+  /**
+   * Optional secondary text or ReactNode. Accepts ReactNode to support search
+   * highlighting, similar to `label`.
+   */
+  secondaryText?: ReactNode
   onDragStart: (e: React.DragEvent) => void
 }
 

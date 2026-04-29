@@ -62,8 +62,14 @@ describe('InputSchemaView', () => {
     expect(screen.getByText('Portland')).toBeInTheDocument()
   })
 
-  it('handles empty data by rendering nothing', () => {
+  it('handles null data by rendering nothing', () => {
     render(<InputSchemaView data={null} nodeId="http_request_1" />)
+
+    expect(screen.queryByRole('tree', { name: 'Input schema' })).not.toBeInTheDocument()
+  })
+
+  it('handles empty object data by rendering nothing', () => {
+    render(<InputSchemaView data={{}} nodeId="http_request_1" />)
 
     expect(screen.queryByRole('tree', { name: 'Input schema' })).not.toBeInTheDocument()
   })
@@ -141,6 +147,13 @@ describe('InputSchemaView', () => {
 
   it('has no accessibility violations with null data', async () => {
     const { container } = render(<InputSchemaView data={null} nodeId="http_request_1" />)
+
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
+
+  it('has no accessibility violations with empty object data', async () => {
+    const { container } = render(<InputSchemaView data={{}} nodeId="http_request_1" />)
 
     const results = await axe(container)
     expect(results).toHaveNoViolations()

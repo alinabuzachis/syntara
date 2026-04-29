@@ -33,7 +33,7 @@ const statusIcons: Record<ExecutionStatus, React.ComponentType<{ className?: str
   cancelled: RhUiStopCircleFillIcon,
 }
 
-export function StatusLabel({ status }: { status: ExecutionStatus }) {
+export function StatusLabel({ status }: Readonly<{ status: ExecutionStatus }>) {
   const IconComponent = statusIcons[status]
   const capitalizedStatus = status.charAt(0).toUpperCase() + status.slice(1)
 
@@ -74,11 +74,14 @@ const activityStatusDisplayLabels: Record<ActivityStatus, string> = {
   cancelled: 'Cancelled',
 }
 
-export function ActivityStatusLabel({ status }: { status: ActivityStatus }) {
-  const IconComponent = activityStatusIcons[status]
+export function ActivityStatusLabel({ status }: Readonly<{ status: ActivityStatus }>) {
+  const IconComponent = activityStatusIcons[status] ?? RhUiEllipsisHorizontalFillIcon
+  const variant = activityStatusVariant[status] ?? 'custom'
+  const displayLabel = activityStatusDisplayLabels[status] ?? status.charAt(0).toUpperCase() + status.slice(1)
+
   return (
-    <Label variant="outline" status={activityStatusVariant[status]} icon={<IconComponent />}>
-      {activityStatusDisplayLabels[status]}
+    <Label variant="outline" status={variant} icon={<IconComponent />}>
+      {displayLabel}
     </Label>
   )
 }
