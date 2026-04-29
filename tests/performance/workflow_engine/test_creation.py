@@ -14,13 +14,13 @@ Run with:
 
 from __future__ import annotations
 
-import time
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
 from nexus_api_client.models.workflow_create import WorkflowCreate
 
+from tests.performance.conftest import poll_for_component_kpis, poll_for_metric_records
 from tests.performance.workflow_engine.conftest import (
     SIMPLE_WORKFLOW_DEFINITION,
 )
@@ -49,7 +49,6 @@ class TestSequentialWorkflowCreation:
         perf_test_mode_enabled: None,
     ) -> None:
         nexus_api.internal_metrics.reset_store().assert_successful()
-        time.sleep(0.5)
 
     def test_sequential_creation_success_rate(
         self,
@@ -84,12 +83,7 @@ class TestSequentialWorkflowCreation:
         successes = total - failures
         client_success_rate = successes / total
 
-        time.sleep(1)
-        kpis_response = nexus_api.internal_metrics.get_component_kpis(
-            component="workflow_engine",
-        )
-        kpis_response.assert_successful()
-        kpis = kpis_response.parsed.to_dict() if kpis_response.parsed is not None else {}
+        kpis = poll_for_component_kpis(nexus_api.internal_metrics, "workflow_engine")
         server_success_rate = kpis.get("metrics", {}).get("creation_success_rate", 0)
 
         diag = (
@@ -144,7 +138,6 @@ class TestDuplicateNameFailureCategorization:
         perf_test_mode_enabled: None,
     ) -> None:
         nexus_api.internal_metrics.reset_store().assert_successful()
-        time.sleep(0.5)
 
     def test_duplicate_name_returns_conflict(
         self,
@@ -212,13 +205,7 @@ class TestDuplicateNameFailureCategorization:
                 ),
             )
 
-            time.sleep(1)
-
-            records_response = nexus_api.internal_metrics.get_records(
-                metric_type="workflow_status",
-            )
-            records_response.assert_successful()
-            records = records_response.parsed.to_dict() if records_response.parsed is not None else {}
+            records = poll_for_metric_records(nexus_api.internal_metrics, "workflow_status")
 
             if records.get("total", 0) > 0:
                 for record in records.get("records", []):

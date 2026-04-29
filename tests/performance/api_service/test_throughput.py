@@ -16,6 +16,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from tests.performance.conftest import poll_for_component_kpis
+
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
 
@@ -106,7 +108,6 @@ class TestThroughputRamp:
         perf_test_mode_enabled: None,
     ) -> None:
         nexus_api.internal_metrics.reset_store().assert_successful()
-        time.sleep(0.5)
 
     def test_throughput_ramp_meets_targets(
         self,
@@ -139,10 +140,7 @@ class TestThroughputRamp:
         sustained_steps = per_step_rps[len(per_step_rps) // 2 :]
         sustained_rps = sum(sustained_steps) / len(sustained_steps) if sustained_steps else 0.0
 
-        time.sleep(1)
-        kpis_response = nexus_api.internal_metrics.get_component_kpis(component="api_service")
-        kpis_response.assert_successful()
-        kpis = kpis_response.parsed.to_dict() if kpis_response.parsed is not None else {}
+        kpis = poll_for_component_kpis(nexus_api.internal_metrics, "api_service")
         server_total = kpis.get("metrics", {}).get("total_requests", 0)
 
         error_rate = total_errors / total_requests if total_requests else 1.0

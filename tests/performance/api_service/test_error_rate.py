@@ -23,7 +23,7 @@ import pytest
 from nexus_api_client.models.workflow_create import WorkflowCreate
 from nexus_api_client.models.workflow_update import WorkflowUpdate
 
-from tests.performance.conftest import SIMPLE_WORKFLOW_DEFINITION
+from tests.performance.conftest import SIMPLE_WORKFLOW_DEFINITION, poll_for_metric_records
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -183,7 +183,6 @@ class TestMixedCrudErrorRate:
         perf_test_mode_enabled: None,
     ) -> None:
         nexus_api.internal_metrics.reset_store().assert_successful()
-        time.sleep(0.5)
 
     def test_mixed_crud_error_rate_under_target(
         self,
@@ -253,7 +252,6 @@ class TestErrorClassification:
         perf_test_mode_enabled: None,
     ) -> None:
         nexus_api.internal_metrics.reset_store().assert_successful()
-        time.sleep(0.5)
 
     def test_invalid_payload_returns_422(
         self,
@@ -312,11 +310,7 @@ class TestErrorClassification:
         http.post("/workflows", json={"bad": "payload"})
         nexus_api.workflows.get(workflow_id=uuid4())
 
-        time.sleep(1)
-
-        records_response = nexus_api.internal_metrics.get_records(metric_type="error")
-        records_response.assert_successful()
-        records = records_response.parsed.to_dict() if records_response.parsed is not None else {}
+        records = poll_for_metric_records(nexus_api.internal_metrics, "error")
 
         if records.get("total", 0) > 0:
             for record in records.get("records", []):

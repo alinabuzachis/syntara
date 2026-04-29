@@ -16,7 +16,6 @@ Run with:
 
 from __future__ import annotations
 
-import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING, Any
 
@@ -24,14 +23,12 @@ import pytest
 
 from tests.performance.conftest import (
     create_perf_test_workflow,
+    poll_for_component_kpis,
     scrape_prometheus_metric,
     submit_execution,
 )
 from tests.performance.temporal_worker.conftest import (
-    POLL_INTERVAL_SECONDS,
-    POLL_TIMEOUT_SECONDS,
     SLOW_WORKFLOW_DEFINITION,
-    get_temporal_worker_kpis,
 )
 
 if TYPE_CHECKING:
@@ -50,20 +47,13 @@ SATURATION_EXECUTION_COUNT = 120
 SATURATION_WORKERS = 30
 
 
-def _poll_until_queue_depth_recorded(
+def _poll_for_queue_depth_stats(
     nexus_api: NexusApiRegistry,
 ) -> dict[str, Any]:
-    """Poll temporal_worker KPIs until at least one queue_depth sample exists."""
-    deadline = time.monotonic() + POLL_TIMEOUT_SECONDS
-
-    while time.monotonic() < deadline:
-        time.sleep(POLL_INTERVAL_SECONDS)
-        metrics = get_temporal_worker_kpis(nexus_api)
-        qd = metrics.get("queue_depth", {})
-        if isinstance(qd, dict) and qd.get("count", 0) > 0:
-            return qd
-
-    return {}
+    """Poll temporal_worker KPIs until queue_depth stats appear."""
+    kpis = poll_for_component_kpis(nexus_api.internal_metrics, "temporal_worker")
+    qd = kpis.get("metrics", {}).get("queue_depth", {})
+    return qd if isinstance(qd, dict) else {}
 
 
 def _submit_executions_concurrently(
@@ -133,7 +123,7 @@ class TestQueueDepth:
             f"No workflow executions were accepted (failures={failures}/{NORMAL_LOAD_EXECUTION_COUNT})"
         )
 
-        queue_depth_stats = _poll_until_queue_depth_recorded(nexus_api)
+        queue_depth_stats = _poll_for_queue_depth_stats(nexus_api)
 
         assert queue_depth_stats.get("count", 0) > 0, (
             f"No queue_depth metrics recorded after {successes} accepted executions — "
@@ -149,7 +139,6 @@ class TestQueueDepth:
             f"(p95={server_p95}, count={queue_depth_stats.get('count')})"
         )
 
-        # -- Verify sufficient submission success rate --
         avg_submission = sum(submission_times) / len(submission_times) if submission_times else 0
         assert successes >= NORMAL_LOAD_EXECUTION_COUNT * 0.9, (
             f"Too many submission failures: {successes}/{NORMAL_LOAD_EXECUTION_COUNT} "
@@ -239,7 +228,7 @@ class TestQueueDepthUnderSaturation:
 
         assert total_accepted > 0, f"No executions were accepted ({SATURATION_EXECUTION_COUNT} submitted)"
 
-        queue_depth_stats = _poll_until_queue_depth_recorded(nexus_api)
+        queue_depth_stats = _poll_for_queue_depth_stats(nexus_api)
 
         assert queue_depth_stats.get("count", 0) > 0, (
             f"No queue_depth metrics recorded after {total_accepted} accepted executions — "

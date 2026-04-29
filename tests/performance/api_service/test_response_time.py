@@ -23,6 +23,7 @@ import pytest
 
 from tests.performance.conftest import (
     compute_percentile,
+    poll_for_component_kpis,
 )
 
 if TYPE_CHECKING:
@@ -52,7 +53,6 @@ class TestSustainedGetResponseTime:
         perf_test_mode_enabled: None,
     ) -> None:
         nexus_api.internal_metrics.reset_store().assert_successful()
-        time.sleep(0.5)
 
     def test_sustained_get_p95_under_target(
         self,
@@ -127,7 +127,6 @@ class TestConcurrentInvocationsResponseTime:
         perf_test_mode_enabled: None,
     ) -> None:
         nexus_api.internal_metrics.reset_store().assert_successful()
-        time.sleep(0.5)
 
     @staticmethod
     def _create_invocation(
@@ -186,10 +185,7 @@ class TestConcurrentInvocationsResponseTime:
             f"(p95={client_p95:.1f}ms, server_errors={server_errors}/{CONCURRENT_INVOCATIONS})"
         )
 
-        time.sleep(1)
-        kpis_response = nexus_api.internal_metrics.get_component_kpis(component="api_service")
-        kpis_response.assert_successful()
-        kpis = kpis_response.parsed.to_dict() if kpis_response.parsed is not None else {}
+        kpis = poll_for_component_kpis(nexus_api.internal_metrics, "api_service")
         server_metrics = kpis.get("metrics", {}).get("response_time_ms", {})
         if server_metrics.get("count", 0) > 0:
             server_p99 = server_metrics.get("p99", 0)

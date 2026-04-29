@@ -209,11 +209,35 @@ def nexus_client(nexus_base_url: str) -> "AuthenticatedClient":
 
 
 @pytest.fixture(scope="session")
-def nexus_api(nexus_client: "AuthenticatedClient") -> "NexusApiRegistry":
-    """Return a NexusApiRegistry bound to the authenticated client."""
-    from nexus_api_client.api import NexusApiRegistry
+def nexus_api(nexus_base_url: str, nexus_client: "AuthenticatedClient") -> "NexusApiRegistry":
+    """Return a NexusApiRegistry with internal_metrics wired to the root URL.
 
-    return NexusApiRegistry(nexus_client)
+    The ``nexus_client`` has ``base_url=…/api/v1`` so regular API endpoints
+    (``/workflows``, ``/executions``, …) resolve correctly.  However the
+    generated ``InternalMetricsApi`` uses paths like
+    ``/_internal/metrics/summary`` which must resolve against the
+    **deployment root**, not ``/api/v1`` (httpx concatenates relative paths,
+    so ``/api/v1`` + ``/_internal/metrics/summary`` →
+    ``/api/v1/_internal/metrics/summary`` which 404s).
+
+    This builds the registry normally, then replaces its ``internal_metrics``
+    cached_property with an instance backed by a root-level client that
+    shares the same auth token.
+    """
+    from nexus_api_client import AuthenticatedClient
+    from nexus_api_client.api import NexusApiRegistry
+    from nexus_api_client.api.internal_metrics import InternalMetricsApi
+
+    registry = NexusApiRegistry(nexus_client)
+
+    root_client = AuthenticatedClient(
+        base_url=nexus_base_url,
+        token=nexus_client.token,
+        verify_ssl=False,
+    )
+    registry.__dict__["internal_metrics"] = InternalMetricsApi(client=root_client)
+
+    return registry
 
 
 # ============================================================================

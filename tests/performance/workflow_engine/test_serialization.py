@@ -22,7 +22,7 @@ from uuid import uuid4
 import pytest
 from nexus_api_client.models.workflow_create import WorkflowCreate
 
-from tests.performance.conftest import compute_percentile
+from tests.performance.conftest import compute_percentile, poll_for_component_kpis
 from tests.performance.workflow_engine.conftest import (
     build_workflow_definition,
 )
@@ -54,7 +54,6 @@ class TestSerializationPerformance:
         perf_test_mode_enabled: None,
     ) -> None:
         nexus_api.internal_metrics.reset_store().assert_successful()
-        time.sleep(0.5)
 
     def test_varying_complexity_serialization_p95(
         self,
@@ -88,13 +87,7 @@ class TestSerializationPerformance:
 
                 client_times_by_complexity[num_nodes] = times
 
-            time.sleep(1)
-
-            kpis_response = nexus_api.internal_metrics.get_component_kpis(
-                component="workflow_engine",
-            )
-            kpis_response.assert_successful()
-            kpis = kpis_response.parsed.to_dict() if kpis_response.parsed is not None else {}
+            kpis = poll_for_component_kpis(nexus_api.internal_metrics, "workflow_engine")
             server_serialization = kpis.get("metrics", {}).get(
                 "serialization_duration_ms",
                 {},
@@ -146,7 +139,6 @@ class TestBulkCreationSerialization:
         perf_test_mode_enabled: None,
     ) -> None:
         nexus_api.internal_metrics.reset_store().assert_successful()
-        time.sleep(0.5)
 
     @staticmethod
     def _create_workflow(
@@ -200,13 +192,7 @@ class TestBulkCreationSerialization:
             client_p95 = compute_percentile(response_times, 95)
             successes = sum(1 for s in status_codes if 200 <= s < 300)
 
-            time.sleep(1)
-
-            kpis_response = nexus_api.internal_metrics.get_component_kpis(
-                component="workflow_engine",
-            )
-            kpis_response.assert_successful()
-            kpis = kpis_response.parsed.to_dict() if kpis_response.parsed is not None else {}
+            kpis = poll_for_component_kpis(nexus_api.internal_metrics, "workflow_engine")
             server_serialization = kpis.get("metrics", {}).get(
                 "serialization_duration_ms",
                 {},

@@ -29,8 +29,12 @@ import pytest
 
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
+    from nexus_api_client.api.internal_metrics import InternalMetricsApi
 
 pytestmark = pytest.mark.performance
+
+METRICS_POLL_INTERVAL = 0.5
+METRICS_POLL_TIMEOUT = 10.0
 
 
 # ---------------------------------------------------------------------------
@@ -83,6 +87,55 @@ def compute_percentile(values: list[float], percentile: float) -> float:
     if c >= n:
         return sorted_vals[-1]
     return sorted_vals[f] + (k - f) * (sorted_vals[c] - sorted_vals[f])
+
+
+def poll_for_component_kpis(
+    internal_metrics: InternalMetricsApi,
+    component: str,
+    *,
+    timeout: float = METRICS_POLL_TIMEOUT,
+    interval: float = METRICS_POLL_INTERVAL,
+) -> dict[str, Any]:
+    """Poll component KPIs until metrics appear or timeout is reached.
+
+    Returns the parsed KPI dict (may be empty if the server never
+    populates the component's metrics within the timeout window).
+    """
+    deadline = time.monotonic() + timeout
+    kpis: dict[str, Any] = {}
+
+    while time.monotonic() < deadline:
+        r = internal_metrics.get_component_kpis(component=component)
+        r.assert_successful()
+        kpis = r.parsed.to_dict() if r.parsed is not None else {}
+        if kpis.get("metrics"):
+            return kpis
+        time.sleep(interval)
+
+    return kpis
+
+
+def poll_for_metric_records(
+    internal_metrics: InternalMetricsApi,
+    metric_type: str,
+    *,
+    limit: int = 100,
+    timeout: float = METRICS_POLL_TIMEOUT,
+    interval: float = METRICS_POLL_INTERVAL,
+) -> dict[str, Any]:
+    """Poll metric records until at least one appears or timeout is reached."""
+    deadline = time.monotonic() + timeout
+    records: dict[str, Any] = {}
+
+    while time.monotonic() < deadline:
+        r = internal_metrics.get_records(metric_type=metric_type, limit=limit)
+        r.assert_successful()
+        records = r.parsed.to_dict() if r.parsed is not None else {}
+        if records.get("total", 0) > 0:
+            return records
+        time.sleep(interval)
+
+    return records
 
 
 def create_perf_test_workflow(

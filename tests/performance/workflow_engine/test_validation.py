@@ -17,7 +17,7 @@ from uuid import uuid4
 import pytest
 from nexus_api_client.models.workflow_create import WorkflowCreate
 
-from tests.performance.conftest import compute_percentile
+from tests.performance.conftest import compute_percentile, poll_for_component_kpis
 from tests.performance.workflow_engine.conftest import build_workflow_definition
 
 if TYPE_CHECKING:
@@ -116,7 +116,6 @@ class TestValidationPerformance:
         perf_test_mode_enabled: None,
     ) -> None:
         nexus_api.internal_metrics.reset_store().assert_successful()
-        time.sleep(0.5)
 
     def test_validation_with_mixed_definitions_p95(
         self,
@@ -178,13 +177,7 @@ class TestValidationPerformance:
                 if not r.is_success:
                     invalid_rejections += 1
 
-            time.sleep(1)
-
-            kpis_response = nexus_api.internal_metrics.get_component_kpis(
-                component="workflow_engine",
-            )
-            kpis_response.assert_successful()
-            kpis = kpis_response.parsed.to_dict() if kpis_response.parsed is not None else {}
+            kpis = poll_for_component_kpis(nexus_api.internal_metrics, "workflow_engine")
             server_validation = kpis.get("metrics", {}).get(
                 "validation_duration_ms",
                 {},
