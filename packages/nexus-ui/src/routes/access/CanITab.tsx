@@ -2,20 +2,27 @@ import { Stack, StackItem, Tab, Tabs, TabTitleText } from '@patternfly/react-cor
 
 import { AppPageMain } from '../../app/AppPage'
 import { AppRoute } from '../../app/AppRoute'
+import { useQueryState } from '../../components/states/useQueryState'
 import { useDetailTab } from '../../hooks/useDetailTab'
+import { detachPromise } from '../../utils/detachPromise'
 
 import { CheckAccessView } from './CheckAccessView'
 import { MyPermissionsView } from './MyPermissionsView'
-import { useAllPolicies } from './useAllPolicies'
 import { useCanQueryAuthz } from './useCanQueryAuthz'
+import { useResourceActions } from './useResourceActions'
 import { WhoCanView } from './WhoCanView'
 
 export function CanITab() {
   type CanIMode = 'check' | 'who-can' | 'my-permissions'
   const [mode, goToMode] = useDetailTab<CanIMode>(AppRoute.AccessManagement.CanI, 'check')
 
-  const { policies } = useAllPolicies()
+  const { resourceTypes, actionsByResource, isLoading, error, refetch } = useResourceActions()
   const canQueryAuthz = useCanQueryAuthz()
+
+  const resourceActionsQueryState = useQueryState(
+    { isPending: isLoading, error },
+    { title: 'Error loading resource actions', onRetry: () => detachPromise(refetch()) }
+  )
 
   return (
     <Stack hasGutter style={{ height: '100%' }}>
@@ -47,9 +54,18 @@ export function CanITab() {
       </StackItem>
 
       <AppPageMain style={{ overflow: 'auto' }}>
-        {mode === 'check' && <CheckAccessView policies={policies} />}
-        {mode === 'who-can' && canQueryAuthz && <WhoCanView policies={policies} />}
         {mode === 'my-permissions' && <MyPermissionsView />}
+        {mode !== 'my-permissions' &&
+          (resourceActionsQueryState ?? (
+            <>
+              {mode === 'check' && (
+                <CheckAccessView resourceTypes={resourceTypes} actionsByResource={actionsByResource} />
+              )}
+              {mode === 'who-can' && canQueryAuthz && (
+                <WhoCanView resourceTypes={resourceTypes} actionsByResource={actionsByResource} />
+              )}
+            </>
+          ))}
       </AppPageMain>
     </Stack>
   )

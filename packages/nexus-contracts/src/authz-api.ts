@@ -64,6 +64,26 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/authz/resource-actions': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List available resource types and actions
+     * @description Returns the catalog of all resource types and the actions that can be performed on each.
+     */
+    get: operations['get_resource_actions']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/authz/validate-name': {
     parameters: {
       query?: never
@@ -257,6 +277,19 @@ export interface components {
     WhatCanIResponse: {
       /** Permissions */
       permissions: components['schemas']['PermissionEntry'][]
+    }
+    /**
+     * Resource Actions Response
+     * @description Available resource types and their valid actions.
+     */
+    ResourceActionsResponse: {
+      /**
+       * Resource Actions
+       * @description Map of resource types to their valid actions
+       */
+      resource_actions: {
+        [key: string]: string[]
+      }
     }
     /**
      * ValidateNameResponse
@@ -563,6 +596,28 @@ export interface operations {
       404: components['responses']['NotFoundError']
       409: components['responses']['ConflictError']
       422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  get_resource_actions: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Map of resource types to their valid actions */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ResourceActionsResponse']
+        }
+      }
+      401: components['responses']['UnauthorizedError']
       500: components['responses']['InternalServerError']
     }
   }

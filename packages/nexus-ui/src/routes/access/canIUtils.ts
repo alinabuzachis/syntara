@@ -1,38 +1,6 @@
-import type { PolicyRead } from './types'
-
 export type ResourceActionMap = {
   resourceTypes: string[]
   actionsByResource: Map<string, string[]>
-}
-
-export function buildResourceActionMap(policies: PolicyRead[]): ResourceActionMap {
-  const actionsByResource = new Map<string, Set<string>>()
-
-  for (const policy of policies) {
-    for (const stmt of policy.statements ?? []) {
-      for (const actionStr of stmt.actions ?? []) {
-        if (!actionStr.includes(':')) continue
-        const [rtype, action] = actionStr.split(':', 2)
-        if (!actionsByResource.has(rtype)) {
-          actionsByResource.set(rtype, new Set())
-        }
-        actionsByResource.get(rtype)!.add(action)
-      }
-    }
-  }
-
-  const sorted = new Map<string, string[]>()
-  for (const [rtype, actions] of [...actionsByResource.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
-    sorted.set(
-      rtype,
-      [...actions].sort((a, b) => a.localeCompare(b))
-    )
-  }
-
-  return {
-    resourceTypes: [...sorted.keys()],
-    actionsByResource: sorted,
-  }
 }
 
 /** Maps resource types to their list endpoints and display field.

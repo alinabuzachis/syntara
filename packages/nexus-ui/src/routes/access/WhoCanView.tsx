@@ -25,10 +25,10 @@ import { ErrorState } from '../../components/states/ErrorState'
 import { getErrorMessage } from '../../utils/apiErrors'
 
 import { accessClient } from './accessClient'
-import { buildResourceActionMap } from './canIUtils'
+import type { ResourceActionMap } from './canIUtils'
 import { ResourceIdSelect } from './ResourceIdSelect'
 import { TypeaheadSelect } from './TypeaheadSelect'
-import type { PolicyRead, WhoCanUser } from './types'
+import type { WhoCanUser } from './types'
 
 const whoCanSchema = z.object({
   resourceType: z.string().min(1, 'Resource type is required'),
@@ -133,7 +133,7 @@ function WhoCanResults({
   )
 }
 
-export function WhoCanView({ policies }: Readonly<{ policies: PolicyRead[] }>) {
+export function WhoCanView({ resourceTypes, actionsByResource }: Readonly<ResourceActionMap>) {
   const projectsQuery = accessClient.useQuery('get', '/projects')
   const projects = projectsQuery.data ?? []
 
@@ -146,7 +146,6 @@ export function WhoCanView({ policies }: Readonly<{ policies: PolicyRead[] }>) {
   const action = watch('action')
   const project = watch('project')
 
-  const { resourceTypes, actionsByResource } = useMemo(() => buildResourceActionMap(policies), [policies])
   const availableActions = useMemo(
     () => (resourceType ? (actionsByResource.get(resourceType) ?? []) : []),
     [resourceType, actionsByResource]

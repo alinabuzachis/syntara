@@ -23,10 +23,6 @@ vi.mock('../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
 }))
 
-vi.mock('../access/useAllPolicies', () => ({
-  useAllPolicies: vi.fn().mockReturnValue({ policies: [], isLoading: false, error: null }),
-}))
-
 vi.mock('../access/useAllRoles', () => ({
   useAllRoles: vi.fn().mockReturnValue({ roles: [], isLoading: false, error: null }),
 }))

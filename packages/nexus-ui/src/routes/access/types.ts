@@ -67,6 +67,8 @@ export type PermissionEntry = AuthzAPI.components['schemas']['PermissionEntry']
 
 export type WhatCanIResponse = AuthzAPI.components['schemas']['WhatCanIResponse']
 
+export type ResourceActionsResponse = AuthzAPI.components['schemas']['ResourceActionsResponse']
+
 // ── Unified permission row for the Access Management table ───────────────
 
 export type PermissionRow = {

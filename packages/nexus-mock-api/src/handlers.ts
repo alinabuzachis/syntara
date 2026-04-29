@@ -2885,6 +2885,27 @@ export const handlers = [
     return HttpResponse.json({ count: filtered.length, results: filtered })
   }),
 
+  http.get('/api/v1/authz/resource-actions', () => {
+    return HttpResponse.json({
+      resource_actions: {
+        approval: ['create', 'decide', 'read'],
+        audit: ['read'],
+        authz: ['query'],
+        credential: ['create', 'delete', 'read', 'update'],
+        execution: ['read', 'run'],
+        group: ['create', 'delete', 'manage-members', 'read', 'update'],
+        'identity-provider': ['create', 'delete', 'read', 'test', 'update'],
+        policy: ['create', 'delete', 'read', 'update'],
+        project: ['create', 'delete', 'read', 'update'],
+        role: ['create', 'delete', 'read', 'update'],
+        'role-assignment': ['assign', 'read', 'revoke'],
+        setting: ['read', 'write'],
+        user: ['create', 'delete', 'read', 'update'],
+        workflow: ['create', 'delete', 'read', 'update'],
+      },
+    })
+  }),
+
   http.get('*/aap/instance-groups', ({ request }) => {
     const url = new URL(request.url)
     const credentialId = url.searchParams.get('credential_id')

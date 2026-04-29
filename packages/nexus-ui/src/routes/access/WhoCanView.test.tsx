@@ -6,7 +6,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { accessClient } from './accessClient'
-import type { PolicyRead } from './types'
+import type { ResourceActionMap } from './canIUtils'
 import { WhoCanView } from './WhoCanView'
 
 const { mockMutate } = vi.hoisted(() => ({
@@ -44,20 +44,13 @@ vi.mock('./accessClient', () => ({
   },
 }))
 
-const samplePolicies: PolicyRead[] = [
-  {
-    id: 'p1',
-    name: 'admin-policy',
-    description: 'Full access',
-    statements: [{ scope: 'any', effect: 'allow', actions: ['workflow:read', 'workflow:write', 'project:read'] }],
-    is_builtin: true,
-    is_system_scoped: true,
-    project_id: null,
-    labels: {},
-    created_at: null,
-    updated_at: null,
-  },
-]
+const sampleResourceActions: ResourceActionMap = {
+  resourceTypes: ['project', 'workflow'],
+  actionsByResource: new Map([
+    ['project', ['read']],
+    ['workflow', ['read', 'write']],
+  ]),
+}
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -112,14 +105,14 @@ describe('WhoCanView', () => {
   })
 
   it('renders empty state initially', () => {
-    render(<WhoCanView policies={samplePolicies} />, { wrapper })
+    render(<WhoCanView {...sampleResourceActions} />, { wrapper })
 
     expect(screen.getByText('Find who has access')).toBeInTheDocument()
     expect(screen.getByText('Enter an action and resource type to see which users can perform it.')).toBeInTheDocument()
   })
 
   it('renders form fields', () => {
-    render(<WhoCanView policies={samplePolicies} />, { wrapper })
+    render(<WhoCanView {...sampleResourceActions} />, { wrapper })
 
     expect(screen.getByText('Resource type')).toBeInTheDocument()
     expect(screen.getByText('Action')).toBeInTheDocument()
@@ -128,14 +121,14 @@ describe('WhoCanView', () => {
   })
 
   it('disables Find Users button when form is incomplete', () => {
-    render(<WhoCanView policies={samplePolicies} />, { wrapper })
+    render(<WhoCanView {...sampleResourceActions} />, { wrapper })
 
     expect(screen.getByRole('button', { name: 'Find Users' })).toBeDisabled()
   })
 
   it('populates action options after resource type is chosen', async () => {
     const user = userEvent.setup()
-    render(<WhoCanView policies={samplePolicies} />, { wrapper })
+    render(<WhoCanView {...sampleResourceActions} />, { wrapper })
 
     // Select resource type via typeahead
     await user.click(screen.getByPlaceholderText('Select a resource type'))
@@ -158,7 +151,7 @@ describe('WhoCanView', () => {
       },
     })
 
-    render(<WhoCanView policies={samplePolicies} />, { wrapper })
+    render(<WhoCanView {...sampleResourceActions} />, { wrapper })
 
     expect(screen.getByText('alice')).toBeInTheDocument()
     expect(screen.getByText('bob')).toBeInTheDocument()
@@ -170,7 +163,7 @@ describe('WhoCanView', () => {
       data: { users: [] },
     })
 
-    render(<WhoCanView policies={samplePolicies} />, { wrapper })
+    render(<WhoCanView {...sampleResourceActions} />, { wrapper })
 
     // The plain alert renders as a heading, not role="alert"
     expect(screen.getByRole('heading', { name: /No users can perform/ })).toBeInTheDocument()
@@ -182,7 +175,7 @@ describe('WhoCanView', () => {
       data: { users: [{ id: 'u1', username: 'alice' }] },
     })
 
-    render(<WhoCanView policies={samplePolicies} />, { wrapper })
+    render(<WhoCanView {...sampleResourceActions} />, { wrapper })
 
     expect(screen.getByText('alice')).toBeInTheDocument()
   })
@@ -193,7 +186,7 @@ describe('WhoCanView', () => {
       error: new Error('Server error'),
     })
 
-    render(<WhoCanView policies={samplePolicies} />, { wrapper })
+    render(<WhoCanView {...sampleResourceActions} />, { wrapper })
 
     expect(screen.getByText('Query failed')).toBeInTheDocument()
   })
@@ -201,14 +194,14 @@ describe('WhoCanView', () => {
   it('shows spinner while searching', () => {
     mockMutationState({ isPending: true, isIdle: false })
 
-    render(<WhoCanView policies={samplePolicies} />, { wrapper })
+    render(<WhoCanView {...sampleResourceActions} />, { wrapper })
 
     expect(screen.getByRole('progressbar', { name: 'Finding users' })).toBeInTheDocument()
   })
 
   it('calls mutate with correct params on submit', async () => {
     const user = userEvent.setup()
-    render(<WhoCanView policies={samplePolicies} />, { wrapper })
+    render(<WhoCanView {...sampleResourceActions} />, { wrapper })
 
     // Select resource type via typeahead
     await user.click(screen.getByPlaceholderText('Select a resource type'))
@@ -234,7 +227,7 @@ describe('WhoCanView', () => {
   })
 
   it('has no accessibility violations', async () => {
-    const { container } = render(<WhoCanView policies={samplePolicies} />, { wrapper })
+    const { container } = render(<WhoCanView {...sampleResourceActions} />, { wrapper })
     const results = await axe(container)
     expect(results).toHaveNoViolations()
   })
@@ -251,7 +244,7 @@ describe('WhoCanView', () => {
         },
       })
 
-      render(<WhoCanView policies={samplePolicies} />, { wrapper })
+      render(<WhoCanView {...sampleResourceActions} />, { wrapper })
 
       expect(screen.getByText('2 users')).toBeInTheDocument()
     })
@@ -262,7 +255,7 @@ describe('WhoCanView', () => {
         data: { users: [{ id: 'u1', username: 'alice' }] },
       })
 
-      render(<WhoCanView policies={samplePolicies} />, { wrapper })
+      render(<WhoCanView {...sampleResourceActions} />, { wrapper })
 
       expect(screen.getByText('1 user')).toBeInTheDocument()
     })
@@ -281,7 +274,7 @@ describe('WhoCanView', () => {
         error: null,
       } as never)
 
-      render(<WhoCanView policies={samplePolicies} />, { wrapper })
+      render(<WhoCanView {...sampleResourceActions} />, { wrapper })
 
       // Select a project
       await user.selectOptions(screen.getByLabelText('Project'), 'default')
@@ -300,7 +293,7 @@ describe('WhoCanView', () => {
         },
       })
 
-      render(<WhoCanView policies={samplePolicies} />, { wrapper })
+      render(<WhoCanView {...sampleResourceActions} />, { wrapper })
 
       expect(screen.getByRole('button', { name: 'Next page' })).toBeEnabled()
       expect(screen.getByRole('button', { name: 'Previous page' })).toBeDisabled()
@@ -312,7 +305,7 @@ describe('WhoCanView', () => {
         data: { users: [{ id: 'u1', username: 'alice' }] },
       })
 
-      render(<WhoCanView policies={samplePolicies} />, { wrapper })
+      render(<WhoCanView {...sampleResourceActions} />, { wrapper })
 
       expect(screen.queryByRole('button', { name: 'Next page' })).not.toBeInTheDocument()
     })
@@ -327,7 +320,7 @@ describe('WhoCanView', () => {
         },
       })
 
-      render(<WhoCanView policies={samplePolicies} />, { wrapper })
+      render(<WhoCanView {...sampleResourceActions} />, { wrapper })
 
       // First submit the form to set lastFormData
       await user.click(screen.getByPlaceholderText('Select a resource type'))

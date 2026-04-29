@@ -6,33 +6,17 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { CanITab } from './CanITab'
 
+type QueryResult = {
+  data: unknown
+  isPending: boolean
+  error: Error | null
+  refetch: ReturnType<typeof vi.fn>
+}
+const mockUseQuery = vi.fn<(...args: unknown[]) => QueryResult>()
+
 vi.mock('./accessClient', () => ({
   accessClient: {
-    useQuery: vi.fn().mockImplementation((_method: string, path: string) => {
-      if (path === '/policies') {
-        return {
-          data: {
-            resources: [
-              {
-                id: 'p1',
-                name: 'admin-policy',
-                description: 'Admin policy',
-                statements: [{ scope: 'any', effect: 'allow', actions: ['workflow:read', 'project:write'] }],
-                is_builtin: true,
-                project_id: null,
-                labels: {},
-                created_at: null,
-                updated_at: null,
-              },
-            ],
-          },
-          isPending: false,
-          error: null,
-        }
-      }
-      // /projects returns an array directly
-      return { data: [], isPending: false, error: null }
-    }),
+    useQuery: (...args: unknown[]) => mockUseQuery(...args),
     useMutation: vi.fn().mockReturnValue({
       mutate: vi.fn(),
       mutateAsync: vi.fn(),
@@ -88,6 +72,24 @@ describe('CanITab', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     queryClient.clear()
+    mockCanQueryAuthz.mockReturnValue(true)
+    mockUseQuery.mockImplementation((...args: unknown[]) => {
+      const [, path] = args as [string, string]
+      if (path === '/authz/resource-actions') {
+        return {
+          data: {
+            resource_actions: {
+              workflow: ['read', 'write'],
+              project: ['read', 'write'],
+            },
+          },
+          isPending: false,
+          error: null,
+          refetch: vi.fn(),
+        }
+      }
+      return { data: [], isPending: false, error: null, refetch: vi.fn() }
+    })
   })
 
   it('renders all three sub-tabs', () => {
@@ -148,5 +150,32 @@ describe('CanITab', () => {
     const tabs = screen.getAllByRole('tab')
     expect(tabs).toHaveLength(2)
     expect(screen.queryByRole('tab', { name: /find users who can perform an action/i })).not.toBeInTheDocument()
+  })
+
+  it('shows resource action errors without hiding the tab shell', async () => {
+    const user = userEvent.setup()
+    mockUseQuery.mockImplementation((...args: unknown[]) => {
+      const [, path] = args as [string, string]
+      if (path === '/authz/resource-actions') {
+        return {
+          data: undefined,
+          isPending: false,
+          error: new Error('Resource actions failed'),
+          refetch: vi.fn(),
+        }
+      }
+      return { data: [], isPending: false, error: null, refetch: vi.fn() }
+    })
+
+    render(<CanITab />, { wrapper })
+
+    expect(screen.getByRole('tab', { name: /check if a user can perform an action/i })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /view all permissions for a user/i })).toBeInTheDocument()
+    expect(screen.getByText('Error loading resource actions')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('tab', { name: /view all permissions for a user/i }))
+
+    expect(screen.getByText('View all permissions')).toBeInTheDocument()
+    expect(screen.queryByText('Error loading resource actions')).not.toBeInTheDocument()
   })
 })

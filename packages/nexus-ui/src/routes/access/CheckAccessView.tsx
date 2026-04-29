@@ -25,10 +25,10 @@ import { ErrorState } from '../../components/states/ErrorState'
 import { getErrorMessage } from '../../utils/apiErrors'
 
 import { accessClient } from './accessClient'
-import { buildResourceActionMap } from './canIUtils'
+import type { ResourceActionMap } from './canIUtils'
 import { ResourceIdSelect } from './ResourceIdSelect'
 import { TypeaheadSelect } from './TypeaheadSelect'
-import type { CanIResponse, PolicyRead } from './types'
+import type { CanIResponse } from './types'
 
 const checkAccessSchema = z.object({
   resourceType: z.string().min(1, 'Resource type is required'),
@@ -111,7 +111,7 @@ function AccessResult({
   )
 }
 
-export function CheckAccessView({ policies }: Readonly<{ policies: PolicyRead[] }>) {
+export function CheckAccessView({ resourceTypes, actionsByResource }: Readonly<ResourceActionMap>) {
   const projectsQuery = accessClient.useQuery('get', '/projects')
   const projects = projectsQuery.data ?? []
 
@@ -121,8 +121,6 @@ export function CheckAccessView({ policies }: Readonly<{ policies: PolicyRead[] 
   })
 
   const resourceType = watch('resourceType')
-
-  const { resourceTypes, actionsByResource } = useMemo(() => buildResourceActionMap(policies), [policies])
 
   const availableActions = useMemo(
     () => (resourceType ? (actionsByResource.get(resourceType) ?? []) : []),

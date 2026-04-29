@@ -6,8 +6,8 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { accessClient } from './accessClient'
+import type { ResourceActionMap } from './canIUtils'
 import { CheckAccessView } from './CheckAccessView'
-import type { PolicyRead } from './types'
 
 const { mockMutate } = vi.hoisted(() => ({
   mockMutate: vi.fn<(...args: unknown[]) => void>(),
@@ -48,20 +48,13 @@ vi.mock('./accessClient', () => ({
   },
 }))
 
-const samplePolicies: PolicyRead[] = [
-  {
-    id: 'p1',
-    name: 'admin-policy',
-    description: 'Admin policy',
-    statements: [{ scope: 'any', effect: 'allow', actions: ['workflow:read', 'workflow:write', 'project:read'] }],
-    is_builtin: true,
-    is_system_scoped: true,
-    project_id: null,
-    labels: {},
-    created_at: null,
-    updated_at: null,
-  },
-]
+const sampleResourceActions: ResourceActionMap = {
+  resourceTypes: ['project', 'workflow'],
+  actionsByResource: new Map([
+    ['project', ['read']],
+    ['workflow', ['read', 'write']],
+  ]),
+}
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -127,7 +120,7 @@ describe('CheckAccessView', () => {
   })
 
   it('renders the empty state initially', () => {
-    render(<CheckAccessView policies={samplePolicies} />, { wrapper })
+    render(<CheckAccessView {...sampleResourceActions} />, { wrapper })
 
     expect(screen.getByText('Check access permissions')).toBeInTheDocument()
     expect(
@@ -136,7 +129,7 @@ describe('CheckAccessView', () => {
   })
 
   it('renders form fields', () => {
-    render(<CheckAccessView policies={samplePolicies} />, { wrapper })
+    render(<CheckAccessView {...sampleResourceActions} />, { wrapper })
 
     expect(screen.getByText('Resource type')).toBeInTheDocument()
     expect(screen.getByText('Action')).toBeInTheDocument()
@@ -146,14 +139,14 @@ describe('CheckAccessView', () => {
   })
 
   it('disables Check Access button when form is incomplete', () => {
-    render(<CheckAccessView policies={samplePolicies} />, { wrapper })
+    render(<CheckAccessView {...sampleResourceActions} />, { wrapper })
 
     expect(screen.getByRole('button', { name: 'Check Access' })).toBeDisabled()
   })
 
-  it('renders resource type options from policies', async () => {
+  it('renders resource type options from resource actions', async () => {
     const user = userEvent.setup()
-    render(<CheckAccessView policies={samplePolicies} />, { wrapper })
+    render(<CheckAccessView {...sampleResourceActions} />, { wrapper })
 
     // Open the typeahead to see options
     await user.click(screen.getByPlaceholderText('Select a resource type'))
@@ -164,7 +157,7 @@ describe('CheckAccessView', () => {
 
   it('populates actions when resource type is selected', async () => {
     const user = userEvent.setup()
-    render(<CheckAccessView policies={samplePolicies} />, { wrapper })
+    render(<CheckAccessView {...sampleResourceActions} />, { wrapper })
 
     await user.click(screen.getByPlaceholderText('Select a resource type'))
     await user.click(screen.getByRole('option', { name: /workflow/i }))
@@ -177,7 +170,7 @@ describe('CheckAccessView', () => {
 
   it('auto-selects action when only one is available', async () => {
     const user = userEvent.setup()
-    render(<CheckAccessView policies={samplePolicies} />, { wrapper })
+    render(<CheckAccessView {...sampleResourceActions} />, { wrapper })
 
     // project only has 'read' action - should auto-select
     await user.click(screen.getByPlaceholderText('Select a resource type'))
@@ -195,7 +188,7 @@ describe('CheckAccessView', () => {
       data: { allowed: true, denied: false, matched_policy: 'admin-policy', denial_reason: '', denied_by: '' },
     })
 
-    render(<CheckAccessView policies={samplePolicies} />, { wrapper })
+    render(<CheckAccessView {...sampleResourceActions} />, { wrapper })
 
     expect(screen.getByText('Access allowed')).toBeInTheDocument()
     expect(screen.getByText('admin-policy')).toBeInTheDocument()
@@ -213,7 +206,7 @@ describe('CheckAccessView', () => {
       },
     })
 
-    render(<CheckAccessView policies={samplePolicies} />, { wrapper })
+    render(<CheckAccessView {...sampleResourceActions} />, { wrapper })
 
     expect(screen.getByText('Access denied')).toBeInTheDocument()
     expect(screen.getByText(/Explicitly denied/)).toBeInTheDocument()
@@ -232,7 +225,7 @@ describe('CheckAccessView', () => {
       },
     })
 
-    render(<CheckAccessView policies={samplePolicies} />, { wrapper })
+    render(<CheckAccessView {...sampleResourceActions} />, { wrapper })
 
     expect(screen.getByText('Access not granted')).toBeInTheDocument()
   })
@@ -243,7 +236,7 @@ describe('CheckAccessView', () => {
       error: new Error('Server error'),
     })
 
-    render(<CheckAccessView policies={samplePolicies} />, { wrapper })
+    render(<CheckAccessView {...sampleResourceActions} />, { wrapper })
 
     expect(screen.getByText('Access check failed')).toBeInTheDocument()
   })
@@ -251,14 +244,14 @@ describe('CheckAccessView', () => {
   it('shows spinner while checking access', () => {
     mockMutationState({ isPending: true, isIdle: false })
 
-    render(<CheckAccessView policies={samplePolicies} />, { wrapper })
+    render(<CheckAccessView {...sampleResourceActions} />, { wrapper })
 
     expect(screen.getByRole('progressbar', { name: 'Checking access' })).toBeInTheDocument()
   })
 
   it('calls mutate with correct params on submit', async () => {
     const user = userEvent.setup()
-    render(<CheckAccessView policies={samplePolicies} />, { wrapper })
+    render(<CheckAccessView {...sampleResourceActions} />, { wrapper })
 
     await fillForm(user)
     await user.click(screen.getByRole('button', { name: 'Check Access' }))
@@ -276,9 +269,9 @@ describe('CheckAccessView', () => {
     })
   })
 
-  it('renders with empty policies', async () => {
+  it('renders with empty resource actions', async () => {
     const user = userEvent.setup()
-    render(<CheckAccessView policies={[]} />, { wrapper })
+    render(<CheckAccessView resourceTypes={[]} actionsByResource={new Map()} />, { wrapper })
 
     // Open typeahead - should show no results
     await user.click(screen.getByPlaceholderText('Select a resource type'))
@@ -286,7 +279,7 @@ describe('CheckAccessView', () => {
   })
 
   it('has no accessibility violations', async () => {
-    const { container } = render(<CheckAccessView policies={samplePolicies} />, { wrapper })
+    const { container } = render(<CheckAccessView {...sampleResourceActions} />, { wrapper })
     const results = await axe(container)
     expect(results).toHaveNoViolations()
   })
