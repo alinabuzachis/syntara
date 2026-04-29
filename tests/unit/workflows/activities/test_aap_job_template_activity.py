@@ -56,24 +56,42 @@ def create_http_response(
     )
 
 
+def create_job_status_response(
+    job_id: int = 123,
+    status: str = "successful",
+    **overrides: object,
+) -> httpx.Response:
+    """Create a mock AAP job status response with sensible defaults.
+
+    All fields can be overridden via keyword arguments.
+    """
+    data: dict[str, object] = {
+        "id": job_id,
+        "status": status,
+        "artifacts": {},
+        "created": "2026-04-23T20:10:58Z",
+        "started": "2026-04-23T20:11:00Z",
+        "finished": "2026-04-23T20:11:10Z",
+        **overrides,
+    }
+    return create_http_response(200, data)
+
+
 def create_successful_job_mocks(
     job_id: int = 123,
-    output_text: str = "",
 ) -> dict[str, httpx.Response]:
     """Create standard mock responses for successful AAP job execution.
 
     Args:
         job_id: Job ID to use in responses
-        output_text: Output text for job stdout
 
     Returns:
-        Dictionary with 'launch', 'status', 'output' response mocks
+        Dictionary with 'launch' and 'status' response mocks
 
     """
     return {
         "launch": create_http_response(200, {"id": job_id, "url": f"/api/v2/jobs/{job_id}/"}),
-        "status": create_http_response(200, {"id": job_id, "status": "successful", "artifacts": {}}),
-        "output": create_http_response(200, text=output_text),
+        "status": create_job_status_response(job_id=job_id),
     }
 
 
@@ -130,20 +148,13 @@ class TestAAPJobTemplateExecution:
     @pytest.mark.asyncio
     async def test_successful_job_execution(self, mock_activity_context: object) -> None:
         """Test successful job template launch and completion."""
-        # Mock responses
         launch_response = create_http_response(200, {"id": 123, "url": "/api/v2/jobs/123/"})
-        status_response = create_http_response(
-            200, {"id": 123, "status": "successful", "artifacts": {"changed": 5, "ok": 10, "failed": 0}}
-        )
-        output_response = create_http_response(200, text="PLAY [Deploy App] ***\\nTASK [Deploy] ok\\n")
+        status_response = create_job_status_response(job_id=123, artifacts={"changed": 5, "ok": 10, "failed": 0})
 
         with (
             patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response),
-            patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=status_response),
         ):
-            # First GET: status poll, Second GET: output fetch
-            mock_get.side_effect = [status_response, output_response]
-
             activity_config = build_activity_config(
                 job_template_id=42,
                 inventory=123,
@@ -155,25 +166,21 @@ class TestAAPJobTemplateExecution:
             assert result["output"]["job_id"] == 123
             assert result["output"]["status"] == "completed"
             assert result["output"]["job_status"] == "successful"
-            assert "PLAY" in result["output"]["output"]
             assert result["output"]["artifacts"]["changed"] == 5
-            assert "elapsed_ms" in result["output"]
+            assert result["output"]["created"] == "2026-04-23T20:10:58Z"
+            assert result["output"]["started"] == "2026-04-23T20:11:00Z"
+            assert result["output"]["finished"] == "2026-04-23T20:11:10Z"
 
     @pytest.mark.asyncio
     async def test_failed_job_execution(self, mock_activity_context: object) -> None:
         """Test job template execution failure returns error result."""
         launch_response = create_http_response(200, {"id": 456, "url": "/api/v2/jobs/456/"})
-        failed_status_response = create_http_response(
-            200, {"id": 456, "status": "failed", "artifacts": {"failed": 1, "ok": 5}}
-        )
-        output_response = create_http_response(200, text="ERROR: Task failed\\nFATAL: Playbook execution failed")
+        failed_status_response = create_job_status_response(job_id=456, status="failed")
 
         with (
             patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response),
-            patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=failed_status_response),
         ):
-            mock_get.side_effect = [failed_status_response, output_response]
-
             activity_config = build_activity_config(job_template_id=99)
 
             # V2: failed jobs return error dict instead of raising
@@ -181,9 +188,6 @@ class TestAAPJobTemplateExecution:
 
             assert result["output"]["status"] == "failed"
             assert result["output"]["job_id"] == 456
-            assert result["output"]["job_status"] == "failed"
-            assert "ERROR" in result["output"]["output"]
-            assert "FATAL: Playbook execution failed" in result["output"]["output"]
             assert result["output"]["error"]["type"] == "AAPJobExecutionError"
 
     @pytest.mark.asyncio
@@ -194,15 +198,15 @@ class TestAAPJobTemplateExecution:
         calling the activity. The activity receives already-resolved values.
         """
         launch_response = create_http_response(200, {"id": 789, "url": "/api/v2/jobs/789/"})
-        status_response = create_http_response(200, {"id": 789, "status": "successful", "artifacts": {}})
-        output_response = create_http_response(200, text="")
 
         with (
             patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response) as mock_post,
-            patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
+            patch(
+                "httpx.AsyncClient.get",
+                new_callable=AsyncMock,
+                return_value=create_job_status_response(job_id=789),
+            ),
         ):
-            mock_get.side_effect = [status_response, output_response]
-
             # V2: templates are resolved by dispatcher before reaching the activity
             activity_config = build_activity_config(
                 job_template_id=42,
@@ -227,15 +231,15 @@ class TestAAPJobTemplateExecution:
         calling the activity. The activity receives already-resolved values.
         """
         launch_response = create_http_response(200, {"id": 890, "url": "/api/v2/jobs/890/"})
-        status_response = create_http_response(200, {"id": 890, "status": "successful", "artifacts": {}})
-        output_response = create_http_response(200, text="")
 
         with (
             patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response) as mock_post,
-            patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
+            patch(
+                "httpx.AsyncClient.get",
+                new_callable=AsyncMock,
+                return_value=create_job_status_response(job_id=890),
+            ),
         ):
-            mock_get.side_effect = [status_response, output_response]
-
             # V2: templates are resolved by dispatcher before reaching the activity
             activity_config = build_activity_config(
                 job_template_id=42,
@@ -276,8 +280,6 @@ class TestAAPJobTemplateHeartbeat:
         launch_response = create_http_response(200, {"id": 123, "url": "/api/v2/jobs/123/"})
         running_response_1 = create_http_response(200, {"id": 123, "status": "running"})
         running_response_2 = create_http_response(200, {"id": 123, "status": "running"})
-        successful_response = create_http_response(200, {"id": 123, "status": "successful", "artifacts": {}})
-        output_response = create_http_response(200, text="")
 
         mock_heartbeat = MagicMock()
 
@@ -287,8 +289,8 @@ class TestAAPJobTemplateHeartbeat:
             patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response),
             patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
         ):
-            # Poll sequence: running, running, successful, then output
-            mock_get.side_effect = [running_response_1, running_response_2, successful_response, output_response]
+            # Poll sequence: running, running, successful
+            mock_get.side_effect = [running_response_1, running_response_2, create_job_status_response()]
 
             activity_config = build_activity_config(job_template_id=42)
 
@@ -493,8 +495,6 @@ class TestAAPJobTemplateTimeout:
         """Test job completes successfully when it finishes before timeout."""
         launch_response = create_http_response(200, {"id": 123, "url": "/api/v2/jobs/123/"})
         running_response = create_http_response(200, {"id": 123, "status": "running"})
-        successful_response = create_http_response(200, {"id": 123, "status": "successful", "artifacts": {}})
-        output_response = create_http_response(200, text="")
 
         # Mock time to show job completes within timeout
         # Use a callable that increments time to avoid StopIteration
@@ -512,8 +512,8 @@ class TestAAPJobTemplateTimeout:
             patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
             patch("time.time", side_effect=mock_time),
         ):
-            # Poll sequence: running, successful, then output
-            mock_get.side_effect = [running_response, successful_response, output_response]
+            # Poll sequence: running, successful
+            mock_get.side_effect = [running_response, create_job_status_response()]
 
             # Configure timeout of 10 seconds (job completes in ~2 seconds)
             activity_config = build_activity_config(job_template_id=42, timeout=10)
@@ -556,16 +556,16 @@ class TestAAPJobTemplateAuthentication:
     ) -> None:
         """Test AAP token authentication is used."""
         launch_response = create_http_response(200, {"id": 123, "url": "/api/v2/jobs/123/"})
-        status_response = create_http_response(200, {"id": 123, "status": "successful", "artifacts": {}})
-        output_response = create_http_response(200, text="")
 
         with (
             override_settings(**build_aap_settings_overrides(token=TEST_TOKEN_123)),
             patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response) as mock_post,
-            patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
+            patch(
+                "httpx.AsyncClient.get",
+                new_callable=AsyncMock,
+                return_value=create_job_status_response(),
+            ),
         ):
-            mock_get.side_effect = [status_response, output_response]
-
             activity_config = build_activity_config(job_template_id=42)
 
             await execute_aap_job_template_activity(activity_config, None)
@@ -583,18 +583,18 @@ class TestAAPJobTemplateAuthentication:
     ) -> None:
         """Test AAP basic authentication is used."""
         launch_response = create_http_response(200, {"id": 123, "url": "/api/v2/jobs/123/"})
-        status_response = create_http_response(200, {"id": 123, "status": "successful", "artifacts": {}})
-        output_response = create_http_response(200, text="")
 
         with (
             override_settings(
                 **build_aap_settings_overrides(token=None, username=TEST_USERNAME, password=TEST_PASSWORD)
             ),
             patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response) as mock_post,
-            patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
+            patch(
+                "httpx.AsyncClient.get",
+                new_callable=AsyncMock,
+                return_value=create_job_status_response(),
+            ),
         ):
-            mock_get.side_effect = [status_response, output_response]
-
             activity_config = build_activity_config(job_template_id=42)
 
             await execute_aap_job_template_activity(activity_config, None)
@@ -610,18 +610,18 @@ class TestAAPJobTemplateAuthentication:
     ) -> None:
         """Test AAP activity receives pre-resolved config (v2: dispatcher resolves templates)."""
         launch_response = create_http_response(201, {"id": 123, "url": "/api/v2/jobs/123/"})
-        status_response = create_http_response(200, {"id": 123, "status": "successful", "artifacts": {}})
-        output_response = create_http_response(200, text="SUCCESS")
 
         with (
             override_settings(**build_aap_settings_overrides()),
             patch("temporalio.activity.is_cancelled", return_value=False),
             patch("temporalio.activity.heartbeat"),
             patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response) as mock_post,
-            patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
+            patch(
+                "httpx.AsyncClient.get",
+                new_callable=AsyncMock,
+                return_value=create_job_status_response(),
+            ),
         ):
-            mock_get.side_effect = [status_response, output_response]
-
             # V2: flat config with already-resolved values
             activity_config = build_activity_config(job_template_id=42, verbosity=2)
 
@@ -646,7 +646,7 @@ class TestAAPJobTemplateNameBasedReference:
         override_settings: Callable[..., AbstractContextManager[object]],
     ) -> None:
         """Test successful job execution using name-based reference."""
-        mocks = create_successful_job_mocks(job_id=123, output_text="PLAY [Deploy] ok")
+        mocks = create_successful_job_mocks(job_id=123)
 
         # Mock lookup response
         lookup_response = create_http_response(200, {"count": 1, "results": [{"id": 42, "name": "Deploy App"}]})
@@ -657,7 +657,7 @@ class TestAAPJobTemplateNameBasedReference:
             patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
         ):
             # GET calls: lookup, status, output
-            mock_get.side_effect = [lookup_response, mocks["status"], mocks["output"]]
+            mock_get.side_effect = [lookup_response, mocks["status"]]
 
             activity_config = build_activity_config(
                 job_template_name="Deploy App",
@@ -806,7 +806,7 @@ class TestAAPJobTemplateNameBasedReference:
         override_settings: Callable[..., AbstractContextManager[object]],
     ) -> None:
         """Test name-based references with pre-resolved values (v2: dispatcher resolves templates)."""
-        mocks = create_successful_job_mocks(job_id=888, output_text="")
+        mocks = create_successful_job_mocks(job_id=888)
 
         # Mock lookup response
         lookup_response = create_http_response(200, {"count": 1, "results": [{"id": 55, "name": "Dynamic Template"}]})
@@ -817,7 +817,7 @@ class TestAAPJobTemplateNameBasedReference:
             patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
         ):
             # GET calls: lookup, status, output
-            mock_get.side_effect = [lookup_response, mocks["status"], mocks["output"]]
+            mock_get.side_effect = [lookup_response, mocks["status"]]
 
             # V2: dispatcher already resolved template expressions
             activity_config = build_activity_config(
@@ -847,14 +847,14 @@ class TestAAPJobTemplateNameBasedReference:
         override_settings: Callable[..., AbstractContextManager[object]],
     ) -> None:
         """Test that ID-based references still work (backwards compatibility)."""
-        mocks = create_successful_job_mocks(job_id=999, output_text="")
+        mocks = create_successful_job_mocks(job_id=999)
 
         with (
             override_settings(**build_aap_settings_overrides()),
             patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mocks["launch"]) as mock_post,
             patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
         ):
-            mock_get.side_effect = [mocks["status"], mocks["output"]]
+            mock_get.side_effect = [mocks["status"]]
 
             # Use old ID-based config
             activity_config = build_activity_config(job_template_id=42)
@@ -877,7 +877,7 @@ class TestAAPJobTemplateNameBasedReference:
         override_settings: Callable[..., AbstractContextManager[object]],
     ) -> None:
         """Test that job_template_id takes precedence over job_template_name when both are provided."""
-        mocks = create_successful_job_mocks(job_id=777, output_text="")
+        mocks = create_successful_job_mocks(job_id=777)
 
         with (
             override_settings(**build_aap_settings_overrides()),
@@ -885,7 +885,7 @@ class TestAAPJobTemplateNameBasedReference:
             patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
         ):
             # Only status and output calls - no lookup should happen
-            mock_get.side_effect = [mocks["status"], mocks["output"]]
+            mock_get.side_effect = [mocks["status"]]
 
             # Provide both ID and name - ID should take precedence
             activity_config = build_activity_config(
@@ -901,8 +901,8 @@ class TestAAPJobTemplateNameBasedReference:
             post_url = mock_post.call_args.args[0]
             assert "/job_templates/42/launch/" in post_url
 
-            # Verify no lookup was performed (only 2 GET calls: status + output, not 3)
-            assert mock_get.call_count == 2
+            # Verify no lookup was performed (only 1 GET call: status, not 2)
+            assert mock_get.call_count == 1
 
 
 class TestAAPInventoryNameBasedReference:
@@ -961,7 +961,7 @@ class TestAAPInventoryNameBasedReference:
             patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mocks["launch"]) as mock_post,
             patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
         ):
-            mock_get.side_effect = [inventory_lookup, mocks["status"], mocks["output"]]
+            mock_get.side_effect = [inventory_lookup, mocks["status"]]
 
             activity_config = build_activity_config(
                 job_template_id=42,
@@ -997,7 +997,7 @@ class TestAAPInventoryNameBasedReference:
             patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mocks["launch"]) as mock_post,
             patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
         ):
-            mock_get.side_effect = [jt_lookup, inv_lookup, mocks["status"], mocks["output"]]
+            mock_get.side_effect = [jt_lookup, inv_lookup, mocks["status"]]
 
             activity_config = build_activity_config(
                 job_template_name="Deploy",
@@ -1223,7 +1223,7 @@ class TestAAPInventoryNameBasedReference:
         override_settings: Callable[..., AbstractContextManager[object]],
     ) -> None:
         """Test that inventory_id takes precedence over inventory_name when both are provided."""
-        mocks = create_successful_job_mocks(job_id=888, output_text="")
+        mocks = create_successful_job_mocks(job_id=888)
 
         with (
             override_settings(**build_aap_settings_overrides()),
@@ -1231,7 +1231,7 @@ class TestAAPInventoryNameBasedReference:
             patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
         ):
             # Only status and output calls - no inventory lookup should happen
-            mock_get.side_effect = [mocks["status"], mocks["output"]]
+            mock_get.side_effect = [mocks["status"]]
 
             # Provide both inventory_id and inventory_name - ID should take precedence
             activity_config = build_activity_config(
@@ -1248,8 +1248,8 @@ class TestAAPInventoryNameBasedReference:
             post_body = mock_post.call_args.kwargs["json"]
             assert post_body["inventory"] == 555
 
-            # Verify no inventory lookup was performed (only 2 GET calls: status + output)
-            assert mock_get.call_count == 2
+            # Verify no inventory lookup was performed (only 1 GET call: status)
+            assert mock_get.call_count == 1
 
 
 class TestBuildLaunchBody:

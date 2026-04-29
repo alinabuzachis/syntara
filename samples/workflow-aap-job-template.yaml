@@ -98,17 +98,17 @@ nodes:
         operation: ${trigger.operation}
         custom_message: ${trigger.custom_message}
         executed_by: "Nexus Workflow Engine"
-        workflow_execution_time: "${workflow.started_at}"
       limit: ${trigger.limit}
       tags: ${trigger.tags}
       skip_tags: ${trigger.skip_tags}
       verbosity: ${trigger.verbosity}
     outputs:
-      job_id: $.job_id
-      status: $.status
-      output: $.output
-      artifacts: $.artifacts
-      elapsed_ms: $.elapsed_ms
+      job_id: "${result.job_id}"
+      job_status: "${result.job_status}"
+      artifacts: "${result.artifacts}"
+      created: "${result.created}"
+      started: "${result.started}"
+      finished: "${result.finished}"
     retry_policy:
       max_attempts: 3
       backoff: exponential
@@ -126,23 +126,23 @@ nodes:
         import os
         import sys
 
-        # Get job execution results from previous activity (passed as environment variables)
         job_id = os.getenv('INPUT_JOB_ID')
-        status = os.getenv('INPUT_STATUS')
-        output = os.getenv('INPUT_OUTPUT', '')
+        job_status = os.getenv('INPUT_JOB_STATUS')
         artifacts_json = os.getenv('INPUT_ARTIFACTS', '{}')
-        elapsed_ms_str = os.getenv('INPUT_ELAPSED_MS', '0')
+        created = os.getenv('INPUT_CREATED', '')
+        started = os.getenv('INPUT_STARTED', '')
+        finished = os.getenv('INPUT_FINISHED', '')
 
-        # Parse JSON inputs
         artifacts = json.loads(artifacts_json) if artifacts_json else {}
-        elapsed_ms = float(elapsed_ms_str) if elapsed_ms_str else 0
 
         print("=" * 80, file=sys.stderr)
         print("AAP Job Template Execution Results", file=sys.stderr)
         print("=" * 80, file=sys.stderr)
         print(f"Job ID: {job_id}", file=sys.stderr)
-        print(f"Status: {status}", file=sys.stderr)
-        print(f"Elapsed Time: {elapsed_ms / 1000:.2f} seconds", file=sys.stderr)
+        print(f"Job Status: {job_status}", file=sys.stderr)
+        print(f"Created: {created}", file=sys.stderr)
+        print(f"Started: {started}", file=sys.stderr)
+        print(f"Finished: {finished}", file=sys.stderr)
         print("", file=sys.stderr)
 
         if artifacts:
@@ -150,45 +150,31 @@ nodes:
             print(json.dumps(artifacts, indent=2), file=sys.stderr)
             print("", file=sys.stderr)
 
-        if output:
-            print("Job Output:", file=sys.stderr)
-            print("-" * 80, file=sys.stderr)
-            # Show first 50 lines of output
-            lines = output.split('\n')
-            for line in lines[:50]:
-                print(line, file=sys.stderr)
-            if len(lines) > 50:
-                print(f"\n... ({len(lines) - 50} more lines)", file=sys.stderr)
-            print("-" * 80, file=sys.stderr)
-
-        # Determine success
-        success = status in ['successful']
+        success = job_status == 'successful'
         if success:
             print("\n✅ Job completed successfully!", file=sys.stderr)
         else:
-            print(f"\n❌ Job completed with status: {status}", file=sys.stderr)
+            print(f"\n❌ Job completed with status: {job_status}", file=sys.stderr)
 
         print("=" * 80, file=sys.stderr)
 
-        # Print result as JSON (parsed by workflow engine as $.output)
         result = {
             "success": success,
             "job_id": job_id,
-            "status": status,
-            "elapsed_seconds": elapsed_ms / 1000
+            "job_status": job_status
         }
         print(json.dumps(result))
       inputs:
-        job_id: ${execute_job_template.output.job_id}
-        status: ${execute_job_template.output.status}
-        output: ${execute_job_template.output.output}
-        artifacts: ${execute_job_template.output.artifacts}
-        elapsed_ms: ${execute_job_template.output.elapsed_ms}
+        job_id: ${execute_job_template.job_id}
+        job_status: ${execute_job_template.job_status}
+        artifacts: ${execute_job_template.artifacts}
+        created: ${execute_job_template.created}
+        started: ${execute_job_template.started}
+        finished: ${execute_job_template.finished}
     outputs:
-      success: $.success
-      job_id: $.job_id
-      final_status: $.status
-      elapsed_seconds: $.elapsed_seconds
+      success: "${result.stdout_json.success}"
+      job_id: "${result.stdout_json.job_id}"
+      final_status: "${result.stdout_json.job_status}"
 edges:
   - from: trigger_manual
     to: execute_job_template

@@ -28,15 +28,15 @@ nodes:
         Accept: application/vnd.github.v3+json
         User-Agent: Nexus-Workflow-Engine
     outputs:
-      repoData: $.body
-      name: $.body.name
-      description: $.body.description
-      stars: $.body.stargazers_count
-      forks: $.body.forks_count
-      language: $.body.language
-      openIssues: $.body.open_issues_count
-      createdAt: $.body.created_at
-      updatedAt: $.body.updated_at
+      repo_data: "${result.body}"
+      name: "${result.body.name}"
+      description: "${result.body.description}"
+      stars: "${result.body.stargazers_count}"
+      forks: "${result.body.forks_count}"
+      language: "${result.body.language}"
+      open_issues: "${result.body.open_issues_count}"
+      created_at: "${result.body.created_at}"
+      updated_at: "${result.body.updated_at}"
     timeout: 30
 
   - id: fetch_languages
@@ -49,7 +49,7 @@ nodes:
         Accept: application/vnd.github.v3+json
         User-Agent: Nexus-Workflow-Engine
     outputs:
-      languages: $.body
+      languages: "${result.body}"
     timeout: 30
 
   - id: analyze_repo
@@ -110,19 +110,19 @@ nodes:
 
         print(json.dumps(report, indent=2))
       inputs:
-        name: ${fetch_repo.output.name}
-        description: ${fetch_repo.output.description}
-        stars: ${fetch_repo.output.stars}
-        forks: ${fetch_repo.output.forks}
-        language: ${fetch_repo.output.language}
-        open_issues: ${fetch_repo.output.openIssues}
-        created_at: ${fetch_repo.output.createdAt}
-        updated_at: ${fetch_repo.output.updatedAt}
-        languages: ${fetch_languages.output.languages}
+        name: ${fetch_repo.name}
+        description: ${fetch_repo.description}
+        stars: ${fetch_repo.stars}
+        forks: ${fetch_repo.forks}
+        language: ${fetch_repo.language}
+        open_issues: ${fetch_repo.open_issues}
+        created_at: ${fetch_repo.created_at}
+        updated_at: ${fetch_repo.updated_at}
+        languages: ${fetch_languages.languages}
     outputs:
-      report: $.output
-      summary: $.output.summary
-      popularityScore: $.output.statistics.popularity_score
+      report: "${result.stdout_json}"
+      summary: "${result.stdout_json.summary}"
+      popularity_score: "${result.stdout_json.statistics.popularity_score}"
     timeout: 60
 edges:
   - from: trigger_manual

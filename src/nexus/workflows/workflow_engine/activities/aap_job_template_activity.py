@@ -11,7 +11,6 @@ import asyncio
 import re
 import time
 from enum import StrEnum
-from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, NoReturn
 
 import httpx
@@ -975,36 +974,6 @@ async def _poll_until_complete(
         await asyncio.sleep(poll_interval)
 
 
-async def _get_job_output(
-    client: httpx.AsyncClient,
-    job_id: int,
-    auth_headers: dict[str, str],
-    basic_auth: httpx.BasicAuth | None,
-    base_url: str,
-) -> str:
-    """Get job output text.
-
-    Args:
-        client: HTTP client
-        job_id: AAP job ID
-        auth_headers: Authentication headers
-        basic_auth: Basic authentication object
-        base_url: Base URL for AAP controller
-
-    Returns:
-        Job output text (empty string if fetch fails)
-
-    """
-    output_url = f"{base_url}/api/controller/v2/jobs/{job_id}/stdout/?format=txt"
-    auth_param = basic_auth or httpx.USE_CLIENT_DEFAULT
-
-    try:
-        output_response = await client.get(output_url, headers=auth_headers, auth=auth_param)
-        return output_response.text if output_response.status_code == HTTPStatus.OK else ""
-    except httpx.HTTPError:
-        return ""  # Output fetch is best-effort
-
-
 @activity.defn
 async def execute_aap_job_template_activity(
     input_config: dict[str, Any],
@@ -1110,9 +1079,6 @@ async def execute_aap_job_template_activity(
                 client, settings, job_id, auth_headers, basic_auth, base_url, config.timeout, start_time
             )
 
-            output = await _get_job_output(client, job_id, auth_headers, basic_auth, base_url)
-            elapsed_ms = (time.time() - start_time) * 1000
-
             final_status = job_data["status"]
             if isinstance(final_status, str) and final_status.lower() in {
                 JobStatus.FAILED.lower(),
@@ -1121,10 +1087,6 @@ async def execute_aap_job_template_activity(
                 error_result = {
                     "status": "failed",
                     "job_id": job_id,
-                    "job_status": final_status,
-                    "output": output,
-                    "artifacts": job_data.get("artifacts", {}),
-                    "elapsed_ms": elapsed_ms,
                     "error": {
                         "type": "AAPJobExecutionError",
                         "message": f"AAP job {job_id} failed with status: {final_status}",
@@ -1137,9 +1099,10 @@ async def execute_aap_job_template_activity(
                 "status": "completed",
                 "job_id": job_id,
                 "job_status": final_status,
-                "output": output,
                 "artifacts": job_data.get("artifacts", {}),
-                "elapsed_ms": elapsed_ms,
+                "created": job_data.get("created", ""),
+                "started": job_data.get("started", ""),
+                "finished": job_data.get("finished", ""),
             }
             mapped_output = apply_output_mapping(full_result, output_config)
             return {"output": mapped_output}

@@ -40,19 +40,19 @@ nodes:
       model: claude-3-5-sonnet-20241022
       prompt: ${trigger.prompt}
     outputs:
-      analysis: $.result.content
+      analysis: "${result.output}"
 
   - id: conditional_aap_launch
     type: condition
     name: If LLM got the popular Job Template Name
     config:
-      condition: ${name_via_ai.output.analysis.default_job_template}
+      condition: ${name_via_ai.analysis.default_job_template}
 
   - id: launch_job_by_name
     type: aap_job_template
     name: Launch the Job Template in AAP
     config:
-      job_template_name: ${name_via_ai.output.analysis.default_job_template}
+      job_template_name: ${name_via_ai.analysis.default_job_template}
       organization_name: ${trigger.organization_name}
       verbosity: 3
 edges:
