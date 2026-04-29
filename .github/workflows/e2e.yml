@@ -67,9 +67,14 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v3
 
+      - name: Set up SSH for private dependencies
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.EXTERNAL_SERVICES_DEPLOY_KEY }}
+
       - name: Install dependencies
         working-directory: aap-dev/src/nexus
-        run: make install
+        run: make install-integration
 
       - name: Generate secrets
         working-directory: aap-dev/src/nexus
@@ -189,6 +194,9 @@ jobs:
           APP_OPENROUTER_MODEL: moonshotai/kimi-k2.6
           E2E_LLM_CREDENTIAL_CONFIGURED: 1
           SEGMENT_SERVER_URL: http://localhost:9999
+          GKE_CLUSTER_ENDPOINT: ${{ secrets.GKE_CLUSTER_ENDPOINT }}
+          GKE_CLUSTER_API_KEY: ${{ secrets.GKE_CLUSTER_API_KEY }}
+          GKE_CLUSTER_DOMAIN: ${{ secrets.GKE_CLUSTER_DOMAIN }}
 
       - name: Show service logs on failure
         if: failure()

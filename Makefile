@@ -55,6 +55,12 @@ _deps-install-dev: _check-uv
 	uv sync --extra dev
 	@echo "✅ Development dependencies installed successfully"
 
+.PHONY: install-integration
+install-integration: _deps-install-dev ## Install integration test dependencies (requires SSH access to private repos)
+	@echo "📦 Installing integration dependencies with uv..."
+	uv sync --extra dev --extra integration
+	@echo "✅ Integration dependencies installed successfully"
+
 _deps-install-pre-commit:
 	@echo "🪝 Installing pre-commit hooks..."
 	uv run pre-commit install --hook-type commit-msg

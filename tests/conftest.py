@@ -12,6 +12,7 @@ import tempfile
 from collections.abc import AsyncGenerator, Awaitable, Callable, Generator
 from contextlib import AbstractContextManager, ExitStack, contextmanager
 from datetime import UTC, datetime, timedelta
+from importlib.util import find_spec
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
@@ -70,6 +71,21 @@ if TYPE_CHECKING:
     from nexus_api_client import AuthenticatedClient
     from nexus_api_client.api import NexusApiRegistry
 
+_EXTERNAL_SERVICES_AVAILABLE = find_spec("external_services") is not None
+
+pytest_plugins = [
+    "tests.fixtures.external_services.azuread",
+]
+
+if _EXTERNAL_SERVICES_AVAILABLE:
+    pytest_plugins = [
+        *pytest_plugins,
+        "tests.fixtures.external_services.base",
+        "tests.fixtures.external_services.keycloak",
+        "tests.fixtures.external_services.openldap",
+        "tests.fixtures.external_services.logstash",
+    ]
+
 _ = (Invocation, User, Workflow, WorkflowVersion, Execution, FileMetadata, Group)
 
 # Configure structlog for consistent test logging
@@ -85,6 +101,18 @@ logger = structlog.stdlib.get_logger(__name__)
 # Pytest Configuration Hooks
 # ============================================================================
 
+_EXTERNAL_SERVICES_FIXTURES = frozenset(
+    {
+        "gke_ext_service_client",
+        "gke_ext_service_provider",
+        "gke_ext_service_url_retriever",
+        "keycloak_service",
+        "logstash_service",
+        "logstash_nginx_web_service",
+        "openldap_service",
+    }
+)
+
 
 def pytest_addoption(parser: pytest.Parser) -> None:
     """Add custom command-line options for pytest."""
@@ -97,15 +125,22 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    """Skip performance tests unless --run-performance is provided."""
-    if config.getoption("--run-performance"):
-        # --run-performance given: do not skip performance tests
-        return
+    """Skip performance tests unless --run-performance is provided.
 
-    skip_performance = pytest.mark.skip(reason="need --run-performance option to run")
-    for item in items:
-        if "performance" in item.keywords:
-            item.add_marker(skip_performance)
+    Also skips tests that depend on external-services fixtures when the
+    external-services package is not installed.
+    """
+    if not config.getoption("--run-performance"):
+        skip_performance = pytest.mark.skip(reason="need --run-performance option to run")
+        for item in items:
+            if "performance" in item.keywords:
+                item.add_marker(skip_performance)
+
+    if not _EXTERNAL_SERVICES_AVAILABLE:
+        skip_ext = pytest.mark.skip(reason="external-services package not installed")
+        for item in items:
+            if _EXTERNAL_SERVICES_FIXTURES.intersection(getattr(item, "fixturenames", [])):
+                item.add_marker(skip_ext)
 
 
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:

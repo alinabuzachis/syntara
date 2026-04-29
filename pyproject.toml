@@ -88,10 +88,16 @@ dev = [
     "fastmcp>=3.2.0,<4.0.0",  # for MCP test server creation
     "testcontainers[postgres,redis]>=4.14.0",  # for auto-starting PostgreSQL/Redis in tests
     "nexus-api-client",  # local API client for E2E tests
+    "azure-identity>=1.19.0",  # ClientSecretCredential for Azure AD fixture
+    "msgraph-sdk>=1.0.0",  # GraphServiceClient and graph models for Azure AD fixture
+]
+integration = [
+    "external-services",  # GKE service deployment for integration tests
 ]
 
 [tool.uv.sources]
 nexus-api-client = { path = "src/api_client", editable = true }
+external-services = { git = "" }
 
 [project.urls]
 Homepage = "https://github.com/syntara-orchestration/syntara"
@@ -196,6 +202,14 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "jmespath.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "external_services.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "kubernetes.*"
 ignore_missing_imports = true
 
 # Pytest configuration
