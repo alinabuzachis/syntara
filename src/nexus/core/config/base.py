@@ -932,7 +932,7 @@ class TelemetrySettings(BaseSettings):
     )
 
     collection_interval_seconds: int = Field(
-        default=300,
+        default=3600,
         description="Interval in seconds between periodic analytics collection cycles",
     )
 

@@ -1,6 +1,6 @@
 """Background task for periodic system analytics collection.
 
-Snapshots current database state every 5 minutes and sends
+Snapshots current database state every hour and sends
 a stateless system_analytics event to Segment via the
 existing TelemetryClientRegistry.
 
