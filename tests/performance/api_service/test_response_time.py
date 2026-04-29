@@ -36,28 +36,6 @@ SUSTAINED_DURATION_SECONDS = 60
 TARGET_RPS = 100
 CONCURRENT_INVOCATIONS = 50
 
-SIMPLE_WORKFLOW_DEFINITION = {
-    "schema_version": "2.0.0",
-    "triggers": [
-        {
-            "id": "trigger_manual",
-            "type": "manual_trigger",
-            "config": {"inputs": {}},
-        }
-    ],
-    "nodes": [
-        {
-            "id": "script_task",
-            "name": "Script Task",
-            "type": "script",
-            "config": {"source": "print('hello')"},
-        }
-    ],
-    "edges": [
-        {"from": "trigger_manual", "to": "script_task"},
-    ],
-}
-
 
 class TestSustainedGetResponseTime:
     """1.1 — Sustained GET /api/v1/workflows at ~100 RPS for 60s.

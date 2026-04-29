@@ -38,7 +38,7 @@ INVALID_DEFINITIONS: list[dict[str, Any]] = [
                 "id": "orphan_node",
                 "name": "Orphan",
                 "type": "script",
-                "config": {"source": "print('orphan')"},
+                "config": {"language": "python", "code": "print('orphan')"},
             }
         ],
         "edges": [],
@@ -56,7 +56,7 @@ INVALID_DEFINITIONS: list[dict[str, Any]] = [
                 "id": "no_trigger",
                 "name": "No Trigger",
                 "type": "script",
-                "config": {"source": "print('no trigger')"},
+                "config": {"language": "python", "code": "print('no trigger')"},
             }
         ],
         "edges": [],
@@ -69,7 +69,7 @@ INVALID_DEFINITIONS: list[dict[str, Any]] = [
                 "id": "node_a",
                 "name": "Node A",
                 "type": "script",
-                "config": {"source": "print('a')"},
+                "config": {"language": "python", "code": "print('a')"},
             }
         ],
         "edges": [
@@ -84,13 +84,13 @@ INVALID_DEFINITIONS: list[dict[str, Any]] = [
                 "id": "node_a",
                 "name": "Node A",
                 "type": "script",
-                "config": {"source": "print('a')"},
+                "config": {"language": "python", "code": "print('a')"},
             },
             {
                 "id": "node_b",
                 "name": "Node B",
                 "type": "script",
-                "config": {"source": "print('b')"},
+                "config": {"language": "python", "code": "print('b')"},
             },
         ],
         "edges": [

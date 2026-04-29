@@ -26,7 +26,7 @@ def build_workflow_definition(num_nodes: int) -> dict[str, Any]:
             "id": f"node_{i}",
             "name": f"Script Task {i}",
             "type": "script",
-            "config": {"source": f"print('step {i}')"},
+            "config": {"language": "python", "code": f"print('step {i}')"},
         }
         for i in range(num_nodes)
     ]

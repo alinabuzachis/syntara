@@ -23,6 +23,8 @@ import pytest
 from nexus_api_client.models.workflow_create import WorkflowCreate
 from nexus_api_client.models.workflow_update import WorkflowUpdate
 
+from tests.performance.conftest import SIMPLE_WORKFLOW_DEFINITION
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -33,28 +35,6 @@ pytestmark = pytest.mark.performance
 
 TARGET_ERROR_RATE = 0.01  # < 1%
 MIXED_DURATION_SECONDS = 60
-
-SIMPLE_WORKFLOW_DEFINITION: dict[str, Any] = {
-    "schema_version": "2.0.0",
-    "triggers": [
-        {
-            "id": "trigger_manual",
-            "type": "manual_trigger",
-            "config": {"inputs": {}},
-        }
-    ],
-    "nodes": [
-        {
-            "id": "script_task",
-            "name": "Script Task",
-            "type": "script",
-            "config": {"source": "print('hello')"},
-        }
-    ],
-    "edges": [
-        {"from": "trigger_manual", "to": "script_task"},
-    ],
-}
 
 
 class _EndpointStats:
