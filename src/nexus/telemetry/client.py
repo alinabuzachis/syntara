@@ -7,6 +7,7 @@ the WorkerRegistry pattern used in temporal_worker.py.
 from __future__ import annotations
 
 import hashlib
+import uuid
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any
 
@@ -19,8 +20,6 @@ from nexus.core.database.session import AsyncSessionLocal
 from nexus.core.models.installation import Installation
 
 if TYPE_CHECKING:
-    import uuid
-
     from sqlalchemy.ext.asyncio import async_sessionmaker
     from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -174,6 +173,8 @@ class TelemetryClientRegistry:
                 ctx_request_id = request_id_context_var.get()
                 if ctx_request_id is not None:
                     properties["request_id"] = str(ctx_request_id)
+            elif isinstance(properties.get("request_id"), uuid.UUID):
+                properties["request_id"] = str(properties["request_id"])
 
             client.track(
                 anonymous_id=self._anonymous_id,

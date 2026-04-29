@@ -10,10 +10,13 @@ import hashlib
 import json
 import re
 from functools import lru_cache
-from typing import Literal
+from typing import TYPE_CHECKING
 
 from pydantic import field_validator
 from sqlmodel import Field
+
+if TYPE_CHECKING:
+    from uuid import UUID
 
 from nexus.telemetry.events.base import BaseTelemetryEvent
 from nexus.workflows.workflow_engine.models.workflow_definition import (  # noqa: TC001
@@ -63,9 +66,9 @@ class NodeExecutionEvent(BaseTelemetryEvent):
         default=None,
         description="Optional array of node hashes triggered by this node",
     )
-    error_type: Literal["ActivityExecutionError"] | None = Field(
+    error_type: str | None = Field(
         default=None,
-        description="Categorized error type if node failed, null otherwise",
+        description="Name of the exception that caused the error, null otherwise",
     )
 
 
@@ -96,8 +99,8 @@ class NodeExecutionEventBuilder:
         duration_ms: int | None = None,
         inbound_nodes: list[str] | None = None,
         outbound_nodes: list[str] | None = None,
-        error_type: Literal["ActivityExecutionError"] | None = None,
-        request_id: str | None = None,
+        error_type: str | None = None,
+        request_id: UUID | None = None,
     ) -> NodeExecutionEvent:
         """Build a node execution event.
 
@@ -110,7 +113,7 @@ class NodeExecutionEventBuilder:
             duration_ms: Node execution duration in milliseconds.
             inbound_nodes: Optional array of preceding node hashes.
             outbound_nodes: Optional array of following node hashes.
-            error_type: Categorized error type if node failed.
+            error_type: Name of the exception that caused the error.
             request_id: Optional X-Request-Id from the originating HTTP request.
 
         Returns:

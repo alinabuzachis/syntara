@@ -4,6 +4,7 @@ Provides the abstract base for all telemetry events transmitted to Segment.com.
 """
 
 import re
+from uuid import UUID
 
 from sqlmodel import Field, SQLModel
 
@@ -21,7 +22,7 @@ class BaseTelemetryEvent(SQLModel):
 
     model_config = {"frozen": True}
     entitlement_id: str = Field(..., description="Installation identifier")
-    request_id: str | None = Field(
+    request_id: UUID | None = Field(
         default=None,
         description="Optional X-Request-Id (UUID) from the originating HTTP request",
     )

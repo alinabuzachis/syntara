@@ -318,12 +318,14 @@ class TestActivityEventProcessing:
         if event_type == EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED:
             attrs = Mock()
             attrs.activity_id = activity_id
+            attrs.start_to_close_timeout = None
             event.activity_task_scheduled_event_attributes = attrs
 
         elif event_type == EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED:
             attrs = Mock()
             attrs.scheduled_event_id = scheduled_event_id
             attrs.attempt = attempt
+            attrs.last_failure = None
             event.activity_task_started_event_attributes = attrs
 
         elif event_type == EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED:
@@ -630,12 +632,14 @@ class TestHandleEventPostProcessing:
         if event_type == EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED:
             attrs = Mock()
             attrs.activity_id = "test-activity"
+            attrs.start_to_close_timeout = None
             event.activity_task_scheduled_event_attributes = attrs
 
         elif event_type == EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED:
             attrs = Mock()
             attrs.scheduled_event_id = scheduled_event_id or 1
             attrs.attempt = 1
+            attrs.last_failure = None
             event.activity_task_started_event_attributes = attrs
 
         elif event_type == EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED:
@@ -876,6 +880,7 @@ class TestExecutionStatusUpdates:
 
         if event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED:
             attrs = Mock()
+            attrs.workflow_run_timeout = None
             event.workflow_execution_started_event_attributes = attrs
 
         elif event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:

@@ -23,7 +23,13 @@ from temporalio.client import Client, WorkflowHandle
 from temporalio.exceptions import TemporalError
 
 from nexus.core.exceptions import SafeValueError
-from nexus.telemetry.events.workflow_emitters import emit_activities, emit_workflow_completed, emit_workflow_start
+from nexus.telemetry.events.workflow_emitters import (
+    emit_activities,
+    emit_workflow_completed,
+    emit_workflow_error,
+    emit_workflow_start,
+)
+from nexus.telemetry.events.workflow_error import RETRY_REASON_MAX_LENGTH, TimedOutComponent
 from nexus.workflows.models.activity_execution import ActivityExecution, ActivityStatus
 from nexus.workflows.models.execution import Execution, ExecutionStatus
 from nexus.workflows.models.workflow_version import WorkflowVersion
@@ -63,6 +69,7 @@ class ExecutionMonitorMetadata:
     activity_index_map: dict[str, int]
     pending_activity_updates: dict[int, dict[str, Any]]
     request_id: UUID | None = None
+    workflow_run_timeout_seconds: float | None = None
 
 
 class ActivitySyncService:
@@ -191,6 +198,12 @@ class ActivitySyncService:
             event: Temporal workflow started event
 
         """
+        started_attrs = event.workflow_execution_started_event_attributes
+        if started_attrs and started_attrs.workflow_run_timeout and started_attrs.workflow_run_timeout.seconds > 0:
+            metadata.workflow_run_timeout_seconds = started_attrs.workflow_run_timeout.seconds + (
+                started_attrs.workflow_run_timeout.nanos / 1e9
+            )
+
         async with self.session_factory() as session:
             try:
                 result = await session.exec(select(Execution).where(Execution.id == metadata.execution_id))
@@ -453,6 +466,12 @@ class ActivitySyncService:
         if attrs.activity_id.startswith("__internal__"):
             return
         base_activity_id = re.sub(r"_iter_\d+$", "", attrs.activity_id)
+        configured_timeout_seconds: float | None = None
+        if attrs.start_to_close_timeout and attrs.start_to_close_timeout.seconds > 0:
+            configured_timeout_seconds = attrs.start_to_close_timeout.seconds + (
+                attrs.start_to_close_timeout.nanos / 1e9
+            )
+
         metadata.pending_activity_updates[event.event_id] = {
             "activity_id": base_activity_id,
             "activity_name": base_activity_id,
@@ -461,6 +480,8 @@ class ActivitySyncService:
             "completed_at": None,
             "error_details": None,
             "retry_count": 0,
+            "scheduled_at": ensure_timezone_aware(event.event_time),
+            "configured_timeout_seconds": configured_timeout_seconds,
         }
 
     def _process_activity_started(self, event: HistoryEvent, metadata: ExecutionMonitorMetadata) -> None:
@@ -470,11 +491,29 @@ class ActivitySyncService:
         if scheduled_id in metadata.pending_activity_updates:
             # Set status based on attempt number: RUNNING for first attempt, RETRYING for subsequent attempts
             attempt = attrs.attempt or 1
-            metadata.pending_activity_updates[scheduled_id]["status"] = (
-                ActivityStatus.RETRYING if attempt > 1 else ActivityStatus.RUNNING
-            )
-            metadata.pending_activity_updates[scheduled_id]["started_at"] = ensure_timezone_aware(event.event_time)
-            metadata.pending_activity_updates[scheduled_id]["retry_count"] = attempt - 1
+            update = metadata.pending_activity_updates[scheduled_id]
+            update["status"] = ActivityStatus.RETRYING if attempt > 1 else ActivityStatus.RUNNING
+            update["started_at"] = ensure_timezone_aware(event.event_time)
+            update["retry_count"] = attempt - 1
+
+            if attempt > 1:
+                last_failure = attrs.last_failure
+                retry_reason = last_failure.message if last_failure else None
+                if retry_reason and len(retry_reason) > RETRY_REASON_MAX_LENGTH:
+                    retry_reason = retry_reason[: RETRY_REASON_MAX_LENGTH - 3] + "..."
+                # Extract failure type name from the Temporal failure chain
+                failure_type: str | None = None
+                if last_failure:
+                    cause = last_failure.cause
+                    if cause and cause.application_failure_info and cause.application_failure_info.type:
+                        failure_type = cause.application_failure_info.type
+                    elif last_failure.application_failure_info and last_failure.application_failure_info.type:
+                        failure_type = last_failure.application_failure_info.type
+                update["_retry_info"] = {
+                    "retry_count": attempt - 1,
+                    "retry_reason": retry_reason,
+                    "error_type": failure_type,
+                }
 
     @staticmethod
     def _is_agentic_activity(activity_def: dict[str, Any]) -> bool:
@@ -585,10 +624,19 @@ class ActivitySyncService:
         attrs = event.activity_task_timed_out_event_attributes
         scheduled_id = attrs.scheduled_event_id
         if scheduled_id in metadata.pending_activity_updates:
-            metadata.pending_activity_updates[scheduled_id]["status"] = ActivityStatus.FAILED
-            metadata.pending_activity_updates[scheduled_id]["completed_at"] = ensure_timezone_aware(event.event_time)
+            update = metadata.pending_activity_updates[scheduled_id]
+            update["status"] = ActivityStatus.FAILED
+            timed_out_at = ensure_timezone_aware(event.event_time)
+            update["completed_at"] = timed_out_at
             if attrs.failure:
-                metadata.pending_activity_updates[scheduled_id]["error_details"] = attrs.failure.message
+                update["error_details"] = attrs.failure.message
+
+            start_time = update.get("started_at") or update.get("scheduled_at")
+            update["_timeout_info"] = {
+                "elapsed_time_ms": int((timed_out_at - start_time).total_seconds() * 1000) if start_time else 0,
+                "configured_timeout_seconds": update.get("configured_timeout_seconds", 0.0) or 0.0,
+                "retry_count": update.get("retry_count", 0),
+            }
 
     def _process_activity_canceled(self, event: HistoryEvent, metadata: ExecutionMonitorMetadata) -> None:
         """Process ACTIVITY_TASK_CANCELED event."""
@@ -806,6 +854,18 @@ class ActivitySyncService:
                     request_id=metadata.request_id,
                 )
 
+                # Emit workflow error telemetry for engine-level workflow timeouts
+                if event.event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT:
+                    elapsed_time_ms = int((completed_at - execution.created_at).total_seconds() * 1000)
+                    emit_workflow_error(
+                        execution_id=str(metadata.execution_id),
+                        timed_out_component=TimedOutComponent.WORKFLOW,
+                        configured_timeout_seconds=metadata.workflow_run_timeout_seconds or 0.0,
+                        elapsed_time_ms=elapsed_time_ms,
+                        error_type="WorkflowTimedOut",
+                        request_id=metadata.request_id,
+                    )
+
             except Exception:
                 await session.rollback()
                 logger.exception(
@@ -973,19 +1033,25 @@ class ActivitySyncService:
                     # Track updated activity with old values for patch generation
                     updated_activities.append((existing, old_values))
 
-                # Clear terminal activities from pending to avoid re-processing
+                # Clear terminal activities from pending to avoid re-processing.
+                # Collect timeout info before clearing, for post-commit emission.
                 terminal_statuses = {
                     ActivityStatus.COMPLETED,
                     ActivityStatus.FAILED,
                     ActivityStatus.SKIPPED,
                     ActivityStatus.CANCELLED,
                 }
+                timed_out_activities: list[tuple[str, dict[str, Any]]] = []
                 terminal_scheduled_ids = [
                     scheduled_id
                     for scheduled_id, data in metadata.pending_activity_updates.items()
                     if data.get("status") in terminal_statuses and not data.get("_pending_output")
                 ]
                 for scheduled_id in terminal_scheduled_ids:
+                    data = metadata.pending_activity_updates[scheduled_id]
+                    timeout_info = data.get("_timeout_info")
+                    if timeout_info:
+                        timed_out_activities.append((data["activity_id"], timeout_info))
                     del metadata.pending_activity_updates[scheduled_id]
 
                 # Update execution's last processed event ID
@@ -1007,6 +1073,35 @@ class ActivitySyncService:
                     updated_activities=updated_activities,
                     request_id=metadata.request_id,
                 )
+
+                # Emit workflow error telemetry for engine-level activity timeouts (post-commit)
+                for activity_id, timeout_info in timed_out_activities:
+                    emit_workflow_error(
+                        execution_id=str(metadata.execution_id),
+                        timed_out_component=TimedOutComponent.ACTIVITY,
+                        configured_timeout_seconds=timeout_info["configured_timeout_seconds"],
+                        elapsed_time_ms=timeout_info["elapsed_time_ms"],
+                        activity_id=activity_id,
+                        retry_count=timeout_info["retry_count"],
+                        error_type="ActivityTimedOut",
+                        request_id=metadata.request_id,
+                    )
+
+                # Emit workflow error telemetry for engine-level activity retries (post-commit)
+                for data in metadata.pending_activity_updates.values():
+                    retry_info = data.pop("_retry_info", None)
+                    if retry_info:
+                        emit_workflow_error(
+                            execution_id=str(metadata.execution_id),
+                            timed_out_component=TimedOutComponent.ACTIVITY,
+                            configured_timeout_seconds=data.get("configured_timeout_seconds", 0.0) or 0.0,
+                            elapsed_time_ms=0,
+                            activity_id=data["activity_id"],
+                            retry_count=retry_info["retry_count"],
+                            error_type=retry_info["error_type"],
+                            retry_reason=retry_info["retry_reason"],
+                            request_id=metadata.request_id,
+                        )
 
             except Exception:
                 await session.rollback()

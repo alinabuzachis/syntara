@@ -6,20 +6,26 @@ during workflow and node execution.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 
 import structlog
 
 from nexus.telemetry.client import TelemetryClientRegistry, get_telemetry_registry
 from nexus.telemetry.events.node_execution import NodeExecutionEventBuilder
 from nexus.telemetry.events.tool_execution import ToolExecutionEventBuilder
+from nexus.telemetry.events.workflow_error import (
+    TimedOutComponent,
+    WorkflowErrorEventBuilder,
+)
 from nexus.telemetry.events.workflow_execution import WorkflowExecutionEventBuilder
 from nexus.workflows.models.activity_execution import ActivityExecution, ActivityStatus
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, ActivityTerminalStatus
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from uuid import UUID
 
+    from nexus.telemetry.events.base import BaseTelemetryEvent
     from nexus.tool_manager.models.tool_execution import ToolExecutionStatus
     from nexus.workflows.workflow_engine.models.workflow_definition import (
         NodeType,
@@ -81,11 +87,22 @@ class TelemetryCollector:
         self._workflow_builder = WorkflowExecutionEventBuilder()
         self._node_builder = NodeExecutionEventBuilder()
         self._tool_builder = ToolExecutionEventBuilder()
+        self._error_builder = WorkflowErrorEventBuilder()
+
+    def _capture(self, build_fn: Callable[[], BaseTelemetryEvent], description: str) -> None:
+        """Build and send a telemetry event (fire-and-forget).
+
+        All capture methods delegate here so error handling is centralized.
+        """
+        try:
+            self._registry.send_event(build_fn())
+        except Exception:
+            logger.exception("Failed to capture %s (fire-and-forget)", description)
 
     def capture_workflow_start(
         self,
         execution_id: str,
-        request_id: str | None = None,
+        request_id: UUID | None = None,
         trigger_activity_type: ActivityName | None = None,
     ) -> None:
         """Capture a workflow execution start event (fire-and-forget).
@@ -96,16 +113,15 @@ class TelemetryCollector:
             trigger_activity_type: Type of trigger that started the workflow.
 
         """
-        try:
-            event = self._workflow_builder.build_start_event(
+        self._capture(
+            lambda: self._workflow_builder.build_start_event(
                 execution_id=execution_id,
                 entitlement_id=self._registry.entitlement_id,
                 request_id=request_id,
                 trigger_activity_type=trigger_activity_type,
-            )
-            self._registry.send_event(event)
-        except Exception:
-            logger.exception("Failed to capture workflow start event (fire-and-forget)")
+            ),
+            "workflow start event",
+        )
 
     def capture_workflow_completed(
         self,
@@ -114,8 +130,8 @@ class TelemetryCollector:
         duration_ms: int,
         node_count: int,
         error_count: int,
-        error_type: Literal["ActivityExecutionError"] | None = None,
-        request_id: str | None = None,
+        error_type: str | None = None,
+        request_id: UUID | None = None,
     ) -> None:
         """Capture a workflow execution completed event (fire-and-forget).
 
@@ -125,12 +141,12 @@ class TelemetryCollector:
             duration_ms: Duration in milliseconds.
             node_count: Total number of nodes executed.
             error_count: Number of nodes that failed.
-            error_type: Categorized error type if workflow failed.
+            error_type: Name of the exception that caused the error.
             request_id: Optional X-Request-Id from the originating HTTP request.
 
         """
-        try:
-            event = self._workflow_builder.build_completed_event(
+        self._capture(
+            lambda: self._workflow_builder.build_completed_event(
                 execution_id=execution_id,
                 status=status,
                 duration_ms=duration_ms,
@@ -139,10 +155,9 @@ class TelemetryCollector:
                 error_type=error_type,
                 entitlement_id=self._registry.entitlement_id,
                 request_id=request_id,
-            )
-            self._registry.send_event(event)
-        except Exception:
-            logger.exception("Failed to capture workflow completed event (fire-and-forget)")
+            ),
+            "workflow completed event",
+        )
 
     def capture_node_executed(
         self,
@@ -153,8 +168,8 @@ class TelemetryCollector:
         duration_ms: int | None = None,
         inbound_nodes: list[str] | None = None,
         outbound_nodes: list[str] | None = None,
-        error_type: Literal["ActivityExecutionError"] | None = None,
-        request_id: str | None = None,
+        error_type: str | None = None,
+        request_id: UUID | None = None,
     ) -> None:
         """Capture a node execution event (fire-and-forget).
 
@@ -166,12 +181,12 @@ class TelemetryCollector:
             duration_ms: Node execution duration in milliseconds.
             inbound_nodes: Optional array of preceding node hashes.
             outbound_nodes: Optional array of following node hashes.
-            error_type: Categorized error type if node failed.
+            error_type: Name of the exception that caused the error.
             request_id: Optional X-Request-Id from the originating HTTP request.
 
         """
-        try:
-            event = self._node_builder.build_event(
+        self._capture(
+            lambda: self._node_builder.build_event(
                 execution_id=execution_id,
                 node_type=node_type,
                 node_def=node_def,
@@ -182,10 +197,9 @@ class TelemetryCollector:
                 error_type=error_type,
                 entitlement_id=self._registry.entitlement_id,
                 request_id=request_id,
-            )
-            self._registry.send_event(event)
-        except Exception:
-            logger.exception("Failed to capture node execution event (fire-and-forget)")
+            ),
+            "node execution event",
+        )
 
     def capture_tool_executed(
         self,
@@ -203,24 +217,65 @@ class TelemetryCollector:
             execution_id: Optional parent workflow execution ID.
 
         """
-        try:
-            event = self._tool_builder.build_event(
+        self._capture(
+            lambda: self._tool_builder.build_event(
                 namespaced_name=namespaced_name,
                 status=status,
                 duration_ms=duration_ms,
                 execution_id=execution_id,
                 entitlement_id=self._registry.entitlement_id,
-            )
-            self._registry.send_event(event)
-        except Exception:
-            logger.exception("Failed to capture tool execution event (fire-and-forget)")
+            ),
+            "tool execution event",
+        )
+
+    def capture_workflow_error(
+        self,
+        workflow_execution_id: str,
+        timed_out_component: TimedOutComponent,
+        configured_timeout_seconds: float,
+        elapsed_time_ms: int,
+        activity_id: str | None = None,
+        request_id: UUID | None = None,
+        retry_count: int = 0,
+        error_type: str | None = None,
+        retry_reason: str | None = None,
+    ) -> None:
+        """Capture a workflow engine-level error event (fire-and-forget).
+
+        Args:
+            workflow_execution_id: Unique workflow execution identifier (UUID v4).
+            timed_out_component: Whether the workflow or an activity timed out.
+            configured_timeout_seconds: Configured timeout threshold in seconds.
+            elapsed_time_ms: Actual elapsed time in milliseconds.
+            activity_id: Activity node ID (only for activity-level timeouts).
+            request_id: Optional X-Request-Id from the originating HTTP request.
+            retry_count: Number of retry attempts before timeout (0 = first attempt).
+            error_type: Name of the exception that caused the error.
+            retry_reason: Failure message from the previous attempt (only for retries).
+
+        """
+        self._capture(
+            lambda: self._error_builder.build_event(
+                workflow_execution_id=workflow_execution_id,
+                timed_out_component=timed_out_component,
+                configured_timeout_seconds=configured_timeout_seconds,
+                elapsed_time_ms=elapsed_time_ms,
+                activity_id=activity_id,
+                entitlement_id=self._registry.entitlement_id,
+                request_id=request_id,
+                retry_count=retry_count,
+                error_type=error_type,
+                retry_reason=retry_reason,
+            ),
+            "workflow error event",
+        )
 
     def emit_activity_telemetry(
         self,
         execution_id: UUID,
         activity_definitions_map: dict[str, dict[str, Any]],
         updated_activities: list[tuple[ActivityExecution, dict[str, Any]]],
-        request_id: str | None = None,
+        request_id: UUID | None = None,
     ) -> None:
         """Emit telemetry for activities that transitioned to a terminal state.
 
@@ -295,7 +350,7 @@ class TelemetryCollector:
         old_values: dict[str, Any],
         execution_id: UUID,
         activity_definitions_map: dict[str, dict[str, Any]],
-        request_id: str | None = None,
+        request_id: UUID | None = None,
     ) -> None:
         """Process telemetry emission for a single activity."""
         try:
@@ -308,7 +363,7 @@ class TelemetryCollector:
             activity_def = activity_definitions_map.get(activity.activity_name, {})
             node_type = activity_def.get("type", "script")
             is_failed = activity.status == ActivityStatus.FAILED
-            error_type: Literal["ActivityExecutionError"] | None = "ActivityExecutionError" if is_failed else None
+            error_type: str | None = "ActivityExecutionError" if is_failed else None
             duration_ms = self._compute_activity_duration_ms(activity)
 
             logger.info(
