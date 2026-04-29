@@ -1,4 +1,4 @@
-import type { ActivityState } from '../../../automations/execution/types'
+import type { ActivityState } from '../../../workflows/execution/types'
 import type { EdgeConnection } from '../../types/edge'
 
 /**

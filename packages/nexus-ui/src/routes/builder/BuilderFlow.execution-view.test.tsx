@@ -44,7 +44,7 @@ vi.mock('@xyflow/react', async (importOriginal) => {
   }
 })
 
-vi.mock('../automations/canvas/CanvasControls', () => ({
+vi.mock('../workflows/canvas/CanvasControls', () => ({
   CanvasControls: ({ onLayout }: { onLayout: () => void }) => {
     onLayout()
     return null
@@ -140,7 +140,7 @@ vi.mock('../../stores/useWorkflowStore', () => {
   }
 })
 
-vi.mock('../automations/stores/useExecutionStore', () => ({
+vi.mock('../workflows/stores/useExecutionStore', () => ({
   useExecutionStore: (selector: (state: { activityStates: Map<string, { status: string }> }) => unknown) =>
     selector(executionStoreState),
 }))

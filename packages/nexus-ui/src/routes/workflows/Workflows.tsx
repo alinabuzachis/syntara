@@ -28,7 +28,7 @@ import { getErrorMessage } from '../../utils/apiErrors'
 import { detachPromise } from '../../utils/detachPromise'
 import { accessClient } from '../access/accessClient'
 
-import { FlatAutomationsTableBody, GroupedAutomationsTableBody } from './AutomationsTableBody'
+import { FlatWorkflowsTableBody, GroupedWorkflowsTableBody } from './WorkflowsTableBody'
 
 type Workflow = WorkflowAPI.components['schemas']['Workflow']
 
@@ -42,7 +42,7 @@ const transformIsEnabledFilter = (filters: FilterConfig[]): FilterConfig[] =>
   })
 
 // eslint-disable-next-line max-lines-per-function
-export default function Automations() {
+export default function Workflows() {
   const { showSuccess, showError } = useAlerts()
   const [, setLocation] = useLocation()
   const { selectedProject, isAllProjects, projects, ProjectSelector } = useProjectSelector()
@@ -276,14 +276,14 @@ export default function Automations() {
                   </Tr>
                 </Thead>
                 {isAllProjects && groupedWorkflows ? (
-                  <GroupedAutomationsTableBody
+                  <GroupedWorkflowsTableBody
                     groupedWorkflows={groupedWorkflows}
                     collapsedProjects={collapsedProjects}
                     onToggleProject={toggleProjectCollapsed}
                     getRowActions={getRowActions}
                   />
                 ) : (
-                  <FlatAutomationsTableBody workflows={sortedWorkflows} getRowActions={getRowActions} />
+                  <FlatWorkflowsTableBody workflows={sortedWorkflows} getRowActions={getRowActions} />
                 )}
               </ScrollableTableContainer>
             )}

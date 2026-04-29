@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-import type { NodeType } from '../../automations/canvas/nodes/NodeType'
+import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
 
 type UseWorkflowInitializationOptions = {
   nodes: NodeType[]

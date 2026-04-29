@@ -1,7 +1,7 @@
 import { type Dispatch, type SetStateAction, useEffect } from 'react'
 
 import { FlowNodeType } from '../../../constants'
-import type { NodeType } from '../../automations/canvas/nodes/NodeType'
+import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
 import { detectLoopBackNodes } from '../utils/detectLoopBackNodes'
 import { type ActivityWithMetadata } from '../utils/executionState'
 import type { EdgeType } from '../utils/workflowToGraph'

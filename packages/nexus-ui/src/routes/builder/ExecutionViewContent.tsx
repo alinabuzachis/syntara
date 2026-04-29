@@ -6,7 +6,7 @@ import { useEffect, useRef } from 'react'
 import { AppPanel } from '../../components/AppPanel'
 import { useWorkflowStoreActions } from '../../stores/useWorkflowStore'
 import { buildTriggerNodeId } from '../../utils/triggerNodeIds'
-import { useExecutionStoreActions } from '../automations/stores/useExecutionStore'
+import { useExecutionStoreActions } from '../workflows/stores/useExecutionStore'
 
 import { BuilderFlow } from './BuilderFlow'
 import { ExecutionViewContext } from './ExecutionViewContext'

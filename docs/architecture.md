@@ -219,7 +219,7 @@ Let's add a console.log to understand the data flow:
 
 **Try also** (optional):
 
-- Change the page title in `Automations.tsx` (look for `AppPageHeader`)
+- Change the page title in `Workflows.tsx` (look for `AppPageHeader`)
 - Add a `console.log` in `BuilderContent.tsx` inside the `useEffect` that loads the workflow
 
 ### 4. Read the workflow builder section below
@@ -267,7 +267,7 @@ Within `packages/nexus-ui/src/`:
 | ----------------------------------------- | --------------------------------------------------------------------- |
 | `app/`                                    | App shell, layout, routing                                            |
 | `client.tsx`                              | Typed API clients (OpenAPI → TanStack Query hooks)                    |
-| `routes/`                                 | Feature areas: builder, automations, executions, configuration        |
+| `routes/`                                 | Feature areas: builder, workflows, executions, configuration          |
 | `stores/`                                 | Client state (Zustand) — workflow store                               |
 | `lib/websocket/`                          | WebSocket infrastructure (store, hooks, types, utils)                 |
 | `components/`                             | App-specific components                                               |
@@ -583,20 +583,20 @@ The builder edits nodes + edges directly in the Zustand store. On save, `buildWo
 
 ### Key files
 
-| File                                                | Responsibility                                                                                                           |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `BuilderContent.tsx`                                | Orchestrates load/save, wraps canvas                                                                                     |
-| `BuilderFlow.tsx`                                   | Converts store → React Flow nodes/edges, handles layout                                                                  |
-| `automations/canvas/CanvasControls.tsx`             | Bottom canvas toolbar (zoom, fit, layout, expand/collapse) and toggle for the legend                                     |
-| `automations/canvas/CanvasLegend.tsx`               | Floating legend: step categories and approval branch colors                                                              |
-| `automations/canvas/semanticZoom.ts`                | Semantic zoom threshold (`SEMANTIC_ZOOM_MAX_SCALE`) and `semanticZoomActivityTitle()` for consistent empty-name tooltips |
-| `automations/canvas/semanticZoomTypes.ts`           | Shared `SemanticZoomBranchSource` type for branch handles at semantic zoom                                               |
-| `automations/canvas/nodes/hooks/useSemanticZoom.ts` | LOD flag via typed `useStore` selector + `updateNodeInternals` when crossing the zoom threshold                          |
-| `automations/canvas/nodes/common/NodeComponent.tsx` | Shared canvas step shell; semantic zoom swaps to color blocks + tooltips (title + type)                                  |
-| `utils/processExistingWorkflow.ts`                  | Load API workflow → flat store format (maps v2 edges to React Flow edges)                                                |
-| `utils/workflowDefinitionBuilder.ts`                | Build v2 save payload (nodes, edges, triggers) with security validation                                                  |
-| `utils/buildNestedStructure.ts`                     | Legacy wrapper (identity function in v2 — returns activities as-is)                                                      |
-| `utils/validation/`                                 | Validation rules                                                                                                         |
+| File                                              | Responsibility                                                                                                           |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `BuilderContent.tsx`                              | Orchestrates load/save, wraps canvas                                                                                     |
+| `BuilderFlow.tsx`                                 | Converts store → React Flow nodes/edges, handles layout                                                                  |
+| `workflows/canvas/CanvasControls.tsx`             | Bottom canvas toolbar (zoom, fit, layout, expand/collapse) and toggle for the legend                                     |
+| `workflows/canvas/CanvasLegend.tsx`               | Floating legend: step categories and approval branch colors                                                              |
+| `workflows/canvas/semanticZoom.ts`                | Semantic zoom threshold (`SEMANTIC_ZOOM_MAX_SCALE`) and `semanticZoomActivityTitle()` for consistent empty-name tooltips |
+| `workflows/canvas/semanticZoomTypes.ts`           | Shared `SemanticZoomBranchSource` type for branch handles at semantic zoom                                               |
+| `workflows/canvas/nodes/hooks/useSemanticZoom.ts` | LOD flag via typed `useStore` selector + `updateNodeInternals` when crossing the zoom threshold                          |
+| `workflows/canvas/nodes/common/NodeComponent.tsx` | Shared canvas step shell; semantic zoom swaps to color blocks + tooltips (title + type)                                  |
+| `utils/processExistingWorkflow.ts`                | Load API workflow → flat store format (maps v2 edges to React Flow edges)                                                |
+| `utils/workflowDefinitionBuilder.ts`              | Build v2 save payload (nodes, edges, triggers) with security validation                                                  |
+| `utils/buildNestedStructure.ts`                   | Legacy wrapper (identity function in v2 — returns activities as-is)                                                      |
+| `utils/validation/`                               | Validation rules                                                                                                         |
 
 ### Builder internals (advanced): registry, edges, and graph semantics
 
@@ -953,7 +953,7 @@ flowchart TB
 
 ### Canvas step types (React Flow `nodeTypes`)
 
-Defined in `routes/automations/canvas/nodes/NodeType.tsx`:
+Defined in `routes/workflows/canvas/nodes/NodeType.tsx`:
 
 ```tsx
 const nodeTypes = {
@@ -969,17 +969,17 @@ Builder adds extra types like `placeholder` for drop targets.
 
 **Visual coding (builder canvas):**
 
-- **Type-colored top bar + icon**: `routes/automations/canvas/nodeTypeColors.ts` (`getNodeTypeColor`, `NODE_TYPE_COLORS`) maps node / executor types to PatternFly non-status tokens. `NodeComponent` accepts optional `topBarColor` for a 4px top border; when a node is **selected**, the full brand border replaces the top bar (same as nodes without a type bar). Icons use the same token via `renderNodeIcon(..., color)`.
+- **Type-colored top bar + icon**: `routes/workflows/canvas/nodeTypeColors.ts` (`getNodeTypeColor`, `NODE_TYPE_COLORS`) maps node / executor types to PatternFly non-status tokens. `NodeComponent` accepts optional `topBarColor` for a 4px top border; when a node is **selected**, the full brand border replaces the top bar (same as nodes without a type bar). Icons use the same token via `renderNodeIcon(..., color)`.
 - **Semantic zoom (Topology-style LOD)**: When the React Flow viewport `zoom` is at or below `SEMANTIC_ZOOM_MAX_SCALE` (defined in `semanticZoom.ts`), `NodeComponent` renders a compact horizontal block filled with the same accent as `topBarColor`, with a PatternFly `Tooltip` showing **title** (heading weight) and **type** (`semanticZoomSummary` from each node). For performance, LOD logic lives in **`useSemanticZoom`** (`nodes/hooks/useSemanticZoom.ts`): a **`useStore`** selector typed with **`ReactFlowState`** reads `transform[2]` (zoom) and returns a boolean so nodes re-render only when crossing the threshold—not on every pan/zoom frame like **`useViewport`** would (see [React Flow `useStore`](https://reactflow.dev/api-reference/hooks/use-store)). The primary title uses **`semanticZoomActivityTitle`** (trimmed name, else a stable fallback): structural nodes use **`Untitled ${metadata.label}`**; task-shaped nodes use **`Untitled task`** with the executor label on the second line. Tooltip copy uses **`--pf-t--global--text--color--inverse`** for both lines so it stays readable on PatternFly’s inverse tooltip surface (see `NodeSemanticZoomBody.tsx`). Branching nodes pass **`semanticZoomBranchSources`** so multiple source handles stay on the **same bar height** with **no branch labels** (handles on the right edge; `SemanticZoomBranchSourceHandles.tsx`). `useUpdateNodeInternals` runs when toggling so edge anchors stay correct. New semantic-zoom UI should include **`vitest-axe`** coverage per the **Accessibility Testing** section in `CLAUDE.md`.
 - **Add step panel**: `getAddNodePanelColor` uses registry ids; builder registry ids are centralized in `src/constants/registryNodeIds.ts` (`RegistryNodeId`, `RegistryNodeIdUnion`).
 - **Approval branches**: `BranchHandle` and `EdgePath` / `DefaultEdge` / `ButtonEdge` color approved vs rejected handles and edges using success/danger tokens.
 
 ### Edge types
 
-| Registry              | Location                                       |
-| --------------------- | ---------------------------------------------- |
-| Canvas (read-only)    | `routes/automations/canvas/edges/EdgeType.tsx` |
-| Builder (interactive) | `routes/builder/edges/*.tsx`                   |
+| Registry              | Location                                     |
+| --------------------- | -------------------------------------------- |
+| Canvas (read-only)    | `routes/workflows/canvas/edges/EdgeType.tsx` |
+| Builder (interactive) | `routes/builder/edges/*.tsx`                 |
 
 Builder edges include: `ButtonEdge`, `DefaultEdge`, `LoopBackEdge`, `LoopDoneEdge`, `LoopOutgoingEdge`.
 
@@ -1098,7 +1098,7 @@ queryClient.invalidateQueries({ queryKey: ['get', '/workflows'] })
 
 1. Create `register*.ts` in `routes/builder/registry/nodes/`
 2. `NodeRegistry` auto-discovers it at startup
-3. Add/extend the React Flow node component in `routes/automations/canvas/nodes/` (maps activities to canvas steps)
+3. Add/extend the React Flow node component in `routes/workflows/canvas/nodes/` (maps activities to canvas steps)
 
 ---
 

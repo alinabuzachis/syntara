@@ -25,7 +25,7 @@ import { useEffect, useState } from 'react'
 
 import { TagInput } from '../../components/forms/TagInput'
 
-export type EditAutomationDetailsPopoverProps = {
+export type EditWorkflowDetailsPopoverProps = {
   /** Current name (from builder state) */
   name: string
   /** Current description (from builder state) */
@@ -36,7 +36,7 @@ export type EditAutomationDetailsPopoverProps = {
   onApply: (name: string, description: string, tags: string[]) => void
 }
 
-export function EditAutomationDetailsPopover({ name, description, tags, onApply }: EditAutomationDetailsPopoverProps) {
+export function EditWorkflowDetailsPopover({ name, description, tags, onApply }: EditWorkflowDetailsPopoverProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [localName, setLocalName] = useState(name)
   const [localDescription, setLocalDescription] = useState(description)

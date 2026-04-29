@@ -1,7 +1,7 @@
 import type { Node } from '@xyflow/react'
 
-import type { useNodeMenuActions } from '../../automations/canvas/nodes/hooks/useNodeMenuActions'
-import type { NodeType } from '../../automations/canvas/nodes/NodeType'
+import type { useNodeMenuActions } from '../../workflows/canvas/nodes/hooks/useNodeMenuActions'
+import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
 
 type MenuActions = ReturnType<typeof useNodeMenuActions>
 

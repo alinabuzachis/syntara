@@ -6,7 +6,7 @@ import { Fragment, useState } from 'react'
 
 import { CodeBlock } from '../../components/details/CodeBlock'
 import { formatExecutionDateTime, formatElapsedTime } from '../../utils/dateUtils'
-import type { ActivityState } from '../automations/execution/types'
+import type { ActivityState } from '../workflows/execution/types'
 
 import { ActivityStatusLabel } from './ExecutionStatus'
 

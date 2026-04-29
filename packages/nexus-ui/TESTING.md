@@ -181,7 +181,7 @@ E2E tests use Playwright config in `packages/nexus-ui/playwright.config.ts`:
 ### Playwright E2E Example
 
 ```typescript
-// File: packages/nexus-ui/e2e/automations.spec.ts
+// File: packages/nexus-ui/e2e/workflows.spec.ts
 import { test, expect, toAppUrl } from './fixtures'
 import { buildUniqueName } from './helpers/workflows'
 

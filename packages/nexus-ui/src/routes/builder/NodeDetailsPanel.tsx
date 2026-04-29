@@ -14,10 +14,10 @@ import {
   type ActivityMetadata,
 } from '../../stores/useWorkflowStore'
 import { parseTriggerIndex } from '../../utils/triggerNodeIds'
-import { NodeMenu } from '../automations/canvas/nodes/common/NodeMenu'
-import { MenuNodeType, useNodeMenuActions } from '../automations/canvas/nodes/hooks/useNodeMenuActions'
-import type { NodeType } from '../automations/canvas/nodes/NodeType'
-import { renderNodeIcon } from '../automations/canvas/nodes/renderNodeIcon'
+import { NodeMenu } from '../workflows/canvas/nodes/common/NodeMenu'
+import { MenuNodeType, useNodeMenuActions } from '../workflows/canvas/nodes/hooks/useNodeMenuActions'
+import type { NodeType } from '../workflows/canvas/nodes/NodeType'
+import { renderNodeIcon } from '../workflows/canvas/nodes/renderNodeIcon'
 
 import {
   ApprovalNodeDetails,

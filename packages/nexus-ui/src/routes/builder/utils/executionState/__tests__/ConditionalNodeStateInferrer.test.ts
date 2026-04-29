@@ -1,7 +1,7 @@
 import type { Activity } from '@ansible/nexus-contracts'
 import { describe, expect, it } from 'vitest'
 
-import type { ActivityState } from '../../../../automations/execution/types'
+import type { ActivityState } from '../../../../workflows/execution/types'
 import type { EdgeConnection } from '../../../types/edge'
 import { ConditionalNodeStateInferrer } from '../nodeStateInference'
 

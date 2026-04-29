@@ -166,7 +166,7 @@ packages/nexus-ui/src/stores/
 ├── useAuthStore.ts              # Authentication state (tokens, session, refresh)
 ├── useProjectStore.ts           # Active project scoping
 # Note: WebSocket store is in lib/websocket/store.ts
-# Note: Execution store is in routes/automations/stores/useExecutionStore.ts
+# Note: Execution store is in routes/workflows/stores/useExecutionStore.ts
 ```
 
 ### State Shape
@@ -723,7 +723,7 @@ The architecture prioritizes:
 The execution visualization uses a dedicated Zustand store:
 
 ```text
-packages/nexus-ui/src/routes/automations/stores/useExecutionStore.ts
+packages/nexus-ui/src/routes/workflows/stores/useExecutionStore.ts
 ```
 
 | Purpose               | Description                                                     |

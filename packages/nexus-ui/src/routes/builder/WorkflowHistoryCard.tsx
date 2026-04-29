@@ -91,7 +91,7 @@ export function ExecutionHistoryRow({ execution, onSelect, isSelected }: Executi
   )
 }
 
-type AutomationHistoryCardProps = {
+type WorkflowHistoryCardProps = {
   executions: Execution[]
   onClose: () => void
   onExecutionSelect: (executionId: string) => void
@@ -102,7 +102,7 @@ type AutomationHistoryCardProps = {
 
 const HISTORY_FILTER_FIELDS: FilterFieldDefinition[] = [getExecutionStatusFilterDefinition()]
 
-export function AutomationHistoryCard(props: AutomationHistoryCardProps) {
+export function WorkflowHistoryCard(props: WorkflowHistoryCardProps) {
   const { executions, onClose, onExecutionSelect, selectedExecutionId, filters = [], onFilterChange } = props
 
   const groups = useMemo(() => groupExecutionsByDate(executions), [executions])

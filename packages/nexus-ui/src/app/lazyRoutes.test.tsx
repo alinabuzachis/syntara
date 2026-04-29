@@ -8,7 +8,7 @@ import {
   ApprovalDetail,
   Approvals,
   Authentication,
-  Automations,
+  Workflows,
   BuilderEdit,
   BuilderNew,
   EditIdentityProvider,
@@ -23,7 +23,7 @@ import {
 
 // Stub every route component so lazy resolution succeeds without
 // pulling in the full dependency tree of each page.
-vi.mock('../routes/automations/Automations', () => ({ default: () => <div>Automations</div> }))
+vi.mock('../routes/workflows/Workflows', () => ({ default: () => <div>Workflows</div> }))
 vi.mock('../routes/builder/BuilderNew', () => ({ default: () => <div>BuilderNew</div> }))
 vi.mock('../routes/builder/BuilderEdit', () => ({ default: () => <div>BuilderEdit</div> }))
 vi.mock('../routes/executions/Executions', () => ({ default: () => <div>Executions</div> }))
@@ -59,7 +59,7 @@ vi.mock('../routes/profile/MyProfile', () => ({
 describe('lazyRoutes', () => {
   it('exports all lazy components', () => {
     const components = [
-      Automations,
+      Workflows,
       BuilderNew,
       BuilderEdit,
       Executions,
@@ -83,7 +83,7 @@ describe('lazyRoutes', () => {
 
   describe('lazy components resolve correctly', () => {
     it.each([
-      ['Automations', Automations, 'Automations'],
+      ['Workflows', Workflows, 'Workflows'],
       ['BuilderNew', BuilderNew, 'BuilderNew'],
       ['BuilderEdit', BuilderEdit, 'BuilderEdit'],
       ['Executions', Executions, 'Executions'],

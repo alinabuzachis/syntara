@@ -9,7 +9,7 @@ import { AlertProvider } from '../../components/alerts'
 import { assertUrlParam, assertUrlParamIsNull } from '../../test/filter-test-helpers'
 import { accessClient } from '../access/accessClient'
 
-import Automations from './Automations'
+import Workflows from './Workflows'
 
 // Mock dependencies
 vi.mock('../../client', () => ({
@@ -85,7 +85,7 @@ const wrapper = ({ children }: { children: ReactNode }) => (
   </QueryClientProvider>
 )
 
-describe('Automations Component', () => {
+describe('Workflows Component', () => {
   const mockWorkflows = [
     {
       id: '1',
@@ -172,7 +172,7 @@ describe('Automations Component', () => {
 
   describe('Rendering', () => {
     it('renders without crashing', () => {
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       // Check page header
       expect(screen.getByText('Workflows')).toBeInTheDocument()
@@ -182,7 +182,7 @@ describe('Automations Component', () => {
     })
 
     it('renders workflows in the table', async () => {
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       // Wait for table to render (PF Table uses role="grid")
       await waitFor(() => {
@@ -197,7 +197,7 @@ describe('Automations Component', () => {
 
   describe('Filter Functionality', () => {
     it('renders FilterBar component without keyword search', () => {
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       // FilterBar should be present but keyword search input should not
       expect(screen.queryByPlaceholderText('Search workflows...')).not.toBeInTheDocument()
@@ -207,7 +207,7 @@ describe('Automations Component', () => {
     })
 
     it('shows all workflows when no filters are active', async () => {
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       // Wait for table to render
       await waitFor(() => {
@@ -221,7 +221,7 @@ describe('Automations Component', () => {
 
     it('applies name filter to API query when typing and submitting', async () => {
       const user = userEvent.setup()
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       const nameInput = screen.getByRole('textbox', { name: /name filter/i })
       await user.type(nameInput, 'deploy')
@@ -235,7 +235,7 @@ describe('Automations Component', () => {
 
     it('applies state filter (is_enabled) to API query when selecting option', async () => {
       const user = userEvent.setup()
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       // Switch to state filter - find the field selector toggle (first button with "Name")
       const fieldButtons = screen.getAllByRole('button', { name: 'Name' })
@@ -271,7 +271,7 @@ describe('Automations Component', () => {
         refetch: vi.fn(),
       })
 
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       // Apply a filter
       const nameInput = screen.getByRole('textbox', { name: /name filter/i })
@@ -296,7 +296,7 @@ describe('Automations Component', () => {
       }
       mockWorkflowQuery(loadingReturn)
 
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       // Expect loading state
       const loadingElement = screen.getByTestId('loading-state')
@@ -313,7 +313,7 @@ describe('Automations Component', () => {
         error: mockError,
       })
 
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       // Check for error state
       const errorElement = screen.getByTestId('error-state')
@@ -325,7 +325,7 @@ describe('Automations Component', () => {
 
   describe('Table Columns', () => {
     it('renders name column with clickable links that navigate', () => {
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       const workflowNode = screen.getByText('Important Project Workflow')
       expect(workflowNode).toBeInTheDocument()
@@ -336,7 +336,7 @@ describe('Automations Component', () => {
     })
 
     it('renders tags column with label keys from workflow.labels', () => {
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       // Tags column shows label keys (mock workflows have labels: { type, status } per row)
       expect(screen.getAllByText('type').length).toBeGreaterThanOrEqual(1)
@@ -368,7 +368,7 @@ describe('Automations Component', () => {
         refetch: vi.fn(),
       })
 
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       expect(screen.getByText('deploy')).toBeInTheDocument()
       expect(screen.getByText('prod')).toBeInTheDocument()
@@ -406,7 +406,7 @@ describe('Automations Component', () => {
         submittedAt: 0,
       })
 
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       // Wait for table to render (PF Table uses role="grid")
       await waitFor(() => {
@@ -481,7 +481,7 @@ describe('Automations Component', () => {
         submittedAt: 0,
       })
 
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       // Wait for table to render (PF Table uses role="grid")
       await waitFor(() => {
@@ -552,7 +552,7 @@ describe('Automations Component', () => {
         submittedAt: 0,
       })
 
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       // Wait for table to render (PF Table uses role="grid")
       await waitFor(() => {
@@ -588,7 +588,7 @@ describe('Automations Component', () => {
     })
 
     it('shows confirmation dialog when running workflow', async () => {
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       // Wait for table to render (PF Table uses role="grid")
       await waitFor(() => {
@@ -646,7 +646,7 @@ describe('Automations Component', () => {
         submittedAt: 0,
       })
 
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       // Wait for table to render (PF Table uses role="grid")
       await waitFor(() => {
@@ -686,7 +686,7 @@ describe('Automations Component', () => {
     it('navigates to executions page filtered by workflow when "View run history" is clicked', async () => {
       mockSetLocation.mockClear()
 
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       // Wait for table to render (PF Table uses role="grid")
       await waitFor(() => {
@@ -734,7 +734,7 @@ describe('Automations Component', () => {
         refetch: vi.fn(),
       })
 
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       const nextButton = screen.getByRole('button', { name: 'Next page' })
       const prevButton = screen.getByRole('button', { name: 'Previous page' })
@@ -759,7 +759,7 @@ describe('Automations Component', () => {
         refetch: vi.fn(),
       })
 
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       expect(screen.getByText(/2 workflows/)).toBeInTheDocument()
       expect(screen.getByText(/\(of 30 total\)/)).toBeInTheDocument()
@@ -779,7 +779,7 @@ describe('Automations Component', () => {
         refetch: vi.fn(),
       })
 
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       const nextButton = screen.getByRole('button', { name: 'Next page' })
       const prevButton = screen.getByRole('button', { name: 'Previous page' })
@@ -802,7 +802,7 @@ describe('Automations Component', () => {
         refetch: vi.fn(),
       })
 
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       expect(screen.queryByRole('button', { name: 'Next page' })).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Previous page' })).not.toBeInTheDocument()
@@ -823,7 +823,7 @@ describe('Automations Component', () => {
         refetch: vi.fn(),
       })
 
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       const prevButton = screen.getByRole('button', { name: 'Previous page' })
       const nextButton = screen.queryByRole('button', { name: 'Next page' })
@@ -854,7 +854,7 @@ describe('Automations Component', () => {
         refetch: mockRefetch,
       })
 
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       // Verify pagination controls present
       const nextButton = screen.getByRole('button', { name: 'Next page' })
@@ -908,7 +908,7 @@ describe('Automations Component', () => {
         refetch: mockRefetch,
       })
 
-      const { rerender } = render(<Automations />, { wrapper })
+      const { rerender } = render(<Workflows />, { wrapper })
 
       // Simulate truly empty state - no data and not fetching
       mockWorkflowQuery({
@@ -926,7 +926,7 @@ describe('Automations Component', () => {
         refetch: mockRefetch,
       })
 
-      rerender(<Automations />)
+      rerender(<Workflows />)
 
       // Should show empty state (cursor was reset)
       await waitFor(() => {
@@ -937,7 +937,7 @@ describe('Automations Component', () => {
 
   describe('Delete Workflow', () => {
     it('shows delete option in row actions menu', async () => {
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       // Wait for table to render
       await waitFor(() => {
@@ -960,7 +960,7 @@ describe('Automations Component', () => {
     })
 
     it('opens delete confirmation dialog when delete is clicked', async () => {
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       await waitFor(() => {
         expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
@@ -1031,7 +1031,7 @@ describe('Automations Component', () => {
         submittedAt: 0,
       })
 
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       await waitFor(() => {
         expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
@@ -1097,7 +1097,7 @@ describe('Automations Component', () => {
         submittedAt: 0,
       })
 
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       await waitFor(() => {
         expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
@@ -1132,7 +1132,7 @@ describe('Automations Component', () => {
     })
 
     it('can cancel delete operation', async () => {
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       await waitFor(() => {
         expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
@@ -1181,7 +1181,7 @@ describe('Automations Component', () => {
         isFetching: false,
       })
 
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       expect(screen.getByText('No workflows yet')).toBeInTheDocument()
       expect(screen.getByText('Create your first workflow to get started.')).toBeInTheDocument()
@@ -1208,7 +1208,7 @@ describe('Automations Component', () => {
         isFetching: false,
       })
 
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       // Both the header and empty state have "Create workflow" buttons; click the last one (empty state)
       const createButtons = screen.getAllByRole('button', { name: 'Create workflow' })
@@ -1235,7 +1235,7 @@ describe('Automations Component', () => {
         isFetching: false,
       })
 
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       // Should show EmptyStateFilter (not EmptyStateNoData) because filters are active
       expect(screen.getByText('No results found')).toBeInTheDocument()
@@ -1274,7 +1274,7 @@ describe('Automations Component', () => {
         submittedAt: 0,
       })
 
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       await waitFor(() => {
         expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
@@ -1334,7 +1334,7 @@ describe('Automations Component', () => {
         submittedAt: 0,
       })
 
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       await waitFor(() => {
         expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
@@ -1398,7 +1398,7 @@ describe('Automations Component', () => {
         submittedAt: 0,
       })
 
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       await waitFor(() => {
         expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
@@ -1477,7 +1477,7 @@ describe('Automations Component', () => {
         refetch: vi.fn(),
       })
 
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       // Grouped view shows project names as group headers
       expect(screen.getByText('Project Alpha')).toBeInTheDocument()
@@ -1524,7 +1524,7 @@ describe('Automations Component', () => {
         refetch: vi.fn(),
       })
 
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       // Project group header should be visible
       expect(screen.getByText('Project Alpha')).toBeInTheDocument()
@@ -1554,7 +1554,7 @@ describe('Automations Component', () => {
         ProjectSelector: null,
       })
 
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       // Query is called with cursor pagination params
       expect(workflowClient.useQuery).toHaveBeenCalledWith(
@@ -1588,7 +1588,7 @@ describe('Automations Component', () => {
       }
       mockWorkflowQuery(singleResult)
 
-      render(<Automations />, { wrapper })
+      render(<Workflows />, { wrapper })
 
       expect(screen.getByText(/1 workflow$/)).toBeInTheDocument()
     })

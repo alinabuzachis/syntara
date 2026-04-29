@@ -268,14 +268,14 @@ it('applies name filter to API query', async () => {
 
 ### Workflows (Recommended Enhancement)
 
-**File:** `src/routes/automations/Automations.test.tsx`
+**File:** `src/routes/workflows/Workflows.test.tsx`
 
 ```typescript
 import { assertUrlParam } from '../../test/filter-test-helpers'
 
 it('applies name filter to API query', async () => {
   const user = userEvent.setup()
-  render(<Automations />)
+  render(<Workflows />)
 
   const nameInput = screen.getByRole('textbox', { name: /name filter/i })
   await user.type(nameInput, 'deploy')
@@ -288,7 +288,7 @@ it('applies name filter to API query', async () => {
 
 it('applies state filter (is_enabled) with boolean conversion', async () => {
   const user = userEvent.setup()
-  render(<Automations />)
+  render(<Workflows />)
 
   // Switch to state filter
   const fieldButton = screen.getByRole('button', { name: /name/i })

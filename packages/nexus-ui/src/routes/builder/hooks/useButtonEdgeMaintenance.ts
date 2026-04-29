@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { flushSync } from 'react-dom'
 
 import { FlowNodeType } from '../../../constants'
-import type { ButtonEdgePlaceholderNode, NodeType } from '../../automations/canvas/nodes/NodeType'
+import type { ButtonEdgePlaceholderNode, NodeType } from '../../workflows/canvas/nodes/NodeType'
 import type { FlowPosition } from '../types'
 import { filterButtonEdges, filterRealNodes, isRealEdge } from '../utils/filterHelpers'
 import type { EdgeType } from '../utils/workflowToGraph'

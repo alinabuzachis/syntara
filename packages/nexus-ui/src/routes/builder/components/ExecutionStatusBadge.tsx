@@ -7,7 +7,7 @@ import {
   RhUiErrorFillIcon,
 } from '@patternfly/react-icons'
 
-import type { ActivityStatus } from '../../../routes/automations/execution/types'
+import type { ActivityStatus } from '../../../routes/workflows/execution/types'
 import { activityStatusColors } from '../executionStatusConstants'
 
 type ExecutionStatusBadgeProps = {

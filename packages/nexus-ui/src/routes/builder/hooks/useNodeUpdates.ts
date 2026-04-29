@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 
 import { FlowNodeType } from '../../../constants'
-import type { NodeType } from '../../automations/canvas/nodes/NodeType'
+import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
 import type { EdgeType } from '../utils/workflowToGraph'
 
 /**

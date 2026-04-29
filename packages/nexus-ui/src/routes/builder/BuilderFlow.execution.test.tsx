@@ -7,7 +7,7 @@
 import type { Activity } from '@ansible/nexus-contracts'
 import { describe, it, expect } from 'vitest'
 
-import type { ActivityState } from '../automations/execution/types'
+import type { ActivityState } from '../workflows/execution/types'
 
 // Mock the actual implementation for testing purposes
 // In a real scenario, we'd extract these functions to a testable module

@@ -49,14 +49,14 @@ vi.mock('@xyflow/react', async (importOriginal) => {
   }
 })
 
-vi.mock('../automations/canvas/CanvasControls', () => ({
+vi.mock('../workflows/canvas/CanvasControls', () => ({
   CanvasControls: ({ onLayout }: { onLayout: () => void }) => {
     capturedOnLayout = onLayout
     return <div data-testid="canvas-controls" />
   },
 }))
 
-vi.mock('../automations/canvas/UndoRedoControls', () => ({
+vi.mock('../workflows/canvas/UndoRedoControls', () => ({
   UndoRedoControls: () => <div data-testid="undo-redo" />,
 }))
 
@@ -126,7 +126,7 @@ vi.mock('../../stores/useWorkflowStore', () => {
   }
 })
 
-vi.mock('../automations/stores/useExecutionStore', () => ({
+vi.mock('../workflows/stores/useExecutionStore', () => ({
   useExecutionStore: () => new Map(),
 }))
 

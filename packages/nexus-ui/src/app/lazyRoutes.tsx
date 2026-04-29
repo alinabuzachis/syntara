@@ -1,6 +1,6 @@
 import { lazy } from 'react'
 
-export const Automations = lazy(() => import('../routes/automations/Automations'))
+export const Workflows = lazy(() => import('../routes/workflows/Workflows'))
 export const BuilderNew = lazy(() => import('../routes/builder/BuilderNew'))
 export const BuilderEdit = lazy(() => import('../routes/builder/BuilderEdit'))
 export const Executions = lazy(() => import('../routes/executions/Executions'))

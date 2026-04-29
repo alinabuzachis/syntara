@@ -1,7 +1,7 @@
 import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 import Dagre from '@dagrejs/dagre'
 
-import type { NodeType } from '../../automations/canvas/nodes/NodeType'
+import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
 
 import { filterRealEdges, filterRealNodes } from './filterHelpers'
 import type { EdgeType } from './workflowToGraph'

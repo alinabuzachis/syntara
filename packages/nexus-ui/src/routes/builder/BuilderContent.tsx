@@ -14,10 +14,9 @@ import { ConfirmationDialog } from '../../components/ConfirmationDialog'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
 import type { FilterConfig } from '../../types/filters'
-import { NodeExpandedAllContext } from '../automations/canvas/nodes/common/NodeExpandedAllContext'
+import { NodeExpandedAllContext } from '../workflows/canvas/nodes/common/NodeExpandedAllContext'
 
 import { AddNodePanel } from './AddNodePanel'
-import { AutomationHistoryCard } from './AutomationHistoryCard'
 import { BuilderFlow } from './BuilderFlow'
 import { builderReducer, getInitialBuilderState } from './builderReducer'
 import { BuilderWorkflowAppPageHeader } from './BuilderWorkflowAppPageHeader'
@@ -35,6 +34,7 @@ import { useBuilderWindowEffects } from './hooks/useBuilderWindowEffects'
 import { useBuilderWorkflowLifecycle } from './hooks/useBuilderWorkflowLifecycle'
 import { useUndoRedoKeyboard } from './hooks/useUndoRedoKeyboard'
 import { NodeActionsContext } from './NodeActionsContext'
+import { WorkflowHistoryCard } from './WorkflowHistoryCard'
 // loadWorkflow and validateRoundTrip removed — v2 activities are already flat
 import { WorkflowSidepanel } from './WorkflowSidepanel'
 
@@ -384,7 +384,7 @@ export function BuilderContent(props: BuilderContentProps) {
 
                 {!isNodeEditorOpen && historyCardOpen && !isNew && (
                   <FlexItem style={{ flexShrink: 0, alignSelf: 'stretch' }}>
-                    <AutomationHistoryCard
+                    <WorkflowHistoryCard
                       executions={executionsQuery.data?.resources ?? []}
                       onClose={() => dispatch({ type: 'SET_HISTORY_CARD_OPEN', payload: false })}
                       onExecutionSelect={(id) => {

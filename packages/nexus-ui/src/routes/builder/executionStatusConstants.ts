@@ -1,6 +1,6 @@
 import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 
-import type { ActivityStatus } from '../automations/execution/types'
+import type { ActivityStatus } from '../workflows/execution/types'
 
 type ExecutionStatus = ExecutionsAPI.components['schemas']['ExecutionStatus']
 

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { NodeType } from '../../automations/canvas/nodes/NodeType'
+import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
 
 import { getLayoutedElements } from './layoutEngine'
 import type { EdgeType } from './workflowToGraph'

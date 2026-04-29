@@ -28,7 +28,7 @@ import { AppPageHeader } from '../../app/AppPageHeader'
 import type { ProjectRead } from '../access/types'
 
 import type { BuilderAction } from './builderReducer'
-import { EditAutomationDetailsPopover } from './EditAutomationDetailsPopover'
+import { EditWorkflowDetailsPopover } from './EditWorkflowDetailsPopover'
 import { formatHistoryDateTime } from './historyDateUtils'
 import { RunHistoryToggleButton } from './RunHistoryToggleButton'
 
@@ -127,7 +127,7 @@ export function BuilderWorkflowAppPageHeader({
           </FlexItem>
           <FlexItem>{ProjectSelector}</FlexItem>
           <FlexItem>
-            <EditAutomationDetailsPopover
+            <EditWorkflowDetailsPopover
               name={workflowName}
               description={workflowDescription}
               tags={workflowTags}

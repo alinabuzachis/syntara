@@ -2,7 +2,7 @@ import { Flex, FlexItem } from '@patternfly/react-core'
 import type { Node } from '@xyflow/react'
 import { memo } from 'react'
 
-import type { NodeType } from '../../automations/canvas/nodes/NodeType'
+import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
 import { NodeDetailsPanel } from '../NodeDetailsPanel'
 
 type NodeEditorOverlayProps = {

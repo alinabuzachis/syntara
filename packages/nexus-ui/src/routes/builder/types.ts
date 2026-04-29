@@ -1,6 +1,6 @@
 import type { NodeMouseHandler } from '@xyflow/react'
 
-import type { NodeType } from '../automations/canvas/nodes/NodeType'
+import type { NodeType } from '../workflows/canvas/nodes/NodeType'
 
 /** Flow coordinate (e.g. for node placement or edge end position) */
 export type FlowPosition = { x: number; y: number }

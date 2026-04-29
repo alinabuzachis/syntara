@@ -1,4 +1,4 @@
-import type { NodeType } from '../../automations/canvas/nodes/NodeType'
+import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
 
 import type { EdgeType } from './workflowToGraph'
 

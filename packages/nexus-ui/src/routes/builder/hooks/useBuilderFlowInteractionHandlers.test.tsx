@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react'
 import type { Edge, Node, ReactFlowInstance } from '@xyflow/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-import type { NodeType } from '../../automations/canvas/nodes/NodeType'
+import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
 
 import { useBuilderFlowInteractionHandlers } from './useBuilderFlowInteractionHandlers'
 

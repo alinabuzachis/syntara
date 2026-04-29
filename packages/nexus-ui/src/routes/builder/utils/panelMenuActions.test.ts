@@ -1,7 +1,7 @@
 import type { Node } from '@xyflow/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import type { NodeType } from '../../automations/canvas/nodes/NodeType'
+import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
 
 import { buildPanelMenuActions } from './panelMenuActions'
 

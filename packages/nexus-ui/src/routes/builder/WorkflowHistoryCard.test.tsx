@@ -4,7 +4,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { AutomationHistoryCard, ExecutionHistoryRow } from './AutomationHistoryCard'
+import { WorkflowHistoryCard, ExecutionHistoryRow } from './WorkflowHistoryCard'
 
 type Execution = ExecutionsAPI.components['schemas']['Execution']
 
@@ -34,7 +34,7 @@ const baseExecution: Execution = {
   updated_at: '2024-01-15T10:00:00Z',
 }
 
-describe('AutomationHistoryCard', () => {
+describe('WorkflowHistoryCard', () => {
   const mockOnClose = vi.fn()
   const mockOnExecutionSelect = vi.fn()
 
@@ -49,44 +49,44 @@ describe('AutomationHistoryCard', () => {
   })
 
   it('renders the component with title', () => {
-    render(<AutomationHistoryCard {...defaultProps} />)
+    render(<WorkflowHistoryCard {...defaultProps} />)
     expect(screen.getByText('Run History')).toBeInTheDocument()
   })
 
   it('renders the subtext', () => {
-    render(<AutomationHistoryCard {...defaultProps} />)
+    render(<WorkflowHistoryCard {...defaultProps} />)
     expect(screen.getByText('View past runs of this workflow.')).toBeInTheDocument()
   })
 
   it('renders close button', () => {
-    render(<AutomationHistoryCard {...defaultProps} />)
+    render(<WorkflowHistoryCard {...defaultProps} />)
     expect(screen.getByLabelText('Close')).toBeInTheDocument()
   })
 
   it('calls onClose when close button is clicked', () => {
-    render(<AutomationHistoryCard {...defaultProps} />)
+    render(<WorkflowHistoryCard {...defaultProps} />)
     fireEvent.click(screen.getByLabelText('Close'))
     expect(mockOnClose).toHaveBeenCalledTimes(1)
   })
 
   it('shows empty message when no executions', () => {
-    render(<AutomationHistoryCard {...defaultProps} />)
+    render(<WorkflowHistoryCard {...defaultProps} />)
     expect(screen.getByText('No execution history available')).toBeInTheDocument()
   })
 
   it('renders date group header "Today" for a recent execution', () => {
-    render(<AutomationHistoryCard {...defaultProps} executions={[baseExecution]} />)
+    render(<WorkflowHistoryCard {...defaultProps} executions={[baseExecution]} />)
     expect(screen.getByText('Today')).toBeInTheDocument()
   })
 
   it('renders execution rows with formatted date and status', () => {
-    render(<AutomationHistoryCard {...defaultProps} executions={[baseExecution]} />)
+    render(<WorkflowHistoryCard {...defaultProps} executions={[baseExecution]} />)
     expect(screen.getByText(/Jan 15, 2024/)).toBeInTheDocument()
     expect(screen.getByTestId('status-label')).toHaveTextContent('running')
   })
 
   it('renders truncated run ID with label', () => {
-    render(<AutomationHistoryCard {...defaultProps} executions={[baseExecution]} />)
+    render(<WorkflowHistoryCard {...defaultProps} executions={[baseExecution]} />)
     expect(screen.getByText('Run ID: 12345678')).toBeInTheDocument()
   })
 
@@ -96,13 +96,13 @@ describe('AutomationHistoryCard', () => {
       started_at: '2024-01-15T10:00:00Z',
       completed_at: '2024-01-15T10:01:30Z',
     }
-    render(<AutomationHistoryCard {...defaultProps} executions={[execution]} />)
+    render(<WorkflowHistoryCard {...defaultProps} executions={[execution]} />)
     expect(screen.getByText('Elapsed time: 90000ms')).toBeInTheDocument()
   })
 
   it('renders "Elapsed time: -" when execution is completed with no timing data', () => {
     const execution: Execution = { ...baseExecution, status: 'completed' }
-    render(<AutomationHistoryCard {...defaultProps} executions={[execution]} />)
+    render(<WorkflowHistoryCard {...defaultProps} executions={[execution]} />)
     expect(screen.getByText('Elapsed time: -')).toBeInTheDocument()
   })
 
@@ -111,7 +111,7 @@ describe('AutomationHistoryCard', () => {
       { ...baseExecution, id: 'aaaaaaaa-0000-0000-0000-000000000001', status: 'completed' },
       { ...baseExecution, id: 'bbbbbbbb-0000-0000-0000-000000000002', status: 'failed' },
     ]
-    render(<AutomationHistoryCard {...defaultProps} executions={executions} />)
+    render(<WorkflowHistoryCard {...defaultProps} executions={executions} />)
     const statusLabels = screen.getAllByTestId('status-label')
     expect(statusLabels).toHaveLength(2)
     expect(statusLabels[0]).toHaveTextContent('completed')
@@ -119,7 +119,7 @@ describe('AutomationHistoryCard', () => {
   })
 
   it('calls onExecutionSelect with the execution id when row is clicked', () => {
-    render(<AutomationHistoryCard {...defaultProps} executions={[baseExecution]} />)
+    render(<WorkflowHistoryCard {...defaultProps} executions={[baseExecution]} />)
     const row = screen.getByRole('button', { name: /running/i })
     fireEvent.click(row)
     expect(mockOnExecutionSelect).toHaveBeenCalledWith(baseExecution.id)
@@ -127,7 +127,7 @@ describe('AutomationHistoryCard', () => {
 
   it('highlights the selected execution row with pf-m-current class', () => {
     render(
-      <AutomationHistoryCard {...defaultProps} executions={[baseExecution]} selectedExecutionId={baseExecution.id} />
+      <WorkflowHistoryCard {...defaultProps} executions={[baseExecution]} selectedExecutionId={baseExecution.id} />
     )
     const buttons = screen.getAllByRole('button')
     const rowButton = buttons.find((btn) => btn.textContent?.includes('Jan 15, 2024'))!
@@ -135,32 +135,32 @@ describe('AutomationHistoryCard', () => {
   })
 
   it('does not highlight an unselected row', () => {
-    render(<AutomationHistoryCard {...defaultProps} executions={[baseExecution]} selectedExecutionId="other-id" />)
+    render(<WorkflowHistoryCard {...defaultProps} executions={[baseExecution]} selectedExecutionId="other-id" />)
     const rowButton = screen.getByRole('button', { name: /running/i })
     expect(rowButton).not.toHaveClass('pf-m-current')
   })
 
   it('renders a SimpleList when executions are present', () => {
-    render(<AutomationHistoryCard {...defaultProps} executions={[baseExecution]} />)
+    render(<WorkflowHistoryCard {...defaultProps} executions={[baseExecution]} />)
     expect(screen.getByRole('list')).toBeInTheDocument()
   })
 
   describe('status filter', () => {
     it('renders filter bar when onFilterChange is provided', () => {
       const onFilterChange = vi.fn()
-      render(<AutomationHistoryCard {...defaultProps} filters={[]} onFilterChange={onFilterChange} />)
+      render(<WorkflowHistoryCard {...defaultProps} filters={[]} onFilterChange={onFilterChange} />)
       expect(screen.getByText('Status')).toBeInTheDocument()
     })
 
     it('does not render filter bar when onFilterChange is not provided', () => {
-      render(<AutomationHistoryCard {...defaultProps} />)
+      render(<WorkflowHistoryCard {...defaultProps} />)
       expect(screen.queryByText('Status')).not.toBeInTheDocument()
     })
 
     it('shows status options from API contract when filter dropdown is opened', async () => {
       const user = userEvent.setup()
       const onFilterChange = vi.fn()
-      render(<AutomationHistoryCard {...defaultProps} filters={[]} onFilterChange={onFilterChange} />)
+      render(<WorkflowHistoryCard {...defaultProps} filters={[]} onFilterChange={onFilterChange} />)
 
       // Open the filter value dropdown (second dropdown in attribute-search)
       const statusToggle = screen.getByText('Filter by status')
@@ -177,7 +177,7 @@ describe('AutomationHistoryCard', () => {
     it('calls onFilterChange when a status is selected', async () => {
       const user = userEvent.setup()
       const onFilterChange = vi.fn()
-      render(<AutomationHistoryCard {...defaultProps} filters={[]} onFilterChange={onFilterChange} />)
+      render(<WorkflowHistoryCard {...defaultProps} filters={[]} onFilterChange={onFilterChange} />)
 
       const statusToggle = screen.getByText('Filter by status')
       await user.click(statusToggle)

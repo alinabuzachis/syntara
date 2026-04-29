@@ -1,7 +1,7 @@
 import { renderHook, act } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 
-import type { NodeType } from '../../automations/canvas/nodes/NodeType'
+import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
 import type { EdgeType } from '../utils/workflowToGraph'
 
 import { useButtonEdgeMaintenance } from './useButtonEdgeMaintenance'

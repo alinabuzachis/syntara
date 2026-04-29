@@ -1,7 +1,7 @@
 import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 import { useEffect, type Dispatch, type RefObject, type SetStateAction } from 'react'
 
-import type { NodeType } from '../../automations/canvas/nodes/NodeType'
+import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
 import type { FlowPosition } from '../types'
 import type { EdgeType } from '../utils/workflowToGraph'
 

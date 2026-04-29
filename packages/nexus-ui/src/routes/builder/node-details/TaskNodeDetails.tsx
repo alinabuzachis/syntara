@@ -5,7 +5,7 @@ import { useAlerts } from '../../../components/alerts'
 import {
   detectTaskNodeType,
   DetectedExecutorType,
-} from '../../../routes/automations/canvas/nodes/common/detectTaskNodeType'
+} from '../../../routes/workflows/canvas/nodes/common/detectTaskNodeType'
 import { createAAPJobTemplateActivity, useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
 import type { AAPJobTemplateConfig } from '../../../stores/workflowFactories'
 import type { ActionFormData as RegistryActionFormData } from '../hooks/useNodeCreation'

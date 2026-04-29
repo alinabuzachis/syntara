@@ -2,7 +2,7 @@ import type { Node, ReactFlowInstance } from '@xyflow/react'
 import { useCallback, useMemo, type Dispatch } from 'react'
 
 import { getActivityMetadata, useWorkflowStore } from '../../../stores/useWorkflowStore'
-import type { NodeType } from '../../automations/canvas/nodes/NodeType'
+import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
 import type { BuilderAction } from '../builderReducer'
 import { findDuplicatePosition } from '../duplicateNodePosition'
 import type { NodeActionsContextValue } from '../NodeActionsContext'

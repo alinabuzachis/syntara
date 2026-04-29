@@ -8,7 +8,7 @@ import {
   ApprovalDetail,
   Approvals,
   Authentication,
-  Automations,
+  Workflows,
   BuilderEdit,
   BuilderNew,
   CreateUser,
@@ -50,7 +50,7 @@ export const navigationItems: INavigationItem[] = [
   {
     label: 'Workflows',
     path: AppRoute.Workflows.Root,
-    element: <Automations />,
+    element: <Workflows />,
   },
   {
     label: 'Workflow Runs',

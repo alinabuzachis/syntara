@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
-import type { ActivityState } from '../automations/execution/types'
+import type { ActivityState } from '../workflows/execution/types'
 
 import { ExecutionActivityTable, type ActivityOrderItem, type TriggerItem } from './ExecutionActivityTable'
 

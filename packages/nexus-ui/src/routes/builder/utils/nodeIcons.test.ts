@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-import { getCanvasNodeIconDescriptor } from '../../automations/canvas/nodes/nodeIconResolver'
+import { getCanvasNodeIconDescriptor } from '../../workflows/canvas/nodes/nodeIconResolver'
 
 import { resolveIconForNode, resolveIconForType } from './nodeIcons'
 
@@ -13,7 +13,7 @@ vi.mock('../registry/NodeRegistry', () => ({
   },
 }))
 
-vi.mock('../../automations/canvas/nodes/nodeIconResolver', () => ({
+vi.mock('../../workflows/canvas/nodes/nodeIconResolver', () => ({
   getCanvasNodeIconDescriptor: vi.fn(),
 }))
 

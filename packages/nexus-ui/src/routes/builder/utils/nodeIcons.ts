@@ -1,8 +1,8 @@
 import type { Node } from '@xyflow/react'
 
-import type { IconDescriptor } from '../../automations/canvas/nodes/nodeIconResolver'
-import { getCanvasNodeIconDescriptor } from '../../automations/canvas/nodes/nodeIconResolver'
-import type { NodeType } from '../../automations/canvas/nodes/NodeType'
+import type { IconDescriptor } from '../../workflows/canvas/nodes/nodeIconResolver'
+import { getCanvasNodeIconDescriptor } from '../../workflows/canvas/nodes/nodeIconResolver'
+import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
 import { NodeRegistry } from '../registry/NodeRegistry'
 
 /**

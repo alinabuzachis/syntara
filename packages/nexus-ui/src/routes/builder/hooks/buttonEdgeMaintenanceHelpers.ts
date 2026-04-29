@@ -1,7 +1,7 @@
 import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 
 import { FlowNodeType } from '../../../constants'
-import type { ButtonEdgePlaceholderNode, NodeType } from '../../automations/canvas/nodes/NodeType'
+import type { ButtonEdgePlaceholderNode, NodeType } from '../../workflows/canvas/nodes/NodeType'
 
 export type HandlePositionConfig = {
   yOffset: number

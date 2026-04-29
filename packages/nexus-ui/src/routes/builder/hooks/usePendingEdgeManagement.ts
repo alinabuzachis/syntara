@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 
-import type { NodeType } from '../../automations/canvas/nodes/NodeType'
+import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
 import { getButtonEdgeId, getPendingEdgeId, getPendingTargetNodeId, getPlaceholderNodeId } from '../utils/edgeHelpers'
 import { markerEnd, type EdgeType } from '../utils/workflowToGraph'
 

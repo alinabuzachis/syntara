@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { NodeTypeOption } from './NodeTypeOptionsList'
 import { NodeTypeOptionsList } from './NodeTypeOptionsList'
 
-vi.mock('../automations/canvas/nodes/renderNodeIcon', () => ({
+vi.mock('../workflows/canvas/nodes/renderNodeIcon', () => ({
   renderNodeIcon: vi.fn((_icon, id) => <span data-testid={`icon-${id}`}>Icon</span>),
 }))
 

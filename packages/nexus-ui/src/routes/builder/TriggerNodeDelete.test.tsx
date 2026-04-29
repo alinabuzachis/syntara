@@ -5,7 +5,7 @@ import { ReactFlowProvider } from '@xyflow/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createManualTrigger, useWorkflowStore } from '../../stores/useWorkflowStore'
-import { TriggerNodeComponent } from '../automations/canvas/nodes/TriggerNode'
+import { TriggerNodeComponent } from '../workflows/canvas/nodes/TriggerNode'
 
 // Mock deleteElements to track calls
 const mockDeleteElements = vi.fn()

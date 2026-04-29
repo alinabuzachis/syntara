@@ -1,6 +1,6 @@
 import { ActivityTypeEnum, type Activity } from '@ansible/nexus-contracts'
 
-import type { ActivityState } from '../../../automations/execution/types'
+import type { ActivityState } from '../../../workflows/execution/types'
 import type { EdgeConnection } from '../../types/edge'
 
 import { ACTIVITY_STATUS, TERMINAL_ACTIVITY_STATUSES, isBranchHandle } from './executionHelpers'

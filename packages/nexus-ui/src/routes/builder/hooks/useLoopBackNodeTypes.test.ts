@@ -4,7 +4,7 @@ import { type Dispatch, type SetStateAction } from 'react'
 import { describe, expect, it, vi, beforeEach, type Mock } from 'vitest'
 
 import { FlowNodeType } from '../../../constants'
-import type { NodeType } from '../../automations/canvas/nodes/NodeType'
+import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
 import { detectLoopBackNodes } from '../utils/detectLoopBackNodes'
 import type { EdgeType } from '../utils/workflowToGraph'
 

@@ -1,7 +1,7 @@
 import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 
 import { FlowNodeType } from '../../../constants'
-import type { NodeType } from '../../automations/canvas/nodes/NodeType'
+import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
 import type { FlowPosition } from '../types'
 import type { EdgeType } from '../utils/workflowToGraph'
 

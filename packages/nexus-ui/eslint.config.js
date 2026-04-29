@@ -189,7 +189,7 @@ export default tseslint.config(
     files: [
       '**/registry/nodes/register*.ts',
       '**/app/App.tsx',
-      '**/routes/**/Automations.tsx',
+      '**/routes/**/Workflows.tsx',
       '**/routes/**/BuilderNew.tsx',
       '**/routes/**/BuilderEdit.tsx',
       '**/routes/**/Executions.tsx',

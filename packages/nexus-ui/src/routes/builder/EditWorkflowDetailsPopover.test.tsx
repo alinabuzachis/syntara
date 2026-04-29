@@ -2,23 +2,19 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
-import { EditAutomationDetailsPopover } from './EditAutomationDetailsPopover'
+import { EditWorkflowDetailsPopover } from './EditWorkflowDetailsPopover'
 
-describe('EditAutomationDetailsPopover', () => {
+describe('EditWorkflowDetailsPopover', () => {
   it('renders edit button with accessible label', () => {
     const onApply = vi.fn()
-    render(
-      <EditAutomationDetailsPopover name="My Workflow" description="A test workflow" tags={[]} onApply={onApply} />
-    )
+    render(<EditWorkflowDetailsPopover name="My Workflow" description="A test workflow" tags={[]} onApply={onApply} />)
     expect(screen.getByRole('button', { name: 'Edit workflow details' })).toBeInTheDocument()
   })
 
   it('opens popover when edit button is clicked', async () => {
     const user = userEvent.setup()
     const onApply = vi.fn()
-    render(
-      <EditAutomationDetailsPopover name="My Workflow" description="A test workflow" tags={[]} onApply={onApply} />
-    )
+    render(<EditWorkflowDetailsPopover name="My Workflow" description="A test workflow" tags={[]} onApply={onApply} />)
     await user.click(screen.getByRole('button', { name: 'Edit workflow details' }))
     await waitFor(() => {
       expect(screen.getByText('Edit workflow details')).toBeInTheDocument()
@@ -30,9 +26,7 @@ describe('EditAutomationDetailsPopover', () => {
   it('calls onApply with updated values when Close is clicked', async () => {
     const user = userEvent.setup()
     const onApply = vi.fn()
-    render(
-      <EditAutomationDetailsPopover name="My Workflow" description="A test workflow" tags={[]} onApply={onApply} />
-    )
+    render(<EditWorkflowDetailsPopover name="My Workflow" description="A test workflow" tags={[]} onApply={onApply} />)
     await user.click(screen.getByRole('button', { name: 'Edit workflow details' }))
     await waitFor(() => {
       expect(screen.getByLabelText('Name')).toBeInTheDocument()
@@ -47,7 +41,7 @@ describe('EditAutomationDetailsPopover', () => {
   it('adds tag on Enter key', async () => {
     const user = userEvent.setup()
     const onApply = vi.fn()
-    render(<EditAutomationDetailsPopover name="Workflow" description="" tags={[]} onApply={onApply} />)
+    render(<EditWorkflowDetailsPopover name="Workflow" description="" tags={[]} onApply={onApply} />)
     await user.click(screen.getByRole('button', { name: 'Edit workflow details' }))
     await waitFor(() => {
       expect(screen.getByLabelText('Add tag')).toBeInTheDocument()
@@ -59,7 +53,7 @@ describe('EditAutomationDetailsPopover', () => {
 
   it('adds tag on comma', async () => {
     const user = userEvent.setup()
-    render(<EditAutomationDetailsPopover name="Workflow" description="" tags={[]} onApply={vi.fn()} />)
+    render(<EditWorkflowDetailsPopover name="Workflow" description="" tags={[]} onApply={vi.fn()} />)
     await user.click(screen.getByRole('button', { name: 'Edit workflow details' }))
     await waitFor(() => {
       expect(screen.getByLabelText('Add tag')).toBeInTheDocument()
@@ -70,7 +64,7 @@ describe('EditAutomationDetailsPopover', () => {
 
   it('removes tag when close button is clicked', async () => {
     const user = userEvent.setup()
-    render(<EditAutomationDetailsPopover name="Workflow" description="" tags={['deploy']} onApply={vi.fn()} />)
+    render(<EditWorkflowDetailsPopover name="Workflow" description="" tags={['deploy']} onApply={vi.fn()} />)
     await user.click(screen.getByRole('button', { name: 'Edit workflow details' }))
     await waitFor(() => {
       expect(screen.getByText('deploy')).toBeInTheDocument()
@@ -82,7 +76,7 @@ describe('EditAutomationDetailsPopover', () => {
   it('does not call onApply when Name is cleared and Close is clicked', async () => {
     const user = userEvent.setup()
     const onApply = vi.fn()
-    render(<EditAutomationDetailsPopover name="My Workflow" description="Desc" tags={[]} onApply={onApply} />)
+    render(<EditWorkflowDetailsPopover name="My Workflow" description="Desc" tags={[]} onApply={onApply} />)
     await user.click(screen.getByRole('button', { name: 'Edit workflow details' }))
     await waitFor(() => {
       expect(screen.getByLabelText('Name')).toBeInTheDocument()

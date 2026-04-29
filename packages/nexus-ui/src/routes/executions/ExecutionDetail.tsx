@@ -15,14 +15,14 @@ import { LoadingState } from '../../components/states/LoadingState'
 import type { FilterConfig } from '../../types/filters'
 import { detachPromise } from '../../utils/detachPromise'
 import { buildFilterParams } from '../../utils/filterUtils'
-import { useExecutionWebSocket } from '../automations/hooks/useExecutionWebSocket'
-import { useExecutionStore } from '../automations/stores/useExecutionStore'
-import { AutomationHistoryCard } from '../builder/AutomationHistoryCard'
 import { ExecutionDetailsPanel, type WorkflowDefShape } from '../builder/ExecutionDetailsPanel'
 import { StatusLabel } from '../builder/ExecutionStatus'
 import { ExecutionViewContent } from '../builder/ExecutionViewContent'
 import { formatHistoryDateTime } from '../builder/historyDateUtils'
 import { RunHistoryToggleButton } from '../builder/RunHistoryToggleButton'
+import { WorkflowHistoryCard } from '../builder/WorkflowHistoryCard'
+import { useExecutionWebSocket } from '../workflows/hooks/useExecutionWebSocket'
+import { useExecutionStore } from '../workflows/stores/useExecutionStore'
 
 type Execution = ExecutionsAPI.components['schemas']['Execution']
 type ActivityData = ExecutionsAPI.components['schemas']['ActivityData']
@@ -144,7 +144,7 @@ function ExecutionDetailContent({
       {/* History Card Panel */}
       {historyCardOpen && (
         <FlexItem style={{ flexShrink: 0, alignSelf: 'stretch' }}>
-          <AutomationHistoryCard
+          <WorkflowHistoryCard
             executions={executionsQuery.data?.resources ?? []}
             selectedExecutionId={executionId}
             onClose={() => {

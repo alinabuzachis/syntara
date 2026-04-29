@@ -13,8 +13,8 @@ import {
 
 import { AppPanel } from '../../components/AppPanel'
 import { RegistryNodeId } from '../../constants'
-import { renderNodeIcon } from '../automations/canvas/nodes/renderNodeIcon'
-import { getAddNodePanelColor } from '../automations/canvas/nodeTypeColors'
+import { renderNodeIcon } from '../workflows/canvas/nodes/renderNodeIcon'
+import { getAddNodePanelColor } from '../workflows/canvas/nodeTypeColors'
 
 import type { NodeSubtypeDefinition, NodeTypeDefinition } from './registry/NodeRegistry'
 import { resolveIconForType } from './utils/nodeIcons'

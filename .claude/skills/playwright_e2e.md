@@ -147,7 +147,7 @@ This project ships with two MCP servers configured in `.mcp.json` that give you 
 Instead of guessing that a button is called "Save":
 
 ```
-1. browser_navigate → http://localhost:5173/automations/new
+1. browser_navigate → http://localhost:5173/workflows/new
 2. browser_snapshot → reveals: button[name="Save workflow"]
 3. Write test:  await app.getByRole('button', { name: 'Save workflow' }).click()
 ```
@@ -658,7 +658,7 @@ npm run e2e:ui
 
 # Specific test file
 cd packages/nexus-ui
-npx playwright test e2e/automations.spec.ts
+npx playwright test e2e/workflows.spec.ts
 
 # Specific test by name
 npx playwright test --grep "user creates"
@@ -674,7 +674,7 @@ NEXUS_E2E_SKIP_WEB_SERVER=1 NEXUS_E2E_BASE_URL=http://localhost:5173 npx playwri
 
 ```bash
 # Playwright Inspector (step through test)
-npx playwright test --debug e2e/automations.spec.ts
+npx playwright test --debug e2e/workflows.spec.ts
 
 # View trace after failure (traces saved on failure by config)
 npx playwright show-trace test-results/*/trace.zip

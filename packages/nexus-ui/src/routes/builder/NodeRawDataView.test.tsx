@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import type { Node } from '@xyflow/react'
 import { describe, expect, it } from 'vitest'
 
-import type { NodeType } from '../automations/canvas/nodes/NodeType'
+import type { NodeType } from '../workflows/canvas/nodes/NodeType'
 
 import { NodeRawDataView } from './NodeRawDataView'
 

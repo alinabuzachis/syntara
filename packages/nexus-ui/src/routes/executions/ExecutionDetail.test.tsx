@@ -126,9 +126,9 @@ vi.mock('../builder/ExecutionDetailsPanel', () => ({
   ),
 }))
 
-// Mock AutomationHistoryCard component
-vi.mock('../builder/AutomationHistoryCard', () => ({
-  AutomationHistoryCard: ({
+// Mock WorkflowHistoryCard component
+vi.mock('../builder/WorkflowHistoryCard', () => ({
+  WorkflowHistoryCard: ({
     executions,
     selectedExecutionId,
     onClose,
@@ -139,7 +139,7 @@ vi.mock('../builder/AutomationHistoryCard', () => ({
     onClose: () => void
     onExecutionSelect: (id: string) => void
   }) => (
-    <div data-testid="automation-history-card">
+    <div data-testid="workflow-history-card">
       <button onClick={onClose} aria-label="Close history">
         Close History
       </button>
@@ -162,7 +162,7 @@ vi.mock('../builder/ExecutionStatus', () => ({
 }))
 
 // Mock useExecutionWebSocket hook
-vi.mock('../automations/hooks/useExecutionWebSocket', () => ({
+vi.mock('../workflows/hooks/useExecutionWebSocket', () => ({
   useExecutionWebSocket: vi.fn(),
 }))
 
@@ -240,7 +240,7 @@ describe('ExecutionDetail', () => {
       </QueryClientProvider>
     )
 
-    expect(screen.getByTestId('automation-history-card')).toBeInTheDocument()
+    expect(screen.getByTestId('workflow-history-card')).toBeInTheDocument()
   })
 
   it('shows history panel when history=open query param is present', () => {
@@ -253,7 +253,7 @@ describe('ExecutionDetail', () => {
       </QueryClientProvider>
     )
 
-    expect(screen.getByTestId('automation-history-card')).toBeInTheDocument()
+    expect(screen.getByTestId('workflow-history-card')).toBeInTheDocument()
   })
 
   it('toggles history panel closed when history button is clicked', async () => {
@@ -428,7 +428,7 @@ describe('ExecutionDetail', () => {
       const mockSetActivityExecutions = vi.fn()
 
       // Store the original useExecutionStore module
-      const { useExecutionStore } = await import('../automations/stores/useExecutionStore')
+      const { useExecutionStore } = await import('../workflows/stores/useExecutionStore')
 
       // Mock getState to return our mock functions
       const originalGetState = useExecutionStore.getState
@@ -472,7 +472,7 @@ describe('ExecutionDetail', () => {
       const mockSetActivityExecutions = vi.fn()
 
       // Store the original useExecutionStore module
-      const { useExecutionStore } = await import('../automations/stores/useExecutionStore')
+      const { useExecutionStore } = await import('../workflows/stores/useExecutionStore')
 
       // Mock getState to return our mock functions
       const originalGetState = useExecutionStore.getState

@@ -9,7 +9,7 @@ import {
 import type { Node } from '@xyflow/react'
 
 import { CodeBlock } from '../../components/details/CodeBlock'
-import type { NodeType } from '../automations/canvas/nodes/NodeType'
+import type { NodeType } from '../workflows/canvas/nodes/NodeType'
 
 type NodeRawDataViewProps = {
   node: Node<NodeType['data']>

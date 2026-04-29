@@ -19,7 +19,7 @@ import { useQueryState } from '../../components/states/useQueryState'
 import { useElapsedTime } from '../../hooks/useElapsedTime'
 import { formatExecutionDateTime, formatElapsedTime } from '../../utils/dateUtils'
 import { detachPromise } from '../../utils/detachPromise'
-import { useExecutionStore, useExecutionStoreActions } from '../automations/stores/useExecutionStore'
+import { useExecutionStore, useExecutionStoreActions } from '../workflows/stores/useExecutionStore'
 
 import { ExecutionActivityTable } from './ExecutionActivityTable'
 import type { ActivityOrderItem, TriggerItem } from './ExecutionActivityTable'

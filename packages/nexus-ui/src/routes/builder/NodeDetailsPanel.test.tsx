@@ -3,8 +3,8 @@ import userEvent from '@testing-library/user-event'
 import type { Node } from '@xyflow/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useNodeMenuActions } from '../automations/canvas/nodes/hooks/useNodeMenuActions'
-import type { NodeType } from '../automations/canvas/nodes/NodeType'
+import { useNodeMenuActions } from '../workflows/canvas/nodes/hooks/useNodeMenuActions'
+import type { NodeType } from '../workflows/canvas/nodes/NodeType'
 
 import { NodeDetailsPanel } from './NodeDetailsPanel'
 
@@ -86,12 +86,12 @@ vi.mock('./panels/OutputPanel', () => ({
   OutputPanel: () => <div data-testid="output-panel">Output</div>,
 }))
 
-vi.mock('../automations/canvas/nodes/hooks/useNodeMenuActions', () => ({
+vi.mock('../workflows/canvas/nodes/hooks/useNodeMenuActions', () => ({
   useNodeMenuActions: vi.fn(() => []),
   MenuNodeType: { ACTIVITY: 'activity', TRIGGER: 'trigger' },
 }))
 
-vi.mock('../automations/canvas/nodes/common/NodeMenu', () => ({
+vi.mock('../workflows/canvas/nodes/common/NodeMenu', () => ({
   NodeMenu: ({ menuActions }: { menuActions: Array<{ onClick: () => void }> }) => (
     <button onClick={() => menuActions[0]?.onClick()} type="button">
       Menu

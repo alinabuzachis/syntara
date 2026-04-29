@@ -18,7 +18,7 @@ vi.mock('../../stores/useWorkflowStore', () => ({
   }),
 }))
 
-vi.mock('../automations/stores/useExecutionStore', () => ({
+vi.mock('../workflows/stores/useExecutionStore', () => ({
   useExecutionStoreActions: () => ({
     setActivityExecutions: mockSetActivityExecutions,
   }),

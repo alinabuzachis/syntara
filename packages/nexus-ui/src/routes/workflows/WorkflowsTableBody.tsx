@@ -63,7 +63,7 @@ type GroupedWorkflowsTableBodyProps = {
   getRowActions: (workflow: Workflow) => IAction[]
 }
 
-export function GroupedAutomationsTableBody({
+export function GroupedWorkflowsTableBody({
   groupedWorkflows,
   collapsedProjects,
   onToggleProject,
@@ -106,7 +106,7 @@ type FlatWorkflowsTableBodyProps = {
   getRowActions: (workflow: Workflow) => IAction[]
 }
 
-export function FlatAutomationsTableBody({ workflows, getRowActions }: Readonly<FlatWorkflowsTableBodyProps>) {
+export function FlatWorkflowsTableBody({ workflows, getRowActions }: Readonly<FlatWorkflowsTableBodyProps>) {
   return (
     <Tbody>
       {workflows.map((workflow) => (
