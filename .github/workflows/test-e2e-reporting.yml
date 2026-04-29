@@ -1,0 +1,60 @@
+---
+# Temporary workflow to verify E2E PR reporting works.
+# Delete this file after confirming the report comment appears on a PR.
+name: Test E2E Reporting
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr-number:
+        description: 'PR number to post comment on'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  test-reporting:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22.13.0'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: packages/nexus-ui
+        run: npx playwright install --with-deps chromium
+
+      - name: Run mock E2E tests (subset)
+        working-directory: packages/nexus-ui
+        run: npx playwright test --retries=1 --grep "Tab Navigation"
+        continue-on-error: true
+        env:
+          NEXUS_E2E_PORT: '4173'
+          NEXUS_E2E_API_PORT: '3300'
+
+      - name: Post E2E results to PR
+        if: always()
+        uses: daun/playwright-report-summary@v3
+        with:
+          report-file: packages/nexus-ui/test-results/results.json
+          pr-number: ${{ inputs.pr-number }}
+          comment-title: 'E2E Test Results'
+          job-summary: true
+          report-tag: e2e-tests
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-test-results
+          path: packages/nexus-ui/test-results/results.json
+          if-no-files-found: warn
+          retention-days: 1

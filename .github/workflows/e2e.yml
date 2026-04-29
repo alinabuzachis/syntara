@@ -10,6 +10,7 @@ permissions:
   statuses: write
   contents: read
   actions: read
+  pull-requests: write
 
 concurrency:
   group: e2e-${{ github.event.workflow_run.head_branch }}
@@ -178,10 +179,51 @@ jobs:
 
       - name: Run E2E tests
         working-directory: packages/nexus-ui
-        run: npx playwright test --retries=1 --reporter=list
+        run: npx playwright test --retries=1
         env:
           NEXUS_E2E_SKIP_WEB_SERVER: '1'
           NEXUS_E2E_BASE_URL: http://localhost:8000
+
+      - name: Find PR number
+        id: find-pr
+        if: always()
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const headBranch = '${{ github.event.workflow_run.head_branch }}';
+            const workflowRun = context.payload.workflow_run;
+            const prsFromEvent = workflowRun?.pull_requests ?? [];
+
+            if (prsFromEvent.length > 0) {
+              core.setOutput('number', String(prsFromEvent[0].number));
+              console.log(`Found PR #${prsFromEvent[0].number} from workflow_run payload`);
+              return;
+            }
+
+            const headOwner = workflowRun?.head_repository?.owner?.login ?? context.repo.owner;
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head: `${headOwner}:${headBranch}`,
+              state: 'open',
+              per_page: 1,
+            });
+            if (prs.length > 0) {
+              core.setOutput('number', prs[0].number);
+              console.log(`Found PR #${prs[0].number} for branch ${headBranch}`);
+            } else {
+              console.log(`No open PR found for branch ${headBranch}`);
+            }
+
+      - name: Post E2E results to PR
+        if: always() && steps.find-pr.outputs.number
+        uses: daun/playwright-report-summary@v3
+        with:
+          report-file: packages/nexus-ui/test-results/results.json
+          pr-number: ${{ steps.find-pr.outputs.number }}
+          comment-title: 'E2E Test Results'
+          job-summary: true
+          report-tag: e2e-tests
 
       - name: Upload Playwright report
         if: always()
@@ -190,6 +232,15 @@ jobs:
           name: playwright-report
           path: packages/nexus-ui/playwright-report
           if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload E2E test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-test-results
+          path: packages/nexus-ui/test-results/results.json
+          if-no-files-found: warn
           retention-days: 7
 
       - name: Cleanup
