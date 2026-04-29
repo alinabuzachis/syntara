@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { AAPFormData } from '../node-forms/AAPNodeForm'
 
-import { buildAAPConfig, validateJobTemplateId } from './aapHelpers'
+import { buildAAPConfig, buildExpressionModeActivity, validateJobTemplateId } from './aapHelpers'
 
 function makeFormData(overrides: Partial<AAPFormData> = {}): AAPFormData {
   return {
@@ -183,5 +183,32 @@ describe('buildAAPConfig', () => {
   it('handles instanceGroupId of 0 (falsy but defined)', () => {
     const result = buildAAPConfig(makeFormData({ instance_group_id: 0 }))
     expect(result?.instanceGroupId).toBe(0)
+  })
+})
+
+describe('buildExpressionModeActivity', () => {
+  it('preserves credential_id in expression mode config', () => {
+    const data = makeFormData({
+      credential_id: 'cred-abc-123',
+      organization_name: '${trigger.org}',
+      job_template_name: '${trigger.template}',
+    })
+
+    const activity = buildExpressionModeActivity('node-1', 'AAP Job', data)
+
+    expect(activity.config.credential_id).toBe('cred-abc-123')
+  })
+
+  it('expression mode config has job_template_name but no job_template_id', () => {
+    const data = makeFormData({
+      organization_name: '${trigger.org}',
+      job_template_name: '${trigger.template}',
+    })
+
+    const activity = buildExpressionModeActivity('node-1', 'AAP Job', data)
+
+    expect(activity.config.job_template_name).toBe('${trigger.template}')
+    expect(activity.config.organization_name).toBe('${trigger.org}')
+    expect(activity.config).not.toHaveProperty('job_template_id')
   })
 })

@@ -1,8 +1,10 @@
 import { Stack, StackItem, Switch, Title } from '@patternfly/react-core'
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
+import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
+import { CredentialSelector } from '../../../components/CredentialSelector'
+import { credentialHelpText } from '../../../components/credentialSelectorHelpText'
 import type { ExpandableCodeEditorHandle } from '../../../components/ExpandableCodeEditor'
 import { useAAPBrowser } from '../../../hooks/useAAPBrowser'
 import { detachPromise } from '../../../utils/detachPromise'
@@ -43,7 +45,7 @@ function AAPFormFields({
   selectedCredentialId: string | undefined
   projectId?: string
 }) {
-  const { register, setValue, getValues } = useFormContext<AAPFormData>()
+  const { register, setValue, getValues, control } = useFormContext<AAPFormData>()
 
   // Auto-detect expression mode from initial data
   const hasExpressionInInitialData =
@@ -106,6 +108,28 @@ function AAPFormFields({
         </div>
       </StackItem>
 
+      <StackItem>
+        <Controller
+          control={control}
+          name="credential_id"
+          render={({ field }) => (
+            <CredentialSelector
+              value={field.value}
+              onChange={field.onChange}
+              compatibleTypeNames={['Ansible Automation Platform']}
+              label="Authentication credential"
+              fieldId="aap-credential"
+              placeholder="Select credential"
+              allowCreate
+              projectId={projectId}
+              helpText={credentialHelpText(
+                'Select a stored credential to authenticate this request. Credentials securely store sensitive information like API tokens and passwords.'
+              )}
+            />
+          )}
+        />
+      </StackItem>
+
       {expressionMode ? (
         <>
           <StackItem>
@@ -164,7 +188,7 @@ function AAPFormFields({
         </>
       ) : (
         <>
-          <AAPResourcePickers browser={browser} projectId={projectId} />
+          <AAPResourcePickers browser={browser} />
 
           <StackItem>
             <PromptOnLaunchFields

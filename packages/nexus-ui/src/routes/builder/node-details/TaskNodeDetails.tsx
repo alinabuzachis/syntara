@@ -71,9 +71,15 @@ function getField<T>(snakeCase: T | undefined, camelCase: T | undefined, default
 
 /**
  * Type guard to check if config has AAP job template fields.
+ * Checks both normal mode (job_template_id) and expression mode (job_template_name).
  */
 function hasJobTemplateConfig(config: Record<string, unknown>): config is StoredAAPConfig {
-  return 'job_template_id' in config || 'jobTemplateId' in config
+  return (
+    'job_template_id' in config ||
+    'jobTemplateId' in config ||
+    'job_template_name' in config ||
+    'jobTemplateName' in config
+  )
 }
 
 /**

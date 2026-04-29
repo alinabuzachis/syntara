@@ -9,27 +9,7 @@ import type { AAPFormData } from './aapFormSchema'
 import { AAPResourcePickers } from './AAPResourcePickers'
 
 // Mock dependencies
-vi.mock('../../../components/CredentialSelector', () => ({
-  CredentialSelector: ({
-    label,
-    onChange,
-    value,
-  }: {
-    label: string
-    onChange: (v: number) => void
-    value?: number
-  }) => (
-    <div data-testid="credential-selector">
-      {label}
-      <button onClick={() => onChange(123)}>Select Credential</button>
-      {value && <span>Value: {value}</span>}
-    </div>
-  ),
-}))
-
-vi.mock('../../../components/credentialSelectorHelpText', () => ({
-  credentialHelpText: (text: string) => text,
-}))
+// CredentialSelector moved to AAPNodeForm — no longer rendered in AAPResourcePickers
 
 vi.mock('../../../utils/apiErrors', () => ({
   getErrorMessage: (error: Error) => error.message,
@@ -101,18 +81,6 @@ function createMockBrowser(overrides?: Partial<ReturnType<typeof useAAPBrowser>>
 }
 
 describe('AAPResourcePickers', () => {
-  it('renders credential selector', () => {
-    const browser = createMockBrowser()
-    render(
-      <TestWrapper>
-        <AAPResourcePickers browser={browser} />
-      </TestWrapper>
-    )
-
-    expect(screen.getByTestId('credential-selector')).toBeInTheDocument()
-    expect(screen.getByText('Authentication credential')).toBeInTheDocument()
-  })
-
   it('renders organization selector with options', () => {
     const browser = createMockBrowser()
     render(
@@ -240,19 +208,6 @@ describe('AAPResourcePickers', () => {
     )
 
     expect(screen.queryByRole('link', { name: /view job template in aap/i })).not.toBeInTheDocument()
-  })
-
-  it('passes projectId to CredentialSelector', () => {
-    const browser = createMockBrowser()
-
-    render(
-      <TestWrapper>
-        <AAPResourcePickers browser={browser} projectId="proj-123" />
-      </TestWrapper>
-    )
-
-    // CredentialSelector is rendered - we can verify via its presence
-    expect(screen.getByTestId('credential-selector')).toBeInTheDocument()
   })
 
   it('maps organizations to options correctly', () => {

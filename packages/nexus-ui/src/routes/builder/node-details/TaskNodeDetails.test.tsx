@@ -264,6 +264,23 @@ describe('TaskNodeDetails Component', () => {
     expect(screen.getByTestId('aap-node-form')).toBeInTheDocument()
   })
 
+  it('renders AAPNodeForm for expression mode config (job_template_name without job_template_id)', () => {
+    const taskData = {
+      type: 'aap_job_template' as const,
+      id: 'task-aap-expr',
+      name: 'Expression AAP Task',
+      config: {
+        job_template_name: '${trigger.template}',
+        organization_name: '${trigger.org}',
+        credential_id: 'cred-abc',
+      },
+    }
+
+    renderTaskNodeDetails(taskData, 'task-aap-expr')
+
+    expect(screen.getByTestId('aap-node-form')).toBeInTheDocument()
+  })
+
   it('renders AIAgentNodeDetails for agentic task', () => {
     const taskData = {
       type: 'agentic' as const,

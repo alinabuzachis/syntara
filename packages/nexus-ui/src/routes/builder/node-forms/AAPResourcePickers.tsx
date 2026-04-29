@@ -2,8 +2,6 @@ import { Alert, Button, FormGroup, FormHelperText, HelperText, HelperTextItem, S
 import { RhUiErrorIcon } from '@patternfly/react-icons'
 import { Controller, useFormContext } from 'react-hook-form'
 
-import { CredentialSelector } from '../../../components/CredentialSelector'
-import { credentialHelpText } from '../../../components/credentialSelectorHelpText'
 import type { useAAPBrowser } from '../../../hooks/useAAPBrowser'
 import { getErrorMessage, isRetryableError } from '../../../utils/apiErrors'
 import { isValidAAPTemplateURL } from '../../../utils/urlValidation'
@@ -13,10 +11,9 @@ import { AAPTypeaheadSelect } from './AAPTypeaheadSelect'
 
 type AAPResourcePickersProps = {
   readonly browser: ReturnType<typeof useAAPBrowser>
-  readonly projectId?: string
 }
 
-export function AAPResourcePickers({ browser, projectId }: AAPResourcePickersProps) {
+export function AAPResourcePickers({ browser }: AAPResourcePickersProps) {
   const {
     control,
     setValue,
@@ -76,28 +73,7 @@ export function AAPResourcePickers({ browser, projectId }: AAPResourcePickersPro
 
   return (
     <>
-      {/* Authentication credential selector - first field to match origin/main */}
-      <StackItem>
-        <Controller
-          control={control}
-          name="credential_id"
-          render={({ field }) => (
-            <CredentialSelector
-              value={field.value}
-              onChange={field.onChange}
-              compatibleTypeNames={['Ansible Automation Platform']}
-              label="Authentication credential"
-              fieldId="aap-credential"
-              placeholder="Select credential"
-              allowCreate
-              projectId={projectId}
-              helpText={credentialHelpText(
-                'Select a stored credential to authenticate this request. Credentials securely store sensitive information like API tokens and passwords.'
-              )}
-            />
-          )}
-        />
-      </StackItem>
+      {/* Authentication credential selector moved to AAPNodeForm (renders in both expression and normal mode) */}
 
       {/* Organization */}
       <StackItem>
