@@ -26,10 +26,10 @@ export const AppRoute = {
       Root: '/configuration/credentials',
       Detail: '/configuration/credentials/:credentialId',
     },
+    Settings: '/configuration/settings',
   },
   AccessManagement: {
     Root: '/access-management',
-    Settings: '/access-management/settings',
     Users: '/access-management/users',
     CreateUser: '/access-management/users/create',
     UserDetail: '/access-management/users/:userId',

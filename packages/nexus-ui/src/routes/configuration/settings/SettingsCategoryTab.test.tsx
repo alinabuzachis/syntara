@@ -133,4 +133,18 @@ describe('SettingsCategoryTab', () => {
 
     expect(onChange).toHaveBeenCalledWith('a', 101)
   })
+
+  it('hides reset to defaults button when readOnly', () => {
+    const settings = [makeSetting({ key: 'a', default_value: 100, effective_value: 500, value: 500 })]
+    render(<SettingsCategoryTab settings={settings} {...defaultProps} readOnly />)
+
+    expect(screen.queryByRole('button', { name: 'Reset to defaults' })).not.toBeInTheDocument()
+  })
+
+  it('hides kebab menu when readOnly', () => {
+    const settings = [makeSetting({ key: 'a', default_value: 100, effective_value: 500, value: 500 })]
+    render(<SettingsCategoryTab settings={settings} {...defaultProps} readOnly />)
+
+    expect(screen.queryByLabelText('Actions for Max total tokens')).not.toBeInTheDocument()
+  })
 })

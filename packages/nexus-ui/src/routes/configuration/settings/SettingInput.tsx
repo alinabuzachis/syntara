@@ -13,7 +13,7 @@ import {
   TextInputGroupUtilities,
 } from '@patternfly/react-core'
 import { TimesIcon } from '@patternfly/react-icons'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { z } from 'zod'
 
 type RuntimeSetting = SettingsAPI.components['schemas']['RuntimeSettingRead']
@@ -31,6 +31,7 @@ type SettingInputProps = {
   readonly onChange: (key: string, value: unknown) => void
   readonly stringError: string | null
   readonly onStringError: (error: string | null) => void
+  readonly readOnly?: boolean
 }
 
 const emailSchema = z.email({ error: 'Invalid email address' })
@@ -38,25 +39,17 @@ const urlSchema = z
   .url({ error: 'Must be a valid URL' })
   .refine((url) => /^https?:\/\//i.test(url), { message: 'Must be an HTTP or HTTPS URL' })
 
-export function SettingInput({
-  setting,
-  value,
-  numericBounds,
-  numericError,
-  onChange,
-  stringError,
-  onStringError,
-}: SettingInputProps) {
-  const [jsonInputValue, setJsonInputValue] = useState('')
-  const schema = (setting.validation_schema ?? {}) as Record<string, unknown>
-  const pattern = schema.pattern as string | undefined
-
-  // Validate string patterns on mount/value change so errors survive tab switches
+function useStringPatternValidation(
+  valueType: string,
+  value: unknown,
+  pattern: string | undefined,
+  onStringError: (error: string | null) => void
+) {
   useEffect(() => {
-    if (setting.value_type !== 'string' || !pattern) return
+    if (valueType !== 'string' || !pattern) return
     const val = (value as string) ?? ''
     if (!val) {
-      if (stringError) onStringError(null)
+      onStringError(null)
       return
     }
     if (pattern === 'url') {
@@ -66,7 +59,117 @@ export function SettingInput({
       const result = emailSchema.safeParse(val)
       onStringError(result.success ? null : result.error.issues[0].message)
     }
-  }, [value, setting.value_type, pattern, onStringError, stringError])
+  }, [value, valueType, pattern, onStringError])
+}
+
+type JsonInputProps = {
+  readonly setting: RuntimeSetting
+  readonly value: unknown
+  readonly pattern: string | undefined
+  readonly onChange: (key: string, value: unknown) => void
+  readonly stringError: string | null
+  readonly onStringError: (error: string | null) => void
+  readonly readOnlyVariant?: 'default'
+}
+
+function JsonInput({ setting, value, pattern, onChange, stringError, onStringError, readOnlyVariant }: JsonInputProps) {
+  const [inputValue, setInputValue] = useState('')
+  const items = Array.isArray(value) ? (value as string[]).filter(Boolean) : []
+  const itemsRef = useRef(items)
+  useEffect(() => {
+    itemsRef.current = items
+  })
+
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key !== 'Enter') return
+    event.preventDefault()
+    const trimmed = inputValue.trim()
+    if (!trimmed) return
+    if (pattern === 'email') {
+      const result = emailSchema.safeParse(trimmed)
+      if (!result.success) {
+        onStringError(result.error.issues[0].message)
+        return
+      }
+    }
+    if (stringError) onStringError(null)
+    const currentItems = itemsRef.current
+    if (!currentItems.includes(trimmed)) {
+      const updated = [...currentItems, trimmed]
+      itemsRef.current = updated
+      onChange(setting.key, updated)
+      setInputValue('')
+    }
+  }
+
+  return (
+    <TextInputGroup>
+      <TextInputGroupMain
+        id={setting.key}
+        value={inputValue}
+        onChange={(_event, val) => {
+          if (stringError) onStringError(null)
+          setInputValue(val)
+        }}
+        onKeyDown={handleKeyDown}
+        placeholder={readOnlyVariant ? undefined : 'Type a value and press Enter'}
+        inputProps={readOnlyVariant ? { readOnly: true } : undefined}
+      >
+        {items.length > 0 && (
+          <LabelGroup aria-label={setting.name}>
+            {items.map((item) => (
+              <Label
+                key={item}
+                onClose={
+                  readOnlyVariant
+                    ? undefined
+                    : () =>
+                        onChange(
+                          setting.key,
+                          items.filter((i) => i !== item)
+                        )
+                }
+              >
+                {item}
+              </Label>
+            ))}
+          </LabelGroup>
+        )}
+      </TextInputGroupMain>
+      {!readOnlyVariant && items.length > 0 && (
+        <TextInputGroupUtilities>
+          <Button
+            variant="plain"
+            aria-label="Clear all"
+            onClick={() => {
+              onChange(setting.key, [])
+              setInputValue('')
+            }}
+          >
+            <TimesIcon />
+          </Button>
+        </TextInputGroupUtilities>
+      )}
+    </TextInputGroup>
+  )
+}
+
+export function SettingInput({
+  setting,
+  value,
+  numericBounds,
+  numericError,
+  onChange,
+  stringError,
+  onStringError,
+  readOnly,
+}: SettingInputProps) {
+  const schema = (setting.validation_schema ?? {}) as Record<string, unknown>
+  const pattern = schema.pattern as string | undefined
+
+  useStringPatternValidation(setting.value_type, value, pattern, onStringError)
+
+  const readOnlyVariant = readOnly ? ('default' as const) : undefined
 
   switch (setting.value_type) {
     case 'boolean':
@@ -75,6 +178,7 @@ export function SettingInput({
           id={setting.key}
           label={value ? 'Enabled' : 'Disabled'}
           isChecked={value as boolean}
+          isDisabled={readOnly}
           onChange={(_event, checked) => onChange(setting.key, checked)}
         />
       )
@@ -99,6 +203,7 @@ export function SettingInput({
           value={numValue}
           min={min}
           max={max}
+          isDisabled={readOnly}
           validated={numericError ? 'error' : 'default'}
           onMinus={() => onChange(setting.key, Math.round((numValue - step) * 100) / 100)}
           onPlus={() => onChange(setting.key, Math.round((numValue + step) * 100) / 100)}
@@ -117,7 +222,12 @@ export function SettingInput({
       const allowedValues = schema.allowed_values as string[] | undefined
       if (allowedValues) {
         return (
-          <FormSelect id={setting.key} value={value as string} onChange={(_event, val) => onChange(setting.key, val)}>
+          <FormSelect
+            id={setting.key}
+            value={value as string}
+            isDisabled={readOnly}
+            onChange={(_event, val) => onChange(setting.key, val)}
+          >
             {allowedValues.map((v) => (
               <FormSelectOption key={v} value={v} label={v} />
             ))}
@@ -129,84 +239,31 @@ export function SettingInput({
           id={setting.key}
           value={(value as string) ?? ''}
           validated={stringError ? 'error' : 'default'}
+          readOnlyVariant={readOnlyVariant}
           onChange={(_event, val) => onChange(setting.key, val)}
         />
       )
     }
 
-    case 'json': {
-      const items = Array.isArray(value) ? (value as string[]).filter(Boolean) : []
+    case 'json':
       return (
-        <TextInputGroup>
-          <TextInputGroupMain
-            id={setting.key}
-            value={jsonInputValue}
-            onChange={(_event, val) => {
-              if (stringError) onStringError(null)
-              setJsonInputValue(val)
-            }}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault()
-                const trimmed = jsonInputValue.trim()
-                if (!trimmed) return
-                if (pattern === 'email') {
-                  const result = emailSchema.safeParse(trimmed)
-                  if (!result.success) {
-                    onStringError(result.error.issues[0].message)
-                    return
-                  }
-                }
-                if (stringError) onStringError(null)
-                if (!items.includes(trimmed)) {
-                  onChange(setting.key, [...items, trimmed])
-                  setJsonInputValue('')
-                }
-              }
-            }}
-            placeholder="Type a value and press Enter"
-          >
-            {items.length > 0 && (
-              <LabelGroup aria-label={setting.name}>
-                {items.map((item) => (
-                  <Label
-                    key={item}
-                    onClose={() =>
-                      onChange(
-                        setting.key,
-                        items.filter((i) => i !== item)
-                      )
-                    }
-                  >
-                    {item}
-                  </Label>
-                ))}
-              </LabelGroup>
-            )}
-          </TextInputGroupMain>
-          {items.length > 0 && (
-            <TextInputGroupUtilities>
-              <Button
-                variant="plain"
-                aria-label="Clear all"
-                onClick={() => {
-                  onChange(setting.key, [])
-                  setJsonInputValue('')
-                }}
-              >
-                <TimesIcon />
-              </Button>
-            </TextInputGroupUtilities>
-          )}
-        </TextInputGroup>
+        <JsonInput
+          setting={setting}
+          value={value}
+          pattern={pattern}
+          onChange={onChange}
+          stringError={stringError}
+          onStringError={onStringError}
+          readOnlyVariant={readOnlyVariant}
+        />
       )
-    }
 
     default:
       return (
         <TextInput
           id={setting.key}
           value={String(value as string)}
+          readOnlyVariant={readOnlyVariant}
           onChange={(_event, val) => onChange(setting.key, val)}
         />
       )

@@ -23,6 +23,11 @@ vi.mock('./useUnsavedChanges', () => ({
   }),
 }))
 
+// Mock useSettingsPermissions used by useFilteredNavigationItems
+vi.mock('../routes/configuration/settings/useSettingsPermissions', () => ({
+  useSettingsPermissions: () => ({ canRead: true, canWrite: true }),
+}))
+
 // Mock useAuthStore used by UserMenuDropdown
 const mockLogout = vi.fn().mockResolvedValue(undefined)
 vi.mock('../stores/useAuthStore', () => ({
@@ -156,19 +161,33 @@ describe('AppDockedNav', () => {
     expect(mockRequestNavigation).toHaveBeenCalledWith('/configuration/integrations')
   })
 
-  it('shows dropdown with Access Management and Authentication when Access Management is clicked', async () => {
+  it('shows dropdown with Integrations, Credentials, and Settings when Configuration is clicked', async () => {
+    const user = userEvent.setup()
+    renderDockedNav()
+
+    const navButton = screen.getByRole('button', { name: 'Configuration' })
+    await user.click(navButton)
+
+    const menu = screen.getByRole('menu')
+    const menuItems = within(menu).getAllByRole('menuitem')
+
+    // Configuration has 3 child items: Integrations, Credentials, Settings
+    expect(menuItems.length).toBe(3)
+    expect(menu).toBeInTheDocument()
+  })
+
+  it('shows dropdown with Access Management and Identity Providers when Access Management is clicked', async () => {
     const user = userEvent.setup()
     renderDockedNav()
 
     const navButton = screen.getByRole('button', { name: 'Access Management' })
     await user.click(navButton)
 
-    // Verify flyout menu appears with menu items (Users and Groups)
     const menu = screen.getByRole('menu')
     const menuItems = within(menu).getAllByRole('menuitem')
 
-    // Access Management has 3 child items: Access Management, Identity Providers, Settings
-    expect(menuItems.length).toBe(3)
+    // Access Management has 2 child items: Access Management, Identity Providers
+    expect(menuItems.length).toBe(2)
     expect(menu).toBeInTheDocument()
   })
 

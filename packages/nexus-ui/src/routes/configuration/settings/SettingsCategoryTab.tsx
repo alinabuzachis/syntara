@@ -16,6 +16,7 @@ type SettingsCategoryTabProps = {
   readonly onChange: (key: string, value: unknown) => void
   readonly onResetField: (key: string) => void
   readonly onValidationChange?: (key: string, hasError: boolean) => void
+  readonly readOnly?: boolean
 }
 
 export function SettingsCategoryTab({
@@ -24,6 +25,7 @@ export function SettingsCategoryTab({
   onChange,
   onResetField,
   onValidationChange,
+  readOnly,
 }: SettingsCategoryTabProps) {
   const resetDialog = useDialogState()
 
@@ -83,6 +85,7 @@ export function SettingsCategoryTab({
                   onChange={onChange}
                   onResetSingle={onResetField}
                   onValidationChange={onValidationChange}
+                  readOnly={readOnly}
                 />
               )
             })}
@@ -90,11 +93,13 @@ export function SettingsCategoryTab({
         )
       })}
 
-      <ActionGroup>
-        <Button variant="secondary" onClick={() => resetDialog.open(undefined)} isDisabled={!hasNonDefaults}>
-          Reset to defaults
-        </Button>
-      </ActionGroup>
+      {!readOnly && (
+        <ActionGroup>
+          <Button variant="secondary" onClick={() => resetDialog.open(undefined)} isDisabled={!hasNonDefaults}>
+            Reset to defaults
+          </Button>
+        </ActionGroup>
+      )}
 
       <ConfirmationDialog
         isOpen={resetDialog.isOpen}

@@ -6,6 +6,7 @@ import { axe } from 'vitest-axe'
 import { settingsClient } from '../../../client'
 
 import Settings from './Settings'
+import { useSettingsPermissions } from './useSettingsPermissions'
 
 const mockMutate = vi.fn()
 const mockShowSuccess = vi.fn()
@@ -29,6 +30,10 @@ vi.mock('../../../hooks/useApiErrorAlert', () => ({
 
 vi.mock('../../../hooks/useMutationErrorHandler', () => ({
   useMutationErrorHandler: () => () => vi.fn(),
+}))
+
+vi.mock('./useSettingsPermissions', () => ({
+  useSettingsPermissions: vi.fn(() => ({ canRead: true, canWrite: true })),
 }))
 
 const mockCategories = {
@@ -277,5 +282,58 @@ describe('Settings', () => {
 
     // Save should still be enabled (local edits to default values)
     expect(screen.getByRole('button', { name: 'Save changes' })).toBeEnabled()
+  })
+
+  describe('no access', () => {
+    beforeEach(() => {
+      vi.mocked(useSettingsPermissions).mockReturnValue({ canRead: false, canWrite: false })
+    })
+
+    it('shows access denied message when user cannot read', () => {
+      mockQueries()
+      render(<Settings />)
+
+      expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument()
+      expect(screen.getByText('Access denied')).toBeInTheDocument()
+      expect(screen.getByText(/You don't have permission to view settings.*auditor or admin role/)).toBeInTheDocument()
+      expect(screen.queryByRole('tab')).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Save changes' })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('read-only mode', () => {
+    beforeEach(() => {
+      vi.mocked(useSettingsPermissions).mockReturnValue({ canRead: true, canWrite: false })
+    })
+
+    it('hides save button when user cannot write', () => {
+      mockQueries()
+      render(<Settings />)
+
+      expect(screen.queryByRole('button', { name: 'Save changes' })).not.toBeInTheDocument()
+    })
+
+    it('still displays settings categories and values', () => {
+      mockQueries()
+      render(<Settings />)
+
+      expect(screen.getByRole('tab', { name: 'Context Manager' })).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: 'Application' })).toBeInTheDocument()
+      expect(screen.getByText('Max total tokens')).toBeInTheDocument()
+    })
+
+    it('hides reset to defaults button', () => {
+      mockQueries()
+      render(<Settings />)
+
+      expect(screen.queryByRole('button', { name: 'Reset to defaults' })).not.toBeInTheDocument()
+    })
+
+    it('disables number input controls', () => {
+      mockQueries()
+      render(<Settings />)
+
+      expect(screen.getByRole('spinbutton')).toBeDisabled()
+    })
   })
 })

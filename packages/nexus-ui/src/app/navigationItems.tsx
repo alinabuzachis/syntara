@@ -1,4 +1,4 @@
-import { RhUiConnectedIcon, RhUiKeyIcon, RhUiSettingsIcon, ShieldAltIcon } from '@patternfly/react-icons'
+import { RhUiConnectedIcon, RhUiControlsIcon, RhUiKeyIcon, ShieldAltIcon } from '@patternfly/react-icons'
 
 import { AppRoute } from './AppRoute'
 import {
@@ -193,12 +193,6 @@ export const navigationItems: INavigationItem[] = [
           },
         ],
       },
-      {
-        label: 'Settings',
-        path: AppRoute.AccessManagement.Settings,
-        icon: <RhUiSettingsIcon />,
-        element: <Settings />,
-      },
     ],
   },
   {
@@ -228,6 +222,12 @@ export const navigationItems: INavigationItem[] = [
         path: AppRoute.Configuration.Credentials.Root,
         icon: <RhUiKeyIcon />,
         element: <Credentials />,
+      },
+      {
+        label: 'Settings',
+        path: AppRoute.Configuration.Settings,
+        icon: <RhUiControlsIcon />,
+        element: <Settings />,
       },
     ],
   },

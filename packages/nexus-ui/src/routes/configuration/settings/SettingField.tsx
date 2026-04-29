@@ -27,6 +27,7 @@ type SettingFieldProps = {
   readonly onChange: (key: string, value: unknown) => void
   readonly onResetSingle: (key: string) => void
   readonly onValidationChange?: (key: string, hasError: boolean) => void
+  readonly readOnly?: boolean
 }
 
 function KebabToggle({
@@ -64,7 +65,14 @@ function settingFieldKebabDropdownToggle(toggleRef: React.Ref<HTMLButtonElement>
   )
 }
 
-export function SettingField({ setting, value, onChange, onResetSingle, onValidationChange }: SettingFieldProps) {
+export function SettingField({
+  setting,
+  value,
+  onChange,
+  onResetSingle,
+  onValidationChange,
+  readOnly,
+}: SettingFieldProps) {
   const [kebabOpen, setKebabOpen] = useState(false)
   const [stringError, setStringError] = useState<string | null>(null)
   const handleToggleClick = useCallback(() => setKebabOpen((prev) => !prev), [])
@@ -161,7 +169,7 @@ export function SettingField({ setting, value, onChange, onResetSingle, onValida
   const schema = (setting.validation_schema ?? {}) as Record<string, unknown>
   const shouldGrow =
     setting.value_type === 'json' || (setting.value_type === 'string' && !Array.isArray(schema.allowed_values))
-  const showKebab = setting.value_type !== 'boolean' && setting.category !== 'notifications'
+  const showKebab = setting.value_type !== 'boolean' && setting.category !== 'notifications' && !readOnly
 
   return (
     <FormGroup label={setting.name} fieldId={setting.key} labelHelp={helpPopover}>
@@ -175,6 +183,7 @@ export function SettingField({ setting, value, onChange, onResetSingle, onValida
             onChange={onChange}
             stringError={stringError}
             onStringError={setStringError}
+            readOnly={readOnly}
           />
         </FlexItem>
         {showKebab && <FlexItem>{kebabMenu}</FlexItem>}

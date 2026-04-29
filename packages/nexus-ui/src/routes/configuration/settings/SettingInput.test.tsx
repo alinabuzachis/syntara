@@ -361,4 +361,248 @@ describe('SettingInput', () => {
     input.blur()
     expect(onChange).toHaveBeenCalledWith('test.setting', 100)
   })
+
+  describe('readOnly', () => {
+    it('disables Switch when readOnly', () => {
+      const boolSetting = { ...baseSetting, value_type: 'boolean' as const }
+      render(
+        <SettingInput
+          setting={boolSetting}
+          value={true}
+          numericBounds={null}
+          numericError={null}
+          onChange={vi.fn()}
+          stringError={null}
+          onStringError={vi.fn()}
+          readOnly
+        />
+      )
+
+      expect(screen.getByRole('switch')).toBeDisabled()
+    })
+
+    it('disables NumberInput when readOnly', () => {
+      render(
+        <SettingInput
+          setting={baseSetting}
+          value={100}
+          numericBounds={null}
+          numericError={null}
+          onChange={vi.fn()}
+          stringError={null}
+          onStringError={vi.fn()}
+          readOnly
+        />
+      )
+
+      expect(screen.getByRole('spinbutton')).toBeDisabled()
+    })
+
+    it('disables FormSelect when readOnly', () => {
+      const stringSetting = {
+        ...baseSetting,
+        value_type: 'string' as const,
+        validation_schema: {
+          allowed_values: ['low', 'medium', 'high'],
+        } as unknown as RuntimeSetting['validation_schema'],
+      }
+      render(
+        <SettingInput
+          setting={stringSetting}
+          value="medium"
+          numericBounds={null}
+          numericError={null}
+          onChange={vi.fn()}
+          stringError={null}
+          onStringError={vi.fn()}
+          readOnly
+        />
+      )
+
+      expect(screen.getByRole('combobox')).toBeDisabled()
+    })
+
+    it('renders TextInput as read-only when readOnly', () => {
+      const stringSetting = { ...baseSetting, value_type: 'string' as const }
+      render(
+        <SettingInput
+          setting={stringSetting}
+          value="hello"
+          numericBounds={null}
+          numericError={null}
+          onChange={vi.fn()}
+          stringError={null}
+          onStringError={vi.fn()}
+          readOnly
+        />
+      )
+
+      expect(screen.getByDisplayValue('hello')).toHaveAttribute('readonly')
+    })
+
+    it('hides clear all button for json when readOnly', () => {
+      const jsonSetting = { ...baseSetting, value_type: 'json' as const }
+      render(
+        <SettingInput
+          setting={jsonSetting}
+          value={['a', 'b']}
+          numericBounds={null}
+          numericError={null}
+          onChange={vi.fn()}
+          stringError={null}
+          onStringError={vi.fn()}
+          readOnly
+        />
+      )
+
+      expect(screen.getByText('a')).toBeInTheDocument()
+      expect(screen.getByText('b')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Clear all' })).not.toBeInTheDocument()
+    })
+
+    it('renders default type TextInput as read-only when readOnly', () => {
+      const unknownSetting = { ...baseSetting, value_type: 'unknown' as RuntimeSetting['value_type'] }
+      render(
+        <SettingInput
+          setting={unknownSetting}
+          value="fallback"
+          numericBounds={null}
+          numericError={null}
+          onChange={vi.fn()}
+          stringError={null}
+          onStringError={vi.fn()}
+          readOnly
+        />
+      )
+
+      expect(screen.getByDisplayValue('fallback')).toHaveAttribute('readonly')
+    })
+  })
+
+  describe('JsonInput', () => {
+    it('removes individual item when label close is clicked', async () => {
+      const user = userEvent.setup()
+      const onChange = vi.fn()
+      const jsonSetting = { ...baseSetting, value_type: 'json' as const }
+      render(
+        <SettingInput
+          setting={jsonSetting}
+          value={['alpha', 'beta', 'gamma']}
+          numericBounds={null}
+          numericError={null}
+          onChange={onChange}
+          stringError={null}
+          onStringError={vi.fn()}
+        />
+      )
+
+      const closeButtons = screen.getAllByRole('button', { name: /close/i })
+      // Find the close button for "beta" (second label)
+      await user.click(closeButtons[1])
+      expect(onChange).toHaveBeenCalledWith('test.setting', ['alpha', 'gamma'])
+    })
+
+    it('clears stringError when typing in json input', async () => {
+      const user = userEvent.setup()
+      const onStringError = vi.fn()
+      const jsonSetting = { ...baseSetting, value_type: 'json' as const }
+      render(
+        <SettingInput
+          setting={jsonSetting}
+          value={[]}
+          numericBounds={null}
+          numericError={null}
+          onChange={vi.fn()}
+          stringError="some error"
+          onStringError={onStringError}
+        />
+      )
+
+      const input = screen.getByPlaceholderText('Type a value and press Enter')
+      await user.type(input, 'a')
+      expect(onStringError).toHaveBeenCalledWith(null)
+    })
+
+    it('does not add duplicate items in json input', async () => {
+      const user = userEvent.setup()
+      const onChange = vi.fn()
+      const jsonSetting = { ...baseSetting, value_type: 'json' as const }
+      render(
+        <SettingInput
+          setting={jsonSetting}
+          value={['existing']}
+          numericBounds={null}
+          numericError={null}
+          onChange={onChange}
+          stringError={null}
+          onStringError={vi.fn()}
+        />
+      )
+
+      const input = screen.getByPlaceholderText('Type a value and press Enter')
+      await user.type(input, 'existing{Enter}')
+      expect(onChange).not.toHaveBeenCalled()
+    })
+
+    it('does not add empty value on Enter in json input', async () => {
+      const user = userEvent.setup()
+      const onChange = vi.fn()
+      const jsonSetting = { ...baseSetting, value_type: 'json' as const }
+      render(
+        <SettingInput
+          setting={jsonSetting}
+          value={[]}
+          numericBounds={null}
+          numericError={null}
+          onChange={onChange}
+          stringError={null}
+          onStringError={vi.fn()}
+        />
+      )
+
+      const input = screen.getByPlaceholderText('Type a value and press Enter')
+      await user.type(input, '{Enter}')
+      expect(onChange).not.toHaveBeenCalled()
+    })
+
+    it('hides label close buttons when readOnly', () => {
+      const jsonSetting = { ...baseSetting, value_type: 'json' as const }
+      render(
+        <SettingInput
+          setting={jsonSetting}
+          value={['alpha', 'beta']}
+          numericBounds={null}
+          numericError={null}
+          onChange={vi.fn()}
+          stringError={null}
+          onStringError={vi.fn()}
+          readOnly
+        />
+      )
+
+      expect(screen.getByText('alpha')).toBeInTheDocument()
+      expect(screen.queryAllByRole('button', { name: /close/i })).toHaveLength(0)
+    })
+
+    it('clears stringError on Enter when adding valid item with prior error', async () => {
+      const user = userEvent.setup()
+      const onStringError = vi.fn()
+      const jsonSetting = { ...baseSetting, value_type: 'json' as const }
+      render(
+        <SettingInput
+          setting={jsonSetting}
+          value={[]}
+          numericBounds={null}
+          numericError={null}
+          onChange={vi.fn()}
+          stringError="prior error"
+          onStringError={onStringError}
+        />
+      )
+
+      const input = screen.getByPlaceholderText('Type a value and press Enter')
+      await user.type(input, 'valid-item{Enter}')
+      expect(onStringError).toHaveBeenCalledWith(null)
+    })
+  })
 })

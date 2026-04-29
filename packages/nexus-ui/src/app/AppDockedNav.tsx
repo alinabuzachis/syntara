@@ -49,6 +49,7 @@ import { detachPromise } from '../utils/detachPromise'
 import { AppRoute } from './AppRoute'
 import type { INavigationItem } from './navigationItems'
 import { navigationItems } from './navigationItems'
+import { useFilteredNavigationItems } from './useFilteredNavigationItems'
 import { useUnsavedChanges } from './useUnsavedChanges'
 
 const navIconMap: Record<string, React.ComponentType> = {
@@ -218,9 +219,10 @@ export function AppDockedNav() {
   const { requestNavigation } = useUnsavedChanges()
   const { colorScheme, toggleColorScheme } = useColorScheme()
 
+  const filteredItems = useFilteredNavigationItems()
   const visibleItems = useMemo(
-    () => navigationItems.filter((item) => !item.hidden && !item.path.startsWith('/support')),
-    []
+    () => filteredItems.filter((item) => !item.hidden && !item.path.startsWith('/support')),
+    [filteredItems]
   )
   const activeTopLevel = '/' + location.split('/')[1]
 

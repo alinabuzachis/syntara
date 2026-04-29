@@ -1,4 +1,5 @@
-import { Button, Stack, StackItem, Tab, Tabs } from '@patternfly/react-core'
+import { Button, EmptyState, EmptyStateBody, Stack, StackItem, Tab, Tabs } from '@patternfly/react-core'
+import { RhUiLockIcon } from '@patternfly/react-icons'
 import { useCallback, useMemo, useState } from 'react'
 
 import { AppPage, AppPageMain } from '../../../app/AppPage'
@@ -12,6 +13,7 @@ import { getErrorCode } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 
 import { SettingsCategoryTab } from './SettingsCategoryTab'
+import { useSettingsPermissions } from './useSettingsPermissions'
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState(0)
@@ -19,10 +21,12 @@ export default function Settings() {
   const [validationErrors, setValidationErrors] = useState<Set<string>>(new Set())
   const { showSuccess, showError } = useAlerts()
   const handleMutationError = useMutationErrorHandler()
+  const { canRead, canWrite } = useSettingsPermissions()
 
-  const categoriesQuery = settingsClient.useQuery('get', '/settings/categories')
+  const categoriesQuery = settingsClient.useQuery('get', '/settings/categories', { enabled: canRead })
   const settingsQuery = settingsClient.useQuery('get', '/settings', {
     params: { query: { limit: 100 } },
+    enabled: canRead,
   })
 
   const { mutate: bulkUpdate, isPending: isSaving } = settingsClient.useMutation('patch', '/settings')
@@ -112,6 +116,24 @@ export default function Settings() {
   const hasChanges = edits.size > 0
   const hasValidationErrors = validationErrors.size > 0
 
+  if (!canRead) {
+    return (
+      <AppPage>
+        <AppPageHeader title="Settings" />
+        <StackItem isFilled>
+          <AppPanel isFullHeight>
+            <EmptyState headingLevel="h2" titleText="Access denied" icon={RhUiLockIcon} isFullHeight>
+              <EmptyStateBody>
+                You don&apos;t have permission to view settings. Contact your administrator to request the auditor or
+                admin role.
+              </EmptyStateBody>
+            </EmptyState>
+          </AppPanel>
+        </StackItem>
+      </AppPage>
+    )
+  }
+
   if (categoriesState) {
     return (
       <AppPage>
@@ -137,14 +159,16 @@ export default function Settings() {
   return (
     <AppPage>
       <AppPageHeader title="Settings">
-        <Button
-          variant="primary"
-          onClick={handleSave}
-          isDisabled={!hasChanges || isSaving || hasValidationErrors}
-          isLoading={isSaving}
-        >
-          Save changes
-        </Button>
+        {canWrite && (
+          <Button
+            variant="primary"
+            onClick={handleSave}
+            isDisabled={!hasChanges || isSaving || hasValidationErrors}
+            isLoading={isSaving}
+          >
+            Save changes
+          </Button>
+        )}
       </AppPageHeader>
       <AppPageMain>
         <AppPanel isFullHeight>
@@ -168,6 +192,7 @@ export default function Settings() {
                   onChange={handleChange}
                   onResetField={handleResetField}
                   onValidationChange={handleValidationChange}
+                  readOnly={!canWrite}
                 />
               )}
             </AppPageMain>

@@ -238,4 +238,10 @@ describe('SettingField', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Reset to default' }))
     expect(onResetSingle).toHaveBeenCalledWith('context_manager.max_total_tokens')
   })
+
+  it('hides kebab menu when readOnly', () => {
+    render(<SettingField setting={baseSetting} value={4000} onChange={vi.fn()} onResetSingle={vi.fn()} readOnly />)
+
+    expect(screen.queryByLabelText('Actions for Max total tokens')).not.toBeInTheDocument()
+  })
 })

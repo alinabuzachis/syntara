@@ -2937,4 +2937,17 @@ export const handlers = [
     const filtered = search ? instanceGroups.filter((ig) => ig.name.toLowerCase().includes(search)) : instanceGroups
     return HttpResponse.json({ count: filtered.length, results: filtered })
   }),
+
+  // ── Authz ──────────────────────────────────────────────────────────
+  // Always returns allowed: true — does not inspect request body.
+  // To test read-only or access-denied flows, parameterize based on action/resource_type.
+  http.post('/api/v1/authz/can-i', () => {
+    return HttpResponse.json({
+      allowed: true,
+      denied: false,
+      matched_policy: '',
+      denial_reason: '',
+      denied_by: '',
+    })
+  }),
 ]
