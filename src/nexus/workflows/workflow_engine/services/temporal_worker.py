@@ -18,17 +18,7 @@ from nexus.core.database.session import AsyncSessionLocal
 from nexus.core.lib.encryption import key_from_string
 from nexus.telemetry.client import flush_telemetry, initialize_telemetry
 from nexus.workflows.services.activity_update_publisher import ActivityUpdatePublisher
-from nexus.workflows.workflow_engine.activities.aap_job_template_activity import execute_aap_job_template_activity
-from nexus.workflows.workflow_engine.activities.agentic_activity import execute_agentic_activity
-from nexus.workflows.workflow_engine.activities.approval_activity import execute_approval_activity
-from nexus.workflows.workflow_engine.activities.condition import condition
-from nexus.workflows.workflow_engine.activities.converge import converge
-from nexus.workflows.workflow_engine.activities.credential_resolution_activity import resolve_workflow_credentials
-from nexus.workflows.workflow_engine.activities.http_request_activity import execute_http_request_activity
-from nexus.workflows.workflow_engine.activities.internal import register_activity_monitoring
-from nexus.workflows.workflow_engine.activities.loop import loop
-from nexus.workflows.workflow_engine.activities.manual_trigger import manual_trigger
-from nexus.workflows.workflow_engine.activities.script_activity import execute_script_activity
+from nexus.workflows.workflow_engine.activities import ACTIVITY_REGISTRY
 from nexus.workflows.workflow_engine.codecs.credential_codec import CredentialPayloadCodec
 from nexus.workflows.workflow_engine.dynamic_workflow import NexusWorkflow
 from nexus.workflows.workflow_engine.interceptors.monitoring_interceptor import MonitoringWorkflowInterceptor
@@ -120,22 +110,7 @@ class TemporalWorkerService:
                 self.client,
                 task_queue=self.task_queue,
                 workflows=[NexusWorkflow],
-                activities=[
-                    # Internal activities
-                    register_activity_monitoring,
-                    # Credential resolution
-                    resolve_workflow_credentials,
-                    # Workflow activities
-                    execute_aap_job_template_activity,
-                    execute_agentic_activity,
-                    execute_approval_activity,
-                    condition,
-                    converge,
-                    execute_http_request_activity,
-                    loop,
-                    manual_trigger,
-                    execute_script_activity,
-                ],
+                activities=list(ACTIVITY_REGISTRY.values()),
                 interceptors=[MonitoringWorkflowInterceptor()],
             )
 
