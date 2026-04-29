@@ -327,7 +327,7 @@ async def test_project_crud_lifecycle(
     # List (should include this project; test_user has project-admin on it)
     response = await auth_client.get("/api/v1/projects")
     assert response.status_code == 200
-    names = [p["name"] for p in response.json()]
+    names = [p["name"] for p in response.json()["resources"]]
     assert "lifecycle-project" in names
 
     # Delete
@@ -336,7 +336,7 @@ async def test_project_crud_lifecycle(
 
     # Verify it's gone from the list
     response = await auth_client.get("/api/v1/projects")
-    names = [p["name"] for p in response.json()]
+    names = [p["name"] for p in response.json()["resources"]]
     assert "lifecycle-project" not in names
 
 

@@ -1,29 +1,34 @@
 """Project service for business logic."""
 
+from collections.abc import Iterable
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
 import structlog
-from sqlalchemy import delete, update
+from sqlalchemy import Select, delete, update
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
 from nexus.authz.engine import AllowedProjectsResult, assign_authenticated_group_project_user, assign_project_admin
 from nexus.authz.models.assignments import RoleAssignment
 from nexus.authz.models.project import Project
 from nexus.core.models import User
+from nexus.core.services import BaseService
+from nexus.core.services.types import TModel
+from nexus.projects.schemas import ProjectListResponse
 
 logger = structlog.stdlib.get_logger(__name__)
 
 
-class ProjectService:
+class ProjectService(BaseService):
     """Service for project CRUD and role management."""
 
     def __init__(self, session: AsyncSession, user: User) -> None:
         """Initialize with database session and current user."""
-        self.session = session
-        self.user = user
+        super().__init__(session, user, enrich_query_mixin=self)
+        self._allowed_project_ids: list[UUID] | None = None
 
     async def create_project(
         self,
@@ -113,6 +118,59 @@ class ProjectService:
 
         result = await self.session.exec(query)
         return list(result.all())
+
+    async def list_projects_cursor(
+        self,
+        limit: int = 20,
+        cursor: str | None = None,
+        sort: str | None = None,
+        query_params_items: Iterable[tuple[str, str]] | None = None,
+        *,
+        include_total: bool = False,
+        allowed_projects: AllowedProjectsResult | None = None,
+    ) -> ProjectListResponse:
+        """List projects with cursor-based pagination.
+
+        Args:
+            limit: Maximum number of projects to return (default 20)
+            cursor: Cursor token for pagination
+            sort: Sort parameter (e.g., "name", "-created_at")
+            query_params_items: Raw query parameter items from request (for filtering)
+            include_total: Whether to include total count in response
+            allowed_projects: Authorization filter for project visibility
+
+        Returns:
+            ProjectListResponse with projects, pagination metadata, and optional total
+
+        """
+        if allowed_projects is not None and not allowed_projects.all_projects:
+            if not allowed_projects.project_ids:
+                return ProjectListResponse(resources=[], next=None, prev=None, total=0 if include_total else None)
+            self._allowed_project_ids = allowed_projects.project_ids
+        else:
+            self._allowed_project_ids = None
+
+        try:
+            return await self.list_resources(
+                model=Project,
+                response_type=ProjectListResponse,
+                limit=limit,
+                cursor=cursor,
+                sort=sort or "-created_at",
+                query_params_items=query_params_items,
+                include_total=include_total,
+            )
+        finally:
+            self._allowed_project_ids = None
+
+    def enrich(
+        self,
+        query: Select[tuple[TModel]] | SelectOfScalar[tuple[TModel]],
+    ) -> Select[tuple[TModel]] | SelectOfScalar[tuple[TModel]]:
+        """Apply project ID filter when listing projects with authorization."""
+        if self._allowed_project_ids is not None:
+            query = query.filter(Project.id.in_(self._allowed_project_ids))  # type: ignore[attr-defined]
+        return query
 
     async def update_project(
         self,

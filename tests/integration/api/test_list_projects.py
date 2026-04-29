@@ -40,7 +40,7 @@ async def test_lp1_user_with_no_project_roles_sees_default_project(
 
     response = await auth_client.get("/api/v1/projects")
     assert response.status_code == 200
-    names = [p["name"] for p in response.json()]
+    names = [p["name"] for p in response.json()["resources"]]
     assert names == ["default"]
 
     _auth_as(test_user)
@@ -64,7 +64,7 @@ async def test_lp2_project_creator_sees_only_their_project(
 
     response = await auth_client.get("/api/v1/projects")
     assert response.status_code == 200
-    names = sorted(p["name"] for p in response.json())
+    names = sorted(p["name"] for p in response.json()["resources"])
     assert "default" in names
     assert "lp2-my-project" in names
 
@@ -96,7 +96,7 @@ async def test_lp3_user_with_multiple_project_roles_sees_only_those(
     _auth_as(multi_user)
     response = await auth_client.get("/api/v1/projects")
     assert response.status_code == 200
-    names = sorted(p["name"] for p in response.json())
+    names = sorted(p["name"] for p in response.json()["resources"])
     assert names == ["default", "lp3-alpha", "lp3-beta"]
 
     _auth_as(test_user)
@@ -136,7 +136,7 @@ async def test_lp4_system_auditor_sees_all_projects(
     _auth_as(auditor)
     response = await auth_client.get("/api/v1/projects")
     assert response.status_code == 200
-    names = [p["name"] for p in response.json()]
+    names = [p["name"] for p in response.json()["resources"]]
     # Auditor should see at least the default project and lp4-proj
     assert "default" in names
     assert "lp4-proj" in names
@@ -171,7 +171,7 @@ async def test_lp5_system_admin_sees_all_projects(
     _auth_as(admin)
     response = await auth_client.get("/api/v1/projects")
     assert response.status_code == 200
-    names = [p["name"] for p in response.json()]
+    names = [p["name"] for p in response.json()["resources"]]
     assert "default" in names
     assert "lp5-proj" in names
 
@@ -201,7 +201,7 @@ async def test_lp6_project_user_can_see_assigned_project(
     _auth_as(viewer)
     response = await auth_client.get("/api/v1/projects")
     assert response.status_code == 200
-    names = sorted(p["name"] for p in response.json())
+    names = sorted(p["name"] for p in response.json()["resources"])
     assert "default" in names
     assert "lp6-proj" in names
 
@@ -224,7 +224,7 @@ async def test_lp7_granting_role_makes_project_visible(
     new_user = await user_factory(username="lp7-new", email="lp7@example.com")
     _auth_as(new_user)
     response = await auth_client.get("/api/v1/projects")
-    names = [p["name"] for p in response.json()]
+    names = [p["name"] for p in response.json()["resources"]]
     assert names == ["default"]
 
     # Grant project-auditor role
@@ -238,7 +238,7 @@ async def test_lp7_granting_role_makes_project_visible(
     # Now the user should see default + the granted project
     _auth_as(new_user)
     response = await auth_client.get("/api/v1/projects")
-    names = sorted(p["name"] for p in response.json())
+    names = sorted(p["name"] for p in response.json()["resources"])
     assert "default" in names
     assert "lp7-proj" in names
 
@@ -269,7 +269,7 @@ async def test_lp8_revoking_role_removes_project_from_list(
     # Verify target can see default + the assigned project
     _auth_as(target)
     response = await auth_client.get("/api/v1/projects")
-    names = [p["name"] for p in response.json()]
+    names = [p["name"] for p in response.json()["resources"]]
     assert "default" in names
     assert "lp8-proj" in names
 
@@ -281,7 +281,7 @@ async def test_lp8_revoking_role_removes_project_from_list(
     # Target should still see default but no longer the revoked project
     _auth_as(target)
     response = await auth_client.get("/api/v1/projects")
-    names = [p["name"] for p in response.json()]
+    names = [p["name"] for p in response.json()["resources"]]
     assert "default" in names
     assert "lp8-proj" not in names
 
@@ -301,7 +301,7 @@ async def test_new_user_gets_access_to_default_project(
     # Should see the default project
     response = await auth_client.get("/api/v1/projects")
     assert response.status_code == 200
-    names = [p["name"] for p in response.json()]
+    names = [p["name"] for p in response.json()["resources"]]
     assert "default" in names
 
     # Should be able to read workflows in the default project (project-user permission)
@@ -332,7 +332,7 @@ async def test_soft_deleted_default_project_does_not_break_new_user(
     # GET /projects should succeed and not include the deleted default project
     response = await auth_client.get("/api/v1/projects")
     assert response.status_code == 200
-    names = [p["name"] for p in response.json()]
+    names = [p["name"] for p in response.json()["resources"]]
     assert "default" not in names
 
     _auth_as(test_user)

@@ -9222,16 +9222,72 @@ paths:
         action: read
       tags:
         - Projects
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            exclusiveMinimum: 0
+            maximum: 100
+            default: 20
+            description: Maximum number of results per page
+            title: Limit
+          description: Maximum number of results per page
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            description: Pagination cursor from previous response
+            title: Cursor
+          description: Pagination cursor from previous response
+        - name: sort
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            description: Sort parameter (e.g., 'name', '-created_at')
+            title: Sort
+          description: Sort parameter (e.g., 'name', '-created_at')
+        - name: include_total
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+            description: Include total count in response (expensive)
+            title: Include Total
+          description: Include total count in response (expensive)
+        - name: name
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Name
+          description: Filter by project name
+        - name: is_default
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: boolean
+              - type: 'null'
+            title: Is Default
+          description: Filter by default project status
       responses:
         '200':
-          description: List of accessible projects
+          description: Paginated list of accessible projects
           content:
             application/json:
               schema:
-                type: array
-                title: Response List Projects
-                items:
-                  $ref: '#/components/schemas/ProjectRead'
+                $ref: '#/components/schemas/ProjectListResponse'
         '400':
           description: Bad Request
           content:
@@ -23298,6 +23354,44 @@ components:
       required:
         - name
       type: object
+    ProjectListResponse:
+      title: ProjectListResponse
+      description: Paginated list response for projects.
+      properties:
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Next
+          description: Cursor for next page of results
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Prev
+          description: Cursor for previous page of results
+        total:
+          anyOf:
+            - minimum: 0.0
+              type: integer
+            - type: 'null'
+          title: Total
+          description: Total count of resources (only when include_total=true)
+        resources:
+          type: array
+          title: Resources
+          description: Array of resources in current page
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/ProjectRead'
+      required:
+        - resources
+      type: object
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
     ProjectRoleCreate:
       type: object
       title: ProjectRoleCreate

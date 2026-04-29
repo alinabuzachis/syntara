@@ -6,14 +6,62 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.error_data import ErrorData
-from ...models.project_read import ProjectRead
-from ...types import Response
+from ...models.project_list_response import ProjectListResponse
+from ...types import UNSET, Response, Unset
 
 
-def _get_kwargs() -> dict[str, Any]:
+def _get_kwargs(
+    *,
+    limit: int | Unset = 20,
+    cursor: None | str | Unset = UNSET,
+    sort: None | str | Unset = UNSET,
+    include_total: bool | Unset = False,
+    name: None | str | Unset = UNSET,
+    is_default: bool | None | Unset = UNSET,
+    additional_params: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    params: dict[str, Any] = {}
+    if isinstance(additional_params, dict):
+        params = additional_params
+
+    params["limit"] = limit
+
+    json_cursor: None | str | Unset
+    if isinstance(cursor, Unset):
+        json_cursor = UNSET
+    else:
+        json_cursor = cursor
+    params["cursor"] = json_cursor
+
+    json_sort: None | str | Unset
+    if isinstance(sort, Unset):
+        json_sort = UNSET
+    else:
+        json_sort = sort
+    params["sort"] = json_sort
+
+    params["include_total"] = include_total
+
+    json_name: None | str | Unset
+    if isinstance(name, Unset):
+        json_name = UNSET
+    else:
+        json_name = name
+    params["name"] = json_name
+
+    json_is_default: bool | None | Unset
+    if isinstance(is_default, Unset):
+        json_is_default = UNSET
+    else:
+        json_is_default = is_default
+    params["is_default"] = json_is_default
+
+    params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
+
     _kwargs: dict[str, Any] = {
         "method": "get",
         "url": "/projects",
+        "params": params,
     }
 
     return _kwargs
@@ -21,14 +69,9 @@ def _get_kwargs() -> dict[str, Any]:
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> ErrorData | list[ProjectRead] | None:
+) -> ErrorData | ProjectListResponse | None:
     if response.status_code == 200:
-        response_200 = []
-        _response_200 = response.json()
-        for response_200_item_data in _response_200:
-            response_200_item = ProjectRead.from_dict(response_200_item_data)
-
-            response_200.append(response_200_item)
+        response_200 = ProjectListResponse.from_dict(response.json())
 
         return response_200
 
@@ -75,7 +118,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[ErrorData | list[ProjectRead]]:
+) -> Response[ErrorData | ProjectListResponse]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -89,20 +132,43 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient,
-) -> Response[ErrorData | list[ProjectRead]]:
+    limit: int | Unset = 20,
+    cursor: None | str | Unset = UNSET,
+    sort: None | str | Unset = UNSET,
+    include_total: bool | Unset = False,
+    name: None | str | Unset = UNSET,
+    is_default: bool | None | Unset = UNSET,
+    additional_params: dict[str, Any] | None = None,
+) -> Response[ErrorData | ProjectListResponse]:
     """List Projects
 
      List projects the current user has read access to.
+
+    Args:
+        limit (int | Unset): Maximum number of results per page Default: 20.
+        cursor (None | str | Unset): Pagination cursor from previous response
+        sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
+        include_total (bool | Unset): Include total count in response (expensive) Default: False.
+        name (None | str | Unset):
+        is_default (bool | None | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorData | list[ProjectRead]]
+        Response[ErrorData | ProjectListResponse]
     """
 
-    kwargs = _get_kwargs()
+    kwargs = _get_kwargs(
+        limit=limit,
+        cursor=cursor,
+        sort=sort,
+        include_total=include_total,
+        name=name,
+        is_default=is_default,
+        additional_params=additional_params,
+    )
 
     response = client.get_httpx_client().request(
         **kwargs,
@@ -114,41 +180,82 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient,
-) -> ErrorData | list[ProjectRead] | None:
+    limit: int | Unset = 20,
+    cursor: None | str | Unset = UNSET,
+    sort: None | str | Unset = UNSET,
+    include_total: bool | Unset = False,
+    name: None | str | Unset = UNSET,
+    is_default: bool | None | Unset = UNSET,
+) -> ErrorData | ProjectListResponse | None:
     """List Projects
 
      List projects the current user has read access to.
+
+    Args:
+        limit (int | Unset): Maximum number of results per page Default: 20.
+        cursor (None | str | Unset): Pagination cursor from previous response
+        sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
+        include_total (bool | Unset): Include total count in response (expensive) Default: False.
+        name (None | str | Unset):
+        is_default (bool | None | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorData | list[ProjectRead]
+        ErrorData | ProjectListResponse
     """
 
     return sync_detailed(
         client=client,
+        limit=limit,
+        cursor=cursor,
+        sort=sort,
+        include_total=include_total,
+        name=name,
+        is_default=is_default,
     ).parsed
 
 
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
-) -> Response[ErrorData | list[ProjectRead]]:
+    limit: int | Unset = 20,
+    cursor: None | str | Unset = UNSET,
+    sort: None | str | Unset = UNSET,
+    include_total: bool | Unset = False,
+    name: None | str | Unset = UNSET,
+    is_default: bool | None | Unset = UNSET,
+) -> Response[ErrorData | ProjectListResponse]:
     """List Projects
 
      List projects the current user has read access to.
+
+    Args:
+        limit (int | Unset): Maximum number of results per page Default: 20.
+        cursor (None | str | Unset): Pagination cursor from previous response
+        sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
+        include_total (bool | Unset): Include total count in response (expensive) Default: False.
+        name (None | str | Unset):
+        is_default (bool | None | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorData | list[ProjectRead]]
+        Response[ErrorData | ProjectListResponse]
     """
 
-    kwargs = _get_kwargs()
+    kwargs = _get_kwargs(
+        limit=limit,
+        cursor=cursor,
+        sort=sort,
+        include_total=include_total,
+        name=name,
+        is_default=is_default,
+    )
 
     response = await client.get_async_httpx_client().request(**kwargs)
 
@@ -158,21 +265,41 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient,
-) -> ErrorData | list[ProjectRead] | None:
+    limit: int | Unset = 20,
+    cursor: None | str | Unset = UNSET,
+    sort: None | str | Unset = UNSET,
+    include_total: bool | Unset = False,
+    name: None | str | Unset = UNSET,
+    is_default: bool | None | Unset = UNSET,
+) -> ErrorData | ProjectListResponse | None:
     """List Projects
 
      List projects the current user has read access to.
+
+    Args:
+        limit (int | Unset): Maximum number of results per page Default: 20.
+        cursor (None | str | Unset): Pagination cursor from previous response
+        sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
+        include_total (bool | Unset): Include total count in response (expensive) Default: False.
+        name (None | str | Unset):
+        is_default (bool | None | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorData | list[ProjectRead]
+        ErrorData | ProjectListResponse
     """
 
     return (
         await asyncio_detailed(
             client=client,
+            limit=limit,
+            cursor=cursor,
+            sort=sort,
+            include_total=include_total,
+            name=name,
+            is_default=is_default,
         )
     ).parsed

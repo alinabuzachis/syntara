@@ -8,6 +8,8 @@ from sqlmodel import Field, SQLModel
 from nexus.authz.schemas import PolicyStatementSchema
 from nexus.core.constants import NAME_PATTERN
 from nexus.core.models.base import BaseResource
+from nexus.core.models.base.query_params import BaseListParams
+from nexus.core.models.pagination import ResourcesResponse
 
 NameField = Annotated[str, PydanticField(min_length=1, max_length=255, pattern=NAME_PATTERN)]
 OptionalNameField = Annotated[
@@ -46,6 +48,17 @@ class ProjectRoleCreate(SQLModel):
     description: str | None = None
     policies: list[str] = Field(min_length=1)
     labels: dict[str, str] = {}
+
+
+class ProjectListParams(BaseListParams):
+    """Query parameters for listing projects."""
+
+    name: str | None = Field(default=None, description="Filter by project name")
+    is_default: bool | None = Field(default=None, description="Filter by default project status")
+
+
+class ProjectListResponse(ResourcesResponse[ProjectRead]):
+    """Paginated list response for projects."""
 
 
 class ProjectPolicyCreate(SQLModel):

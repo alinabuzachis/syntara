@@ -43,6 +43,8 @@ from nexus.core.models import User
 from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
 from nexus.projects.schemas import (
     ProjectCreate,
+    ProjectListParams,
+    ProjectListResponse,
     ProjectPolicyCreate,
     ProjectRead,
     ProjectRoleCreate,
@@ -132,14 +134,22 @@ async def create_project(
     return ProjectRead.model_validate(project)
 
 
-@router.get("", operation_id="list_projects", response_description="List of accessible projects")
+@router.get("", operation_id="list_projects", response_description="Paginated list of accessible projects")
 async def list_projects(
+    request: Request,
     service: Annotated[ProjectService, Depends(get_project_service)],
     allowed_projects: Annotated[AllowedProjectsResult, Depends(ProjectScopeFilter("project", "read"))],
-) -> list[ProjectRead]:
+    params: Annotated[ProjectListParams, Query()],
+) -> ProjectListResponse:
     """List projects the current user has read access to."""
-    projects = await service.list_projects(allowed_projects=allowed_projects)
-    return [ProjectRead.model_validate(p) for p in projects]
+    return await service.list_projects_cursor(
+        limit=params.limit,
+        cursor=params.cursor,
+        sort=params.sort,
+        query_params_items=request.query_params.items(),
+        include_total=params.include_total,
+        allowed_projects=allowed_projects,
+    )
 
 
 @router.get(
