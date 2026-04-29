@@ -1,5 +1,6 @@
 import {
   Button,
+  Content,
   DescriptionList,
   DescriptionListDescription,
   DescriptionListGroup,
@@ -8,10 +9,6 @@ import {
   EmptyStateBody,
   Flex,
   FlexItem,
-  Modal,
-  ModalBody,
-  ModalFooter,
-  ModalHeader,
   Stack,
   StackItem,
   Tooltip,
@@ -25,12 +22,12 @@ import { AppRoute } from '../../../app/AppRoute'
 import { useAuthProviders } from '../../../app/useAuthProviders'
 import { OIDC_AUTHORIZE_PATH, usersClient } from '../../../client'
 import { useAlerts, type AlertConfig } from '../../../components/alerts'
+import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { FilterBar } from '../../../components/filters/FilterBar'
 import { ProviderIcon } from '../../../components/ProviderIcon'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
-import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
 import { useTableSort } from '../../../hooks/useTableSort'
 import type { FilterFieldDefinition } from '../../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../../types/filters'
@@ -38,8 +35,8 @@ import { formatDateTime } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
 
 import { AttachIdentityModal } from './AttachIdentityModal'
-import type { UserIdentity } from './identityUtils'
-import { applyLocalFilters, useLocalFilterState } from './identityUtils'
+import { applyLocalFilters, useLocalFilterState, type UserIdentity } from './identityUtils'
+import { useDetachIdentity } from './useDetachIdentity'
 
 const identityFilterDefs: FilterFieldDefinition[] = [
   {
@@ -51,55 +48,6 @@ const identityFilterDefs: FilterFieldDefinition[] = [
     placeholder: 'Filter by provider',
   },
 ]
-
-function DetachConfirmModal({
-  identity,
-  isDetaching,
-  onConfirm,
-  onCancel,
-}: {
-  identity: UserIdentity | null
-  isDetaching: boolean
-  onConfirm: () => void
-  onCancel: () => void
-}) {
-  return (
-    <Modal isOpen={!!identity} onClose={onCancel} variant="small">
-      <ModalHeader
-        title="Disconnect identity"
-        description="Are you sure? You will no longer be able to sign in with this identity."
-      />
-      <ModalBody>
-        <DescriptionList isHorizontal isCompact>
-          <DescriptionListGroup>
-            <DescriptionListTerm>Provider</DescriptionListTerm>
-            <DescriptionListDescription>{identity?.provider_name}</DescriptionListDescription>
-          </DescriptionListGroup>
-          <DescriptionListGroup>
-            <DescriptionListTerm>Issuer</DescriptionListTerm>
-            <DescriptionListDescription style={{ wordBreak: 'break-all' }}>
-              {identity?.issuer}
-            </DescriptionListDescription>
-          </DescriptionListGroup>
-          <DescriptionListGroup>
-            <DescriptionListTerm>Subject</DescriptionListTerm>
-            <DescriptionListDescription style={{ wordBreak: 'break-all' }}>
-              {identity?.subject}
-            </DescriptionListDescription>
-          </DescriptionListGroup>
-        </DescriptionList>
-      </ModalBody>
-      <ModalFooter>
-        <Button variant="danger" onClick={onConfirm} isLoading={isDetaching} isDisabled={isDetaching}>
-          Disconnect
-        </Button>
-        <Button variant="link" onClick={onCancel}>
-          Cancel
-        </Button>
-      </ModalFooter>
-    </Modal>
-  )
-}
 
 function useLinkError(showAlert: (config: AlertConfig) => void) {
   useEffect(() => {
@@ -121,25 +69,20 @@ function ProviderLink({ name, providerId }: { name: string; providerId: string }
         <ProviderIcon name={name} />
       </FlexItem>
       <FlexItem>
-        <a
-          href={AppRoute.AccessManagement.Authentication.IdentityProviderDetail.replace(
-            ':providerId',
-            providerId
-          ).replace('/:tab?', '')}
-          onClick={(e) => {
-            if (e.button === 0 && !e.ctrlKey && !e.metaKey) {
-              e.preventDefault()
-              navigate(
-                AppRoute.AccessManagement.Authentication.IdentityProviderDetail.replace(
-                  ':providerId',
-                  providerId
-                ).replace('/:tab?', '')
-              )
-            }
-          }}
+        <Button
+          variant="link"
+          isInline
+          onClick={() =>
+            navigate(
+              AppRoute.AccessManagement.Authentication.IdentityProviderDetail.replace(
+                ':providerId',
+                providerId
+              ).replace('/:tab?', '')
+            )
+          }
         >
           {name}
-        </a>
+        </Button>
       </FlexItem>
     </Flex>
   )
@@ -216,17 +159,49 @@ function IdentityRow({
   )
 }
 
+function DetachConfirmBody({ identity }: Readonly<{ identity: UserIdentity | null }>) {
+  return (
+    <Stack hasGutter>
+      <StackItem>
+        <Content component="p">Are you sure? You will no longer be able to sign in with this identity.</Content>
+      </StackItem>
+      <StackItem>
+        <DescriptionList isHorizontal isCompact>
+          <DescriptionListGroup>
+            <DescriptionListTerm>Provider</DescriptionListTerm>
+            <DescriptionListDescription>{identity?.provider_name}</DescriptionListDescription>
+          </DescriptionListGroup>
+          <DescriptionListGroup>
+            <DescriptionListTerm>Issuer</DescriptionListTerm>
+            <DescriptionListDescription style={{ wordBreak: 'break-all' }}>
+              {identity?.issuer}
+            </DescriptionListDescription>
+          </DescriptionListGroup>
+          <DescriptionListGroup>
+            <DescriptionListTerm>Subject</DescriptionListTerm>
+            <DescriptionListDescription style={{ wordBreak: 'break-all' }}>
+              {identity?.subject}
+            </DescriptionListDescription>
+          </DescriptionListGroup>
+        </DescriptionList>
+      </StackItem>
+    </Stack>
+  )
+}
+
 type UserIdentitiesPanelProps = {
   userId: string
   currentUserId?: string
-  hasPassword?: boolean
+  isLocalUser?: boolean
 }
 
-export function UserIdentitiesPanel({ userId, currentUserId, hasPassword = false }: UserIdentitiesPanelProps) {
+export function UserIdentitiesPanel({
+  userId,
+  currentUserId,
+  isLocalUser = false,
+}: Readonly<UserIdentitiesPanelProps>) {
   const { showAlert } = useAlerts()
-  const handleMutationError = useMutationErrorHandler()
   const [isAttachOpen, setIsAttachOpen] = useState(false)
-  const [identityToDetach, setIdentityToDetach] = useState<UserIdentity | null>(null)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const identitiesFilter = useLocalFilterState()
   const { providers } = useAuthProviders()
@@ -242,9 +217,8 @@ export function UserIdentitiesPanel({ userId, currentUserId, hasPassword = false
 
   const identities = query.data?.resources ?? []
 
-  const { mutate: detachIdentity, isPending: isDetaching } = usersClient.useMutation(
-    'delete',
-    '/users/{user_id}/identities/{identity_id}'
+  const { identityToDetach, setIdentityToDetach, isDetaching, confirmDetach } = useDetachIdentity(userId, () =>
+    detachPromise(query.refetch())
   )
 
   const filteredIdentities = applyLocalFilters(identities, identitiesFilter.filters, (identity, key) => {
@@ -253,7 +227,6 @@ export function UserIdentitiesPanel({ userId, currentUserId, hasPassword = false
   })
 
   const { activeSortIndex, getSortParams, sortData } = useTableSort({ initialSortIndex: 0, initialDirection: 'asc' })
-
   const getSortKey = (identity: UserIdentity) =>
     [identity.provider_name, identity.created_at, identity.last_used_at ?? ''][activeSortIndex] ??
     identity.provider_name
@@ -265,26 +238,7 @@ export function UserIdentitiesPanel({ userId, currentUserId, hasPassword = false
   })
   if (queryState) return queryState
 
-  const confirmDetach = () => {
-    if (!identityToDetach) return
-    detachIdentity(
-      { params: { path: { user_id: userId, identity_id: identityToDetach.id } } },
-      {
-        onSuccess: () => {
-          showAlert({ title: 'Identity disconnected', variant: 'success', autoDismiss: true })
-          detachPromise(query.refetch())
-        },
-        onError: handleMutationError({ title: 'Failed to disconnect identity' }),
-        onSettled: () => {
-          setIdentityToDetach(null)
-        },
-      }
-    )
-  }
-
-  // Providers the user hasn't linked yet
   const unlinkedProviders = providers.filter((p) => !identities.some((i) => i.identity_provider_id === p.id))
-
   const hasActiveFilters = identitiesFilter.filters.length > 0
 
   const attachAndDetachModals = (
@@ -295,17 +249,30 @@ export function UserIdentitiesPanel({ userId, currentUserId, hasPassword = false
         currentUserId={userId}
         onAttached={() => detachPromise(query.refetch())}
       />
-      <DetachConfirmModal
-        identity={identityToDetach}
-        isDetaching={isDetaching}
+      <ConfirmationDialog
+        isOpen={!!identityToDetach}
+        onClose={() => setIdentityToDetach(null)}
         onConfirm={confirmDetach}
-        onCancel={() => setIdentityToDetach(null)}
-      />
+        title="Disconnect identity"
+        confirmLabel="Disconnect"
+        confirmVariant="danger"
+        confirmLoading={isDetaching}
+      >
+        <DetachConfirmBody identity={identityToDetach} />
+      </ConfirmationDialog>
     </>
   )
+  const showTable = identities.length > 0 || (!isLocalUser && unlinkedProviders.length > 0) || hasActiveFilters
 
-  const showTable = identities.length > 0 || unlinkedProviders.length > 0 || hasActiveFilters
-
+  if (isLocalUser && identities.length === 0) {
+    return (
+      <EmptyState headingLevel="h3" titleText="Local user" icon={RhUiKeyIcon}>
+        <EmptyStateBody>
+          This user authenticates with a local password. Local users cannot be linked to external identity providers.
+        </EmptyStateBody>
+      </EmptyState>
+    )
+  }
   if (!showTable) {
     return (
       <>
@@ -332,11 +299,13 @@ export function UserIdentitiesPanel({ userId, currentUserId, hasPassword = false
               showClearAll
             />
           </FlexItem>
-          <FlexItem>
-            <Button variant="secondary" icon={<RhUiLinkIcon />} onClick={() => setIsAttachOpen(true)}>
-              Attach identity
-            </Button>
-          </FlexItem>
+          {!isLocalUser && (
+            <FlexItem>
+              <Button variant="secondary" icon={<RhUiLinkIcon />} onClick={() => setIsAttachOpen(true)}>
+                Attach identity
+              </Button>
+            </FlexItem>
+          )}
         </Flex>
       </StackItem>
       {sortedIdentities.length === 0 && unlinkedProviders.length === 0 ? (
@@ -371,7 +340,7 @@ export function UserIdentitiesPanel({ userId, currentUserId, hasPassword = false
                 identity={identity}
                 rowIndex={rowIndex}
                 isExpanded={expandedIds.has(identity.id)}
-                isLastIdentity={identities.length === 1 && !hasPassword}
+                isLastIdentity={identities.length === 1}
                 isDetaching={isDetaching}
                 onToggle={() =>
                   setExpandedIds((prev) => {
@@ -384,34 +353,40 @@ export function UserIdentitiesPanel({ userId, currentUserId, hasPassword = false
                 onDisconnect={() => setIdentityToDetach(identity)}
               />
             ))}
-            <Tbody>
-              {unlinkedProviders.map((provider) => (
-                <Tr key={`unlinked-${provider.id}`}>
-                  {identities.length > 0 && <Td />}
-                  <Td dataLabel="Provider">
-                    <ProviderLink name={provider.name} providerId={provider.id} />
-                  </Td>
-                  <Td dataLabel="Linked" colSpan={2}>
-                    <span style={{ color: 'var(--pf-t--global--color--200)' }}>Not connected</span>
-                  </Td>
-                  <Td isActionCell>
-                    {isSelf ? (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        icon={<PluggedIcon />}
-                        component="a"
-                        href={`${OIDC_AUTHORIZE_PATH}?provider_id=${encodeURIComponent(provider.id)}&flow=link&redirect_to=${encodeURIComponent(window.location.pathname)}`}
-                      >
-                        Connect
-                      </Button>
-                    ) : (
-                      <span style={{ color: 'var(--pf-t--global--color--200)' }}>—</span>
-                    )}
-                  </Td>
-                </Tr>
-              ))}
-            </Tbody>
+            {!isLocalUser && (
+              <Tbody>
+                {unlinkedProviders.map((provider) => (
+                  <Tr key={`unlinked-${provider.id}`}>
+                    {identities.length > 0 && <Td />}
+                    <Td dataLabel="Provider">
+                      <ProviderLink name={provider.name} providerId={provider.id} />
+                    </Td>
+                    <Td dataLabel="Linked" colSpan={2}>
+                      <Content component="small" style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>
+                        Not connected
+                      </Content>
+                    </Td>
+                    <Td isActionCell>
+                      {isSelf ? (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          icon={<PluggedIcon />}
+                          component="a"
+                          href={`${OIDC_AUTHORIZE_PATH}?provider_id=${encodeURIComponent(provider.id)}&flow=link&redirect_to=${encodeURIComponent(window.location.pathname)}`}
+                        >
+                          Connect
+                        </Button>
+                      ) : (
+                        <Content component="small" style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>
+                          —
+                        </Content>
+                      )}
+                    </Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            )}
           </ScrollableTableContainer>
         </StackItem>
       )}

@@ -72,6 +72,7 @@ type UserFormFieldsProps = {
   isEdit: boolean
   isBuiltinUser?: boolean
   isBuiltinSelf?: boolean
+  isFederatedUser?: boolean
   /** When set, the status toggle is disabled and this text is shown in a tooltip. */
   statusToggleDisabledReason?: string
 }
@@ -81,6 +82,7 @@ export function UserFormFields({
   isEdit,
   isBuiltinUser = false,
   isBuiltinSelf = false,
+  isFederatedUser = false,
   statusToggleDisabledReason,
 }: Readonly<UserFormFieldsProps>) {
   return (
@@ -119,16 +121,18 @@ export function UserFormFields({
         placeholder="Enter email address"
         isDisabled={isBuiltinUser}
       />
-      <ControlledTextField
-        name="password"
-        control={control}
-        label="Password"
-        fieldId="user-password"
-        placeholder={isEdit ? 'Leave blank to keep current password' : 'Enter password'}
-        type="password"
-        isRequired={!isEdit}
-        isDisabled={isBuiltinUser && !isBuiltinSelf}
-      />
+      {!isFederatedUser && (
+        <ControlledTextField
+          name="password"
+          control={control}
+          label="Password"
+          fieldId="user-password"
+          placeholder={isEdit ? 'Leave blank to keep current password' : 'Enter password'}
+          type="password"
+          isRequired={!isEdit}
+          isDisabled={isBuiltinUser && !isBuiltinSelf}
+        />
+      )}
       <Controller
         name="is_enabled"
         control={control}

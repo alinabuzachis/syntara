@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, act, waitFor } from '@testing-library/react'
+import { render, renderHook, screen, act, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
@@ -8,6 +8,7 @@ import { axe } from 'vitest-axe'
 import { usersClient } from '../../../client'
 import { AlertProvider } from '../../../components/alerts'
 
+import { useDetachIdentity } from './useDetachIdentity'
 import { UserIdentitiesPanel } from './UserIdentitiesPanel'
 
 // ---------------------------------------------------------------------------
@@ -83,9 +84,7 @@ const twoIdentities = [
 // Helpers
 // ---------------------------------------------------------------------------
 
-const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: false } },
-})
+let queryClient: QueryClient
 
 const wrapper = ({ children }: { children: ReactNode }) => (
   <QueryClientProvider client={queryClient}>
@@ -95,9 +94,9 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 
 const mockMutate = vi.fn()
 
-function setupMocks(data: unknown[] = [], queryOverrides: Record<string, unknown> = {}) {
+function setupMocks(identities: unknown[] = [], queryOverrides: Record<string, unknown> = {}) {
   vi.mocked(usersClient.useQuery).mockReturnValue({
-    data: { resources: data, next: null, prev: null, total: data.length },
+    data: { resources: identities, next: null, prev: null, total: identities.length },
     isPending: false,
     isError: false,
     error: null,
@@ -117,7 +116,9 @@ function setupMocks(data: unknown[] = [], queryOverrides: Record<string, unknown
 
 describe('UserIdentitiesPanel', () => {
   beforeEach(() => {
-    queryClient.clear()
+    queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
     mockNavigate.mockClear()
     mockMutate.mockClear()
     mockAttachIdentityModal.mockClear()
@@ -130,7 +131,7 @@ describe('UserIdentitiesPanel', () => {
     it('shows empty state when no identities and no providers exist', () => {
       setupMocks([])
 
-      render(<UserIdentitiesPanel userId="user-1" hasPassword />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" />, { wrapper })
 
       expect(screen.getByRole('heading', { name: 'No identity providers configured' })).toBeInTheDocument()
     })
@@ -142,7 +143,7 @@ describe('UserIdentitiesPanel', () => {
     it('renders identities in a table with correct columns', () => {
       setupMocks(mockIdentities)
 
-      render(<UserIdentitiesPanel userId="user-1" hasPassword />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" />, { wrapper })
 
       expect(screen.getByText('Azure')).toBeInTheDocument()
     })
@@ -150,7 +151,7 @@ describe('UserIdentitiesPanel', () => {
     it('renders column headers', () => {
       setupMocks(mockIdentities)
 
-      render(<UserIdentitiesPanel userId="user-1" hasPassword />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" />, { wrapper })
 
       expect(screen.getByRole('columnheader', { name: /Provider/i })).toBeInTheDocument()
       expect(screen.getByRole('columnheader', { name: /Linked/i })).toBeInTheDocument()
@@ -160,9 +161,9 @@ describe('UserIdentitiesPanel', () => {
     it('renders provider name as a link', () => {
       setupMocks(mockIdentities)
 
-      render(<UserIdentitiesPanel userId="user-1" hasPassword />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" />, { wrapper })
 
-      const providerLink = screen.getByRole('link', { name: 'Azure' })
+      const providerLink = screen.getByRole('button', { name: 'Azure' })
       expect(providerLink).toBeInTheDocument()
     })
   })
@@ -173,7 +174,7 @@ describe('UserIdentitiesPanel', () => {
     it('shows singular "1 identity" for one identity', () => {
       setupMocks(mockIdentities)
 
-      render(<UserIdentitiesPanel userId="user-1" hasPassword />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" />, { wrapper })
 
       expect(screen.getByText('1 identity')).toBeInTheDocument()
     })
@@ -181,7 +182,7 @@ describe('UserIdentitiesPanel', () => {
     it('shows plural "2 identities" for multiple identities', () => {
       setupMocks(twoIdentities)
 
-      render(<UserIdentitiesPanel userId="user-1" hasPassword />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" />, { wrapper })
 
       expect(screen.getByText('2 identities')).toBeInTheDocument()
     })
@@ -192,33 +193,33 @@ describe('UserIdentitiesPanel', () => {
   describe('Detach flow', () => {
     it('opens confirmation modal when Disconnect is clicked', async () => {
       const user = userEvent.setup()
-      setupMocks(mockIdentities)
+      setupMocks(twoIdentities)
 
-      render(<UserIdentitiesPanel userId="user-1" hasPassword />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" />, { wrapper })
 
-      await user.click(screen.getByRole('button', { name: 'Disconnect' }))
+      const disconnectButtons = screen.getAllByRole('button', { name: 'Disconnect' })
+      await user.click(disconnectButtons[0])
 
       expect(screen.getByText('Disconnect identity')).toBeInTheDocument()
       expect(
         screen.getByText('Are you sure? You will no longer be able to sign in with this identity.')
       ).toBeInTheDocument()
-      // Identity details shown in the modal (may also appear in collapsed expandable row)
       expect(screen.getAllByText('https://login.example.com').length).toBeGreaterThanOrEqual(1)
       expect(screen.getAllByText('sub-abc').length).toBeGreaterThanOrEqual(1)
     })
 
     it('calls mutation when Disconnect in modal is confirmed', async () => {
       const user = userEvent.setup()
-      setupMocks(mockIdentities)
+      setupMocks(twoIdentities)
 
-      render(<UserIdentitiesPanel userId="user-1" hasPassword />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" />, { wrapper })
 
-      // Click Disconnect in table row to open modal
-      await user.click(screen.getByRole('button', { name: 'Disconnect' }))
+      const disconnectButtons = screen.getAllByRole('button', { name: 'Disconnect' })
+      await user.click(disconnectButtons[0])
 
-      // Click Disconnect in modal (second one)
-      const buttons = screen.getAllByRole('button', { name: 'Disconnect' })
-      await user.click(buttons[buttons.length - 1])
+      // Click Disconnect in modal (last button with that name)
+      const allButtons = screen.getAllByRole('button', { name: 'Disconnect' })
+      await user.click(allButtons[allButtons.length - 1])
 
       expect(mockMutate).toHaveBeenCalledTimes(1)
       const callArgs = mockMutate.mock.calls[0]
@@ -229,11 +230,12 @@ describe('UserIdentitiesPanel', () => {
 
     it('closes modal when Cancel button is clicked', async () => {
       const user = userEvent.setup()
-      setupMocks(mockIdentities)
+      setupMocks(twoIdentities)
 
-      render(<UserIdentitiesPanel userId="user-1" hasPassword />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" />, { wrapper })
 
-      await user.click(screen.getByRole('button', { name: 'Disconnect' }))
+      const disconnectButtons = screen.getAllByRole('button', { name: 'Disconnect' })
+      await user.click(disconnectButtons[0])
 
       expect(screen.getByText('Disconnect identity')).toBeInTheDocument()
 
@@ -250,7 +252,7 @@ describe('UserIdentitiesPanel', () => {
       const mockRefetch = vi.fn()
 
       vi.mocked(usersClient.useQuery).mockReturnValue({
-        data: { resources: mockIdentities, next: null, prev: null, total: mockIdentities.length },
+        data: { resources: twoIdentities, next: null, prev: null, total: twoIdentities.length },
         isPending: false,
         isError: false,
         error: null,
@@ -262,14 +264,13 @@ describe('UserIdentitiesPanel', () => {
         isPending: false,
       } as never)
 
-      render(<UserIdentitiesPanel userId="user-1" hasPassword />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" />, { wrapper })
 
-      // Click Disconnect in table row, then confirm in modal
-      await user.click(screen.getByRole('button', { name: 'Disconnect' }))
-      const buttons = screen.getAllByRole('button', { name: 'Disconnect' })
-      await user.click(buttons[buttons.length - 1])
+      const disconnectButtons = screen.getAllByRole('button', { name: 'Disconnect' })
+      await user.click(disconnectButtons[0])
+      const allButtons = screen.getAllByRole('button', { name: 'Disconnect' })
+      await user.click(allButtons[allButtons.length - 1])
 
-      // Trigger onSuccess and onSettled callbacks
       const callbacks = mockMutate.mock.calls[0][1] as {
         onSuccess: () => void
         onSettled: () => void
@@ -287,16 +288,15 @@ describe('UserIdentitiesPanel', () => {
 
     it('handles detach error gracefully', async () => {
       const user = userEvent.setup()
-      setupMocks(mockIdentities)
+      setupMocks(twoIdentities)
 
-      render(<UserIdentitiesPanel userId="user-1" hasPassword />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" />, { wrapper })
 
-      // Click Disconnect in table row, then confirm in modal
-      await user.click(screen.getByRole('button', { name: 'Disconnect' }))
-      const buttons = screen.getAllByRole('button', { name: 'Disconnect' })
-      await user.click(buttons[buttons.length - 1])
+      const disconnectButtons = screen.getAllByRole('button', { name: 'Disconnect' })
+      await user.click(disconnectButtons[0])
+      const allButtons = screen.getAllByRole('button', { name: 'Disconnect' })
+      await user.click(allButtons[allButtons.length - 1])
 
-      // Trigger onError and onSettled
       const callbacks = mockMutate.mock.calls[0][1] as {
         onError: () => void
         onSettled: () => void
@@ -318,7 +318,7 @@ describe('UserIdentitiesPanel', () => {
     it('shows loading spinner when query is pending', () => {
       setupMocks([], { data: undefined, isPending: true })
 
-      render(<UserIdentitiesPanel userId="user-1" hasPassword />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" />, { wrapper })
 
       expect(screen.getByRole('progressbar', { name: 'Loading' })).toBeInTheDocument()
     })
@@ -330,7 +330,7 @@ describe('UserIdentitiesPanel', () => {
     it('shows error state when query errors', () => {
       setupMocks([], { data: undefined, isPending: false, isError: true, error: new Error('Network error') })
 
-      render(<UserIdentitiesPanel userId="user-1" hasPassword />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" />, { wrapper })
 
       expect(screen.getByRole('heading', { name: 'Error loading identities' })).toBeInTheDocument()
     })
@@ -342,7 +342,7 @@ describe('UserIdentitiesPanel', () => {
     it('renders Attach identity button in table view', () => {
       setupMocks(mockIdentities)
 
-      render(<UserIdentitiesPanel userId="user-1" hasPassword />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" />, { wrapper })
 
       expect(screen.getByRole('button', { name: /attach identity/i })).toBeInTheDocument()
     })
@@ -355,7 +355,7 @@ describe('UserIdentitiesPanel', () => {
       const user = userEvent.setup()
       setupMocks(mockIdentities)
 
-      render(<UserIdentitiesPanel userId="user-1" hasPassword />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" />, { wrapper })
 
       // Click the expand toggle button
       const expandButton = screen.getAllByRole('button').find((btn) => btn.closest('td.pf-v6-c-table__toggle'))
@@ -371,7 +371,7 @@ describe('UserIdentitiesPanel', () => {
       const user = userEvent.setup()
       setupMocks(mockIdentities)
 
-      render(<UserIdentitiesPanel userId="user-1" hasPassword />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" />, { wrapper })
 
       const expandButton = screen.getAllByRole('button').find((btn) => btn.closest('td.pf-v6-c-table__toggle'))
       expect(expandButton).toBeDefined()
@@ -391,7 +391,7 @@ describe('UserIdentitiesPanel', () => {
 
   describe('Last identity protection', () => {
     it('disables Disconnect button when it is the only identity and user has no password', () => {
-      setupMocks(mockIdentities) // single identity, hasPassword defaults to false
+      setupMocks(mockIdentities) // single identity, isLocalUser defaults to false
 
       render(<UserIdentitiesPanel userId="user-1" />, { wrapper })
 
@@ -411,13 +411,13 @@ describe('UserIdentitiesPanel', () => {
       expect(screen.queryByText('Disconnect identity')).not.toBeInTheDocument()
     })
 
-    it('enables Disconnect button when it is the only identity but user has a password', () => {
-      setupMocks(mockIdentities)
+    it('shows empty state for local users with no identities', () => {
+      setupMocks([])
 
-      render(<UserIdentitiesPanel userId="user-1" hasPassword />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" isLocalUser />, { wrapper })
 
-      const disconnectButton = screen.getByRole('button', { name: 'Disconnect' })
-      expect(disconnectButton).not.toHaveAttribute('aria-disabled', 'true')
+      expect(screen.getByRole('heading', { name: 'Local user' })).toBeInTheDocument()
+      expect(screen.getByText(/Local users cannot be linked to external identity providers/)).toBeInTheDocument()
     })
 
     it('enables Disconnect button when there are multiple identities', () => {
@@ -438,7 +438,7 @@ describe('UserIdentitiesPanel', () => {
     it('shows dash when last_used_at is null', () => {
       setupMocks([twoIdentities[1]]) // Okta identity has last_used_at: null
 
-      render(<UserIdentitiesPanel userId="user-1" hasPassword />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" />, { wrapper })
 
       // The last authenticated cell should show '-'
       const cells = screen.getAllByRole('cell')
@@ -449,7 +449,7 @@ describe('UserIdentitiesPanel', () => {
     it('shows formatted date when last_used_at has a value', () => {
       setupMocks(mockIdentities) // Azure identity has last_used_at
 
-      render(<UserIdentitiesPanel userId="user-1" hasPassword />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" />, { wrapper })
 
       // Should not show a dash for last authenticated
       const cells = screen.getAllByRole('cell')
@@ -472,17 +472,17 @@ describe('UserIdentitiesPanel', () => {
       mockUseAuthProviders.mockReturnValue({ providers: mockProviders, isLoading: false })
       setupMocks(mockIdentities) // Azure is linked, GitHub is not
 
-      render(<UserIdentitiesPanel userId="user-1" hasPassword />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" />, { wrapper })
 
       expect(screen.getByText('Not connected')).toBeInTheDocument()
-      expect(screen.getByRole('link', { name: 'GitHub' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'GitHub' })).toBeInTheDocument()
     })
 
     it('shows Connect button for unlinked providers when viewing own profile', () => {
       mockUseAuthProviders.mockReturnValue({ providers: mockProviders, isLoading: false })
       setupMocks(mockIdentities)
 
-      render(<UserIdentitiesPanel userId="user-1" currentUserId="user-1" hasPassword />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" currentUserId="user-1" />, { wrapper })
 
       expect(screen.getByRole('link', { name: /Connect/i })).toBeInTheDocument()
     })
@@ -491,7 +491,7 @@ describe('UserIdentitiesPanel', () => {
       mockUseAuthProviders.mockReturnValue({ providers: mockProviders, isLoading: false })
       setupMocks(mockIdentities)
 
-      render(<UserIdentitiesPanel userId="user-1" currentUserId="other-user" hasPassword />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" currentUserId="other-user" />, { wrapper })
 
       // Should not have a Connect link
       expect(screen.queryByRole('link', { name: /Connect/i })).not.toBeInTheDocument()
@@ -503,7 +503,7 @@ describe('UserIdentitiesPanel', () => {
       mockUseAuthProviders.mockReturnValue({ providers: mockProviders, isLoading: false })
       setupMocks([])
 
-      render(<UserIdentitiesPanel userId="user-1" currentUserId="user-1" hasPassword />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" currentUserId="user-1" />, { wrapper })
 
       // Should show the table, not the empty state
       expect(screen.queryByRole('heading', { name: 'No identity providers configured' })).not.toBeInTheDocument()
@@ -520,7 +520,7 @@ describe('UserIdentitiesPanel', () => {
       mockUseAuthProviders.mockReturnValue({ providers: mockProviders, isLoading: false })
       setupMocks([])
 
-      render(<UserIdentitiesPanel userId="user-1" currentUserId="user-1" hasPassword />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" currentUserId="user-1" />, { wrapper })
 
       // Self users see a Connect link for unlinked providers
       expect(screen.getByRole('link', { name: /Connect/i })).toBeInTheDocument()
@@ -531,7 +531,7 @@ describe('UserIdentitiesPanel', () => {
       mockUseAuthProviders.mockReturnValue({ providers: mockProviders, isLoading: false })
       setupMocks([])
 
-      render(<UserIdentitiesPanel userId="user-1" currentUserId="user-2" hasPassword />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" currentUserId="user-2" />, { wrapper })
 
       // Non-self users do not see a Connect link
       expect(screen.queryByRole('link', { name: /Connect/i })).not.toBeInTheDocument()
@@ -542,7 +542,7 @@ describe('UserIdentitiesPanel', () => {
       mockUseAuthProviders.mockReturnValue({ providers: mockProviders, isLoading: false })
       setupMocks([])
 
-      render(<UserIdentitiesPanel userId="user-1" hasPassword />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" />, { wrapper })
 
       // No currentUserId means not self
       expect(screen.queryByRole('link', { name: /Connect/i })).not.toBeInTheDocument()
@@ -556,7 +556,7 @@ describe('UserIdentitiesPanel', () => {
       const user = userEvent.setup()
       setupMocks(mockIdentities)
 
-      render(<UserIdentitiesPanel userId="user-1" hasPassword />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" />, { wrapper })
 
       await user.click(screen.getByRole('button', { name: /attach identity/i }))
 
@@ -568,7 +568,7 @@ describe('UserIdentitiesPanel', () => {
     it('passes correct currentUserId to AttachIdentityModal', () => {
       setupMocks(mockIdentities)
 
-      render(<UserIdentitiesPanel userId="user-1" hasPassword />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" />, { wrapper })
 
       const calls = mockAttachIdentityModal.mock.calls
       // Check that any call has currentUserId set to the userId prop
@@ -584,9 +584,9 @@ describe('UserIdentitiesPanel', () => {
       const user = userEvent.setup()
       setupMocks(mockIdentities)
 
-      render(<UserIdentitiesPanel userId="user-1" hasPassword />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" />, { wrapper })
 
-      const providerLink = screen.getByRole('link', { name: 'Azure' })
+      const providerLink = screen.getByRole('button', { name: 'Azure' })
       await user.click(providerLink)
 
       expect(mockNavigate).toHaveBeenCalledTimes(1)
@@ -610,7 +610,7 @@ describe('UserIdentitiesPanel', () => {
 
       setupMocks(mockIdentities)
 
-      render(<UserIdentitiesPanel userId="user-1" hasPassword />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" />, { wrapper })
 
       // The effect should have called replaceState to clean the URL
       expect(replaceStateSpy).toHaveBeenCalled()
@@ -634,7 +634,7 @@ describe('UserIdentitiesPanel', () => {
       // when a valid identity is selected.
       setupMocks(mockIdentities)
 
-      render(<UserIdentitiesPanel userId="user-1" hasPassword />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" />, { wrapper })
 
       // Without clicking Disconnect first, mockMutate should not be called
       expect(mockMutate).not.toHaveBeenCalled()
@@ -644,7 +644,7 @@ describe('UserIdentitiesPanel', () => {
       const user = userEvent.setup()
       setupMocks(twoIdentities)
 
-      render(<UserIdentitiesPanel userId="user-1" hasPassword />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" />, { wrapper })
 
       // Click Disconnect on the second identity (Okta)
       const disconnectButtons = screen.getAllByRole('button', { name: 'Disconnect' })
@@ -663,7 +663,7 @@ describe('UserIdentitiesPanel', () => {
     it('has no accessibility violations with identities', async () => {
       setupMocks(mockIdentities)
 
-      const { container } = render(<UserIdentitiesPanel userId="user-1" hasPassword />, { wrapper })
+      const { container } = render(<UserIdentitiesPanel userId="user-1" />, { wrapper })
       const results = await axe(container)
       expect(results).toHaveNoViolations()
     })
@@ -671,7 +671,7 @@ describe('UserIdentitiesPanel', () => {
     it('has no accessibility violations in empty state', async () => {
       setupMocks([])
 
-      const { container } = render(<UserIdentitiesPanel userId="user-1" hasPassword />, { wrapper })
+      const { container } = render(<UserIdentitiesPanel userId="user-1" />, { wrapper })
       const results = await axe(container)
       expect(results).toHaveNoViolations()
     })
@@ -684,7 +684,7 @@ describe('UserIdentitiesPanel', () => {
       mockUseAuthProviders.mockReturnValue({ providers: mockProviders, isLoading: false })
       setupMocks(mockIdentities)
 
-      const { container } = render(<UserIdentitiesPanel userId="user-1" currentUserId="user-1" hasPassword />, {
+      const { container } = render(<UserIdentitiesPanel userId="user-1" currentUserId="user-1" />, {
         wrapper,
       })
       const results = await axe(container)
@@ -697,6 +697,56 @@ describe('UserIdentitiesPanel', () => {
       const { container } = render(<UserIdentitiesPanel userId="user-1" />, { wrapper })
       const results = await axe(container)
       expect(results).toHaveNoViolations()
+    })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// useDetachIdentity hook
+// ---------------------------------------------------------------------------
+
+describe('useDetachIdentity', () => {
+  beforeEach(() => {
+    mockMutate.mockClear()
+    vi.mocked(usersClient.useMutation).mockReturnValue({
+      mutate: mockMutate,
+      isPending: false,
+    } as never)
+  })
+
+  const hookWrapper = ({ children }: { children: ReactNode }) => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    return (
+      <QueryClientProvider client={client}>
+        <AlertProvider>{children}</AlertProvider>
+      </QueryClientProvider>
+    )
+  }
+
+  it('initializes with no identity selected', () => {
+    const { result } = renderHook(() => useDetachIdentity('user-1', vi.fn()), { wrapper: hookWrapper })
+
+    expect(result.current.identityToDetach).toBeNull()
+    expect(result.current.isDetaching).toBe(false)
+  })
+
+  it('does not call mutate when confirmDetach is called without a selected identity', () => {
+    const { result } = renderHook(() => useDetachIdentity('user-1', vi.fn()), { wrapper: hookWrapper })
+
+    act(() => result.current.confirmDetach())
+
+    expect(mockMutate).not.toHaveBeenCalled()
+  })
+
+  it('calls mutate with correct params when an identity is selected', () => {
+    const { result } = renderHook(() => useDetachIdentity('user-1', vi.fn()), { wrapper: hookWrapper })
+
+    act(() => result.current.setIdentityToDetach({ id: 'id-1' } as never))
+    act(() => result.current.confirmDetach())
+
+    expect(mockMutate).toHaveBeenCalledTimes(1)
+    expect(mockMutate.mock.calls[0][0]).toEqual({
+      params: { path: { user_id: 'user-1', identity_id: 'id-1' } },
     })
   })
 })

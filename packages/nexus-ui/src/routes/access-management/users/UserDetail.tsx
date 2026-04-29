@@ -31,6 +31,7 @@ import { formatDateTime } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
 import { isValidUUID } from '../../../utils/generateUUID'
 import { accessClient } from '../../access/accessClient'
+import { AUTH_TYPE_LOCAL } from '../adminConstants'
 import { DetailPageShell } from '../DetailPageShell'
 import { DisabledBadge } from '../DisabledBadge'
 import { RoleAssignmentsPanel } from '../RoleAssignmentsPanel'
@@ -94,14 +95,15 @@ function UserDetailsTab({
 }) {
   const { first_name, last_name } = splitFullName(user.full_name ?? '')
 
+  const isLocal = user.auth_type === AUTH_TYPE_LOCAL
   const uniqueProviders = identities.reduce<Map<string, string>>((acc, i) => {
     if (!acc.has(i.identity_provider_id)) {
       acc.set(i.identity_provider_id, i.provider_name ?? '')
     }
     return acc
   }, new Map())
-  const hasLocal = user.has_password === true
-  const totalProviders = uniqueProviders.size + (hasLocal ? 1 : 0)
+  // Local users always show exactly one provider: 'Local'
+  const totalProviders = isLocal ? 1 : uniqueProviders.size
   const providerLabel = totalProviders > 1 ? 'Identity Providers' : 'Identity Provider'
 
   return (
@@ -129,23 +131,24 @@ function UserDetailsTab({
             '-'
           ) : (
             <LabelGroup>
-              {hasLocal && <Label isCompact>Local</Label>}
-              {[...uniqueProviders.entries()].map(([id, name]) => (
-                <Label
-                  key={id}
-                  isCompact
-                  onClick={() =>
-                    navigate(
-                      AppRoute.AccessManagement.Authentication.IdentityProviderDetail.replace(
-                        ':providerId',
-                        id
-                      ).replace('/:tab?', '')
-                    )
-                  }
-                >
-                  {name}
-                </Label>
-              ))}
+              {isLocal && <Label isCompact>Local</Label>}
+              {!isLocal &&
+                [...uniqueProviders.entries()].map(([id, name]) => (
+                  <Label
+                    key={id}
+                    isCompact
+                    onClick={() =>
+                      navigate(
+                        AppRoute.AccessManagement.Authentication.IdentityProviderDetail.replace(
+                          ':providerId',
+                          id
+                        ).replace('/:tab?', '')
+                      )
+                    }
+                  >
+                    {name}
+                  </Label>
+                ))}
             </LabelGroup>
           )}
         </DescriptionListDescription>
@@ -259,7 +262,7 @@ export function UserDetail() {
             <UserIdentitiesPanel
               userId={userId ?? ''}
               currentUserId={currentUserId}
-              hasPassword={userData?.has_password ?? false}
+              isLocalUser={userData?.auth_type === AUTH_TYPE_LOCAL}
             />
           )}
           {activeTab === 'roles' && <RoleAssignmentsPanel principalType="user" principalId={userId ?? ''} />}

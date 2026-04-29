@@ -336,7 +336,7 @@ describe('AttachIdentityModal', () => {
     render(<AttachIdentityModal {...defaultProps} />, { wrapper })
 
     // Click the username link (not the row) to trigger navigate
-    await user.click(screen.getByRole('link', { name: 'bob' }))
+    await user.click(screen.getByRole('button', { name: 'bob' }))
 
     expect(mockNavigate).toHaveBeenCalledWith('/access-management/users/user-2')
     expect(defaultProps.onClose).toHaveBeenCalled()
@@ -351,7 +351,7 @@ describe('AttachIdentityModal', () => {
     // Go to step 2
     await user.click(screen.getByText('bob@example.com'))
     // Click the provider link
-    await user.click(screen.getByRole('link', { name: 'Azure' }))
+    await user.click(screen.getByRole('button', { name: 'Azure' }))
 
     expect(mockNavigate).toHaveBeenCalledWith('/access-management/authentication/identity-providers/p-1')
     expect(defaultProps.onClose).toHaveBeenCalled()

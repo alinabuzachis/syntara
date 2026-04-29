@@ -134,19 +134,17 @@ function UsersStep({
             {users.map((user) => (
               <Tr key={user.id} isClickable onRowClick={() => onSelect(user)}>
                 <Td dataLabel="Username">
-                  <a
-                    href={getUserDetailPath(user.id)}
+                  <Button
+                    variant="link"
+                    isInline
                     onClick={(e) => {
-                      if (e.button === 0 && !e.ctrlKey && !e.metaKey) {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        navigate(getUserDetailPath(user.id))
-                        onClose()
-                      }
+                      e.stopPropagation()
+                      navigate(getUserDetailPath(user.id))
+                      onClose()
                     }}
                   >
                     {user.username}
-                  </a>
+                  </Button>
                 </Td>
                 <Td dataLabel="Email">{user.email}</Td>
               </Tr>
@@ -257,27 +255,22 @@ function IdentitiesStep({
                     onRowClick={() => onSelect(isSelected ? null : identity.id)}
                   >
                     <Td dataLabel="Provider">
-                      <a
-                        href={AppRoute.AccessManagement.Authentication.IdentityProviderDetail.replace(
-                          ':providerId',
-                          identity.identity_provider_id
-                        ).replace('/:tab?', '')}
+                      <Button
+                        variant="link"
+                        isInline
                         onClick={(e) => {
-                          if (e.button === 0 && !e.ctrlKey && !e.metaKey) {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            navigate(
-                              AppRoute.AccessManagement.Authentication.IdentityProviderDetail.replace(
-                                ':providerId',
-                                identity.identity_provider_id
-                              ).replace('/:tab?', '')
-                            )
-                            onClose()
-                          }
+                          e.stopPropagation()
+                          navigate(
+                            AppRoute.AccessManagement.Authentication.IdentityProviderDetail.replace(
+                              ':providerId',
+                              identity.identity_provider_id
+                            ).replace('/:tab?', '')
+                          )
+                          onClose()
                         }}
                       >
                         {identity.provider_name}
-                      </a>
+                      </Button>
                     </Td>
                     <Td dataLabel="Subject">{identity.subject}</Td>
                     <Td dataLabel="Linked">{formatDateTime(identity.created_at)}</Td>

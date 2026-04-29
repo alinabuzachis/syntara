@@ -388,6 +388,12 @@ export interface components {
       is_enabled?: boolean | null
     }
     /**
+     * AuthType
+     * @description Authentication type for users.
+     * @enum {string}
+     */
+    AuthType: 'local' | 'federated'
+    /**
      * UserRead
      * @description Schema for user response (GET /users/{id}).
      *
@@ -412,11 +418,8 @@ export interface components {
        * @default false
        */
       is_builtin?: boolean
-      /**
-       * Has Password
-       * @default false
-       */
-      has_password?: boolean
+      /** @default local */
+      auth_type?: components['schemas']['AuthType']
       /** Last Login */
       last_login?: string | null
       /**
@@ -518,6 +521,40 @@ export interface components {
        * @default
        */
       provider_name?: string
+    }
+    /**
+     * UserIdentityListResponse
+     * @description Paginated list of user identities.
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
+     */
+    UserIdentityListResponse: {
+      /**
+       * Next
+       * @description Cursor for next page of results
+       */
+      next?: string | null
+      /**
+       * Prev
+       * @description Cursor for previous page of results
+       */
+      prev?: string | null
+      /**
+       * Total
+       * @description Total count of resources (only when include_total=true)
+       */
+      total?: number | null
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources: components['schemas']['UserIdentityRead'][]
     }
     /**
      * UserIdentityAttach
@@ -669,11 +706,8 @@ export interface components {
        * @default false
        */
       is_builtin?: boolean
-      /**
-       * Has Password
-       * @default false
-       */
-      has_password?: boolean
+      /** @default local */
+      auth_type?: components['schemas']['AuthType']
       /** Last Login */
       last_login?: string | null
       /**
@@ -868,13 +902,6 @@ export interface components {
      */
     RoleAssignmentListResponse: WithRequired<components['schemas']['ResourcesResponseBase'], 'resources'> & {
       resources: components['schemas']['RoleAssignmentRead'][]
-    }
-    /**
-     * UserIdentityListResponse
-     * @description Paginated list of user identities.
-     */
-    UserIdentityListResponse: WithRequired<components['schemas']['ResourcesResponseBase'], 'resources'> & {
-      resources: components['schemas']['UserIdentityRead'][]
     }
     /**
      * ErrorData

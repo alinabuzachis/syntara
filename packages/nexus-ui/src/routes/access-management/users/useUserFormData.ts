@@ -7,6 +7,7 @@ import { isValidUUID } from '../../../utils/generateUUID'
 import { getUserIdFromToken } from '../../../utils/jwtUtils'
 import { accessClient } from '../../access/accessClient'
 import {
+  AUTH_TYPE_FEDERATED,
   BUILTIN_ADMIN_TOGGLE_DISABLED_REASON,
   BUILTIN_ADMINS_GROUP_NAME,
   LAST_ADMIN_TOGGLE_DISABLED_REASON,
@@ -76,6 +77,7 @@ export function useUserFormData(isEdit: boolean) {
 
   const userData = userQuery.data
   const isBuiltinUser = !!userData?.is_builtin
+  const isFederatedUser = userData?.auth_type === AUTH_TYPE_FEDERATED
 
   const isInAdminsGroup = (groupsQuery.data?.resources ?? []).some(
     (g) => g.name === BUILTIN_ADMINS_GROUP_NAME && g.is_builtin
@@ -105,6 +107,7 @@ export function useUserFormData(isEdit: boolean) {
     userQuery,
     userData,
     isBuiltinUser,
+    isFederatedUser,
     isSelf,
     canToggleStatus,
     statusToggleDisabledReason,

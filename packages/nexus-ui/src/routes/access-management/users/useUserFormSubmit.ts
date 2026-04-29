@@ -13,6 +13,7 @@ type UseUserFormSubmitOptions = {
   isValidId: boolean
   userId: string
   isBuiltinUser: boolean
+  isFederatedUser: boolean
   isSelf: boolean
   setError: UseFormSetError<UserFormData>
   navigateBack: () => void
@@ -23,6 +24,7 @@ export function useUserFormSubmit({
   isValidId,
   userId,
   isBuiltinUser,
+  isFederatedUser,
   isSelf,
   setError,
   navigateBack,
@@ -75,7 +77,9 @@ export function useUserFormSubmit({
           body: {
             ...(isBuiltinUser ? {} : { username: formData.username, full_name: fullName, email }),
             is_enabled: formData.is_enabled,
-            ...(formData.password && (!isBuiltinUser || isSelf) ? { password: formData.password } : {}),
+            ...(formData.password && !isFederatedUser && (!isBuiltinUser || isSelf)
+              ? { password: formData.password }
+              : {}),
           },
         },
         {

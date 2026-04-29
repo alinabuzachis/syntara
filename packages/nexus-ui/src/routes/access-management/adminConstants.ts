@@ -1,3 +1,11 @@
+import type { UsersAPI } from '@ansible/nexus-contracts'
+
+type AuthType = UsersAPI.components['schemas']['AuthType']
+
+/** User authentication type discriminator values from the backend AuthType enum. */
+export const AUTH_TYPE_LOCAL = 'local' as const satisfies AuthType
+export const AUTH_TYPE_FEDERATED = 'federated' as const satisfies AuthType
+
 /** Name of the built-in administrators group as defined by the backend. */
 export const BUILTIN_ADMINS_GROUP_NAME = 'admins'
 

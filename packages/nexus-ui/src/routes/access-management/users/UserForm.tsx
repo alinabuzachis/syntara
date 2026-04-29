@@ -34,8 +34,16 @@ export function UserForm({ mode }: Readonly<UserFormProps>) {
   const pageTitle = isEdit ? 'Edit User' : 'Create User'
   const submitLabel = isEdit ? 'Save' : 'Create'
 
-  const { userId, isValidId, userQuery, isBuiltinUser, isSelf, statusToggleDisabledReason, formValues } =
-    useUserFormData(isEdit)
+  const {
+    userId,
+    isValidId,
+    userQuery,
+    isBuiltinUser,
+    isFederatedUser,
+    isSelf,
+    statusToggleDisabledReason,
+    formValues,
+  } = useUserFormData(isEdit)
 
   const schema = isEdit ? userFormSchema : userCreateSchema
   const { control, handleSubmit, setError } = useForm<UserFormData>({
@@ -51,6 +59,7 @@ export function UserForm({ mode }: Readonly<UserFormProps>) {
     isValidId,
     userId,
     isBuiltinUser,
+    isFederatedUser,
     isSelf,
     setError,
     navigateBack,
@@ -58,7 +67,7 @@ export function UserForm({ mode }: Readonly<UserFormProps>) {
 
   const passwordValue = useWatch({ control, name: 'password' })
   const isActiveValue = useWatch({ control, name: 'is_enabled' })
-  const showPasswordWarning = isEdit && !!passwordValue
+  const showPasswordWarning = isEdit && !isFederatedUser && !!passwordValue
   const showDisableWarning = isEdit && isSelf && isActiveValue === false
 
   const refetchUser = userQuery.refetch
@@ -134,6 +143,7 @@ export function UserForm({ mode }: Readonly<UserFormProps>) {
                   isEdit={isEdit}
                   isBuiltinUser={isBuiltinUser}
                   isBuiltinSelf={isBuiltinUser && isSelf}
+                  isFederatedUser={isFederatedUser}
                   statusToggleDisabledReason={statusToggleDisabledReason}
                 />
               </Form>

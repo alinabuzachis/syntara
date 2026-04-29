@@ -62,7 +62,7 @@ const mockUser = {
   email: 'jdoe@nexus.local',
   full_name: 'John Doe',
   is_enabled: true,
-  has_password: true,
+  auth_type: 'local' as const,
   last_login: '2026-03-28T09:15:00Z',
   created_at: '2026-01-15T00:00:00Z',
   updated_at: '2026-02-10T00:00:00Z',
