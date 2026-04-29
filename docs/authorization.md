@@ -18,6 +18,17 @@ Authorization is **deny-by-default** — requests are denied unless an explicit 
 
 ## Key Concepts
 
+### Resource Types and Actions
+
+Every authorization decision is about whether a user can perform an **action** on a **resource type**. The canonical catalog is built dynamically at startup by `build_resource_actions()` in `src/nexus/authz/resource_actions.py`, which introspects all registered route dependencies (`PermissionChecker`, `ProjectScopeFilter`) and merges them with `BUILTIN_POLICIES`. The `GET /authz/resource-actions` endpoint exposes the live catalog to API consumers.
+
+#### Adding a New Resource Type or Action
+
+1. Add a `PolicyInfo` to `BUILTIN_POLICIES` in `src/nexus/authz/role_conventions.py`
+2. Use `PermissionChecker("resource", "action")` on the new endpoint
+
+The registry is rebuilt automatically — no manual dictionary to maintain. Tests in `tests/unit/authz/test_resource_actions.py` validate that `PermissionChecker` calls, `BUILTIN_POLICIES`, and OpenAPI `x-app-permission` entries all stay in sync.
+
 ### Policies
 
 A policy contains one or more **statements** that define what actions are allowed or denied:
@@ -260,13 +271,16 @@ The OPA response includes:
 
 ## Query Endpoints
 
-The `/authz` router provides introspection endpoints (all POST):
+The `/authz` router provides introspection endpoints:
 
-| Endpoint | Description |
-|----------|-------------|
-| `POST /authz/can-i` | Check if current user can perform an action |
-| `POST /authz/who-can` | List users who can perform an action (debug) |
-| `POST /authz/what-can-i` | List all permissions for the current user |
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/authz/can-i` | POST | Check if current user can perform an action |
+| `/authz/who-can` | POST | List users who can perform an action (requires `authz:query`) |
+| `/authz/what-can-i` | POST | List all permissions for the current user |
+| `/authz/resource-actions` | GET | List all available resource types and their valid actions |
+
+`GET /authz/resource-actions` returns the full catalog of resource types and actions as a map. It requires authentication but no specific permission, and involves no database query — the data is static.
 
 ## Unified Role Assignment Endpoints
 
@@ -376,7 +390,7 @@ BUILTIN_POLICIES: list[PolicyInfo] = [
 ]
 ```
 
-No migration is needed — the policy is resolved at runtime.
+No migration is needed — the policy is resolved at runtime. The sync tests will fail if the `resource:action` pair is not registered.
 
 ### Adding a New Built-in Role
 

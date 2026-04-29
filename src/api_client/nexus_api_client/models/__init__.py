@@ -173,6 +173,8 @@ from .provider_status import ProviderStatus
 from .reset_internal_metrics_store_response_reset_internal_metrics_store import (
     ResetInternalMetricsStoreResponseResetInternalMetricsStore,
 )
+from .resource_actions_response import ResourceActionsResponse
+from .resource_actions_response_resource_actions import ResourceActionsResponseResourceActions
 from .resources_response_group_member_read import ResourcesResponseGroupMemberRead
 from .resources_response_group_read import ResourcesResponseGroupRead
 from .resources_response_user_group_read import ResourcesResponseUserGroupRead
@@ -432,6 +434,8 @@ __all__ = (
     "ProjectUpdateLabelsType0",
     "ProviderStatus",
     "ResetInternalMetricsStoreResponseResetInternalMetricsStore",
+    "ResourceActionsResponse",
+    "ResourceActionsResponseResourceActions",
     "ResourcesResponseGroupMemberRead",
     "ResourcesResponseGroupRead",
     "ResourcesResponseUserGroupRead",

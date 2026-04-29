@@ -4,6 +4,7 @@ Provides three query patterns:
 - Can I?   — Check if the current user can perform a specific action
 - Who can? — List users who can perform a specific action
 - What can I? — List all permissions for the current user
+- Resource actions — List all available resource types and their valid actions
 """
 
 import re
@@ -11,7 +12,7 @@ from typing import Annotated, Any, ClassVar, Literal
 from uuid import UUID
 
 import structlog
-from fastapi import Depends, Query
+from fastapi import Depends, Query, Request
 from pydantic import ConfigDict
 from sqlmodel import Field, SQLModel, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -104,6 +105,14 @@ class WhatCanIResponse(SQLModel):
     """Response body for the What can I? endpoint."""
 
     permissions: list[PermissionEntry]
+
+
+class ResourceActionsResponse(SQLModel):
+    """Available resource types and their valid actions."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(title="Resource Actions Response")  # type: ignore[assignment]
+
+    resource_actions: dict[str, list[str]] = Field(description="Map of resource types to their valid actions")
 
 
 # ============================================================================
@@ -293,6 +302,22 @@ async def what_can_i(
     ]
 
     return WhatCanIResponse(permissions=permissions)
+
+
+@router.get(
+    "/resource-actions",
+    dependencies=[NO_PERMISSION],
+    operation_id="get_resource_actions",
+    summary="List available resource types and actions",
+    description="Returns the catalog of all resource types and the actions that can be performed on each.",
+    response_description="Map of resource types to their valid actions",
+)
+async def get_resource_actions(request: Request) -> ResourceActionsResponse:
+    """Return the canonical resource-type -> actions catalog.
+
+    Built dynamically at startup from route dependencies and built-in policies.
+    """
+    return ResourceActionsResponse(resource_actions=request.app.state.resource_actions)
 
 
 # ============================================================================

@@ -135,6 +135,38 @@ paths:
       security:
         - bearerAuth: []
 
+  /authz/resource-actions:
+    get:
+      summary: List available resource types and actions
+      description: Returns the catalog of all resource types and the actions that can be performed on each.
+      operationId: get_resource_actions
+      x-app-permission:
+        resource: null
+        action: null
+      tags:
+        - Authorization
+      responses:
+        "200":
+          description: Map of resource types to their valid actions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResourceActionsResponse"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+
   /authz/validate-name:
     get:
       summary: Validate Name
@@ -390,6 +422,22 @@ components:
           items:
             $ref: "#/components/schemas/PermissionEntry"
           title: Permissions
+
+    ResourceActionsResponse:
+      type: object
+      title: Resource Actions Response
+      description: Available resource types and their valid actions.
+      required:
+        - resource_actions
+      properties:
+        resource_actions:
+          type: object
+          title: Resource Actions
+          description: Map of resource types to their valid actions
+          additionalProperties:
+            type: array
+            items:
+              type: string
 
     ValidateNameResponse:
       type: object

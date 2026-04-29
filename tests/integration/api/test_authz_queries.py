@@ -587,3 +587,32 @@ async def test_what_can_i_multiple_groups_additive(
     # Should have policies from both user role and auditor role
     assert "workflow:create:any" in policy_names  # from user role
     assert "policy:read:any" in policy_names  # from auditor role
+
+
+# ============================================================================
+# GET /authz/resource-actions
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_resource_actions_returns_catalog(
+    auth_client: AsyncClient,
+    test_user: User,
+) -> None:
+    """RA-1: resource-actions returns the full resource type → actions map."""
+    response = await auth_client.get("/api/v1/authz/resource-actions")
+    assert response.status_code == 200
+    data = response.json()
+    ra = data["resource_actions"]
+
+    assert isinstance(ra, dict)
+    assert "workflow" in ra
+    assert "credential" in ra
+    assert "project" in ra
+
+    assert "read" in ra["workflow"]
+    assert "create" in ra["workflow"]
+    assert "delete" in ra["credential"]
+
+    for actions in ra.values():
+        assert len(actions) > 0

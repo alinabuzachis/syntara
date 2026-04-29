@@ -14,6 +14,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 import yaml
 from fastapi import FastAPI
@@ -30,29 +31,10 @@ from nexus.metrics.internal_api import (
 )
 
 
-def _get_dep_instance(dep: object) -> object | None:
-    """Extract the underlying dependency instance from a Depends or Dependant object."""
-    # route-level: Depends(instance) → dep.dependency is the instance
-    inner = getattr(dep, "dependency", None)
-    if inner is not None:
-        return inner
-    # param-level: Dependant wraps → dep.call is the instance
-    return getattr(dep, "call", None)
-
-
-def _iter_route_deps(route: object) -> list[object]:
-    """Collect dependency objects from a route (both route-level and param-level)."""
-    deps: list[object] = []
-    deps.extend(getattr(route, "dependencies", []) or [])
-    dependant = getattr(route, "dependant", None)
-    if dependant:
-        deps.extend(getattr(dependant, "dependencies", []) or [])
-    return deps
-
-
 def _extract_route_permission(route: object) -> dict[str, object] | None:
     """Extract x-app-permission dict from a route's dependencies, or None."""
     from nexus.authz.dependencies import PermissionChecker, ProjectScopeFilter
+    from nexus.authz.resource_actions import _get_dep_instance, _iter_route_deps
 
     for dep in _iter_route_deps(route):
         inner = _get_dep_instance(dep)
@@ -63,7 +45,7 @@ def _extract_route_permission(route: object) -> dict[str, object] | None:
     return None
 
 
-def _inject_permission_metadata(app: FastAPI, spec: dict) -> None:
+def _inject_permission_metadata(app: FastAPI, spec: dict[str, Any]) -> None:
     """Add x-app-permission to spec operations from PermissionChecker deps.
 
     Walks the assembled FastAPI routes, extracts PermissionChecker and
@@ -95,6 +77,8 @@ def _inject_permission_metadata(app: FastAPI, spec: dict) -> None:
 
 def build_spec_app() -> FastAPI:
     """Build a minimal FastAPI app with all routers for spec generation."""
+    from nexus.authz.resource_actions import build_resource_actions
+
     app = FastAPI(
         title="Nexus API",
         description="A distributed multi-agent workflow orchestration system",
@@ -110,6 +94,8 @@ def build_spec_app() -> FastAPI:
     )
 
     _register_internal_routes(app)
+
+    app.state.resource_actions = build_resource_actions(app)
 
     return app
 

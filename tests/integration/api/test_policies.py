@@ -49,7 +49,7 @@ async def test_policy_crud_lifecycle(
         json={
             "name": "custom:test:any",
             "description": "Test policy",
-            "statements": [{"effect": "allow", "actions": ["test:read"], "scope": "any"}],
+            "statements": [{"effect": "allow", "actions": ["workflow:read"], "scope": "any"}],
             "labels": {"env": "test"},
         },
     )
@@ -152,7 +152,7 @@ async def test_duplicate_policy_name_returns_409(
 
     body = {
         "name": "unique-policy",
-        "statements": [{"effect": "allow", "actions": ["test:read"], "scope": "any"}],
+        "statements": [{"effect": "allow", "actions": ["workflow:read"], "scope": "any"}],
     }
 
     response = await auth_client.post("/api/v1/policies", json=body)
@@ -177,7 +177,7 @@ async def test_regular_user_cannot_create_policy(
         "/api/v1/policies",
         json={
             "name": "forbidden-policy",
-            "statements": [{"effect": "allow", "actions": ["test:read"], "scope": "any"}],
+            "statements": [{"effect": "allow", "actions": ["workflow:read"], "scope": "any"}],
         },
     )
     assert response.status_code == 403
@@ -198,7 +198,7 @@ async def test_regular_user_cannot_delete_policy(
 
     policy = Policy(
         name="delete-target",
-        statements=[{"effect": "allow", "actions": ["test:read"], "scope": "any"}],
+        statements=[{"effect": "allow", "actions": ["workflow:read"], "scope": "any"}],
         is_builtin=False,
         labels={},
     )
@@ -229,7 +229,7 @@ async def test_list_policies_filter_by_builtin(
         "/api/v1/policies",
         json={
             "name": "filter-test-custom",
-            "statements": [{"effect": "allow", "actions": ["test:read"], "scope": "any"}],
+            "statements": [{"effect": "allow", "actions": ["workflow:read"], "scope": "any"}],
         },
     )
     assert response.status_code == 201

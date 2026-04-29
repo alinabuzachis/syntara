@@ -6,7 +6,7 @@ from typing import Any
 
 from ...client import AuthenticatedClient
 from ...types import Response
-from . import can_i, validate_name, what_can_i, who_can
+from . import can_i, get_resource_actions, validate_name, what_can_i, who_can
 
 
 class AuthorizationApi:
@@ -32,6 +32,12 @@ class AuthorizationApi:
 
     async def async_what_can_i(self, **kwargs: Any) -> Response[Any]:
         return await what_can_i.asyncio_detailed(client=self._client, **kwargs)
+
+    def get_resource_actions(self, **kwargs: Any) -> Response[Any]:
+        return get_resource_actions.sync_detailed(client=self._client, **kwargs)
+
+    async def async_get_resource_actions(self, **kwargs: Any) -> Response[Any]:
+        return await get_resource_actions.asyncio_detailed(client=self._client, **kwargs)
 
     def validate_name(self, **kwargs: Any) -> Response[Any]:
         return validate_name.sync_detailed(client=self._client, **kwargs)

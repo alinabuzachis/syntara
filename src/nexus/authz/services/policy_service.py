@@ -8,7 +8,12 @@ import structlog
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.authz.exceptions import BuiltinProtectionError, PolicyNameConflictError, PolicyNotFoundError
+from nexus.authz.exceptions import (
+    BuiltinProtectionError,
+    InvalidResourceActionError,
+    PolicyNameConflictError,
+    PolicyNotFoundError,
+)
 from nexus.authz.models.policy import Policy
 from nexus.authz.role_conventions import (
     BUILTIN_POLICIES,
@@ -51,6 +56,16 @@ class PolicyService(BaseService):
         """Initialize with database session and current user."""
         super().__init__(session, user)
 
+    @staticmethod
+    def _validate_resource_actions(statements: list[dict[str, Any]]) -> None:
+        """Reject statements that reference unregistered resource:action pairs."""
+        from nexus.authz.resource_actions import validate_statements  # noqa: PLC0415
+
+        invalid = validate_statements(statements)
+        if invalid:
+            msg = f"Unregistered resource:action pairs: {', '.join(invalid)}"
+            raise InvalidResourceActionError(msg)
+
     async def create_policy(
         self,
         name: str,
@@ -60,6 +75,7 @@ class PolicyService(BaseService):
         project_id: UUID | None = None,
     ) -> Policy:
         """Create a custom policy."""
+        self._validate_resource_actions(statements)
         if is_builtin_policy(name):
             msg = f"Policy name '{name}' is reserved for a built-in policy"
             raise PolicyNameConflictError(msg)
@@ -368,6 +384,7 @@ class PolicyService(BaseService):
         if description is not None:
             policy.description = description
         if statements is not None:
+            self._validate_resource_actions(statements)
             policy.statements = statements
         if labels is not None:
             policy.labels = labels

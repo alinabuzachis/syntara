@@ -26,7 +26,7 @@ async def test_create_policy(test_db_session: AsyncSession, test_user: User) -> 
     svc = PolicyService(test_db_session, test_user)
     policy = await svc.create_policy(
         name="test-policy",
-        statements=[{"effect": "allow", "actions": ["read"], "scope": "any"}],
+        statements=[{"effect": "allow", "actions": ["workflow:read"], "scope": "any"}],
         description="A test policy",
         labels={"env": "test"},
     )
@@ -43,7 +43,7 @@ async def test_create_policy_without_optional_fields(test_db_session: AsyncSessi
     svc = PolicyService(test_db_session, test_user)
     policy = await svc.create_policy(
         name="minimal-policy",
-        statements=[{"effect": "allow", "actions": ["read"], "scope": "any"}],
+        statements=[{"effect": "allow", "actions": ["workflow:read"], "scope": "any"}],
     )
     assert policy.name == "minimal-policy"
     assert policy.description is None
@@ -56,12 +56,12 @@ async def test_create_policy_name_conflict(test_db_session: AsyncSession, test_u
     svc = PolicyService(test_db_session, test_user)
     await svc.create_policy(
         name="dup-policy",
-        statements=[{"effect": "allow", "actions": ["read"], "scope": "any"}],
+        statements=[{"effect": "allow", "actions": ["workflow:read"], "scope": "any"}],
     )
     with pytest.raises(PolicyNameConflictError):
         await svc.create_policy(
             name="dup-policy",
-            statements=[{"effect": "allow", "actions": ["write"], "scope": "any"}],
+            statements=[{"effect": "allow", "actions": ["setting:write"], "scope": "any"}],
         )
 
 
@@ -71,7 +71,7 @@ async def test_get_policy(test_db_session: AsyncSession, test_user: User) -> Non
     svc = PolicyService(test_db_session, test_user)
     created = await svc.create_policy(
         name="get-me",
-        statements=[{"effect": "allow", "actions": ["read"], "scope": "any"}],
+        statements=[{"effect": "allow", "actions": ["workflow:read"], "scope": "any"}],
     )
     fetched = await svc.get_policy(created.id)
     assert fetched.id == created.id
@@ -90,8 +90,12 @@ async def test_get_policy_not_found(test_db_session: AsyncSession, test_user: Us
 async def test_list_policies(test_db_session: AsyncSession, test_user: User) -> None:
     """List policies returns created policies."""
     svc = PolicyService(test_db_session, test_user)
-    await svc.create_policy(name="list-p1", statements=[{"effect": "allow", "actions": ["read"], "scope": "any"}])
-    await svc.create_policy(name="list-p2", statements=[{"effect": "allow", "actions": ["write"], "scope": "any"}])
+    await svc.create_policy(
+        name="list-p1", statements=[{"effect": "allow", "actions": ["workflow:read"], "scope": "any"}]
+    )
+    await svc.create_policy(
+        name="list-p2", statements=[{"effect": "allow", "actions": ["setting:write"], "scope": "any"}]
+    )
     result = await svc.list_policies(limit=100, include_total=True)
     names = [r.name for r in result.resources]
     assert "list-p1" in names
@@ -104,19 +108,19 @@ async def test_update_policy(test_db_session: AsyncSession, test_user: User) -> 
     svc = PolicyService(test_db_session, test_user)
     policy = await svc.create_policy(
         name="updatable",
-        statements=[{"effect": "allow", "actions": ["read"], "scope": "any"}],
+        statements=[{"effect": "allow", "actions": ["workflow:read"], "scope": "any"}],
         description="original",
     )
     updated = await svc.update_policy(
         policy.id,
         name="renamed",
         description="updated desc",
-        statements=[{"effect": "deny", "actions": ["delete"], "scope": "any"}],
+        statements=[{"effect": "deny", "actions": ["workflow:delete"], "scope": "any"}],
         labels={"updated": "true"},
     )
     assert updated.name == "renamed"
     assert updated.description == "updated desc"
-    assert updated.statements == [{"effect": "deny", "actions": ["delete"], "scope": "any"}]
+    assert updated.statements == [{"effect": "deny", "actions": ["workflow:delete"], "scope": "any"}]
     assert updated.labels == {"updated": "true"}
 
 
@@ -126,7 +130,7 @@ async def test_update_policy_partial(test_db_session: AsyncSession, test_user: U
     svc = PolicyService(test_db_session, test_user)
     policy = await svc.create_policy(
         name="partial-update",
-        statements=[{"effect": "allow", "actions": ["read"], "scope": "any"}],
+        statements=[{"effect": "allow", "actions": ["workflow:read"], "scope": "any"}],
         description="original",
     )
     updated = await svc.update_policy(policy.id, description="only desc changed")
@@ -139,7 +143,7 @@ async def test_update_builtin_policy_rejected(test_db_session: AsyncSession, tes
     """Cannot update a builtin policy."""
     builtin = Policy(
         name="builtin-policy",
-        statements=[{"effect": "allow", "actions": ["read"], "scope": "any"}],
+        statements=[{"effect": "allow", "actions": ["workflow:read"], "scope": "any"}],
         is_builtin=True,
         labels={},
     )
@@ -158,7 +162,7 @@ async def test_rename_policy_updates_roles(test_db_session: AsyncSession, test_u
     svc = PolicyService(test_db_session, test_user)
     policy = await svc.create_policy(
         name="old-policy-name",
-        statements=[{"effect": "allow", "actions": ["read"], "scope": "any"}],
+        statements=[{"effect": "allow", "actions": ["workflow:read"], "scope": "any"}],
     )
 
     role = Role(
@@ -186,9 +190,11 @@ async def test_rename_policy_updates_roles(test_db_session: AsyncSession, test_u
 async def test_update_policy_name_conflict(test_db_session: AsyncSession, test_user: User) -> None:
     """Renaming to an existing name raises PolicyNameConflictError."""
     svc = PolicyService(test_db_session, test_user)
-    await svc.create_policy(name="existing-name", statements=[{"effect": "allow", "actions": ["read"], "scope": "any"}])
+    await svc.create_policy(
+        name="existing-name", statements=[{"effect": "allow", "actions": ["workflow:read"], "scope": "any"}]
+    )
     p2 = await svc.create_policy(
-        name="other-name", statements=[{"effect": "allow", "actions": ["read"], "scope": "any"}]
+        name="other-name", statements=[{"effect": "allow", "actions": ["workflow:read"], "scope": "any"}]
     )
     with pytest.raises(PolicyNameConflictError):
         await svc.update_policy(p2.id, name="existing-name")
@@ -200,7 +206,7 @@ async def test_delete_policy(test_db_session: AsyncSession, test_user: User) -> 
     svc = PolicyService(test_db_session, test_user)
     policy = await svc.create_policy(
         name="deletable",
-        statements=[{"effect": "allow", "actions": ["read"], "scope": "any"}],
+        statements=[{"effect": "allow", "actions": ["workflow:read"], "scope": "any"}],
     )
     await svc.delete_policy(policy.id)
     with pytest.raises(PolicyNotFoundError):
@@ -212,7 +218,7 @@ async def test_delete_builtin_policy_rejected(test_db_session: AsyncSession, tes
     """Cannot delete a builtin policy."""
     builtin = Policy(
         name="builtin-delete-test",
-        statements=[{"effect": "allow", "actions": ["read"], "scope": "any"}],
+        statements=[{"effect": "allow", "actions": ["workflow:read"], "scope": "any"}],
         is_builtin=True,
         labels={},
     )
@@ -238,13 +244,13 @@ async def test_name_conflict_scoped_to_project(test_db_session: AsyncSession, te
     svc = PolicyService(test_db_session, test_user)
     await svc.create_policy(
         name="scoped-policy",
-        statements=[{"effect": "allow", "actions": ["read"], "scope": "any"}],
+        statements=[{"effect": "allow", "actions": ["workflow:read"], "scope": "any"}],
         project_id=project.id,
     )
     # Same name but global scope -- should succeed
     global_policy = await svc.create_policy(
         name="scoped-policy",
-        statements=[{"effect": "allow", "actions": ["read"], "scope": "any"}],
+        statements=[{"effect": "allow", "actions": ["workflow:read"], "scope": "any"}],
     )
     assert global_policy.name == "scoped-policy"
     assert global_policy.project_id is None

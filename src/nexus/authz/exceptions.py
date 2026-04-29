@@ -89,3 +89,19 @@ class PolicyNameConflictError(NexusError):
 @fastapi_exception(handler=_conflict_handler)
 class RoleNameConflictError(NexusError):
     """Raised when a role name already exists in the same scope."""
+
+
+def _invalid_action_handler(request: Request, exc: NexusError) -> JSONResponse:
+    return create_problem_details_response(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        problem_type=PROBLEM_TYPES["validation_error"],
+        title="Invalid Resource Action",
+        detail=exc.message,
+        code="INVALID_RESOURCE_ACTION",
+        instance=str(request.url),
+    )
+
+
+@fastapi_exception(handler=_invalid_action_handler)
+class InvalidResourceActionError(NexusError):
+    """Raised when a policy statement references an unregistered resource:action pair."""
