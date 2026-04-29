@@ -311,7 +311,7 @@ app.add_middleware(MetricsMiddleware, recorder=get_metrics_recorder())
 # Register audit middleware.
 # Added after metrics so it executes as the outermost HTTP middleware.
 # Logs request completion (with status code) as audit events.
-app.add_middleware(AuditMiddleware)
+app.add_middleware(AuditMiddleware, fastapi_app=app)
 
 # RFC 9457 compliant error handlers
 # Import exception modules so @fastapi_exception decorators populate the registry

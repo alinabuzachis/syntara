@@ -55,7 +55,7 @@ def _create_test_app() -> FastAPI:
     async def root() -> dict[str, str]:
         return {"message": "root"}
 
-    app.add_middleware(AuditMiddleware)
+    app.add_middleware(AuditMiddleware, fastapi_app=app)
     return app
 
 

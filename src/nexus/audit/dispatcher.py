@@ -34,9 +34,15 @@ class AuditEventDispatcher:
         the output of :func:`nexus.audit.discovery.discover_handlers`).
         Safe to call multiple times; handlers are appended so multiple
         domains can each register a handler for the same event type.
+
+        Idempotent: if a handler of the same type is already registered
+        for an event type, it will not be added again.
         """
         for event_type, handler in handlers.items():
-            AuditEventDispatcher._registry.setdefault(event_type, []).append(handler)
+            handler_list = AuditEventDispatcher._registry.setdefault(event_type, [])
+            # Only append if no handler of this type is already registered
+            if not any(type(h) is type(handler) for h in handler_list):
+                handler_list.append(handler)
 
     @staticmethod
     def dispatch(event: object) -> None:

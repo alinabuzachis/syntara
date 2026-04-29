@@ -173,3 +173,15 @@ class TestDispatcherLifecycle:
             AuditEventDispatcher.dispatch(_DispatchEvent(message="after reset"))
 
         mock_emit.assert_not_called()
+
+    def test_register_is_idempotent(self) -> None:
+        """register() is idempotent - registering same handler type twice doesn't duplicate."""
+        # Register the same handler type twice
+        AuditEventDispatcher.register({_DispatchEvent: _DispatchHandler()})
+        AuditEventDispatcher.register({_DispatchEvent: _DispatchHandler()})
+
+        with patch("nexus.audit.dispatcher.emit_audit_event") as mock_emit:
+            AuditEventDispatcher.dispatch(_DispatchEvent(message="test"))
+
+        # Should only emit once, not twice (no duplicate handlers)
+        mock_emit.assert_called_once()

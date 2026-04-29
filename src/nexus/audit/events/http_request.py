@@ -34,7 +34,6 @@ class HTTPRequestEvent:
     actor_username: str | None = field(default=None)
     source_component: str = field(default="nexus.audit.middleware")
     query_params: dict[str, str | list[str]] | None = field(default=None)
-    user_role: str | None = field(default=None)
     workflow_id: UUID | None = field(default=None)
     execution_id: UUID | None = field(default=None)
     activity_id: str | None = field(default=None)
@@ -67,7 +66,6 @@ class HTTPRequestHandler(AuditEventHandler[HTTPRequestEvent]):
             path=event.path,
             status_code=event.status_code,
             query_params=event.query_params,
-            user_role=event.user_role,
             response_time_ms=event.response_time_ms,
             request_payload_size=event.request_payload_size,
         )

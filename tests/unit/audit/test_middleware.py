@@ -8,6 +8,7 @@ Tests cover response logging:
 - Context IDs (workflow, execution, activity) resolved from path params and context vars
 - Path and method sanitization
 - Error resilience
+- Content-Length header extraction edge cases
 """
 
 # mypy: disable-error-code="attr-defined"
@@ -18,6 +19,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
 import pytest
+from fastapi import FastAPI
 
 from nexus.api.constants import EXCLUDED_PATHS
 from nexus.audit.dispatcher import AuditEventDispatcher
@@ -25,6 +27,7 @@ from nexus.audit.events.http_request import HTTPRequestEvent, HTTPRequestHandler
 from nexus.audit.middleware import AuditMiddleware
 from nexus.audit.models.audit_event import AuditEvent, EventSeverity, EventStatus
 from nexus.audit.models.structured_data import AuditContextData
+from nexus.auth.exceptions import AuthenticationRequiredError, InvalidTokenError
 
 _EMIT_PATCH = "nexus.audit.emitter._do_emit_audit_event"
 
@@ -86,6 +89,39 @@ def _make_app(status_code: int = 200) -> Any:  # noqa: ANN401
     return app
 
 
+def _make_fastapi_app() -> FastAPI:
+    """Create a minimal FastAPI app with routes for testing context ID extraction."""
+    app = FastAPI()
+
+    # Define routes that match the paths used in tests
+    @app.get("/api/v1/workflows")
+    async def list_workflows() -> dict[str, str]:
+        return {"status": "ok"}
+
+    @app.get("/api/v1/workflows/{workflow_id}")
+    async def get_workflow(workflow_id: str) -> dict[str, str]:
+        return {"workflow_id": workflow_id}
+
+    @app.get("/api/v1/executions/{execution_id}")
+    async def get_execution(execution_id: str) -> dict[str, str]:
+        return {"execution_id": execution_id}
+
+    @app.get("/api/v1/executions/{execution_id}/activities/{activity_id}/signal")
+    async def signal_activity(execution_id: str, activity_id: str) -> dict[str, str]:
+        return {"execution_id": execution_id, "activity_id": activity_id}
+
+    # Generic catch-all for other paths used in tests
+    @app.get("/auth/login")
+    @app.get("/auth/callback")
+    @app.get("/metrics")
+    @app.get("/custom-endpoint")
+    @app.get("/api/v1/auth")
+    async def generic_handler() -> dict[str, str]:
+        return {"status": "ok"}
+
+    return app
+
+
 def _get_audit_events(mock_emit: MagicMock, event_action: str) -> list[AuditEvent]:
     """Extract AuditEvent objects with the given action from mock calls."""
     return [call[0][0] for call in mock_emit.call_args_list if call[0][0].event_action == event_action]
@@ -116,11 +152,45 @@ class TestAuditMiddlewareBasic:
     def teardown_method(self) -> None:
         AuditEventDispatcher.reset()
 
+    def test_filters_routes_with_context_id_params(self) -> None:
+        """Middleware pre-filters routes to only those with context ID path params."""
+        app = _make_app(status_code=200)
+        fastapi_app = _make_fastapi_app()
+        middleware = AuditMiddleware(app, fastapi_app)
+
+        # Verify that _context_routes only contains routes with context ID params
+        # Based on _make_fastapi_app(), we have:
+        # - /api/v1/workflows/{workflow_id} - has workflow_id ✓
+        # - /api/v1/executions/{execution_id} - has execution_id ✓
+        # - /api/v1/executions/{execution_id}/activities/{activity_id}/signal - has execution_id and activity_id ✓
+        # - /api/v1/workflows - no context IDs ✗
+        # - /auth/login - no context IDs ✗
+        # - /auth/callback - no context IDs ✗
+        # - /metrics - no context IDs ✗
+        # - /custom-endpoint - no context IDs ✗
+        # - /api/v1/auth - no context IDs ✗
+
+        context_route_paths = {route.path for route in middleware._context_routes}
+
+        # Routes with context IDs should be present
+        assert "/api/v1/workflows/{workflow_id}" in context_route_paths
+        assert "/api/v1/executions/{execution_id}" in context_route_paths
+        assert "/api/v1/executions/{execution_id}/activities/{activity_id}/signal" in context_route_paths
+
+        # Routes without context IDs should NOT be present
+        assert "/api/v1/workflows" not in context_route_paths
+        assert "/auth/login" not in context_route_paths
+        assert "/metrics" not in context_route_paths
+
+        # Verify the optimization: should have 3 context routes, not all 9 routes
+        assert len(middleware._context_routes) == 3
+        assert len(fastapi_app.router.routes) > len(middleware._context_routes)
+
     @pytest.mark.asyncio
     async def test_emits_single_request_completed_event(self) -> None:
         """A single request_completed event is emitted per request."""
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         scope = _make_scope(path="/api/v1/workflows", method="GET")
         with patch(_EMIT_PATCH) as mock_emit:
@@ -137,7 +207,7 @@ class TestAuditMiddlewareBasic:
     async def test_no_request_started_event(self) -> None:
         """No request_started event is emitted."""
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(_make_scope(), AsyncMock(), AsyncMock())
@@ -165,7 +235,7 @@ class TestAuditMiddlewareQueryParams:
     async def test_logs_query_parameters(self) -> None:
         """Query parameters are included in request_completed log."""
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         scope = _make_scope(
             path="/api/v1/workflows",
@@ -183,7 +253,7 @@ class TestAuditMiddlewareQueryParams:
     async def test_no_query_params_logged_when_empty(self) -> None:
         """No query_params field when query string is empty."""
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         scope = _make_scope(path="/api/v1/workflows", query_string=b"")
         with patch(_EMIT_PATCH) as mock_emit:
@@ -196,7 +266,7 @@ class TestAuditMiddlewareQueryParams:
     async def test_handles_invalid_query_string(self) -> None:
         """Invalid query strings are handled gracefully."""
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         # Invalid UTF-8 sequence
         scope = _make_scope(path="/api/v1/workflows", query_string=b"\xff\xfe")
@@ -211,7 +281,7 @@ class TestAuditMiddlewareQueryParams:
     async def test_handles_multi_value_query_params(self) -> None:
         """Multi-value query parameters are logged as lists."""
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         scope = _make_scope(
             path="/api/v1/workflows",
@@ -228,7 +298,7 @@ class TestAuditMiddlewareQueryParams:
     async def test_handles_mixed_single_and_multi_value_params(self) -> None:
         """Mixed single and multi-value params are parsed correctly."""
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         scope = _make_scope(
             path="/api/v1/workflows",
@@ -264,7 +334,7 @@ class TestAuditMiddlewareExclusions:
     async def test_excluded_paths_not_logged(self, path: str) -> None:
         """Excluded paths do not generate log entries."""
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(_make_scope(path=path), AsyncMock(), AsyncMock())
@@ -280,7 +350,7 @@ class TestAuditMiddlewareExclusions:
             nonlocal call_count
             call_count += 1
 
-        middleware = AuditMiddleware(counting_app)
+        middleware = AuditMiddleware(counting_app, _make_fastapi_app())
         await middleware(_make_scope(path="/health"), AsyncMock(), AsyncMock())
 
         assert call_count == 1
@@ -289,7 +359,7 @@ class TestAuditMiddlewareExclusions:
     async def test_non_http_scope_passthrough(self) -> None:
         """WebSocket and other non-HTTP scopes do not generate logs."""
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         scope = _make_scope(scope_type="websocket")
         with patch(_EMIT_PATCH) as mock_emit:
@@ -311,7 +381,7 @@ class TestAuditMiddlewareExclusions:
     async def test_non_excluded_paths_are_logged(self, path: str) -> None:
         """Non-excluded paths generate log entries."""
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(_make_scope(path=path), AsyncMock(), AsyncMock())
@@ -340,13 +410,18 @@ class TestAuditMiddlewareUserContext:
     async def test_logs_user_information(self) -> None:
         """User information is included in request logs when authenticated."""
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         user_id = uuid4()
-        user = _MockUser(user_id=user_id, username="testuser", role="creator")
-        scope = _make_scope(path="/api/v1/workflows", user=user)
+        user = _MockUser(user_id=user_id, username="testuser")
+        scope = _make_scope(path="/api/v1/workflows")
 
-        with patch(_EMIT_PATCH) as mock_emit:
+        # Mock get_current_user to return the test user
+        with (
+            patch(_EMIT_PATCH) as mock_emit,
+            patch("nexus.audit.middleware.get_current_user", return_value=user),
+            patch("nexus.audit.middleware.bearer_scheme", new=AsyncMock(return_value=MagicMock())),
+        ):
             await middleware(scope, AsyncMock(), AsyncMock())
 
         events = _get_audit_events(mock_emit, "request_completed")
@@ -355,13 +430,12 @@ class TestAuditMiddlewareUserContext:
         assert events[0].actor_type == "user"
         assert events[0].actor_username == "testuser"
         assert isinstance(events[0].structured_data, AuditContextData)
-        assert events[0].structured_data.user_role == "creator"
 
     @pytest.mark.asyncio
     async def test_no_user_logs_without_authentication(self) -> None:
-        """Requests without authentication still have user actor type."""
+        """Requests without authentication have system actor type."""
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         scope = _make_scope(path="/api/v1/workflows")
         with patch(_EMIT_PATCH) as mock_emit:
@@ -370,22 +444,26 @@ class TestAuditMiddlewareUserContext:
         events = _get_audit_events(mock_emit, "request_completed")
         assert len(events) == 1
         assert events[0].actor_id is None
-        assert events[0].actor_type == "user"
+        assert events[0].actor_type == "system"
         assert events[0].actor_username is None
         assert isinstance(events[0].structured_data, AuditContextData)
-        assert events[0].structured_data.user_role is None
 
     @pytest.mark.asyncio
     async def test_handles_partial_user_object(self) -> None:
         """Handles user objects with missing attributes gracefully."""
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
-        # User with only username (id and role missing)
+        # User with only username (id is missing)
         user = _MockUser(username="partialuser")
-        scope = _make_scope(path="/api/v1/workflows", user=user)
+        scope = _make_scope(path="/api/v1/workflows")
 
-        with patch(_EMIT_PATCH) as mock_emit:
+        # Mock get_current_user to return the partial user
+        with (
+            patch(_EMIT_PATCH) as mock_emit,
+            patch("nexus.audit.middleware.get_current_user", return_value=user),
+            patch("nexus.audit.middleware.bearer_scheme", new=AsyncMock(return_value=MagicMock())),
+        ):
             await middleware(scope, AsyncMock(), AsyncMock())
 
         events = _get_audit_events(mock_emit, "request_completed")
@@ -394,24 +472,72 @@ class TestAuditMiddlewareUserContext:
         assert events[0].actor_type == "user"
         assert events[0].actor_username == "partialuser"
         assert isinstance(events[0].structured_data, AuditContextData)
-        assert events[0].structured_data.user_role is None
 
     @pytest.mark.asyncio
     async def test_user_id_converted_to_string(self) -> None:
         """User ID (UUID) is converted to string for logging."""
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         user_id = uuid4()
         user = _MockUser(user_id=user_id)
-        scope = _make_scope(user=user)
+        scope = _make_scope()
 
-        with patch(_EMIT_PATCH) as mock_emit:
+        # Mock get_current_user to return the test user
+        with (
+            patch(_EMIT_PATCH) as mock_emit,
+            patch("nexus.audit.middleware.get_current_user", return_value=user),
+            patch("nexus.audit.middleware.bearer_scheme", new=AsyncMock(return_value=MagicMock())),
+        ):
             await middleware(scope, AsyncMock(), AsyncMock())
 
         events = _get_audit_events(mock_emit, "request_completed")
         assert len(events) == 1
         assert events[0].actor_id == user_id
+
+    @pytest.mark.asyncio
+    async def test_expired_jwt_token(self) -> None:
+        """Middleware gracefully handles expired JWT tokens."""
+        app = _make_app(status_code=200)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
+
+        scope = _make_scope(path="/api/v1/workflows")
+
+        # Mock get_current_user to raise AuthenticationRequiredError
+        with (
+            patch(_EMIT_PATCH) as mock_emit,
+            patch("nexus.audit.middleware.bearer_scheme", new=AsyncMock(return_value=MagicMock())),
+            patch("nexus.audit.middleware.get_current_user", side_effect=AuthenticationRequiredError("Token expired")),
+        ):
+            await middleware(scope, AsyncMock(), AsyncMock())
+
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert len(events) == 1
+        assert events[0].actor_id is None
+        assert events[0].actor_type == "system"
+        assert events[0].actor_username is None
+
+    @pytest.mark.asyncio
+    async def test_malformed_jwt_token(self) -> None:
+        """Middleware gracefully handles malformed JWT tokens."""
+        app = _make_app(status_code=200)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
+
+        scope = _make_scope(path="/api/v1/workflows")
+
+        # Mock get_current_user to raise InvalidTokenError
+        with (
+            patch(_EMIT_PATCH) as mock_emit,
+            patch("nexus.audit.middleware.bearer_scheme", new=AsyncMock(return_value=MagicMock())),
+            patch("nexus.audit.middleware.get_current_user", side_effect=InvalidTokenError("Invalid token")),
+        ):
+            await middleware(scope, AsyncMock(), AsyncMock())
+
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert len(events) == 1
+        assert events[0].actor_id is None
+        assert events[0].actor_type == "system"
+        assert events[0].actor_username is None
 
 
 # =============================================================================
@@ -433,7 +559,7 @@ class TestAuditMiddlewareResponse:
     async def test_logs_status_code_from_response(self) -> None:
         """Status code is captured from the downstream app response."""
         app = _make_app(status_code=404)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(_make_scope(), AsyncMock(), AsyncMock())
@@ -449,7 +575,7 @@ class TestAuditMiddlewareResponse:
             msg = "boom"
             raise RuntimeError(msg)
 
-        middleware = AuditMiddleware(failing_app)
+        middleware = AuditMiddleware(failing_app, _make_fastapi_app())
         with patch(_EMIT_PATCH) as mock_emit, pytest.raises(RuntimeError, match="boom"):
             await middleware(_make_scope(), AsyncMock(), AsyncMock())
 
@@ -478,7 +604,7 @@ class TestAuditMiddlewareResponse:
     ) -> None:
         """event_status is SUCCESS for <400, ERROR for >=400."""
         app = _make_app(status_code=status_code)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(_make_scope(), AsyncMock(), AsyncMock())
@@ -495,7 +621,7 @@ class TestAuditMiddlewareResponse:
             msg = "boom"
             raise RuntimeError(msg)
 
-        middleware = AuditMiddleware(failing_app)
+        middleware = AuditMiddleware(failing_app, _make_fastapi_app())
         with patch(_EMIT_PATCH) as mock_emit, pytest.raises(RuntimeError, match="boom"):
             await middleware(_make_scope(), AsyncMock(), AsyncMock())
 
@@ -524,7 +650,7 @@ class TestAuditMiddlewareResponse:
     ) -> None:
         """event_severity is INFO for <400, WARNING for 4xx, ERROR for 5xx."""
         app = _make_app(status_code=status_code)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(_make_scope(), AsyncMock(), AsyncMock())
@@ -541,7 +667,7 @@ class TestAuditMiddlewareResponse:
             msg = "boom"
             raise RuntimeError(msg)
 
-        middleware = AuditMiddleware(failing_app)
+        middleware = AuditMiddleware(failing_app, _make_fastapi_app())
         with patch(_EMIT_PATCH) as mock_emit, pytest.raises(RuntimeError, match="boom"):
             await middleware(_make_scope(), AsyncMock(), AsyncMock())
 
@@ -553,7 +679,7 @@ class TestAuditMiddlewareResponse:
     async def test_event_severity_matches_event_status_semantics(self) -> None:
         """Severity and status are consistent: a WARNING-severity event has ERROR status (4xx)."""
         app = _make_app(status_code=404)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(_make_scope(), AsyncMock(), AsyncMock())
@@ -580,7 +706,7 @@ class TestAuditMiddlewareResponse:
             # downstream app or a misconfigured middleware chain.
             return
 
-        middleware = AuditMiddleware(silent_app)
+        middleware = AuditMiddleware(silent_app, _make_fastapi_app())
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(_make_scope(), AsyncMock(), AsyncMock())
 
@@ -607,7 +733,7 @@ class TestAuditMiddlewareResponse:
             msg = "body streaming failed"
             raise RuntimeError(msg)
 
-        middleware = AuditMiddleware(partial_sender)
+        middleware = AuditMiddleware(partial_sender, _make_fastapi_app())
         with patch(_EMIT_PATCH) as mock_emit, pytest.raises(RuntimeError, match="body streaming failed"):
             await middleware(_make_scope(), AsyncMock(), AsyncMock())
 
@@ -626,7 +752,7 @@ class TestAuditMiddlewareResponse:
             msg = "original error"
             raise ValueError(msg)
 
-        middleware = AuditMiddleware(failing_app)
+        middleware = AuditMiddleware(failing_app, _make_fastapi_app())
         with pytest.raises(ValueError, match="original error"):
             await middleware(_make_scope(), AsyncMock(), AsyncMock())
 
@@ -634,13 +760,18 @@ class TestAuditMiddlewareResponse:
     async def test_completed_event_has_actor(self) -> None:
         """The request_completed event carries the authenticated actor."""
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         user_id = uuid4()
-        user = _MockUser(user_id=user_id, username="testuser", role="creator")
-        scope = _make_scope(user=user)
+        user = _MockUser(user_id=user_id, username="testuser")
+        scope = _make_scope()
 
-        with patch(_EMIT_PATCH) as mock_emit:
+        # Mock get_current_user to return the test user
+        with (
+            patch(_EMIT_PATCH) as mock_emit,
+            patch("nexus.audit.middleware.get_current_user", return_value=user),
+            patch("nexus.audit.middleware.bearer_scheme", new=AsyncMock(return_value=MagicMock())),
+        ):
             await middleware(scope, AsyncMock(), AsyncMock())
 
         events = _get_audit_events(mock_emit, "request_completed")
@@ -656,12 +787,18 @@ class TestAuditMiddlewareResponse:
             msg = "boom"
             raise RuntimeError(msg)
 
-        middleware = AuditMiddleware(failing_app)
+        middleware = AuditMiddleware(failing_app, _make_fastapi_app())
         user_id = uuid4()
-        user = _MockUser(user_id=user_id, username="testuser", role="creator")
-        scope = _make_scope(user=user)
+        user = _MockUser(user_id=user_id, username="testuser")
+        scope = _make_scope()
 
-        with patch(_EMIT_PATCH) as mock_emit, pytest.raises(RuntimeError, match="boom"):
+        # Mock get_current_user to return the test user
+        with (
+            patch(_EMIT_PATCH) as mock_emit,
+            patch("nexus.audit.middleware.get_current_user", return_value=user),
+            patch("nexus.audit.middleware.bearer_scheme", new=AsyncMock(return_value=MagicMock())),
+            pytest.raises(RuntimeError, match="boom"),
+        ):
             await middleware(scope, AsyncMock(), AsyncMock())
 
         events = _get_audit_events(mock_emit, "request_completed")
@@ -694,7 +831,7 @@ class TestAuditMiddlewareSourceComponent:
             await send({"type": "http.response.start", "status": 200, "headers": []})
             await send({"type": "http.response.body", "body": b""})
 
-        middleware = AuditMiddleware(handler)
+        middleware = AuditMiddleware(handler, _make_fastapi_app())
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(_make_scope(), AsyncMock(), AsyncMock())
 
@@ -705,7 +842,7 @@ class TestAuditMiddlewareSourceComponent:
     async def test_source_component_fallback_without_endpoint(self) -> None:
         """source_component falls back to the middleware module when no endpoint is set."""
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(_make_scope(), AsyncMock(), AsyncMock())
@@ -722,7 +859,7 @@ class TestAuditMiddlewareSourceComponent:
             msg = "boom"
             raise RuntimeError(msg)
 
-        middleware = AuditMiddleware(failing_handler)
+        middleware = AuditMiddleware(failing_handler, _make_fastapi_app())
         with patch(_EMIT_PATCH) as mock_emit, pytest.raises(RuntimeError, match="boom"):
             await middleware(_make_scope(), AsyncMock(), AsyncMock())
 
@@ -750,7 +887,7 @@ class TestAuditMiddlewareContextIds:
         """workflow_id is extracted from path_params when available."""
         wf_id = uuid4()
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         scope = _make_scope(
             path=f"/api/v1/workflows/{wf_id}",
@@ -767,7 +904,7 @@ class TestAuditMiddlewareContextIds:
         """execution_id is extracted from path_params when available."""
         exec_id = uuid4()
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         scope = _make_scope(
             path=f"/api/v1/executions/{exec_id}",
@@ -785,7 +922,7 @@ class TestAuditMiddlewareContextIds:
         exec_id = uuid4()
         activity_id = "my-activity"
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         scope = _make_scope(
             path=f"/api/v1/executions/{exec_id}/activities/{activity_id}/signal",
@@ -814,7 +951,7 @@ class TestAuditMiddlewareContextIds:
             await send({"type": "http.response.start", "status": 200, "headers": []})
             await send({"type": "http.response.body", "body": b""})
 
-        middleware = AuditMiddleware(app_that_sets_context)
+        middleware = AuditMiddleware(app_that_sets_context, _make_fastapi_app())
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(_make_scope(), AsyncMock(), AsyncMock())
 
@@ -822,8 +959,8 @@ class TestAuditMiddlewareContextIds:
         assert events[0].workflow_id == wf_id
 
     @pytest.mark.asyncio
-    async def test_path_params_take_precedence_over_context_var(self) -> None:
-        """Path param workflow_id takes precedence over context variable."""
+    async def test_path_params_initialize_context_var(self) -> None:
+        """Path params initialize context variables that handlers can override."""
         path_wf_id = uuid4()
         ctx_wf_id = uuid4()
 
@@ -834,11 +971,12 @@ class TestAuditMiddlewareContextIds:
         ) -> None:
             from nexus.audit.emitter import workflow_id_context_var
 
+            # Handler overwrites the context variable set from path params
             workflow_id_context_var.set(ctx_wf_id)
             await send({"type": "http.response.start", "status": 200, "headers": []})
             await send({"type": "http.response.body", "body": b""})
 
-        middleware = AuditMiddleware(app_that_sets_context)
+        middleware = AuditMiddleware(app_that_sets_context, _make_fastapi_app())
         scope = _make_scope(
             path=f"/api/v1/workflows/{path_wf_id}",
             path_params={"workflow_id": str(path_wf_id)},
@@ -847,13 +985,14 @@ class TestAuditMiddlewareContextIds:
             await middleware(scope, AsyncMock(), AsyncMock())
 
         events = _get_audit_events(mock_emit, "request_completed")
-        assert events[0].workflow_id == path_wf_id
+        # The audit event reflects the overridden value from the handler
+        assert events[0].workflow_id == ctx_wf_id
 
     @pytest.mark.asyncio
     async def test_malformed_workflow_id_defaults_to_none(self) -> None:
         """Malformed workflow_id in path params defaults to None."""
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         scope = _make_scope(
             path="/api/v1/workflows/not-a-uuid",
@@ -869,7 +1008,7 @@ class TestAuditMiddlewareContextIds:
     async def test_malformed_execution_id_defaults_to_none(self) -> None:
         """Malformed execution_id in path params defaults to None."""
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         scope = _make_scope(
             path="/api/v1/executions/not-a-uuid",
@@ -885,12 +1024,49 @@ class TestAuditMiddlewareContextIds:
     async def test_context_ids_none_when_not_available(self) -> None:
         """Context IDs are None when not in path params or context vars."""
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(_make_scope(), AsyncMock(), AsyncMock())
 
         events = _get_audit_events(mock_emit, "request_completed")
+        assert events[0].workflow_id is None
+        assert events[0].execution_id is None
+        assert events[0].activity_id is None
+
+    @pytest.mark.asyncio
+    async def test_unmatched_route_defaults_to_none(self) -> None:
+        """Context IDs are None when path doesn't match any route and scope has no path_params."""
+        app = _make_app(status_code=200)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
+
+        # Send request to a path that doesn't match any registered route
+        # with no path_params in scope (simulating pre-routing state)
+        scope = _make_scope(path="/unknown/path/123")
+        with patch(_EMIT_PATCH) as mock_emit:
+            await middleware(scope, AsyncMock(), AsyncMock())
+
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert events[0].workflow_id is None
+        assert events[0].execution_id is None
+        assert events[0].activity_id is None
+
+    @pytest.mark.asyncio
+    async def test_empty_fastapi_app_no_routes(self) -> None:
+        """Middleware handles FastAPI app with zero registered routes gracefully."""
+        app = _make_app(status_code=200)
+        # Create an empty FastAPI app with no routes
+        empty_fastapi_app = FastAPI()
+        middleware = AuditMiddleware(app, empty_fastapi_app)
+
+        scope = _make_scope(path="/test")
+        with patch(_EMIT_PATCH) as mock_emit:
+            await middleware(scope, AsyncMock(), AsyncMock())
+
+        # Verify middleware doesn't crash and processes request successfully
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert len(events) == 1
+        # Context IDs should be None since no route matching occurred
         assert events[0].workflow_id is None
         assert events[0].execution_id is None
         assert events[0].activity_id is None
@@ -915,7 +1091,7 @@ class TestAuditMiddlewareSanitization:
     async def test_path_normalized_before_logging(self) -> None:
         """Path traversals and redundant separators are normalized."""
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         scope = _make_scope(path="/api/v1/../v1/workflows")
         with patch(_EMIT_PATCH) as mock_emit:
@@ -928,7 +1104,7 @@ class TestAuditMiddlewareSanitization:
     async def test_path_double_slashes_normalized(self) -> None:
         """Double slashes in path are collapsed."""
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         scope = _make_scope(path="/api//v1///workflows")
         with patch(_EMIT_PATCH) as mock_emit:
@@ -941,7 +1117,7 @@ class TestAuditMiddlewareSanitization:
     async def test_control_chars_stripped_from_path(self) -> None:
         """Control characters in path are removed before logging."""
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         scope = _make_scope(path="/api/v1/work\r\nflows")
         with patch(_EMIT_PATCH) as mock_emit:
@@ -954,7 +1130,7 @@ class TestAuditMiddlewareSanitization:
     async def test_null_bytes_stripped_from_path(self) -> None:
         """Null bytes in path are removed."""
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         scope = _make_scope(path="/api/v1/work\x00flows")
         with patch(_EMIT_PATCH) as mock_emit:
@@ -967,7 +1143,7 @@ class TestAuditMiddlewareSanitization:
     async def test_control_chars_stripped_from_method(self) -> None:
         """Control characters in HTTP method are removed."""
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         scope = _make_scope(method="GE\nT")
         with patch(_EMIT_PATCH) as mock_emit:
@@ -980,7 +1156,7 @@ class TestAuditMiddlewareSanitization:
     async def test_path_truncated_at_max_length(self) -> None:
         """Paths longer than 2048 characters are truncated."""
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         long_path = "/" + "a" * 3000
         scope = _make_scope(path=long_path)
@@ -994,7 +1170,7 @@ class TestAuditMiddlewareSanitization:
     async def test_normalized_path_used_for_exclusion_check(self) -> None:
         """Exclusion check uses the normalized path."""
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         # Use path traversal to reach an excluded path
         excluded = next(iter(sorted(EXCLUDED_PATHS)))
@@ -1018,7 +1194,7 @@ class TestAuditMiddlewareSanitization:
     async def test_percent_encoded_excluded_path_still_excluded(self, encoded_path: str) -> None:
         """Percent-encoded excluded paths are decoded before exclusion check."""
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(_make_scope(path=encoded_path), AsyncMock(), AsyncMock())
@@ -1029,7 +1205,7 @@ class TestAuditMiddlewareSanitization:
     async def test_percent_encoded_path_decoded_in_log(self) -> None:
         """Percent-encoded path segments are decoded before logging."""
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         scope = _make_scope(path="/api/v1/%77orkflows")
         with patch(_EMIT_PATCH) as mock_emit:
@@ -1042,7 +1218,7 @@ class TestAuditMiddlewareSanitization:
     async def test_sanitized_values_in_event_message(self) -> None:
         """Event message uses sanitized method and path."""
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         scope = _make_scope(path="/api//v1/work\nflows", method="PO\rST")
         with patch(_EMIT_PATCH) as mock_emit:
@@ -1055,7 +1231,7 @@ class TestAuditMiddlewareSanitization:
     async def test_event_message_excludes_query_params(self) -> None:
         """Query params are not included in event_message to avoid leaking sensitive values."""
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         scope = _make_scope(
             path="/api/v1/auth",
@@ -1090,7 +1266,7 @@ class TestAuditMiddlewareErrorResilience:
     async def test_request_succeeds_when_emit_raises(self) -> None:
         """Request completes normally even if audit event emission fails."""
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         sent_messages: list[MutableMapping[str, Any]] = []
 
@@ -1108,7 +1284,7 @@ class TestAuditMiddlewareErrorResilience:
     async def test_emit_failure_logged_as_warning_with_context(self) -> None:
         """Audit emission failure is logged with error_type and status_code for triage."""
         app = _make_app(status_code=200)
-        middleware = AuditMiddleware(app)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
 
         dispatch_patch = "nexus.audit.middleware.AuditEventDispatcher.dispatch"
         with (
@@ -1152,7 +1328,7 @@ class TestAuditMiddlewareRequestId:
             await send({"type": "http.response.start", "status": 200, "headers": []})
             await send({"type": "http.response.body", "body": b""})
 
-        middleware = AuditMiddleware(capturing_app)
+        middleware = AuditMiddleware(capturing_app, _make_fastapi_app())
         with patch(_EMIT_PATCH):
             await middleware(scope, AsyncMock(), AsyncMock())
 
@@ -1171,7 +1347,7 @@ class TestAuditMiddlewareRequestId:
             await send({"type": "http.response.start", "status": 200, "headers": []})
             await send({"type": "http.response.body", "body": b""})
 
-        middleware = AuditMiddleware(capturing_app)
+        middleware = AuditMiddleware(capturing_app, _make_fastapi_app())
         with patch(_EMIT_PATCH):
             await middleware(scope, AsyncMock(), AsyncMock())
 
@@ -1190,7 +1366,7 @@ class TestAuditMiddlewareRequestId:
             await send({"type": "http.response.start", "status": 200, "headers": []})
             await send({"type": "http.response.body", "body": b""})
 
-        middleware = AuditMiddleware(capturing_app)
+        middleware = AuditMiddleware(capturing_app, _make_fastapi_app())
         with patch(_EMIT_PATCH):
             await middleware(scope, AsyncMock(), AsyncMock())
 
@@ -1203,7 +1379,7 @@ class TestAuditMiddlewareRequestId:
 
         rid = uuid4()
         scope = _make_scope(headers=[(b"x-request-id", str(rid).encode())])
-        middleware = AuditMiddleware(_make_app())
+        middleware = AuditMiddleware(_make_app(), _make_fastapi_app())
 
         before = request_id_context_var.get()
         with patch(_EMIT_PATCH):
@@ -1226,8 +1402,150 @@ class TestAuditMiddlewareRequestId:
             await send({"type": "http.response.start", "status": 200, "headers": []})
             await send({"type": "http.response.body", "body": b""})
 
-        middleware = AuditMiddleware(capturing_app)
+        middleware = AuditMiddleware(capturing_app, _make_fastapi_app())
         with patch(_EMIT_PATCH):
             await middleware(scope, AsyncMock(), AsyncMock())
 
         assert captured[0] == rid
+
+
+# =============================================================================
+# AuditMiddleware - Content-Length header extraction
+# =============================================================================
+
+
+class TestAuditMiddlewareContentLength:
+    """Tests for Content-Length header extraction and request_payload_size logging."""
+
+    def setup_method(self) -> None:
+        AuditEventDispatcher.reset()
+        AuditEventDispatcher.register({HTTPRequestEvent: HTTPRequestHandler()})
+
+    def teardown_method(self) -> None:
+        AuditEventDispatcher.reset()
+
+    @pytest.mark.asyncio
+    async def test_content_length_valid(self) -> None:
+        """A valid Content-Length header is captured as request_payload_size."""
+        app = _make_app(status_code=200)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
+
+        scope = _make_scope(headers=[(b"content-length", b"1234")])
+        with patch(_EMIT_PATCH) as mock_emit:
+            await middleware(scope, AsyncMock(), AsyncMock())
+
+        data = _get_request_completed_data(mock_emit)
+        assert data[0].request_payload_size == 1234
+
+    @pytest.mark.asyncio
+    async def test_content_length_missing(self) -> None:
+        """Without Content-Length header, request_payload_size defaults to 0."""
+        app = _make_app(status_code=200)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
+
+        scope = _make_scope()  # No headers
+        with patch(_EMIT_PATCH) as mock_emit:
+            await middleware(scope, AsyncMock(), AsyncMock())
+
+        data = _get_request_completed_data(mock_emit)
+        assert data[0].request_payload_size == 0
+
+    @pytest.mark.asyncio
+    async def test_content_length_invalid_string(self) -> None:
+        """A non-numeric Content-Length value is silently ignored (defaults to 0)."""
+        app = _make_app(status_code=200)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
+
+        scope = _make_scope(headers=[(b"content-length", b"abc")])
+        with patch(_EMIT_PATCH) as mock_emit:
+            await middleware(scope, AsyncMock(), AsyncMock())
+
+        data = _get_request_completed_data(mock_emit)
+        assert data[0].request_payload_size == 0
+
+    @pytest.mark.asyncio
+    async def test_content_length_negative(self) -> None:
+        """A negative Content-Length value is rejected (defaults to 0)."""
+        app = _make_app(status_code=200)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
+
+        scope = _make_scope(headers=[(b"content-length", b"-100")])
+        with patch(_EMIT_PATCH) as mock_emit:
+            await middleware(scope, AsyncMock(), AsyncMock())
+
+        data = _get_request_completed_data(mock_emit)
+        # Negative values are invalid and ignored
+        assert data[0].request_payload_size == 0
+
+    @pytest.mark.asyncio
+    async def test_content_length_float_string(self) -> None:
+        """A float string in Content-Length is rejected (int() raises ValueError)."""
+        app = _make_app(status_code=200)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
+
+        scope = _make_scope(headers=[(b"content-length", b"123.45")])
+        with patch(_EMIT_PATCH) as mock_emit:
+            await middleware(scope, AsyncMock(), AsyncMock())
+
+        data = _get_request_completed_data(mock_emit)
+        # int("123.45") raises ValueError, caught by contextlib.suppress
+        assert data[0].request_payload_size == 0
+
+    @pytest.mark.asyncio
+    async def test_content_length_empty_string(self) -> None:
+        """An empty Content-Length value is silently ignored (defaults to 0)."""
+        app = _make_app(status_code=200)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
+
+        scope = _make_scope(headers=[(b"content-length", b"")])
+        with patch(_EMIT_PATCH) as mock_emit:
+            await middleware(scope, AsyncMock(), AsyncMock())
+
+        data = _get_request_completed_data(mock_emit)
+        assert data[0].request_payload_size == 0
+
+    @pytest.mark.asyncio
+    async def test_content_length_with_whitespace(self) -> None:
+        """Content-Length with leading/trailing whitespace is parsed correctly."""
+        app = _make_app(status_code=200)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
+
+        scope = _make_scope(headers=[(b"content-length", b"  1234  ")])
+        with patch(_EMIT_PATCH) as mock_emit:
+            await middleware(scope, AsyncMock(), AsyncMock())
+
+        data = _get_request_completed_data(mock_emit)
+        # int() handles whitespace automatically
+        assert data[0].request_payload_size == 1234
+
+    @pytest.mark.asyncio
+    async def test_content_length_case_insensitive(self) -> None:
+        """Header name matching is case-insensitive."""
+        app = _make_app(status_code=200)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
+
+        scope = _make_scope(headers=[(b"Content-Length", b"5678")])
+        with patch(_EMIT_PATCH) as mock_emit:
+            await middleware(scope, AsyncMock(), AsyncMock())
+
+        data = _get_request_completed_data(mock_emit)
+        assert data[0].request_payload_size == 5678
+
+    @pytest.mark.asyncio
+    async def test_multiple_content_length_headers_last_wins(self) -> None:
+        """When multiple Content-Length headers are present, the last one wins."""
+        app = _make_app(status_code=200)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
+
+        scope = _make_scope(
+            headers=[
+                (b"content-length", b"1234"),
+                (b"content-length", b"5678"),
+            ]
+        )
+        with patch(_EMIT_PATCH) as mock_emit:
+            await middleware(scope, AsyncMock(), AsyncMock())
+
+        data = _get_request_completed_data(mock_emit)
+        # The middleware's loop overwrites the value, so the last header wins
+        assert data[0].request_payload_size == 5678

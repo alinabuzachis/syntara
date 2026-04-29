@@ -27,7 +27,6 @@ class TestHTTPRequestHandler:
             status_code=200,
             actor_id=user_id,
             actor_type=ActorType.USER,
-            user_role="admin",
         )
 
         handler = HTTPRequestHandler()
@@ -47,7 +46,6 @@ class TestHTTPRequestHandler:
         assert result.structured_data.method == "GET"
         assert result.structured_data.path == "/api/v1/workflows"
         assert result.structured_data.status_code == 200
-        assert result.structured_data.user_role == "admin"
 
     def test_client_error_400(self) -> None:
         """Client error 4xx request produces WARNING severity and ERROR status."""
@@ -158,4 +156,3 @@ class TestHTTPRequestHandler:
 
         assert result.actor_id is None
         assert result.actor_type == ActorType.SYSTEM
-        assert result.structured_data.user_role is None
