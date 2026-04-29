@@ -42,6 +42,10 @@ class CredentialCounts(SQLModel):
         default_factory=dict,
         description="Credential count per credential type name",
     )
+    used_in_nodes: int = Field(
+        default=0,
+        description="Distinct credentials actively referenced in workflow nodes",
+    )
 
 
 class ModelUsage(SQLModel):

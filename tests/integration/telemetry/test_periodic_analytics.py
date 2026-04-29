@@ -235,6 +235,7 @@ class TestPeriodicAnalyticsFlow:
         # No credentials inserted in this test
         assert props["credentials"]["total"] == 0
         assert props["credentials"]["type"] == {}
+        assert props["credentials"]["used_in_nodes"] == 0
 
         assert props["config"]["feature_flags_enabled"] == []
 
@@ -866,6 +867,7 @@ class TestQueryCredentialCountsRealDB:
         result = await query_credential_counts(test_db_session)
         assert result.total == 0
         assert result.type == {}
+        assert result.used_in_nodes == 0
 
     async def test_counts_by_type(self, test_db_session: AsyncSession, test_user: User):
         """Insert credentials with different types and verify grouped counts."""
@@ -899,3 +901,135 @@ class TestQueryCredentialCountsRealDB:
 
         assert result.total == 5
         assert result.type == {"Bearer": 3, "LLM Provider": 2}
+
+    async def test_used_in_nodes_counts_distinct_credentials(self, test_db_session: AsyncSession, test_user: User):
+        """Credentials referenced in workflow nodes are counted as used_in_nodes."""
+        cred_id_1 = str(uuid4())
+        cred_id_2 = str(uuid4())
+        project = Project(name=f"tel-test-{uuid4().hex[:8]}", description="Telemetry test")
+        test_db_session.add(project)
+        await test_db_session.flush()
+
+        # Create a workflow with two nodes referencing different credentials
+        workflow = Workflow(
+            name=f"wf-cred-test-{uuid4().hex[:8]}",
+            description="test",
+            current_version=1,
+            is_enabled=True,
+            project_id=project.id,
+            created_by=test_user.id,
+        )
+        test_db_session.add(workflow)
+        await test_db_session.flush()
+
+        definition = {
+            "schema_version": "2.0.0",
+            "triggers": [{"id": "trigger_manual", "type": "manual_trigger", "config": {"inputs": {}}}],
+            "nodes": [
+                {"id": "node_1", "type": "agentic", "config": {"credential_id": cred_id_1}},
+                {"id": "node_2", "type": "http_request", "config": {"credential_id": cred_id_2}},
+                {"id": "node_3", "type": "script", "config": {"code": "print('hi')"}},
+            ],
+            "edges": [
+                {"from": "trigger_manual", "to": "node_1"},
+                {"from": "node_1", "to": "node_2"},
+                {"from": "node_2", "to": "node_3"},
+            ],
+        }
+        version = WorkflowVersion(
+            workflow_id=workflow.id,
+            version=1,
+            schema_version="2.0.0",
+            workflow_definition=definition,
+            created_by=test_user.id,
+        )
+        test_db_session.add(version)
+        await test_db_session.commit()
+
+        result = await query_credential_counts(test_db_session)
+
+        assert result.used_in_nodes == 2
+
+    async def test_used_in_nodes_deduplicates_same_credential(self, test_db_session: AsyncSession, test_user: User):
+        """Same credential_id used in multiple nodes/workflows counts once."""
+        cred_id = str(uuid4())
+        project = Project(name=f"tel-test-{uuid4().hex[:8]}", description="Telemetry test")
+        test_db_session.add(project)
+        await test_db_session.flush()
+
+        # Two workflows, both referencing the same credential
+        for i in range(2):
+            workflow = Workflow(
+                name=f"wf-dedup-{i}-{uuid4().hex[:8]}",
+                description="test",
+                current_version=1,
+                is_enabled=True,
+                project_id=project.id,
+                created_by=test_user.id,
+            )
+            test_db_session.add(workflow)
+            await test_db_session.flush()
+
+            definition = {
+                "schema_version": "2.0.0",
+                "triggers": [{"id": "trigger_manual", "type": "manual_trigger", "config": {"inputs": {}}}],
+                "nodes": [
+                    {"id": "node_1", "type": "agentic", "config": {"credential_id": cred_id}},
+                ],
+                "edges": [{"from": "trigger_manual", "to": "node_1"}],
+            }
+            version = WorkflowVersion(
+                workflow_id=workflow.id,
+                version=1,
+                schema_version="2.0.0",
+                workflow_definition=definition,
+                created_by=test_user.id,
+            )
+            test_db_session.add(version)
+
+        await test_db_session.commit()
+
+        result = await query_credential_counts(test_db_session)
+
+        assert result.used_in_nodes == 1
+
+    async def test_used_in_nodes_excludes_deleted_workflows(self, test_db_session: AsyncSession, test_user: User):
+        """Soft-deleted workflows should not contribute to used_in_nodes."""
+        cred_id = str(uuid4())
+        project = Project(name=f"tel-test-{uuid4().hex[:8]}", description="Telemetry test")
+        test_db_session.add(project)
+        await test_db_session.flush()
+
+        workflow = Workflow(
+            name=f"wf-deleted-{uuid4().hex[:8]}",
+            description="test",
+            current_version=1,
+            is_enabled=True,
+            project_id=project.id,
+            created_by=test_user.id,
+        )
+        workflow.soft_delete(test_user.id)
+        test_db_session.add(workflow)
+        await test_db_session.flush()
+
+        definition = {
+            "schema_version": "2.0.0",
+            "triggers": [{"id": "trigger_manual", "type": "manual_trigger", "config": {"inputs": {}}}],
+            "nodes": [
+                {"id": "node_1", "type": "agentic", "config": {"credential_id": cred_id}},
+            ],
+            "edges": [{"from": "trigger_manual", "to": "node_1"}],
+        }
+        version = WorkflowVersion(
+            workflow_id=workflow.id,
+            version=1,
+            schema_version="2.0.0",
+            workflow_definition=definition,
+            created_by=test_user.id,
+        )
+        test_db_session.add(version)
+        await test_db_session.commit()
+
+        result = await query_credential_counts(test_db_session)
+
+        assert result.used_in_nodes == 0

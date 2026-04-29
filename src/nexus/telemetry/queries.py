@@ -5,7 +5,7 @@ of the current database state. No time-based filtering.
 Soft-deleted records are excluded where applicable (workflows, executions).
 """
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.models.invocation import Invocation
@@ -75,7 +75,8 @@ async def query_execution_counts(session: AsyncSession) -> ExecutionCounts:
 async def query_credential_counts(session: AsyncSession) -> CredentialCounts:
     """Query current credential counts from database.
 
-    Returns total count and per-type breakdown by credential type name.
+    Returns total count, per-type breakdown by credential type name,
+    and count of distinct credentials actively referenced in workflow nodes.
     """
     result = await session.exec(
         select(  # type: ignore[call-overload]
@@ -89,10 +90,38 @@ async def query_credential_counts(session: AsyncSession) -> CredentialCounts:
     for type_name, count in result:
         counts_by_type[type_name] = int(count)
 
+    used_in_nodes = await _query_credentials_used_in_nodes(session)
+
     return CredentialCounts(
         total=sum(counts_by_type.values()),
         type=counts_by_type,
+        used_in_nodes=used_in_nodes,
     )
+
+
+async def _query_credentials_used_in_nodes(session: AsyncSession) -> int:
+    """Count distinct credential IDs referenced in active workflow version nodes.
+
+    Joins workflow_versions with workflows to find the current active version
+    for each non-deleted workflow, then extracts credential_id from each node's
+    config using jsonb_path_query.
+    """
+    # jsonb_path_query extracts all credential_id values from nodes[*].config
+    # in a single path expression, replacing CROSS JOIN LATERAL + arrow operators.
+    stmt = text("""
+        SELECT COUNT(DISTINCT cred_id)
+        FROM workflow_versions wv
+        JOIN workflows w
+            ON w.id = wv.workflow_id
+            AND w.current_version = wv.version
+            AND w.deleted_at IS NULL
+        CROSS JOIN LATERAL jsonb_path_query(
+            wv.workflow_definition, '$.nodes[*].config.credential_id'
+        ) AS cred_id
+        WHERE wv.deleted_at IS NULL
+    """)
+    result = await session.scalar(stmt)
+    return int(result) if result else 0
 
 
 async def query_model_usage(session: AsyncSession) -> list[ModelUsage]:

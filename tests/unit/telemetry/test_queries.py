@@ -150,6 +150,8 @@ class TestQueryCredentialCounts:
             )
         )
         mock_session.exec = AsyncMock(return_value=mock_result)
+        # scalar() for _query_credentials_used_in_nodes
+        mock_session.scalar = AsyncMock(return_value=2)
 
         result = await query_credential_counts(mock_session)
 
@@ -160,13 +162,28 @@ class TestQueryCredentialCounts:
             "LLM Provider": 2,
             "SSH Key": 1,
         }
+        assert result.used_in_nodes == 2
 
     async def test_handles_no_credentials(self, mock_session: AsyncMock):
         mock_result = MagicMock()
         mock_result.__iter__ = MagicMock(return_value=iter([]))
         mock_session.exec = AsyncMock(return_value=mock_result)
+        mock_session.scalar = AsyncMock(return_value=None)
 
         result = await query_credential_counts(mock_session)
 
         assert result.total == 0
         assert result.type == {}
+        assert result.used_in_nodes == 0
+
+    async def test_used_in_nodes_zero_when_no_workflows(self, mock_session: AsyncMock):
+        """used_in_nodes is 0 when no workflows reference credentials."""
+        mock_result = MagicMock()
+        mock_result.__iter__ = MagicMock(return_value=iter([("Bearer", 5)]))
+        mock_session.exec = AsyncMock(return_value=mock_result)
+        mock_session.scalar = AsyncMock(return_value=0)
+
+        result = await query_credential_counts(mock_session)
+
+        assert result.total == 5
+        assert result.used_in_nodes == 0
