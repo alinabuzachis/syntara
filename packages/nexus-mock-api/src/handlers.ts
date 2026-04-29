@@ -1337,7 +1337,8 @@ export const handlers = [
         { status: 404 }
       )
     }
-    return HttpResponse.json(userIdentities.get(user.id) ?? [])
+    const identities = userIdentities.get(user.id) ?? []
+    return HttpResponse.json({ resources: identities, next: null, prev: null, total: identities.length })
   }),
 
   http.post('/api/v1/users/:userId/identities', async ({ params, request }) => {

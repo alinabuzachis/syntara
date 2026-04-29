@@ -359,7 +359,7 @@ export function AttachIdentityModal({
   const hasPrev = cursorHistory.length > 0
   const usersNext = usersData?.next ?? null
 
-  const userIdentities = userIdentitiesQuery.data ?? []
+  const userIdentities = userIdentitiesQuery.data?.resources ?? []
   const filteredIdentities = applyLocalFilters(userIdentities, identitiesFilter.filters, (i, key) =>
     key === 'provider_name' ? (i.provider_name ?? '') : ''
   )

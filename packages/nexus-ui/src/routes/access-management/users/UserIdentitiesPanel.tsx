@@ -240,7 +240,7 @@ export function UserIdentitiesPanel({ userId, currentUserId, hasPassword = false
     { refetchOnWindowFocus: 'always' }
   )
 
-  const identities = query.data ?? []
+  const identities = query.data?.resources ?? []
 
   const { mutate: detachIdentity, isPending: isDetaching } = usersClient.useMutation(
     'delete',

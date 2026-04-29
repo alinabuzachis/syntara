@@ -75,7 +75,7 @@ function useUserDetailData(userId: string | undefined) {
   const meQuery = authClient.useQuery('get', '/auth/me')
 
   const groupCount = computeGroupCount(groupsQuery.data)
-  const identitiesData = identitiesQuery.data ?? []
+  const identitiesData = identitiesQuery.data?.resources ?? []
 
   return {
     userQuery,

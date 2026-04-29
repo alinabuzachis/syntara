@@ -870,6 +870,13 @@ export interface components {
       resources: components['schemas']['RoleAssignmentRead'][]
     }
     /**
+     * UserIdentityListResponse
+     * @description Paginated list of user identities.
+     */
+    UserIdentityListResponse: WithRequired<components['schemas']['ResourcesResponseBase'], 'resources'> & {
+      resources: components['schemas']['UserIdentityRead'][]
+    }
+    /**
      * ErrorData
      * @description RFC 9457 Problem Details format for error event data.
      *     This model is used for streaming error events and follows the RFC 9457 Problem Details specification. It provides machine-readable and human-readable error information with consistent structure.
@@ -1402,7 +1409,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['UserIdentityRead'][]
+          'application/json': components['schemas']['UserIdentityListResponse']
         }
       }
       400: components['responses']['BadRequestError']

@@ -97,7 +97,7 @@ const mockMutate = vi.fn()
 
 function setupMocks(data: unknown[] = [], queryOverrides: Record<string, unknown> = {}) {
   vi.mocked(usersClient.useQuery).mockReturnValue({
-    data,
+    data: { resources: data, next: null, prev: null, total: data.length },
     isPending: false,
     isError: false,
     error: null,
@@ -250,7 +250,7 @@ describe('UserIdentitiesPanel', () => {
       const mockRefetch = vi.fn()
 
       vi.mocked(usersClient.useQuery).mockReturnValue({
-        data: mockIdentities,
+        data: { resources: mockIdentities, next: null, prev: null, total: mockIdentities.length },
         isPending: false,
         isError: false,
         error: null,

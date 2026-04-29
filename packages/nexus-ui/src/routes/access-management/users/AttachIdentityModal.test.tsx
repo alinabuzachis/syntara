@@ -89,7 +89,7 @@ function setupMocks({ identities = mockIdentities }: { identities?: unknown[] } 
     }
     // /users/{user_id}/identities
     return {
-      data: identities,
+      data: { resources: identities, next: null, prev: null, total: identities.length },
       isPending: false,
       isError: false,
       error: null,
