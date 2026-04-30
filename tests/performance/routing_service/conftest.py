@@ -31,9 +31,10 @@ from __future__ import annotations
 
 import time
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
+
+from tests.performance.conftest import submit_invocation
 
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
@@ -66,34 +67,6 @@ GENERAL_PROMPTS = [
 ]
 
 ALL_PROMPTS = WORKFLOW_PROMPTS + GENERAL_PROMPTS
-
-
-def submit_invocation(
-    nexus_api: NexusApiRegistry,
-    prompt: str,
-    session_id: str | None = None,
-) -> tuple[float, bool, str | None]:
-    """Submit a single invocation and measure API response time.
-
-    Returns (elapsed_ms, success, invocation_id).
-    """
-    from nexus_api_client.models.invocation_create_request import InvocationCreateRequest
-
-    sid = session_id or uuid4().hex
-    start = time.monotonic()
-    try:
-        r = nexus_api.invocation.create(
-            body=InvocationCreateRequest(
-                prompt=prompt,
-                session_id=sid,
-            ),
-        )
-        elapsed_ms = (time.monotonic() - start) * 1000
-        inv_id = str(r.parsed.id) if r.is_success and r.parsed else None
-        return elapsed_ms, r.is_success or r.status_code in (200, 201, 202), inv_id
-    except Exception:
-        elapsed_ms = (time.monotonic() - start) * 1000
-        return elapsed_ms, False, None
 
 
 @pytest.fixture(scope="module")

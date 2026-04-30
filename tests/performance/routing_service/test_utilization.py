@@ -17,11 +17,10 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from tests.performance.conftest import poll_for_component_kpis, poll_for_metric_records
+from tests.performance.conftest import poll_for_component_kpis, poll_for_metric_records, submit_invocation
 from tests.performance.routing_service.conftest import (
     ALL_PROMPTS,
     ROUTING_SERVICE_COMPONENT,
-    submit_invocation,
 )
 
 if TYPE_CHECKING:

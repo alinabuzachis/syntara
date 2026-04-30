@@ -234,6 +234,65 @@ def scrape_prometheus_metric(
     return results
 
 
+def submit_invocation(
+    nexus_api: NexusApiRegistry,
+    prompt: str,
+    session_id: str | None = None,
+) -> tuple[float, bool, str | None]:
+    """Submit a single invocation and measure API response time.
+
+    Returns (elapsed_ms, success, invocation_id).
+    """
+    from uuid import uuid4
+
+    from nexus_api_client.models.invocation_create_request import InvocationCreateRequest
+
+    sid = session_id or uuid4().hex
+    start = time.monotonic()
+    try:
+        r = nexus_api.invocation.create(
+            body=InvocationCreateRequest(
+                prompt=prompt,
+                session_id=sid,
+            ),
+        )
+        elapsed_ms = (time.monotonic() - start) * 1000
+        inv_id = str(r.parsed.id) if r.is_success and r.parsed else None
+        return elapsed_ms, r.is_success or r.status_code in (200, 201, 202), inv_id
+    except Exception:
+        elapsed_ms = (time.monotonic() - start) * 1000
+        return elapsed_ms, False, None
+
+
+def poll_for_invocation_terminal_status(
+    nexus_api: NexusApiRegistry,
+    invocation_id: str,
+    *,
+    timeout: float = 60.0,
+    interval: float = 2.0,
+    terminal_statuses: frozenset[str] = frozenset({"completed", "failed", "cancelled"}),
+) -> dict[str, Any]:
+    """Poll an invocation until it reaches a terminal status or timeout.
+
+    Returns the parsed invocation dict (may still be non-terminal on timeout).
+    """
+    deadline = time.monotonic() + timeout
+    parsed: dict[str, Any] = {}
+
+    while time.monotonic() < deadline:
+        try:
+            r = nexus_api.invocation.get(invocation_id=invocation_id)
+            if r.is_success and r.parsed:
+                parsed = r.parsed.to_dict()
+                if str(parsed.get("status", "")) in terminal_statuses:
+                    return parsed
+        except Exception:
+            pass
+        time.sleep(interval)
+
+    return parsed
+
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
