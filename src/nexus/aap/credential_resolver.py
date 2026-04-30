@@ -290,7 +290,7 @@ async def resolve_aap_connection_from_credential(
 
     # Build AAPConnection with enforced TLS verification
     return AAPConnection(
-        base_url=str(host),
+        base_url=str(host).rstrip("/"),
         headers=dict(auth_headers),
         basic_auth=basic_auth,
         verify_ssl=verify_ssl_enforced,

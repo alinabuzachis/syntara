@@ -315,6 +315,7 @@ app.add_middleware(AuditMiddleware, fastapi_app=app)
 
 # RFC 9457 compliant error handlers
 # Import exception modules so @fastapi_exception decorators populate the registry
+import nexus.aap.exceptions  # noqa: E402
 import nexus.core.storage_exceptions  # noqa: E402
 import nexus.credentials.exceptions  # noqa: E402
 

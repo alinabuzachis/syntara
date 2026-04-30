@@ -1,6 +1,7 @@
 """Unit tests for exception registry system."""
 # ruff: noqa: N818, A001  # Exception names don't need Error suffix in tests, BaseException shadowing is fine
 
+import importlib
 from unittest.mock import Mock, patch
 
 from fastapi import FastAPI, Request
@@ -187,3 +188,34 @@ class TestIntegrationUsage:
 
         # Verify both handlers were registered
         assert mock_app.add_exception_handler.call_count == 2
+
+
+class TestAAPExceptionRegistration:
+    """Test that AAP exception handlers are registered via @fastapi_exception decorator.
+
+    Uses importlib.reload to re-execute the module-level decorators, since earlier
+    test classes clear the global _exception_registry.
+    """
+
+    def test_aap_exceptions_registered_after_import(self) -> None:
+        """All 4 AAP exceptions should appear in _exception_registry after import."""
+        import nexus.aap.exceptions
+
+        # Re-execute the module to re-fire @fastapi_exception decorators,
+        # since prior test classes call _exception_registry.clear().
+        importlib.reload(nexus.aap.exceptions)
+
+        from nexus.aap.exceptions import (
+            AAPAuthenticationError,
+            AAPConnectionError,
+            AAPNotConfiguredError,
+            AAPUpstreamError,
+        )
+
+        for exc_class in (
+            AAPNotConfiguredError,
+            AAPConnectionError,
+            AAPAuthenticationError,
+            AAPUpstreamError,
+        ):
+            assert exc_class in _exception_registry, f"{exc_class.__name__} not found in _exception_registry"

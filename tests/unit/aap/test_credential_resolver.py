@@ -645,3 +645,42 @@ class TestResolveAAPConnectionFromCredential:
 
         with pytest.raises(AAPAuthenticationError, match="is not authorized"):
             await resolve_aap_connection_from_credential(mock_session, credential_id, user_id)
+
+    @pytest.mark.asyncio
+    async def test_strips_trailing_slash_from_host_url(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Should strip trailing slash from host URL in resolved AAPConnection."""
+        credential_id = uuid4()
+        user_id = uuid4()
+        credential = _mock_credential(credential_id=credential_id, created_by=user_id)
+
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = credential
+        mock_session = AsyncMock()
+        mock_session.exec.return_value = mock_result
+
+        decrypted_inputs: dict[str, str | bool | int] = {
+            "host": "https://aap.example.com/",
+            "oauth_token": "secret-token",
+            "verify_ssl": True,
+        }
+        mock_secret_service = AsyncMock()
+        mock_secret_service.retrieve_secret.return_value = decrypted_inputs
+
+        mock_create_secret_service = MagicMock(return_value=mock_secret_service)
+        monkeypatch.setattr("nexus.aap.credential_resolver.create_secret_service", mock_create_secret_service)
+
+        mock_resolved = MagicMock()
+        extra_vars: dict[str, str | bool | int] = {
+            "aap_host": "https://aap.example.com/",
+            "aap_oauth_token": "secret-token",
+            "aap_verify_ssl": True,
+        }
+        mock_resolved.extra_vars = extra_vars
+        mock_injector_resolver = MagicMock()
+        mock_injector_resolver.resolve.return_value = mock_resolved
+        monkeypatch.setattr("nexus.aap.credential_resolver.InjectorResolver", mock_injector_resolver)
+
+        result = await resolve_aap_connection_from_credential(mock_session, credential_id, user_id)
+
+        assert isinstance(result, AAPConnection)
+        assert result.base_url == "https://aap.example.com"
