@@ -91,7 +91,6 @@ npm run e2e:visual-regression:update # Same, with --update-snapshots (see packag
 cd packages/nexus-ui
 npm run vitest -- path/to/specific/test.test.ts
 npm run test:coverage       # Run tests with coverage report
-npm run test:coverage:check # Check coverage meets 80% threshold
 
 # Build
 npm run build              # Build UI package

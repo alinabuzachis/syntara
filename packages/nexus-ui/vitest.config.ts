@@ -33,9 +33,6 @@ export default defineConfig({
         '**/*.test.{ts,tsx}',
         '**/*.spec.{ts,tsx}',
       ],
-      // Note: Global thresholds are NOT set here.
-      // Coverage is enforced incrementally on new/modified files only
-      // via scripts/check-pr-coverage.js which runs in CI
     },
   },
 })

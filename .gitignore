@@ -32,6 +32,7 @@ dist-ssr
 
 **/coverage.claude/
 **/coverage/
+**/.c8_output/
 
 **/test-results/
 **/playwright-report/
