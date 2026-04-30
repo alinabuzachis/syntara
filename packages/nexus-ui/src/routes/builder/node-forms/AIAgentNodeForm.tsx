@@ -17,6 +17,7 @@ import { Controller, FormProvider, useForm, useFormContext, useFormState } from 
 
 import { CredentialSelector } from '../../../components/CredentialSelector'
 import { credentialHelpText } from '../../../components/credentialSelectorHelpText'
+import { ExpandableCodeEditor } from '../../../components/ExpandableCodeEditor'
 import { FileUpload, type UploadedFile } from '../../../components/file-upload'
 import { useFileUploadWithProgress } from '../../../hooks/useFileUploadWithProgress'
 import { generateUUID } from '../../../utils/generateUUID'
@@ -32,9 +33,10 @@ type FileUploadInfo = FilesAPI.components['schemas']['FileUploadInfo']
 
 export type { AIAgentFormData }
 
-/** Submitted data includes file IDs from uploads */
+/** Submitted data includes file IDs from uploads and parsed response schema */
 export type AIAgentFormSubmitData = {
   fileIds: string[]
+  parsedResponseSchema?: Record<string, unknown>
 } & AIAgentFormData
 
 /** Initial data for form fields (file IDs handled separately by parent) */
@@ -221,6 +223,38 @@ function AIAgentFormFields({
         </FormGroup>
       </StackItem>
       <StackItem>
+        <FormGroup label="Response schema" fieldId="agent-response-schema">
+          <Controller
+            control={control}
+            name="responseSchema"
+            render={({ field }) => (
+              <ExpandableCodeEditor
+                code={field.value ?? ''}
+                onCodeChange={field.onChange}
+                language="json"
+                height="150px"
+                modalTitle="Edit response schema"
+                ariaLabel="Response schema editor"
+              />
+            )}
+          />
+          <FormHelperText>
+            <HelperText>
+              <HelperTextItem>Optional JSON Schema to enforce structured output format.</HelperTextItem>
+            </HelperText>
+          </FormHelperText>
+          {errors.responseSchema && (
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+                  {errors.responseSchema.message}
+                </HelperTextItem>
+              </HelperText>
+            </FormHelperText>
+          )}
+        </FormGroup>
+      </StackItem>
+      <StackItem>
         <FormGroup label="Context file upload" fieldId="agent-context">
           <FileUpload
             files={uploadedFiles}
@@ -253,10 +287,15 @@ export function AIAgentNodeForm(props: Readonly<AIAgentNodeFormProps>) {
   }
 
   const handleSubmit = (data: AIAgentFormData) => {
-    // Extract file IDs from completed uploads
+    // Parse response schema (already validated by Zod superRefine)
+    const trimmed = data.responseSchema?.trim()
+    const parsedResponseSchema = trimmed
+      ? (JSON.parse(trimmed) as Record<string, unknown>)
+      : undefined
+
     const fileIds: string[] = completedFiles.filter((f) => f.status === 'success').map((f) => f.id)
 
-    props.onSubmit({ ...data, fileIds })
+    props.onSubmit({ ...data, fileIds, parsedResponseSchema })
   }
 
   const methods = useForm<AIAgentFormData>({

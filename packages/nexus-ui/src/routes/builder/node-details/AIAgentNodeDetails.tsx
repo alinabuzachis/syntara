@@ -39,12 +39,15 @@ export function AIAgentNodeDetails({
     file_ids?: string[]
     fileIds?: string[]
     credential_id?: string
+    response_schema?: Record<string, unknown>
+    responseSchema?: Record<string, unknown>
   }
 
   const envModel: string | undefined = import.meta.env.VITE_NEXUS_OPENROUTER_MODEL as string | undefined
   const defaultModel = envModel || 'anthropic/claude-3.5-sonnet'
 
   const tools = agentConfig.tool_selections ?? agentConfig.tools ?? []
+  const responseSchema = agentConfig.response_schema ?? agentConfig.responseSchema
 
   const initialData: AIAgentFormInitialData = {
     name: taskData.name,
@@ -52,6 +55,7 @@ export function AIAgentNodeDetails({
     prompt: agentConfig.prompt ?? '',
     tools: tools.join(', '),
     credential_id: agentConfig.credential_id ?? undefined,
+    responseSchema: responseSchema ? JSON.stringify(responseSchema, null, 2) : undefined,
   }
 
   const handleSubmit = (data: AIAgentFormSubmitData) => {
@@ -63,7 +67,7 @@ export function AIAgentNodeDetails({
       const existingFileIds = agentConfig.file_ids ?? agentConfig.fileIds ?? []
       const allFileIds = [...new Set([...existingFileIds, ...data.fileIds])]
 
-      // Create updated agentic activity with merged file IDs
+      // Create updated agentic activity with merged file IDs and response schema
       const updatedActivity = createAgenticActivity({
         id: nodeId,
         name: data.name,
@@ -72,6 +76,7 @@ export function AIAgentNodeDetails({
         model: data.model ?? undefined,
         fileIds: allFileIds.length > 0 ? allFileIds : undefined,
         credentialId: data.credential_id ?? undefined,
+        responseSchema: data.parsedResponseSchema,
       })
 
       updateActivity(nodeId, updatedActivity)

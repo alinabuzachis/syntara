@@ -109,6 +109,20 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      # The SonarCloud workflow runs via workflow_run (so it has access to secrets
+      # for fork PRs), but workflow_run has no built-in PR context for forks.
+      # We pass the PR number as an artifact so sonar_checks.yml can identify
+      # the PR, check out its code, and tag the analysis correctly.
+      - name: Save PR number
+        run: echo "PR ${{ github.event.pull_request.number }}" > pr_number.txt
+
+      - name: Upload PR number artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: pr_number
+          path: pr_number.txt
+          retention-days: 7
+
       - name: Enforce 80% coverage on changed files
         id: coverage-check
         run: npm run test:coverage:check "origin/${BASE_REF}"
@@ -164,28 +178,6 @@ jobs:
               });
               console.log('Created new coverage comment');
             }
-
-  sonarcloud:
-    name: SonarCloud Analysis
-    runs-on: ubuntu-latest
-    needs: coverage-report
-    permissions:
-      contents: read # checkout code and download artifacts
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Download merged coverage artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: unit-test-coverage-report
-          path: packages/nexus-ui/coverage
-
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarqube-scan-action@v7
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   visual-regression:
     name: Visual Regression
@@ -579,7 +571,6 @@ jobs:
       - checks
       - unit-tests
       - coverage-report
-      - sonarcloud
       - test-build
       - e2e-gate
     steps:
@@ -588,14 +579,12 @@ jobs:
           if [[ "${{ needs.checks.result }}" != "success" ]] || \
              [[ "${{ needs.unit-tests.result }}" != "success" ]] || \
              [[ "${{ needs.coverage-report.result }}" != "success" ]] || \
-             [[ "${{ needs.sonarcloud.result }}" != "success" ]] || \
              [[ "${{ needs.test-build.result }}" != "success" ]] || \
              [[ "${{ needs.e2e-gate.result }}" != "success" ]]; then
             echo "Required jobs failed:"
             echo "  checks: ${{ needs.checks.result }}"
             echo "  unit-tests: ${{ needs.unit-tests.result }}"
             echo "  coverage-report: ${{ needs.coverage-report.result }}"
-            echo "  sonarcloud: ${{ needs.sonarcloud.result }}"
             echo "  test-build: ${{ needs.test-build.result }}"
             echo "  e2e-gate: ${{ needs.e2e-gate.result }}"
             exit 1

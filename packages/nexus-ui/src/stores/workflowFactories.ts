@@ -184,13 +184,14 @@ export type CreateAgenticActivityOptions = {
   inputs?: string
   fileIds?: string[]
   credentialId?: string
+  responseSchema?: Record<string, unknown>
 }
 
 /**
  * Create an agentic node (v2).
  */
 export function createAgenticActivity(options: CreateAgenticActivityOptions): Activity {
-  const { id, name, tools, prompt, model, fileIds, credentialId } = options
+  const { id, name, tools, prompt, model, fileIds, credentialId, responseSchema } = options
   const config: Record<string, unknown> = {}
 
   if (prompt) config.prompt = prompt
@@ -198,6 +199,7 @@ export function createAgenticActivity(options: CreateAgenticActivityOptions): Ac
   if (tools && tools.length > 0) config.tool_selections = tools
   if (fileIds && fileIds.length > 0) config.file_ids = fileIds
   if (credentialId) config.credential_id = credentialId
+  if (responseSchema) config.response_schema = responseSchema
 
   return {
     id,

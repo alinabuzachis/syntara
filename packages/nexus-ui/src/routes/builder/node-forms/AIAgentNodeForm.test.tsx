@@ -1,10 +1,11 @@
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { axe } from 'vitest-axe'
 
 import { credentialsClient } from '../../../client'
 
-import { AIAgentNodeForm } from './AIAgentNodeForm'
+import { AIAgentNodeForm, type AIAgentFormSubmitData } from './AIAgentNodeForm'
 import { renderWithHeader } from './test-utils/renderWithHeader'
 
 // Mock credentialsClient used by CredentialSelector
@@ -70,6 +71,27 @@ vi.mock('../../../components/file-upload', () => ({
 // Mock generateUUID
 vi.mock('../../../utils/generateUUID', () => ({
   generateUUID: vi.fn(() => 'mock-uuid-123'),
+}))
+
+// Mock ExpandableCodeEditor to use a simple input for testing
+vi.mock('../../../components/ExpandableCodeEditor', () => ({
+  ExpandableCodeEditor: ({
+    code,
+    onCodeChange,
+    ariaLabel,
+  }: {
+    code: string
+    onCodeChange: (code: string) => void
+    ariaLabel?: string
+  }) => (
+    <input
+      data-testid="response-schema-editor"
+      id="agent-response-schema"
+      value={code}
+      onChange={(e) => onCodeChange(e.target.value)}
+      aria-label={ariaLabel}
+    />
+  ),
 }))
 
 describe('AIAgentNodeForm', () => {
@@ -303,5 +325,206 @@ describe('AIAgentNodeForm', () => {
 
     // Verify file is removed
     expect(screen.queryByText('test.txt')).not.toBeInTheDocument()
+  })
+
+  describe('Response Schema', () => {
+    it('renders response schema editor', () => {
+      renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
+
+      const schemaEditor = screen.getByLabelText('Response schema editor')
+      expect(schemaEditor).toBeInTheDocument()
+      expect(schemaEditor).toHaveAttribute('aria-label', 'Response schema editor')
+      expect(screen.getByText(/Optional JSON Schema to enforce structured output format/i)).toBeInTheDocument()
+    })
+
+    it('submits form with valid JSON schema', async () => {
+      const user = userEvent.setup()
+      renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
+
+      // Fill required fields
+      await user.type(screen.getByPlaceholderText(/Enter agent name/i), 'Test Agent')
+      await user.type(screen.getByPlaceholderText(/Natural language instructions/i), 'Test prompt')
+
+      // Add valid response schema using paste (avoids issues with special characters in type())
+      const validSchema = JSON.stringify({ type: 'object', properties: { result: { type: 'string' } } }, null, 2)
+      const schemaEditor = screen.getByLabelText('Response schema editor')
+      await user.click(schemaEditor)
+      await user.paste(validSchema)
+
+      // Submit form
+      await user.click(screen.getByRole('button', { name: /add step/i }))
+
+      await waitFor(() => {
+        expect(mockOnSubmit).toHaveBeenCalledWith(
+          expect.objectContaining({
+            name: 'Test Agent',
+            prompt: 'Test prompt',
+            parsedResponseSchema: {
+              type: 'object',
+              properties: { result: { type: 'string' } },
+            },
+            fileIds: [],
+          })
+        )
+        // Also check that responseSchema was submitted (value might have formatting variations)
+        const call = mockOnSubmit.mock.calls[0]?.[0] as AIAgentFormSubmitData | undefined
+        expect(call?.responseSchema).toBeTruthy()
+        if (call?.responseSchema) {
+          expect(JSON.parse(call.responseSchema)).toEqual({
+            type: 'object',
+            properties: { result: { type: 'string' } },
+          })
+        }
+      })
+    })
+
+    it('shows error when response schema is invalid JSON', async () => {
+      const user = userEvent.setup()
+      renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
+
+      // Fill required fields
+      await user.type(screen.getByPlaceholderText(/Enter agent name/i), 'Test Agent')
+      await user.type(screen.getByPlaceholderText(/Natural language instructions/i), 'Test prompt')
+
+      // Add invalid JSON using paste
+      const schemaEditor = screen.getByLabelText('Response schema editor')
+      await user.click(schemaEditor)
+      await user.paste('{invalid json}')
+
+      // Submit form
+      await user.click(screen.getByRole('button', { name: /add step/i }))
+
+      await waitFor(() => {
+        expect(screen.getByText(/Invalid JSON/i)).toBeInTheDocument()
+        expect(mockOnSubmit).not.toHaveBeenCalled()
+      })
+    })
+
+    it('shows error when response schema is not an object', async () => {
+      const user = userEvent.setup()
+      renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
+
+      // Fill required fields
+      await user.type(screen.getByPlaceholderText(/Enter agent name/i), 'Test Agent')
+      await user.type(screen.getByPlaceholderText(/Natural language instructions/i), 'Test prompt')
+
+      // Add array instead of object using paste
+      const schemaEditor = screen.getByLabelText('Response schema editor')
+      await user.click(schemaEditor)
+      await user.paste('["item1", "item2"]')
+
+      // Submit form
+      await user.click(screen.getByRole('button', { name: /add step/i }))
+
+      await waitFor(() => {
+        expect(screen.getByText(/Response schema must be a JSON object/i)).toBeInTheDocument()
+        expect(mockOnSubmit).not.toHaveBeenCalled()
+      })
+    })
+
+    it('accepts empty response schema (optional field)', async () => {
+      const user = userEvent.setup()
+      renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
+
+      // Fill only required fields
+      await user.type(screen.getByPlaceholderText(/Enter agent name/i), 'Test Agent')
+      await user.type(screen.getByPlaceholderText(/Natural language instructions/i), 'Test prompt')
+
+      // Submit without response schema
+      await user.click(screen.getByRole('button', { name: /add step/i }))
+
+      await waitFor(() => {
+        expect(mockOnSubmit).toHaveBeenCalledWith(
+          expect.objectContaining({
+            name: 'Test Agent',
+            prompt: 'Test prompt',
+            parsedResponseSchema: undefined,
+          })
+        )
+      })
+    })
+
+    it('pre-fills response schema in edit mode', () => {
+      const existingSchema = { type: 'object', properties: { name: { type: 'string' } } }
+      const initialData = {
+        name: 'Existing Agent',
+        prompt: 'Existing prompt',
+        model: 'anthropic/claude-haiku-4.5',
+        tools: '',
+        responseSchema: JSON.stringify(existingSchema, null, 2),
+      }
+
+      renderWithHeader(
+        <AIAgentNodeForm onSubmit={mockOnSubmit} initialData={initialData} submitButtonText="Update step" />
+      )
+
+      const schemaEditor = screen.getByLabelText('Response schema editor')
+      // Check that the value contains the schema (formatting may vary)
+      const value = (schemaEditor as HTMLInputElement).value
+      expect(value).toContain('"type"')
+      expect(value).toContain('"object"')
+      expect(value).toContain('"properties"')
+      expect(value).toContain('"name"')
+    })
+  })
+
+  describe('Accessibility', () => {
+    it('has no accessibility violations (excluding known PatternFly Tabs issue)', async () => {
+      const { container } = renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
+      // Note: PatternFly Tabs have a known aria-controls issue in testing (tabs work correctly in real browsers)
+      // Excluding this known issue from our accessibility tests
+      const results = await axe(container, {
+        rules: {
+          'aria-valid-attr-value': { enabled: false },
+        },
+      })
+      expect(results).toHaveNoViolations()
+    })
+
+    it('has no accessibility violations with response schema filled (excluding known PatternFly Tabs issue)', async () => {
+      const user = userEvent.setup()
+      const { container } = renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
+
+      // Fill response schema using paste
+      const validSchema = JSON.stringify({ type: 'object' }, null, 2)
+      const schemaEditor = screen.getByLabelText('Response schema editor')
+      await user.click(schemaEditor)
+      await user.paste(validSchema)
+
+      const results = await axe(container, {
+        rules: {
+          'aria-valid-attr-value': { enabled: false },
+        },
+      })
+      expect(results).toHaveNoViolations()
+    })
+
+    it('has no accessibility violations with validation error (excluding known PatternFly Tabs issue)', async () => {
+      const user = userEvent.setup()
+      const { container } = renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
+
+      // Fill required fields
+      await user.type(screen.getByPlaceholderText(/Enter agent name/i), 'Test Agent')
+      await user.type(screen.getByPlaceholderText(/Natural language instructions/i), 'Test prompt')
+
+      // Add invalid JSON using paste
+      const schemaEditor = screen.getByLabelText('Response schema editor')
+      await user.click(schemaEditor)
+      await user.paste('{invalid}')
+
+      // Submit to trigger validation
+      await user.click(screen.getByRole('button', { name: /add step/i }))
+
+      await waitFor(() => {
+        expect(screen.getByText(/Invalid JSON/i)).toBeInTheDocument()
+      })
+
+      const results = await axe(container, {
+        rules: {
+          'aria-valid-attr-value': { enabled: false },
+        },
+      })
+      expect(results).toHaveNoViolations()
+    })
   })
 })

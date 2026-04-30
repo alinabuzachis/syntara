@@ -38,6 +38,7 @@ export default function registerAIAgentNode() {
             model: data.model || undefined,
             fileIds: data.fileIds.length > 0 ? data.fileIds : undefined,
             credentialId: data.credential_id ?? undefined,
+            responseSchema: data.parsedResponseSchema,
           })
         )
 
