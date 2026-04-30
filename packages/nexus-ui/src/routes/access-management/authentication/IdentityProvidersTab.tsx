@@ -17,7 +17,6 @@ import type { IAction } from '@patternfly/react-table'
 import { useMemo, useReducer } from 'react'
 import { navigate } from 'wouter/use-browser-location'
 
-import { AppPageMain } from '../../../app/AppPage'
 import { AppRoute } from '../../../app/AppRoute'
 import { identityProvidersClient } from '../../../client'
 import { useAlerts } from '../../../components/alerts'
@@ -222,68 +221,64 @@ export function IdentityProvidersTab() {
           </FlexItem>
         </Flex>
       </StackItem>
-      <AppPageMain style={{ overflow: 'auto' }}>
-        {providers.length === 0 && hasActiveFilters ? (
+      {providers.length === 0 && hasActiveFilters ? (
+        <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <EmptyStateFilter clearAllFilters={() => handleFilterChange([])} />
-        ) : (
-          <ScrollableTableContainer
-            aria-label="Identity providers table"
-            footer={getFooterProps(query.data, providers.length, 'provider', 'providers')}
-          >
-            <Thead>
-              <Tr>
-                <Th sort={getSortParams(0)}>Name</Th>
-                <Th sort={getSortParams(1)}>Issuer URL</Th>
-                <Th sort={getSortParams(2)}>Client ID</Th>
-                <Th sort={getSortParams(3)}>State</Th>
-                <Th screenReaderText="Actions" />
+        </StackItem>
+      ) : (
+        <ScrollableTableContainer
+          aria-label="Identity providers table"
+          footer={getFooterProps(query.data, providers.length, 'provider', 'providers')}
+        >
+          <Thead>
+            <Tr>
+              <Th sort={getSortParams(0)}>Name</Th>
+              <Th sort={getSortParams(1)}>Issuer URL</Th>
+              <Th sort={getSortParams(2)}>Client ID</Th>
+              <Th sort={getSortParams(3)}>State</Th>
+              <Th screenReaderText="Actions" />
+            </Tr>
+          </Thead>
+          <Tbody>
+            {providers.map((provider) => (
+              <Tr key={provider.id}>
+                <Td dataLabel="Name">
+                  <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
+                    <FlexItem>
+                      <ProviderIcon name={provider.name ?? ''} idpType={provider.configuration?.idp_type} />
+                    </FlexItem>
+                    <FlexItem>
+                      {provider.id ? (
+                        <Button variant="link" isInline onClick={() => navigate(providerDetailPath(provider.id ?? ''))}>
+                          {provider.name}
+                        </Button>
+                      ) : (
+                        provider.name
+                      )}
+                    </FlexItem>
+                  </Flex>
+                </Td>
+                <Td dataLabel="Issuer URL">{provider.configuration?.issuer_url ?? ''}</Td>
+                <Td dataLabel="Client ID">{provider.configuration?.client_id ?? ''}</Td>
+                <Td dataLabel="State">
+                  <Switch
+                    id={`provider-toggle-${provider.id}`}
+                    label="Enabled"
+                    isChecked={provider.enabled}
+                    onChange={() => handleToggleEnabled(provider)}
+                    aria-label={`Toggle ${provider.name}`}
+                  />
+                </Td>
+                <Td isActionCell>
+                  <ActionsColumn
+                    items={getRowActions(provider, (p) => dispatch({ type: 'OPEN_DELETE_DIALOG', payload: p }))}
+                  />
+                </Td>
               </Tr>
-            </Thead>
-            <Tbody>
-              {providers.map((provider) => (
-                <Tr key={provider.id}>
-                  <Td dataLabel="Name">
-                    <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
-                      <FlexItem>
-                        <ProviderIcon name={provider.name ?? ''} idpType={provider.configuration?.idp_type} />
-                      </FlexItem>
-                      <FlexItem>
-                        {provider.id ? (
-                          <Button
-                            variant="link"
-                            isInline
-                            onClick={() => navigate(providerDetailPath(provider.id ?? ''))}
-                          >
-                            {provider.name}
-                          </Button>
-                        ) : (
-                          provider.name
-                        )}
-                      </FlexItem>
-                    </Flex>
-                  </Td>
-                  <Td dataLabel="Issuer URL">{provider.configuration?.issuer_url ?? ''}</Td>
-                  <Td dataLabel="Client ID">{provider.configuration?.client_id ?? ''}</Td>
-                  <Td dataLabel="State">
-                    <Switch
-                      id={`provider-toggle-${provider.id}`}
-                      label="Enabled"
-                      isChecked={provider.enabled}
-                      onChange={() => handleToggleEnabled(provider)}
-                      aria-label={`Toggle ${provider.name}`}
-                    />
-                  </Td>
-                  <Td isActionCell>
-                    <ActionsColumn
-                      items={getRowActions(provider, (p) => dispatch({ type: 'OPEN_DELETE_DIALOG', payload: p }))}
-                    />
-                  </Td>
-                </Tr>
-              ))}
-            </Tbody>
-          </ScrollableTableContainer>
-        )}
-      </AppPageMain>
+            ))}
+          </Tbody>
+        </ScrollableTableContainer>
+      )}
       <ConfirmationDialog
         isOpen={deleteDialogOpen}
         onClose={() => dispatch({ type: 'CLOSE_DELETE_DIALOG' })}

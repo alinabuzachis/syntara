@@ -576,7 +576,10 @@ describe('Approvals Component', () => {
 
       render(<Approvals />)
 
-      expect(screen.getByText(/3 approvals/)).toBeInTheDocument()
+      const paginationNav = screen.getByRole('navigation', { name: /pagination/i })
+      expect(paginationNav).toBeInTheDocument()
+      // PF Pagination renders "1 - {count} of {total}" in the page menu (sibling of nav)
+      expect(paginationNav.parentElement).toHaveTextContent('1 - 3 of 3')
     })
 
     it('displays singular approval text for one approval', () => {
@@ -584,7 +587,9 @@ describe('Approvals Component', () => {
 
       render(<Approvals />)
 
-      expect(screen.getByText(/1 approval/)).toBeInTheDocument()
+      const paginationNav = screen.getByRole('navigation', { name: /pagination/i })
+      expect(paginationNav).toBeInTheDocument()
+      expect(paginationNav.parentElement).toHaveTextContent('1 - 1 of 1')
     })
 
     it('displays total count when more approvals exist', () => {
@@ -601,7 +606,9 @@ describe('Approvals Component', () => {
 
       render(<Approvals />)
 
-      expect(screen.getByText(/of 50 total/)).toBeInTheDocument()
+      const paginationNav = screen.getByRole('navigation', { name: /pagination/i })
+      expect(paginationNav).toBeInTheDocument()
+      expect(paginationNav.parentElement).toHaveTextContent('1 - 20 of 50')
     })
 
     it('handles next page navigation', () => {

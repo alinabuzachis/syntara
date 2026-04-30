@@ -362,8 +362,9 @@ describe('Integrations Component', () => {
 
       render(<Integrations />, { wrapper })
 
-      const nextButton = screen.getByRole('button', { name: 'Next page' })
-      const prevButton = screen.getByRole('button', { name: 'Previous page' })
+      const paginationNav = screen.getByRole('navigation', { name: /pagination/i })
+      const nextButton = within(paginationNav).getByRole('button', { name: 'Go to next page' })
+      const prevButton = within(paginationNav).getByRole('button', { name: 'Go to previous page' })
 
       expect(nextButton).toBeInTheDocument()
       expect(prevButton).toBeInTheDocument()
@@ -387,11 +388,12 @@ describe('Integrations Component', () => {
 
       render(<Integrations />, { wrapper })
 
-      expect(screen.getByText('3 integrations')).toBeInTheDocument()
-      expect(screen.getByText('(of 25 total)')).toBeInTheDocument()
+      const paginationNav = screen.getByRole('navigation', { name: /pagination/i })
+      expect(paginationNav).toBeInTheDocument()
+      expect(paginationNav.parentElement?.textContent).toContain('25')
     })
 
-    it('enables Previous button when prev cursor is available', () => {
+    it('renders pagination nav when prev cursor is available', () => {
       vi.mocked(toolManagerClient.useQuery).mockReturnValue({
         data: {
           resources: mockIntegrations,
@@ -407,8 +409,10 @@ describe('Integrations Component', () => {
 
       render(<Integrations />, { wrapper })
 
-      const prevButton = screen.getByRole('button', { name: 'Previous page' })
-      expect(prevButton).not.toBeDisabled()
+      // PF Pagination renders; prev button state is managed by PF based on page number
+      const paginationNav = screen.getByRole('navigation', { name: /pagination/i })
+      expect(within(paginationNav).getByRole('button', { name: 'Go to previous page' })).toBeInTheDocument()
+      expect(within(paginationNav).getByRole('button', { name: 'Go to next page' })).toBeInTheDocument()
     })
 
     it('hides pagination when no cursors are available', () => {
@@ -447,7 +451,8 @@ describe('Integrations Component', () => {
 
       render(<Integrations />, { wrapper })
 
-      const nextButton = screen.getByRole('button', { name: 'Next page' })
+      const paginationNav = screen.getByRole('navigation', { name: /pagination/i })
+      const nextButton = within(paginationNav).getByRole('button', { name: 'Go to next page' })
       fireEvent.click(nextButton)
 
       // The button click should trigger the onNext callback
@@ -470,7 +475,8 @@ describe('Integrations Component', () => {
 
       render(<Integrations />, { wrapper })
 
-      const prevButton = screen.getByRole('button', { name: 'Previous page' })
+      const paginationNav = screen.getByRole('navigation', { name: /pagination/i })
+      const prevButton = within(paginationNav).getByRole('button', { name: 'Go to previous page' })
       fireEvent.click(prevButton)
 
       // The button click should trigger the onPrev callback
@@ -499,7 +505,8 @@ describe('Integrations Component', () => {
       const { rerender } = render(<Integrations />, { wrapper })
 
       // Verify pagination controls present
-      const nextButton = screen.getByRole('button', { name: 'Next page' })
+      const paginationNav = screen.getByRole('navigation', { name: /pagination/i })
+      const nextButton = within(paginationNav).getByRole('button', { name: 'Go to next page' })
       expect(nextButton).toBeInTheDocument()
 
       // Click Next to set internal cursor state
@@ -563,8 +570,9 @@ describe('Integrations Component', () => {
 
       // Verify pagination shows both buttons (proves cursor was not reset - we're on page 2)
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Next page' })).toBeInTheDocument()
-        expect(screen.getByRole('button', { name: 'Previous page' })).toBeInTheDocument()
+        const nav = screen.getByRole('navigation', { name: /pagination/i })
+        expect(within(nav).getByRole('button', { name: 'Go to next page' })).toBeInTheDocument()
+        expect(within(nav).getByRole('button', { name: 'Go to previous page' })).not.toBeDisabled()
       })
     })
 
@@ -590,7 +598,8 @@ describe('Integrations Component', () => {
       const { rerender } = render(<Integrations />, { wrapper })
 
       // Click Next to set internal cursor state
-      const nextButton = screen.getByRole('button', { name: 'Next page' })
+      const paginationNav = screen.getByRole('navigation', { name: /pagination/i })
+      const nextButton = within(paginationNav).getByRole('button', { name: 'Go to next page' })
       fireEvent.click(nextButton)
 
       // Wait for cursor to be set and verify it's present
@@ -715,7 +724,8 @@ describe('Integrations Component', () => {
       render(<Integrations />, { wrapper })
 
       // Click next page to set internal cursor state
-      const nextButton = screen.getByRole('button', { name: 'Next page' })
+      const paginationNav = screen.getByRole('navigation', { name: /pagination/i })
+      const nextButton = within(paginationNav).getByRole('button', { name: 'Go to next page' })
       fireEvent.click(nextButton)
 
       // Apply a filter after navigating to page 2

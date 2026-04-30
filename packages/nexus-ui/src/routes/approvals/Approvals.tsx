@@ -86,16 +86,22 @@ export default function Approvals() {
     expandedRows: new Set<string>(),
   })
 
+  const selectedProjectId = selectedProject?.id ?? null
+  const projectExtraParams = useMemo(
+    () => (selectedProjectId ? { project_id: selectedProjectId } : undefined),
+    [selectedProjectId]
+  )
+
   const {
     cursor,
-    setCursor,
+    resetPagination,
     filters,
     hasActiveFilters,
     queryParams,
     handleFilterChange,
     handleClearAllFilters,
     getFooterProps,
-  } = useCursorPagination()
+  } = useCursorPagination({ extraParams: projectExtraParams })
 
   // Define filter field definitions for FilterBar
   const filterFieldDefinitions = useMemo(
@@ -175,19 +181,15 @@ export default function Approvals() {
 
   const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set())
 
-  const toggleProjectCollapsed = (projectId: string) => {
+  const toggleProjectCollapsed = (id: string) =>
     setCollapsedProjects((prev) => {
       const next = new Set(prev)
-      if (next.has(projectId)) {
-        next.delete(projectId)
-      } else {
-        next.add(projectId)
-      }
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
       return next
     })
-  }
 
-  useCursorReset(enrichedApprovals.length, hasActiveFilters, cursor, approvalsQuery.isFetching, setCursor)
+  useCursorReset(enrichedApprovals.length, hasActiveFilters, cursor, approvalsQuery.isFetching, resetPagination)
 
   // Client-side sorting of current page only
   const sortedApprovals = useMemo(() => {
@@ -228,9 +230,7 @@ export default function Approvals() {
     )
   }
 
-  const toggleRow = (approvalId: string) => {
-    dispatch({ type: 'TOGGLE_ROW', payload: approvalId })
-  }
+  const toggleRow = (approvalId: string) => dispatch({ type: 'TOGGLE_ROW', payload: approvalId })
 
   // Check if all rows are currently expanded
   const allRowsExpanded = sortedApprovals.length > 0 && expandedRows.size === sortedApprovals.length

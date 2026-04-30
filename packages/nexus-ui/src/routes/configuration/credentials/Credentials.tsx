@@ -2,7 +2,7 @@ import { Button, Content, ContentVariants, StackItem } from '@patternfly/react-c
 import { RhUiEditIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 
 import { AppPage, AppPageMain } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
@@ -43,6 +43,7 @@ export default function Credentials() {
 
   // UI state
   const [cursor, setCursor] = useState<string | null>(null)
+  const resetPagination = useCallback(() => setCursor(null), [])
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [credentialToEdit, setCredentialToEdit] = useState<Credential | null>(null)
   const {
@@ -56,7 +57,7 @@ export default function Credentials() {
   // Filter state
   const { filters, clearAllFilters, setAllFilters } = useFilterState()
   const filterFieldDefinitions = useMemo<FilterFieldDefinition[]>(() => [getCredentialNameFilterDefinition()], [])
-  const handleFilterChange = createFilterChangeHandler(cursor, () => setCursor(null), clearAllFilters, setAllFilters)
+  const handleFilterChange = createFilterChangeHandler(cursor, resetPagination, clearAllFilters, setAllFilters)
   const handleClearAllFilters = () => {
     if (cursor) setCursor(null)
     clearAllFilters()
@@ -79,7 +80,7 @@ export default function Credentials() {
   const credentials = (query.data?.resources ?? []) as CredentialExtended[]
   const hasActiveFilters = filters.length > 0
 
-  useCursorReset(credentials.length, hasActiveFilters, cursor, query.isFetching, setCursor)
+  useCursorReset(credentials.length, hasActiveFilters, cursor, query.isFetching, resetPagination)
 
   // Fetch credential types for type name lookup
   const typesQuery = credentialsClient.useQuery('get', '/credential_types')

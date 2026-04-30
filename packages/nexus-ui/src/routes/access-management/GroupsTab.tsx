@@ -33,7 +33,7 @@ export function GroupsTab() {
 
   const {
     cursor,
-    setCursor,
+    resetPagination,
     filters,
     hasActiveFilters,
     queryParams,
@@ -56,7 +56,7 @@ export function GroupsTab() {
   const data = query.data
   const groups = data?.resources ?? []
 
-  useCursorReset(groups.length, hasActiveFilters, cursor, query.isFetching, setCursor)
+  useCursorReset(groups.length, hasActiveFilters, cursor, query.isFetching, resetPagination)
 
   const { activeSortIndex, getSortParams, sortData } = useTableSort({
     initialSortIndex: 0,

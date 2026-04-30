@@ -75,8 +75,16 @@ function getRowActions(user: User, onDelete: (user: User) => void): IAction[] {
 }
 
 export function UsersTab() {
-  const { cursor, setCursor, filters, hasActiveFilters, queryParams, handleFilterChange, getFooterProps } =
-    useCursorPagination()
+  const {
+    cursor,
+    resetPagination,
+    filters,
+    hasActiveFilters,
+    queryParams,
+    handleFilterChange,
+    handleClearAllFilters,
+    getFooterProps,
+  } = useCursorPagination()
 
   const { activeSortIndex, sortDirection, getSortParams } = useTableSort({
     initialDirection: 'asc',
@@ -96,7 +104,7 @@ export function UsersTab() {
   const isAdminEnabled = builtinUser?.is_enabled ?? true
   const refetch = useCallback(() => detachPromise(query.refetch()), [query])
 
-  useCursorReset(users.length, hasActiveFilters, cursor, query.isFetching, setCursor)
+  useCursorReset(users.length, hasActiveFilters, cursor, query.isFetching, resetPagination)
 
   const adminToggle = useAdminToggle(builtinUser, refetch)
 
@@ -154,7 +162,7 @@ export function UsersTab() {
                 filters={filters}
                 onFilterChange={handleFilterChange}
                 showClearAll={true}
-                clearAllFilters={() => handleFilterChange([])}
+                clearAllFilters={handleClearAllFilters}
               />
             </FlexItem>
             <FlexItem>
@@ -170,7 +178,7 @@ export function UsersTab() {
         </StackItem>
         {users.length === 0 ? (
           <StackItem isFilled style={flexCenteredBothAxes}>
-            <EmptyStateFilter clearAllFilters={() => handleFilterChange([])} />
+            <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
           </StackItem>
         ) : (
           <ScrollableTableContainer aria-label="Users" footer={getFooterProps(data, users.length, 'user', 'users')}>

@@ -49,16 +49,22 @@ export default function Executions() {
     [workflowIdFilter]
   )
 
+  const selectedProjectId = selectedProject?.id ?? null
+  const projectExtraParams = useMemo(
+    () => (selectedProjectId ? { project_id: selectedProjectId } : undefined),
+    [selectedProjectId]
+  )
+
   const {
     cursor,
-    setCursor,
+    resetPagination,
     filters,
     hasActiveFilters,
     queryParams,
     handleFilterChange,
     handleClearAllFilters,
     getFooterProps,
-  } = useCursorPagination({ defaultFilters })
+  } = useCursorPagination({ defaultFilters, extraParams: projectExtraParams })
 
   const executionsQuery = executionsClient.useQuery('get', '/executions', {
     params: {
@@ -67,13 +73,9 @@ export default function Executions() {
   })
 
   const showWorkflowColumn = true
-  const allExecutions = useMemo(() => (executionsQuery.data?.resources ?? []) as Execution[], [executionsQuery.data])
-  const executions = useMemo(() => {
-    if (isAllProjects || !selectedProject) return allExecutions
-    return allExecutions.filter((e) => (e as unknown as Record<string, unknown>).project_id === selectedProject.id)
-  }, [allExecutions, isAllProjects, selectedProject])
+  const executions = useMemo(() => (executionsQuery.data?.resources ?? []) as Execution[], [executionsQuery.data])
 
-  useCursorReset(executions.length, hasActiveFilters, cursor, executionsQuery.isFetching, setCursor)
+  useCursorReset(executions.length, hasActiveFilters, cursor, executionsQuery.isFetching, resetPagination)
 
   const filterFieldDefinitions = useMemo(() => buildFilterFieldDefinitions(), [])
 

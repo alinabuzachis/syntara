@@ -741,7 +741,8 @@ describe('Executions Component', () => {
 
       render(<Executions />)
 
-      expect(screen.getByText(/3 executions/)).toBeInTheDocument()
+      // PF Pagination renders a nav with pagination controls
+      expect(screen.getByRole('navigation', { name: /pagination/i })).toBeInTheDocument()
     })
 
     it('displays singular execution text for one execution', () => {
@@ -749,7 +750,8 @@ describe('Executions Component', () => {
 
       render(<Executions />)
 
-      expect(screen.getByText(/1 execution/)).toBeInTheDocument()
+      // PF Pagination renders a nav with pagination controls even for a single item
+      expect(screen.getByRole('navigation', { name: /pagination/i })).toBeInTheDocument()
     })
 
     it('displays total count when more executions exist', () => {
@@ -765,7 +767,9 @@ describe('Executions Component', () => {
 
       render(<Executions />)
 
-      expect(screen.getByText(/of 50 total/)).toBeInTheDocument()
+      const paginationNav = screen.getByRole('navigation', { name: /pagination/i })
+      expect(paginationNav).toBeInTheDocument()
+      expect(paginationNav.parentElement?.textContent).toContain('1 - 20 of 50')
     })
 
     it('handles next page navigation', async () => {

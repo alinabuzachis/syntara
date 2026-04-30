@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
+import type { TableFooterProps } from '../components/table/ScrollableTableContainer'
 import { TotalCount } from '../components/table/TotalCount'
 import type { FilterConfig } from '../types/filters'
 import { buildFilterParams } from '../utils/filterUtils'
@@ -30,6 +31,8 @@ export type UseCursorPaginationResult = {
   cursor: string | null
   /** Set cursor directly */
   setCursor: (cursor: string | null) => void
+  /** Reset both cursor and page to initial state */
+  resetPagination: () => void
   /** Current active filters */
   filters: FilterConfig[]
   /** Whether any filters are active */
@@ -40,19 +43,19 @@ export type UseCursorPaginationResult = {
   handleFilterChange: (newFilters: FilterConfig[]) => void
   /** Handler for "Clear all filters" button */
   handleClearAllFilters: () => void
+  /** Current page number (1-based) */
+  page: number
+  /** Current items per page */
+  perPage: number
+  /** Handler for changing items per page */
+  handlePerPageChange: (perPage: number) => void
   /** Build footer props for ScrollableTableContainer from a query response */
   getFooterProps: (
     data: PaginatedResponse | undefined,
     itemCount: number,
     singularLabel: string,
     pluralLabel: string
-  ) => {
-    content: React.ReactNode
-    prev: string | null
-    next: string | null
-    onPrev: () => void
-    onNext: () => void
-  }
+  ) => TableFooterProps
 }
 
 /**
@@ -70,25 +73,56 @@ export function useCursorPagination(options: UseCursorPaginationOptions = {}): U
   const { limit = 20, defaultFilters, transformFilters, extraParams } = options
 
   const [cursor, setCursor] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(limit)
   const { filters, clearAllFilters, setAllFilters } = useFilterState(defaultFilters)
 
   const hasActiveFilters = filters.length > 0
 
+  const resetPagination = useCallback(() => {
+    setCursor(null)
+    setPage(1)
+  }, [])
+
   const handleFilterChange = useMemo(
-    () => createFilterChangeHandler(cursor, () => setCursor(null), clearAllFilters, setAllFilters, transformFilters),
-    [cursor, clearAllFilters, setAllFilters, transformFilters]
+    () => createFilterChangeHandler(cursor, resetPagination, clearAllFilters, setAllFilters, transformFilters),
+    [cursor, resetPagination, clearAllFilters, setAllFilters, transformFilters]
   )
 
   const handleClearAllFilters = useCallback(() => {
-    if (cursor) {
-      setCursor(null)
-    }
     clearAllFilters()
-  }, [cursor, clearAllFilters])
+    resetPagination()
+  }, [clearAllFilters, resetPagination])
+
+  const handlePerPageChange = useCallback(
+    (newPerPage: number) => {
+      setPerPage(newPerPage)
+      resetPagination()
+    },
+    [resetPagination]
+  )
+
+  // Reset pagination when extraParams change (e.g., project selection).
+  // Uses the React "store previous value" pattern to detect change during render
+  // so queryParams excludes the stale cursor in the same render cycle.
+  //
+  // Timing: setCursor(null) clears the cursor state, but React batches state updates
+  // so `cursor` still holds its previous value during this render. The `extraParamsChanged`
+  // guard below prevents the stale cursor from leaking into queryParams for this one
+  // render cycle. On the next render both `cursor` and `prevExtraParamsKey` are up to date,
+  // so `extraParamsChanged` becomes false and normal cursor inclusion resumes.
+  const extraParamsKey = JSON.stringify(extraParams)
+  const [prevExtraParamsKey, setPrevExtraParamsKey] = useState(extraParamsKey)
+  const extraParamsChanged = prevExtraParamsKey !== extraParamsKey
+  if (extraParamsChanged) {
+    setPrevExtraParamsKey(extraParamsKey)
+    setCursor(null)
+    setPage(1)
+  }
 
   const queryParams = useMemo(() => {
     const params: Record<string, unknown> = {
-      limit,
+      limit: perPage,
       include_total: true,
       ...extraParams,
     }
@@ -96,12 +130,12 @@ export function useCursorPagination(options: UseCursorPaginationOptions = {}): U
     const filterParams = buildFilterParams(filters)
     Object.assign(params, filterParams)
 
-    if (cursor) {
+    if (cursor && !extraParamsChanged) {
       params.cursor = cursor
     }
 
     return params
-  }, [filters, cursor, limit, extraParams])
+  }, [filters, cursor, perPage, extraParams, extraParamsChanged])
 
   const getFooterProps = useCallback(
     (data: PaginatedResponse | undefined, itemCount: number, singularLabel: string, pluralLabel: string) => ({
@@ -113,26 +147,40 @@ export function useCursorPagination(options: UseCursorPaginationOptions = {}): U
       ),
       prev: data?.prev ?? null,
       next: data?.next ?? null,
-      onPrev: () => setCursor(data?.prev ?? null),
-      onNext: () => setCursor(data?.next ?? null),
+      onPrev: () => {
+        setCursor(data?.prev ?? null)
+        setPage((p) => Math.max(1, p - 1))
+      },
+      onNext: () => {
+        setCursor(data?.next ?? null)
+        setPage((p) => p + 1)
+      },
+      page,
+      perPage,
+      total: data?.total ?? null,
+      onPerPageChange: handlePerPageChange,
     }),
-    []
+    [page, perPage, handlePerPageChange]
   )
 
   return {
     cursor,
     setCursor,
+    resetPagination,
     filters,
     hasActiveFilters,
     queryParams,
     handleFilterChange,
     handleClearAllFilters,
+    page,
+    perPage,
+    handlePerPageChange,
     getFooterProps,
   }
 }
 
 /**
- * Auto-resets cursor when:
+ * Auto-resets pagination when:
  * - There are no items to display
  * - No active filters (i.e., it's not a "no results" from filtering)
  * - A cursor is currently set
@@ -145,11 +193,11 @@ export function useCursorReset(
   hasActiveFilters: boolean,
   cursor: string | null,
   isFetching: boolean,
-  setCursor: (cursor: string | null) => void
+  resetPagination: () => void
 ): void {
   useEffect(() => {
     if (itemCount === 0 && !hasActiveFilters && cursor && !isFetching) {
-      setCursor(null)
+      resetPagination()
     }
-  }, [itemCount, hasActiveFilters, cursor, isFetching, setCursor])
+  }, [itemCount, hasActiveFilters, cursor, isFetching, resetPagination])
 }

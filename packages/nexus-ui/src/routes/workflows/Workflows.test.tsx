@@ -736,8 +736,8 @@ describe('Workflows Component', () => {
 
       render(<Workflows />, { wrapper })
 
-      const nextButton = screen.getByRole('button', { name: 'Next page' })
-      const prevButton = screen.getByRole('button', { name: 'Previous page' })
+      const nextButton = screen.getByRole('button', { name: 'Go to next page' })
+      const prevButton = screen.getByRole('button', { name: 'Go to previous page' })
 
       expect(nextButton).toBeInTheDocument()
       expect(prevButton).toBeInTheDocument()
@@ -761,8 +761,11 @@ describe('Workflows Component', () => {
 
       render(<Workflows />, { wrapper })
 
-      expect(screen.getByText(/2 workflows/)).toBeInTheDocument()
-      expect(screen.getByText(/\(of 30 total\)/)).toBeInTheDocument()
+      // PF Pagination renders items range and total in a toggle (text split across <b> tags)
+      const pagination = screen.getByRole('navigation', { name: /pagination/i })
+      expect(pagination).toBeInTheDocument()
+      expect(screen.getByText('1 - 20')).toBeInTheDocument()
+      expect(screen.getByText((content, element) => element?.tagName === 'B' && content === '30')).toBeInTheDocument()
     })
 
     it('enables both buttons when both cursors are available', () => {
@@ -771,7 +774,7 @@ describe('Workflows Component', () => {
           resources: mockWorkflows,
           next: 'next-cursor',
           prev: 'prev-cursor-xyz',
-          total: 30,
+          total: 50,
         },
         isPending: false,
         isError: false,
@@ -781,8 +784,11 @@ describe('Workflows Component', () => {
 
       render(<Workflows />, { wrapper })
 
-      const nextButton = screen.getByRole('button', { name: 'Next page' })
-      const prevButton = screen.getByRole('button', { name: 'Previous page' })
+      // Navigate to page 2 so both prev and next are enabled
+      fireEvent.click(screen.getByRole('button', { name: 'Go to next page' }))
+
+      const nextButton = screen.getByRole('button', { name: 'Go to next page' })
+      const prevButton = screen.getByRole('button', { name: 'Go to previous page' })
 
       expect(nextButton).not.toBeDisabled()
       expect(prevButton).not.toBeDisabled()
@@ -808,14 +814,14 @@ describe('Workflows Component', () => {
       expect(screen.queryByRole('button', { name: 'Previous page' })).not.toBeInTheDocument()
     })
 
-    it('handles navigation back to first page correctly', () => {
-      // Simulate being on last page with only prev cursor available (no next)
+    it('handles navigation back to first page correctly', async () => {
+      // Start with data that has a next cursor so we can navigate forward
       mockWorkflowQuery({
         data: {
           resources: mockWorkflows,
-          next: null,
-          prev: 'cursor-page1',
-          total: 4,
+          next: 'next-cursor',
+          prev: null,
+          total: 40,
         },
         isPending: false,
         isError: false,
@@ -823,14 +829,30 @@ describe('Workflows Component', () => {
         refetch: vi.fn(),
       })
 
-      render(<Workflows />, { wrapper })
+      const { rerender } = render(<Workflows />, { wrapper })
 
-      const prevButton = screen.getByRole('button', { name: 'Previous page' })
-      const nextButton = screen.queryByRole('button', { name: 'Next page' })
+      // Navigate to page 2
+      fireEvent.click(screen.getByRole('button', { name: 'Go to next page' }))
 
-      // Previous should be enabled, Next should be disabled
+      // Now simulate being on last page with only prev cursor available
+      mockWorkflowQuery({
+        data: {
+          resources: mockWorkflows,
+          next: null,
+          prev: 'cursor-page1',
+          total: 40,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+      rerender(<Workflows />)
+
+      const prevButton = await screen.findByRole('button', { name: 'Go to previous page' })
+
+      // Previous should be enabled (we're on page 2)
       expect(prevButton).not.toBeDisabled()
-      expect(nextButton).toBeDisabled()
 
       // Clicking previous should work without errors
       expect(() => fireEvent.click(prevButton)).not.toThrow()
@@ -857,7 +879,7 @@ describe('Workflows Component', () => {
       render(<Workflows />, { wrapper })
 
       // Verify pagination controls present
-      const nextButton = screen.getByRole('button', { name: 'Next page' })
+      const nextButton = screen.getByRole('button', { name: 'Go to next page' })
       expect(nextButton).toBeInTheDocument()
 
       // Click Next to set internal cursor state
@@ -884,8 +906,8 @@ describe('Workflows Component', () => {
 
       // Verify pagination controls still present (cursor was not reset despite empty data)
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Next page' })).toBeInTheDocument()
-        expect(screen.getByRole('button', { name: 'Previous page' })).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Go to next page' })).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Go to previous page' })).toBeInTheDocument()
       })
     })
 
@@ -1591,7 +1613,8 @@ describe('Workflows Component', () => {
 
       render(<Workflows />, { wrapper })
 
-      expect(screen.getByText(/1 workflow$/)).toBeInTheDocument()
+      // PF Pagination renders items range in <b> tags: "<b>1 - 1</b> of <b>1</b> items"
+      expect(screen.getByText('1 - 1')).toBeInTheDocument()
     })
   })
 

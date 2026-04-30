@@ -316,9 +316,10 @@ describe('GroupsTab Component', () => {
 
       render(<GroupsTab />, { wrapper })
 
-      // Footer renders count text with total
-      expect(screen.getByText(/3 groups/)).toBeInTheDocument()
-      expect(screen.getByText(/of 25 total/)).toBeInTheDocument()
+      // PF Pagination renders item count display with total
+      const nav = screen.getByRole('navigation', { name: /pagination/i })
+      expect(nav).toBeInTheDocument()
+      expect(screen.getByText('25')).toBeInTheDocument()
     })
 
     it('enables Previous button when prev cursor is available', () => {
@@ -359,8 +360,10 @@ describe('GroupsTab Component', () => {
 
       render(<GroupsTab />, { wrapper })
 
-      // Footer still renders count text without pagination buttons
-      expect(screen.getByText(/3 groups/)).toBeInTheDocument()
+      // PF Pagination still renders even without cursors
+      const nav = screen.getByRole('navigation', { name: /pagination/i })
+      expect(nav).toBeInTheDocument()
+      expect(screen.getByText('3')).toBeInTheDocument()
     })
 
     it('calls onNext when Next page button is clicked', async () => {
@@ -461,8 +464,10 @@ describe('GroupsTab Component', () => {
 
       render(<GroupsTab />, { wrapper })
 
-      // Footer renders singular "group" for one result
-      expect(screen.getByText(/1 group$/)).toBeInTheDocument()
+      // PF Pagination renders item count display for single result
+      const nav = screen.getByRole('navigation', { name: /pagination/i })
+      expect(nav).toBeInTheDocument()
+      expect(screen.getByText('1', { selector: 'b' })).toBeInTheDocument()
     })
   })
 

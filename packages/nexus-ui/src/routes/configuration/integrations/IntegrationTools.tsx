@@ -250,7 +250,7 @@ export default function IntegrationTools() {
 
   const {
     cursor,
-    setCursor,
+    resetPagination,
     filters,
     hasActiveFilters,
     queryParams,
@@ -335,7 +335,7 @@ export default function IntegrationTools() {
 
   const results = sortData(tools, (tool) => tool.namespaced_name ?? '')
 
-  useCursorReset(results.length, hasActiveFilters, cursor, query.isFetching, setCursor)
+  useCursorReset(results.length, hasActiveFilters, cursor, query.isFetching, resetPagination)
 
   // Track tools for state sync (not results, since sorting creates new array each render)
   const previousResultsRef = useRef(tools)

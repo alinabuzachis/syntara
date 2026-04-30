@@ -186,10 +186,13 @@ describe('IntegrationTools Component', () => {
     it('displays correct item count', () => {
       render(<IntegrationTools />, { wrapper })
 
-      // Since 2 tools are enabled by default (tool_one and tool_three), it shows selection count
-      // Check that it appears in both header and footer
-      const counts = screen.getAllByText('2 of 3 tools enabled')
-      expect(counts.length).toBeGreaterThan(0)
+      // PF Pagination renders in the footer; verify it is present
+      const paginationNav = screen.getByRole('navigation', { name: /pagination/i })
+      expect(paginationNav).toBeInTheDocument()
+
+      // Verify the correct number of tool checkboxes (header + 3 tools)
+      const checkboxes = screen.getAllByRole('checkbox')
+      expect(checkboxes.length).toBe(4)
     })
   })
 
@@ -252,9 +255,9 @@ describe('IntegrationTools Component', () => {
       // Click to select tool_two
       fireEvent.click(tool2Checkbox)
 
-      // Should show 3 tools enabled (all tools now selected) - appears in both header and footer
-      const counts = screen.getAllByText('3 of 3 tools enabled')
-      expect(counts.length).toBeGreaterThan(0)
+      // All tool checkboxes should now be checked
+      const toolCheckboxes = screen.getAllByRole('checkbox').slice(1) // skip header
+      expect(toolCheckboxes.every((cb) => (cb as HTMLInputElement).checked)).toBe(true)
     })
 
     it('allows toggling individual tool selection', () => {
@@ -280,9 +283,9 @@ describe('IntegrationTools Component', () => {
       // Click select all
       fireEvent.click(selectAllCheckbox)
 
-      // All tools should now be enabled - appears in both header and footer
-      const counts = screen.getAllByText('3 of 3 tools enabled')
-      expect(counts.length).toBeGreaterThan(0)
+      // All tool checkboxes should now be checked
+      const toolCheckboxes = screen.getAllByRole('checkbox').slice(1) // skip header
+      expect(toolCheckboxes.every((cb) => (cb as HTMLInputElement).checked)).toBe(true)
     })
 
     it('supports deselect all functionality', () => {
@@ -296,9 +299,9 @@ describe('IntegrationTools Component', () => {
       // Click again to deselect all
       fireEvent.click(selectAllCheckbox)
 
-      // Should show no selection - count appears in both header and footer
-      const counts = screen.getAllByText('3 tools')
-      expect(counts.length).toBeGreaterThan(0)
+      // All tool checkboxes should now be unchecked
+      const toolCheckboxes = screen.getAllByRole('checkbox').slice(1) // skip header
+      expect(toolCheckboxes.every((cb) => !(cb as HTMLInputElement).checked)).toBe(true)
     })
   })
 
@@ -549,7 +552,7 @@ describe('IntegrationTools Component', () => {
           resources: mockTools,
           next: 'next-cursor-123',
           prev: null,
-          total: 50,
+          total: 100,
         },
         isPending: false,
         isError: false,
@@ -559,9 +562,10 @@ describe('IntegrationTools Component', () => {
 
       render(<IntegrationTools />, { wrapper })
 
-      // Should show Next button (enabled) and Previous button (disabled)
-      const nextButton = screen.getByRole('button', { name: 'Next page' })
-      const prevButton = screen.getByRole('button', { name: 'Previous page' })
+      // Should show PF Pagination with Next button (enabled) and Previous button (disabled)
+      const paginationNav = screen.getByRole('navigation', { name: /pagination/i })
+      const nextButton = within(paginationNav).getByRole('button', { name: 'Go to next page' })
+      const prevButton = within(paginationNav).getByRole('button', { name: 'Go to previous page' })
 
       expect(nextButton).toBeInTheDocument()
       expect(prevButton).toBeInTheDocument()
@@ -569,7 +573,7 @@ describe('IntegrationTools Component', () => {
       expect(prevButton).toBeDisabled()
     })
 
-    it('displays total count when available', () => {
+    it('displays total count when available', async () => {
       const toolsWithoutEnabled = mockTools.map((tool) => ({ ...tool, enabled: false }))
 
       vi.mocked(toolManagerClient.useQuery).mockReturnValue({
@@ -577,7 +581,7 @@ describe('IntegrationTools Component', () => {
           resources: toolsWithoutEnabled,
           next: 'next-cursor',
           prev: null,
-          total: 50,
+          total: 37,
         },
         isPending: false,
         isError: false,
@@ -587,21 +591,22 @@ describe('IntegrationTools Component', () => {
 
       render(<IntegrationTools />, { wrapper })
 
-      // Should show "3 tools (of 50 total)" when no tools are enabled - appears in both header and footer
-      const counts = screen.getAllByText('3 tools')
-      expect(counts.length).toBeGreaterThan(0)
-      // Total count also appears in both places
-      const totals = screen.getAllByText('(of 50 total)')
-      expect(totals.length).toBeGreaterThan(0)
+      const paginationNav = screen.getByRole('navigation', { name: /pagination/i })
+      expect(paginationNav).toBeInTheDocument()
+      // Total appears in Pagination’s toggle/title subtree (nav’s direct textContent is often empty in jsdom).
+      await waitFor(() => {
+        expect(document.body.textContent).toMatch(/of 37\b/)
+      })
     })
 
-    it('calls onPageChange with next cursor when Next button is clicked', () => {
+    it('calls onPageChange with next cursor when Next button is clicked', async () => {
+      const user = userEvent.setup()
       vi.mocked(toolManagerClient.useQuery).mockReturnValue({
         data: {
           resources: mockTools,
           next: 'next-cursor-123',
           prev: null,
-          total: 50,
+          total: 100,
         },
         isPending: false,
         isError: false,
@@ -611,21 +616,21 @@ describe('IntegrationTools Component', () => {
 
       render(<IntegrationTools />, { wrapper })
 
-      const nextButton = screen.getByRole('button', { name: 'Next page' })
-      fireEvent.click(nextButton)
+      const paginationNav = screen.getByRole('navigation', { name: /pagination/i })
+      const nextButton = within(paginationNav).getByRole('button', { name: 'Go to next page' })
+      await user.click(nextButton)
 
-      // The component should update its cursor state
-      // We can verify this by checking if the button is rendered
       expect(nextButton).toBeInTheDocument()
     })
 
-    it('calls onPageChange with prev cursor when Previous button is clicked', () => {
+    it('calls onPageChange with prev cursor when Previous button is clicked', async () => {
+      const user = userEvent.setup()
       vi.mocked(toolManagerClient.useQuery).mockReturnValue({
         data: {
           resources: mockTools,
           next: 'next-cursor',
           prev: 'prev-cursor-123',
-          total: 50,
+          total: 100,
         },
         isPending: false,
         isError: false,
@@ -635,10 +640,14 @@ describe('IntegrationTools Component', () => {
 
       render(<IntegrationTools />, { wrapper })
 
-      const prevButton = screen.getByRole('button', { name: 'Previous page' })
+      const paginationNav = screen.getByRole('navigation', { name: /pagination/i })
+      const nextButton = within(paginationNav).getByRole('button', { name: 'Go to next page' })
+      await user.click(nextButton)
+
+      const prevButton = within(paginationNav).getByRole('button', { name: 'Go to previous page' })
       expect(prevButton).not.toBeDisabled()
 
-      fireEvent.click(prevButton)
+      await user.click(prevButton)
 
       expect(prevButton).toBeInTheDocument()
     })

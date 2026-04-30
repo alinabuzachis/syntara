@@ -86,7 +86,7 @@ export default function Integrations() {
 
   const {
     cursor,
-    setCursor,
+    resetPagination,
     filters,
     hasActiveFilters,
     queryParams,
@@ -119,7 +119,7 @@ export default function Integrations() {
 
   const integrations = (query.data?.resources ?? []) as ToolProviderWithToolCount[]
 
-  useCursorReset(integrations.length, hasActiveFilters, cursor, query.isFetching, setCursor)
+  useCursorReset(integrations.length, hasActiveFilters, cursor, query.isFetching, resetPagination)
 
   const { activeSortIndex, getSortParams, sortData } = useTableSort({
     initialSortIndex: 0,

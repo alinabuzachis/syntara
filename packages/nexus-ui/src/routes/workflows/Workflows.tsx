@@ -32,6 +32,7 @@ import { accessClient } from '../access/accessClient'
 import { FlatWorkflowsTableBody, GroupedWorkflowsTableBody } from './WorkflowsTableBody'
 
 type Workflow = WorkflowAPI.components['schemas']['Workflow']
+type WorkflowWithProject = Workflow & { project_id?: string }
 
 // Transform is_enabled string values to boolean for the API
 const transformIsEnabledFilter = (filters: FilterConfig[]): FilterConfig[] =>
@@ -48,16 +49,22 @@ export default function Workflows() {
   const [, setLocation] = useLocation()
   const { selectedProject, isAllProjects, projects, ProjectSelector } = useProjectSelector()
 
+  const selectedProjectId = selectedProject?.id ?? null
+  const projectExtraParams = useMemo(
+    () => (selectedProjectId ? { project_id: selectedProjectId } : undefined),
+    [selectedProjectId]
+  )
+
   const {
     cursor,
-    setCursor,
+    resetPagination,
     filters,
     hasActiveFilters,
     queryParams,
     handleFilterChange,
     handleClearAllFilters,
     getFooterProps,
-  } = useCursorPagination({ transformFilters: transformIsEnabledFilter })
+  } = useCursorPagination({ transformFilters: transformIsEnabledFilter, extraParams: projectExtraParams })
 
   const runDialog = useDialogState<Workflow>()
   const deleteDialog = useDialogState<Workflow>()
@@ -134,7 +141,7 @@ export default function Workflows() {
     if (!isAllProjects) return null
     const groups = new Map<string, { project: (typeof projects)[number] | null; workflows: Workflow[] }>()
     for (const workflow of sortedWorkflows) {
-      const projectId = (workflow as unknown as { project_id?: string }).project_id ?? 'unknown'
+      const projectId = (workflow as WorkflowWithProject).project_id ?? 'unknown'
       if (!groups.has(projectId)) {
         groups.set(projectId, {
           project: projects.find((p) => p.id === projectId) ?? null,
@@ -158,11 +165,12 @@ export default function Workflows() {
     })
   }
 
-  useCursorReset(sortedWorkflows.length, hasActiveFilters, cursor, workflowsQuery.isFetching, setCursor)
+  useCursorReset(sortedWorkflows.length, hasActiveFilters, cursor, workflowsQuery.isFetching, resetPagination)
 
   const handleRunWorkflow = (workflow: Workflow) => {
+    if (!workflow.id) return
     executeWorkflow(
-      { body: { workflow_id: workflow.id!, input_data: {} } },
+      { body: { workflow_id: workflow.id, input_data: {} } },
       {
         onSuccess: (data) => {
           showSuccess('Workflow started', `Successfully started workflow "${workflow.name}"`)
@@ -180,10 +188,10 @@ export default function Workflows() {
 
   const handleDeleteWorkflow = () => {
     const workflow = deleteDialog.item
-    if (!workflow) return
+    if (!workflow?.id) return
 
     deleteWorkflow(
-      { params: { path: { workflow_id: workflow.id! } } },
+      { params: { path: { workflow_id: workflow.id } } },
       {
         onSuccess: () => {
           showSuccess('Workflow deleted', `Successfully deleted workflow "${workflow.name}"`)

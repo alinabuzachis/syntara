@@ -458,7 +458,7 @@ describe('useCursorPagination', () => {
       )
 
       act(() => {
-        footerProps.onPrev()
+        footerProps.onPrev?.()
       })
 
       expect(result.current.cursor).toBe('prev-cursor')
@@ -475,7 +475,7 @@ describe('useCursorPagination', () => {
       )
 
       act(() => {
-        footerProps.onNext()
+        footerProps.onNext?.()
       })
 
       expect(result.current.cursor).toBe('next-cursor')
@@ -492,7 +492,7 @@ describe('useCursorPagination', () => {
       const footerProps = result.current.getFooterProps({ resources: [{}], prev: null, next: null }, 1, 'item', 'items')
 
       act(() => {
-        footerProps.onPrev()
+        footerProps.onPrev?.()
       })
 
       expect(result.current.cursor).toBeNull()
@@ -508,7 +508,7 @@ describe('useCursorPagination', () => {
       const footerProps = result.current.getFooterProps({ resources: [{}] }, 1, 'item', 'items')
 
       act(() => {
-        footerProps.onNext()
+        footerProps.onNext?.()
       })
 
       expect(result.current.cursor).toBeNull()
@@ -538,83 +538,79 @@ describe('useCursorPagination', () => {
 })
 
 describe('useCursorReset', () => {
-  it('resets cursor when all conditions are met', () => {
-    // Arrange
-    const setCursor = vi.fn()
+  it('resets pagination when all conditions are met', () => {
+    const resetPagination = vi.fn()
 
-    // Act
-    renderHook(() => useCursorReset(0, false, 'some-cursor', false, setCursor))
+    renderHook(() => useCursorReset(0, false, 'some-cursor', false, resetPagination))
 
-    // Assert
-    expect(setCursor).toHaveBeenCalledWith(null)
+    expect(resetPagination).toHaveBeenCalled()
   })
 
-  it('does not reset cursor when itemCount is greater than 0', () => {
-    const setCursor = vi.fn()
+  it('does not reset when itemCount is greater than 0', () => {
+    const resetPagination = vi.fn()
 
-    renderHook(() => useCursorReset(5, false, 'some-cursor', false, setCursor))
+    renderHook(() => useCursorReset(5, false, 'some-cursor', false, resetPagination))
 
-    expect(setCursor).not.toHaveBeenCalled()
+    expect(resetPagination).not.toHaveBeenCalled()
   })
 
-  it('does not reset cursor when filters are active', () => {
-    const setCursor = vi.fn()
+  it('does not reset when filters are active', () => {
+    const resetPagination = vi.fn()
 
-    renderHook(() => useCursorReset(0, true, 'some-cursor', false, setCursor))
+    renderHook(() => useCursorReset(0, true, 'some-cursor', false, resetPagination))
 
-    expect(setCursor).not.toHaveBeenCalled()
+    expect(resetPagination).not.toHaveBeenCalled()
   })
 
-  it('does not reset cursor when cursor is null', () => {
-    const setCursor = vi.fn()
+  it('does not reset when cursor is null', () => {
+    const resetPagination = vi.fn()
 
-    renderHook(() => useCursorReset(0, false, null, false, setCursor))
+    renderHook(() => useCursorReset(0, false, null, false, resetPagination))
 
-    expect(setCursor).not.toHaveBeenCalled()
+    expect(resetPagination).not.toHaveBeenCalled()
   })
 
-  it('does not reset cursor when query is fetching', () => {
-    const setCursor = vi.fn()
+  it('does not reset when query is fetching', () => {
+    const resetPagination = vi.fn()
 
-    renderHook(() => useCursorReset(0, false, 'some-cursor', true, setCursor))
+    renderHook(() => useCursorReset(0, false, 'some-cursor', true, resetPagination))
 
-    expect(setCursor).not.toHaveBeenCalled()
+    expect(resetPagination).not.toHaveBeenCalled()
   })
 
-  it('resets cursor when conditions change from non-reset to reset', () => {
-    const setCursor = vi.fn()
+  it('resets pagination when conditions change from non-reset to reset', () => {
+    const resetPagination = vi.fn()
 
     const { rerender } = renderHook(
-      ({ itemCount, isFetching }) => useCursorReset(itemCount, false, 'cursor-val', isFetching, setCursor),
+      ({ itemCount, isFetching }) => useCursorReset(itemCount, false, 'cursor-val', isFetching, resetPagination),
       {
         initialProps: { itemCount: 5, isFetching: false },
       }
     )
 
-    // Should not reset when itemCount > 0
-    expect(setCursor).not.toHaveBeenCalled()
+    expect(resetPagination).not.toHaveBeenCalled()
 
-    // Rerender with 0 items — should trigger reset
     rerender({ itemCount: 0, isFetching: false })
 
-    expect(setCursor).toHaveBeenCalledWith(null)
+    expect(resetPagination).toHaveBeenCalled()
   })
 
   it('does not reset when isFetching transitions from false to true with 0 items', () => {
-    const setCursor = vi.fn()
+    const resetPagination = vi.fn()
 
-    const { rerender } = renderHook(({ isFetching }) => useCursorReset(0, false, 'cursor-val', isFetching, setCursor), {
-      initialProps: { isFetching: false },
-    })
+    const { rerender } = renderHook(
+      ({ isFetching }) => useCursorReset(0, false, 'cursor-val', isFetching, resetPagination),
+      {
+        initialProps: { isFetching: false },
+      }
+    )
 
-    // First render: 0 items, not fetching, cursor set => resets
-    expect(setCursor).toHaveBeenCalledWith(null)
-    setCursor.mockClear()
+    expect(resetPagination).toHaveBeenCalled()
+    resetPagination.mockClear()
 
-    // Rerender with fetching=true => should not reset
     rerender({ isFetching: true })
 
-    expect(setCursor).not.toHaveBeenCalled()
+    expect(resetPagination).not.toHaveBeenCalled()
   })
 })
 

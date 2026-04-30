@@ -401,8 +401,10 @@ describe('UsersTab Component', () => {
 
       render(<UsersTab />, { wrapper })
 
-      // ScrollableTableContainer footer shows item count and total
-      expect(screen.getByText('3 users')).toBeInTheDocument()
+      // PF Pagination renders item range and total
+      const paginationNav = screen.getByRole('navigation', { name: /pagination/i })
+      expect(paginationNav).toBeInTheDocument()
+      expect(paginationNav.parentElement).toHaveTextContent(/of 25/)
     })
 
     it('displays singular "user" when only one result', () => {
@@ -417,8 +419,10 @@ describe('UsersTab Component', () => {
 
       render(<UsersTab />, { wrapper })
 
-      // ScrollableTableContainer footer shows singular label
-      expect(screen.getByText('1 user')).toBeInTheDocument()
+      // PF Pagination renders item range and total
+      const paginationNav = screen.getByRole('navigation', { name: /pagination/i })
+      expect(paginationNav).toBeInTheDocument()
+      expect(paginationNav.parentElement).toHaveTextContent(/of 1\b/)
     })
   })
 
@@ -629,7 +633,7 @@ describe('UsersTab Component', () => {
   })
 
   describe('Pagination Navigation', () => {
-    it('renders next page button when next cursor is available', () => {
+    it('renders PF Pagination with next/prev buttons when cursors are available', () => {
       vi.mocked(accessClient.useQuery).mockReturnValue({
         data: { resources: mockUsers, next: 'next-cursor-abc', prev: null, total: 25 },
         isPending: false,
@@ -641,25 +645,11 @@ describe('UsersTab Component', () => {
 
       render(<UsersTab />, { wrapper })
 
-      // ScrollableTableContainer footer renders prev/next buttons
-      const nextButton = screen.getByRole('button', { name: /next/i })
+      const paginationNav = screen.getByRole('navigation', { name: /pagination/i })
+      const nextButton = within(paginationNav).getByRole('button', { name: 'Go to next page' })
+      const prevButton = within(paginationNav).getByRole('button', { name: 'Go to previous page' })
       expect(nextButton).not.toBeDisabled()
-    })
-
-    it('renders previous page button when prev cursor is available', () => {
-      vi.mocked(accessClient.useQuery).mockReturnValue({
-        data: { resources: mockUsers, next: null, prev: 'prev-cursor-abc', total: 25 },
-        isPending: false,
-        isError: false,
-        error: null,
-        isFetching: false,
-        refetch: vi.fn(),
-      } as never)
-
-      render(<UsersTab />, { wrapper })
-
-      const prevButton = screen.getByRole('button', { name: /prev/i })
-      expect(prevButton).not.toBeDisabled()
+      expect(prevButton).toBeDisabled()
     })
   })
 

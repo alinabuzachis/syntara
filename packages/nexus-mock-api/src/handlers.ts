@@ -388,6 +388,37 @@ export const handlers = [
     const body: WorkflowsResponse = paginate(resources, cursor, limit, includeTotal)
     return HttpResponse.json(body)
   }),
+
+  http.get('/api/v1/projects/:project_id/workflows', ({ request, params }) => {
+    const projectId = String(params.project_id)
+    const url = new URL(request.url)
+    const nameStartsWith = url.searchParams.get('name[starts_with]')
+    const nameContains = url.searchParams.get('name[contains]')
+    const isEnabled = url.searchParams.get('is_enabled')
+    const cursor = url.searchParams.get('cursor')
+    const parsedLimit = Number.parseInt(url.searchParams.get('limit') ?? '20', 10)
+    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 20
+    const includeTotal = url.searchParams.get('include_total') === 'true'
+
+    let resources = workflows.filter((w) => w.project_id === projectId)
+
+    if (nameStartsWith) {
+      const prefix = nameStartsWith.toLowerCase()
+      resources = resources.filter((w) => (w.name ?? '').toLowerCase().startsWith(prefix))
+    }
+    if (nameContains) {
+      const searchTerm = nameContains.toLowerCase()
+      resources = resources.filter((w) => (w.name ?? '').toLowerCase().includes(searchTerm))
+    }
+
+    if (isEnabled !== null) {
+      const enabled = isEnabled === 'true'
+      resources = resources.filter((w) => w.is_enabled === enabled)
+    }
+
+    const body: WorkflowsResponse = paginate(resources, cursor, limit, includeTotal)
+    return HttpResponse.json(body)
+  }),
   http.post('/api/v1/workflows', async (req) => {
     const body = (await req.request.json()) as CreateWorkflowBody & {
       labels?: Record<string, string>
