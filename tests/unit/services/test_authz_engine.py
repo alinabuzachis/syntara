@@ -211,6 +211,10 @@ async def test_assign_authenticated_group_project_user(
 @pytest.mark.asyncio
 async def test_assign_authenticated_group_missing(test_db_session: AsyncSession) -> None:
     """assign_authenticated_group_project_user() returns None when group missing."""
-    # No authz data seeded
+    # Check whether the 'authenticated' group was pre-seeded (e.g. by CI).
+    existing = await test_db_session.exec(select(Group).where(Group.name == "authenticated"))
+    if existing.first() is not None:
+        pytest.skip("'authenticated' group already seeded; nothing to test")
+
     result = await assign_authenticated_group_project_user(test_db_session, uuid4())
     assert result is None

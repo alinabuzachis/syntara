@@ -96,7 +96,8 @@ async def test_seed_updates_metadata_without_touching_value(
     """seed_settings() updates name/description/default_value but never value or version."""
     first_definition = SETTINGS_CATALOG[0]
 
-    # The lifespan already seeded this key — fetch and modify it
+    await seed_settings(test_session_factory)
+
     result = await test_db_session.exec(select(RuntimeSetting).where(RuntimeSetting.key == first_definition.key))
     existing = result.one()
     existing.name = "Old Name"

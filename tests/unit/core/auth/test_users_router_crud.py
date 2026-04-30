@@ -134,6 +134,7 @@ class TestDeleteUserEndpoint:
         user_id = uuid4()
         service = AsyncMock()
 
-        await delete_user(user_id, service)
+        with patch("nexus.users.users_router.SessionStore"):
+            await delete_user(user_id, service)
 
         service.delete_user.assert_called_once_with(user_id)

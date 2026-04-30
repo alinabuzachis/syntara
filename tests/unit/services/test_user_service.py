@@ -11,6 +11,7 @@ from uuid import uuid4
 
 import pytest
 from sqlalchemy import insert
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth.exceptions import (
@@ -25,6 +26,38 @@ from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
 from nexus.core.models.user_schemas import UserRead
 from nexus.users.services.user_service import UsersService
+
+
+async def _get_or_create_admins_group(session: AsyncSession) -> Group:
+    """Return the seeded 'admins' group or create one if absent."""
+    result = await session.exec(select(Group).where(Group.name == "admins", Group.deleted_at.is_(None)))  # type: ignore[union-attr]
+    group = result.first()
+    if group is not None:
+        return group
+    group = Group(id=uuid4(), name="admins", is_builtin=True, labels={})
+    session.add(group)
+    await session.flush()
+    return group
+
+
+async def _get_or_create_builtin_admin(session: AsyncSession) -> User:
+    """Return the seeded builtin admin user or create one if absent."""
+    result = await session.exec(select(User).where(User.is_builtin == True, User.deleted_at.is_(None)))  # type: ignore[union-attr]  # noqa: E712
+    user = result.first()
+    if user is not None:
+        return user
+    user = User(
+        id=uuid4(),
+        username="admin",
+        email="admin@example.com",
+        full_name="Admin",
+        password_hash=hash_password("adminpassword"),
+        is_builtin=True,
+    )
+    session.add(user)
+    await session.flush()
+    return user
+
 
 TEST_PASSWORD = "securepassword123"  # noqa: S105
 
@@ -195,9 +228,7 @@ async def test_update_user_is_enabled(test_db_session: AsyncSession, test_user: 
     service = UsersService(test_db_session, test_user)
 
     # Seed an admins group with a member so the guard allows disabling other users
-    admins_group = Group(id=uuid4(), name="admins", is_builtin=True, labels={})
-    test_db_session.add(admins_group)
-    await test_db_session.flush()
+    admins_group = await _get_or_create_admins_group(test_db_session)
     await test_db_session.execute(insert(user_groups).values(user_id=test_user.id, group_id=admins_group.id))
     await test_db_session.flush()
 
@@ -266,18 +297,7 @@ async def test_update_user_updates_timestamp(test_db_session: AsyncSession, test
 @pytest.mark.asyncio
 async def test_admin_self_disable_allowed(test_db_session: AsyncSession) -> None:
     """Test builtin admin can disable itself when other admins exist."""
-    from nexus.auth.passwords import hash_password
-
-    # Create builtin admin user
-    admin = User(
-        id=uuid4(),
-        username="admin",
-        email="admin@example.com",
-        full_name="Admin",
-        password_hash=hash_password("adminpassword"),
-        is_builtin=True,
-    )
-    test_db_session.add(admin)
+    admin = await _get_or_create_builtin_admin(test_db_session)
 
     # Create another admin user so the guard allows disabling
     other_admin = User(
@@ -290,8 +310,7 @@ async def test_admin_self_disable_allowed(test_db_session: AsyncSession) -> None
     test_db_session.add(other_admin)
 
     # Seed admins group with both members
-    admins_group = Group(id=uuid4(), name="admins", is_builtin=True, labels={})
-    test_db_session.add(admins_group)
+    admins_group = await _get_or_create_admins_group(test_db_session)
     await test_db_session.flush()
     await test_db_session.execute(insert(user_groups).values(user_id=admin.id, group_id=admins_group.id))
     await test_db_session.execute(insert(user_groups).values(user_id=other_admin.id, group_id=admins_group.id))
@@ -308,19 +327,7 @@ async def test_admin_self_disable_allowed(test_db_session: AsyncSession) -> None
 @pytest.mark.asyncio
 async def test_non_admin_cannot_disable_admin(test_db_session: AsyncSession, test_user: User) -> None:
     """Test non-admin user cannot modify the built-in admin."""
-    from nexus.auth.passwords import hash_password
-
-    # Create builtin admin user
-    admin = User(
-        id=uuid4(),
-        username="admin",
-        email="admin@example.com",
-        full_name="Admin",
-        password_hash=hash_password("adminpassword"),
-        is_builtin=True,
-    )
-    test_db_session.add(admin)
-    await test_db_session.commit()
+    admin = await _get_or_create_builtin_admin(test_db_session)
 
     # Service running as non-admin test_user
     service = UsersService(test_db_session, test_user)
@@ -332,18 +339,7 @@ async def test_non_admin_cannot_disable_admin(test_db_session: AsyncSession, tes
 @pytest.mark.asyncio
 async def test_non_admin_cannot_modify_admin_fields(test_db_session: AsyncSession, test_user: User) -> None:
     """Test non-admin cannot modify the built-in admin's fields."""
-    from nexus.auth.passwords import hash_password
-
-    admin = User(
-        id=uuid4(),
-        username="admin",
-        email="admin@example.com",
-        full_name="Admin",
-        password_hash=hash_password("adminpassword"),
-        is_builtin=True,
-    )
-    test_db_session.add(admin)
-    await test_db_session.commit()
+    admin = await _get_or_create_builtin_admin(test_db_session)
 
     service = UsersService(test_db_session, test_user)
 
@@ -465,9 +461,7 @@ async def test_delete_user_success(test_db_session: AsyncSession, test_user: Use
     )
 
     # Need an admins group with the test_user so _ensure_other_admins_exist passes
-    admins_group = Group(id=uuid4(), name="admins", is_builtin=True, labels={})
-    test_db_session.add(admins_group)
-    await test_db_session.flush()
+    admins_group = await _get_or_create_admins_group(test_db_session)
     await test_db_session.execute(insert(user_groups).values(user_id=test_user.id, group_id=admins_group.id))
     await test_db_session.flush()
 
@@ -480,16 +474,7 @@ async def test_delete_user_success(test_db_session: AsyncSession, test_user: Use
 @pytest.mark.asyncio
 async def test_delete_builtin_user_raises_admin_delete_error(test_db_session: AsyncSession, test_user: User) -> None:
     """Test deleting the built-in admin raises AdminDeleteError."""
-    admin = User(
-        id=uuid4(),
-        username="admin",
-        email="admin@example.com",
-        full_name="Admin",
-        password_hash=hash_password("adminpassword"),
-        is_builtin=True,
-    )
-    test_db_session.add(admin)
-    await test_db_session.commit()
+    admin = await _get_or_create_builtin_admin(test_db_session)
 
     service = UsersService(test_db_session, test_user)
 
@@ -509,9 +494,7 @@ async def test_delete_last_admin_raises_error(test_db_session: AsyncSession) -> 
     )
     test_db_session.add(sole_admin)
 
-    admins_group = Group(id=uuid4(), name="admins", is_builtin=True, labels={})
-    test_db_session.add(admins_group)
-    await test_db_session.flush()
+    admins_group = await _get_or_create_admins_group(test_db_session)
     await test_db_session.execute(insert(user_groups).values(user_id=sole_admin.id, group_id=admins_group.id))
     await test_db_session.commit()
 

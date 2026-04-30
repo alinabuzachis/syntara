@@ -71,8 +71,8 @@ async def test_user_soft_delete(
     # Create admin user who will perform the delete
     admin = await user_factory(
         id=uuid4(),
-        username="admin",
-        email="admin@example.com",
+        username="softdelete-admin",
+        email="softdelete-admin@example.com",
         full_name="Admin User",
     )
 

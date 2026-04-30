@@ -1,12 +1,14 @@
 """Unit tests for UserIdentityService."""
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
 import pytest
 
 from nexus.auth.exceptions import LastSignInMethodError, UserIdentityNotFoundError, UserNotFoundError
 from nexus.users.services.user_identity_service import UserIdentityService
+
+_PATCH_SESSION_STORE = "nexus.users.services.user_identity_service.SessionStore"
 
 
 def _make_identity(*, user_id: UUID | None = None, identity_id: UUID | None = None) -> MagicMock:
@@ -99,7 +101,8 @@ class TestDeleteIdentity:
         session.exec.return_value = mock_result
 
         service = UserIdentityService(session)
-        await service.delete_identity(identity.id)
+        with patch(_PATCH_SESSION_STORE):
+            await service.delete_identity(identity.id)
 
         session.delete.assert_called_once_with(identity)
         session.flush.assert_called()
@@ -127,7 +130,8 @@ class TestDeleteIdentity:
         session.exec.return_value = mock_result
 
         service = UserIdentityService(session)
-        await service.delete_identity(identity.id, expected_user_id=user_id)
+        with patch(_PATCH_SESSION_STORE):
+            await service.delete_identity(identity.id, expected_user_id=user_id)
 
         session.delete.assert_called_once_with(identity)
 
@@ -188,7 +192,8 @@ class TestDeleteIdentity:
         session.exec.side_effect = [identity_result, user_result]
 
         service = UserIdentityService(session)
-        await service.delete_identity(identity.id)
+        with patch(_PATCH_SESSION_STORE):
+            await service.delete_identity(identity.id)
 
         session.delete.assert_called_once_with(identity)
 
@@ -210,7 +215,8 @@ class TestDeleteIdentity:
         session.exec.side_effect = [identity_result, user_result, remaining_result]
 
         service = UserIdentityService(session)
-        await service.delete_identity(identity.id)
+        with patch(_PATCH_SESSION_STORE):
+            await service.delete_identity(identity.id)
 
         session.delete.assert_called_once_with(identity)
 
@@ -226,7 +232,8 @@ class TestDeleteIdentity:
         session.exec.return_value = identity_result
 
         service = UserIdentityService(session)
-        await service.delete_identity(identity.id, force=True)
+        with patch(_PATCH_SESSION_STORE):
+            await service.delete_identity(identity.id, force=True)
 
         session.delete.assert_called_once_with(identity)
 
@@ -240,7 +247,8 @@ class TestDeleteIdentity:
         session.exec.return_value = mock_result
 
         service = UserIdentityService(session)
-        await service.delete_identity(identity.id)
+        with patch(_PATCH_SESSION_STORE):
+            await service.delete_identity(identity.id)
 
         session.delete.assert_called_once_with(identity)
 
@@ -254,7 +262,8 @@ class TestDeleteIdentity:
         session.exec.return_value = mock_result
 
         service = UserIdentityService(session)
-        await service.delete_identity(identity.id)
+        with patch(_PATCH_SESSION_STORE):
+            await service.delete_identity(identity.id)
 
         session.flush.assert_called()
         session.commit.assert_not_called()
@@ -337,7 +346,8 @@ class TestAttachIdentity:
         session.exec.side_effect = [identity_join_result, target_result]
 
         service = UserIdentityService(session)
-        result = await service.attach_identity(identity.id, target_user_id)
+        with patch(_PATCH_SESSION_STORE):
+            result = await service.attach_identity(identity.id, target_user_id)
 
         assert result.user_id == target_user_id
         assert result.provider_name == "Azure"
@@ -388,7 +398,8 @@ class TestAttachIdentity:
         session.exec.side_effect = [identity_join_result, target_result]
 
         service = UserIdentityService(session)
-        await service.attach_identity(identity.id, target_user_id)
+        with patch(_PATCH_SESSION_STORE):
+            await service.attach_identity(identity.id, target_user_id)
 
         # Source user should not be soft-deleted — preserved for audit
         session.delete.assert_not_called()

@@ -207,10 +207,13 @@ class TestAuditEndToEnd:
         response = await service.list_resources(
             model=AuditEventRecord,
             response_type=AuditEventListResponse,
+            limit=200,
         )
 
-        assert len(response.resources) == 1
-        read = response.resources[0]
+        # Filter to the event we just created (there may be pre-existing events)
+        matching = [r for r in response.resources if r.event_action == expected["event_action"]]
+        assert len(matching) == 1
+        read = matching[0]
 
         # Scalar envelope fields survive the round-trip.
         assert read.event_action == expected["event_action"]

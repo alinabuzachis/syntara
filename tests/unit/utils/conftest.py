@@ -7,6 +7,7 @@ This module provides shared fixtures for utility function tests.
 from datetime import datetime
 
 import pytest_asyncio
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
@@ -16,15 +17,24 @@ from nexus.core.models import User
 async def test_users(test_db_session: AsyncSession) -> list[User]:
     """Create test data for filtering and sorting tests.
 
+    With rollback-based test isolation seeded data (e.g. the bootstrap
+    admin user) is visible inside the test session.  We therefore return
+    **all** users present in the database so that assertions like
+    ``len(result) == len(test_users)`` remain correct.
+
+    Pre-existing users that have timezone-aware ``created_at`` values are
+    normalised to naive UTC so that Python-side comparisons in tests
+    (e.g. ``u.created_at > datetime(…)``) do not raise ``TypeError``.
+
     Args:
         test_db_session: Async PostgreSQL test session from conftest
 
     Returns:
-        List of test Users
+        List of all Users in the database (seeded + fixture-created)
 
     """
     # Add test data with various label combinations for comprehensive testing
-    test_users = [
+    fixture_users = [
         User(
             username="alice",
             email="alice@example.com",
@@ -91,7 +101,16 @@ async def test_users(test_db_session: AsyncSession) -> list[User]:
         ),
     ]
 
-    for user in test_users:
+    for user in fixture_users:
         test_db_session.add(user)
-    await test_db_session.commit()
-    return test_users
+    await test_db_session.flush()
+
+    result = await test_db_session.exec(select(User))
+    all_users = list(result.all())
+
+    # Normalise tz-aware created_at to naive UTC so Python comparisons work
+    for user in all_users:
+        if user.created_at is not None and user.created_at.tzinfo is not None:
+            user.created_at = user.created_at.replace(tzinfo=None)
+
+    return all_users

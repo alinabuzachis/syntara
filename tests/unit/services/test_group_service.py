@@ -41,9 +41,9 @@ async def test_create_group_without_description(test_db_session: AsyncSession, t
     """Test group creation without optional description."""
     service = GroupsService(test_db_session, test_user)
 
-    group = await service.create_group(name="admins", description=None)
+    group = await service.create_group(name="no-desc-group", description=None)
 
-    assert group.name == "admins"
+    assert group.name == "no-desc-group"
     assert group.description is None
 
 

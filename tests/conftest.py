@@ -558,42 +558,6 @@ async def _upgrade_database_schema(db_url: str) -> None:
         raise
 
 
-async def _truncate_all_tables(engine: AsyncEngine) -> None:
-    """Remove all data from user tables without touching migration state."""
-    logger.debug("Truncating all user tables on %s", _safe_url(engine.url))
-    preparer = engine.dialect.identifier_preparer
-    try:
-        async with engine.begin() as conn:
-            result = await conn.execute(
-                sqlalchemy.text(
-                    """
-                    SELECT table_schema, table_name
-                    FROM information_schema.tables
-                    WHERE table_schema NOT IN ('information_schema', 'pg_catalog')
-                    ORDER BY table_schema, table_name
-                    """
-                )
-            )
-            tables = [
-                f"{preparer.quote_schema(schema)}.{preparer.quote(table_name)}"
-                if schema and schema != "public"
-                else preparer.quote(table_name)
-                for schema, table_name in result
-                if table_name not in ("alembic_version", "installation", "runtime_settings", "setting_categories")
-            ]
-
-            if not tables:
-                logger.debug("No user tables found to truncate on %s", _safe_url(engine.url))
-                return
-
-            truncate_stmt = sqlalchemy.text(f"TRUNCATE {', '.join(tables)} RESTART IDENTITY CASCADE")
-            await conn.execute(truncate_stmt)
-        logger.debug("Truncated user tables on %s", _safe_url(engine.url))
-    except Exception:  # pragma: no cover - defensive logging
-        logger.exception("Failed to truncate tables on %s", _safe_url(engine.url))
-        raise
-
-
 @pytest_asyncio.fixture(scope="session")
 async def test_db_engine(worker_id: str) -> AsyncGenerator[AsyncEngine, None]:
     """Create a test database engine with the migrated schema.
@@ -672,7 +636,12 @@ def test_cache(worker_id: str) -> Generator[None, None, None]:
 
 @pytest_asyncio.fixture
 async def test_db_session(test_db_engine: AsyncEngine) -> AsyncGenerator[AsyncSession, None]:
-    """Create a test database session.
+    """Create a test database session with rollback-based isolation.
+
+    Uses a connection-level transaction that is rolled back after each test,
+    so every test starts with a clean database without paying the cost of
+    TRUNCATE on every table.  Session.commit() calls are transparently
+    converted to SAVEPOINTs so they succeed but never hit the real DB.
 
     Args:
         test_db_engine: Test database engine
@@ -681,29 +650,14 @@ async def test_db_session(test_db_engine: AsyncEngine) -> AsyncGenerator[AsyncSe
         AsyncSession for tests
 
     """
-    # Clear data before each test while keeping the migrated schema intact.
-    # runtime_settings is excluded from truncation (like alembic_version)
-    # because it is seeded once before app startup and treated as reference data.
-    await _truncate_all_tables(test_db_engine)
-    logger.debug("Created clean test session for %s", _safe_url(test_db_engine.url))
-
-    async_session = async_sessionmaker(
-        test_db_engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-    )
-
-    session = async_session()
-    try:
-        yield session
-        # Only commit if session is still active (constraint violation tests cause automatic rollback during flush)
-        if session.is_active:
-            await session.commit()
-    except Exception:
-        await session.rollback()
-        raise
-    finally:
-        await session.close()
+    async with test_db_engine.connect() as conn:
+        transaction = await conn.begin()
+        session = AsyncSession(bind=conn, expire_on_commit=False, join_transaction_mode="create_savepoint")
+        try:
+            yield session
+        finally:
+            await session.close()
+            await transaction.rollback()
 
 
 @pytest_asyncio.fixture(scope="session")

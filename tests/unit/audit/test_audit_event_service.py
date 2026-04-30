@@ -3,6 +3,7 @@
 import itertools
 
 import pytest
+from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.audit.models.audit_event_record import AuditEventRecord
@@ -11,6 +12,13 @@ from nexus.audit.models.structured_data import AuditContextData
 from nexus.audit.services.audit_event_service import AuditEventService
 from nexus.core.models import User
 from tests.helpers.audit import AuditEventsFactory
+
+
+async def _count_existing_events(session: AsyncSession) -> int:
+    """Return the number of audit events already in the database (e.g. from seeding)."""
+    result = await session.exec(select(func.count()).select_from(AuditEventRecord))
+    return result.one()
+
 
 # ------------------------------------------------------------------ #
 # Read operations (instance-level, DB-backed)
@@ -28,26 +36,30 @@ class TestAuditEventServiceList:
         audit_events_factory: AuditEventsFactory,
     ) -> None:
         """Test listing returns inserted audit events."""
+        baseline = await _count_existing_events(test_db_session)
         await audit_events_factory.create_events(count=3)
 
         service = AuditEventService(test_db_session, test_user)
         response = await service.list_resources(
             model=AuditEventRecord,
             response_type=AuditEventListResponse,
+            limit=baseline + 3,
         )
 
-        assert len(response.resources) == 3
+        assert len(response.resources) == baseline + 3
 
     @pytest.mark.asyncio
     async def test_list_empty_table(self, test_db_session: AsyncSession, test_user: User) -> None:
-        """Test listing with no events returns empty list."""
+        """Test listing with no additional events returns only baseline."""
+        baseline = await _count_existing_events(test_db_session)
         service = AuditEventService(test_db_session, test_user)
         response = await service.list_resources(
             model=AuditEventRecord,
             response_type=AuditEventListResponse,
+            limit=baseline + 10,
         )
 
-        assert len(response.resources) == 0
+        assert len(response.resources) == baseline
 
     @pytest.mark.asyncio
     async def test_list_respects_limit(
@@ -76,6 +88,7 @@ class TestAuditEventServiceList:
         audit_events_factory: AuditEventsFactory,
     ) -> None:
         """Test that include_total returns total count."""
+        baseline = await _count_existing_events(test_db_session)
         await audit_events_factory.create_events(count=4)
 
         service = AuditEventService(test_db_session, test_user)
@@ -87,7 +100,7 @@ class TestAuditEventServiceList:
         )
 
         assert len(response.resources) == 2
-        assert response.total == 4
+        assert response.total == baseline + 4
 
     @pytest.mark.asyncio
     async def test_list_cursor_pagination(
@@ -97,32 +110,30 @@ class TestAuditEventServiceList:
         audit_events_factory: AuditEventsFactory,
     ) -> None:
         """Test cursor-based pagination returns next page."""
+        baseline = await _count_existing_events(test_db_session)
         await audit_events_factory.create_events(count=5)
+        total = baseline + 5
 
         service = AuditEventService(test_db_session, test_user)
 
-        # First page
-        page1 = await service.list_resources(
-            model=AuditEventRecord,
-            response_type=AuditEventListResponse,
-            limit=3,
-        )
-        assert len(page1.resources) == 3
-        assert page1.next is not None
+        # Collect all pages
+        all_ids: set[object] = set()
+        cursor = None
+        while True:
+            page = await service.list_resources(
+                model=AuditEventRecord,
+                response_type=AuditEventListResponse,
+                limit=3,
+                cursor=cursor,
+            )
+            page_ids = {r.id for r in page.resources}
+            assert page_ids.isdisjoint(all_ids)  # no overlap
+            all_ids.update(page_ids)
+            cursor = page.next
+            if cursor is None:
+                break
 
-        # Second page
-        page2 = await service.list_resources(
-            model=AuditEventRecord,
-            response_type=AuditEventListResponse,
-            limit=3,
-            cursor=page1.next,
-        )
-        assert len(page2.resources) == 2
-
-        # No overlap
-        page1_ids = {r.id for r in page1.resources}
-        page2_ids = {r.id for r in page2.resources}
-        assert page1_ids.isdisjoint(page2_ids)
+        assert len(all_ids) == total
 
     @pytest.mark.asyncio
     async def test_list_cursor_pagination_forward_and_backward(
@@ -137,92 +148,55 @@ class TestAuditEventServiceList:
         the next cursor is still present (allowing forward pagination again)
         while the prev cursor is None (indicating we're at the start).
         """
-        # Create 7 events to get 4 pages with limit=2 (pages: 2,2,2,1)
+        baseline = await _count_existing_events(test_db_session)
+        # Need enough events so we have multiple pages even with baseline.
+        # Create 7 fresh events; total = baseline + 7.
         await audit_events_factory.create_events(count=7)
+        total = baseline + 7
 
         service = AuditEventService(test_db_session, test_user)
 
-        # Page 1: First page should have next, no prev
-        page1 = await service.list_resources(
-            model=AuditEventRecord,
-            response_type=AuditEventListResponse,
-            limit=2,
-        )
-        assert len(page1.resources) == 2
-        assert page1.next is not None
-        assert page1.prev is None
+        # Page forward through ALL pages, collecting page1 IDs for later comparison.
+        pages: list[AuditEventListResponse] = []
+        cursor = None
+        while True:
+            page = await service.list_resources(
+                model=AuditEventRecord,
+                response_type=AuditEventListResponse,
+                limit=2,
+                cursor=cursor,
+            )
+            pages.append(page)
+            cursor = page.next
+            if cursor is None:
+                break
 
-        # Page 2: Middle page should have both next and prev
-        page2 = await service.list_resources(
-            model=AuditEventRecord,
-            response_type=AuditEventListResponse,
-            limit=2,
-            cursor=page1.next,
-        )
-        assert len(page2.resources) == 2
-        assert page2.next is not None
-        assert page2.prev is not None
+        # Verify total coverage
+        all_ids = {r.id for p in pages for r in p.resources}
+        assert len(all_ids) == total
 
-        # Page 3: Another middle page
-        page3 = await service.list_resources(
-            model=AuditEventRecord,
-            response_type=AuditEventListResponse,
-            limit=2,
-            cursor=page2.next,
-        )
-        assert len(page3.resources) == 2
-        assert page3.next is not None
-        assert page3.prev is not None
+        # Last page should have no next
+        assert pages[-1].next is None
+        assert pages[-1].prev is not None
 
-        # Page 4: Last page should have prev, no next
-        page4 = await service.list_resources(
-            model=AuditEventRecord,
-            response_type=AuditEventListResponse,
-            limit=2,
-            cursor=page3.next,
-        )
-        assert len(page4.resources) == 1
-        assert page4.next is None
-        assert page4.prev is not None
+        # Now paginate backward from last page to first
+        cursor = pages[-1].prev
+        while cursor is not None:
+            back_page = await service.list_resources(
+                model=AuditEventRecord,
+                response_type=AuditEventListResponse,
+                limit=2,
+                cursor=cursor,
+            )
+            cursor = back_page.prev
 
-        # Now paginate backward
-        # Back to page 3
-        back_to_page3 = await service.list_resources(
-            model=AuditEventRecord,
-            response_type=AuditEventListResponse,
-            limit=2,
-            cursor=page4.prev,
-        )
-        assert len(back_to_page3.resources) == 2
-        assert back_to_page3.next is not None
-        assert back_to_page3.prev is not None
+        # We've reached the first page again
+        assert back_page.prev is None, "First page should have no previous cursor"
+        assert back_page.next is not None, "First page should have next cursor"
 
-        # Back to page 2
-        back_to_page2 = await service.list_resources(
-            model=AuditEventRecord,
-            response_type=AuditEventListResponse,
-            limit=2,
-            cursor=back_to_page3.prev,
-        )
-        assert len(back_to_page2.resources) == 2
-        assert back_to_page2.next is not None
-        assert back_to_page2.prev is not None
-
-        # Back to page 1: This is the critical assertion for the bug
-        # After paging forward and backward, the first page should still have next cursor
-        back_to_page1 = await service.list_resources(
-            model=AuditEventRecord,
-            response_type=AuditEventListResponse,
-            limit=2,
-            cursor=back_to_page2.prev,
-        )
-        assert len(back_to_page1.resources) == 2
-        assert back_to_page1.prev is None, "First page should have no previous cursor"
-        assert back_to_page1.next is not None, "First page should have next cursor (bug: this returns None)"
-
-        # Verify we got the same resources as the original page 1
-        back_to_page1_ids = {r.id for r in back_to_page1.resources}
-        page1_ids = {r.id for r in page1.resources}
+        # Verify first-page IDs match
+        back_to_page1_ids = {r.id for r in back_page.resources}
+        page1_ids = {r.id for r in pages[0].resources}
         assert back_to_page1_ids == page1_ids
 
     @pytest.mark.asyncio
@@ -283,8 +257,10 @@ class TestAuditEventServiceList:
             response_type=AuditEventListResponse,
         )
 
-        assert len(response.resources) == 1
-        resource = response.resources[0]
+        # Find the event we just created (there may be pre-existing ones)
+        matching = [r for r in response.resources if r.event_action == "login" and r.event_category == "security_event"]
+        assert len(matching) == 1
+        resource = matching[0]
         assert resource.event_category == "security_event"
         assert resource.event_action == "login"
         assert resource.source_component == "auth_service"
@@ -313,18 +289,22 @@ class TestAuditEventServiceList:
         audit_events_factory: AuditEventsFactory,
     ) -> None:
         """Test filtering events by category."""
-        await audit_events_factory.create_event(event_category="user_action")
-        await audit_events_factory.create_event(event_category="system_operation")
-        await audit_events_factory.create_event(event_category="user_action")
+        # Use unique action names so we can identify our events
+        await audit_events_factory.create_event(event_category="user_action", event_action="cat_filter_1")
+        await audit_events_factory.create_event(event_category="system_operation", event_action="cat_filter_2")
+        await audit_events_factory.create_event(event_category="user_action", event_action="cat_filter_3")
 
         service = AuditEventService(test_db_session, test_user)
         response = await service.list_resources(
             model=AuditEventRecord,
             response_type=AuditEventListResponse,
+            limit=200,
             query_params_items=[("event_category", "user_action")],
         )
 
-        assert len(response.resources) == 2
+        # At least the 2 we created; there may be pre-existing user_action events
+        our_events = [r for r in response.resources if r.event_action in ("cat_filter_1", "cat_filter_3")]
+        assert len(our_events) == 2
         assert all(r.event_category == "user_action" for r in response.resources)
 
     @pytest.mark.asyncio
