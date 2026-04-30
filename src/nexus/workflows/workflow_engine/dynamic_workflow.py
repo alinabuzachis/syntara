@@ -1303,3 +1303,17 @@ class NexusWorkflow:
 
         """
         return list(self.skipped_nodes)
+
+    @workflow.query
+    def get_failed_nodes(self) -> dict[str, str]:
+        """Query to get failed node IDs and their error messages.
+
+        This is consumed by ActivitySyncService to sync failed status to database.
+        Nodes fail when expression resolution or execution raises an exception
+        before a Temporal activity is scheduled, so no Temporal event is emitted.
+
+        Returns:
+            Dict mapping node ID to error message
+
+        """
+        return dict(self.failed_nodes)

@@ -365,7 +365,7 @@ class ActivitySyncService:
                 #   - Approval: Skipped-node sync is triggered in _sync_activities_to_db
                 #     when the WAITING→COMPLETED transition occurs (after signal received)
                 if activity_type == NodeType.CONDITION:
-                    await self._sync_skipped_nodes(metadata.execution_id, handle)
+                    await self._sync_skipped_nodes(metadata, handle)
 
         if event.event_type in {
             EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED,
@@ -432,8 +432,9 @@ class ActivitySyncService:
                     EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED,
                 }:
                     await self._update_execution_status_from_event(metadata, event, handle)
-                    # Final sync of skipped nodes at workflow completion
-                    await self._sync_skipped_nodes(execution_id, handle)
+                    # Final sync of skipped and failed nodes at workflow completion
+                    await self._sync_skipped_nodes(metadata, handle)
+                    await self._sync_failed_nodes(metadata, handle)
                     metadata.last_processed_event_id = event.event_id
                     continue  # Skip activity processing, likely last event
 
@@ -1097,7 +1098,7 @@ class ActivitySyncService:
                 # Sync skipped nodes when an approval resolves (the workflow
                 # will have marked the non-taken branch as skipped by now).
                 if approval_resolved:
-                    await self._sync_skipped_nodes(metadata.execution_id, handle)
+                    await self._sync_skipped_nodes(metadata, handle)
 
                 # Emit telemetry for activities that reached terminal states
                 emit_activities(
@@ -1178,67 +1179,123 @@ class ActivitySyncService:
 
     async def _sync_skipped_nodes(
         self,
-        execution_id: UUID,
+        metadata: ExecutionMonitorMetadata,
         handle: WorkflowHandle[Any, Any],
     ) -> None:
-        """Query workflow for skipped nodes and update them in database.
-
-        This method queries the workflow for its current list of skipped nodes
-        and marks them as SKIPPED in the database. The DB update is idempotent -
-        nodes already marked as SKIPPED will not be updated again.
-
-        Args:
-            execution_id: Database execution ID
-            handle: Workflow handle for querying
-
-        """
+        """Query workflow for skipped nodes and update them in database."""
         try:
-            # Query workflow for skipped node IDs
-            skipped_node_ids = await handle.query("get_skipped_nodes")
-
-            if not skipped_node_ids:
-                return
-
-            logger.debug(
-                "Syncing skipped nodes to database",
-                execution_id=execution_id,
-                skipped_count=len(skipped_node_ids),
+            skipped_node_ids: list[str] = await handle.query("get_skipped_nodes")
+            await self._sync_nodes_to_terminal_status(
+                metadata,
+                node_ids=skipped_node_ids,
+                target_status=ActivityStatus.SKIPPED,
             )
-
-            # Update skipped nodes in database (idempotent)
-            async with self.session_factory() as session:
-                # Fetch activities that need to be marked as skipped
-                # Only update if current status != SKIPPED (idempotent)
-                result = await session.exec(
-                    select(ActivityExecution).where(
-                        ActivityExecution.execution_id == execution_id,
-                        ActivityExecution.activity_name.in_(skipped_node_ids),  # type: ignore[attr-defined]
-                        ActivityExecution.status != ActivityStatus.SKIPPED,
-                    )
-                )
-                activities_to_skip = result.all()
-
-                if activities_to_skip:
-                    for activity in activities_to_skip:
-                        activity.status = ActivityStatus.SKIPPED
-                        activity.completed_at = datetime.now(UTC)
-
-                    await session.commit()
-
-                    logger.info(
-                        "Marked nodes as skipped in database",
-                        execution_id=execution_id,
-                        skipped_count=len(activities_to_skip),
-                    )
-
         except Exception:
-            # Log but don't re-raise — skipped node sync is best-effort.
-            # Skipped activities may remain PENDING in the database until
-            # manual reconciliation or the next workflow completion event.
             logger.exception(
                 "Error syncing skipped nodes (activities may remain PENDING)",
-                execution_id=execution_id,
+                execution_id=metadata.execution_id,
             )
+
+    async def _sync_failed_nodes(
+        self,
+        metadata: ExecutionMonitorMetadata,
+        handle: WorkflowHandle[Any, Any],
+    ) -> None:
+        """Query workflow for failed nodes and update PENDING ones in database.
+
+        Nodes that fail before a Temporal activity is scheduled (e.g., expression
+        resolution errors) have no Temporal events, so their ActivityExecution
+        records remain PENDING. Nodes that already have a non-PENDING status
+        (synced via Temporal events) are left untouched.
+        """
+        try:
+            failed_node_map: dict[str, str] = await handle.query("get_failed_nodes")
+            await self._sync_nodes_to_terminal_status(
+                metadata,
+                node_ids=list(failed_node_map.keys()),
+                target_status=ActivityStatus.FAILED,
+                error_map=failed_node_map,
+            )
+        except Exception:
+            logger.exception(
+                "Error syncing failed nodes (activities may remain PENDING)",
+                execution_id=metadata.execution_id,
+            )
+
+    async def _sync_nodes_to_terminal_status(
+        self,
+        metadata: ExecutionMonitorMetadata,
+        node_ids: list[str],
+        target_status: ActivityStatus,
+        error_map: dict[str, str] | None = None,
+    ) -> None:
+        """Update ActivityExecution records to a terminal status and publish patches.
+
+        Fetches all activities matching node_ids, then skips any that are already
+        in target_status. This keeps the SQL query simple and the skip logic
+        uniform regardless of the target status.
+
+        Args:
+            metadata: Monitoring metadata containing execution and activity index map
+            node_ids: Node IDs to update
+            target_status: Terminal status to set (SKIPPED, FAILED, etc.)
+            error_map: Optional mapping of node ID to error message
+
+        """
+        if not node_ids:
+            return
+
+        execution_id = metadata.execution_id
+        logger.debug(
+            "Syncing nodes to terminal status",
+            execution_id=execution_id,
+            target_status=target_status.value,
+            node_count=len(node_ids),
+        )
+
+        async with self.session_factory() as session:
+            result = await session.exec(
+                select(ActivityExecution).where(
+                    ActivityExecution.execution_id == execution_id,
+                    ActivityExecution.activity_name.in_(node_ids),  # type: ignore[attr-defined]
+                )
+            )
+            activities = result.all()
+
+            if not activities:
+                return
+
+            updated_activities: list[tuple[ActivityExecution, dict[str, Any]]] = []
+            now = datetime.now(UTC)
+            for activity in activities:
+                if activity.status == target_status:
+                    continue
+                old_values = {
+                    "status": activity.status,
+                    "started_at": activity.started_at,
+                    "completed_at": activity.completed_at,
+                    "error_details": activity.error_details,
+                }
+                activity.status = target_status
+                activity.completed_at = now
+                if error_map is not None:
+                    activity.error_details = error_map.get(activity.activity_name)
+                activity.updated_at = now
+                updated_activities.append((activity, old_values))
+
+            if not updated_activities:
+                return
+
+            await session.commit()
+
+            logger.info(
+                "Marked nodes in database",
+                execution_id=execution_id,
+                target_status=target_status.value,
+                count=len(updated_activities),
+            )
+
+            await self._publish_activity_patches(metadata, updated_activities)
 
     async def _create_all_activities_upfront(
         self,

@@ -1905,3 +1905,254 @@ class TestExtractFailedActivityErrors:
         """Test fallback when no failed_activities key."""
         result = ActivitySyncService._extract_failed_activity_errors({})
         assert result == "One or more workflow activities failed"
+
+
+class TestSyncNodesToTerminalStatus:
+    """Test _sync_nodes_to_terminal_status shared method and its callers.
+
+    Both _sync_skipped_nodes and _sync_failed_nodes delegate to a shared
+    method that handles DB updates and WebSocket patch publishing.
+    """
+
+    def setup_method(self) -> None:
+        """Set up test fixtures."""
+        self.execution_id = uuid4()
+        self.mock_session_factory = Mock()
+        self.mock_activity_publisher = AsyncMock()
+        self.service = ActivitySyncService(Mock(), self.mock_session_factory, self.mock_activity_publisher)
+
+    def _create_metadata(
+        self,
+        activity_index_map: dict[str, int] | None = None,
+    ) -> ExecutionMonitorMetadata:
+        return create_test_metadata(
+            execution_id=self.execution_id,
+            activity_index_map=activity_index_map or {},
+        )
+
+    def _create_mock_activity_execution(
+        self,
+        activity_name: str,
+        status: ActivityStatus = ActivityStatus.PENDING,
+    ) -> Mock:
+        """Create a mock ActivityExecution database record."""
+        activity = Mock()
+        activity.activity_name = activity_name
+        activity.status = status
+        activity.started_at = None
+        activity.completed_at = None
+        activity.error_details = None
+        activity.updated_at = None
+        return activity
+
+    def _mock_session(
+        self,
+        activities: list[Mock],
+        actually_updated_names: set[str] | None = None,
+    ) -> Mock:
+        """Create a mock session returning given activities.
+
+        activities: PENDING activities returned by the SELECT (Phase 1).
+        actually_updated_names: names returned by the RETURNING clause of the atomic
+            UPDATE (Phase 2). Defaults to all activity names, simulating every
+            activity being updated successfully.
+        """
+        mock_result = Mock()
+        mock_result.all.return_value = activities
+        mock_session = Mock()
+        mock_session.exec = AsyncMock(return_value=mock_result)
+
+        names = actually_updated_names if actually_updated_names is not None else {a.activity_name for a in activities}
+        mock_update_result = Mock()
+        mock_update_result.fetchall.return_value = [(name,) for name in names]
+        mock_session.execute = AsyncMock(return_value=mock_update_result)
+
+        mock_session.commit = AsyncMock()
+        mock_session.rollback = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        self.mock_session_factory.return_value = mock_session
+        return mock_session
+
+    # -- _sync_failed_nodes tests --
+
+    @pytest.mark.asyncio
+    async def test_failed_node_marked_as_failed_in_database(self) -> None:
+        """Node that failed during expression resolution should be marked FAILED."""
+        activity = self._create_mock_activity_execution("node-A")
+        self._mock_session([activity])
+        metadata = self._create_metadata(activity_index_map={"node-A": 0})
+
+        handle = AsyncMock()
+        handle.query = AsyncMock(return_value={"node-A": "Key 'output' not found in namespace path"})
+
+        await self.service._sync_failed_nodes(metadata, handle)
+
+        handle.query.assert_awaited_once_with("get_failed_nodes")
+        assert activity.status == ActivityStatus.FAILED
+        assert activity.completed_at is not None
+        assert activity.error_details == "Key 'output' not found in namespace path"
+
+    @pytest.mark.asyncio
+    async def test_multiple_failed_nodes_all_marked(self) -> None:
+        """Multiple failed nodes should each get the correct error message."""
+        activity_a = self._create_mock_activity_execution("node-A")
+        activity_b = self._create_mock_activity_execution("node-B")
+        self._mock_session([activity_a, activity_b])
+        metadata = self._create_metadata(activity_index_map={"node-A": 0, "node-B": 1})
+
+        handle = AsyncMock()
+        handle.query = AsyncMock(
+            return_value={
+                "node-A": "Key 'output' not found",
+                "node-B": "Namespace 'missing' not found",
+            }
+        )
+
+        await self.service._sync_failed_nodes(metadata, handle)
+
+        assert activity_a.status == ActivityStatus.FAILED
+        assert activity_a.error_details == "Key 'output' not found"
+        assert activity_b.status == ActivityStatus.FAILED
+        assert activity_b.error_details == "Namespace 'missing' not found"
+
+    @pytest.mark.asyncio
+    async def test_no_failed_nodes_is_noop(self) -> None:
+        """When no nodes failed, no database operations should occur."""
+        metadata = self._create_metadata()
+        handle = AsyncMock()
+        handle.query = AsyncMock(return_value={})
+
+        await self.service._sync_failed_nodes(metadata, handle)
+
+        self.mock_session_factory.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_failed_sync_skips_already_failed_node(self) -> None:
+        """Node already in FAILED status is filtered out by the PENDING WHERE clause.
+
+        The SELECT in Phase 1 filters to status=PENDING, so Temporal-synced FAILED
+        activities are never loaded and the atomic UPDATE never runs.
+        """
+        mock_session = self._mock_session([])  # FAILED activity excluded by WHERE status=PENDING
+        metadata = self._create_metadata()
+
+        handle = AsyncMock()
+        handle.query = AsyncMock(return_value={"node-A": "some error"})
+
+        await self.service._sync_failed_nodes(metadata, handle)
+
+        mock_session.execute.assert_not_awaited()
+        mock_session.commit.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_failed_sync_preserves_temporal_error_details(self) -> None:
+        """Temporal-synced FAILED activities must not be overwritten by query-based sync.
+
+        In production the SELECT WHERE status=PENDING excludes already-FAILED records.
+        This test verifies that when no PENDING activities are found (because Temporal
+        already synced them), no UPDATE is executed and no patches are published —
+        preserving the rich Temporal error details.
+        """
+        mock_session = self._mock_session([])  # Temporal-synced FAILED not in PENDING results
+        metadata = self._create_metadata()
+
+        handle = AsyncMock()
+        handle.query = AsyncMock(return_value={"node-A": "Key 'output' not found in namespace path"})
+
+        with patch.object(self.service, "_publish_activity_patches", new_callable=AsyncMock) as mock_publish:
+            await self.service._sync_failed_nodes(metadata, handle)
+
+        mock_session.execute.assert_not_awaited()
+        mock_session.commit.assert_not_awaited()
+        mock_publish.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_failed_sync_publishes_websocket_patches(self) -> None:
+        """Status changes should be published to WebSocket via activity patches."""
+        activity = self._create_mock_activity_execution("node-A")
+        self._mock_session([activity])
+        metadata = self._create_metadata(activity_index_map={"node-A": 0})
+
+        handle = AsyncMock()
+        handle.query = AsyncMock(return_value={"node-A": "expression error"})
+
+        with patch.object(self.service, "_publish_activity_patches", new_callable=AsyncMock) as mock_publish:
+            await self.service._sync_failed_nodes(metadata, handle)
+
+            mock_publish.assert_awaited_once()
+            call_args = mock_publish.call_args
+            assert call_args[0][0] is metadata
+            updated = call_args[0][1]
+            assert len(updated) == 1
+            assert updated[0][0] is activity
+            assert updated[0][1]["status"] == ActivityStatus.PENDING
+
+    @pytest.mark.asyncio
+    async def test_failed_sync_query_error_does_not_propagate(self) -> None:
+        """Errors during failed node sync should be logged, not raised."""
+        metadata = self._create_metadata()
+        handle = AsyncMock()
+        handle.query = AsyncMock(side_effect=RuntimeError("workflow not reachable"))
+
+        await self.service._sync_failed_nodes(metadata, handle)
+
+    # -- _sync_skipped_nodes tests --
+
+    @pytest.mark.asyncio
+    async def test_skipped_node_marked_as_skipped_in_database(self) -> None:
+        """Node on non-taken condition branch should be marked SKIPPED."""
+        activity = self._create_mock_activity_execution("node-B")
+        self._mock_session([activity])
+        metadata = self._create_metadata(activity_index_map={"node-B": 1})
+
+        handle = AsyncMock()
+        handle.query = AsyncMock(return_value=["node-B"])
+
+        await self.service._sync_skipped_nodes(metadata, handle)
+
+        handle.query.assert_awaited_once_with("get_skipped_nodes")
+        assert activity.status == ActivityStatus.SKIPPED
+        assert activity.completed_at is not None
+        assert activity.error_details is None
+
+    @pytest.mark.asyncio
+    async def test_skipped_sync_publishes_websocket_patches(self) -> None:
+        """Skipped nodes should trigger WebSocket activity patches after DB commit."""
+        activity = self._create_mock_activity_execution("node-B")
+        self._mock_session([activity])
+        metadata = self._create_metadata(activity_index_map={"node-B": 1})
+
+        handle = AsyncMock()
+        handle.query = AsyncMock(return_value=["node-B"])
+
+        with patch.object(self.service, "_publish_activity_patches", new_callable=AsyncMock) as mock_publish:
+            await self.service._sync_skipped_nodes(metadata, handle)
+
+            mock_publish.assert_awaited_once()
+            call_args = mock_publish.call_args
+            assert call_args[0][0] is metadata
+            updated = call_args[0][1]
+            assert len(updated) == 1
+            assert updated[0][0] is activity
+            assert updated[0][1]["status"] == ActivityStatus.PENDING
+
+    @pytest.mark.asyncio
+    async def test_no_skipped_nodes_is_noop(self) -> None:
+        """When no nodes skipped, no database operations should occur."""
+        metadata = self._create_metadata()
+        handle = AsyncMock()
+        handle.query = AsyncMock(return_value=[])
+
+        await self.service._sync_skipped_nodes(metadata, handle)
+
+        self.mock_session_factory.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_skipped_sync_query_error_does_not_propagate(self) -> None:
+        """Errors during skipped node sync should be logged, not raised."""
+        metadata = self._create_metadata()
+        handle = AsyncMock()
+        handle.query = AsyncMock(side_effect=RuntimeError("workflow not reachable"))
+
+        await self.service._sync_skipped_nodes(metadata, handle)
