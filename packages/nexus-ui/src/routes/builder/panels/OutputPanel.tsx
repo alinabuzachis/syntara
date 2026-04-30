@@ -1,15 +1,38 @@
-import { EmptyState, EmptyStateBody, Title } from '@patternfly/react-core'
+import { EmptyState, EmptyStateBody, Stack, StackItem, Title } from '@patternfly/react-core'
+import { useState } from 'react'
 
 import { AppPanel } from '../../../components/AppPanel'
 
 import styles from './panels.module.css'
 import { OutputJsonView } from './views/OutputJsonView'
+import { OutputSchemaView } from './views/OutputSchemaView'
+import { OutputTableView } from './views/OutputTableView'
+import { ViewToggle, type PanelView } from './ViewToggle'
 
 export type OutputPanelProps = {
   outputData?: Record<string, unknown> | null
 }
 
 export function OutputPanel({ outputData }: Readonly<OutputPanelProps>) {
+  const [activeView, setActiveView] = useState<PanelView>('json')
+
+  function renderView() {
+    if (!outputData) return null
+
+    switch (activeView) {
+      case 'schema':
+        return <OutputSchemaView data={outputData} />
+      case 'table':
+        return <OutputTableView data={outputData} />
+      case 'json':
+        return <OutputJsonView data={outputData} />
+      default: {
+        const _exhaustive: never = activeView
+        return _exhaustive
+      }
+    }
+  }
+
   return (
     <AppPanel
       variant="raised"
@@ -22,9 +45,14 @@ export function OutputPanel({ outputData }: Readonly<OutputPanelProps>) {
         Output
       </Title>
       {outputData ? (
-        <section aria-label="JSON output">
-          <OutputJsonView data={outputData} />
-        </section>
+        <Stack hasGutter className={styles.fillMinHeight}>
+          <StackItem>
+            <ViewToggle activeView={activeView} onChange={setActiveView} ariaLabel="Output view selection" />
+          </StackItem>
+          <StackItem isFilled className={styles.scrollableContent}>
+            {renderView()}
+          </StackItem>
+        </Stack>
       ) : (
         <EmptyState headingLevel="h3" titleText="No output data" variant="xs">
           <EmptyStateBody>Run the workflow to see output data here.</EmptyStateBody>

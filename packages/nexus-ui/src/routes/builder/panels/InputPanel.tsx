@@ -9,7 +9,6 @@ import { selectActivities, selectTriggers } from '../../../stores/workflowStoreS
 
 import { useUpstreamNodes, type UpstreamNodeInfo } from './hooks/useUpstreamNodes'
 import { InputEmptyState } from './InputEmptyState'
-import { InputViewToggle, type InputView } from './InputViewToggle'
 import { NodeSelectorDropdown } from './NodeSelectorDropdown'
 import styles from './panels.module.css'
 import { VariablesAndContextTree } from './VariablesAndContextTree'
@@ -17,6 +16,7 @@ import { InputJsonView } from './views/InputJsonView'
 import { InputSchemaPreview } from './views/InputSchemaPreview'
 import { InputSchemaView } from './views/InputSchemaView'
 import { InputTableView } from './views/InputTableView'
+import { ViewToggle, type PanelView } from './ViewToggle'
 
 type InputPanelProps = {
   nodeId: string
@@ -49,7 +49,7 @@ export function InputPanel({ nodeId, executionData, sourceNodeId }: Readonly<Inp
 
   const hasUpstream = effectiveUpstream.length > 0
 
-  const [activeView, setActiveView] = useState<InputView>('schema')
+  const [activeView, setActiveView] = useState<PanelView>('schema')
   const [selectedNodeId, setSelectedNodeId] = useState<string>(effectiveUpstream[0]?.id ?? '')
   const [isNodeSectionExpanded, setIsNodeSectionExpanded] = useState(true)
   const [isVarsSectionExpanded, setIsVarsSectionExpanded] = useState(false)
@@ -82,6 +82,10 @@ export function InputPanel({ nodeId, executionData, sourceNodeId }: Readonly<Inp
         return <InputTableView data={selectedData} />
       case 'json':
         return <InputJsonView data={selectedData} />
+      default: {
+        const _exhaustive: never = activeView
+        return _exhaustive
+      }
     }
   }
 
@@ -101,7 +105,7 @@ export function InputPanel({ nodeId, executionData, sourceNodeId }: Readonly<Inp
         <Stack hasGutter className={styles.fillMinHeight}>
           {hasData && (
             <StackItem>
-              <InputViewToggle activeView={activeView} onChange={setActiveView} />
+              <ViewToggle activeView={activeView} onChange={setActiveView} ariaLabel="Input view selection" />
             </StackItem>
           )}
           {effectiveUpstream.length > 1 && (

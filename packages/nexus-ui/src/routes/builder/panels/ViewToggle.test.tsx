@@ -3,11 +3,11 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { InputViewToggle } from './InputViewToggle'
+import { ViewToggle } from './ViewToggle'
 
-describe('InputViewToggle', () => {
+describe('ViewToggle', () => {
   it('renders three buttons: Schema, Table, JSON', () => {
-    render(<InputViewToggle activeView="schema" onChange={vi.fn()} />)
+    render(<ViewToggle activeView="schema" onChange={vi.fn()} ariaLabel="Input view selection" />)
 
     expect(screen.getByRole('button', { name: 'Schema' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Table' })).toBeInTheDocument()
@@ -15,7 +15,7 @@ describe('InputViewToggle', () => {
   })
 
   it('has Schema as active when activeView is schema', () => {
-    render(<InputViewToggle activeView="schema" onChange={vi.fn()} />)
+    render(<ViewToggle activeView="schema" onChange={vi.fn()} ariaLabel="Input view selection" />)
 
     expect(screen.getByRole('button', { name: 'Schema' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Table' })).toHaveAttribute('aria-pressed', 'false')
@@ -25,7 +25,7 @@ describe('InputViewToggle', () => {
   it('calls onChange with table when Table button is clicked', async () => {
     const user = userEvent.setup()
     const onChange = vi.fn()
-    render(<InputViewToggle activeView="schema" onChange={onChange} />)
+    render(<ViewToggle activeView="schema" onChange={onChange} ariaLabel="Input view selection" />)
 
     await user.click(screen.getByRole('button', { name: 'Table' }))
 
@@ -35,7 +35,7 @@ describe('InputViewToggle', () => {
   it('calls onChange with json when JSON button is clicked', async () => {
     const user = userEvent.setup()
     const onChange = vi.fn()
-    render(<InputViewToggle activeView="schema" onChange={onChange} />)
+    render(<ViewToggle activeView="schema" onChange={onChange} ariaLabel="Input view selection" />)
 
     await user.click(screen.getByRole('button', { name: 'JSON' }))
 
@@ -43,19 +43,25 @@ describe('InputViewToggle', () => {
   })
 
   it('reflects activeView prop for each view', () => {
-    const { rerender } = render(<InputViewToggle activeView="table" onChange={vi.fn()} />)
+    const { rerender } = render(<ViewToggle activeView="table" onChange={vi.fn()} ariaLabel="Test" />)
 
     expect(screen.getByRole('button', { name: 'Table' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Schema' })).toHaveAttribute('aria-pressed', 'false')
 
-    rerender(<InputViewToggle activeView="json" onChange={vi.fn()} />)
+    rerender(<ViewToggle activeView="json" onChange={vi.fn()} ariaLabel="Test" />)
 
     expect(screen.getByRole('button', { name: 'JSON' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Table' })).toHaveAttribute('aria-pressed', 'false')
   })
 
+  it('uses the provided ariaLabel', () => {
+    render(<ViewToggle activeView="schema" onChange={vi.fn()} ariaLabel="Output view selection" />)
+
+    expect(screen.getByRole('group', { name: 'Output view selection' })).toBeInTheDocument()
+  })
+
   it('has no accessibility violations', async () => {
-    const { container } = render(<InputViewToggle activeView="schema" onChange={vi.fn()} />)
+    const { container } = render(<ViewToggle activeView="schema" onChange={vi.fn()} ariaLabel="Test view" />)
 
     const results = await axe(container)
     expect(results).toHaveNoViolations()

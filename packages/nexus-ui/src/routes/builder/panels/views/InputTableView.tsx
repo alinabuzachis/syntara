@@ -1,74 +1,26 @@
-import { Table, Thead, Tr, Th, Tbody, Td } from '@patternfly/react-table'
-import { useCallback, useMemo } from 'react'
+import { useCallback } from 'react'
 
 import { highlightText } from '../../../../utils/highlightText'
 
-export type InputTableViewProps = {
-  data: Record<string, unknown> | Record<string, unknown>[] | null
+import { DataTableView, type DataTableViewProps } from './DataTableView'
+
+export type InputTableViewProps = Omit<DataTableViewProps, 'ariaLabel' | 'renderCell' | 'renderHeader'> & {
   searchTerm?: string
 }
 
-function toSafeString(value: unknown): string {
-  if (value === null || value === undefined) return ''
-  if (Array.isArray(value)) return '[Array]'
-  if (typeof value === 'object') return JSON.stringify(value)
-  if (typeof value === 'string') return value
-  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
-    return String(value)
-  }
-  return JSON.stringify(value)
-}
-
-function buildRowKey(row: Record<string, unknown>, columns: string[]): string {
-  return columns.map((col) => toSafeString(row[col])).join('|')
-}
-
-export function InputTableView({ data, searchTerm }: Readonly<InputTableViewProps>) {
-  const { columns, rows } = useMemo(() => {
-    if (!data) return { columns: [] as string[], rows: [] as Record<string, unknown>[] }
-
-    const rowArray = Array.isArray(data) ? data : [data]
-    const columnSet = new Set<string>()
-    for (const row of rowArray) {
-      for (const key of Object.keys(row)) {
-        columnSet.add(key)
-      }
-    }
-
-    return { columns: [...columnSet], rows: rowArray }
-  }, [data])
-
-  const getRowKey = useCallback(
-    (row: Record<string, unknown>, rowIndex: number) => {
-      const contentKey = buildRowKey(row, columns)
-      return contentKey || `row-${String(rowIndex)}`
-    },
-    [columns]
+export function InputTableView({ searchTerm, ...props }: Readonly<InputTableViewProps>) {
+  const renderCell = useCallback((text: string) => (searchTerm ? highlightText(text, searchTerm) : text), [searchTerm])
+  const renderHeader = useCallback(
+    (text: string) => (searchTerm ? highlightText(text, searchTerm) : text),
+    [searchTerm]
   )
 
   return (
-    <Table aria-label="Input data" variant="compact">
-      <Thead>
-        <Tr>
-          {columns.map((col) => (
-            <Th key={col}>{searchTerm ? highlightText(col, searchTerm) : col}</Th>
-          ))}
-        </Tr>
-      </Thead>
-      <Tbody>
-        {rows.map((row, rowIndex) => (
-          <Tr key={getRowKey(row, rowIndex)}>
-            {columns.map((col) => {
-              const text = toSafeString(row[col])
-              return (
-                <Td key={col} dataLabel={col}>
-                  {searchTerm ? highlightText(text, searchTerm) : text}
-                </Td>
-              )
-            })}
-          </Tr>
-        ))}
-      </Tbody>
-    </Table>
+    <DataTableView
+      {...props}
+      ariaLabel="Input data"
+      renderCell={searchTerm ? renderCell : undefined}
+      renderHeader={searchTerm ? renderHeader : undefined}
+    />
   )
 }

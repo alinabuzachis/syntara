@@ -1,29 +1,17 @@
-import { Label } from '@patternfly/react-core'
-import { TreeView, type TreeViewDataItem } from '@patternfly/react-core'
+import { Label, TreeView, type TreeViewDataItem } from '@patternfly/react-core'
 import { useCallback, useMemo } from 'react'
 
 import { buildExpression } from '../../../../utils/expressions/templateBuilder'
 import { highlightText } from '../../../../utils/highlightText'
 import { CopyExpressionAction, DraggableTreeLeaf } from '../components/DraggableTreeLeaf'
 import { DRAG_TYPE_FIELD, type FieldDragData } from '../utils/dragTypes'
+import { formatLeafValue, isExpandable } from '../utils/treeHelpers'
 import { getTypeLabelFromValue } from '../utils/typeLabels'
 
 export type InputSchemaViewProps = {
   data: Record<string, unknown> | null
   nodeId: string
   searchTerm?: string
-}
-
-function isExpandable(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function formatLeafValue(value: unknown): string {
-  if (typeof value === 'string') return value
-  if (typeof value === 'number') return String(value)
-  if (typeof value === 'boolean') return String(value)
-  if (Array.isArray(value)) return JSON.stringify(value)
-  return String(value)
 }
 
 function buildTreeData(

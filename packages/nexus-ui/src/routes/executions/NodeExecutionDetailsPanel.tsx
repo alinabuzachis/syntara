@@ -23,9 +23,9 @@ import { formatExecutionDateTime, formatElapsedTime } from '../../utils/dateUtil
 import { detachPromise } from '../../utils/detachPromise'
 import { highlightTextLines } from '../../utils/highlightText'
 import { ActivityStatusLabel } from '../builder/ExecutionStatus'
-import { InputViewToggle, type InputView } from '../builder/panels/InputViewToggle'
 import { InputSchemaView } from '../builder/panels/views/InputSchemaView'
 import { InputTableView } from '../builder/panels/views/InputTableView'
+import { ViewToggle, type PanelView } from '../builder/panels/ViewToggle'
 import type { ActivityState } from '../workflows/execution/types'
 
 import { useNodeExecutionDetails } from './hooks/useNodeExecutionDetails'
@@ -51,8 +51,8 @@ type DataPaneProps = {
   title: string
   nodeId: string
   data: Record<string, unknown> | null
-  view: InputView
-  onViewChange: (view: InputView) => void
+  view: PanelView
+  onViewChange: (view: PanelView) => void
   isErrorState?: boolean
 }
 
@@ -111,7 +111,7 @@ function DataPane({ title, nodeId, data, view, onViewChange, isErrorState = fals
             />
           </FlexItem>
           <FlexItem style={{ flexShrink: 0 }}>
-            <InputViewToggle activeView={view} onChange={onViewChange} />
+            <ViewToggle activeView={view} onChange={onViewChange} ariaLabel={`${title} view selection`} />
           </FlexItem>
         </Flex>
       </StackItem>
@@ -133,8 +133,8 @@ export function NodeExecutionDetailsPanel({
   nodeState,
   onClose,
 }: Readonly<NodeExecutionDetailsPanelProps>) {
-  const [inputView, setInputView] = useState<InputView>('json')
-  const [outputView, setOutputView] = useState<InputView>('json')
+  const [inputView, setPanelView] = useState<PanelView>('json')
+  const [outputView, setOutputView] = useState<PanelView>('json')
   const { inputData, outputData, isLoading, error, refetch } = useNodeExecutionDetails(nodeId, executionId)
 
   const nodeStarted = nodeState?.startedAt ?? null
@@ -206,7 +206,7 @@ export function NodeExecutionDetailsPanel({
                 nodeId={nodeId}
                 data={inputData}
                 view={inputView}
-                onViewChange={setInputView}
+                onViewChange={setPanelView}
               />
             </FlexItem>
             <FlexItem flex={{ default: 'flex_1' }} style={{ minWidth: 0, overflow: 'hidden' }}>

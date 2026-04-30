@@ -289,31 +289,32 @@ test.describe('Node editor panels', () => {
     await expect(app).toHaveURL(/workflow-builder\/.+/)
     workflowId = app.url().split('/').pop() ?? workflowId
 
-    // --- Verify each node's output data (scoped to the Output JSON region) ---
+    // --- Verify each node's output data ---
+    // Use the output JSON search input as a unique anchor to confirm output loaded,
+    // then use .first() for text that may appear in both Input and Output panels.
 
     // Node 1: Gather Info — output has server diagnostics
     await clickNode(app, 'Gather Info')
-    const outputJson = app.getByRole('region', { name: 'JSON output' })
-    await expect(outputJson).toBeVisible({ timeout: 10_000 })
-    await expect(outputJson).toContainText('"stdout_json"')
-    await expect(outputJson).toContainText('"web-01"')
-    await expect(outputJson).toContainText('"degraded"')
+    await expect(app.getByLabel('Search json output')).toBeVisible({ timeout: 10_000 })
+    await expect(app.getByText('"stdout_json"').first()).toBeVisible()
+    await expect(app.getByText('"web-01"').first()).toBeVisible()
+    await expect(app.getByText('"degraded"').first()).toBeVisible()
 
     // Node 2: Process Data — output has alert analysis (different from node 1)
     await closeNodeEditorPanel(app)
     await clickNode(app, 'Process Data')
-    await expect(outputJson).toBeVisible({ timeout: 10_000 })
-    await expect(outputJson).toContainText('"alert_level"')
-    await expect(outputJson).toContainText('"warning"')
-    await expect(outputJson).toContainText('"affected_server"')
+    await expect(app.getByLabel('Search json output')).toBeVisible({ timeout: 10_000 })
+    await expect(app.getByText('"alert_level"').first()).toBeVisible()
+    await expect(app.getByText('"warning"').first()).toBeVisible()
+    await expect(app.getByText('"affected_server"').first()).toBeVisible()
 
     // Node 3: Send Alert — output has notification result (different from nodes 1 and 2)
     await closeNodeEditorPanel(app)
     await clickNode(app, 'Send Alert')
-    await expect(outputJson).toBeVisible({ timeout: 10_000 })
-    await expect(outputJson).toContainText('"notification_sent"')
-    await expect(outputJson).toContainText('"#ops-alerts"')
-    await expect(outputJson).toContainText('"web-01 degraded"')
+    await expect(app.getByLabel('Search json output')).toBeVisible({ timeout: 10_000 })
+    await expect(app.getByText('"notification_sent"').first()).toBeVisible()
+    await expect(app.getByText('"#ops-alerts"').first()).toBeVisible()
+    await expect(app.getByText('"web-01 degraded"').first()).toBeVisible()
   })
 
   test('input panel shows schema preview at design time without running the workflow', async ({ app }) => {
@@ -646,25 +647,28 @@ test.describe('Node editor panels', () => {
     await clickNode(app, 'Analyze')
     await expect(app.getByRole('heading', { name: 'Input', exact: true })).toBeVisible({ timeout: 10_000 })
 
+    // Scope to Input view toggle to avoid ambiguity with Output view toggle
+    const inputToggle = app.getByRole('group', { name: 'Input view selection' })
+    await expect(inputToggle).toBeVisible({ timeout: 10_000 })
+
     // Schema view (default) — shows type labels
-    const schemaButton = app.getByRole('button', { name: 'Schema', pressed: true })
-    await expect(schemaButton).toBeVisible({ timeout: 10_000 })
+    await expect(inputToggle.getByRole('button', { name: 'Schema', pressed: true })).toBeVisible()
     await expect(app.getByText('T status')).toBeVisible()
 
     // Switch to Table view
-    await app.getByRole('button', { name: 'Table' }).click()
-    await expect(app.getByRole('button', { name: 'Table', pressed: true })).toBeVisible()
+    await inputToggle.getByRole('button', { name: 'Table' }).click()
+    await expect(inputToggle.getByRole('button', { name: 'Table', pressed: true })).toBeVisible()
     await expect(app.getByRole('columnheader', { name: 'status' })).toBeVisible()
 
     // Switch to JSON view
-    await app.getByRole('button', { name: 'JSON' }).click()
-    await expect(app.getByRole('button', { name: 'JSON', pressed: true })).toBeVisible()
+    await inputToggle.getByRole('button', { name: 'JSON' }).click()
+    await expect(inputToggle.getByRole('button', { name: 'JSON', pressed: true })).toBeVisible()
     const jsonInput = app.getByRole('region', { name: 'JSON input' })
     await expect(jsonInput).toContainText('"status"')
 
     // Switch back to Schema
-    await app.getByRole('button', { name: 'Schema' }).click()
-    await expect(app.getByRole('button', { name: 'Schema', pressed: true })).toBeVisible()
+    await inputToggle.getByRole('button', { name: 'Schema' }).click()
+    await expect(inputToggle.getByRole('button', { name: 'Schema', pressed: true })).toBeVisible()
     await expect(app.getByText('T status')).toBeVisible()
   })
 
@@ -790,5 +794,107 @@ test.describe('Node editor panels', () => {
     await dropdown.click()
     await app.getByRole('option', { name: /Step A/i }).click()
     await expect(app.getByText('alpha')).toBeVisible()
+  })
+
+  test('output panel view switching: Schema, Table, and JSON with execution data', async ({ app }) => {
+    const workflowName = buildUniqueName('e2e-out-views')
+    await createBasicWorkflow(app, workflowName, 'Run script')
+
+    // Extract node ID and workflow ID
+    await layoutCanvas(app)
+    const scriptNode = app.locator('.react-flow__node').filter({ hasText: 'Run script' })
+    await expect(scriptNode).toBeVisible({ timeout: 5_000 })
+    const scriptNodeId = await scriptNode.getAttribute('data-id')
+    const workflowId = app.url().split('/').pop()
+
+    // Register route mocks BEFORE navigating back to the builder,
+    // so execution data requests are intercepted on page load.
+    await app.route(/\/api\/v1\/executions/, async (route) => {
+      const url = route.request().url()
+      if (url.includes('/activities')) {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            resources: [
+              {
+                id: 'act-out-views',
+                execution_id: 'e2e-out-views-1',
+                activity_name: scriptNodeId,
+                status: 'completed',
+                started_at: '2024-01-01T00:00:01Z',
+                completed_at: '2024-01-01T00:00:02Z',
+                output_data: {
+                  status: 'completed',
+                  return_code: 0,
+                  stdout: '{"server": "web-01"}\n',
+                  stderr: '',
+                  stdout_json: { server: 'web-01' },
+                },
+                input_data: {},
+                error_details: null,
+                retry_count: 0,
+                iteration: null,
+              },
+            ],
+            next: null,
+            prev: null,
+          }),
+        })
+      } else {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            resources: [
+              {
+                id: 'e2e-out-views-1',
+                workflow_id: workflowId,
+                status: 'completed',
+                started_at: '2024-01-01T00:00:00Z',
+                completed_at: '2024-01-01T00:00:02Z',
+                created_at: '2024-01-01T00:00:00Z',
+              },
+            ],
+            next: null,
+            prev: null,
+          }),
+        })
+      }
+    })
+
+    // Navigate back to builder so mocks are active
+    await app.goto(toAppUrl('/workflows'))
+    await app.getByPlaceholder('Filter by name').fill(workflowName)
+    await app.getByRole('button', { name: 'Apply filter' }).click()
+    await app.getByRole('button', { name: workflowName, exact: true }).click()
+    await expect(app.locator('.react-flow__node').first()).toBeVisible({ timeout: 15_000 })
+
+    // Click the script node to open the editor
+    await clickNode(app, 'Run script')
+    await expect(app.getByRole('heading', { name: 'Output', exact: true })).toBeVisible({ timeout: 10_000 })
+
+    // Scope to Output view toggle to avoid ambiguity with Input view toggle
+    const outputToggle = app.getByRole('group', { name: 'Output view selection' })
+    await expect(outputToggle).toBeVisible({ timeout: 10_000 })
+
+    // JSON view is the default
+    await expect(outputToggle.getByRole('button', { name: 'JSON', pressed: true })).toBeVisible()
+    await expect(app.getByText('"stdout_json"')).toBeVisible()
+
+    // Switch to Schema view — tree with type labels
+    await outputToggle.getByRole('button', { name: 'Schema' }).click()
+    await expect(outputToggle.getByRole('button', { name: 'Schema', pressed: true })).toBeVisible()
+    const schemaTree = app.getByRole('tree', { name: 'Output schema' })
+    await expect(schemaTree).toBeVisible()
+
+    // Switch to Table view — grid with column headers
+    await outputToggle.getByRole('button', { name: 'Table' }).click()
+    await expect(outputToggle.getByRole('button', { name: 'Table', pressed: true })).toBeVisible()
+    await expect(app.getByRole('grid', { name: 'Output data' })).toBeVisible()
+    await expect(app.getByRole('columnheader', { name: 'status' })).toBeVisible()
+
+    // Switch back to JSON view
+    await outputToggle.getByRole('button', { name: 'JSON' }).click()
+    await expect(outputToggle.getByRole('button', { name: 'JSON', pressed: true })).toBeVisible()
+    await expect(app.getByText('"stdout_json"')).toBeVisible()
   })
 })
