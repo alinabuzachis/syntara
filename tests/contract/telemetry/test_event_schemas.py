@@ -12,6 +12,7 @@ from nexus.telemetry.events.workflow_execution import (
     WorkflowExecutionCompletedEvent,
     WorkflowExecutionStartEvent,
 )
+from nexus.telemetry.events.workflow_version import WorkflowVersionCreatedEvent
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
 
 # Import shared test data from unit telemetry conftest
@@ -118,3 +119,24 @@ class TestNodeExecutionEventSchema:
             )
             event_dict = event.model_dump()
             jsonschema.validate(instance=event_dict, schema=schema)
+
+
+class TestWorkflowVersionCreatedEventSchema:
+    """Contract tests for WorkflowVersionCreatedEvent JSON schema."""
+
+    def test_model_generates_valid_json_schema(self):
+        schema = WorkflowVersionCreatedEvent.model_json_schema()
+        assert schema["type"] == "object"
+        assert "workflow_id" in schema["properties"]
+        assert "version" in schema["properties"]
+
+    def test_valid_event_conforms_to_schema(self):
+        schema = WorkflowVersionCreatedEvent.model_json_schema()
+        event = WorkflowVersionCreatedEvent(
+            workflow_id="550e8400-e29b-41d4-a716-446655440000",
+            version=3,
+            entitlement_id="",
+        )
+        event_dict = event.model_dump()
+        jsonschema.validate(instance=event_dict, schema=schema)
+        assert json.dumps(event.to_segment_event())

@@ -20,6 +20,7 @@ from nexus.core.services import BaseService
 from nexus.core.services.extensions import ConvertResourceMixin
 from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.types import ComponentLabel, MetricType
+from nexus.telemetry.events.workflow_emitters import emit_workflow_version_created
 from nexus.workflows.exceptions import (
     WorkflowNameConflictError,
     WorkflowNotFoundError,
@@ -59,6 +60,13 @@ class WorkflowService(BaseService):
     def __init__(self, session: AsyncSession, user: User) -> None:
         """Initialize WorkflowService with database session and user context."""
         super().__init__(session, user, convert_resource_mixin=WorkflowConvertResourceMixin())
+
+    @staticmethod
+    def _emit_version_telemetry(workflow: Workflow, version: WorkflowVersion) -> None:
+        emit_workflow_version_created(
+            workflow_id=str(workflow.id),
+            version=version.version,
+        )
 
     def _is_duplicate_name_error(self, e: IntegrityError) -> bool:
         """Check if IntegrityError is due to duplicate workflow name.
@@ -186,6 +194,9 @@ class WorkflowService(BaseService):
             rate,
             component=component,
         )
+
+        self._emit_version_telemetry(workflow, version)
+
         return workflow, version
 
     async def list_workflows_cursor(
@@ -447,8 +458,9 @@ class WorkflowService(BaseService):
             )
 
         # Handle workflow_definition - creates new version
+        new_version: WorkflowVersion | None = None
         if workflow_definition is not None:
-            await self.create_workflow_version(
+            new_version = await self.create_workflow_version(
                 workflow,
                 workflow_definition=workflow_definition,
                 change_description=change_description,
@@ -457,6 +469,10 @@ class WorkflowService(BaseService):
         # Commit changes with duplicate name check (use workflow.name since it may have been updated)
         await self._commit_with_duplicate_check(workflow.name)
         await self.session.refresh(workflow)
+
+        if new_version:
+            await self.session.refresh(new_version)
+            self._emit_version_telemetry(workflow, new_version)
 
         # Get current version for return
         _, current_version = await self.get_workflow_with_version(workflow_id)

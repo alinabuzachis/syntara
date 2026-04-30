@@ -14,6 +14,7 @@ import structlog
 
 from nexus.telemetry.client import get_telemetry_registry
 from nexus.telemetry.collector import _TERMINAL_STATUSES, TelemetryCollector
+from nexus.telemetry.events.workflow_version import WorkflowVersionCreatedEvent
 from nexus.workflows.models.activity_execution import ActivityStatus
 from nexus.workflows.models.execution import ExecutionStatus
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, WorkflowTerminalStatus
@@ -249,6 +250,48 @@ def emit_workflow_error(
         logger.exception(
             "Failed to emit workflow error telemetry (non-fatal)",
             execution_id=execution_id,
+        )
+
+
+def emit_workflow_version_created(
+    workflow_id: str,
+    version: int,
+    *,
+    request_id: UUID | None = None,
+) -> None:
+    """Emit telemetry event when a new workflow version is created.
+
+    Args:
+        workflow_id: Workflow UUID as string.
+        version: Sequential version number.
+        request_id: Optional X-Request-Id from the originating HTTP request.
+
+    """
+    try:
+        registry = get_telemetry_registry()
+        if not registry.is_initialized():
+            return
+
+        registry.send_event(
+            WorkflowVersionCreatedEvent(
+                workflow_id=workflow_id,
+                version=version,
+                entitlement_id=registry.entitlement_id,
+                request_id=request_id,
+            )
+        )
+
+        logger.debug(
+            "Emitted workflow version created telemetry",
+            workflow_id=workflow_id,
+            version=version,
+        )
+
+    except Exception:
+        logger.exception(
+            "Failed to emit workflow version created telemetry (non-fatal)",
+            workflow_id=workflow_id,
+            version=version,
         )
 
 
