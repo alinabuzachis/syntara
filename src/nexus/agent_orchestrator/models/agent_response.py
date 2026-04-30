@@ -15,9 +15,9 @@ class BaseAgentResponse(SQLModel):
     Concrete agent response types should inherit from this class.
     """
 
-    content: str = Field(
+    content: str | dict[str, Any] = Field(
         ...,
-        description="The main content of the agent's response",
+        description="The main content of the agent's response (str for text, dict for structured output)",
     )
     response_metadata: dict[str, Any] = Field(
         default_factory=dict,

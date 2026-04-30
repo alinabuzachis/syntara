@@ -68,6 +68,10 @@ class AgentState(TypedDict):
     execution_id: NotRequired[UUID | None]
     """Optional workflow execution ID for telemetry correlation"""
 
+    # Structured output support
+    response_schema: NotRequired[dict[str, Any] | None]
+    """Optional JSON Schema for structured output"""
+
 
 class AgentStateFactory:
     """Factory for creating AgentState instances."""
@@ -80,6 +84,7 @@ class AgentStateFactory:
         metadata: dict[str, Any] | None = None,
         user_id: UUID | None = None,
         execution_id: UUID | None = None,
+        response_schema: dict[str, Any] | None = None,
     ) -> AgentState:
         """Create initial state for LangGraph execution.
 
@@ -90,6 +95,7 @@ class AgentStateFactory:
             metadata: Optional metadata from invocation context_data (e.g., callback_url)
             user_id: Optional UUID of the user who initiated the invocation
             execution_id: Optional workflow execution ID for telemetry correlation
+            response_schema: Optional JSON Schema for structured output
 
         Returns:
             Initial AgentState ready for orchestration
@@ -108,4 +114,5 @@ class AgentStateFactory:
             result=None,
             llm_token_usage_log=[],
             execution_id=execution_id or None,
+            response_schema=response_schema,
         )

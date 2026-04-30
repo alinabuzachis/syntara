@@ -156,6 +156,10 @@ async def execute_agentic_activity(
             # Inject LLM credential if resolved from Nexus credential system
             _inject_llm_credential_metadata(agent_metadata, input_config)
 
+            # Pass response_schema if defined
+            if config.response_schema:
+                agent_metadata["response_schema"] = config.response_schema
+
             # Invoke agent asynchronously
             invocation_id = await agent_client.invoke_agent_async(
                 prompt=config.prompt,

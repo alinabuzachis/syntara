@@ -69,6 +69,7 @@ class WorkflowSignalClient:
                 "result": {
                     "content": result.get("content"),
                     "response_metadata": result.get("response_metadata", {}),
+                    "structured_output_metadata": result.get("structured_output_metadata"),
                 },
                 "timestamp": datetime.now(UTC).isoformat(),
                 "agent_type": "GenericAgent",

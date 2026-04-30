@@ -3,10 +3,11 @@
 Handles information queries and questions using LLM via OpenRouter.
 """
 
+import json as _json
 from typing import TYPE_CHECKING, Any
 
 import structlog
-from langchain_core.messages import AIMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
 
@@ -53,6 +54,31 @@ class GenericAgent(BaseAgent):
             GenericAgentResponse SQLModel instance with LLM-generated answer
 
         """
+        response_schema = state.get("response_schema")
+
+        # Case B: Structured output with no tools - use .with_structured_output() directly
+        if response_schema and not self.available_tools:
+            return await self._execute_structured(state, response_schema)
+
+        # Standard execution (with or without tools)
+        state = await self._execute_standard(state)
+
+        # Case A: Structured output with tools - run extraction step after tool loop
+        if response_schema and self.available_tools:
+            state = await self._extract_structured_output(state, response_schema)
+
+        return state
+
+    async def _execute_standard(self, state: AgentState) -> AgentState:
+        """Execute standard LLM call with tools.
+
+        Args:
+            state: LangGraph state containing enhanced prompt and metadata
+
+        Returns:
+            Updated state with LLM response
+
+        """
         # Query LLM via LangChain (async)
         llm_with_tools = self.llm.bind_tools(self.available_tools)
         messages: list[AnyMessage] = [
@@ -90,6 +116,100 @@ class GenericAgent(BaseAgent):
         state["result"] = response_model.model_dump(by_alias=True)
 
         return state
+
+    async def _execute_structured(self, state: AgentState, response_schema: dict[str, Any]) -> AgentState:
+        """Execute with structured output directly (no tools).
+
+        Args:
+            state: LangGraph state
+            response_schema: JSON Schema for structured output
+
+        Returns:
+            Updated state with structured output
+
+        """
+        try:
+            structured_llm = self.llm.with_structured_output(response_schema, method="json_mode")
+            schema_str = _json.dumps(response_schema, indent=2)
+            messages = [
+                SystemMessage(
+                    content="You are an information assistant for the Nexus automation system. "
+                    "You MUST respond with ONLY a valid JSON object matching this exact schema:\n\n"
+                    f"```json\n{schema_str}\n```\n\n"
+                    "Use exactly the property names from the schema. "
+                    "Do not include any text outside the JSON object."
+                )
+            ] + state["messages"]
+
+            parsed_output = await record_llm_call(
+                get_metrics_recorder(),
+                lambda: structured_llm.ainvoke(messages),
+                model=getattr(self.llm, "model_name", None),
+            )
+
+            # Token usage unavailable: json_mode returns a parsed dict, not an AIMessage
+            state["llm_token_usage_log"] = []
+            state["messages"] = []
+
+            result_dict = GenericAgentResponse(
+                content=parsed_output,
+                response_metadata={},
+            ).model_dump(by_alias=True)
+            result_dict["structured_output_metadata"] = {"fallback_strategy_used": "native"}
+            state["result"] = result_dict
+
+            return state
+        except Exception:  # noqa: BLE001
+            logger.warning("Structured output failed, falling back to standard execution", exc_info=True)
+            return await self._execute_standard(state)
+
+    async def _extract_structured_output(self, state: AgentState, response_schema: dict[str, Any]) -> AgentState:
+        """Post-tool-loop extraction: reformat result into schema.
+
+        Args:
+            state: State after tool execution
+            response_schema: JSON Schema for structured output
+
+        Returns:
+            Updated state with structured content
+
+        """
+        try:
+            result_dict = state.get("result")
+            if not result_dict:
+                return state
+
+            current_answer = result_dict.get("content", "")
+            if not current_answer:
+                return state
+
+            extraction_llm = self.llm.with_structured_output(response_schema, method="json_mode")
+            schema_str = _json.dumps(response_schema, indent=2)
+            extraction_messages = [
+                SystemMessage(
+                    content="Extract and format the following information into this exact JSON schema:\n\n"
+                    f"```json\n{schema_str}\n```\n\n"
+                    "Use exactly the property names from the schema. "
+                    "Do not include any text outside the JSON object."
+                ),
+                HumanMessage(content=f"Extract from this text:\n\n{current_answer}"),
+            ]
+
+            parsed_output = await record_llm_call(
+                get_metrics_recorder(),
+                lambda: extraction_llm.ainvoke(extraction_messages),
+                model=getattr(self.llm, "model_name", None),
+            )
+
+            result_dict["content"] = parsed_output
+            result_dict["structured_output_metadata"] = {"fallback_strategy_used": "native"}
+            return state
+        except Exception:  # noqa: BLE001
+            logger.warning("Structured output extraction failed, keeping raw text", exc_info=True)
+            result_dict = state.get("result")
+            if result_dict:
+                result_dict["structured_output_metadata"] = {"fallback_strategy_used": "none"}
+            return state
 
     @staticmethod
     def _build_token_usage_entry(result_message: AIMessage) -> dict[str, Any] | None:

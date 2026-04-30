@@ -169,6 +169,12 @@ class InvocationExecutor:
                 raw_execution_id = invocation.context_data.get("execution_id")
                 execution_id = UUID(str(raw_execution_id)) if isinstance(raw_execution_id, str) else None
                 request_id_context_var.set(_extract_request_id(invocation.context_data))
+
+                # Extract response_schema for structured output support
+                raw_meta = invocation.context_data.get("metadata") if invocation.context_data else None
+                metadata_dict = raw_meta if isinstance(raw_meta, dict) else {}
+                response_schema = metadata_dict.get("response_schema")
+
                 result_dict = await orchestration_service.execute(
                     prompt=invocation.prompt,
                     session_id=invocation.session_id,
@@ -176,6 +182,7 @@ class InvocationExecutor:
                     metadata=invocation.context_data,
                     user_id=invocation.created_by,
                     execution_id=execution_id,
+                    response_schema=response_schema,
                 )
 
                 # Check if invocation was cancelled during execution (fix race condition)

@@ -158,6 +158,32 @@ async def _seed_assignments_and_admin(
             )
         )
 
+    # Bootstrap system user (used by workflow engine for automated invocations)
+    settings = get_settings()
+    existing_system_user = await session.exec(select(User).where(User.id == settings.system_user_id))
+    system_user = existing_system_user.one_or_none()
+    if not system_user:
+        system_user = User(
+            id=settings.system_user_id,
+            username="system",
+            email="system@nexus.local",
+            full_name="System",
+            is_active=True,
+        )
+        session.add(system_user)
+        await session.flush()
+        logger.info("Bootstrap system user created", user_id=str(system_user.id))
+
+    # Add system user to admins group (needs execution:run for signal callbacks)
+    existing_sys_membership = await session.exec(
+        select(user_groups.c.user_id).where(
+            user_groups.c.user_id == system_user.id,
+            user_groups.c.group_id == admin_group.id,
+        )
+    )
+    if not existing_sys_membership.one_or_none():
+        await session.exec(insert(user_groups).values(user_id=system_user.id, group_id=admin_group.id))
+
     # Bootstrap admin user
     existing_admin_user = await session.exec(select(User).where(User.username == "admin"))
     admin_user = existing_admin_user.one_or_none()

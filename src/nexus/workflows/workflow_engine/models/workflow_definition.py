@@ -220,7 +220,7 @@ class APIExecutorConfig(TemplateAwareBaseModel):
         return v
 
 
-class AgenticExecutorConfig(TemplateAwareBaseModel):
+class AgenticExecutorConfig(TemplateAwareBaseModel, populate_by_name=True):
     """Configuration for agentic executor.
 
     Attributes:
@@ -249,6 +249,11 @@ class AgenticExecutorConfig(TemplateAwareBaseModel):
         max_length=10,
         description="File IDs for agent context",
     )
+    response_schema: dict[str, Any] | str | None = Field(
+        default=None,
+        alias="responseSchema",
+        description="JSON Schema for structured output. When defined, agent output conforms to this schema.",
+    )
 
     @field_validator("prompt")
     @classmethod
@@ -275,6 +280,22 @@ class AgenticExecutorConfig(TemplateAwareBaseModel):
             except ValueError as err:
                 msg = f"Invalid file_id format: '{file_id}'. Must be a valid UUID."
                 raise SafeValueError(msg) from err
+        return v
+
+    @field_validator("response_schema")
+    @classmethod
+    def validate_response_schema_structure(cls, v: dict[str, Any] | str | None) -> dict[str, Any] | str | None:
+        """Validate response_schema is a valid JSON schema object.
+
+        Template expressions (str matching ${...}) bypass this validator via
+        TemplateAwareBaseModel's wrap validator and arrive here as str.
+        Non-template values arrive as dict or None.
+        """
+        if v is None or isinstance(v, str):
+            return v
+        if "type" not in v:
+            msg = "response_schema must include a 'type' field"
+            raise SafeValueError(msg)
         return v
 
 
