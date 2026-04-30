@@ -26,6 +26,7 @@ from tests.performance.conftest import (
     compute_percentile,
     poll_for_component_kpis,
     poll_for_metric_records,
+    poll_until_resources_terminal,
 )
 from tests.performance.execution_service.conftest import (
     EXECUTION_WORKFLOW_DEFINITION,
@@ -85,22 +86,18 @@ class TestCompletionRate:
         execution_id: str,
     ) -> str:
         """Poll an execution until it reaches a terminal status or times out."""
-        deadline = time.monotonic() + POLL_TIMEOUT_SECONDS
-        last_status = "unknown"
-
-        while time.monotonic() < deadline:
-            try:
-                r = nexus_api.executions.get(execution_id=execution_id)
-                if r.is_success and r.parsed:
-                    parsed = r.parsed.to_dict()
-                    last_status = str(parsed.get("status", "unknown"))
-                    if last_status in TERMINAL_STATUSES:
-                        return last_status
-            except Exception:
-                pass
-            time.sleep(POLL_INTERVAL_SECONDS)
-
-        return last_status
+        status_counts = poll_until_resources_terminal(
+            nexus_api,
+            "executions",
+            [execution_id],
+            id_param="execution_id",
+            timeout=POLL_TIMEOUT_SECONDS,
+            interval=POLL_INTERVAL_SECONDS,
+        )
+        for status in status_counts:
+            if status in TERMINAL_STATUSES:
+                return status
+        return next(iter(status_counts), "unknown")
 
     def test_workflow_completion_rate(
         self,
@@ -233,24 +230,6 @@ class TestCancellationTracking:
         assert r.parsed is not None, "Workflow creation returned empty response"
         return UUID(str(r.parsed.id))
 
-    def _collect_execution_statuses(
-        self,
-        nexus_api: NexusApiRegistry,
-        execution_ids: list[str],
-    ) -> dict[str, int]:
-        """Poll execution statuses and return counts by status."""
-        status_counts: dict[str, int] = {}
-        for exec_id in execution_ids:
-            try:
-                r = nexus_api.executions.get(execution_id=exec_id)
-                if r.is_success and r.parsed:
-                    parsed = r.parsed.to_dict()
-                    status = parsed.get("status", "unknown")
-                    status_counts[status] = status_counts.get(status, 0) + 1
-            except Exception:
-                status_counts["error"] = status_counts.get("error", 0) + 1
-        return status_counts
-
     def _verify_metric_records(
         self,
         records: dict[str, Any],
@@ -268,15 +247,14 @@ class TestCancellationTracking:
         execution_ids: list[str],
     ) -> dict[str, int]:
         """Poll until all executions reach a terminal status or timeout."""
-        deadline = time.monotonic() + POLL_TIMEOUT_SECONDS
-        status_counts: dict[str, int] = {}
-        while time.monotonic() < deadline:
-            status_counts = self._collect_execution_statuses(nexus_api, execution_ids)
-            terminal = sum(v for k, v in status_counts.items() if k in TERMINAL_STATUSES)
-            if terminal >= len(execution_ids):
-                break
-            time.sleep(POLL_INTERVAL_SECONDS)
-        return status_counts
+        return poll_until_resources_terminal(
+            nexus_api,
+            "executions",
+            execution_ids,
+            id_param="execution_id",
+            timeout=POLL_TIMEOUT_SECONDS,
+            interval=POLL_INTERVAL_SECONDS,
+        )
 
     def test_execution_status_distribution_tracked(
         self,

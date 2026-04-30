@@ -138,6 +138,63 @@ def poll_for_metric_records(
     return records
 
 
+TERMINAL_STATUSES = {"completed", "failed", "cancelled"}
+
+RESOURCE_POLL_INTERVAL = 2.0
+RESOURCE_POLL_TIMEOUT = 120.0
+
+
+def poll_until_resources_terminal(
+    nexus_api: NexusApiRegistry,
+    resource_type: str,
+    resource_ids: list[str],
+    *,
+    id_param: str,
+    timeout: float = RESOURCE_POLL_TIMEOUT,
+    interval: float = RESOURCE_POLL_INTERVAL,
+) -> dict[str, int]:
+    """Poll until all resources reach a terminal status or timeout.
+
+    Supports any API resource that exposes a ``.get()`` method returning
+    a response with a ``parsed.status`` attribute (e.g. invocations,
+    executions).
+
+    Args:
+        nexus_api: Authenticated API client registry.
+        resource_type: API attribute name on nexus_api (e.g. "invocation",
+            "executions").
+        resource_ids: List of resource IDs to poll.
+        id_param: Keyword argument name for the resource ID in the
+            ``.get()`` call (e.g. "execution_id", "invocation_id").
+        timeout: Maximum seconds to wait for terminal states.
+        interval: Seconds between poll cycles.
+
+    Returns:
+        Dict mapping status strings to their counts.
+
+    """
+    api = getattr(nexus_api, resource_type)
+    deadline = time.monotonic() + timeout
+    status_counts: dict[str, int] = {}
+
+    while time.monotonic() < deadline:
+        status_counts = {}
+        for rid in resource_ids:
+            try:
+                r = api.get(**{id_param: rid})
+                if r.is_success and r.parsed:
+                    status = str(r.parsed.status)
+                    status_counts[status] = status_counts.get(status, 0) + 1
+            except Exception:
+                pass
+        terminal = sum(v for k, v in status_counts.items() if k in TERMINAL_STATUSES)
+        if terminal >= len(resource_ids):
+            break
+        time.sleep(interval)
+
+    return status_counts
+
+
 def create_perf_test_workflow(
     nexus_api: NexusApiRegistry,
     name_prefix: str,
