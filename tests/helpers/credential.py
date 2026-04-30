@@ -2,6 +2,7 @@
 
 from uuid import uuid4
 
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.models import Project
@@ -19,7 +20,11 @@ class CredentialFactory:
         self.user = user
 
     async def create_type(self, name: str) -> CredentialType:
-        """Create a credential type."""
+        """Create a credential type, or return the existing one if name is taken."""
+        result = await self.session.exec(select(CredentialType).where(CredentialType.name == name))
+        existing = result.first()
+        if existing is not None:
+            return existing
         ct = CredentialType(
             name=name,
             description=f"Test {name}",

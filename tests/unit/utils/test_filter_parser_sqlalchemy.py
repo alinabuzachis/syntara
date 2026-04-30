@@ -197,7 +197,7 @@ class TestFilterParserSQLAlchemy:
         # Should match users starting with 'a' and active
         expected_users = [u for u in test_users if u.username.startswith("a") and u.is_enabled]
         assert len(result) == len(expected_users)
-        assert result[0].username == expected_users[0].username
+        assert {u.username for u in result} == {u.username for u in expected_users}
 
     async def test_apply_filters_case_insensitive_string_operations(
         self, test_users: list[User], test_db_session: AsyncSession

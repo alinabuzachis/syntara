@@ -309,8 +309,9 @@ async def test_admin_self_disable_allowed(test_db_session: AsyncSession) -> None
     )
     test_db_session.add(other_admin)
 
-    # Seed admins group with both members
+    # Seed admins group with both members (clear any pre-seeded memberships first)
     admins_group = await _get_or_create_admins_group(test_db_session)
+    await test_db_session.execute(user_groups.delete().where(user_groups.c.group_id == admins_group.id))
     await test_db_session.flush()
     await test_db_session.execute(insert(user_groups).values(user_id=admin.id, group_id=admins_group.id))
     await test_db_session.execute(insert(user_groups).values(user_id=other_admin.id, group_id=admins_group.id))
@@ -495,6 +496,7 @@ async def test_delete_last_admin_raises_error(test_db_session: AsyncSession) -> 
     test_db_session.add(sole_admin)
 
     admins_group = await _get_or_create_admins_group(test_db_session)
+    await test_db_session.execute(user_groups.delete().where(user_groups.c.group_id == admins_group.id))
     await test_db_session.execute(insert(user_groups).values(user_id=sole_admin.id, group_id=admins_group.id))
     await test_db_session.commit()
 
