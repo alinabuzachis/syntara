@@ -2,6 +2,7 @@ import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import { Label } from '@patternfly/react-core'
 import {
   RhUiCheckCircleIcon,
+  RhUiClockIcon,
   RhUiCloseCircleIcon,
   RhUiEllipsisHorizontalFillIcon,
   RhUiHourglassIcon,
@@ -47,6 +48,7 @@ export function StatusLabel({ status }: Readonly<{ status: ExecutionStatus }>) {
 const activityStatusVariant: Record<ActivityStatus, 'success' | 'danger' | 'warning' | 'info' | 'custom'> = {
   pending: 'custom',
   running: 'custom',
+  waiting: 'warning',
   completed: 'success',
   failed: 'danger',
   retrying: 'warning',
@@ -57,6 +59,7 @@ const activityStatusVariant: Record<ActivityStatus, 'success' | 'danger' | 'warn
 const activityStatusIcons: Record<ActivityStatus, React.ComponentType<{ className?: string }>> = {
   pending: RhUiEllipsisHorizontalFillIcon,
   running: RhUiSyncIcon,
+  waiting: RhUiClockIcon,
   completed: RhUiCheckCircleIcon,
   failed: RhUiCloseCircleIcon,
   retrying: RhUiSyncIcon,
@@ -67,6 +70,7 @@ const activityStatusIcons: Record<ActivityStatus, React.ComponentType<{ classNam
 const activityStatusDisplayLabels: Record<ActivityStatus, string> = {
   pending: 'Pending',
   running: 'Running',
+  waiting: 'Waiting for approval',
   completed: 'Successful',
   failed: 'Failed',
   retrying: 'Retrying',

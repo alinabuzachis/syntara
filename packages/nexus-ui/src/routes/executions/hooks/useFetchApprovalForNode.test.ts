@@ -40,10 +40,9 @@ describe('useFetchApprovalForNode', () => {
     } as never)
   })
 
-  it('returns null approval initially', () => {
+  it('starts with isLoading false', () => {
     const { result } = renderHook(() => useFetchApprovalForNode('exec-1'))
 
-    expect(result.current.approval).toBeNull()
     expect(result.current.isLoading).toBe(false)
   })
 
@@ -60,7 +59,6 @@ describe('useFetchApprovalForNode', () => {
     })
 
     expect(fetchedApproval).toEqual(mockApproval)
-    expect(result.current.approval).toEqual(mockApproval)
     expect(result.current.isLoading).toBe(false)
   })
 
@@ -77,7 +75,6 @@ describe('useFetchApprovalForNode', () => {
     })
 
     expect(fetchedApproval).toBeNull()
-    expect(result.current.approval).toBeNull()
   })
 
   it('returns null when no approvals exist', async () => {
@@ -95,24 +92,14 @@ describe('useFetchApprovalForNode', () => {
     expect(fetchedApproval).toBeNull()
   })
 
-  it('clears the approval state', async () => {
-    mockRefetch.mockResolvedValue({
-      data: { resources: [mockApproval] },
-    })
-
+  it('resets isLoading on clear', () => {
     const { result } = renderHook(() => useFetchApprovalForNode('exec-1'))
-
-    await act(async () => {
-      await result.current.fetchForNode('node-abc')
-    })
-
-    expect(result.current.approval).toEqual(mockApproval)
 
     act(() => {
       result.current.clear()
     })
 
-    expect(result.current.approval).toBeNull()
+    expect(result.current.isLoading).toBe(false)
   })
 
   it('resets isLoading when fetch fails', async () => {

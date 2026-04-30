@@ -13,7 +13,6 @@ import { BuilderFlow } from './BuilderFlow'
 import { ExecutionViewContext } from './ExecutionViewContext'
 import type { EdgeConnection } from './types/edge'
 import { v2PortToHandle } from './utils/edgeHelpers'
-// loadWorkflow removed — v2 activities are already flat
 
 type ActivityData = ExecutionsAPI.components['schemas']['ActivityData']
 type ActivityExecution = ExecutionsAPI.components['schemas']['ActivityExecution']
@@ -54,24 +53,22 @@ function ExecutionViewContentInner(props: ExecutionViewContentProps) {
   const prevWorkflowIdRef = useRef<string | null>(null)
   const prevExecutionIdRef = useRef<string | null>(null)
 
-  // Load execution activities into execution store FIRST (before workflow)
+  // Load execution activities into execution store
   useEffect(() => {
     const workflowId = workflow?.id ?? null
 
-    // Reset when workflow OR execution changes
     if (prevWorkflowIdRef.current !== workflowId || prevExecutionIdRef.current !== executionId) {
       hasLoadedActivitiesRef.current = false
       prevExecutionIdRef.current = executionId
     }
 
-    // Load execution activities before workflow
     if (executionActivities && executionActivities.length > 0 && !hasLoadedActivitiesRef.current) {
       setActivityExecutions(executionActivities)
       hasLoadedActivitiesRef.current = true
     }
   }, [executionActivities, setActivityExecutions, workflow, executionId])
 
-  // Load workflow into store AFTER activities are loaded
+  // Load workflow into store
   useEffect(() => {
     const workflowId = workflow?.id ?? null
 
@@ -84,7 +81,7 @@ function ExecutionViewContentInner(props: ExecutionViewContentProps) {
       prevExecutionIdRef.current = executionId
     }
 
-    // Only load workflow if we have activities loaded (or no activities to load)
+    // Only load workflow after activities are loaded (or if there are none to load)
     const canLoadWorkflow = !executionActivities || executionActivities.length === 0 || hasLoadedActivitiesRef.current
 
     // Load the workflow if we have one and haven't loaded it yet
@@ -163,6 +160,7 @@ function ExecutionViewContentInner(props: ExecutionViewContentProps) {
         minWidth: 0,
         width: '100%',
         height: '100%',
+        overflow: 'hidden',
       }}
     >
       <BuilderFlow

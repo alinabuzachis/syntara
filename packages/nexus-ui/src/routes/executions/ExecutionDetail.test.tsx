@@ -2,10 +2,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { axe } from 'vitest-axe'
 
 import { executionsClient } from '../../client'
 
 import ExecutionDetail from './ExecutionDetail'
+import { useExecutionNodeClick } from './hooks/useExecutionNodeClick'
 
 // Create mock functions
 const mockSetLocation = vi.fn()
@@ -173,6 +175,44 @@ vi.mock('../builder/ExecutionStatus', () => ({
 // Mock useExecutionWebSocket hook
 vi.mock('../workflows/hooks/useExecutionWebSocket', () => ({
   useExecutionWebSocket: vi.fn(),
+}))
+
+// Mock ApprovalReviewView component
+vi.mock('./ApprovalReviewView', () => ({
+  ApprovalReviewView: ({ approval, onClose }: { approval: { id: string; name: string }; onClose: () => void }) => (
+    <div data-testid="approval-review-view">
+      <div>Approval: {approval.name}</div>
+      <button onClick={onClose}>Close review</button>
+    </div>
+  ),
+}))
+
+// Mock useExecutionNodeClick hook
+const mockHandleNodeClick = vi.fn()
+const mockSelectNode = vi.fn()
+const mockDeselectNode = vi.fn()
+const mockPendingApproval = {
+  id: 'approval-1',
+  name: 'Test Approval',
+  approval_node_id: 'node-abc',
+  status: 'pending',
+  execution_id: 'exec-123',
+  workflow_context: { workflow_name: 'Test Workflow' },
+}
+
+const mockClearPendingApproval = vi.fn()
+
+vi.mock('./hooks/useExecutionNodeClick', () => ({
+  useExecutionNodeClick: vi.fn(() => ({
+    pendingApproval: null,
+    isApprovalLoading: false,
+    clearPendingApproval: mockClearPendingApproval,
+    selectedNodeId: null,
+    selectedNodeName: null,
+    selectNode: mockSelectNode,
+    deselectNode: mockDeselectNode,
+    handleNodeClick: mockHandleNodeClick,
+  })),
 }))
 
 describe('ExecutionDetail', () => {
@@ -515,5 +555,74 @@ describe('ExecutionDetail', () => {
       // Restore original
       useExecutionStore.getState = originalGetState
     })
+  })
+
+  describe('Approval Review View', () => {
+    it('opens approval review view when Review approval is clicked', async () => {
+      vi.mocked(useExecutionNodeClick).mockReturnValue({
+        pendingApproval: mockPendingApproval as never,
+        isApprovalLoading: false,
+        clearPendingApproval: mockClearPendingApproval,
+        selectedNodeId: null,
+        selectedNodeName: null,
+        selectNode: mockSelectNode,
+        deselectNode: mockDeselectNode,
+        handleNodeClick: mockHandleNodeClick,
+      })
+
+      const user = userEvent.setup()
+      const queryClient = new QueryClient()
+      render(
+        <QueryClientProvider client={queryClient}>
+          <ExecutionDetail />
+        </QueryClientProvider>
+      )
+
+      await user.click(screen.getByRole('button', { name: 'Review approval' }))
+
+      expect(screen.getByTestId('approval-review-view')).toBeInTheDocument()
+    })
+
+    it('closes approval review view and shows canvas when Close is clicked', async () => {
+      vi.mocked(useExecutionNodeClick).mockReturnValue({
+        pendingApproval: mockPendingApproval as never,
+        isApprovalLoading: false,
+        clearPendingApproval: mockClearPendingApproval,
+        selectedNodeId: null,
+        selectedNodeName: null,
+        selectNode: mockSelectNode,
+        deselectNode: mockDeselectNode,
+        handleNodeClick: mockHandleNodeClick,
+      })
+
+      const user = userEvent.setup()
+      const queryClient = new QueryClient()
+      render(
+        <QueryClientProvider client={queryClient}>
+          <ExecutionDetail />
+        </QueryClientProvider>
+      )
+
+      // Open the review view
+      await user.click(screen.getByRole('button', { name: 'Review approval' }))
+      expect(screen.getByTestId('approval-review-view')).toBeInTheDocument()
+
+      // Close it
+      await user.click(screen.getByRole('button', { name: 'Close review' }))
+      expect(screen.queryByTestId('approval-review-view')).not.toBeInTheDocument()
+      expect(screen.getByTestId('execution-view-content')).toBeInTheDocument()
+      expect(mockClearPendingApproval).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  it('has no accessibility violations', async () => {
+    const queryClient = new QueryClient()
+    const { container } = render(
+      <QueryClientProvider client={queryClient}>
+        <ExecutionDetail />
+      </QueryClientProvider>
+    )
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
   })
 })

@@ -56,6 +56,7 @@ describe('constants', () => {
     it('contains all activity status constants', () => {
       expect(ACTIVITY_STATUS.PENDING).toBe('pending')
       expect(ACTIVITY_STATUS.RUNNING).toBe('running')
+      expect(ACTIVITY_STATUS.WAITING).toBe('waiting')
       expect(ACTIVITY_STATUS.COMPLETED).toBe('completed')
       expect(ACTIVITY_STATUS.FAILED).toBe('failed')
       expect(ACTIVITY_STATUS.RETRYING).toBe('retrying')
@@ -64,7 +65,7 @@ describe('constants', () => {
     })
 
     it('has all expected status keys', () => {
-      const expectedKeys = ['PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'RETRYING', 'SKIPPED', 'CANCELLED']
+      const expectedKeys = ['PENDING', 'RUNNING', 'WAITING', 'COMPLETED', 'FAILED', 'RETRYING', 'SKIPPED', 'CANCELLED']
       expect(Object.keys(ACTIVITY_STATUS)).toEqual(expectedKeys)
     })
   })

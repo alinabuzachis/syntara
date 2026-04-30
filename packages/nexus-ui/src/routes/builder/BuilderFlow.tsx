@@ -27,18 +27,13 @@ import { collectAllActivityIds } from '../../stores/workflowActivityHelpers'
 import { detachPromise } from '../../utils/detachPromise'
 import { buildTriggerNodeId } from '../../utils/triggerNodeIds'
 import { CanvasControls } from '../workflows/canvas/CanvasControls'
-import { edgeTypes } from '../workflows/canvas/edges/EdgeType'
-import { nodeTypes, type NodeType } from '../workflows/canvas/nodes/NodeType'
+import { type NodeType } from '../workflows/canvas/nodes/NodeType'
 import { UndoRedoControls } from '../workflows/canvas/UndoRedoControls'
 import { useExecutionStore } from '../workflows/stores/useExecutionStore'
 
-import { ButtonEdge } from './edges/ButtonEdge'
+import { builderEdgeTypes, builderNodeTypes, resolveExecutionStatus } from './builderFlowConfig'
 import { BUTTON_EDGE_DEFAULT_STROKE } from './edges/buttonEdgeStrokeColor'
-import { DefaultEdge } from './edges/DefaultEdge'
 import { EdgeMarkers } from './edges/edgeMarkers'
-import { LoopBackEdge } from './edges/LoopBackEdge'
-import { LoopDoneEdge } from './edges/LoopDoneEdge'
-import { LoopOutgoingEdge } from './edges/LoopOutgoingEdge'
 import { useIsExecutionView } from './ExecutionViewContext'
 import { useBuilderFlowGraph, executionStateEnricher } from './hooks/useBuilderFlowGraph'
 import { useButtonEdgeMaintenance } from './hooks/useButtonEdgeMaintenance'
@@ -52,25 +47,10 @@ import { useNodePositioning } from './hooks/useNodePositioning'
 import { useNodeUpdates } from './hooks/useNodeUpdates'
 import { usePendingEdgeManagement } from './hooks/usePendingEdgeManagement'
 import { useWorkflowInitialization } from './hooks/useWorkflowInitialization'
-import { PlaceholderNode } from './nodes/PlaceholderNode'
 import type { BuilderFlowProps, PendingEdge } from './types'
 import { getLayoutedElements } from './utils/layoutEngine'
 import { validateConnection } from './utils/validateConnection'
 import { markerEnd, type EdgeType } from './utils/workflowToGraph'
-
-const builderNodeTypes = {
-  ...nodeTypes,
-  placeholder: PlaceholderNode,
-}
-
-const builderEdgeTypes = {
-  ...edgeTypes,
-  default: DefaultEdge,
-  buttonEdge: ButtonEdge,
-  loopBack: LoopBackEdge,
-  loopDone: LoopDoneEdge,
-  loopOutgoing: LoopOutgoingEdge,
-}
 
 // eslint-disable-next-line max-lines-per-function
 export function BuilderFlow(props: BuilderFlowProps) {
@@ -113,6 +93,13 @@ export function BuilderFlow(props: BuilderFlowProps) {
   // Get activity states from execution store (for execution view edge styling)
   const activityStates = useExecutionStore((state) => state.activityStates)
 
+  // In execution view, prefer the WebSocket-updated status from the store over the REST prop
+  // (which can be stale, e.g. still 'pending' after the WebSocket reports 'running').
+  // In builder/editor mode (executionStatus is null), always use null — ignore stale store data.
+  const storeExecutionStatus = useExecutionStore((state) => state.visualization?.status)
+  const effectiveExecutionStatus = resolveExecutionStatus(executionStatus, storeExecutionStatus)
+  const edgeExecutionStatus = effectiveExecutionStatus ?? (isExecutionView ? 'pending' : null)
+
   // Track pending edge that was dragged to canvas
   const [pendingEdge, setPendingEdge] = useState<PendingEdge | null>(null)
 
@@ -121,7 +108,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     triggers,
     activities,
     storedEdges,
-    executionStatus,
+    executionStatus: effectiveExecutionStatus,
     activityStates,
     onAddNodeFromEdge,
     workflowVersion,
@@ -431,7 +418,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     pendingEdge,
     setNodes,
     setEdges,
-    executionStatus: executionStatus ?? null,
+    executionStatus: edgeExecutionStatus,
   })
 
   // Use custom hook to manage edge active states
@@ -502,7 +489,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
   // Update node execution state when activity states change (e.g., after REST load or WebSocket)
   useEffect(() => {
-    if (!executionStatus || !isInitialized) return
+    if (!effectiveExecutionStatus || !isInitialized) return
     if (activityStates.size === 0) return
 
     // Pre-index activities by ID for O(1) lookup instead of O(n) find
@@ -518,7 +505,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
           const enriched = executionStateEnricher.enrichTriggerNode(
             node.id,
             node.data as Record<string, unknown>,
-            executionStatus,
+            effectiveExecutionStatus,
             storedEdges,
             activityStates
           )
@@ -528,7 +515,12 @@ export function BuilderFlow(props: BuilderFlowProps) {
         // Enrich activity nodes
         const activity = activitiesById.get(node.id)
         if (activity) {
-          const enriched = executionStateEnricher.enrichActivity(activity, executionStatus, activityStates, storedEdges)
+          const enriched = executionStateEnricher.enrichActivity(
+            activity,
+            effectiveExecutionStatus,
+            activityStates,
+            storedEdges
+          )
           return applyEnrichedData(node, enriched, anyChangedRef)
         }
         return node
@@ -537,11 +529,11 @@ export function BuilderFlow(props: BuilderFlowProps) {
       // Only return new array if something actually changed
       return anyChangedRef.current ? updatedNodes : currentNodes
     })
-  }, [activityStates, executionStatus, isInitialized, currentWorkflow, applyEnrichedData])
+  }, [activityStates, effectiveExecutionStatus, isInitialized, currentWorkflow, applyEnrichedData])
 
   // Update edge execution status when activity states change (for WebSocket updates)
   useEffect(() => {
-    if (!executionStatus || !isInitialized) return
+    if (!effectiveExecutionStatus || !isInitialized) return
 
     // Get current activities from workflow store
     const activities = currentWorkflow?.workflow.activities ?? []
@@ -564,7 +556,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
         return edge
       })
     )
-  }, [activityStates, executionStatus, isInitialized, currentWorkflow])
+  }, [activityStates, effectiveExecutionStatus, isInitialized, currentWorkflow])
 
   const isValidConnection = useCallback(
     (connection: EdgeType | Connection) => {
@@ -587,7 +579,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
         position: 'relative',
       }}
     >
-      {executionStatus === 'running' && (
+      {effectiveExecutionStatus === 'running' && (
         <div
           style={{
             position: 'absolute',

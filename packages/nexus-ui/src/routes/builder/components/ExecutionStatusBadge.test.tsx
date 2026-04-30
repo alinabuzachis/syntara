@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import { axe } from 'vitest-axe'
 
 import { ExecutionStatusBadge } from './ExecutionStatusBadge'
 
@@ -64,6 +65,15 @@ describe('ExecutionStatusBadge', () => {
     expect(style).toContain('border-style: dashed')
   })
 
+  it('renders waiting status with warning border', () => {
+    render(<ExecutionStatusBadge status="waiting" />)
+
+    const badge = screen.getByLabelText('Waiting for approval')
+    const style = badge.getAttribute('style') ?? ''
+    expect(style).toContain('border-color: var(--pf-t--global--color--status--warning--default)')
+    expect(style).toContain('border-style: solid')
+  })
+
   it('renders cancelled status with muted border', () => {
     render(<ExecutionStatusBadge status="cancelled" />)
 
@@ -76,11 +86,10 @@ describe('ExecutionStatusBadge', () => {
     render(<ExecutionStatusBadge status="running" />)
 
     const badge = screen.getByLabelText('Running')
-    expect(badge).toHaveStyle({
-      position: 'absolute',
-      bottom: '-20px',
-      right: '-20px',
-    })
+    const style = badge.getAttribute('style') ?? ''
+    expect(style).toContain('position: absolute')
+    expect(style).toContain('bottom: -20px')
+    expect(style).toContain('right: -20px')
   })
 
   it('renders with correct size', () => {
@@ -91,5 +100,11 @@ describe('ExecutionStatusBadge', () => {
     expect(style).toContain('width: 48px')
     expect(style).toContain('height: 48px')
     expect(style).toContain('border-radius: 50%')
+  })
+
+  it('has no accessibility violations', async () => {
+    const { container } = render(<ExecutionStatusBadge status="waiting" />)
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
   })
 })

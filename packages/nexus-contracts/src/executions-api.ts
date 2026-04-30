@@ -341,7 +341,7 @@ export interface components {
      * @description Current state of an individual activity execution
      * @enum {string}
      */
-    ActivityStatus: 'pending' | 'running' | 'completed' | 'failed' | 'retrying' | 'skipped' | 'cancelled'
+    ActivityStatus: 'pending' | 'running' | 'waiting' | 'completed' | 'failed' | 'retrying' | 'skipped' | 'cancelled'
     /**
      * Activity Data
      * @description Activity data for execution response when include=activities is requested

@@ -2,9 +2,7 @@ import type { ApprovalStatus } from '@ansible/nexus-contracts'
 import { Label } from '@patternfly/react-core'
 import { RhUiDislikeFillIcon, RhUiLikeFillIcon, RhUiWarningFillIcon } from '@patternfly/react-icons'
 
-export type ExtendedApprovalStatus = ApprovalStatus | 'cancelled'
-
-const statusMap: Record<ExtendedApprovalStatus, 'info' | 'success' | 'danger' | 'warning'> = {
+const statusMap: Record<ApprovalStatus, 'info' | 'success' | 'danger' | 'warning'> = {
   pending: 'warning',
   approved: 'success',
   rejected: 'danger',
@@ -12,7 +10,7 @@ const statusMap: Record<ExtendedApprovalStatus, 'info' | 'success' | 'danger' | 
   cancelled: 'info',
 }
 
-const statusIcons: Record<ExtendedApprovalStatus, React.ComponentType<{ className?: string }>> = {
+const statusIcons: Record<ApprovalStatus, React.ComponentType<{ className?: string }>> = {
   pending: RhUiWarningFillIcon,
   approved: RhUiLikeFillIcon,
   rejected: RhUiDislikeFillIcon,
@@ -20,7 +18,7 @@ const statusIcons: Record<ExtendedApprovalStatus, React.ComponentType<{ classNam
   cancelled: RhUiWarningFillIcon,
 }
 
-export function ApprovalStatusBadges(props: { status?: ExtendedApprovalStatus | null }) {
+export function ApprovalStatusBadges(props: Readonly<{ status?: ApprovalStatus | null }>) {
   if (!props.status) {
     return null
   }

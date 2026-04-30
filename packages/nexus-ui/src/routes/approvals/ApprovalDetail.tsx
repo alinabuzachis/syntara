@@ -25,10 +25,11 @@ import { AppPanel } from '../../components/AppPanel'
 import { CodeBlock } from '../../components/details/CodeBlock'
 import { ErrorState } from '../../components/states/ErrorState'
 import { useQueryState } from '../../components/states/useQueryState'
+import { useMutationErrorHandler } from '../../hooks/useMutationErrorHandler'
 import { formatDateTime } from '../../utils/dateUtils'
 import { detachPromise } from '../../utils/detachPromise'
-import { getDateField } from '../../utils/getDateField'
 
+import { ApprovalSummaryList } from './ApprovalSummaryList'
 import { ApprovalStatusBadges } from './approvalUtils'
 
 const getDecisionCopy = (decision: 'approved' | 'rejected') => ({
@@ -40,49 +41,6 @@ const getNotesLabel = (status: string) => {
   if (status === 'approved') return 'Approval notes'
   if (status === 'rejected') return 'Rejection notes'
   return 'Notes'
-}
-
-function ApprovalSummaryList(props: {
-  workflowLink?: string
-  workflowName: string
-  approvalInitiated: string
-  onWorkflowClick: (link: string) => void
-}) {
-  return (
-    <DescriptionList
-      isAutoColumnWidths
-      columnModifier={{ default: '3Col' }}
-      style={{ justifyContent: 'space-between' }}
-    >
-      <DescriptionListGroup>
-        <DescriptionListTerm>Approval type</DescriptionListTerm>
-        <DescriptionListDescription>
-          Approval Node {/** TODO: make this use real type when we have multiple types implemented */}
-        </DescriptionListDescription>
-      </DescriptionListGroup>
-      <DescriptionListGroup>
-        <DescriptionListTerm>Workflow</DescriptionListTerm>
-        <DescriptionListDescription>
-          {props.workflowLink ? (
-            <Button
-              variant="link"
-              isInline
-              onClick={() => props.onWorkflowClick(props.workflowLink!)}
-              style={{ paddingLeft: 0 }}
-            >
-              {props.workflowName}
-            </Button>
-          ) : (
-            props.workflowName
-          )}
-        </DescriptionListDescription>
-      </DescriptionListGroup>
-      <DescriptionListGroup>
-        <DescriptionListTerm>Approval initiated</DescriptionListTerm>
-        <DescriptionListDescription>{props.approvalInitiated}</DescriptionListDescription>
-      </DescriptionListGroup>
-    </DescriptionList>
-  )
 }
 
 // eslint-disable-next-line complexity
@@ -106,6 +64,9 @@ export default function ApprovalDetail() {
   })
 
   const approval = approvalQuery.data
+
+  const decisionMutation = approvalsClient.useMutation('patch', '/approvals/{approval_id}')
+  const handleError = useMutationErrorHandler()
 
   const [pendingDecision, setPendingDecision] = useState<'approved' | 'rejected' | undefined>(undefined)
   const [pendingReason, setPendingReason] = useState('')
@@ -139,24 +100,46 @@ export default function ApprovalDetail() {
   const approvalName = approval?.name || approval?.id || approvalId || 'Approval'
   const approvalStatus = approval?.status ?? 'pending'
   const isPending = approvalStatus === 'pending'
-  const wfCtx = approval?.workflow_context as { workflow_name?: string; workflow_version_id?: string } | undefined
-  const workflowName = wfCtx?.workflow_name || 'Workflow'
-  const workflowId = wfCtx?.workflow_version_id
+  const workflowName = approval?.workflow_context?.workflow_name || 'Workflow'
+  const workflowId = approval?.workflow_context?.workflow_version_id
   const workflowLink = workflowId ? AppRoute.WorkflowBuilder.Edit.replace(':workflowId', workflowId) : undefined
-  const createdAt = approval ? getDateField(approval as Record<string, unknown>, 'createdAt') : null
+  const createdAt = approval?.created_at ?? null
   const approvalInitiated = formatDateTime(createdAt)
   const decisionNotes = approval?.decision_notes ?? undefined
   const notesLabel = getNotesLabel(approvalStatus)
-  const canSubmit = isPending && Boolean(pendingDecision && pendingReason.trim())
+  const isSubmitting = decisionMutation.isPending || (decisionMutation.isSuccess && approvalQuery.isFetching)
+  const canSubmit = isPending && Boolean(pendingDecision) && !decisionMutation.isSuccess
   const decisionCopy = pendingDecision ? getDecisionCopy(pendingDecision) : undefined
 
   const handleSubmit = () => {
-    showAlert({
-      title: pendingDecision === 'approved' ? 'Approval submitted' : 'Rejection submitted',
-      description: `Unfortunately, this isn't yet implemented.`,
-      variant: 'success',
-      autoDismiss: true,
-    })
+    if (!pendingDecision || !approvalId || isSubmitting) return
+
+    decisionMutation.mutate(
+      {
+        params: { path: { approval_id: approvalId } },
+        body: {
+          status: pendingDecision,
+          notes: pendingReason.trim() || null,
+        },
+      },
+      {
+        onSuccess: () => {
+          showAlert({
+            title: pendingDecision === 'approved' ? 'Approval submitted' : 'Rejection submitted',
+            description: `The approval decision has been recorded.`,
+            variant: 'success',
+            autoDismiss: true,
+          })
+          detachPromise(
+            approvalQuery.refetch().then(() => {
+              setPendingDecision(undefined)
+              setPendingReason('')
+            })
+          )
+        },
+        onError: handleError({ title: 'Failed to submit decision' }),
+      }
+    )
   }
 
   const renderDecisionActions = () => {
@@ -182,7 +165,12 @@ export default function ApprovalDetail() {
       return (
         <ActionList>
           <ActionListItem>
-            <Button icon={<RhUiLikeIcon />} variant="secondary" onClick={() => setPendingDecision('approved')}>
+            <Button
+              icon={<RhUiLikeIcon />}
+              variant="secondary"
+              isDisabled={isSubmitting}
+              onClick={() => setPendingDecision('approved')}
+            >
               Approve
             </Button>
           </ActionListItem>
@@ -191,6 +179,7 @@ export default function ApprovalDetail() {
               icon={<RhUiDislikeIcon />}
               variant="secondary"
               isDanger
+              isDisabled={isSubmitting}
               onClick={() => setPendingDecision('rejected')}
             >
               Reject
@@ -204,7 +193,13 @@ export default function ApprovalDetail() {
       <Stack hasGutter>
         <Split hasGutter>
           <ApprovalStatusBadges status={pendingDecision} />
-          <Button icon={<RhUiBackwardsIcon />} variant="plain" isInline onClick={() => setPendingDecision(undefined)} />
+          <Button
+            icon={<RhUiBackwardsIcon />}
+            variant="plain"
+            isInline
+            isDisabled={isSubmitting}
+            onClick={() => setPendingDecision(undefined)}
+          />
         </Split>
         <FormGroup isInline label={decisionCopy?.label ?? 'Notes'}>
           <TextInput
@@ -224,7 +219,7 @@ export default function ApprovalDetail() {
           {isPending ? 'Cancel' : 'Back to Approvals'}
         </Button>
         {isPending && (
-          <Button isDisabled={!canSubmit} onClick={handleSubmit}>
+          <Button isDisabled={!canSubmit} isLoading={isSubmitting} onClick={handleSubmit}>
             Submit
           </Button>
         )}

@@ -213,8 +213,14 @@ export class ExecutionStateEnricher {
       return targetState && targetState.status !== ACTIVITY_STATUS.PENDING
     })
 
-    // Trigger is 'completed' if any connected node started, 'pending' otherwise
-    const status = anyTargetStarted ? ACTIVITY_STATUS.COMPLETED : ACTIVITY_STATUS.PENDING
+    // Trigger is 'completed' if any connected node started OR if the execution
+    // itself is running/completed (the trigger must have fired for that to happen).
+    const executionHasStarted =
+      executionStatus === 'running' ||
+      executionStatus === 'paused' ||
+      executionStatus === 'completed' ||
+      executionStatus === 'failed'
+    const status = anyTargetStarted || executionHasStarted ? ACTIVITY_STATUS.COMPLETED : ACTIVITY_STATUS.PENDING
 
     return {
       ...triggerData,

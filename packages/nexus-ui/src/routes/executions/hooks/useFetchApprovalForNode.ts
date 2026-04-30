@@ -4,13 +4,11 @@ import { useCallback, useState } from 'react'
 import { approvalsClient } from '../../../client'
 
 type UseFetchApprovalForNodeResult = {
-  /** The matching approval for the clicked node, or null if not found / not yet fetched. */
-  approval: Approval | null
   /** Whether a fetch is currently in progress. */
   isLoading: boolean
   /** Fetch the pending approval for the given node. Returns the approval if found. */
   fetchForNode: (approvalNodeId: string) => Promise<Approval | null>
-  /** Clear the current approval (e.g., when closing the review view). */
+  /** Reset loading state (e.g., when closing the review view). */
   clear: () => void
 }
 
@@ -22,7 +20,6 @@ type UseFetchApprovalForNodeResult = {
  * a waiting approval node on the canvas.
  */
 export function useFetchApprovalForNode(executionId: string): UseFetchApprovalForNodeResult {
-  const [approval, setApproval] = useState<Approval | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
   const { refetch } = approvalsClient.useQuery('get', '/approvals', {
@@ -43,7 +40,6 @@ export function useFetchApprovalForNode(executionId: string): UseFetchApprovalFo
         const approvals = result.data?.resources ?? []
         const match = approvals.find((a) => a.approval_node_id === approvalNodeId)
         const resolved = (match?.id ? match : null) as Approval | null
-        setApproval(resolved)
         return resolved
       } finally {
         setIsLoading(false)
@@ -53,8 +49,8 @@ export function useFetchApprovalForNode(executionId: string): UseFetchApprovalFo
   )
 
   const clear = useCallback(() => {
-    setApproval(null)
+    setIsLoading(false)
   }, [])
 
-  return { approval, isLoading, fetchForNode, clear }
+  return { isLoading, fetchForNode, clear }
 }

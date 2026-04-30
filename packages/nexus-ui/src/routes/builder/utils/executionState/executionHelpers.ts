@@ -81,6 +81,7 @@ export type ActivityTypeValue = (typeof ACTIVITY_TYPES)[keyof typeof ACTIVITY_TY
 export const ACTIVITY_STATUS = {
   PENDING: 'pending',
   RUNNING: 'running',
+  WAITING: 'waiting',
   COMPLETED: 'completed',
   FAILED: 'failed',
   RETRYING: 'retrying',

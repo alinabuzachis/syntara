@@ -143,23 +143,17 @@ export interface components {
        * Next Step Approved
        * @description First activity that executes if approved
        */
-      next_step_approved: {
-        [key: string]: unknown
-      }
+      next_step_approved: components['schemas']['ActivitySummary']
       /**
        * Next Step Rejected
        * @description First activity that executes if rejected
        */
-      next_step_rejected?: {
-        [key: string]: unknown
-      } | null
+      next_step_rejected?: components['schemas']['ActivitySummary'] | null
       /**
        * Workflow Context
        * @description Workflow inputs and previous step output
        */
-      workflow_context?: {
-        [key: string]: unknown
-      }
+      workflow_context: components['schemas']['WorkflowContext']
       /** @description User who made the decision */
       decided_by?: components['schemas']['UserReference'] | null
       /**

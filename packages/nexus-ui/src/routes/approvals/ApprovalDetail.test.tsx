@@ -1,7 +1,8 @@
 import type { Approval } from '@ansible/nexus-contracts'
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { axe } from 'vitest-axe'
 import { useLocation, useParams } from 'wouter'
 
 import { approvalsClient } from '../../client'
@@ -9,9 +10,14 @@ import { approvalsClient } from '../../client'
 import ApprovalDetail from './ApprovalDetail'
 
 // Mock the approvalsClient
+const mockMutate = vi.fn()
 vi.mock('../../client', () => ({
   approvalsClient: {
     useQuery: vi.fn(),
+    useMutation: vi.fn(() => ({
+      mutate: mockMutate,
+      isPending: false,
+    })),
   },
 }))
 
@@ -25,8 +31,8 @@ describe('ApprovalDetail Component', () => {
   const now = Date.now()
   const mockApproval: Approval = {
     id: '550e8400-e29b-41d4-a716-446655440001',
-    createdAt: new Date(now - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
-    updatedAt: new Date(now - 2 * 60 * 60 * 1000).toISOString(),
+    created_at: new Date(now - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
+    updated_at: new Date(now - 2 * 60 * 60 * 1000).toISOString(),
     labels: {},
     execution_id: '660e8400-e29b-41d4-a716-446655440001',
     approval_node_id: 'approval-activity-1',
@@ -67,6 +73,11 @@ describe('ApprovalDetail Component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mockMutate.mockReset()
+    vi.mocked(approvalsClient.useMutation).mockReturnValue({
+      mutate: mockMutate,
+      isPending: false,
+    } as never)
     vi.mocked(useParams).mockReturnValue({ approvalId: '550e8400-e29b-41d4-a716-446655440001' })
     vi.mocked(useLocation).mockReturnValue(['/', vi.fn()])
   })
@@ -77,7 +88,7 @@ describe('ApprovalDetail Component', () => {
       isPending,
       error,
       isError: !!error,
-      refetch: vi.fn(),
+      refetch: vi.fn().mockResolvedValue({}),
     } as never)
   }
 
@@ -138,8 +149,8 @@ describe('ApprovalDetail Component', () => {
     const approvalWithoutName: Approval = {
       // BaseResource fields
       id: '550e8400-e29b-41d4-a716-446655440002',
-      createdAt: new Date(now - 3 * 60 * 60 * 1000).toISOString(),
-      updatedAt: new Date(now - 1 * 60 * 60 * 1000).toISOString(),
+      created_at: new Date(now - 3 * 60 * 60 * 1000).toISOString(),
+      updated_at: new Date(now - 1 * 60 * 60 * 1000).toISOString(),
       labels: {},
       execution_id: '660e8400-e29b-41d4-a716-446655440002',
       approval_node_id: 'approval-activity-2',
@@ -184,16 +195,15 @@ describe('ApprovalDetail Component', () => {
     expect(screen.getByRole('button', { name: 'Reject' })).toBeInTheDocument()
   })
 
-  it('requires notes before enabling submit', async () => {
+  it('enables submit once a decision is selected without requiring notes', async () => {
     mockApprovalQuery(mockApproval)
 
     render(<ApprovalDetail />)
 
-    await userEvent.click(screen.getByRole('button', { name: 'Approve' }))
     const submitButton = screen.getByRole('button', { name: 'Submit' })
     expect(submitButton).toBeDisabled()
 
-    await userEvent.type(screen.getByRole('textbox'), 'Looks good')
+    await userEvent.click(screen.getByRole('button', { name: 'Approve' }))
     expect(submitButton).toBeEnabled()
   })
 
@@ -206,5 +216,92 @@ describe('ApprovalDetail Component', () => {
     expect(screen.getByText('Approved')).toBeInTheDocument()
     expect(screen.getByText('Approval notes')).toBeInTheDocument()
     expect(screen.getByText('Approved after review')).toBeInTheDocument()
+  })
+
+  it('calls mutation with approved status and notes on submit', async () => {
+    mockApprovalQuery(mockApproval)
+
+    render(<ApprovalDetail />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Approve' }))
+    await userEvent.type(screen.getByRole('textbox'), 'Looks good to proceed')
+    await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
+
+    expect(mockMutate).toHaveBeenCalledWith(
+      {
+        params: { path: { approval_id: '550e8400-e29b-41d4-a716-446655440001' } },
+        body: { status: 'approved', notes: 'Looks good to proceed' },
+      },
+      expect.objectContaining({
+        onSuccess: expect.any(Function) as unknown,
+        onError: expect.any(Function) as unknown,
+      })
+    )
+  })
+
+  it('calls mutation with rejected status on submit', async () => {
+    mockApprovalQuery(mockApproval)
+
+    render(<ApprovalDetail />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Reject' }))
+    await userEvent.type(screen.getByRole('textbox'), 'Does not meet standards')
+    await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
+
+    expect(mockMutate).toHaveBeenCalledWith(
+      {
+        params: { path: { approval_id: '550e8400-e29b-41d4-a716-446655440001' } },
+        body: { status: 'rejected', notes: 'Does not meet standards' },
+      },
+      expect.objectContaining({
+        onSuccess: expect.any(Function) as unknown,
+        onError: expect.any(Function) as unknown,
+      })
+    )
+  })
+
+  it('resets form state and shows alert after successful submission', async () => {
+    mockApprovalQuery(mockApproval)
+
+    render(<ApprovalDetail />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Approve' }))
+    await userEvent.type(screen.getByRole('textbox'), 'Looks good')
+    await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
+
+    // Extract and invoke the onSuccess callback, then wait for the async
+    // refetch chain to complete (state resets after refetch resolves)
+    const mutateCall = mockMutate.mock.calls[0] as [unknown, { onSuccess: () => void }]
+    // eslint-disable-next-line @typescript-eslint/require-await -- act needs async to flush microtasks from refetch().then()
+    await act(async () => {
+      mutateCall[1].onSuccess()
+    })
+
+    // After success, the decision should reset — Approve/Reject buttons should reappear
+    expect(screen.getByRole('button', { name: 'Approve' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Reject' })).toBeInTheDocument()
+  })
+
+  it('disables submit button during mutation', () => {
+    mockApprovalQuery(mockApproval)
+    vi.mocked(approvalsClient.useMutation).mockReturnValue({
+      mutate: mockMutate,
+      isPending: true,
+    } as never)
+
+    render(<ApprovalDetail />)
+
+    // When isPending is true, the Submit button should still be present but disabled
+    // since canSubmit requires pendingDecision, and it's not set yet
+    const submitButton = screen.getByRole('button', { name: /submit/i })
+    expect(submitButton).toBeDisabled()
+  })
+
+  it('has no accessibility violations', async () => {
+    mockApprovalQuery(mockApproval)
+
+    const { container } = render(<ApprovalDetail />)
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
   })
 })

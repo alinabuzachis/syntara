@@ -1,6 +1,7 @@
 import { Icon, Spinner } from '@patternfly/react-core'
 import {
   RhUiCheckCircleFillIcon,
+  RhUiClockIcon,
   RhUiEllipsisHorizontalFillIcon,
   RhUiMinusCircleFillIcon,
   RhUiStopCircleFillIcon,
@@ -15,7 +16,7 @@ type ExecutionStatusBadgeProps = {
   retryCount?: number
 }
 
-type VisualStatus = 'pending' | 'running' | 'success' | 'error' | 'skipped' | 'cancelled'
+type VisualStatus = 'pending' | 'running' | 'waiting' | 'success' | 'error' | 'skipped' | 'cancelled'
 
 const visualStatusConfig: Record<
   VisualStatus,
@@ -34,6 +35,10 @@ const visualStatusConfig: Record<
     node: (
       <Spinner size="lg" style={{ '--pf-v6-c-spinner--Color': activityStatusColors.running } as React.CSSProperties} />
     ),
+  },
+  waiting: {
+    color: activityStatusColors.waiting,
+    node: <RhUiClockIcon style={{ color: activityStatusColors.waiting }} />,
   },
   success: {
     color: activityStatusColors.completed,
@@ -60,6 +65,8 @@ function normalizeStatus(status: ActivityStatus): { visualStatus: VisualStatus; 
       return { visualStatus: 'success', label: 'Success' }
     case 'failed':
       return { visualStatus: 'error', label: 'Error' }
+    case 'waiting':
+      return { visualStatus: 'waiting', label: 'Waiting for approval' }
     case 'retrying':
       return { visualStatus: 'running', label: 'Retrying' }
     case 'pending':
@@ -103,6 +110,7 @@ export function ExecutionStatusBadge({ status, retryCount }: ExecutionStatusBadg
         zIndex: 10,
       }}
       title={title}
+      role="img"
       aria-label={title}
     >
       {normalized.visualStatus === 'running' ? config.node : <Icon size="xl">{config.node}</Icon>}

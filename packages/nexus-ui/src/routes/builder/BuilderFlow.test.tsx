@@ -27,27 +27,38 @@ let capturedOnLayout: (() => void) | null = null
 
 // --- Mocks ---
 
-vi.mock('@xyflow/react', async (importOriginal) => {
-  const actual = await importOriginal()
-  return {
-    ...(actual as Record<string, unknown>),
-    ReactFlow: (props: Record<string, unknown> & { children?: React.ReactNode }) => {
-      latestReactFlowProps = props
-      return <div data-testid="reactflow">{props.children}</div>
-    },
-    Background: () => null,
-    BackgroundVariant: { Dots: 'dots' },
-    applyEdgeChanges: (_changes: unknown, edges: Array<Record<string, unknown>>) => edges,
-    applyNodeChanges: (_changes: unknown, nodes: Array<Record<string, unknown>>) => nodes,
-    useReactFlow: () => ({
-      fitView: vi.fn().mockResolvedValue(undefined),
-      screenToFlowPosition: vi.fn(() => ({ x: 0, y: 0 })),
-      updateNode: vi.fn(),
-      getViewport: () => ({ x: 0, y: 0, zoom: 1 }),
-      getNode: vi.fn(),
-    }),
-  }
-})
+// Prevent the full node/edge component tree (PatternFly + ReactFlow canvas nodes) from loading.
+// builderFlowConfig imports nodeTypes → 8 node components → dozens of PatternFly packages each,
+// which OOMs the fork worker before tests run. The test only needs the config values as stubs.
+vi.mock('./builderFlowConfig', () => ({
+  builderNodeTypes: {},
+  builderEdgeTypes: {},
+  resolveExecutionStatus: (rest?: string | null, store?: string | null): string | null => {
+    if (rest === null) return null
+    return store ?? rest ?? null
+  },
+}))
+
+// Do NOT use importOriginal() here. Loading the real @xyflow/react schedules timers at module
+// init time that precede vi.useFakeTimers() in beforeEach, leaving them in the real event loop
+// after vi.useRealTimers() restores globals — which keeps the fork worker alive indefinitely.
+vi.mock('@xyflow/react', () => ({
+  ReactFlow: (props: Record<string, unknown> & { children?: React.ReactNode }) => {
+    latestReactFlowProps = props
+    return <div data-testid="reactflow">{props.children}</div>
+  },
+  Background: () => null,
+  BackgroundVariant: { Dots: 'dots' },
+  applyEdgeChanges: (_changes: unknown, edges: Array<Record<string, unknown>>) => edges,
+  applyNodeChanges: (_changes: unknown, nodes: Array<Record<string, unknown>>) => nodes,
+  useReactFlow: () => ({
+    fitView: vi.fn().mockResolvedValue(undefined),
+    screenToFlowPosition: vi.fn(() => ({ x: 0, y: 0 })),
+    updateNode: vi.fn(),
+    getViewport: () => ({ x: 0, y: 0, zoom: 1 }),
+    getNode: vi.fn(),
+  }),
+}))
 
 vi.mock('../workflows/canvas/CanvasControls', () => ({
   CanvasControls: ({ onLayout }: { onLayout: () => void }) => {
@@ -126,9 +137,16 @@ vi.mock('../../stores/useWorkflowStore', () => {
   }
 })
 
-vi.mock('../workflows/stores/useExecutionStore', () => ({
-  useExecutionStore: () => new Map(),
-}))
+vi.mock('../workflows/stores/useExecutionStore', () => {
+  // Use a stable state object so selector results have consistent references across renders.
+  // Returning `new Map()` directly (without a selector) gave `activityStates` a new reference
+  // every render, causing the execution-state useEffect (added in PR #633) to fire on every
+  // render and call setNodes in a loop → infinite re-renders → 4 GB OOM.
+  const stableState = { activityStates: new Map<string, unknown>(), visualization: undefined }
+  return {
+    useExecutionStore: (selector: (state: typeof stableState) => unknown) => selector(stableState),
+  }
+})
 
 // --- Test data ---
 

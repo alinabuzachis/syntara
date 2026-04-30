@@ -38,6 +38,8 @@ import { WorkflowHistoryCard } from '../builder/WorkflowHistoryCard'
 import { useExecutionWebSocket } from '../workflows/hooks/useExecutionWebSocket'
 import { useExecutionStore } from '../workflows/stores/useExecutionStore'
 
+import { ApprovalActionButtons } from './ApprovalActionButtons'
+import { ApprovalReviewView } from './ApprovalReviewView'
 import { useExecutionNodeClick } from './hooks/useExecutionNodeClick'
 
 type Execution = ExecutionsAPI.components['schemas']['Execution']
@@ -46,7 +48,8 @@ type ActivityExecution = ExecutionsAPI.components['schemas']['ActivityExecution'
 
 type WorkflowDefinitionLike = {
   metadata?: { name?: string; description?: string }
-  workflow?: { activities?: Array<{ id: string }> }
+  nodes?: Array<{ id: string; name?: string }>
+  workflow?: { activities?: Array<{ id: string; name?: string }> }
   triggers?: unknown[]
 }
 
@@ -238,16 +241,85 @@ function ExecutionDetailContent({
   )
 }
 
-// eslint-disable-next-line complexity
+function useExecutionStreaming(executionId: string | undefined, execution: Execution | undefined) {
+  const queryClient = useQueryClient()
+  const shouldStream = execution?.status === 'running' || execution?.status === 'pending'
+  useExecutionWebSocket(executionId ?? '', {
+    enabled: shouldStream && !!executionId,
+    onExecutionComplete: () => {
+      detachPromise(
+        Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: ['get', '/executions/{execution_id}'],
+          }),
+          queryClient.invalidateQueries({
+            queryKey: ['get', '/executions'],
+          }),
+        ])
+      )
+    },
+  })
+}
+
+function useSyncActivityStore(execution: Execution | undefined, activities: (ActivityData | ActivityExecution)[]) {
+  const { setActivityExecutions } = useExecutionStore.getState()
+  useEffect(() => {
+    if (activities.length > 0) {
+      setActivityExecutions(activities)
+    } else if (execution?.status === 'pending' || execution?.status === 'running') {
+      const wfDef = execution?.workflow_definition as unknown as WorkflowDefinitionLike | undefined
+      const workflowActivities = wfDef?.nodes ?? wfDef?.workflow?.activities
+      if (workflowActivities) {
+        const pendingActivities = workflowActivities.map((activity) => ({
+          id: activity.id,
+          created_at: '',
+          updated_at: '',
+          activity_name: activity.name ?? activity.id,
+          activity_id: activity.id,
+          status: 'pending' as const,
+          error_details: null,
+          started_at: null,
+          completed_at: null,
+        })) as ActivityExecution[]
+        setActivityExecutions(pendingActivities)
+      }
+    } else {
+      setActivityExecutions([])
+    }
+  }, [activities, execution?.status, execution?.workflow_definition, setActivityExecutions])
+}
+
+function ExecutionPageTitle({ execution, executionId }: { execution: Execution | undefined; executionId: string }) {
+  const wfDefMeta = (execution?.workflow_definition as unknown as WorkflowDefinitionLike | undefined)?.metadata
+  return (
+    <Flex gap={{ default: 'gapMd' }} alignItems={{ default: 'alignItemsCenter' }}>
+      <FlexItem>
+        <Title headingLevel="h1" size={TitleSizes['2xl']}>
+          {wfDefMeta?.name ?? `Execution ${executionId.slice(0, 8)}...`}
+        </Title>
+      </FlexItem>
+      {execution?.status && (
+        <FlexItem>
+          <StatusLabel status={execution.status} />
+        </FlexItem>
+      )}
+      {execution?.created_at && (
+        <FlexItem>
+          <Label>{`Viewing run: ${formatHistoryDateTime(execution.created_at)}`}</Label>
+        </FlexItem>
+      )}
+    </Flex>
+  )
+}
+
 export default function ExecutionDetail() {
   const params = useParams<{ executionId: string }>()
   const executionId = params.executionId
   const [, setLocation] = useLocation()
   const searchParams = useSearch()
-  const queryClient = useQueryClient()
 
   // Use execution store
-  const { setActivityExecutions, reset } = useExecutionStore.getState()
+  const { reset } = useExecutionStore.getState()
 
   // Reset execution store when executionId changes
   // This ensures WebSocket can reconnect for new executions
@@ -270,27 +342,7 @@ export default function ExecutionDetail() {
 
   const execution = executionQuery.data
 
-  // Connect to WebSocket for real-time updates (only for running/pending executions)
-  const shouldStream = execution?.status === 'running' || execution?.status === 'pending'
-  useExecutionWebSocket(executionId ?? '', {
-    enabled: shouldStream && !!executionId,
-    onExecutionComplete: () => {
-      // Invalidate all execution queries to refresh:
-      // - ExecutionDetail header status
-      // - ExecutionDetailsPanel (bottom panel)
-      // - WorkflowHistoryCard (run history)
-      detachPromise(
-        Promise.all([
-          queryClient.invalidateQueries({
-            queryKey: ['get', '/executions/{execution_id}'],
-          }),
-          queryClient.invalidateQueries({
-            queryKey: ['get', '/executions'],
-          }),
-        ])
-      )
-    },
-  })
+  useExecutionStreaming(executionId, execution)
 
   // History panel is open by default; only closed when explicitly set via URL param
   const historyCardOpen = useMemo(() => {
@@ -322,31 +374,7 @@ export default function ExecutionDetail() {
     return execution?.activities ?? []
   }, [execution])
 
-  // Update execution store when activities change
-  useEffect(() => {
-    if (activities.length > 0) {
-      setActivityExecutions(activities)
-    } else if (execution?.status === 'pending' || execution?.status === 'running') {
-      const wfDef = execution?.workflow_definition as unknown as WorkflowDefinitionLike | undefined
-      const workflowActivities = wfDef?.workflow?.activities
-      if (workflowActivities) {
-        const pendingActivities = workflowActivities.map((activity) => ({
-          id: activity.id,
-          created_at: '',
-          updated_at: '',
-          activity_name: activity.id,
-          activity_id: activity.id,
-          status: 'pending' as const,
-          error_details: null,
-          started_at: null,
-          completed_at: null,
-        })) as ActivityExecution[]
-        setActivityExecutions(pendingActivities)
-      }
-    } else {
-      setActivityExecutions([])
-    }
-  }, [activities, execution?.status, execution?.workflow_definition, setActivityExecutions])
+  useSyncActivityStore(execution, activities)
 
   // Build a workflow object from the execution's workflow_definition
   const workflow = useMemo(() => {
@@ -363,9 +391,32 @@ export default function ExecutionDetail() {
     }
   }, [execution])
 
+  // Map activity IDs to human-readable names from the workflow definition
+  const activityNameMap = useMemo(() => {
+    const wfDef = execution?.workflow_definition as unknown as Record<string, unknown> | undefined
+    const map = new Map<string, string>()
+    // v2 definitions use top-level `nodes`; v1 used `workflow.activities`
+    const activities = (wfDef?.nodes ??
+      (wfDef?.workflow as Record<string, unknown> | undefined)?.activities ??
+      []) as Array<{ id: string; name?: string }>
+    for (const activity of activities) {
+      if (activity.name) map.set(activity.id, activity.name)
+    }
+    return map
+  }, [execution?.workflow_definition])
+
   // Node click handling: approval detection + node details panel toggle
-  const { selectedNodeId, selectedNodeName, selectNode, deselectNode, handleNodeClick } =
-    useExecutionNodeClick(executionId)
+  const {
+    pendingApproval,
+    isApprovalLoading,
+    clearPendingApproval,
+    selectedNodeId,
+    selectedNodeName,
+    selectNode,
+    deselectNode,
+    handleNodeClick,
+  } = useExecutionNodeClick(executionId)
+  const [approvalViewOpen, setApprovalViewOpen] = useState(false)
 
   // Guard against missing executionId
   if (!executionId) {
@@ -419,57 +470,55 @@ export default function ExecutionDetail() {
     setLocation(`/executions/${executionId}?${params.toString()}`)
   }
 
-  const wfDefMeta = (execution?.workflow_definition as unknown as WorkflowDefinitionLike | undefined)?.metadata
-  const pageTitle = (
-    <Flex gap={{ default: 'gapMd' }} alignItems={{ default: 'alignItemsCenter' }}>
-      <FlexItem>
-        <Title headingLevel="h1" size={TitleSizes['2xl']}>
-          {wfDefMeta?.name ?? `Execution ${executionId.slice(0, 8)}...`}
-        </Title>
-      </FlexItem>
-      {execution?.status && (
-        <FlexItem>
-          <StatusLabel status={execution.status} />
-        </FlexItem>
-      )}
-      {execution?.created_at && (
-        <FlexItem>
-          <Label>{`Viewing run: ${formatHistoryDateTime(execution.created_at)}`}</Label>
-        </FlexItem>
-      )}
-    </Flex>
-  )
-
   return (
     <AppPage>
-      <AppPageHeader title={pageTitle}>
+      <AppPageHeader title={<ExecutionPageTitle execution={execution} executionId={executionId} />}>
+        {(pendingApproval ?? isApprovalLoading) && (
+          <ApprovalActionButtons
+            isLoading={isApprovalLoading}
+            onReviewClick={() => {
+              setApprovalViewOpen(true)
+            }}
+          />
+        )}
         <RunHistoryToggleButton onClick={toggleHistoryCard} isActive={historyCardOpen} />
         <Button
-          variant="primary"
+          variant="secondary"
           onClick={() => execution?.workflow_id && setLocation(`/workflow-builder/${execution.workflow_id}`)}
         >
           Back to editor
         </Button>
       </AppPageHeader>
       <AppPageMain>
-        <ExecutionDetailContent
-          key={executionId}
-          historyCardOpen={historyCardOpen}
-          workflow={workflow}
-          execution={execution}
-          activities={activities}
-          executionId={executionId}
-          executionsQuery={executionsQuery}
-          searchParams={searchParams}
-          setLocation={setLocation}
-          filters={executionFilters}
-          onFilterChange={setExecutionFilters}
-          onNodeClick={handleNodeClick}
-          selectedNodeId={selectedNodeId}
-          selectedNodeName={selectedNodeName}
-          onNodeSelect={selectNode}
-          onDeselectNode={deselectNode}
-        />
+        {approvalViewOpen && pendingApproval ? (
+          <ApprovalReviewView
+            approval={pendingApproval}
+            activityNameMap={activityNameMap}
+            onClose={() => {
+              setApprovalViewOpen(false)
+              clearPendingApproval()
+            }}
+          />
+        ) : (
+          <ExecutionDetailContent
+            key={executionId}
+            historyCardOpen={historyCardOpen}
+            workflow={workflow}
+            execution={execution}
+            activities={activities}
+            executionId={executionId}
+            executionsQuery={executionsQuery}
+            searchParams={searchParams}
+            setLocation={setLocation}
+            filters={executionFilters}
+            onFilterChange={setExecutionFilters}
+            onNodeClick={handleNodeClick}
+            selectedNodeId={selectedNodeId}
+            selectedNodeName={selectedNodeName}
+            onNodeSelect={selectNode}
+            onDeselectNode={deselectNode}
+          />
+        )}
       </AppPageMain>
     </AppPage>
   )

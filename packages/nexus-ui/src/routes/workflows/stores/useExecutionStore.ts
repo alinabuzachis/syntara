@@ -257,40 +257,40 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
   },
 
   applyPatch: (ops: JsonPatchOperation[], eventId: string) => {
-    const { visualization } = get()
+    const { visualization, activityStates } = get()
 
-    if (!visualization) {
-      // console.warn('Cannot apply patch: no execution loaded')
+    // Use visualization.activities when available, fall back to activityStates
+    // (REST-loaded via setActivityExecutions before initial_snapshot arrives)
+    const baseActivities = visualization?.activities ?? activityStates
+    if (baseActivities.size === 0) {
       return
     }
 
-    // Create mutable copy of activities map
-    const activitiesCopy = new Map(visualization.activities)
+    const activitiesCopy = new Map(baseActivities)
 
     try {
-      // Apply JSON Patch operations
-      // Convert map values to array for index-based operations
       const activityArray = Array.from(activitiesCopy.values())
       applyJsonPatch(activitiesCopy, ops, activityArray)
 
-      // Extract error map (activityStates will be the full map)
       const [, activityErrors] = extractActivityMaps(activitiesCopy)
 
-      // Update visualization with new activities
-      const updatedVisualization: ExecutionVisualization = {
-        ...visualization,
-        activities: activitiesCopy,
+      if (visualization) {
+        set({
+          visualization: { ...visualization, activities: activitiesCopy },
+          activityStates: activitiesCopy,
+          activityErrors,
+          lastEventId: eventId,
+          error: null,
+        })
+      } else {
+        set({
+          activityStates: activitiesCopy,
+          activityErrors,
+          lastEventId: eventId,
+          error: null,
+        })
       }
-
-      set({
-        visualization: updatedVisualization,
-        activityStates: activitiesCopy, // Store full ActivityState objects
-        activityErrors,
-        lastEventId: eventId,
-        error: null,
-      })
     } catch (error) {
-      // console.error('Failed to apply JSON Patch:', error)
       set({
         error: error instanceof Error ? error : new Error(String(error)),
       })

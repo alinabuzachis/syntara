@@ -33,6 +33,7 @@ function getNodeActivityId(node: ExecutionNode): string {
 export function useExecutionNodeClick(executionId: string | undefined) {
   const {
     pendingApproval,
+    isLoading: isApprovalLoading,
     handleNodeClick: handleApprovalNodeClick,
     clearPendingApproval,
   } = useExecutionApproval(executionId)
@@ -74,6 +75,7 @@ export function useExecutionNodeClick(executionId: string | undefined) {
 
   return {
     pendingApproval,
+    isApprovalLoading,
     clearPendingApproval,
     selectedNodeId,
     selectedNodeName,

@@ -63,6 +63,7 @@ jobs:
         run: npm run test:coverage:shard -- --shard=${{ matrix.shard }}/4
         working-directory: packages/nexus-ui
         env:
+          NODE_OPTIONS: '--max-old-space-size=4096'
           VITEST_COVERAGE_DIR: coverage/shard-${{ matrix.shard }}
 
       - name: Upload shard coverage artifact

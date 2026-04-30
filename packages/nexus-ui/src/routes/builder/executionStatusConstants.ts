@@ -16,6 +16,7 @@ const statusColors: Record<ExecutionStatus, string> = {
 export const activityStatusColors: Record<ActivityStatus, string> = {
   pending: statusColors.pending,
   running: statusColors.running,
+  waiting: statusColors.paused,
   completed: statusColors.completed,
   failed: statusColors.failed,
   retrying: statusColors.running,

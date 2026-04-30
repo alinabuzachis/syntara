@@ -470,7 +470,7 @@ describe('ExecutionStateEnricher', () => {
       ).toBe(true)
     })
 
-    it('marks trigger as pending when all connected nodes are pending', () => {
+    it('marks trigger as completed when execution is running even if targets are pending', () => {
       const triggerData = { name: 'Manual trigger', details: 'Manual', triggerType: 'manual' }
       const edges: EdgeConnection[] = [
         { id: '1', source: 'trigger-0', target: 'task-1', sourceHandle: 'source', targetHandle: 'target' },
@@ -483,20 +483,20 @@ describe('ExecutionStateEnricher', () => {
 
       const result = enricher.enrichTriggerNode('trigger-0', triggerData, 'running', edges, activityStates)
 
-      expect(result.__executionState?.status).toBe('pending')
+      expect(result.__executionState?.status).toBe('completed')
       expect(
         ((result as Record<string, unknown>).metadata as Record<string, unknown> | undefined)?.__showExecutionBadge
       ).toBe(true)
     })
 
-    it('marks trigger as pending when no connected nodes have state', () => {
+    it('marks trigger as pending when execution is pending', () => {
       const triggerData = { name: 'Manual trigger', details: 'Manual', triggerType: 'manual' }
       const edges: EdgeConnection[] = [
         { id: '1', source: 'trigger-0', target: 'task-1', sourceHandle: 'source', targetHandle: 'target' },
       ]
       const activityStates = new Map<string, ActivityState>()
 
-      const result = enricher.enrichTriggerNode('trigger-0', triggerData, 'running', edges, activityStates)
+      const result = enricher.enrichTriggerNode('trigger-0', triggerData, 'pending', edges, activityStates)
 
       expect(result.__executionState?.status).toBe('pending')
       expect(
@@ -504,12 +504,12 @@ describe('ExecutionStateEnricher', () => {
       ).toBe(true)
     })
 
-    it('marks trigger as pending when trigger has no outgoing edges', () => {
+    it('marks trigger as pending when trigger has no outgoing edges and execution is pending', () => {
       const triggerData = { name: 'Manual trigger', details: 'Manual', triggerType: 'manual' }
       const edges: EdgeConnection[] = []
       const activityStates = new Map<string, ActivityState>()
 
-      const result = enricher.enrichTriggerNode('trigger-0', triggerData, 'running', edges, activityStates)
+      const result = enricher.enrichTriggerNode('trigger-0', triggerData, 'pending', edges, activityStates)
 
       expect(result.__executionState?.status).toBe('pending')
       expect(

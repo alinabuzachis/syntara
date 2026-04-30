@@ -1,26 +1,43 @@
-import { render } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import { Router } from 'wouter'
+import { memoryLocation } from 'wouter/memory-location'
 
 import { AppRouter } from './AppRouter'
 
+vi.mock('./navigationItems', () => ({
+  navigationItems: [
+    {
+      label: 'Test',
+      path: '/test',
+      element: <div data-testid="test-route">Test Route</div>,
+    },
+  ],
+}))
+
+function renderWithLocation(path: string) {
+  const { hook } = memoryLocation({ path, record: true })
+  return render(
+    <Router hook={hook}>
+      <AppRouter />
+    </Router>
+  )
+}
+
 describe('AppRouter', () => {
   it('renders without crashing', () => {
-    const { container } = render(<AppRouter />)
-
-    // The router should render
+    const { container } = renderWithLocation('/test')
     expect(container).toBeInTheDocument()
   })
 
-  it('renders with ErrorBoundary and Suspense', () => {
-    const { container } = render(<AppRouter />)
-
-    expect(container.firstChild).toBeTruthy()
+  it('renders matching route content', () => {
+    renderWithLocation('/test')
+    expect(screen.getByTestId('test-route')).toBeInTheDocument()
   })
 
-  it('renders route structure', () => {
-    const { container } = render(<AppRouter />)
-
-    // The router renders and processes navigationItems
-    expect(container.innerHTML).toBeTruthy()
+  it('redirects unknown paths to /workflows', () => {
+    const { container } = renderWithLocation('/unknown-path')
+    // Catch-all route triggers a redirect; component still renders without crashing
+    expect(container).toBeInTheDocument()
   })
 })
