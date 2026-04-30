@@ -5,7 +5,9 @@ import { useLocation } from 'wouter'
 
 import { AppPageMain } from '../../../app/AppPage'
 import { AppRoute } from '../../../app/AppRoute'
+import { stackPaddingLgOnlyStyle } from '../../../app/panelContentStackStyle'
 import { credentialsClient } from '../../../client'
+import { PanelContentStack } from '../../../components/PanelContentStack'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
 import { formatDateTime } from '../../../utils/dateUtils'
@@ -41,7 +43,7 @@ export function CredentialWorkflowsTab({ credentialId }: Readonly<CredentialWork
 
   if (queryState) {
     return (
-      <Stack hasGutter style={{ padding: 'var(--pf-t--global--spacer--lg)' }}>
+      <Stack hasGutter style={stackPaddingLgOnlyStyle}>
         <StackItem>{queryState}</StackItem>
       </Stack>
     )
@@ -49,7 +51,7 @@ export function CredentialWorkflowsTab({ credentialId }: Readonly<CredentialWork
 
   if (workflows.length === 0) {
     return (
-      <Stack hasGutter style={{ padding: 'var(--pf-t--global--spacer--lg)' }}>
+      <Stack hasGutter style={stackPaddingLgOnlyStyle}>
         <StackItem>
           <EmptyState headingLevel="h3" titleText="No workflows using this credential">
             <EmptyStateBody>
@@ -63,7 +65,7 @@ export function CredentialWorkflowsTab({ credentialId }: Readonly<CredentialWork
   }
 
   return (
-    <Stack style={{ height: '100%', padding: 'var(--pf-t--global--spacer--lg)' }}>
+    <PanelContentStack variant="credentialDetailTab">
       <AppPageMain style={{ overflow: 'auto' }}>
         <ScrollableTableContainer
           aria-label="Workflows using this credential"
@@ -130,6 +132,6 @@ export function CredentialWorkflowsTab({ credentialId }: Readonly<CredentialWork
           </Tbody>
         </ScrollableTableContainer>
       </AppPageMain>
-    </Stack>
+    </PanelContentStack>
   )
 }

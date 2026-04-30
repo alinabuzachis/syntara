@@ -262,7 +262,8 @@ export function UserDetail() {
             <UserIdentitiesPanel
               userId={userId ?? ''}
               currentUserId={currentUserId}
-              isLocalUser={userData?.auth_type === AUTH_TYPE_LOCAL}
+              isLocalUser={userData.auth_type === AUTH_TYPE_LOCAL}
+              hasPassword={userData.auth_type === AUTH_TYPE_LOCAL}
             />
           )}
           {activeTab === 'roles' && <RoleAssignmentsPanel principalType="user" principalId={userId ?? ''} />}

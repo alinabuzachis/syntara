@@ -1,14 +1,4 @@
-import {
-  Button,
-  Flex,
-  FlexItem,
-  Modal,
-  ModalBody,
-  ModalFooter,
-  ModalHeader,
-  Stack,
-  StackItem,
-} from '@patternfly/react-core'
+import { Button, Flex, FlexItem, Modal, ModalBody, ModalFooter, ModalHeader, StackItem } from '@patternfly/react-core'
 import { PlusIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
@@ -22,6 +12,7 @@ import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters/FilterBar'
 import { IconLabel } from '../../components/IconLabel'
+import { PanelContentStack } from '../../components/PanelContentStack'
 import { useQueryState } from '../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { useFilterState } from '../../hooks/useFilterState'
@@ -262,7 +253,7 @@ export function ProjectsTab() {
 
   return (
     <>
-      <Stack style={{ height: '100%' }}>
+      <PanelContentStack>
         <StackItem>
           <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
             <FlexItem grow={{ default: 'grow' }}>
@@ -285,7 +276,7 @@ export function ProjectsTab() {
           </Flex>
         </StackItem>
         {paginatedProjects.length === 0 ? (
-          <AppPageMain style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <AppPageMain isCentered>
             <EmptyStateFilter
               clearAllFilters={() => {
                 clearAllFilters()
@@ -315,7 +306,7 @@ export function ProjectsTab() {
             />
           </ScrollableTableContainer>
         )}
-      </Stack>
+      </PanelContentStack>
 
       <ProjectFormModal
         project={projectToEdit}

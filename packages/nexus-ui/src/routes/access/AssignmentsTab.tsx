@@ -1,4 +1,4 @@
-import { Button, Flex, FlexItem, Label, LabelGroup, Stack, StackItem } from '@patternfly/react-core'
+import { Button, Flex, FlexItem, Label, LabelGroup, StackItem } from '@patternfly/react-core'
 import { PlusIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
@@ -10,6 +10,7 @@ import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
 import { IconLabel } from '../../components/IconLabel'
+import { PanelContentStack } from '../../components/PanelContentStack'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import type { FilterFieldDefinition } from '../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
@@ -115,7 +116,7 @@ export function AssignmentsTab() {
 
   return (
     <>
-      <Stack style={{ height: '100%' }}>
+      <PanelContentStack>
         <StackItem>
           <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
             <FlexItem grow={{ default: 'grow' }}>
@@ -136,7 +137,7 @@ export function AssignmentsTab() {
         </StackItem>
 
         {sortedRows.length === 0 ? (
-          <AppPageMain style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <AppPageMain isCentered>
             <EmptyStateFilter clearAllFilters={clearAllFilters} />
           </AppPageMain>
         ) : (
@@ -208,7 +209,7 @@ export function AssignmentsTab() {
             </Tbody>
           </ScrollableTableContainer>
         )}
-      </Stack>
+      </PanelContentStack>
 
       {isAddDialogOpen && <AssignRoleDialog onClose={() => setIsAddDialogOpen(false)} onSuccess={refetchAll} />}
 

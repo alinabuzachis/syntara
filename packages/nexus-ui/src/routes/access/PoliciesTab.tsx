@@ -1,4 +1,4 @@
-import { Label, Stack, StackItem } from '@patternfly/react-core'
+import { Label, StackItem } from '@patternfly/react-core'
 import { RhUiLockIcon } from '@patternfly/react-icons'
 import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
@@ -7,6 +7,7 @@ import { AppPageMain } from '../../app/AppPage'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
+import { PanelContentStack } from '../../components/PanelContentStack'
 import { useQueryState } from '../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
@@ -126,9 +127,9 @@ export function PoliciesTab() {
   }
 
   return (
-    <div style={{ display: 'flex', height: '100%' }}>
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-        <Stack style={{ height: '100%' }}>
+    <div style={{ display: 'flex', flex: 1, height: '100%', minHeight: 0, minWidth: 0 }}>
+      <div style={{ display: 'flex', flex: 1, flexDirection: 'column', minHeight: 0, minWidth: 0 }}>
+        <PanelContentStack>
           <StackItem>
             <FilterBar
               fieldDefinitions={filterFieldDefinitions}
@@ -140,7 +141,7 @@ export function PoliciesTab() {
           </StackItem>
 
           {policies.length === 0 ? (
-            <AppPageMain style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <AppPageMain isCentered>
               <EmptyStateFilter clearAllFilters={clearAllFilters} />
             </AppPageMain>
           ) : (
@@ -205,7 +206,7 @@ export function PoliciesTab() {
               </Tbody>
             </ScrollableTableContainer>
           )}
-        </Stack>
+        </PanelContentStack>
       </div>
 
       {selectedPolicy && (

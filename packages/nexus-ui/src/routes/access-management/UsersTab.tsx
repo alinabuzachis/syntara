@@ -1,5 +1,5 @@
 import type { User } from '@ansible/nexus-contracts'
-import { Button, Divider, Flex, FlexItem, Stack, StackItem } from '@patternfly/react-core'
+import { Button, Divider, Flex, FlexItem, StackItem } from '@patternfly/react-core'
 import { PlusIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
@@ -7,11 +7,13 @@ import { useCallback, useMemo } from 'react'
 import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../app/AppRoute'
+import { flexCenteredBothAxes } from '../../app/flexCenteredBothAxes'
 import { ConfirmationDialog } from '../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters/FilterBar'
 import { IconLabel } from '../../components/IconLabel'
+import { PanelContentStack } from '../../components/PanelContentStack'
 import { useQueryState } from '../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
@@ -130,7 +132,7 @@ export function UsersTab() {
 
   return (
     <>
-      <Stack hasGutter style={{ height: '100%' }}>
+      <PanelContentStack hasGutter>
         <StackItem>
           {builtinUser && (
             <BuiltInAdminCard
@@ -167,43 +169,41 @@ export function UsersTab() {
           </Flex>
         </StackItem>
         {users.length === 0 ? (
-          <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <StackItem isFilled style={flexCenteredBothAxes}>
             <EmptyStateFilter clearAllFilters={() => handleFilterChange([])} />
           </StackItem>
         ) : (
-          <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
-            <ScrollableTableContainer aria-label="Users" footer={getFooterProps(data, users.length, 'user', 'users')}>
-              <Thead>
-                <Tr>
-                  <Th sort={getSortParams(0)}>Username</Th>
-                  <Th sort={getSortParams(1)}>Name</Th>
-                  <Th sort={getSortParams(2)}>Email</Th>
-                  <Th sort={getSortParams(3)}>Last Login</Th>
-                  <Th screenReaderText="Actions" />
+          <ScrollableTableContainer aria-label="Users" footer={getFooterProps(data, users.length, 'user', 'users')}>
+            <Thead>
+              <Tr>
+                <Th sort={getSortParams(0)}>Username</Th>
+                <Th sort={getSortParams(1)}>Name</Th>
+                <Th sort={getSortParams(2)}>Email</Th>
+                <Th sort={getSortParams(3)}>Last Login</Th>
+                <Th screenReaderText="Actions" />
+              </Tr>
+            </Thead>
+            <Tbody>
+              {users.map((user) => (
+                <Tr key={user.id}>
+                  <Td dataLabel="Username">
+                    <Button variant="link" isInline onClick={() => navigate(getUserDetailPath(user.id))}>
+                      {user.username}
+                    </Button>
+                    {!user.is_enabled && <DisabledBadge />}
+                  </Td>
+                  <Td dataLabel="Name">{user.full_name ?? ''}</Td>
+                  <Td dataLabel="Email">{user.email}</Td>
+                  <Td dataLabel="Last Login">{formatDateTime(user.last_login)}</Td>
+                  <Td isActionCell>
+                    {!user.is_builtin && <ActionsColumn items={getRowActions(user, deleteDialog.open)} />}
+                  </Td>
                 </Tr>
-              </Thead>
-              <Tbody>
-                {users.map((user) => (
-                  <Tr key={user.id}>
-                    <Td dataLabel="Username">
-                      <Button variant="link" isInline onClick={() => navigate(getUserDetailPath(user.id))}>
-                        {user.username}
-                      </Button>
-                      {!user.is_enabled && <DisabledBadge />}
-                    </Td>
-                    <Td dataLabel="Name">{user.full_name ?? ''}</Td>
-                    <Td dataLabel="Email">{user.email}</Td>
-                    <Td dataLabel="Last Login">{formatDateTime(user.last_login)}</Td>
-                    <Td isActionCell>
-                      {!user.is_builtin && <ActionsColumn items={getRowActions(user, deleteDialog.open)} />}
-                    </Td>
-                  </Tr>
-                ))}
-              </Tbody>
-            </ScrollableTableContainer>
-          </StackItem>
+              ))}
+            </Tbody>
+          </ScrollableTableContainer>
         )}
-      </Stack>
+      </PanelContentStack>
       <ConfirmationDialog
         isOpen={deleteDialog.isOpen}
         onClose={deleteDialog.close}

@@ -8,7 +8,6 @@ import {
   ModalHeader,
   Flex,
   FlexItem,
-  Stack,
   StackItem,
 } from '@patternfly/react-core'
 import { PlusIcon, RhUiEditFillIcon, RhUiLockIcon, RhUiTrashIcon } from '@patternfly/react-icons'
@@ -22,6 +21,7 @@ import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
 import { IconLabel } from '../../components/IconLabel'
+import { PanelContentStack } from '../../components/PanelContentStack'
 import { useQueryState } from '../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
@@ -252,7 +252,7 @@ export function RolesTab() {
 
   return (
     <>
-      <Stack style={{ height: '100%' }}>
+      <PanelContentStack>
         <StackItem>
           <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
             <FlexItem grow={{ default: 'grow' }}>
@@ -273,7 +273,7 @@ export function RolesTab() {
         </StackItem>
 
         {roles.length === 0 ? (
-          <AppPageMain style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <AppPageMain isCentered>
             <EmptyStateFilter clearAllFilters={clearAllFilters} />
           </AppPageMain>
         ) : (
@@ -297,7 +297,7 @@ export function RolesTab() {
             />
           </ScrollableTableContainer>
         )}
-      </Stack>
+      </PanelContentStack>
 
       {isAddDialogOpen && <AddRoleDialog onClose={() => setIsAddDialogOpen(false)} onSuccess={handleRolesChanged} />}
 

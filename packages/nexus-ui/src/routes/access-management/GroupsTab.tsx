@@ -1,5 +1,5 @@
 import type { Group } from '@ansible/nexus-contracts'
-import { Badge, Button, Flex, FlexItem, Stack, StackItem } from '@patternfly/react-core'
+import { Badge, Button, Flex, FlexItem, StackItem } from '@patternfly/react-core'
 import { PlusIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { Thead, Tbody, Tr, Th, Td, ActionsColumn } from '@patternfly/react-table'
 import { useMemo } from 'react'
@@ -13,6 +13,7 @@ import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters/FilterBar'
 import { IconLabel } from '../../components/IconLabel'
+import { PanelContentStack } from '../../components/PanelContentStack'
 import { useQueryState } from '../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
@@ -108,7 +109,7 @@ export function GroupsTab() {
           addData={() => formDialog.open(null)}
         />
       ) : (
-        <Stack style={{ height: '100%' }}>
+        <PanelContentStack>
           <StackItem>
             <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
               <FlexItem grow={{ default: 'grow' }}>
@@ -129,7 +130,7 @@ export function GroupsTab() {
           </StackItem>
 
           {results.length === 0 ? (
-            <AppPageMain style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <AppPageMain isCentered>
               <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
             </AppPageMain>
           ) : (
@@ -189,7 +190,7 @@ export function GroupsTab() {
               </Tbody>
             </ScrollableTableContainer>
           )}
-        </Stack>
+        </PanelContentStack>
       )}
 
       <GroupFormModal

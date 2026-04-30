@@ -1,4 +1,4 @@
-import { Alert, Button, Flex, FlexItem, Label, LabelGroup, Stack, StackItem } from '@patternfly/react-core'
+import { Alert, Button, Flex, FlexItem, Label, LabelGroup, StackItem } from '@patternfly/react-core'
 import { PlusIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
@@ -11,6 +11,7 @@ import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
 import { IconLabel } from '../../components/IconLabel'
+import { PanelContentStack } from '../../components/PanelContentStack'
 import { ErrorState } from '../../components/states/ErrorState'
 import { LoadingState } from '../../components/states/LoadingState'
 import { useFilterState } from '../../hooks/useFilterState'
@@ -68,12 +69,6 @@ const sortFieldToRowKey: Record<string, keyof RoleAssignmentRow> = {
   project: 'scope',
   policies: 'roleName',
 }
-
-const CENTERED_PAGE_STYLE = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-} as const
 
 function sortRoleAssignmentRows(
   rows: RoleAssignmentRow[],
@@ -371,7 +366,7 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
   if (filteredRows.length === 0) {
     if (rows.length === 0) {
       tableContent = (
-        <AppPageMain style={CENTERED_PAGE_STYLE}>
+        <AppPageMain isCentered>
           <EmptyStateNoData
             title="No role assignments"
             description={`No project-scoped roles have been assigned to this ${principalType}.`}
@@ -382,7 +377,7 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
       )
     } else {
       tableContent = (
-        <AppPageMain style={CENTERED_PAGE_STYLE}>
+        <AppPageMain isCentered>
           <EmptyStateFilter
             clearAllFilters={() => {
               clearAllFilters()
@@ -402,7 +397,7 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
 
   return (
     <>
-      <Stack style={{ height: '100%' }}>
+      <PanelContentStack>
         {queryForbidden && (
           <StackItem>
             <Alert
@@ -450,7 +445,7 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
           onNext={() => setPage((p) => p + 1)}
           onPerPageChange={handlePerPageChange}
         />
-      </Stack>
+      </PanelContentStack>
 
       <AssignRoleModal
         principalType={principalType}

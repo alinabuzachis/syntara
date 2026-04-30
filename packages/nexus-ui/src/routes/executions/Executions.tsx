@@ -1,5 +1,5 @@
 import type { Execution } from '@ansible/nexus-contracts'
-import { Stack, StackItem } from '@patternfly/react-core'
+import { StackItem } from '@patternfly/react-core'
 import { Thead, Tr, Th } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
 import { useSearch } from 'wouter'
@@ -12,6 +12,7 @@ import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters/FilterBar'
 import { PageTitleWithProject } from '../../components/PageTitleWithProject'
+import { PanelContentStack } from '../../components/PanelContentStack'
 import { useQueryState } from '../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
@@ -136,7 +137,7 @@ export default function Executions() {
       <AppPageHeader title={<PageTitleWithProject title="Workflow Runs" projectSelector={ProjectSelector} />} />
       <AppPageMain>
         <AppPanel isFullHeight>
-          <Stack style={{ height: '100%', flex: 1, minHeight: 0, padding: '0 var(--pf-t--global--spacer--sm)' }}>
+          <PanelContentStack variant="pageGutter">
             <StackItem>
               <FilterBar
                 fieldDefinitions={filterFieldDefinitions}
@@ -147,7 +148,7 @@ export default function Executions() {
             </StackItem>
 
             {sortedExecutions.length === 0 ? (
-              <AppPageMain style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <AppPageMain isCentered>
                 {hasActiveFilters ? (
                   <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
                 ) : (
@@ -183,7 +184,7 @@ export default function Executions() {
                 )}
               </ScrollableTableContainer>
             )}
-          </Stack>
+          </PanelContentStack>
         </AppPanel>
       </AppPageMain>
     </AppPage>

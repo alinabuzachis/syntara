@@ -17,6 +17,7 @@ import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
 import { IconLabel } from '../../components/IconLabel'
 import { PageTitleWithProject } from '../../components/PageTitleWithProject'
+import { PanelContentStack } from '../../components/PanelContentStack'
 import { useQueryState } from '../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
@@ -248,7 +249,7 @@ export default function Workflows() {
 
       <AppPageMain>
         <AppPanel isFullHeight>
-          <Stack style={{ height: '100%', flex: 1, minHeight: 0, padding: '0 var(--pf-t--global--spacer--sm)' }}>
+          <PanelContentStack variant="pageGutter">
             <StackItem>
               <FilterBar
                 fieldDefinitions={filterFieldDefinitions}
@@ -259,7 +260,7 @@ export default function Workflows() {
             </StackItem>
 
             {sortedWorkflows.length === 0 ? (
-              <AppPageMain style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <AppPageMain isCentered>
                 {hasActiveFilters ? (
                   <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
                 ) : (
@@ -299,7 +300,7 @@ export default function Workflows() {
                 )}
               </ScrollableTableContainer>
             )}
-          </Stack>
+          </PanelContentStack>
         </AppPanel>
       </AppPageMain>
 

@@ -9,7 +9,6 @@ import {
   ModalBody,
   ModalFooter,
   ModalHeader,
-  Stack,
   StackItem,
   Title,
 } from '@patternfly/react-core'
@@ -20,10 +19,12 @@ import { navigate } from 'wouter/use-browser-location'
 
 import './UserIdentitiesPanel.css'
 import { AppRoute } from '../../../app/AppRoute'
+import { flexCenteredBothAxes } from '../../../app/flexCenteredBothAxes'
 import { usersClient } from '../../../client'
 import { useAlerts } from '../../../components/alerts'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { FilterBar } from '../../../components/filters/FilterBar'
+import { PanelContentStack } from '../../../components/PanelContentStack'
 import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
 import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
 import { useTableSort } from '../../../hooks/useTableSort'
@@ -92,7 +93,7 @@ function UsersStep({
   const hasActiveFilters = usersFilter.filters.length > 0
 
   return (
-    <Stack style={{ height: '100%' }}>
+    <PanelContentStack>
       <StackItem>
         <FilterBar
           fieldDefinitions={userFilterDefs}
@@ -106,7 +107,7 @@ function UsersStep({
         />
       </StackItem>
       {users.length === 0 && hasActiveFilters ? (
-        <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <StackItem isFilled style={flexCenteredBothAxes}>
           <EmptyStateFilter clearAllFilters={usersFilter.clearAllFilters} />
         </StackItem>
       ) : (
@@ -152,7 +153,7 @@ function UsersStep({
           </Tbody>
         </ScrollableTableContainer>
       )}
-    </Stack>
+    </PanelContentStack>
   )
 }
 
@@ -178,7 +179,7 @@ function IdentitiesStep({
   const hasActiveFilters = identitiesFilter.filters.length > 0
 
   return (
-    <Stack style={{ height: '100%' }}>
+    <PanelContentStack>
       <StackItem>
         <Flex
           alignItems={{ default: 'alignItemsCenter' }}
@@ -205,12 +206,12 @@ function IdentitiesStep({
         />
       </StackItem>
       {identities.length === 0 && hasActiveFilters && (
-        <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <StackItem isFilled style={flexCenteredBothAxes}>
           <EmptyStateFilter clearAllFilters={identitiesFilter.clearAllFilters} />
         </StackItem>
       )}
       {identities.length === 0 && !hasActiveFilters && (
-        <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <StackItem isFilled style={flexCenteredBothAxes}>
           <EmptyState headingLevel="h4" titleText="No identities" icon={RhUiKeyIcon}>
             <EmptyStateBody>This user has no federated identities to attach.</EmptyStateBody>
           </EmptyState>
@@ -281,7 +282,7 @@ function IdentitiesStep({
           </ScrollableTableContainer>
         </div>
       )}
-    </Stack>
+    </PanelContentStack>
   )
 }
 

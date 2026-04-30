@@ -1,4 +1,4 @@
-import { Button, Content, ContentVariants, Stack, StackItem } from '@patternfly/react-core'
+import { Button, Content, ContentVariants, StackItem } from '@patternfly/react-core'
 import { RhUiEditIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
@@ -13,6 +13,7 @@ import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { FilterBar } from '../../../components/filters/FilterBar'
 import { IconLabel } from '../../../components/IconLabel'
 import { PageTitleWithProject } from '../../../components/PageTitleWithProject'
+import { PanelContentStack } from '../../../components/PanelContentStack'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
 import { useCursorReset } from '../../../hooks/useCursorPagination'
@@ -264,7 +265,7 @@ export default function Credentials() {
       ) : (
         <AppPageMain>
           <AppPanel isFullHeight>
-            <Stack style={{ height: '100%', flex: 1, minHeight: 0 }}>
+            <PanelContentStack>
               <StackItem>
                 <FilterBar
                   fieldDefinitions={filterFieldDefinitions}
@@ -275,70 +276,68 @@ export default function Credentials() {
               </StackItem>
 
               {results.length === 0 ? (
-                <AppPageMain style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <AppPageMain isCentered>
                   <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
                 </AppPageMain>
               ) : (
-                <AppPageMain style={{ overflow: 'auto' }}>
-                  <ScrollableTableContainer
-                    aria-label="Credentials table"
-                    footer={{
-                      content: (
-                        <>
-                          {results.length} {results.length === 1 ? 'credential' : 'credentials'}
-                          {query.data?.total != null && query.data.total > results.length && (
-                            <Content
-                              component={ContentVariants.small}
-                              style={{
-                                margin: 0,
-                                display: 'inline',
-                                color: 'var(--pf-t--global--text--color--subtle)',
-                              }}
-                            >
-                              {' '}
-                              (of {query.data.total} total)
-                            </Content>
-                          )}
-                        </>
-                      ),
-                      prev: query.data?.prev ?? null,
-                      next: query.data?.next ?? null,
-                      onPrev: () => setCursor(query.data?.prev ?? null),
-                      onNext: () => setCursor(query.data?.next ?? null),
-                    }}
-                  >
-                    <Thead>
-                      <Tr>
-                        <Th sort={getSortParams(0)}>Name</Th>
-                        <Th sort={getSortParams(1)}>Type</Th>
-                        <Th sort={getSortParams(2)}>Workflows</Th>
-                        <Th sort={getSortParams(3)}>Created</Th>
-                        <Th sort={getSortParams(4)}>Last modified</Th>
-                        <Th sort={getSortParams(5)}>State</Th>
-                        <Th screenReaderText="Actions" />
-                      </Tr>
-                    </Thead>
-                    {isAllProjects && groupedCredentials ? (
-                      <GroupedCredentialsTableBody
-                        groupedCredentials={groupedCredentials}
-                        collapsedProjects={collapsedProjects}
-                        onToggleProject={toggleProjectCollapsed}
-                        typeMap={typeMap}
-                        getRowActions={getRowActions}
-                        onToggleEnabled={handleToggleEnabled}
-                      />
-                    ) : (
-                      <FlatCredentialsTableBody
-                        credentials={results}
-                        typeMap={typeMap}
-                        getRowActions={getRowActions}
-                        onToggleEnabled={handleToggleEnabled}
-                      />
-                    )}
-                  </ScrollableTableContainer>
-                </AppPageMain>
+                <ScrollableTableContainer
+                  aria-label="Credentials table"
+                  footer={{
+                    content: (
+                      <>
+                        {results.length} {results.length === 1 ? 'credential' : 'credentials'}
+                        {query.data?.total != null && query.data.total > results.length && (
+                          <Content
+                            component={ContentVariants.small}
+                            style={{
+                              margin: 0,
+                              display: 'inline',
+                              color: 'var(--pf-t--global--text--color--subtle)',
+                            }}
+                          >
+                            {' '}
+                            (of {query.data.total} total)
+                          </Content>
+                        )}
+                      </>
+                    ),
+                    prev: query.data?.prev ?? null,
+                    next: query.data?.next ?? null,
+                    onPrev: () => setCursor(query.data?.prev ?? null),
+                    onNext: () => setCursor(query.data?.next ?? null),
+                  }}
+                >
+                  <Thead>
+                    <Tr>
+                      <Th sort={getSortParams(0)}>Name</Th>
+                      <Th sort={getSortParams(1)}>Type</Th>
+                      <Th sort={getSortParams(2)}>Workflows</Th>
+                      <Th sort={getSortParams(3)}>Created</Th>
+                      <Th sort={getSortParams(4)}>Last modified</Th>
+                      <Th sort={getSortParams(5)}>State</Th>
+                      <Th screenReaderText="Actions" />
+                    </Tr>
+                  </Thead>
+                  {isAllProjects && groupedCredentials ? (
+                    <GroupedCredentialsTableBody
+                      groupedCredentials={groupedCredentials}
+                      collapsedProjects={collapsedProjects}
+                      onToggleProject={toggleProjectCollapsed}
+                      typeMap={typeMap}
+                      getRowActions={getRowActions}
+                      onToggleEnabled={handleToggleEnabled}
+                    />
+                  ) : (
+                    <FlatCredentialsTableBody
+                      credentials={results}
+                      typeMap={typeMap}
+                      getRowActions={getRowActions}
+                      onToggleEnabled={handleToggleEnabled}
+                    />
+                  )}
+                </ScrollableTableContainer>
               )}
-            </Stack>
+            </PanelContentStack>
           </AppPanel>
         </AppPageMain>
       )}

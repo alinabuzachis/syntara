@@ -1,6 +1,6 @@
 import type { ToolProvider } from '@ansible/nexus-contracts'
 import { ProviderStatusEnum } from '@ansible/nexus-contracts'
-import { Button, Label, Stack, StackItem } from '@patternfly/react-core'
+import { Button, Label, StackItem } from '@patternfly/react-core'
 import {
   RhUiCheckCircleIcon,
   RhUiCloseCircleIcon,
@@ -23,6 +23,7 @@ import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { FilterBar } from '../../../components/filters/FilterBar'
 import { IconLabel } from '../../../components/IconLabel'
+import { PanelContentStack } from '../../../components/PanelContentStack'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
 import { useCursorPagination, useCursorReset } from '../../../hooks/useCursorPagination'
@@ -264,7 +265,7 @@ export default function Integrations() {
       ) : (
         <AppPageMain>
           <AppPanel isFullHeight>
-            <Stack style={{ height: '100%', flex: 1, minHeight: 0, padding: '0 var(--pf-t--global--spacer--sm)' }}>
+            <PanelContentStack variant="pageGutter">
               <StackItem>
                 <FilterBar
                   fieldDefinitions={filterFieldDefinitions}
@@ -275,49 +276,47 @@ export default function Integrations() {
               </StackItem>
 
               {results.length === 0 ? (
-                <AppPageMain style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <AppPageMain isCentered>
                   <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
                 </AppPageMain>
               ) : (
-                <AppPageMain>
-                  <ScrollableTableContainer
-                    aria-label="Integrations table"
-                    footer={getFooterProps(query.data, results.length, 'integration', 'integrations')}
-                  >
-                    <Thead>
-                      <Tr>
-                        <Th sort={getSortParams(0)}>Name</Th>
-                        <Th sort={getSortParams(1)}>Status</Th>
-                        <Th sort={getSortParams(2)}>Integration type</Th>
-                        <Th sort={getSortParams(3)}>API URL</Th>
-                        <Th sort={getSortParams(4)}>Tools</Th>
-                        <Th screenReaderText="Actions" />
+                <ScrollableTableContainer
+                  aria-label="Integrations table"
+                  footer={getFooterProps(query.data, results.length, 'integration', 'integrations')}
+                >
+                  <Thead>
+                    <Tr>
+                      <Th sort={getSortParams(0)}>Name</Th>
+                      <Th sort={getSortParams(1)}>Status</Th>
+                      <Th sort={getSortParams(2)}>Integration type</Th>
+                      <Th sort={getSortParams(3)}>API URL</Th>
+                      <Th sort={getSortParams(4)}>Tools</Th>
+                      <Th screenReaderText="Actions" />
+                    </Tr>
+                  </Thead>
+                  <Tbody>
+                    {results.map((provider) => (
+                      <Tr key={provider.id}>
+                        <Td dataLabel="Name">{provider.name}</Td>
+                        <Td dataLabel="Status">
+                          <StatusLabel status={provider.status ?? 'unknown'} />
+                        </Td>
+                        <Td dataLabel="Integration type">
+                          {PROVIDER_TYPE_LABELS[provider.configuration?.provider_type ?? ''] ??
+                            provider.configuration?.provider_type ??
+                            ''}
+                        </Td>
+                        <Td dataLabel="API URL">{provider.configuration?.base_url ?? ''}</Td>
+                        <Td dataLabel="Tools">{provider.tool_count}</Td>
+                        <Td isActionCell>
+                          <ActionsColumn items={getRowActions(provider)} />
+                        </Td>
                       </Tr>
-                    </Thead>
-                    <Tbody>
-                      {results.map((provider) => (
-                        <Tr key={provider.id}>
-                          <Td dataLabel="Name">{provider.name}</Td>
-                          <Td dataLabel="Status">
-                            <StatusLabel status={provider.status ?? 'unknown'} />
-                          </Td>
-                          <Td dataLabel="Integration type">
-                            {PROVIDER_TYPE_LABELS[provider.configuration?.provider_type ?? ''] ??
-                              provider.configuration?.provider_type ??
-                              ''}
-                          </Td>
-                          <Td dataLabel="API URL">{provider.configuration?.base_url ?? ''}</Td>
-                          <Td dataLabel="Tools">{provider.tool_count}</Td>
-                          <Td isActionCell>
-                            <ActionsColumn items={getRowActions(provider)} />
-                          </Td>
-                        </Tr>
-                      ))}
-                    </Tbody>
-                  </ScrollableTableContainer>
-                </AppPageMain>
+                    ))}
+                  </Tbody>
+                </ScrollableTableContainer>
               )}
-            </Stack>
+            </PanelContentStack>
           </AppPanel>
         </AppPageMain>
       )}

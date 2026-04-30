@@ -25,6 +25,7 @@ import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { FilterBar } from '../../../components/filters/FilterBar'
 import { IconLabel } from '../../../components/IconLabel'
+import { PanelContentStack } from '../../../components/PanelContentStack'
 import { ProviderIcon } from '../../../components/ProviderIcon'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
@@ -206,7 +207,7 @@ export function IdentityProvidersTab() {
   }
 
   return (
-    <Stack hasGutter style={{ height: '100%' }}>
+    <PanelContentStack hasGutter>
       <StackItem>
         <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
           <FlexItem grow={{ default: 'grow' }}>
@@ -306,6 +307,6 @@ export function IdentityProvidersTab() {
           </StackItem>
         </Stack>
       </ConfirmationDialog>
-    </Stack>
+    </PanelContentStack>
   )
 }

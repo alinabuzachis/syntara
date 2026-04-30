@@ -1,7 +1,8 @@
-import { Stack, StackItem, Tab, Tabs, TabTitleText } from '@patternfly/react-core'
+import { StackItem, Tab, Tabs, TabTitleText } from '@patternfly/react-core'
 
 import { AppPageMain } from '../../app/AppPage'
 import { AppRoute } from '../../app/AppRoute'
+import { PanelContentStack } from '../../components/PanelContentStack'
 import { useQueryState } from '../../components/states/useQueryState'
 import { useDetailTab } from '../../hooks/useDetailTab'
 import { detachPromise } from '../../utils/detachPromise'
@@ -25,7 +26,7 @@ export function CanITab() {
   )
 
   return (
-    <Stack hasGutter style={{ height: '100%' }}>
+    <PanelContentStack hasGutter>
       <StackItem>
         <Tabs
           activeKey={mode}
@@ -67,6 +68,6 @@ export function CanITab() {
             </>
           ))}
       </AppPageMain>
-    </Stack>
+    </PanelContentStack>
   )
 }

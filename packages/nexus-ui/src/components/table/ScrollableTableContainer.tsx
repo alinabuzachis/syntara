@@ -3,6 +3,7 @@ import { RhUiCaretLeftIcon, RhUiCaretRightIcon } from '@patternfly/react-icons'
 import { Table } from '@patternfly/react-table'
 import type { ReactNode } from 'react'
 
+import { scrollableTableShellStackStyle } from '../../app/panelContentStackStyle'
 import { AppPanel } from '../AppPanel'
 
 export type TableFooterProps = {
@@ -34,6 +35,9 @@ type ScrollableTableContainerProps = {
 /**
  * A reusable container component for scrollable tables with sticky headers.
  * Provides consistent styling and layout for tables across the application.
+ *
+ * The root node is a PatternFly `StackItem` (`isFilled`). It must be a **direct** child of `Stack`;
+ * wrapping it in another `StackItem` breaks flex layout (the table will not fill the panel height).
  */
 export function ScrollableTableContainer({
   children,
@@ -45,6 +49,7 @@ export function ScrollableTableContainer({
   return (
     <StackItem
       isFilled
+      data-testid="scrollable-table-container-root"
       style={{
         minHeight: 0,
         overflow: 'hidden',
@@ -52,7 +57,7 @@ export function ScrollableTableContainer({
       }}
     >
       <AppPanel hasNoPadding isFullHeight isScrollable style={{ boxShadow: 'none' }}>
-        <Stack style={{ height: '100%', maxHeight: '100%', overflow: 'hidden', width: '100%' }}>
+        <Stack style={scrollableTableShellStackStyle}>
           <StackItem
             isFilled
             style={{ minHeight: 0, maxHeight: '100%', overflow: 'auto', width: '100%', position: 'relative' }}

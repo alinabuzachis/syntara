@@ -5,7 +5,6 @@ import {
   DescriptionListDescription,
   DescriptionListGroup,
   DescriptionListTerm,
-  Stack,
   StackItem,
 } from '@patternfly/react-core'
 import type { ThProps } from '@patternfly/react-table'
@@ -25,6 +24,7 @@ import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
 import { FilterBar } from '../../../components/filters/FilterBar'
+import { PanelContentStack } from '../../../components/PanelContentStack'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
 import { TotalCount } from '../../../components/table/TotalCount'
@@ -141,7 +141,7 @@ function IntegrationToolsLoadedView({
       ) : (
         <AppPageMain>
           <AppPanel isFullHeight>
-            <Stack style={{ height: '100%', flex: 1, minHeight: 0, padding: '0 var(--pf-t--global--spacer--sm)' }}>
+            <PanelContentStack variant="pageGutter">
               <StackItem>
                 <FilterBar
                   fieldDefinitions={filterFieldDefinitions}
@@ -152,7 +152,7 @@ function IntegrationToolsLoadedView({
               </StackItem>
 
               {results.length === 0 ? (
-                <AppPageMain style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <AppPageMain isCentered>
                   <EmptyStateFilter
                     clearAllFilters={handleClearAllFilters}
                     imageSrc={noToolsImage}
@@ -219,7 +219,7 @@ function IntegrationToolsLoadedView({
                   </Tbody>
                 </ScrollableTableContainer>
               )}
-            </Stack>
+            </PanelContentStack>
           </AppPanel>
         </AppPageMain>
       )}

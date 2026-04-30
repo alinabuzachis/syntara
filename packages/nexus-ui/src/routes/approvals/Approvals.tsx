@@ -1,5 +1,5 @@
 import type { Approval } from '@ansible/nexus-contracts'
-import { Stack, StackItem } from '@patternfly/react-core'
+import { StackItem } from '@patternfly/react-core'
 import { useMemo, useReducer, useState } from 'react'
 
 import { AppPage, AppPageMain } from '../../app/AppPage'
@@ -10,6 +10,7 @@ import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters/FilterBar'
 import { PageTitleWithProject } from '../../components/PageTitleWithProject'
+import { PanelContentStack } from '../../components/PanelContentStack'
 import { useQueryState } from '../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
@@ -248,7 +249,7 @@ export default function Approvals() {
 
       <AppPageMain>
         <AppPanel isFullHeight>
-          <Stack style={{ height: '100%', flex: 1, minHeight: 0, padding: '0 var(--pf-t--global--spacer--sm)' }}>
+          <PanelContentStack variant="pageGutter">
             <StackItem>
               <FilterBar
                 fieldDefinitions={filterFieldDefinitions}
@@ -259,7 +260,7 @@ export default function Approvals() {
             </StackItem>
 
             {sortedApprovals.length === 0 ? (
-              <AppPageMain style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <AppPageMain isCentered>
                 {hasActiveFilters ? (
                   <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
                 ) : (
@@ -298,7 +299,7 @@ export default function Approvals() {
                 )}
               </ScrollableTableContainer>
             )}
-          </Stack>
+          </PanelContentStack>
         </AppPanel>
       </AppPageMain>
     </AppPage>

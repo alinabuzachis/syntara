@@ -8,7 +8,6 @@ import {
   ModalBody,
   ModalFooter,
   ModalHeader,
-  Stack,
   StackItem,
 } from '@patternfly/react-core'
 import { PlusIcon, RhUiTrashIcon } from '@patternfly/react-icons'
@@ -23,6 +22,7 @@ import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
 import { FilterBar } from '../../../components/filters'
 import { IconLabel } from '../../../components/IconLabel'
+import { PanelContentStack } from '../../../components/PanelContentStack'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { useFilterState } from '../../../hooks/useFilterState'
 import type { FilterFieldDefinition } from '../../../types/filters'
@@ -293,7 +293,7 @@ export function UserGroupsPanel({ userId }: Readonly<UserGroupsPanelProps>) {
 
   return (
     <>
-      <Stack style={{ height: '100%' }}>
+      <PanelContentStack>
         <StackItem>
           <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
             <FlexItem grow={{ default: 'grow' }}>
@@ -317,7 +317,7 @@ export function UserGroupsPanel({ userId }: Readonly<UserGroupsPanelProps>) {
         </StackItem>
 
         {filteredGroups.length === 0 ? (
-          <AppPageMain style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <AppPageMain isCentered>
             <EmptyStateFilter
               clearAllFilters={() => {
                 clearAllFilters()
@@ -373,7 +373,7 @@ export function UserGroupsPanel({ userId }: Readonly<UserGroupsPanelProps>) {
           onNext={() => setPage((p) => p + 1)}
           onPerPageChange={handlePerPageChange}
         />
-      </Stack>
+      </PanelContentStack>
 
       <AddToGroupModal
         userId={userId}

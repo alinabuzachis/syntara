@@ -43,6 +43,22 @@ describe('AppPage', () => {
     expect(screen.getByTestId('app-page-main')).toHaveClass('pf-m-fill')
   })
 
+  it('AppPageMain applies centered flex layout when isCentered is set', () => {
+    render(
+      <AppPage>
+        <AppPageMain data-testid="app-page-main" isCentered>
+          <div>Centered</div>
+        </AppPageMain>
+      </AppPage>
+    )
+
+    expect(screen.getByTestId('app-page-main')).toHaveStyle({
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+    })
+  })
+
   describe('Accessibility', () => {
     it('has no accessibility violations when AppPage wraps AppPageMain', async () => {
       const { container } = render(

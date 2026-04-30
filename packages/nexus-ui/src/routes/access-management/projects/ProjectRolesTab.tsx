@@ -1,4 +1,4 @@
-import { Button, Label, LabelGroup, Flex, FlexItem, Stack, StackItem } from '@patternfly/react-core'
+import { Button, Label, LabelGroup, Flex, FlexItem, StackItem } from '@patternfly/react-core'
 import { PlusIcon, RhUiEditFillIcon, RhUiLockIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
@@ -11,6 +11,7 @@ import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
 import { FilterBar } from '../../../components/filters'
 import { IconLabel } from '../../../components/IconLabel'
+import { PanelContentStack } from '../../../components/PanelContentStack'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
 import { useDialogState } from '../../../hooks/useDialogState'
@@ -189,7 +190,7 @@ export function ProjectRolesTab({ projectId }: Readonly<{ projectId: string }>) 
 
   return (
     <>
-      <Stack style={{ height: '100%' }}>
+      <PanelContentStack>
         <StackItem>
           <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
             <FlexItem grow={{ default: 'grow' }}>
@@ -210,7 +211,7 @@ export function ProjectRolesTab({ projectId }: Readonly<{ projectId: string }>) 
         </StackItem>
 
         {roles.length === 0 ? (
-          <AppPageMain style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <AppPageMain isCentered>
             <EmptyStateFilter clearAllFilters={clearAllFilters} />
           </AppPageMain>
         ) : (
@@ -240,7 +241,7 @@ export function ProjectRolesTab({ projectId }: Readonly<{ projectId: string }>) 
             />
           </ScrollableTableContainer>
         )}
-      </Stack>
+      </PanelContentStack>
 
       {isAddDialogOpen && (
         <AddProjectRoleDialog

@@ -1,4 +1,4 @@
-import { Button, Flex, FlexItem, Label, LabelGroup, Stack, StackItem } from '@patternfly/react-core'
+import { Button, Flex, FlexItem, Label, LabelGroup, StackItem } from '@patternfly/react-core'
 import { PlusIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
@@ -11,6 +11,7 @@ import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
 import { FilterBar } from '../../../components/filters'
 import { IconLabel } from '../../../components/IconLabel'
+import { PanelContentStack } from '../../../components/PanelContentStack'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { useFilterState } from '../../../hooks/useFilterState'
 import { useSortState } from '../../../hooks/useSortState'
@@ -303,7 +304,7 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAss
 
   return (
     <>
-      <Stack style={{ height: '100%' }}>
+      <PanelContentStack>
         <StackItem>
           <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
             <FlexItem grow={{ default: 'grow' }}>
@@ -327,7 +328,7 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAss
         </StackItem>
 
         {sortedRows.length === 0 ? (
-          <AppPageMain style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <AppPageMain isCentered>
             <EmptyStateFilter
               clearAllFilters={() => {
                 clearAllFilters()
@@ -350,7 +351,7 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAss
           onNext={() => setPage((p) => p + 1)}
           onPerPageChange={handlePerPageChange}
         />
-      </Stack>
+      </PanelContentStack>
 
       <AssignProjectRoleModal
         projectId={projectId}
