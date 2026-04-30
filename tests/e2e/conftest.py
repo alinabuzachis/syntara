@@ -11,19 +11,27 @@ from pathlib import Path
 
 import httpx
 import pytest
-from nexus_api_client import AuthenticatedClient
+from nexus_api_client import AuthenticatedClient, Client
 from nexus_api_client.api import NexusApiRegistry
+from nexus_api_client.api.authentication.login import sync_detailed as login_sync
+from nexus_api_client.models.access_token_response import AccessTokenResponse
+from nexus_api_client.models.login_request import LoginRequest
 from nexus_api_client.models.sub_resource_role_assignment_create import SubResourceRoleAssignmentCreate
 from nexus_api_client.models.user_create import UserCreate
 
 
-def _generate_e2e_token(base_url: str) -> str:
-    """Obtain a JWT access token for e2e tests via POST /auth/login.
+def _login(base_url: str, username: str, password: str) -> str:
+    """Obtain a JWT access token via the generated login endpoint."""
+    unauthenticated = Client(base_url=f"{base_url}/api/v1", verify_ssl=False)
+    resp = login_sync(client=unauthenticated, body=LoginRequest(username=username, password=password))
+    if resp.status_code != HTTPStatus.OK or not isinstance(resp.parsed, AccessTokenResponse):
+        msg = f"Login failed for {username}: {resp.status_code} {resp.content!r}"
+        raise RuntimeError(msg)
+    return resp.parsed.access_token
 
-    Reads the admin password from the file pointed to by APP_ADMIN_PASSWORD_PATH
-    (default: .secrets/admin-password) and exchanges it for an access token using
-    the running API's login endpoint.
-    """
+
+def _generate_e2e_token(base_url: str) -> str:
+    """Obtain a JWT access token for e2e tests via POST /auth/login."""
     password_path = Path(os.environ.get("APP_ADMIN_PASSWORD_PATH", ".secrets/admin-password"))
     if not password_path.exists():
         msg = f"Admin password file not found: {password_path}. Run 'make secrets-generate'."
@@ -34,15 +42,7 @@ def _generate_e2e_token(base_url: str) -> str:
         msg = f"Admin password file is empty: {password_path}"
         raise RuntimeError(msg)
 
-    response = httpx.post(
-        f"{base_url}/api/v1/auth/login",
-        json={"username": "admin", "password": password},
-        verify=False,  # noqa: S501
-        timeout=10,
-    )
-    response.raise_for_status()
-    token: str = response.json()["access_token"]
-    return token
+    return _login(base_url, "admin", password)
 
 
 @pytest.fixture(scope="session")
@@ -53,11 +53,7 @@ def nexus_base_url() -> str:
 
 @pytest.fixture(scope="session")
 def auth_headers(nexus_base_url: str) -> dict[str, str]:
-    """Return Bearer auth headers for raw httpx calls.
-
-    Generates a JWT token using the same mechanism as the ``nexus_api``
-    fixture, so raw HTTP requests authenticate consistently.
-    """
+    """Return Bearer auth headers for raw httpx calls."""
     token = _generate_e2e_token(nexus_base_url)
     return {"Authorization": f"Bearer {token}"}
 
@@ -89,39 +85,27 @@ def nexus_api(nexus_client: AuthenticatedClient) -> NexusApiRegistry:
 
 
 @pytest.fixture(scope="session")
-def viewer_client(nexus_base_url: str, nexus_client: AuthenticatedClient) -> AuthenticatedClient:
+def viewer_client(nexus_base_url: str, nexus_api: NexusApiRegistry) -> AuthenticatedClient:
     """Return an authenticated client for a non-admin (viewer) user.
 
     Creates the user via the admin client on first use.  The user has no
     role assignments, so all permission-gated endpoints should deny access.
     """
-    admin_http = nexus_client.get_httpx_client()
     username = "e2e-viewer"
     password = "ViewerPass1234!"  # noqa: S105
 
-    # Create the viewer user (ignore 409 if it already exists from a previous run)
-    resp = admin_http.post(
-        "/users",
-        json={
-            "username": username,
-            "email": "e2e-viewer@example.com",
-            "full_name": "E2E Viewer",
-            "password": password,
-        },
+    resp = nexus_api.users.create(
+        body=UserCreate(
+            username=username,
+            email="e2e-viewer@example.com",
+            full_name="E2E Viewer",
+            password=password,
+        ),
     )
-    if resp.status_code not in (200, 201, 409):
-        pytest.fail(f"Failed to create viewer user: {resp.status_code} {resp.text}")
+    if resp.status_code not in (HTTPStatus.CREATED, HTTPStatus.CONFLICT):
+        pytest.fail(f"Failed to create viewer user: {resp.status_code} {resp.content!r}")
 
-    # Login as the viewer to get a token
-    login_resp = httpx.post(
-        f"{nexus_base_url}/api/v1/auth/login",
-        json={"username": username, "password": password},
-        verify=False,  # noqa: S501
-        timeout=10,
-    )
-    login_resp.raise_for_status()
-    token: str = login_resp.json()["access_token"]
-
+    token = _login(nexus_base_url, username, password)
     return AuthenticatedClient(base_url=f"{nexus_base_url}/api/v1", token=token, verify_ssl=False)
 
 
@@ -132,9 +116,7 @@ def viewer_api(viewer_client: AuthenticatedClient) -> NexusApiRegistry:
 
 
 @pytest.fixture(scope="session")
-def auditor_client(
-    nexus_base_url: str, nexus_client: AuthenticatedClient, nexus_api: NexusApiRegistry
-) -> AuthenticatedClient:
+def auditor_client(nexus_base_url: str, nexus_api: NexusApiRegistry) -> AuthenticatedClient:
     """Return an authenticated client for a user with the auditor role.
 
     Creates the user and assigns the auditor role via the generated API
@@ -174,16 +156,14 @@ def auditor_client(
     ):
         pytest.fail(f"Failed to assign auditor role: {role_resp.status_code} {role_resp.content!r}")
 
-    login_resp = httpx.post(
-        f"{nexus_base_url}/api/v1/auth/login",
-        json={"username": username, "password": password},
-        verify=False,  # noqa: S501
-        timeout=10,
-    )
-    login_resp.raise_for_status()
-    token: str = login_resp.json()["access_token"]
-
+    token = _login(nexus_base_url, username, password)
     return AuthenticatedClient(base_url=f"{nexus_base_url}/api/v1", token=token, verify_ssl=False)
+
+
+@pytest.fixture(scope="session")
+def auditor_api(auditor_client: AuthenticatedClient) -> NexusApiRegistry:
+    """Return a NexusApiRegistry bound to the auditor client."""
+    return NexusApiRegistry(auditor_client)
 
 
 @pytest.fixture(scope="session")
