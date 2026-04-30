@@ -18,13 +18,17 @@ import structlog
 from nexus.core.config.base import get_settings
 from nexus.core.database.session import AsyncSessionLocal
 from nexus.core.workers import PeriodicWorker
+from nexus.telemetry.events.integration_health import IntegrationHealthEvent
 from nexus.telemetry.events.system_analytics import ConfigInfo, SystemAnalyticsEvent
 from nexus.telemetry.queries import (
     get_enabled_feature_flags,
     query_credential_counts,
+    query_credential_health,
     query_execution_counts,
+    query_identity_provider_health,
     query_model_usage,
     query_tool_counts,
+    query_tool_provider_health,
     query_workflow_counts,
 )
 
@@ -54,6 +58,9 @@ async def _collect_and_send(
         credential_counts = await query_credential_counts(session)
         model_usage_list = await query_model_usage(session)
         tool_counts = await query_tool_counts(session)
+        tool_provider_health = await query_tool_provider_health(session)
+        identity_provider_health = await query_identity_provider_health(session)
+        credential_health = await query_credential_health(session)
 
     feature_flags = get_enabled_feature_flags()
 
@@ -66,9 +73,17 @@ async def _collect_and_send(
         tools=tool_counts,
         model_usage=model_usage_list,
     )
-
     registry.send_event(event)
     logger.debug("periodic_analytics_event_sent")
+
+    integration_event = IntegrationHealthEvent(
+        entitlement_id=registry.entitlement_id,
+        tool_providers=tool_provider_health,
+        identity_providers=identity_provider_health,
+        credentials=credential_health,
+    )
+    registry.send_event(integration_event)
+    logger.debug("integration_health_event_sent")
 
 
 class PeriodicCollector:

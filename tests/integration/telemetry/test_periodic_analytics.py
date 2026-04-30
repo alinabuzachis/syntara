@@ -13,6 +13,7 @@ from uuid import uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.models.invocation import Invocation
@@ -74,6 +75,37 @@ async def _create_invocations_with_tokens(
             )
 
 
+async def _create_workflow_with_version(
+    session: AsyncSession,
+    user: User,
+    name: str,
+    *,
+    is_enabled: bool = True,
+    deleted: bool = False,
+) -> Workflow:
+    """Create a workflow with its initial version."""
+    wf = Workflow(
+        name=name,
+        created_by=user.id,
+        is_enabled=is_enabled,
+        current_version=1,
+    )
+    if deleted:
+        wf.deleted_at = datetime.now(UTC)
+        wf.deleted_by = user.id
+    session.add(wf)
+    session.add(
+        WorkflowVersion(
+            workflow_id=wf.id,
+            version=1,
+            schema_version="1.0.0",
+            workflow_definition=_wf_def(name),
+            created_by=user.id,
+        )
+    )
+    return wf
+
+
 class TestPeriodicAnalyticsFlow:
     """Integration test: full periodic collection lifecycle with real database."""
 
@@ -104,57 +136,16 @@ class TestPeriodicAnalyticsFlow:
 
         # Create workflows: 3 enabled, 2 disabled
         for i in range(3):
-            wf = Workflow(
-                name=f"enabled-wf-{i}",
-                created_by=test_user.id,
-                is_enabled=True,
-                current_version=1,
-            )
-            test_db_session.add(wf)
-            test_db_session.add(
-                WorkflowVersion(
-                    workflow_id=wf.id,
-                    version=1,
-                    schema_version="1.0.0",
-                    workflow_definition=_wf_def(f"enabled-wf-{i}"),
-                    created_by=test_user.id,
-                )
-            )
+            await _create_workflow_with_version(test_db_session, test_user, f"enabled-wf-{i}")
         for i in range(2):
-            wf = Workflow(
-                name=f"disabled-wf-{i}",
-                created_by=test_user.id,
-                is_enabled=False,
-                current_version=1,
-            )
-            test_db_session.add(wf)
-            test_db_session.add(
-                WorkflowVersion(
-                    workflow_id=wf.id,
-                    version=1,
-                    schema_version="1.0.0",
-                    workflow_definition=_wf_def(f"disabled-wf-{i}"),
-                    created_by=test_user.id,
-                )
-            )
+            await _create_workflow_with_version(test_db_session, test_user, f"disabled-wf-{i}", is_enabled=False)
 
         # Create a workflow and version for executions
-        exec_wf = Workflow(
-            name="exec-wf",
-            created_by=test_user.id,
-            is_enabled=True,
-            current_version=1,
-        )
-        test_db_session.add(exec_wf)
-        exec_version = WorkflowVersion(
-            workflow_id=exec_wf.id,
-            version=1,
-            schema_version="1.0.0",
-            workflow_definition=_wf_def("exec-wf"),
-            created_by=test_user.id,
-        )
-        test_db_session.add(exec_version)
+        exec_wf = await _create_workflow_with_version(test_db_session, test_user, "exec-wf")
         await test_db_session.flush()
+        exec_version = (
+            await test_db_session.exec(select(WorkflowVersion).where(WorkflowVersion.workflow_id == exec_wf.id))
+        ).one()
 
         # Create executions with various statuses
         now = datetime.now(UTC)
@@ -211,9 +202,10 @@ class TestPeriodicAnalyticsFlow:
         # Run the collect_and_send function with real database queries
         await _collect_and_send(mock_session_factory, registry)
 
-        # Verify Segment call
-        mock_client.track.assert_called_once()
-        call_kwargs = mock_client.track.call_args.kwargs
+        # Verify Segment calls (system_analytics + integration_health)
+        assert mock_client.track.call_count == 2
+        calls_by_event = {c.kwargs["event"]: c.kwargs for c in mock_client.track.call_args_list}
+        call_kwargs = calls_by_event["system_analytics"]
 
         assert call_kwargs["anonymous_id"] == "test-anonymous-001"
         assert call_kwargs["event"] == "system_analytics"
@@ -289,11 +281,11 @@ class TestPeriodicAnalyticsFlow:
         await _collect_and_send(mock_session_factory, registry)
         await _collect_and_send(mock_session_factory, registry)
 
-        # Both calls should send events with identical data (no deltas)
-        assert mock_client.track.call_count == 2
-        first_props = mock_client.track.call_args_list[0].kwargs["properties"]
-        second_props = mock_client.track.call_args_list[1].kwargs["properties"]
-        assert first_props == second_props
+        # Each cycle sends 2 events (system_analytics + integration_health)
+        assert mock_client.track.call_count == 4
+        analytics_calls = [c for c in mock_client.track.call_args_list if c.kwargs["event"] == "system_analytics"]
+        assert len(analytics_calls) == 2
+        assert analytics_calls[0].kwargs["properties"] == analytics_calls[1].kwargs["properties"]
 
     async def test_empty_database_produces_zero_counts(
         self,
@@ -307,8 +299,9 @@ class TestPeriodicAnalyticsFlow:
         # No data inserted - database is empty (test_db_session ensures truncation)
         await _collect_and_send(mock_session_factory, registry)
 
-        mock_client.track.assert_called_once()
-        props = mock_client.track.call_args.kwargs["properties"]
+        assert mock_client.track.call_count == 2
+        calls_by_event = {c.kwargs["event"]: c.kwargs for c in mock_client.track.call_args_list}
+        props = calls_by_event["system_analytics"]["properties"]
 
         assert props["workflows"]["total"] == 0
         assert props["workflows"]["enabled"] == 0
@@ -371,7 +364,8 @@ class TestPeriodicAnalyticsFlow:
 
         await _collect_and_send(mock_session_factory, registry)
 
-        props = mock_client.track.call_args.kwargs["properties"]
+        calls_by_event = {c.kwargs["event"]: c.kwargs for c in mock_client.track.call_args_list}
+        props = calls_by_event["system_analytics"]["properties"]
 
         # Only active records should be counted
         assert props["workflows"]["total"] == 1

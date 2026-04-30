@@ -13,6 +13,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from nexus.telemetry.events.integration_health import (
+    CredentialHealth,
+    CredentialInfo,
+    IdentityProviderHealth,
+    IdentityProviderInfo,
+    ToolProviderHealth,
+    ToolProviderInfo,
+)
 from nexus.telemetry.periodic_collector import PeriodicCollector, _collect_and_send
 
 
@@ -102,7 +110,7 @@ class TestCollectAndSendFunction:
     """Tests for the _collect_and_send module-level function."""
 
     async def test_collect_and_send_queries_and_sends_event(self, mock_registry: MagicMock) -> None:
-        """_collect_and_send queries the database and sends an event."""
+        """_collect_and_send queries the database and sends both events."""
         session_factory = _mock_session_factory()
 
         with (
@@ -129,6 +137,18 @@ class TestCollectAndSendFunction:
                 "nexus.telemetry.periodic_collector.query_tool_counts",
                 new_callable=AsyncMock,
             ) as mock_tool_counts,
+            patch(
+                "nexus.telemetry.periodic_collector.query_tool_provider_health",
+                new_callable=AsyncMock,
+            ) as mock_tp_health,
+            patch(
+                "nexus.telemetry.periodic_collector.query_identity_provider_health",
+                new_callable=AsyncMock,
+            ) as mock_idp_health,
+            patch(
+                "nexus.telemetry.periodic_collector.query_credential_health",
+                new_callable=AsyncMock,
+            ) as mock_cred_health,
         ):
             # Set up return values
             mock_wf.return_value = MagicMock(total=10, enabled=8, disabled=2)
@@ -137,6 +157,20 @@ class TestCollectAndSendFunction:
             mock_flags.return_value = ["feature_a"]
             mock_model_usage.return_value = []
             mock_tool_counts.return_value = MagicMock(success_count=0, error_count=0, timeout_count=0, distinct_tools=0)
+            mock_tp_health.return_value = ToolProviderHealth(
+                items={"mcp": ToolProviderInfo(enabled=1, disabled=1)},
+                total=2,
+            )
+            mock_idp_health.return_value = IdentityProviderHealth(
+                items={"oidc": IdentityProviderInfo(enabled=1, disabled=0)},
+                total=1,
+            )
+            mock_cred_health.return_value = CredentialHealth(
+                items={"HTTP Bearer Token": CredentialInfo(enabled=1, disabled=0)},
+                total=1,
+                enabled=1,
+                disabled=0,
+            )
 
             await _collect_and_send(session_factory, mock_registry)
 
@@ -147,9 +181,12 @@ class TestCollectAndSendFunction:
             mock_flags.assert_called_once()
             mock_model_usage.assert_called_once()
             mock_tool_counts.assert_called_once()
+            mock_tp_health.assert_called_once()
+            mock_idp_health.assert_called_once()
+            mock_cred_health.assert_called_once()
 
-            # Verify event was sent
-            mock_registry.send_event.assert_called_once()
+            # Verify both events were sent (system analytics + integration health)
+            assert mock_registry.send_event.call_count == 2
 
     async def test_collect_and_send_propagates_exceptions(self, mock_registry: MagicMock) -> None:
         """_collect_and_send propagates exceptions (error handling is in worker)."""

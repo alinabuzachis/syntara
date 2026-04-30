@@ -12,6 +12,15 @@ from nexus.agent_orchestrator.models.invocation import Invocation
 from nexus.agent_orchestrator.token_manager.models import TokenUsageRecord
 from nexus.credentials.models.credential import Credential
 from nexus.credentials.models.credential_type import CredentialType
+from nexus.identity_providers.models.identity_provider import IdentityProvider
+from nexus.telemetry.events.integration_health import (
+    CredentialHealth,
+    CredentialInfo,
+    IdentityProviderHealth,
+    IdentityProviderInfo,
+    ToolProviderHealth,
+    ToolProviderInfo,
+)
 from nexus.telemetry.events.system_analytics import (
     CredentialCounts,
     ExecutionCounts,
@@ -19,6 +28,7 @@ from nexus.telemetry.events.system_analytics import (
     ToolCounts,
     WorkflowCounts,
 )
+from nexus.tool_manager.models.tool_provider import ToolProvider
 from nexus.tool_manager.models.usage_counter import CounterType, UsageCounter
 from nexus.workflows.models.execution import Execution, ExecutionStatus
 from nexus.workflows.models.workflow import Workflow
@@ -186,3 +196,97 @@ def get_enabled_feature_flags() -> list[str]:
     Currently returns an empty list — no feature flag system exists.
     """
     return []
+
+
+async def query_tool_provider_health(session: AsyncSession) -> ToolProviderHealth:
+    """Query health status of configured tool providers grouped by type and status (excludes soft-deleted)."""
+    not_deleted = ToolProvider.deleted_at.is_(None)  # type: ignore[union-attr]
+    provider_type_col = ToolProvider.configuration["provider_type"].astext.label("provider_type")  # type: ignore[index]
+
+    provider_result = await session.exec(
+        select(  # type: ignore[call-overload]
+            provider_type_col,
+            ToolProvider.enabled,
+            func.count(ToolProvider.id),  # type: ignore[arg-type]
+        )
+        .where(not_deleted)
+        .group_by(provider_type_col, ToolProvider.enabled)
+    )
+
+    items: dict[str, ToolProviderInfo] = {}
+    total = 0
+    for provider_type, is_enabled, count in provider_result:
+        info = items.setdefault(provider_type, ToolProviderInfo())
+        if is_enabled:
+            info.enabled = count
+        else:
+            info.disabled = count
+        total += count
+
+    return ToolProviderHealth(
+        items=items,
+        total=total,
+    )
+
+
+async def query_identity_provider_health(session: AsyncSession) -> IdentityProviderHealth:
+    """Query health status of configured identity providers grouped by type and status (excludes soft-deleted)."""
+    not_deleted = IdentityProvider.deleted_at.is_(None)  # type: ignore[union-attr]
+    provider_type_col = IdentityProvider.configuration["provider_type"].astext.label("provider_type")  # type: ignore[index]
+
+    provider_result = await session.exec(
+        select(  # type: ignore[call-overload]
+            provider_type_col,
+            IdentityProvider.enabled,
+            func.count(IdentityProvider.id),  # type: ignore[arg-type]
+        )
+        .where(not_deleted)
+        .group_by(provider_type_col, IdentityProvider.enabled)
+    )
+
+    items: dict[str, IdentityProviderInfo] = {}
+    total = 0
+    for provider_type, is_enabled, count in provider_result:
+        info = items.setdefault(provider_type, IdentityProviderInfo())
+        if is_enabled:
+            info.enabled = count
+        else:
+            info.disabled = count
+        total += count
+
+    return IdentityProviderHealth(
+        items=items,
+        total=total,
+    )
+
+
+async def query_credential_health(session: AsyncSession) -> CredentialHealth:
+    """Query health status of configured credentials grouped by type and status."""
+    credential_result = await session.exec(
+        select(  # type: ignore[call-overload]
+            CredentialType.name,
+            Credential.enabled,
+            func.count(Credential.id),  # type: ignore[arg-type]
+        )
+        .join(CredentialType, Credential.credential_type_id == CredentialType.id)
+        .group_by(CredentialType.name, Credential.enabled)
+    )
+
+    items: dict[str, CredentialInfo] = {}
+    total_enabled = 0
+    total_disabled = 0
+    for type_name, is_enabled, count in credential_result:
+        info = items.setdefault(type_name, CredentialInfo())
+        if is_enabled:
+            info.enabled = count
+            total_enabled += count
+        else:
+            info.disabled = count
+            total_disabled += count
+
+    return CredentialHealth(
+        items=items,
+        total=total_enabled + total_disabled,
+        enabled=total_enabled,
+        disabled=total_disabled,
+    )

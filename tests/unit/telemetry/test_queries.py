@@ -7,6 +7,14 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from nexus.telemetry.events.integration_health import (
+    CredentialHealth,
+    CredentialInfo,
+    IdentityProviderHealth,
+    IdentityProviderInfo,
+    ToolProviderHealth,
+    ToolProviderInfo,
+)
 from nexus.telemetry.events.system_analytics import (
     CredentialCounts,
     ExecutionCounts,
@@ -15,8 +23,11 @@ from nexus.telemetry.events.system_analytics import (
 )
 from nexus.telemetry.queries import (
     query_credential_counts,
+    query_credential_health,
     query_execution_counts,
+    query_identity_provider_health,
     query_model_usage,
+    query_tool_provider_health,
     query_workflow_counts,
 )
 
@@ -174,7 +185,106 @@ class TestQueryCredentialCounts:
 
         assert result.total == 0
         assert result.type == {}
-        assert result.used_in_nodes == 0
+
+
+class TestQueryToolProviderHealth:
+    """Tests for query_tool_provider_health."""
+
+    async def test_returns_health(self, mock_session: AsyncMock):
+        provider_result = MagicMock()
+        provider_result.__iter__ = MagicMock(return_value=iter([("mcp", True, 4), ("mcp", False, 1)]))
+
+        mock_session.exec = AsyncMock(return_value=provider_result)
+
+        result = await query_tool_provider_health(mock_session)
+
+        assert isinstance(result, ToolProviderHealth)
+        assert result.total == 5
+        assert result.items == {
+            "mcp": ToolProviderInfo(enabled=4, disabled=1),
+        }
+
+    async def test_handles_no_providers(self, mock_session: AsyncMock):
+        empty_result = MagicMock()
+        empty_result.__iter__ = MagicMock(return_value=iter([]))
+
+        mock_session.exec = AsyncMock(return_value=empty_result)
+
+        result = await query_tool_provider_health(mock_session)
+
+        assert result.total == 0
+        assert result.items == {}
+
+
+class TestQueryIdentityProviderHealth:
+    """Tests for query_identity_provider_health."""
+
+    async def test_returns_health(self, mock_session: AsyncMock):
+        provider_result = MagicMock()
+        provider_result.__iter__ = MagicMock(return_value=iter([("oidc", True, 2), ("oidc", False, 1)]))
+
+        mock_session.exec = AsyncMock(return_value=provider_result)
+
+        result = await query_identity_provider_health(mock_session)
+
+        assert isinstance(result, IdentityProviderHealth)
+        assert result.total == 3
+        assert result.items == {
+            "oidc": IdentityProviderInfo(enabled=2, disabled=1),
+        }
+
+    async def test_handles_no_providers(self, mock_session: AsyncMock):
+        empty_result = MagicMock()
+        empty_result.__iter__ = MagicMock(return_value=iter([]))
+
+        mock_session.exec = AsyncMock(return_value=empty_result)
+
+        result = await query_identity_provider_health(mock_session)
+
+        assert result.total == 0
+        assert result.items == {}
+
+
+class TestQueryCredentialHealth:
+    """Tests for query_credential_health."""
+
+    async def test_returns_health_grouped_by_type(self, mock_session: AsyncMock):
+        credential_result = MagicMock()
+        credential_result.__iter__ = MagicMock(
+            return_value=iter(
+                [
+                    ("HTTP Bearer Token", True, 1),
+                    ("HTTP Bearer Token", False, 1),
+                    ("SSH Key", False, 1),
+                ]
+            )
+        )
+
+        mock_session.exec = AsyncMock(return_value=credential_result)
+
+        result = await query_credential_health(mock_session)
+
+        assert isinstance(result, CredentialHealth)
+        assert result.total == 3
+        assert result.enabled == 1
+        assert result.disabled == 2
+        assert result.items == {
+            "HTTP Bearer Token": CredentialInfo(enabled=1, disabled=1),
+            "SSH Key": CredentialInfo(enabled=0, disabled=1),
+        }
+
+    async def test_handles_no_credentials(self, mock_session: AsyncMock):
+        empty_result = MagicMock()
+        empty_result.__iter__ = MagicMock(return_value=iter([]))
+
+        mock_session.exec = AsyncMock(return_value=empty_result)
+
+        result = await query_credential_health(mock_session)
+
+        assert result.total == 0
+        assert result.enabled == 0
+        assert result.disabled == 0
+        assert result.items == {}
 
     async def test_used_in_nodes_zero_when_no_workflows(self, mock_session: AsyncMock):
         """used_in_nodes is 0 when no workflows reference credentials."""
