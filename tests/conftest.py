@@ -70,8 +70,13 @@ from nexus.workflows.workflow_engine.dynamic_workflow import NexusWorkflow
 from tests.fixtures.mock_mcp_provider import MockMCPProvider
 from tests.helpers.approval import ApprovalsFactory
 from tests.helpers.audit import AuditEventsFactory
+from tests.helpers.credential import CredentialFactory
+from tests.helpers.execution import ExecutionFactory
+from tests.helpers.identity_provider import IdentityProviderFactory
+from tests.helpers.token_usage import TokenUsageFactory
 from tests.helpers.tool_manager import ToolFactory
-from tests.helpers.workflow import ActivitiesFactory, ExecutionsFactory
+from tests.helpers.tool_provider import ToolProviderFactory
+from tests.helpers.workflow import ActivitiesFactory, ExecutionsFactory, WorkflowFactory
 
 if TYPE_CHECKING:
     from nexus_api_client import AuthenticatedClient
@@ -1572,6 +1577,42 @@ async def activities_factory(test_db_session: AsyncSession) -> ActivitiesFactory
     rows for any execution via ``create_activities(execution, names, ...)``.
     """
     return ActivitiesFactory(test_db_session)
+
+
+@pytest_asyncio.fixture
+async def workflow_factory(test_db_session: AsyncSession, test_user: User) -> WorkflowFactory:
+    """Factory for creating workflows with versions for telemetry tests."""
+    return WorkflowFactory(test_db_session, test_user)
+
+
+@pytest_asyncio.fixture
+async def execution_factory(test_db_session: AsyncSession, test_user: User) -> ExecutionFactory:
+    """Factory for creating executions for telemetry tests."""
+    return ExecutionFactory(test_db_session, test_user)
+
+
+@pytest_asyncio.fixture
+async def credential_factory(test_db_session: AsyncSession, test_user: User) -> CredentialFactory:
+    """Factory for creating credentials and credential types for telemetry tests."""
+    return CredentialFactory(test_db_session, test_user)
+
+
+@pytest_asyncio.fixture
+async def token_usage_factory(test_db_session: AsyncSession, test_user: User) -> TokenUsageFactory:
+    """Factory for creating invocations with linked token usage records."""
+    return TokenUsageFactory(test_db_session, test_user)
+
+
+@pytest_asyncio.fixture
+async def tool_provider_factory(test_db_session: AsyncSession, test_user: User) -> ToolProviderFactory:
+    """Factory for creating tool providers for tests."""
+    return ToolProviderFactory(test_db_session, test_user)
+
+
+@pytest_asyncio.fixture
+async def identity_provider_factory(test_db_session: AsyncSession, test_user: User) -> IdentityProviderFactory:
+    """Factory for creating identity providers for tests."""
+    return IdentityProviderFactory(test_db_session, test_user)
 
 
 @pytest_asyncio.fixture

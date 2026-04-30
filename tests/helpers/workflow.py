@@ -91,6 +91,68 @@ def create_workflow_definition_with_activities(
     }
 
 
+_WF_DEF_TEMPLATE: dict[str, object] = {
+    "schemaVersion": "1.0.0",
+    "version": 1,
+    "metadata": {"name": "placeholder"},
+    "triggers": [{"type": "manual"}],
+    "workflow": {"activities": []},
+}
+
+
+def _wf_def(name: str) -> dict[str, object]:
+    """Build a minimal workflow definition dict."""
+    return {**_WF_DEF_TEMPLATE, "metadata": {"name": name}}
+
+
+class WorkflowFactory:
+    """Factory for creating workflows with versions."""
+
+    def __init__(self, session: AsyncSession, user: User) -> None:
+        """Initialize with database session and user."""
+        self.session = session
+        self.user = user
+
+    async def create(
+        self,
+        name: str | None = None,
+        *,
+        is_enabled: bool = True,
+    ) -> tuple[Workflow, WorkflowVersion]:
+        """Create a workflow with a version. Returns (workflow, version)."""
+        name = name or f"wf-{uuid4().hex[:8]}"
+        wf = Workflow(
+            name=name,
+            created_by=self.user.id,
+            is_enabled=is_enabled,
+            current_version=1,
+        )
+        self.session.add(wf)
+        version = WorkflowVersion(
+            workflow_id=wf.id,
+            version=1,
+            schema_version="1.0.0",
+            workflow_definition=_wf_def(name),
+            created_by=self.user.id,
+        )
+        self.session.add(version)
+        await self.session.flush()
+        return wf, version
+
+    async def create_many(
+        self,
+        count: int,
+        *,
+        is_enabled: bool = True,
+        prefix: str = "wf",
+    ) -> list[tuple[Workflow, WorkflowVersion]]:
+        """Create multiple workflows. Returns list of (workflow, version) tuples."""
+        results = []
+        for i in range(count):
+            results.append(await self.create(f"{prefix}-{i}-{uuid4().hex[:6]}", is_enabled=is_enabled))
+        return results
+
+
 class ExecutionsFactory:
     """Factory class for creating test executions with configurable properties."""
 

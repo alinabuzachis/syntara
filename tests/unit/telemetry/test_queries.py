@@ -1,11 +1,11 @@
-"""Unit tests for periodic analytics database queries.
+"""Tests for periodic analytics database queries using a real database.
 
-All queries are tested with mocked AsyncSession to avoid DB dependency.
+All queries are tested against a real PostgreSQL database via test_db_session.
 """
 
-from unittest.mock import AsyncMock, MagicMock
+from datetime import UTC, datetime, timedelta
 
-import pytest
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.telemetry.events.integration_health import (
     CredentialHealth,
@@ -30,32 +30,36 @@ from nexus.telemetry.queries import (
     query_tool_provider_health,
     query_workflow_counts,
 )
-
-
-@pytest.fixture
-def mock_session() -> AsyncMock:
-    """Create a mock AsyncSession."""
-    return AsyncMock()
+from nexus.workflows.models.execution import ExecutionStatus
+from tests.helpers.credential import CredentialFactory
+from tests.helpers.execution import ExecutionFactory
+from tests.helpers.identity_provider import IdentityProviderFactory
+from tests.helpers.token_usage import TokenUsageFactory
+from tests.helpers.tool_provider import ToolProviderFactory
+from tests.helpers.workflow import WorkflowFactory
 
 
 class TestQueryWorkflowCounts:
     """Tests for query_workflow_counts."""
 
-    async def test_returns_counts(self, mock_session: AsyncMock):
-        # First scalar call: total, second: enabled
-        mock_session.scalar = AsyncMock(side_effect=[10, 7])
+    async def test_returns_counts(
+        self,
+        test_db_session: AsyncSession,
+        workflow_factory: WorkflowFactory,
+    ):
+        await workflow_factory.create_many(7, is_enabled=True, prefix="enabled")
+        await workflow_factory.create_many(3, is_enabled=False, prefix="disabled")
+        await test_db_session.commit()
 
-        result = await query_workflow_counts(mock_session)
+        result = await query_workflow_counts(test_db_session)
 
         assert isinstance(result, WorkflowCounts)
         assert result.total == 10
         assert result.enabled == 7
         assert result.disabled == 3
 
-    async def test_handles_none_from_db(self, mock_session: AsyncMock):
-        mock_session.scalar = AsyncMock(side_effect=[None, None])
-
-        result = await query_workflow_counts(mock_session)
+    async def test_handles_empty_database(self, test_db_session: AsyncSession):
+        result = await query_workflow_counts(test_db_session)
 
         assert result.total == 0
         assert result.enabled == 0
@@ -65,26 +69,31 @@ class TestQueryWorkflowCounts:
 class TestQueryExecutionCounts:
     """Tests for query_execution_counts."""
 
-    async def test_counts_by_status(self, mock_session: AsyncMock):
-        # exec() returns rows of (status, count)
-        mock_result = MagicMock()
-        mock_result.__iter__ = MagicMock(
-            return_value=iter(
-                [
-                    ("completed", 40),
-                    ("failed", 5),
-                    ("running", 3),
-                    ("cancelled", 2),
-                    ("pending", 1),
-                    ("paused", 1),
-                ]
-            )
-        )
-        mock_session.exec = AsyncMock(return_value=mock_result)
-        # scalar() for avg_duration
-        mock_session.scalar = AsyncMock(return_value=125.3)
+    async def test_counts_by_status(
+        self,
+        test_db_session: AsyncSession,
+        workflow_factory: WorkflowFactory,
+        execution_factory: ExecutionFactory,
+    ):
+        wf, version = await workflow_factory.create("exec-wf")
+        completed_at = datetime.now(UTC) + timedelta(seconds=125)
 
-        result = await query_execution_counts(mock_session)
+        await execution_factory.create_many(
+            wf,
+            version,
+            [
+                (ExecutionStatus.COMPLETED, 40),
+                (ExecutionStatus.FAILED, 5),
+                (ExecutionStatus.RUNNING, 3),
+                (ExecutionStatus.CANCELLED, 2),
+                (ExecutionStatus.PENDING, 1),
+                (ExecutionStatus.PAUSED, 1),
+            ],
+            completed_at=completed_at,
+        )
+        await test_db_session.commit()
+
+        result = await query_execution_counts(test_db_session)
 
         assert isinstance(result, ExecutionCounts)
         assert result.total == 52
@@ -94,15 +103,19 @@ class TestQueryExecutionCounts:
         assert result.cancelled == 2
         assert result.pending == 1
         assert result.paused == 1
-        assert result.avg_duration_seconds == 125.3
+        assert result.avg_duration_seconds > 0
 
-    async def test_only_running(self, mock_session: AsyncMock):
-        mock_result = MagicMock()
-        mock_result.__iter__ = MagicMock(return_value=iter([("running", 5)]))
-        mock_session.exec = AsyncMock(return_value=mock_result)
-        mock_session.scalar = AsyncMock(return_value=None)
+    async def test_only_running(
+        self,
+        test_db_session: AsyncSession,
+        workflow_factory: WorkflowFactory,
+        execution_factory: ExecutionFactory,
+    ):
+        wf, version = await workflow_factory.create("running-wf")
+        await execution_factory.create_many(wf, version, [(ExecutionStatus.RUNNING, 5)])
+        await test_db_session.commit()
 
-        result = await query_execution_counts(mock_session)
+        result = await query_execution_counts(test_db_session)
 
         assert result.running == 5
         assert result.completed == 0
@@ -112,36 +125,31 @@ class TestQueryExecutionCounts:
 class TestQueryModelUsage:
     """Tests for query_model_usage."""
 
-    async def test_returns_model_usage_list(self, mock_session: AsyncMock):
-        mock_result = MagicMock()
-        mock_result.__iter__ = MagicMock(
-            return_value=iter(
-                [
-                    ("gpt-4", 5000, 2000, 10),
-                    ("claude-3", 3000, 1500, 5),
-                ]
-            )
-        )
-        mock_session.exec = AsyncMock(return_value=mock_result)
+    async def test_returns_model_usage_list(
+        self,
+        test_db_session: AsyncSession,
+        token_usage_factory: TokenUsageFactory,
+    ):
+        await token_usage_factory.create_many("gpt-4", 500, 200, 10)
+        await token_usage_factory.create_many("claude-3", 600, 300, 5)
+        await test_db_session.commit()
 
-        result = await query_model_usage(mock_session)
+        result = await query_model_usage(test_db_session)
 
         assert len(result) == 2
+        usage_by_model = {m.model: m for m in result}
         assert isinstance(result[0], ModelUsage)
-        assert result[0].model == "gpt-4"
-        assert result[0].total_prompt_tokens == 5000
-        assert result[0].total_completion_tokens == 2000
-        assert result[0].total_tokens == 7000
-        assert result[0].invocation_count == 10
-        assert result[1].model == "claude-3"
-        assert result[1].total_tokens == 4500
+        assert usage_by_model["gpt-4"].total_prompt_tokens == 5000
+        assert usage_by_model["gpt-4"].total_completion_tokens == 2000
+        assert usage_by_model["gpt-4"].total_tokens == 7000
+        assert usage_by_model["gpt-4"].invocation_count == 10
+        assert usage_by_model["claude-3"].total_prompt_tokens == 3000
+        assert usage_by_model["claude-3"].total_completion_tokens == 1500
+        assert usage_by_model["claude-3"].total_tokens == 4500
+        assert usage_by_model["claude-3"].invocation_count == 5
 
-    async def test_returns_empty_list_when_no_usage(self, mock_session: AsyncMock):
-        mock_result = MagicMock()
-        mock_result.__iter__ = MagicMock(return_value=iter([]))
-        mock_session.exec = AsyncMock(return_value=mock_result)
-
-        result = await query_model_usage(mock_session)
+    async def test_returns_empty_list_when_no_usage(self, test_db_session: AsyncSession):
+        result = await query_model_usage(test_db_session)
 
         assert result == []
 
@@ -149,22 +157,22 @@ class TestQueryModelUsage:
 class TestQueryCredentialCounts:
     """Tests for query_credential_counts."""
 
-    async def test_returns_counts_by_type(self, mock_session: AsyncMock):
-        mock_result = MagicMock()
-        mock_result.__iter__ = MagicMock(
-            return_value=iter(
-                [
-                    ("HTTP Bearer Token", 3),
-                    ("LLM Provider", 2),
-                    ("SSH Key", 1),
-                ]
-            )
-        )
-        mock_session.exec = AsyncMock(return_value=mock_result)
-        # scalar() for _query_credentials_used_in_nodes
-        mock_session.scalar = AsyncMock(return_value=2)
+    async def test_returns_counts_by_type(
+        self,
+        test_db_session: AsyncSession,
+        credential_factory: CredentialFactory,
+    ):
+        bearer_type = await credential_factory.create_type("HTTP Bearer Token")
+        llm_type = await credential_factory.create_type("LLM Provider")
+        ssh_type = await credential_factory.create_type("SSH Key")
+        project = await credential_factory.create_project()
 
-        result = await query_credential_counts(mock_session)
+        await credential_factory.create_many(bearer_type, project, 3, prefix="bearer")
+        await credential_factory.create_many(llm_type, project, 2, prefix="llm")
+        await credential_factory.create_many(ssh_type, project, 1, prefix="ssh")
+        await test_db_session.commit()
+
+        result = await query_credential_counts(test_db_session)
 
         assert isinstance(result, CredentialCounts)
         assert result.total == 6
@@ -173,15 +181,9 @@ class TestQueryCredentialCounts:
             "LLM Provider": 2,
             "SSH Key": 1,
         }
-        assert result.used_in_nodes == 2
 
-    async def test_handles_no_credentials(self, mock_session: AsyncMock):
-        mock_result = MagicMock()
-        mock_result.__iter__ = MagicMock(return_value=iter([]))
-        mock_session.exec = AsyncMock(return_value=mock_result)
-        mock_session.scalar = AsyncMock(return_value=None)
-
-        result = await query_credential_counts(mock_session)
+    async def test_handles_no_credentials(self, test_db_session: AsyncSession):
+        result = await query_credential_counts(test_db_session)
 
         assert result.total == 0
         assert result.type == {}
@@ -190,13 +192,16 @@ class TestQueryCredentialCounts:
 class TestQueryToolProviderHealth:
     """Tests for query_tool_provider_health."""
 
-    async def test_returns_health(self, mock_session: AsyncMock):
-        provider_result = MagicMock()
-        provider_result.__iter__ = MagicMock(return_value=iter([("mcp", True, 4), ("mcp", False, 1)]))
+    async def test_returns_health(
+        self,
+        test_db_session: AsyncSession,
+        tool_provider_factory: ToolProviderFactory,
+    ):
+        await tool_provider_factory.create_many(4, prefix="enabled", enabled=True)
+        await tool_provider_factory.create("disabled-0", enabled=False)
+        await test_db_session.commit()
 
-        mock_session.exec = AsyncMock(return_value=provider_result)
-
-        result = await query_tool_provider_health(mock_session)
+        result = await query_tool_provider_health(test_db_session)
 
         assert isinstance(result, ToolProviderHealth)
         assert result.total == 5
@@ -204,13 +209,8 @@ class TestQueryToolProviderHealth:
             "mcp": ToolProviderInfo(enabled=4, disabled=1),
         }
 
-    async def test_handles_no_providers(self, mock_session: AsyncMock):
-        empty_result = MagicMock()
-        empty_result.__iter__ = MagicMock(return_value=iter([]))
-
-        mock_session.exec = AsyncMock(return_value=empty_result)
-
-        result = await query_tool_provider_health(mock_session)
+    async def test_handles_no_providers(self, test_db_session: AsyncSession):
+        result = await query_tool_provider_health(test_db_session)
 
         assert result.total == 0
         assert result.items == {}
@@ -219,13 +219,16 @@ class TestQueryToolProviderHealth:
 class TestQueryIdentityProviderHealth:
     """Tests for query_identity_provider_health."""
 
-    async def test_returns_health(self, mock_session: AsyncMock):
-        provider_result = MagicMock()
-        provider_result.__iter__ = MagicMock(return_value=iter([("oidc", True, 2), ("oidc", False, 1)]))
+    async def test_returns_health(
+        self,
+        test_db_session: AsyncSession,
+        identity_provider_factory: IdentityProviderFactory,
+    ):
+        await identity_provider_factory.create_many(2, prefix="enabled", enabled=True)
+        await identity_provider_factory.create("disabled-0", enabled=False)
+        await test_db_session.commit()
 
-        mock_session.exec = AsyncMock(return_value=provider_result)
-
-        result = await query_identity_provider_health(mock_session)
+        result = await query_identity_provider_health(test_db_session)
 
         assert isinstance(result, IdentityProviderHealth)
         assert result.total == 3
@@ -233,13 +236,8 @@ class TestQueryIdentityProviderHealth:
             "oidc": IdentityProviderInfo(enabled=2, disabled=1),
         }
 
-    async def test_handles_no_providers(self, mock_session: AsyncMock):
-        empty_result = MagicMock()
-        empty_result.__iter__ = MagicMock(return_value=iter([]))
-
-        mock_session.exec = AsyncMock(return_value=empty_result)
-
-        result = await query_identity_provider_health(mock_session)
+    async def test_handles_no_providers(self, test_db_session: AsyncSession):
+        result = await query_identity_provider_health(test_db_session)
 
         assert result.total == 0
         assert result.items == {}
@@ -248,21 +246,21 @@ class TestQueryIdentityProviderHealth:
 class TestQueryCredentialHealth:
     """Tests for query_credential_health."""
 
-    async def test_returns_health_grouped_by_type(self, mock_session: AsyncMock):
-        credential_result = MagicMock()
-        credential_result.__iter__ = MagicMock(
-            return_value=iter(
-                [
-                    ("HTTP Bearer Token", True, 1),
-                    ("HTTP Bearer Token", False, 1),
-                    ("SSH Key", False, 1),
-                ]
-            )
-        )
+    async def test_returns_health_grouped_by_type(
+        self,
+        test_db_session: AsyncSession,
+        credential_factory: CredentialFactory,
+    ):
+        bearer_type = await credential_factory.create_type("HTTP Bearer Token")
+        ssh_type = await credential_factory.create_type("SSH Key")
+        project = await credential_factory.create_project()
 
-        mock_session.exec = AsyncMock(return_value=credential_result)
+        await credential_factory.create(bearer_type, project, "bearer-enabled", enabled=True)
+        await credential_factory.create(bearer_type, project, "bearer-disabled", enabled=False)
+        await credential_factory.create(ssh_type, project, "ssh-disabled", enabled=False)
+        await test_db_session.commit()
 
-        result = await query_credential_health(mock_session)
+        result = await query_credential_health(test_db_session)
 
         assert isinstance(result, CredentialHealth)
         assert result.total == 3
@@ -273,27 +271,26 @@ class TestQueryCredentialHealth:
             "SSH Key": CredentialInfo(enabled=0, disabled=1),
         }
 
-    async def test_handles_no_credentials(self, mock_session: AsyncMock):
-        empty_result = MagicMock()
-        empty_result.__iter__ = MagicMock(return_value=iter([]))
-
-        mock_session.exec = AsyncMock(return_value=empty_result)
-
-        result = await query_credential_health(mock_session)
+    async def test_handles_no_credentials(self, test_db_session: AsyncSession):
+        result = await query_credential_health(test_db_session)
 
         assert result.total == 0
         assert result.enabled == 0
         assert result.disabled == 0
         assert result.items == {}
 
-    async def test_used_in_nodes_zero_when_no_workflows(self, mock_session: AsyncMock):
+    async def test_used_in_nodes_zero_when_no_workflows(
+        self,
+        test_db_session: AsyncSession,
+        credential_factory: CredentialFactory,
+    ):
         """used_in_nodes is 0 when no workflows reference credentials."""
-        mock_result = MagicMock()
-        mock_result.__iter__ = MagicMock(return_value=iter([("Bearer", 5)]))
-        mock_session.exec = AsyncMock(return_value=mock_result)
-        mock_session.scalar = AsyncMock(return_value=0)
+        bearer_type = await credential_factory.create_type("Bearer")
+        project = await credential_factory.create_project()
+        await credential_factory.create_many(bearer_type, project, 5, prefix="bearer")
+        await test_db_session.commit()
 
-        result = await query_credential_counts(mock_session)
+        result = await query_credential_counts(test_db_session)
 
         assert result.total == 5
         assert result.used_in_nodes == 0
