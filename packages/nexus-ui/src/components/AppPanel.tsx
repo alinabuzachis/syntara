@@ -2,6 +2,11 @@ import { Panel, PanelMain, PanelMainBody, type PanelProps } from '@patternfly/re
 import type { ComponentProps, CSSProperties, ReactNode } from 'react'
 import { forwardRef } from 'react'
 
+/** Solid panel fill under glass theme without `variant="raised"` chrome (shadow / smaller radius). */
+const OPAQUE_FLOATING_PANEL_FILL_STYLE = {
+  '--pf-v6-c-panel--BackgroundColor': 'var(--pf-t--global--background--color--floating--default)',
+} as CSSProperties
+
 type PanelMainProps = Omit<ComponentProps<typeof PanelMain>, 'children'>
 type PanelMainBodyProps = Omit<ComponentProps<typeof PanelMainBody>, 'children'>
 
@@ -12,6 +17,9 @@ type PanelMainBodyProps = Omit<ComponentProps<typeof PanelMainBody>, 'children'>
  * - **`hasNoPadding`** — `padding: 0` on `PanelMainBody`.
  * - **`isGlass`** — defaults **on** when `pf-v6-theme-glass` is on `<html>` (`index.html`), unless
  *   `isGlass={false}`, **`isPill`**, or **`variant="raised"`**.
+ * - **`opaqueFloatingFill`** — with the glass theme, the default primary fill stays translucent even when
+ *   `isGlass={false}`; set **`opaqueFloatingFill`** for a solid floating-token fill without **`variant="raised"`**
+ *   chrome. Prefer **`variant="raised"`** when you want PatternFly’s raised panel look (opaque + shadow).
  * - **`isFullHeight`** — flex stretch on the root `Panel` and `PanelMain` / `PanelMainBody` so
  *   `height: '100%'` children (e.g. React Flow) resolve.
  * - **`isScrollable` + `isFullHeight`** — defaults **`isAutoHeight`** (avoids PF’s short scroll cap);
@@ -25,6 +33,12 @@ export type AppPanelProps = Omit<PanelProps, 'children'> & {
   children?: ReactNode
   /** Zero padding on `PanelMainBody` */
   hasNoPadding?: boolean
+  /**
+   * Solid background using PatternFly’s floating surface token (opaque under `pf-v6-theme-glass`).
+   * Use for large flat shells where `variant="raised"` would be the wrong chrome; merges before `style`
+   * so callers can override.
+   */
+  opaqueFloatingFill?: boolean
   panelMainProps?: PanelMainProps
   panelMainBodyProps?: Omit<PanelMainBodyProps, 'children'>
 }
@@ -53,6 +67,7 @@ export const AppPanel = forwardRef<HTMLDivElement, AppPanelProps>(function AppPa
     isPill,
     variant,
     isGlass,
+    opaqueFloatingFill,
     ...panelProps
   },
   ref
@@ -86,6 +101,7 @@ export const AppPanel = forwardRef<HTMLDivElement, AppPanelProps>(function AppPa
 
   const mergedPanelStyle: CSSProperties = {
     ...(isFullHeight === true ? { flex: 1, minHeight: 0, minWidth: 0 } : {}),
+    ...(opaqueFloatingFill === true ? OPAQUE_FLOATING_PANEL_FILL_STYLE : {}),
     ...panelStyle,
   }
   const panelStyleProp = Object.keys(mergedPanelStyle).length > 0 ? mergedPanelStyle : undefined

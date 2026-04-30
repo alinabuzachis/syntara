@@ -95,7 +95,7 @@ export function CanvasControls(props: Readonly<{ onLayout: () => void; hideLayou
 
   return (
     <Panel position="bottom-left">
-      <AppPanel isPill hasNoPadding style={{ padding: 'var(--pf-t--global--spacer--xs)' }}>
+      <AppPanel isPill variant="raised" hasNoPadding style={{ padding: 'var(--pf-t--global--spacer--xs)' }}>
         <Flex gap={{ default: 'gapNone' }}>
           <CanvasLegendPopoverBlock />
           <FlexItem>

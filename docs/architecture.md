@@ -598,6 +598,8 @@ The builder edits nodes + edges directly in the Zustand store. On save, `buildWo
 | `utils/buildNestedStructure.ts`                   | Legacy wrapper (identity function in v2 — returns activities as-is)                                                      |
 | `utils/validation/`                               | Validation rules                                                                                                         |
 
+Floating canvas surfaces (controls, legend, step nodes, undo/redo) use [`AppPanel`](../packages/nexus-ui/src/components/AppPanel.tsx) so they stay readable under the glass theme: compact overlays use `variant="raised"`; large flat panels (for example the node editor shell) use `opaqueFloatingFill` instead of raised chrome.
+
 ### Builder internals (advanced): registry, edges, and graph semantics
 
 This section is the “how it really works” view of the builder. It’s here so newcomers can debug issues without spelunking `BuilderFlow.tsx` immediately.

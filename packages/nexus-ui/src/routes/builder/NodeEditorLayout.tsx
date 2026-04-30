@@ -52,6 +52,7 @@ export function NodeEditorLayout({
       hasNoPadding
       isFullHeight
       isGlass={false}
+      opaqueFloatingFill
       style={{
         height: '100%',
         maxHeight: '100%',

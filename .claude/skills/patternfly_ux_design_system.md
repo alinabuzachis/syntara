@@ -153,6 +153,8 @@ Every page **must** follow this structural hierarchy:
 | Main Content       | Table / Canvas / Form        | Primary page content                    |
 | Footer (on tables) | Pagination component         | Navigation between table pages          |
 
+For **floating panels on the workflow canvas** under the glass theme, prefer `AppPanel` with `variant="raised"` for compact controls (opaque + shadow) or `opaqueFloatingFill` for large flat shells without raised chrome; see JSDoc on `packages/nexus-ui/src/components/AppPanel.tsx`.
+
 ### Page Header Structure
 
 The page header appears at the top of every page and contains the title and primary actions.

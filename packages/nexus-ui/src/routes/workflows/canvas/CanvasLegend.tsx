@@ -173,7 +173,7 @@ export function CanvasLegend(props: CanvasLegendProps) {
     <div id={props.regionId}>
       <AppPanel
         data-testid="canvas-legend"
-        isGlass={false}
+        variant="raised"
         panelMainBodyProps={{ style: { padding: 'var(--pf-t--global--spacer--lg)' } }}
       >
         <CanvasLegendHeader regionId={props.regionId} hide={props.hide} onClose={props.onClose} />

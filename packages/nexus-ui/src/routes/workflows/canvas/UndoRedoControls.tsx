@@ -14,7 +14,7 @@ export function UndoRedoControls() {
 
   return (
     <Panel position="bottom-center">
-      <AppPanel isPill hasNoPadding style={{ padding: 'var(--pf-t--global--spacer--xs)' }}>
+      <AppPanel isPill variant="raised" hasNoPadding style={{ padding: 'var(--pf-t--global--spacer--xs)' }}>
         <Flex role="toolbar" aria-label="Undo and redo" gap={{ default: 'gapNone' }}>
           <FlexItem>
             <Tooltip content={`Undo (${UNDO_SHORTCUT_LABEL})`}>
