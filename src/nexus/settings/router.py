@@ -119,12 +119,10 @@ async def get_setting(
     EventCategory.USER_ACTION,
     capture_args={"key"},
     capture_result={"key", "value", "version"},
-    actor_param="_current_user",
 )
 async def update_setting(
     key: str,
     body: SettingUpdate,
-    _current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[SettingsService, Depends(get_settings_service)],
 ) -> RuntimeSettingRead:
     """Update a runtime setting value with optimistic locking."""
@@ -142,10 +140,9 @@ async def update_setting(
     operation_id="bulk_update_settings",
     response_description="All settings updated successfully",
 )
-@audit(EventCategory.USER_ACTION, capture_args={"body"}, actor_param="_current_user")
+@audit(EventCategory.USER_ACTION, capture_args={"body"})
 async def bulk_update_settings(
     body: SettingBulkUpdateRequest,
-    _current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[SettingsService, Depends(get_settings_service)],
 ) -> list[RuntimeSettingRead]:
     """Update multiple settings in a single request."""
