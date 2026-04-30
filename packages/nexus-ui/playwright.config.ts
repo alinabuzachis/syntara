@@ -12,7 +12,7 @@ const useWebServer = !isSkipWebServerForPlaywrightTests()
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
-  workers: process.env.CI ? 1 : undefined,
+  workers: process.env.CI ? 3 : undefined,
   timeout: 60_000,
   expect: {
     timeout: 10_000,
