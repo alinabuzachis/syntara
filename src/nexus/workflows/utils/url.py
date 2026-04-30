@@ -1,4 +1,4 @@
-"""URL generation utilities for workflow-related endpoints.
+"""URL generation utilities for workflow-related API endpoints.
 
 This module provides functions for generating URLs to workflow API endpoints,
 particularly useful for activities that need to provide callback URLs to external services.

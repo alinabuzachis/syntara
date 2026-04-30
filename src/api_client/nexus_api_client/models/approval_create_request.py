@@ -29,6 +29,11 @@ class ApprovalCreateRequest:
             execution_id (UUID): Parent workflow execution ID
             approval_node_id (str): Activity ID from workflow definition
             name (str): Display name for the approval request
+            next_step_approved (ActivitySummary): Activity summary for workflow context.
+
+                Passed through from the workflow engine as-is. Contains at minimum
+                ``id``, ``name``, ``type``, and usually ``config`` with the full
+                activity parameters so approvers can see what the step will do.
             workflow_context (WorkflowContext): Workflow Context for approvers.
 
                 Essential context for approvers to make a decision.
@@ -36,17 +41,16 @@ class ApprovalCreateRequest:
                 preceding activity.
             project_id (None | Unset | UUID): Project ID (denormalized from execution)
             timeout_at (datetime.datetime | None | Unset): When this request expires (null = no timeout)
-            next_step_approved (ActivitySummary | None | Unset): First activity that executes if approved
             next_step_rejected (ActivitySummary | None | Unset): First activity that executes if rejected
     """
 
     execution_id: UUID
     approval_node_id: str
     name: str
+    next_step_approved: ActivitySummary
     workflow_context: WorkflowContext
     project_id: None | Unset | UUID = UNSET
     timeout_at: datetime.datetime | None | Unset = UNSET
-    next_step_approved: ActivitySummary | None | Unset = UNSET
     next_step_rejected: ActivitySummary | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
@@ -58,6 +62,8 @@ class ApprovalCreateRequest:
         approval_node_id = self.approval_node_id
 
         name = self.name
+
+        next_step_approved = self.next_step_approved.to_dict()
 
         workflow_context = self.workflow_context.to_dict()
 
@@ -77,14 +83,6 @@ class ApprovalCreateRequest:
         else:
             timeout_at = self.timeout_at
 
-        next_step_approved: dict[str, Any] | None | Unset
-        if isinstance(self.next_step_approved, Unset):
-            next_step_approved = UNSET
-        elif isinstance(self.next_step_approved, ActivitySummary):
-            next_step_approved = self.next_step_approved.to_dict()
-        else:
-            next_step_approved = self.next_step_approved
-
         next_step_rejected: dict[str, Any] | None | Unset
         if isinstance(self.next_step_rejected, Unset):
             next_step_rejected = UNSET
@@ -100,6 +98,7 @@ class ApprovalCreateRequest:
                 "execution_id": execution_id,
                 "approval_node_id": approval_node_id,
                 "name": name,
+                "next_step_approved": next_step_approved,
                 "workflow_context": workflow_context,
             }
         )
@@ -107,8 +106,6 @@ class ApprovalCreateRequest:
             field_dict["project_id"] = project_id
         if timeout_at is not UNSET:
             field_dict["timeout_at"] = timeout_at
-        if next_step_approved is not UNSET:
-            field_dict["next_step_approved"] = next_step_approved
         if next_step_rejected is not UNSET:
             field_dict["next_step_rejected"] = next_step_rejected
 
@@ -125,6 +122,8 @@ class ApprovalCreateRequest:
         approval_node_id = d.pop("approval_node_id")
 
         name = d.pop("name")
+
+        next_step_approved = ActivitySummary.from_dict(d.pop("next_step_approved"))
 
         workflow_context = WorkflowContext.from_dict(d.pop("workflow_context"))
 
@@ -162,23 +161,6 @@ class ApprovalCreateRequest:
 
         timeout_at = _parse_timeout_at(d.pop("timeout_at", UNSET))
 
-        def _parse_next_step_approved(data: object) -> ActivitySummary | None | Unset:
-            if data is None:
-                return data
-            if isinstance(data, Unset):
-                return data
-            try:
-                if not isinstance(data, dict):
-                    raise TypeError()
-                next_step_approved_type_0 = ActivitySummary.from_dict(data)
-
-                return next_step_approved_type_0
-            except (TypeError, ValueError, AttributeError, KeyError):
-                pass
-            return cast(ActivitySummary | None | Unset, data)
-
-        next_step_approved = _parse_next_step_approved(d.pop("next_step_approved", UNSET))
-
         def _parse_next_step_rejected(data: object) -> ActivitySummary | None | Unset:
             if data is None:
                 return data
@@ -200,10 +182,10 @@ class ApprovalCreateRequest:
             execution_id=execution_id,
             approval_node_id=approval_node_id,
             name=name,
+            next_step_approved=next_step_approved,
             workflow_context=workflow_context,
             project_id=project_id,
             timeout_at=timeout_at,
-            next_step_approved=next_step_approved,
             next_step_rejected=next_step_rejected,
         )
 

@@ -141,6 +141,11 @@ class TestCreateApprovalContract:
             "execution_id": execution_id,
             "approval_node_id": "minimal_approval",
             "name": "Minimal Approval",
+            "next_step_approved": {
+                "id": "next_step",
+                "name": "Next Step",
+                "type": "task",
+            },
             "workflow_context": {
                 "workflow_version_id": workflow_version_id,
                 "workflow_name": "Minimal Workflow",
@@ -165,8 +170,8 @@ class TestCreateApprovalContract:
         assert data["timeout_at"] is None
         assert data["next_step_rejected"] is None
 
-        # next_step_approved should still be present (required in OpenAPI)
-        assert data["next_step_approved"] is not None
+        # next_step_approved is required
+        assert data["next_step_approved"]["id"] == "next_step"
 
     @pytest.mark.asyncio
     async def test_create_approval_uuid_format_validation(
@@ -187,6 +192,11 @@ class TestCreateApprovalContract:
             "execution_id": str(executions[0].id),
             "approval_node_id": "uuid_test",
             "name": "UUID Test",
+            "next_step_approved": {
+                "id": "next_step",
+                "name": "Next Step",
+                "type": "task",
+            },
             "workflow_context": {
                 "workflow_version_id": str(uuid4()),
                 "workflow_name": "UUID Test Workflow",
@@ -259,6 +269,7 @@ class TestCreateApprovalContract:
             "execution_id": str(executions[0].id),
             "approval_node_id": "test_node",
             "name": "Test Name",
+            "next_step_approved": {"id": "next_step", "name": "Next Step", "type": "task"},
             "workflow_context": {"workflow_version_id": str(uuid4()), "workflow_name": "Test Workflow", "inputs": {}},
         }
 
@@ -397,6 +408,7 @@ class TestCreateApprovalContract:
         base_payload = {
             "execution_id": str(executions[0].id),
             "name": "Context Test",
+            "next_step_approved": {"id": "next_step", "name": "Next Step", "type": "task"},
         }
 
         # Test valid WorkflowContext with previous_step
@@ -416,7 +428,7 @@ class TestCreateApprovalContract:
         response = await auth_client.post("/api/v1/approvals", json=payload_1)
         assert response.status_code == 201
 
-        # Test valid WorkflowContext without previous_step
+        # Test valid WorkflowContext without previous_step (omitted)
         payload_2: dict[str, Any] = dict(base_payload)
         payload_2["approval_node_id"] = "context_test_2"
         payload_2["workflow_context"] = {
@@ -426,6 +438,19 @@ class TestCreateApprovalContract:
         }
         response = await auth_client.post("/api/v1/approvals", json=payload_2)
         assert response.status_code == 201
+
+        # Test valid WorkflowContext with explicit previous_step: None
+        payload_2b: dict[str, Any] = dict(base_payload)
+        payload_2b["approval_node_id"] = "context_test_2b"
+        payload_2b["workflow_context"] = {
+            "workflow_version_id": str(uuid4()),
+            "workflow_name": "Test Workflow",
+            "inputs": {},
+            "previous_step": None,
+        }
+        response = await auth_client.post("/api/v1/approvals", json=payload_2b)
+        assert response.status_code == 201
+        assert response.json()["workflow_context"]["previous_step"] is None
 
         # Test invalid WorkflowContext - missing required field
         payload_3: dict[str, Any] = dict(base_payload)
@@ -469,6 +494,7 @@ class TestCreateApprovalContract:
             "execution_id": execution_id,
             "approval_node_id": "duplicate_test_node",
             "name": "First Approval Request",
+            "next_step_approved": {"id": "next_step", "name": "Next Step", "type": "task"},
             "workflow_context": {
                 "workflow_version_id": workflow_version_id,
                 "workflow_name": "Duplicate Test Workflow",

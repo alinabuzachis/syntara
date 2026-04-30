@@ -28,6 +28,7 @@ class ActivityStatus(str, Enum):
 
     PENDING = "pending"
     RUNNING = "running"
+    WAITING = "waiting"
     COMPLETED = "completed"
     FAILED = "failed"
     RETRYING = "retrying"

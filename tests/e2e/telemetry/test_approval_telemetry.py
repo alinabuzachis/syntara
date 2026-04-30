@@ -110,6 +110,11 @@ def _create_approval(
             "execution_id": execution_id,
             "approval_node_id": APPROVAL_NODE_ID,
             "name": "E2E Approval Telemetry Test",
+            "next_step_approved": {
+                "id": "post_approval",
+                "name": "Post Approval",
+                "type": "script",
+            },
             "workflow_context": {
                 "workflow_version_id": execution_id,
                 "workflow_name": WORKFLOW_NAME,

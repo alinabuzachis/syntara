@@ -5,6 +5,12 @@ This module provides:
 - Temporal testserver fixtures for workflow tests
 """
 
+# Prevent local .env from leaking into tests. Must be set before Settings is
+# imported, since _get_env_file() is evaluated at class-definition time.
+import os as _os
+
+_os.environ.setdefault("APP_ENV_FILE_PATH", "/dev/null")
+
 import asyncio
 import gc
 import os

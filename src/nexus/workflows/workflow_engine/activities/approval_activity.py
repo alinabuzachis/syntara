@@ -1,20 +1,24 @@
 """Approval activity executor for workflow human approval integration.
 
-This module provides functionality to create approval requests within workflows,
-integrating with external approval systems (placeholder for now).
+This module provides functionality to create approval requests within workflows
+via the Approvals API client.
 """
 
 from typing import Any
-from uuid import UUID, uuid4
 
 import structlog
-from temporalio import activity
+from temporalio import activity, workflow
 
-from nexus.workflows.utils.url import generate_activity_signal_url
+with workflow.unsafe.imports_passed_through():
+    from nexus.auth import create_service_token
+    from nexus.workflows.clients.approvals_client import (
+        ApprovalsApiClient,
+        ApprovalsApiClientError,
+    )
+    from nexus.workflows.workflow_engine import constants
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
 
 from .common import ActivityExecutionError
-from .output_mapping import apply_output_mapping
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -24,59 +28,72 @@ class ApprovalActivityError(ActivityExecutionError):
 
 
 @activity.defn(name=ActivityName.APPROVAL)
-async def execute_approval_activity(
-    input_config: dict[str, Any],
-    output_config: dict[str, str] | None,
-    execution_id: str = "",
+async def create_approval_request_activity(
+    execution_id: str,
+    approval_node_id: str,
+    name: str,
+    next_step_approved: dict[str, Any] | None,
+    workflow_context: dict[str, Any],
+    timeout_at: str | None = None,
+    next_step_rejected: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """V2 approval activity with normalized signature.
+    """Create an approval request via the Approvals API.
+
+    Called as a Temporal activity. Creates the approval request in the database
+    so approvers can see it in the UI. The workflow then waits for a signal
+    with the approval decision.
 
     Args:
-        input_config: Activity configuration containing description and timeout
-        output_config: Output mapping configuration
-        execution_id: Workflow execution ID for callback URL generation
+        execution_id: Parent workflow execution ID (UUID string).
+        approval_node_id: Activity ID from workflow definition.
+        name: Display name for the approval request.
+        next_step_approved: First activity if approved (id, name, type), or None.
+        workflow_context: Context dict (workflow_version_id, workflow_name, inputs, previous_step).
+        timeout_at: ISO datetime string when the request expires, or None.
+        next_step_rejected: First activity if rejected (id, name, type), or None.
 
     Returns:
-        dict with keys:
-            - output: Mapped output containing approval request metadata
+        Created approval request as dict (id, status, etc.).
+
+    Raises:
+        ApprovalActivityError: If approval request creation fails.
 
     """
-    logger.info("Creating approval request (v2)")
-
-    # Generate approval ID
-    approval_id = f"apr_{uuid4()}"
-
-    # Get activity ID from activity context
-    try:
-        activity_info = activity.info()
-        activity_id = activity_info.activity_id
-    except RuntimeError:
-        activity_id = "unknown"
-
-    # Generate callback URL for external services to signal back results
-    callback_url = generate_activity_signal_url(UUID(execution_id), activity_id) if execution_id else None
-
-    # PLACEHOLDER: Replace with actual HTTP call to approval service
     logger.info(
-        "Approval request created (PLACEHOLDER - no HTTP call yet)",
-        approval_id=approval_id,
-        description=input_config.get("description"),
-        timeout=input_config.get("timeout"),
-        activity_id=activity_id,
-        callback_url=callback_url,
+        "Creating approval request via Approvals API",
+        base_url=constants.APPROVALS_API_BASE_URL,
+        execution_id=execution_id,
+        approval_node_id=approval_node_id,
+        name=name,
     )
 
-    # Build full result
-    full_result = {
-        "status": "completed",
-        "approval_id": approval_id,
-        "approval_status": "pending",
-        "callback_url": callback_url,
-        "description": input_config.get("description"),
-        "timeout": input_config.get("timeout"),
+    request_data: dict[str, Any] = {
+        "execution_id": execution_id,
+        "approval_node_id": approval_node_id,
+        "name": name,
+        "next_step_approved": next_step_approved,
+        "workflow_context": workflow_context,
+        "timeout_at": timeout_at,
+        "next_step_rejected": next_step_rejected,
     }
 
-    # Apply output mapping
-    mapped_output = apply_output_mapping(full_result, output_config)
+    try:
+        async with ApprovalsApiClient(
+            base_url=constants.APPROVALS_API_BASE_URL,
+            auth_token=create_service_token(),
+        ) as client:
+            result = await client.create_approval(request_data)
+    except ApprovalsApiClientError as e:
+        logger.exception(
+            "Approval request creation failed",
+            execution_id=execution_id,
+            approval_node_id=approval_node_id,
+            error=str(e),
+        )
+        raise ApprovalActivityError(str(e)) from e
+    except Exception as e:
+        msg = f"Unexpected error creating approval request: {e}"
+        logger.exception(msg, execution_id=execution_id, approval_node_id=approval_node_id)
+        raise ApprovalActivityError(msg) from e
 
-    return {"output": mapped_output}
+    return {"output": result}

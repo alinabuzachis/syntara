@@ -18,6 +18,7 @@ DEFAULT_AAP_TIMEOUT_SECONDS = _settings.aap_timeout_seconds
 
 # Agentic activity infrastructure
 AGENT_ORCHESTRATOR_BASE_URL = str(_settings.agent_orchestrator_base_url)
+APPROVALS_API_BASE_URL = str(_settings.approvals_api_base_url)
 SYSTEM_USER_ID = _settings.system_user_id
 
 # Script activity settings

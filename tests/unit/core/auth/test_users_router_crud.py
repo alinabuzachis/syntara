@@ -126,6 +126,7 @@ class TestUpdateUserEndpoint:
         mock_store.revoke_all_for_user.assert_called_once_with(user.id)
 
 
+@pytest.mark.usefixtures("mock_session_store")
 class TestDeleteUserEndpoint:
     """Tests for the DELETE /users/{user_id} endpoint."""
 

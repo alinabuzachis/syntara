@@ -219,7 +219,7 @@ components:
       type: string
       title: Activity Status
       description: Current state of an individual activity execution
-      enum: [pending, running, completed, failed, retrying, skipped, cancelled]
+      enum: [pending, running, waiting, completed, failed, retrying, skipped, cancelled]
 
     # Request/Response schemas
     WorkflowCreate:

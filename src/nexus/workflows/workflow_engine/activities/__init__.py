@@ -7,7 +7,7 @@ from nexus.workflows.workflow_engine.models.workflow_definition import ActivityN
 
 from .aap_job_template_activity import execute_aap_job_template_activity
 from .agentic_activity import execute_agentic_activity
-from .approval_activity import execute_approval_activity
+from .approval_activity import create_approval_request_activity
 from .condition import condition
 from .converge import converge
 from .credential_resolution_activity import resolve_workflow_credentials
@@ -29,7 +29,7 @@ _TEMPORAL_ACTIVITIES: list[Callable[..., Any]] = [
     resolve_workflow_credentials,
     execute_aap_job_template_activity,
     execute_agentic_activity,
-    execute_approval_activity,
+    create_approval_request_activity,
     condition,
     converge,
     execute_http_request_activity,

@@ -63,18 +63,18 @@ class BatchApprovalDecisionStatus(str, Enum):
 
 
 class ActivitySummary(SQLModel):
-    """Activity Summary for workflow context.
+    """Activity summary for workflow context.
 
-    Summary of a workflow activity for display in approval context.
-    Provides enough information for UI rendering without exposing
-    full activity configuration details.
+    Passed through from the workflow engine as-is. Contains at minimum
+    ``id``, ``name``, ``type``, and usually ``config`` with the full
+    activity parameters so approvers can see what the step will do.
     """
 
-    model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)  # type: ignore[assignment]
+    model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True, extra="allow")  # type: ignore[assignment]
 
     id: str = Field(..., description="Activity ID from workflow definition")
     name: str = Field(..., description="Human-readable activity name")
-    type: str = Field(..., description="Activity type (task, approval, parallel, etc.)")
+    type: str = Field(..., description="Activity type (script, approval, agentic, etc.)")
 
 
 class PreviousStepContext(SQLModel):
@@ -125,7 +125,7 @@ class ApprovalCreateRequest(SQLModel):
     approval_node_id: str = Field(..., description="Activity ID from workflow definition")
     name: str = Field(..., min_length=1, max_length=255, description="Display name for the approval request")
     timeout_at: datetime | None = Field(None, description="When this request expires (null = no timeout)")
-    next_step_approved: ActivitySummary | None = Field(None, description="First activity that executes if approved")
+    next_step_approved: ActivitySummary = Field(..., description="First activity that executes if approved")
     next_step_rejected: ActivitySummary | None = Field(None, description="First activity that executes if rejected")
     workflow_context: WorkflowContext = Field(..., description="Workflow execution context")
 

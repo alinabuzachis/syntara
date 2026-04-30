@@ -358,11 +358,12 @@ class ActivitySyncService:
                 activity_type = activity_def.get("type")
 
                 # Sync skipped nodes after condition completes (V2 workflows)
-                # Note: Only condition nodes cause branch skipping via port routing:
+                # Note: Only condition nodes trigger skipped-node sync here:
                 #   - Condition: Returns next_port ("true"/"false"), marks non-taken branch as skipped
                 #   - Loop: "iterate" and "complete" ports both execute at different times (no skipping)
                 #   - Converge: Waits for all predecessors (no skipping)
-                #   - Approval: TBD - needs design clarification on port-based routing
+                #   - Approval: Skipped-node sync is triggered in _sync_activities_to_db
+                #     when the WAITING→COMPLETED transition occurs (after signal received)
                 if activity_type == NodeType.CONDITION:
                     await self._sync_skipped_nodes(metadata.execution_id, handle)
 
@@ -583,9 +584,17 @@ class ActivitySyncService:
         if scheduled_id in metadata.pending_activity_updates:
             activity_id = metadata.pending_activity_updates[scheduled_id]["activity_id"]
             activity_def = metadata.activity_definitions_map.get(activity_id, {})
+            activity_type = activity_def.get("type")
 
-            if self._is_agentic_activity(activity_def):
-                del metadata.pending_activity_updates[scheduled_id]
+            if activity_type == NodeType.APPROVAL:
+                # Approval nodes wait for a human signal after the activity completes.
+                # Mark as WAITING (not COMPLETED) until the signal is received.
+                metadata.pending_activity_updates[scheduled_id]["status"] = ActivityStatus.WAITING
+            elif self._is_agentic_activity(activity_def):
+                # Agentic activities: ActivityTaskCompleted means the HTTP dispatch
+                # succeeded, not that the agent finished. Keep as RUNNING until
+                # the invocation signals back with the result.
+                metadata.pending_activity_updates[scheduled_id]["status"] = ActivityStatus.RUNNING
             else:
                 # Check if the activity returned a v2 error (status: "failed" in output)
                 status = ActivityStatus.COMPLETED
@@ -924,6 +933,7 @@ class ActivitySyncService:
 
                 # Track which activities were updated for patch generation
                 updated_activities: list[tuple[ActivityExecution, dict[str, Any]]] = []
+                approval_resolved = False
 
                 # Update activities from events
                 for activity_data in metadata.pending_activity_updates.values():
@@ -990,6 +1000,24 @@ class ActivitySyncService:
 
                     except (TemporalError, ValueError) as e:
                         logger.debug("Could not query activity data", activity_id=activity_id, error=str(e))
+
+                    # Transition WAITING approval nodes to COMPLETED once the
+                    # workflow has received the human signal and stored output.
+                    if activity_data["status"] == ActivityStatus.WAITING and output_data is not None:
+                        activity_data["status"] = ActivityStatus.COMPLETED
+                        activity_data["completed_at"] = datetime.now(UTC)
+                        approval_resolved = True
+
+                    # Transition RUNNING agentic nodes to COMPLETED once the
+                    # invocation signal has arrived and output is available.
+                    activity_def = metadata.activity_definitions_map.get(activity_id, {})
+                    if (
+                        activity_data["status"] == ActivityStatus.RUNNING
+                        and self._is_agentic_activity(activity_def)
+                        and output_data is not None
+                    ):
+                        activity_data["status"] = ActivityStatus.COMPLETED
+                        activity_data["completed_at"] = datetime.now(UTC)
 
                     # Store old values before updating
                     old_values = {
@@ -1065,6 +1093,11 @@ class ActivitySyncService:
                 # Publish activity patches after commit
                 if updated_activities:
                     await self._publish_activity_patches(metadata, updated_activities)
+
+                # Sync skipped nodes when an approval resolves (the workflow
+                # will have marked the non-taken branch as skipped by now).
+                if approval_resolved:
+                    await self._sync_skipped_nodes(metadata.execution_id, handle)
 
                 # Emit telemetry for activities that reached terminal states
                 emit_activities(

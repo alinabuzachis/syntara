@@ -37,9 +37,6 @@ from .approval_decision_status import ApprovalDecisionStatus
 from .approval_list_response import ApprovalListResponse
 from .approval_request_read import ApprovalRequestRead
 from .approval_request_read_labels import ApprovalRequestReadLabels
-from .approval_request_read_next_step_approved import ApprovalRequestReadNextStepApproved
-from .approval_request_read_next_step_rejected_type_0 import ApprovalRequestReadNextStepRejectedType0
-from .approval_request_read_workflow_context import ApprovalRequestReadWorkflowContext
 from .approval_request_status import ApprovalRequestStatus
 from .audit_context_data import AuditContextData
 from .audit_event_list_response import AuditEventListResponse
@@ -301,9 +298,6 @@ __all__ = (
     "ApprovalListResponse",
     "ApprovalRequestRead",
     "ApprovalRequestReadLabels",
-    "ApprovalRequestReadNextStepApproved",
-    "ApprovalRequestReadNextStepRejectedType0",
-    "ApprovalRequestReadWorkflowContext",
     "ApprovalRequestStatus",
     "AuditContextData",
     "AuditEventListResponse",

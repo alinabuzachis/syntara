@@ -168,6 +168,10 @@ services:
       - APP_DB_USER=${APP_DB_USER:-admin}
       - APP_DB_PASSWORD=${APP_DB_PASSWORD:-admin}
       - APP_DB_NAME=${APP_DB_NAME:-nexus_api}
+      # Server identity (must match the API so service tokens have the correct JWT issuer)
+      - APP_SERVER_SCHEME=${APP_SERVER_SCHEME:-https}
+      - APP_SERVER_HOST=${APP_SERVER_HOST:-0.0.0.0}
+      - APP_SERVER_PORT=${APP_SERVER_PORT:-8000}
       # Temporal Configuration
       - APP_TEMPORAL_ADDRESS=temporal:7233
       - APP_TEMPORAL_NAMESPACE=default
@@ -186,6 +190,8 @@ services:
       - APP_WORKFLOW_BASE_URL=${APP_WORKFLOW_BASE_URL:-http://nexus:8000/api/v1}
       # Agent Orchestrator Configuration (for agentic activities)
       - APP_AGENT_ORCHESTRATOR_BASE_URL=${APP_AGENT_ORCHESTRATOR_BASE_URL:-http://nexus:8000/api/v1}
+      # Approvals API Configuration (for approval request creation)
+      - APP_APPROVALS_API_BASE_URL=${APP_APPROVALS_API_BASE_URL:-http://nexus:8000/api/v1}
       # AAP Configuration (for AAP Job Template activity)
       - APP_AAP_BASE_URL=${APP_AAP_BASE_URL}
       - APP_AAP_USERNAME=${APP_AAP_USERNAME}

@@ -88,6 +88,7 @@ class TestListForUser:
             await service.list_for_user(uuid4())
 
 
+@pytest.mark.usefixtures("mock_session_store")
 class TestDeleteIdentity:
     """Tests for UserIdentityService.delete_identity."""
 
@@ -326,6 +327,7 @@ class TestCreateIdentity:
         session.flush.assert_called_once()
 
 
+@pytest.mark.usefixtures("mock_session_store")
 class TestAttachIdentity:
     """Tests for UserIdentityService.attach_identity."""
 

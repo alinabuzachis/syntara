@@ -1,125 +1,244 @@
 """Unit tests for approval activity.
 
-Tests approval request creation including:
-- Basic approval request creation
-- Output mapping
+Tests approval request creation via the Approvals API client.
 """
 
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, patch
+from uuid import uuid4
 
 import pytest
 
+from nexus.workflows.clients.approvals_client import ApprovalsApiClientError
 from nexus.workflows.workflow_engine.activities.approval_activity import (
-    execute_approval_activity,
+    ApprovalActivityError,
+    create_approval_request_activity,
 )
 
 
 @pytest.fixture
-def approval_config() -> dict[str, Any]:
-    """Basic approval configuration (input_config)."""
+def execution_id() -> str:
+    """Workflow execution ID."""
+    return str(uuid4())
+
+
+@pytest.fixture
+def approval_node_id() -> str:
+    """Approval node identifier."""
+    return "review_deployment"
+
+
+@pytest.fixture
+def next_step_approved() -> dict[str, Any]:
+    """Next step activity summary for the approved path."""
+    return {"id": "deploy", "name": "Deploy to Production", "type": "task"}
+
+
+@pytest.fixture
+def workflow_context() -> dict[str, Any]:
+    """Workflow context for approval request."""
     return {
-        "description": "Please approve this deployment",
-        "timeout": 3600,
+        "workflow_version_id": str(uuid4()),
+        "workflow_name": "Production Deployment",
+        "inputs": {"target": "production", "version": "2.1.0"},
+        "previous_step": {
+            "id": "security_scan",
+            "name": "Security Scan",
+            "type": "task",
+            "output": {"vulnerabilities_found": 0},
+        },
     }
 
 
 @pytest.fixture
-def mock_activity_info() -> MagicMock:
-    """Fixture providing a mock activity info."""
-    mock_info = MagicMock()
-    mock_info.activity_id = "review_deployment"
-    return mock_info
-
-
-def assert_valid_approval_metadata(output: dict[str, Any]) -> None:
-    """Helper to verify basic approval metadata structure in V2 output."""
-    assert "approval_id" in output
-    assert output["approval_id"].startswith("apr_")
-    assert output["approval_status"] == "pending"
-
-
-@pytest.mark.asyncio
-async def test_create_approval_request_basic(
-    approval_config: dict[str, Any],
-    mock_activity_info: MagicMock,
-) -> None:
-    """Test basic approval request creation."""
-    with patch(
-        "nexus.workflows.workflow_engine.activities.approval_activity.activity.info",
-        return_value=mock_activity_info,
-    ):
-        result = await execute_approval_activity(approval_config, None)
-
-    # V2 wraps in {"output": {...}}
-    output = result["output"]
-    assert_valid_approval_metadata(output)
-    assert output["description"] == "Please approve this deployment"
-    assert output["timeout"] == 3600
-    assert output["status"] == "completed"
-
-
-@pytest.mark.asyncio
-async def test_create_approval_request_minimal_config(
-    mock_activity_info: MagicMock,
-) -> None:
-    """Test approval request with minimal configuration."""
-    minimal_config: dict[str, Any] = {
-        "description": "Simple approval",
-        "timeout": None,
+def mock_approval_response(execution_id: str) -> dict[str, Any]:
+    """Build a mock approval response dict from the API."""
+    return {
+        "id": str(uuid4()),
+        "execution_id": execution_id,
+        "approval_node_id": "review_deployment",
+        "name": "Approve deployment",
+        "status": "pending",
+        "timeout_at": None,
+        "next_step_approved": {"id": "deploy", "name": "Deploy to Production", "type": "task"},
+        "next_step_rejected": None,
+        "workflow_context": {
+            "workflow_version_id": str(uuid4()),
+            "workflow_name": "Production Deployment",
+            "inputs": {"target": "production"},
+            "previous_step": None,
+        },
+        "decided_by": None,
+        "decided_at": None,
+        "decision_notes": None,
+        "created_at": "2026-04-10T12:00:00Z",
+        "updated_at": "2026-04-10T12:00:00Z",
     }
 
-    with patch(
-        "nexus.workflows.workflow_engine.activities.approval_activity.activity.info",
-        return_value=mock_activity_info,
-    ):
-        result = await execute_approval_activity(minimal_config, None)
-
-    output = result["output"]
-    assert_valid_approval_metadata(output)
-    assert output["description"] == "Simple approval"
-    assert output["timeout"] is None
-
 
 @pytest.mark.asyncio
-async def test_create_approval_request_with_output_mapping(
-    approval_config: dict[str, Any],
-    mock_activity_info: MagicMock,
+async def test_create_approval_request_success(
+    execution_id: str,
+    approval_node_id: str,
+    next_step_approved: dict[str, Any],
+    workflow_context: dict[str, Any],
+    mock_approval_response: dict[str, Any],
 ) -> None:
-    """Test approval request with output mapping."""
-    output_config = {
-        "id": "${result.approval_id}",
-        "state": "${result.approval_status}",
-    }
+    """Test successful approval request creation via API."""
+    mock_client = AsyncMock()
+    mock_client.create_approval = AsyncMock(return_value=mock_approval_response)
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
 
     with patch(
-        "nexus.workflows.workflow_engine.activities.approval_activity.activity.info",
-        return_value=mock_activity_info,
+        "nexus.workflows.workflow_engine.activities.approval_activity.ApprovalsApiClient",
+        return_value=mock_client,
     ):
-        result = await execute_approval_activity(approval_config, output_config)
+        result = await create_approval_request_activity(
+            execution_id=execution_id,
+            approval_node_id=approval_node_id,
+            name="Approve deployment",
+            next_step_approved=next_step_approved,
+            workflow_context=workflow_context,
+        )
 
-    # Output mapping should have been applied
     output = result["output"]
-    assert output["id"].startswith("apr_")
-    assert output["state"] == "pending"
-    assert output["status"] == "completed"
+    assert output["id"] is not None
+    assert output["status"] == "pending"
+    assert output["approval_node_id"] == "review_deployment"
+
+    # Verify the request payload passed to the client
+    mock_client.create_approval.assert_called_once()
+    request_data = mock_client.create_approval.call_args[0][0]
+    assert request_data["execution_id"] == execution_id
+    assert request_data["approval_node_id"] == approval_node_id
+    assert request_data["name"] == "Approve deployment"
+    assert request_data["next_step_approved"]["id"] == "deploy"
+    assert request_data["workflow_context"]["workflow_name"] == "Production Deployment"
 
 
 @pytest.mark.asyncio
-async def test_create_approval_request_activity_info_error() -> None:
-    """Test approval request handles activity.info() error gracefully."""
-    config: dict[str, Any] = {
-        "description": "Test approval",
-        "timeout": 60,
-    }
+async def test_create_approval_request_with_timeout(
+    execution_id: str,
+    approval_node_id: str,
+    next_step_approved: dict[str, Any],
+    workflow_context: dict[str, Any],
+    mock_approval_response: dict[str, Any],
+) -> None:
+    """Test approval request with timeout_at."""
+    mock_client = AsyncMock()
+    mock_client.create_approval = AsyncMock(return_value=mock_approval_response)
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+
+    timeout_at = "2026-04-10T12:00:00+00:00"
 
     with patch(
-        "nexus.workflows.workflow_engine.activities.approval_activity.activity.info",
-        side_effect=RuntimeError("Not in activity context"),
+        "nexus.workflows.workflow_engine.activities.approval_activity.ApprovalsApiClient",
+        return_value=mock_client,
     ):
-        result = await execute_approval_activity(config, None)
+        result = await create_approval_request_activity(
+            execution_id=execution_id,
+            approval_node_id=approval_node_id,
+            name="Approve deployment",
+            next_step_approved=next_step_approved,
+            workflow_context=workflow_context,
+            timeout_at=timeout_at,
+        )
 
-    # Should still succeed with "unknown" activity_id
-    output = result["output"]
-    assert_valid_approval_metadata(output)
-    assert output["status"] == "completed"
+    assert result["output"]["id"] is not None
+    request_data = mock_client.create_approval.call_args[0][0]
+    assert request_data["timeout_at"] == timeout_at
+
+
+@pytest.mark.asyncio
+async def test_create_approval_request_with_rejected_path(
+    execution_id: str,
+    approval_node_id: str,
+    next_step_approved: dict[str, Any],
+    workflow_context: dict[str, Any],
+    mock_approval_response: dict[str, Any],
+) -> None:
+    """Test approval request with rejected path."""
+    next_step_rejected = {"id": "rollback", "name": "Rollback", "type": "task"}
+
+    mock_client = AsyncMock()
+    mock_client.create_approval = AsyncMock(return_value=mock_approval_response)
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+
+    with patch(
+        "nexus.workflows.workflow_engine.activities.approval_activity.ApprovalsApiClient",
+        return_value=mock_client,
+    ):
+        result = await create_approval_request_activity(
+            execution_id=execution_id,
+            approval_node_id=approval_node_id,
+            name="Approve deployment",
+            next_step_approved=next_step_approved,
+            workflow_context=workflow_context,
+            next_step_rejected=next_step_rejected,
+        )
+
+    assert result["output"]["id"] is not None
+    request_data = mock_client.create_approval.call_args[0][0]
+    assert request_data["next_step_rejected"] is not None
+    assert request_data["next_step_rejected"]["id"] == "rollback"
+
+
+@pytest.mark.asyncio
+async def test_create_approval_request_api_error(
+    execution_id: str,
+    approval_node_id: str,
+    next_step_approved: dict[str, Any],
+    workflow_context: dict[str, Any],
+) -> None:
+    """Test that API errors are wrapped in ApprovalActivityError."""
+    mock_client = AsyncMock()
+    mock_client.create_approval = AsyncMock(side_effect=ApprovalsApiClientError("Connection refused", status_code=500))
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+
+    with (
+        patch(
+            "nexus.workflows.workflow_engine.activities.approval_activity.ApprovalsApiClient",
+            return_value=mock_client,
+        ),
+        pytest.raises(ApprovalActivityError, match="Connection refused"),
+    ):
+        await create_approval_request_activity(
+            execution_id=execution_id,
+            approval_node_id=approval_node_id,
+            name="Approve deployment",
+            next_step_approved=next_step_approved,
+            workflow_context=workflow_context,
+        )
+
+
+@pytest.mark.asyncio
+async def test_create_approval_request_unexpected_error(
+    execution_id: str,
+    approval_node_id: str,
+    next_step_approved: dict[str, Any],
+    workflow_context: dict[str, Any],
+) -> None:
+    """Test that unexpected errors are wrapped in ApprovalActivityError."""
+    mock_client = AsyncMock()
+    mock_client.create_approval = AsyncMock(side_effect=RuntimeError("Database connection lost"))
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+
+    with (
+        patch(
+            "nexus.workflows.workflow_engine.activities.approval_activity.ApprovalsApiClient",
+            return_value=mock_client,
+        ),
+        pytest.raises(ApprovalActivityError, match="Unexpected error creating approval request"),
+    ):
+        await create_approval_request_activity(
+            execution_id=execution_id,
+            approval_node_id=approval_node_id,
+            name="Approve deployment",
+            next_step_approved=next_step_approved,
+            workflow_context=workflow_context,
+        )

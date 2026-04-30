@@ -491,6 +491,53 @@ class TestActivityEventProcessing:
         if expected_error:
             assert self.metadata.pending_activity_updates[1]["error_details"] == expected_error
 
+    def test_process_activity_completed_sets_waiting_for_approval_nodes(self) -> None:
+        """Test that approval activities get WAITING status instead of COMPLETED."""
+        self.metadata.activity_definitions_map = {
+            "approval-node": {"id": "approval-node", "type": "approval", "config": {}},
+        }
+        self.metadata.pending_activity_updates[1] = {
+            "activity_id": "approval-node",
+            "status": ActivityStatus.RUNNING,
+            "completed_at": None,
+            "error_details": None,
+        }
+
+        event = self._create_mock_event(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED,
+            event_id=3,
+            scheduled_event_id=1,
+        )
+
+        self.service._process_activity_completed(event, self.metadata)
+
+        assert self.metadata.pending_activity_updates[1]["status"] == ActivityStatus.WAITING
+        # completed_at should NOT be set for WAITING activities
+        assert self.metadata.pending_activity_updates[1]["completed_at"] is None
+
+    def test_process_activity_completed_sets_completed_for_non_approval_nodes(self) -> None:
+        """Test that non-approval activities still get COMPLETED status."""
+        self.metadata.activity_definitions_map = {
+            "script-node": {"id": "script-node", "type": "script", "config": {}},
+        }
+        self.metadata.pending_activity_updates[1] = {
+            "activity_id": "script-node",
+            "status": ActivityStatus.RUNNING,
+            "completed_at": None,
+            "error_details": None,
+        }
+
+        event = self._create_mock_event(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED,
+            event_id=3,
+            scheduled_event_id=1,
+        )
+
+        self.service._process_activity_completed(event, self.metadata)
+
+        assert self.metadata.pending_activity_updates[1]["status"] == ActivityStatus.COMPLETED
+        assert self.metadata.pending_activity_updates[1]["completed_at"] is not None
+
     def test_process_activity_event_delegates_to_correct_handler(self) -> None:
         """Test _process_activity_event delegates to the correct handler method."""
         test_cases = [
@@ -533,11 +580,12 @@ class TestAgenticActivityCompletionDeferral:
         event.activity_task_completed_event_attributes = attrs
         return event
 
-    def test_agentic_activity_removed_from_pending_on_completed_event(self) -> None:
-        """Agentic activity should be removed from pending updates on ActivityTaskCompleted.
+    def test_agentic_activity_stays_in_progress_on_completed_event(self) -> None:
+        """Agentic activity should remain RUNNING on ActivityTaskCompleted.
 
-        The workflow completion handler will finalize the activity via direct
-        SQL update based on the signal outcome (success or failure).
+        ActivityTaskCompleted for agentic activities means the HTTP dispatch
+        succeeded, not that the agent finished. The activity stays in progress
+        until the invocation signals back with the result.
         """
         metadata = create_test_metadata(
             activity_definitions_map={
@@ -555,7 +603,7 @@ class TestAgenticActivityCompletionDeferral:
 
         self.service._process_activity_completed(self._create_completed_event(), metadata)
 
-        assert 1 not in metadata.pending_activity_updates
+        assert metadata.pending_activity_updates[1]["status"] == ActivityStatus.RUNNING
 
     def test_non_agentic_activity_completes_normally(self) -> None:
         """Non-agentic activity should still be marked COMPLETED on ActivityTaskCompleted."""
@@ -1695,6 +1743,146 @@ class TestPendingOutputFlag:
 
         # RUNNING activity should NOT get _pending_output (it's not completed yet)
         assert "_pending_output" not in metadata.pending_activity_updates.get(10, {})
+
+    @pytest.mark.asyncio
+    async def test_waiting_approval_transitions_to_completed_when_output_available(self) -> None:
+        """WAITING approval activity transitions to COMPLETED when output_data arrives."""
+        activity = self._create_mock_activity_execution(
+            activity_name="approval-node",
+            status=ActivityStatus.WAITING,
+        )
+        self._mock_session_with_activities([activity])
+
+        handle = self._create_mock_handle(
+            output_data={"status": "approved", "decided_by": "user123"},
+        )
+
+        metadata = create_test_metadata(
+            execution_id=self.execution_id,
+            activity_index_map={"approval-node": 0},
+            pending_activity_updates={
+                10: {
+                    "activity_id": "approval-node",
+                    "activity_name": "approval-node",
+                    "status": ActivityStatus.WAITING,
+                    "started_at": datetime.now(UTC),
+                    "completed_at": None,
+                    "error_details": None,
+                    "retry_count": 0,
+                },
+            },
+        )
+
+        await self.service._sync_activities_to_db(metadata, handle)
+
+        assert activity.status == ActivityStatus.COMPLETED
+        assert activity.completed_at is not None
+        assert activity.output_data == {"status": "approved", "decided_by": "user123"}
+
+    @pytest.mark.asyncio
+    async def test_waiting_approval_stays_waiting_when_no_output(self) -> None:
+        """WAITING approval activity remains WAITING when output_data is still None."""
+        activity = self._create_mock_activity_execution(
+            activity_name="approval-node",
+            status=ActivityStatus.WAITING,
+        )
+        self._mock_session_with_activities([activity])
+
+        handle = self._create_mock_handle(output_data=None)
+
+        metadata = create_test_metadata(
+            execution_id=self.execution_id,
+            activity_index_map={"approval-node": 0},
+            pending_activity_updates={
+                10: {
+                    "activity_id": "approval-node",
+                    "activity_name": "approval-node",
+                    "status": ActivityStatus.WAITING,
+                    "started_at": datetime.now(UTC),
+                    "completed_at": None,
+                    "error_details": None,
+                    "retry_count": 0,
+                },
+            },
+        )
+
+        await self.service._sync_activities_to_db(metadata, handle)
+
+        assert activity.status == ActivityStatus.WAITING
+        assert activity.completed_at is None
+
+    @pytest.mark.asyncio
+    async def test_running_agentic_transitions_to_completed_when_output_available(self) -> None:
+        """RUNNING agentic activity transitions to COMPLETED when output_data arrives."""
+        activity = self._create_mock_activity_execution(
+            activity_name="agent-node",
+            status=ActivityStatus.RUNNING,
+        )
+        self._mock_session_with_activities([activity])
+
+        handle = self._create_mock_handle(
+            output_data={"result": "analysis complete"},
+        )
+
+        metadata = create_test_metadata(
+            execution_id=self.execution_id,
+            activity_index_map={"agent-node": 0},
+            activity_definitions_map={
+                "agent-node": {"task": {"executor": "agentic"}},
+            },
+            pending_activity_updates={
+                10: {
+                    "activity_id": "agent-node",
+                    "activity_name": "agent-node",
+                    "status": ActivityStatus.RUNNING,
+                    "started_at": datetime.now(UTC),
+                    "completed_at": None,
+                    "error_details": None,
+                    "retry_count": 0,
+                },
+            },
+        )
+
+        await self.service._sync_activities_to_db(metadata, handle)
+
+        assert activity.status == ActivityStatus.COMPLETED
+        assert activity.completed_at is not None
+        assert activity.output_data == {"result": "analysis complete"}
+
+    @pytest.mark.asyncio
+    async def test_running_agentic_stays_running_when_no_output(self) -> None:
+        """RUNNING agentic activity remains RUNNING when output_data is still None."""
+        activity = self._create_mock_activity_execution(
+            activity_name="agent-node",
+            status=ActivityStatus.RUNNING,
+        )
+        self._mock_session_with_activities([activity])
+
+        handle = self._create_mock_handle(output_data=None)
+
+        metadata = create_test_metadata(
+            execution_id=self.execution_id,
+            activity_index_map={"agent-node": 0},
+            activity_definitions_map={
+                "agent-node": {"task": {"executor": "agentic"}},
+            },
+            pending_activity_updates={
+                10: {
+                    "activity_id": "agent-node",
+                    "activity_name": "agent-node",
+                    "status": ActivityStatus.RUNNING,
+                    "started_at": datetime.now(UTC),
+                    "completed_at": None,
+                    "error_details": None,
+                    "retry_count": 0,
+                },
+            },
+        )
+
+        await self.service._sync_activities_to_db(metadata, handle)
+
+        assert activity.status == ActivityStatus.RUNNING
+        assert activity.completed_at is None
 
 
 class TestExtractFailedActivityErrors:

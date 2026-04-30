@@ -974,6 +974,11 @@ class WorkflowEngineSettings(BaseSettings):
         description="Base URL for Agent Orchestrator API",
     )
 
+    approvals_api_base_url: HttpUrl = Field(  # type: ignore[assignment]
+        default="http://localhost:8000/api/v1",
+        description="Base URL for Approvals API",
+    )
+
     # AAP (Ansible Automation Platform) settings
     # NOTE: These settings may be deprecated when AAP Tool integration is added.
     aap_base_url: str | None = Field(

@@ -9,6 +9,7 @@ class ActivityStatus(str, Enum):
     RETRYING = "retrying"
     RUNNING = "running"
     SKIPPED = "skipped"
+    WAITING = "waiting"
 
     def __str__(self) -> str:
         return str(self.value)

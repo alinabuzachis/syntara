@@ -11,16 +11,16 @@ T = TypeVar("T", bound="ActivitySummary")
 
 @_attrs_define
 class ActivitySummary:
-    """Activity Summary for workflow context.
+    """Activity summary for workflow context.
 
-    Summary of a workflow activity for display in approval context.
-    Provides enough information for UI rendering without exposing
-    full activity configuration details.
+    Passed through from the workflow engine as-is. Contains at minimum
+    ``id``, ``name``, ``type``, and usually ``config`` with the full
+    activity parameters so approvers can see what the step will do.
 
         Attributes:
             id (str): Activity ID from workflow definition
             name (str): Human-readable activity name
-            type_ (str): Activity type (task, approval, parallel, etc.)
+            type_ (str): Activity type (script, approval, agentic, etc.)
     """
 
     id: str

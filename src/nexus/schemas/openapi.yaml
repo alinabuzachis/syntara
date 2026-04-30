@@ -20004,22 +20004,16 @@ components:
           description: When this request expires
           title: Timeout At
         next_step_approved:
-          additionalProperties: true
+          $ref: '#/components/schemas/ActivitySummary'
           description: First activity that executes if approved
-          title: Next Step Approved
-          type: object
         next_step_rejected:
           anyOf:
-            - additionalProperties: true
-              type: object
+            - $ref: '#/components/schemas/ActivitySummary'
             - type: 'null'
           description: First activity that executes if rejected
-          title: Next Step Rejected
         workflow_context:
-          additionalProperties: true
+          $ref: '#/components/schemas/WorkflowContext'
           description: Workflow inputs and previous step output
-          title: Workflow Context
-          type: object
         decided_by:
           anyOf:
             - $ref: '#/components/schemas/UserReference'
@@ -20044,15 +20038,15 @@ components:
         - execution_id
         - approval_node_id
         - next_step_approved
+        - workflow_context
       type: object
       title: ApprovalRequestRead
       description: |-
-        ApprovalRequest API response model with UserReference for decided_by.
+        ApprovalRequest API response model with typed nested fields.
 
-
-          Extends BaseApprovalRequest with the API-specific decided_by field
-
-          that contains a UserReference object for API responses.
+        Overrides the JSONB dict fields from BaseApprovalRequest with typed models
+        so API consumers get proper validation and type safety. Pydantic coerces
+        the raw dicts from the database into these typed models during serialization.
     ApprovalRequestStatus:
       type: string
       title: ApprovalRequestStatus
@@ -20066,12 +20060,13 @@ components:
     ActivitySummary:
       type: object
       title: ActivitySummary
+      additionalProperties: true
       description: |-
-        Activity Summary for workflow context.
+        Activity summary for workflow context.
 
-        Summary of a workflow activity for display in approval context.
-        Provides enough information for UI rendering without exposing
-        full activity configuration details.
+        Passed through from the workflow engine as-is. Contains at minimum
+        ``id``, ``name``, ``type``, and usually ``config`` with the full
+        activity parameters so approvers can see what the step will do.
       required:
         - id
         - name
@@ -20088,7 +20083,7 @@ components:
         type:
           type: string
           title: Type
-          description: Activity type (task, approval, parallel, etc.)
+          description: Activity type (script, approval, agentic, etc.)
     ApprovalCreateRequest:
       type: object
       title: ApprovalCreateRequest
@@ -20100,6 +20095,7 @@ components:
         - execution_id
         - approval_node_id
         - name
+        - next_step_approved
         - workflow_context
       properties:
         execution_id:
@@ -20132,9 +20128,7 @@ components:
           title: Timeout At
           description: When this request expires (null = no timeout)
         next_step_approved:
-          anyOf:
-            - $ref: '#/components/schemas/ActivitySummary'
-            - type: 'null'
+          $ref: '#/components/schemas/ActivitySummary'
           description: First activity that executes if approved
         next_step_rejected:
           anyOf:
@@ -25619,6 +25613,7 @@ components:
       enum:
         - pending
         - running
+        - waiting
         - completed
         - failed
         - retrying

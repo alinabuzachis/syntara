@@ -216,7 +216,7 @@ class ApprovalService(BaseService):
 
         # Convert typed models to dicts for database storage
         next_step_approved_dict = (
-            request.next_step_approved.model_dump(mode="json") if request.next_step_approved else {}
+            request.next_step_approved.model_dump(mode="json") if request.next_step_approved else None
         )
         next_step_rejected_dict = (
             request.next_step_rejected.model_dump(mode="json") if request.next_step_rejected else None
@@ -337,6 +337,9 @@ class ApprovalService(BaseService):
                 approval_id=approval_id,
                 error=str(e),
             )
+
+        # Eagerly load the decider relationship to avoid lazy-load in async context
+        await self.session.refresh(approval, ["decider"])
 
         return cast("ApprovalRequestRead", self.convert_resource_mixin.convert_resource(approval))
 

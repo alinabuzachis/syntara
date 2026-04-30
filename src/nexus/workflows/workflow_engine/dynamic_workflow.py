@@ -275,14 +275,14 @@ class NexusWorkflow:
         completed_node = graph.get_node(completed_node_id)
 
         # Control-flow nodes must always have routing port data
-        if from_port is None and completed_node.type in (NodeType.CONDITION, NodeType.LOOP):
+        if from_port is None and completed_node.type in (NodeType.CONDITION, NodeType.LOOP, NodeType.APPROVAL):
             workflow.logger.warning(
                 f"Control-flow node {completed_node_id} (type={completed_node.type}) "
                 f"has no routing port — returning all successors"
             )
 
-        # Handle condition branch skipping
-        if from_port and completed_node.type == NodeType.CONDITION:
+        # Handle branch skipping for control-flow nodes
+        if from_port and completed_node.type in (NodeType.CONDITION, NodeType.APPROVAL):
             self._skip_non_taken_branches(completed_node_id, from_port, graph)
 
         successors = graph.get_next_activities_by_port(completed_node_id, from_port)
@@ -781,6 +781,119 @@ class NexusWorkflow:
             ),
         )
 
+    def _get_previous_step_context(
+        self,
+        node_id: str,
+        graph: "WorkflowGraph",
+    ) -> dict[str, Any] | None:
+        """Build previous_step context for an approval request.
+
+        Finds the predecessor node in the graph and returns its ID, name, type,
+        and output for inclusion in the approval's workflow_context.
+        """
+        predecessors = graph.get_predecessors(node_id)
+        if not predecessors:
+            return None
+        prev_id = predecessors[0]
+        prev_node = graph.get_node(prev_id)
+        if prev_id in self.skipped_nodes:
+            previous_output: dict[str, Any] | None = {"status": "skipped"}
+        else:
+            try:
+                previous_output = self.resolver.get_namespace(prev_id)
+            except KeyError:
+                previous_output = None
+        return {
+            "id": prev_node.id,
+            "name": prev_node.config.get("name", prev_node.id),
+            "type": prev_node.type,
+            "output": previous_output,
+        }
+
+    def _prepare_approval_args(
+        self,
+        node: "ActivityNode",
+        graph: "WorkflowGraph",
+        resolved_config: dict[str, Any],
+    ) -> list[Any]:
+        """Build the positional argument list for create_approval_request_activity.
+
+        Returns a 7-element list matching the activity signature in
+        ``approval_activity.create_approval_request_activity``::
+
+            [0] execution_id:       str            — parent workflow execution ID
+            [1] approval_node_id:   str            — activity ID from workflow definition
+            [2] name:               str            — display name for the approval request
+            [3] next_step_approved: dict[str, Any] | None — first activity if approved
+            [4] workflow_context:   dict[str, Any]  — workflow name, inputs, previous step
+            [5] timeout_at:         str | None      — ISO datetime when the request expires
+            [6] next_step_rejected: dict[str, Any] | None — first activity if rejected
+
+        """
+        name = resolved_config.get("name") or f"Approval for {node.id}"
+
+        # Build previous step context
+        previous_step = self._get_previous_step_context(node.id, graph)
+
+        # Build workflow context
+        workflow_context = {
+            # TODO(AAP-71408): Replace with actual workflow_version_id once threaded through run()  # noqa: TD003
+            "workflow_version_id": "00000000-0000-0000-0000-000000000000",
+            "workflow_name": graph.metadata.get("name") or "Unknown",
+            "inputs": self.resolver.namespaces.get("trigger", {}),
+            "previous_step": previous_step,
+        }
+
+        # Build next-step summaries from graph successors by port
+        approved_successors = graph.get_next_activities_by_port(node.id, "approved")
+        if not approved_successors:
+            msg = (
+                f"Approval node '{node.id}' has no approved successor. "
+                "Approval nodes require at least one successor on the 'approved' output."
+            )
+            raise SafeValueError(msg)
+        first_approved = approved_successors[0]
+        next_step_approved = {
+            "id": first_approved.id,
+            "name": first_approved.config.get("name", first_approved.id),
+            "type": first_approved.type,
+            "config": first_approved.config,
+        }
+
+        rejected_successors = graph.get_next_activities_by_port(node.id, "rejected")
+        next_step_rejected = None
+        if rejected_successors:
+            first_rejected = rejected_successors[0]
+            next_step_rejected = {
+                "id": first_rejected.id,
+                "name": first_rejected.config.get("name", first_rejected.id),
+                "type": first_rejected.type,
+                "config": first_rejected.config,
+            }
+
+        # Compute timeout_at as ISO string (or None)
+        timeout_seconds = resolved_config.get("approver_timeout")
+        timeout_at = None
+        if timeout_seconds is not None:
+            try:
+                timeout_at = (workflow.now() + timedelta(seconds=timeout_seconds)).isoformat()
+            except (ValueError, TypeError):
+                workflow.logger.warning(
+                    "Invalid approver_timeout value %s for node %s, skipping timeout",
+                    timeout_seconds,
+                    node.id,
+                )
+
+        return [
+            self.execution_id,
+            node.id,
+            name,
+            next_step_approved,
+            workflow_context,
+            timeout_at,
+            next_step_rejected,
+        ]
+
     async def _execute_signal_node(
         self,
         node_id: str,
@@ -789,6 +902,7 @@ class NexusWorkflow:
         outputs: dict[str, str] | None,
         signal_timeout: timedelta,
         timeout_seconds: int = DEFAULT_ACTIVITY_TIMEOUT_SECONDS,
+        activity_args: list[Any] | None = None,
     ) -> dict[str, Any]:
         """Execute a node that starts an activity then waits for a signal callback.
 
@@ -802,14 +916,21 @@ class NexusWorkflow:
             outputs: Output mapping configuration
             signal_timeout: How long to wait for the signal
             timeout_seconds: Activity start timeout in seconds
+            activity_args: Custom args for the activity. If None, uses
+                [resolved_config, outputs, self.execution_id, self.request_id].
 
         Returns:
             Activity result with output from signal
 
         """
+        args = (
+            activity_args
+            if activity_args is not None
+            else [resolved_config, outputs, self.execution_id, self.request_id]
+        )
         activity_result = await workflow.execute_activity(
             activity_name,
-            args=[resolved_config, outputs, self.execution_id, self.request_id],
+            args=args,
             activity_id=node_id,
             start_to_close_timeout=timedelta(seconds=timeout_seconds),
         )
@@ -1077,14 +1198,31 @@ class NexusWorkflow:
                 timeout_seconds=timeout_seconds,
             )
         if node_type == NodeType.APPROVAL:
-            return await self._execute_signal_node(
+            approval_args = self._prepare_approval_args(node, graph, resolved_config)
+            result = await self._execute_signal_node(
                 node_id,
                 ActivityName.APPROVAL,
                 resolved_config,
                 node.outputs,
+                # TODO(AAP-71386): Derive signal timeout from approver_timeout config  # noqa: TD003
                 signal_timeout=timedelta(hours=24),
                 timeout_seconds=timeout_seconds,
+                activity_args=approval_args,
             )
+            # Route to the taken branch based on approval decision
+            output = result.get("output", {})
+            approval_status = output.get("status") if isinstance(output, dict) else None
+            if approval_status in ("approved", "rejected"):
+                result["control"] = {"next_port": approval_status}
+            else:
+                # Defensive: route unexpected statuses to rejected branch
+                result["control"] = {"next_port": "rejected"}
+                workflow.logger.warning(
+                    "Approval node %s received unexpected status %s, routing to rejected",
+                    node_id,
+                    approval_status,
+                )
+            return result
         if node_type == NodeType.CONVERGE:
             return await self._execute_converge_node(
                 node_id, resolved_config, node.outputs, graph, timeout_seconds=timeout_seconds

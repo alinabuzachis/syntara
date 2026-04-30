@@ -12,7 +12,12 @@ from sqlalchemy import Column, String, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import DateTime, Field, Relationship
 
-from nexus.approvals.models.api_models import ApprovalRequestStatus, UserReference
+from nexus.approvals.models.api_models import (
+    ActivitySummary,
+    ApprovalRequestStatus,
+    UserReference,
+    WorkflowContext,
+)
 from nexus.core.constants import FieldLimits
 from nexus.core.models.base import BaseResource
 from nexus.core.models.pagination import ResourcesResponse
@@ -85,6 +90,7 @@ class BaseApprovalRequest(BaseResource, table=False):
 
     # Context for approvers - ActivitySummary structures
     next_step_approved: dict[str, Any] = Field(
+        default_factory=dict,
         sa_column=Column(JSONB, nullable=False),
         description="First activity that executes if approved",
     )
@@ -159,11 +165,23 @@ class ApprovalRequest(BaseApprovalRequest, table=True):
 
 
 class ApprovalRequestRead(BaseApprovalRequest, table=False):
-    """ApprovalRequest API response model with UserReference for decided_by.
+    """ApprovalRequest API response model with typed nested fields.
 
-    Extends BaseApprovalRequest with the API-specific decided_by field
-    that contains a UserReference object for API responses.
+    Overrides the JSONB dict fields from BaseApprovalRequest with typed models
+    so API consumers get proper validation and type safety. Pydantic coerces
+    the raw dicts from the database into these typed models during serialization.
     """
+
+    # Override JSONB dict fields with typed models
+    next_step_approved: ActivitySummary = Field(  # type: ignore[assignment]
+        ..., description="First activity that executes if approved"
+    )
+    next_step_rejected: ActivitySummary | None = Field(  # type: ignore[assignment]
+        default=None, description="First activity that executes if rejected"
+    )
+    workflow_context: WorkflowContext = Field(  # type: ignore[assignment]
+        ..., description="Workflow inputs and previous step output"
+    )
 
     # Decision field - API returns UserReference object
     decided_by: UserReference | None = Field(

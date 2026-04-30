@@ -151,6 +151,12 @@ jobs:
           APP_OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           APP_OPENROUTER_MODEL: moonshotai/kimi-k2.6
 
+      - name: Configure worker internal API URLs
+        run: |
+          kubectl set env deployment/myaap-ao-worker \
+            APP_APPROVALS_API_BASE_URL=http://myaap-ao-api:8000/api/v1 \
+            APP_AGENT_ORCHESTRATOR_BASE_URL=http://myaap-ao-api:8000/api/v1
+
       - name: Configure Nexus to send telemetry to mock Segment
         run: |
           kubectl set env deployment/myaap-ao-api \
@@ -163,6 +169,16 @@ jobs:
             APP_COLLECTION_INTERVAL_SECONDS=10
           kubectl rollout status deployment/myaap-ao-api --timeout=120s
           kubectl rollout status deployment/myaap-ao-worker --timeout=120s
+
+      - name: Verify worker internal API config
+        run: |
+          WORKER_POD=$(kubectl get pods -l app.kubernetes.io/component=worker -o jsonpath='{.items[0].metadata.name}' 2>/dev/null \
+            || kubectl get pods -o name | grep worker | head -1 | sed 's|pod/||')
+          echo "Worker pod: ${WORKER_POD}"
+          echo "--- APP_APPROVALS_API_BASE_URL ---"
+          kubectl exec "${WORKER_POD}" -- printenv APP_APPROVALS_API_BASE_URL || echo "(not set — will default to localhost:8000)"
+          echo "--- DNS check: myaap-ao-api ---"
+          kubectl exec "${WORKER_POD}" -- getent hosts myaap-ao-api || echo "(DNS lookup failed)"
 
       - name: Port-forward services
         run: |

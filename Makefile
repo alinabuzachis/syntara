@@ -385,7 +385,9 @@ services-logs: ## View logs from all services
 	@echo ""
 	$(COMPOSE_FINAL_CMD) ps
 	@echo ""
-	$(COMPOSE_FINAL_CMD) logs -f database redis temporal temporal-ui temporal-worker mcp-server opa
+	@for c in $$($(COMPOSE_FINAL_CMD) ps --format '{{.Names}}'); do \
+		podman logs -f "$$c" 2>&1 | sed "s/^/[$$(echo $$c | sed 's/$(PODMAN_PROJECT)_//;s/_1$$//')] /" & \
+	done; wait
 
 
 .PHONY: db-logs
@@ -401,7 +403,9 @@ cache-logs: ## View cache server logs only
 .PHONY: temporal-logs
 temporal-logs: ## View Temporal server and worker logs
 	@echo "📋 Viewing Temporal server and worker logs (project: $(PODMAN_PROJECT))..."
-	$(COMPOSE_FINAL_CMD) logs -f temporal temporal-worker
+	@for c in temporal temporal-worker; do \
+		podman logs -f "$(PODMAN_PROJECT)_$${c}_1" 2>&1 | sed "s/^/[$$c] /" & \
+	done; wait
 
 .PHONY: temporal-ui-logs
 temporal-ui-logs: ## View Temporal UI logs only

@@ -352,7 +352,7 @@ components:
       type: string
       title: ActivityStatus
       description: Activity execution status enumeration.
-      enum: [pending, running, completed, failed, retrying, skipped, cancelled]
+      enum: [pending, running, waiting, completed, failed, retrying, skipped, cancelled]
 
     # NOTE: ApprovalStatus is defined in ../approvals/openapi.yaml
 
