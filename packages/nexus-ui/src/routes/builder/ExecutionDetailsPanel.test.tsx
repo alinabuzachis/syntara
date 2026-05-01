@@ -1,14 +1,38 @@
 import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { axe } from 'vitest-axe'
 
 import { ExecutionDetailsPanel, type WorkflowDefShape } from './ExecutionDetailsPanel'
 
-const WORKFLOW_DEF = {
+/** v1 workflow definition: names live under workflow.activities */
+const WORKFLOW_DEF: WorkflowDefShape = {
   workflow: {
     activities: [
-      { id: 'task-1', name: 'Process data', type: 'task' },
-      { id: 'task-2', name: 'Send notification', type: 'task' },
+      { id: 'task-1', name: 'Process data' },
+      { id: 'task-2', name: 'Send notification' },
+    ],
+  },
+}
+
+/** v2 workflow definition: names live under top-level nodes[] */
+const WORKFLOW_DEF_V2: WorkflowDefShape = {
+  nodes: [
+    { id: 'task-1', name: 'My AI Agent' },
+    { id: 'task-2', name: 'Data Processor' },
+  ],
+}
+
+/** Mixed definition: both nodes (v2) and workflow.activities (v1) present */
+const WORKFLOW_DEF_MIXED: WorkflowDefShape = {
+  nodes: [
+    { id: 'task-1', name: 'V2 Agent Name' },
+    { id: 'task-2', name: 'V2 Processor Name' },
+  ],
+  workflow: {
+    activities: [
+      { id: 'task-1', name: 'V1 Process data' },
+      { id: 'task-2', name: 'V1 Send notification' },
     ],
   },
 }
@@ -91,12 +115,58 @@ describe('ExecutionDetailsPanel', () => {
     })
   })
 
+  describe('v2 workflow definition (nodes[])', () => {
+    it('shows activity names from v2 nodes array', () => {
+      renderPanel(WORKFLOW_DEF_V2)
+
+      expect(screen.getByText('My AI Agent')).toBeInTheDocument()
+      expect(screen.getByText('Data Processor')).toBeInTheDocument()
+    })
+
+    it('does not fall back to activity IDs when v2 nodes provide names', () => {
+      renderPanel(WORKFLOW_DEF_V2)
+
+      expect(screen.queryByText('task-1')).not.toBeInTheDocument()
+      expect(screen.queryByText('task-2')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('v2 nodes takes precedence over v1 workflow.activities', () => {
+    it('uses v2 node names when both nodes and workflow.activities are present', () => {
+      renderPanel(WORKFLOW_DEF_MIXED)
+
+      expect(screen.getByText('V2 Agent Name')).toBeInTheDocument()
+      expect(screen.getByText('V2 Processor Name')).toBeInTheDocument()
+
+      expect(screen.queryByText('V1 Process data')).not.toBeInTheDocument()
+      expect(screen.queryByText('V1 Send notification')).not.toBeInTheDocument()
+    })
+  })
+
   describe('fallback behavior', () => {
     it('uses activity ID when no workflow definition is provided', () => {
       renderPanel()
 
       expect(screen.getByText('task-1')).toBeInTheDocument()
       expect(screen.getByText('task-2')).toBeInTheDocument()
+    })
+
+    it('uses activity ID when workflow definition is null', () => {
+      renderPanel(null)
+
+      expect(screen.getByText('task-1')).toBeInTheDocument()
+      expect(screen.getByText('task-2')).toBeInTheDocument()
+    })
+  })
+
+  describe('accessibility', () => {
+    it('has no accessibility violations', async () => {
+      const { container } = renderPanel(WORKFLOW_DEF)
+
+      // Exclude aria-valid-attr-value: PF6 Tabs renders aria-controls pointing to
+      // tab panels that are not in the DOM (only the active panel is rendered).
+      const results = await axe(container, { rules: { 'aria-valid-attr-value': { enabled: false } } })
+      expect(results).toHaveNoViolations()
     })
   })
 

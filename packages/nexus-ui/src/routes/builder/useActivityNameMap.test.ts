@@ -149,4 +149,130 @@ describe('useActivityNameMap', () => {
     expect(result.current.nameMap.size).toBe(0)
     expect(result.current.activityOrder).toEqual([])
   })
+
+  describe('v2 workflow definition (nodes[])', () => {
+    it('builds name map from top-level nodes array', () => {
+      vi.mocked(useActivities).mockReturnValue(undefined)
+      vi.mocked(useTriggers).mockReturnValue(undefined)
+
+      const wfDef: WorkflowDefShape = {
+        nodes: [
+          { id: 'task-1', name: 'My AI Agent' },
+          { id: 'task-2', name: 'Data Processor' },
+        ],
+      }
+
+      const { result } = renderHook(() => useActivityNameMap(wfDef, activityStates))
+
+      expect(result.current.nameMap.get('task-1')).toBe('My AI Agent')
+      expect(result.current.nameMap.get('task-2')).toBe('Data Processor')
+    })
+
+    it('v2 nodes take precedence over v1 workflow.activities', () => {
+      vi.mocked(useActivities).mockReturnValue(undefined)
+      vi.mocked(useTriggers).mockReturnValue(undefined)
+
+      const wfDef: WorkflowDefShape = {
+        nodes: [
+          { id: 'task-1', name: 'V2 Agent Name' },
+          { id: 'task-2', name: 'V2 Processor Name' },
+        ],
+        workflow: {
+          activities: [
+            { id: 'task-1', name: 'V1 Process data' },
+            { id: 'task-2', name: 'V1 Send notification' },
+          ],
+        },
+      }
+
+      const { result } = renderHook(() => useActivityNameMap(wfDef, activityStates))
+
+      expect(result.current.nameMap.get('task-1')).toBe('V2 Agent Name')
+      expect(result.current.nameMap.get('task-2')).toBe('V2 Processor Name')
+    })
+
+    it('falls back to v1 names when v2 node has no name', () => {
+      vi.mocked(useActivities).mockReturnValue(undefined)
+      vi.mocked(useTriggers).mockReturnValue(undefined)
+
+      const wfDef: WorkflowDefShape = {
+        nodes: [
+          { id: 'task-1', name: 'V2 Agent Name' },
+          { id: 'task-2' }, // no name
+        ],
+        workflow: {
+          activities: [
+            { id: 'task-1', name: 'V1 Process data' },
+            { id: 'task-2', name: 'V1 Send notification' },
+          ],
+        },
+      }
+
+      const { result } = renderHook(() => useActivityNameMap(wfDef, activityStates))
+
+      expect(result.current.nameMap.get('task-1')).toBe('V2 Agent Name')
+      expect(result.current.nameMap.get('task-2')).toBe('V1 Send notification')
+    })
+
+    it('falls back to v1 workflow.activities when nodes is an empty array', () => {
+      vi.mocked(useActivities).mockReturnValue(undefined)
+      vi.mocked(useTriggers).mockReturnValue(undefined)
+
+      const wfDef: WorkflowDefShape = {
+        nodes: [],
+        workflow: {
+          activities: [
+            { id: 'task-1', name: 'V1 Process data' },
+            { id: 'task-2', name: 'V1 Send notification' },
+          ],
+        },
+      }
+
+      const { result } = renderHook(() => useActivityNameMap(wfDef, activityStates))
+
+      expect(result.current.nameMap.get('task-1')).toBe('V1 Process data')
+      expect(result.current.nameMap.get('task-2')).toBe('V1 Send notification')
+    })
+
+    it('merges disjoint v2 nodes and v1 activities per-id', () => {
+      vi.mocked(useActivities).mockReturnValue(undefined)
+      vi.mocked(useTriggers).mockReturnValue(undefined)
+
+      const wfDef: WorkflowDefShape = {
+        nodes: [{ id: 'task-1', name: 'V2 Only Node' }],
+        workflow: {
+          activities: [
+            { id: 'task-2', name: 'V1 Only Activity' },
+            { id: 'task-3', name: 'V1 Third Activity' },
+          ],
+        },
+      }
+
+      const states = new Map<string, ActivityState>([
+        ['task-1', { activityId: 'task-1', status: 'completed' }],
+        ['task-2', { activityId: 'task-2', status: 'pending' }],
+        ['task-3', { activityId: 'task-3', status: 'running' }],
+      ])
+      const { result } = renderHook(() => useActivityNameMap(wfDef, states))
+
+      expect(result.current.nameMap.get('task-1')).toBe('V2 Only Node')
+      expect(result.current.nameMap.get('task-2')).toBe('V1 Only Activity')
+      expect(result.current.nameMap.get('task-3')).toBe('V1 Third Activity')
+    })
+
+    it('returns raw IDs when nodes have no name field and no v1 activities', () => {
+      vi.mocked(useActivities).mockReturnValue(undefined)
+      vi.mocked(useTriggers).mockReturnValue(undefined)
+
+      const wfDef: WorkflowDefShape = {
+        nodes: [{ id: 'task-1' }, { id: 'task-2' }],
+      }
+
+      const { result } = renderHook(() => useActivityNameMap(wfDef, activityStates))
+
+      // Nodes without names produce no map entries — activityOrder falls back to undefined name
+      expect(result.current.nameMap.get('task-1')).toBeUndefined()
+      expect(result.current.nameMap.get('task-2')).toBeUndefined()
+    })
+  })
 })

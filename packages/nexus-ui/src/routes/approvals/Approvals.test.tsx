@@ -840,6 +840,8 @@ describe('Approvals Component', () => {
       expect(workflowText).toBeInTheDocument()
 
       expect(workflowText.closest('button')).toBeNull()
+      expect(workflowText.closest('a')).toBeNull()
+      expect(screen.queryByRole('link', { name: 'Test Workflow' })).toBeNull()
     })
 
     it('handles approval without decided_at (pending)', () => {

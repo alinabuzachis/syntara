@@ -18,6 +18,8 @@ type ActivityLike = {
 
 export type WorkflowDefShape = {
   workflow?: { activities?: ActivityLike[] }
+  /** v2 format stores nodes at top level */
+  nodes?: ActivityLike[]
 }
 
 const CHILD_KEYS: (keyof ActivityLike)[] = ['steps', 'then', 'else']
@@ -62,6 +64,31 @@ function buildNameMap(activities: ActivityLike[] | undefined): Map<string, strin
   return map
 }
 
+function buildStoreNameMap(
+  activities: Array<{ id?: string; name?: string }>,
+  triggers: Array<{ id?: string; name?: string }>
+): Map<string, string> {
+  const map = new Map<string, string>()
+  for (const act of activities) {
+    if (act.id && act.name) map.set(act.id, act.name)
+  }
+  for (const trigger of triggers) {
+    if (trigger.id && trigger.name) map.set(trigger.id, trigger.name)
+  }
+  return map
+}
+
+function buildDefinitionNameMap(def: WorkflowDefShape | null | undefined): Map<string, string> {
+  const fromActivities = buildNameMap(def?.workflow?.activities)
+  const fromNodes = buildNameMap(def?.nodes)
+  if (fromNodes.size === 0) return fromActivities
+  const merged = new Map(fromActivities)
+  for (const [id, name] of fromNodes) {
+    merged.set(id, name)
+  }
+  return merged
+}
+
 export function useActivityNameMap(
   workflowDefinition: WorkflowDefShape | null | undefined,
   activityStates: Map<string, ActivityState>
@@ -70,18 +97,12 @@ export function useActivityNameMap(
   const storeTriggers = useTriggers()
 
   const nameMap = useMemo(() => {
-    if ((storeActivities && storeActivities.length > 0) || (storeTriggers && storeTriggers.length > 0)) {
-      const map = new Map<string, string>()
-      for (const act of storeActivities ?? []) {
-        if (act.id && act.name) map.set(act.id, act.name)
-      }
-      for (const trigger of storeTriggers ?? []) {
-        if (trigger.id && trigger.name) map.set(trigger.id, trigger.name)
-      }
-      return map
+    const hasStoreData = (storeActivities && storeActivities.length > 0) || (storeTriggers && storeTriggers.length > 0)
+    if (hasStoreData) {
+      return buildStoreNameMap(storeActivities ?? [], storeTriggers ?? [])
     }
-    return buildNameMap(workflowDefinition?.workflow?.activities)
-  }, [storeActivities, storeTriggers, workflowDefinition?.workflow?.activities])
+    return buildDefinitionNameMap(workflowDefinition)
+  }, [storeActivities, storeTriggers, workflowDefinition])
 
   const activityOrder = useMemo<ActivityOrderItem[]>(
     () => Array.from(activityStates.keys()).map((id) => ({ id, name: nameMap.get(id) })),
