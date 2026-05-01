@@ -114,8 +114,8 @@ function buildActivityConfig(
   data: RegistryActionFormData,
   showError: (options: AlertMessage) => void
 ):
-  | { language: string; code: string; credentialId?: string }
-  | { method: string; url: string; headers?: Record<string, string>; body?: unknown; credentialId?: string }
+  | { language: string; code: string; credential_id?: string }
+  | { method: string; url: string; headers?: Record<string, string>; body?: unknown; credential_id?: string }
   | null {
   const isScript = data.executor === ExecutorTypeEnum.SCRIPT
 
@@ -149,7 +149,7 @@ function mergeAuthHeaders(
 function buildHTTPConfig(
   data: RegistryActionFormData,
   headers: Record<string, string> | undefined
-): { method: string; url: string; headers?: Record<string, string>; body?: unknown; credentialId?: string } {
+): { method: string; url: string; headers?: Record<string, string>; body?: unknown; credential_id?: string } {
   const parsedBody = data.body
     ? (() => {
         try {
@@ -165,7 +165,7 @@ function buildHTTPConfig(
     url: string
     headers?: Record<string, string>
     body?: unknown
-    credentialId?: string
+    credential_id?: string
   } = {
     method: data.method as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
     url: data.url!,
@@ -178,7 +178,7 @@ function buildHTTPConfig(
     config.body = parsedBody
   }
   if (data.credential_id) {
-    config.credentialId = data.credential_id
+    config.credential_id = data.credential_id
   }
 
   return config
@@ -195,14 +195,14 @@ function serializeBody(body: unknown): string {
 /**
  * Build script config from form data.
  */
-function buildScriptConfig(data: RegistryActionFormData): { language: string; code: string; credentialId?: string } {
-  const config: { language: string; code: string; credentialId?: string } = {
+function buildScriptConfig(data: RegistryActionFormData): { language: string; code: string; credential_id?: string } {
+  const config: { language: string; code: string; credential_id?: string } = {
     language: data.language ?? 'python',
     code: data.code!,
   }
 
   if (data.credential_id) {
-    config.credentialId = data.credential_id
+    config.credential_id = data.credential_id
   }
 
   return config

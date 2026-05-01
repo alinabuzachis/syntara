@@ -112,6 +112,20 @@ vi.mock('../node-forms/ActionNodeForm', () => ({
       >
         Submit API Invalid Headers
       </button>
+      <button
+        onClick={() =>
+          onSubmit({
+            name: 'API with Credential',
+            executor: 'http_request',
+            method: 'GET',
+            url: 'https://api.test.com',
+            credential_id: 'cred-123',
+          })
+        }
+        data-testid="submit-api-credential-button"
+      >
+        Submit API with Credential
+      </button>
       <button onClick={onCancel} data-testid="cancel-button">
         Cancel
       </button>
@@ -427,6 +441,36 @@ describe('TaskNodeDetails Component', () => {
         }),
       })
     )
+  })
+
+  it('stores credential_id in snake_case in workflow config (AAP-73929)', async () => {
+    const user = userEvent.setup()
+    const taskData = {
+      type: 'http_request' as const,
+      id: 'task-api-cred',
+      name: 'API Task',
+      config: {
+        method: 'GET' as const,
+        url: 'https://api.example.com',
+      },
+    }
+
+    renderTaskNodeDetails(taskData, 'task-api-cred')
+
+    await user.click(screen.getByTestId('submit-api-credential-button'))
+
+    expect(mockUpdateActivity).toHaveBeenCalledWith(
+      'task-api-cred',
+      expect.objectContaining({
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        config: expect.objectContaining({
+          credential_id: 'cred-123',
+        }),
+      })
+    )
+    // Must NOT use camelCase — backend looks for credential_id
+    const callArgs = mockUpdateActivity.mock.calls[0] as [string, { config: Record<string, unknown> }]
+    expect(callArgs[1].config).not.toHaveProperty('credentialId')
   })
 
   it('handles API form submission with plain text body', async () => {
