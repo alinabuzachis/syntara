@@ -20,7 +20,6 @@ class OIDCIdpType(StrEnum):
     """Known OIDC identity provider types for pre-configured UI defaults."""
 
     AAP = "aap"
-    MICROSOFT_ENTRA = "microsoft_entra"
     CUSTOM = "custom"
 
 

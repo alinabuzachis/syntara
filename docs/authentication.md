@@ -371,7 +371,7 @@ The `configuration` object includes:
 | Field | Required | Description |
 |---|---|---|
 | `provider_type` | Yes | Must be `"oidc"` |
-| `idp_type` | No | Provider type hint (`"aap"`, `"microsoft_entra"`, `"custom"`) for UI pre-configured defaults |
+| `idp_type` | No | Provider type hint (`"aap"`, `"custom"`) for UI pre-configured defaults |
 | `issuer_url` | Yes | OIDC issuer URL (e.g., `https://accounts.google.com`) |
 | `client_id` | Yes | OAuth 2.0 client ID |
 | `client_secret` | Yes (create) | OAuth 2.0 client secret (excluded from responses, optional on patch) |

@@ -19,7 +19,7 @@ class AuthProviderInfo:
         id (str): Provider UUID
         name (str): Provider display name
         provider_type (str): Provider type (e.g. oidc)
-        provider_template (None | str | Unset): Provider template (e.g. microsoft_entra, aap)
+        provider_template (None | str | Unset): Provider template (e.g. aap)
     """
 
     id: str

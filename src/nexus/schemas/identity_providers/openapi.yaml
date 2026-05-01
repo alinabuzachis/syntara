@@ -334,7 +334,7 @@ components:
             - type: string
             - type: 'null'
           title: Idp Type
-          description: "Identity provider type hint. Known values: aap, microsoft_entra, custom"
+          description: "Identity provider type hint. Known values: aap, custom"
         auto_discovery:
           type: boolean
           default: true
@@ -536,7 +536,7 @@ components:
             - type: string
             - type: 'null'
           title: Idp Type
-          description: "Identity provider type hint. Known values: aap, microsoft_entra, custom"
+          description: "Identity provider type hint. Known values: aap, custom"
         auto_discovery:
           type: boolean
           default: true

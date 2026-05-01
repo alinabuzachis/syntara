@@ -37,7 +37,7 @@ class AuthProviderInfo(BaseModel):
     id: str = Field(description="Provider UUID")
     name: str = Field(description="Provider display name")
     provider_type: str = Field(description="Provider type (e.g. oidc)")
-    provider_template: str | None = Field(default=None, description="Provider template (e.g. microsoft_entra, aap)")
+    provider_template: str | None = Field(default=None, description="Provider template (e.g. aap)")
 
 
 class AuthProvidersResponse(BaseModel):

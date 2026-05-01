@@ -24,7 +24,7 @@ class OIDCConfigurationPatch:
         client_id (str): OAuth 2.0 client ID
         redirect_uri (str): OAuth 2.0 redirect URI
         provider_type (Literal['oidc'] | Unset):  Default: 'oidc'.
-        idp_type (None | str | Unset): Identity provider type hint. Known values: aap, microsoft_entra, custom
+        idp_type (None | str | Unset): Identity provider type hint. Known values: aap, custom
         auto_discovery (bool | Unset): Use OIDC auto-discovery via .well-known endpoint Default: True.
         client_secret (None | str | Unset): OAuth 2.0 client secret (omit to keep existing)
         scopes (str | Unset): Space-separated list of OAuth 2.0 scopes Default: 'openid profile email'.

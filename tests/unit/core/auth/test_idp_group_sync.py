@@ -474,5 +474,4 @@ class TestOIDCIdpType:
     def test_known_idp_type_values(self):
         """OIDCIdpType enum should contain the expected values."""
         assert OIDCIdpType.AAP == "aap"
-        assert OIDCIdpType.MICROSOFT_ENTRA == "microsoft_entra"
         assert OIDCIdpType.CUSTOM == "custom"
