@@ -415,12 +415,12 @@ export const pages: PageEntry[] = [
   },
 
   // ══════════════════════════════════════════════════════════════════════════
-  // ACCESS MANAGEMENT — Settings
+  // CONFIGURATION — Settings
   // ══════════════════════════════════════════════════════════════════════════
   {
-    section: 'access-management/settings',
+    section: 'configuration/settings',
     name: 'settings',
-    path: '/access-management/settings',
+    path: '/configuration/settings',
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible()
       await expect(page.getByRole('tab').first()).toBeVisible()
