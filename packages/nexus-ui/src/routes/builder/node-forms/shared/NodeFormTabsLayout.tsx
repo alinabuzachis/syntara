@@ -40,7 +40,7 @@ export function NodeFormTabsLayout({
           </FlexItem>
           <FlexItem>
             <TestStepButton
-              onTestStep={onTestStep ?? (() => showInfo('Not yet implemented'))}
+              onTestStep={onTestStep ?? (() => showInfo({ title: 'Not yet implemented' }))}
               isPending={isTestStepPending}
             />
           </FlexItem>

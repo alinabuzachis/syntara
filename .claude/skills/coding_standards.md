@@ -905,3 +905,83 @@ function Parent() {
 Sonar’s docs also allow factories in props whose names match **`render*`** (and some **`children`** patterns). PatternFly uses names like **`toggle`**, so **module-scoped** presentational components are the usual fix.
 
 **ESLint:** `react/no-unstable-nested-components` overlaps this theme but often still flags **valid** `(ref) => <ModuleScopedToggle … />` shapes unless **`allowAsProps: true`**, which then **permits** many other “component in prop” patterns Sonar would still reject. This repo therefore relies on **SonarCloud S6478** (and review) rather than enabling that rule globally.
+
+---
+
+## 19. `showSuccess` / `showError` — Object Parameter and Sentence Case
+
+The alert context methods accept a single object with `title` and an optional `description`. The **title** renders as the bold heading of the toast alert. The optional **description** provides extra detail below it.
+
+```typescript
+// ❌ BAD — positional arguments (easy to swap, hard to read)
+showError('Failed to create workflow', getErrorMessage(error))
+showSuccess('Workflow created successfully')
+
+// ❌ BAD — title case instead of sentence case
+showSuccess({ title: 'Workflow Created Successfully' })
+
+// ✅ GOOD — named fields, sentence case
+showSuccess({ title: 'Workflow created successfully' })
+showError({ title: 'Failed to create workflow', description: getErrorMessage(error) })
+```
+
+**Rules:**
+
+1. **Always pass an object** — `{ title }` or `{ title, description }`, never positional args
+2. **Use sentence case** for alert titles — “Workflow created successfully”, not “Workflow Created Successfully”
+3. **Description is optional** — only add it when extra context (e.g., the raw error message) is useful
+
+The same rules apply to `showWarning` and `showInfo`.
+
+---
+
+## 20. No Raw HTML Elements for Text Content — Use PatternFly Components
+
+Never use raw `<span>`, `<p>`, or `<div>` for text content when a PatternFly component exists. Use PF `Content`, `HelperText`, `Label`, or `Title` instead — they pick up design tokens for font size, color, and spacing automatically.
+
+See [`.claude/skills/patternfly_ux_design_system.md`](patternfly_ux_design_system.md) — section 13 "No Raw HTML for Text Content" for the full component mapping table and code examples.
+
+---
+
+## 21. `useMemo` for Derived Data in Custom Hooks
+
+When a custom hook computes derived data (maps, sorted arrays, filtered lists) from query results, wrap the computation in `useMemo`. Without it, the derived data gets a new reference on every render, causing unnecessary re-renders in consumers.
+
+```typescript
+// ❌ BAD — new Map and sorted array on every render
+export function useResourceActions() {
+  const { data } = accessClient.useQuery('get', '/authz/resource-actions')
+  const ra = data?.resource_actions ?? {}
+  const resourceTypes = Object.keys(ra).sort()
+  const actionsByResource = new Map(Object.entries(ra))
+  return { resourceTypes, actionsByResource }
+}
+
+// ✅ GOOD — stable references when data hasn't changed
+export function useResourceActions() {
+  const { data } = accessClient.useQuery('get', '/authz/resource-actions')
+  const { resourceTypes, actionsByResource } = useMemo(() => {
+    const ra: Record<string, string[]> = data?.resource_actions ?? {}
+    return {
+      resourceTypes: Object.keys(ra).sort(),
+      actionsByResource: new Map(
+        Object.entries(ra)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([k, v]) => [k, [...v].sort((a, b) => a.localeCompare(b))])
+      ),
+    }
+  }, [data])
+  return { resourceTypes, actionsByResource }
+}
+```
+
+**When to use `useMemo`:**
+
+- The hook transforms query data into a different shape (map, sorted array, filtered list)
+- The hook creates new object/array references that consumers would compare by identity
+- Multiple consumers share the hook and would all re-render on reference changes
+
+**When NOT to use `useMemo`:**
+
+- Simple pass-through of query data (already referentially stable from React Query)
+- Primitive return values (strings, numbers, booleans — identity-stable by nature)

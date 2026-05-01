@@ -131,11 +131,11 @@ export function ProjectPoliciesTab({ projectId }: Readonly<{ projectId: string }
       { params: { path: { project_id: projectId, policy_id: policy.id } } },
       {
         onSuccess: () => {
-          showSuccess(`Deleted policy "${policy.name}"`, 'Policy Deleted')
+          showSuccess({ title: 'Policy deleted', description: `Deleted policy "${policy.name}"` })
           handlePoliciesChanged()
         },
         onError: (error) => {
-          showError(getErrorMessage(error), 'Failed to Delete Policy')
+          showError({ title: 'Failed to delete policy', description: getErrorMessage(error) })
         },
         onSettled: () => deleteDialog.close(),
       }

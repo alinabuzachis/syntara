@@ -137,11 +137,11 @@ export function ProjectRolesTab({ projectId }: Readonly<{ projectId: string }>) 
       { params: { path: { project_id: projectId, role_id: role.id } } },
       {
         onSuccess: () => {
-          showSuccess(`Deleted role "${role.name}"`, 'Role Deleted')
+          showSuccess({ title: 'Role deleted', description: `Deleted role "${role.name}"` })
           handleRolesChanged()
         },
         onError: (error) => {
-          showError(getErrorMessage(error), 'Failed to Delete Role')
+          showError({ title: 'Failed to delete role', description: getErrorMessage(error) })
         },
         onSettled: () => deleteDialog.close(),
       }

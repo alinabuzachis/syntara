@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -112,5 +112,43 @@ describe('EditProjectPolicyDialog', () => {
 
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(mockOnClose).toHaveBeenCalledOnce()
+  })
+
+  it('calls onSuccess and onClose on successful mutation', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => {
+      expect(mockMutate).toHaveBeenCalled()
+    })
+
+    const callbacks = mockMutate.mock.calls[0][1] as { onSuccess: () => void }
+    act(() => {
+      callbacks.onSuccess()
+    })
+
+    expect(mockOnSuccess).toHaveBeenCalled()
+    expect(mockOnClose).toHaveBeenCalled()
+  })
+
+  it('shows error alert on failed mutation', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => {
+      expect(mockMutate).toHaveBeenCalled()
+    })
+
+    const callbacks = mockMutate.mock.calls[0][1] as { onError: (error: unknown) => void }
+    act(() => {
+      callbacks.onError(new Error('Server error'))
+    })
+
+    expect(mockOnSuccess).not.toHaveBeenCalled()
+    expect(mockOnClose).not.toHaveBeenCalled()
   })
 })

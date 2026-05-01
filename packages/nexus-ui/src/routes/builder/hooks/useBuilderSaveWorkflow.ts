@@ -2,6 +2,7 @@ import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import type { Query, QueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
 
+import type { AlertMessage } from '../../../components/alerts'
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import type { WorkflowDefinition } from '../../../stores/workflowStoreTypes'
 import { getErrorMessage } from '../../../utils/apiErrors'
@@ -41,8 +42,8 @@ export type UseBuilderSaveWorkflowParams = {
   workflowsListResources: { name: string }[] | undefined
   queryClient: QueryClient
   setLocation: (to: string) => void
-  showSuccess: (title: string, description?: string) => void
-  showError: (title: string, description?: string) => void
+  showSuccess: (options: AlertMessage) => void
+  showError: (options: AlertMessage) => void
   markClean: () => void
   createWorkflow: (
     args: { body: CreateWorkflowBodyExtended },
@@ -112,7 +113,7 @@ export function useBuilderSaveWorkflow(params: UseBuilderSaveWorkflowParams): ()
   return useCallback((): Promise<boolean> => {
     return new Promise((resolve) => {
       if (!currentWorkflow) {
-        showError('Validation failed', 'No workflow to save')
+        showError({ title: 'Validation failed', description: 'No workflow to save' })
         resolve(false)
         return
       }
@@ -123,7 +124,7 @@ export function useBuilderSaveWorkflow(params: UseBuilderSaveWorkflowParams): ()
 
       if (!validationResult.valid) {
         const errorMessages = validationResult.errors.map((error) => error.message).join('\n• ')
-        showError('Validation failed', `Workflow validation failed:\n• ${errorMessages}`)
+        showError({ title: 'Validation failed', description: `Workflow validation failed:\n• ${errorMessages}` })
         resolve(false)
         return
       }
@@ -152,7 +153,7 @@ export function useBuilderSaveWorkflow(params: UseBuilderSaveWorkflowParams): ()
       }
 
       const onSaveSuccess = async (successMessage: string, workflowIdToNavigate?: string) => {
-        showSuccess('Workflow saved', successMessage)
+        showSuccess({ title: 'Workflow saved', description: successMessage })
         markClean()
         await queryClient.invalidateQueries({ predicate: isWorkflowQuery })
 
@@ -165,10 +166,10 @@ export function useBuilderSaveWorkflow(params: UseBuilderSaveWorkflowParams): ()
 
       const onSaveError = (error: unknown, action: string) => {
         const errorMessage = getErrorMessage(error)
-        showError(
-          `${action.charAt(0).toUpperCase()}${action.slice(1)} failed`,
-          `Failed to ${action} workflow: ${errorMessage}`
-        )
+        showError({
+          title: `${action.charAt(0).toUpperCase()}${action.slice(1)} failed`,
+          description: `Failed to ${action} workflow: ${errorMessage}`,
+        })
         resolve(false)
       }
 

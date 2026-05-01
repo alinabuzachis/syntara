@@ -61,12 +61,12 @@ export function EditProjectRoleDialog({ projectId, role, onClose, onSuccess }: R
       },
       {
         onSuccess: () => {
-          showSuccess('Role updated successfully', 'Role Updated')
+          showSuccess({ title: 'Role updated', description: 'Role updated successfully' })
           onSuccess()
           onClose()
         },
         onError: (error) => {
-          showError(getErrorMessage(error), 'Failed to Update Role')
+          showError({ title: 'Failed to update role', description: getErrorMessage(error) })
         },
       }
     )

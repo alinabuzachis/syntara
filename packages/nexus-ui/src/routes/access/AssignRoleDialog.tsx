@@ -321,12 +321,12 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
 
   const onSubmit = (data: AssignRoleFormData) => {
     const onMutationSuccess = () => {
-      showSuccess('Assignment added', 'Assignment created successfully')
+      showSuccess({ title: 'Assignment added', description: 'Assignment created successfully' })
       onSuccess()
       onClose()
     }
     const onMutationError = (error: unknown) => {
-      showError('Failed to add assignment', getErrorMessage(error))
+      showError({ title: 'Failed to add assignment', description: getErrorMessage(error) })
     }
     const principalId = data.principalType === 'user' ? data.userId : data.groupId
     const body = { principal_type: data.principalType, principal_id: principalId, role_name: data.roleName }

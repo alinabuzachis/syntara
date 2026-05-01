@@ -1,7 +1,7 @@
 import { ActivityTypeEnum, ExecutorTypeEnum, type Activity, type TaskActivity } from '@ansible/nexus-contracts'
 import type { ReactNode } from 'react'
 
-import { useAlerts } from '../../../components/alerts'
+import { useAlerts, type AlertMessage } from '../../../components/alerts'
 import {
   detectTaskNodeType,
   DetectedExecutorType,
@@ -90,17 +90,18 @@ function hasJobTemplateConfig(config: Record<string, unknown>): config is Stored
  */
 function parseHeaders(
   headersJSON: string | undefined,
-  showError: (title: string, message: string) => void
+  showError: (options: AlertMessage) => void
 ): Record<string, string> | undefined | null {
   if (!headersJSON) return undefined
 
   try {
     return JSON.parse(headersJSON, safeJSONReviver) as Record<string, string>
   } catch {
-    showError(
-      'Invalid headers format',
-      'Headers must be valid JSON. Please fix the format before saving. Example: {"Content-Type":"application/json"}'
-    )
+    showError({
+      title: 'Invalid headers format',
+      description:
+        'Headers must be valid JSON. Please fix the format before saving. Example: {"Content-Type":"application/json"}',
+    })
     return null
   }
 }
@@ -111,7 +112,7 @@ function parseHeaders(
  */
 function buildActivityConfig(
   data: RegistryActionFormData,
-  showError: (title: string, message: string) => void
+  showError: (options: AlertMessage) => void
 ):
   | { language: string; code: string; credentialId?: string }
   | { method: string; url: string; headers?: Record<string, string>; body?: unknown; credentialId?: string }
@@ -296,7 +297,10 @@ export function TaskNodeDetails({
 
         onClose()
       } catch (error) {
-        showError('Update failed', error instanceof Error ? error.message : 'Failed to update step')
+        showError({
+          title: 'Update failed',
+          description: error instanceof Error ? error.message : 'Failed to update step',
+        })
       }
     }
 
@@ -369,7 +373,10 @@ export function TaskNodeDetails({
       updateActivity(nodeId, updatedActivity)
       onClose()
     } catch (error) {
-      showError('Update failed', error instanceof Error ? error.message : 'Failed to update step')
+      showError({
+        title: 'Update failed',
+        description: error instanceof Error ? error.message : 'Failed to update step',
+      })
     }
   }
 

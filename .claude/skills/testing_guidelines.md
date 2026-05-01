@@ -231,6 +231,40 @@ it('has no accessibility violations', async () => {
 
 **Important**: vitest-axe requires `jsdom` as the test environment (not happy-dom).
 
+### 4. Every New Custom Hook Must Have a Dedicated Test File
+
+New reusable hooks (`use*.ts`) must have a corresponding `use*.test.ts(x)` file — not just indirect coverage from a component test. Hook tests should cover:
+
+- Return values and state transitions
+- Callback invocations and side effects
+- Edge cases (empty data, error states, loading states)
+
+```typescript
+// ❌ BAD — hook only tested indirectly through a component
+// No useDebouncedValue.test.ts exists
+
+// ✅ GOOD — dedicated hook test
+import { renderHook, act } from '@testing-library/react'
+import { useDebouncedValue } from './useDebouncedValue'
+
+beforeEach(() => vi.useFakeTimers())
+afterEach(() => vi.useRealTimers())
+
+it('returns debounced value after delay', async () => {
+  const { result, rerender } = renderHook(({ value }) => useDebouncedValue(value, 300), {
+    initialProps: { value: 'hello' },
+  })
+
+  rerender({ value: 'world' })
+  expect(result.current).toBe('hello') // not yet debounced
+
+  await act(() => vi.advanceTimersByTime(300))
+  expect(result.current).toBe('world') // debounced
+})
+```
+
+This ensures the 80% coverage threshold is met on the hook file independently, and prevents regressions when the consuming component changes.
+
 ---
 
 ## Quick Reference

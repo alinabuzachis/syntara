@@ -177,7 +177,7 @@ describe('LoopNodeDetails Component', () => {
 
     await user.click(screen.getByTestId('submit-button'))
 
-    expect(mockShowError).toHaveBeenCalledWith('Update failed', 'The update failed')
+    expect(mockShowError).toHaveBeenCalledWith({ title: 'Update failed', description: 'The update failed' })
   })
 
   it('preserves indexVariable and itemVariable when updating forEach loop', async () => {

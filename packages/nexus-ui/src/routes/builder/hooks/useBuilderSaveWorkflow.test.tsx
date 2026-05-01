@@ -73,7 +73,7 @@ describe('useBuilderSaveWorkflow', () => {
     const { result } = renderHook(() => useBuilderSaveWorkflow(buildParams({ currentWorkflow: null, showError })))
 
     await expect(result.current()).resolves.toBe(false)
-    expect(showError).toHaveBeenCalledWith('Validation failed', 'No workflow to save')
+    expect(showError).toHaveBeenCalledWith({ title: 'Validation failed', description: 'No workflow to save' })
   })
 
   it('returns false and shows error when validation fails', async () => {
@@ -86,7 +86,10 @@ describe('useBuilderSaveWorkflow', () => {
     const { result } = renderHook(() => useBuilderSaveWorkflow(buildParams({ showError })))
 
     await expect(result.current()).resolves.toBe(false)
-    expect(showError).toHaveBeenCalledWith('Validation failed', expect.stringContaining('bad'))
+    expect(showError).toHaveBeenCalledWith({
+      title: 'Validation failed',
+      description: expect.stringContaining('bad') as unknown as string,
+    })
   })
 
   it('updates existing workflow with patch payload', async () => {
@@ -121,7 +124,7 @@ describe('useBuilderSaveWorkflow', () => {
       labels: {},
     })
     expect(markClean).toHaveBeenCalled()
-    expect(showSuccess).toHaveBeenCalledWith('Workflow saved', 'Workflow updated successfully')
+    expect(showSuccess).toHaveBeenCalledWith({ title: 'Workflow saved', description: 'Workflow updated successfully' })
     expect(invalidateQueries).toHaveBeenCalled()
   })
 
@@ -183,7 +186,10 @@ describe('useBuilderSaveWorkflow', () => {
     const { result } = renderHook(() => useBuilderSaveWorkflow(buildParams({ createWorkflow, showError })))
 
     await expect(result.current()).resolves.toBe(false)
-    expect(showError).toHaveBeenCalledWith('Create failed', expect.stringContaining('Failed to create workflow'))
+    expect(showError).toHaveBeenCalledWith({
+      title: 'Create failed',
+      description: expect.stringContaining('Failed to create workflow') as unknown as string,
+    })
   })
 
   it('does not call create when update path is used', async () => {

@@ -44,11 +44,11 @@ export function useApiErrorAlert(error: unknown, options: UseApiErrorAlertOption
 
     if (isServiceUnavailableError(error)) {
       if (!suppress503) {
-        showWarning(errorTitle, fullMessage)
+        showWarning({ title: errorTitle, description: fullMessage })
       }
       return
     }
 
-    showError(errorTitle, fullMessage)
+    showError({ title: errorTitle, description: fullMessage })
   }, [error, title, context, suppress503, showError, showWarning])
 }

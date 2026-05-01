@@ -215,11 +215,11 @@ export function RolesTab() {
       { params: { path: { role_id: roleToDelete.id } } },
       {
         onSuccess: () => {
-          showSuccess('Role deleted', `Deleted role "${roleToDelete.name}"`)
+          showSuccess({ title: 'Role deleted', description: `Deleted role "${roleToDelete.name}"` })
           handleRolesChanged()
         },
         onError: (error) => {
-          showError('Failed to delete role', getErrorMessage(error))
+          showError({ title: 'Failed to delete role', description: getErrorMessage(error) })
         },
         onSettled: () => setRoleToDelete(null),
       }

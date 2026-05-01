@@ -12,12 +12,17 @@ export type AlertConfig = {
   timeout?: number // milliseconds, defaults to 8000 if autoDismiss is true
 }
 
+export type AlertMessage = {
+  title: string
+  description?: string
+}
+
 export type AlertContextType = {
   showAlert: (config: AlertConfig) => void
-  showSuccess: (title: string, description?: string) => void
-  showError: (title: string, description?: string) => void
-  showWarning: (title: string, description?: string) => void
-  showInfo: (title: string, description?: string) => void
+  showSuccess: (options: AlertMessage) => void
+  showError: (options: AlertMessage) => void
+  showWarning: (options: AlertMessage) => void
+  showInfo: (options: AlertMessage) => void
   dismissAlert: (instanceKey: string) => void
   clearAllAlerts: () => void
 }

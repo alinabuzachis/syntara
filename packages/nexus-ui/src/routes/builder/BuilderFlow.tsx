@@ -368,7 +368,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     isDeletingRef,
     onAddNodeFromEdge,
     onNodesDeleted,
-    onError: showError,
+    onError: (message) => showError({ title: message }),
   })
 
   // Use custom hook for node positioning

@@ -48,7 +48,10 @@ export function ApprovalNodeDetails({ taskData, nodeId, onClose, onHeaderContent
       } as Partial<Activity>)
       onClose()
     } catch (error) {
-      showError('Update failed', error instanceof Error ? error.message : 'Failed to update approval step')
+      showError({
+        title: 'Update failed',
+        description: error instanceof Error ? error.message : 'Failed to update approval step',
+      })
     }
   }
 

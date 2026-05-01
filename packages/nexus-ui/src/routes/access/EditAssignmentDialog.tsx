@@ -80,7 +80,7 @@ export function EditAssignmentDialog({ row, displayName, onClose, onSuccess }: R
     try {
       if (row.sourceEndpoint === 'project-role-assignments') {
         if (!row.projectId) {
-          showError('Update failed', 'Invalid assignment: missing project ID')
+          showError({ title: 'Update failed', description: 'Invalid assignment: missing project ID' })
           setIsPending(false)
           return
         }
@@ -108,11 +108,11 @@ export function EditAssignmentDialog({ row, displayName, onClose, onSuccess }: R
         })
       }
 
-      showSuccess('Assignment updated', `Updated role for ${displayName}`)
+      showSuccess({ title: 'Assignment updated', description: `Updated role for ${displayName}` })
       onSuccess()
       onClose()
     } catch (error) {
-      showError('Failed to update assignment', getErrorMessage(error))
+      showError({ title: 'Failed to update assignment', description: getErrorMessage(error) })
     } finally {
       setIsPending(false)
     }

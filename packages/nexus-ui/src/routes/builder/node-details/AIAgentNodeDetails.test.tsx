@@ -176,7 +176,7 @@ describe('AIAgentNodeDetails Component', () => {
 
     await user.click(screen.getByTestId('submit-button'))
 
-    expect(mockShowError).toHaveBeenCalledWith('Update failed', 'The update failed')
+    expect(mockShowError).toHaveBeenCalledWith({ title: 'Update failed', description: 'The update failed' })
   })
 
   it('preserves task inputs when updating', async () => {

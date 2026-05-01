@@ -139,7 +139,7 @@ function AppLoginForm() {
 
   useEffect(() => {
     if (error && bootstrapDone) {
-      showError('Authentication failed', error)
+      showError({ title: 'Authentication failed', description: error })
     }
   }, [error, bootstrapDone, showError])
 

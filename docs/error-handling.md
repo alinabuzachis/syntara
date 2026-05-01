@@ -77,7 +77,7 @@ import { getErrorMessage, isServiceUnavailableError } from '../utils/apiErrors'
 // In a mutation error handler
 onError: (error) => {
   const message = getErrorMessage(error) // Extracts meaningful message
-  showError(message, 'Request Failed')
+  showError({ title: 'Request failed', description: message })
 }
 
 // Check for 503 errors
@@ -262,7 +262,7 @@ import { getErrorMessage } from '../utils/apiErrors'
 
 mutate(data, {
   onError: (error) => {
-    showError(`Failed to save: ${getErrorMessage(error)}`, 'Save Failed')
+    showError({ title: 'Failed to save', description: getErrorMessage(error) })
   },
 })
 ```

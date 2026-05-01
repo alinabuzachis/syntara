@@ -59,12 +59,12 @@ export function AddProjectRoleDialog({ projectId, onClose, onSuccess }: Readonly
       },
       {
         onSuccess: () => {
-          showSuccess('Role created successfully', 'Role Added')
+          showSuccess({ title: 'Role added', description: 'Role created successfully' })
           onSuccess()
           onClose()
         },
         onError: (error) => {
-          showError(getErrorMessage(error), 'Failed to Add Role')
+          showError({ title: 'Failed to add role', description: getErrorMessage(error) })
         },
       }
     )

@@ -87,7 +87,7 @@ describe('useNodeMenuActions', () => {
       })
 
       await waitFor(() => {
-        expect(mockShowError).toHaveBeenCalledWith('Could not delete step', 'delete failed')
+        expect(mockShowError).toHaveBeenCalledWith({ title: 'Could not delete step', description: 'delete failed' })
       })
     })
 

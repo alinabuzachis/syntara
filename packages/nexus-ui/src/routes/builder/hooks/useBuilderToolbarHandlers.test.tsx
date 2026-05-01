@@ -64,7 +64,10 @@ describe('useBuilderToolbarHandlers', () => {
     expect(variables).toEqual({ body: { workflow_id: 'wf-1', input_data: {} } })
     expect(options?.onSuccess).toEqual(expect.any(Function))
     expect(options?.onError).toEqual(expect.any(Function))
-    expect(showSuccess).toHaveBeenCalledWith('Workflow started', 'Successfully started workflow "My workflow"')
+    expect(showSuccess).toHaveBeenCalledWith({
+      title: 'Workflow started',
+      description: 'Successfully started workflow "My workflow"',
+    })
     expect(dispatch).toHaveBeenCalledWith({ type: 'SET_CONFIRM_DIALOG', payload: false })
     expect(setLocation).toHaveBeenCalledWith('/executions/exec-99?history=open')
   })
@@ -82,7 +85,10 @@ describe('useBuilderToolbarHandlers', () => {
 
     result.current.handleRunWorkflow()
 
-    expect(showError).toHaveBeenCalledWith('Workflow failed', 'Failed to start workflow "My workflow": boom')
+    expect(showError).toHaveBeenCalledWith({
+      title: 'Workflow failed',
+      description: 'Failed to start workflow "My workflow": boom',
+    })
     expect(dispatch).toHaveBeenCalledWith({ type: 'SET_CONFIRM_DIALOG', payload: false })
   })
 
@@ -116,7 +122,10 @@ describe('useBuilderToolbarHandlers', () => {
     expect(variables).toEqual({ params: { path: { workflow_id: 'wf-1' } } })
     expect(options?.onSuccess).toEqual(expect.any(Function))
     expect(options?.onError).toEqual(expect.any(Function))
-    expect(showSuccess).toHaveBeenCalledWith('Workflow deleted', 'Successfully deleted workflow "My workflow"')
+    expect(showSuccess).toHaveBeenCalledWith({
+      title: 'Workflow deleted',
+      description: 'Successfully deleted workflow "My workflow"',
+    })
     expect(setLocation).toHaveBeenCalledWith('/workflow-builder/new')
   })
 

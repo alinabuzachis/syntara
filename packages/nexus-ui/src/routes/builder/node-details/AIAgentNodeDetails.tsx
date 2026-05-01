@@ -82,7 +82,10 @@ export function AIAgentNodeDetails({
       updateActivity(nodeId, updatedActivity)
       onClose()
     } catch (error) {
-      showError('Update failed', error instanceof Error ? error.message : 'Failed to update AI agent step')
+      showError({
+        title: 'Update failed',
+        description: error instanceof Error ? error.message : 'Failed to update AI agent step',
+      })
     }
   }
 

@@ -484,6 +484,27 @@ All icons **must** come from the [Red Hat Design System](https://ux.redhat.com/)
 - Use **sentence case** by default across the application
 - Use **title case** only for navigation items and page titles
 - **User-generated strings** are displayed exactly as the user entered them — do not transform casing
+- **Alert titles** (`showSuccess`, `showError`, `showWarning`, `showInfo`) must use sentence case — e.g., "Workflow created successfully", not "Workflow Created Successfully"
+
+### No Raw HTML for Text Content
+
+Never use raw `<span>`, `<p>`, or `<div>` for text content. Use PatternFly typography components instead — they pick up design tokens for font size, color, and spacing automatically and stay theme-compatible.
+
+| Scenario                           | Use                                                                                        |
+| ---------------------------------- | ------------------------------------------------------------------------------------------ |
+| Body text, helper text, muted text | [`Content`](https://www.patternfly.org/components/content) with `ContentVariants`          |
+| Form field hints                   | [`HelperText`](https://www.patternfly.org/components/forms/helper-text) / `HelperTextItem` |
+| Inline status                      | [`Label`](https://www.patternfly.org/components/label)                                     |
+| Empty state descriptions           | `EmptyStateBody`                                                                           |
+| Headings                           | [`Title`](https://www.patternfly.org/components/title) or semantic `<h1>`–`<h6>`           |
+
+```tsx
+// ❌ BAD
+<span style={{ fontSize: '12px', color: 'gray' }}>Type to refine results</span>
+
+// ✅ GOOD
+<Content component={ContentVariants.small}>Type to refine results</Content>
+```
 
 ---
 

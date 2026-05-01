@@ -177,12 +177,12 @@ export function AssignProjectRoleModal({
       },
       {
         onSuccess: () => {
-          showSuccess('Role assigned', `Role "${data.roleName}" has been assigned.`)
+          showSuccess({ title: 'Role assigned', description: `Role "${data.roleName}" has been assigned.` })
           handleClose()
           onSuccess()
         },
         onError: (err: unknown) => {
-          showError('Failed to assign role', getErrorMessage(err))
+          showError({ title: 'Failed to assign role', description: getErrorMessage(err) })
         },
       }
     )

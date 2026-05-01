@@ -203,7 +203,10 @@ describe('Settings', () => {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) })
     )
-    expect(mockShowSuccess).toHaveBeenCalledWith('Settings saved', expect.any(String))
+    expect(mockShowSuccess).toHaveBeenCalledWith({
+      title: 'Settings saved',
+      description: expect.any(String) as unknown as string,
+    })
     expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled()
   })
 
@@ -218,7 +221,10 @@ describe('Settings', () => {
     await user.click(screen.getByRole('button', { name: /plus/i }))
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
 
-    expect(mockShowError).toHaveBeenCalledWith('Version conflict', expect.any(String))
+    expect(mockShowError).toHaveBeenCalledWith({
+      title: 'Version conflict',
+      description: expect.any(String) as unknown as string,
+    })
     expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled()
   })
 

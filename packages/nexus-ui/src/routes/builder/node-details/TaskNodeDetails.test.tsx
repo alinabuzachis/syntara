@@ -512,7 +512,7 @@ describe('TaskNodeDetails Component', () => {
 
     await user.click(screen.getByTestId('submit-button'))
 
-    expect(mockShowError).toHaveBeenCalledWith('Update failed', 'The update failed')
+    expect(mockShowError).toHaveBeenCalledWith({ title: 'Update failed', description: 'The update failed' })
   })
 
   it('shows error when updateActivity throws during API form submission', async () => {
@@ -534,7 +534,7 @@ describe('TaskNodeDetails Component', () => {
 
     await user.click(screen.getByTestId('submit-api-button'))
 
-    expect(mockShowError).toHaveBeenCalledWith('Update failed', 'The update failed')
+    expect(mockShowError).toHaveBeenCalledWith({ title: 'Update failed', description: 'The update failed' })
   })
 
   it('shows error when submitting API form with invalid headers JSON', async () => {
@@ -554,10 +554,11 @@ describe('TaskNodeDetails Component', () => {
     await user.click(screen.getByTestId('submit-api-invalid-headers-button'))
 
     // Invalid headers JSON should show an error and prevent save
-    expect(mockShowError).toHaveBeenCalledWith(
-      'Invalid headers format',
-      'Headers must be valid JSON. Please fix the format before saving. Example: {"Content-Type":"application/json"}'
-    )
+    expect(mockShowError).toHaveBeenCalledWith({
+      title: 'Invalid headers format',
+      description:
+        'Headers must be valid JSON. Please fix the format before saving. Example: {"Content-Type":"application/json"}',
+    })
 
     // updateActivity should NOT be called when headers are invalid
     expect(mockUpdateActivity).not.toHaveBeenCalled()

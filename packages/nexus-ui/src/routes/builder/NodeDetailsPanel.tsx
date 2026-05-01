@@ -167,7 +167,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
           (newNodeId?: string) => {
             if (replacementNodeId) {
               if (!handleReplacement(newNodeId)) {
-                showError('Replacement failed', 'Failed to replace step — step not found')
+                showError({ title: 'Replacement failed', description: 'Failed to replace step — step not found' })
                 return
               }
             } else if (sourceNodeId && newNodeId) {
@@ -180,7 +180,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
             onClose()
           },
           (error: string) => {
-            showError('Add step failed', error)
+            showError({ title: 'Add step failed', description: error })
           }
         )
       }

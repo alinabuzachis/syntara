@@ -2,7 +2,7 @@ import { Alert, AlertActionCloseButton, AlertGroup } from '@patternfly/react-cor
 import { useId, useState, useCallback, useRef, useMemo, type ReactNode } from 'react'
 
 import { ALERT_WIDTH } from './alertConstants'
-import { AlertContext, type AlertConfig, type AlertVariant } from './AlertContext'
+import { AlertContext, type AlertConfig, type AlertMessage, type AlertVariant } from './AlertContext'
 
 type AlertItem = {
   /** Stable key for React list + dismiss; optional consumer `config.id` or monotonic instance id */
@@ -60,28 +60,28 @@ export function AlertProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const showSuccess = useCallback(
-    (title: string, description?: string) => {
+    ({ title, description }: AlertMessage) => {
       showAlert({ variant: 'success', title, description, autoDismiss: true })
     },
     [showAlert]
   )
 
   const showError = useCallback(
-    (title: string, description?: string) => {
+    ({ title, description }: AlertMessage) => {
       showAlert({ variant: 'danger', title, description, autoDismiss: true })
     },
     [showAlert]
   )
 
   const showWarning = useCallback(
-    (title: string, description?: string) => {
+    ({ title, description }: AlertMessage) => {
       showAlert({ variant: 'warning', title, description, autoDismiss: true })
     },
     [showAlert]
   )
 
   const showInfo = useCallback(
-    (title: string, description?: string) => {
+    ({ title, description }: AlertMessage) => {
       showAlert({ variant: 'info', title, description, autoDismiss: true })
     },
     [showAlert]

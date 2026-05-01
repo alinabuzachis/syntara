@@ -271,7 +271,10 @@ describe('TriggerNodeDetails Component', () => {
       const submitButton = screen.getByTestId('submit-invalid')
       submitButton.click()
 
-      expect(mockShowError).toHaveBeenCalledWith('Update failed', expect.stringContaining('Invalid interval format'))
+      expect(mockShowError).toHaveBeenCalledWith({
+        title: 'Update failed',
+        description: expect.stringContaining('Invalid interval format') as unknown as string,
+      })
       expect(mockOnClose).not.toHaveBeenCalled()
 
       formSpy.mockRestore()
@@ -307,7 +310,10 @@ describe('TriggerNodeDetails Component', () => {
       const submitButton = screen.getByTestId('submit-empty-duration')
       submitButton.click()
 
-      expect(mockShowError).toHaveBeenCalledWith('Update failed', expect.stringContaining('Invalid interval format'))
+      expect(mockShowError).toHaveBeenCalledWith({
+        title: 'Update failed',
+        description: expect.stringContaining('Invalid interval format') as unknown as string,
+      })
       expect(mockOnClose).not.toHaveBeenCalled()
 
       formSpy.mockRestore()
@@ -415,7 +421,10 @@ describe('TriggerNodeDetails Component', () => {
       const submitButton = screen.getByTestId('submit-malformed-recurring')
       submitButton.click()
 
-      expect(mockShowError).toHaveBeenCalledWith('Update failed', expect.stringContaining('Invalid interval format'))
+      expect(mockShowError).toHaveBeenCalledWith({
+        title: 'Update failed',
+        description: expect.stringContaining('Invalid interval format') as unknown as string,
+      })
       expect(mockOnClose).not.toHaveBeenCalled()
 
       formSpy.mockRestore()
@@ -451,7 +460,10 @@ describe('TriggerNodeDetails Component', () => {
       const submitButton = screen.getByTestId('submit-empty-recurring-duration')
       submitButton.click()
 
-      expect(mockShowError).toHaveBeenCalledWith('Update failed', expect.stringContaining('Invalid interval format'))
+      expect(mockShowError).toHaveBeenCalledWith({
+        title: 'Update failed',
+        description: expect.stringContaining('Invalid interval format') as unknown as string,
+      })
       expect(mockOnClose).not.toHaveBeenCalled()
 
       formSpy.mockRestore()

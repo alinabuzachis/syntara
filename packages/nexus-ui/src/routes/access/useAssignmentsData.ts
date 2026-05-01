@@ -133,15 +133,15 @@ export function useAssignmentsData() {
   const handleDelete = (row: PermissionRow, onSettled: () => void) => {
     const displayName = row.principalName
     const onSuccess = () => {
-      showSuccess('Permission removed', `Removed ${row.assignmentName} from ${displayName}`)
+      showSuccess({ title: 'Permission removed', description: `Removed ${row.assignmentName} from ${displayName}` })
       refetchAll()
     }
-    const onError = (error: unknown) => showError('Remove failed', getErrorMessage(error))
+    const onError = (error: unknown) => showError({ title: 'Remove failed', description: getErrorMessage(error) })
     const callbacks = { onSuccess, onError, onSettled }
 
     if (row.sourceEndpoint === 'project-role-assignments') {
       if (!row.projectId) {
-        showError('Remove failed', 'Invalid assignment: missing project ID')
+        showError({ title: 'Remove failed', description: 'Invalid assignment: missing project ID' })
         onSettled()
         return
       }

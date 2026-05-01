@@ -54,6 +54,10 @@ Treat accessibility as part of every UI change, not an optional follow-up:
 16. **No unary `void` operator** — use `detachPromise(...)` for intentionally unawaited promises; `void` is forbidden by ESLint `no-void`
 17. **No nested ternary operators** — use `if`/`else` or intermediate variables; ESLint `sonarjs/no-nested-conditional` (Sonar S3358)
 18. **No nested React components (Sonar S6478)** — do not declare components inside another component; for PatternFly `toggle` / similar props use a **module-scoped** child component and pass data as props (see [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) §18)
+19. **`showSuccess`/`showError` object parameter** — pass `{ title, description? }`, not positional args; use sentence case for alert titles (see [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) §19)
+20. **No raw HTML for text** — use PF `Content`, `HelperText`, `Label`, or `Title` instead of raw `<span>`/`<p>`/`<div>` for text content (see [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) §20)
+21. **`useMemo` for derived data in hooks** — wrap computed maps/arrays/filtered lists from query results in `useMemo` to avoid new references on every render (see [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) §21)
+22. **New hooks need test files** — every new `use*.ts` hook must have a dedicated `use*.test.ts(x)` with coverage, not just indirect coverage from a component test
 
 ### Feature Preservation Rules
 

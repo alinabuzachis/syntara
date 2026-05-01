@@ -97,12 +97,15 @@ export default function Settings() {
       {
         onSuccess: () => {
           setEdits(new Map())
-          showSuccess('Settings saved', 'Your changes have been saved successfully.')
+          showSuccess({ title: 'Settings saved', description: 'Your changes have been saved successfully.' })
           detachPromise(settingsQuery.refetch())
         },
         onError: (err) => {
           if (getErrorCode(err) === 'VERSION_CONFLICT') {
-            showError('Version conflict', 'Settings were modified by another user. The page has been refreshed.')
+            showError({
+              title: 'Version conflict',
+              description: 'Settings were modified by another user. The page has been refreshed.',
+            })
             detachPromise(settingsQuery.refetch())
             setEdits(new Map())
           } else {

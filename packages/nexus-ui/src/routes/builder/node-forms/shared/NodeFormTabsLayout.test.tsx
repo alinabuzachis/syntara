@@ -21,7 +21,7 @@ describe('NodeFormTabsLayout', () => {
       expect(button).toBeInTheDocument()
 
       await user.click(button)
-      expect(mockShowInfo).toHaveBeenCalledWith('Not yet implemented')
+      expect(mockShowInfo).toHaveBeenCalledWith({ title: 'Not yet implemented' })
     })
 
     it('calls onTestStep when provided', async () => {

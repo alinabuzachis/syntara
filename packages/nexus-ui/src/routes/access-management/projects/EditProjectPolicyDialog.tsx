@@ -70,12 +70,12 @@ export function EditProjectPolicyDialog({
       },
       {
         onSuccess: () => {
-          showSuccess('Policy updated successfully', 'Policy Updated')
+          showSuccess({ title: 'Policy updated', description: 'Policy updated successfully' })
           onSuccess()
           onClose()
         },
         onError: (error) => {
-          showError(getErrorMessage(error), 'Failed to Update Policy')
+          showError({ title: 'Failed to update policy', description: getErrorMessage(error) })
         },
       }
     )

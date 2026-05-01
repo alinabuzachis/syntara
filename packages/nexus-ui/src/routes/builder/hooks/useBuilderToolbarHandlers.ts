@@ -1,11 +1,12 @@
 import type { ReactFlowInstance } from '@xyflow/react'
 import { useCallback, type Dispatch } from 'react'
 
+import type { AlertMessage } from '../../../components/alerts'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 import type { BuilderAction } from '../builderReducer'
 
-type ShowAlert = (title: string, description?: string) => void
+type ShowAlert = (options: AlertMessage) => void
 
 type ExecuteWorkflowMutate = (
   variables: { body: { workflow_id: string; input_data?: Record<string, never> } },
@@ -62,12 +63,15 @@ export function useBuilderToolbarHandlers({
       { body: { workflow_id: workflow.id, input_data: {} } },
       {
         onSuccess: (data) => {
-          showSuccess('Workflow started', `Successfully started workflow "${workflowName}"`)
+          showSuccess({ title: 'Workflow started', description: `Successfully started workflow "${workflowName}"` })
           dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
           setLocation(`/executions/${data.id!}?history=open`)
         },
         onError: (error) => {
-          showError('Workflow failed', `Failed to start workflow "${workflowName}": ${getErrorMessage(error)}`)
+          showError({
+            title: 'Workflow failed',
+            description: `Failed to start workflow "${workflowName}": ${getErrorMessage(error)}`,
+          })
           dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
         },
       }
@@ -81,12 +85,15 @@ export function useBuilderToolbarHandlers({
       { params: { path: { workflow_id: workflow.id } } },
       {
         onSuccess: () => {
-          showSuccess('Workflow deleted', `Successfully deleted workflow "${workflowName}"`)
+          showSuccess({ title: 'Workflow deleted', description: `Successfully deleted workflow "${workflowName}"` })
           dispatch({ type: 'SET_DELETE_DIALOG', payload: false })
           setLocation('/workflow-builder/new')
         },
         onError: (error) => {
-          showError('Delete failed', `Failed to delete workflow "${workflowName}": ${getErrorMessage(error)}`)
+          showError({
+            title: 'Delete failed',
+            description: `Failed to delete workflow "${workflowName}": ${getErrorMessage(error)}`,
+          })
           dispatch({ type: 'SET_DELETE_DIALOG', payload: false })
         },
       }

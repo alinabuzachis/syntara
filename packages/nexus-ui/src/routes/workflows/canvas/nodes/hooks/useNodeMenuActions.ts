@@ -86,7 +86,7 @@ export function useNodeMenuActions(options: UseNodeMenuActionsOptions): NodeMenu
     // This ensures edges are removed and ButtonEdges are recreated correctly
     const flowNodeId = resolveFlowNodeId({ nodeId, nodeType, triggerIndex })
     detachPromise(deleteElements({ nodes: [{ id: flowNodeId }] }), {
-      onReject: (error: unknown) => showError('Could not delete step', getErrorMessage(error)),
+      onReject: (error: unknown) => showError({ title: 'Could not delete step', description: getErrorMessage(error) }),
     })
   }, [nodeType, nodeId, triggerIndex, deleteElements, showError])
 
@@ -95,7 +95,7 @@ export function useNodeMenuActions(options: UseNodeMenuActionsOptions): NodeMenu
   }, [nodeActions, nodeId])
 
   const handleRunStep = useCallback(() => {
-    showInfo('Not yet implemented.')
+    showInfo({ title: 'Not yet implemented.' })
   }, [showInfo])
 
   const handleDuplicate = useCallback(() => {

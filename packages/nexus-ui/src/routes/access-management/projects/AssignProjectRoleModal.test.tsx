@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -146,5 +146,57 @@ describe('AssignProjectRoleModal', () => {
 
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(mockOnClose).toHaveBeenCalledOnce()
+  })
+
+  async function fillAndSubmitForm() {
+    const user = userEvent.setup()
+    renderModal()
+
+    const userInput = screen.getByPlaceholderText('Select a user...')
+    await user.click(userInput)
+    const aliceOption = await screen.findByRole('option', { name: /alice/i })
+    await user.click(aliceOption)
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Select a role...')).not.toBeDisabled()
+    })
+
+    const roleInput = screen.getByPlaceholderText('Select a role...')
+    await user.click(roleInput)
+    const roleOption = await screen.findByRole('option', { name: /project-admin/i })
+    await user.click(roleOption)
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Assign' })).not.toBeDisabled()
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Assign' }))
+
+    await waitFor(() => {
+      expect(mockMutate).toHaveBeenCalled()
+    })
+  }
+
+  it('calls onSuccess on successful assignment', async () => {
+    await fillAndSubmitForm()
+
+    const callbacks = mockMutate.mock.calls[0][1] as { onSuccess: () => void }
+    // eslint-disable-next-line @typescript-eslint/require-await
+    await act(async () => {
+      callbacks.onSuccess()
+    })
+
+    expect(mockOnSuccess).toHaveBeenCalled()
+  })
+
+  it('shows error on failed assignment', async () => {
+    await fillAndSubmitForm()
+
+    const callbacks = mockMutate.mock.calls[0][1] as { onError: (error: unknown) => void }
+    act(() => {
+      callbacks.onError(new Error('Server error'))
+    })
+
+    expect(mockOnSuccess).not.toHaveBeenCalled()
   })
 })

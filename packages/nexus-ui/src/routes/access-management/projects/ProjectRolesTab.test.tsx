@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
@@ -36,8 +37,10 @@ vi.mock('../../../components/filters', () => ({
   FilterBar: () => <div data-testid="filter-bar" />,
 }))
 
+const mockDeleteMutate = vi.fn()
+
 const mockMutationReturn = {
-  mutate: vi.fn(),
+  mutate: mockDeleteMutate,
   isPending: false,
   isError: false,
   error: null,
@@ -173,5 +176,57 @@ describe('ProjectRolesTab', () => {
     render(<ProjectRolesTab projectId="proj-1" />, { wrapper })
 
     expect(screen.getByRole('progressbar', { name: 'Loading' })).toBeInTheDocument()
+  })
+
+  it('calls showSuccess on successful delete', async () => {
+    const user = userEvent.setup()
+    render(<ProjectRolesTab projectId="proj-1" />, { wrapper })
+
+    const kebabButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
+    await user.click(kebabButtons[0])
+
+    const deleteItem = await screen.findByText('Delete role')
+    await user.click(deleteItem)
+
+    const confirmButton = await screen.findByRole('button', { name: 'Delete' })
+    await user.click(confirmButton)
+
+    await waitFor(() => {
+      expect(mockDeleteMutate).toHaveBeenCalled()
+    })
+
+    const callbacks = mockDeleteMutate.mock.calls[0][1] as { onSuccess: () => void; onSettled: () => void }
+    act(() => {
+      callbacks.onSuccess()
+      callbacks.onSettled()
+    })
+
+    expect(mockRefetch).toHaveBeenCalled()
+  })
+
+  it('calls showError on failed delete', async () => {
+    const user = userEvent.setup()
+    render(<ProjectRolesTab projectId="proj-1" />, { wrapper })
+
+    const kebabButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
+    await user.click(kebabButtons[0])
+
+    const deleteItem = await screen.findByText('Delete role')
+    await user.click(deleteItem)
+
+    const confirmButton = await screen.findByRole('button', { name: 'Delete' })
+    await user.click(confirmButton)
+
+    await waitFor(() => {
+      expect(mockDeleteMutate).toHaveBeenCalled()
+    })
+
+    const callbacks = mockDeleteMutate.mock.calls[0][1] as { onError: (error: unknown) => void; onSettled: () => void }
+    act(() => {
+      callbacks.onError(new Error('Server error'))
+      callbacks.onSettled()
+    })
+
+    expect(mockRefetch).not.toHaveBeenCalled()
   })
 })

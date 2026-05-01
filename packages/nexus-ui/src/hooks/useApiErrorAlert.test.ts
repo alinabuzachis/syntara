@@ -36,26 +36,26 @@ describe('useApiErrorAlert', () => {
   it('shows error alert for regular errors', () => {
     renderHook(() => useApiErrorAlert({ detail: 'Something went wrong' }))
 
-    expect(mockShowError).toHaveBeenCalledWith('Error', 'Something went wrong')
+    expect(mockShowError).toHaveBeenCalledWith({ title: 'Error', description: 'Something went wrong' })
   })
 
   it('shows warning alert for 503 errors', () => {
     renderHook(() => useApiErrorAlert({ status: 503, detail: 'Service unavailable' }))
 
-    expect(mockShowWarning).toHaveBeenCalledWith('Error', 'Service unavailable')
+    expect(mockShowWarning).toHaveBeenCalledWith({ title: 'Error', description: 'Service unavailable' })
     expect(mockShowError).not.toHaveBeenCalled()
   })
 
   it('uses custom title when provided', () => {
     renderHook(() => useApiErrorAlert({ detail: 'Failed' }, { title: 'Custom Title' }))
 
-    expect(mockShowError).toHaveBeenCalledWith('Custom Title', 'Failed')
+    expect(mockShowError).toHaveBeenCalledWith({ title: 'Custom Title', description: 'Failed' })
   })
 
   it('includes context in message when provided', () => {
     renderHook(() => useApiErrorAlert({ detail: 'Failed' }, { context: 'Loading data' }))
 
-    expect(mockShowError).toHaveBeenCalledWith('Error', 'Loading data: Failed')
+    expect(mockShowError).toHaveBeenCalledWith({ title: 'Error', description: 'Loading data: Failed' })
   })
 
   it('suppresses 503 errors when suppress503 is true', () => {
@@ -106,6 +106,6 @@ describe('useApiErrorAlert', () => {
   it('uses error title from error object', () => {
     renderHook(() => useApiErrorAlert({ title: 'Validation Error', detail: 'Field required' }))
 
-    expect(mockShowError).toHaveBeenCalledWith('Validation Error', 'Field required')
+    expect(mockShowError).toHaveBeenCalledWith({ title: 'Validation Error', description: 'Field required' })
   })
 })

@@ -177,7 +177,10 @@ export function TriggerNodeDetails({ trigger, triggerIndex, onClose, onHeaderCon
       updateTrigger(triggerIndex, updatedTrigger as unknown as StoreTrigger)
       onClose()
     } catch (error) {
-      showError('Update failed', error instanceof Error ? error.message : 'Failed to update trigger')
+      showError({
+        title: 'Update failed',
+        description: error instanceof Error ? error.message : 'Failed to update trigger',
+      })
     }
   }
 
