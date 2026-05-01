@@ -134,17 +134,16 @@ export function NodeComponent(props: {
           ...props.style,
         }
       : {
-          // Type indicator: top border in type color when not selected (full top bar, no dashed).
-          // Use longhands and border: 'none' so the top bar is visible and shorthand doesn't stick after deselect.
+          // Type indicator: top border in type color (structural, always present — not conditional on
+          // selection so the border geometry stays fixed and toggling selection causes no layout shift).
           ...(props.topBarColor &&
-            !isSelected &&
             !props.hasDashedBorder && {
               border: 'none',
               borderTopWidth: 4,
               borderTopStyle: 'solid',
               borderTopColor: props.topBarColor,
             }),
-          // Dashed placeholder (e.g. GenericNode): full dashed outline, no type-colored top bar.
+          // Dashed placeholder (e.g. GenericNode): full dashed border, no type-colored top bar.
           ...(props.hasDashedBorder &&
             !isSelected && {
               border: '2px dashed rgba(196, 181, 253, 0.5)',
@@ -152,15 +151,16 @@ export function NodeComponent(props: {
               borderStyle: 'dashed',
               borderColor: 'rgba(196, 181, 253, 0.5)',
             }),
-          // Full brand border when selected (replaces type top bar while selected)
-          ...(isSelected &&
-            !props.hasDashedBorder && {
-              border: '2px solid var(--pf-t--global--color--brand--default)',
-            }),
-          // Apply selected + dashed border
+          // Dashed selected: color change only — width stays 2px so no layout shift.
           ...(isSelected &&
             props.hasDashedBorder && {
               border: '2px dashed var(--pf-t--global--color--brand--default)',
+            }),
+          // Normal selected: outline instead of a full border swap — doesn't affect box model.
+          ...(isSelected &&
+            !props.hasDashedBorder && {
+              outline: '2px solid var(--pf-t--global--color--brand--default)',
+              outlineOffset: -2,
             }),
           ...props.style, // Merge with custom styles (will override borders if specified)
         }),
