@@ -25,6 +25,8 @@ from nexus.settings.cache.settings_cache import (
     REDIS_CHANNEL,
     REDIS_KEY_PREFIX,
     SettingsCache,
+    _compute_hmac,
+    _verify_hmac,
 )
 
 
@@ -148,6 +150,7 @@ class TestRedisL2Cache:
         fake_defn.key = "test.restart"
         fake_defn.requires_restart = True
 
+        cache._catalog_by_key = None
         with (
             patch("nexus.settings.catalog.SETTINGS_CATALOG", [fake_defn]),
             patch.object(cache, "_fetch_from_db", return_value="immutable"),
@@ -194,7 +197,7 @@ class TestPublishChange:
 
     @pytest.mark.asyncio
     async def test_publishes_to_channel(self) -> None:
-        """publish_change sends key-only JSON payload to the Redis channel."""
+        """publish_change sends HMAC-signed JSON payload to the Redis channel."""
         rc = _make_redis_client()
         cache = _make_redis_cache(redis_client=rc)
 
@@ -204,7 +207,10 @@ class TestPublishChange:
         channel, payload = rc.pubsub_publish.call_args[0]
         assert channel == REDIS_CHANNEL
         parsed = json.loads(payload)
-        assert parsed == {"key": "logging.log_level"}
+        assert parsed["key"] == "logging.log_level"
+        assert "mac" in parsed
+        canonical = json.dumps({"key": "logging.log_level"})
+        assert _verify_hmac(canonical, parsed["mac"])
 
     @pytest.mark.asyncio
     async def test_publish_tolerates_redis_error(self) -> None:
@@ -224,6 +230,91 @@ class TestPublishChange:
             redis_enabled=False,
         )
         await cache.publish_change("logging.log_level")
+
+
+class TestPubSubHMAC:
+    """Tests for HMAC signing and verification of Pub/Sub messages."""
+
+    def test_compute_hmac_returns_hex_digest(self) -> None:
+        """_compute_hmac returns a consistent hex digest."""
+        mac = _compute_hmac('{"key": "test.key"}')
+        assert isinstance(mac, str)
+        assert len(mac) == 64  # SHA-256 hex digest
+
+    def test_verify_hmac_accepts_valid(self) -> None:
+        """_verify_hmac returns True for a correctly signed payload."""
+        payload = '{"key": "test.key"}'
+        mac = _compute_hmac(payload)
+        assert _verify_hmac(payload, mac)
+
+    def test_verify_hmac_rejects_tampered(self) -> None:
+        """_verify_hmac returns False when the payload has been tampered."""
+        mac = _compute_hmac('{"key": "original"}')
+        assert not _verify_hmac('{"key": "tampered"}', mac)
+
+    def test_verify_hmac_rejects_wrong_mac(self) -> None:
+        """_verify_hmac returns False for an incorrect MAC."""
+        payload = '{"key": "test.key"}'
+        assert not _verify_hmac(payload, "0" * 64)
+
+    @pytest.mark.asyncio
+    async def test_listener_rejects_unsigned_message(self) -> None:
+        """Messages without a mac field are rejected."""
+        rc = _make_redis_client()
+        cache = _make_redis_cache(redis_client=rc)
+
+        pubsub = AsyncMock()
+        unsigned_msg = {
+            "type": "message",
+            "data": json.dumps({"key": "test.key"}),
+        }
+        pubsub.get_message = AsyncMock(side_effect=[unsigned_msg, asyncio.CancelledError])
+        cache._pubsub = pubsub
+
+        with pytest.raises(asyncio.CancelledError):
+            await cache._pubsub_listener()
+
+    @pytest.mark.asyncio
+    async def test_listener_rejects_invalid_mac(self) -> None:
+        """Messages with an invalid mac are rejected."""
+        rc = _make_redis_client()
+        cache = _make_redis_cache(redis_client=rc)
+
+        pubsub = AsyncMock()
+        bad_mac_msg = {
+            "type": "message",
+            "data": json.dumps({"key": "test.key", "mac": "0" * 64}),
+        }
+        pubsub.get_message = AsyncMock(side_effect=[bad_mac_msg, asyncio.CancelledError])
+        cache._pubsub = pubsub
+
+        with pytest.raises(asyncio.CancelledError):
+            await cache._pubsub_listener()
+
+    @pytest.mark.asyncio
+    async def test_listener_accepts_valid_mac(self) -> None:
+        """Messages with a valid mac are processed."""
+        rc = _make_redis_client()
+        cache = _make_redis_cache(redis_client=rc)
+
+        canonical = json.dumps({"key": "logging.log_level"})
+        mac = _compute_hmac(canonical)
+        valid_msg = {
+            "type": "message",
+            "data": json.dumps({"key": "logging.log_level", "mac": mac}),
+        }
+
+        pubsub = AsyncMock()
+        pubsub.get_message = AsyncMock(side_effect=[valid_msg, asyncio.CancelledError])
+        cache._pubsub = pubsub
+
+        with (
+            patch.object(cache, "_handle_change_notification", new_callable=AsyncMock) as mock_handle,
+            pytest.raises(asyncio.CancelledError),
+        ):
+            await cache._pubsub_listener()
+
+        mock_handle.assert_called_once_with("logging.log_level")
 
 
 class TestHandleChangeNotification:

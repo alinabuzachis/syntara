@@ -41,10 +41,10 @@ async def redis_error_handler(operation: str, **log_context: Any) -> AsyncGenera
     try:
         yield
     except (RedisConnectionError, ResponseError):
-        logger.exception("%s_error", operation, **log_context)
+        logger.exception("redis_operation_error", operation=operation, **log_context)
         raise
     except OSError as e:
-        logger.exception("%s_network_error", operation, **log_context)
+        logger.exception("redis_network_error", operation=operation, **log_context)
         msg = f"Network error: {e}"
         raise RedisConnectionError(msg) from e
 

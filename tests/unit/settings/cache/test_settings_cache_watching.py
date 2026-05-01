@@ -38,6 +38,7 @@ class TestOnChange:
         fake_defn.key = "test.restart"
         fake_defn.requires_restart = True
 
+        cache._catalog_by_key = None
         with (
             patch("nexus.settings.catalog.SETTINGS_CATALOG", [fake_defn]),
             pytest.raises(ValueError, match="requires_restart=True"),

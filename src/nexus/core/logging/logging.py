@@ -12,7 +12,7 @@ from structlog.typing import (
     WrappedLogger,
 )
 
-from nexus.core.config.base import get_settings
+from nexus.core.config.base import LogLevel, get_settings
 from nexus.settings.watch import watch_setting
 
 settings = get_settings()
@@ -161,20 +161,19 @@ async def apply_runtime_log_level() -> None:
         level = level.upper()
     except Exception:  # noqa: BLE001
         log.warning(
-            "Could not read runtime log_level setting, using fallback: %s",
-            fallback_level,
+            "settings.runtime_log_level_read_error",
+            extra={"fallback_level": fallback_level},
             exc_info=True,
         )
         level = fallback_level
 
     if level != fallback_level:
         log.info(
-            "Overriding fallback log level %s with runtime setting: %s",
-            fallback_level,
-            level,
+            "settings.runtime_log_level_override",
+            extra={"fallback_level": fallback_level, "level": level},
         )
     else:
-        log.info("Log level set to %s", level)
+        log.info("settings.log_level_applied", extra={"level": level})
 
     _set_log_level(level)
 
@@ -183,7 +182,16 @@ async def apply_runtime_log_level() -> None:
 def _on_log_level_changed(_key: str, new_value: Any) -> None:  # noqa: ANN401
     """Apply a changed log level value from the database."""
     level = str(new_value).upper()
-    logging.getLogger(__name__).info("Runtime log level changed to %s", level)
+    if level not in LogLevel.__members__:
+        logging.getLogger(__name__).warning(
+            "settings.invalid_log_level_ignored",
+            extra={"value": new_value},
+        )
+        return
+    logging.getLogger(__name__).info(
+        "settings.runtime_log_level_changed",
+        extra={"level": level},
+    )
     _set_log_level(level)
 
 

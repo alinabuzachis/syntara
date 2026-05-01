@@ -436,7 +436,7 @@ def main() -> None:
     # Initially configure using the 'fallback_log_level' from static settings.
     # This is necessary so that we can send log messages before the database
     # is available. Once the app starts and database-backed runtime settings are
-    # the logger will be reconfigured to use the runtime logging.log_level setting.
+    # available, the logger will be reconfigured to use the runtime logging.log_level setting.
     settings = get_settings()
     fallback_log_level = settings.fallback_log_level
     uvicorn.run(

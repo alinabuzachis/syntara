@@ -424,7 +424,7 @@ class FakeSettingsCache:
     def on_change(self, key: str, callback: Any) -> None:  # noqa: ANN401
         """Register a callback (no-op in tests — no polling)."""
 
-    def start_watching(self, interval_seconds: float = 60.0) -> None:
+    def start_watching(self) -> None:
         """No-op in tests."""
 
     async def stop_watching(self) -> None:

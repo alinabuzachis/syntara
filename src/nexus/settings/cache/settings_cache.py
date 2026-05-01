@@ -28,12 +28,16 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hashlib
+import hmac
 import json
 import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import structlog
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 from nexus.settings.exceptions import SettingTypeError, SettingValidationError
 from nexus.settings.store import SettingsStore
@@ -52,8 +56,38 @@ _SENTINEL = object()
 
 _DEFAULT_TTL_SECONDS = 60.0
 
+
 REDIS_KEY_PREFIX = "nexus:settings:"
 REDIS_CHANNEL = "nexus:settings:changes"
+
+_signing_key: bytes | None = None
+
+
+def _derive_signing_key() -> bytes:
+    """Derive a purpose-specific HMAC key from the application secret.
+
+    Uses HKDF (RFC 5869) with a unique info parameter to ensure domain
+    separation from other HMAC uses (e.g. OIDC state signing).
+    """
+    global _signing_key  # noqa: PLW0603
+    if _signing_key is None:
+        from nexus.core.config.base import get_settings  # noqa: PLC0415
+
+        secret = get_settings().secret_encryption_key.get_secret_value()
+        hkdf = HKDF(algorithm=hashes.SHA256(), length=32, salt=None, info=b"settings-pubsub-hmac")
+        _signing_key = hkdf.derive(secret.encode())
+    return _signing_key
+
+
+def _compute_hmac(payload: str) -> str:
+    """Compute HMAC-SHA256 over a canonical JSON payload."""
+    return hmac.new(_derive_signing_key(), payload.encode(), hashlib.sha256).hexdigest()
+
+
+def _verify_hmac(payload: str, expected_mac: str) -> bool:
+    """Verify an HMAC-SHA256 signature using constant-time comparison."""
+    actual = _compute_hmac(payload)
+    return hmac.compare_digest(actual, expected_mac)
 
 
 @dataclass
@@ -127,9 +161,39 @@ class SettingsCache:
         # Track whether Redis was ever reachable (log warning only once)
         self._redis_warned: bool = False
 
+        # Lazily-built catalog lookup dict (instance-scoped for test safety)
+        self._catalog_by_key: dict[str, Any] | None = None
+
+    # ------------------------------------------------------------------
+    # Catalog lookup
+    # ------------------------------------------------------------------
+
+    def _get_catalog_by_key(self) -> dict[str, Any]:
+        """Return a dict mapping setting keys to their catalog definitions.
+
+        Lazily built on first access to avoid circular imports.
+        Instance-scoped so tests that patch ``SETTINGS_CATALOG`` get a
+        fresh lookup without needing to reset module-level state.
+        """
+        if self._catalog_by_key is None:
+            from nexus.settings.catalog import SETTINGS_CATALOG  # noqa: PLC0415
+
+            self._catalog_by_key = {d.key: d for d in SETTINGS_CATALOG}
+        return self._catalog_by_key
+
     # ------------------------------------------------------------------
     # Redis L2 helpers
     # ------------------------------------------------------------------
+
+    def _log_redis_warning(self, event: str, exc: BaseException, **ctx: object) -> None:
+        """Log a Redis warning once per outage period.
+
+        Duplicates are suppressed until the flag is reset by a successful
+        Redis reconnection in ``_start_pubsub`` or ``_try_acquire_redis_client``.
+        """
+        if not self._redis_warned:
+            logger.warning(event, **ctx, exc_info=exc)
+            self._redis_warned = True
 
     def _redis_key(self, key: str) -> str:
         """Return the Redis key for a setting key."""
@@ -144,10 +208,8 @@ class SettingsCache:
             if raw is None:
                 return None
             return json.loads(raw)
-        except Exception:  # noqa: BLE001
-            if not self._redis_warned:
-                logger.warning("settings.redis_l2_get_error", key=key, exc_info=True)
-                self._redis_warned = True
+        except Exception as exc:  # noqa: BLE001
+            self._log_redis_warning("settings.redis_l2_get_error", exc, key=key)
             return None
 
     async def _redis_set(self, key: str, value: Any, ttl_seconds: float) -> None:  # noqa: ANN401
@@ -164,10 +226,8 @@ class SettingsCache:
                 int(ttl_seconds),
                 raw,
             )
-        except Exception:  # noqa: BLE001
-            if not self._redis_warned:
-                logger.warning("settings.redis_l2_set_error", key=key, exc_info=True)
-                self._redis_warned = True
+        except Exception as exc:  # noqa: BLE001
+            self._log_redis_warning("settings.redis_l2_set_error", exc, key=key)
 
     async def _redis_delete(self, key: str) -> None:
         """Delete a key from Redis L2 cache.  Errors are silently ignored."""
@@ -208,9 +268,7 @@ class SettingsCache:
         """
         # Reject keys not in the catalog — keeps L1 bounded and prevents
         # cache pollution from attacker-influenced key lookups.
-        from nexus.settings.catalog import SETTINGS_CATALOG  # noqa: PLC0415
-
-        if not any(d.key == key for d in SETTINGS_CATALOG):
+        if key not in self._get_catalog_by_key():
             msg = f"Setting key not in catalog: {key!r}"
             raise KeyError(msg)
 
@@ -264,9 +322,7 @@ class SettingsCache:
 
     def _resolve_ttl(self, key: str) -> float:
         """Determine the cache TTL for *key* based on catalog metadata."""
-        from nexus.settings.catalog import SETTINGS_CATALOG  # noqa: PLC0415
-
-        defn = next((d for d in SETTINGS_CATALOG if d.key == key), None)
+        defn = self._get_catalog_by_key().get(key)
         if defn is None:
             return self._default_ttl_seconds
         if defn.requires_restart:
@@ -307,10 +363,9 @@ class SettingsCache:
         default: Any,  # noqa: ANN401
     ) -> Any:  # noqa: ANN401
         """Validate *value* against the catalog's ``validation_schema``."""
-        from nexus.settings.catalog import SETTINGS_CATALOG  # noqa: PLC0415
         from nexus.settings.validators import validate_setting_value  # noqa: PLC0415
 
-        defn = next((d for d in SETTINGS_CATALOG if d.key == key), None)
+        defn = self._get_catalog_by_key().get(key)
         if defn is None or defn.validation_schema is None:
             return value
 
@@ -396,9 +451,7 @@ class SettingsCache:
             ValueError: If the setting has ``requires_restart=True``.
 
         """
-        from nexus.settings.catalog import SETTINGS_CATALOG  # noqa: PLC0415
-
-        defn = next((d for d in SETTINGS_CATALOG if d.key == key), None)
+        defn = self._get_catalog_by_key().get(key)
         if defn is not None and defn.requires_restart:
             msg = f"Cannot watch requires_restart=True setting: {key}"
             raise ValueError(msg)
@@ -447,15 +500,17 @@ class SettingsCache:
 
     async def _stop_pubsub(self) -> None:
         """Stop the Pub/Sub subscriber task."""
-        if self._pubsub_task is not None and not self._pubsub_task.done():
-            self._pubsub_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await self._pubsub_task
+        if self._pubsub_task is not None:
+            if not self._pubsub_task.done():
+                self._pubsub_task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await self._pubsub_task
             self._pubsub_task = None
 
         if self._pubsub is not None:
             with contextlib.suppress(Exception):
                 await self._pubsub.unsubscribe(REDIS_CHANNEL)
+            with contextlib.suppress(Exception):
                 await self._pubsub.aclose()
             self._pubsub = None
 
@@ -538,6 +593,16 @@ class SettingsCache:
                     )
                     continue
 
+                mac = payload.get("mac")
+                if mac is None:
+                    logger.warning("settings.pubsub_unsigned_message", key=key)
+                    continue
+
+                canonical = json.dumps({"key": key})
+                if not _verify_hmac(canonical, mac):
+                    logger.warning("settings.pubsub_hmac_invalid", key=key)
+                    continue
+
                 await self._handle_change_notification(key)
 
         except asyncio.CancelledError:
@@ -549,6 +614,7 @@ class SettingsCache:
             if self._pubsub is not None:
                 with contextlib.suppress(Exception):
                     await self._pubsub.unsubscribe(REDIS_CHANNEL)
+                with contextlib.suppress(Exception):
                     await self._pubsub.aclose()
                 self._pubsub = None
 
@@ -704,7 +770,7 @@ class SettingsCache:
 
     async def _fire_callbacks(self, key: str, new_value: Any) -> None:  # noqa: ANN401
         """Invoke all registered callbacks for *key*."""
-        logger.info("settings._fire_callbacks", key=key)
+        logger.debug("settings.fire_callbacks", key=key)
         for cb in self._watchers.get(key, []):
             try:
                 result = cb(key, new_value)
@@ -714,6 +780,7 @@ class SettingsCache:
                 logger.warning(
                     "settings.on_change_callback_error",
                     key=key,
+                    callback=getattr(cb, "__qualname__", repr(cb)),
                     exc_info=True,
                 )
 
@@ -739,7 +806,12 @@ class SettingsCache:
         if self._redis_client is None:
             return
         try:
-            payload = json.dumps({"key": key})
+            # json.dumps is deterministic within CPython (dict insertion order
+            # is preserved). All replicas sharing the same secret_encryption_key
+            # will produce and verify identical MACs.
+            canonical = json.dumps({"key": key})
+            mac = _compute_hmac(canonical)
+            payload = json.dumps({"key": key, "mac": mac})
             await self._redis_client.pubsub_publish(REDIS_CHANNEL, payload)
             logger.debug("settings.change_published", key=key)
         except Exception:  # noqa: BLE001

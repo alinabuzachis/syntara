@@ -58,10 +58,11 @@ class PubSubMixin:
 
         """
         client = self._ensure_connected()
-        pubsub: Any = client.pubsub()
-        await pubsub.subscribe(channel)
-        logger.info("pubsub_subscribed", channel=channel)
-        return pubsub  # type: ignore[no-any-return]
+        async with redis_error_handler("pubsub_subscribe", channel=channel):
+            pubsub: Any = client.pubsub()
+            await pubsub.subscribe(channel)
+            logger.info("pubsub_subscribed", channel=channel)
+            return pubsub  # type: ignore[no-any-return]
 
     async def ping(self) -> bool:
         """Return ``True`` if the server responds to PING.
