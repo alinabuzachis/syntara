@@ -96,7 +96,7 @@ describe('useButtonEdgeMaintenance', () => {
     expect(mockSetEdges).not.toHaveBeenCalled()
   })
 
-  it('skips when in execution mode', () => {
+  it('skips button edge creation and cleans up existing ones in execution mode', () => {
     renderHook(() =>
       useButtonEdgeMaintenance({
         ...defaultOptions,
@@ -109,7 +109,16 @@ describe('useButtonEdgeMaintenance', () => {
       vi.advanceTimersByTime(100)
     })
 
-    expect(mockSetEdges).not.toHaveBeenCalled()
+    // setEdges is called for cleanup (removing button edges), but no new button edges are created
+    expect(mockSetEdges).toHaveBeenCalled()
+    const updater = mockSetEdges.mock.calls[0][0] as (prev: unknown[]) => unknown[]
+    const result = updater([
+      { id: 'real-edge', source: 'a', target: 'b' },
+      { id: 'button-edge-node-1', source: 'node-1', target: 'placeholder-node-1' },
+    ])
+    // Only real edges remain after cleanup
+    expect(result).toHaveLength(1)
+    expect((result as Array<{ id: string }>)[0].id).toBe('real-edge')
   })
 
   it('creates button edge for node without outgoing edge', () => {

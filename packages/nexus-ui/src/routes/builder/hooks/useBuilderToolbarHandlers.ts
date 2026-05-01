@@ -65,7 +65,9 @@ export function useBuilderToolbarHandlers({
         onSuccess: (data) => {
           showSuccess({ title: 'Workflow started', description: `Successfully started workflow "${workflowName}"` })
           dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
-          setLocation(`/executions/${data.id!}?history=open`)
+          if (data.id) {
+            dispatch({ type: 'SET_MOST_RECENT_EXECUTION', payload: data.id })
+          }
         },
         onError: (error) => {
           showError({
@@ -76,7 +78,7 @@ export function useBuilderToolbarHandlers({
         },
       }
     )
-  }, [workflow, workflowName, executeWorkflow, showSuccess, showError, setLocation, dispatch])
+  }, [workflow, workflowName, executeWorkflow, showSuccess, showError, dispatch])
 
   const handleDeleteWorkflow = useCallback(() => {
     if (!workflow?.id) return

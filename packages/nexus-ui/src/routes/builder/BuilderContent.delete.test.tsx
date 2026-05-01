@@ -23,6 +23,10 @@ vi.mock('../../client', () => ({
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
+  approvalsClient: {
+    useQuery: vi.fn().mockReturnValue({ data: undefined, refetch: vi.fn() }),
+    useMutation: vi.fn().mockReturnValue({ mutate: vi.fn(), isPending: false }),
+  },
   authMiddleware: { onRequest: vi.fn() },
 }))
 

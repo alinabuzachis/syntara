@@ -7,7 +7,7 @@ import { ACTIVITY_STATUS } from '../../builder/utils/executionState/executionHel
 
 import { useFetchApprovalForNode } from './useFetchApprovalForNode'
 
-type ExecutionNode = { id: string; type?: string; data: Record<string, unknown> }
+export type ExecutionNode = { id: string; type?: string; data: Record<string, unknown> }
 
 /** Returns true if the node is an approval node with activity status "waiting". */
 export function isWaitingApprovalNode(node: ExecutionNode): boolean {

@@ -11,6 +11,9 @@ import {
 import type { ActivityStatus } from '../../../routes/workflows/execution/types'
 import { activityStatusColors } from '../executionStatusConstants'
 
+export const EXECUTION_BADGE_DATA_ATTR = 'data-execution-badge'
+export const EXECUTION_BADGE_SELECTOR = `[${EXECUTION_BADGE_DATA_ATTR}]`
+
 type ExecutionStatusBadgeProps = {
   status: ActivityStatus
   retryCount?: number
@@ -109,6 +112,7 @@ export function ExecutionStatusBadge({ status, retryCount }: ExecutionStatusBadg
         justifyContent: 'center',
         zIndex: 10,
       }}
+      data-execution-badge=""
       title={title}
       role="img"
       aria-label={title}

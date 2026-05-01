@@ -26,6 +26,7 @@ import { useCallback, type Dispatch, type ReactNode, type Ref } from 'react'
 
 import { AppPageHeader } from '../../app/AppPageHeader'
 import type { ProjectRead } from '../access/types'
+import { ApprovalActionButtons } from '../executions/ApprovalActionButtons'
 
 import type { BuilderAction } from './builderReducer'
 import { EditWorkflowDetailsPopover } from './EditWorkflowDetailsPopover'
@@ -56,6 +57,11 @@ export type BuilderWorkflowAppPageHeaderProps = Readonly<{
   handleToggleHistory: () => void
   handleToggleDetails: () => void
   handleSaveWorkflow: () => void
+  isLiveRunActive?: boolean
+  onBackToEditor?: () => void
+  hasApprovalPending?: boolean
+  isApprovalLoading?: boolean
+  onReviewApproval?: () => void
 }>
 
 type WorkflowKebabToggleProps = Readonly<{
@@ -75,6 +81,193 @@ function WorkflowKebabToggle({ toggleRef, isKebabOpen, dispatch }: WorkflowKebab
     >
       <RhUiEllipsisVerticalFillIcon />
     </MenuToggle>
+  )
+}
+
+type EditorToolbarActionsProps = Readonly<
+  Pick<
+    BuilderWorkflowAppPageHeaderProps,
+    | 'isNew'
+    | 'workflow'
+    | 'isPending'
+    | 'selectedProject'
+    | 'isEnabled'
+    | 'isKebabOpen'
+    | 'dispatch'
+    | 'markDirty'
+    | 'handleToggleHistory'
+    | 'handleToggleDetails'
+    | 'handleSaveWorkflow'
+    | 'isLiveRunActive'
+    | 'onBackToEditor'
+    | 'hasApprovalPending'
+    | 'isApprovalLoading'
+    | 'onReviewApproval'
+  >
+>
+
+// eslint-disable-next-line complexity
+function EditorToolbarActions({
+  isNew,
+  workflow,
+  isPending,
+  selectedProject,
+  isEnabled,
+  isKebabOpen,
+  dispatch,
+  markDirty,
+  handleToggleHistory,
+  handleToggleDetails,
+  handleSaveWorkflow,
+  isLiveRunActive,
+  onBackToEditor,
+  hasApprovalPending,
+  isApprovalLoading,
+  onReviewApproval,
+}: EditorToolbarActionsProps) {
+  const renderKebabMenuToggle = useCallback(
+    (toggleRef: Ref<MenuToggleElement>) => (
+      <WorkflowKebabToggle toggleRef={toggleRef} isKebabOpen={isKebabOpen} dispatch={dispatch} />
+    ),
+    [dispatch, isKebabOpen]
+  )
+
+  if (isLiveRunActive) {
+    return (
+      <>
+        {onReviewApproval && (hasApprovalPending || isApprovalLoading) && (
+          <ApprovalActionButtons isLoading={isApprovalLoading} onReviewClick={onReviewApproval} />
+        )}
+        {onBackToEditor && (
+          <Button variant="secondary" onClick={onBackToEditor}>
+            Back to editor
+          </Button>
+        )}
+      </>
+    )
+  }
+
+  return (
+    <>
+      <Button
+        variant="plain"
+        onClick={() => {
+          dispatch({
+            type: 'OPEN_ADD_NODE_PANEL',
+            payload: { sourceNodeId: null, replacementNodeId: null },
+          })
+        }}
+        icon={
+          <Icon isInline>
+            <RhUiAddSquareIcon />
+          </Icon>
+        }
+        iconPosition="start"
+      >
+        Add Step
+      </Button>
+
+      {!isNew && workflow?.id && (
+        <>
+          <Divider orientation={{ default: 'vertical' }} />
+          <Button
+            variant="plain"
+            onClick={() => dispatch({ type: 'SET_CONFIRM_DIALOG', payload: true })}
+            icon={
+              <Icon isInline>
+                <RhUiPlayIcon />
+              </Icon>
+            }
+            iconPosition="start"
+          >
+            Run
+          </Button>
+        </>
+      )}
+
+      <Divider orientation={{ default: 'vertical' }} />
+
+      {onReviewApproval && (hasApprovalPending || isApprovalLoading) && (
+        <ApprovalActionButtons isLoading={isApprovalLoading} onReviewClick={onReviewApproval} />
+      )}
+
+      <Tooltip content="Workflow details">
+        <Button
+          variant="plain"
+          onClick={handleToggleDetails}
+          icon={
+            <Icon isInline>
+              <RhUiCodeIcon />
+            </Icon>
+          }
+          aria-label="Workflow details"
+        />
+      </Tooltip>
+
+      {!isNew && workflow?.id && <RunHistoryToggleButton onClick={handleToggleHistory} />}
+
+      <Divider orientation={{ default: 'vertical' }} />
+
+      <Tooltip
+        content="Select a project before saving"
+        trigger={isNew && !selectedProject ? 'mouseenter focus' : 'manual'}
+      >
+        <Button
+          variant="plain"
+          onClick={handleSaveWorkflow}
+          isAriaDisabled={isPending || (isNew && !selectedProject)}
+          icon={
+            <Icon isInline>
+              <RhUiSaveFillIcon />
+            </Icon>
+          }
+          iconPosition="start"
+        >
+          {isPending ? 'Saving...' : 'Save'}
+        </Button>
+      </Tooltip>
+
+      {!isNew && (
+        <>
+          <Divider orientation={{ default: 'vertical' }} />
+          <Switch
+            isChecked={isEnabled}
+            onChange={(_event, checked) => {
+              dispatch({ type: 'SET_IS_ENABLED', payload: checked })
+              markDirty()
+            }}
+            label={isEnabled ? 'Enabled' : 'Disabled'}
+          />
+        </>
+      )}
+
+      {!isNew && workflow?.id && (
+        <>
+          <Divider orientation={{ default: 'vertical' }} />
+          <Dropdown
+            isOpen={isKebabOpen}
+            onOpenChange={(isOpen) => dispatch({ type: 'SET_KEBAB_OPEN', payload: isOpen })}
+            popperProps={{ position: 'right' }}
+            toggle={renderKebabMenuToggle}
+          >
+            <DropdownList>
+              <DropdownItem
+                onClick={() => {
+                  dispatch({ type: 'SET_DELETE_DIALOG', payload: true })
+                  dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
+                }}
+                isDanger
+              >
+                <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
+                  <RhUiTrashIcon />
+                </Icon>
+                Delete workflow
+              </DropdownItem>
+            </DropdownList>
+          </Dropdown>
+        </>
+      )}
+    </>
   )
 }
 
@@ -100,14 +293,12 @@ export function BuilderWorkflowAppPageHeader({
   handleToggleHistory,
   handleToggleDetails,
   handleSaveWorkflow,
+  isLiveRunActive,
+  onBackToEditor,
+  hasApprovalPending,
+  isApprovalLoading,
+  onReviewApproval,
 }: BuilderWorkflowAppPageHeaderProps) {
-  const renderKebabMenuToggle = useCallback(
-    (toggleRef: Ref<MenuToggleElement>) => (
-      <WorkflowKebabToggle toggleRef={toggleRef} isKebabOpen={isKebabOpen} dispatch={dispatch} />
-    ),
-    [dispatch, isKebabOpen]
-  )
-
   return (
     <AppPageHeader
       title={
@@ -165,122 +356,24 @@ export function BuilderWorkflowAppPageHeader({
           </Button>
         </>
       ) : (
-        <>
-          <Button
-            variant="plain"
-            onClick={() => {
-              dispatch({
-                type: 'OPEN_ADD_NODE_PANEL',
-                payload: { sourceNodeId: null, replacementNodeId: null },
-              })
-            }}
-            icon={
-              <Icon isInline>
-                <RhUiAddSquareIcon />
-              </Icon>
-            }
-            iconPosition="start"
-          >
-            Add Step
-          </Button>
-
-          {!isNew && workflow?.id && (
-            <>
-              <Divider orientation={{ default: 'vertical' }} />
-              <Button
-                variant="plain"
-                onClick={() => dispatch({ type: 'SET_CONFIRM_DIALOG', payload: true })}
-                icon={
-                  <Icon isInline>
-                    <RhUiPlayIcon />
-                  </Icon>
-                }
-                iconPosition="start"
-              >
-                Run
-              </Button>
-            </>
-          )}
-
-          <Divider orientation={{ default: 'vertical' }} />
-
-          <Tooltip content="Workflow details">
-            <Button
-              variant="plain"
-              onClick={handleToggleDetails}
-              icon={
-                <Icon isInline>
-                  <RhUiCodeIcon />
-                </Icon>
-              }
-              aria-label="Workflow details"
-            />
-          </Tooltip>
-
-          {!isNew && workflow?.id && <RunHistoryToggleButton onClick={handleToggleHistory} />}
-
-          <Divider orientation={{ default: 'vertical' }} />
-
-          <Tooltip
-            content="Select a project before saving"
-            trigger={isNew && !selectedProject ? 'mouseenter focus' : 'manual'}
-          >
-            <Button
-              variant="plain"
-              onClick={handleSaveWorkflow}
-              isAriaDisabled={isPending || (isNew && !selectedProject)}
-              icon={
-                <Icon isInline>
-                  <RhUiSaveFillIcon />
-                </Icon>
-              }
-              iconPosition="start"
-            >
-              {isPending ? 'Saving...' : 'Save'}
-            </Button>
-          </Tooltip>
-
-          {!isNew && (
-            <>
-              <Divider orientation={{ default: 'vertical' }} />
-              <Switch
-                isChecked={isEnabled}
-                onChange={(_event, checked) => {
-                  dispatch({ type: 'SET_IS_ENABLED', payload: checked })
-                  markDirty()
-                }}
-                label={isEnabled ? 'Enabled' : 'Disabled'}
-              />
-            </>
-          )}
-
-          {!isNew && workflow?.id && (
-            <>
-              <Divider orientation={{ default: 'vertical' }} />
-              <Dropdown
-                isOpen={isKebabOpen}
-                onOpenChange={(isOpen) => dispatch({ type: 'SET_KEBAB_OPEN', payload: isOpen })}
-                popperProps={{ position: 'right' }}
-                toggle={renderKebabMenuToggle}
-              >
-                <DropdownList>
-                  <DropdownItem
-                    onClick={() => {
-                      dispatch({ type: 'SET_DELETE_DIALOG', payload: true })
-                      dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
-                    }}
-                    isDanger
-                  >
-                    <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
-                      <RhUiTrashIcon />
-                    </Icon>
-                    Delete workflow
-                  </DropdownItem>
-                </DropdownList>
-              </Dropdown>
-            </>
-          )}
-        </>
+        <EditorToolbarActions
+          isNew={isNew}
+          workflow={workflow}
+          isPending={isPending}
+          selectedProject={selectedProject}
+          isEnabled={isEnabled}
+          isKebabOpen={isKebabOpen}
+          dispatch={dispatch}
+          markDirty={markDirty}
+          handleToggleHistory={handleToggleHistory}
+          handleToggleDetails={handleToggleDetails}
+          handleSaveWorkflow={handleSaveWorkflow}
+          isLiveRunActive={isLiveRunActive}
+          onBackToEditor={onBackToEditor}
+          hasApprovalPending={hasApprovalPending}
+          isApprovalLoading={isApprovalLoading}
+          onReviewApproval={onReviewApproval}
+        />
       )}
     </AppPageHeader>
   )

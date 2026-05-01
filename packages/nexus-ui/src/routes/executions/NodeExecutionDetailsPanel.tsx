@@ -135,7 +135,11 @@ export function NodeExecutionDetailsPanel({
 }: Readonly<NodeExecutionDetailsPanelProps>) {
   const [inputView, setPanelView] = useState<PanelView>('json')
   const [outputView, setOutputView] = useState<PanelView>('json')
-  const { inputData, outputData, isLoading, error, refetch } = useNodeExecutionDetails(nodeId, executionId)
+  const { inputData, outputData, isLoading, error, refetch } = useNodeExecutionDetails(
+    nodeId,
+    executionId,
+    nodeState?.status
+  )
 
   const nodeStarted = nodeState?.startedAt ?? null
   const nodeCompleted = nodeState?.completedAt ?? null

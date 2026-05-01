@@ -5,7 +5,7 @@ import { flushSync } from 'react-dom'
 import { FlowNodeType } from '../../../constants'
 import type { ButtonEdgePlaceholderNode, NodeType } from '../../workflows/canvas/nodes/NodeType'
 import type { FlowPosition } from '../types'
-import { filterButtonEdges, filterRealNodes, isRealEdge } from '../utils/filterHelpers'
+import { filterButtonEdges, filterRealNodes, isPlaceholderNode, isRealEdge } from '../utils/filterHelpers'
 import type { EdgeType } from '../utils/workflowToGraph'
 
 import {
@@ -286,6 +286,13 @@ export function useButtonEdgeMaintenance({
       lastProcessedSignatureRef.current = ''
     }
   }, [isInitialized])
+
+  // Remove button edges and placeholder nodes when entering execution mode
+  useEffect(() => {
+    if (!isInitialized || !executionStatus) return
+    setEdges((prev) => prev.filter(isRealEdge))
+    setNodes((prev) => prev.filter((n) => !isPlaceholderNode(n)))
+  }, [isInitialized, executionStatus, setEdges, setNodes])
 
   // Maintain button edges: add to nodes without outgoing edges, remove from nodes with outgoing edges
   useEffect(() => {

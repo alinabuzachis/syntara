@@ -52,7 +52,7 @@ import { getLayoutedElements } from './utils/layoutEngine'
 import { validateConnection } from './utils/validateConnection'
 import { markerEnd, type EdgeType } from './utils/workflowToGraph'
 
-// eslint-disable-next-line max-lines-per-function
+// eslint-disable-next-line max-lines-per-function, complexity
 export function BuilderFlow(props: BuilderFlowProps) {
   const isExecutionView = useIsExecutionView()
   // Destructure props to use in callbacks
@@ -99,6 +99,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
   const storeExecutionStatus = useExecutionStore((state) => state.visualization?.status)
   const effectiveExecutionStatus = resolveExecutionStatus(executionStatus, storeExecutionStatus)
   const edgeExecutionStatus = effectiveExecutionStatus ?? (isExecutionView ? 'pending' : null)
+  const isReadOnly = isExecutionView || !!effectiveExecutionStatus
 
   // Track pending edge that was dragged to canvas
   const [pendingEdge, setPendingEdge] = useState<PendingEdge | null>(null)
@@ -597,31 +598,31 @@ export function BuilderFlow(props: BuilderFlowProps) {
         nodeTypes={builderNodeTypes}
         edgeTypes={builderEdgeTypes}
         onNodesChange={onNodesChange}
-        onNodeDragStop={isExecutionView ? undefined : onNodeDragStop}
+        onNodeDragStop={isReadOnly ? undefined : onNodeDragStop}
         onEdgesChange={onEdgesChange}
-        onNodesDelete={isExecutionView ? undefined : onNodesDelete}
+        onNodesDelete={isReadOnly ? undefined : onNodesDelete}
         onNodeClick={onNodeClick}
-        onConnect={isExecutionView ? undefined : onConnect}
-        onConnectStart={isExecutionView ? undefined : onConnectStart}
-        onConnectEnd={isExecutionView ? undefined : onConnectEnd}
+        onConnect={isReadOnly ? undefined : onConnect}
+        onConnectStart={isReadOnly ? undefined : onConnectStart}
+        onConnectEnd={isReadOnly ? undefined : onConnectEnd}
         connectOnClick={false}
         connectionRadius={200}
         connectionLineStyle={{ stroke: BUTTON_EDGE_DEFAULT_STROKE, strokeWidth: 2 }}
         defaultEdgeOptions={{ markerEnd }}
         isValidConnection={isValidConnection}
         proOptions={{ hideAttribution: true }}
-        deleteKeyCode={isExecutionView || disableDeleteKey ? null : ['Delete', 'Backspace']}
+        deleteKeyCode={isReadOnly || disableDeleteKey ? null : ['Delete', 'Backspace']}
         panActivationKeyCode={disableSpacePanning ? null : 'Space'}
         fitView
         minZoom={0.1}
         maxZoom={1}
-        nodesDraggable={!isExecutionView}
-        nodesConnectable={!isExecutionView}
+        nodesDraggable={!isReadOnly}
+        nodesConnectable={!isReadOnly}
       >
         <EdgeMarkers />
-        {!isExecutionView && <Background variant={BackgroundVariant.Dots} gap={20} size={1} />}
-        <CanvasControls onLayout={onLayout} hideLayout={isExecutionView} />
-        {!isExecutionView && <UndoRedoControls />}
+        {!isReadOnly && <Background variant={BackgroundVariant.Dots} gap={20} size={1} />}
+        <CanvasControls onLayout={onLayout} hideLayout={isReadOnly} />
+        {!isReadOnly && <UndoRedoControls />}
       </ReactFlow>
     </div>
   )

@@ -1,6 +1,8 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 
 import { executionsClient } from '../../../client'
+import { detachPromise } from '../../../utils/detachPromise'
+import type { ActivityStatus } from '../../workflows/execution/types'
 
 type NodeExecutionDetails = {
   /** Resolved config values passed to the activity at runtime */
@@ -17,9 +19,16 @@ type NodeExecutionDetails = {
  *
  * Uses the `activity_name` query parameter for server-side filtering,
  * so only the matching activity is returned from the API.
+ *
+ * When `activityStatus` changes (e.g. from WebSocket updates), the query
+ * refetches so the Parameters/Output panes stay current.
  */
-export function useNodeExecutionDetails(nodeId: string, executionId: string | null | undefined): NodeExecutionDetails {
-  const { data, isLoading, error, refetch } = executionsClient.useQuery(
+export function useNodeExecutionDetails(
+  nodeId: string,
+  executionId: string | null | undefined,
+  activityStatus?: ActivityStatus
+): NodeExecutionDetails {
+  const queryResult = executionsClient.useQuery(
     'get',
     '/executions/{execution_id}/activities',
     {
@@ -30,6 +39,16 @@ export function useNodeExecutionDetails(nodeId: string, executionId: string | nu
     },
     { enabled: !!executionId && !!nodeId }
   )
+
+  const { data, isLoading, error, refetch } = queryResult
+
+  const prevStatusRef = useRef(activityStatus)
+  useEffect(() => {
+    if (prevStatusRef.current !== activityStatus) {
+      prevStatusRef.current = activityStatus
+      detachPromise(refetch())
+    }
+  }, [activityStatus, refetch])
 
   return useMemo(() => {
     if (!data) {

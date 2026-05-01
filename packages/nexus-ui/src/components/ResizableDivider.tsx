@@ -7,6 +7,10 @@ const DIVIDER_STYLE: React.CSSProperties = {
   flexShrink: 0,
   position: 'relative',
   zIndex: 1,
+  marginBlock: 'var(--pf-t--global--spacer--xs)',
+  width: '20%',
+  marginInline: 'auto',
+  borderRadius: 'var(--pf-t--global--border--radius--small)',
 }
 
 const DIVIDER_HOVER_TARGET: React.CSSProperties = {

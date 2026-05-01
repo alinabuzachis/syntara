@@ -45,7 +45,7 @@ describe('useBuilderToolbarHandlers', () => {
     expect(executeWorkflow).not.toHaveBeenCalled()
   })
 
-  it('handleRunWorkflow invokes executeWorkflow and navigates on success', () => {
+  it('handleRunWorkflow invokes executeWorkflow and dispatches SET_MOST_RECENT_EXECUTION on success', () => {
     const executeWorkflow = vi.fn((...args: Parameters<ExecuteWorkflow>) => {
       const options = args[1]
       options?.onSuccess?.({ id: 'exec-99' })
@@ -69,7 +69,8 @@ describe('useBuilderToolbarHandlers', () => {
       description: 'Successfully started workflow "My workflow"',
     })
     expect(dispatch).toHaveBeenCalledWith({ type: 'SET_CONFIRM_DIALOG', payload: false })
-    expect(setLocation).toHaveBeenCalledWith('/executions/exec-99?history=open')
+    expect(dispatch).toHaveBeenCalledWith({ type: 'SET_MOST_RECENT_EXECUTION', payload: 'exec-99' })
+    expect(setLocation).not.toHaveBeenCalled()
   })
 
   it('handleRunWorkflow shows error and closes dialog on failure', () => {

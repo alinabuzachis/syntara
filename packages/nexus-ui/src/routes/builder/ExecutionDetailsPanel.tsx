@@ -1,6 +1,7 @@
 import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import {
   Alert,
+  Button,
   Content,
   ContentVariants,
   Divider,
@@ -14,6 +15,7 @@ import {
   Title,
   TitleSizes,
 } from '@patternfly/react-core'
+import { TimesIcon } from '@patternfly/react-icons'
 import type React from 'react'
 import { useEffect, useState } from 'react'
 
@@ -44,6 +46,8 @@ type ExecutionDetailsPanelProps = {
   selectedNodeName?: string | null
   onDeselectNode?: () => void
   onNodeSelect?: (nodeId: string, nodeName: string) => void
+  headerLabel?: string
+  onClosePanel?: () => void
 }
 
 type ExecutionStatus = ExecutionsAPI.components['schemas']['ExecutionStatus']
@@ -59,6 +63,8 @@ type HeaderMetadataProps = {
   isRunning: boolean
   viewMode: ViewMode
   onViewModeChange: (mode: ViewMode) => void
+  headerLabel?: string
+  onClosePanel?: () => void
 }
 
 function HeaderMetadata({
@@ -67,8 +73,12 @@ function HeaderMetadata({
   isRunning,
   viewMode,
   onViewModeChange,
+  headerLabel,
+  onClosePanel,
 }: Readonly<HeaderMetadataProps>) {
   const startDisplay = execution.started_at ?? execution.created_at
+
+  const title = headerLabel ?? (isRunning ? 'Current run details' : 'Run details')
 
   return (
     <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }} alignItems={{ default: 'alignItemsCenter' }}>
@@ -76,7 +86,7 @@ function HeaderMetadata({
         <Flex gap={{ default: 'gapLg' }} alignItems={{ default: 'alignItemsCenter' }}>
           <FlexItem>
             <Title headingLevel="h2" size={TitleSizes.md} style={{ margin: 0 }}>
-              {isRunning ? 'Current run details' : 'Run details'}
+              {title}
             </Title>
           </FlexItem>
           <FlexItem>
@@ -109,6 +119,16 @@ function HeaderMetadata({
           {execution.status && (
             <FlexItem style={{ display: 'flex', alignItems: 'center' }}>
               <StatusLabel status={execution.status} />
+            </FlexItem>
+          )}
+          {onClosePanel && (
+            <FlexItem>
+              <Button
+                variant="plain"
+                aria-label="Close run details panel"
+                onClick={onClosePanel}
+                icon={<TimesIcon />}
+              />
             </FlexItem>
           )}
         </Flex>
@@ -150,6 +170,8 @@ type ThreePanelLayoutProps = {
   viewMode: ViewMode
   onViewModeChange: (mode: ViewMode) => void
   onRowClick?: (nodeId: string, nodeName: string) => void
+  headerLabel?: string
+  onClosePanel?: () => void
 }
 
 function ThreePanelLayout({
@@ -166,6 +188,8 @@ function ThreePanelLayout({
   viewMode,
   onViewModeChange,
   onRowClick,
+  headerLabel,
+  onClosePanel,
 }: Readonly<ThreePanelLayoutProps>) {
   return (
     <AppPanel
@@ -187,6 +211,8 @@ function ThreePanelLayout({
           isRunning={isRunning}
           viewMode={viewMode}
           onViewModeChange={onViewModeChange}
+          headerLabel={headerLabel}
+          onClosePanel={onClosePanel}
         />
       </div>
       <Flex
@@ -247,6 +273,8 @@ type SinglePanelLayoutProps = {
   onViewModeChange: (mode: ViewMode) => void
   onRowClick?: (nodeId: string, nodeName: string) => void
   selectedNodeId?: string | null
+  headerLabel?: string
+  onClosePanel?: () => void
 }
 
 function SinglePanelLayout({
@@ -260,6 +288,8 @@ function SinglePanelLayout({
   onViewModeChange,
   onRowClick,
   selectedNodeId,
+  headerLabel,
+  onClosePanel,
 }: Readonly<SinglePanelLayoutProps>) {
   return (
     <AppPanel
@@ -280,6 +310,8 @@ function SinglePanelLayout({
             isRunning={isRunning}
             viewMode={viewMode}
             onViewModeChange={onViewModeChange}
+            headerLabel={headerLabel}
+            onClosePanel={onClosePanel}
           />
         </StackItem>
 
@@ -341,6 +373,8 @@ export function ExecutionDetailsPanel({
   selectedNodeName: selectedNodeNameProp,
   onDeselectNode,
   onNodeSelect,
+  headerLabel,
+  onClosePanel,
 }: Readonly<ExecutionDetailsPanelProps>) {
   const { setActivityExecutions } = useExecutionStoreActions()
   const activityStates = useExecutionStore((s) => s.activityStates)
@@ -401,6 +435,8 @@ export function ExecutionDetailsPanel({
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         onRowClick={handleRowClick}
+        headerLabel={headerLabel}
+        onClosePanel={onClosePanel}
       />
     )
   }
@@ -417,6 +453,8 @@ export function ExecutionDetailsPanel({
       onViewModeChange={setViewMode}
       onRowClick={handleRowClick}
       selectedNodeId={resolvedNodeId}
+      headerLabel={headerLabel}
+      onClosePanel={onClosePanel}
     />
   )
 }

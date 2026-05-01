@@ -38,6 +38,10 @@ vi.mock('../../client', () => ({
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
+  approvalsClient: {
+    useQuery: vi.fn().mockReturnValue({ data: undefined, refetch: vi.fn() }),
+    useMutation: vi.fn().mockReturnValue({ mutate: vi.fn(), isPending: false }),
+  },
   authMiddleware: { onRequest: vi.fn() },
 }))
 
@@ -609,7 +613,7 @@ describe('BuilderContent', () => {
 
       await waitFor(() => {
         expect(mockExecuteMutate).toHaveBeenCalled()
-        expect(mockSetLocation).toHaveBeenCalledWith('/executions/exec-123?history=open')
+        expect(mockSetLocation).not.toHaveBeenCalled()
       })
     })
 
@@ -2366,7 +2370,7 @@ describe('BuilderContent', () => {
 
       await waitFor(() => {
         expect(mockExecuteMutate).toHaveBeenCalled()
-        expect(mockSetLocation).toHaveBeenCalledWith('/executions/execution-123?history=open')
+        expect(mockSetLocation).not.toHaveBeenCalled()
       })
     })
   })

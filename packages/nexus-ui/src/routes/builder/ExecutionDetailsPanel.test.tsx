@@ -70,6 +70,17 @@ function renderPanel(workflowDefinition?: WorkflowDefShape | null) {
   return render(<ExecutionDetailsPanel executionId="exec-123" workflowDefinition={workflowDefinition} />)
 }
 
+function renderPanelWithClose(onClosePanel: () => void, headerLabel?: string) {
+  return render(
+    <ExecutionDetailsPanel
+      executionId="exec-123"
+      workflowDefinition={WORKFLOW_DEF}
+      headerLabel={headerLabel}
+      onClosePanel={onClosePanel}
+    />
+  )
+}
+
 describe('ExecutionDetailsPanel', () => {
   beforeEach(() => vi.clearAllMocks())
 
@@ -170,6 +181,43 @@ describe('ExecutionDetailsPanel', () => {
     })
   })
 
+  describe('headerLabel and close button', () => {
+    it('renders default title when headerLabel is not provided', () => {
+      renderPanel(WORKFLOW_DEF)
+
+      expect(screen.getByText('Current run details')).toBeInTheDocument()
+    })
+
+    it('renders custom headerLabel when provided', () => {
+      renderPanelWithClose(vi.fn(), 'Most recent run details')
+
+      expect(screen.getByText('Most recent run details')).toBeInTheDocument()
+      expect(screen.queryByText('Current run details')).not.toBeInTheDocument()
+    })
+
+    it('does not render a close button when onClosePanel is not provided', () => {
+      renderPanel(WORKFLOW_DEF)
+
+      expect(screen.queryByRole('button', { name: 'Close run details panel' })).not.toBeInTheDocument()
+    })
+
+    it('renders a close button when onClosePanel is provided', () => {
+      renderPanelWithClose(vi.fn())
+
+      expect(screen.getByRole('button', { name: 'Close run details panel' })).toBeInTheDocument()
+    })
+
+    it('calls onClosePanel when the close button is clicked', async () => {
+      const user = userEvent.setup()
+      const onClosePanel = vi.fn()
+      renderPanelWithClose(onClosePanel)
+
+      await user.click(screen.getByRole('button', { name: 'Close run details panel' }))
+
+      expect(onClosePanel).toHaveBeenCalledTimes(1)
+    })
+  })
+
   describe('view mode toggle', () => {
     it('renders Overview and Details tabs', () => {
       renderPanel(WORKFLOW_DEF)
@@ -205,6 +253,22 @@ describe('ExecutionDetailsPanel', () => {
 
       expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true')
       expect(screen.getByText('Process data')).toBeInTheDocument()
+    })
+  })
+
+  describe('accessibility', () => {
+    // PatternFly Tabs generates aria-controls with random IDs that don't match
+    // rendered panel IDs in jsdom — a known upstream issue, not an application bug.
+    const axeTabRules = { rules: { 'aria-valid-attr-value': { enabled: false } } }
+
+    it('has no violations in default state', async () => {
+      const { container } = renderPanel(WORKFLOW_DEF)
+      expect(await axe(container, axeTabRules)).toHaveNoViolations()
+    })
+
+    it('has no violations with close button', async () => {
+      const { container } = renderPanelWithClose(vi.fn(), 'Most recent run details')
+      expect(await axe(container, axeTabRules)).toHaveNoViolations()
     })
   })
 })

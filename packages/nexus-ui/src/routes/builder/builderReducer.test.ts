@@ -540,6 +540,48 @@ describe('builderReducer', () => {
     })
   })
 
+  describe('Most recent run panel actions', () => {
+    it('SET_MOST_RECENT_EXECUTION sets mostRecentExecutionId and opens the panel', () => {
+      const action: BuilderAction = { type: 'SET_MOST_RECENT_EXECUTION', payload: 'exec-42' }
+      const result = builderReducer(initialState, action)
+
+      expect(result.mostRecentExecutionId).toBe('exec-42')
+      expect(result.mostRecentRunPanelOpen).toBe(true)
+    })
+
+    it('CLOSE_MOST_RECENT_RUN_PANEL sets mostRecentRunPanelOpen to false', () => {
+      const stateWithPanelOpen: BuilderState = {
+        ...initialState,
+        mostRecentRunPanelOpen: true,
+        mostRecentExecutionId: 'exec-1',
+      }
+
+      const action: BuilderAction = { type: 'CLOSE_MOST_RECENT_RUN_PANEL' }
+      const result = builderReducer(stateWithPanelOpen, action)
+
+      expect(result.mostRecentRunPanelOpen).toBe(false)
+      // execution id is preserved — only the panel visibility changes
+      expect(result.mostRecentExecutionId).toBe('exec-1')
+    })
+
+    it('INIT_WORKFLOW resets mostRecentExecutionId and mostRecentRunPanelOpen even when they were set', () => {
+      const stateWithExecution: BuilderState = {
+        ...initialState,
+        mostRecentExecutionId: 'exec-old',
+        mostRecentRunPanelOpen: true,
+      }
+
+      const action: BuilderAction = {
+        type: 'INIT_WORKFLOW',
+        payload: { name: 'Fresh', description: '', tags: [], isEnabled: true },
+      }
+      const result = builderReducer(stateWithExecution, action)
+
+      expect(result.mostRecentExecutionId).toBeNull()
+      expect(result.mostRecentRunPanelOpen).toBe(false)
+    })
+  })
+
   describe('getInitialBuilderState', () => {
     it('returns initial state with expected defaults', () => {
       const state = getInitialBuilderState()

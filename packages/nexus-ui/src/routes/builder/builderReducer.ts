@@ -24,6 +24,8 @@ export type BuilderState = {
   targetHandle: string | undefined
   replacementNodeId: string | null
   newNodeDesiredPosition: FlowPosition | null
+  mostRecentExecutionId: string | null
+  mostRecentRunPanelOpen: boolean
   workflowName: string
   workflowDescription: string
   workflowTags: string[]
@@ -72,6 +74,8 @@ export type BuilderAction =
   | { type: 'CLOSE_OTHER_PANELS' }
   | { type: 'NODE_CLICK'; payload: { node: Node<NodeType['data']>; isGeneric: boolean } }
   | { type: 'CLEAR_SELECTED_IF_DELETED'; payload: string[] }
+  | { type: 'SET_MOST_RECENT_EXECUTION'; payload: string }
+  | { type: 'CLOSE_MOST_RECENT_RUN_PANEL' }
   | { type: 'INIT_WORKFLOW'; payload: { name: string; description: string; tags: string[]; isEnabled: boolean } }
 
 // Lookup table for simple state updates - maps action type to the state key it updates
@@ -359,6 +363,17 @@ export function builderReducer(state: BuilderState, action: BuilderAction): Buil
         return { ...state, selectedNode: null }
       }
       return state
+    case 'SET_MOST_RECENT_EXECUTION':
+      return {
+        ...state,
+        mostRecentExecutionId: action.payload,
+        mostRecentRunPanelOpen: true,
+      }
+    case 'CLOSE_MOST_RECENT_RUN_PANEL':
+      return {
+        ...state,
+        mostRecentRunPanelOpen: false,
+      }
     case 'INIT_WORKFLOW':
       // SECURITY: Reset all UI state when initializing a new workflow
       // Prevents stale UI state (selected nodes, open panels) from persisting across workflow changes
@@ -378,6 +393,8 @@ export function builderReducer(state: BuilderState, action: BuilderAction): Buil
         detailsOpen: false,
         historyCardOpen: false,
         selectedExecutionId: null,
+        mostRecentExecutionId: null,
+        mostRecentRunPanelOpen: false,
         // Reset edge connection context
         sourceNodeId: null,
         targetNodeId: null,
@@ -413,6 +430,8 @@ export function getInitialBuilderState(): BuilderState {
     targetHandle: undefined,
     replacementNodeId: null,
     newNodeDesiredPosition: null,
+    mostRecentExecutionId: null,
+    mostRecentRunPanelOpen: false,
     workflowName: '',
     workflowDescription: '',
     workflowTags: [],

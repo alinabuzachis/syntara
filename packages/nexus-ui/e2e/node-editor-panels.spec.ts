@@ -414,10 +414,10 @@ test.describe('Node editor panels', () => {
     await expect(app.getByRole('button', { name: 'Run now' })).toBeVisible()
     await app.getByRole('button', { name: 'Run now' }).click()
 
-    // UI navigates to execution page after run
-    await app.waitForURL(/\/executions\//)
+    // After run, user stays in editor — wait for the success toast confirming execution started
+    await expect(app.getByText('Workflow started')).toBeVisible({ timeout: 10_000 })
 
-    // --- Phase 3: Go back to the builder and mock completed execution data ---
+    // --- Phase 3: Navigate away and mock completed execution data ---
     // Set up execution data mocks BEFORE navigating back
     await app.route(/\/api\/v1\/executions/, async (route) => {
       const url = route.request().url()
