@@ -6,6 +6,8 @@
 
 # Claude Skill: PatternFly UX Design System — Opinionated Implementation
 
+> **Before writing React, Zod, Zustand, or other library code**, fetch current docs from [`./library_references.md`](./library_references.md).
+
 Your goal is to build frontend UI that adheres to PatternFly standards **and** the Automation Orchestrator UX team's opinionated component usage. This skill codifies specific "Ansible-first" patterns to ensure consistency across all feature teams and reduce cognitive load for users.
 
 ---

@@ -4,6 +4,12 @@ Detailed code examples and patterns for this project. Referenced from CLAUDE.md'
 
 ---
 
+## Library References
+
+See [`./library_references.md`](./library_references.md) for `llms.txt` URLs and official docs links for all libraries used in this project. Fetch the relevant entry before writing code against a library to ensure you use current APIs.
+
+---
+
 ## 1. Always Use Typed API Clients — Never Raw `fetch()`
 
 Every API endpoint has a type-safe client generated from OpenAPI contracts. Raw `fetch()` bypasses auth middleware (token refresh, 401 retry), error interceptors, base URL configuration, and TypeScript type safety.

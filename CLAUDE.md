@@ -151,6 +151,7 @@ For how the UI is structured, see these comprehensive guides:
 | **Visual regression testing**       | [`packages/nexus-ui/VISUAL_REGRESSION.md`](packages/nexus-ui/VISUAL_REGRESSION.md) — page registry, baselines, CI screenshots                                                                                                                      |
 | **New workflow step type**          | `packages/nexus-ui/src/routes/builder/registry/nodes/QUICK_START.md`                                                                                                                                                                               |
 | **UX / PatternFly design system**   | [`.claude/skills/patternfly_ux_design_system.md`](.claude/skills/patternfly_ux_design_system.md) — PF6 patterns                                                                                                                                    |
+| **Library docs / llms.txt links**   | [`.claude/skills/library_references.md`](.claude/skills/library_references.md) — fetch before writing React, Zod, Zustand, Vitest, Vite, or TanStack Query code                                                                                   |
 | **Page content frame (`AppPanel`)** | `packages/nexus-ui/src/components/AppPanel.tsx` — `Panel` → `PanelMain` → `PanelMainBody`; see JSDoc (glass vs `opaqueFloatingFill` vs `variant="raised"`) and [patternfly-react#12372](https://github.com/patternfly/patternfly-react/pull/12372) |
 
 ### Quick Reference: Common Tasks
