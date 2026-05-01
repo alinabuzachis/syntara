@@ -54,7 +54,7 @@ const mockNexusGroups = [
 
 const defaultProps = {
   providerId: 'provider-123',
-  idpType: 'microsoft_entra',
+  idpType: 'custom',
   autoCreateGroups: false,
   providerConfig: {
     issuer_url: 'https://example.com',

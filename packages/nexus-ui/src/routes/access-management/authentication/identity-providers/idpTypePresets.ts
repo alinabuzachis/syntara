@@ -4,7 +4,6 @@
  */
 
 export const IdpTypeKey = {
-  MICROSOFT_ENTRA: 'microsoft_entra',
   AAP: 'aap',
   CUSTOM: 'custom',
 } as const
@@ -25,18 +24,6 @@ export type IdpTypePreset = {
 }
 
 export const IDP_TYPE_PRESETS: Record<string, IdpTypePreset> = {
-  [IdpTypeKey.MICROSOFT_ENTRA]: {
-    label: 'Microsoft Entra ID',
-    scopes: 'openid profile email',
-    claimMapping: {
-      subject: 'sub',
-      email: 'email',
-      username: 'preferred_username',
-      fullName: 'name',
-      groups: 'groups',
-    },
-    groupMappingExpression: 'groups[*]',
-  },
   [IdpTypeKey.AAP]: {
     label: 'Ansible Automation Platform',
     scopes: 'read write openid roles',

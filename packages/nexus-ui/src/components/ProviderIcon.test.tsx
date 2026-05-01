@@ -5,11 +5,6 @@ import { axe } from 'vitest-axe'
 import { ProviderIcon } from './ProviderIcon'
 
 describe('ProviderIcon', () => {
-  it('renders Microsoft icon for microsoft_entra idpType', () => {
-    render(<ProviderIcon name="My Provider" idpType="microsoft_entra" />)
-    expect(screen.getByRole('img', { hidden: true })).toBeInTheDocument()
-  })
-
   it('renders Ansible icon for aap idpType', () => {
     render(<ProviderIcon name="My Provider" idpType="aap" />)
     expect(screen.getByRole('img', { hidden: true })).toBeInTheDocument()
@@ -31,7 +26,7 @@ describe('ProviderIcon', () => {
   })
 
   it('has no accessibility violations with icon', async () => {
-    const { container } = render(<ProviderIcon name="My Provider" idpType="microsoft_entra" />)
+    const { container } = render(<ProviderIcon name="My Provider" idpType="aap" />)
     const results = await axe(container)
     expect(results).toHaveNoViolations()
   })

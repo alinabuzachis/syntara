@@ -277,19 +277,19 @@ describe('IdentityProviderDetail', () => {
   })
 
   it('shows the IDP type label from presets for known types', () => {
-    const entraProvider = {
+    const aapProvider = {
       ...mockProvider,
       configuration: {
         ...mockProvider.configuration,
-        idp_type: 'microsoft_entra',
+        idp_type: 'aap',
       },
     }
 
-    vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn({ data: entraProvider }))
+    vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn({ data: aapProvider }))
 
     render(<IdentityProviderDetail />, { wrapper: createWrapper() })
 
-    expect(screen.getByText('Microsoft Entra ID')).toBeInTheDocument()
+    expect(screen.getByText('Ansible Automation Platform')).toBeInTheDocument()
   })
 
   it('shows raw idp_type value as label for unknown types', () => {

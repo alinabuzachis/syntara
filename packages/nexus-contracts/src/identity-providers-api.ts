@@ -140,7 +140,7 @@ export interface components {
       provider_type: 'oidc'
       /**
        * Idp Type
-       * @description Identity provider type hint. Known values: aap, microsoft_entra, custom
+       * @description Identity provider type hint. Known values: aap, custom
        */
       idp_type?: string | null
       /**
@@ -328,7 +328,7 @@ export interface components {
       provider_type: 'oidc'
       /**
        * Idp Type
-       * @description Identity provider type hint. Known values: aap, microsoft_entra, custom
+       * @description Identity provider type hint. Known values: aap, custom
        */
       idp_type?: string | null
       /**

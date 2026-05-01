@@ -1,21 +1,18 @@
-import { AnsibleTowerIcon, GlobeIcon, MicrosoftIcon } from '@patternfly/react-icons'
+import { AnsibleTowerIcon, GlobeIcon } from '@patternfly/react-icons'
 
 import { IdpTypeKey } from '../routes/access-management/authentication/identity-providers/idpTypePresets'
 
 const defaultStyle: React.CSSProperties = { marginRight: 'var(--pf-t--global--spacer--sm)' }
 
-type ProviderIconKey = 'microsoft' | 'ansible' | null
+type ProviderIconKey = 'ansible' | null
 
 const IDP_TYPE_TO_ICON: Record<string, ProviderIconKey> = {
-  [IdpTypeKey.MICROSOFT_ENTRA]: 'microsoft',
   [IdpTypeKey.AAP]: 'ansible',
 }
 
-/** Returns the icon key from the provider template, falling back to name matching. */
 function getProviderIconKey(name: string, idpType?: string | null): ProviderIconKey {
   if (idpType && idpType in IDP_TYPE_TO_ICON) return IDP_TYPE_TO_ICON[idpType]
   const lower = name.toLowerCase()
-  if (lower.includes('azure') || lower.includes('microsoft') || lower.includes('entra')) return 'microsoft'
   if (lower.includes('ansible') || lower.includes('aap')) return 'ansible'
   return null
 }
@@ -31,8 +28,6 @@ export function ProviderIcon({ name, idpType, style }: Readonly<ProviderIconProp
   const iconStyle = style ?? defaultStyle
 
   switch (key) {
-    case 'microsoft':
-      return <MicrosoftIcon style={iconStyle} />
     case 'ansible':
       return <AnsibleTowerIcon style={iconStyle} />
     case null:

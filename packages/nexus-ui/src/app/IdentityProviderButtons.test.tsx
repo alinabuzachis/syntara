@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -102,7 +102,7 @@ describe('IdentityProviderButtons', () => {
 
     // Assert
     const button = screen.getByRole('button', { name: /log in with okta/i })
-    expect(button.querySelector('svg')).toBeInTheDocument()
+    expect(within(button).getByRole('img', { hidden: true })).toBeInTheDocument()
     expect(button).toHaveTextContent('Log in with Okta')
   })
 
@@ -115,19 +115,7 @@ describe('IdentityProviderButtons', () => {
 
     // Assert
     const button = screen.getByRole('button', { name: /log in with custom idp/i })
-    expect(button.querySelector('svg')).toBeInTheDocument()
-  })
-
-  it('renders known brand icon for azure provider', () => {
-    // Arrange
-    const providers: AuthProvider[] = [{ id: 'azure-1', name: 'Azure AD', provider_type: 'oidc' }]
-
-    // Act
-    render(<IdentityProviderButtons providers={providers} />)
-
-    // Assert - button exists, uses MicrosoftIcon (SVG) instead of letter
-    const button = screen.getByRole('button', { name: /log in with azure ad/i })
-    expect(button).toBeInTheDocument()
+    expect(within(button).getByRole('img', { hidden: true })).toBeInTheDocument()
   })
 
   it('renders buttons with primary variant', () => {
@@ -250,13 +238,13 @@ describe('IdentityProviderButtons', () => {
 
     // Assert - each button has an SVG icon
     const googleButton = screen.getByRole('button', { name: /log in with google/i })
-    expect(googleButton.querySelector('svg')).toBeInTheDocument()
+    expect(within(googleButton).getByRole('img', { hidden: true })).toBeInTheDocument()
 
     const microsoftButton = screen.getByRole('button', { name: /log in with microsoft/i })
-    expect(microsoftButton.querySelector('svg')).toBeInTheDocument()
+    expect(within(microsoftButton).getByRole('img', { hidden: true })).toBeInTheDocument()
 
     const auth0Button = screen.getByRole('button', { name: /log in with auth0/i })
-    expect(auth0Button.querySelector('svg')).toBeInTheDocument()
+    expect(within(auth0Button).getByRole('img', { hidden: true })).toBeInTheDocument()
   })
 
   it('displays globe icon for each unknown provider', () => {
@@ -271,8 +259,14 @@ describe('IdentityProviderButtons', () => {
     render(<IdentityProviderButtons providers={providers} />)
 
     // Assert - Each button shows an SVG globe icon
-    expect(screen.getByRole('button', { name: /zebra auth/i }).querySelector('svg')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /yellow idp/i }).querySelector('svg')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /xauthprovider/i }).querySelector('svg')).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('button', { name: /zebra auth/i })).getByRole('img', { hidden: true })
+    ).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('button', { name: /yellow idp/i })).getByRole('img', { hidden: true })
+    ).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('button', { name: /xauthprovider/i })).getByRole('img', { hidden: true })
+    ).toBeInTheDocument()
   })
 })

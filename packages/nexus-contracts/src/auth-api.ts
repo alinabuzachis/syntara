@@ -265,7 +265,7 @@ export interface components {
       provider_type: string
       /**
        * Provider Template
-       * @description Provider template (e.g. microsoft_entra, aap)
+       * @description Provider template (e.g. aap)
        */
       provider_template?: string | null
     }

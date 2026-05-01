@@ -112,14 +112,7 @@ describe('AdvancedSection', () => {
 
   it('shows reset button when expression differs from default', async () => {
     const user = userEvent.setup()
-    render(
-      <AdvancedSection
-        {...defaultProps}
-        expression="custom[*]"
-        defaultExpression="groups[*]"
-        idpType="microsoft_entra"
-      />
-    )
+    render(<AdvancedSection {...defaultProps} expression="custom[*]" defaultExpression="groups[*]" idpType="custom" />)
 
     await user.click(screen.getByText('Advanced'))
     expect(screen.getByRole('button', { name: /reset to default/i })).toBeInTheDocument()
