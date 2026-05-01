@@ -12,12 +12,20 @@ describe('parseExpression', () => {
     expect(parseExpression('   ')).toEqual({ root: null })
   })
 
-  it('returns empty expression for invalid format (no ${...})', () => {
-    expect(parseExpression('input.age >= 18')).toEqual({ root: null })
+  it('parses expression even without variable wrapping (legacy/manual format)', () => {
+    // Parser is lenient - accepts both wrapped and unwrapped variables
+    // This supports manual JSON editing and legacy workflows
+    const result = parseExpression('input.age >= 18')
+    expect(result.root).not.toBeNull()
+    expect(result.root?.type).toBe('condition')
+    const condition = result.root as ExpressionCondition
+    expect(condition.variable).toBe('input.age')
+    expect(condition.operator).toBe('>=')
+    expect(condition.value).toBe('18')
   })
 
   it('parses simple condition', () => {
-    const result = parseExpression('${input.age >= 18}')
+    const result = parseExpression('${input.age} >= 18')
 
     expect(result.root).not.toBeNull()
     expect(result.root?.type).toBe('condition')
@@ -30,7 +38,7 @@ describe('parseExpression', () => {
   })
 
   it('parses condition with == operator', () => {
-    const result = parseExpression('${input.status == active}')
+    const result = parseExpression('${input.status} == active')
     const condition = result.root as ExpressionCondition
 
     expect(condition.variable).toBe('input.status')
@@ -39,7 +47,7 @@ describe('parseExpression', () => {
   })
 
   it('parses condition with == operator and NOT', () => {
-    const result = parseExpression('${!(input.status == inactive)}')
+    const result = parseExpression('!(${input.status} == inactive)')
     const condition = result.root as ExpressionCondition
 
     expect(condition.operator).toBe('==')
@@ -47,28 +55,28 @@ describe('parseExpression', () => {
   })
 
   it('parses condition with > operator', () => {
-    const result = parseExpression('${input.score > 50}')
+    const result = parseExpression('${input.score} > 50')
     const condition = result.root as ExpressionCondition
 
     expect(condition.operator).toBe('>')
   })
 
   it('parses condition with < operator', () => {
-    const result = parseExpression('${input.score < 100}')
+    const result = parseExpression('${input.score} < 100')
     const condition = result.root as ExpressionCondition
 
     expect(condition.operator).toBe('<')
   })
 
   it('parses condition with <= operator', () => {
-    const result = parseExpression('${input.age <= 65}')
+    const result = parseExpression('${input.age} <= 65')
     const condition = result.root as ExpressionCondition
 
     expect(condition.operator).toBe('<=')
   })
 
   it('parses negated condition with NOT', () => {
-    const result = parseExpression('${!(user.status == inactive)}')
+    const result = parseExpression('!(${user.status} == inactive)')
     const condition = result.root as ExpressionCondition
 
     expect(condition.type).toBe('condition')
@@ -79,7 +87,7 @@ describe('parseExpression', () => {
   })
 
   it('converts != operator to == with negate flag for backward compatibility', () => {
-    const result = parseExpression('${x != y}')
+    const result = parseExpression('${x} != y')
     const condition = result.root as ExpressionCondition
 
     expect(condition.type).toBe('condition')
@@ -90,7 +98,7 @@ describe('parseExpression', () => {
   })
 
   it('converts != in complex expressions for backward compatibility', () => {
-    const result = parseExpression('${user.status != active && user.role != admin}')
+    const result = parseExpression('${user.status} != active && user.role != admin')
     const group = result.root as ExpressionGroup
 
     expect(group.type).toBe('group')
@@ -111,7 +119,7 @@ describe('parseExpression', () => {
   })
 
   it('parses AND group with two conditions', () => {
-    const result = parseExpression('${input.age >= 18 && input.score > 50}')
+    const result = parseExpression('${input.age} >= 18 && input.score > 50')
 
     expect(result.root?.type).toBe('group')
 
@@ -131,7 +139,7 @@ describe('parseExpression', () => {
   })
 
   it('parses OR group with two conditions', () => {
-    const result = parseExpression('${input.premium == true || input.vip == true}')
+    const result = parseExpression('${input.premium} == true || input.vip == true')
 
     const group = result.root as ExpressionGroup
     expect(group.operator).toBe('OR')
@@ -139,7 +147,7 @@ describe('parseExpression', () => {
   })
 
   it('parses nested groups with parentheses (AND with nested OR)', () => {
-    const result = parseExpression('${input.age >= 18 && (input.score > 50 || input.premium == true)}')
+    const result = parseExpression('${input.age} >= 18 && (input.score > 50 || input.premium == true)')
 
     const rootGroup = result.root as ExpressionGroup
     expect(rootGroup.type).toBe('group')
@@ -157,7 +165,7 @@ describe('parseExpression', () => {
   })
 
   it('parses nested groups (OR with nested AND)', () => {
-    const result = parseExpression('${(input.age >= 18 && input.score > 50) || input.premium == true}')
+    const result = parseExpression('(${input.age} >= 18 && ${input.score} > 50) || ${input.premium} == true')
 
     const rootGroup = result.root as ExpressionGroup
     expect(rootGroup.operator).toBe('OR')
@@ -170,7 +178,7 @@ describe('parseExpression', () => {
 
   it('parses deeply nested groups (3 levels)', () => {
     const result = parseExpression(
-      '${input.age >= 18 && ((input.score > 50 && input.verified == true) || input.premium == true)}'
+      '${input.age} >= 18 && ((${input.score} > 50 && ${input.verified} == true) || ${input.premium} == true)'
     )
 
     const rootGroup = result.root as ExpressionGroup
@@ -186,7 +194,7 @@ describe('parseExpression', () => {
   })
 
   it('parses expression with extra parentheses', () => {
-    const result = parseExpression('${(input.age >= 18)}')
+    const result = parseExpression('(${input.age} >= 18)')
 
     const condition = result.root as ExpressionCondition
     expect(condition.type).toBe('condition')
@@ -194,7 +202,7 @@ describe('parseExpression', () => {
   })
 
   it('parses variable with nested property access', () => {
-    const result = parseExpression('${fetch_order.output.riskScore > 0.7}')
+    const result = parseExpression('${fetch_order.output.riskScore} > 0.7')
 
     const condition = result.root as ExpressionCondition
     expect(condition.variable).toBe('fetch_order.output.riskScore')
@@ -202,7 +210,7 @@ describe('parseExpression', () => {
   })
 
   it('handles whitespace in expression', () => {
-    const result = parseExpression('${  input.age   >=   18  }')
+    const result = parseExpression('${  input.age  }  >=   18')
 
     const condition = result.root as ExpressionCondition
     expect(condition.variable).toBe('input.age')
@@ -211,7 +219,7 @@ describe('parseExpression', () => {
   })
 
   it('parses three conditions with AND', () => {
-    const result = parseExpression('${input.age >= 18 && input.age <= 65 && input.score > 50}')
+    const result = parseExpression('${input.age} >= 18 && input.age <= 65 && input.score > 50')
 
     const group = result.root as ExpressionGroup
     expect(group.operator).toBe('AND')
@@ -219,7 +227,7 @@ describe('parseExpression', () => {
   })
 
   it('parses complex real-world example', () => {
-    const result = parseExpression('${input.orderAmount > 10000 || fetch_order_details.output.riskScore > 0.7}')
+    const result = parseExpression('${input.orderAmount} > 10000 || fetch_order_details.output.riskScore > 0.7')
 
     const group = result.root as ExpressionGroup
     expect(group.operator).toBe('OR')
@@ -237,7 +245,7 @@ describe('parseExpression', () => {
   })
 
   it('parses temperature example', () => {
-    const result = parseExpression('${inputs.temperature > 30}')
+    const result = parseExpression('${inputs.temperature} > 30')
 
     const condition = result.root as ExpressionCondition
     expect(condition.variable).toBe('inputs.temperature')
@@ -245,7 +253,7 @@ describe('parseExpression', () => {
   })
 
   it('parses boolean comparison', () => {
-    const result = parseExpression('${user.preferences.notifications_enabled == true}')
+    const result = parseExpression('${user.preferences.notifications_enabled} == true')
 
     const condition = result.root as ExpressionCondition
     expect(condition.variable).toBe('user.preferences.notifications_enabled')
@@ -258,12 +266,13 @@ describe('parseExpression', () => {
   })
 
   it('returns null for expression with only operator', () => {
-    const result = parseExpression('${>= 18}')
+    // Operator without variable should fail to parse
+    const result = parseExpression('>= 18')
     expect(result.root).toBeNull()
   })
 
   it('parses negated AND group', () => {
-    const result = parseExpression('${!((input.age >= 18 && input.score > 50))}')
+    const result = parseExpression('!((${input.age} >= 18 && ${input.score} > 50))')
 
     expect(result.root?.type).toBe('group')
     const group = result.root as ExpressionGroup
@@ -273,7 +282,7 @@ describe('parseExpression', () => {
   })
 
   it('parses negated OR group', () => {
-    const result = parseExpression('${!((input.premium == true || input.vip == true))}')
+    const result = parseExpression('!((${input.premium} == true || ${input.vip} == true))')
 
     const group = result.root as ExpressionGroup
     expect(group.operator).toBe('OR')
@@ -282,7 +291,7 @@ describe('parseExpression', () => {
   })
 
   it('parses negated single child group', () => {
-    const result = parseExpression('${!(input.age >= 18)}')
+    const result = parseExpression('!(${input.age} >= 18)')
 
     // Should parse as negated condition, not group
     const condition = result.root as ExpressionCondition
@@ -291,7 +300,7 @@ describe('parseExpression', () => {
   })
 
   it('parses negated nested group', () => {
-    const result = parseExpression('${input.age >= 18 && !((input.score > 50 || input.premium == true))}')
+    const result = parseExpression('${input.age} >= 18 && !((input.score > 50 || input.premium == true))')
 
     const rootGroup = result.root as ExpressionGroup
     expect(rootGroup.type).toBe('group')
@@ -309,7 +318,7 @@ describe('parseExpression', () => {
   })
 
   it('parses top-level negated group with nested structure', () => {
-    const result = parseExpression('${!((input.age >= 18 && (input.score > 50 || input.premium == true)))}')
+    const result = parseExpression('!((${input.age} >= 18 && (${input.score} > 50 || ${input.premium} == true)))')
 
     const group = result.root as ExpressionGroup
     expect(group.type).toBe('group')
@@ -325,7 +334,7 @@ describe('parseExpression', () => {
   })
 
   it('parses AND group with two negated conditions', () => {
-    const result = parseExpression('${(!(a < b) && !(c == d))}')
+    const result = parseExpression('(!(${a} < b) && !(${c} == d))')
 
     expect(result.root?.type).toBe('group')
     const group = result.root as ExpressionGroup
@@ -352,7 +361,7 @@ describe('parseExpression', () => {
   it('parses negated group with single negated condition preserving structure', () => {
     // This tests the special case where !((!(c == d))) should parse as a group,
     // not collapse to a single condition. This preserves user intent.
-    const result = parseExpression('${!((!(c == d)))}')
+    const result = parseExpression('!((!(${c} == d)))')
 
     expect(result.root?.type).toBe('group')
     const group = result.root as ExpressionGroup
@@ -473,7 +482,7 @@ describe('splitByOperator', () => {
 describe('parseExpression - new operators', () => {
   describe('String operators', () => {
     it('parses contains operator', () => {
-      const result = parseExpression('${name contains "admin"}')
+      const result = parseExpression('${name} contains "admin"')
       const condition = result.root as ExpressionCondition
 
       expect(condition.type).toBe('condition')
@@ -484,7 +493,7 @@ describe('parseExpression - new operators', () => {
     })
 
     it('parses contains operator with NOT', () => {
-      const result = parseExpression('${!(email contains spam)}')
+      const result = parseExpression('!(${email} contains spam)')
       const condition = result.root as ExpressionCondition
 
       expect(condition.operator).toBe('contains')
@@ -494,7 +503,7 @@ describe('parseExpression - new operators', () => {
     })
 
     it('parses startsWith operator', () => {
-      const result = parseExpression('${username startsWith "user_"}')
+      const result = parseExpression('${username} startsWith "user_"')
       const condition = result.root as ExpressionCondition
 
       expect(condition.operator).toBe('startsWith')
@@ -502,7 +511,7 @@ describe('parseExpression - new operators', () => {
     })
 
     it('parses endsWith operator', () => {
-      const result = parseExpression('${filename endsWith .txt}')
+      const result = parseExpression('${filename} endsWith .txt')
       const condition = result.root as ExpressionCondition
 
       expect(condition.operator).toBe('endsWith')
@@ -510,7 +519,7 @@ describe('parseExpression - new operators', () => {
     })
 
     it('parses matches operator for regex', () => {
-      const result = parseExpression('${code matches ^[A-Z]{3}$}')
+      const result = parseExpression('${code} matches ^[A-Z]{3}$')
       const condition = result.root as ExpressionCondition
 
       expect(condition.operator).toBe('matches')
@@ -520,7 +529,7 @@ describe('parseExpression - new operators', () => {
 
   describe('Array operators', () => {
     it('parses lengthEqualTo operator', () => {
-      const result = parseExpression('${tags lengthEqualTo 5}')
+      const result = parseExpression('${tags} lengthEqualTo 5')
       const condition = result.root as ExpressionCondition
 
       expect(condition.type).toBe('condition')
@@ -530,7 +539,7 @@ describe('parseExpression - new operators', () => {
     })
 
     it('parses lengthEqualTo operator with NOT', () => {
-      const result = parseExpression('${!(items lengthEqualTo 0)}')
+      const result = parseExpression('!(${items} lengthEqualTo 0)')
       const condition = result.root as ExpressionCondition
 
       expect(condition.operator).toBe('lengthEqualTo')
@@ -538,7 +547,7 @@ describe('parseExpression - new operators', () => {
     })
 
     it('parses lengthGreaterThan operator', () => {
-      const result = parseExpression('${items lengthGreaterThan 10}')
+      const result = parseExpression('${items} lengthGreaterThan 10')
       const condition = result.root as ExpressionCondition
 
       expect(condition.operator).toBe('lengthGreaterThan')
@@ -547,14 +556,14 @@ describe('parseExpression - new operators', () => {
     })
 
     it('parses lengthLessThan operator', () => {
-      const result = parseExpression('${queue lengthLessThan 100}')
+      const result = parseExpression('${queue} lengthLessThan 100')
       const condition = result.root as ExpressionCondition
 
       expect(condition.operator).toBe('lengthLessThan')
     })
 
     it('parses contains operator for arrays', () => {
-      const result = parseExpression('${tags contains urgent}')
+      const result = parseExpression('${tags} contains urgent')
       const condition = result.root as ExpressionCondition
 
       expect(condition.type).toBe('condition')
@@ -566,7 +575,7 @@ describe('parseExpression - new operators', () => {
 
   describe('Object operators', () => {
     it('parses exists operator', () => {
-      const result = parseExpression('${user.email exists}')
+      const result = parseExpression('${user.email} exists')
       const condition = result.root as ExpressionCondition
 
       expect(condition.type).toBe('condition')
@@ -576,7 +585,7 @@ describe('parseExpression - new operators', () => {
     })
 
     it('parses exists operator with NOT', () => {
-      const result = parseExpression('${!(data.optional exists)}')
+      const result = parseExpression('!(${data.optional} exists)')
       const condition = result.root as ExpressionCondition
 
       expect(condition.operator).toBe('exists')
@@ -585,7 +594,7 @@ describe('parseExpression - new operators', () => {
     })
 
     it('parses isEmpty operator', () => {
-      const result = parseExpression('${data isEmpty}')
+      const result = parseExpression('${data} isEmpty')
       const condition = result.root as ExpressionCondition
 
       expect(condition.operator).toBe('isEmpty')
@@ -594,7 +603,7 @@ describe('parseExpression - new operators', () => {
     })
 
     it('parses isEmpty operator with NOT', () => {
-      const result = parseExpression('${!(results isEmpty)}')
+      const result = parseExpression('!(${results} isEmpty)')
       const condition = result.root as ExpressionCondition
 
       expect(condition.operator).toBe('isEmpty')
@@ -632,7 +641,7 @@ describe('parseExpression - new operators', () => {
 
   describe('Mixed operators in groups', () => {
     it('parses group with old and new operators', () => {
-      const result = parseExpression('${age >= 18 && name contains "user"}')
+      const result = parseExpression('${age} >= 18 && name contains "user"')
 
       const group = result.root as ExpressionGroup
       expect(group.type).toBe('group')
@@ -647,11 +656,116 @@ describe('parseExpression - new operators', () => {
     })
 
     it('parses negated condition with new operator', () => {
-      const result = parseExpression('${!(tags contains admin)}')
+      const result = parseExpression('!(${tags} contains admin)')
       const condition = result.root as ExpressionCondition
 
       expect(condition.operator).toBe('contains')
       expect(condition.negate).toBe(true)
+    })
+  })
+
+  describe('Python operator normalization (backend format)', () => {
+    it('parses Python "and" operator', () => {
+      const result = parseExpression('${a} == 1 and ${b} == 2')
+      const group = result.root as ExpressionGroup
+
+      expect(group.type).toBe('group')
+      expect(group.operator).toBe('AND')
+      expect(group.children).toHaveLength(2)
+    })
+
+    it('parses Python "or" operator', () => {
+      const result = parseExpression('${a} == 1 or ${b} == 2')
+      const group = result.root as ExpressionGroup
+
+      expect(group.type).toBe('group')
+      expect(group.operator).toBe('OR')
+      expect(group.children).toHaveLength(2)
+    })
+
+    it('parses Python "not" operator', () => {
+      const result = parseExpression('not (${a} == 1)')
+      const condition = result.root as ExpressionCondition
+
+      expect(condition.type).toBe('condition')
+      expect(condition.negate).toBe(true)
+    })
+
+    it('parses Python "in" operator (reversed to contains)', () => {
+      const result = parseExpression('"Hello" in ${message.text}')
+      const condition = result.root as ExpressionCondition
+
+      expect(condition.type).toBe('condition')
+      expect(condition.variable).toBe('message.text')
+      expect(condition.operator).toBe('contains')
+      expect(condition.value).toBe('"Hello"')
+    })
+
+    it('parses Python "not in" operator (reversed to negated contains)', () => {
+      const result = parseExpression('"spam" not in ${email.body}')
+      const condition = result.root as ExpressionCondition
+
+      expect(condition.type).toBe('condition')
+      expect(condition.variable).toBe('email.body')
+      expect(condition.operator).toBe('contains')
+      expect(condition.value).toBe('"spam"')
+      expect(condition.negate).toBe(true)
+    })
+
+    it('parses complex Python expression', () => {
+      const result = parseExpression('${status} == "completed" and "Hello" in ${output}')
+      const group = result.root as ExpressionGroup
+
+      expect(group.type).toBe('group')
+      expect(group.operator).toBe('AND')
+      expect(group.children).toHaveLength(2)
+
+      const firstCondition = group.children[0] as ExpressionCondition
+      expect(firstCondition.variable).toBe('status')
+      expect(firstCondition.operator).toBe('==')
+      expect(firstCondition.value).toBe('"completed"')
+
+      const secondCondition = group.children[1] as ExpressionCondition
+      expect(secondCondition.variable).toBe('output')
+      expect(secondCondition.operator).toBe('contains')
+      expect(secondCondition.value).toBe('"Hello"')
+    })
+
+    it('parses real-world AAP condition from backend', () => {
+      const result = parseExpression(
+        '(${activity_39ce8fc9_4932_472b_aaa5_78eacd9554e8.status} == "completed" and "Hello" in ${activity_39ce8fc9_4932_472b_aaa5_78eacd9554e8.output})'
+      )
+      const group = result.root as ExpressionGroup
+
+      expect(group.type).toBe('group')
+      expect(group.operator).toBe('AND')
+
+      const firstCondition = group.children[0] as ExpressionCondition
+      expect(firstCondition.variable).toBe('activity_39ce8fc9_4932_472b_aaa5_78eacd9554e8.status')
+      expect(firstCondition.value).toBe('"completed"')
+
+      const secondCondition = group.children[1] as ExpressionCondition
+      expect(secondCondition.variable).toBe('activity_39ce8fc9_4932_472b_aaa5_78eacd9554e8.output')
+      expect(secondCondition.operator).toBe('contains')
+      expect(secondCondition.value).toBe('"Hello"')
+    })
+
+    it('handles already-normalized expressions (idempotent)', () => {
+      // JavaScript-style expression should parse the same way
+      const jsStyle = parseExpression('${status} == "completed" && ${output} contains "Hello"')
+      const pythonStyle = parseExpression('${status} == "completed" and "Hello" in ${output}')
+
+      // Both should produce equivalent trees
+      expect(jsStyle.root?.type).toBe('group')
+      expect(pythonStyle.root?.type).toBe('group')
+
+      const jsGroup = jsStyle.root as ExpressionGroup
+      const pyGroup = pythonStyle.root as ExpressionGroup
+
+      expect(jsGroup.operator).toBe('AND')
+      expect(pyGroup.operator).toBe('AND')
+      expect(jsGroup.children).toHaveLength(2)
+      expect(pyGroup.children).toHaveLength(2)
     })
   })
 })

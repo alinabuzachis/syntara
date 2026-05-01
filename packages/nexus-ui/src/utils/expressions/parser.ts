@@ -25,21 +25,36 @@
  */
 
 import { generateUUID, isUnaryOperator, SYMBOL_OPERATORS, WORD_OPERATORS } from './defaults'
+import { normalizeBackendExpression } from './normalizer'
 import type { Expression, ExpressionNode, ExpressionCondition, ComparisonOperator } from './types'
+
+// Python operator detection regexes (hoisted to avoid recompilation on every parse)
+const PYTHON_KEYWORDS_RE = /\b(and|or|not)\b/
+// Matches both "value" in ${var} and ${needle} in ${haystack} patterns
+const PYTHON_IN_OP_RE = /(?:['"][^'"]+['"]|\$\{[^}]+\})\s+(not\s+)?in\s+\$\{/
+
+// Condition parsing regex (hoisted to avoid recompilation on recursive parseCondition calls)
+const CONDITION_REGEX = new RegExp(String.raw`^(.+?)\s*(${[...SYMBOL_OPERATORS, ...WORD_OPERATORS].join('|')})\s*(.*)$`)
 
 /**
  * Parse a template string to an expression tree
  *
- * @param templateString - Template string in format: ${expression}
+ * Variable references are wrapped with ${...}, but the overall expression is not.
+ *
+ * @param templateString - Template string with wrapped variables: ${var} == value
  * @returns Expression tree or { root: null } if empty/unparseable
  *
  * @example
- * parseExpression('${input.age >= 18}')
+ * parseExpression('${input.age} >= 18')
  * // Returns: { root: { type: 'condition', variable: 'input.age', operator: '>=', value: '18' } }
  *
  * @example
- * parseExpression('${input.age >= 18 && input.score > 50}')
+ * parseExpression('${input.age} >= 18 && ${input.score} > 50')
  * // Returns: { root: { type: 'group', operator: 'AND', children: [...] } }
+ *
+ * @example
+ * parseExpression('${trigger.enabled}')
+ * // Returns: { root: null } - simple template reference, not parseable as condition
  */
 export function parseExpression(templateString: string): Expression {
   // Handle empty input
@@ -47,29 +62,110 @@ export function parseExpression(templateString: string): Expression {
     return { root: null }
   }
 
-  // Strip ${...} wrapper
-  const trimmed = templateString.trim()
-  const match = trimmed.match(/^\$\{(.+)\}$/)
+  let trimmed = templateString.trim()
 
-  if (!match) {
-    // Not a valid template string, return null to trigger raw mode
+  if (!trimmed) {
     return { root: null }
   }
 
-  const content = match[1].trim()
+  // Check if expression uses Python operators (backend format)
+  // If so, normalize to JavaScript operators before parsing
+  // IMPORTANT: This normalization must happen BEFORE any parsing to ensure
+  // all nested expressions are also normalized (parseNode doesn't normalize)
+  // Note: Detects 'not' broadly (not just 'not (') to catch standalone usage like 'not ${x}'
+  // Strip quoted strings before checking to avoid false positives on keywords in string values
+  const withoutStrings = trimmed.replaceAll(/["'][^"']*["']/g, '')
+  const hasPythonKeywords = PYTHON_KEYWORDS_RE.test(withoutStrings)
+  const hasPythonInOperator = PYTHON_IN_OP_RE.test(trimmed)
+  const hasPythonOps = hasPythonKeywords || hasPythonInOperator
 
-  if (!content) {
-    return { root: null }
+  if (hasPythonOps) {
+    try {
+      trimmed = normalizeBackendExpression(trimmed)
+    } catch (error) {
+      // If normalization fails, return error instead of trying to parse
+      return {
+        root: null,
+        error: `Failed to normalize Python-style expression: ${error instanceof Error ? error.message : String(error)}`,
+      }
+    }
   }
 
-  // Try to parse as nested structure
+  // Try to parse as nested structure (no longer requires outer ${...} wrapper)
+  // parseNode expects expressions with JavaScript operators (&&, ||, !)
   try {
-    const root = parseNode(content)
+    const root = parseNode(trimmed)
     return { root }
   } catch {
     // Fallback: return null and let raw editor handle it
     return { root: null }
   }
+}
+
+/**
+ * Track string state while iterating through expression characters.
+ * Handles quote boundaries and escape sequences.
+ *
+ * @returns Updated index (may skip escaped char) and whether we're still in a string
+ */
+function handleStringChar(
+  char: string,
+  nextChar: string | undefined,
+  inString: string | null
+): { skipNext: boolean; inString: string | null } {
+  if (inString) {
+    // Inside a string: check for escape or closing quote
+    if (char === '\\' && nextChar) {
+      return { skipNext: true, inString } // Skip escaped character
+    }
+    if (char === inString) {
+      return { skipNext: false, inString: null } // Exit string
+    }
+    return { skipNext: false, inString } // Still in string
+  }
+
+  // Not in string: check if starting one
+  if (char === '"' || char === "'") {
+    return { skipNext: false, inString: char }
+  }
+
+  return { skipNext: false, inString: null }
+}
+
+/**
+ * Check if removing outer parentheses would leave balanced parens.
+ * Skips parentheses inside quoted strings to avoid false negatives.
+ *
+ * @param inner - String after removing outer parens
+ * @returns true if parens are balanced (safe to strip outer parens)
+ */
+function areParensBalanced(inner: string): boolean {
+  let depth = 0
+  let inString: string | null = null
+
+  for (let i = 0; i < inner.length; i++) {
+    const char = inner[i]
+    const nextChar = i + 1 < inner.length ? inner[i + 1] : undefined
+
+    // Handle string boundaries and escapes
+    const stringState = handleStringChar(char, nextChar, inString)
+    inString = stringState.inString
+    if (stringState.skipNext) {
+      i++ // Skip the escaped character
+      continue
+    }
+    if (inString) continue // Skip chars inside strings
+
+    // Count parentheses (only outside strings)
+    if (char === '(') {
+      depth++
+    } else if (char === ')') {
+      depth--
+      if (depth < 0) return false // Unmatched closing paren
+    }
+  }
+
+  return depth === 0 // All parens matched
 }
 
 /**
@@ -86,9 +182,9 @@ export function parseNode(expr: string): ExpressionNode {
     throw new Error('Empty expression')
   }
 
-  // Remove outer parentheses first if present
-  const parenMatch = expr.match(/^\((.+)\)$/)
-  if (parenMatch) {
+  // Remove outer parentheses first if present AND they are matching pairs
+  const parenMatch = /^\((.+)\)$/.exec(expr)
+  if (parenMatch && areParensBalanced(parenMatch[1])) {
     return parseNode(parenMatch[1])
   }
 
@@ -115,8 +211,10 @@ export function parseNode(expr: string): ExpressionNode {
   }
 
   // Handle NOT operator - applies to both conditions and groups
-  // Examples: !(input.age >= 18) for conditions, !((A && B)) for groups
-  const negateMatch = expr.match(/^!\s*\((.+)\)$/)
+  // Supports both ! and not for backward compatibility
+  // Examples: not (input.age >= 18) or !(input.age >= 18) for conditions
+  //           not ((A && B)) or !((A && B)) for groups
+  const negateMatch = /^(?:!|not)\s*\((.+)\)$/.exec(expr)
   if (negateMatch) {
     const inner = negateMatch[1]
     // Special case: !((...)) indicates a negated group with single child
@@ -147,32 +245,32 @@ export function parseNode(expr: string): ExpressionNode {
 /**
  * Parse a condition expression
  *
- * @param expr - Condition string like "input.age >= 18" or "name contains admin"
+ * Variables should be wrapped with ${...}, values should not be.
+ *
+ * @param expr - Condition string like "${input.age} >= 18" or "${name} contains admin"
  * @returns ExpressionCondition
  * @throws Error if not a valid condition
  */
 function parseCondition(expr: string): ExpressionCondition {
-  // Build regex pattern with all operators
-  // Symbol operators must be checked in order (>= before >, <= before <, != included for backward compatibility)
-  // Word operators can be in any order
-  // Using centralized constants from defaults.ts
-  const symbolOps = SYMBOL_OPERATORS.join('|')
-  const wordOps = WORD_OPERATORS.join('|')
-  const allOps = `${symbolOps}|${wordOps}`
-
-  const conditionMatch = expr.match(new RegExp(`^(.+?)\\s*(${allOps})\\s*(.*)$`))
+  const conditionMatch = CONDITION_REGEX.exec(expr)
 
   if (!conditionMatch) {
     throw new Error(`Invalid condition: ${expr}`)
   }
 
-  const variable = conditionMatch[1].trim()
+  let variable = conditionMatch[1].trim()
   let operator = conditionMatch[2] as ComparisonOperator
   const value = conditionMatch[3].trim()
 
+  // Unwrap variable from ${...} if present
+  const varMatch = /^\$\{(.+)\}$/.exec(variable)
+  if (varMatch) {
+    variable = varMatch[1].trim()
+  }
+
   // Convert negated operators to their positive form + negate flag
   // This provides backward compatibility while standardizing the UI representation
-  // Old workflows with ${x != y} will parse and display as: x == y with NOT checkbox checked
+  // Old workflows with ${x} != y will parse and display as: x == y with NOT checkbox checked
   let negate = false
   if (operator === '!=') {
     operator = '=='

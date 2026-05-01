@@ -143,14 +143,14 @@ describe('ExpressionBuilderCore', () => {
   it('serializes visual expression when switching to raw mode', async () => {
     const user = userEvent.setup()
     const onChange = vi.fn()
-    render(<ExpressionBuilderCore value="${input.age >= 18}" onChange={onChange} />)
+    render(<ExpressionBuilderCore value="${input.age} >= 18" onChange={onChange} />)
 
     // Switch to raw mode
     const modeSelect = screen.getByLabelText('Expression editor mode')
     await user.selectOptions(modeSelect, 'raw')
 
     const rawInput = await screen.findByLabelText('Raw expression')
-    expect(rawInput).toHaveValue('${input.age >= 18}')
+    expect(rawInput).toHaveValue('${input.age} >= 18')
   })
 
   it('handles external value change', async () => {

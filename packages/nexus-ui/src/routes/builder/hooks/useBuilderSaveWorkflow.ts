@@ -133,7 +133,20 @@ export function useBuilderSaveWorkflow(params: UseBuilderSaveWorkflowParams): ()
       if (isNew && workflowName === DEFAULT_WORKFLOW_NAME && workflowsListResources) {
         nameToSave = getNextDefaultWorkflowName(workflowsListResources)
       }
-      const workflowDef = getWorkflowDefinition()
+
+      let workflowDef
+      try {
+        workflowDef = getWorkflowDefinition()
+      } catch (error) {
+        const errorMessage = getErrorMessage(error)
+        showError({
+          title: 'Build failed',
+          description: `Failed to build workflow definition. Check condition/loop expressions for syntax errors: ${errorMessage}`,
+        })
+        resolve(false)
+        return
+      }
+
       workflowDef.name = nameToSave
       const labels = Object.fromEntries(workflowTags.map((t) => [t, '']))
       const createPayload: CreateWorkflowBodyExtended = {

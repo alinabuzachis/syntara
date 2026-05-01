@@ -434,4 +434,147 @@ describe('buildWorkflowDefinition', () => {
       expect(result.edges[2].to_port).toBe('complete')
     })
   })
+
+  describe('Condition expression transformation', () => {
+    it('transforms UI negation syntax (!) to backend syntax (not) for condition nodes', () => {
+      const activities: Activity[] = [
+        {
+          id: 'cond-1',
+          type: 'condition',
+          name: 'Check Status',
+          config: { condition: '!(${status} == "completed")' },
+        },
+      ]
+
+      const result = buildWorkflowDefinition('Test', '', activities, [], [])
+
+      expect(result.nodes[0].config.condition).toBe('not (${status} == "completed")')
+    })
+
+    it('transforms UI negation syntax (!) to backend syntax (not) for loop nodes', () => {
+      const activities: Activity[] = [
+        {
+          id: 'loop-1',
+          type: 'loop',
+          name: 'While Loop',
+          config: { type: 'while', condition: '!(${done} == true)' },
+        },
+      ]
+
+      const result = buildWorkflowDefinition('Test', '', activities, [], [])
+
+      expect(result.nodes[0].config.condition).toBe('not (${done} == true)')
+    })
+
+    it('preserves condition expressions without negation', () => {
+      const activities: Activity[] = [
+        {
+          id: 'cond-1',
+          type: 'condition',
+          name: 'Check Value',
+          config: { condition: '${value} > 10' },
+        },
+      ]
+
+      const result = buildWorkflowDefinition('Test', '', activities, [], [])
+
+      expect(result.nodes[0].config.condition).toBe('${value} > 10')
+    })
+
+    it('handles complex nested expressions with negation', () => {
+      const activities: Activity[] = [
+        {
+          id: 'cond-1',
+          type: 'condition',
+          name: 'Complex Check',
+          config: { condition: '!((${a} > 5 && ${b} < 10))' },
+        },
+      ]
+
+      const result = buildWorkflowDefinition('Test', '', activities, [], [])
+
+      expect(result.nodes[0].config.condition).toBe('not ((${a} > 5 and ${b} < 10))')
+    })
+
+    it('does not transform non-condition/loop node configs', () => {
+      const activities: Activity[] = [
+        {
+          id: 'script-1',
+          type: 'script',
+          name: 'Script',
+          config: { code: 'if !done: pass' }, // Python code with !, not a condition expression
+        },
+      ]
+
+      const result = buildWorkflowDefinition('Test', '', activities, [], [])
+
+      expect(result.nodes[0].config.code).toBe('if !done: pass')
+    })
+
+    it('handles condition expressions that are already in backend format', () => {
+      const activities: Activity[] = [
+        {
+          id: 'cond-1',
+          type: 'condition',
+          name: 'Check',
+          config: { condition: 'not (${value} == "test")' },
+        },
+      ]
+
+      const result = buildWorkflowDefinition('Test', '', activities, [], [])
+
+      // Should remain in backend format
+      expect(result.nodes[0].config.condition).toBe('not (${value} == "test")')
+    })
+
+    it('transforms "contains" operator to Python "in" operator with reversed operands', () => {
+      const activities: Activity[] = [
+        {
+          id: 'cond1',
+          type: 'condition',
+          name: 'Check Message',
+          config: { condition: '${message.text} contains "Hello"' },
+        },
+      ]
+
+      const result = buildWorkflowDefinition('Test', '', activities, [], [])
+
+      // UI: ${message.text} contains "Hello"
+      // Backend: "Hello" in ${message.text}
+      expect(result.nodes[0].config.condition).toBe('"Hello" in ${message.text}')
+    })
+
+    it('transforms negated "contains" to "not in" operator', () => {
+      const activities: Activity[] = [
+        {
+          id: 'cond1',
+          type: 'condition',
+          name: 'Check No Spam',
+          config: { condition: '!(${email.body} contains "spam")' },
+        },
+      ]
+
+      const result = buildWorkflowDefinition('Test', '', activities, [], [])
+
+      // UI: !(${email.body} contains "spam")
+      // Backend: "spam" not in ${email.body}
+      expect(result.nodes[0].config.condition).toBe('"spam" not in ${email.body}')
+    })
+
+    it('transforms "contains" in complex expressions', () => {
+      const activities: Activity[] = [
+        {
+          id: 'cond1',
+          type: 'condition',
+          name: 'Complex Check',
+          config: { condition: '${age} >= 18 && ${name} contains "Smith"' },
+        },
+      ]
+
+      const result = buildWorkflowDefinition('Test', '', activities, [], [])
+
+      // Should transform both && to 'and' and 'contains' to 'in'
+      expect(result.nodes[0].config.condition).toBe('(${age} >= 18 and "Smith" in ${name})')
+    })
+  })
 })

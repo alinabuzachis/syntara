@@ -14,9 +14,9 @@ describe('conditionValidationRules', () => {
     expect(result).toBe('Condition cannot be empty')
   })
 
-  it('validates condition without ${} format', () => {
-    const result = conditionValidationRules.validate('test')
-    expect(result).toBe('Condition must be in format: ${expression}')
+  it('accepts simple template reference', () => {
+    const result = conditionValidationRules.validate('${test}')
+    expect(result).toBe(true)
   })
 
   it('validates undefined condition', () => {
@@ -50,58 +50,74 @@ describe('conditionValidationRules', () => {
       expect(conditionValidationRules.validate('${0}')).toBe(true)
     })
 
-    it('rejects empty content', () => {
+    it('rejects empty template', () => {
+      // Empty template ${} is invalid - has no resolvable variable
       const result = conditionValidationRules.validate('${}')
       expect(result).toBe('Please fill in all required fields (Field and Value for each condition)')
     })
 
     it('rejects expression with trailing comparison operator', () => {
-      const result = conditionValidationRules.validate('${a >}')
+      const result = conditionValidationRules.validate('${a} >')
       expect(result).toBe('Please fill in all required fields (Field and Value for each condition)')
     })
 
     it('rejects expression with trailing equals operator', () => {
-      const result = conditionValidationRules.validate('${foo ==}')
+      const result = conditionValidationRules.validate('${foo} ==')
       expect(result).toBe('Please fill in all required fields (Field and Value for each condition)')
     })
 
     it('rejects expression with trailing >=', () => {
-      const result = conditionValidationRules.validate('${identifier >=}')
+      const result = conditionValidationRules.validate('${identifier} >=')
       expect(result).toBe('Please fill in all required fields (Field and Value for each condition)')
     })
 
     it('rejects expression with trailing word operator', () => {
-      const result = conditionValidationRules.validate('${name contains}')
+      const result = conditionValidationRules.validate('${name} contains')
       expect(result).toBe('Please fill in all required fields (Field and Value for each condition)')
     })
 
     it('rejects expression with leading operator', () => {
-      const result = conditionValidationRules.validate('${> 5}')
+      const result = conditionValidationRules.validate('> 5}')
       expect(result).toBe('Please fill in all required fields (Field and Value for each condition)')
     })
 
     it('rejects expression with leading equals', () => {
-      const result = conditionValidationRules.validate('${== value}')
+      const result = conditionValidationRules.validate('== value}')
       expect(result).toBe('Please fill in all required fields (Field and Value for each condition)')
     })
 
     it('rejects expression with logical AND operator', () => {
-      const result = conditionValidationRules.validate('${a && b}')
+      const result = conditionValidationRules.validate('a && b')
       expect(result).toBe('Please fill in all required fields (Field and Value for each condition)')
     })
 
     it('rejects expression with logical OR operator', () => {
-      const result = conditionValidationRules.validate('${a || b}')
+      const result = conditionValidationRules.validate('a || b')
       expect(result).toBe('Please fill in all required fields (Field and Value for each condition)')
     })
 
     it('rejects expression with NOT operator', () => {
-      const result = conditionValidationRules.validate('${!value}')
+      const result = conditionValidationRules.validate('!value')
       expect(result).toBe('Please fill in all required fields (Field and Value for each condition)')
     })
 
     it('rejects expression with parentheses', () => {
-      const result = conditionValidationRules.validate('${(a)}')
+      const result = conditionValidationRules.validate('(a)')
+      expect(result).toBe('Please fill in all required fields (Field and Value for each condition)')
+    })
+
+    it('rejects Python-style "and" operator', () => {
+      const result = conditionValidationRules.validate('a and b')
+      expect(result).toBe('Please fill in all required fields (Field and Value for each condition)')
+    })
+
+    it('rejects Python-style "or" operator', () => {
+      const result = conditionValidationRules.validate('a or b')
+      expect(result).toBe('Please fill in all required fields (Field and Value for each condition)')
+    })
+
+    it('rejects Python-style "not" operator', () => {
+      const result = conditionValidationRules.validate('not a')
       expect(result).toBe('Please fill in all required fields (Field and Value for each condition)')
     })
   })
@@ -109,41 +125,41 @@ describe('conditionValidationRules', () => {
   describe('Parsed expression validation', () => {
     it('accepts valid comparison that parses successfully', () => {
       // This should parse into a condition node and pass validation
-      const result = conditionValidationRules.validate('${input.age >= 18}')
+      const result = conditionValidationRules.validate('${input.age} >= 18')
       expect(result).toBe(true)
     })
 
     it('accepts valid string comparison', () => {
-      const result = conditionValidationRules.validate('${name == "admin"}')
+      const result = conditionValidationRules.validate('${name} == "admin"')
       expect(result).toBe(true)
     })
 
     it('rejects parsed expression with empty variable field', () => {
       // This would parse but have validation errors (empty variable)
       // Note: The parser might not create this structure, but if it does, validation should catch it
-      const result = conditionValidationRules.validate('${ == value}')
+      const result = conditionValidationRules.validate('== value}')
       expect(result).toBe('Please fill in all required fields (Field and Value for each condition)')
     })
   })
 
   describe('Unary operator with value validation', () => {
     it('rejects exists operator with value', () => {
-      const result = conditionValidationRules.validate('${user.email exists foo}')
+      const result = conditionValidationRules.validate('${user.email} exists foo')
       expect(result).toBe('Operators "exists" and "isEmpty" do not take a value. Remove the value after the operator.')
     })
 
     it('rejects isEmpty operator with value', () => {
-      const result = conditionValidationRules.validate('${data isEmpty bar}')
+      const result = conditionValidationRules.validate('${data} isEmpty bar')
       expect(result).toBe('Operators "exists" and "isEmpty" do not take a value. Remove the value after the operator.')
     })
 
     it('accepts valid exists operator without value', () => {
-      const result = conditionValidationRules.validate('${user.email exists}')
+      const result = conditionValidationRules.validate('${user.email} exists')
       expect(result).toBe(true)
     })
 
     it('accepts valid isEmpty operator without value', () => {
-      const result = conditionValidationRules.validate('${data isEmpty}')
+      const result = conditionValidationRules.validate('${data} isEmpty')
       expect(result).toBe(true)
     })
   })

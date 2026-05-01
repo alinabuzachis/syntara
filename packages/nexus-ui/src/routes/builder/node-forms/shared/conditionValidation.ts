@@ -4,6 +4,17 @@ import { hasValidationErrors } from '../../../../utils/expressions/validation'
 
 const UNARY_WORD_OPERATORS = new Set(['exists', 'isEmpty'])
 
+// Literal validation regexes (hoisted to avoid recompilation)
+const SINGLE_TEMPLATE_RE = /^\$\{[^\s}]+\}$/
+const QUOTED_STRING_RE = /^["'][^"']*["']$/
+const BOOLEAN_RE = /^(true|false)$/i
+const NUMBER_RE = /^-?\d+(\.\d+)?$/
+
+// Operator pattern regexes (hoisted to avoid recompilation on each validation)
+const allOpsPattern = [...ALL_OPERATORS, '===', '!=='].join('|')
+const TRAILING_OP_RE = new RegExp(String.raw`(${allOpsPattern})\s*$`)
+const LEADING_OP_RE = new RegExp(String.raw`^\s*(${allOpsPattern})`)
+
 /**
  * True when `exists` / `isEmpty` appears with both a left-hand token and a
  * trailing token (invalid unary-with-value). Implemented without nested
@@ -19,6 +30,68 @@ function hasUnaryOperatorWithDisallowedValue(content: string): boolean {
 }
 
 /**
+ * Check if content is a valid single-token literal form
+ * (template, quoted string, boolean, or number).
+ * Uses early return to avoid running remaining regex tests once a match is found.
+ */
+function isValidSingleTokenLiteral(content: string): boolean {
+  return (
+    SINGLE_TEMPLATE_RE.test(content) ||
+    QUOTED_STRING_RE.test(content) ||
+    BOOLEAN_RE.test(content) ||
+    NUMBER_RE.test(content)
+  )
+}
+
+/**
+ * Validate fallback (unparsed) expression content
+ * Returns error message or true if valid
+ */
+function validateFallbackContent(content: string): string | true {
+  if (!content.length) {
+    return 'Please fill in all required fields (Field and Value for each condition)'
+  }
+
+  // Check for invalid unary operator usage
+  if (hasUnaryOperatorWithDisallowedValue(content)) {
+    return 'Operators "exists" and "isEmpty" do not take a value. Remove the value after the operator.'
+  }
+
+  // Reject incomplete logical operators or parentheses
+  if (/[&|!()]/.test(content)) {
+    return 'Please fill in all required fields (Field and Value for each condition)'
+  }
+
+  // Reject trailing comparison operators
+  if (TRAILING_OP_RE.test(content)) {
+    return 'Please fill in all required fields (Field and Value for each condition)'
+  }
+
+  // Reject leading comparison operators
+  if (LEADING_OP_RE.test(content)) {
+    return 'Please fill in all required fields (Field and Value for each condition)'
+  }
+
+  // Reject empty template ${} or malformed templates
+  if (/^\$\{\s*\}$/.test(content)) {
+    return 'Please fill in all required fields (Field and Value for each condition)'
+  }
+
+  // Reject Python logical operators
+  if (/\b(and|or)\b/.test(content) || /\bnot\s+/.test(content)) {
+    return 'Please fill in all required fields (Field and Value for each condition)'
+  }
+
+  // Reject multi-token expressions with unquoted spaces
+  const hasMultipleTokens = /\s+/.test(content) && !/^["'][^"']*["']$/.test(content)
+  if (hasMultipleTokens && !isValidSingleTokenLiteral(content)) {
+    return 'Please fill in all required fields (Field and Value for each condition)'
+  }
+
+  return true
+}
+
+/**
  * Shared validation rules for conditional expression fields.
  *
  * Used in:
@@ -27,71 +100,29 @@ function hasUnaryOperatorWithDisallowedValue(content: string): boolean {
  *
  * Ensures expression:
  * 1. Is not empty
- * 2. Has correct format: ${...}
- * 3. Parses correctly with valid expression tree
+ * 2. Parses correctly with valid expression tree (variables are wrapped with ${...}, but entire expression is not)
  */
 export const conditionValidationRules = {
   required: 'Condition is required',
   validate: (value: string | undefined) => {
     if (!value?.trim()) return 'Condition cannot be empty'
-    if (!value.startsWith('${') || !value.endsWith('}')) {
-      return 'Condition must be in format: ${expression}'
-    }
 
     // Parse and validate the expression tree
+    // Note: Individual variable references should be wrapped with ${...}, but the entire expression should not
+    // Examples: "${trigger.status} == 'success'", "${count} > 5 && ${enabled}"
     const parsed = parseExpression(value)
 
     // If parsing failed (root is null), check if it's an allowed literal form
     if (!parsed.root) {
-      // Extract content from ${...}
-      const content = value.slice(2, -1).trim()
+      const content = value.trim()
+      const validationResult = validateFallbackContent(content)
 
-      // Stricter validation for allowed literal forms
-      // Allow:
-      // 1. Simple identifiers/properties: running, user.isActive, data[0].value
-      // 2. Boolean/number/string literals: true, false, 123, "string"
-      // 3. Complete single comparisons: a > 5, foo == "bar" (but these should parse, so unlikely here)
-      //
-      // Reject:
-      // - Empty content
-      // - Logical operators: &&, ||, !, ()
-      // - Trailing operators: "a >", "foo ==", "identifier >=", etc.
-      // - Leading operators: "> 5", "== value"
-      // - Malformed tokens
-      // - Unary operators with values: "field exists value"
-
-      if (!content.length) {
-        return 'Please fill in all required fields (Field and Value for each condition)'
+      if (validationResult !== true) {
+        return validationResult
       }
 
-      // Check for invalid unary operator usage (unary operator followed by extra tokens)
-      if (hasUnaryOperatorWithDisallowedValue(content)) {
-        return 'Operators "exists" and "isEmpty" do not take a value. Remove the value after the operator.'
-      }
-
-      // Reject if contains logical operators or parentheses
-      if (/[&|!()]/.test(content)) {
-        return 'Please fill in all required fields (Field and Value for each condition)'
-      }
-
-      // Reject if ends with a comparison operator (trailing operator)
-      // Using centralized operator constants to avoid duplication
-      // Also includes === and !== for completeness (even though not in our operator set)
-      const allOps = [...ALL_OPERATORS, '===', '!=='].join('|')
-      const trailingOperatorPattern = new RegExp(`(${allOps})\\s*$`)
-      if (trailingOperatorPattern.test(content)) {
-        return 'Please fill in all required fields (Field and Value for each condition)'
-      }
-
-      // Reject if starts with a comparison operator (leading operator)
-      const leadingOperatorPattern = new RegExp(`^\\s*(${allOps})`)
-      if (leadingOperatorPattern.test(content)) {
-        return 'Please fill in all required fields (Field and Value for each condition)'
-      }
-
-      // If we get here, it's likely a simple identifier/literal that didn't parse
-      // because it doesn't match the parser's expected structure (no operator found)
-      // This is allowed for cases like: ${running}, ${user.isActive}, ${true}, ${false}
+      // If we get here, it's likely a simple template reference or literal that didn't parse
+      // This is allowed for cases like: ${running}, ${user.isActive}, ${true}
     }
 
     // If parsing succeeded, check for incomplete fields

@@ -92,4 +92,6 @@ export type ExpressionCondition = {
 export type Expression = {
   /** Root node of the expression tree, or null if empty */
   root: ExpressionNode | null
+  /** Error message if parsing or normalization failed */
+  error?: string
 }

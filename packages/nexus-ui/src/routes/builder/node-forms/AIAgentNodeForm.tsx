@@ -49,7 +49,7 @@ type FileContextType = {
 }
 const FileContext = createContext<FileContextType | null>(null)
 
-type AIAgentNodeFormProps = {
+export type AIAgentNodeFormProps = {
   onSubmit: (data: AIAgentFormSubmitData) => void
   submitButtonText?: string
   initialData?: AIAgentFormInitialData
@@ -289,9 +289,7 @@ export function AIAgentNodeForm(props: Readonly<AIAgentNodeFormProps>) {
   const handleSubmit = (data: AIAgentFormData) => {
     // Parse response schema (already validated by Zod superRefine)
     const trimmed = data.responseSchema?.trim()
-    const parsedResponseSchema = trimmed
-      ? (JSON.parse(trimmed) as Record<string, unknown>)
-      : undefined
+    const parsedResponseSchema = trimmed ? (JSON.parse(trimmed) as Record<string, unknown>) : undefined
 
     const fileIds: string[] = completedFiles.filter((f) => f.status === 'success').map((f) => f.id)
 

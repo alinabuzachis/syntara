@@ -1,5 +1,7 @@
-import type { Activity } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, type Activity } from '@ansible/nexus-contracts'
 
+import { parseExpression } from '../../../utils/expressions/parser'
+import { serializeExpression } from '../../../utils/expressions/serializer'
 import { parseTriggerIndex } from '../../../utils/triggerNodeIds'
 import type { EdgeConnection } from '../types/edge'
 
@@ -121,6 +123,30 @@ function validateNameLength(name: string | undefined, entityLabel: string): void
 }
 
 /**
+ * Transform condition expression from UI format to backend format.
+ * Converts `!(...)` syntax to `not (...)` for Python backend compatibility.
+ *
+ * @param condition - Condition expression string from UI
+ * @returns Condition expression string for backend
+ * @throws Error if transformation fails (prevents saving malformed expressions)
+ */
+function transformConditionForBackend(condition: string | undefined): string | undefined {
+  if (!condition) return condition
+
+  const parsed = parseExpression(condition)
+
+  // If parsing failed with error, throw to prevent saving malformed expression
+  if (parsed.error) {
+    throw new Error(`Failed to transform condition expression: ${parsed.error}`)
+  }
+
+  if (!parsed.root) return condition
+
+  // Serialize with forBackend: true to convert ! to not
+  return serializeExpression(parsed, { forBackend: true })
+}
+
+/**
  * Build a V2 workflow definition for API submission.
  *
  * Transforms internal workflow representation (React Flow format) to V2 API format:
@@ -185,11 +211,24 @@ export function buildWorkflowDefinition(
       validateNameLength(a.name, 'Node name')
       const sanitizedNodeName = a.name?.replace(CONTROL_CHAR_PATTERN, '')
       const inputs = hasInputs(a) ? a.inputs : undefined
+
+      // Transform condition expressions to backend format (! → not)
+      let config = a.config ?? {}
+      if (
+        (a.type === ActivityTypeEnum.CONDITION || a.type === ActivityTypeEnum.LOOP) &&
+        typeof config.condition === 'string'
+      ) {
+        config = {
+          ...config,
+          condition: transformConditionForBackend(config.condition) ?? config.condition,
+        }
+      }
+
       return {
         id: a.id,
         type: a.type,
         ...(sanitizedNodeName && { name: sanitizedNodeName }),
-        config: a.config ?? {},
+        config,
         ...(a.timeout !== undefined && { timeout: a.timeout }),
         ...(a.retry_policy && { retry_policy: a.retry_policy }),
         ...(inputs && { inputs }),
