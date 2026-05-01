@@ -10,6 +10,7 @@ from pydantic import SerializeAsAny, field_validator
 from sqlmodel import Field, SQLModel
 
 from nexus.audit.models.structured_data import AuditContextData
+from nexus.core.constants import FieldLimits
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -81,6 +82,11 @@ class AuditEvent(SQLModel):
     source_component: str = Field(description="Component that generated event")
     resource_urn: str | None = Field(
         default=None, max_length=1024, description="RFC 8141 compliant URN identifying the resource"
+    )
+    resource_name: str | None = Field(
+        default=None,
+        max_length=FieldLimits.NAME_MAX_LENGTH,
+        description="Human-readable name of the resource at event creation time",
     )
 
     # Context tracking

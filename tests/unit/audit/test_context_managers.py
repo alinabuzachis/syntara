@@ -185,9 +185,10 @@ class TestAuditContext:
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
     async def test_audit_context_with_valid_resource_urn(self, mock_emit: Mock, test_user: User) -> None:
-        """Test that audit_context includes valid resource_urn in emitted event."""
+        """Test that audit_context includes valid resource_urn and resource_name in emitted event."""
         # Arrange
         valid_urn = "urn:nexus:test:resource:12345"
+        resource_name = "test-resource"
 
         # Act
         with audit_context(
@@ -196,6 +197,7 @@ class TestAuditContext:
             source_component="test.component",
             actor=test_user,
             resource_urn=valid_urn,
+            resource_name=resource_name,
         ):
             pass  # Successful execution
 
@@ -205,6 +207,7 @@ class TestAuditContext:
 
         assert isinstance(emitted_event, AuditEvent)
         assert emitted_event.resource_urn == valid_urn
+        assert emitted_event.resource_name == resource_name
         assert emitted_event.event_category == EventCategory.USER_ACTION
         assert emitted_event.event_status == EventStatus.SUCCESS
 

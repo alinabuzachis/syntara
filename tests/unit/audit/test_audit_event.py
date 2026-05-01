@@ -140,3 +140,49 @@ class TestAuditEventResourceUrnValidation:
         error = exc_info.value.errors()[0]
         assert error["type"] == "string_too_long"
         assert error["loc"] == ("resource_urn",)
+
+
+class TestAuditEventResourceNameValidation:
+    """Tests for resource_name validation."""
+
+    def test_resource_name_is_optional(self) -> None:
+        """Test that resource_name can be omitted."""
+        event = AuditEvent(
+            event_category=EventCategory.USER_ACTION,
+            event_action="test",
+            source_component="test",
+            event_message="test",
+            structured_data=AuditContextData(data_type="test"),
+        )
+
+        assert event.resource_name is None
+
+    def test_resource_name_accepts_valid_name(self) -> None:
+        """Test that resource_name accepts a valid name."""
+        event = AuditEvent(
+            event_category=EventCategory.USER_ACTION,
+            event_action="test",
+            source_component="test",
+            resource_name="test-workflow",
+            event_message="test",
+            structured_data=AuditContextData(data_type="test"),
+        )
+
+        assert event.resource_name == "test-workflow"
+
+    def test_resource_name_max_length_validation(self) -> None:
+        """Test that resource_name exceeding 255 characters raises ValidationError."""
+        with pytest.raises(ValidationError) as exc_info:
+            AuditEvent(
+                event_category=EventCategory.USER_ACTION,
+                event_action="test",
+                source_component="test",
+                resource_name="x" * 256,  # Exceeds 255
+                event_message="test",
+                structured_data=AuditContextData(data_type="test"),
+            )
+
+        # Verify the error is specifically about string length
+        error = exc_info.value.errors()[0]
+        assert error["type"] == "string_too_long"
+        assert error["loc"] == ("resource_name",)

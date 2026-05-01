@@ -10,6 +10,7 @@ from sqlmodel import Field
 
 from nexus.audit.models.audit_event import ActorType, EventCategory, EventSeverity, EventStatus
 from nexus.audit.models.structured_data import AuditContextData
+from nexus.core.constants import FieldLimits
 from nexus.core.models.base.base_resource import BaseResource
 from nexus.core.models.base.query_params import BaseListParams
 from nexus.core.models.pagination import ResourcesResponse
@@ -32,6 +33,11 @@ class AuditEventRead(BaseResource):
     source_component: str = Field(description="Component that generated the event")
     resource_urn: str | None = Field(
         default=None, max_length=1024, description="RFC 8141 compliant URN identifying the resource"
+    )
+    resource_name: str | None = Field(
+        default=None,
+        max_length=FieldLimits.NAME_MAX_LENGTH,
+        description="Human-readable name of the resource at event creation time",
     )
     workflow_id: UUID | None = Field(default=None, description="Workflow identifier for workflow-scoped events")
     activity_id: str | None = Field(default=None, description="Activity identifier for activity-level events")
@@ -84,6 +90,10 @@ class AuditEventListParams(BaseListParams):
     resource_urn: str | None = Field(
         default=None,
         description="Filter by resource URN",
+    )
+    resource_name: str | None = Field(
+        default=None,
+        description="Filter by resource name",
     )
     workflow_id: UUID | None = Field(
         default=None,

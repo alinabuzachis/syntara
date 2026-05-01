@@ -32,6 +32,7 @@ class AuditContextEvent:
     actor_context: AuditActorContext
     event_severity: EventSeverity
     resource_urn: str | None = field(default=None)
+    resource_name: str | None = field(default=None)
     error_type: str | None = field(default=None)
     error_message: str | None = field(default=None)
     context_data: dict[str, Any] = field(default_factory=dict)
@@ -79,6 +80,7 @@ class AuditContextHandler(AuditEventHandler[AuditContextEvent]):
                 event_message=f"Operation {event.event_action} failed with {event.error_type}",
                 source_component=event.source_component,
                 resource_urn=event.resource_urn,
+                resource_name=event.resource_name,
                 structured_data=structured_data,
                 actor_id=actor_id,
                 actor_type=actor_type,
@@ -95,6 +97,7 @@ class AuditContextHandler(AuditEventHandler[AuditContextEvent]):
             event_message=f"Operation {event.event_action} completed successfully",
             source_component=event.source_component,
             resource_urn=event.resource_urn,
+            resource_name=event.resource_name,
             structured_data=structured_data,
             actor_id=actor_id,
             actor_type=actor_type,

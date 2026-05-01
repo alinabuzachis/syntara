@@ -305,6 +305,24 @@ async def test_list_audit_events_filter_by_execution_id(
 
 
 @pytest.mark.asyncio
+async def test_list_audit_events_filter_by_resource_name(
+    auth_client_as_admin: AsyncClient,
+    audit_events_factory: AuditEventsFactory,
+) -> None:
+    """Test filtering by resource_name returns only events for that resource."""
+    await audit_events_factory.create_event(resource_name="hello-world")
+    await audit_events_factory.create_event(resource_name="goodbye-world")
+    await audit_events_factory.create_event(resource_name="hello-world")
+
+    response = await auth_client_as_admin.get(f"{AUDIT_URL}?resource_name=hello-world")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["resources"]) == 2
+    assert all(r["resource_name"] == "hello-world" for r in data["resources"])
+
+
+@pytest.mark.asyncio
 async def test_list_audit_events_filter_by_created_at_range(
     auth_client_as_admin: AsyncClient,
     audit_events_factory: AuditEventsFactory,
@@ -439,6 +457,22 @@ async def test_list_audit_events_sort_by_actor_type(
     assert response.status_code == 200
     actor_types = [r["actor_type"] for r in response.json()["resources"]]
     assert actor_types == sorted(actor_types)
+
+
+@pytest.mark.asyncio
+async def test_list_audit_events_sort_by_resource_name(
+    auth_client_as_admin: AsyncClient,
+    audit_events_factory: AuditEventsFactory,
+) -> None:
+    """Test sort by resource_name ascending."""
+    for name in ("workflow-z", "workflow-a", "workflow-m"):
+        await audit_events_factory.create_event(resource_name=name)
+
+    response = await auth_client_as_admin.get(f"{AUDIT_URL}?sort=resource_name")
+
+    assert response.status_code == 200
+    resource_names = [r["resource_name"] for r in response.json()["resources"]]
+    assert resource_names == sorted(resource_names)
 
 
 # ============================================================================

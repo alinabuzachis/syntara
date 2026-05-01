@@ -87,6 +87,12 @@ class AuditEventRecord(BaseResource, table=True):
         description="RFC 8141 compliant URN identifying the resource",
         index=True,
     )
+    resource_name: str | None = Field(
+        default=None,
+        sa_type=String(FieldLimits.NAME_MAX_LENGTH),  # type: ignore[call-overload]
+        description="Human-readable name of the resource at event creation time",
+        index=True,
+    )
 
     # -- Context tracking ------------------------------------------------------
     workflow_id: UUID | None = Field(default=None, index=True, description="Workflow identifier")
@@ -115,6 +121,7 @@ class AuditEventRecord(BaseResource, table=True):
         "actor_username",
         "source_component",
         "resource_urn",
+        "resource_name",
         "workflow_id",
         "activity_id",
         "execution_id",
@@ -127,6 +134,7 @@ class AuditEventRecord(BaseResource, table=True):
         "event_status",
         "actor_type",
         "actor_username",
+        "resource_name",
     ]
 
     # Composite indexes for efficient filtering + sorting queries
@@ -148,6 +156,8 @@ class AuditEventRecord(BaseResource, table=True):
         Index("ix_audit_events_event_severity_created_at_id", "event_severity", "created_at", "id"),
         # resource_urn queries with date ordering (e.g., "show me events for resource URN X")
         Index("ix_audit_events_resource_urn_created_at_id", "resource_urn", "created_at", "id"),
+        # resource_name queries with date ordering (e.g., "show me events for resource name 'hello-world'")
+        Index("ix_audit_events_resource_name_created_at_id", "resource_name", "created_at", "id"),
     )
 
     # ------------------------------------------------------------------ #
@@ -172,6 +182,7 @@ class AuditEventRecord(BaseResource, table=True):
             actor_username=event.actor_username,
             source_component=event.source_component,
             resource_urn=event.resource_urn,
+            resource_name=event.resource_name,
             workflow_id=event.workflow_id,
             activity_id=event.activity_id,
             execution_id=event.execution_id,

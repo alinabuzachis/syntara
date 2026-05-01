@@ -30,6 +30,7 @@ def _get_kwargs(
     actor_username: None | str | Unset = UNSET,
     source_component: None | str | Unset = UNSET,
     resource_urn: None | str | Unset = UNSET,
+    resource_name: None | str | Unset = UNSET,
     workflow_id: None | Unset | UUID = UNSET,
     activity_id: None | str | Unset = UNSET,
     execution_id: None | Unset | UUID = UNSET,
@@ -129,6 +130,13 @@ def _get_kwargs(
     else:
         json_resource_urn = resource_urn
     params["resource_urn"] = json_resource_urn
+
+    json_resource_name: None | str | Unset
+    if isinstance(resource_name, Unset):
+        json_resource_name = UNSET
+    else:
+        json_resource_name = resource_name
+    params["resource_name"] = json_resource_name
 
     json_workflow_id: None | str | Unset
     if isinstance(workflow_id, Unset):
@@ -244,6 +252,7 @@ def sync_detailed(
     actor_username: None | str | Unset = UNSET,
     source_component: None | str | Unset = UNSET,
     resource_urn: None | str | Unset = UNSET,
+    resource_name: None | str | Unset = UNSET,
     workflow_id: None | Unset | UUID = UNSET,
     activity_id: None | str | Unset = UNSET,
     execution_id: None | Unset | UUID = UNSET,
@@ -273,6 +282,7 @@ def sync_detailed(
         actor_username (None | str | Unset): Filter by actor username
         source_component (None | str | Unset): Filter by source component
         resource_urn (None | str | Unset): Filter by resource URN
+        resource_name (None | str | Unset): Filter by resource name
         workflow_id (None | Unset | UUID): Filter by workflow UUID
         activity_id (None | str | Unset): Filter by activity identifier
         execution_id (None | Unset | UUID): Filter by execution UUID
@@ -299,6 +309,7 @@ def sync_detailed(
         actor_username=actor_username,
         source_component=source_component,
         resource_urn=resource_urn,
+        resource_name=resource_name,
         workflow_id=workflow_id,
         activity_id=activity_id,
         execution_id=execution_id,
@@ -328,6 +339,7 @@ def sync(
     actor_username: None | str | Unset = UNSET,
     source_component: None | str | Unset = UNSET,
     resource_urn: None | str | Unset = UNSET,
+    resource_name: None | str | Unset = UNSET,
     workflow_id: None | Unset | UUID = UNSET,
     activity_id: None | str | Unset = UNSET,
     execution_id: None | Unset | UUID = UNSET,
@@ -356,6 +368,7 @@ def sync(
         actor_username (None | str | Unset): Filter by actor username
         source_component (None | str | Unset): Filter by source component
         resource_urn (None | str | Unset): Filter by resource URN
+        resource_name (None | str | Unset): Filter by resource name
         workflow_id (None | Unset | UUID): Filter by workflow UUID
         activity_id (None | str | Unset): Filter by activity identifier
         execution_id (None | Unset | UUID): Filter by execution UUID
@@ -383,6 +396,7 @@ def sync(
         actor_username=actor_username,
         source_component=source_component,
         resource_urn=resource_urn,
+        resource_name=resource_name,
         workflow_id=workflow_id,
         activity_id=activity_id,
         execution_id=execution_id,
@@ -405,6 +419,7 @@ async def asyncio_detailed(
     actor_username: None | str | Unset = UNSET,
     source_component: None | str | Unset = UNSET,
     resource_urn: None | str | Unset = UNSET,
+    resource_name: None | str | Unset = UNSET,
     workflow_id: None | Unset | UUID = UNSET,
     activity_id: None | str | Unset = UNSET,
     execution_id: None | Unset | UUID = UNSET,
@@ -433,6 +448,7 @@ async def asyncio_detailed(
         actor_username (None | str | Unset): Filter by actor username
         source_component (None | str | Unset): Filter by source component
         resource_urn (None | str | Unset): Filter by resource URN
+        resource_name (None | str | Unset): Filter by resource name
         workflow_id (None | Unset | UUID): Filter by workflow UUID
         activity_id (None | str | Unset): Filter by activity identifier
         execution_id (None | Unset | UUID): Filter by execution UUID
@@ -459,6 +475,7 @@ async def asyncio_detailed(
         actor_username=actor_username,
         source_component=source_component,
         resource_urn=resource_urn,
+        resource_name=resource_name,
         workflow_id=workflow_id,
         activity_id=activity_id,
         execution_id=execution_id,
@@ -485,6 +502,7 @@ async def asyncio(
     actor_username: None | str | Unset = UNSET,
     source_component: None | str | Unset = UNSET,
     resource_urn: None | str | Unset = UNSET,
+    resource_name: None | str | Unset = UNSET,
     workflow_id: None | Unset | UUID = UNSET,
     activity_id: None | str | Unset = UNSET,
     execution_id: None | Unset | UUID = UNSET,
@@ -513,6 +531,7 @@ async def asyncio(
         actor_username (None | str | Unset): Filter by actor username
         source_component (None | str | Unset): Filter by source component
         resource_urn (None | str | Unset): Filter by resource URN
+        resource_name (None | str | Unset): Filter by resource name
         workflow_id (None | Unset | UUID): Filter by workflow UUID
         activity_id (None | str | Unset): Filter by activity identifier
         execution_id (None | Unset | UUID): Filter by execution UUID
@@ -541,6 +560,7 @@ async def asyncio(
             actor_username=actor_username,
             source_component=source_component,
             resource_urn=resource_urn,
+            resource_name=resource_name,
             workflow_id=workflow_id,
             activity_id=activity_id,
             execution_id=execution_id,

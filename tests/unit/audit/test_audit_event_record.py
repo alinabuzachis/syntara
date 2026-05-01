@@ -28,6 +28,8 @@ class TestAuditEventRecordFromEvent:
             actor_id=actor_id,
             actor_type=ActorType.USER,
             source_component="test_service",
+            resource_urn="urn:nexus:test:resource:123",
+            resource_name="test-resource",
             workflow_id=workflow_id,
             activity_id="activity_123",
             execution_id=execution_id,
@@ -45,6 +47,8 @@ class TestAuditEventRecordFromEvent:
         assert record.actor_id == actor_id
         assert record.actor_type == ActorType.USER
         assert record.source_component == "test_service"
+        assert record.resource_urn == "urn:nexus:test:resource:123"
+        assert record.resource_name == "test-resource"
         assert record.workflow_id == workflow_id
         assert record.activity_id == "activity_123"
         assert record.execution_id == execution_id
@@ -256,6 +260,7 @@ class TestAuditEventRecordTableConfig:
             "actor_username",
             "source_component",
             "resource_urn",
+            "resource_name",
             "workflow_id",
             "activity_id",
             "execution_id",
@@ -272,5 +277,6 @@ class TestAuditEventRecordTableConfig:
             "event_status",
             "actor_type",
             "actor_username",
+            "resource_name",
         }
         assert set(AuditEventRecord.__sortable_fields__) == expected

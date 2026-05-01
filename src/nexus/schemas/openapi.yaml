@@ -1983,6 +1983,16 @@ paths:
               - type: 'null'
             title: Resource Urn
             description: Filter by resource URN
+        - name: resource_name
+          in: query
+          required: false
+          description: Filter by resource name
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Resource Name
+            description: Filter by resource name
         - name: workflow_id
           in: query
           required: false
@@ -20534,6 +20544,13 @@ components:
             - type: 'null'
           title: Resource Urn
           description: RFC 8141 compliant URN identifying the resource
+        resource_name:
+          anyOf:
+            - type: string
+              maxLength: 255
+            - type: 'null'
+          title: Resource Name
+          description: Human-readable name of the resource at event creation time
         workflow_id:
           anyOf:
             - type: string
