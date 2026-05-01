@@ -101,7 +101,7 @@ export default function Settings() {
           detachPromise(settingsQuery.refetch())
         },
         onError: (err) => {
-          if (getErrorCode(err) === 'VERSION_CONFLICT') {
+          if (getErrorCode(err) === 'SETTING_VERSION_CONFLICT') {
             showError({
               title: 'Version conflict',
               description: 'Settings were modified by another user. The page has been refreshed.',

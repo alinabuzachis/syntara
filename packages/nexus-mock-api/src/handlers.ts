@@ -68,6 +68,12 @@ function approvalCreatedAt(a: Approval): string | undefined {
   return row.created_at ?? row.createdAt
 }
 
+function getUsernameFromRequest(request: Request): string {
+  const auth = request.headers.get('Authorization') ?? ''
+  const match = /^Bearer mock-token-(.+)$/.exec(auth)
+  return match ? match[1] : 'admin'
+}
+
 function matchesProviderType(provider: ToolProvider, providerType: string): boolean {
   const cfg = provider.configuration as unknown as { provider_type?: string }
   return cfg.provider_type === providerType
@@ -872,19 +878,22 @@ export const handlers = [
     })
   }),
 
-  // Auth login
-  http.post('/api/v1/auth/login', () => {
+  // Auth login — encode the username in the access token for role-aware mock handlers
+  http.post('/api/v1/auth/login', async ({ request }) => {
+    const body = (await request.json()) as { username?: string } | null
+    const username = body?.username ?? 'admin'
     return HttpResponse.json({
-      access_token: 'mock-access-token',
+      access_token: `mock-token-${username}`,
       token_type: 'bearer',
       expires_in: 3600,
     })
   }),
 
-  // Auth refresh
-  http.post('/api/v1/auth/refresh', () => {
+  // Auth refresh — preserve username from existing token
+  http.post('/api/v1/auth/refresh', ({ request }) => {
+    const username = getUsernameFromRequest(request)
     return HttpResponse.json({
-      access_token: 'mock-access-token-refreshed',
+      access_token: `mock-token-${username}`,
       token_type: 'bearer',
       expires_in: 3600,
     })
@@ -895,10 +904,32 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 })
   }),
 
-  // Current user (mock profile)
+  // Current user (mock profile) — returns role-appropriate profile based on token
   // Toggle RP-initiated logout via RP_LOGOUT_ENABLED env var (e.g. RP_LOGOUT_ENABLED=true npm start)
-  http.get('/api/v1/auth/me', () => {
+  http.get('/api/v1/auth/me', ({ request }) => {
     const rpLogoutEnabled = process.env.RP_LOGOUT_ENABLED === 'true'
+    const username = getUsernameFromRequest(request)
+
+    if (username === 'auditor') {
+      return HttpResponse.json({
+        id: 'a0d1t0r0-0000-0000-0000-000000000000',
+        username: 'auditor',
+        email: 'auditor@nexus.local',
+        groups: ['authenticated'],
+        rp_logout_enabled: rpLogoutEnabled,
+      })
+    }
+
+    if (username === 'viewer') {
+      return HttpResponse.json({
+        id: 'v13w3r00-0000-0000-0000-000000000000',
+        username: 'viewer',
+        email: 'viewer@nexus.local',
+        groups: ['authenticated'],
+        rp_logout_enabled: rpLogoutEnabled,
+      })
+    }
+
     return HttpResponse.json({
       id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
       username: 'demo',
@@ -2034,7 +2065,7 @@ export const handlers = [
             type: 'https://api.nexus.com/errors/version-conflict',
             title: 'Version Conflict',
             detail: `Setting '${update.key}' has been modified (expected v${String(update.expected_version)}, current v${String(setting.version)})`,
-            code: 'VERSION_CONFLICT',
+            code: 'SETTING_VERSION_CONFLICT',
             retryable: false,
             instance: '/api/v1/settings',
           },
@@ -2076,7 +2107,7 @@ export const handlers = [
           type: 'https://api.nexus.com/errors/version-conflict',
           title: 'Version Conflict',
           detail: `Setting '${key}' has been modified (expected v${String(body.expected_version)}, current v${String(setting.version)})`,
-          code: 'VERSION_CONFLICT',
+          code: 'SETTING_VERSION_CONFLICT',
           retryable: false,
           instance: `/api/v1/settings/${key}`,
         },
@@ -2988,14 +3019,26 @@ export const handlers = [
   }),
 
   // ── Authz ──────────────────────────────────────────────────────────
-  // Always returns allowed: true — does not inspect request body.
-  // To test read-only or access-denied flows, parameterize based on action/resource_type.
-  http.post('/api/v1/authz/can-i', () => {
+  // Returns role-appropriate permissions based on the user's access token.
+  http.post('/api/v1/authz/can-i', async ({ request }) => {
+    const username = getUsernameFromRequest(request)
+    const body = (await request.json()) as { action?: string; resource_type?: string } | null
+    const action = body?.action
+    const resourceType = body?.resource_type
+
+    let allowed = true
+
+    if (username === 'viewer') {
+      if (resourceType === 'setting') allowed = false
+    } else if (username === 'auditor') {
+      if (resourceType === 'setting' && action === 'write') allowed = false
+    }
+
     return HttpResponse.json({
-      allowed: true,
-      denied: false,
+      allowed,
+      denied: !allowed,
       matched_policy: '',
-      denial_reason: '',
+      denial_reason: allowed ? '' : 'Insufficient permissions',
       denied_by: '',
     })
   }),

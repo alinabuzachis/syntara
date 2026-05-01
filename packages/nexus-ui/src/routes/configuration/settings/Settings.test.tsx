@@ -213,7 +213,7 @@ describe('Settings', () => {
   it('save shows version conflict error and clears edits', async () => {
     const user = userEvent.setup()
     mockMutate.mockImplementation((_payload: unknown, callbacks: { onError: (e: { code: string }) => void }) => {
-      callbacks.onError({ code: 'VERSION_CONFLICT' })
+      callbacks.onError({ code: 'SETTING_VERSION_CONFLICT' })
     })
     mockQueries()
     render(<Settings />)

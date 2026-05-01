@@ -15,7 +15,7 @@ function apiUrl(path: string): string {
 }
 
 /** Authenticate via the API and return an access token */
-async function getAuthToken(app: Page): Promise<string | null> {
+export async function getAuthToken(app: Page): Promise<string | null> {
   const password = process.env.NEXUS_E2E_PASSWORD
   if (!password) return null
 
@@ -32,9 +32,9 @@ async function getAuthToken(app: Page): Promise<string | null> {
 }
 
 /** Make an authenticated API request */
-async function apiRequest(
+export async function apiRequest(
   app: Page,
-  method: 'get' | 'post' | 'delete',
+  method: 'get' | 'post' | 'patch' | 'delete',
   path: string,
   options?: { data?: unknown; token?: string }
 ) {
@@ -47,6 +47,9 @@ async function apiRequest(
   }
   if (method === 'post') {
     return app.request.post(apiUrl(path), { headers, data: options?.data })
+  }
+  if (method === 'patch') {
+    return app.request.patch(apiUrl(path), { headers, data: options?.data })
   }
   return app.request.delete(apiUrl(path), { headers })
 }

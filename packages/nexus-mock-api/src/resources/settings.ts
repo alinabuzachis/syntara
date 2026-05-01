@@ -305,7 +305,18 @@ export const settings: RuntimeSetting[] = [
     validation_schema: { min: 1 } as unknown as Record<string, never>,
   }),
 
-  // ── System: Observability ───────────────────────────────────────────────
+  // ── System ──────────────────────────────────────────────────────────────
+  makeSetting({
+    key: 'logging.log_level',
+    name: 'System Log Level',
+    description: 'System logging level. Changes are applied dynamically.',
+    category: 'system',
+    value_type: 'string',
+    default_value: 'INFO',
+    validation_schema: {
+      allowed_values: ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+    } as unknown as Record<string, never>,
+  }),
   makeSetting({
     key: 'metrics.perf_test_mode',
     name: 'Performance test mode',
@@ -315,5 +326,16 @@ export const settings: RuntimeSetting[] = [
     group: 'Observability',
     value_type: 'boolean',
     default_value: false,
+  }),
+
+  // ── AI / LLM ──────────────────────────────────────────────────────────
+  makeSetting({
+    key: 'retriever.llm_model',
+    name: 'Retriever LLM model',
+    description: 'OpenRouter model for LLM relevancy checking',
+    category: 'ai_llm',
+    value_type: 'string',
+    default_value: 'anthropic/claude-3.5-sonnet',
+    requires_restart: true,
   }),
 ]
