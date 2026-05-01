@@ -1,12 +1,11 @@
 #!/usr/bin/env node
 
-import { cpSync, existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
-import { createRequire } from 'node:module'
-import { dirname, join, resolve } from 'node:path'
+import { cpSync, existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 
 const COVERAGE_ARTIFACTS_DIR = resolve(process.cwd(), process.env.COVERAGE_ARTIFACTS_DIR ?? 'coverage-artifacts')
-const C8_TEMP_DIR = resolve(process.cwd(), '.c8_output')
+const NYC_OUTPUT_DIR = resolve(process.cwd(), '.nyc_output')
 const COVERAGE_DIR = resolve(process.cwd(), 'coverage')
 
 function collectCoverageFiles(directory) {
@@ -41,38 +40,16 @@ if (coverageFiles.length === 0) {
   process.exit(1)
 }
 
-rmSync(C8_TEMP_DIR, { recursive: true, force: true })
+rmSync(NYC_OUTPUT_DIR, { recursive: true, force: true })
 rmSync(COVERAGE_DIR, { recursive: true, force: true })
-mkdirSync(C8_TEMP_DIR, { recursive: true })
+mkdirSync(NYC_OUTPUT_DIR, { recursive: true })
 
 for (const [index, coverageFile] of coverageFiles.entries()) {
-  cpSync(coverageFile, join(C8_TEMP_DIR, `shard-${index + 1}.json`))
+  cpSync(coverageFile, join(NYC_OUTPUT_DIR, `shard-${index + 1}.json`))
 }
 
-const require = createRequire(import.meta.url)
-const c8Bin = join(dirname(require.resolve('c8/package.json')), 'bin', 'c8.js')
+const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm'
 
-execFileSync(
-  process.execPath,
-  [
-    c8Bin,
-    'report',
-    '--temp-directory',
-    C8_TEMP_DIR,
-    '--reports-dir',
-    COVERAGE_DIR,
-    '--reporter',
-    'html',
-    '--reporter',
-    'lcov',
-    '--reporter',
-    'json',
-    '--reporter',
-    'json-summary',
-    '--reporter',
-    'text',
-  ],
-  { stdio: 'inherit' }
-)
+execFileSync(npmCommand, ['run', 'test:coverage:report', '--silent'], { stdio: 'inherit' })
 
 console.log(`Merged ${coverageFiles.length} coverage shard(s) into ${COVERAGE_DIR}`)
