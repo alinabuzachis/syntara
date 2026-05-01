@@ -182,10 +182,10 @@ describe('PolicyDetailSidebar', () => {
     expect(screen.getByText('No statements defined.')).toBeInTheDocument()
   })
 
-  it('renders Policy JSON section', () => {
+  it('renders Policy definition section', () => {
     render(<PolicyDetailSidebar policy={builtinPolicy} onClose={onClose} />)
 
-    expect(screen.getByRole('heading', { name: 'Policy JSON' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Policy definition' })).toBeInTheDocument()
   })
 
   it('calls onClose when close button is clicked', async () => {

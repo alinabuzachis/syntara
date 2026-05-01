@@ -2403,6 +2403,7 @@ export const handlers = [
       name: body.name,
       description: body.description ?? null,
       is_builtin: false,
+      scope: 'project' as const,
       project_id: projectId,
       created_at: now,
       updated_at: now,
@@ -2492,6 +2493,16 @@ export const handlers = [
       filtered = filtered.filter((p) => p.is_builtin === builtin)
     }
 
+    const scopeEq = url.searchParams.get('scope')
+    if (scopeEq) {
+      filtered = filtered.filter((p) => p.scope === scopeEq)
+    }
+
+    const projectIdEq = url.searchParams.get('project_id')
+    if (projectIdEq) {
+      filtered = filtered.filter((p) => p.project_id === projectIdEq)
+    }
+
     const sort = url.searchParams.get('sort')
     if (sort) {
       const isDesc = sort.startsWith('-')
@@ -2504,6 +2515,12 @@ export const handlers = [
             break
           case 'description':
             cmp = (a.description ?? '').localeCompare(b.description ?? '')
+            break
+          case 'scope':
+            cmp = a.scope.localeCompare(b.scope)
+            break
+          case 'project_id':
+            cmp = (a.project_id ?? '').localeCompare(b.project_id ?? '')
             break
           case 'is_builtin':
             cmp = Number(a.is_builtin) - Number(b.is_builtin)

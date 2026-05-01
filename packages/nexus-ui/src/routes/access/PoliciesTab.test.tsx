@@ -47,6 +47,7 @@ const samplePolicies: PolicyRead[] = [
     is_builtin: true,
     is_system_scoped: true,
     project_id: null,
+    scope: 'any',
     labels: {},
     created_at: '2024-01-01T00:00:00Z',
     updated_at: '2024-06-01T00:00:00Z',
@@ -59,6 +60,7 @@ const samplePolicies: PolicyRead[] = [
     is_builtin: false,
     is_system_scoped: false,
     project_id: 'proj-1',
+    scope: 'project',
     labels: {},
     created_at: '2024-02-01T00:00:00Z',
     updated_at: null,
@@ -123,8 +125,7 @@ describe('PoliciesTab', () => {
 
     render(<PoliciesTab />, { wrapper })
 
-    // PF6 Table with isClickable/isSelectable uses role="grid"
-    expect(screen.getByRole('grid')).toBeInTheDocument()
+    expect(screen.getByRole('grid', { name: 'Policies' })).toBeInTheDocument()
     expect(screen.getByText('admin-policy')).toBeInTheDocument()
     expect(screen.getByText('viewer-policy')).toBeInTheDocument()
     expect(screen.getByText('Full admin access')).toBeInTheDocument()
@@ -155,45 +156,45 @@ describe('PoliciesTab', () => {
     expect(descriptionCell).toHaveTextContent('-')
   })
 
-  it('opens PolicyDetailSidebar when a row is clicked', async () => {
+  it('opens policy definition modal from row kebab', async () => {
     const user = userEvent.setup()
     setupPoliciesQuery(samplePolicies)
 
     render(<PoliciesTab />, { wrapper })
 
-    // Click on the first policy row
-    const row = screen.getByText('admin-policy').closest('tr')
-    expect(row).toBeInTheDocument()
-    await user.click(row!)
+    const kebabs = screen.getAllByRole('button', { name: 'Kebab toggle' })
+    await user.click(kebabs[0])
+    await user.click(await screen.findByRole('menuitem', { name: /view policy definition/i }))
 
-    // Sidebar should appear with policy details
-    expect(screen.getByRole('heading', { name: 'Policy details' })).toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'admin-policy policy definition' })).toBeInTheDocument()
   })
 
-  it('closes sidebar when clicking the same row again', async () => {
+  it('closes policy definition modal when Close is clicked', async () => {
     const user = userEvent.setup()
     setupPoliciesQuery(samplePolicies)
 
     render(<PoliciesTab />, { wrapper })
 
-    const row = screen.getByText('admin-policy').closest('tr')
-    await user.click(row!)
+    const kebabs = screen.getAllByRole('button', { name: 'Kebab toggle' })
+    await user.click(kebabs[0])
+    await user.click(await screen.findByRole('menuitem', { name: /view policy definition/i }))
 
-    // Sidebar should appear
-    expect(screen.getByRole('heading', { name: 'Policy details' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'admin-policy policy definition' })).toBeInTheDocument()
 
-    // Click the same row again to close
-    await user.click(row!)
+    await user.click(screen.getByRole('button', { name: 'Close policy definition' }))
 
-    expect(screen.queryByRole('heading', { name: 'Policy details' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
-  it('renders pagination footer', () => {
-    setupPoliciesQuery(samplePolicies, { total: 2 })
+  it('renders table footer with policy count, total when larger than page, and cursor pagination controls', () => {
+    setupPoliciesQuery(samplePolicies, { total: 100, next: 'cursor-page2' })
 
     render(<PoliciesTab />, { wrapper })
 
-    expect(screen.getByText(/2 policies/)).toBeInTheDocument()
+    expect(screen.getByText('2 policies of 100')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /next page/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /previous page/i })).toBeInTheDocument()
   })
 
   it('has no accessibility violations', async () => {
@@ -218,24 +219,19 @@ describe('PoliciesTab', () => {
     expect(queryParams).toMatchObject({ limit: 20, include_total: true })
   })
 
-  it('switches to a different policy in sidebar when clicking a different row', async () => {
+  it('shows the selected policy definition when opened from a different row kebab', async () => {
     const user = userEvent.setup()
     setupPoliciesQuery(samplePolicies)
 
     render(<PoliciesTab />, { wrapper })
 
-    // Click on first policy row
-    const row1 = screen.getByText('admin-policy').closest('tr')
-    await user.click(row1!)
+    const kebabs = screen.getAllByRole('button', { name: 'Kebab toggle' })
+    await user.click(kebabs[1])
+    await user.click(await screen.findByRole('menuitem', { name: /view policy definition/i }))
 
-    expect(screen.getByRole('heading', { name: 'Policy details' })).toBeInTheDocument()
-
-    // Click on second policy row
-    const row2 = screen.getByText('viewer-policy').closest('tr')
-    await user.click(row2!)
-
-    // Sidebar should now show the second policy's scope
-    expect(screen.getByText('Project: proj-1')).toBeInTheDocument()
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByRole('heading', { name: 'viewer-policy policy definition' })).toBeInTheDocument()
+    expect(within(dialog).getByText(/"description":"Read-only access"/)).toBeInTheDocument()
   })
 
   it('renders column headers with sort buttons', () => {
@@ -245,6 +241,8 @@ describe('PoliciesTab', () => {
 
     expect(screen.getByRole('columnheader', { name: /name/i })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /description/i })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /scope/i })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /project/i })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /type/i })).toBeInTheDocument()
   })
 
@@ -254,11 +252,9 @@ describe('PoliciesTab', () => {
 
     render(<PoliciesTab />, { wrapper })
 
-    // Click the Name column sort button
     const nameColumnHeader = screen.getByRole('columnheader', { name: /name/i })
-    const sortButton = nameColumnHeader.querySelector('button')
-    expect(sortButton).toBeInTheDocument()
-    await user.click(sortButton!)
+    const sortButton = within(nameColumnHeader).getByRole('button')
+    await user.click(sortButton)
 
     // After sorting, the query should be called again with sort params.
     // We verify useQuery was called after the sort click.
@@ -296,11 +292,9 @@ describe('PoliciesTab', () => {
 
     render(<PoliciesTab />, { wrapper })
 
-    // Go to page 2 first
     const nextButton = screen.getByRole('button', { name: /next page/i })
     await user.click(nextButton)
 
-    // Now go back to page 1
     const prevButton = screen.getByRole('button', { name: /previous page/i })
     await user.click(prevButton)
 
@@ -331,29 +325,25 @@ describe('PoliciesTab', () => {
 
     render(<PoliciesTab />, { wrapper })
 
-    // Table should be visible initially
-    expect(screen.getByRole('grid')).toBeInTheDocument()
+    expect(screen.getByRole('grid', { name: 'Policies' })).toBeInTheDocument()
 
-    // Apply a filter
     const filterInput = screen.getByPlaceholderText('Filter by name')
     await user.type(filterInput, 'nonexistent')
 
-    // Switch to empty results before submitting the filter
     returnEmpty = true
 
     const applyButton = screen.getByRole('button', { name: 'Apply filter' })
     await user.click(applyButton)
 
-    // Should show the empty filter state
     expect(screen.getByText('No results found')).toBeInTheDocument()
   })
 
-  it('renders footer with item count, total, and correct pagination button state', () => {
+  it('renders footer with item count, total, and correct pagination button state on first page', () => {
     setupPoliciesQuery(samplePolicies, { total: 40, next: 'cursor-page2' })
 
     render(<PoliciesTab />, { wrapper })
 
-    expect(screen.getByText(/2 policies of 40/)).toBeInTheDocument()
+    expect(screen.getByText('2 policies of 40')).toBeInTheDocument()
 
     const prevButton = screen.getByRole('button', { name: /previous page/i })
     const nextButton = screen.getByRole('button', { name: /next page/i })

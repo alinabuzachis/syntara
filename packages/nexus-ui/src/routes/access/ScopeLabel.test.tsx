@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 import { navigate } from 'wouter/use-browser-location'
 
-import { ProjectLabel, ScopeLabel } from './ScopeLabel'
+import { PolicyTypeLabel, ProjectLabel, ScopeLabel } from './ScopeLabel'
 
 vi.mock('wouter/use-browser-location', () => ({
   navigate: vi.fn(),
@@ -14,6 +14,35 @@ const projectNameMap = new Map([
   ['proj-1', 'Alpha Project'],
   ['proj-2', 'Beta Project'],
 ])
+
+describe('PolicyTypeLabel', () => {
+  it('has no accessibility violations for built-in policy', async () => {
+    const { container } = render(<PolicyTypeLabel isBuiltin />)
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
+
+  it('has no accessibility violations for custom policy', async () => {
+    const { container } = render(<PolicyTypeLabel isBuiltin={false} />)
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
+
+  it('renders "Built-in" label with lock icon when isBuiltin is true', () => {
+    render(<PolicyTypeLabel isBuiltin />)
+    expect(screen.getByText('Built-in')).toBeInTheDocument()
+  })
+
+  it('renders "Custom" label when isBuiltin is false', () => {
+    render(<PolicyTypeLabel isBuiltin={false} />)
+    expect(screen.getByText('Custom')).toBeInTheDocument()
+  })
+
+  it('renders "Custom" label when isBuiltin is undefined', () => {
+    render(<PolicyTypeLabel />)
+    expect(screen.getByText('Custom')).toBeInTheDocument()
+  })
+})
 
 describe('ScopeLabel', () => {
   it('has no accessibility violations', async () => {

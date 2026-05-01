@@ -1,23 +1,25 @@
-import { Label, StackItem } from '@patternfly/react-core'
-import { RhUiLockIcon } from '@patternfly/react-icons'
-import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
-import { useMemo, useState } from 'react'
+import { Stack, StackItem } from '@patternfly/react-core'
+import { RhUiCodeIcon } from '@patternfly/react-icons'
+import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import type { IAction, ThProps } from '@patternfly/react-table'
+import { useMemo } from 'react'
 
-import { AppPageMain } from '../../app/AppPage'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
-import { PanelContentStack } from '../../components/PanelContentStack'
+import { IconLabel } from '../../components/IconLabel'
 import { useQueryState } from '../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
+import { useDialogState } from '../../hooks/useDialogState'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
-import { buildFilterParams } from '../../utils/filterUtils'
+import { detachPromise } from '../../utils/detachPromise'
 import { formatItemCount } from '../../utils/formatItemCount'
 
 import { accessClient } from './accessClient'
-import { PolicyDetailSidebar } from './PolicyDetailSidebar'
-import { buildProjectFilterDefs, POLICY_SCOPE_OPTIONS, transformFiltersForApi } from './scopeFilterUtils'
-import { ProjectLabel, ScopeLabel } from './ScopeLabel'
+import { PolicyJsonModal } from './PolicyJsonModal'
+import { toPolicyRead } from './policyUtils'
+import { buildAccessApiQueryParams, buildProjectFilterDefs, POLICY_SCOPE_OPTIONS } from './scopeFilterUtils'
+import { PolicyTypeLabel, ProjectLabel, ScopeLabel } from './ScopeLabel'
 import type { PolicyRead } from './types'
 import { useBuiltinListState } from './useBuiltinListState'
 import { useProjectNameMap } from './useProjectNameMap'
@@ -65,7 +67,7 @@ const BASE_FILTER_FIELD_DEFS = [
   },
 ]
 
-// Column index → API sort field
+// Column index → API sort field (actions column is last and not sortable)
 const sortFieldByColumn: Record<number, string> = {
   0: 'name',
   2: 'scope',
@@ -73,8 +75,72 @@ const sortFieldByColumn: Record<number, string> = {
   4: 'is_builtin',
 }
 
+function getPolicyRowActions(policy: PolicyRead, onViewPolicyJson: (p: PolicyRead) => void): IAction[] {
+  return [
+    {
+      title: <IconLabel icon={<RhUiCodeIcon />}>View policy definition</IconLabel>,
+      onClick: () => onViewPolicyJson(policy),
+    },
+  ]
+}
+
+function PoliciesTableBody({
+  policies,
+  projectNameMap,
+  getSortParams,
+  onViewPolicyJson,
+}: Readonly<{
+  policies: PolicyRead[]
+  projectNameMap: Map<string, string>
+  getSortParams: (columnIndex: number) => ThProps['sort']
+  onViewPolicyJson: (p: PolicyRead) => void
+}>) {
+  return (
+    <>
+      <Thead>
+        <Tr>
+          <Th sort={getSortParams(0)}>Name</Th>
+          <Th>Description</Th>
+          <Th sort={getSortParams(2)} modifier="nowrap">
+            Scope
+          </Th>
+          <Th sort={getSortParams(3)} modifier="nowrap">
+            Project
+          </Th>
+          <Th sort={getSortParams(4)} modifier="nowrap">
+            Type
+          </Th>
+          <Th screenReaderText="Actions" />
+        </Tr>
+      </Thead>
+      <Tbody>
+        {policies.map((policy) => (
+          <Tr key={policy.id} data-testid={`policy-row-${policy.id}`}>
+            <Td dataLabel="Name">
+              <code>{policy.name}</code>
+            </Td>
+            <Td dataLabel="Description">{policy.description ?? '-'}</Td>
+            <Td dataLabel="Scope">
+              <ScopeLabel scope={policy.scope} />
+            </Td>
+            <Td dataLabel="Project">
+              <ProjectLabel projectId={policy.project_id} projectNameMap={projectNameMap} />
+            </Td>
+            <Td dataLabel="Type">
+              <PolicyTypeLabel isBuiltin={policy.is_builtin} />
+            </Td>
+            <Td isActionCell>
+              <ActionsColumn items={getPolicyRowActions(policy, onViewPolicyJson)} />
+            </Td>
+          </Tr>
+        ))}
+      </Tbody>
+    </>
+  )
+}
+
 export function PoliciesTab() {
-  const [selectedPolicyId, setSelectedPolicyId] = useState<string | null>(null)
+  const policyJsonDialog = useDialogState<PolicyRead>()
   const {
     filters,
     hasActiveFilters,
@@ -87,7 +153,6 @@ export function PoliciesTab() {
     goToNextPage,
   } = useBuiltinListState(sortFieldByColumn)
 
-  // Fetch projects to resolve project names in the sidebar scope field.
   const { projectNameMap } = useProjectNameMap()
 
   const filterFieldDefinitions = useMemo(
@@ -95,127 +160,77 @@ export function PoliciesTab() {
     [projectNameMap]
   )
 
-  // Build query params from filters, transforming type → is_builtin and scope → project_id
-  const queryParams = useMemo(() => {
-    const params: Record<string, unknown> = { limit: baseQueryParams.limit, include_total: true }
-    if (typeof baseQueryParams.cursor === 'string') params.cursor = baseQueryParams.cursor
-    if (typeof baseQueryParams.sort === 'string') params.sort = baseQueryParams.sort
-    Object.assign(params, buildFilterParams(transformFiltersForApi(filters)))
-    return params
-  }, [baseQueryParams, filters])
+  const queryParams = useMemo(() => buildAccessApiQueryParams(baseQueryParams, filters), [baseQueryParams, filters])
 
   const policiesQuery = accessClient.useQuery('get', '/policies', {
     params: { query: queryParams },
   })
 
-  const policies = policiesQuery.data?.resources ?? []
-
-  // Loading/error states
+  const policies = useMemo(
+    () => (policiesQuery.data?.resources ?? []).map(toPolicyRead),
+    [policiesQuery.data?.resources]
+  )
   const queryState = useQueryState(policiesQuery, {
     title: 'Error loading policies',
-    onRetry: () => policiesQuery.refetch(),
+    onRetry: () => detachPromise(policiesQuery.refetch()),
   })
 
   if (queryState) {
     return queryState
   }
 
-  const selectedPolicy = selectedPolicyId ? (policies.find((p) => p.id === selectedPolicyId) ?? null) : null
+  const queryData = policiesQuery.data
+  const tableFooter = {
+    content: formatItemCount(policies.length, 'policy', 'policies', queryData?.total),
+    // `prev` is only used for Previous button enabled state; cursor history is in goToPrevPage.
+    prev: page > 1 ? (queryData?.prev ?? '1') : null,
+    next: queryData?.next ?? null,
+    onPrev: goToPrevPage,
+    onNext: () => goToNextPage(queryData?.next ?? null),
+  }
 
   if (policies.length === 0 && !hasActiveFilters) {
     return <EmptyStateNoData title="No policies found" description="No policies are available." />
   }
 
   return (
-    <div style={{ display: 'flex', flex: 1, height: '100%', minHeight: 0, minWidth: 0 }}>
-      <div style={{ display: 'flex', flex: 1, flexDirection: 'column', minHeight: 0, minWidth: 0 }}>
-        <PanelContentStack>
-          <StackItem>
-            <FilterBar
-              fieldDefinitions={filterFieldDefinitions}
-              filters={filters}
-              onFilterChange={handleFilterChange}
-              showClearAll={true}
-              clearAllFilters={clearAllFilters}
-            />
+    <>
+      <Stack style={{ height: '100%' }}>
+        <StackItem>
+          <FilterBar
+            fieldDefinitions={filterFieldDefinitions}
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            showClearAll={true}
+            clearAllFilters={clearAllFilters}
+          />
+        </StackItem>
+
+        {policies.length === 0 ? (
+          <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <EmptyStateFilter clearAllFilters={clearAllFilters} />
           </StackItem>
-
-          {policies.length === 0 ? (
-            <AppPageMain isCentered>
-              <EmptyStateFilter clearAllFilters={clearAllFilters} />
-            </AppPageMain>
-          ) : (
-            <ScrollableTableContainer
-              aria-label="Policies"
-              footer={{
-                content: formatItemCount(policies.length, 'policy', 'policies', policiesQuery.data?.total),
-                prev: page > 1 ? 'prev' : null,
-                next: policiesQuery.data?.next ?? null,
-                onPrev: goToPrevPage,
-                onNext: () => goToNextPage(policiesQuery.data?.next ?? null),
-              }}
-            >
-              <Thead>
-                <Tr>
-                  <Th sort={getSortParams(0)}>Name</Th>
-                  <Th>Description</Th>
-                  <Th sort={getSortParams(2)} modifier="nowrap">
-                    Scope
-                  </Th>
-                  <Th sort={getSortParams(3)} modifier="nowrap">
-                    Project
-                  </Th>
-                  <Th sort={getSortParams(4)} modifier="nowrap">
-                    Type
-                  </Th>
-                </Tr>
-              </Thead>
-              <Tbody>
-                {policies.map((policy) => (
-                  <Tr
-                    key={policy.id}
-                    isSelectable
-                    isClickable
-                    selected={policy.id === selectedPolicyId}
-                    onRowClick={() => setSelectedPolicyId(policy.id === selectedPolicyId ? null : policy.id)}
-                    data-testid={`policy-row-${policy.id}`}
-                  >
-                    <Td dataLabel="Name">
-                      <code>{policy.name}</code>
-                    </Td>
-                    <Td dataLabel="Description">{policy.description ?? '-'}</Td>
-                    <Td dataLabel="Scope">
-                      <ScopeLabel scope={policy.scope} />
-                    </Td>
-                    <Td dataLabel="Project">
-                      <ProjectLabel projectId={policy.project_id} projectNameMap={projectNameMap} />
-                    </Td>
-                    <Td dataLabel="Type">
-                      {policy.is_builtin ? (
-                        <Label color="grey" icon={<RhUiLockIcon />} isCompact>
-                          Built-in
-                        </Label>
-                      ) : (
-                        <Label color="blue" isCompact>
-                          Custom
-                        </Label>
-                      )}
-                    </Td>
-                  </Tr>
-                ))}
-              </Tbody>
+        ) : (
+          <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
+            <ScrollableTableContainer aria-label="Policies" footer={tableFooter}>
+              <PoliciesTableBody
+                policies={policies}
+                projectNameMap={projectNameMap}
+                getSortParams={getSortParams}
+                onViewPolicyJson={policyJsonDialog.open}
+              />
             </ScrollableTableContainer>
-          )}
-        </PanelContentStack>
-      </div>
+          </StackItem>
+        )}
+      </Stack>
 
-      {selectedPolicy && (
-        <PolicyDetailSidebar
-          policy={selectedPolicy as PolicyRead}
-          onClose={() => setSelectedPolicyId(null)}
-          projectName={selectedPolicy.project_id ? projectNameMap.get(selectedPolicy.project_id) : undefined}
+      {policyJsonDialog.item != null && (
+        <PolicyJsonModal
+          isOpen={policyJsonDialog.isOpen}
+          policy={policyJsonDialog.item}
+          onClose={policyJsonDialog.close}
         />
       )}
-    </div>
+    </>
   )
 }

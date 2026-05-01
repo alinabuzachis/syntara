@@ -16,7 +16,7 @@ import {
   Title,
   TitleSizes,
 } from '@patternfly/react-core'
-import { RhUiCloseIcon, RhUiLockIcon } from '@patternfly/react-icons'
+import { RhUiCloseIcon } from '@patternfly/react-icons'
 import { useEffect } from 'react'
 import { navigate } from 'wouter/use-browser-location'
 
@@ -24,6 +24,8 @@ import { AppRoute } from '../../app/AppRoute'
 import { AppPanel } from '../../components/AppPanel'
 import { CodeBlock } from '../../components/details/CodeBlock'
 
+import { buildPolicyDefinitionJson } from './policyUtils'
+import { PolicyTypeLabel } from './ScopeLabel'
 import type { PolicyRead } from './types'
 
 type PolicyDetailSidebarProps = {
@@ -66,11 +68,7 @@ export function PolicyDetailSidebar({ policy, onClose, projectName }: Readonly<P
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [onClose])
 
-  const policyJson = {
-    name: policy.name,
-    ...(policy.description && { description: policy.description }),
-    statements: policy.statements,
-  }
+  const policyJson = buildPolicyDefinitionJson(policy)
 
   const hasLabels = Object.keys(policy.labels ?? {}).length > 0
 
@@ -106,15 +104,7 @@ export function PolicyDetailSidebar({ policy, onClose, projectName }: Readonly<P
               <code style={{ fontSize: 'var(--pf-t--global--font--size--body--lg)' }}>{policy.name}</code>
             </FlexItem>
             <FlexItem>
-              {policy.is_builtin ? (
-                <Label color="grey" icon={<RhUiLockIcon />} isCompact>
-                  Built-in
-                </Label>
-              ) : (
-                <Label color="blue" isCompact>
-                  Custom
-                </Label>
-              )}
+              <PolicyTypeLabel isBuiltin={policy.is_builtin} />
             </FlexItem>
           </Flex>
         </StackItem>
@@ -245,10 +235,10 @@ export function PolicyDetailSidebar({ policy, onClose, projectName }: Readonly<P
           <Divider />
         </StackItem>
 
-        {/* JSON view */}
+        {/* Copyable policy definition (name, description, statements) */}
         <StackItem>
           <Title headingLevel="h3" size={TitleSizes.md} style={{ marginBottom: 'var(--pf-t--global--spacer--sm)' }}>
-            Policy JSON
+            Policy definition
           </Title>
           <CodeBlock jsonObject={policyJson} noMaxHeight enableCopy />
         </StackItem>

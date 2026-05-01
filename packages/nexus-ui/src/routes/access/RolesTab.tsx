@@ -26,13 +26,12 @@ import { useQueryState } from '../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
-import { buildFilterParams } from '../../utils/filterUtils'
 import { formatItemCount } from '../../utils/formatItemCount'
 
 import { accessClient } from './accessClient'
 import { AddRoleDialog } from './AddRoleDialog'
 import { EditRoleDialog } from './EditRoleDialog'
-import { buildProjectFilterDefs, ROLE_SCOPE_OPTIONS, transformFiltersForApi } from './scopeFilterUtils'
+import { buildAccessApiQueryParams, buildProjectFilterDefs, ROLE_SCOPE_OPTIONS } from './scopeFilterUtils'
 import { ProjectLabel, ScopeLabel } from './ScopeLabel'
 import type { RoleRead } from './types'
 import { useBuiltinListState } from './useBuiltinListState'
@@ -189,13 +188,7 @@ export function RolesTab() {
     [projectNameMap]
   )
 
-  const queryParams = useMemo(() => {
-    const params: Record<string, unknown> = { limit: baseQueryParams.limit, include_total: true }
-    if (typeof baseQueryParams.cursor === 'string') params.cursor = baseQueryParams.cursor
-    if (typeof baseQueryParams.sort === 'string') params.sort = baseQueryParams.sort
-    Object.assign(params, buildFilterParams(transformFiltersForApi(filters)))
-    return params
-  }, [baseQueryParams, filters])
+  const queryParams = useMemo(() => buildAccessApiQueryParams(baseQueryParams, filters), [baseQueryParams, filters])
 
   const rolesQuery = accessClient.useQuery('get', '/roles', {
     params: { query: queryParams },

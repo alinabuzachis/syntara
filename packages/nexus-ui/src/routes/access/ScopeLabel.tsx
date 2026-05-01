@@ -1,4 +1,5 @@
 import { Button, Label } from '@patternfly/react-core'
+import { RhUiLockIcon } from '@patternfly/react-icons'
 import type { Ref } from 'react'
 import { navigate } from 'wouter/use-browser-location'
 
@@ -23,6 +24,25 @@ export function ScopeLabel({ scope }: Readonly<ScopeLabelProps>) {
   return (
     <Label color={display.color} isCompact>
       {display.label}
+    </Label>
+  )
+}
+
+type PolicyTypeLabelProps = {
+  isBuiltin?: boolean
+}
+
+export function PolicyTypeLabel({ isBuiltin }: Readonly<PolicyTypeLabelProps>) {
+  if (isBuiltin) {
+    return (
+      <Label color="grey" icon={<RhUiLockIcon />} isCompact>
+        Built-in
+      </Label>
+    )
+  }
+  return (
+    <Label color="blue" isCompact>
+      Custom
     </Label>
   )
 }

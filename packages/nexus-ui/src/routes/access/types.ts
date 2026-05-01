@@ -28,8 +28,9 @@ export type PolicyStatement = PoliciesAPI.components['schemas']['PolicyStatement
 
 // The generated PolicyRead.statements is `{ [key: string]: unknown }[]`
 // which loses the strongly-typed PolicyStatementSchema. Override it.
-type _PolicyRead = PoliciesAPI.components['schemas']['PolicyRead']
-export type PolicyRead = Omit<_PolicyRead, 'statements'> & {
+/** Raw OpenAPI `PolicyRead` (statements are loosely typed in the generated schema). */
+export type PolicyReadApi = PoliciesAPI.components['schemas']['PolicyRead']
+export type PolicyRead = Omit<PolicyReadApi, 'statements'> & {
   statements: PolicyStatement[]
 }
 
