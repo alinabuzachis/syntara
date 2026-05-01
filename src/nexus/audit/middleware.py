@@ -6,7 +6,7 @@ structured logging with method, path, query parameters, user information
 execution, activity) when available.
 
 Also extracts the ``X-Request-Id`` header (UUID) from incoming requests
-and propagates it via :data:`~nexus.audit.emitter.request_id_context_var`
+and propagates it via :data:`~nexus.audit.emitter.audit_context_var`
 so downstream middleware, handlers, and telemetry can access it.
 """
 
@@ -14,31 +14,29 @@ from __future__ import annotations
 
 import contextlib
 import time
-from dataclasses import dataclass
 from http import HTTPStatus
 from posixpath import normpath
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 from urllib.parse import parse_qs, unquote
 from uuid import UUID
 
+import jwt
 import structlog
-from starlette.requests import Request
 from starlette.routing import Match
 
 from nexus.api.constants import EXCLUDED_PATH_PREFIXES, EXCLUDED_PATHS
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.emitter import (
+    AuditActorContext,
     activity_id_context_var,
     actor_context_var,
-    actor_type_context_var,
     execution_id_context_var,
     request_id_context_var,
     workflow_id_context_var,
 )
 from nexus.audit.events.http_request import HTTPRequestEvent
 from nexus.audit.models.audit_event import ActorType
-from nexus.auth.dependencies import bearer_scheme, get_current_user
-from nexus.auth.exceptions import AuthenticationRequiredError, InvalidTokenError
+from nexus.core.auth.jwt_utils import extract_actor_claims
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -46,11 +44,8 @@ if TYPE_CHECKING:
     from fastapi import FastAPI
     from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-    from nexus.core.models.user import User
 
-
-@dataclass(frozen=True)
-class ContextIds:
+class ContextIds(NamedTuple):
     """Resolved context identifiers from a request.
 
     Attributes:
@@ -160,38 +155,75 @@ class AuditMiddleware:
         # Truncate to max length
         return normalized[:_MAX_PATH_LENGTH]
 
-    async def _extract_user(self, scope: Scope) -> User | None:
-        """Extract and authenticate user from the ASGI scope.
+    def _extract_user(self, scope: Scope) -> AuditActorContext:
+        """Extract actor information from JWT token without signature verification.
 
-        Uses bearer_scheme and get_current_user() to validate the Authorization
-        header bearer token and creates a User object.
+        Performs unverified JWT decode to extract actor_id (sub) and actor_username
+        (preferred_username) claims for audit logging. This avoids the crypto overhead
+        of signature verification since:
+        1. The middleware doesn't gate access (the endpoint does)
+        2. If the token is forged, the endpoint will reject it with 401
+        3. The audit log still captures the failed attempt
+
+        This eliminates double-authentication overhead (middleware + endpoint) and
+        removes coupling to TokenService/User/get_current_user.
 
         Args:
             scope: ASGI connection scope.
 
         Returns:
-            Authenticated User object or None if not authenticated.
+            AuditActorContext with actor_id and actor_username from JWT claims,
+            or empty context if token is missing or malformed.
 
         """
-        # Convert ASGI scope to a Starlette Request object
-        # Required because bearer_scheme and get_current_user() expect a Request
-        request = Request(scope)
+        # Extract Authorization header from ASGI scope
+        authorization_header: str | None = None
+        for header_name, header_value in scope.get("headers", []):
+            if header_name.lower() == b"authorization":
+                try:
+                    authorization_header = header_value.decode("latin-1")
+                except UnicodeDecodeError:
+                    # Malformed header, return empty context
+                    return AuditActorContext()
+                break
 
-        # Extract credentials using the same bearer_scheme used by FastAPI dependencies
-        # bearer_scheme is configured with auto_error=False, so it returns None
-        # instead of raising an exception when the Authorization header is missing
-        credentials = await bearer_scheme(request)
+        if not authorization_header:
+            return AuditActorContext()
 
-        # Authenticate using the existing get_current_user() function
-        if credentials:
-            try:
-                return get_current_user(request, credentials)
-            except (AuthenticationRequiredError, InvalidTokenError):
-                # Silently ignore auth errors - let the endpoint's
-                # get_current_user() dependency handle them properly
-                pass
+        # Extract bearer token from "Bearer <token>" format
+        parts = authorization_header.split()
+        if len(parts) != 2 or parts[0].lower() != "bearer":  # noqa: PLR2004
+            return AuditActorContext()
 
-        return None
+        token = parts[1]
+
+        # Decode JWT without signature verification
+        try:
+            claims = jwt.decode(
+                token,
+                options={"verify_signature": False},
+                # Algorithm doesn't matter since we're not verifying
+                # This is however the same as auth.services.token_service.JWT_ALGORITHM
+                algorithms=["ES256"],
+            )
+
+            # Extract actor claims using shared utility to ensure consistency
+            # with auth.dependencies._user_from_payload
+            actor_claims = extract_actor_claims(claims)
+
+            if actor_claims.actor_id or actor_claims.actor_username:
+                return AuditActorContext(
+                    actor_id=actor_claims.actor_id,
+                    actor_username=actor_claims.actor_username,
+                    actor_type=ActorType.USER,
+                )
+
+        except (jwt.DecodeError, ValueError, KeyError):
+            # Malformed JWT or invalid UUID - return empty context
+            # The endpoint's authentication will handle the actual error
+            pass
+
+        return AuditActorContext()
 
     def _parse_query_params(self, query_string: bytes) -> dict[str, str | list[str]]:
         """Parse query string into a dictionary.
@@ -323,10 +355,9 @@ class AuditMiddleware:
                         request_payload_size = size
         request_id_token = request_id_context_var.set(request_id)
 
-        # Extract and authenticate user, setting actor context for @audit decorators
-        user = await self._extract_user(scope)
-        actor_token = actor_context_var.set(user)
-        actor_type_token = actor_type_context_var.set(ActorType.USER if user is not None else ActorType.SYSTEM)
+        # Extract actor information from JWT (unverified decode for audit logging only)
+        _actor_context = self._extract_user(scope)
+        actor_token = actor_context_var.set(_actor_context)
 
         # Resolve context IDs from the path (before routing) and set context variables
         # This makes workflow_id, execution_id, and activity_id available to route handlers
@@ -359,12 +390,12 @@ class AuditMiddleware:
             response_time_ms = int((time.monotonic() - start_time) * 1000)
             # Emit audit event for request completion (success or error)
             self._emit_completed(scope, path, status_code, response_time_ms, request_payload_size)
+
             # Reset context variables
+            actor_context_var.reset(actor_token)
+            workflow_id_context_var.reset(workflow_token)
             activity_id_context_var.reset(activity_token)
             execution_id_context_var.reset(execution_token)
-            workflow_id_context_var.reset(workflow_token)
-            actor_context_var.reset(actor_token)
-            actor_type_context_var.reset(actor_type_token)
             request_id_context_var.reset(request_id_token)
 
     def _emit_completed(
@@ -392,11 +423,7 @@ class AuditMiddleware:
             method = self._strip_control_chars(scope.get("method", "UNKNOWN"))
 
             # Extract user information for logging
-            user = actor_context_var.get()
-            actor_id = user.id if user else None
-            _actor_type = actor_type_context_var.get()
-            actor_type = _actor_type if _actor_type is not None else ActorType.SYSTEM
-            actor_username = user.username if user else None
+            _actor_context = actor_context_var.get()
 
             # Extract context information for logging
             workflow_id = workflow_id_context_var.get()
@@ -410,9 +437,7 @@ class AuditMiddleware:
                 method=method,
                 path=path,
                 status_code=status_code,
-                actor_id=actor_id,
-                actor_type=actor_type,
-                actor_username=actor_username,
+                actor_context=_actor_context if _actor_context else AuditActorContext(),
                 source_component=self._resolve_source_component(scope),
                 query_params=query_params or None,
                 workflow_id=workflow_id,

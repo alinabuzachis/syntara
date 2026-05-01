@@ -13,9 +13,9 @@ from nexus.audit.context_managers import actor_context, audit_context
 from nexus.audit.decorators import audit
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.emitter import (
+    AuditActorContext,
     activity_id_context_var,
     actor_context_var,
-    actor_type_context_var,
     execution_id_context_var,
     workflow_id_context_var,
 )
@@ -58,15 +58,17 @@ class TestActorContext:
             activity_id=test_activity_id,
             execution_id=test_execution_id,
         ):
-            assert actor_context_var.get() == test_user
-            assert actor_type_context_var.get() == ActorType.USER
+            _actor_context = actor_context_var.get()
+            assert _actor_context is not None
+            assert _actor_context.actor_id == test_user.id
+            assert _actor_context.actor_username == test_user.username
+            assert _actor_context.actor_type == ActorType.USER
             assert workflow_id_context_var.get() == test_workflow_id
             assert activity_id_context_var.get() == test_activity_id
             assert execution_id_context_var.get() == test_execution_id
 
         # Assert - context variables should be reset after context
         assert actor_context_var.get() is None
-        assert actor_type_context_var.get() is None
         assert workflow_id_context_var.get() is None
         assert activity_id_context_var.get() is None
         assert execution_id_context_var.get() is None
@@ -74,8 +76,7 @@ class TestActorContext:
     async def test_actor_context_with_defaults(self) -> None:
         """Test actor_context with default values (actor=None means SYSTEM)."""
         with actor_context():
-            assert actor_context_var.get() is None
-            assert actor_type_context_var.get() == ActorType.SYSTEM
+            assert actor_context_var.get() == AuditActorContext()
             assert workflow_id_context_var.get() is None
             assert activity_id_context_var.get() is None
             assert execution_id_context_var.get() is None
@@ -83,8 +84,7 @@ class TestActorContext:
     async def test_actor_context_resets_on_exception(self, test_user: User) -> None:
         """Test that actor_context resets context variables even when exception occurs."""
         # Arrange
-        original_actor = actor_context_var.get()
-        original_actor_type = actor_type_context_var.get()
+        original_actor_context = actor_context_var.get()
         error_msg = "test error"
 
         # Act & Assert
@@ -92,13 +92,15 @@ class TestActorContext:
             pytest.raises(ValueError, match="test error"),
             actor_context(actor=test_user),
         ):
-            assert actor_context_var.get() == test_user
-            assert actor_type_context_var.get() == ActorType.USER
+            _actor_context = actor_context_var.get()
+            assert _actor_context is not None
+            assert _actor_context.actor_id == test_user.id
+            assert _actor_context.actor_username == test_user.username
+            assert _actor_context.actor_type == ActorType.USER
             raise ValueError(error_msg)
 
         # Assert - context should be reset even after exception
-        assert actor_context_var.get() == original_actor
-        assert actor_type_context_var.get() == original_actor_type
+        assert actor_context_var.get() == original_actor_context
 
     async def test_actor_context_nested_contexts(
         self, test_user: User, user_factory: Callable[..., Awaitable["User"]]
@@ -109,20 +111,28 @@ class TestActorContext:
 
         # Act & Assert
         with actor_context(actor=test_user):
-            assert actor_context_var.get() == test_user
-            assert actor_type_context_var.get() == ActorType.USER
+            _actor_context = actor_context_var.get()
+            assert _actor_context is not None
+            assert _actor_context.actor_id == test_user.id
+            assert _actor_context.actor_username == test_user.username
+            assert _actor_context.actor_type == ActorType.USER
 
             with actor_context(actor=inner_user):
-                assert actor_context_var.get() == inner_user
-                assert actor_type_context_var.get() == ActorType.USER
+                _actor_context_inner = actor_context_var.get()
+                assert _actor_context_inner is not None
+                assert _actor_context_inner.actor_id == inner_user.id
+                assert _actor_context_inner.actor_username == inner_user.username
+                assert _actor_context_inner.actor_type == ActorType.USER
 
             # Should restore outer context
-            assert actor_context_var.get() == test_user
-            assert actor_type_context_var.get() == ActorType.USER
+            _actor_context_final = actor_context_var.get()
+            assert _actor_context_final is not None
+            assert _actor_context_final.actor_id == test_user.id
+            assert _actor_context_final.actor_username == test_user.username
+            assert _actor_context_final.actor_type == ActorType.USER
 
         # Should restore original context
         assert actor_context_var.get() is None
-        assert actor_type_context_var.get() is None
 
 
 class TestAuditContext:

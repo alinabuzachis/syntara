@@ -164,7 +164,7 @@ The `data_type` field is a string that identifies the event source for UI/fronte
 **Actor Identity Integrity:**  
 The `actor_username` field is stored alongside `actor_id` and `actor_type` to provide complete actor identity. To ensure these fields remain synchronized and prevent potential security issues from id/username mismatches:
 
-- `AuditContextEvent` accepts `actor: User | None` instead of discrete actor fields
+- `AuditContextEvent` accepts `actor_context: AuditActorContext` instead of discrete actor fields
 - The handler extracts `actor_id`, `actor_type`, and `actor_username` atomically from the User object
 - This guarantees the three fields always come from the same source record
 - Domain events populate username from User objects or JWT payloads to maintain integrity
@@ -295,7 +295,6 @@ sequenceDiagram
 
     Handler->>Handler: with actor_context(actor=user)
     Handler->>ContextVar: Set actor_context_var
-    Handler->>ContextVar: Set actor_type_context_var
     Handler->>ContextVar: Set workflow_id_context_var (optional)
     Handler->>ContextVar: Set activity_id_context_var (optional)
     Handler->>ContextVar: Set execution_id_context_var (optional)
@@ -307,7 +306,7 @@ sequenceDiagram
     Dispatcher->>Dispatcher: Route to FunctionExecutionHandler
     Dispatcher->>Emitter: emit_audit_event(AuditEvent)
 
-    Emitter->>ContextVar: Read actor_id_context_var
+    Emitter->>ContextVar: Read actor_context_var
     Emitter->>ContextVar: Read workflow_id_context_var
     Note over Emitter: Inject context into event<br/>if not already set
 
@@ -427,6 +426,100 @@ with audit_context(
 - Propagates `X-Request-Id` header via context var
 
 **No manual usage required** - automatically registered in FastAPI app middleware stack.
+
+### Implementation Patterns
+
+#### Atomic Actor Extraction
+
+**Critical for audit integrity:** Actor identity fields (`actor_id`, `actor_username`, `actor_type`) must always be extracted atomically from a single source to prevent mismatched id/username pairs that could compromise audit trail trustworthiness.
+
+**Pattern:**
+```python
+from nexus.audit.emitter import AuditActorContext
+from nexus.audit.models.audit_event import ActorType
+from nexus.core.models.user import User
+
+# ✅ CORRECT: Atomic extraction from User object
+def extract_actor_from_user(user: User | None) -> AuditActorContext:
+    """Extract actor context atomically from User object.
+
+    All three fields (id, username, type) are extracted together
+    in the same scope, preventing potential race conditions or
+    partial updates that could cause mismatches.
+    """
+    if user is None:
+        return AuditActorContext()  # Empty context for SYSTEM actor
+
+    return AuditActorContext(
+        actor_id=user.id,
+        actor_username=user.username,
+        actor_type=ActorType.USER,
+    )
+
+# ❌ WRONG: Separate field extraction creates race condition risk
+def extract_actor_wrong(user: User | None) -> tuple:
+    actor_id = user.id if user else None
+    # ... other code could modify user here ...
+    actor_username = user.username if user else None
+    return (actor_id, actor_username)  # Could be mismatched!
+```
+
+**Where this pattern is enforced:**
+- `audit_context` manager: Accepts `actor: User | None` parameter
+- `actor_extractor.py`: All extraction strategies return `AuditActorContext`
+- `middleware.py`: JWT claims extracted together
+- Domain event handlers: Extract username atomically when mapping to AuditEvent
+
+**Why it matters:** Without atomic extraction, concurrent modifications or context variable race conditions could lead to `actor_id` belonging to one user while `actor_username` belongs to another, rendering audit logs untrustworthy for forensic analysis and non-repudiation.
+
+#### Async-Safe Context Variable Management
+
+**Critical for async safety:** Context variables must use token-based reset in try/finally blocks to prevent context leakage between concurrent requests.
+
+**Pattern:**
+```python
+from contextvars import ContextVar
+from nexus.audit.emitter import actor_context_var, AuditActorContext
+
+# ✅ CORRECT: Token-based reset with try/finally
+async def process_request(user: User) -> Response:
+    # Capture token BEFORE try block
+    actor_context = AuditActorContext(
+        actor_id=user.id,
+        actor_username=user.username,
+        actor_type=ActorType.USER,
+    )
+    actor_token = actor_context_var.set(actor_context)
+
+    try:
+        # Business logic - context is set
+        result = await handle_request()
+        return result
+    finally:
+        # Always reset, even on exception
+        actor_context_var.reset(actor_token)
+
+# ❌ WRONG: No token capture - cannot reset properly
+async def process_request_wrong(user: User) -> Response:
+    actor_context_var.set(AuditActorContext(...))
+    # Missing finally block - context leaks to next request!
+    return await handle_request()
+```
+
+**Token-based reset protocol:**
+1. **Capture token immediately** after `set()` call
+2. **Set context variables BEFORE try block** (not inside)
+3. **Reset in finally block** using captured token
+4. **Always use try/finally** - never rely on normal return paths
+
+**Where this pattern is enforced:**
+- `middleware.py`: actor, workflow, execution, activity, request_id contexts
+- `decorators.py`: actor context in @audit decorator
+- `context_managers.py`: all context managers
+
+**Why it matters:** Python's `contextvars` are designed for async isolation, but without proper token-based reset, context variables can leak across concurrent requests in asyncio event loops. This could cause audit events to show incorrect actor attribution or context IDs from previous requests.
+
+**Nested decorator safety:** The `@audit` decorator explicitly captures actor context early (line 100-101 comment: "This is critical for nested @audit decorators...") to avoid reading stale values from ContextVars after inner decorators reset them.
 
 ### Data Protection
 

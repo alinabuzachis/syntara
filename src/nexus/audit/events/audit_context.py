@@ -3,16 +3,15 @@
 from dataclasses import dataclass, field
 from typing import Any
 
+from nexus.audit.emitter import AuditActorContext
 from nexus.audit.handler import AuditEventHandler
 from nexus.audit.models.audit_event import (
-    ActorType,
     AuditEvent,
     EventCategory,
     EventSeverity,
     EventStatus,
 )
 from nexus.audit.models.structured_data import AuditContextData
-from nexus.core.models.user import User
 
 # ---------------------------------------------------------------------------
 # Domain event
@@ -30,7 +29,7 @@ class AuditContextEvent:
     event_category: EventCategory
     event_action: str
     source_component: str
-    actor: User | None
+    actor_context: AuditActorContext
     event_severity: EventSeverity
     resource_urn: str | None = field(default=None)
     error_type: str | None = field(default=None)
@@ -57,10 +56,9 @@ class AuditContextHandler(AuditEventHandler[AuditContextEvent]):
 
         """
         # Extract actor fields from User object
-        # None actor -> SYSTEM, otherwise USER
-        actor_id = event.actor.id if event.actor is not None else None
-        actor_type = ActorType.USER if event.actor is not None else ActorType.SYSTEM
-        actor_username = event.actor.username if event.actor is not None else None
+        actor_id = event.actor_context.actor_id
+        actor_type = event.actor_context.actor_type
+        actor_username = event.actor_context.actor_username
 
         # Determine if this is an error based on presence of error_type
         is_error = event.error_type is not None

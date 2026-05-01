@@ -13,7 +13,7 @@ Tests cover response logging:
 
 # mypy: disable-error-code="attr-defined"
 
-from collections.abc import MutableMapping
+from collections.abc import Callable, MutableMapping
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
@@ -27,32 +27,9 @@ from nexus.audit.events.http_request import HTTPRequestEvent, HTTPRequestHandler
 from nexus.audit.middleware import AuditMiddleware
 from nexus.audit.models.audit_event import AuditEvent, EventSeverity, EventStatus
 from nexus.audit.models.structured_data import AuditContextData
-from nexus.auth.exceptions import AuthenticationRequiredError, InvalidTokenError
+from nexus.core.models.user import User
 
 _EMIT_PATCH = "nexus.audit.emitter._do_emit_audit_event"
-
-
-class _MockRole:
-    """Mock role object for testing."""
-
-    def __init__(self, value: str) -> None:
-        """Initialize mock role."""
-        self.value = value
-
-
-class _MockUser:
-    """Mock user object for testing."""
-
-    def __init__(
-        self,
-        user_id: UUID | None = None,
-        username: str | None = None,
-        role: str | None = None,
-    ) -> None:
-        """Initialize mock user."""
-        self.id = user_id
-        self.username = username
-        self.role: _MockRole | None = _MockRole(role) if role else None
 
 
 def _make_scope(
@@ -60,20 +37,39 @@ def _make_scope(
     method: str = "GET",
     scope_type: str = "http",
     query_string: bytes = b"",
-    user: Any = None,  # noqa: ANN401
     path_params: dict[str, Any] | None = None,
     headers: list[tuple[bytes, bytes]] | None = None,
+    auth_token: str | None = None,
 ) -> dict[str, Any]:
-    """Build a minimal ASGI scope dict."""
+    """Build a minimal ASGI scope dict.
+
+    Args:
+        path: Request path
+        method: HTTP method
+        scope_type: ASGI scope type (default: http)
+        query_string: Query string bytes
+        path_params: Path parameters dict
+        headers: List of header tuples
+        auth_token: Optional JWT token to add to Authorization header
+
+    Returns:
+        ASGI scope dict
+
+    """
+    # Start with provided headers or empty list
+    scope_headers = list(headers) if headers else []
+
+    # Add Authorization header if token provided
+    if auth_token:
+        scope_headers.append((b"authorization", f"Bearer {auth_token}".encode("latin-1")))
+
     scope: dict[str, Any] = {
         "type": scope_type,
         "path": path,
         "method": method,
         "query_string": query_string,
-        "headers": headers or [],
+        "headers": scope_headers,
     }
-    if user is not None:
-        scope["user"] = user
     if path_params is not None:
         scope["path_params"] = path_params
     return scope
@@ -407,28 +403,23 @@ class TestAuditMiddlewareUserContext:
         AuditEventDispatcher.reset()
 
     @pytest.mark.asyncio
-    async def test_logs_user_information(self) -> None:
+    async def test_logs_user_information(self, test_user: User, create_jwt_for_user: Callable[[User], str]) -> None:
         """User information is included in request logs when authenticated."""
         app = _make_app(status_code=200)
         middleware = AuditMiddleware(app, _make_fastapi_app())
 
-        user_id = uuid4()
-        user = _MockUser(user_id=user_id, username="testuser")
-        scope = _make_scope(path="/api/v1/workflows")
+        # Create JWT token for test user
+        auth_token = create_jwt_for_user(test_user)
+        scope = _make_scope(path="/api/v1/workflows", auth_token=auth_token)
 
-        # Mock get_current_user to return the test user
-        with (
-            patch(_EMIT_PATCH) as mock_emit,
-            patch("nexus.audit.middleware.get_current_user", return_value=user),
-            patch("nexus.audit.middleware.bearer_scheme", new=AsyncMock(return_value=MagicMock())),
-        ):
+        with patch(_EMIT_PATCH) as mock_emit:
             await middleware(scope, AsyncMock(), AsyncMock())
 
         events = _get_audit_events(mock_emit, "request_completed")
         assert len(events) == 1
-        assert events[0].actor_id == user_id
+        assert events[0].actor_id == test_user.id
         assert events[0].actor_type == "user"
-        assert events[0].actor_username == "testuser"
+        assert events[0].actor_username == test_user.username
         assert isinstance(events[0].structured_data, AuditContextData)
 
     @pytest.mark.asyncio
@@ -449,92 +440,93 @@ class TestAuditMiddlewareUserContext:
         assert isinstance(events[0].structured_data, AuditContextData)
 
     @pytest.mark.asyncio
-    async def test_handles_partial_user_object(self) -> None:
-        """Handles user objects with missing attributes gracefully."""
+    async def test_handles_partial_jwt_claims_no_sub(self) -> None:
+        """JWT with only preferred_username (no sub) creates user actor with username."""
         app = _make_app(status_code=200)
         middleware = AuditMiddleware(app, _make_fastapi_app())
 
-        # User with only username (id is missing)
-        user = _MockUser(username="partialuser")
-        scope = _make_scope(path="/api/v1/workflows")
+        # Create JWT token with only preferred_username, no sub claim
+        import jwt
 
-        # Mock get_current_user to return the partial user
-        with (
-            patch(_EMIT_PATCH) as mock_emit,
-            patch("nexus.audit.middleware.get_current_user", return_value=user),
-            patch("nexus.audit.middleware.bearer_scheme", new=AsyncMock(return_value=MagicMock())),
-        ):
+        claims = {"preferred_username": "partialuser"}
+        auth_token = jwt.encode(claims, key="", algorithm="none")
+        scope = _make_scope(path="/api/v1/workflows", auth_token=auth_token)
+
+        with patch(_EMIT_PATCH) as mock_emit:
             await middleware(scope, AsyncMock(), AsyncMock())
 
         events = _get_audit_events(mock_emit, "request_completed")
         assert len(events) == 1
+        # No id (because no 'sub' claim), but has username → user actor with partial data
         assert events[0].actor_id is None
         assert events[0].actor_type == "user"
         assert events[0].actor_username == "partialuser"
         assert isinstance(events[0].structured_data, AuditContextData)
 
     @pytest.mark.asyncio
-    async def test_user_id_converted_to_string(self) -> None:
-        """User ID (UUID) is converted to string for logging."""
+    async def test_handles_partial_jwt_claims_no_preferred_username(self) -> None:
+        """JWT with only sub (no preferred_username) falls back to sub for username."""
         app = _make_app(status_code=200)
         middleware = AuditMiddleware(app, _make_fastapi_app())
 
-        user_id = uuid4()
-        user = _MockUser(user_id=user_id)
-        scope = _make_scope()
+        # Create JWT token with only sub, no preferred_username claim
+        import jwt
 
-        # Mock get_current_user to return the test user
-        with (
-            patch(_EMIT_PATCH) as mock_emit,
-            patch("nexus.audit.middleware.get_current_user", return_value=user),
-            patch("nexus.audit.middleware.bearer_scheme", new=AsyncMock(return_value=MagicMock())),
-        ):
+        user_id = "550e8400-e29b-41d4-a716-446655440000"
+        claims = {"sub": user_id}
+        auth_token = jwt.encode(claims, key="", algorithm="none")
+        scope = _make_scope(path="/api/v1/workflows", auth_token=auth_token)
+
+        with patch(_EMIT_PATCH) as mock_emit:
             await middleware(scope, AsyncMock(), AsyncMock())
 
         events = _get_audit_events(mock_emit, "request_completed")
         assert len(events) == 1
-        assert events[0].actor_id == user_id
+        # Has id from 'sub', username falls back to 'sub' → user actor with fallback username
+        assert str(events[0].actor_id) == user_id
+        assert events[0].actor_type == "user"
+        assert events[0].actor_username == user_id  # Fallback to sub
+        assert isinstance(events[0].structured_data, AuditContextData)
 
     @pytest.mark.asyncio
-    async def test_expired_jwt_token(self) -> None:
-        """Middleware gracefully handles expired JWT tokens."""
+    async def test_malformed_jwt_token(self) -> None:
+        """Middleware gracefully handles malformed JWT tokens (returns system actor)."""
         app = _make_app(status_code=200)
         middleware = AuditMiddleware(app, _make_fastapi_app())
 
-        scope = _make_scope(path="/api/v1/workflows")
+        # Provide malformed JWT token (not a valid JWT structure)
+        auth_token = "not-a-valid-jwt-token"  # noqa: S105
+        scope = _make_scope(path="/api/v1/workflows", auth_token=auth_token)
 
-        # Mock get_current_user to raise AuthenticationRequiredError
-        with (
-            patch(_EMIT_PATCH) as mock_emit,
-            patch("nexus.audit.middleware.bearer_scheme", new=AsyncMock(return_value=MagicMock())),
-            patch("nexus.audit.middleware.get_current_user", side_effect=AuthenticationRequiredError("Token expired")),
-        ):
+        with patch(_EMIT_PATCH) as mock_emit:
             await middleware(scope, AsyncMock(), AsyncMock())
 
         events = _get_audit_events(mock_emit, "request_completed")
         assert len(events) == 1
+        # Malformed token → empty AuditActorContext → system actor
         assert events[0].actor_id is None
         assert events[0].actor_type == "system"
         assert events[0].actor_username is None
 
     @pytest.mark.asyncio
-    async def test_malformed_jwt_token(self) -> None:
-        """Middleware gracefully handles malformed JWT tokens."""
+    async def test_invalid_uuid_in_jwt_sub(self) -> None:
+        """Middleware gracefully handles JWT with invalid UUID in 'sub' claim."""
         app = _make_app(status_code=200)
         middleware = AuditMiddleware(app, _make_fastapi_app())
 
-        scope = _make_scope(path="/api/v1/workflows")
+        # Create JWT token with non-UUID 'sub' claim
+        import jwt
 
-        # Mock get_current_user to raise InvalidTokenError
-        with (
-            patch(_EMIT_PATCH) as mock_emit,
-            patch("nexus.audit.middleware.bearer_scheme", new=AsyncMock(return_value=MagicMock())),
-            patch("nexus.audit.middleware.get_current_user", side_effect=InvalidTokenError("Invalid token")),
-        ):
+        claims = {"sub": "not-a-uuid", "preferred_username": "testuser"}
+        auth_token = jwt.encode(claims, key="", algorithm="none")
+        scope = _make_scope(path="/api/v1/workflows", auth_token=auth_token)
+
+        with patch(_EMIT_PATCH) as mock_emit:
             await middleware(scope, AsyncMock(), AsyncMock())
 
         events = _get_audit_events(mock_emit, "request_completed")
         assert len(events) == 1
+        # Invalid UUID → empty AuditActorContext → system actor
         assert events[0].actor_id is None
         assert events[0].actor_type == "system"
         assert events[0].actor_username is None
@@ -757,30 +749,26 @@ class TestAuditMiddlewareResponse:
             await middleware(_make_scope(), AsyncMock(), AsyncMock())
 
     @pytest.mark.asyncio
-    async def test_completed_event_has_actor(self) -> None:
+    async def test_completed_event_has_actor(self, test_user: User, create_jwt_for_user: Callable[[User], str]) -> None:
         """The request_completed event carries the authenticated actor."""
         app = _make_app(status_code=200)
         middleware = AuditMiddleware(app, _make_fastapi_app())
 
-        user_id = uuid4()
-        user = _MockUser(user_id=user_id, username="testuser")
-        scope = _make_scope()
+        auth_token = create_jwt_for_user(test_user)
+        scope = _make_scope(auth_token=auth_token)
 
-        # Mock get_current_user to return the test user
-        with (
-            patch(_EMIT_PATCH) as mock_emit,
-            patch("nexus.audit.middleware.get_current_user", return_value=user),
-            patch("nexus.audit.middleware.bearer_scheme", new=AsyncMock(return_value=MagicMock())),
-        ):
+        with patch(_EMIT_PATCH) as mock_emit:
             await middleware(scope, AsyncMock(), AsyncMock())
 
         events = _get_audit_events(mock_emit, "request_completed")
-        assert events[0].actor_id == user_id
+        assert events[0].actor_id == test_user.id
         assert events[0].actor_type == "user"
-        assert events[0].actor_username == "testuser"
+        assert events[0].actor_username == test_user.username
 
     @pytest.mark.asyncio
-    async def test_exception_preserves_actor_context(self) -> None:
+    async def test_exception_preserves_actor_context(
+        self, test_user: User, create_jwt_for_user: Callable[[User], str]
+    ) -> None:
         """Actor context is preserved in request_completed on exception path."""
 
         async def failing_app(scope: MutableMapping[str, Any], receive: Any, send: Any) -> None:  # noqa: ANN401
@@ -788,23 +776,19 @@ class TestAuditMiddlewareResponse:
             raise RuntimeError(msg)
 
         middleware = AuditMiddleware(failing_app, _make_fastapi_app())
-        user_id = uuid4()
-        user = _MockUser(user_id=user_id, username="testuser")
-        scope = _make_scope()
+        auth_token = create_jwt_for_user(test_user)
+        scope = _make_scope(auth_token=auth_token)
 
-        # Mock get_current_user to return the test user
         with (
             patch(_EMIT_PATCH) as mock_emit,
-            patch("nexus.audit.middleware.get_current_user", return_value=user),
-            patch("nexus.audit.middleware.bearer_scheme", new=AsyncMock(return_value=MagicMock())),
             pytest.raises(RuntimeError, match="boom"),
         ):
             await middleware(scope, AsyncMock(), AsyncMock())
 
         events = _get_audit_events(mock_emit, "request_completed")
-        assert events[0].actor_id == user_id
+        assert events[0].actor_id == test_user.id
         assert events[0].actor_type == "user"
-        assert events[0].actor_username == "testuser"
+        assert events[0].actor_username == test_user.username
 
 
 # =============================================================================

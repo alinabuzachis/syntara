@@ -3,9 +3,9 @@
 from dataclasses import dataclass, field
 from uuid import UUID
 
+from nexus.audit.emitter import AuditActorContext
 from nexus.audit.handler import AuditEventHandler
 from nexus.audit.models.audit_event import (
-    ActorType,
     AuditEvent,
     EventCategory,
     EventSeverity,
@@ -29,9 +29,7 @@ class HTTPRequestEvent:
     method: str
     path: str
     status_code: int
-    actor_id: UUID | None = field(default=None)
-    actor_type: ActorType = field(default=ActorType.SYSTEM)
-    actor_username: str | None = field(default=None)
+    actor_context: AuditActorContext
     source_component: str = field(default="nexus.audit.middleware")
     query_params: dict[str, str | list[str]] | None = field(default=None)
     workflow_id: UUID | None = field(default=None)
@@ -59,6 +57,11 @@ class HTTPRequestHandler(AuditEventHandler[HTTPRequestEvent]):
             A normalized AuditEvent for persistence and querying.
 
         """
+        # Extract actor fields from User object
+        actor_id = event.actor_context.actor_id
+        actor_type = event.actor_context.actor_type
+        actor_username = event.actor_context.actor_username
+
         # Build structured data with request details
         structured_data = AuditContextData(
             data_type="request_completed",
@@ -88,9 +91,9 @@ class HTTPRequestHandler(AuditEventHandler[HTTPRequestEvent]):
             event_message=f"Request completed: {event.method} {event.path} {event.status_code}",
             source_component=event.source_component,
             structured_data=structured_data,
-            actor_id=event.actor_id,
-            actor_type=event.actor_type,
-            actor_username=event.actor_username,
+            actor_id=actor_id,
+            actor_type=actor_type,
+            actor_username=actor_username,
             workflow_id=event.workflow_id,
             execution_id=event.execution_id,
             activity_id=event.activity_id,

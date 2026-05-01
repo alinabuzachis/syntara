@@ -5,7 +5,8 @@ from typing import Any
 
 import structlog
 
-from nexus.audit.emitter import actor_context_var
+from nexus.audit.emitter import AuditActorContext, actor_context_var
+from nexus.audit.models.audit_event import ActorType
 from nexus.core.models.user import User
 
 logger = structlog.stdlib.get_logger(__name__)
@@ -92,27 +93,49 @@ def extract_actor(
     args: tuple[Any, ...],
     kwargs: dict[str, Any],
     actor_param: str | None = None,
-) -> User | None:
-    """Extract actor context using multiple fallback strategies."""
+) -> AuditActorContext:
+    """Extract actor context using multiple fallback strategies.
+
+    Returns an AuditActorContext with actor_id and actor_username extracted
+    atomically from the source (context variable or User object) to ensure
+    integrity.
+    """
     # Strategy 1: Use existing context variable (highest priority)
-    actor = actor_context_var.get()
-    if actor is not None:
-        return actor
+    actor_context = actor_context_var.get()
+    if actor_context is not None and (actor_context.actor_id is not None or actor_context.actor_username is not None):
+        return AuditActorContext(
+            actor_id=actor_context.actor_id,
+            actor_username=actor_context.actor_username,
+            actor_type=ActorType.USER,
+        )
 
     # Strategy 2: FastAPI dependency injection
     fastapi_value = _try_fastapi_dependency_extraction(kwargs)
     if isinstance(fastapi_value, User):
-        return fastapi_value
+        return AuditActorContext(
+            actor_id=fastapi_value.id,
+            actor_username=fastapi_value.username,
+            actor_type=ActorType.USER,
+        )
 
     # Strategy 3: Explicit parameter specification
     if actor_param is not None:
         actor_value = _extract_from_param(signature, args, kwargs, actor_param)
         if isinstance(actor_value, User):
-            return actor_value
+            return AuditActorContext(
+                actor_id=actor_value.id,
+                actor_username=actor_value.username,
+                actor_type=ActorType.USER,
+            )
 
     # Strategy 4: Auto-detect common parameter patterns
     auto_detected_value = _auto_detect_actor_params(signature, args, kwargs)
     if isinstance(auto_detected_value, User):
-        return auto_detected_value
+        return AuditActorContext(
+            actor_id=auto_detected_value.id,
+            actor_username=auto_detected_value.username,
+            actor_type=ActorType.USER,
+        )
 
-    return None
+    # Return empty context if no actor found
+    return AuditActorContext()

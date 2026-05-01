@@ -3,9 +3,9 @@
 from dataclasses import dataclass, field
 from typing import Any
 
+from nexus.audit.emitter import AuditActorContext
 from nexus.audit.handler import AuditEventHandler
 from nexus.audit.models.audit_event import (
-    ActorType,
     AuditEvent,
     EventCategory,
     EventSeverity,
@@ -13,7 +13,6 @@ from nexus.audit.models.audit_event import (
 )
 from nexus.audit.models.structured_data import AuditContextData
 from nexus.audit.utils import escalate_severity
-from nexus.core.models.user import User
 
 # ---------------------------------------------------------------------------
 # Domain event
@@ -31,7 +30,7 @@ class FunctionExecutionEvent:
     event_category: EventCategory
     event_action: str
     source_component: str
-    actor: User | None
+    actor_context: AuditActorContext
     event_severity: EventSeverity
     function_args: dict[str, Any] = field(default_factory=dict)
     function_result: Any | None = field(default=None)
@@ -58,10 +57,9 @@ class FunctionExecutionHandler(AuditEventHandler[FunctionExecutionEvent]):
 
         """
         # Extract actor fields from User object
-        # None actor -> SYSTEM, otherwise USER
-        actor_id = event.actor.id if event.actor is not None else None
-        actor_type = ActorType.USER if event.actor is not None else ActorType.SYSTEM
-        actor_username = event.actor.username if event.actor is not None else None
+        actor_id = event.actor_context.actor_id
+        actor_type = event.actor_context.actor_type
+        actor_username = event.actor_context.actor_username
 
         is_error = event.error_type is not None
 

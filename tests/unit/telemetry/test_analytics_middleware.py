@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+from nexus.audit.emitter import AuditActorContext
 from nexus.audit.events.http_request import HTTPRequestEvent
 from nexus.telemetry.events.api_call import APICallEvent
 from nexus.telemetry.handlers.api_call import APICallTelemetryHandler
@@ -22,6 +23,7 @@ def _make_http_event(
         status_code=status_code,
         response_time_ms=response_time_ms,
         request_payload_size=request_payload_size,
+        actor_context=AuditActorContext(),
     )
 
 

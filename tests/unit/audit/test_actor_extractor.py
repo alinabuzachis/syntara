@@ -9,6 +9,8 @@ from uuid import UUID, uuid4
 import pytest
 
 from nexus.audit.actor_extractor import extract_actor
+from nexus.audit.emitter import AuditActorContext, actor_context_var
+from nexus.audit.models.audit_event import ActorType
 from nexus.core.models.user import User
 
 
@@ -28,6 +30,138 @@ def simple_test_signature(simple_test_func: Any) -> inspect.Signature:  # noqa: 
     return inspect.signature(simple_test_func)
 
 
+class TestActorExtractorContextVariable:
+    """Test Strategy 1: Context variable extraction (highest priority)."""
+
+    def teardown_method(self) -> None:
+        """Clean up context variable after each test."""
+        actor_context_var.set(None)
+
+    def test_extract_from_context_var_with_full_context(self, simple_test_signature: inspect.Signature) -> None:
+        """Test extraction from context variable with both actor_id and actor_username."""
+        user_id = uuid4()
+        username = "testuser"
+
+        # Set context variable with full actor context
+        actor_context_var.set(
+            AuditActorContext(
+                actor_id=user_id,
+                actor_username=username,
+                actor_type=ActorType.USER,
+            )
+        )
+
+        result = extract_actor(simple_test_signature, (), {})
+
+        assert result.actor_id == user_id
+        assert result.actor_username == username
+        assert result.actor_type == ActorType.USER
+
+    def test_extract_from_context_var_with_only_actor_id(self, simple_test_signature: inspect.Signature) -> None:
+        """Test extraction from context variable with only actor_id (no username)."""
+        user_id = uuid4()
+
+        # Set context variable with partial context (id only)
+        actor_context_var.set(
+            AuditActorContext(
+                actor_id=user_id,
+                actor_username=None,
+                actor_type=ActorType.USER,
+            )
+        )
+
+        result = extract_actor(simple_test_signature, (), {})
+
+        assert result.actor_id == user_id
+        assert result.actor_username is None
+        assert result.actor_type == ActorType.USER
+
+    def test_extract_from_context_var_with_only_username(self, simple_test_signature: inspect.Signature) -> None:
+        """Test extraction from context variable with only actor_username (no id)."""
+        username = "testuser"
+
+        # Set context variable with partial context (username only)
+        actor_context_var.set(
+            AuditActorContext(
+                actor_id=None,
+                actor_username=username,
+                actor_type=ActorType.USER,
+            )
+        )
+
+        result = extract_actor(simple_test_signature, (), {})
+
+        assert result.actor_id is None
+        assert result.actor_username == username
+        assert result.actor_type == ActorType.USER
+
+    def test_extract_from_empty_context_var_falls_through(
+        self, simple_test_signature: inspect.Signature, test_user: User
+    ) -> None:
+        """Test that empty context variable falls through to other strategies."""
+        # Set context variable with empty context (both None)
+        actor_context_var.set(
+            AuditActorContext(
+                actor_id=None,
+                actor_username=None,
+                actor_type=ActorType.SYSTEM,
+            )
+        )
+
+        # Provide a FastAPI dependency that should be used as fallback
+        kwargs = {"current_user": test_user}
+
+        result = extract_actor(simple_test_signature, (), kwargs)
+
+        # Should use FastAPI dependency (Strategy 2) since context var is empty
+        assert result.actor_id == test_user.id
+        assert result.actor_username == test_user.username
+        assert result.actor_type == ActorType.USER
+
+    def test_extract_from_none_context_var_falls_through(
+        self, simple_test_signature: inspect.Signature, test_user: User
+    ) -> None:
+        """Test that None context variable falls through to other strategies."""
+        # Explicitly set context variable to None
+        actor_context_var.set(None)
+
+        # Provide a FastAPI dependency that should be used as fallback
+        kwargs = {"current_user": test_user}
+
+        result = extract_actor(simple_test_signature, (), kwargs)
+
+        # Should use FastAPI dependency (Strategy 2) since context var is None
+        assert result.actor_id == test_user.id
+        assert result.actor_username == test_user.username
+        assert result.actor_type == ActorType.USER
+
+    def test_context_var_has_priority_over_other_strategies(
+        self, simple_test_signature: inspect.Signature, test_user: User
+    ) -> None:
+        """Test that context variable has highest priority over other strategies."""
+        context_user_id = uuid4()
+        context_username = "context_user"
+
+        # Set context variable
+        actor_context_var.set(
+            AuditActorContext(
+                actor_id=context_user_id,
+                actor_username=context_username,
+                actor_type=ActorType.USER,
+            )
+        )
+
+        # Also provide FastAPI dependency (should be ignored)
+        kwargs = {"current_user": test_user}
+
+        result = extract_actor(simple_test_signature, (), kwargs)
+
+        # Should use context variable (Strategy 1), not FastAPI dependency
+        assert result.actor_id == context_user_id
+        assert result.actor_username == context_username
+        assert result.actor_type == ActorType.USER
+
+
 class TestActorExtractorFastApiDependencyExtraction:
     """Test FastAPI dependency extraction functionality."""
 
@@ -40,8 +174,9 @@ class TestActorExtractorFastApiDependencyExtraction:
         result = extract_actor(simple_test_signature, (), kwargs)
 
         assert result is not None
-        assert result.id == test_user.id
-        assert result.username == test_user.username
+        assert result.actor_id == test_user.id
+        assert result.actor_username == test_user.username
+        assert result.actor_type == ActorType.USER
 
     def test_extract_user_context_success(self, simple_test_signature: inspect.Signature, test_user: User) -> None:
         """Test extraction from user_context parameter."""
@@ -50,8 +185,9 @@ class TestActorExtractorFastApiDependencyExtraction:
         result = extract_actor(simple_test_signature, (), kwargs)
 
         assert result is not None
-        assert result.id == test_user.id
-        assert result.username == test_user.username
+        assert result.actor_id == test_user.id
+        assert result.actor_username == test_user.username
+        assert result.actor_type == ActorType.USER
 
     def test_extract_non_user_object(self, simple_test_signature: inspect.Signature) -> None:
         """Test extraction with non-User object."""
@@ -59,7 +195,8 @@ class TestActorExtractorFastApiDependencyExtraction:
 
         result = extract_actor(simple_test_signature, (), kwargs)
 
-        assert result is None
+        assert result == AuditActorContext()
+        assert result.actor_type == ActorType.SYSTEM
 
     def test_extract_none_value_fallback_system(self, simple_test_signature: inspect.Signature) -> None:
         """Test extraction with None value."""
@@ -67,7 +204,8 @@ class TestActorExtractorFastApiDependencyExtraction:
 
         result = extract_actor(simple_test_signature, (), kwargs)
 
-        assert result is None
+        assert result == AuditActorContext()
+        assert result.actor_type == ActorType.SYSTEM
 
     def test_extract_no_matching_params_fallback_system(self, simple_test_signature: inspect.Signature) -> None:
         """Test extraction with no matching parameters."""
@@ -75,7 +213,8 @@ class TestActorExtractorFastApiDependencyExtraction:
 
         result = extract_actor(simple_test_signature, (), kwargs)
 
-        assert result is None
+        assert result == AuditActorContext()
+        assert result.actor_type == ActorType.SYSTEM
 
 
 class TestActorExtractorParamExtraction:
@@ -93,7 +232,8 @@ class TestActorExtractorParamExtraction:
 
         result = extract_actor(inspect.signature(test_func), args, kwargs, actor_param="actor_id")
 
-        assert result is None
+        assert result == AuditActorContext()
+        assert result.actor_type == ActorType.SYSTEM
 
     def test_extract_explicit_param_user_from_kwargs(self, test_user: User) -> None:
         """Test extraction of User from explicit parameter in kwargs."""
@@ -107,8 +247,9 @@ class TestActorExtractorParamExtraction:
         result = extract_actor(inspect.signature(test_func), args, kwargs, actor_param="actor")
 
         assert result is not None
-        assert result.id == test_user.id
-        assert result.username == test_user.username
+        assert result.actor_id == test_user.id
+        assert result.actor_username == test_user.username
+        assert result.actor_type == ActorType.USER
 
     def test_extract_explicit_param_missing_fallback_system(self, simple_test_signature: inspect.Signature) -> None:
         """Test extraction with missing explicit parameter."""
@@ -117,7 +258,8 @@ class TestActorExtractorParamExtraction:
 
         result = extract_actor(simple_test_signature, args, kwargs, actor_param="user_id")
 
-        assert result is None
+        assert result == AuditActorContext()
+        assert result.actor_type == ActorType.SYSTEM
 
     def test_extract_explicit_param_none_value_fallback_system(self) -> None:
         """Test extraction with None value in explicit parameter."""
@@ -130,7 +272,8 @@ class TestActorExtractorParamExtraction:
 
         result = extract_actor(inspect.signature(test_func), args, kwargs, actor_param="user_id")
 
-        assert result is None
+        assert result == AuditActorContext()
+        assert result.actor_type == ActorType.SYSTEM
 
 
 class TestActorExtractorAutoDetection:
@@ -148,8 +291,9 @@ class TestActorExtractorAutoDetection:
         result = extract_actor(inspect.signature(test_func), args, kwargs)
 
         assert result is not None
-        assert result.id == test_user.id
-        assert result.username == test_user.username
+        assert result.actor_id == test_user.id
+        assert result.actor_username == test_user.username
+        assert result.actor_type == ActorType.USER
 
     async def test_auto_detect_priority_order(
         self, test_user: User, user_factory: Callable[..., Awaitable["User"]]
@@ -166,8 +310,9 @@ class TestActorExtractorAutoDetection:
         result = extract_actor(inspect.signature(test_func), args, kwargs)
 
         assert result is not None
-        assert result.id == current_user.id  # current_user should win due to priority
-        assert result.username == current_user.username
+        assert result.actor_id == current_user.id  # current_user should win due to priority
+        assert result.actor_username == current_user.username
+        assert result.actor_type == ActorType.USER
 
     def test_auto_detect_skips_none_values(self, test_user: User) -> None:
         """Test auto-detection skips None values and falls back to next match."""
@@ -181,8 +326,9 @@ class TestActorExtractorAutoDetection:
         result = extract_actor(inspect.signature(test_func), args, kwargs)
 
         assert result is not None
-        assert result.id == test_user.id
-        assert result.username == test_user.username
+        assert result.actor_id == test_user.id
+        assert result.actor_username == test_user.username
+        assert result.actor_type == ActorType.USER
 
     def test_auto_detect_no_matching_params_fallback_system(self, simple_test_signature: inspect.Signature) -> None:
         """Test auto-detection with no matching parameters."""
@@ -191,4 +337,5 @@ class TestActorExtractorAutoDetection:
 
         result = extract_actor(simple_test_signature, args, kwargs)
 
-        assert result is None
+        assert result == AuditActorContext()
+        assert result.actor_type == ActorType.SYSTEM

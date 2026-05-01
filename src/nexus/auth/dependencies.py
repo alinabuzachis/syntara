@@ -17,7 +17,6 @@ Usage:
 
 import threading
 from typing import Annotated
-from uuid import UUID
 
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -28,6 +27,7 @@ from nexus.auth.exceptions import (
     InvalidTokenError,
 )
 from nexus.auth.services.token_service import TokenPayload, TokenService
+from nexus.core.auth.jwt_utils import extract_actor_claims
 from nexus.core.models import User
 
 # Optional bearer scheme - doesn't auto-raise 403
@@ -85,12 +85,19 @@ def _user_from_payload(payload: TokenPayload) -> User:
         InvalidTokenError: If required claims are missing or malformed.
 
     """
-    try:
-        user_id = UUID(payload.sub)
-    except ValueError as e:
-        raise InvalidTokenError from e
+    # Extract actor claims using shared utility to ensure consistency
+    # with audit middleware claim extraction
+    claims = {
+        "sub": payload.sub,
+        "preferred_username": payload.preferred_username,
+    }
+    actor_claims = extract_actor_claims(claims)
 
-    username = payload.preferred_username or payload.sub
+    if not actor_claims.actor_id:
+        raise InvalidTokenError
+
+    user_id = actor_claims.actor_id
+    username = actor_claims.actor_username or payload.sub
     email = payload.email or f"{username}@unknown"
     full_name = payload.name or username
 

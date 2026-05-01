@@ -7,9 +7,9 @@ from uuid import UUID
 
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.emitter import (
+    AuditActorContext,
     activity_id_context_var,
     actor_context_var,
-    actor_type_context_var,
     execution_id_context_var,
     workflow_id_context_var,
 )
@@ -45,11 +45,18 @@ def actor_context(
 
     """
     # Extract actor fields atomically from User object to ensure integrity
+    actor_id = actor.id if actor is not None else None
+    actor_username = actor.username if actor is not None else None
     actor_type = ActorType.USER if actor is not None else ActorType.SYSTEM
 
+    _actor_context = AuditActorContext(
+        actor_id=actor_id,
+        actor_username=actor_username,
+        actor_type=actor_type,
+    )
+
     # Set new context using context variables for async-safe operations
-    token_actor = actor_context_var.set(actor)
-    token_actor_type = actor_type_context_var.set(actor_type)
+    token_actor = actor_context_var.set(_actor_context)
     token_workflow_id = workflow_id_context_var.set(workflow_id)
     token_activity_id = activity_id_context_var.set(activity_id)
     token_execution_id = execution_id_context_var.set(execution_id)
@@ -59,7 +66,6 @@ def actor_context(
     finally:
         # Restore previous context using reset tokens
         actor_context_var.reset(token_actor)
-        actor_type_context_var.reset(token_actor_type)
         workflow_id_context_var.reset(token_workflow_id)
         activity_id_context_var.reset(token_activity_id)
         execution_id_context_var.reset(token_execution_id)
@@ -99,11 +105,18 @@ def audit_context(
         raise ValueError(msg)
 
     # Extract actor fields atomically from User object to ensure integrity
+    actor_id = actor.id if actor is not None else None
+    actor_username = actor.username if actor is not None else None
     actor_type = ActorType.USER if actor is not None else ActorType.SYSTEM
 
+    _actor_context = AuditActorContext(
+        actor_id=actor_id,
+        actor_username=actor_username,
+        actor_type=actor_type,
+    )
+
     # Set actor context for this audit operation
-    token_actor = actor_context_var.set(actor)
-    token_actor_type = actor_type_context_var.set(actor_type)
+    token_actor = actor_context_var.set(_actor_context)
 
     # Track error state and severity (updated in except block if exception occurs)
     error_type: str | None = None
@@ -125,7 +138,7 @@ def audit_context(
             event_category=event_category,
             event_action=event_action,
             source_component=source_component,
-            actor=actor,
+            actor_context=_actor_context,
             event_severity=event_severity,
             resource_urn=resource_urn,
             error_type=error_type,
@@ -136,4 +149,3 @@ def audit_context(
 
         # Restore previous actor context
         actor_context_var.reset(token_actor)
-        actor_type_context_var.reset(token_actor_type)

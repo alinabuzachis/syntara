@@ -4,30 +4,25 @@ import contextvars
 import functools
 import inspect
 from collections.abc import Callable
-from dataclasses import dataclass
-from typing import Any
+from typing import Any, NamedTuple
 
 import structlog
 
 from nexus.audit.actor_extractor import extract_actor
 from nexus.audit.constants import UNKNOWN
 from nexus.audit.dispatcher import AuditEventDispatcher
-from nexus.audit.emitter import actor_context_var, actor_type_context_var
+from nexus.audit.emitter import AuditActorContext, actor_context_var
 from nexus.audit.events.function_execution import FunctionExecutionEvent
-from nexus.audit.models.audit_event import ActorType, EventCategory, EventSeverity
-from nexus.core.models.user import User
+from nexus.audit.models.audit_event import EventCategory, EventSeverity
 
 logger = structlog.stdlib.get_logger(__name__)
 
 
-@dataclass
-class AuditContext:
+class AuditDecoratorContext(NamedTuple):
     """Container for audit context setup results."""
 
     function_event: FunctionExecutionEvent
-    actor: User | None  # Captured early for nested decorator safety
-    token_actor: contextvars.Token[User | None]
-    token_actor_type: contextvars.Token[ActorType | None]
+    token_actor: contextvars.Token[AuditActorContext | None]
     capture_result: bool | set[str]
 
 
@@ -95,7 +90,7 @@ def _setup_audit_context(
     *,
     capture_args: bool | set[str],
     capture_result: bool | set[str],
-) -> AuditContext:
+) -> AuditDecoratorContext:
     """Set up audit context and capture initial data.
 
     IMPORTANT: This function captures actor_context in the returned AuditContext object.
@@ -121,12 +116,10 @@ def _setup_audit_context(
 
     # Extract actor context using flexible strategies
     # CRITICAL: This must be captured here and stored in AuditContext for later use
-    actor = extract_actor(signature, args, kwargs, actor_param)
+    actor_context = extract_actor(signature, args, kwargs, actor_param)
 
     # Set actor context using context variables for async-safe operations
-    actor_type = ActorType.USER if actor is not None else ActorType.SYSTEM
-    token_actor: contextvars.Token[User | None] = actor_context_var.set(actor)
-    token_actor_type: contextvars.Token[ActorType | None] = actor_type_context_var.set(actor_type)
+    token_actor: contextvars.Token[AuditActorContext | None] = actor_context_var.set(actor_context)
 
     # Capture function arguments
     function_args = _capture_function_arguments(
@@ -143,21 +136,19 @@ def _setup_audit_context(
         event_category=event_category,
         event_action=action,
         source_component=component,
-        actor=actor,
+        actor_context=actor_context,
         event_severity=event_severity,
         function_args=function_args,
     )
 
-    return AuditContext(
+    return AuditDecoratorContext(
         function_event=function_event,
-        actor=actor,
         token_actor=token_actor,
-        token_actor_type=token_actor_type,
         capture_result=capture_result,
     )
 
 
-def _capture_result(result: Any, audit_context: AuditContext) -> None:  # noqa: ANN401
+def _capture_result(result: Any, audit_context: AuditDecoratorContext) -> None:  # noqa: ANN401
     """Capture function result if requested.
 
     Updates audit_context.function_event.function_result based on capture_result setting.
@@ -192,7 +183,7 @@ def _capture_result(result: Any, audit_context: AuditContext) -> None:  # noqa: 
                 )
 
 
-def _capture_error(error: Exception, audit_context: AuditContext) -> None:
+def _capture_error(error: Exception, audit_context: AuditDecoratorContext) -> None:
     """Capture error information for audit event.
 
     Updates audit_context.function_event with error details.
@@ -211,10 +202,9 @@ def _capture_error(error: Exception, audit_context: AuditContext) -> None:
     audit_context.function_event.error_message = "Look at the Operational Logs for full diagnosis"
 
 
-def _cleanup_audit_context(audit_context: AuditContext) -> None:
+def _cleanup_audit_context(audit_context: AuditDecoratorContext) -> None:
     """Clean up audit context variables."""
     actor_context_var.reset(audit_context.token_actor)
-    actor_type_context_var.reset(audit_context.token_actor_type)
 
 
 def audit[F: Callable[..., Any]](

@@ -1,7 +1,8 @@
 """Unit tests for AuditContextEvent and AuditContextHandler."""
 
-# mypy: disable-error-code="attr-defined"
+from nexus.audit.emitter import AuditActorContext
 
+# mypy: disable-error-code="attr-defined"
 from nexus.audit.events.audit_context import AuditContextEvent, AuditContextHandler
 from nexus.audit.handler import AuditEventHandler
 from nexus.audit.models.audit_event import ActorType, EventCategory, EventSeverity, EventStatus
@@ -23,7 +24,9 @@ class TestAuditContextHandler:
             event_category=EventCategory.USER_ACTION,
             event_action="test_action",
             source_component="test.component",
-            actor=test_user,
+            actor_context=AuditActorContext(
+                actor_id=test_user.id, actor_username=test_user.username, actor_type=ActorType.USER
+            ),
             event_severity=EventSeverity.INFO,
             resource_urn="urn:nexus:test:resource:12345",
             error_type=None,
@@ -55,7 +58,7 @@ class TestAuditContextHandler:
             event_category=EventCategory.API_EXECUTION,
             event_action="test_action",
             source_component="test.component",
-            actor=None,  # SYSTEM actor
+            actor_context=AuditActorContext(),  # SYSTEM actor
             event_severity=EventSeverity.ERROR,
             resource_urn="urn:nexus:api:endpoint:test_endpoint",
             error_type="ValueError",
@@ -89,7 +92,7 @@ class TestAuditContextHandler:
             event_category=EventCategory.SECURITY_EVENT,
             event_action="suspicious_activity_detected",
             source_component="security.monitor",
-            actor=None,  # SYSTEM actor
+            actor_context=AuditActorContext(),  # SYSTEM actor
             event_severity=EventSeverity.WARNING,
             error_type=None,
             error_message=None,
@@ -108,7 +111,7 @@ class TestAuditContextHandler:
             event_category=EventCategory.SYSTEM_OPERATION,
             event_action="database_backup",
             source_component="backup.service",
-            actor=None,  # SYSTEM actor
+            actor_context=AuditActorContext(),  # SYSTEM actor
             event_severity=EventSeverity.CRITICAL,
             error_type="DatabaseConnectionError",
             error_message="Look at the Operational Logs for full diagnosis",
@@ -127,7 +130,7 @@ class TestAuditContextHandler:
             event_category=EventCategory.USER_ACTION,
             event_action="logout",
             source_component="auth.service",
-            actor=None,  # SYSTEM actor
+            actor_context=AuditActorContext(),  # SYSTEM actor
             event_severity=EventSeverity.INFO,
             error_type=None,
             error_message=None,
@@ -151,7 +154,7 @@ class TestAuditContextHandler:
             event_category=EventCategory.USER_ACTION,
             event_action="create_workflow",
             source_component="workflows.service",
-            actor=None,  # SYSTEM actor
+            actor_context=AuditActorContext(),  # SYSTEM actor
             event_severity=EventSeverity.INFO,
             error_type=None,
             error_message=None,
@@ -175,7 +178,7 @@ class TestAuditContextHandler:
             event_category=EventCategory.SYSTEM_OPERATION,
             event_action="health_check",
             source_component="health.service",
-            actor=None,  # SYSTEM actor
+            actor_context=AuditActorContext(),  # SYSTEM actor
             event_severity=EventSeverity.ERROR,
             error_type="ServiceUnavailableError",
             error_message="Look at the Operational Logs for full diagnosis",

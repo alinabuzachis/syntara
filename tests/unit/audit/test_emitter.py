@@ -7,12 +7,11 @@ from uuid import uuid4
 import pytest
 
 from nexus.audit.emitter import (
+    AuditActorContext,
     _do_emit_audit_event,
-    _get_current_actor_context,
     _sanitizer,
     activity_id_context_var,
     actor_context_var,
-    actor_type_context_var,
     emit_audit_event,
     execution_id_context_var,
     workflow_id_context_var,
@@ -22,65 +21,6 @@ from nexus.audit.models.structured_data import AuditContextData
 from nexus.audit.sanitization import EventSanitizer
 from nexus.audit.services.writer import AuditEventWriter
 from nexus.core.models.user import User
-
-
-class TestEventCaptureContextMethods:
-    """Test EventCapture context management methods."""
-
-    def test_get_current_actor_context_defaults(self) -> None:
-        """Test getting context with default values."""
-        context = _get_current_actor_context()
-
-        assert context["actor"] is None
-        assert context["actor_type"] is None
-        assert context["workflow_id"] is None
-        assert context["activity_id"] is None
-        assert context["execution_id"] is None
-
-    def test_get_current_actor_context_with_set_values(self, test_user: User) -> None:
-        """Test getting context with set values."""
-        test_workflow_id = uuid4()
-        test_activity_id = "activity_id"
-        test_execution_id = uuid4()
-
-        # Use context copy to isolate the test
-        ctx = copy_context()
-
-        def test_in_context() -> None:
-            actor_context_var.set(test_user)
-            actor_type_context_var.set(ActorType.USER)
-            workflow_id_context_var.set(test_workflow_id)
-            activity_id_context_var.set(test_activity_id)
-            execution_id_context_var.set(test_execution_id)
-
-            context = _get_current_actor_context()
-
-            assert context["actor"] == test_user
-            assert context["actor_type"] == ActorType.USER
-            assert context["workflow_id"] == test_workflow_id
-            assert context["activity_id"] == test_activity_id
-            assert context["execution_id"] == test_execution_id
-
-        ctx.run(test_in_context)
-
-    def test_get_current_actor_context_partial_values(self, test_user: User) -> None:
-        """Test getting context with only some values set."""
-        # Use context copy to isolate the test
-        ctx = copy_context()
-
-        def test_in_context() -> None:
-            actor_context_var.set(test_user)
-            actor_type_context_var.set(ActorType.SERVICE)
-
-            context = _get_current_actor_context()
-
-            assert context["actor"] == test_user
-            assert context["actor_type"] == ActorType.SERVICE
-            assert context["workflow_id"] is None  # Still default
-            assert context["activity_id"] is None  # Still default
-            assert context["execution_id"] is None  # Still default
-
-        ctx.run(test_in_context)
 
 
 class TestEventCaptureSanitizerConfiguration:
@@ -140,8 +80,9 @@ class TestEventCaptureEmitAuditEvent:
 
         def test_in_context() -> None:
             # Set context variables
-            actor_context_var.set(test_user)
-            actor_type_context_var.set(ActorType.SERVICE)
+            actor_context_var.set(
+                AuditActorContext(actor_id=test_user.id, actor_username=test_user.username, actor_type=ActorType.USER)
+            )
             workflow_id_context_var.set(test_workflow_id)
             activity_id_context_var.set(test_activity_id)
             execution_id_context_var.set(test_execution_id)
@@ -184,7 +125,9 @@ class TestEventCaptureEmitAuditEvent:
 
         def test_in_context() -> None:
             # Set context variables
-            actor_context_var.set(test_user)
+            actor_context_var.set(
+                AuditActorContext(actor_id=test_user.id, actor_username=test_user.username, actor_type=ActorType.USER)
+            )
             workflow_id_context_var.set(context_workflow_id)
 
             # Create event with existing values
@@ -585,8 +528,9 @@ class TestEventCaptureIntegration:
 
         def test_in_context() -> None:
             # Set up context
-            actor_context_var.set(test_user)
-            actor_type_context_var.set(ActorType.USER)
+            actor_context_var.set(
+                AuditActorContext(actor_id=test_user.id, actor_username=test_user.username, actor_type=ActorType.USER)
+            )
             workflow_id_context_var.set(test_workflow_id)
             activity_id_context_var.set("activity_id")
 

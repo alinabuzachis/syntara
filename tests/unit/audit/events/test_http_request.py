@@ -4,6 +4,7 @@
 
 from uuid import uuid4
 
+from nexus.audit.emitter import AuditActorContext
 from nexus.audit.events.http_request import HTTPRequestEvent, HTTPRequestHandler
 from nexus.audit.handler import AuditEventHandler
 from nexus.audit.models.audit_event import ActorType, EventCategory, EventSeverity, EventStatus
@@ -25,8 +26,7 @@ class TestHTTPRequestHandler:
             method="GET",
             path="/api/v1/workflows",
             status_code=200,
-            actor_id=user_id,
-            actor_type=ActorType.USER,
+            actor_context=AuditActorContext(actor_id=user_id, actor_username="test-user", actor_type=ActorType.USER),
         )
 
         handler = HTTPRequestHandler()
@@ -53,6 +53,7 @@ class TestHTTPRequestHandler:
             method="POST",
             path="/api/v1/workflows",
             status_code=400,
+            actor_context=AuditActorContext(),
         )
 
         handler = HTTPRequestHandler()
@@ -68,6 +69,7 @@ class TestHTTPRequestHandler:
             method="GET",
             path="/api/v1/nonexistent",
             status_code=404,
+            actor_context=AuditActorContext(),
         )
 
         handler = HTTPRequestHandler()
@@ -82,6 +84,7 @@ class TestHTTPRequestHandler:
             method="GET",
             path="/api/v1/workflows",
             status_code=500,
+            actor_context=AuditActorContext(),
         )
 
         handler = HTTPRequestHandler()
@@ -98,6 +101,7 @@ class TestHTTPRequestHandler:
             path="/api/v1/workflows",
             status_code=200,
             query_params={"filter": "active", "limit": "10"},
+            actor_context=AuditActorContext(),
         )
 
         handler = HTTPRequestHandler()
@@ -115,6 +119,7 @@ class TestHTTPRequestHandler:
             method="GET",
             path=f"/api/v1/workflows/{workflow_id}/executions/{execution_id}",
             status_code=200,
+            actor_context=AuditActorContext(),
             workflow_id=workflow_id,
             execution_id=execution_id,
             activity_id=activity_id,
@@ -134,6 +139,7 @@ class TestHTTPRequestHandler:
             path="/api/v1/workflows",
             status_code=200,
             source_component="nexus.workflows.router",
+            actor_context=AuditActorContext(),
         )
 
         handler = HTTPRequestHandler()
@@ -147,8 +153,7 @@ class TestHTTPRequestHandler:
             method="GET",
             path="/health",
             status_code=200,
-            actor_id=None,
-            actor_type=ActorType.SYSTEM,
+            actor_context=AuditActorContext(),
         )
 
         handler = HTTPRequestHandler()

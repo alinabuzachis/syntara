@@ -10,6 +10,7 @@ import pytest
 
 from nexus.audit.decorators import audit
 from nexus.audit.dispatcher import AuditEventDispatcher
+from nexus.audit.emitter import AuditActorContext
 from nexus.audit.events.function_execution import FunctionExecutionEvent, FunctionExecutionHandler
 from nexus.audit.models.audit_event import ActorType, AuditEvent, EventCategory, EventSeverity, EventStatus
 from nexus.audit.models.structured_data import AuditContextData
@@ -472,7 +473,6 @@ class TestTrackEventDecorator:
         from nexus.audit.emitter import (
             activity_id_context_var,
             actor_context_var,
-            actor_type_context_var,
             execution_id_context_var,
             workflow_id_context_var,
         )
@@ -486,8 +486,9 @@ class TestTrackEventDecorator:
             return "success"
 
         # Set context variables
-        token_actor = actor_context_var.set(test_user)
-        token_actor_type = actor_type_context_var.set(ActorType.USER)
+        token_actor = actor_context_var.set(
+            AuditActorContext(actor_id=test_user.id, actor_username=test_user.username, actor_type=ActorType.USER)
+        )
         token_workflow_id = workflow_id_context_var.set(workflow_id)
         token_activity_id = activity_id_context_var.set(activity_id)
         token_execution_id = execution_id_context_var.set(execution_id)
@@ -515,7 +516,6 @@ class TestTrackEventDecorator:
         finally:
             # Clean up context variables
             actor_context_var.reset(token_actor)
-            actor_type_context_var.reset(token_actor_type)
             workflow_id_context_var.reset(token_workflow_id)
             activity_id_context_var.reset(token_activity_id)
             execution_id_context_var.reset(token_execution_id)
@@ -901,25 +901,23 @@ class TestTrackEventEdgeCases:
         """Test that async functions properly clean up context variables."""
         import asyncio
 
-        from nexus.audit.emitter import actor_context_var, actor_type_context_var
+        from nexus.audit.emitter import actor_context_var
 
         @audit(EventCategory.USER_ACTION)
         async def async_function() -> str:
             # Verify context is set during execution (no actor provided defaults to SYSTEM)
-            assert actor_context_var.get() is None
-            assert actor_type_context_var.get() == ActorType.SYSTEM
+            actor_context = actor_context_var.get()
+            assert actor_context is not None
+            assert actor_context.actor_id is None
+            assert actor_context.actor_username is None
+            assert actor_context.actor_type == ActorType.SYSTEM
             await asyncio.sleep(0)
             return "result"
 
         # Store initial context state
-        initial_actor = None
-        initial_actor_type = None
+        initial_actor_context = None
         try:
-            initial_actor = actor_context_var.get()
-        except LookupError:
-            pass
-        try:
-            initial_actor_type = actor_type_context_var.get()
+            initial_actor_context = actor_context_var.get()
         except LookupError:
             pass
 
@@ -931,19 +929,13 @@ class TestTrackEventEdgeCases:
         assert emitted_event.actor_type == ActorType.SYSTEM
 
         # Verify context is restored to initial state
-        final_actor = None
-        final_actor_type = None
+        final_actor_context = None
         try:
-            final_actor = actor_context_var.get()
-        except LookupError:
-            pass
-        try:
-            final_actor_type = actor_type_context_var.get()
+            final_actor_context = actor_context_var.get()
         except LookupError:
             pass
 
-        assert final_actor == initial_actor
-        assert final_actor_type == initial_actor_type
+        assert final_actor_context == initial_actor_context
 
     def test_audit_string_result_capture_true(self) -> None:
         """Test that capture_result=True captures string return values."""
