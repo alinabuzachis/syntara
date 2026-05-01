@@ -303,7 +303,7 @@ jobs:
             try {
               const results = JSON.parse(fs.readFileSync(resultsPath, 'utf-8'));
               durationMs = (results.stats && results.stats.duration) || 0;
-              for (const suite of results.suites || []) {
+              function countSuite(suite) {
                 for (const spec of suite.specs || []) {
                   for (const test of spec.tests || []) {
                     totalTests++;
@@ -311,6 +311,12 @@ jobs:
                     else failedTests++;
                   }
                 }
+                for (const child of suite.suites || []) {
+                  countSuite(child);
+                }
+              }
+              for (const suite of results.suites || []) {
+                countSuite(suite);
               }
             } catch { /* results unavailable */ }
 
@@ -324,13 +330,30 @@ jobs:
               let summary = { changed: [], count: 0, files: [] };
               try { summary = JSON.parse(fs.readFileSync(summaryPath, 'utf-8')); } catch { /* no summary */ }
 
-              const countLine = totalTests > 0
-                ? `${failedTests} of ${totalTests} screenshot tests failed — UI has changed from baseline`
-                : `${summary.count} screenshot(s) differ from baselines`;
+              const hasDiffs = summary.count > 0;
+              const baselinesFailed = '${{ steps.baselines.outcome }}' === 'failure';
+              const isMissingBaselines = baselinesFailed && !hasDiffs;
+
+              let heading;
+              let countLine;
+              if (isMissingBaselines) {
+                heading = `### :warning: Visual Regression — ${failedTests} missing baseline(s)`;
+                countLine = `${failedTests} of ${totalTests} screenshot test(s) failed — new pages need baseline screenshots`;
+              } else if (totalTests > 0) {
+                heading = `### :x: Visual Regression — diffs detected`;
+                countLine = `${failedTests} of ${totalTests} screenshot tests failed — UI has changed from baseline`;
+              } else {
+                heading = hasDiffs
+                  ? `### :x: Visual Regression — diffs detected`
+                  : `### :warning: Visual Regression — screenshot tests failed`;
+                countLine = hasDiffs
+                  ? `${summary.count} screenshot(s) differ from baselines`
+                  : 'Screenshot tests failed — check the [workflow run](' + runUrl + ') for details';
+              }
 
               const lines = [
                 marker,
-                `### :x: Visual Regression — diffs detected`,
+                heading,
                 '',
                 countLine,
                 '',
@@ -362,7 +385,7 @@ jobs:
                   lines.push(`> **[Browse all diff images](${branchUrl})** — click any PNG to see the visual change`);
                   lines.push('');
                 }
-              } else {
+              } else if (summary.changed.length > 0) {
                 lines.push('Changed screenshots:');
                 lines.push('');
                 for (const name of summary.changed.slice(0, 10)) {
