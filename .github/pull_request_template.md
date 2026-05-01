@@ -17,6 +17,23 @@
 
 -->
 
+## E2E with Custom Backend Branch
+
+<!-- E2E tests run automatically against backend main on every PR push.
+
+If this PR depends on unreleased backend changes, you can also trigger E2E
+manually against a specific backend branch:
+
+  gh workflow run "E2E Tests" --ref <this-branch> -f backend_branch=<backend-branch>
+
+Or: Actions → E2E Tests → Run workflow → select this branch → enter the backend branch name.
+
+This lets you verify that tests pass with your backend changes even if they
+fail against main.
+-->
+
+Backend branch (if applicable): `main`
+
 ## PR Checklist
 
 Steps to take before considering a PR ready for human review:
