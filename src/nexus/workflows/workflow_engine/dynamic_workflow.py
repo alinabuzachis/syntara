@@ -20,7 +20,6 @@ with workflow.unsafe.imports_passed_through():
     from nexus.workflows.workflow_engine.utils.credential_scrubber import scrub_credentials
 
 from nexus.workflows.utils.namespace_resolver import NamespaceResolver
-from nexus.workflows.workflow_engine.expression_resolver import safe_eval_condition
 from nexus.workflows.workflow_engine.graph import ActivityNode, WorkflowGraph
 from nexus.workflows.workflow_engine.models.workflow_definition import (
     DoWhileLoopState,
@@ -29,6 +28,7 @@ from nexus.workflows.workflow_engine.models.workflow_definition import (
     LoopType,
     NodeType,
 )
+from nexus.workflows.workflow_engine.unified_eval import safe_eval_with_namespace
 
 # Temporal start-to-close safety ceiling for activities that don't specify a timeout.
 # Each node type has its own configurable timeout in Settings; this is only the
@@ -197,8 +197,9 @@ class NexusWorkflow:
                 del pending_tasks[completed_node_id]
 
                 try:
-                    result = await task
-                    output = result["output"] if isinstance(result, dict) and "output" in result else result
+                    output = await task
+                    # _execute_node already extracted output via _process_node_result,
+                    # so output is the output data directly (not wrapped in {"output": ...})
                     self.resolver.set_namespace(completed_node_id, output)
 
                     workflow.logger.info(f"Node {completed_node_id} completed, pending: {list(pending_tasks.keys())}")
@@ -1006,7 +1007,7 @@ class NexusWorkflow:
             ),
         )
 
-    async def _execute_loop_node(
+    async def _execute_loop_node(  # noqa: C901
         self,
         node_id: str,
         node: ActivityNode,
@@ -1051,9 +1052,20 @@ class NexusWorkflow:
         if isinstance(state, DoWhileLoopState) and state.current_index > 0:
             # Set context for condition evaluation (loop body nodes are available)
             self.resolver.set_context(loop_node_id=node_id)
-            condition_expr = self.resolver.resolve_value(state.condition)
-            condition_result = safe_eval_condition(condition_expr)
-            workflow.logger.info(f"Loop {node_id} condition evaluated: {condition_expr} = {condition_result}")
+
+            # Validate that condition is defined
+            if not state.condition:
+                msg = f"Loop {node_id} (do_while) has no condition defined"
+                raise ValueError(msg)
+
+            # Use unified evaluator (Tier 2) instead of string substitution
+            # Wrap in try/finally to guarantee loop context cleanup even if evaluation raises
+            try:
+                namespace = self.resolver.get_complete_namespace()
+                condition_result = safe_eval_with_namespace(state.condition, namespace)
+                workflow.logger.info(f"Loop {node_id} condition evaluated: {state.condition} = {condition_result}")
+            finally:
+                self.resolver.set_context(loop_node_id=None)
 
         # Pass current state to activity
         loop_config: dict[str, Any] = {
@@ -1100,8 +1112,23 @@ class NexusWorkflow:
             Node execution result (output portion only, already mapped by activity)
 
         """
-        resolved_config = self._resolve_node_config(node)
-        timeout_seconds = resolved_config.get("timeout", DEFAULT_ACTIVITY_TIMEOUT_SECONDS)
+        node_id = node.id
+        node_type = node.type
+
+        # Special handling for condition nodes (Tier 2)
+        if node_type == NodeType.CONDITION:
+            # Set loop context if this node is inside a loop body
+            self.resolver.set_context(loop_node_id=self.loop_body_map.get(node_id))
+
+            resolved_config = {
+                "condition": node.config.get("condition"),  # Raw template (preserved)
+                "namespace": self.resolver.get_complete_namespace(),  # Complete namespace
+            }
+        else:
+            # For all other nodes: standard resolution (Tier 1)
+            resolved_config = self._resolve_node_config(node)
+
+        timeout_seconds = cast("int", resolved_config.get("timeout", DEFAULT_ACTIVITY_TIMEOUT_SECONDS))
         self.node_inputs[node.id] = resolved_config
 
         result = await self._dispatch_node(node, resolved_config, graph, timeout_seconds)
@@ -1110,17 +1137,23 @@ class NexusWorkflow:
     def _resolve_node_config(self, node: ActivityNode) -> dict[str, Any]:
         """Resolve template expressions in a node's config.
 
-        For do_while loops, the condition is kept as a raw template so it can
-        be evaluated after the loop body executes.
+        Uses two-tier approach:
+        - Tier 1 (template substitution): All fields except 'condition'
+        - Tier 2 (context-aware): 'condition' field preserved for runtime evaluation
+
+        For condition and loop nodes, the 'condition' field is kept as a raw template
+        so it can be evaluated with namespace context at execution time.
         """
         self.resolver.set_context(loop_node_id=self.loop_body_map.get(node.id))
 
-        if node.type == NodeType.LOOP and node.config.get("type") == LoopType.DO_WHILE:
+        # For nodes with 'condition' field: preserve it, resolve other fields (Tier 1)
+        if node.type in (NodeType.CONDITION, NodeType.LOOP) and "condition" in node.config:
             return {
                 key: value if key == "condition" else self.resolver.resolve_value(value)
                 for key, value in node.config.items()
             }
 
+        # For all other nodes: resolve everything (Tier 1)
         return self.resolver.resolve_dict(node.config)
 
     async def _resolve_and_inject_credentials(

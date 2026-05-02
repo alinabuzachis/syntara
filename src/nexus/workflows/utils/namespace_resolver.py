@@ -1,5 +1,6 @@
 """Template expression resolver for v2 workflows."""
 
+import copy
 import re
 from typing import Any
 
@@ -78,6 +79,40 @@ class NamespaceResolver:
 
         """
         return self.namespaces
+
+    def get_complete_namespace(self) -> dict[str, Any]:
+        """Get complete namespace for context-aware evaluation.
+
+        Returns all namespaces flattened into a single dict for condition evaluation.
+        Loop context is exposed as 'loop' namespace if loop_node_id is set.
+
+        Returns:
+            Complete namespace dict with all available data (deep copy)
+
+        Example:
+            >>> resolver.set_namespace("input", {"age": 25})
+            >>> resolver.set_namespace("fetch_user", {"role": "admin"})
+            >>> resolver.get_complete_namespace()
+            {'input': {'age': 25}, 'fetch_user': {'role': 'admin'}}
+
+        """
+        # Deep copy of namespaces for defense-in-depth isolation.
+        # While Temporal's serialization provides process isolation between activities,
+        # the deep copy ensures the AST evaluator cannot mutate workflow state even if
+        # a custom __eq__ method or future code path inadvertently modifies namespace values.
+        # Performance note: For workflows with 50+ nodes and large JSON payloads, this may
+        # become expensive. If profiling shows this as a bottleneck, consider switching to
+        # shallow copy (dict(self.namespaces)) with explicit documentation that namespace
+        # values must not be mutated.
+        namespace = copy.deepcopy(self.namespaces)
+
+        # If loop context is set, expose the current loop's data as 'loop' namespace
+        # This allows ${loop.item} and ${loop.index} to work in conditions
+        if self._loop_node_id and "loop" in namespace:
+            loop_data = namespace["loop"].get(self._loop_node_id, {})
+            namespace["loop"] = loop_data
+
+        return namespace
 
     def resolve_value(self, value: Any) -> Any:  # noqa: ANN401
         """Resolve template expressions in a value.

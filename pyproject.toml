@@ -161,6 +161,7 @@ ignore = [
     "T201",   # print() is intentional CLI output
     "BLE001", # broad Exception needed for external lib error handling
 ]
+"src/nexus/workflows/workflow_engine/unified_eval.py" = ["PLR0911"]  # _eval_node dispatcher needs 7 returns for clarity
 
 # MyPy configuration
 [tool.mypy]

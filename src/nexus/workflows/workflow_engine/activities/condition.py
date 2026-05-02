@@ -4,8 +4,8 @@ from typing import Any
 
 from temporalio import activity
 
-from nexus.workflows.workflow_engine.expression_resolver import safe_eval_condition
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
+from nexus.workflows.workflow_engine.unified_eval import safe_eval_with_namespace
 
 from .output_mapping import apply_output_mapping
 
@@ -15,7 +15,9 @@ async def condition(
     input_config: dict[str, Any],
     output_config: dict[str, str] | None,
 ) -> dict[str, Any]:
-    """Execute condition node - evaluate expression and determine routing.
+    """Execute condition node - evaluate expression with namespace context.
+
+    Uses unified context-aware evaluator (Tier 2).
 
     Returns normalized structure with output and control portions:
     - output: User-facing evaluation result (subject to output mapping)
@@ -24,7 +26,9 @@ async def condition(
     Output mapping is applied internally before returning to avoid storing suppressed fields in Temporal.
 
     Args:
-        input_config: Condition node configuration with "condition" expression
+        input_config: Condition node configuration with:
+            - "condition": Boolean expression (e.g., "${status} == 'completed'")
+            - "namespace": Complete namespace dict for variable lookup (READ-ONLY)
         output_config: Output mapping configuration (field_name -> template expression)
                        None = return full result, {} = suppress all, {...} = extract specific fields
 
@@ -39,8 +43,16 @@ async def condition(
             }
         }
 
+    Note:
+        The namespace parameter is treated as read-only. While Temporal's serialization
+        provides process isolation, we make a defensive copy to prevent accidental mutations
+        and ensure the contract is clear.
+
     """
     condition_expr = input_config.get("condition", "")
+    # Namespace is already a deep copy from get_complete_namespace()
+    # Temporal provides process isolation, so no additional copy needed
+    namespace = input_config.get("namespace", {})
 
     if not condition_expr:
         # Failed result conforming to baseFailedResult schema
@@ -55,7 +67,8 @@ async def condition(
         }
 
     try:
-        evaluated_result = safe_eval_condition(condition_expr)
+        # NEW: Use unified context-aware evaluator (Tier 2)
+        evaluated_result = safe_eval_with_namespace(condition_expr, namespace)
 
         # Full result before mapping (conforms to resultSchema for completed)
         full_result = {
@@ -73,8 +86,13 @@ async def condition(
             },
         }
 
-    except (ValueError, KeyError, AttributeError, TypeError, RuntimeError) as e:
+    except (ValueError, KeyError, TypeError, IndexError) as e:
         # Failed result conforming to baseFailedResult schema
+        # RuntimeError intentionally NOT caught: we prefer Temporal infrastructure
+        # errors (heartbeat timeout, cancellation) to propagate and fail loudly
+        # rather than silently returning a failed condition status.
+        # AttributeError removed: _eval_attribute raises TypeError for type mismatches.
+        # IndexError added: _eval_subscript raises it for out-of-range list access.
         error_result = {
             "status": "failed",
             "error": {

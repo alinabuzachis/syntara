@@ -106,6 +106,7 @@ class TestLoopItemResolution:
         """${loop.item} inside a larger string should interpolate correctly."""
         resolver.set_context(loop_node_id="loop_1")
         result = resolver.resolve_value("item is ${loop.item}")
+        # String values are NOT quoted - repr() removed since conditions use Tier 2
         assert result == "item is apple"
 
     def test_loop_item_in_dict_resolution(self, resolver: NamespaceResolver) -> None:

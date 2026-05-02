@@ -201,3 +201,60 @@ class TestSkipPropagation:
         wf._mark_downstream_as_skipped("node_a", graph)
 
         assert "node_b" in wf.skipped_nodes
+
+
+# ---------------------------------------------------------------------------
+# Tests: String condition evaluation
+# ---------------------------------------------------------------------------
+
+
+class TestStringConditionEvaluation:
+    """Test condition node with string comparison expressions."""
+
+    def test_condition_with_string_template_resolves_correctly(self) -> None:
+        """Condition node comparing string template values should evaluate correctly."""
+        wf = _make_workflow()
+        graph = _build_condition_graph()
+
+        # Set up resolver with string value
+        wf.resolver.set_namespace("trigger", {"status": "completed"})
+
+        # Modify the condition node to use string comparison
+        backend = graph._backend
+        cond_data = backend.get_node_data("cond")
+        cond_data["config"]["expr"] = '${trigger.status} == "completed"'
+
+        # The condition should evaluate to true
+        wf.node_control_data["cond"] = {"next_port": "true"}
+        pending: dict[str, asyncio.Task[Any]] = {}
+
+        _run_schedule_successors(wf, "cond", graph, pending)
+
+        # Should route through true branch
+        assert "true_branch" in pending
+        assert "false_branch" not in pending
+        assert "false_branch" in wf.skipped_nodes
+
+    def test_condition_with_mismatched_string_routes_false(self) -> None:
+        """Condition node with non-matching string should route to false branch."""
+        wf = _make_workflow()
+        graph = _build_condition_graph()
+
+        # Set up resolver with different string value
+        wf.resolver.set_namespace("trigger", {"status": "failed"})
+
+        # Modify the condition node to use string comparison
+        backend = graph._backend
+        cond_data = backend.get_node_data("cond")
+        cond_data["config"]["expr"] = '${trigger.status} == "completed"'
+
+        # The condition should evaluate to false
+        wf.node_control_data["cond"] = {"next_port": "false"}
+        pending: dict[str, asyncio.Task[Any]] = {}
+
+        _run_schedule_successors(wf, "cond", graph, pending)
+
+        # Should route through false branch
+        assert "false_branch" in pending
+        assert "true_branch" not in pending
+        assert "true_branch" in wf.skipped_nodes
