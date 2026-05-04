@@ -13,15 +13,11 @@ from uuid import uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.models.invocation import Invocation
 from nexus.agent_orchestrator.token_manager.models import TokenUsageRecord
-from nexus.authz.models import Project
 from nexus.core.models import User
-from nexus.credentials.models.credential import Credential
-from nexus.credentials.models.credential_type import CredentialType
 from nexus.telemetry.client import TelemetryClientRegistry
 from nexus.telemetry.periodic_collector import _collect_and_send
 from nexus.telemetry.queries import (
@@ -36,74 +32,10 @@ from nexus.tool_manager.models.tool_provider import ToolProvider
 from nexus.tool_manager.models.usage_counter import CounterType, UsageCounter, WindowDuration
 from nexus.workflows.models import Workflow, WorkflowVersion
 from nexus.workflows.models.execution import Execution, ExecutionStatus
-
-
-async def _create_invocations_with_tokens(
-    session: AsyncSession,
-    user: User,
-    timestamp: datetime,
-    models: list[tuple[str, int, int, int]],
-) -> None:
-    """Create invocations with linked token usage records.
-
-    Args:
-        session: Async database session.
-        user: User who owns the invocations.
-        timestamp: Request timestamp for token records.
-        models: List of (model_name, prompt_tokens, completion_tokens, count) tuples.
-
-    """
-    for model_name, prompt_tokens, completion_tokens, count in models:
-        for i in range(count):
-            inv = Invocation(
-                prompt=f"test {model_name} prompt {i}",
-                session_id="test-session",
-                created_by=user.id,
-                model_name=model_name,
-            )
-            session.add(inv)
-            await session.flush()
-            session.add(
-                TokenUsageRecord(
-                    user_id=user.id,
-                    token_count=prompt_tokens + completion_tokens,
-                    prompt_tokens=prompt_tokens,
-                    completion_tokens=completion_tokens,
-                    invocation_id=inv.id,
-                    request_timestamp=timestamp,
-                )
-            )
-
-
-async def _create_workflow_with_version(
-    session: AsyncSession,
-    user: User,
-    name: str,
-    *,
-    is_enabled: bool = True,
-    deleted: bool = False,
-) -> Workflow:
-    """Create a workflow with its initial version."""
-    wf = Workflow(
-        name=name,
-        created_by=user.id,
-        is_enabled=is_enabled,
-        current_version=1,
-    )
-    if deleted:
-        wf.deleted_at = datetime.now(UTC)
-        wf.deleted_by = user.id
-    session.add(wf)
-    session.add(
-        WorkflowVersion(
-            workflow_id=wf.id,
-            version=1,
-            schema_version="1.0.0",
-            workflow_definition=_wf_def(name),
-            created_by=user.id,
-        )
-    )
-    return wf
+from tests.helpers.credential import CredentialFactory
+from tests.helpers.execution import ExecutionFactory
+from tests.helpers.token_usage import TokenUsageFactory
+from tests.helpers.workflow import WorkflowFactory
 
 
 class TestPeriodicAnalyticsFlow:
@@ -130,72 +62,37 @@ class TestPeriodicAnalyticsFlow:
         test_user: User,
         registry_with_mock_client: tuple[TelemetryClientRegistry, MagicMock],
         mock_session_factory: async_sessionmaker[AsyncSession],
+        workflow_factory: WorkflowFactory,
+        execution_factory: ExecutionFactory,
+        token_usage_factory: TokenUsageFactory,
     ) -> None:
         """Full integration test: insert real data, run collector, verify Segment call."""
         registry, mock_client = registry_with_mock_client
 
         # Create workflows: 3 enabled, 2 disabled
-        for i in range(3):
-            await _create_workflow_with_version(test_db_session, test_user, f"enabled-wf-{i}")
-        for i in range(2):
-            await _create_workflow_with_version(test_db_session, test_user, f"disabled-wf-{i}", is_enabled=False)
+        await workflow_factory.create_many(3, is_enabled=True, prefix="enabled")
+        await workflow_factory.create_many(2, is_enabled=False, prefix="disabled")
 
         # Create a workflow and version for executions
-        exec_wf = await _create_workflow_with_version(test_db_session, test_user, "exec-wf")
-        await test_db_session.flush()
-        exec_version = (
-            await test_db_session.exec(select(WorkflowVersion).where(WorkflowVersion.workflow_id == exec_wf.id))
-        ).one()
+        exec_wf, exec_version = await workflow_factory.create("exec-wf")
 
         # Create executions with various statuses
         now = datetime.now(UTC)
         completed_at = now + timedelta(seconds=60)
-        executions = [
-            Execution(
-                workflow_id=exec_wf.id,
-                workflow_version_id=exec_version.id,
-                temporal_workflow_id=f"t-{uuid4()}",
-                status=ExecutionStatus.COMPLETED,
-                created_by=test_user.id,
-                completed_at=completed_at,
-                input_data={},
-            ),
-            Execution(
-                workflow_id=exec_wf.id,
-                workflow_version_id=exec_version.id,
-                temporal_workflow_id=f"t-{uuid4()}",
-                status=ExecutionStatus.COMPLETED,
-                created_by=test_user.id,
-                completed_at=completed_at,
-                input_data={},
-            ),
-            Execution(
-                workflow_id=exec_wf.id,
-                workflow_version_id=exec_version.id,
-                temporal_workflow_id=f"t-{uuid4()}",
-                status=ExecutionStatus.FAILED,
-                created_by=test_user.id,
-                completed_at=completed_at,
-                input_data={},
-            ),
-            Execution(
-                workflow_id=exec_wf.id,
-                workflow_version_id=exec_version.id,
-                temporal_workflow_id=f"t-{uuid4()}",
-                status=ExecutionStatus.RUNNING,
-                created_by=test_user.id,
-                input_data={},
-            ),
-        ]
-        test_db_session.add_all(executions)
+        await execution_factory.create_many(
+            exec_wf,
+            exec_version,
+            [
+                (ExecutionStatus.COMPLETED, 2),
+                (ExecutionStatus.FAILED, 1),
+                (ExecutionStatus.RUNNING, 1),
+            ],
+            completed_at=completed_at,
+        )
 
         # Create invocations with token usage records for model_usage aggregation
-        await _create_invocations_with_tokens(
-            test_db_session,
-            test_user,
-            now,
-            [("gpt-4", 1000, 500, 3), ("claude-3", 600, 300, 2)],
-        )
+        await token_usage_factory.create_many("gpt-4", 1000, 500, 3, timestamp=now)
+        await token_usage_factory.create_many("claude-3", 600, 300, 2, timestamp=now)
 
         await test_db_session.commit()
 
@@ -251,30 +148,14 @@ class TestPeriodicAnalyticsFlow:
     async def test_no_state_between_cycles(
         self,
         test_db_session: AsyncSession,
-        test_user: User,
         registry_with_mock_client: tuple[TelemetryClientRegistry, MagicMock],
         mock_session_factory: async_sessionmaker[AsyncSession],
+        workflow_factory: WorkflowFactory,
     ) -> None:
         """Each collection cycle is independent — no delta tracking."""
         registry, mock_client = registry_with_mock_client
 
-        # Create some test data
-        wf = Workflow(
-            name="test-wf",
-            created_by=test_user.id,
-            is_enabled=True,
-            current_version=1,
-        )
-        test_db_session.add(wf)
-        test_db_session.add(
-            WorkflowVersion(
-                workflow_id=wf.id,
-                version=1,
-                schema_version="1.0.0",
-                workflow_definition=_wf_def("test-wf"),
-                created_by=test_user.id,
-            )
-        )
+        await workflow_factory.create("test-wf")
         await test_db_session.commit()
 
         # Run twice
@@ -318,47 +199,17 @@ class TestPeriodicAnalyticsFlow:
         test_user: User,
         registry_with_mock_client: tuple[TelemetryClientRegistry, MagicMock],
         mock_session_factory: async_sessionmaker[AsyncSession],
+        workflow_factory: WorkflowFactory,
     ) -> None:
         """Soft-deleted records are excluded from analytics."""
         registry, mock_client = registry_with_mock_client
 
         # Create an active workflow
-        active_wf = Workflow(
-            name="active-wf",
-            created_by=test_user.id,
-            is_enabled=True,
-            current_version=1,
-        )
-        test_db_session.add(active_wf)
-        test_db_session.add(
-            WorkflowVersion(
-                workflow_id=active_wf.id,
-                version=1,
-                schema_version="1.0.0",
-                workflow_definition=_wf_def("active-wf"),
-                created_by=test_user.id,
-            )
-        )
+        await workflow_factory.create("active-wf")
 
         # Create a soft-deleted workflow
-        deleted_wf = Workflow(
-            name="deleted-wf",
-            created_by=test_user.id,
-            is_enabled=True,
-            current_version=1,
-            deleted_at=datetime.now(UTC),
-            deleted_by=test_user.id,
-        )
-        test_db_session.add(deleted_wf)
-        test_db_session.add(
-            WorkflowVersion(
-                workflow_id=deleted_wf.id,
-                version=1,
-                schema_version="1.0.0",
-                workflow_definition=_wf_def("deleted-wf"),
-                created_by=test_user.id,
-            )
-        )
+        deleted_wf, _ = await workflow_factory.create("deleted-wf")
+        deleted_wf.soft_delete(test_user.id)
 
         await test_db_session.commit()
 
@@ -377,20 +228,6 @@ class TestPeriodicAnalyticsFlow:
 # ============================================================================
 
 
-_WF_DEF_TEMPLATE = {
-    "schemaVersion": "1.0.0",
-    "version": 1,
-    "metadata": {"name": "placeholder"},
-    "triggers": [{"type": "manual"}],
-    "workflow": {"activities": []},
-}
-
-
-def _wf_def(name: str) -> dict[str, object]:
-    """Build a minimal workflow definition dict."""
-    return {**_WF_DEF_TEMPLATE, "metadata": {"name": name}}
-
-
 class TestQueryWorkflowCountsRealDB:
     """Integration tests for query_workflow_counts against real PostgreSQL."""
 
@@ -400,42 +237,14 @@ class TestQueryWorkflowCountsRealDB:
         assert result.enabled == 0
         assert result.disabled == 0
 
-    async def test_counts_enabled_and_disabled(self, test_db_session: AsyncSession, test_user: User):
+    async def test_counts_enabled_and_disabled(
+        self,
+        test_db_session: AsyncSession,
+        workflow_factory: WorkflowFactory,
+    ):
         """Insert workflows with different is_enabled states and verify counts."""
-        for i in range(3):
-            wf = Workflow(
-                name=f"enabled-wf-{i}",
-                created_by=test_user.id,
-                is_enabled=True,
-                current_version=1,
-            )
-            test_db_session.add(wf)
-            test_db_session.add(
-                WorkflowVersion(
-                    workflow_id=wf.id,
-                    version=1,
-                    schema_version="1.0.0",
-                    workflow_definition=_wf_def(f"enabled-wf-{i}"),
-                    created_by=test_user.id,
-                )
-            )
-        for i in range(2):
-            wf = Workflow(
-                name=f"disabled-wf-{i}",
-                created_by=test_user.id,
-                is_enabled=False,
-                current_version=1,
-            )
-            test_db_session.add(wf)
-            test_db_session.add(
-                WorkflowVersion(
-                    workflow_id=wf.id,
-                    version=1,
-                    schema_version="1.0.0",
-                    workflow_definition=_wf_def(f"disabled-wf-{i}"),
-                    created_by=test_user.id,
-                )
-            )
+        await workflow_factory.create_many(3, is_enabled=True, prefix="enabled")
+        await workflow_factory.create_many(2, is_enabled=False, prefix="disabled")
         await test_db_session.commit()
 
         result = await query_workflow_counts(test_db_session)
@@ -444,43 +253,18 @@ class TestQueryWorkflowCountsRealDB:
         assert result.enabled == 3
         assert result.disabled == 2
 
-    async def test_excludes_soft_deleted_workflows(self, test_db_session: AsyncSession, test_user: User):
+    async def test_excludes_soft_deleted_workflows(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        workflow_factory: WorkflowFactory,
+    ):
         """Soft-deleted workflows must not be counted."""
-        wf_active = Workflow(
-            name="active-wf",
-            created_by=test_user.id,
-            is_enabled=True,
-            current_version=1,
-        )
-        test_db_session.add(wf_active)
-        test_db_session.add(
-            WorkflowVersion(
-                workflow_id=wf_active.id,
-                version=1,
-                schema_version="1.0.0",
-                workflow_definition=_wf_def("active-wf"),
-                created_by=test_user.id,
-            )
-        )
+        await workflow_factory.create("active-wf")
 
-        wf_deleted = Workflow(
-            name="deleted-wf",
-            created_by=test_user.id,
-            is_enabled=True,
-            current_version=1,
-            deleted_at=datetime.now(UTC),
-            deleted_by=test_user.id,
-        )
-        test_db_session.add(wf_deleted)
-        test_db_session.add(
-            WorkflowVersion(
-                workflow_id=wf_deleted.id,
-                version=1,
-                schema_version="1.0.0",
-                workflow_definition=_wf_def("deleted-wf"),
-                created_by=test_user.id,
-            )
-        )
+        deleted_wf, _ = await workflow_factory.create("deleted-wf")
+        deleted_wf.soft_delete(test_user.id)
+
         await test_db_session.commit()
 
         result = await query_workflow_counts(test_db_session)
@@ -492,12 +276,6 @@ class TestQueryWorkflowCountsRealDB:
 class TestQueryExecutionCountsRealDB:
     """Integration tests for query_execution_counts against real PostgreSQL."""
 
-    async def _get_version_id(self, session: AsyncSession, workflow: Workflow) -> object:
-        """Get the first WorkflowVersion id for a workflow."""
-        from sqlmodel import select
-
-        return (await session.exec(select(WorkflowVersion.id).where(WorkflowVersion.workflow_id == workflow.id))).one()
-
     async def test_empty_database(self, test_db_session: AsyncSession):
         result = await query_execution_counts(test_db_session)
         assert result.total == 0
@@ -506,59 +284,24 @@ class TestQueryExecutionCountsRealDB:
     async def test_counts_by_status(
         self,
         test_db_session: AsyncSession,
-        test_user: User,
-        test_workflow: Workflow,
+        workflow_factory: WorkflowFactory,
+        execution_factory: ExecutionFactory,
     ):
         """Insert executions with various statuses and verify group_by."""
-        version_id = await self._get_version_id(test_db_session, test_workflow)
+        wf, version = await workflow_factory.create()
 
         completed_at = datetime.now(UTC) + timedelta(seconds=10)
-        executions = [
-            Execution(
-                workflow_id=test_workflow.id,
-                workflow_version_id=version_id,
-                temporal_workflow_id=f"t-{uuid4()}",
-                status=ExecutionStatus.COMPLETED,
-                created_by=test_user.id,
-                completed_at=completed_at,
-                input_data={},
-            ),
-            Execution(
-                workflow_id=test_workflow.id,
-                workflow_version_id=version_id,
-                temporal_workflow_id=f"t-{uuid4()}",
-                status=ExecutionStatus.COMPLETED,
-                created_by=test_user.id,
-                completed_at=completed_at,
-                input_data={},
-            ),
-            Execution(
-                workflow_id=test_workflow.id,
-                workflow_version_id=version_id,
-                temporal_workflow_id=f"t-{uuid4()}",
-                status=ExecutionStatus.FAILED,
-                created_by=test_user.id,
-                completed_at=completed_at,
-                input_data={},
-            ),
-            Execution(
-                workflow_id=test_workflow.id,
-                workflow_version_id=version_id,
-                temporal_workflow_id=f"t-{uuid4()}",
-                status=ExecutionStatus.RUNNING,
-                created_by=test_user.id,
-                input_data={},
-            ),
-            Execution(
-                workflow_id=test_workflow.id,
-                workflow_version_id=version_id,
-                temporal_workflow_id=f"t-{uuid4()}",
-                status=ExecutionStatus.PENDING,
-                created_by=test_user.id,
-                input_data={},
-            ),
-        ]
-        test_db_session.add_all(executions)
+        await execution_factory.create_many(
+            wf,
+            version,
+            [
+                (ExecutionStatus.COMPLETED, 2),
+                (ExecutionStatus.FAILED, 1),
+                (ExecutionStatus.RUNNING, 1),
+                (ExecutionStatus.PENDING, 1),
+            ],
+            completed_at=completed_at,
+        )
         await test_db_session.commit()
 
         result = await query_execution_counts(test_db_session)
@@ -572,36 +315,22 @@ class TestQueryExecutionCountsRealDB:
     async def test_avg_duration_calculation(
         self,
         test_db_session: AsyncSession,
-        test_user: User,
-        test_workflow: Workflow,
+        workflow_factory: WorkflowFactory,
+        execution_factory: ExecutionFactory,
     ):
         """Verify avg_duration_seconds from completed_at - created_at."""
         from sqlalchemy import update
 
-        version_id = await self._get_version_id(test_db_session, test_workflow)
+        wf, version = await workflow_factory.create()
 
         now = datetime.now(UTC)
         # Two completed executions: 60s and 120s duration
-        exec1 = Execution(
-            workflow_id=test_workflow.id,
-            workflow_version_id=version_id,
-            temporal_workflow_id=f"t-{uuid4()}",
-            status=ExecutionStatus.COMPLETED,
-            created_by=test_user.id,
-            input_data={},
-            completed_at=now + timedelta(seconds=60),
+        exec1 = await execution_factory.create(
+            wf, version, status=ExecutionStatus.COMPLETED, completed_at=now + timedelta(seconds=60)
         )
-        exec2 = Execution(
-            workflow_id=test_workflow.id,
-            workflow_version_id=version_id,
-            temporal_workflow_id=f"t-{uuid4()}",
-            status=ExecutionStatus.COMPLETED,
-            created_by=test_user.id,
-            input_data={},
-            completed_at=now + timedelta(seconds=120),
+        exec2 = await execution_factory.create(
+            wf, version, status=ExecutionStatus.COMPLETED, completed_at=now + timedelta(seconds=120)
         )
-        test_db_session.add_all([exec1, exec2])
-        await test_db_session.flush()
 
         # Update created_at to `now` so durations are 60s and 120s
         await test_db_session.execute(update(Execution).where(Execution.id == exec1.id).values(created_at=now))  # type: ignore[arg-type]
@@ -621,50 +350,16 @@ class TestQueryModelUsageRealDB:
         result = await query_model_usage(test_db_session)
         assert result == []
 
-    async def test_aggregates_by_model(self, test_db_session: AsyncSession, test_user: User):
+    async def test_aggregates_by_model(
+        self,
+        test_db_session: AsyncSession,
+        token_usage_factory: TokenUsageFactory,
+    ):
         """Insert invocations with token records and verify aggregation by model."""
         now = datetime.now(UTC)
 
-        # Create 2 invocations for gpt-4
-        for i in range(2):
-            inv = Invocation(
-                prompt=f"gpt4 prompt {i}",
-                session_id="test-session",
-                created_by=test_user.id,
-                model_name="gpt-4",
-            )
-            test_db_session.add(inv)
-            await test_db_session.flush()
-            test_db_session.add(
-                TokenUsageRecord(
-                    user_id=test_user.id,
-                    token_count=1500,
-                    prompt_tokens=1000,
-                    completion_tokens=500,
-                    invocation_id=inv.id,
-                    request_timestamp=now,
-                )
-            )
-
-        # Create 1 invocation for claude-3
-        inv = Invocation(
-            prompt="claude prompt",
-            session_id="test-session",
-            created_by=test_user.id,
-            model_name="claude-3",
-        )
-        test_db_session.add(inv)
-        await test_db_session.flush()
-        test_db_session.add(
-            TokenUsageRecord(
-                user_id=test_user.id,
-                token_count=900,
-                prompt_tokens=600,
-                completion_tokens=300,
-                invocation_id=inv.id,
-                request_timestamp=now,
-            )
-        )
+        await token_usage_factory.create_many("gpt-4", 1000, 500, 2, timestamp=now)
+        await token_usage_factory.create("claude-3", 600, 300, timestamp=now)
 
         await test_db_session.commit()
 
@@ -839,52 +534,19 @@ class TestQueryToolCountsRealDB:
 class TestQueryCredentialCountsRealDB:
     """Integration tests for query_credential_counts against real PostgreSQL."""
 
-    async def _create_credential_type(
+    async def test_counts_by_type(
         self,
-        session: AsyncSession,
-        name: str,
-        auth_type: str,
-    ) -> CredentialType:
-        """Create a credential type with the given auth_type in injectors."""
-        ct = CredentialType(
-            name=name,
-            description=f"Test {name}",
-            inputs={"fields": [], "required": []},
-            injectors={"extra_vars": {"auth_type": auth_type}, "env": {}, "file": {}},
-            managed=True,
-        )
-        session.add(ct)
-        await session.flush()
-        return ct
-
-    async def test_counts_by_type(self, test_db_session: AsyncSession, test_user: User):
+        test_db_session: AsyncSession,
+        credential_factory: CredentialFactory,
+    ):
         """Insert credentials with different types and verify grouped counts."""
-        # Use unique names to avoid conflicts with pre-seeded credential types
         suffix = uuid4().hex[:6]
-        bearer_type = await self._create_credential_type(test_db_session, f"Bearer-{suffix}", "bearer")
-        api_key_type = await self._create_credential_type(test_db_session, f"LLM-Provider-{suffix}", "api_key")
-        project = Project(name=f"tel-test-{uuid4().hex[:8]}", description="Telemetry test")
-        test_db_session.add(project)
-        await test_db_session.flush()
+        bearer_type = await credential_factory.create_type(f"Bearer-{suffix}")
+        api_key_type = await credential_factory.create_type(f"LLM-Provider-{suffix}")
+        project = await credential_factory.create_project(f"tel-test-{uuid4().hex[:8]}")
 
-        for i in range(3):
-            test_db_session.add(
-                Credential(
-                    name=f"bearer-cred-{i}",
-                    credential_type_id=bearer_type.id,
-                    project_id=project.id,
-                    created_by=test_user.id,
-                )
-            )
-        for i in range(2):
-            test_db_session.add(
-                Credential(
-                    name=f"api-key-cred-{i}",
-                    credential_type_id=api_key_type.id,
-                    project_id=project.id,
-                    created_by=test_user.id,
-                )
-            )
+        await credential_factory.create_many(bearer_type, project, 3, prefix="bearer-cred")
+        await credential_factory.create_many(api_key_type, project, 2, prefix="api-key-cred")
         await test_db_session.commit()
 
         result = await query_credential_counts(test_db_session)
@@ -894,13 +556,16 @@ class TestQueryCredentialCountsRealDB:
         assert result.type[f"Bearer-{suffix}"] == 3
         assert result.type[f"LLM-Provider-{suffix}"] == 2
 
-    async def test_used_in_nodes_counts_distinct_credentials(self, test_db_session: AsyncSession, test_user: User):
+    async def test_used_in_nodes_counts_distinct_credentials(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        credential_factory: CredentialFactory,
+    ):
         """Credentials referenced in workflow nodes are counted as used_in_nodes."""
         cred_id_1 = str(uuid4())
         cred_id_2 = str(uuid4())
-        project = Project(name=f"tel-test-{uuid4().hex[:8]}", description="Telemetry test")
-        test_db_session.add(project)
-        await test_db_session.flush()
+        project = await credential_factory.create_project(f"tel-test-{uuid4().hex[:8]}")
 
         # Create a workflow with two nodes referencing different credentials
         workflow = Workflow(
@@ -942,12 +607,15 @@ class TestQueryCredentialCountsRealDB:
 
         assert result.used_in_nodes == 2
 
-    async def test_used_in_nodes_deduplicates_same_credential(self, test_db_session: AsyncSession, test_user: User):
+    async def test_used_in_nodes_deduplicates_same_credential(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        credential_factory: CredentialFactory,
+    ):
         """Same credential_id used in multiple nodes/workflows counts once."""
         cred_id = str(uuid4())
-        project = Project(name=f"tel-test-{uuid4().hex[:8]}", description="Telemetry test")
-        test_db_session.add(project)
-        await test_db_session.flush()
+        project = await credential_factory.create_project(f"tel-test-{uuid4().hex[:8]}")
 
         # Two workflows, both referencing the same credential
         for i in range(2):
@@ -985,12 +653,15 @@ class TestQueryCredentialCountsRealDB:
 
         assert result.used_in_nodes == 1
 
-    async def test_used_in_nodes_excludes_deleted_workflows(self, test_db_session: AsyncSession, test_user: User):
+    async def test_used_in_nodes_excludes_deleted_workflows(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        credential_factory: CredentialFactory,
+    ):
         """Soft-deleted workflows should not contribute to used_in_nodes."""
         cred_id = str(uuid4())
-        project = Project(name=f"tel-test-{uuid4().hex[:8]}", description="Telemetry test")
-        test_db_session.add(project)
-        await test_db_session.flush()
+        project = await credential_factory.create_project(f"tel-test-{uuid4().hex[:8]}")
 
         workflow = Workflow(
             name=f"wf-deleted-{uuid4().hex[:8]}",
