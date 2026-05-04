@@ -1,15 +1,16 @@
-#!/usr/bin/env node
+#!/usr/bin/env tsx
 
 /**
  * Baseline enforcement script for visual regression testing.
  *
- * Catches three failure modes:
+ * Catches four failure modes:
  *   1. A new route was added to AppRoute.tsx but not to the page registry
- *   2. A route is in the page registry but has no committed baseline screenshot
- *   3. A baseline PNG exists but has no matching entry in the page registry (orphan)
+ *   2. A registry path doesn't match any route in AppRoute.tsx (stale/moved route)
+ *   3. A route is in the page registry but has no committed baseline screenshot
+ *   4. A baseline PNG exists but has no matching entry in the page registry (orphan)
  *
  * Usage:
- *   node scripts/check-visual-baselines.js
+ *   npm exec tsx -- scripts/check-visual-baselines.js
  *
  * Exit codes:
  *   0 — all routes covered, all baselines present
@@ -38,27 +39,12 @@ for (const match of appRouteSource.matchAll(routePathRegex)) {
 }
 
 // ---------------------------------------------------------------------------
-// 2. Extract covered paths + excluded paths from the page registry
+// 2. Import the page registry to get resolved paths (handles AppRoute imports)
 // ---------------------------------------------------------------------------
-const registryPath = resolve(pkgRoot, 'e2e/visual-regression/page-registry.ts')
-const registrySource = readFileSync(registryPath, 'utf-8')
+const { pages, allExcludedRoutes } = await import(resolve(pkgRoot, 'e2e/visual-regression/page-registry.ts'))
 
-// Extract `path:` values from page entries (concrete URLs with mock IDs)
-const registryPathRegex = /path:\s*[`'"](.+?)[`'"]/g
-const coveredConcretePaths = new Set()
-
-for (const match of registrySource.matchAll(registryPathRegex)) {
-  coveredConcretePaths.add(match[1])
-}
-
-// Extract excluded route patterns from the arrays
-const excludedRegex = /['"](\/.+?)['"]/g
-const excludedSection = registrySource.slice(registrySource.indexOf('excludedUnimplemented'))
-const excludedRoutes = new Set()
-
-for (const match of excludedSection.matchAll(excludedRegex)) {
-  excludedRoutes.add(match[1])
-}
+const coveredConcretePaths = new Set(pages.map((p) => p.path))
+const excludedRoutes = new Set(allExcludedRoutes)
 
 // ---------------------------------------------------------------------------
 // 3. Normalize parameterized routes for comparison
@@ -69,10 +55,15 @@ function matchesTemplate(template, concretePath) {
   const tParts = template.split('/')
   const cParts = concretePath.split('/')
 
-  if (tParts.length !== cParts.length) return false
+  if (tParts.length !== cParts.length) {
+    const tail = tParts[tParts.length - 1]
+    const isOptionalTail = tail?.startsWith(':') && tail.endsWith('?') && tParts.length === cParts.length + 1
+    if (!isOptionalTail) return false
+  }
 
   return tParts.every((tSeg, i) => {
-    if (tSeg.startsWith(':')) return true // param placeholder matches anything
+    if (i >= cParts.length) return tSeg.startsWith(':') && tSeg.endsWith('?')
+    if (tSeg.startsWith(':')) return true
     return tSeg === cParts[i]
   })
 }
@@ -95,17 +86,23 @@ for (const route of allAppRoutes) {
 }
 
 // ---------------------------------------------------------------------------
+// 3b. Detect stale registry paths (registry → AppRoute reverse check)
+// ---------------------------------------------------------------------------
+const staleRegistryPaths = []
+
+for (const concretePath of coveredConcretePaths) {
+  const matchesAny = [...allAppRoutes].some((template) => matchesTemplate(template, concretePath))
+  if (!matchesAny) {
+    staleRegistryPaths.push(concretePath)
+  }
+}
+
+// ---------------------------------------------------------------------------
 // 4. Check that baseline screenshots exist for every registry entry
 // ---------------------------------------------------------------------------
 const snapshotDir = resolve(pkgRoot, 'e2e/visual-regression/page-screenshots.spec.ts-snapshots')
 
-// Extract section + name pairs from the registry
-const entryRegex = /section:\s*['"](.+?)['"][\s\S]*?name:\s*['"](.+?)['"]/g
-const registryEntries = []
-
-for (const match of registrySource.matchAll(entryRegex)) {
-  registryEntries.push({ section: match[1], name: match[2] })
-}
+const registryEntries = pages.map((p) => ({ section: p.section, name: p.name }))
 
 const missingBaselines = []
 
@@ -179,6 +176,17 @@ if (missingBaselines.length > 0) {
   )
 }
 
+if (staleRegistryPaths.length > 0) {
+  hasErrors = true
+  console.error('\n--- Stale registry paths ---')
+  console.error("These paths are in page-registry.ts but don't match any route in AppRoute.tsx:")
+  for (const p of staleRegistryPaths.sort()) {
+    console.error(`  - ${p}`)
+  }
+  console.error('\nTo fix: update the path in page-registry.ts to match the current route in AppRoute.tsx.')
+  console.error('        This usually means a route was moved but the registry was not updated.\n')
+}
+
 if (orphanBaselines.length > 0) {
   hasErrors = true
   console.error('\n--- Orphan baseline screenshots ---')
@@ -192,7 +200,7 @@ if (orphanBaselines.length > 0) {
 if (hasErrors) {
   process.exit(1)
 } else {
-  console.log('All routes covered, all baselines present, no orphans.')
+  console.log('All routes covered, all baselines present, no orphans, no stale paths.')
   console.log(`  Routes in AppRoute.tsx: ${allAppRoutes.size} (${excludedRoutes.size} excluded)`)
   console.log(`  Pages in registry: ${registryEntries.length}`)
   console.log(`  Baseline PNGs: ${allBaselinePngs.length}`)
