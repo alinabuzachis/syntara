@@ -31,7 +31,7 @@ import { formatDateTime } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
 import { isValidUUID } from '../../../utils/generateUUID'
 import { accessClient } from '../../access/accessClient'
-import { AUTH_TYPE_LOCAL } from '../adminConstants'
+import { AUTH_TYPE_LOCAL, BUILTIN_AUTHENTICATED_GROUP_NAME } from '../adminConstants'
 import { DetailPageShell } from '../DetailPageShell'
 import { DisabledBadge } from '../DisabledBadge'
 import { RoleAssignmentsPanel } from '../RoleAssignmentsPanel'
@@ -44,7 +44,7 @@ import { UserNotFoundState } from './UserNotFoundState'
 
 function computeGroupCount(groupsData: { total?: number | null; resources?: { name: string }[] } | undefined): number {
   const apiGroupCount = groupsData?.total ?? groupsData?.resources?.length ?? 0
-  const hasAuthenticatedGroup = (groupsData?.resources ?? []).some((g) => g.name === 'authenticated')
+  const hasAuthenticatedGroup = (groupsData?.resources ?? []).some((g) => g.name === BUILTIN_AUTHENTICATED_GROUP_NAME)
   return hasAuthenticatedGroup ? apiGroupCount : apiGroupCount + 1
 }
 

@@ -28,6 +28,7 @@ import { useQueryState } from '../../../components/states/useQueryState'
 import { useDetailTab } from '../../../hooks/useDetailTab'
 import { formatDateTime } from '../../../utils/dateUtils'
 import { accessClient } from '../../access/accessClient'
+import { BUILTIN_AUTHENTICATED_GROUP_NAME } from '../adminConstants'
 import { DetailPageShell } from '../DetailPageShell'
 import { GroupFormModal } from '../GroupFormModal'
 import { RoleAssignmentsPanel } from '../RoleAssignmentsPanel'
@@ -130,7 +131,7 @@ export function GroupDetail() {
     { enabled: !!groupId, retry: false }
   )
 
-  const isAuthenticated = groupQuery.data?.name === 'authenticated'
+  const isAuthenticated = groupQuery.data?.name === BUILTIN_AUTHENTICATED_GROUP_NAME
 
   const membersQuery = accessClient.useQuery(
     'get',

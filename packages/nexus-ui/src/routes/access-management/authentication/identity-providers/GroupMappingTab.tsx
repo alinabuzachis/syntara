@@ -6,6 +6,7 @@ import { identityProvidersClient } from '../../../../client'
 import { useAlerts } from '../../../../components/alerts'
 import { useMutationErrorHandler } from '../../../../hooks/useMutationErrorHandler'
 import { useAllGroups } from '../../../access/useAllGroups'
+import { BUILTIN_AUTHENTICATED_GROUP_NAME } from '../../adminConstants'
 import { GroupFormModal } from '../../GroupFormModal'
 
 import {
@@ -102,7 +103,10 @@ export function GroupMappingTab({
   )
 
   const { groups: allGroupsRaw, refetch: refetchGroups } = useAllGroups()
-  const nexusGroups = useMemo(() => allGroupsRaw.filter((g) => g.name !== 'authenticated'), [allGroupsRaw])
+  const nexusGroups = useMemo(
+    () => allGroupsRaw.filter((g) => g.name !== BUILTIN_AUTHENTICATED_GROUP_NAME),
+    [allGroupsRaw]
+  )
 
   const [createGroupForIndex, setCreateGroupForIndex] = useState<number | null>(null)
 

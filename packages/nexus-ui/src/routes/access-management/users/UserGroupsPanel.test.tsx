@@ -382,12 +382,51 @@ describe('UserGroupsPanel', () => {
       expect(actionsButtons.length).toBeGreaterThan(0)
     })
 
-    it('does not show remove action for builtin groups', () => {
-      const builtinGroups = [
+    it('does not show remove action for authenticated group', () => {
+      const authenticatedGroup = [
         {
           id: 'g-builtin',
           name: 'authenticated',
           description: 'All authenticated users',
+          created_at: '2026-01-01T00:00:00Z',
+          updated_at: '2026-01-02T00:00:00Z',
+          is_builtin: true,
+        },
+      ]
+
+      vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
+        if (path === '/users/{user_id}/groups') {
+          return {
+            data: { resources: authenticatedGroup },
+            isPending: false,
+            isError: false,
+            error: null,
+            isFetching: false,
+            refetch: vi.fn(),
+          } as never
+        }
+        return {
+          data: { resources: authenticatedGroup },
+          isPending: false,
+          isError: false,
+          error: null,
+          isFetching: false,
+          refetch: vi.fn(),
+        } as never
+      })
+
+      render(<UserGroupsPanel userId="user-123" />, { wrapper })
+
+      // The builtin group "authenticated" should show the "All users" label
+      expect(screen.getByText('All users')).toBeInTheDocument()
+    })
+
+    it('shows remove action for non-authenticated builtin groups', () => {
+      const builtinGroups = [
+        {
+          id: 'g-builtin-auditors',
+          name: 'auditors',
+          description: 'Read-only access with audit log visibility',
           created_at: '2026-01-01T00:00:00Z',
           updated_at: '2026-01-02T00:00:00Z',
           is_builtin: true,
@@ -417,8 +456,10 @@ describe('UserGroupsPanel', () => {
 
       render(<UserGroupsPanel userId="user-123" />, { wrapper })
 
-      // The builtin group "authenticated" should show the "All users" label
-      expect(screen.getByText('All users')).toBeInTheDocument()
+      const table = screen.getByRole('grid', { name: 'User groups table' })
+      const rows = within(table).getAllByRole('row')
+      const actionsButtons = within(rows[1]).getAllByRole('button')
+      expect(actionsButtons.length).toBeGreaterThan(0)
     })
 
     it('opens remove confirmation dialog and removes group on confirm', async () => {

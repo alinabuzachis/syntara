@@ -33,6 +33,7 @@ import { accessClient } from '../../access/accessClient'
 import { PaginationFooter } from '../../access/PaginationFooter'
 import { TypeaheadSelect } from '../../access/TypeaheadSelect'
 import { useAllGroups } from '../../access/useAllGroups'
+import { BUILTIN_AUTHENTICATED_GROUP_NAME } from '../adminConstants'
 import { MembershipSourceLabels } from '../MembershipSourceLabels'
 import { getMembershipSources } from '../membershipSourceUtils'
 
@@ -169,13 +170,60 @@ function AddToGroupModal({
 }
 
 function getGroupActions(group: Group, onRemove: (g: GroupInfo) => void): IAction[] {
-  if (group.is_builtin) return []
+  if (group.name === BUILTIN_AUTHENTICATED_GROUP_NAME) return []
   return [
     {
       title: <IconLabel icon={<RhUiTrashIcon />}>Remove</IconLabel>,
       onClick: () => onRemove({ id: group.id, name: group.name }),
     },
   ]
+}
+
+function GroupsTable({
+  groups,
+  onRemove,
+}: Readonly<{
+  groups: { id?: string; name: string; description?: string | null }[]
+  onRemove: (g: GroupInfo) => void
+}>) {
+  return (
+    <Table aria-label="User groups table" isStriped style={{ width: '100%' }}>
+      <Thead>
+        <Tr>
+          <Th>Name</Th>
+          <Th>Description</Th>
+          <Th>Source</Th>
+          <Th screenReaderText="Actions" />
+        </Tr>
+      </Thead>
+      <Tbody>
+        {groups.map((group) => (
+          <Tr key={group.id}>
+            <Td dataLabel="Name">
+              {group.name}
+              {group.name === BUILTIN_AUTHENTICATED_GROUP_NAME && (
+                <>
+                  {' '}
+                  <Label isCompact color="grey">
+                    All users
+                  </Label>
+                </>
+              )}
+            </Td>
+            <Td dataLabel="Description">{group.description ?? ''}</Td>
+            <Td dataLabel="Source">
+              <MembershipSourceLabels sources={getMembershipSources(group)} />
+            </Td>
+            <Td isActionCell>
+              {group.name !== BUILTIN_AUTHENTICATED_GROUP_NAME && (
+                <ActionsColumn items={getGroupActions(group as Group, onRemove)} />
+              )}
+            </Td>
+          </Tr>
+        ))}
+      </Tbody>
+    </Table>
+  )
 }
 
 export function UserGroupsPanel({ userId }: Readonly<UserGroupsPanelProps>) {
@@ -204,10 +252,10 @@ export function UserGroupsPanel({ userId }: Readonly<UserGroupsPanelProps>) {
 
   const groups = useMemo(() => {
     const userGroups = query.data?.resources ?? []
-    const hasAuthenticated = userGroups.some((g) => g.name === 'authenticated')
+    const hasAuthenticated = userGroups.some((g) => g.name === BUILTIN_AUTHENTICATED_GROUP_NAME)
     if (hasAuthenticated) return userGroups
 
-    const authenticatedGroup = allGroupsList.find((g) => g.name === 'authenticated')
+    const authenticatedGroup = allGroupsList.find((g) => g.name === BUILTIN_AUTHENTICATED_GROUP_NAME)
     if (authenticatedGroup) return [authenticatedGroup, ...userGroups]
     return userGroups
   }, [query.data, allGroupsList])
@@ -323,40 +371,7 @@ export function UserGroupsPanel({ userId }: Readonly<UserGroupsPanelProps>) {
           </AppPageMain>
         ) : (
           <AppPageMain style={{ overflow: 'auto' }}>
-            <Table aria-label="User groups table" isStriped style={{ width: '100%' }}>
-              <Thead>
-                <Tr>
-                  <Th>Name</Th>
-                  <Th>Description</Th>
-                  <Th>Source</Th>
-                  <Th screenReaderText="Actions" />
-                </Tr>
-              </Thead>
-              <Tbody>
-                {paginatedGroups.map((group) => (
-                  <Tr key={group.id}>
-                    <Td dataLabel="Name">
-                      {group.name}
-                      {group.name === 'authenticated' && (
-                        <>
-                          {' '}
-                          <Label isCompact color="grey">
-                            All users
-                          </Label>
-                        </>
-                      )}
-                    </Td>
-                    <Td dataLabel="Description">{group.description ?? ''}</Td>
-                    <Td dataLabel="Source">
-                      <MembershipSourceLabels sources={getMembershipSources(group)} />
-                    </Td>
-                    <Td isActionCell>
-                      {!group.is_builtin && <ActionsColumn items={getGroupActions(group as Group, setGroupToRemove)} />}
-                    </Td>
-                  </Tr>
-                ))}
-              </Tbody>
-            </Table>
+            <GroupsTable groups={paginatedGroups} onRemove={setGroupToRemove} />
           </AppPageMain>
         )}
 

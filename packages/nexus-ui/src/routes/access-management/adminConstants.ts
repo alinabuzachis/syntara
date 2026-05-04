@@ -9,6 +9,9 @@ export const AUTH_TYPE_FEDERATED = 'federated' as const satisfies AuthType
 /** Name of the built-in administrators group as defined by the backend. */
 export const BUILTIN_ADMINS_GROUP_NAME = 'admins'
 
+/** Name of the built-in authenticated group as defined by the backend. */
+export const BUILTIN_AUTHENTICATED_GROUP_NAME = 'authenticated'
+
 /** Explanation shown when the admin toggle is disabled for the built-in admin. */
 export const BUILTIN_ADMIN_TOGGLE_DISABLED_REASON =
   'Only the built-in administrator can disable their own account, and only when at least one other enabled user exists in the admins group.'
