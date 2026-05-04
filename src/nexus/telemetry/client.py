@@ -28,8 +28,8 @@ if TYPE_CHECKING:
 logger = structlog.stdlib.get_logger(__name__)
 
 
-async def get_installation_id(session: AsyncSession) -> uuid.UUID:
-    """Read the installation ID from the database.
+async def get_installation(session: AsyncSession) -> Installation:
+    """Read the installation record from the database.
 
     The installation row is seeded by an Alembic migration and must always
     exist.
@@ -38,7 +38,7 @@ async def get_installation_id(session: AsyncSession) -> uuid.UUID:
         session: Async database session.
 
     Returns:
-        The installation UUID.
+        The Installation singleton.
 
     Raises:
         RuntimeError: If the installation row is missing.
@@ -49,7 +49,7 @@ async def get_installation_id(session: AsyncSession) -> uuid.UUID:
     if installation is None:
         msg = "Installation table is empty — the Alembic migration that seeds the row must run first"
         raise RuntimeError(msg)
-    return installation.id
+    return installation
 
 
 def derive_anonymous_id(installation_id: uuid.UUID, db_host: str, db_name: str) -> str:
@@ -80,6 +80,7 @@ class TelemetryClientRegistry:
         self._client: segment_analytics.Client | None = None
         self._entitlement_id: str = ""
         self._anonymous_id: str = ""
+        self._installation_salt: str = ""
 
     def initialize(
         self,
@@ -87,6 +88,7 @@ class TelemetryClientRegistry:
         host: str = "https://api.segment.io",
         entitlement_id: str = "",
         anonymous_id: str = "",
+        installation_salt: str = "",
     ) -> None:
         """Initialize the Segment client.
 
@@ -97,6 +99,8 @@ class TelemetryClientRegistry:
             host: Segment API endpoint URL.
             entitlement_id: Optional entitlement identifier included in event properties.
             anonymous_id: Derived telemetry identifier used as Segment ``anonymousId``.
+            installation_salt: Per-installation salt (installation UUID) for HMAC-based
+                user ID hashing.
 
         """
         if self._client is not None:
@@ -105,6 +109,7 @@ class TelemetryClientRegistry:
 
         self._entitlement_id = entitlement_id
         self._anonymous_id = anonymous_id
+        self._installation_salt = installation_salt
         self._client = segment_analytics.Client(
             write_key=write_key,
             host=host,
@@ -222,6 +227,18 @@ class TelemetryClientRegistry:
         """
         return self._entitlement_id
 
+    @property
+    def installation_salt(self) -> str:
+        """Get the per-installation salt (installation UUID).
+
+        Used as the HMAC key for anonymizing user IDs in telemetry events.
+
+        Returns:
+            The installation UUID string used as the HMAC salt.
+
+        """
+        return self._installation_salt
+
     @staticmethod
     def _error_handler(error: Exception, items: list[Any]) -> None:
         """Handle Segment SDK errors (fire-and-forget, log only).
@@ -279,11 +296,11 @@ async def initialize_telemetry(session_factory: async_sessionmaker[AsyncSession]
         logger.info("Telemetry disabled: no Segment write key configured")
         return False
 
-    # Read installation ID from database and derive anonymous_id
+    # Read installation record from database
     async with session_factory() as session:
-        installation_id = await get_installation_id(session)
+        installation = await get_installation(session)
 
-    anonymous_id = derive_anonymous_id(installation_id, settings.db_host, settings.db_name)
+    anonymous_id = derive_anonymous_id(installation.id, settings.db_host, settings.db_name)
 
     registry = get_telemetry_registry()
     registry.initialize(
@@ -291,6 +308,7 @@ async def initialize_telemetry(session_factory: async_sessionmaker[AsyncSession]
         host=str(settings.segment_endpoint),
         entitlement_id=settings.entitlement_id,
         anonymous_id=anonymous_id,
+        installation_salt=str(installation.salt),
     )
     return True
 

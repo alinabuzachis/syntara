@@ -12,14 +12,15 @@ from nexus.telemetry.events.base import BaseTelemetryEvent
 class NewUserEvent(BaseTelemetryEvent):
     """Analytics event for a new user's first connection.
 
-    The user_id_hash is a SHA-256 digest of the user's UUID,
-    ensuring no personally identifiable information is transmitted.
+    The user_id_hash is an HMAC-SHA256 digest of the user's UUID keyed
+    with a per-installation salt, ensuring no personally identifiable
+    information is transmitted and preventing cross-installation correlation.
     """
 
     user_id_hash: str = Field(
         min_length=64,
         max_length=64,
-        description="SHA-256 hash of the user UUID (anonymized)",
+        description="HMAC-SHA256 hash of the user UUID with per-installation salt (anonymized)",
     )
     amr: list[str] = Field(
         description="Authentication method references (e.g. ['pwd'] for password, ['fed'] for OIDC)",

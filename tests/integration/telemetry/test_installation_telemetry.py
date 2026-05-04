@@ -14,7 +14,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models.installation import Installation
-from nexus.telemetry.client import derive_anonymous_id, get_installation_id
+from nexus.telemetry.client import derive_anonymous_id, get_installation
 
 
 class TestInstallationTableSingleton:
@@ -44,18 +44,19 @@ class TestInstallationTableSingleton:
     @pytest.mark.asyncio
     async def test_inserting_second_row_is_rejected(self, test_db_session: AsyncSession) -> None:
         """The singleton constraint should prevent inserting a second row."""
-        second = Installation(id=uuid.uuid4())
+        second = Installation(id=uuid.uuid4(), salt=uuid.uuid4())
         test_db_session.add(second)
         with pytest.raises(IntegrityError):
             await test_db_session.flush()
         await test_db_session.rollback()
 
     @pytest.mark.asyncio
-    async def test_get_installation_id_returns_uuid(self, test_db_session: AsyncSession) -> None:
-        """get_installation_id() should return the installation UUID from the database."""
-        installation_id = await get_installation_id(test_db_session)
-        assert installation_id is not None
-        assert isinstance(installation_id, uuid.UUID)
+    async def test_get_installation_returns_record(self, test_db_session: AsyncSession) -> None:
+        """get_installation() should return the Installation record from the database."""
+        installation = await get_installation(test_db_session)
+        assert installation is not None
+        assert isinstance(installation.id, uuid.UUID)
+        assert isinstance(installation.salt, uuid.UUID)
 
 
 class TestDeriveAnonymousId:

@@ -6,6 +6,7 @@ Emits Segment telemetry events on successful authentication:
 """
 
 import hashlib
+import hmac
 
 import structlog
 
@@ -29,7 +30,11 @@ class UserLoginTelemetryHandler(AuditEventHandler[UserLoginEvent]):
             if not registry.is_initialized():
                 return None
 
-            user_id_hash = hashlib.sha256(str(event.user_id).encode()).hexdigest()
+            user_id_hash = hmac.new(
+                registry.installation_salt.encode(),
+                str(event.user_id).encode(),
+                hashlib.sha256,
+            ).hexdigest()
 
             entitlement_id = registry.entitlement_id
 

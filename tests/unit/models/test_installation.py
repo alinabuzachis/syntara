@@ -39,17 +39,19 @@ class TestInstallationModel:
         assert col.server_default is not None
 
     def test_model_has_only_expected_columns(self) -> None:
-        """Installation table should have exactly id and created_at columns."""
+        """Installation table should have exactly the expected columns."""
         table = Installation.__table__  # type: ignore[attr-defined]
         column_names = {col.name for col in table.columns}
-        assert column_names == {"id", "created_at", "is_singleton"}
+        assert column_names == {"id", "created_at", "is_singleton", "salt"}
 
     def test_does_not_inherit_base_resource(self) -> None:
         """Installation should NOT inherit from BaseResource (system singleton)."""
         assert Installation.__mro__[1] is SQLModel
 
     def test_can_create_instance(self) -> None:
-        """Should be able to create an Installation instance with a UUID."""
+        """Should be able to create an Installation instance with a UUID and salt."""
         installation_id = uuid.uuid4()
-        installation = Installation(id=installation_id)
+        salt = uuid.uuid4()
+        installation = Installation(id=installation_id, salt=salt)
         assert installation.id == installation_id
+        assert installation.salt == salt

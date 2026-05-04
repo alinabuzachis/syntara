@@ -29,6 +29,8 @@ class Installation(SQLModel, table=True):
         id: Unique installation identifier (UUID v4).
         created_at: Timestamp of installation record creation.
         is_singleton: Guard column — always True, unique, enforcing one row.
+        salt: Cryptographically random salt used as the HMAC key for
+            anonymizing user IDs in telemetry events.
 
     """
 
@@ -48,6 +50,12 @@ class Installation(SQLModel, table=True):
         sa_column=Column(
             Boolean,
             server_default=sa.text("true"),
+            nullable=False,
+        ),
+    )
+    salt: uuid.UUID = Field(
+        sa_column=Column(
+            sa.Uuid,
             nullable=False,
         ),
     )
