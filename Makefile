@@ -592,13 +592,19 @@ lint: ## Run linters and type checking (no file modifications)
 	@echo "📝 Running path sequence validation..."
 	$(MAKE) check-path-sequence
 	@echo "📝 Running pre-commit validation checks..."
-	SKIP=ruff-format,yamlfmt,trailing-whitespace,end-of-file-fixer,mixed-line-ending,mypy,check-path-sequence uv run pre-commit run --all-files
+	SKIP=ruff-format,yamlfmt,trailing-whitespace,end-of-file-fixer,mixed-line-ending,pyrefly,check-path-sequence uv run pre-commit run --all-files
 	@echo "✅ All lint checks passed"
 
 .PHONY: typecheck
 typecheck: ## Run type checking only with mypy
 	@echo "🔍 Running type checking..."
 	uv run mypy --strict src/ tests/
+	@echo "✅ Type checking completed"
+
+.PHONY: typecheck-pyrefly
+typecheck-pyrefly: ## Run type checking with pyrefly (~3s, used in pre-commit)
+	@echo "🔍 Running type checking (pyrefly)..."
+	uv run --with pyrefly pyrefly check
 	@echo "✅ Type checking completed"
 
 .PHONY: check-migrations

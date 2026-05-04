@@ -39,10 +39,10 @@ repos:
         pass_filenames: false
         always_run: true
 
-      - id: mypy
-        name: mypy type checking
+      - id: pyrefly
+        name: pyrefly type checking
         entry: make
-        args: [typecheck]
+        args: [typecheck-pyrefly]
         language: system
         pass_filenames: false
         always_run: true

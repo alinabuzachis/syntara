@@ -163,6 +163,25 @@ ignore = [
 ]
 "src/nexus/workflows/workflow_engine/unified_eval.py" = ["PLR0911"]  # _eval_node dispatcher needs 7 returns for clarity
 
+# Pyrefly configuration — used in pre-commit for fast local type checking (~3s).
+# Mypy (strict) continues to run in CI via a dedicated GitHub Actions job.
+[tool.pyrefly]
+python-version = "3.12.0"
+project-includes = ["src"]
+
+# SQLModel/SQLAlchemy stubs cause false positives for these rules.
+# unbound-name and bad-return have a few false positives in existing code
+# that mypy (strict) handles correctly in CI.
+[tool.pyrefly.errors]
+no-matching-overload = "ignore"
+bad-override = "ignore"
+bad-argument-type = "ignore"
+bad-index = "ignore"
+bad-specialization = "ignore"
+bad-override-param-name = "ignore"
+unbound-name = "warn"
+bad-return = "warn"
+
 # MyPy configuration
 [tool.mypy]
 python_version = "3.12"
