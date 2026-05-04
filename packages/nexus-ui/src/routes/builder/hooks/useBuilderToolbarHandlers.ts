@@ -2,6 +2,7 @@ import type { ReactFlowInstance } from '@xyflow/react'
 import { useCallback, type Dispatch } from 'react'
 
 import type { AlertMessage } from '../../../components/alerts'
+import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 import type { BuilderAction } from '../builderReducer'
@@ -37,6 +38,7 @@ export type UseBuilderToolbarHandlersOptions = {
   showSuccess: ShowAlert
   showError: ShowAlert
   setLocation: (to: string) => void
+  handleSaveWorkflow: () => Promise<boolean>
 }
 
 /**
@@ -55,10 +57,29 @@ export function useBuilderToolbarHandlers({
   showSuccess,
   showError,
   setLocation,
+  handleSaveWorkflow,
 }: UseBuilderToolbarHandlersOptions) {
-  const handleRunWorkflow = useCallback(() => {
+  const handleRunWorkflow = useCallback(async () => {
     if (!workflow?.id) return
 
+    // Save workflow first if there are unsaved changes
+    const isDirty = useWorkflowStore.getState().isDirty
+    if (isDirty) {
+      try {
+        const saved = await handleSaveWorkflow()
+        if (!saved) {
+          // Save failed (validation error), close dialog and don't proceed with run
+          dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
+          return
+        }
+      } catch {
+        // Save threw an error, close dialog and abort run
+        dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
+        return
+      }
+    }
+
+    // Now execute with the latest saved version
     executeWorkflow(
       { body: { workflow_id: workflow.id, input_data: {} } },
       {
@@ -78,7 +99,7 @@ export function useBuilderToolbarHandlers({
         },
       }
     )
-  }, [workflow, workflowName, executeWorkflow, showSuccess, showError, dispatch])
+  }, [workflow, workflowName, executeWorkflow, handleSaveWorkflow, showSuccess, showError, dispatch])
 
   const handleDeleteWorkflow = useCallback(() => {
     if (!workflow?.id) return

@@ -1,8 +1,19 @@
 import { renderHook } from '@testing-library/react'
-import { describe, expect, it, vi, type MockedFunction } from 'vitest'
+import { describe, expect, it, vi, beforeEach, type MockedFunction } from 'vitest'
+
+import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 
 import type { UseBuilderToolbarHandlersOptions } from './useBuilderToolbarHandlers'
 import { useBuilderToolbarHandlers } from './useBuilderToolbarHandlers'
+
+vi.mock('../../../stores/useWorkflowStore', () => ({
+  useWorkflowStore: {
+    getState: vi.fn(),
+    temporal: {
+      getState: vi.fn(() => ({ clear: vi.fn() })),
+    },
+  },
+}))
 
 type ExecuteWorkflow = UseBuilderToolbarHandlersOptions['executeWorkflow']
 type DeleteWorkflow = UseBuilderToolbarHandlersOptions['deleteWorkflow']
@@ -29,23 +40,31 @@ function buildOptions(overrides: Partial<UseBuilderToolbarHandlersOptions> = {})
     showSuccess: vi.fn(),
     showError: vi.fn(),
     setLocation: vi.fn(),
+    handleSaveWorkflow: vi.fn().mockResolvedValue(true),
     ...overrides,
   }
 }
 
 describe('useBuilderToolbarHandlers', () => {
-  it('handleRunWorkflow does not call executeWorkflow when workflow is missing', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    // Default to clean state
+    vi.mocked(useWorkflowStore.getState).mockReturnValue({
+      isDirty: false,
+    } as ReturnType<typeof useWorkflowStore.getState>)
+  })
+  it('handleRunWorkflow does not call executeWorkflow when workflow is missing', async () => {
     const executeWorkflow = vi.fn() as MockedFunction<ExecuteWorkflow>
     const { result } = renderHook(() =>
       useBuilderToolbarHandlers(buildOptions({ workflow: undefined, executeWorkflow }))
     )
 
-    result.current.handleRunWorkflow()
+    await result.current.handleRunWorkflow()
 
     expect(executeWorkflow).not.toHaveBeenCalled()
   })
 
-  it('handleRunWorkflow invokes executeWorkflow and dispatches SET_MOST_RECENT_EXECUTION on success', () => {
+  it('handleRunWorkflow invokes executeWorkflow and dispatches SET_MOST_RECENT_EXECUTION on success', async () => {
     const executeWorkflow = vi.fn((...args: Parameters<ExecuteWorkflow>) => {
       const options = args[1]
       options?.onSuccess?.({ id: 'exec-99' })
@@ -57,7 +76,7 @@ describe('useBuilderToolbarHandlers', () => {
       useBuilderToolbarHandlers(buildOptions({ executeWorkflow, setLocation, dispatch, showSuccess }))
     )
 
-    result.current.handleRunWorkflow()
+    await result.current.handleRunWorkflow()
 
     expect(executeWorkflow).toHaveBeenCalledTimes(1)
     const [variables, options] = executeWorkflow.mock.calls[0]
@@ -73,24 +92,20 @@ describe('useBuilderToolbarHandlers', () => {
     expect(setLocation).not.toHaveBeenCalled()
   })
 
-  it('handleRunWorkflow shows error and closes dialog on failure', () => {
+  it('handleRunWorkflow shows error on failure', async () => {
     const executeWorkflow = vi.fn((...args: Parameters<ExecuteWorkflow>) => {
       const options = args[1]
       options?.onError?.(new Error('boom'))
     }) as MockedFunction<ExecuteWorkflow>
     const showError = vi.fn()
-    const dispatch = vi.fn()
-    const { result } = renderHook(() =>
-      useBuilderToolbarHandlers(buildOptions({ executeWorkflow, showError, dispatch }))
-    )
+    const { result } = renderHook(() => useBuilderToolbarHandlers(buildOptions({ executeWorkflow, showError })))
 
-    result.current.handleRunWorkflow()
+    await result.current.handleRunWorkflow()
 
     expect(showError).toHaveBeenCalledWith({
       title: 'Workflow failed',
       description: 'Failed to start workflow "My workflow": boom',
     })
-    expect(dispatch).toHaveBeenCalledWith({ type: 'SET_CONFIRM_DIALOG', payload: false })
   })
 
   it('handleDeleteWorkflow does not call deleteWorkflow when workflow is missing', () => {
@@ -178,5 +193,75 @@ describe('useBuilderToolbarHandlers', () => {
     result.current.handleToggleHistory()
 
     expect(refetch).not.toHaveBeenCalled()
+  })
+
+  it('handleRunWorkflow saves workflow first when isDirty', async () => {
+    const handleSaveWorkflow = vi.fn().mockResolvedValue(true)
+    const executeWorkflow = vi.fn((...args: Parameters<ExecuteWorkflow>) => {
+      const options = args[1]
+      options?.onSuccess?.({ id: 'exec-1' })
+    }) as MockedFunction<ExecuteWorkflow>
+    const dispatch = vi.fn()
+
+    // Mock isDirty state
+    vi.mocked(useWorkflowStore.getState).mockReturnValue({
+      isDirty: true,
+    } as ReturnType<typeof useWorkflowStore.getState>)
+
+    const { result } = renderHook(() =>
+      useBuilderToolbarHandlers(buildOptions({ handleSaveWorkflow, executeWorkflow, dispatch }))
+    )
+
+    await result.current.handleRunWorkflow()
+
+    // Verify save was called before execute
+    expect(handleSaveWorkflow).toHaveBeenCalledTimes(1)
+    expect(executeWorkflow).toHaveBeenCalledTimes(1)
+
+    // Verify order: handleSaveWorkflow should be called before executeWorkflow
+    const saveCallOrder = handleSaveWorkflow.mock.invocationCallOrder[0]
+    const executeCallOrder = executeWorkflow.mock.invocationCallOrder[0]
+    expect(saveCallOrder).toBeLessThan(executeCallOrder)
+  })
+
+  it('handleRunWorkflow does not execute when save fails and isDirty', async () => {
+    const handleSaveWorkflow = vi.fn().mockResolvedValue(false)
+    const executeWorkflow = vi.fn()
+
+    // Mock isDirty state
+    vi.mocked(useWorkflowStore.getState).mockReturnValue({
+      isDirty: true,
+    } as ReturnType<typeof useWorkflowStore.getState>)
+
+    const { result } = renderHook(() =>
+      useBuilderToolbarHandlers(buildOptions({ handleSaveWorkflow, executeWorkflow }))
+    )
+
+    await result.current.handleRunWorkflow()
+
+    expect(handleSaveWorkflow).toHaveBeenCalledTimes(1)
+    expect(executeWorkflow).not.toHaveBeenCalled()
+  })
+
+  it('handleRunWorkflow skips save when not isDirty', async () => {
+    const handleSaveWorkflow = vi.fn()
+    const executeWorkflow = vi.fn((...args: Parameters<ExecuteWorkflow>) => {
+      const options = args[1]
+      options?.onSuccess?.({ id: 'exec-99' })
+    }) as MockedFunction<ExecuteWorkflow>
+
+    // Clean state already set in beforeEach
+    vi.mocked(useWorkflowStore.getState).mockReturnValue({
+      isDirty: false,
+    } as ReturnType<typeof useWorkflowStore.getState>)
+
+    const { result } = renderHook(() =>
+      useBuilderToolbarHandlers(buildOptions({ handleSaveWorkflow, executeWorkflow }))
+    )
+
+    await result.current.handleRunWorkflow()
+
+    expect(handleSaveWorkflow).not.toHaveBeenCalled()
+    expect(executeWorkflow).toHaveBeenCalledTimes(1)
   })
 })

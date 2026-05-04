@@ -85,11 +85,6 @@ export function ConvergeNodeDetails({
   }
 
   return (
-    <ConvergeNodeForm
-      initialData={initialData}
-      submitButtonText="Update step"
-      onSubmit={handleSubmit}
-      onHeaderContentChange={onHeaderContentChange}
-    />
+    <ConvergeNodeForm initialData={initialData} onSubmit={handleSubmit} onHeaderContentChange={onHeaderContentChange} />
   )
 }

@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
@@ -150,6 +151,192 @@ describe('NodeEditorLayout', () => {
     render(<NodeEditorLayout parametersContent={<div>Parameters</div>} showInputPanel={true} nodeId="node-1" />)
 
     expect(screen.queryByTestId('input-source-node')).not.toBeInTheDocument()
+  })
+
+  it('calls form submit when close button is clicked with formId', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+
+    render(
+      <>
+        <form id="test-form" data-testid="test-form">
+          <input type="text" />
+        </form>
+        <NodeEditorLayout
+          parametersContent={<div>Parameters</div>}
+          showInputPanel={true}
+          nodeId="node-1"
+          formId="test-form"
+          onClose={onClose}
+        />
+      </>
+    )
+
+    const form = screen.getByTestId<HTMLFormElement>('test-form')
+    const submitSpy = vi.spyOn(form, 'requestSubmit')
+
+    await user.click(screen.getByRole('button', { name: /Save and close/i }))
+
+    expect(submitSpy).toHaveBeenCalled()
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('calls onClose when close button is clicked with formId but element is not a form', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+
+    render(
+      <>
+        <div id="test-form">Not a form</div>
+        <NodeEditorLayout
+          parametersContent={<div>Parameters</div>}
+          showInputPanel={true}
+          nodeId="node-1"
+          formId="test-form"
+          onClose={onClose}
+        />
+      </>
+    )
+
+    await user.click(screen.getByRole('button', { name: /Save and close/i }))
+
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('calls onClose when close button is clicked without formId', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+
+    render(
+      <NodeEditorLayout
+        parametersContent={<div>Parameters</div>}
+        showInputPanel={true}
+        nodeId="node-1"
+        onClose={onClose}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: /Save and close/i }))
+
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('does not render close button when showClose is false', () => {
+    render(
+      <NodeEditorLayout
+        parametersContent={<div>Parameters</div>}
+        showInputPanel={true}
+        nodeId="node-1"
+        showClose={false}
+      />
+    )
+
+    expect(screen.queryByRole('button', { name: /Close and save/i })).not.toBeInTheDocument()
+  })
+
+  it('renders header icon when provided', () => {
+    render(
+      <NodeEditorLayout
+        parametersContent={<div>Parameters</div>}
+        showInputPanel={false}
+        headerIcon={<span data-testid="custom-icon">Icon</span>}
+      />
+    )
+
+    expect(screen.getByTestId('custom-icon')).toBeInTheDocument()
+  })
+
+  it('renders header content when provided', () => {
+    render(
+      <NodeEditorLayout
+        parametersContent={<div>Parameters</div>}
+        showInputPanel={false}
+        headerContent={<span>Custom Header</span>}
+      />
+    )
+
+    expect(screen.getByText('Custom Header')).toBeInTheDocument()
+  })
+
+  it('renders header actions when provided', () => {
+    render(
+      <NodeEditorLayout
+        parametersContent={<div>Parameters</div>}
+        showInputPanel={false}
+        headerActions={<button type="button">Action</button>}
+      />
+    )
+
+    expect(screen.getByRole('button', { name: /Action/i })).toBeInTheDocument()
+  })
+
+  it('renders Cancel button when showClose is true', () => {
+    render(
+      <NodeEditorLayout
+        parametersContent={<div>Parameters</div>}
+        showInputPanel={true}
+        nodeId="node-1"
+        onClose={vi.fn()}
+      />
+    )
+
+    expect(screen.getByRole('button', { name: /Cancel without saving/i })).toBeInTheDocument()
+  })
+
+  it('calls onClose when Cancel button is clicked without form submission', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+
+    render(
+      <>
+        <form id="test-form" data-testid="test-form">
+          <input type="text" />
+        </form>
+        <NodeEditorLayout
+          parametersContent={<div>Parameters</div>}
+          showInputPanel={true}
+          nodeId="node-1"
+          formId="test-form"
+          onClose={onClose}
+        />
+      </>
+    )
+
+    const form = screen.getByTestId<HTMLFormElement>('test-form')
+    const submitSpy = vi.spyOn(form, 'requestSubmit')
+
+    await user.click(screen.getByRole('button', { name: /Cancel without saving/i }))
+
+    expect(onClose).toHaveBeenCalled()
+    expect(submitSpy).not.toHaveBeenCalled()
+  })
+
+  it('does not render Cancel and minimize buttons when showClose is false', () => {
+    render(
+      <NodeEditorLayout
+        parametersContent={<div>Parameters</div>}
+        showInputPanel={true}
+        nodeId="node-1"
+        showClose={false}
+      />
+    )
+
+    expect(screen.queryByRole('button', { name: /Cancel without saving/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Save and close/i })).not.toBeInTheDocument()
+  })
+
+  it('minimize button has tooltip with "Save and close" text', () => {
+    render(
+      <NodeEditorLayout
+        parametersContent={<div>Parameters</div>}
+        showInputPanel={true}
+        nodeId="node-1"
+        onClose={vi.fn()}
+      />
+    )
+
+    const minimizeButton = screen.getByRole('button', { name: /Save and close/i })
+    expect(minimizeButton).toBeInTheDocument()
   })
 
   it('has no accessibility violations', async () => {

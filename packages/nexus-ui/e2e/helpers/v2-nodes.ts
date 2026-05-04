@@ -72,7 +72,7 @@ export async function addManualTrigger(page: Page, name = 'Manual trigger') {
   await expect(page.getByRole('heading', { name: /select a trigger step/i })).toBeVisible({ timeout: 10000 })
   await page.getByRole('button', { name: 'Manual trigger' }).click()
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
-  await page.getByRole('button', { name: /^Add step$/ }).click()
+  await page.getByRole('button', { name: 'Save and close' }).click()
 
   // Panel auto-closes after adding trigger - no manual close needed
 }
@@ -90,7 +90,7 @@ export async function addScriptNode(page: Page, name: string, code = 'print("hel
   await expect(nameInput).toBeEditable({ timeout: 5_000 })
   await nameInput.fill(name)
   await fillCodeEditor(page, { value: code })
-  await page.getByRole('button', { name: /^Add step$/ }).click()
+  await page.getByRole('button', { name: 'Save and close' }).click()
   await closeNodeEditorPanel(page)
 }
 
@@ -100,7 +100,7 @@ export async function addHttpRequestNode(page: Page, name: string, url = 'https:
   await selectCategoryAndType(page, 'Action', 'REST API')
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
   await page.getByLabel('URL').fill(url)
-  await page.getByRole('button', { name: /^Add step$/ }).click()
+  await page.getByRole('button', { name: 'Save and close' }).click()
   await closeNodeEditorPanel(page)
 }
 
@@ -110,7 +110,7 @@ export async function addAgenticNode(page: Page, name: string, prompt = 'Analyze
   await selectDirectNodeType(page, 'AI Agent')
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
   await page.getByLabel('Prompt').fill(prompt)
-  await page.getByRole('button', { name: /^Add step$/ }).click()
+  await page.getByRole('button', { name: 'Save and close' }).click()
   await closeNodeEditorPanel(page)
 }
 
@@ -120,7 +120,7 @@ export async function addAapNode(page: Page, name: string, jobTemplateId = '123'
   await selectDirectNodeType(page, /AAP/i)
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
   await page.getByLabel('Job template ID').fill(jobTemplateId)
-  await page.getByRole('button', { name: /^Add step$/ }).click()
+  await page.getByRole('button', { name: 'Save and close' }).click()
   await closeNodeEditorPanel(page)
 }
 
@@ -131,7 +131,7 @@ export async function addApprovalNode(page: Page, name: string, approver = 'admi
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
   await page.getByLabel('Add approver').fill(approver)
   await page.keyboard.press('Enter')
-  await page.getByRole('button', { name: /^Add step$/ }).click()
+  await page.getByRole('button', { name: 'Save and close' }).click()
   await closeNodeEditorPanel(page)
 }
 
@@ -176,7 +176,7 @@ export async function addApprovalNodeWithBranch(page: Page, name: string, approv
 
   await nameInput.fill(`${name} - approved action`)
   await fillCodeEditor(page, { value: 'print("approved")' })
-  await page.getByRole('button', { name: /^Add step$/ }).click()
+  await page.getByRole('button', { name: 'Save and close' }).click()
   await closeNodeEditorPanel(page)
 }
 
@@ -204,10 +204,10 @@ export async function addConditionNode(page: Page, name: string, expression = 't
   await expect(rawExpressionInput).toBeVisible()
   await rawExpressionInput.fill(expression)
 
-  // Click Add step button
-  const addButton = page.getByRole('button', { name: /^Add step$/ })
-  await expect(addButton).toBeVisible()
-  await addButton.click()
+  // Click minimize button to close and save
+  const closeButton = page.getByRole('button', { name: 'Save and close' })
+  await expect(closeButton).toBeVisible()
+  await closeButton.click()
 
   await closeNodeEditorPanel(page)
 }
@@ -226,7 +226,7 @@ export async function addConditionNodeWithBranch(page: Page, name: string, expre
   await selectCategoryAndType(page, 'Action', 'Script')
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill(`${name} - true action`)
   await fillCodeEditor(page, { value: 'print("condition is true")' })
-  await page.getByRole('button', { name: /^Add step$/ }).click()
+  await page.getByRole('button', { name: 'Save and close' }).click()
   await closeNodeEditorPanel(page)
 }
 
@@ -245,7 +245,7 @@ export async function addLoopNode(page: Page, name: string, items = '${trigger.i
   if (await itemsInput.isVisible().catch(() => false)) {
     await itemsInput.fill(items)
   }
-  await page.getByRole('button', { name: /^Add step$/ }).click()
+  await page.getByRole('button', { name: 'Save and close' }).click()
   await closeNodeEditorPanel(page)
 }
 
@@ -262,7 +262,7 @@ export async function addLoopNodeWithBody(page: Page, name: string, items = '${t
   await selectCategoryAndType(page, 'Action', 'Script')
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill(`${name} - loop body`)
   await fillCodeEditor(page, { value: 'print("processing item")' })
-  await page.getByRole('button', { name: /^Add step$/ }).click()
+  await page.getByRole('button', { name: 'Save and close' }).click()
   await closeNodeEditorPanel(page)
 }
 
@@ -271,6 +271,6 @@ export async function addConvergeNode(page: Page, name: string) {
   await openAddNodePanel(page)
   await selectCategoryAndType(page, 'Logic', 'Converge')
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
-  await page.getByRole('button', { name: /^Add step$/ }).click()
+  await page.getByRole('button', { name: 'Save and close' }).click()
   await closeNodeEditorPanel(page)
 }

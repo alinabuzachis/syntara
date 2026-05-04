@@ -64,7 +64,7 @@ test.describe('Credential Persistence', () => {
 
       await selectCredential(app, 'LLM provider credential', credName)
 
-      await app.getByRole('button', { name: /^Add step$/ }).click()
+      await app.getByRole('button', { name: 'Save and close' }).click()
       await closeNodeEditorPanel(app)
       await saveWorkflow(app, workflowName)
 
@@ -106,7 +106,7 @@ test.describe('Credential Persistence', () => {
 
       await selectCredential(app, 'Authentication credential', credName)
 
-      await app.getByRole('button', { name: /^Add step$/ }).click()
+      await app.getByRole('button', { name: 'Save and close' }).click()
       await closeNodeEditorPanel(app)
       await saveWorkflow(app, workflowName)
 
@@ -165,7 +165,7 @@ test.describe('Credential Persistence', () => {
         await app.getByLabel('Job template').fill('${trigger.template}')
       }
 
-      await app.getByRole('button', { name: /^Add step$/ }).click()
+      await app.getByRole('button', { name: 'Save and close' }).click()
       await closeNodeEditorPanel(app)
       await saveWorkflow(app, workflowName)
 

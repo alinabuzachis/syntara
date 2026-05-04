@@ -186,6 +186,7 @@ export function BuilderContent(props: BuilderContentProps) {
       showSuccess,
       showError,
       setLocation,
+      handleSaveWorkflow,
     })
 
   const { selectedExecution, executionWorkflow, executionActivities, isViewingExecution } =

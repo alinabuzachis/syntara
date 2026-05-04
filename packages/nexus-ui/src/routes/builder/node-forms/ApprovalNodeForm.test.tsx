@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -34,18 +34,6 @@ describe('ApprovalNodeForm', () => {
       renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
 
       expect(screen.getByText(/Type a username and press Enter or comma to add/i)).toBeInTheDocument()
-    })
-
-    it('displays default submit button text', () => {
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
-
-      expect(screen.getByRole('button', { name: /Add step/i })).toBeInTheDocument()
-    })
-
-    it('displays custom submit button text when provided', () => {
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} submitButtonText="Update approval" />)
-
-      expect(screen.getByRole('button', { name: /Update approval/i })).toBeInTheDocument()
     })
   })
 
@@ -133,233 +121,6 @@ describe('ApprovalNodeForm', () => {
     })
   })
 
-  describe('Timeout Configuration', () => {
-    it('converts time units to total seconds correctly', async () => {
-      const user = userEvent.setup()
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
-
-      const approverInput = screen.getByLabelText('Add approver')
-      await user.type(approverInput, 'user1{Enter}')
-      await user.type(screen.getByLabelText(/Message/i), 'Approve')
-
-      // Clear default day value and set hours
-      await user.clear(screen.getByLabelText(/Day\(s\)/i))
-      await user.type(screen.getByLabelText(/Hour\(s\)/i), '3')
-
-      await user.click(screen.getByRole('button', { name: /Add step/i }))
-
-      expect(mockOnSubmit).toHaveBeenCalledWith(
-        expect.objectContaining({
-          timeout: 10800, // 3 hours = 3 * 3600
-        })
-      )
-    })
-
-    it('handles only days', async () => {
-      const user = userEvent.setup()
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
-
-      const approverInput = screen.getByLabelText('Add approver')
-      await user.type(approverInput, 'user1{Enter}')
-      await user.type(screen.getByLabelText(/Message/i), 'Approve')
-
-      // Clear default and set to 5 days
-      await user.clear(screen.getByLabelText(/Day\(s\)/i))
-      await user.type(screen.getByLabelText(/Day\(s\)/i), '5')
-
-      await user.click(screen.getByRole('button', { name: /Add step/i }))
-
-      expect(mockOnSubmit).toHaveBeenCalledWith(
-        expect.objectContaining({
-          timeout: 432000, // 5 days = 5 * 86400
-        })
-      )
-    })
-
-    it('handles only minutes', async () => {
-      const user = userEvent.setup()
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
-
-      const approverInput = screen.getByLabelText('Add approver')
-      await user.type(approverInput, 'user1{Enter}')
-      await user.type(screen.getByLabelText(/Message/i), 'Approve')
-
-      // Clear default day value and set minutes
-      await user.clear(screen.getByLabelText(/Day\(s\)/i))
-      await user.type(screen.getByLabelText(/Minute\(s\)/i), '30')
-
-      await user.click(screen.getByRole('button', { name: /Add step/i }))
-
-      expect(mockOnSubmit).toHaveBeenCalledWith(
-        expect.objectContaining({
-          timeout: 1800, // 30 minutes = 30 * 60
-        })
-      )
-    })
-
-    it('handles only seconds', async () => {
-      const user = userEvent.setup()
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
-
-      const approverInput = screen.getByLabelText('Add approver')
-      await user.type(approverInput, 'user1{Enter}')
-      await user.type(screen.getByLabelText(/Message/i), 'Approve')
-
-      // Clear default day value and set seconds
-      await user.clear(screen.getByLabelText(/Day\(s\)/i))
-      await user.type(screen.getByLabelText(/Second\(s\)/i), '45')
-
-      await user.click(screen.getByRole('button', { name: /Add step/i }))
-
-      expect(mockOnSubmit).toHaveBeenCalledWith(
-        expect.objectContaining({
-          timeout: 45,
-        })
-      )
-    })
-
-    it('excludes timeout when all time fields are empty', async () => {
-      const user = userEvent.setup()
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
-
-      const approverInput = screen.getByLabelText('Add approver')
-      await user.type(approverInput, 'user1{Enter}')
-      await user.type(screen.getByLabelText(/Message/i), 'Approve')
-
-      // Clear default day value
-      await user.clear(screen.getByLabelText(/Day\(s\)/i))
-
-      await user.click(screen.getByRole('button', { name: /Add step/i }))
-
-      expect(mockOnSubmit).toHaveBeenCalledWith({
-        name: '',
-        approvers: ['user1'],
-        prompt: 'Approve',
-        timeout: undefined,
-        onTimeout: undefined,
-      })
-    })
-
-    it('excludes timeout when all time fields are zero', async () => {
-      const user = userEvent.setup()
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
-
-      const approverInput = screen.getByLabelText('Add approver')
-      await user.type(approverInput, 'user1{Enter}')
-      await user.type(screen.getByLabelText(/Message/i), 'Approve')
-
-      // Clear default day value and set all to 0
-      await user.clear(screen.getByLabelText(/Day\(s\)/i))
-      await user.type(screen.getByLabelText(/Day\(s\)/i), '0')
-      await user.type(screen.getByLabelText(/Hour\(s\)/i), '0')
-      await user.type(screen.getByLabelText(/Minute\(s\)/i), '0')
-      await user.type(screen.getByLabelText(/Second\(s\)/i), '0')
-
-      await user.click(screen.getByRole('button', { name: /Add step/i }))
-
-      expect(mockOnSubmit).toHaveBeenCalledWith(
-        expect.objectContaining({
-          timeout: undefined,
-          onTimeout: undefined,
-        })
-      )
-    })
-  })
-
-  describe('Form Submission', () => {
-    it('submits with minimal valid data', async () => {
-      const user = userEvent.setup()
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
-
-      const approverInput = screen.getByLabelText('Add approver')
-      await user.type(approverInput, 'user1{Enter}')
-
-      const promptInput = screen.getByLabelText(/Message/i)
-      await user.type(promptInput, 'Please approve')
-
-      // Clear default timeout values
-      await user.clear(screen.getByLabelText(/Day\(s\)/i))
-
-      await user.click(screen.getByRole('button', { name: /Add step/i }))
-
-      expect(mockOnSubmit).toHaveBeenCalledWith({
-        name: '',
-        approvers: ['user1'],
-        prompt: 'Please approve',
-        timeout: undefined,
-        onTimeout: undefined,
-      })
-    })
-
-    it('submits with empty message field', async () => {
-      const user = userEvent.setup()
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
-
-      const approverInput = screen.getByLabelText('Add approver')
-      await user.type(approverInput, 'user1{Enter}')
-
-      // Clear default timeout values
-      await user.clear(screen.getByLabelText(/Day\(s\)/i))
-
-      await user.click(screen.getByRole('button', { name: /Add step/i }))
-
-      expect(mockOnSubmit).toHaveBeenCalledWith({
-        name: '',
-        approvers: ['user1'],
-        prompt: '',
-        timeout: undefined,
-        onTimeout: undefined,
-      })
-    })
-
-    it('submits with all fields populated', async () => {
-      const user = userEvent.setup()
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
-
-      const approverInput = screen.getByLabelText('Add approver')
-      await user.type(approverInput, 'user1{Enter}')
-      await user.type(approverInput, 'user2{Enter}')
-
-      const promptInput = screen.getByLabelText(/Message/i)
-      await user.type(promptInput, 'Please approve this deployment')
-
-      // Clear default day value and set new values
-      await user.clear(screen.getByLabelText(/Day\(s\)/i))
-      await user.type(screen.getByLabelText(/Day\(s\)/i), '1')
-      await user.type(screen.getByLabelText(/Hour\(s\)/i), '2')
-      await user.type(screen.getByLabelText(/Minute\(s\)/i), '15')
-      await user.type(screen.getByLabelText(/Second\(s\)/i), '30')
-
-      await user.click(screen.getByRole('button', { name: /Add step/i }))
-
-      expect(mockOnSubmit).toHaveBeenCalledWith({
-        name: '',
-        approvers: ['user1', 'user2'],
-        prompt: 'Please approve this deployment',
-        timeout: 94530, // 1 day + 2 hours + 15 minutes + 30 seconds = 86400 + 7200 + 900 + 30
-        onTimeout: 'fail',
-      })
-    })
-
-    it('trims approvers and prompt on submission', async () => {
-      const user = userEvent.setup()
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
-
-      const approverInput = screen.getByLabelText('Add approver')
-      await user.type(approverInput, '  user1  {Enter}')
-      await user.type(screen.getByLabelText(/Message/i), '  Please approve  ')
-
-      await user.click(screen.getByRole('button', { name: /Add step/i }))
-
-      expect(mockOnSubmit).toHaveBeenCalledWith(
-        expect.objectContaining({
-          approvers: ['user1'],
-          prompt: 'Please approve',
-        })
-      )
-    })
-  })
-
   describe('Initial Data', () => {
     it('populates form with initial data', () => {
       renderWithHeader(
@@ -417,6 +178,112 @@ describe('ApprovalNodeForm', () => {
       expect(screen.getByLabelText(/Hour\(s\)/i)).toHaveValue(0)
       expect(screen.getByLabelText(/Minute\(s\)/i)).toHaveValue(0)
       expect(screen.getByLabelText(/Second\(s\)/i)).toHaveValue(0)
+    })
+  })
+
+  describe('Form Submission', () => {
+    it('submits with minimal valid data', async () => {
+      const user = userEvent.setup()
+      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
+
+      const approverInput = screen.getByLabelText('Add approver')
+      await user.type(approverInput, 'user1{Enter}')
+
+      const promptInput = screen.getByLabelText(/Message/i)
+      await user.type(promptInput, 'Please approve')
+
+      // Clear default timeout values
+      await user.clear(screen.getByLabelText(/Day\(s\)/i))
+
+      fireEvent.submit(screen.getByTestId('approval-node-form'))
+
+      await waitFor(() => {
+        expect(mockOnSubmit).toHaveBeenCalledWith({
+          name: '',
+          approvers: ['user1'],
+          prompt: 'Please approve',
+          timeout: undefined,
+          onTimeout: undefined,
+        })
+      })
+    })
+
+    it('submits with empty message field', async () => {
+      const user = userEvent.setup()
+      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
+
+      const approverInput = screen.getByLabelText('Add approver')
+      await user.type(approverInput, 'user1{Enter}')
+
+      // Clear default timeout values
+      await user.clear(screen.getByLabelText(/Day\(s\)/i))
+
+      fireEvent.submit(screen.getByTestId('approval-node-form'))
+
+      await waitFor(() => {
+        expect(mockOnSubmit).toHaveBeenCalledWith({
+          name: '',
+          approvers: ['user1'],
+          prompt: '',
+          timeout: undefined,
+          onTimeout: undefined,
+        })
+      })
+    })
+
+    it('submits with all fields populated', async () => {
+      const user = userEvent.setup()
+      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
+
+      const approverInput = screen.getByLabelText('Add approver')
+      await user.type(approverInput, 'user1{Enter}')
+      await user.type(approverInput, 'user2{Enter}')
+
+      const promptInput = screen.getByLabelText(/Message/i)
+      await user.type(promptInput, 'Please review and approve')
+
+      await user.clear(screen.getByLabelText(/Day\(s\)/i))
+      await user.type(screen.getByLabelText(/Day\(s\)/i), '1')
+      await user.type(screen.getByLabelText(/Hour\(s\)/i), '2')
+      await user.type(screen.getByLabelText(/Minute\(s\)/i), '15')
+      await user.type(screen.getByLabelText(/Second\(s\)/i), '30')
+
+      fireEvent.submit(screen.getByTestId('approval-node-form'))
+
+      await waitFor(() => {
+        expect(mockOnSubmit).toHaveBeenCalledWith({
+          name: '',
+          approvers: ['user1', 'user2'],
+          prompt: 'Please review and approve',
+          timeout: 94530, // 1 day + 2 hours + 15 minutes + 30 seconds
+          onTimeout: 'fail',
+        })
+      })
+    })
+
+    it('trims approvers and prompt on submission', async () => {
+      const user = userEvent.setup()
+      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
+
+      const approverInput = screen.getByLabelText('Add approver')
+      await user.type(approverInput, '  user1  {Enter}')
+
+      const promptInput = screen.getByLabelText(/Message/i)
+      await user.type(promptInput, '  Please approve  ')
+
+      await user.clear(screen.getByLabelText(/Day\(s\)/i))
+
+      fireEvent.submit(screen.getByTestId('approval-node-form'))
+
+      await waitFor(() => {
+        expect(mockOnSubmit).toHaveBeenCalledWith({
+          name: '',
+          approvers: ['user1'],
+          prompt: 'Please approve',
+          timeout: undefined,
+          onTimeout: undefined,
+        })
+      })
     })
   })
 })

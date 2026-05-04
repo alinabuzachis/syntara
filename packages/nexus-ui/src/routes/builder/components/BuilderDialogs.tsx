@@ -3,6 +3,7 @@ import { Content, Stack, StackItem } from '@patternfly/react-core'
 import type { Dispatch } from 'react'
 
 import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
+import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import type { BuilderAction } from '../builderReducer'
 
 import { ApprovalReviewModal } from './ApprovalReviewModal'
@@ -34,6 +35,8 @@ export function BuilderDialogs({
   activityNameMap,
   handleApprovalClose,
 }: BuilderDialogsProps) {
+  const isDirty = useWorkflowStore((state) => state.isDirty)
+
   return (
     <>
       <ConfirmationDialog
@@ -41,12 +44,13 @@ export function BuilderDialogs({
         onClose={() => dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })}
         onConfirm={handleRunWorkflow}
         title={`Run ${workflowName}?`}
-        confirmLabel="Run now"
+        confirmLabel={isDirty ? 'Save and run' : 'Run now'}
         aria-labelledby="run-workflow-modal-title"
         aria-describedby="run-workflow-modal-description"
       >
-        You are about to manually run this workflow. This action will start the workflow immediately, bypassing its
-        normal trigger conditions.
+        {isDirty
+          ? 'You are about to save and run this workflow. Your unsaved changes will be saved before the workflow starts, bypassing its normal trigger conditions.'
+          : 'You are about to manually run this workflow. This action will start the workflow immediately, bypassing its normal trigger conditions.'}
       </ConfirmationDialog>
       <ConfirmationDialog
         isOpen={deleteDialogOpen}

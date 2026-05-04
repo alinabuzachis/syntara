@@ -25,20 +25,17 @@ type AAPNodeFormProps = {
   onSubmit: (data: AAPFormData) => void
   onCancel?: () => void
   initialData?: Partial<AAPFormData>
-  submitButtonText?: string
   onHeaderContentChange?: (content: ReactNode | null) => void
   projectId?: string
 }
 
 function AAPFormFields({
-  submitButtonText,
   onHeaderContentChange,
   extraVarsEditorRef,
   initialData,
   selectedCredentialId,
   projectId,
 }: {
-  submitButtonText?: string
   onHeaderContentChange?: (content: ReactNode | null) => void
   extraVarsEditorRef: React.RefObject<ExpandableCodeEditorHandle | null>
   initialData?: Partial<AAPFormData>
@@ -217,7 +214,7 @@ function AAPFormFields({
     </Stack>
   )
 
-  return <NodeFormTabsLayout parametersContent={parametersContent} submitButtonText={submitButtonText} />
+  return <NodeFormTabsLayout parametersContent={parametersContent} />
 }
 
 export function AAPNodeForm(props: Readonly<AAPNodeFormProps>) {
@@ -298,7 +295,6 @@ export function AAPNodeForm(props: Readonly<AAPNodeFormProps>) {
     <FormProvider {...methods}>
       <NodeFormContainer formId="aap-node-form" onSubmit={onSubmitWithFlush}>
         <AAPFormFields
-          submitButtonText={props.submitButtonText}
           onHeaderContentChange={props.onHeaderContentChange}
           extraVarsEditorRef={extraVarsEditorRef}
           initialData={props.initialData}

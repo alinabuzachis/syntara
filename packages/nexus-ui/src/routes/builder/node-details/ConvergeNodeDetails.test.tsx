@@ -1,5 +1,4 @@
 import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { ConvergeNodeDetails } from './ConvergeNodeDetails'
@@ -24,16 +23,15 @@ vi.mock('../../../components/alerts', () => ({
 // Use real timeUtils helpers (secondsToTimeUnits is now imported directly in ConvergeNodeDetails)
 vi.mock('../utils/timeUtils', async (importOriginal) => importOriginal())
 
-// Mock that triggers real handleSubmit flow for accurate payload testing
+// Mock ConvergeNodeForm - simulates auto-save behavior
+let mockOnSubmitHandler: ((data: Record<string, unknown>) => void) | null = null
+
 vi.mock('../node-forms/ConvergeNodeForm', () => ({
   ConvergeNodeForm: ({
     onSubmit,
-    submitButtonText,
     initialData,
   }: {
     onSubmit: (data: Record<string, unknown>) => void
-    onCancel: () => void
-    submitButtonText?: string
     initialData?: {
       name?: string
       timeoutEnabled?: boolean
@@ -45,33 +43,12 @@ vi.mock('../node-forms/ConvergeNodeForm', () => ({
       [key: string]: unknown
     }
   }) => {
+    mockOnSubmitHandler = onSubmit
     return (
       <div data-testid="converge-node-form">
         <span data-testid="initial-name">{initialData?.name ?? ''}</span>
         <span data-testid="initial-timeout-enabled">{String(initialData?.timeoutEnabled ?? false)}</span>
         <span data-testid="initial-required-path-count">{String(initialData?.requiredPathCount ?? '')}</span>
-        <button
-          onClick={() => {
-            // Simulate ConvergeNodeForm's behavior: compute timeout from time units before calling handleSubmit
-            const timeoutInSeconds = initialData?.timeoutEnabled
-              ? (Number(initialData?.timeoutSeconds) || 0) +
-                (Number(initialData?.timeoutMinutes) || 0) * 60 +
-                (Number(initialData?.timeoutHours) || 0) * 3600 +
-                (Number(initialData?.timeoutDays) || 0) * 86400
-              : undefined
-
-            const payload = {
-              ...initialData,
-              timeout: timeoutInSeconds,
-            }
-
-            // Call the real onSubmit handler to trigger handleSubmit
-            onSubmit(payload)
-          }}
-          data-testid="submit-button"
-        >
-          {submitButtonText ?? 'Add step'}
-        </button>
       </div>
     )
   },
@@ -110,12 +87,17 @@ describe('ConvergeNodeDetails Component', () => {
     expect(screen.getByTestId('initial-timeout-enabled')).toHaveTextContent('true')
   })
 
-  it('calls updateActivity on successful form submission', async () => {
-    const user = userEvent.setup()
-
+  it('calls updateActivity when form auto-saves', () => {
     render(<ConvergeNodeDetails convergeData={createConvergeData()} nodeId="converge-1" onClose={mockOnClose} />)
 
-    await user.click(screen.getByTestId('submit-button'))
+    // Simulate auto-save with timeout
+    mockOnSubmitHandler?.({
+      name: 'Test Converge',
+      strategy: 'all',
+      timeoutEnabled: true,
+      timeout: 7200,
+      onTimeout: 'fail',
+    })
 
     // Verify updateActivity was called with correct node ID and payload structure
     expect(mockUpdateActivity).toHaveBeenCalledTimes(1)
@@ -146,20 +128,24 @@ describe('ConvergeNodeDetails Component', () => {
     expect(actualPayload.config.on_timeout).toBe('fail')
   })
 
-  it('calls onClose after successful submission', async () => {
-    const user = userEvent.setup()
-
+  it('calls onClose after auto-save', () => {
     render(<ConvergeNodeDetails convergeData={createConvergeData()} nodeId="converge-1" onClose={mockOnClose} />)
 
-    await user.click(screen.getByTestId('submit-button'))
+    // Simulate auto-save
+    mockOnSubmitHandler?.({
+      name: 'Test Converge',
+      strategy: 'all',
+      timeout: 7200,
+      onTimeout: 'fail',
+    })
 
     expect(mockOnClose).toHaveBeenCalledTimes(1)
   })
 
-  it('displays "Update step" as submit button text', () => {
+  it('renders form with initial data', () => {
     render(<ConvergeNodeDetails convergeData={createConvergeData()} nodeId="converge-1" onClose={mockOnClose} />)
 
-    expect(screen.getByText('Update step')).toBeInTheDocument()
+    expect(screen.getByTestId('converge-node-form')).toBeInTheDocument()
   })
 
   it('handles convergeData without config object', () => {
@@ -180,15 +166,20 @@ describe('ConvergeNodeDetails Component', () => {
     expect(screen.getByTestId('initial-timeout-enabled')).toHaveTextContent('true')
   })
 
-  it('shows error when updateActivity throws', async () => {
-    const user = userEvent.setup()
+  it('shows error when updateActivity throws', () => {
     mockUpdateActivity.mockImplementationOnce(() => {
       throw new Error('The update failed')
     })
 
     render(<ConvergeNodeDetails convergeData={createConvergeData()} nodeId="converge-1" onClose={mockOnClose} />)
 
-    await user.click(screen.getByTestId('submit-button'))
+    // Simulate auto-save
+    mockOnSubmitHandler?.({
+      name: 'Test Converge',
+      strategy: 'all',
+      timeout: 7200,
+      onTimeout: 'fail',
+    })
 
     expect(mockShowError).toHaveBeenCalledWith({ title: 'Update failed', description: 'The update failed' })
   })

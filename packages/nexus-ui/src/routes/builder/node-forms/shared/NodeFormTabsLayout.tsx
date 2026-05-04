@@ -6,13 +6,9 @@ import { AppPageMain } from '../../../../app/AppPage'
 import { useAlerts } from '../../../../components/alerts'
 import { TestStepButton } from '../../panels/TestStepButton'
 
-import { FormSubmitButton } from './FormSubmitButton'
-
 type NodeFormTabsLayoutProps = {
   parametersContent: ReactNode
   settingsContent?: ReactNode
-  submitButtonText?: string
-  isSubmitDisabled?: boolean
   onTestStep?: () => void
   isTestStepPending?: boolean
 }
@@ -20,8 +16,6 @@ type NodeFormTabsLayoutProps = {
 export function NodeFormTabsLayout({
   parametersContent,
   settingsContent,
-  submitButtonText,
-  isSubmitDisabled,
   onTestStep,
   isTestStepPending,
 }: NodeFormTabsLayoutProps) {
@@ -49,7 +43,6 @@ export function NodeFormTabsLayout({
       <AppPageMain style={{ overflow: 'auto', paddingRight: 'var(--pf-t--global--spacer--md)' }}>
         <Stack hasGutter>
           <StackItem>{activeTabKey === 0 ? parametersContent : (settingsContent ?? null)}</StackItem>
-          <FormSubmitButton submitButtonText={submitButtonText} isDisabled={isSubmitDisabled} />
         </Stack>
       </AppPageMain>
     </Stack>

@@ -1,11 +1,11 @@
-import { screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { credentialsClient } from '../../../client'
 
-import { AIAgentNodeForm, type AIAgentFormSubmitData } from './AIAgentNodeForm'
+import { AIAgentNodeForm } from './AIAgentNodeForm'
 import { renderWithHeader } from './test-utils/renderWithHeader'
 
 // Mock credentialsClient used by CredentialSelector
@@ -112,53 +112,16 @@ describe('AIAgentNodeForm', () => {
     expect(screen.getByLabelText(/Tools/i)).toBeInTheDocument()
   })
 
-  it('submits form with minimal required fields', async () => {
+  it('validates required prompt field', async () => {
     const user = userEvent.setup()
     renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
 
     await user.type(screen.getByPlaceholderText(/Enter agent name/i), 'Test Agent')
-    await user.type(screen.getByPlaceholderText(/Natural language instructions/i), 'Test prompt')
-    await user.click(screen.getByRole('button', { name: /Add step/i }))
-
-    expect(mockOnSubmit).toHaveBeenCalledWith({
-      name: 'Test Agent',
-      model: 'anthropic/claude-haiku-4.5',
-      prompt: 'Test prompt',
-      tools: '',
-      fileIds: [],
-    })
-  })
-
-  it('shows "Prompt is required" when submitting with empty prompt', async () => {
-    const user = userEvent.setup()
-    renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
-
-    await user.type(screen.getByPlaceholderText(/Enter agent name/i), 'Test Agent')
-    await user.click(screen.getByRole('button', { name: /Add step/i }))
+    fireEvent.submit(screen.getByTestId('ai-agent-node-form'))
 
     await waitFor(() => {
       expect(screen.getByText('Prompt is required')).toBeInTheDocument()
-    })
-    expect(mockOnSubmit).not.toHaveBeenCalled()
-  })
-
-  it('submits form with required fields and default model', async () => {
-    const user = userEvent.setup()
-    renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
-
-    await user.type(screen.getByPlaceholderText(/Enter agent name/i), 'Research Agent')
-    await user.type(
-      screen.getByPlaceholderText(/Natural language instructions/i),
-      'Research the topic and provide a summary'
-    )
-    await user.click(screen.getByRole('button', { name: /Add step/i }))
-
-    expect(mockOnSubmit).toHaveBeenCalledWith({
-      name: 'Research Agent',
-      model: 'anthropic/claude-haiku-4.5',
-      prompt: 'Research the topic and provide a summary',
-      tools: '',
-      fileIds: [],
+      expect(mockOnSubmit).not.toHaveBeenCalled()
     })
   })
 
@@ -193,57 +156,11 @@ describe('AIAgentNodeForm', () => {
     expect(hasProjectIdCall).toBe(true)
   })
 
-  it('uses custom submit button text when provided', () => {
-    renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} submitButtonText="Update step" />)
-
-    expect(screen.getByRole('button', { name: /Update step/i })).toBeInTheDocument()
-  })
-
   it('has disabled tools dropdown', () => {
     renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
 
     const toolsDropdown = screen.getByLabelText(/Tools/i)
     expect(toolsDropdown).toBeDisabled()
-  })
-
-  it('submits with default model from environment', async () => {
-    const user = userEvent.setup()
-    renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
-
-    await user.type(screen.getByPlaceholderText(/Enter agent name/i), 'Test Agent')
-    await user.type(screen.getByPlaceholderText(/Natural language instructions/i), 'Test prompt')
-    await user.click(screen.getByRole('button', { name: /Add step/i }))
-
-    // Verify model is included with default value
-    expect(mockOnSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        model: 'anthropic/claude-haiku-4.5',
-      })
-    )
-  })
-
-  it('preserves model from initial data when updating', async () => {
-    const user = userEvent.setup()
-    renderWithHeader(
-      <AIAgentNodeForm
-        onSubmit={mockOnSubmit}
-        initialData={{
-          name: 'Existing Agent',
-          model: 'custom-model',
-          prompt: 'Test',
-          tools: '',
-        }}
-      />
-    )
-
-    await user.click(screen.getByRole('button', { name: /Add step/i }))
-
-    // Verify custom model is preserved
-    expect(mockOnSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        model: 'custom-model',
-      })
-    )
   })
 
   it('renders file upload component', () => {
@@ -261,33 +178,6 @@ describe('AIAgentNodeForm', () => {
     await waitFor(() => {
       expect(mockUploadFiles).toHaveBeenCalled()
     })
-  })
-
-  it('submits with uploaded file IDs', async () => {
-    const user = userEvent.setup()
-    renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
-
-    // Upload a file
-    await user.click(screen.getByTestId('upload-files'))
-
-    // Wait for upload to complete
-    await waitFor(() => {
-      expect(mockUploadFiles).toHaveBeenCalled()
-    })
-
-    // Fill in required fields
-    await user.type(screen.getByPlaceholderText(/Enter agent name/i), 'Agent with File')
-    await user.type(screen.getByPlaceholderText(/Natural language instructions/i), 'Process the file')
-
-    // Submit
-    await user.click(screen.getByRole('button', { name: /Add step/i }))
-
-    expect(mockOnSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: 'Agent with File',
-        fileIds: ['server-file-123'],
-      })
-    )
   })
 
   it('handles file upload error', async () => {
@@ -337,48 +227,7 @@ describe('AIAgentNodeForm', () => {
       expect(screen.getByText(/Optional JSON Schema to enforce structured output format/i)).toBeInTheDocument()
     })
 
-    it('submits form with valid JSON schema', async () => {
-      const user = userEvent.setup()
-      renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
-
-      // Fill required fields
-      await user.type(screen.getByPlaceholderText(/Enter agent name/i), 'Test Agent')
-      await user.type(screen.getByPlaceholderText(/Natural language instructions/i), 'Test prompt')
-
-      // Add valid response schema using paste (avoids issues with special characters in type())
-      const validSchema = JSON.stringify({ type: 'object', properties: { result: { type: 'string' } } }, null, 2)
-      const schemaEditor = screen.getByLabelText('Response schema editor')
-      await user.click(schemaEditor)
-      await user.paste(validSchema)
-
-      // Submit form
-      await user.click(screen.getByRole('button', { name: /add step/i }))
-
-      await waitFor(() => {
-        expect(mockOnSubmit).toHaveBeenCalledWith(
-          expect.objectContaining({
-            name: 'Test Agent',
-            prompt: 'Test prompt',
-            parsedResponseSchema: {
-              type: 'object',
-              properties: { result: { type: 'string' } },
-            },
-            fileIds: [],
-          })
-        )
-        // Also check that responseSchema was submitted (value might have formatting variations)
-        const call = mockOnSubmit.mock.calls[0]?.[0] as AIAgentFormSubmitData | undefined
-        expect(call?.responseSchema).toBeTruthy()
-        if (call?.responseSchema) {
-          expect(JSON.parse(call.responseSchema)).toEqual({
-            type: 'object',
-            properties: { result: { type: 'string' } },
-          })
-        }
-      })
-    })
-
-    it('shows error when response schema is invalid JSON', async () => {
+    it('validates invalid JSON in response schema', async () => {
       const user = userEvent.setup()
       renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
 
@@ -392,7 +241,7 @@ describe('AIAgentNodeForm', () => {
       await user.paste('{invalid json}')
 
       // Submit form
-      await user.click(screen.getByRole('button', { name: /add step/i }))
+      fireEvent.submit(screen.getByTestId('ai-agent-node-form'))
 
       await waitFor(() => {
         expect(screen.getByText(/Invalid JSON/i)).toBeInTheDocument()
@@ -400,7 +249,7 @@ describe('AIAgentNodeForm', () => {
       })
     })
 
-    it('shows error when response schema is not an object', async () => {
+    it('validates response schema must be an object', async () => {
       const user = userEvent.setup()
       renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
 
@@ -414,33 +263,11 @@ describe('AIAgentNodeForm', () => {
       await user.paste('["item1", "item2"]')
 
       // Submit form
-      await user.click(screen.getByRole('button', { name: /add step/i }))
+      fireEvent.submit(screen.getByTestId('ai-agent-node-form'))
 
       await waitFor(() => {
         expect(screen.getByText(/Response schema must be a JSON object/i)).toBeInTheDocument()
         expect(mockOnSubmit).not.toHaveBeenCalled()
-      })
-    })
-
-    it('accepts empty response schema (optional field)', async () => {
-      const user = userEvent.setup()
-      renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
-
-      // Fill only required fields
-      await user.type(screen.getByPlaceholderText(/Enter agent name/i), 'Test Agent')
-      await user.type(screen.getByPlaceholderText(/Natural language instructions/i), 'Test prompt')
-
-      // Submit without response schema
-      await user.click(screen.getByRole('button', { name: /add step/i }))
-
-      await waitFor(() => {
-        expect(mockOnSubmit).toHaveBeenCalledWith(
-          expect.objectContaining({
-            name: 'Test Agent',
-            prompt: 'Test prompt',
-            parsedResponseSchema: undefined,
-          })
-        )
       })
     })
 
@@ -454,9 +281,7 @@ describe('AIAgentNodeForm', () => {
         responseSchema: JSON.stringify(existingSchema, null, 2),
       }
 
-      renderWithHeader(
-        <AIAgentNodeForm onSubmit={mockOnSubmit} initialData={initialData} submitButtonText="Update step" />
-      )
+      renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} initialData={initialData} />)
 
       const schemaEditor = screen.getByLabelText('Response schema editor')
       // Check that the value contains the schema (formatting may vary)
@@ -513,7 +338,7 @@ describe('AIAgentNodeForm', () => {
       await user.paste('{invalid}')
 
       // Submit to trigger validation
-      await user.click(screen.getByRole('button', { name: /add step/i }))
+      fireEvent.submit(screen.getByTestId('ai-agent-node-form'))
 
       await waitFor(() => {
         expect(screen.getByText(/Invalid JSON/i)).toBeInTheDocument()

@@ -92,7 +92,6 @@ export function AIAgentNodeDetails({
   return (
     <AIAgentNodeForm
       initialData={initialData}
-      submitButtonText="Update step"
       onSubmit={handleSubmit}
       onHeaderContentChange={onHeaderContentChange}
       projectId={projectId}

@@ -51,18 +51,15 @@ const FileContext = createContext<FileContextType | null>(null)
 
 export type AIAgentNodeFormProps = {
   onSubmit: (data: AIAgentFormSubmitData) => void
-  submitButtonText?: string
   initialData?: AIAgentFormInitialData
   onHeaderContentChange?: (content: ReactNode | null) => void
   projectId?: string
 }
 
 function AIAgentFormFields({
-  submitButtonText,
   onHeaderContentChange,
   projectId,
 }: {
-  submitButtonText?: string
   onHeaderContentChange?: (content: ReactNode | null) => void
   projectId?: string
 }) {
@@ -268,7 +265,7 @@ function AIAgentFormFields({
     </Stack>
   )
 
-  return <NodeFormTabsLayout parametersContent={parametersContent} submitButtonText={submitButtonText} />
+  return <NodeFormTabsLayout parametersContent={parametersContent} />
 }
 
 export function AIAgentNodeForm(props: Readonly<AIAgentNodeFormProps>) {
@@ -309,11 +306,7 @@ export function AIAgentNodeForm(props: Readonly<AIAgentNodeFormProps>) {
     <FileContext.Provider value={fileContextValue}>
       <FormProvider {...methods}>
         <NodeFormContainer formId="ai-agent-node-form" onSubmit={methods.handleSubmit(handleSubmit)}>
-          <AIAgentFormFields
-            submitButtonText={props.submitButtonText}
-            onHeaderContentChange={props.onHeaderContentChange}
-            projectId={props.projectId}
-          />
+          <AIAgentFormFields onHeaderContentChange={props.onHeaderContentChange} projectId={props.projectId} />
         </NodeFormContainer>
       </FormProvider>
     </FileContext.Provider>

@@ -44,17 +44,14 @@ export type ApprovalFormSubmitData = {
 
 type ApprovalNodeFormProps = {
   onSubmit: (data: ApprovalFormSubmitData) => void
-  submitButtonText?: string
   initialData?: Partial<ApprovalFormSubmitData>
   onHeaderContentChange?: (content: ReactNode | null) => void
 }
 
 function ApprovalFormFields({
-  submitButtonText,
   onHeaderContentChange,
   validationErrors,
 }: {
-  submitButtonText?: string
   initialApprovers: string[]
   onHeaderContentChange?: (content: ReactNode | null) => void
   validationErrors?: { approvers?: { message?: string } }
@@ -177,7 +174,7 @@ function ApprovalFormFields({
     </Stack>
   )
 
-  return <NodeFormTabsLayout parametersContent={parametersContent} submitButtonText={submitButtonText} />
+  return <NodeFormTabsLayout parametersContent={parametersContent} />
 }
 
 export function ApprovalNodeForm(props: ApprovalNodeFormProps) {
@@ -241,7 +238,6 @@ export function ApprovalNodeForm(props: ApprovalNodeFormProps) {
     <FormProvider {...methods}>
       <NodeFormContainer formId="approval-node-form" onSubmit={methods.handleSubmit(handleSubmit)}>
         <ApprovalFormFields
-          submitButtonText={props.submitButtonText}
           initialApprovers={initialApprovers}
           onHeaderContentChange={props.onHeaderContentChange}
           validationErrors={errors}

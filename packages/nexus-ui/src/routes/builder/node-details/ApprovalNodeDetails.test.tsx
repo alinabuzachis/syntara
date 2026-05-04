@@ -1,5 +1,4 @@
 import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { ApprovalNodeDetails } from './ApprovalNodeDetails'
@@ -24,40 +23,24 @@ vi.mock('../../../components/alerts', () => ({
   })),
 }))
 
-// Mock ApprovalNodeForm
+// Mock ApprovalNodeForm - simulates auto-save behavior
+let mockOnSubmitHandler: ((data: Record<string, unknown>) => void) | null = null
+
 vi.mock('../node-forms/ApprovalNodeForm', () => ({
   ApprovalNodeForm: ({
     onSubmit,
-    onCancel,
-    submitButtonText,
     initialData,
   }: {
     onSubmit: (data: Record<string, unknown>) => void
-    onCancel: () => void
-    submitButtonText?: string
     initialData?: Record<string, unknown>
-  }) => (
-    <div data-testid="approval-node-form">
-      <span data-testid="initial-name">{initialData?.name as string}</span>
-      <button
-        onClick={() =>
-          onSubmit({
-            name: 'Updated Approval',
-            approvers: ['admin'],
-            prompt: 'Please approve',
-            timeout: 3600,
-            onTimeout: 'reject',
-          })
-        }
-        data-testid="submit-button"
-      >
-        {submitButtonText ?? 'Add step'}
-      </button>
-      <button onClick={onCancel} data-testid="cancel-button">
-        Cancel
-      </button>
-    </div>
-  ),
+  }) => {
+    mockOnSubmitHandler = onSubmit
+    return (
+      <div data-testid="approval-node-form">
+        <span data-testid="initial-name">{initialData?.name as string}</span>
+      </div>
+    )
+  },
 }))
 
 describe('ApprovalNodeDetails Component', () => {
@@ -89,12 +72,17 @@ describe('ApprovalNodeDetails Component', () => {
     expect(screen.getByTestId('initial-name')).toHaveTextContent('Test Approval')
   })
 
-  it('calls updateActivity on successful form submission', async () => {
-    const user = userEvent.setup()
-
+  it('calls updateActivity when form auto-saves', () => {
     render(<ApprovalNodeDetails taskData={createTaskData()} nodeId="approval-1" onClose={mockOnClose} />)
 
-    await user.click(screen.getByTestId('submit-button'))
+    // Simulate auto-save
+    mockOnSubmitHandler?.({
+      name: 'Updated Approval',
+      approvers: ['admin'],
+      prompt: 'Please approve',
+      timeout: 3600,
+      onTimeout: 'reject',
+    })
 
     expect(mockUpdateActivity).toHaveBeenCalledWith(
       'approval-1',
@@ -111,20 +99,25 @@ describe('ApprovalNodeDetails Component', () => {
     )
   })
 
-  it('calls onClose after successful submission', async () => {
-    const user = userEvent.setup()
-
+  it('calls onClose after auto-save', () => {
     render(<ApprovalNodeDetails taskData={createTaskData()} nodeId="approval-1" onClose={mockOnClose} />)
 
-    await user.click(screen.getByTestId('submit-button'))
+    // Simulate auto-save
+    mockOnSubmitHandler?.({
+      name: 'Updated Approval',
+      approvers: ['admin'],
+      prompt: 'Please approve',
+      timeout: 3600,
+      onTimeout: 'reject',
+    })
 
     expect(mockOnClose).toHaveBeenCalledTimes(1)
   })
 
-  it('displays "Update step" as submit button text', () => {
+  it('renders form with initial data', () => {
     render(<ApprovalNodeDetails taskData={createTaskData()} nodeId="approval-1" onClose={mockOnClose} />)
 
-    expect(screen.getByText('Update step')).toBeInTheDocument()
+    expect(screen.getByTestId('approval-node-form')).toBeInTheDocument()
   })
 
   it('handles taskData without approval data', () => {
@@ -135,15 +128,21 @@ describe('ApprovalNodeDetails Component', () => {
     expect(screen.getByTestId('approval-node-form')).toBeInTheDocument()
   })
 
-  it('shows error when updateActivity throws', async () => {
-    const user = userEvent.setup()
+  it('shows error when updateActivity throws', () => {
     mockUpdateActivity.mockImplementationOnce(() => {
       throw new Error('The update failed')
     })
 
     render(<ApprovalNodeDetails taskData={createTaskData()} nodeId="approval-1" onClose={mockOnClose} />)
 
-    await user.click(screen.getByTestId('submit-button'))
+    // Simulate auto-save
+    mockOnSubmitHandler?.({
+      name: 'Test Approval',
+      approvers: ['user1'],
+      prompt: 'Approve',
+      timeout: 86400,
+      onTimeout: 'fail',
+    })
 
     expect(mockShowError).toHaveBeenCalledWith({ title: 'Update failed', description: 'The update failed' })
   })

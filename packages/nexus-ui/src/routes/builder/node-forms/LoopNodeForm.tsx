@@ -31,18 +31,15 @@ export type { LoopFormData }
 
 type LoopNodeFormProps = {
   onSubmit: (data: LoopFormData) => void
-  submitButtonText?: string
   initialData?: Partial<LoopFormData>
   onHeaderContentChange?: (content: ReactNode | null) => void
 }
 
 // eslint-disable-next-line max-lines-per-function
 function LoopFormFields({
-  submitButtonText,
   onHeaderContentChange,
   validationErrors,
 }: {
-  submitButtonText?: string
   onHeaderContentChange?: (content: ReactNode | null) => void
   validationErrors?: {
     items?: { message?: string }
@@ -268,7 +265,7 @@ function LoopFormFields({
     </Stack>
   )
 
-  return <NodeFormTabsLayout parametersContent={parametersContent} submitButtonText={submitButtonText} />
+  return <NodeFormTabsLayout parametersContent={parametersContent} />
 }
 
 export function LoopNodeForm(props: LoopNodeFormProps) {
@@ -315,11 +312,7 @@ export function LoopNodeForm(props: LoopNodeFormProps) {
   return (
     <FormProvider {...methods}>
       <NodeFormContainer formId="loop-node-form" onSubmit={methods.handleSubmit(handleSubmit)}>
-        <LoopFormFields
-          submitButtonText={props.submitButtonText}
-          onHeaderContentChange={props.onHeaderContentChange}
-          validationErrors={errors}
-        />
+        <LoopFormFields onHeaderContentChange={props.onHeaderContentChange} validationErrors={errors} />
       </NodeFormContainer>
     </FormProvider>
   )

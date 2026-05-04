@@ -142,7 +142,7 @@ test.describe('Credential Selector — Error State', () => {
 
       await app.getByRole('button', { name: 'Manual trigger' }).click()
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Manual trigger')
-      await app.getByRole('button', { name: /^Add step$/ }).click()
+      await app.getByRole('button', { name: 'Save and close' }).click()
 
       const panel = await clickAddConnectedStep(app)
       await panel.getByRole('button', { name: 'Action', exact: true }).click()

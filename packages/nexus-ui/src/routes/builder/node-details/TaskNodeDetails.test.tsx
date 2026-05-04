@@ -381,7 +381,7 @@ describe('TaskNodeDetails Component', () => {
     )
   })
 
-  it('displays "Update step" as submit button text', () => {
+  it('renders form with initial data', () => {
     const taskData = {
       type: 'script' as const,
       id: 'task-1',
@@ -394,7 +394,7 @@ describe('TaskNodeDetails Component', () => {
 
     renderTaskNodeDetails(taskData, 'task-1')
 
-    expect(screen.getByText('Update step')).toBeInTheDocument()
+    expect(screen.getByTestId('action-node-form')).toBeInTheDocument()
   })
 
   it('returns null for approval node (type approval)', () => {

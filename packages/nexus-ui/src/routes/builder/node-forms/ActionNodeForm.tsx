@@ -43,7 +43,6 @@ export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
 type ActionNodeFormProps = {
   onSubmit: (data: RegistryActionFormData) => void
-  submitButtonText?: string
   initialData?: Partial<RegistryActionFormData>
   onHeaderContentChange?: (content: ReactNode | null) => void
   projectId?: string
@@ -264,13 +263,11 @@ function ActionParametersContent(props: {
  * Form fields component that manually registers fields with react-hook-form
  */
 function ActionFormFields({
-  submitButtonText,
   onHeaderContentChange,
   validationErrors,
   scriptEditorRef,
   projectId,
 }: {
-  submitButtonText?: string
   onHeaderContentChange?: (content: ReactNode | null) => void
   validationErrors?: { code?: { message?: string }; url?: { message?: string } }
   scriptEditorRef?: React.RefObject<ExpandableCodeEditorHandle | null>
@@ -341,7 +338,7 @@ function ActionFormFields({
     />
   )
 
-  return <NodeFormTabsLayout parametersContent={parametersContent} submitButtonText={submitButtonText} />
+  return <NodeFormTabsLayout parametersContent={parametersContent} />
 }
 
 export function ActionNodeForm(props: Readonly<ActionNodeFormProps>) {
@@ -389,7 +386,6 @@ export function ActionNodeForm(props: Readonly<ActionNodeFormProps>) {
     <FormProvider {...methods}>
       <NodeFormContainer formId="action-node-form" onSubmit={methods.handleSubmit(handleSubmit)}>
         <ActionFormFields
-          submitButtonText={props.submitButtonText}
           onHeaderContentChange={props.onHeaderContentChange}
           validationErrors={errors}
           scriptEditorRef={scriptEditorRef}

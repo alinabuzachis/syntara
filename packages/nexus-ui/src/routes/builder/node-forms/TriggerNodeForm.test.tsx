@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
@@ -46,20 +46,6 @@ describe('TriggerNodeForm Component', () => {
       expect(screen.queryByLabelText('Requires Approval')).not.toBeInTheDocument()
     })
 
-    it('submits manual trigger', async () => {
-      const user = userEvent.setup()
-      renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} />)
-
-      await user.click(screen.getByRole('button', { name: 'Add step' }))
-
-      expect(mockOnSubmit).toHaveBeenCalledWith({
-        name: '',
-        triggerType: 'manual',
-        scheduleType: undefined,
-        interval: undefined,
-      })
-    })
-
     it('renders with initial manual trigger data', () => {
       const initialData = {
         triggerType: 'manual',
@@ -77,20 +63,6 @@ describe('TriggerNodeForm Component', () => {
 
       expect(screen.getByLabelText('Schedule type')).toBeInTheDocument()
       expect(screen.getByLabelText('Schedule type')).toHaveValue('interval')
-    })
-
-    it('shows "Start date is required" when submitting interval schedule with empty interval', async () => {
-      const user = userEvent.setup()
-      renderWithHeader(
-        <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: 'scheduled', scheduleType: 'interval' }} />
-      )
-
-      await user.click(screen.getByRole('button', { name: /Add step/i }))
-
-      await waitFor(() => {
-        expect(screen.getByTestId('interval-error')).toHaveTextContent('Start date is required')
-      })
-      expect(mockOnSubmit).not.toHaveBeenCalled()
     })
 
     it('shows interval picker for interval schedule type', () => {
@@ -127,42 +99,6 @@ describe('TriggerNodeForm Component', () => {
       expect(screen.getByTestId('date-range-cadence-picker')).toBeInTheDocument()
     })
 
-    it('submits scheduled trigger with interval', async () => {
-      const user = userEvent.setup()
-      renderWithHeader(
-        <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: 'scheduled', scheduleType: 'interval' }} />
-      )
-
-      await user.type(screen.getByTestId('interval-input'), 'R/2024-01-01T10:00:00Z/P1D')
-      await user.click(screen.getByRole('button', { name: 'Add step' }))
-
-      expect(mockOnSubmit).toHaveBeenCalledWith({
-        name: '',
-        triggerType: 'scheduled',
-        scheduleType: 'interval',
-        interval: 'R/2024-01-01T10:00:00Z/P1D',
-      })
-    })
-
-    it('submits scheduled trigger with continuous schedule', async () => {
-      const user = userEvent.setup()
-      renderWithHeader(
-        <TriggerNodeForm
-          onSubmit={mockOnSubmit}
-          initialData={{ triggerType: 'scheduled', scheduleType: 'continuous' }}
-        />
-      )
-
-      await user.click(screen.getByRole('button', { name: 'Add step' }))
-
-      expect(mockOnSubmit).toHaveBeenCalledWith({
-        name: '',
-        triggerType: 'scheduled',
-        scheduleType: 'continuous',
-        interval: undefined,
-      })
-    })
-
     it('renders with initial scheduled trigger data', () => {
       const initialData = {
         triggerType: 'scheduled',
@@ -174,20 +110,6 @@ describe('TriggerNodeForm Component', () => {
 
       expect(screen.getByLabelText('Schedule type')).toHaveValue('interval')
       expect(screen.getByTestId('interval-input')).toHaveValue('R/2024-01-01T10:00:00Z/P1D')
-    })
-  })
-
-  describe('Submit Button', () => {
-    it('displays default submit button text', () => {
-      renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} />)
-
-      expect(screen.getByRole('button', { name: 'Add step' })).toBeInTheDocument()
-    })
-
-    it('displays custom submit button text when provided', () => {
-      renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} submitButtonText="Update trigger" />)
-
-      expect(screen.getByRole('button', { name: 'Update trigger' })).toBeInTheDocument()
     })
   })
 

@@ -99,18 +99,15 @@ function convergeTimeoutActionSelectToggle(
 
 type ConvergeNodeFormProps = {
   onSubmit: (data: ConvergeFormData) => void
-  submitButtonText?: string
   initialData?: Partial<ConvergeFormData>
   onHeaderContentChange?: (content: ReactNode | null) => void
 }
 
 // eslint-disable-next-line max-lines-per-function
 function ConvergeFormFields({
-  submitButtonText,
   onHeaderContentChange,
   validationErrors,
 }: {
-  submitButtonText?: string
   onHeaderContentChange?: (content: ReactNode | null) => void
   validationErrors?: {
     strategy?: { message?: string }
@@ -369,7 +366,7 @@ function ConvergeFormFields({
     </Stack>
   )
 
-  return <NodeFormTabsLayout parametersContent={parametersContent} submitButtonText={submitButtonText} />
+  return <NodeFormTabsLayout parametersContent={parametersContent} />
 }
 
 export function ConvergeNodeForm(props: ConvergeNodeFormProps) {
@@ -417,11 +414,7 @@ export function ConvergeNodeForm(props: ConvergeNodeFormProps) {
   return (
     <FormProvider {...methods}>
       <NodeFormContainer formId="converge-node-form" onSubmit={methods.handleSubmit(handleSubmit)}>
-        <ConvergeFormFields
-          submitButtonText={props.submitButtonText}
-          onHeaderContentChange={props.onHeaderContentChange}
-          validationErrors={errors}
-        />
+        <ConvergeFormFields onHeaderContentChange={props.onHeaderContentChange} validationErrors={errors} />
       </NodeFormContainer>
     </FormProvider>
   )

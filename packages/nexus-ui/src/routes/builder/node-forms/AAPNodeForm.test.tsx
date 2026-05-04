@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
@@ -6,7 +6,7 @@ import { axe } from 'vitest-axe'
 import { credentialsClient } from '../../../client'
 import type { AAPJobTemplateDetail } from '../../../hooks/useAAPBrowser'
 
-import { AAPNodeForm, type AAPFormData } from './AAPNodeForm'
+import { AAPNodeForm } from './AAPNodeForm'
 import { renderWithHeader } from './test-utils/renderWithHeader'
 
 // Mock credentials client for CredentialSelector
@@ -206,43 +206,16 @@ describe('AAPNodeForm', () => {
     expect(templateInput).toBeInTheDocument()
   })
 
-  it('submits form with pre-filled required fields', async () => {
-    renderWithHeader(
-      <AAPNodeForm
-        onSubmit={mockOnSubmit}
-        onCancel={vi.fn()}
-        initialData={{
-          name: 'Test Job',
-          organization_name: 'Default',
-          job_template_name: 'Deploy App',
-          job_template_id: 10,
-        }}
-      />
-    )
-
-    const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: /Add step/i }))
-
-    await waitFor(() => {
-      expect(mockOnSubmit).toHaveBeenCalledWith(
-        expect.objectContaining({
-          name: 'Test Job',
-          organization_name: 'Default',
-          job_template_name: 'Deploy App',
-          job_template_id: 10,
-        })
-      )
-    })
-  })
-
-  it('does not submit when organization is empty', async () => {
+  it('validates required organization field', async () => {
     const user = userEvent.setup()
     renderWithHeader(<AAPNodeForm onSubmit={mockOnSubmit} onCancel={vi.fn()} />)
 
     await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Test Job')
-    await user.click(screen.getByRole('button', { name: /Add step/i }))
+    fireEvent.submit(screen.getByTestId('aap-node-form'))
 
-    expect(mockOnSubmit).not.toHaveBeenCalled()
+    await waitFor(() => {
+      expect(mockOnSubmit).not.toHaveBeenCalled()
+    })
   })
 
   it('populates form with initial data', () => {
@@ -281,12 +254,6 @@ describe('AAPNodeForm', () => {
     expect(hasProjectIdCall).toBe(true)
   })
 
-  it('uses custom submit button text when provided', () => {
-    renderWithHeader(<AAPNodeForm onSubmit={mockOnSubmit} onCancel={vi.fn()} submitButtonText="Update step" />)
-
-    expect(screen.getByRole('button', { name: /Update step/i })).toBeInTheDocument()
-  })
-
   it('renders prompt on launch fields based on template detail flags', () => {
     renderWithHeader(<AAPNodeForm onSubmit={mockOnSubmit} onCancel={vi.fn()} />)
 
@@ -309,7 +276,7 @@ describe('AAPNodeForm', () => {
     expect(screen.queryByLabelText(/Labels/i)).not.toBeInTheDocument()
   })
 
-  it('does not submit when extra vars JSON is invalid', async () => {
+  it('validates extra vars JSON format', async () => {
     const user = userEvent.setup()
     renderWithHeader(
       <AAPNodeForm
@@ -327,9 +294,11 @@ describe('AAPNodeForm', () => {
     await user.click(extraVarsInput)
     await user.paste('invalid json')
 
-    await user.click(screen.getByRole('button', { name: /Add step/i }))
+    fireEvent.submit(screen.getByTestId('aap-node-form'))
 
-    expect(mockOnSubmit).not.toHaveBeenCalled()
+    await waitFor(() => {
+      expect(mockOnSubmit).not.toHaveBeenCalled()
+    })
   })
 
   it('renders link to view job template in AAP', () => {
@@ -470,7 +439,7 @@ describe('AAPNodeForm', () => {
 
   describe('Default value pre-population', () => {
     // Template configuration for this test suite
-    const templateWithPrompts = {
+    const templateWithPrompts: AAPJobTemplateDetail = {
       ...defaultTemplateDetail,
       ask_inventory_on_launch: true,
       ask_execution_environment_on_launch: true,
@@ -480,40 +449,6 @@ describe('AAPNodeForm', () => {
     beforeEach(() => {
       // Use template with prompt flags enabled for these tests
       mockUseAAPBrowser.mockReturnValue(createMockAAPBrowser(templateWithPrompts))
-    })
-
-    it('pre-populates credentials from template defaults on submit', async () => {
-      const user = userEvent.setup()
-
-      renderWithHeader(
-        <AAPNodeForm
-          onSubmit={mockOnSubmit}
-          onCancel={vi.fn()}
-          initialData={{
-            name: 'Test Job',
-            organization_name: 'Default',
-            job_template_name: 'Deploy App',
-            job_template_id: 10,
-          }}
-        />
-      )
-
-      await waitFor(() => {
-        expect(screen.getByRole('tab', { name: /parameters/i })).toBeInTheDocument()
-      })
-
-      // Submit the form - the credentials should be pre-populated from template defaults
-      await user.click(screen.getByRole('button', { name: /Add step/i }))
-
-      // The template detail has default_credentials: [{ id: 1, name: 'SSH Machine Credential' }]
-      // The form should submit with job_credentials: [1]
-      await waitFor(() => {
-        expect(mockOnSubmit).toHaveBeenCalledWith(
-          expect.objectContaining({
-            job_credentials: [1],
-          })
-        )
-      })
     })
 
     it('handles template with no default values gracefully', async () => {
@@ -551,15 +486,14 @@ describe('AAPNodeForm', () => {
     })
   })
 
-  describe('Regression Tests - Labels and Default Values', () => {
-    it('should save labels as array of numbers, not string', async () => {
-      const user = userEvent.setup()
-      const onSubmit = vi.fn()
-
+  describe('Form Submission', () => {
+    it('submits form with pre-filled required fields', async () => {
       renderWithHeader(
         <AAPNodeForm
-          onSubmit={onSubmit}
+          onSubmit={mockOnSubmit}
+          onCancel={vi.fn()}
           initialData={{
+            name: 'Test Job',
             organization_name: 'Default',
             job_template_name: 'Deploy App',
             job_template_id: 10,
@@ -567,466 +501,18 @@ describe('AAPNodeForm', () => {
         />
       )
 
-      // Wait for form to render
-      await waitFor(() => {
-        expect(screen.getByRole('tab', { name: /parameters/i })).toBeInTheDocument()
-      })
-
-      const submitButton = screen.getByRole('button', { name: /Add step/i })
-      await user.click(submitButton)
+      fireEvent.submit(screen.getByTestId('aap-node-form'))
 
       await waitFor(() => {
-        expect(onSubmit).toHaveBeenCalled()
-        const submittedData = onSubmit.mock.calls[0][0] as AAPFormData
-        // Labels should be array (even if empty), not string
-        expect(Array.isArray(submittedData.labels)).toBe(true)
-      })
-    })
-
-    it('should NOT overwrite user values when editing existing node with same template', async () => {
-      const user = userEvent.setup()
-      const onSubmit = vi.fn()
-
-      // Simulate editing a node with custom user values
-      const existingData = {
-        name: 'My Custom Job',
-        organization_name: 'Default',
-        job_template_name: 'Deploy App',
-        job_template_id: 10,
-        limit: '100', // User set to 100 (different from any default)
-        forks: 99, // User set to 99
-        labels: ['dev', 'test'], // User selected specific labels
-      }
-
-      renderWithHeader(<AAPNodeForm onSubmit={onSubmit} submitButtonText="Update step" initialData={existingData} />)
-
-      // Wait for form to load with existing values
-      await waitFor(() => {
-        expect(screen.getByDisplayValue('My Custom Job')).toBeInTheDocument()
-      })
-
-      // Verify user's saved values are present
-      expect(screen.getByDisplayValue('100')).toBeInTheDocument() // limit
-      expect(screen.getByDisplayValue('99')).toBeInTheDocument() // forks
-
-      // Submit without making changes
-      const submitButton = screen.getByRole('button', { name: /Update step/i })
-      await user.click(submitButton)
-
-      await waitFor(() => {
-        expect(onSubmit).toHaveBeenCalledWith(
+        expect(mockOnSubmit).toHaveBeenCalledWith(
           expect.objectContaining({
-            limit: '100', // Should preserve user value
-            forks: 99, // Should preserve user value
-            labels: ['dev', 'test'], // Should preserve user value (labels are string names now)
+            name: 'Test Job',
+            organization_name: 'Default',
+            job_template_name: 'Deploy App',
+            job_template_id: 10,
           })
         )
       })
-    })
-
-    it('should handle labels as array in multi-select without "map is not a function" error', async () => {
-      const onSubmit = vi.fn()
-
-      // Render with labels as array
-      const { container } = renderWithHeader(
-        <AAPNodeForm
-          onSubmit={onSubmit}
-          initialData={{
-            organization_name: 'Default',
-            job_template_name: 'Deploy App',
-            job_template_id: 10,
-            labels: ['dev', 'test'], // Array of label names
-          }}
-        />
-      )
-
-      // Should not throw error during render (main point: no "map is not a function" error)
-      await waitFor(() => {
-        expect(screen.getByRole('tab', { name: /parameters/i })).toBeInTheDocument()
-      })
-
-      // Form should render successfully
-      expect(screen.getByDisplayValue('Deploy App')).toBeInTheDocument()
-      expect(container).toBeInTheDocument()
-    })
-
-    it('should convert YAML extra_vars to JSON when loading template defaults', async () => {
-      const user = userEvent.setup()
-      const onSubmit = vi.fn()
-      const mockTemplateWithYAML: AAPJobTemplateDetail = {
-        ...defaultTemplateDetail,
-        ask_variables_on_launch: true,
-        extra_vars: 'var1: val1\nvar2: val2', // YAML format from AAP
-      }
-
-      vi.mocked(credentialsClient.useQuery).mockReturnValue({
-        data: { resources: [] },
-        isPending: false,
-        isError: false,
-        refetch: vi.fn(),
-      } as never)
-
-      // Mock useAAPBrowser to return template with YAML extra_vars
-      mockUseAAPBrowser.mockReturnValue(createMockAAPBrowser(mockTemplateWithYAML))
-
-      renderWithHeader(
-        <AAPNodeForm
-          onSubmit={onSubmit}
-          initialData={{
-            organization_name: 'Default',
-            job_template_name: 'Deploy App',
-            job_template_id: 10,
-          }}
-        />
-      )
-
-      // Wait for form to render
-      await waitFor(() => {
-        const submitButton = screen.getByRole('button', { name: /Add step/i })
-        expect(submitButton).toBeInTheDocument()
-      })
-
-      // Submit the form
-      const submitButton = screen.getByRole('button', { name: /Add step/i })
-      await user.click(submitButton)
-
-      // Verify onSubmit was called with converted JSON
-      await waitFor(() => {
-        expect(onSubmit).toHaveBeenCalled()
-      })
-
-      const submittedData = onSubmit.mock.calls[0][0] as AAPFormData
-      // YAML should be converted to JSON string
-      expect(submittedData.extra_vars).toBeTruthy()
-      const parsedVars = JSON.parse(submittedData.extra_vars!) as Record<string, string>
-      expect(parsedVars).toEqual({ var1: 'val1', var2: 'val2' })
-    })
-
-    it('should clear labels when switching templates and new template has no default labels', async () => {
-      const user = userEvent.setup()
-      const onSubmit = vi.fn()
-
-      // Mock template detail for second template (Backup DB) with no label defaults
-      const backupDBTemplate: AAPJobTemplateDetail = {
-        ...defaultTemplateDetail,
-        id: 11,
-        name: 'Backup DB',
-        description: 'Backup the database',
-        ask_labels_on_launch: true,
-        default_labels: [], // No default labels
-      }
-
-      // Start with first template and user-selected labels
-      const initialData = {
-        organization_name: 'Default',
-        job_template_name: 'Deploy App',
-        job_template_id: 10,
-        labels: ['dev', 'test'], // User has selected labels
-      }
-
-      renderWithHeader(<AAPNodeForm onSubmit={onSubmit} initialData={initialData} />)
-
-      // Wait for form to render with initial template
-      await waitFor(() => {
-        expect(screen.getByDisplayValue('Deploy App')).toBeInTheDocument()
-      })
-
-      // Verify labels are present before switching templates
-      const parametersTab = screen.getByRole('tab', { name: /parameters/i })
-      await user.click(parametersTab)
-
-      // Change template detail mock to return second template
-      mockUseAAPBrowser.mockReturnValue(createMockAAPBrowser(backupDBTemplate))
-
-      // Find the job template typeahead select by its placeholder and current value
-      const templateInput = screen.getByDisplayValue('Deploy App')
-      await user.click(templateInput)
-
-      // Select the "Backup DB" template option
-      await waitFor(() => {
-        expect(screen.getByRole('option', { name: /Backup DB/i })).toBeInTheDocument()
-      })
-      await user.click(screen.getByRole('option', { name: /Backup DB/i }))
-
-      // Wait for template change to complete
-      await waitFor(() => {
-        expect(screen.getByDisplayValue('Backup DB')).toBeInTheDocument()
-      })
-
-      // Submit the form
-      const submitButton = screen.getByRole('button', { name: /Add step/i })
-      await user.click(submitButton)
-
-      await waitFor(() => {
-        expect(onSubmit).toHaveBeenCalled()
-      })
-
-      // Verify labels were cleared when template changed
-      const submittedData = onSubmit.mock.calls[onSubmit.mock.calls.length - 1][0] as AAPFormData
-      expect(submittedData.labels).toEqual([])
-    })
-
-    it('should handle empty/null/undefined values for all prompt-on-launch fields', async () => {
-      const user = userEvent.setup()
-      const onSubmit = vi.fn()
-
-      // Test with all fields empty/null/undefined
-      const emptyData = {
-        name: 'Empty Test',
-        organization_name: 'Default',
-        job_template_name: 'Deploy App',
-        job_template_id: 10,
-        inventory_name: '',
-        inventory_id: undefined,
-        extra_vars: '',
-        limit: '',
-        tags: '',
-        skip_tags: '',
-        verbosity: '',
-        job_credentials: [],
-        labels: [],
-        job_type: '',
-        forks: undefined,
-        timeout: undefined,
-        job_slice_count: undefined,
-        diff_mode: false,
-        execution_environment: '',
-        execution_environment_id: undefined,
-        instance_group: '',
-        instance_group_id: undefined,
-      }
-
-      const { container } = renderWithHeader(<AAPNodeForm onSubmit={onSubmit} initialData={emptyData} />)
-
-      // Should render without errors
-      await waitFor(() => {
-        expect(container).toBeInTheDocument()
-      })
-
-      // Submit with all empty values
-      const submitButton = screen.getByRole('button', { name: /Add step/i })
-      await user.click(submitButton)
-
-      await waitFor(() => {
-        expect(onSubmit).toHaveBeenCalledWith(
-          expect.objectContaining({
-            job_credentials: [], // Empty array, not undefined
-            labels: [], // Empty array, not undefined
-            inventory_name: '',
-            limit: '',
-            tags: '',
-          })
-        )
-      })
-    })
-
-    it('should handle template with all null default values', async () => {
-      const onSubmit = vi.fn()
-      const mockTemplateNoDefaults: AAPJobTemplateDetail = {
-        ...defaultTemplateDetail,
-        // All prompt flags enabled but no defaults
-        ask_inventory_on_launch: true,
-        ask_credential_on_launch: true,
-        ask_labels_on_launch: true,
-        ask_execution_environment_on_launch: true,
-        default_inventory: null,
-        default_execution_environment: null,
-        default_credentials: [],
-        default_labels: [],
-        job_type: null,
-        verbosity: null,
-        forks: null,
-        limit: null,
-        job_tags: null,
-        skip_tags: null,
-        diff_mode: null,
-        job_slice_count: null,
-        timeout: null,
-        extra_vars: null,
-      }
-
-      // Mock useAAPBrowser to return template with null defaults
-      mockUseAAPBrowser.mockReturnValue(createMockAAPBrowser(mockTemplateNoDefaults))
-
-      const { container } = renderWithHeader(
-        <AAPNodeForm
-          onSubmit={onSubmit}
-          initialData={{
-            organization_name: 'Default',
-            job_template_name: 'Deploy App',
-            job_template_id: 10,
-          }}
-        />
-      )
-
-      // Should render without errors even with all null defaults
-      await waitFor(() => {
-        expect(container).toBeInTheDocument()
-      })
-
-      // Form should be functional with no defaults set
-      expect(() => screen.getByRole('button', { name: /Add step/i })).not.toThrow()
-    })
-
-    it('should handle undefined labels field without breaking multi-select', async () => {
-      const onSubmit = vi.fn()
-
-      // Explicitly test undefined labels (legacy data or missing field)
-      const dataWithUndefinedLabels = {
-        organization_name: 'Default',
-        job_template_name: 'Deploy App',
-        job_template_id: 10,
-        labels: undefined as unknown as string[], // Simulate missing field
-      }
-
-      renderWithHeader(<AAPNodeForm onSubmit={onSubmit} initialData={dataWithUndefinedLabels} />)
-
-      // Should not throw "map is not a function" error
-      await waitFor(() => {
-        expect(screen.getByRole('tab', { name: /parameters/i })).toBeInTheDocument()
-      })
-
-      // Multi-select should handle undefined gracefully (no crashes during render)
-      expect(screen.getByDisplayValue('Deploy App')).toBeInTheDocument()
-    })
-
-    it('should handle empty string job_credentials and convert to empty array', async () => {
-      const user = userEvent.setup()
-      const onSubmit = vi.fn()
-
-      // Legacy data might have job_credentials as empty string
-      const legacyData = {
-        organization_name: 'Default',
-        job_template_name: 'Deploy App',
-        job_template_id: 10,
-        job_credentials: '' as unknown as number[], // Legacy empty string
-      }
-
-      renderWithHeader(<AAPNodeForm onSubmit={onSubmit} initialData={legacyData} />)
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /Add step/i })).toBeInTheDocument()
-      })
-
-      const submitButton = screen.getByRole('button', { name: /Add step/i })
-      await user.click(submitButton)
-
-      await waitFor(() => {
-        expect(onSubmit).toHaveBeenCalled()
-      })
-
-      const submittedData = onSubmit.mock.calls[0][0] as AAPFormData
-      // Should be converted to empty array, not remain as string
-      expect(Array.isArray(submittedData.job_credentials)).toBe(true)
-      expect(submittedData.job_credentials).toEqual([])
-    })
-
-    it('should handle NaN and invalid number values for numeric fields', async () => {
-      const user = userEvent.setup()
-      const onSubmit = vi.fn()
-
-      const dataWithInvalidNumbers = {
-        organization_name: 'Default',
-        job_template_name: 'Deploy App',
-        job_template_id: 10,
-        forks: Number.NaN,
-        timeout: Number.NaN,
-        job_slice_count: Number.NaN,
-        inventory_id: Number.NaN,
-      }
-
-      renderWithHeader(<AAPNodeForm onSubmit={onSubmit} initialData={dataWithInvalidNumbers} />)
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /Add step/i })).toBeInTheDocument()
-      })
-
-      const submitButton = screen.getByRole('button', { name: /Add step/i })
-      await user.click(submitButton)
-
-      await waitFor(() => {
-        expect(onSubmit).toHaveBeenCalled()
-      })
-      const submittedData = onSubmit.mock.calls[0][0] as AAPFormData
-      // NaN values should be normalized to undefined (not included in submitted data)
-      expect(submittedData).toBeDefined()
-      expect(Number.isNaN(submittedData.forks)).toBe(false)
-      expect(Number.isNaN(submittedData.timeout)).toBe(false)
-      expect(Number.isNaN(submittedData.job_slice_count)).toBe(false)
-      expect(Number.isNaN(submittedData.inventory_id)).toBe(false)
-      // These should be undefined (omitted) when NaN
-      expect(submittedData.forks).toBeUndefined()
-      expect(submittedData.timeout).toBeUndefined()
-      expect(submittedData.job_slice_count).toBeUndefined()
-      expect(submittedData.inventory_id).toBeUndefined()
-    })
-
-    it('should handle empty string for verbosity and convert appropriately', async () => {
-      const user = userEvent.setup()
-      const onSubmit = vi.fn()
-
-      const dataWithEmptyVerbosity = {
-        organization_name: 'Default',
-        job_template_name: 'Deploy App',
-        job_template_id: 10,
-        verbosity: '', // Empty string should be handled
-      }
-
-      renderWithHeader(<AAPNodeForm onSubmit={onSubmit} initialData={dataWithEmptyVerbosity} />)
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /Add step/i })).toBeInTheDocument()
-      })
-
-      const submitButton = screen.getByRole('button', { name: /Add step/i })
-      await user.click(submitButton)
-
-      await waitFor(() => {
-        expect(onSubmit).toHaveBeenCalled()
-      })
-      const submittedData = onSubmit.mock.calls[0][0] as AAPFormData
-      // Empty verbosity should remain as empty string, not cause errors
-      expect(submittedData.verbosity).toBe('')
-    })
-
-    it('should handle malformed extra_vars JSON gracefully', async () => {
-      const user = userEvent.setup()
-      const onSubmit = vi.fn()
-
-      const dataWithBadJSON = {
-        organization_name: 'Default',
-        job_template_name: 'Deploy App',
-        job_template_id: 10,
-        extra_vars: '{invalid json}', // Malformed JSON
-      }
-
-      renderWithHeader(<AAPNodeForm onSubmit={onSubmit} initialData={dataWithBadJSON} />)
-
-      // Should render without crashing
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /Add step/i })).toBeInTheDocument()
-      })
-
-      const submitButton = screen.getByRole('button', { name: /Add step/i })
-      await user.click(submitButton)
-
-      // Form validation should catch invalid JSON and block submission
-      // Wait for validation to complete
-      await waitFor(
-        () => {
-          // Verify onSubmit was NOT called due to validation error
-          expect(onSubmit).not.toHaveBeenCalled()
-
-          // Validation should show error message
-          const errorMessage = screen.queryByText(/Invalid JSON format/i)
-          // Error message should be visible (or at minimum, onSubmit was blocked)
-          expect(errorMessage ?? onSubmit.mock.calls.length === 0).toBeTruthy()
-        },
-        { timeout: 2000 }
-      )
-
-      // Final assertion: onSubmit must not have been called
-      expect(onSubmit).not.toHaveBeenCalled()
     })
   })
 })

@@ -1,5 +1,4 @@
 import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { ConditionNodeDetails } from './ConditionNodeDetails'
@@ -27,21 +26,14 @@ vi.mock('../../../components/alerts', () => ({
   })),
 }))
 
-// Mock ConditionNodeForm
+// Mock ConditionNodeForm - simulates auto-save behavior
+let mockOnSubmitHandler: ((data: Record<string, unknown>) => void) | null = null
+
 vi.mock('../node-forms/ConditionNodeForm', () => ({
-  ConditionNodeForm: ({
-    onSubmit,
-    submitButtonText,
-  }: {
-    onSubmit: (data: Record<string, unknown>) => void
-    submitButtonText?: string
-  }) => (
-    <div data-testid="condition-node-form">
-      <button onClick={() => onSubmit({ name: 'Updated Condition', condition: 'true' })} data-testid="submit-button">
-        {submitButtonText ?? 'Add step'}
-      </button>
-    </div>
-  ),
+  ConditionNodeForm: ({ onSubmit }: { onSubmit: (data: Record<string, unknown>) => void }) => {
+    mockOnSubmitHandler = onSubmit
+    return <div data-testid="condition-node-form" />
+  },
 }))
 
 describe('ConditionNodeDetails Component', () => {
@@ -64,8 +56,7 @@ describe('ConditionNodeDetails Component', () => {
     expect(screen.getByTestId('condition-node-form')).toBeInTheDocument()
   })
 
-  it('calls updateActivity on successful form submission', async () => {
-    const user = userEvent.setup()
+  it('calls updateActivity when form auto-saves', () => {
     const conditionData = {
       type: 'condition' as const,
       id: 'condition-1',
@@ -75,7 +66,8 @@ describe('ConditionNodeDetails Component', () => {
 
     render(<ConditionNodeDetails conditionData={conditionData} nodeId="condition-1" onClose={mockOnClose} />)
 
-    await user.click(screen.getByTestId('submit-button'))
+    // Simulate auto-save
+    mockOnSubmitHandler?.({ name: 'Updated Condition', condition: 'true' })
 
     expect(mockUpdateActivity).toHaveBeenCalledWith(
       'condition-1',
@@ -91,7 +83,7 @@ describe('ConditionNodeDetails Component', () => {
     )
   })
 
-  it('displays "Update step" as submit button text', () => {
+  it('renders form with initial data', () => {
     const conditionData = {
       type: 'condition' as const,
       id: 'condition-1',
@@ -101,11 +93,10 @@ describe('ConditionNodeDetails Component', () => {
 
     render(<ConditionNodeDetails conditionData={conditionData} nodeId="condition-1" onClose={mockOnClose} />)
 
-    expect(screen.getByText('Update step')).toBeInTheDocument()
+    expect(screen.getByTestId('condition-node-form')).toBeInTheDocument()
   })
 
-  it('shows error when updateActivity throws', async () => {
-    const user = userEvent.setup()
+  it('shows error when updateActivity throws', () => {
     mockUpdateActivity.mockImplementationOnce(() => {
       throw new Error('The update failed')
     })
@@ -118,7 +109,8 @@ describe('ConditionNodeDetails Component', () => {
 
     render(<ConditionNodeDetails conditionData={conditionData} nodeId="condition-1" onClose={mockOnClose} />)
 
-    await user.click(screen.getByTestId('submit-button'))
+    // Simulate auto-save
+    mockOnSubmitHandler?.({ name: 'Condition', condition: 'test' })
 
     expect(mockShowError).toHaveBeenCalledWith({ title: 'Update failed', description: 'The update failed' })
   })

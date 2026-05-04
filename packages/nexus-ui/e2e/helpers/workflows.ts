@@ -253,7 +253,7 @@ export async function createBasicWorkflow(page: Page, workflowName: string, acti
   // Add manual trigger
   await page.getByRole('button', { name: 'Manual trigger' }).click()
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Manual trigger')
-  await page.getByRole('button', { name: /^Add step$/ }).click()
+  await page.getByRole('button', { name: 'Save and close' }).click()
 
   // Add a connected action node
   const panel = await clickAddConnectedStep(page)
@@ -261,7 +261,7 @@ export async function createBasicWorkflow(page: Page, workflowName: string, acti
   await panel.getByRole('button', { name: 'Script', exact: true }).click()
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill(actionName)
   await fillCodeEditor(page, { value: 'print("hello")' })
-  await page.getByRole('button', { name: /^Add step$/ }).click()
+  await page.getByRole('button', { name: 'Save and close' }).click()
   await closeNodeEditorPanel(page)
 
   // Select project (required on real backend), then name and save
@@ -285,7 +285,7 @@ export async function startWorkflowWithTrigger(page: Page) {
 
   await page.getByRole('button', { name: 'Manual trigger' }).click()
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Manual trigger')
-  await page.getByRole('button', { name: /^Add step$/ }).click()
+  await page.getByRole('button', { name: 'Save and close' }).click()
 }
 
 /** Save the workflow with the given name. Waits for URL to confirm persistence. */
@@ -309,7 +309,7 @@ export async function navigateToApiActionForm(page: Page) {
 
   await page.getByRole('button', { name: 'Manual trigger' }).click()
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Manual trigger')
-  await page.getByRole('button', { name: /^Add step$/ }).click()
+  await page.getByRole('button', { name: 'Save and close' }).click()
 
   const credentialsLoaded = page.waitForResponse((resp) => resp.url().includes('/credentials') && resp.status() === 200)
   const panel = await clickAddConnectedStep(page)

@@ -9,7 +9,7 @@ import {
   StackItem,
   Tooltip,
 } from '@patternfly/react-core'
-import { ExternalLinkAltIcon, RhUiCloseIcon } from '@patternfly/react-icons'
+import { ExternalLinkAltIcon, RhUiMinusIcon } from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
 
 import { AppPanel } from '../../components/AppPanel'
@@ -30,6 +30,7 @@ type NodeEditorLayoutProps = {
   onClose?: () => void
   showClose?: boolean
   sourceNodeId?: string | null
+  formId?: string
 }
 
 export function NodeEditorLayout({
@@ -44,6 +45,7 @@ export function NodeEditorLayout({
   onClose,
   showClose = true,
   sourceNodeId,
+  formId,
 }: NodeEditorLayoutProps) {
   const { inputData, outputData } = useNodeExecutionData(nodeId ?? '', executionId, workflowId)
   const outputFlex = showInputPanel ? 'flex_1' : 'flex_2'
@@ -96,11 +98,43 @@ export function NodeEditorLayout({
                 </FlexItem>
                 {headerActions && <FlexItem>{headerActions}</FlexItem>}
                 {showClose && (
-                  <FlexItem>
-                    <Button variant="plain" onClick={onClose} aria-label="Close" type="button">
-                      <RhUiCloseIcon />
-                    </Button>
-                  </FlexItem>
+                  <>
+                    <FlexItem>
+                      <Button
+                        variant="link"
+                        onClick={() => {
+                          onClose?.()
+                        }}
+                        aria-label="Cancel without saving"
+                        type="button"
+                      >
+                        Cancel
+                      </Button>
+                    </FlexItem>
+                    <FlexItem>
+                      <Tooltip content="Save and close">
+                        <Button
+                          variant="plain"
+                          onClick={() => {
+                            if (formId) {
+                              const element = document.getElementById(formId)
+                              if (element instanceof HTMLFormElement) {
+                                element.requestSubmit()
+                              } else {
+                                onClose?.()
+                              }
+                            } else {
+                              onClose?.()
+                            }
+                          }}
+                          aria-label="Save and close"
+                          type="button"
+                        >
+                          <RhUiMinusIcon />
+                        </Button>
+                      </Tooltip>
+                    </FlexItem>
+                  </>
                 )}
               </Flex>
             </FlexItem>

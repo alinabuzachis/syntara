@@ -17,16 +17,13 @@ export type { TriggerFormData }
 type TriggerNodeFormProps = {
   onSubmit: (data: TriggerFormData) => void
   initialData?: Partial<TriggerFormData>
-  submitButtonText?: string
   onHeaderContentChange?: (content: ReactNode | null) => void
 }
 
 function TriggerFormFields({
-  submitButtonText,
   onHeaderContentChange,
   validationErrors,
 }: {
-  submitButtonText?: string
   onHeaderContentChange?: (content: ReactNode | null) => void
   validationErrors?: { interval?: { message?: string } }
 }) {
@@ -111,7 +108,7 @@ function TriggerFormFields({
     </Stack>
   )
 
-  return <NodeFormTabsLayout parametersContent={parametersContent} submitButtonText={submitButtonText} />
+  return <NodeFormTabsLayout parametersContent={parametersContent} />
 }
 
 export function TriggerNodeForm(props: TriggerNodeFormProps) {
@@ -146,11 +143,7 @@ export function TriggerNodeForm(props: TriggerNodeFormProps) {
   return (
     <FormProvider {...methods}>
       <NodeFormContainer formId="trigger-node-form" onSubmit={methods.handleSubmit(handleSubmit)}>
-        <TriggerFormFields
-          submitButtonText={props.submitButtonText}
-          onHeaderContentChange={props.onHeaderContentChange}
-          validationErrors={errors}
-        />
+        <TriggerFormFields onHeaderContentChange={props.onHeaderContentChange} validationErrors={errors} />
       </NodeFormContainer>
     </FormProvider>
   )

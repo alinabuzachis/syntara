@@ -307,7 +307,6 @@ export function TaskNodeDetails({
     return (
       <AAPNodeForm
         initialData={aapInitialData}
-        submitButtonText="Update step"
         onSubmit={handleAAPSubmit}
         onCancel={onClose}
         onHeaderContentChange={onHeaderContentChange}
@@ -383,7 +382,6 @@ export function TaskNodeDetails({
   return (
     <ActionNodeForm
       initialData={initialData}
-      submitButtonText="Update step"
       onSubmit={handleSubmit}
       onHeaderContentChange={onHeaderContentChange}
       projectId={projectId}

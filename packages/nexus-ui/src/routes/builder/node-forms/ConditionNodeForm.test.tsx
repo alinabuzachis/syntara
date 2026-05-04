@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -24,63 +24,6 @@ describe('ConditionNodeForm', () => {
 
       expect(screen.getByRole('group', { name: /Expression builder/i })).toBeInTheDocument()
     })
-
-    it('renders submit button with default text', () => {
-      renderWithHeader(<ConditionNodeForm onSubmit={mockOnSubmit} />)
-
-      expect(screen.getByRole('button', { name: /Add step/i })).toBeInTheDocument()
-    })
-
-    it('renders submit button with custom text', () => {
-      renderWithHeader(<ConditionNodeForm onSubmit={mockOnSubmit} submitButtonText="Update step" />)
-
-      expect(screen.getByRole('button', { name: /Update step/i })).toBeInTheDocument()
-    })
-  })
-
-  describe('Submission', () => {
-    it('submits form with valid condition data', async () => {
-      const user = userEvent.setup()
-      renderWithHeader(<ConditionNodeForm onSubmit={mockOnSubmit} />)
-
-      const nameInput = screen.getByPlaceholderText(/Enter activity name/i)
-      await user.click(nameInput)
-      await user.paste('Test Condition')
-
-      // Switch to raw mode and enter expression
-      await user.selectOptions(screen.getByLabelText(/Expression editor mode/i), 'raw')
-      const rawInput = screen.getByLabelText(/Raw expression/i)
-      await user.click(rawInput)
-      await user.paste('${result > 0}')
-
-      await user.click(screen.getByRole('button', { name: /Add step/i }))
-
-      expect(mockOnSubmit).toHaveBeenCalled()
-      const callArgs: unknown = mockOnSubmit.mock.calls[0][0]
-      expect(callArgs).toMatchObject({
-        name: 'Test Condition',
-        condition: '${result > 0}',
-      })
-    }, 10_000)
-
-    it('submits without logicType field (removed from interface)', async () => {
-      const user = userEvent.setup()
-      renderWithHeader(<ConditionNodeForm onSubmit={mockOnSubmit} />)
-
-      const nameInput = screen.getByPlaceholderText(/Enter activity name/i)
-      await user.click(nameInput)
-      await user.paste('Another Condition')
-      await user.selectOptions(screen.getByLabelText(/Expression editor mode/i), 'raw')
-      const rawInput = screen.getByLabelText(/Raw expression/i)
-      await user.click(rawInput)
-      await user.paste('${x == 5}')
-      await user.click(screen.getByRole('button', { name: /Add step/i }))
-
-      const submittedData = mockOnSubmit.mock.calls[0][0] as ConditionFormData
-      expect(submittedData).not.toHaveProperty('logicType')
-      expect(submittedData.name).toBe('Another Condition')
-      expect(submittedData.condition).toBe('${x == 5}')
-    })
   })
 
   describe('Validation', () => {
@@ -89,10 +32,12 @@ describe('ConditionNodeForm', () => {
       renderWithHeader(<ConditionNodeForm onSubmit={mockOnSubmit} />)
 
       await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'No Condition')
-      await user.click(screen.getByRole('button', { name: /Add step/i }))
+      fireEvent.submit(screen.getByTestId('condition-node-form'))
 
       // Form should not submit without condition
-      expect(mockOnSubmit).not.toHaveBeenCalled()
+      await waitFor(() => {
+        expect(mockOnSubmit).not.toHaveBeenCalled()
+      })
     })
   })
 
@@ -136,6 +81,56 @@ describe('ConditionNodeForm', () => {
       renderWithHeader(<ConditionNodeForm onSubmit={mockOnSubmit} />)
 
       expect(screen.getByRole('button', { name: /Conditional expression help/i })).toBeInTheDocument()
+    })
+  })
+
+  describe('Form Submission', () => {
+    it('submits form with valid condition data', async () => {
+      const user = userEvent.setup()
+      renderWithHeader(<ConditionNodeForm onSubmit={mockOnSubmit} />)
+
+      const nameInput = screen.getByPlaceholderText(/Enter activity name/i)
+      await user.click(nameInput)
+      await user.paste('Test Condition')
+
+      // Switch to raw mode and enter expression
+      await user.selectOptions(screen.getByLabelText(/Expression editor mode/i), 'raw')
+      const rawInput = screen.getByLabelText(/Raw expression/i)
+      await user.click(rawInput)
+      await user.paste('${result > 0}')
+
+      fireEvent.submit(screen.getByTestId('condition-node-form'))
+
+      await waitFor(() => {
+        expect(mockOnSubmit).toHaveBeenCalled()
+        const callArgs: unknown = mockOnSubmit.mock.calls[0][0]
+        expect(callArgs).toMatchObject({
+          name: 'Test Condition',
+          condition: '${result > 0}',
+        })
+      })
+    }, 10_000)
+
+    it('submits without logicType field (removed from interface)', async () => {
+      const user = userEvent.setup()
+      renderWithHeader(<ConditionNodeForm onSubmit={mockOnSubmit} />)
+
+      const nameInput = screen.getByPlaceholderText(/Enter activity name/i)
+      await user.click(nameInput)
+      await user.paste('Another Condition')
+      await user.selectOptions(screen.getByLabelText(/Expression editor mode/i), 'raw')
+      const rawInput = screen.getByLabelText(/Raw expression/i)
+      await user.click(rawInput)
+      await user.paste('${x == 5}')
+
+      fireEvent.submit(screen.getByTestId('condition-node-form'))
+
+      await waitFor(() => {
+        const submittedData = mockOnSubmit.mock.calls[0][0] as ConditionFormData
+        expect(submittedData).not.toHaveProperty('logicType')
+        expect(submittedData.name).toBe('Another Condition')
+        expect(submittedData.condition).toBe('${x == 5}')
+      })
     })
   })
 })

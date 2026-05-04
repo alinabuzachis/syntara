@@ -187,7 +187,6 @@ export function TriggerNodeDetails({ trigger, triggerIndex, onClose, onHeaderCon
   return (
     <TriggerNodeForm
       initialData={getInitialData()}
-      submitButtonText="Update trigger"
       onSubmit={handleSubmit}
       onHeaderContentChange={onHeaderContentChange}
     />

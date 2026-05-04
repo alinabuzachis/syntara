@@ -1,3 +1,6 @@
+/* eslint-disable max-lines */
+// TODO: Refactor into smaller hooks to reduce file size (AAP-74113)
+// Suggested hooks: useWorkflowGraphInit, useExecutionStateEnrichment, useCanvasInteractions
 import { Spinner } from '@patternfly/react-core'
 import {
   applyEdgeChanges,
@@ -489,8 +492,30 @@ export function BuilderFlow(props: BuilderFlowProps) {
   )
 
   // Update node execution state when activity states change (e.g., after REST load or WebSocket)
+  // Also clear node execution status when returning to edit mode
   useEffect(() => {
-    if (!effectiveExecutionStatus || !isInitialized) return
+    if (!isInitialized) return
+
+    // In edit mode (effectiveExecutionStatus is null), clear all execution states
+    if (!effectiveExecutionStatus) {
+      setNodes((currentNodes) => {
+        const hasExecutionState = currentNodes.some((node) => (node.data as Record<string, unknown>).__executionState)
+        if (!hasExecutionState) return currentNodes
+
+        return currentNodes.map((node) => {
+          const currentData = node.data as Record<string, unknown>
+          if (currentData.__executionState) {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { __executionState, ...rest } = currentData
+            return { ...node, data: rest } as unknown as NodeType
+          }
+          return node
+        })
+      })
+      return
+    }
+
+    // In execution mode, enrich nodes with execution state
     if (activityStates.size === 0) return
 
     // Pre-index activities by ID for O(1) lookup instead of O(n) find
@@ -533,15 +558,20 @@ export function BuilderFlow(props: BuilderFlowProps) {
   }, [activityStates, effectiveExecutionStatus, isInitialized, currentWorkflow, applyEnrichedData])
 
   // Update edge execution status when activity states change (for WebSocket updates)
+  // Also clear edge execution status when returning to edit mode
   useEffect(() => {
-    if (!effectiveExecutionStatus || !isInitialized) return
+    if (!isInitialized) return
 
     // Get current activities from workflow store
     const activities = currentWorkflow?.workflow.activities ?? []
 
     setEdges((currentEdges) =>
-      currentEdges.map((edge) => {
-        const edgeExecutionStatus = executionStateEnricher.determineEdgeStatus(edge, activityStates, activities)
+      currentEdges.map((edge): EdgeType => {
+        // In execution mode: determine status from activity states
+        // In edit mode (effectiveExecutionStatus is null): clear status
+        const edgeExecutionStatus = effectiveExecutionStatus
+          ? executionStateEnricher.determineEdgeStatus(edge, activityStates, activities)
+          : undefined
 
         // Only update if status changed to avoid unnecessary re-renders
         if (edge.data?.executionStatus !== edgeExecutionStatus) {

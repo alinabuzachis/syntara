@@ -16,16 +16,13 @@ export type { ConditionFormData }
 
 type ConditionNodeFormProps = {
   onSubmit: (data: ConditionFormData) => void
-  submitButtonText?: string
   initialData?: Partial<ConditionFormData>
   onHeaderContentChange?: (content: ReactNode | null) => void
 }
 
 function ConditionFormFields({
-  submitButtonText,
   onHeaderContentChange,
 }: {
-  submitButtonText?: string
   onHeaderContentChange?: (content: ReactNode | null) => void
 }) {
   const { register, control } = useFormContext<ConditionFormData>()
@@ -89,7 +86,7 @@ function ConditionFormFields({
     </Stack>
   )
 
-  return <NodeFormTabsLayout parametersContent={parametersContent} submitButtonText={submitButtonText} />
+  return <NodeFormTabsLayout parametersContent={parametersContent} />
 }
 
 export function ConditionNodeForm(props: ConditionNodeFormProps) {
@@ -107,10 +104,7 @@ export function ConditionNodeForm(props: ConditionNodeFormProps) {
   return (
     <FormProvider {...methods}>
       <NodeFormContainer formId="condition-node-form" onSubmit={methods.handleSubmit(props.onSubmit)}>
-        <ConditionFormFields
-          submitButtonText={props.submitButtonText}
-          onHeaderContentChange={props.onHeaderContentChange}
-        />
+        <ConditionFormFields onHeaderContentChange={props.onHeaderContentChange} />
       </NodeFormContainer>
     </FormProvider>
   )

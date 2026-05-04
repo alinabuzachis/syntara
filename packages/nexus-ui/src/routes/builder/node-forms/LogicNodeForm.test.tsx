@@ -1,9 +1,10 @@
 import { ActivityTypeEnum } from '@ansible/nexus-contracts'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { LogicNodeForm, type LogicFormData } from './LogicNodeForm'
+import type { LogicFormData } from './LogicNodeForm'
+import { LogicNodeForm } from './LogicNodeForm'
 import { renderWithHeader } from './test-utils/renderWithHeader'
 
 describe('LogicNodeForm', () => {
@@ -100,23 +101,23 @@ describe('LogicNodeForm', () => {
         />
       )
 
-      // Clear and update name
       const nameInput = screen.getByPlaceholderText(/Enter activity name/i)
       await user.clear(nameInput)
       await user.type(nameInput, 'Updated Condition')
 
-      // Update expression in raw mode
       await user.selectOptions(screen.getByLabelText(/Expression editor mode/i), 'raw')
       const rawInput = screen.getByLabelText(/Raw expression/i)
       await user.clear(rawInput)
       await user.paste('${x > 5}')
 
-      await user.click(screen.getByRole('button', { name: /Add step/i }))
+      fireEvent.submit(screen.getByTestId('condition-node-form'))
 
-      expect(mockOnSubmit).toHaveBeenCalledWith({
-        name: 'Updated Condition',
-        condition: '${x > 5}',
-        logicType: ActivityTypeEnum.CONDITION,
+      await waitFor(() => {
+        expect(mockOnSubmit).toHaveBeenCalledWith({
+          name: 'Updated Condition',
+          condition: '${x > 5}',
+          logicType: ActivityTypeEnum.CONDITION,
+        })
       })
     })
 
@@ -137,18 +138,19 @@ describe('LogicNodeForm', () => {
         />
       )
 
-      // Update name
       const nameInput = screen.getByPlaceholderText(/Enter activity name/i)
       await user.clear(nameInput)
       await user.type(nameInput, 'Updated Loop')
 
-      await user.click(screen.getByRole('button', { name: /Add step/i }))
+      fireEvent.submit(screen.getByTestId('loop-node-form'))
 
-      expect(mockOnSubmit).toHaveBeenCalled()
-      const submittedData = mockOnSubmit.mock.calls[0][0] as LogicFormData
-      expect(submittedData.logicType).toBe(ActivityTypeEnum.LOOP)
-      expect(submittedData.name).toBe('Updated Loop')
-      expect(submittedData.type).toBe('forEach')
+      await waitFor(() => {
+        expect(mockOnSubmit).toHaveBeenCalled()
+        const submittedData = mockOnSubmit.mock.calls[0][0] as LogicFormData
+        expect(submittedData.logicType).toBe(ActivityTypeEnum.LOOP)
+        expect(submittedData.name).toBe('Updated Loop')
+        expect(submittedData.type).toBe('forEach')
+      })
     })
 
     it('maps converge data correctly and adds logicType on submit', async () => {
@@ -165,17 +167,18 @@ describe('LogicNodeForm', () => {
         />
       )
 
-      // Update name
       const nameInput = screen.getByPlaceholderText(/Enter activity name/i)
       await user.clear(nameInput)
       await user.type(nameInput, 'Updated Converge')
 
-      await user.click(screen.getByRole('button', { name: /Add step/i }))
+      fireEvent.submit(screen.getByTestId('converge-node-form'))
 
-      expect(mockOnSubmit).toHaveBeenCalled()
-      const submittedData = mockOnSubmit.mock.calls[0][0] as LogicFormData
-      expect(submittedData.logicType).toBe(ActivityTypeEnum.CONVERGE)
-      expect(submittedData.name).toBe('Updated Converge')
+      await waitFor(() => {
+        expect(mockOnSubmit).toHaveBeenCalled()
+        const submittedData = mockOnSubmit.mock.calls[0][0] as LogicFormData
+        expect(submittedData.logicType).toBe(ActivityTypeEnum.CONVERGE)
+        expect(submittedData.name).toBe('Updated Converge')
+      })
     })
 
     it('defaults loop type to while when not provided', () => {
@@ -189,24 +192,7 @@ describe('LogicNodeForm', () => {
         />
       )
 
-      // Verify while is selected by default
       expect(screen.getByRole('combobox', { name: /Type/i })).toHaveValue('while')
-    })
-  })
-
-  describe('Props propagation', () => {
-    it('passes submitButtonText to specialized form', () => {
-      renderWithHeader(
-        <LogicNodeForm
-          onSubmit={mockOnSubmit}
-          submitButtonText="Custom Submit"
-          initialData={{
-            logicType: ActivityTypeEnum.CONDITION,
-          }}
-        />
-      )
-
-      expect(screen.getByRole('button', { name: /Custom Submit/i })).toBeInTheDocument()
     })
   })
 

@@ -543,7 +543,7 @@ describe('TriggerNodeDetails Component', () => {
   })
 
   describe('Submit Button', () => {
-    it('displays "Update trigger" as submit button text', () => {
+    it('renders form with initial data', () => {
       const trigger = {
         type: 'manual_trigger' as const,
         name: 'Trigger',
@@ -552,7 +552,7 @@ describe('TriggerNodeDetails Component', () => {
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
 
-      expect(screen.getByText('Update trigger')).toBeInTheDocument()
+      expect(screen.getByTestId('trigger-node-form')).toBeInTheDocument()
     })
   })
 

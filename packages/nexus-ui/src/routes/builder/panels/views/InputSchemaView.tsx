@@ -39,7 +39,12 @@ function buildTreeData(
     }
 
     const pathKey = currentPath.join('.')
-    const expression = buildExpression({ nodeId, fieldPath: currentPath })
+
+    // Special case: iteration_results keys are already fully-qualified paths (e.g., "node_id.field")
+    // Use them directly instead of prepending the current node ID
+    const isIterationResultKey = parentPath.at(-1) === 'iteration_results'
+    const expression = isIterationResultKey ? `\${${key}}` : buildExpression({ nodeId, fieldPath: currentPath })
+
     return {
       id: pathKey,
       name: (

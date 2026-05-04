@@ -565,7 +565,11 @@ describe('BuilderContent', () => {
 
       await waitFor(() => {
         expect(screen.getByText(/Run Test Workflow\?/)).toBeInTheDocument()
-        expect(screen.getByText(/You are about to manually run this workflow/)).toBeInTheDocument()
+        expect(
+          screen.getByText(
+            /You are about to manually run this workflow\. This action will start the workflow immediately, bypassing its normal trigger conditions/
+          )
+        ).toBeInTheDocument()
       })
     })
 
@@ -856,6 +860,20 @@ describe('BuilderContent', () => {
     })
 
     it('toggles enabled state when clicked', async () => {
+      // Mock workflow update mutation to succeed
+      const mockUpdateMutate = vi.fn((params: unknown, callbacks?: MutationCallbacks) => {
+        if (callbacks?.onSuccess) {
+          callbacks.onSuccess({ id: 'workflow-1' }, params, undefined)
+        }
+      })
+
+      vi.mocked(workflowClient.useMutation).mockImplementation((method, path) => {
+        if (method === 'patch' && path === '/workflows/{workflow_id}') {
+          return createMockMutation(mockUpdateMutate)
+        }
+        return createMockMutation()
+      })
+
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByText('Enabled')).toBeInTheDocument()
@@ -2109,6 +2127,20 @@ describe('BuilderContent', () => {
 
   describe('Enabled Switch Additional', () => {
     it('toggles from disabled to enabled', async () => {
+      // Mock workflow update mutation to succeed
+      const mockUpdateMutate = vi.fn((params: unknown, callbacks?: MutationCallbacks) => {
+        if (callbacks?.onSuccess) {
+          callbacks.onSuccess({ id: 'workflow-1' }, params, undefined)
+        }
+      })
+
+      vi.mocked(workflowClient.useMutation).mockImplementation((method, path) => {
+        if (method === 'patch' && path === '/workflows/{workflow_id}') {
+          return createMockMutation(mockUpdateMutate)
+        }
+        return createMockMutation()
+      })
+
       const disabledWorkflow = { ...mockWorkflow, is_enabled: false }
       await renderBuilder({ workflow: disabledWorkflow, isNew: false, workflowId: 'workflow-1' })
 

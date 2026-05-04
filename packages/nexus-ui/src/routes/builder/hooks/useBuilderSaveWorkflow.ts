@@ -82,7 +82,9 @@ function runCreateWorkflowSave(options: {
   )
 }
 
-export function useBuilderSaveWorkflow(params: UseBuilderSaveWorkflowParams): () => Promise<boolean> {
+export function useBuilderSaveWorkflow(
+  params: UseBuilderSaveWorkflowParams
+): (overrideIsEnabled?: boolean) => Promise<boolean> {
   const {
     currentWorkflow,
     workflowName,
@@ -110,121 +112,126 @@ export function useBuilderSaveWorkflow(params: UseBuilderSaveWorkflowParams): ()
     return buildWorkflowDefinition(workflowName, workflowDescription, activities, triggers, edges)
   }, [currentWorkflow, workflowName, workflowDescription])
 
-  return useCallback((): Promise<boolean> => {
-    return new Promise((resolve) => {
-      if (!currentWorkflow) {
-        showError({ title: 'Validation failed', description: 'No workflow to save' })
-        resolve(false)
-        return
-      }
-
-      const edges = useWorkflowStore.getState().edges
-
-      const validationResult = validateWorkflow(currentWorkflow.workflow.activities, edges)
-
-      if (!validationResult.valid) {
-        const errorMessages = validationResult.errors.map((error) => error.message).join('\n• ')
-        showError({ title: 'Validation failed', description: `Workflow validation failed:\n• ${errorMessages}` })
-        resolve(false)
-        return
-      }
-
-      let nameToSave = workflowName
-      if (isNew && workflowName === DEFAULT_WORKFLOW_NAME && workflowsListResources) {
-        nameToSave = getNextDefaultWorkflowName(workflowsListResources)
-      }
-
-      let workflowDef
-      try {
-        workflowDef = getWorkflowDefinition()
-      } catch (error) {
-        const errorMessage = getErrorMessage(error)
-        showError({
-          title: 'Build failed',
-          description: `Failed to build workflow definition. Check condition/loop expressions for syntax errors: ${errorMessage}`,
-        })
-        resolve(false)
-        return
-      }
-
-      workflowDef.name = nameToSave
-      const labels = Object.fromEntries(workflowTags.map((t) => [t, '']))
-      const createPayload: CreateWorkflowBodyExtended = {
-        name: nameToSave,
-        description: workflowDescription,
-        is_enabled: isEnabled,
-        workflow_definition: workflowDef as CreateWorkflowBody['workflow_definition'],
-        ...(Object.keys(labels).length > 0 ? { labels } : {}),
-        ...(isNew && selectedProject ? { project_id: selectedProject.id } : {}),
-      }
-      const patchPayload: PatchWorkflowBody = {
-        name: nameToSave,
-        description: workflowDescription,
-        is_enabled: isEnabled,
-        labels,
-        workflow_definition: workflowDef as PatchWorkflowBody['workflow_definition'],
-      }
-
-      const onSaveSuccess = async (successMessage: string, workflowIdToNavigate?: string) => {
-        showSuccess({ title: 'Workflow saved', description: successMessage })
-        markClean()
-        await queryClient.invalidateQueries({ predicate: isWorkflowQuery })
-
-        if (workflowIdToNavigate && isNew) {
-          setLocation(`/workflow-builder/${workflowIdToNavigate}`)
+  return useCallback(
+    (overrideIsEnabled?: boolean): Promise<boolean> => {
+      return new Promise((resolve) => {
+        if (!currentWorkflow) {
+          showError({ title: 'Validation failed', description: 'No workflow to save' })
+          resolve(false)
+          return
         }
 
-        resolve(true)
-      }
+        const edges = useWorkflowStore.getState().edges
 
-      const onSaveError = (error: unknown, action: string) => {
-        const errorMessage = getErrorMessage(error)
-        showError({
-          title: `${action.charAt(0).toUpperCase()}${action.slice(1)} failed`,
-          description: `Failed to ${action} workflow: ${errorMessage}`,
-        })
-        resolve(false)
-      }
+        const validationResult = validateWorkflow(currentWorkflow.workflow.activities, edges)
 
-      if (workflowId && !isNew) {
-        updateWorkflow(
-          {
-            params: { path: { workflow_id: workflowId } },
-            body: patchPayload,
-          },
-          {
-            onSuccess: async () => {
-              await onSaveSuccess('Workflow updated successfully', workflowId)
-            },
-            onError: (error) => onSaveError(error, 'update'),
+        if (!validationResult.valid) {
+          const errorMessages = validationResult.errors.map((error) => error.message).join('\n• ')
+          showError({ title: 'Validation failed', description: `Workflow validation failed:\n• ${errorMessages}` })
+          resolve(false)
+          return
+        }
+
+        let nameToSave = workflowName
+        if (isNew && workflowName === DEFAULT_WORKFLOW_NAME && workflowsListResources) {
+          nameToSave = getNextDefaultWorkflowName(workflowsListResources)
+        }
+
+        let workflowDef
+        try {
+          workflowDef = getWorkflowDefinition()
+        } catch (error) {
+          const errorMessage = getErrorMessage(error)
+          showError({
+            title: 'Build failed',
+            description: `Failed to build workflow definition. Check condition/loop expressions for syntax errors: ${errorMessage}`,
+          })
+          resolve(false)
+          return
+        }
+
+        workflowDef.name = nameToSave
+        const labels = Object.fromEntries(workflowTags.map((t) => [t, '']))
+        // Use override if provided, otherwise use the current isEnabled state
+        const isEnabledToSave = overrideIsEnabled ?? isEnabled
+        const createPayload: CreateWorkflowBodyExtended = {
+          name: nameToSave,
+          description: workflowDescription,
+          is_enabled: isEnabledToSave,
+          workflow_definition: workflowDef as CreateWorkflowBody['workflow_definition'],
+          ...(Object.keys(labels).length > 0 ? { labels } : {}),
+          ...(isNew && selectedProject ? { project_id: selectedProject.id } : {}),
+        }
+        const patchPayload: PatchWorkflowBody = {
+          name: nameToSave,
+          description: workflowDescription,
+          is_enabled: isEnabledToSave,
+          labels,
+          workflow_definition: workflowDef as PatchWorkflowBody['workflow_definition'],
+        }
+
+        const onSaveSuccess = async (successMessage: string, workflowIdToNavigate?: string) => {
+          showSuccess({ title: 'Workflow saved', description: successMessage })
+          markClean()
+          await queryClient.invalidateQueries({ predicate: isWorkflowQuery })
+
+          if (workflowIdToNavigate && isNew) {
+            setLocation(`/workflow-builder/${workflowIdToNavigate}`)
           }
-        )
-      } else {
-        runCreateWorkflowSave({
-          createPayload,
-          createWorkflow,
-          onSaveSuccess,
-          onSaveError,
-        })
-      }
-    })
-  }, [
-    currentWorkflow,
-    workflowName,
-    workflowDescription,
-    workflowTags,
-    isEnabled,
-    getWorkflowDefinition,
-    workflowId,
-    isNew,
-    selectedProject,
-    workflowsListResources,
-    updateWorkflow,
-    createWorkflow,
-    showSuccess,
-    showError,
-    setLocation,
-    queryClient,
-    markClean,
-  ])
+
+          resolve(true)
+        }
+
+        const onSaveError = (error: unknown, action: string) => {
+          const errorMessage = getErrorMessage(error)
+          showError({
+            title: `${action.charAt(0).toUpperCase()}${action.slice(1)} failed`,
+            description: `Failed to ${action} workflow: ${errorMessage}`,
+          })
+          resolve(false)
+        }
+
+        if (workflowId && !isNew) {
+          updateWorkflow(
+            {
+              params: { path: { workflow_id: workflowId } },
+              body: patchPayload,
+            },
+            {
+              onSuccess: async () => {
+                await onSaveSuccess('Workflow updated successfully', workflowId)
+              },
+              onError: (error) => onSaveError(error, 'update'),
+            }
+          )
+        } else {
+          runCreateWorkflowSave({
+            createPayload,
+            createWorkflow,
+            onSaveSuccess,
+            onSaveError,
+          })
+        }
+      })
+    },
+    [
+      currentWorkflow,
+      workflowName,
+      workflowDescription,
+      workflowTags,
+      isEnabled,
+      getWorkflowDefinition,
+      workflowId,
+      isNew,
+      selectedProject,
+      workflowsListResources,
+      updateWorkflow,
+      createWorkflow,
+      showSuccess,
+      showError,
+      setLocation,
+      queryClient,
+      markClean,
+    ]
+  )
 }

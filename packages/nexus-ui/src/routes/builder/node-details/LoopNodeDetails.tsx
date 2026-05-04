@@ -140,11 +140,6 @@ export function LoopNodeDetails({ loopData, nodeId, onClose, onHeaderContentChan
   }
 
   return (
-    <LoopNodeForm
-      initialData={initialData}
-      submitButtonText="Update step"
-      onSubmit={handleSubmit}
-      onHeaderContentChange={onHeaderContentChange}
-    />
+    <LoopNodeForm initialData={initialData} onSubmit={handleSubmit} onHeaderContentChange={onHeaderContentChange} />
   )
 }

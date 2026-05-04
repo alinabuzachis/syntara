@@ -53,7 +53,6 @@ export function ConditionNodeDetails({
   return (
     <ConditionNodeForm
       initialData={initialData}
-      submitButtonText="Update step"
       onSubmit={handleSubmit}
       onHeaderContentChange={onHeaderContentChange}
     />

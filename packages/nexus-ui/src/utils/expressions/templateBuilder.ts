@@ -9,8 +9,8 @@
 /** Safe characters for node IDs: alphanumeric, underscores, hyphens (matches generateActivityId format) */
 const SAFE_NODE_ID = /^[a-zA-Z0-9_-]+$/
 
-/** Safe characters for field path segments: alphanumeric, underscores, hyphens, spaces (no dots — dots are path delimiters) */
-const SAFE_FIELD_SEGMENT = /^[a-zA-Z0-9_ -]+$/
+/** Safe characters for field path segments: alphanumeric, underscores, hyphens, spaces, brackets for array indexing (no dots — dots are path delimiters) */
+const SAFE_FIELD_SEGMENT = /^[a-zA-Z0-9_ \-[\]]+$/
 
 function validateNodeId(nodeId: string): string {
   if (!SAFE_NODE_ID.test(nodeId)) {

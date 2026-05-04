@@ -37,12 +37,11 @@ export type LogicFormData = {
   remainingBehavior?: 'continue' | 'cancel'
 }
 
-type LogicNodeFormProps = {
+type LogicNodeFormProps = Readonly<{
   onSubmit: (data: LogicFormData) => void
-  submitButtonText?: string
   initialData?: Partial<LogicFormData>
   onHeaderContentChange?: (content: ReactNode | null) => void
-}
+}>
 
 /**
  * LogicNodeForm - A thin wrapper that delegates to specialized forms based on logicType.
@@ -57,7 +56,7 @@ type LogicNodeFormProps = {
  * For editing existing nodes, use the specialized forms directly via NodeDetails components.
  */
 // eslint-disable-next-line complexity
-export function LogicNodeForm({ onSubmit, submitButtonText, initialData, onHeaderContentChange }: LogicNodeFormProps) {
+export function LogicNodeForm({ onSubmit, initialData, onHeaderContentChange }: LogicNodeFormProps) {
   const logicType = initialData?.logicType
 
   // Handle Condition node
@@ -77,7 +76,6 @@ export function LogicNodeForm({ onSubmit, submitButtonText, initialData, onHeade
     return (
       <ConditionNodeForm
         onSubmit={handleConditionSubmit}
-        submitButtonText={submitButtonText}
         initialData={conditionData}
         onHeaderContentChange={onHeaderContentChange}
       />
@@ -104,12 +102,7 @@ export function LogicNodeForm({ onSubmit, submitButtonText, initialData, onHeade
     }
 
     return (
-      <LoopNodeForm
-        onSubmit={handleLoopSubmit}
-        submitButtonText={submitButtonText}
-        initialData={loopData}
-        onHeaderContentChange={onHeaderContentChange}
-      />
+      <LoopNodeForm onSubmit={handleLoopSubmit} initialData={loopData} onHeaderContentChange={onHeaderContentChange} />
     )
   }
 
@@ -139,7 +132,6 @@ export function LogicNodeForm({ onSubmit, submitButtonText, initialData, onHeade
     return (
       <ConvergeNodeForm
         onSubmit={handleConvergeSubmit}
-        submitButtonText={submitButtonText}
         initialData={convergeData}
         onHeaderContentChange={onHeaderContentChange}
       />

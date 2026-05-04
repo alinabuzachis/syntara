@@ -1,4 +1,5 @@
 import type { ConditionActivity, ConvergeActivity, LoopActivity, TaskActivity } from '@ansible/nexus-contracts'
+import { ExecutorTypeEnum } from '@ansible/nexus-contracts'
 import type { Node } from '@xyflow/react'
 import type { ReactNode } from 'react'
 import { useState } from 'react'
@@ -50,6 +51,60 @@ function cleanMetadata(metadata: ActivityMetadata | undefined): ActivityMetadata
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { __isGeneric: _isGeneric, ...rest } = metadata
   return Object.keys(rest).length > 0 ? (rest as ActivityMetadata) : undefined
+}
+
+/** Get formId for add mode based on node type and subtype */
+function getAddModeFormId(
+  nodeTypeId: string | null | undefined,
+  nodeSubtypeId: string | null | undefined
+): string | undefined {
+  if (nodeTypeId === RegistryNodeId.TRIGGER) return 'trigger-node-form'
+  if (nodeTypeId === RegistryNodeId.LOGIC) {
+    if (nodeSubtypeId === RegistryNodeId.LOGIC_CONDITION) return 'condition-node-form'
+    if (nodeSubtypeId === RegistryNodeId.LOGIC_LOOP) return 'loop-node-form'
+    if (nodeSubtypeId === RegistryNodeId.LOGIC_CONVERGE) return 'converge-node-form'
+  }
+  if (nodeTypeId === RegistryNodeId.AAP) return 'aap-node-form'
+  if (nodeTypeId === RegistryNodeId.ACTION) return 'action-node-form'
+  if (nodeTypeId === RegistryNodeId.AGENT) return 'ai-agent-node-form'
+  if (nodeTypeId === RegistryNodeId.APPROVAL) return 'approval-node-form'
+  return undefined
+}
+
+/** Get formId for TASK nodes by checking executor type */
+function getTaskFormId(taskData: TaskActivity): string {
+  const executor = taskData.type
+
+  // Check if it's an AAP task
+  if (executor === ExecutorTypeEnum.AAP_JOB_TEMPLATE) {
+    return 'aap-node-form'
+  }
+
+  // Check if it's an AI Agent task
+  if (executor === ExecutorTypeEnum.AGENTIC) {
+    return 'ai-agent-node-form'
+  }
+
+  // Script or HTTP request
+  if (executor === ExecutorTypeEnum.SCRIPT || executor === ExecutorTypeEnum.HTTP_REQUEST) {
+    return 'action-node-form'
+  }
+
+  return 'aap-node-form' // Default fallback
+}
+
+/** Get formId for edit mode based on node type */
+function getEditModeFormId(node: Node<NodeType['data']> | undefined): string | undefined {
+  if (!node) return undefined
+  if (node.type === FlowNodeType.TRIGGER) return 'trigger-node-form'
+  if (node.type === FlowNodeType.CONDITION) return 'condition-node-form'
+  if (node.type === FlowNodeType.LOOP) return 'loop-node-form'
+  if (node.type === FlowNodeType.CONVERGE) return 'converge-node-form'
+  if (node.type === FlowNodeType.APPROVAL) return 'approval-node-form'
+  if (node.type === FlowNodeType.TASK) {
+    return getTaskFormId(node.data as TaskActivity)
+  }
+  return undefined
 }
 
 /** Top-level search is correct: the builder store always holds a flat activity list (see WorkflowTransform). */
@@ -285,6 +340,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
   }
 
   const showInputPanel = mode === 'add' ? nodeTypeId !== RegistryNodeId.TRIGGER : node?.type !== FlowNodeType.TRIGGER
+  const formId = mode === 'add' ? getAddModeFormId(nodeTypeId, nodeSubtypeId) : getEditModeFormId(node)
 
   return (
     <NodeEditorLayout
@@ -298,6 +354,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
       workflowId={workflowId}
       onClose={onClose}
       sourceNodeId={sourceNodeId}
+      formId={formId}
     />
   )
 }

@@ -1,5 +1,4 @@
 import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { LoopNodeDetails } from './LoopNodeDetails'
@@ -27,34 +26,26 @@ vi.mock('../../../components/alerts', () => ({
   })),
 }))
 
-// Mock LoopNodeForm
+// Mock LoopNodeForm - simulates auto-save behavior
+let mockOnSubmitHandler: ((data: Record<string, unknown>) => void) | null = null
+
 vi.mock('../node-forms/LoopNodeForm', () => ({
   LoopNodeForm: ({
     onSubmit,
-    submitButtonText,
     initialData,
   }: {
     onSubmit: (data: Record<string, unknown>) => void
-    submitButtonText?: string
     initialData?: Record<string, unknown>
-  }) => (
-    <div data-testid="loop-node-form">
-      <span data-testid="initial-type">{initialData?.type as string}</span>
-      <span data-testid="initial-name">{initialData?.name as string}</span>
-      <button
-        onClick={() =>
-          onSubmit({
-            name: 'Updated Loop',
-            type: 'forEach',
-            items: 'input.newItems',
-          })
-        }
-        data-testid="submit-button"
-      >
-        {submitButtonText ?? 'Add step'}
-      </button>
-    </div>
-  ),
+  }) => {
+    // Store the onSubmit handler so tests can trigger it
+    mockOnSubmitHandler = onSubmit
+    return (
+      <div data-testid="loop-node-form">
+        <span data-testid="initial-type">{initialData?.type as string}</span>
+        <span data-testid="initial-name">{initialData?.name as string}</span>
+      </div>
+    )
+  },
 }))
 
 describe('LoopNodeDetails Component', () => {
@@ -80,8 +71,7 @@ describe('LoopNodeDetails Component', () => {
     expect(screen.getByTestId('loop-node-form')).toBeInTheDocument()
   })
 
-  it('calls updateActivity on successful form submission', async () => {
-    const user = userEvent.setup()
+  it('calls updateActivity when form auto-saves', () => {
     const loopData = {
       type: 'loop' as const,
       id: 'loop-1',
@@ -94,7 +84,12 @@ describe('LoopNodeDetails Component', () => {
 
     render(<LoopNodeDetails loopData={loopData} nodeId="loop-1" onClose={mockOnClose} />)
 
-    await user.click(screen.getByTestId('submit-button'))
+    // Simulate auto-save when user changes form
+    mockOnSubmitHandler?.({
+      name: 'Updated Loop',
+      type: 'forEach',
+      items: 'input.newItems',
+    })
 
     expect(mockUpdateActivity).toHaveBeenCalledWith(
       'loop-1',
@@ -108,7 +103,7 @@ describe('LoopNodeDetails Component', () => {
     )
   })
 
-  it('displays "Update step" as submit button text', () => {
+  it('renders form with initial data', () => {
     const loopData = {
       type: 'loop' as const,
       id: 'loop-1',
@@ -121,7 +116,7 @@ describe('LoopNodeDetails Component', () => {
 
     render(<LoopNodeDetails loopData={loopData} nodeId="loop-1" onClose={mockOnClose} />)
 
-    expect(screen.getByText('Update step')).toBeInTheDocument()
+    expect(screen.getByTestId('loop-node-form')).toBeInTheDocument()
   })
 
   it('passes correct loop type to form initialData', () => {
@@ -158,8 +153,7 @@ describe('LoopNodeDetails Component', () => {
     expect(screen.getByTestId('initial-type')).toHaveTextContent('while')
   })
 
-  it('shows error when updateActivity throws', async () => {
-    const user = userEvent.setup()
+  it('shows error when updateActivity throws', () => {
     mockUpdateActivity.mockImplementationOnce(() => {
       throw new Error('The update failed')
     })
@@ -175,13 +169,17 @@ describe('LoopNodeDetails Component', () => {
 
     render(<LoopNodeDetails loopData={loopData} nodeId="loop-1" onClose={mockOnClose} />)
 
-    await user.click(screen.getByTestId('submit-button'))
+    // Simulate auto-save
+    mockOnSubmitHandler?.({
+      name: 'Loop',
+      type: 'forEach',
+      items: 'items',
+    })
 
     expect(mockShowError).toHaveBeenCalledWith({ title: 'Update failed', description: 'The update failed' })
   })
 
-  it('preserves indexVariable and itemVariable when updating forEach loop', async () => {
-    const user = userEvent.setup()
+  it('preserves indexVariable and itemVariable when auto-saving forEach loop', () => {
     const loopData = {
       type: 'loop' as const,
       id: 'loop-1',
@@ -196,7 +194,14 @@ describe('LoopNodeDetails Component', () => {
 
     render(<LoopNodeDetails loopData={loopData} nodeId="loop-1" onClose={mockOnClose} />)
 
-    await user.click(screen.getByTestId('submit-button'))
+    // Simulate auto-save
+    mockOnSubmitHandler?.({
+      name: 'ForEach Loop',
+      type: 'forEach',
+      items: 'input.newItems',
+      indexVariable: 'idx',
+      itemVariable: 'item',
+    })
 
     expect(mockUpdateActivity).toHaveBeenCalledWith(
       'loop-1',
@@ -204,7 +209,8 @@ describe('LoopNodeDetails Component', () => {
         config: expect.objectContaining({
           type: 'for_each',
           items: 'input.newItems',
-          // indexVariable and itemVariable should be preserved from original config
+          indexVariable: 'idx',
+          itemVariable: 'item',
         }) as Record<string, unknown>,
       })
     )

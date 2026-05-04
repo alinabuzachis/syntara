@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -66,30 +66,12 @@ describe('ActionNodeForm', () => {
     renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} />)
 
     await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Test Script')
-    await user.click(screen.getByRole('button', { name: /Add step/i }))
+    fireEvent.submit(screen.getByTestId('action-node-form'))
 
     await waitFor(() => {
       expect(screen.getByText('Script is required')).toBeInTheDocument()
+      expect(mockOnSubmit).not.toHaveBeenCalled()
     })
-    expect(mockOnSubmit).not.toHaveBeenCalled()
-  })
-
-  it('submits script form data', async () => {
-    const user = userEvent.setup()
-    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} />)
-
-    await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Test Script')
-    await user.type(screen.getByPlaceholderText(/Enter your code/i), 'print("hello")')
-    await user.click(screen.getByRole('button', { name: /Add step/i }))
-
-    expect(mockOnSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: 'Test Script',
-        executor: 'script',
-        language: 'python',
-        code: 'print("hello")',
-      })
-    )
   })
 
   it('renders API fields when initialData sets executor to api', () => {
@@ -100,25 +82,6 @@ describe('ActionNodeForm', () => {
     expect(screen.getByLabelText(/HTTP Method/i)).toBeInTheDocument()
     expect(screen.queryByLabelText(/Language/i)).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/Script code editor/i)).not.toBeInTheDocument()
-  })
-
-  it('submits API form data', async () => {
-    const user = userEvent.setup()
-    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} initialData={{ executor: 'http_request' }} />)
-
-    await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Test API')
-    await user.type(screen.getByPlaceholderText(/https:\/\/api.example.com/i), 'https://api.test.com/data')
-    await user.selectOptions(screen.getByLabelText(/HTTP Method/i), 'POST')
-    await user.click(screen.getByRole('button', { name: /Add step/i }))
-
-    expect(mockOnSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: 'Test API',
-        executor: 'http_request',
-        method: 'POST',
-        url: 'https://api.test.com/data',
-      })
-    )
   })
 
   it('populates form with initial data for script executor', () => {
@@ -162,12 +125,6 @@ describe('ActionNodeForm', () => {
     expect(screen.getByDisplayValue('{"data": "test"}')).toBeInTheDocument()
   })
 
-  it('uses custom submit button text when provided', () => {
-    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} submitButtonText="Update step" />)
-
-    expect(screen.getByRole('button', { name: /Update step/i })).toBeInTheDocument()
-  })
-
   it('passes projectId to CredentialSelector for HTTP request executor', () => {
     const useQueryMock = vi.mocked(credentialsClient.useQuery)
     useQueryMock.mockClear()
@@ -189,38 +146,79 @@ describe('ActionNodeForm', () => {
     expect(screen.getByPlaceholderText(/https:\/\/api.example.com/i)).toHaveAttribute('type', 'url')
   })
 
+  it('submits script form data', async () => {
+    const user = userEvent.setup()
+    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} />)
+
+    await user.type(screen.getByPlaceholderText(/Enter your code/i), 'print("hello")')
+    fireEvent.submit(screen.getByTestId('action-node-form'))
+
+    await waitFor(() => {
+      expect(mockOnSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: '',
+          executor: 'script',
+          language: 'python',
+          code: 'print("hello")',
+        })
+      )
+    })
+  })
+
+  it('submits API form data', async () => {
+    const user = userEvent.setup()
+    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} initialData={{ executor: 'http_request' }} />)
+
+    await user.type(screen.getByPlaceholderText(/https:\/\/api.example.com/i), 'https://api.test.com/data')
+    await user.selectOptions(screen.getByLabelText(/HTTP Method/i), 'POST')
+    fireEvent.submit(screen.getByTestId('action-node-form'))
+
+    await waitFor(() => {
+      expect(mockOnSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: '',
+          executor: 'http_request',
+          method: 'POST',
+          url: 'https://api.test.com/data',
+        })
+      )
+    })
+  })
+
   it('allows changing language for script executor', async () => {
     const user = userEvent.setup()
     renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} />)
 
     await user.selectOptions(screen.getByLabelText(/Language/i), 'bash')
-    await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Bash Script')
     await user.type(screen.getByPlaceholderText(/Enter your code/i), 'echo "test"')
-    await user.click(screen.getByRole('button', { name: /Add step/i }))
+    fireEvent.submit(screen.getByTestId('action-node-form'))
 
-    expect(mockOnSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        language: 'bash',
-      })
-    )
+    await waitFor(() => {
+      expect(mockOnSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          language: 'bash',
+        })
+      )
+    })
   })
 
   it('includes parameters in submission when provided', async () => {
     const user = userEvent.setup()
     renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} />)
 
-    await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Test')
     await user.type(screen.getByPlaceholderText(/Enter your code/i), 'code')
     const paramsInput = screen.getByPlaceholderText('{"key": "value"}')
     await user.click(paramsInput)
     await user.paste('{"test": 123}')
-    await user.click(screen.getByRole('button', { name: /Add step/i }))
+    fireEvent.submit(screen.getByTestId('action-node-form'))
 
-    expect(mockOnSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        parameters: '{"test": 123}',
-      })
-    )
+    await waitFor(() => {
+      expect(mockOnSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          parameters: '{"test": 123}',
+        })
+      )
+    })
   })
 
   it('renders code editor with drop support for script executor', () => {

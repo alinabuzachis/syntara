@@ -1,37 +1,116 @@
-import {
-  Button,
-  Divider,
-  Dropdown,
-  DropdownItem,
-  DropdownList,
-  Flex,
-  FlexItem,
-  Icon,
-  Label,
-  MenuToggle,
-  type MenuToggleElement,
-  Switch,
-  TextInput,
-  Tooltip,
-} from '@patternfly/react-core'
-import {
-  RhUiPlayIcon,
-  RhUiCodeIcon,
-  RhUiSaveFillIcon,
-  RhUiTrashIcon,
-  RhUiEllipsisVerticalFillIcon,
-  RhUiAddSquareIcon,
-} from '@patternfly/react-icons'
-import { useCallback, type Dispatch, type ReactNode, type Ref } from 'react'
+import { Button, Flex, FlexItem, Label, TextInput } from '@patternfly/react-core'
+import { useState, type Dispatch, type ReactNode } from 'react'
 
 import { AppPageHeader } from '../../app/AppPageHeader'
+import { useWorkflowStore } from '../../stores/useWorkflowStore'
 import type { ProjectRead } from '../access/types'
-import { ApprovalActionButtons } from '../executions/ApprovalActionButtons'
 
+import { BuilderEditorToolbar } from './BuilderEditorToolbar'
 import type { BuilderAction } from './builderReducer'
 import { EditWorkflowDetailsPopover } from './EditWorkflowDetailsPopover'
+import { EnableWorkflowConfirmDialog } from './EnableWorkflowConfirmDialog'
 import { formatHistoryDateTime } from './historyDateUtils'
 import { RunHistoryToggleButton } from './RunHistoryToggleButton'
+
+type BuilderToolbarContentProps = Readonly<{
+  isViewingExecution: boolean
+  isLiveRunActive?: boolean
+  historyCardOpen: boolean
+  hasApprovalPending?: boolean
+  isApprovalLoading?: boolean
+  onBackToEditor?: () => void
+  onReviewApproval?: () => void
+  dispatch: Dispatch<BuilderAction>
+  handleToggleHistory: () => void
+  // Editor toolbar props
+  isNew: boolean
+  workflow: { id: string } | undefined
+  isPending: boolean
+  selectedProject: ProjectRead | null
+  isEnabled: boolean
+  isKebabOpen: boolean
+  isSavingToggle: boolean
+  handleToggleDetails: () => void
+  handleSaveWorkflow: (overrideIsEnabled?: boolean) => Promise<boolean>
+  handleToggleEnable: (checked: boolean) => void
+}>
+
+/**
+ * Renders appropriate toolbar based on builder state:
+ * - Viewing execution: history toggle + back button
+ * - Live run active: optional approval review + back button
+ * - Default: full editor toolbar
+ */
+function BuilderToolbarContent({
+  isViewingExecution,
+  isLiveRunActive,
+  historyCardOpen,
+  hasApprovalPending,
+  isApprovalLoading,
+  onBackToEditor,
+  onReviewApproval,
+  dispatch,
+  handleToggleHistory,
+  isNew,
+  workflow,
+  isPending,
+  selectedProject,
+  isEnabled,
+  isKebabOpen,
+  isSavingToggle,
+  handleToggleDetails,
+  handleSaveWorkflow,
+  handleToggleEnable,
+}: BuilderToolbarContentProps) {
+  if (isViewingExecution) {
+    return (
+      <>
+        <RunHistoryToggleButton onClick={handleToggleHistory} isActive={historyCardOpen} />
+        <Button
+          variant="primary"
+          onClick={() => {
+            dispatch({ type: 'SET_SELECTED_EXECUTION_ID', payload: null })
+            dispatch({ type: 'SET_HISTORY_CARD_OPEN', payload: false })
+          }}
+        >
+          Back to editor
+        </Button>
+      </>
+    )
+  }
+
+  if (isLiveRunActive && onBackToEditor) {
+    return (
+      <>
+        {hasApprovalPending && onReviewApproval && (
+          <Button variant="warning" onClick={onReviewApproval} isLoading={isApprovalLoading}>
+            Review approval
+          </Button>
+        )}
+        <Button variant="primary" onClick={onBackToEditor}>
+          Back to editor
+        </Button>
+      </>
+    )
+  }
+
+  return (
+    <BuilderEditorToolbar
+      isNew={isNew}
+      workflow={workflow}
+      isPending={isPending}
+      selectedProject={selectedProject}
+      isEnabled={isEnabled}
+      isKebabOpen={isKebabOpen}
+      isSavingToggle={isSavingToggle}
+      dispatch={dispatch}
+      handleToggleHistory={handleToggleHistory}
+      handleToggleDetails={handleToggleDetails}
+      handleSaveWorkflow={handleSaveWorkflow}
+      onToggleEnable={handleToggleEnable}
+    />
+  )
+}
 
 /**
  * Header props are intentionally flat for this extraction; many fields mirror `BuilderContent` state.
@@ -51,225 +130,18 @@ export type BuilderWorkflowAppPageHeaderProps = Readonly<{
   selectedProject: ProjectRead | null
   isEnabled: boolean
   isKebabOpen: boolean
-  ProjectSelector: ReactNode
-  dispatch: Dispatch<BuilderAction>
-  markDirty: () => void
-  handleToggleHistory: () => void
-  handleToggleDetails: () => void
-  handleSaveWorkflow: () => void
   isLiveRunActive?: boolean
   onBackToEditor?: () => void
   hasApprovalPending?: boolean
   isApprovalLoading?: boolean
   onReviewApproval?: () => void
-}>
-
-type WorkflowKebabToggleProps = Readonly<{
-  toggleRef: Ref<MenuToggleElement>
-  isKebabOpen: boolean
+  ProjectSelector: ReactNode
   dispatch: Dispatch<BuilderAction>
+  markDirty: () => void
+  handleToggleHistory: () => void
+  handleToggleDetails: () => void
+  handleSaveWorkflow: (overrideIsEnabled?: boolean) => Promise<boolean>
 }>
-
-function WorkflowKebabToggle({ toggleRef, isKebabOpen, dispatch }: WorkflowKebabToggleProps) {
-  return (
-    <MenuToggle
-      ref={toggleRef}
-      variant="plain"
-      onClick={() => dispatch({ type: 'SET_KEBAB_OPEN', payload: !isKebabOpen })}
-      isExpanded={isKebabOpen}
-      aria-label="Workflow actions"
-    >
-      <RhUiEllipsisVerticalFillIcon />
-    </MenuToggle>
-  )
-}
-
-type EditorToolbarActionsProps = Readonly<
-  Pick<
-    BuilderWorkflowAppPageHeaderProps,
-    | 'isNew'
-    | 'workflow'
-    | 'isPending'
-    | 'selectedProject'
-    | 'isEnabled'
-    | 'isKebabOpen'
-    | 'dispatch'
-    | 'markDirty'
-    | 'handleToggleHistory'
-    | 'handleToggleDetails'
-    | 'handleSaveWorkflow'
-    | 'isLiveRunActive'
-    | 'onBackToEditor'
-    | 'hasApprovalPending'
-    | 'isApprovalLoading'
-    | 'onReviewApproval'
-  >
->
-
-// eslint-disable-next-line complexity
-function EditorToolbarActions({
-  isNew,
-  workflow,
-  isPending,
-  selectedProject,
-  isEnabled,
-  isKebabOpen,
-  dispatch,
-  markDirty,
-  handleToggleHistory,
-  handleToggleDetails,
-  handleSaveWorkflow,
-  isLiveRunActive,
-  onBackToEditor,
-  hasApprovalPending,
-  isApprovalLoading,
-  onReviewApproval,
-}: EditorToolbarActionsProps) {
-  const renderKebabMenuToggle = useCallback(
-    (toggleRef: Ref<MenuToggleElement>) => (
-      <WorkflowKebabToggle toggleRef={toggleRef} isKebabOpen={isKebabOpen} dispatch={dispatch} />
-    ),
-    [dispatch, isKebabOpen]
-  )
-
-  if (isLiveRunActive) {
-    return (
-      <>
-        {onReviewApproval && (hasApprovalPending || isApprovalLoading) && (
-          <ApprovalActionButtons isLoading={isApprovalLoading} onReviewClick={onReviewApproval} />
-        )}
-        {onBackToEditor && (
-          <Button variant="secondary" onClick={onBackToEditor}>
-            Back to editor
-          </Button>
-        )}
-      </>
-    )
-  }
-
-  return (
-    <>
-      <Button
-        variant="plain"
-        onClick={() => {
-          dispatch({
-            type: 'OPEN_ADD_NODE_PANEL',
-            payload: { sourceNodeId: null, replacementNodeId: null },
-          })
-        }}
-        icon={
-          <Icon isInline>
-            <RhUiAddSquareIcon />
-          </Icon>
-        }
-        iconPosition="start"
-      >
-        Add Step
-      </Button>
-
-      {!isNew && workflow?.id && (
-        <>
-          <Divider orientation={{ default: 'vertical' }} />
-          <Button
-            variant="plain"
-            onClick={() => dispatch({ type: 'SET_CONFIRM_DIALOG', payload: true })}
-            icon={
-              <Icon isInline>
-                <RhUiPlayIcon />
-              </Icon>
-            }
-            iconPosition="start"
-          >
-            Run
-          </Button>
-        </>
-      )}
-
-      <Divider orientation={{ default: 'vertical' }} />
-
-      {onReviewApproval && (hasApprovalPending || isApprovalLoading) && (
-        <ApprovalActionButtons isLoading={isApprovalLoading} onReviewClick={onReviewApproval} />
-      )}
-
-      <Tooltip content="Workflow details">
-        <Button
-          variant="plain"
-          onClick={handleToggleDetails}
-          icon={
-            <Icon isInline>
-              <RhUiCodeIcon />
-            </Icon>
-          }
-          aria-label="Workflow details"
-        />
-      </Tooltip>
-
-      {!isNew && workflow?.id && <RunHistoryToggleButton onClick={handleToggleHistory} />}
-
-      <Divider orientation={{ default: 'vertical' }} />
-
-      <Tooltip
-        content="Select a project before saving"
-        trigger={isNew && !selectedProject ? 'mouseenter focus' : 'manual'}
-      >
-        <Button
-          variant="plain"
-          onClick={handleSaveWorkflow}
-          isAriaDisabled={isPending || (isNew && !selectedProject)}
-          icon={
-            <Icon isInline>
-              <RhUiSaveFillIcon />
-            </Icon>
-          }
-          iconPosition="start"
-        >
-          {isPending ? 'Saving...' : 'Save'}
-        </Button>
-      </Tooltip>
-
-      {!isNew && (
-        <>
-          <Divider orientation={{ default: 'vertical' }} />
-          <Switch
-            isChecked={isEnabled}
-            onChange={(_event, checked) => {
-              dispatch({ type: 'SET_IS_ENABLED', payload: checked })
-              markDirty()
-            }}
-            label={isEnabled ? 'Enabled' : 'Disabled'}
-          />
-        </>
-      )}
-
-      {!isNew && workflow?.id && (
-        <>
-          <Divider orientation={{ default: 'vertical' }} />
-          <Dropdown
-            isOpen={isKebabOpen}
-            onOpenChange={(isOpen) => dispatch({ type: 'SET_KEBAB_OPEN', payload: isOpen })}
-            popperProps={{ position: 'right' }}
-            toggle={renderKebabMenuToggle}
-          >
-            <DropdownList>
-              <DropdownItem
-                onClick={() => {
-                  dispatch({ type: 'SET_DELETE_DIALOG', payload: true })
-                  dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
-                }}
-                isDanger
-              >
-                <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
-                  <RhUiTrashIcon />
-                </Icon>
-                Delete workflow
-              </DropdownItem>
-            </DropdownList>
-          </Dropdown>
-        </>
-      )}
-    </>
-  )
-}
 
 /**
  * Builder page title row (name, project, details) and primary toolbar actions.
@@ -287,94 +159,140 @@ export function BuilderWorkflowAppPageHeader({
   selectedProject,
   isEnabled,
   isKebabOpen,
+  isLiveRunActive,
+  onBackToEditor,
+  hasApprovalPending,
+  isApprovalLoading,
+  onReviewApproval,
   ProjectSelector,
   dispatch,
   markDirty,
   handleToggleHistory,
   handleToggleDetails,
   handleSaveWorkflow,
-  isLiveRunActive,
-  onBackToEditor,
-  hasApprovalPending,
-  isApprovalLoading,
-  onReviewApproval,
 }: BuilderWorkflowAppPageHeaderProps) {
-  return (
-    <AppPageHeader
-      title={
-        <Flex gap={{ default: 'gapMd' }} alignItems={{ default: 'alignItemsCenter' }}>
-          <FlexItem>
-            <TextInput
-              id="workflow-name-input"
-              type="text"
-              aria-label="Workflow name"
-              value={workflowName}
-              onChange={(_event, value) => {
-                dispatch({ type: 'SET_WORKFLOW_NAME', payload: value })
-                markDirty()
-              }}
-              placeholder="Workflow name"
-            />
-          </FlexItem>
-          <FlexItem>{ProjectSelector}</FlexItem>
-          <FlexItem>
-            <EditWorkflowDetailsPopover
-              name={workflowName}
-              description={workflowDescription}
-              tags={workflowTags}
-              onApply={(name, description, tags) => {
-                const nameChanged = name !== workflowName
-                const descriptionChanged = description !== workflowDescription
-                const tagsChanged = tags.length !== workflowTags.length || tags.some((t, i) => t !== workflowTags[i])
-                if (nameChanged) dispatch({ type: 'SET_WORKFLOW_NAME', payload: name })
-                if (descriptionChanged) dispatch({ type: 'SET_WORKFLOW_DESCRIPTION', payload: description })
-                if (tagsChanged) dispatch({ type: 'SET_WORKFLOW_TAGS', payload: tags })
-                if (nameChanged || descriptionChanged || tagsChanged) markDirty()
-              }}
-            />
-          </FlexItem>
-          {isViewingExecution && selectedExecutionCreatedAt && (
-            <FlexItem>
-              <Label>{`Viewing run: ${formatHistoryDateTime(selectedExecutionCreatedAt)}`}</Label>
-            </FlexItem>
-          )}
-        </Flex>
-      }
-    >
-      {isViewingExecution ? (
-        <>
-          <RunHistoryToggleButton onClick={handleToggleHistory} isActive={historyCardOpen} />
+  const [isSavingToggle, setIsSavingToggle] = useState(false)
+  const [enableConfirmOpen, setEnableConfirmOpen] = useState(false)
+  const [pendingEnableState, setPendingEnableState] = useState<boolean | null>(null)
 
-          <Button
-            variant="primary"
-            onClick={() => {
-              dispatch({ type: 'SET_SELECTED_EXECUTION_ID', payload: null })
-              dispatch({ type: 'SET_HISTORY_CARD_OPEN', payload: false })
-            }}
-          >
-            Back to editor
-          </Button>
-        </>
-      ) : (
-        <EditorToolbarActions
+  const handleToggleEnable = async (checked: boolean) => {
+    // Re-entry guard: ignore clicks while save is in progress
+    if (isSavingToggle) {
+      return
+    }
+
+    const currentIsDirty = useWorkflowStore.getState().isDirty
+
+    if (currentIsDirty) {
+      // Show dialog - there are other unsaved changes
+      setPendingEnableState(checked)
+      setEnableConfirmOpen(true)
+    } else {
+      // No other changes - save immediately with the new enabled state
+      setIsSavingToggle(true)
+      const saved = await handleSaveWorkflow(checked)
+      setIsSavingToggle(false)
+
+      if (saved) {
+        // Update UI state to match saved state
+        dispatch({ type: 'SET_IS_ENABLED', payload: checked })
+      }
+      // If save failed, keep UI showing old state (don't update dispatch)
+    }
+  }
+
+  return (
+    <>
+      <AppPageHeader
+        title={
+          <Flex gap={{ default: 'gapMd' }} alignItems={{ default: 'alignItemsCenter' }}>
+            <FlexItem>
+              <TextInput
+                id="workflow-name-input"
+                type="text"
+                aria-label="Workflow name"
+                value={workflowName}
+                onChange={(_event, value) => {
+                  dispatch({ type: 'SET_WORKFLOW_NAME', payload: value })
+                  markDirty()
+                }}
+                placeholder="Workflow name"
+              />
+            </FlexItem>
+            <FlexItem>{ProjectSelector}</FlexItem>
+            <FlexItem>
+              <EditWorkflowDetailsPopover
+                name={workflowName}
+                description={workflowDescription}
+                tags={workflowTags}
+                onApply={(name, description, tags) => {
+                  const nameChanged = name !== workflowName
+                  const descriptionChanged = description !== workflowDescription
+                  const tagsChanged = tags.length !== workflowTags.length || tags.some((t, i) => t !== workflowTags[i])
+                  if (nameChanged) dispatch({ type: 'SET_WORKFLOW_NAME', payload: name })
+                  if (descriptionChanged) dispatch({ type: 'SET_WORKFLOW_DESCRIPTION', payload: description })
+                  if (tagsChanged) dispatch({ type: 'SET_WORKFLOW_TAGS', payload: tags })
+                  if (nameChanged || descriptionChanged || tagsChanged) markDirty()
+                }}
+              />
+            </FlexItem>
+            {isViewingExecution && selectedExecutionCreatedAt && (
+              <FlexItem>
+                <Label>{`Viewing run: ${formatHistoryDateTime(selectedExecutionCreatedAt)}`}</Label>
+              </FlexItem>
+            )}
+          </Flex>
+        }
+      >
+        <BuilderToolbarContent
+          isViewingExecution={isViewingExecution}
+          isLiveRunActive={isLiveRunActive}
+          historyCardOpen={historyCardOpen}
+          hasApprovalPending={hasApprovalPending}
+          isApprovalLoading={isApprovalLoading}
+          onBackToEditor={onBackToEditor}
+          onReviewApproval={onReviewApproval}
+          dispatch={dispatch}
+          handleToggleHistory={handleToggleHistory}
           isNew={isNew}
           workflow={workflow}
           isPending={isPending}
           selectedProject={selectedProject}
           isEnabled={isEnabled}
           isKebabOpen={isKebabOpen}
-          dispatch={dispatch}
-          markDirty={markDirty}
-          handleToggleHistory={handleToggleHistory}
+          isSavingToggle={isSavingToggle}
           handleToggleDetails={handleToggleDetails}
           handleSaveWorkflow={handleSaveWorkflow}
-          isLiveRunActive={isLiveRunActive}
-          onBackToEditor={onBackToEditor}
-          hasApprovalPending={hasApprovalPending}
-          isApprovalLoading={isApprovalLoading}
-          onReviewApproval={onReviewApproval}
+          handleToggleEnable={handleToggleEnable}
         />
-      )}
-    </AppPageHeader>
+      </AppPageHeader>
+
+      <EnableWorkflowConfirmDialog
+        isOpen={enableConfirmOpen}
+        pendingEnableState={pendingEnableState}
+        isSaving={isSavingToggle}
+        workflowName={workflowName}
+        onClose={() => {
+          setEnableConfirmOpen(false)
+          setPendingEnableState(null)
+        }}
+        onConfirm={async () => {
+          if (pendingEnableState === null) return
+
+          setIsSavingToggle(true)
+          // Save with the new enabled value
+          const saved = await handleSaveWorkflow(pendingEnableState)
+          setIsSavingToggle(false)
+
+          if (saved) {
+            // Update UI state to match saved state
+            dispatch({ type: 'SET_IS_ENABLED', payload: pendingEnableState })
+            setEnableConfirmOpen(false)
+            setPendingEnableState(null)
+          }
+          // If save failed, leave dialog open and keep old state
+        }}
+      />
+    </>
   )
 }
