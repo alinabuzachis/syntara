@@ -8,6 +8,7 @@ Reuses httpx patterns from api_activity.py with AAP-specific polling logic.
 from __future__ import annotations
 
 import asyncio
+import math
 import re
 import time
 from enum import StrEnum
@@ -801,20 +802,23 @@ async def _launch_aap_job(
         raise AAPJobExecutionError(msg) from e
 
 
-def _check_timeout(elapsed: float, timeout_seconds: int, job_id: int) -> None:
+def _check_timeout(elapsed: float, timeout_seconds: int, job_id: int, *, configured_timeout: int | None = None) -> None:
     """Check if job execution has exceeded timeout.
 
     Args:
         elapsed: Elapsed time in seconds
         timeout_seconds: Timeout threshold in seconds
         job_id: AAP job ID
+        configured_timeout: Original user-configured timeout for error messages.
+            Falls back to timeout_seconds if not provided.
 
     Raises:
         AAPJobExecutionError: If timeout exceeded
 
     """
     if elapsed >= timeout_seconds:
-        msg = f"Job {job_id} timed out after {timeout_seconds} seconds"
+        display_timeout = configured_timeout if configured_timeout is not None else timeout_seconds
+        msg = f"Job {job_id} timed out after {display_timeout} seconds"
         raise AAPJobExecutionError(msg, job_id=job_id)
 
 
@@ -948,10 +952,15 @@ async def _poll_until_complete(
     status_url = f"{base_url}/api/controller/v2/jobs/{job_id}/"
     auth_param = basic_auth or httpx.USE_CLIENT_DEFAULT
 
+    # Margin must exceed poll_interval so the internal timeout fires before
+    # Temporal's start_to_close_timeout even in the worst case (check passes
+    # just before the margin, then we sleep a full poll_interval).
+    margin = math.ceil(poll_interval) + 2
+    effective_timeout = max(timeout_seconds - margin, 1)
+
     while True:
-        # Check timeout deadline
         elapsed = time.time() - start_time
-        _check_timeout(elapsed, timeout_seconds, job_id)
+        _check_timeout(elapsed, effective_timeout, job_id, configured_timeout=timeout_seconds)
 
         # Check for cancellation (Temporal best practice)
         await _handle_cancellation(client, job_id, auth_headers, auth_param, base_url)

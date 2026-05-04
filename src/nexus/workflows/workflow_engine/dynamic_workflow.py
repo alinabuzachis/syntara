@@ -15,6 +15,7 @@ from temporalio import workflow
 with workflow.unsafe.imports_passed_through():
     from nexus.core.exceptions import SafeValueError
     from nexus.workflows.workflow_engine.activities.credential_resolution_activity import resolve_workflow_credentials
+    from nexus.workflows.workflow_engine.constants import DEFAULT_AAP_TIMEOUT_SECONDS
     from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
     from nexus.workflows.workflow_engine.signals import WorkflowSignalProcessor
     from nexus.workflows.workflow_engine.utils.credential_scrubber import scrub_credentials
@@ -1128,7 +1129,12 @@ class NexusWorkflow:
             # For all other nodes: standard resolution (Tier 1)
             resolved_config = self._resolve_node_config(node)
 
-        timeout_seconds = cast("int", resolved_config.get("timeout", DEFAULT_ACTIVITY_TIMEOUT_SECONDS))
+        default_timeout = (
+            DEFAULT_AAP_TIMEOUT_SECONDS if node_type == NodeType.AAP_JOB_TEMPLATE else DEFAULT_ACTIVITY_TIMEOUT_SECONDS
+        )
+        # AAP nodes always have "timeout" via AAPJobTemplateExecutorConfig's model default;
+        # the fallback here is only effective for non-AAP node types.
+        timeout_seconds = cast("int", resolved_config.get("timeout", default_timeout))
         self.node_inputs[node.id] = resolved_config
 
         result = await self._dispatch_node(node, resolved_config, graph, timeout_seconds)

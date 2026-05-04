@@ -21,6 +21,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from nexus.workflows.utils.namespace_resolver import NamespaceResolver
+from nexus.workflows.workflow_engine.constants import DEFAULT_AAP_TIMEOUT_SECONDS
 from nexus.workflows.workflow_engine.dynamic_workflow import DEFAULT_ACTIVITY_TIMEOUT_SECONDS, NexusWorkflow
 from nexus.workflows.workflow_engine.graph import ActivityNode, WorkflowGraph
 from nexus.workflows.workflow_engine.graph_backend import InMemoryGraphBackend
@@ -540,3 +541,21 @@ class TestPerNodeTimeout:
 
         # Verify timeout is still in the stored node_inputs (config wasn't mutated)
         assert wf.node_inputs["node_keep"]["timeout"] == 90
+
+    @pytest.mark.asyncio
+    async def test_aap_job_template_uses_aap_default_timeout(
+        self,
+        _mock_temporal_workflow: MagicMock,  # noqa: PT019
+    ) -> None:
+        """An aap_job_template node without config.timeout should use DEFAULT_AAP_TIMEOUT_SECONDS."""
+        _mock_temporal_workflow.execute_activity = AsyncMock(return_value={"output": {"result": "ok"}})
+
+        wf = _make_workflow()
+        node = ActivityNode(node_id="launch_job", node_type="aap_job_template", config={"job_template_id": 6})
+        graph = _build_chain_graph()
+
+        await wf._execute_node(node=node, graph=graph)
+
+        _mock_temporal_workflow.execute_activity.assert_called_once()
+        call_kwargs = _mock_temporal_workflow.execute_activity.call_args
+        assert call_kwargs.kwargs["start_to_close_timeout"] == timedelta(seconds=DEFAULT_AAP_TIMEOUT_SECONDS)
