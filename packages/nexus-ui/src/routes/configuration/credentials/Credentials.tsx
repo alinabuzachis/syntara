@@ -261,7 +261,9 @@ export default function Credentials() {
 
       {results.length === 0 && !hasActiveFilters ? (
         <AppPageMain>
-          <CredentialEmptyState onCreateCredential={() => setCreateModalOpen(true)} />
+          <AppPanel isFullHeight>
+            <CredentialEmptyState onCreateCredential={() => setCreateModalOpen(true)} />
+          </AppPanel>
         </AppPageMain>
       ) : (
         <AppPageMain>
