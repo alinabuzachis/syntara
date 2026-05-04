@@ -122,23 +122,21 @@ describe('ButtonEdge', () => {
   })
 
   it('uses approval stroke color when sourceHandleId is approved', () => {
-    const { container } = render(<ButtonEdge {...defaultProps} sourceHandleId={EdgeHandleEnum.APPROVED} />)
+    render(<ButtonEdge {...defaultProps} sourceHandleId={EdgeHandleEnum.APPROVED} />)
 
-    const paths = container.querySelectorAll('path[stroke]')
-    const visibleStrokePath = paths[paths.length - 1]
+    const visibleStrokePath = screen.getByTestId('button-edge-stroke')
     expect(visibleStrokePath).toHaveAttribute('stroke', 'var(--pf-t--global--color--status--success--default)')
   })
 
   it('uses rejected stroke color when sourceHandleId is rejected', () => {
-    const { container } = render(<ButtonEdge {...defaultProps} sourceHandleId={EdgeHandleEnum.REJECTED} />)
+    render(<ButtonEdge {...defaultProps} sourceHandleId={EdgeHandleEnum.REJECTED} />)
 
-    const paths = container.querySelectorAll('path[stroke]')
-    const visibleStrokePath = paths[paths.length - 1]
+    const visibleStrokePath = screen.getByTestId('button-edge-stroke')
     expect(visibleStrokePath).toHaveAttribute('stroke', 'var(--pf-t--global--color--status--danger--default)')
   })
 
   it('falls back to data.sourceHandle when sourceHandleId is undefined', () => {
-    const { container } = render(
+    render(
       <ButtonEdge
         {...defaultProps}
         sourceHandleId={undefined}
@@ -146,8 +144,7 @@ describe('ButtonEdge', () => {
       />
     )
 
-    const paths = container.querySelectorAll('path[stroke]')
-    const visibleStrokePath = paths[paths.length - 1]
+    const visibleStrokePath = screen.getByTestId('button-edge-stroke')
     expect(visibleStrokePath).toHaveAttribute('stroke', 'var(--pf-t--global--color--status--success--default)')
   })
 
@@ -174,8 +171,8 @@ describe('ButtonEdge', () => {
   it('calculates target position for right source position', () => {
     render(<ButtonEdge {...defaultProps} />)
     const baseEdge = screen.getByTestId('base-edge')
-    // Path should extend to the right
-    expect(baseEdge.getAttribute('d')).toContain('L 150')
+    // Path should extend to the right, stopping at the left border of the "+" square
+    expect(baseEdge.getAttribute('d')).toContain('L 138')
   })
 
   it('calculates target position for bottom source position', () => {

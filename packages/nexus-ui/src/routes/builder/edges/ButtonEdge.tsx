@@ -11,6 +11,11 @@ import type { ButtonEdgeProps } from './types'
 
 const STUB_LENGTH = 50
 
+/** Size of the "+" square container in pixels */
+const PLUS_BUTTON_SIZE = 24
+const PLUS_BUTTON_HALF = PLUS_BUTTON_SIZE / 2
+const PLUS_BUTTON_BORDER_RADIUS = 'var(--pf-t--global--border--radius--small)'
+
 function useButtonEdgeDragHandler(params: { id: string; source: string; sourceX: number; sourceY: number }) {
   const reactFlowInstance = useReactFlow()
   const [isDragging, setIsDragging] = useState(false)
@@ -86,7 +91,10 @@ export function ButtonEdge(props: ButtonEdgeProps) {
     sourcePosition,
     STUB_LENGTH
   )
-  const edgePath = `M ${adjustedSourceX},${adjustedSourceY} L ${buttonX},${buttonY}`
+  // All source handles in the builder use Position.Right (left-to-right layout).
+  // Stop the line at the left border of the "+" square, not at its center.
+  const lineEndX = buttonX - PLUS_BUTTON_HALF
+  const edgePath = `M ${adjustedSourceX},${adjustedSourceY} L ${lineEndX},${buttonY}`
 
   const handleClick = (event: React.SyntheticEvent) => {
     event.stopPropagation()
@@ -107,7 +115,7 @@ export function ButtonEdge(props: ButtonEdgeProps) {
 
   return (
     <>
-      {/* Main edge - wide for easy hit detection */}
+      {/* Main edge — wide invisible path for easy hit detection */}
       <BaseEdge
         id={id}
         path={edgePath}
@@ -117,34 +125,51 @@ export function ButtonEdge(props: ButtonEdgeProps) {
           strokeWidth: 20,
           opacity: 0.01,
         }}
+        markerEnd={undefined}
       />
-      {/* Visible thin stroke - override CSS opacity when dragging; colored for approval handles */}
-      <path d={edgePath} fill="none" stroke={strokeColor} strokeWidth={2} pointerEvents="none" style={draggingStyle} />
-      {/* Plus icon - visual elements (non-interactive) */}
+      {/* Visible thin stroke — no arrow marker; colored for approval handles */}
+      <path
+        data-testid="button-edge-stroke"
+        d={edgePath}
+        fill="none"
+        stroke={strokeColor}
+        strokeWidth={2}
+        pointerEvents="none"
+        style={draggingStyle}
+      />
+      {/* Plus button — rounded square with "+" icon (non-interactive visual) */}
       <EdgeLabelRenderer>
         <div
+          className="button-edge-plus"
           style={{
             position: 'absolute',
             transform: `translate(-50%, -50%) translate(${buttonX}px,${buttonY}px)`,
             pointerEvents: 'none',
-            filter: data?.isActive
-              ? 'drop-shadow(0 0 8px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 12px rgba(255, 255, 255, 0.6))'
-              : 'none',
-            color: data?.isActive ? '#ffffff' : '#9ca3af',
+            width: PLUS_BUTTON_SIZE,
+            height: PLUS_BUTTON_SIZE,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: PLUS_BUTTON_BORDER_RADIUS,
+            border: `1px solid var(--pf-t--global--border--color--default)`,
+            backgroundColor: 'var(--pf-t--global--background--color--primary--default)',
+            color: data?.isActive
+              ? 'var(--pf-t--global--icon--color--regular)'
+              : 'var(--pf-t--global--icon--color--subtle)',
             ...draggingStyle,
           }}
         >
-          <Icon iconSize="lg">
+          <Icon iconSize="md">
             <RhUiAddSquareIcon />
           </Icon>
         </div>
       </EdgeLabelRenderer>
       {/* Large clickable area (draggable for all canvas step types) */}
       <rect
-        x={buttonX - 15}
-        y={buttonY - 15}
-        width={30}
-        height={30}
+        x={buttonX - PLUS_BUTTON_HALF}
+        y={buttonY - PLUS_BUTTON_HALF}
+        width={PLUS_BUTTON_SIZE}
+        height={PLUS_BUTTON_SIZE}
         fill="transparent"
         rx={4}
         onClick={handleClick}
@@ -155,7 +180,7 @@ export function ButtonEdge(props: ButtonEdgeProps) {
         role="button"
         aria-label="Add connected step"
         tabIndex={0}
-        stroke={isFocused ? '#60a5fa' : 'none'}
+        stroke={isFocused ? 'var(--pf-t--global--color--brand--default)' : 'none'}
         strokeWidth={isFocused ? 2 : 0}
         style={{ cursor: 'pointer', pointerEvents: 'all', zIndex: 100 }}
       />
