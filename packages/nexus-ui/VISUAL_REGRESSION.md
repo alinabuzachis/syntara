@@ -105,7 +105,7 @@ npx playwright test e2e/visual-regression/page-screenshots
 npx playwright test e2e/visual-regression/page-screenshots --update-snapshots
 
 # Run the baseline enforcement check
-node scripts/check-visual-baselines.js
+npm exec tsx -- scripts/check-visual-baselines.ts
 ```
 
 ## Reviewing Screenshot Diffs in PRs

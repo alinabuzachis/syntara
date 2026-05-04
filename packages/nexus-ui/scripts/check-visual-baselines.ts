@@ -1,5 +1,3 @@
-#!/usr/bin/env tsx
-
 /**
  * Baseline enforcement script for visual regression testing.
  *
@@ -10,7 +8,7 @@
  *   4. A baseline PNG exists but has no matching entry in the page registry (orphan)
  *
  * Usage:
- *   npm exec tsx -- scripts/check-visual-baselines.js
+ *   npm exec tsx -- scripts/check-visual-baselines.ts
  *
  * Exit codes:
  *   0 — all routes covered, all baselines present
@@ -32,7 +30,7 @@ const appRouteSource = readFileSync(appRoutePath, 'utf-8')
 
 // Match all string literals that look like route paths: '/some/path'
 const routePathRegex = /['"](\/.+?)['"]/g
-const allAppRoutes = new Set()
+const allAppRoutes = new Set<string>()
 
 for (const match of appRouteSource.matchAll(routePathRegex)) {
   allAppRoutes.add(match[1])
@@ -43,15 +41,15 @@ for (const match of appRouteSource.matchAll(routePathRegex)) {
 // ---------------------------------------------------------------------------
 const { pages, allExcludedRoutes } = await import(resolve(pkgRoot, 'e2e/visual-regression/page-registry.ts'))
 
-const coveredConcretePaths = new Set(pages.map((p) => p.path))
-const excludedRoutes = new Set(allExcludedRoutes)
+const coveredConcretePaths = new Set<string>(pages.map((p: { path: string }) => p.path))
+const excludedRoutes = new Set<string>(allExcludedRoutes as string[])
 
 // ---------------------------------------------------------------------------
 // 3. Normalize parameterized routes for comparison
 //    AppRoute.tsx has :param placeholders; the registry uses concrete mock IDs
 // ---------------------------------------------------------------------------
 
-function matchesTemplate(template, concretePath) {
+function matchesTemplate(template: string, concretePath: string): boolean {
   const tParts = template.split('/')
   const cParts = concretePath.split('/')
 
@@ -69,7 +67,7 @@ function matchesTemplate(template, concretePath) {
 }
 
 // Build set of AppRoute templates that are covered (by concrete paths or exclusions)
-const uncoveredRoutes = []
+const uncoveredRoutes: string[] = []
 
 for (const route of allAppRoutes) {
   // Check if explicitly excluded
@@ -88,7 +86,7 @@ for (const route of allAppRoutes) {
 // ---------------------------------------------------------------------------
 // 3b. Detect stale registry paths (registry → AppRoute reverse check)
 // ---------------------------------------------------------------------------
-const staleRegistryPaths = []
+const staleRegistryPaths: string[] = []
 
 for (const concretePath of coveredConcretePaths) {
   const matchesAny = [...allAppRoutes].some((template) => matchesTemplate(template, concretePath))
@@ -102,9 +100,9 @@ for (const concretePath of coveredConcretePaths) {
 // ---------------------------------------------------------------------------
 const snapshotDir = resolve(pkgRoot, 'e2e/visual-regression/page-screenshots.spec.ts-snapshots')
 
-const registryEntries = pages.map((p) => ({ section: p.section, name: p.name }))
+const registryEntries = pages.map((p: { section: string; name: string }) => ({ section: p.section, name: p.name }))
 
-const missingBaselines = []
+const missingBaselines: { entry: string; expectedPath: string }[] = []
 
 for (const entry of registryEntries) {
   const baselinePath = resolve(snapshotDir, entry.section, `${entry.name}-linux.png`)
@@ -121,8 +119,8 @@ for (const entry of registryEntries) {
 // ---------------------------------------------------------------------------
 
 /** Recursively collect all `-linux.png` files under a directory. */
-function collectLinuxPngs(dir) {
-  const results = []
+function collectLinuxPngs(dir: string): string[] {
+  const results: string[] = []
   if (!existsSync(dir)) return results
   for (const entry of readdirSync(dir)) {
     const full = resolve(dir, entry)

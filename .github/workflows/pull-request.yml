@@ -148,7 +148,7 @@ jobs:
 
       - name: Check visual baselines
         id: baselines
-        run: npm exec tsx -- scripts/check-visual-baselines.js
+        run: npm exec tsx -- scripts/check-visual-baselines.ts
         working-directory: packages/nexus-ui
         continue-on-error: true
 
