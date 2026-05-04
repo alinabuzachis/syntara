@@ -166,6 +166,23 @@ export default tseslint.config(
   {
     files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
     ignores: ['e2e/**'],
+    rules: {
+      // Prefer semantic Testing Library queries (getByRole, getByLabelText, etc.) over raw DOM lookups.
+      // document.getElementById bypasses a11y semantics and is as fragile as querySelector in tests.
+      'no-restricted-properties': [
+        'error',
+        {
+          object: 'document',
+          property: 'getElementById',
+          message:
+            'Use a Testing Library semantic query instead (e.g. screen.getByRole(...)). document.getElementById() bypasses accessibility semantics and is as fragile as container.querySelector().',
+        },
+      ],
+    },
+  },
+  {
+    files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
+    ignores: ['e2e/**'],
     plugins: { vitest },
     rules: {
       // Aligns with Sonar S2699: every test must contain an explicit assertion call.

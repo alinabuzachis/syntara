@@ -62,9 +62,9 @@ describe('FilterBar', () => {
 
   describe('rendering', () => {
     it('renders toolbar', () => {
-      const { container } = render(<FilterBar {...defaultProps} />)
+      render(<FilterBar {...defaultProps} />)
 
-      expect(container.querySelector('#filter-toolbar')).toBeInTheDocument()
+      expect(screen.getByRole('search', { name: 'Filters' })).toBeInTheDocument()
     })
 
     it('renders attribute search field selector', () => {
@@ -127,9 +127,9 @@ describe('FilterBar', () => {
     it('applies compact styling when isCompact is true', () => {
       render(<FilterBar {...defaultProps} isCompact />)
 
-      const toolbar = document.getElementById('filter-toolbar')
+      const toolbar = screen.getByRole('search', { name: 'Filters' })
       expect(toolbar).toBeInTheDocument()
-      expect(toolbar?.style.getPropertyValue('--pf-v6-c-toolbar--PaddingBlockStart')).toBe(
+      expect(toolbar.style.getPropertyValue('--pf-v6-c-toolbar--PaddingBlockStart')).toBe(
         'var(--pf-t--global--spacer--xs)'
       )
     })
@@ -137,9 +137,9 @@ describe('FilterBar', () => {
     it('does not apply compact styling when isCompact is false', () => {
       render(<FilterBar {...defaultProps} />)
 
-      const toolbar = document.getElementById('filter-toolbar')
+      const toolbar = screen.getByRole('search', { name: 'Filters' })
       expect(toolbar).toBeInTheDocument()
-      expect(toolbar?.style.getPropertyValue('--pf-v6-c-toolbar--PaddingBlockStart')).toBe('')
+      expect(toolbar.style.getPropertyValue('--pf-v6-c-toolbar--PaddingBlockStart')).toBe('')
     })
   })
 
@@ -192,8 +192,8 @@ describe('FilterBar', () => {
       const runningElements = screen.getAllByText('Running')
       expect(runningElements.length).toBeGreaterThan(0)
 
-      const chipWithRunning = runningElements.find((el) => el.closest('.pf-v6-c-label'))
-      expect(chipWithRunning).toBeInTheDocument()
+      // Verify there is a close button for "Running" chip
+      expect(screen.getByRole('button', { name: 'Close Running' })).toBeInTheDocument()
       // Category names appear in label groups
       const nameElements = screen.getAllByText('Name')
       expect(nameElements.length).toBeGreaterThanOrEqual(1)
@@ -211,17 +211,10 @@ describe('FilterBar', () => {
 
       render(<FilterBar {...defaultProps} filters={filters} onFilterChange={onFilterChange} />)
 
-      // Find the close button for the "test" chip
-      const testChip = screen.getByText('test')
-
-      const labelElement = testChip.closest('.pf-v6-c-label')
-
-      const closeButton = labelElement?.querySelector('button')
-
+      // Find and click the close button for the "test" chip
+      const closeButton = screen.getByRole('button', { name: 'Close test' })
       expect(closeButton).toBeInTheDocument()
-      if (closeButton) {
-        await user.click(closeButton)
-      }
+      await user.click(closeButton)
 
       // Should remove name filter, keep status filter
       expect(onFilterChange).toHaveBeenCalledWith([{ key: 'status', operator: 'eq', value: 'running' }])
@@ -250,16 +243,9 @@ describe('FilterBar', () => {
         />
       )
 
-      // Find the close button for the first chip (gte) - now has "From:" prefix
-      const gteChip = screen.getByText('From: 2024-01-01')
-
-      const labelElement = gteChip.closest('.pf-v6-c-label')
-
-      const closeButton = labelElement?.querySelector('button')
-
-      if (closeButton) {
-        await user.click(closeButton)
-      }
+      // Find and click the close button for the gte chip ("From: 2024-01-01")
+      const closeButton = screen.getByRole('button', { name: 'Close From: 2024-01-01' })
+      await user.click(closeButton)
 
       // Should remove only the gte filter, keep lte filter
       expect(onFilterChange).toHaveBeenCalledWith([{ key: 'created_at', operator: 'lte', value: '2024-12-31' }])
@@ -483,9 +469,9 @@ describe('FilterBar', () => {
 
   describe('edge cases', () => {
     it('handles empty field definitions', () => {
-      const { container } = render(<FilterBar {...defaultProps} fieldDefinitions={[]} />)
+      render(<FilterBar {...defaultProps} fieldDefinitions={[]} />)
 
-      expect(container.querySelector('#filter-toolbar')).toBeInTheDocument()
+      expect(screen.getByRole('search', { name: 'Filters' })).toBeInTheDocument()
     })
 
     it('handles mixed filter types', () => {
@@ -543,16 +529,9 @@ describe('FilterBar', () => {
         />
       )
 
-      // Find the first chip value with "From:" prefix and its close button
-      const gteChip = screen.getByText('From: 2024-01-01T00:00:00.000Z')
-
-      const labelElement = gteChip.closest('.pf-v6-c-label')
-
-      const closeButton = labelElement?.querySelector('button')
-
-      if (closeButton) {
-        await user.click(closeButton)
-      }
+      // Find and click the close button for the first chip (gte)
+      const closeButton = screen.getByRole('button', { name: 'Close From: 2024-01-01T00:00:00.000Z' })
+      await user.click(closeButton)
 
       // Should call onFilterChange to remove the gte filter but keep lte
       expect(onFilterChange).toHaveBeenCalled()
@@ -584,25 +563,17 @@ describe('FilterBar', () => {
         <ControlledFilterBar fieldDefinitions={[textFieldDefinition, selectFieldDefinition]} initialFilters={[]} />
       )
 
-      // Initially shows Name field (first field)
-      const allButtons = screen.getAllByRole('button')
-      const fieldSelectorButton = allButtons.find(
-        (btn) => btn.textContent?.includes('Name') && btn.querySelector('.pf-v6-c-menu-toggle__icon')
-      )
+      // Initially shows Name field (first field) - get the field selector button by its text
+      const fieldSelectorButton = screen.getByRole('button', { name: 'Name' })
       expect(fieldSelectorButton).toBeInTheDocument()
 
       // Switch to Status field
-      if (fieldSelectorButton) {
-        await user.click(fieldSelectorButton)
-      }
+      await user.click(fieldSelectorButton)
       const statusOption = screen.getByText('Status')
       await user.click(statusOption)
 
       // Verify Status field is now selected (field selector shows Status)
-      const updatedButtons = screen.getAllByRole('button')
-      const statusFieldSelector = updatedButtons.find(
-        (btn) => btn.textContent?.includes('Status') && btn.querySelector('.pf-v6-c-menu-toggle__icon')
-      )
+      const statusFieldSelector = screen.getByRole('button', { name: 'Status' })
       expect(statusFieldSelector).toBeInTheDocument()
 
       // Select a value from the Status dropdown
@@ -612,19 +583,11 @@ describe('FilterBar', () => {
       await user.click(runningOption)
 
       // CRITICAL: After applying the filter, the field selector should still show "Status", not reset to "Name"
-      const finalButtons = screen.getAllByRole('button')
-      const finalFieldSelector = finalButtons.find(
-        (btn) => btn.textContent?.includes('Status') && btn.querySelector('.pf-v6-c-menu-toggle__icon')
-      )
-      expect(finalFieldSelector).toBeInTheDocument()
+      // The field selector button should still have "Status" as its accessible name
+      expect(screen.getByRole('button', { name: 'Status' })).toBeInTheDocument()
 
-      // Verify the filter chip shows the label, not raw value
-      // There will be multiple "Running" text elements (in dropdown and in chip), so use getAllByText
-      const runningElements = screen.getAllByText('Running')
-      expect(runningElements.length).toBeGreaterThan(0)
-
-      const chipWithRunning = runningElements.find((el) => el.closest('.pf-v6-c-label'))
-      expect(chipWithRunning).toBeInTheDocument()
+      // Verify the filter chip shows the label, not raw value — use the chip close button
+      expect(screen.getByRole('button', { name: 'Close Running' })).toBeInTheDocument()
     })
 
     it('allows searching SELECT filter options', async () => {
@@ -668,13 +631,8 @@ describe('FilterBar', () => {
       // Select the filtered option
       await user.click(screen.getByRole('option', { name: 'Workflow Gamma' }))
 
-      // Verify filter chip appears (there will be multiple "Workflow Gamma" - in dropdown and chip)
-      const gammaElements = screen.getAllByText('Workflow Gamma')
-      expect(gammaElements.length).toBeGreaterThan(0)
-
-      // Verify at least one is in a label chip
-      const chipWithGamma = gammaElements.find((el) => el.closest('.pf-v6-c-label'))
-      expect(chipWithGamma).toBeInTheDocument()
+      // Verify filter chip appears — the chip close button is uniquely named
+      expect(screen.getByRole('button', { name: 'Close Workflow Gamma' })).toBeInTheDocument()
     })
 
     it('renders MULTISELECT filter type via FilterTypeRenderer', async () => {
@@ -723,12 +681,11 @@ describe('FilterBar', () => {
         />
       )
 
-      // Find the category close button for "Name" (LabelGroup close button)
-      const nameCategory = screen.getByText('Name').closest('.pf-v6-c-label-group')
-      const categoryCloseButton = nameCategory?.querySelector('button[aria-label*="Remove all"]')
+      // Find the category close button for "Name" using its aria-label
+      const categoryCloseButton = screen.getByRole('button', { name: /Remove all Name filters/i })
       expect(categoryCloseButton).toBeInTheDocument()
 
-      await user.click(categoryCloseButton!)
+      await user.click(categoryCloseButton)
 
       // Should call onFilterChange with only status filter remaining
       expect(onFilterChange).toHaveBeenCalledWith([{ key: 'status', value: 'active' }])
@@ -933,10 +890,10 @@ describe('FilterBar', () => {
         type: 'INVALID_TYPE' as unknown as FilterType,
       }
 
-      const { container } = render(<FilterBar {...defaultProps} fieldDefinitions={[unknownField]} />)
+      render(<FilterBar {...defaultProps} fieldDefinitions={[unknownField]} />)
 
       // Should not crash - FilterTypeRenderer returns null for unknown types
-      expect(container.querySelector('#filter-toolbar')).toBeInTheDocument()
+      expect(screen.getByRole('search', { name: 'Filters' })).toBeInTheDocument()
     })
 
     it('renders multiple filter types simultaneously', () => {
@@ -1028,12 +985,8 @@ describe('FilterBar', () => {
       )
 
       // Find and click the category remove button for "Name"
-      const nameCategory = screen.getByText('Name').closest('.pf-v6-c-label-group')
-      const categoryCloseButton = nameCategory?.querySelector('button[aria-label*="Remove all"]')
-
-      if (categoryCloseButton) {
-        await user.click(categoryCloseButton)
-      }
+      const categoryCloseButton = screen.getByRole('button', { name: /Remove all Name filters/i })
+      await user.click(categoryCloseButton)
 
       // handleCategoryRemove should be invoked
       expect(onFilterChange).toHaveBeenCalledWith([{ key: 'status', operator: 'eq', value: 'active' }])
@@ -1115,13 +1068,8 @@ describe('FilterBar', () => {
       )
 
       // Remove specific filter with operator (line 173)
-      const gteChip = screen.getByText('From: 2024-01-01')
-      const labelElement = gteChip.closest('.pf-v6-c-label')
-      const closeButton = labelElement?.querySelector('button')
-
-      if (closeButton) {
-        await user.click(closeButton)
-      }
+      const closeButton = screen.getByRole('button', { name: 'Close From: 2024-01-01' })
+      await user.click(closeButton)
 
       // Should remove only the specific filter
       expect(onFilterChange).toHaveBeenCalledWith([{ key: 'created_at', operator: 'lte', value: '2024-12-31' }])
@@ -1143,18 +1091,10 @@ describe('FilterBar', () => {
         />
       )
 
-      // Remove all filters for key (line 176)
-      const allNameElements = screen.getAllByText('Name')
-      const nameCategory = allNameElements
-        .find((el) => el.classList.contains('pf-v6-c-label-group__label'))
-        ?.closest('.pf-v6-c-label-group')
-      const categoryCloseButton = nameCategory?.querySelector('button[aria-label*="Remove all"]')
-
+      // Remove all filters for key (line 176) via category close button
+      const categoryCloseButton = screen.getByRole('button', { name: /Remove all Name filters/i })
       expect(categoryCloseButton).toBeInTheDocument()
-
-      if (categoryCloseButton) {
-        await user.click(categoryCloseButton)
-      }
+      await user.click(categoryCloseButton)
 
       // Should remove all name filters
       expect(onFilterChange).toHaveBeenCalledWith([])
@@ -1273,15 +1213,9 @@ describe('FilterBar', () => {
       )
 
       // DATERANGE is in TextFilter dropdown - need to select it first
-      const allButtons = screen.getAllByRole('button')
-      const fieldSelectorButton = allButtons.find(
-        (btn) => btn.textContent?.includes('Name') && btn.querySelector('.pf-v6-c-menu-toggle__icon')
-      )
+      const fieldSelectorButton = screen.getByRole('button', { name: 'Name' })
       expect(fieldSelectorButton).toBeInTheDocument()
-
-      if (fieldSelectorButton) {
-        await user.click(fieldSelectorButton)
-      }
+      await user.click(fieldSelectorButton)
 
       // Select "Created" field
       const createdOption = screen.getByText('Created')
@@ -1341,12 +1275,8 @@ describe('FilterBar', () => {
       )
 
       // Remove Name category - executes line 187
-      const nameCategory = screen.getByText('Name').closest('.pf-v6-c-label-group')
-      const categoryCloseButton = nameCategory?.querySelector('button[aria-label*="Remove all"]')
-
-      if (categoryCloseButton) {
-        await user.click(categoryCloseButton)
-      }
+      const categoryCloseButton = screen.getByRole('button', { name: /Remove all Name filters/i })
+      await user.click(categoryCloseButton)
 
       // Verify the filter was removed
       expect(onFilterChange).toHaveBeenCalledWith([{ key: 'status', operator: 'eq', value: 'active' }])
@@ -1378,11 +1308,9 @@ describe('FilterBar', () => {
       )
 
       // Click the remove button on the gte chip - triggers handleFilterRemove with operator
-      const gteChip = screen.getByText('From: 2024-01-01')
-      const closeButton = gteChip.closest('.pf-v6-c-label')?.querySelector('button')
-
+      const closeButton = screen.getByRole('button', { name: 'Close From: 2024-01-01' })
       expect(closeButton).toBeInTheDocument()
-      await user.click(closeButton!)
+      await user.click(closeButton)
 
       // Verify handleFilterRemove was invoked with operator (line 153)
       expect(onFilterChange).toHaveBeenCalledWith([{ key: 'created_at', operator: 'lte', value: '2024-12-31' }])
@@ -1407,11 +1335,9 @@ describe('FilterBar', () => {
       )
 
       // Click individual chip remove (not category) - first chip
-      const chip1 = screen.getByText('test1')
-      const closeButton = chip1.closest('.pf-v6-c-label')?.querySelector('button')
-
+      const closeButton = screen.getByRole('button', { name: 'Close test1' })
       expect(closeButton).toBeInTheDocument()
-      await user.click(closeButton!)
+      await user.click(closeButton)
 
       // Should invoke handleFilterRemove without operator, removing all 'name' filters (line 155)
       expect(onFilterChange).toHaveBeenCalled()
@@ -1436,14 +1362,9 @@ describe('FilterBar', () => {
       )
 
       // Click the category remove button
-      const allNameElements = screen.getAllByText('Name')
-      const nameCategory = allNameElements
-        .find((el) => el.classList.contains('pf-v6-c-label-group__label'))
-        ?.closest('.pf-v6-c-label-group')
-      const categoryCloseButton = nameCategory?.querySelector('button[aria-label*="Remove all"]')
-
+      const categoryCloseButton = screen.getByRole('button', { name: /Remove all Name filters/i })
       expect(categoryCloseButton).toBeInTheDocument()
-      await user.click(categoryCloseButton!)
+      await user.click(categoryCloseButton)
 
       // Verify handleCategoryRemove was invoked (line 164)
       expect(onFilterChange).toHaveBeenCalledWith([{ key: 'status', operator: 'eq', value: 'active' }])
@@ -1532,11 +1453,9 @@ describe('FilterBar', () => {
       )
 
       // Remove the filter chip - this triggers handleFilterUpdate(null, fieldKey)
-      const chip = screen.getByText('test')
-      const closeButton = chip.closest('.pf-v6-c-label')?.querySelector('button')
-
+      const closeButton = screen.getByRole('button', { name: 'Close test' })
       expect(closeButton).toBeInTheDocument()
-      await user.click(closeButton!)
+      await user.click(closeButton)
 
       // This triggers handleFilterUpdate with null (line 144-145)
       expect(onFilterChange).toHaveBeenCalled()
@@ -1567,13 +1486,8 @@ describe('FilterBar', () => {
       )
 
       // Remove only the 'gte' filter chip
-      const gteChip = screen.getByText('From: 2024-01-01')
-      const labelElement = gteChip.closest('.pf-v6-c-label')
-      const closeButton = labelElement?.querySelector('button')
-
-      if (closeButton) {
-        await user.click(closeButton)
-      }
+      const closeButton = screen.getByRole('button', { name: 'Close From: 2024-01-01' })
+      await user.click(closeButton)
 
       // Should remove only gte, keep lte
       expect(onFilterChange).toHaveBeenCalledWith([{ key: 'created_at', operator: 'lte', value: '2024-12-31' }])
@@ -1597,12 +1511,8 @@ describe('FilterBar', () => {
       )
 
       // Click category remove button for "Name"
-      const nameCategory = screen.getByText('Name').closest('.pf-v6-c-label-group')
-      const categoryCloseButton = nameCategory?.querySelector('button[aria-label*="Remove all"]')
-
-      if (categoryCloseButton) {
-        await user.click(categoryCloseButton)
-      }
+      const categoryCloseButton = screen.getByRole('button', { name: /Remove all Name filters/i })
+      await user.click(categoryCloseButton)
 
       // Should remove all 'name' filters, keep 'status'
       expect(onFilterChange).toHaveBeenCalledWith([{ key: 'status', operator: 'eq', value: 'active' }])
@@ -1642,12 +1552,8 @@ describe('FilterBar', () => {
       )
 
       // Find chip category for "Created" and click category remove button
-      const createdCategory = screen.getByText('Created').closest('.pf-v6-c-label-group')
-      const categoryCloseButton = createdCategory?.querySelector('button[aria-label*="Remove all"]')
-
-      if (categoryCloseButton) {
-        await user.click(categoryCloseButton)
-      }
+      const categoryCloseButton = screen.getByRole('button', { name: /Remove all Created filters/i })
+      await user.click(categoryCloseButton)
 
       // handleFilterRemove should remove all 'created_at' filters (both gte and lte)
       // This triggers the else branch in handleFilterRemove

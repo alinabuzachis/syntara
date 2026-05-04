@@ -534,9 +534,9 @@ describe('RolesTab', () => {
       const user = userEvent.setup()
       render(<RolesTab />, { wrapper })
 
-      const filterToolbar = document.getElementById('filter-toolbar')
+      const filterToolbar = screen.getByRole('search')
       expect(filterToolbar).toBeTruthy()
-      await user.click(within(filterToolbar as HTMLElement).getByRole('button', { name: /^Name$/ }))
+      await user.click(within(filterToolbar).getByRole('button', { name: /^Name$/ }))
 
       await waitFor(() => {
         expect(screen.getByRole('option', { name: 'Scope' })).toBeInTheDocument()
