@@ -155,13 +155,6 @@ table.pf-v6-c-table.pf-m-sticky-header > .pf-v6-c-table__thead {
 }
 
 /**
- * Position toast alerts below the page header to prevent blocking header controls.
- */
-.pf-v6-c-alert-group.pf-m-toast {
-  inset-block-start: 132px;
-}
-
-/**
  * Fix z-index for NavItem flyout menus in docked vertical navigation.
  * Ensures the flyout menu appears above the main content panel.
  */

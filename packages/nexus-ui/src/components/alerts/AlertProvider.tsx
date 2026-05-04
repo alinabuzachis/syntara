@@ -1,8 +1,8 @@
 import { Alert, AlertActionCloseButton, AlertGroup } from '@patternfly/react-core'
 import { useId, useState, useCallback, useRef, useMemo, type ReactNode } from 'react'
 
-import { ALERT_WIDTH } from './alertConstants'
 import { AlertContext, type AlertConfig, type AlertMessage, type AlertVariant } from './AlertContext'
+import './AlertProvider.css'
 
 type AlertItem = {
   /** Stable key for React list + dismiss; optional consumer `config.id` or monotonic instance id */
@@ -21,18 +21,16 @@ function ToastAlertItem({ alert, onDismiss }: ToastAlertItemProps) {
   const alertDomId = `nexus-alert-${useId()}`
 
   return (
-    <div style={{ width: ALERT_WIDTH }}>
-      <Alert
-        id={alertDomId}
-        variant={alert.variant}
-        title={alert.title}
-        timeout={alert.autoDismiss ? (alert.timeout ?? DEFAULT_TIMEOUT) : undefined}
-        onTimeout={() => onDismiss(alert.instanceKey)}
-        actionClose={<AlertActionCloseButton onClose={() => onDismiss(alert.instanceKey)} />}
-      >
-        {alert.description}
-      </Alert>
-    </div>
+    <Alert
+      id={alertDomId}
+      variant={alert.variant}
+      title={alert.title}
+      timeout={alert.autoDismiss ? (alert.timeout ?? DEFAULT_TIMEOUT) : undefined}
+      onTimeout={() => onDismiss(alert.instanceKey)}
+      actionClose={<AlertActionCloseButton onClose={() => onDismiss(alert.instanceKey)} />}
+    >
+      {alert.description}
+    </Alert>
   )
 }
 
@@ -56,7 +54,7 @@ export function AlertProvider({ children }: { children: ReactNode }) {
       variant,
     }
 
-    setAlerts((prev) => [...prev, newAlert])
+    setAlerts((prev) => [newAlert, ...prev])
   }, [])
 
   const showSuccess = useCallback(

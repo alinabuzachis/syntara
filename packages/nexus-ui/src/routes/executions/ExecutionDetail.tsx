@@ -20,7 +20,6 @@ import { useLocation, useParams, useSearch } from 'wouter'
 import { AppPage, AppPageMain } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { executionsClient } from '../../client'
-import { ALERT_WIDTH } from '../../components/alerts/alertConstants'
 import { AppPanel } from '../../components/AppPanel'
 import { ConnectionBanner } from '../../components/ConnectionBanner'
 import { ResizableDivider } from '../../components/ResizableDivider'
@@ -41,6 +40,9 @@ import { useExecutionStore } from '../workflows/stores/useExecutionStore'
 import { ApprovalActionButtons } from './ApprovalActionButtons'
 import { ApprovalReviewView } from './ApprovalReviewView'
 import { useExecutionNodeClick } from './hooks/useExecutionNodeClick'
+
+/** Width constraint for the inline failure alert floating over the execution canvas. */
+const INLINE_ALERT_WIDTH = 'clamp(15rem, 20vw, 22rem)'
 
 type Execution = ExecutionsAPI.components['schemas']['Execution']
 type ActivityData = ExecutionsAPI.components['schemas']['ActivityData']
@@ -164,7 +166,7 @@ function ExecutionDetailContent({
               top: 'var(--pf-t--global--spacer--md)',
               right: 0,
               zIndex: 10,
-              width: ALERT_WIDTH,
+              width: INLINE_ALERT_WIDTH,
             }}
           >
             {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- event-stopping layer to prevent clicks from propagating to canvas below */}
