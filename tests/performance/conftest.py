@@ -251,6 +251,30 @@ def submit_execution(
         return elapsed_ms, False
 
 
+def check_health(
+    base_url: str,
+    *,
+    verify_ssl: bool = False,
+    timeout: float = 10.0,
+) -> tuple[float, bool]:
+    """Send a GET /health request and measure response time.
+
+    Returns (elapsed_ms, is_healthy).
+    """
+    start = time.monotonic()
+    try:
+        response = httpx.get(
+            f"{base_url}/health",
+            timeout=timeout,
+            verify=verify_ssl,
+        )
+        elapsed_ms = (time.monotonic() - start) * 1000
+        return elapsed_ms, response.status_code == 200
+    except Exception:
+        elapsed_ms = (time.monotonic() - start) * 1000
+        return elapsed_ms, False
+
+
 def scrape_prometheus_metric(
     base_url: str,
     metric_name: str,
