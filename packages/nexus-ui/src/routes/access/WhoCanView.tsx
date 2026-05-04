@@ -29,6 +29,7 @@ import type { ResourceActionMap } from './canIUtils'
 import { ResourceIdSelect } from './ResourceIdSelect'
 import { TypeaheadSelect } from './TypeaheadSelect'
 import type { WhoCanUser } from './types'
+import { useAllProjects } from './useAllProjects'
 
 const whoCanSchema = z.object({
   resourceType: z.string().min(1, 'Resource type is required'),
@@ -134,10 +135,7 @@ function WhoCanResults({
 }
 
 export function WhoCanView({ resourceTypes, actionsByResource }: Readonly<ResourceActionMap>) {
-  const projectsQuery = accessClient.useQuery('get', '/projects', {
-    params: { query: { limit: 100 } },
-  })
-  const projects = projectsQuery.data?.resources ?? []
+  const { projects } = useAllProjects()
 
   const { control, handleSubmit, watch, setValue, getValues } = useForm<WhoCanFormData>({
     resolver: zodResolver(whoCanSchema, undefined, { mode: 'sync' }),

@@ -7,6 +7,7 @@ import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../../../components/alerts'
 import { accessClient } from '../../access/accessClient'
+import { useAllGroups } from '../../access/useAllGroups'
 
 import { UserGroupsPanel } from './UserGroupsPanel'
 
@@ -23,6 +24,10 @@ vi.mock('../../access/accessClient', () => ({
   accessFetchClient: {
     POST: vi.fn().mockResolvedValue({ data: { allowed: false } }),
   },
+}))
+
+vi.mock('../../access/useAllGroups', () => ({
+  useAllGroups: vi.fn(),
 }))
 
 vi.mock('wouter', async () => {
@@ -66,6 +71,13 @@ const mockGroups = [
 
 describe('UserGroupsPanel', () => {
   beforeEach(() => {
+    vi.mocked(useAllGroups).mockReturnValue({
+      groups: [],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    })
+
     vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
       if (path === '/users/{user_id}/groups') {
         return {
@@ -77,7 +89,6 @@ describe('UserGroupsPanel', () => {
           refetch: vi.fn(),
         } as never
       }
-      // /groups query for all groups (used by AddToGroupModal and authenticated group logic)
       return {
         data: { resources: [] },
         isPending: false,
@@ -618,23 +629,19 @@ describe('UserGroupsPanel', () => {
     it('closes add to group modal when cancel is clicked', async () => {
       const user = userEvent.setup()
 
-      // Set up the all groups query to return available groups
+      vi.mocked(useAllGroups).mockReturnValue({
+        groups: [
+          { id: 'g3', name: 'testers', description: 'QA team', is_builtin: false, created_at: '', updated_at: '' },
+          ...mockGroups.map((g) => ({ ...g, is_builtin: false })),
+        ],
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      })
       vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
         if (path === '/users/{user_id}/groups') {
           return {
             data: { resources: mockGroups },
-            isPending: false,
-            isError: false,
-            error: null,
-            isFetching: false,
-            refetch: vi.fn(),
-          } as never
-        }
-        if (path === '/groups') {
-          return {
-            data: {
-              resources: [{ id: 'g3', name: 'testers', description: 'QA team' }, ...mockGroups],
-            },
             isPending: false,
             isError: false,
             error: null,
@@ -676,31 +683,25 @@ describe('UserGroupsPanel', () => {
 
   describe('Authenticated group augmentation', () => {
     it('adds authenticated group from allGroups when user groups do not include it', () => {
+      vi.mocked(useAllGroups).mockReturnValue({
+        groups: [
+          {
+            id: 'g-auth',
+            name: 'authenticated',
+            description: 'All authenticated users',
+            created_at: '2026-01-01T00:00:00Z',
+            updated_at: '2026-01-02T00:00:00Z',
+            is_builtin: true,
+          },
+        ],
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      })
       vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
         if (path === '/users/{user_id}/groups') {
           return {
-            data: { resources: [mockGroups[0]] }, // Only platform-admins, no authenticated
-            isPending: false,
-            isError: false,
-            error: null,
-            isFetching: false,
-            refetch: vi.fn(),
-          } as never
-        }
-        if (path === '/groups') {
-          return {
-            data: {
-              resources: [
-                {
-                  id: 'g-auth',
-                  name: 'authenticated',
-                  description: 'All authenticated users',
-                  created_at: '2026-01-01T00:00:00Z',
-                  updated_at: '2026-01-02T00:00:00Z',
-                  is_builtin: true,
-                },
-              ],
-            },
+            data: { resources: [mockGroups[0]] },
             isPending: false,
             isError: false,
             error: null,
@@ -732,6 +733,16 @@ describe('UserGroupsPanel', () => {
     const setupAddToGroupMocks = (mockAddMutate: ReturnType<typeof vi.fn>) => {
       const mockRefetch = vi.fn().mockResolvedValue({})
 
+      vi.mocked(useAllGroups).mockReturnValue({
+        groups: [
+          { id: 'g3', name: 'testers', description: 'QA', is_builtin: false, created_at: '', updated_at: '' },
+          ...mockGroups.map((g) => ({ ...g, is_builtin: false })),
+        ],
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
       vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
         if (path === '/users/{user_id}/groups') {
           return {
@@ -741,18 +752,6 @@ describe('UserGroupsPanel', () => {
             error: null,
             isFetching: false,
             refetch: mockRefetch,
-          } as never
-        }
-        if (path === '/groups') {
-          return {
-            data: {
-              resources: [{ id: 'g3', name: 'testers', description: 'QA' }, ...mockGroups],
-            },
-            isPending: false,
-            isError: false,
-            error: null,
-            isFetching: false,
-            refetch: vi.fn(),
           } as never
         }
         return {

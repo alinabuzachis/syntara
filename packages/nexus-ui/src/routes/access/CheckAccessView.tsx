@@ -29,6 +29,7 @@ import type { ResourceActionMap } from './canIUtils'
 import { ResourceIdSelect } from './ResourceIdSelect'
 import { TypeaheadSelect } from './TypeaheadSelect'
 import type { CanIResponse } from './types'
+import { useAllProjects } from './useAllProjects'
 
 const checkAccessSchema = z.object({
   resourceType: z.string().min(1, 'Resource type is required'),
@@ -112,10 +113,7 @@ function AccessResult({
 }
 
 export function CheckAccessView({ resourceTypes, actionsByResource }: Readonly<ResourceActionMap>) {
-  const projectsQuery = accessClient.useQuery('get', '/projects', {
-    params: { query: { limit: 100 } },
-  })
-  const projects = projectsQuery.data?.resources ?? []
+  const { projects } = useAllProjects()
 
   const { control, handleSubmit, watch, setValue, getValues } = useForm<CheckAccessFormData>({
     resolver: zodResolver(checkAccessSchema, undefined, { mode: 'sync' }),

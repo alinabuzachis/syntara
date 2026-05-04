@@ -12,10 +12,10 @@ import {
   TextInput,
 } from '@patternfly/react-core'
 import { PlusIcon, RhUiErrorIcon, RhUiTrashIcon } from '@patternfly/react-icons'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Controller, useFieldArray, useWatch, type Control, type UseFormSetValue } from 'react-hook-form'
 
-import { usersClient } from '../../../../client'
+import { useAllGroups } from '../../../access/useAllGroups'
 
 import {
   actionColumnStyle,
@@ -119,8 +119,7 @@ export function GroupMappingStep({ control, setValue, providerId }: Readonly<Gro
 
   const { fields, append, remove, replace } = useFieldArray({ control, name: 'groupMapping.entries' })
 
-  const groupsQuery = usersClient.useQuery('get', '/groups', { params: { query: { limit: 100 } } })
-  const nexusGroups = useMemo(() => groupsQuery.data?.resources ?? [], [groupsQuery.data?.resources])
+  const { groups: nexusGroups } = useAllGroups()
 
   const handleTestResult = useCallback(
     (claims: Record<string, unknown>) => {

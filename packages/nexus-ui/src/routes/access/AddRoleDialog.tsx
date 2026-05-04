@@ -25,6 +25,7 @@ import { addRoleSchema } from './addRoleSchema'
 import type { AddRoleFormData } from './addRoleSchema'
 import { PolicySelect } from './PolicySelect'
 import { TypeaheadSelect } from './TypeaheadSelect'
+import { useAllProjects } from './useAllProjects'
 
 type AddRoleDialogProps = {
   onClose: () => void
@@ -67,15 +68,11 @@ export function AddRoleDialog({ onClose, onSuccess }: Readonly<AddRoleDialogProp
     setValue('policies', [])
   }
 
-  const projectsQuery = accessClient.useQuery('get', '/projects', {
-    params: { query: { limit: 100 } },
-  })
+  const { projects: allProjects } = useAllProjects()
   const projectOptions = useMemo(
     () =>
-      (projectsQuery.data?.resources ?? [])
-        .filter((p): p is typeof p & { id: string } => !!p.id)
-        .map((p) => ({ value: p.id, label: p.name })),
-    [projectsQuery.data]
+      allProjects.filter((p): p is typeof p & { id: string } => !!p.id).map((p) => ({ value: p.id, label: p.name })),
+    [allProjects]
   )
 
   const { mutate: createRole, isPending } = accessClient.useMutation('post', '/roles')

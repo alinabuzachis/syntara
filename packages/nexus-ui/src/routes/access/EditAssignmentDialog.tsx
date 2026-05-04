@@ -19,6 +19,7 @@ import { accessClient } from './accessClient'
 import { assignNewThenDeleteOldWithRollback } from './editAssignmentMutations'
 import { TypeaheadSelect } from './TypeaheadSelect'
 import type { PermissionRow } from './types'
+import { useAllRoles } from './useAllRoles'
 
 type EditAssignmentDialogProps = {
   row: PermissionRow
@@ -37,14 +38,14 @@ export function EditAssignmentDialog({ row, displayName, onClose, onSuccess }: R
 
   const isProjectScoped = row.scopeType === 'project'
 
-  const rolesQuery = accessClient.useQuery('get', '/roles', { params: { query: { limit: 100 } } })
+  const { roles: allRoles } = useAllRoles()
 
   const roleOptions = useMemo(
     () =>
-      (rolesQuery.data?.resources ?? []).map((role) =>
+      allRoles.map((role) =>
         isProjectScoped ? { value: role.name, label: role.name } : { value: role.id, label: role.name }
       ),
-    [rolesQuery.data, isProjectScoped]
+    [allRoles, isProjectScoped]
   )
 
   const { handleSubmit, control, reset } = useForm<EditAssignmentFormData>({

@@ -7,6 +7,7 @@ import { type MockInstance, afterEach, describe, expect, it, vi, beforeEach } fr
 import { axe } from 'vitest-axe'
 
 import { usersClient } from '../../../../client'
+import { useAllGroups } from '../../../access/useAllGroups'
 
 import { GroupMappingStep } from './GroupMappingStep'
 import type { IdentityProviderFormData } from './identityProviderFormSchema'
@@ -19,6 +20,10 @@ vi.mock('../../../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
 }))
 
+vi.mock('../../../access/useAllGroups', () => ({
+  useAllGroups: vi.fn(),
+}))
+
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },
 })
@@ -27,6 +32,14 @@ const mockNexusGroups = [
   { id: 'g1', name: 'admin' },
   { id: 'g2', name: 'users' },
 ]
+
+const mockAllGroups = mockNexusGroups.map((g) => ({
+  ...g,
+  description: null,
+  is_builtin: false,
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z',
+}))
 
 function TestWrapper({
   providerId,
@@ -59,6 +72,13 @@ function TestWrapper({
 
 describe('GroupMappingStep', () => {
   beforeEach(() => {
+    vi.mocked(useAllGroups).mockReturnValue({
+      groups: mockAllGroups,
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    })
+
     vi.mocked(usersClient.useQuery).mockReturnValue({
       data: { resources: mockNexusGroups },
       isPending: false,

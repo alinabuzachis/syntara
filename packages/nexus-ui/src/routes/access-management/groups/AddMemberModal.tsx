@@ -17,6 +17,7 @@ import { useAlerts } from '../../../components/alerts'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { accessClient } from '../../access/accessClient'
 import { TypeaheadSelect } from '../../access/TypeaheadSelect'
+import { useAllUsers } from '../../access/useAllUsers'
 
 type AddMemberModalProps = {
   groupId: string
@@ -37,12 +38,9 @@ export function AddMemberModal({
   const [error, setError] = useState<string | null>(null)
   const { showAlert } = useAlerts()
 
-  const usersQuery = accessClient.useQuery('get', '/users', {
-    params: { query: { limit: 100, include_total: true } },
-  })
+  const { users: allUsers } = useAllUsers()
 
   const availableUsers = useMemo(() => {
-    const allUsers = usersQuery.data?.resources ?? []
     return allUsers
       .filter((u) => !existingMemberIds.includes(u.id))
       .map((u) => ({
@@ -50,7 +48,7 @@ export function AddMemberModal({
         label: u.username,
         description: u.full_name ?? undefined,
       }))
-  }, [usersQuery.data, existingMemberIds])
+  }, [allUsers, existingMemberIds])
 
   const { mutate: addMember, isPending } = accessClient.useMutation('post', '/groups/{group_id}/members')
 

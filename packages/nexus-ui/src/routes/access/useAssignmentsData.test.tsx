@@ -8,6 +8,7 @@ import { AlertProvider } from '../../components/alerts'
 
 import { accessClient } from './accessClient'
 import type { PermissionRow } from './types'
+import { useAllProjects } from './useAllProjects'
 import { useAssignmentsData } from './useAssignmentsData'
 
 vi.mock('./accessClient', () => ({
@@ -19,6 +20,10 @@ vi.mock('./accessClient', () => ({
 
 vi.mock('../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
+}))
+
+vi.mock('./useAllProjects', () => ({
+  useAllProjects: vi.fn(),
 }))
 
 // Reactive wouter mock: useLocation and useSearch share state so that
@@ -152,17 +157,13 @@ const mockMutationReturn = {
 
 function setupDefaultMocks() {
   const mockRefetch = vi.fn().mockResolvedValue({})
+  vi.mocked(useAllProjects).mockReturnValue({
+    projects: mockProjects,
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  })
   vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
-    if (path === '/projects') {
-      return {
-        data: { resources: mockProjects, next: null },
-        isPending: false,
-        isError: false,
-        error: null,
-        isFetching: false,
-        refetch: mockRefetch,
-      } as never
-    }
     if (path === '/role-assignments') {
       return {
         data: { resources: mockAllAssignments, total: mockAllAssignments.length, next: null },
@@ -193,6 +194,12 @@ describe('useAssignmentsData', () => {
     vi.clearAllMocks()
     queryClient.clear()
     mockUrl.current = '/access-management/assignments'
+    vi.mocked(useAllProjects).mockReturnValue({
+      projects: [],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    })
   })
 
   describe('buildPermissionRows', () => {
@@ -344,6 +351,12 @@ describe('useAssignmentsData', () => {
     })
 
     it('returns empty array when no projects exist', () => {
+      vi.mocked(useAllProjects).mockReturnValue({
+        projects: [],
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      })
       vi.mocked(accessClient.useQuery).mockReturnValue({
         data: undefined,
         isPending: false,

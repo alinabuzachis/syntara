@@ -7,6 +7,7 @@ import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../../../components/alerts'
 import { accessClient } from '../../access/accessClient'
+import { useAllUsers } from '../../access/useAllUsers'
 
 import { GroupMembersPanel } from './GroupMembersPanel'
 
@@ -23,6 +24,10 @@ vi.mock('../../access/accessClient', () => ({
   accessFetchClient: {
     POST: vi.fn().mockResolvedValue({ data: { allowed: false } }),
   },
+}))
+
+vi.mock('../../access/useAllUsers', () => ({
+  useAllUsers: vi.fn(),
 }))
 
 const queryClient = new QueryClient({
@@ -61,6 +66,13 @@ describe('GroupMembersPanel', () => {
   beforeEach(() => {
     // Reset URL search params so filter state from previous tests doesn't leak
     window.history.replaceState({}, '', window.location.pathname)
+
+    vi.mocked(useAllUsers).mockReturnValue({
+      users: [],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    })
 
     vi.mocked(accessClient.useQuery).mockReturnValue({
       data: { resources: mockMembers },

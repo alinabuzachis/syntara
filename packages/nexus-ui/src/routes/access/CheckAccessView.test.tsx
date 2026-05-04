@@ -8,18 +8,19 @@ import { axe } from 'vitest-axe'
 import { accessClient } from './accessClient'
 import type { ResourceActionMap } from './canIUtils'
 import { CheckAccessView } from './CheckAccessView'
+import { useAllProjects } from './useAllProjects'
 
 const { mockMutate } = vi.hoisted(() => ({
   mockMutate: vi.fn<(...args: unknown[]) => void>(),
 }))
 
+vi.mock('./useAllProjects', () => ({
+  useAllProjects: vi.fn(),
+}))
+
 vi.mock('./accessClient', () => ({
   accessClient: {
-    useQuery: vi.fn().mockReturnValue({
-      data: [{ id: 'proj-1', name: 'default' }],
-      isPending: false,
-      error: null,
-    }),
+    useQuery: vi.fn(),
     useMutation: vi.fn().mockReturnValue({
       mutate: mockMutate,
       mutateAsync: vi.fn(),
@@ -98,6 +99,22 @@ describe('CheckAccessView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     queryClient.clear()
+    vi.mocked(useAllProjects).mockReturnValue({
+      projects: [
+        {
+          id: 'proj-1',
+          name: 'default',
+          description: undefined,
+          labels: {},
+          is_default: false,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+        },
+      ],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    })
     // Reset to default idle state
     vi.mocked(accessClient.useMutation).mockReturnValue({
       mutate: mockMutate,

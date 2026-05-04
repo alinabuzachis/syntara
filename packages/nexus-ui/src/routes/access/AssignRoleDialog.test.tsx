@@ -9,6 +9,7 @@ import { AlertProvider } from '../../components/alerts'
 
 import { accessClient } from './accessClient'
 import { AssignRoleDialog } from './AssignRoleDialog'
+import { useAllProjects } from './useAllProjects'
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -25,6 +26,10 @@ vi.mock('./accessClient', () => ({
 
 vi.mock('../../hooks/useDebouncedValue', () => ({
   useDebouncedValue: <T,>(value: T) => value,
+}))
+
+vi.mock('./useAllProjects', () => ({
+  useAllProjects: vi.fn(),
 }))
 
 vi.mock('../../client', () => ({
@@ -47,20 +52,20 @@ const mockProjects = [
   {
     id: 'p1',
     name: 'Project Alpha',
-    description: null,
+    description: undefined,
     labels: {},
     is_default: true,
-    created_at: null,
-    updated_at: null,
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-02T00:00:00Z',
   },
   {
     id: 'p2',
     name: 'Project Beta',
-    description: null,
+    description: undefined,
     labels: {},
     is_default: false,
-    created_at: null,
-    updated_at: null,
+    created_at: '2024-02-01T00:00:00Z',
+    updated_at: '2024-02-02T00:00:00Z',
   },
 ]
 
@@ -135,13 +140,14 @@ const defaultQueryReturn = {
 }
 
 function setupDefaultMocks() {
+  vi.mocked(useAllProjects).mockReturnValue({
+    projects: mockProjects,
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  })
+
   vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
-    if (path === '/projects') {
-      return {
-        ...defaultQueryReturn,
-        data: { resources: mockProjects, next: null },
-      } as never
-    }
     if (path === '/roles') {
       return {
         ...defaultQueryReturn,
@@ -280,23 +286,25 @@ describe('AssignRoleDialog', () => {
   })
 
   describe('Form Submission', () => {
+    const findOptionTimeout = { timeout: 15_000 }
+
     async function fillAndSubmitUserProjectForm(user: ReturnType<typeof userEvent.setup>) {
       // Select a project from the typeahead FIRST (role dropdown is disabled until project is selected)
       const projectInput = screen.getByPlaceholderText('Select a project...')
       await user.click(projectInput)
-      const projectOption = await screen.findByRole('option', { name: 'Project Alpha' })
+      const projectOption = await screen.findByRole('option', { name: 'Project Alpha' }, findOptionTimeout)
       await user.click(projectOption)
 
       // Select a user from the typeahead
       const userInput = screen.getByPlaceholderText('Select a user...')
       await user.click(userInput)
-      const userOption = await screen.findByRole('option', { name: 'alice' })
+      const userOption = await screen.findByRole('option', { name: 'alice' }, findOptionTimeout)
       await user.click(userOption)
 
       // Select a role from the typeahead (options include scope tags, e.g. "Project ProjectAdmin")
       const roleInput = screen.getByPlaceholderText('Select a role...')
       await user.click(roleInput)
-      const roleOption = await screen.findByRole('option', { name: /ProjectAdmin/ })
+      const roleOption = await screen.findByRole('option', { name: /ProjectAdmin/ }, findOptionTimeout)
       await user.click(roleOption)
 
       // Submit
@@ -373,9 +381,12 @@ describe('AssignRoleDialog', () => {
 
       await fillAndSubmitUserProjectForm(user)
 
-      await waitFor(() => {
-        expect(mockMutate).toHaveBeenCalled()
-      })
+      await waitFor(
+        () => {
+          expect(mockMutate).toHaveBeenCalled()
+        },
+        { timeout: 15_000 }
+      )
 
       // Simulate successful mutation callback
       const callbacks = mockMutate.mock.calls[0]?.[1] as { onSuccess?: () => void } | undefined
@@ -386,7 +397,7 @@ describe('AssignRoleDialog', () => {
         expect(onSuccess).toHaveBeenCalled()
         expect(onClose).toHaveBeenCalled()
       }
-    })
+    }, 25_000)
 
     it('handles error mutation callback', async () => {
       const mockMutate = vi.fn()

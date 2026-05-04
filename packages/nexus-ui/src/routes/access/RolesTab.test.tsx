@@ -22,6 +22,13 @@ vi.mock('./accessClient', () => ({
   },
 }))
 
+vi.mock('./useProjectNameMap', () => ({
+  useProjectNameMap: () => ({
+    projectNameMap: new Map<string, string>(),
+    isLoading: false,
+  }),
+}))
+
 vi.mock('../../components/states/useQueryState', () => ({
   useQueryState: vi.fn(),
 }))

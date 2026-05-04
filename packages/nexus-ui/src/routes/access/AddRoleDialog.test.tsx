@@ -9,6 +9,7 @@ import { AlertProvider } from '../../components/alerts'
 
 import { accessClient } from './accessClient'
 import { AddRoleDialog } from './AddRoleDialog'
+import { useAllProjects } from './useAllProjects'
 
 vi.mock('./accessClient', () => ({
   accessClient: {
@@ -18,6 +19,10 @@ vi.mock('./accessClient', () => ({
   accessFetchClient: {
     GET: vi.fn().mockResolvedValue({ data: [], error: null }),
   },
+}))
+
+vi.mock('./useAllProjects', () => ({
+  useAllProjects: vi.fn(),
 }))
 
 const queryClient = new QueryClient({
@@ -38,39 +43,34 @@ describe('AddRoleDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks()
 
-    // Mock queries — handle both /projects and /policies endpoints
-    vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
-      if (path === '/projects') {
-        return {
-          data: [
-            {
-              id: 'proj-1',
-              name: 'Project Alpha',
-              description: null,
-              labels: {},
-              is_default: true,
-              created_at: null,
-              updated_at: null,
-            },
-            {
-              id: 'proj-2',
-              name: 'Project Beta',
-              description: null,
-              labels: {},
-              is_default: false,
-              created_at: null,
-              updated_at: null,
-            },
-          ],
-          isPending: false,
-          isError: false,
-          error: null,
-          isFetching: false,
-          isLoading: false,
-          refetch: vi.fn(),
-        } as never
-      }
-      // /policies
+    vi.mocked(useAllProjects).mockReturnValue({
+      projects: [
+        {
+          id: 'proj-1',
+          name: 'Project Alpha',
+          description: undefined,
+          labels: {},
+          is_default: true,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-02T00:00:00Z',
+        },
+        {
+          id: 'proj-2',
+          name: 'Project Beta',
+          description: undefined,
+          labels: {},
+          is_default: false,
+          created_at: '2024-03-01T00:00:00Z',
+          updated_at: '2024-03-02T00:00:00Z',
+        },
+      ],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    })
+
+    vi.mocked(accessClient.useQuery).mockImplementation(() => {
+      // PolicySelect — /policies
       return {
         data: {
           resources: [

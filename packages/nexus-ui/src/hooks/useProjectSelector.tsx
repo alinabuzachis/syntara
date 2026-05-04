@@ -54,6 +54,7 @@ export function useProjectSelector(options?: UseProjectSelectorOptions): UseProj
     debouncedFilter,
     updateFilter,
     resetPagination,
+    clearTypeaheadOnly,
     hasMore,
     isLoadingMore,
     isInitialPage,
@@ -81,29 +82,42 @@ export function useProjectSelector(options?: UseProjectSelectorOptions): UseProj
   const noResults = projects.length === 0 && !!debouncedFilter && !projectsQuery.isPending
 
   const handleSelect = useCallback(
-    (_event: React.MouseEvent | undefined, value: string | number | undefined) => {
+    (event: React.MouseEvent | undefined, value: string | number | undefined) => {
       if (value === CREATE_PROJECT_VALUE) {
         setIsOpen(false)
         setCreateDialogOpen(true)
         return
       }
-      if (value === VIEW_MORE_VALUE) return
+      if (value === VIEW_MORE_VALUE) {
+        event?.preventDefault()
+        event?.stopPropagation()
+        return
+      }
       const projectId = typeof value === 'string' ? value : null
-      setSelectedProjectId(projectId === ALL_PROJECTS_VALUE ? null : projectId)
+      if (projectId === ALL_PROJECTS_VALUE) {
+        setSelectedProjectId(null)
+        setIsOpen(false)
+        resetPagination()
+        return
+      }
+      setSelectedProjectId(projectId)
       setIsOpen(false)
-      resetPagination()
+      // Avoid resetPagination() here: it clears extraPages so page-2-only IDs vanish from `projects`
+      // and the stale-selection effect clears the store. With no active filter, only clear typeahead text.
+      if (debouncedFilter) {
+        updateFilter('')
+      } else {
+        clearTypeaheadOnly()
+      }
     },
-    [setSelectedProjectId, resetPagination]
+    [setSelectedProjectId, resetPagination, debouncedFilter, updateFilter, clearTypeaheadOnly]
   )
 
   const ProjectSelector = (
     <>
       <Select
         isOpen={isOpen}
-        onOpenChange={(open) => {
-          setIsOpen(open)
-          if (!open) resetPagination()
-        }}
+        onOpenChange={setIsOpen}
         popperProps={{ maxWidth: PROJECT_SELECTOR_MAX_WIDTH }}
         onSelect={handleSelect}
         selected={selectedProjectId ?? (requireProject ? undefined : ALL_PROJECTS_VALUE)}

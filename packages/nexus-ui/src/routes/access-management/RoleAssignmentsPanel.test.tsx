@@ -24,7 +24,16 @@ vi.mock('../../client', () => ({
 }))
 
 vi.mock('../access/useAllRoles', () => ({
-  useAllRoles: vi.fn().mockReturnValue({ roles: [], isLoading: false, error: null }),
+  useAllRoles: vi.fn().mockReturnValue({ roles: [], isLoading: false, error: null, refetch: vi.fn() }),
+}))
+
+vi.mock('../access/useAllProjects', () => ({
+  useAllProjects: vi.fn().mockReturnValue({
+    projects: [],
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
 }))
 
 const mockDeleteSystemAssignment = vi.fn()

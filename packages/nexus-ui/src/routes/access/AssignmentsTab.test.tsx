@@ -414,15 +414,12 @@ describe('AssignmentsTab', () => {
       const deleteOption = await screen.findByRole('menuitem', { name: /Delete assignment/i })
       await user.click(deleteOption)
 
-      await waitFor(() => {
-        expect(screen.getByText('Remove assignment?')).toBeInTheDocument()
-      })
+      const dialog = await screen.findByRole('dialog', { name: /Remove assignment/i })
 
-      const cancelButton = screen.getByRole('button', { name: 'Cancel' })
-      await user.click(cancelButton)
+      await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
 
       await waitFor(() => {
-        expect(screen.queryByText('Remove assignment?')).not.toBeInTheDocument()
+        expect(screen.queryByRole('dialog', { name: /Remove assignment/i })).not.toBeInTheDocument()
       })
     })
   })

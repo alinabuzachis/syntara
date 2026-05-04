@@ -2,9 +2,10 @@ import { Alert, AlertActionCloseButton, Button, Flex, FlexItem, Title } from '@p
 import { RhUiSyncIcon } from '@patternfly/react-icons'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { identityProvidersClient, usersClient } from '../../../../client'
+import { identityProvidersClient } from '../../../../client'
 import { useAlerts } from '../../../../components/alerts'
 import { useMutationErrorHandler } from '../../../../hooks/useMutationErrorHandler'
+import { useAllGroups } from '../../../access/useAllGroups'
 import { GroupFormModal } from '../../GroupFormModal'
 
 import {
@@ -100,14 +101,10 @@ export function GroupMappingTab({
     '/identity_providers/{provider_id}'
   )
 
-  const groupsQuery = usersClient.useQuery('get', '/groups', { params: { query: { limit: 100 } } })
-  const nexusGroups = useMemo(
-    () => (groupsQuery.data?.resources ?? []).filter((g) => g.name !== 'authenticated'),
-    [groupsQuery.data?.resources]
-  )
+  const { groups: allGroupsRaw, refetch: refetchGroups } = useAllGroups()
+  const nexusGroups = useMemo(() => allGroupsRaw.filter((g) => g.name !== 'authenticated'), [allGroupsRaw])
 
   const [createGroupForIndex, setCreateGroupForIndex] = useState<number | null>(null)
-  const refetchGroups = groupsQuery.refetch
 
   const handleTestResult = useCallback(
     (claims: Record<string, unknown>) => {
@@ -179,7 +176,7 @@ export function GroupMappingTab({
   const handleGroupCreated = useCallback(async () => {
     try {
       const result = await refetchGroups()
-      const newGroups = result.data?.resources ?? []
+      const newGroups = result.data ?? []
       const index = createGroupForIndex
       const entry = index !== null ? entries[index] : undefined
       if (entry && index !== null && newGroups.length > 0) {

@@ -7,6 +7,7 @@ import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../../../components/alerts'
 import { accessClient } from '../../access/accessClient'
+import { useAllProjectRoles } from '../../access/useAllProjectRoles'
 
 import { AssignProjectRoleModal } from './AssignProjectRoleModal'
 
@@ -23,6 +24,10 @@ vi.mock('../../../client', () => ({
 
 vi.mock('../../../hooks/useDebouncedValue', () => ({
   useDebouncedValue: <T,>(value: T) => value,
+}))
+
+vi.mock('../../access/useAllProjectRoles', () => ({
+  useAllProjectRoles: vi.fn(),
 }))
 
 const mockMutate = vi.fn()
@@ -56,10 +61,54 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 )
 
 const mockRoles = [
-  { id: 'r1', name: 'project-admin', description: 'Project Admin', project_id: null, is_builtin: true, policies: [] },
-  { id: 'r2', name: 'project-user', description: 'Project User', project_id: null, is_builtin: true, policies: [] },
-  { id: 'r3', name: 'admin', description: 'Admin', project_id: null, is_builtin: true, policies: [] },
-  { id: 'r4', name: 'custom-role', description: 'Custom', project_id: null, is_builtin: false, policies: [] },
+  {
+    id: 'r1',
+    name: 'project-admin',
+    description: 'Project Admin',
+    project_id: null,
+    is_builtin: true,
+    is_system_scoped: false,
+    policies: [],
+    labels: {},
+    created_at: null,
+    updated_at: null,
+  },
+  {
+    id: 'r2',
+    name: 'project-user',
+    description: 'Project User',
+    project_id: null,
+    is_builtin: true,
+    is_system_scoped: false,
+    policies: [],
+    labels: {},
+    created_at: null,
+    updated_at: null,
+  },
+  {
+    id: 'r3',
+    name: 'admin',
+    description: 'Admin',
+    project_id: null,
+    is_builtin: true,
+    is_system_scoped: false,
+    policies: [],
+    labels: {},
+    created_at: null,
+    updated_at: null,
+  },
+  {
+    id: 'r4',
+    name: 'custom-role',
+    description: 'Custom',
+    project_id: null,
+    is_builtin: false,
+    is_system_scoped: false,
+    policies: [],
+    labels: {},
+    created_at: null,
+    updated_at: null,
+  },
 ]
 
 const mockUsers = [
@@ -73,6 +122,12 @@ describe('AssignProjectRoleModal', () => {
   const emptyAssignedRoles = new Map<string, Set<string>>()
 
   function setupMocks() {
+    vi.mocked(useAllProjectRoles).mockReturnValue({
+      roles: mockRoles,
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    })
     vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
       if (path === '/users') {
         return {
@@ -86,7 +141,7 @@ describe('AssignProjectRoleModal', () => {
         } as never
       }
       return {
-        data: { resources: mockRoles, next: null },
+        data: undefined,
         isPending: false,
         isLoading: false,
         isError: false,

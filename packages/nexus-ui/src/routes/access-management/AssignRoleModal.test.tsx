@@ -7,6 +7,7 @@ import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../../components/alerts'
 import { accessClient } from '../access/accessClient'
+import { useAllProjects } from '../access/useAllProjects'
 
 import { AssignRoleModal } from './AssignRoleModal'
 
@@ -23,6 +24,10 @@ vi.mock('../../client', () => ({
 
 vi.mock('../../hooks/useDebouncedValue', () => ({
   useDebouncedValue: <T,>(value: T) => value,
+}))
+
+vi.mock('../access/useAllProjects', () => ({
+  useAllProjects: vi.fn(),
 }))
 
 const mockMutateAsync = vi.fn()
@@ -78,20 +83,20 @@ const mockProjects = [
   {
     id: 'proj1',
     name: 'Project Alpha',
-    description: null,
+    description: undefined,
     labels: {},
     is_default: false,
-    created_at: null,
-    updated_at: null,
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-02T00:00:00Z',
   },
   {
     id: 'proj2',
     name: 'Project Beta',
-    description: null,
+    description: undefined,
     labels: {},
     is_default: false,
-    created_at: null,
-    updated_at: null,
+    created_at: '2024-02-01T00:00:00Z',
+    updated_at: '2024-02-02T00:00:00Z',
   },
 ]
 
@@ -100,18 +105,14 @@ describe('AssignRoleModal', () => {
   const mockOnSuccess = vi.fn()
 
   function setupMocks() {
+    vi.mocked(useAllProjects).mockReturnValue({
+      projects: mockProjects,
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    })
     vi.mocked(accessClient.useQuery).mockImplementation(
       (_method: string, path: string, options?: { params?: { query?: { scope?: string; is_builtin?: boolean } } }) => {
-        if (path === '/projects') {
-          return {
-            data: { resources: mockProjects, next: null },
-            isPending: false,
-            isError: false,
-            error: null,
-            isFetching: false,
-            refetch: vi.fn(),
-          } as never
-        }
         if (path === '/roles') {
           const query = options?.params?.query
           let roles = systemRoles

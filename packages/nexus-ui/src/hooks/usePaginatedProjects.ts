@@ -26,6 +26,11 @@ export function usePaginatedProjects() {
     setExtraPages([])
   }
 
+  /** Clears typeahead text only; keeps cursor/extra pages so selections from later pages stay valid. */
+  const clearTypeaheadOnly = useCallback(() => {
+    setFilterValue('')
+  }, [])
+
   const query = accessClient.useQuery('get', '/projects', {
     params: {
       query: {
@@ -67,6 +72,7 @@ export function usePaginatedProjects() {
     debouncedFilter,
     updateFilter,
     resetPagination,
+    clearTypeaheadOnly,
     hasMore,
     isLoadingMore,
     isInitialPage,

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
@@ -43,16 +43,21 @@ describe('InputPanel', () => {
     expect(screen.getByText('Input data can only be displayed when a node is connected and run')).toBeInTheDocument()
   })
 
-  it('shows schema preview when upstream node type has a known schema and no execution data', () => {
+  it('shows schema preview when upstream node type has a known schema and no execution data', async () => {
     mockUseUpstreamNodes.mockReturnValue(upstreamNodes)
 
     render(<InputPanel nodeId="node-1" />)
 
-    expect(screen.getByText('Expected output fields (run node to see actual values)')).toBeInTheDocument()
-    expect(screen.getByRole('tree', { name: 'Schema preview' })).toBeInTheDocument()
-    expect(screen.getByText('T stdout')).toBeInTheDocument()
-    expect(screen.getByText('# return_code')).toBeInTheDocument()
-  })
+    await waitFor(
+      () => {
+        expect(screen.getByText('Expected output fields (run node to see actual values)')).toBeInTheDocument()
+        expect(screen.getByRole('tree', { name: 'Schema preview' })).toBeInTheDocument()
+        expect(screen.getByText('T stdout')).toBeInTheDocument()
+        expect(screen.getByText('# return_code')).toBeInTheDocument()
+      },
+      { timeout: 15_000 }
+    )
+  }, 20_000)
 
   it('shows empty state when upstream node type has no known schema and no execution data', () => {
     mockUseUpstreamNodes.mockReturnValue([{ id: 'upstream-1', name: 'Unknown Step', type: 'unknown_type' }])

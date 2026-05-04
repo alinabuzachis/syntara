@@ -8,6 +8,7 @@ import { axe } from 'vitest-axe'
 import { AlertProvider } from '../../components/alerts'
 import { accessClient } from '../access/accessClient'
 import type { ProjectRead } from '../access/types'
+import { useAllProjects } from '../access/useAllProjects'
 
 import { ProjectsTab } from './ProjectsTab'
 
@@ -17,9 +18,12 @@ vi.mock('../../client', () => ({
 
 vi.mock('../access/accessClient', () => ({
   accessClient: {
-    useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
+}))
+
+vi.mock('../access/useAllProjects', () => ({
+  useAllProjects: vi.fn(),
 }))
 
 vi.mock('wouter/use-browser-location', () => ({
@@ -79,14 +83,12 @@ describe('ProjectsTab', () => {
   beforeEach(() => {
     vi.clearAllMocks()
 
-    vi.mocked(accessClient.useQuery).mockReturnValue({
-      data: { resources: mockProjects, next: null },
-      isPending: false,
-      isError: false,
+    vi.mocked(useAllProjects).mockReturnValue({
+      projects: mockProjects,
+      isLoading: false,
       error: null,
-      isFetching: false,
       refetch: vi.fn(),
-    } as never)
+    })
 
     vi.mocked(accessClient.useMutation).mockReturnValue({
       mutate: vi.fn(),
@@ -150,14 +152,12 @@ describe('ProjectsTab', () => {
 
   describe('Empty State', () => {
     it('displays empty state when no projects exist', () => {
-      vi.mocked(accessClient.useQuery).mockReturnValue({
-        data: { resources: [], next: null },
-        isPending: false,
-        isError: false,
+      vi.mocked(useAllProjects).mockReturnValue({
+        projects: [],
+        isLoading: false,
         error: null,
-        isFetching: false,
         refetch: vi.fn(),
-      } as never)
+      })
 
       render(<ProjectsTab />, { wrapper })
 
@@ -169,14 +169,12 @@ describe('ProjectsTab', () => {
     it('opens create modal from empty state button', async () => {
       const user = userEvent.setup()
 
-      vi.mocked(accessClient.useQuery).mockReturnValue({
-        data: { resources: [], next: null },
-        isPending: false,
-        isError: false,
+      vi.mocked(useAllProjects).mockReturnValue({
+        projects: [],
+        isLoading: false,
         error: null,
-        isFetching: false,
         refetch: vi.fn(),
-      } as never)
+      })
 
       render(<ProjectsTab />, { wrapper })
 
@@ -190,12 +188,12 @@ describe('ProjectsTab', () => {
 
   describe('Error Handling', () => {
     it('displays loading state', () => {
-      vi.mocked(accessClient.useQuery).mockReturnValue({
-        data: null,
-        isPending: true,
-        isError: false,
+      vi.mocked(useAllProjects).mockReturnValue({
+        projects: [],
+        isLoading: true,
         error: null,
-      } as never)
+        refetch: vi.fn(),
+      })
 
       render(<ProjectsTab />, { wrapper })
 
@@ -203,12 +201,12 @@ describe('ProjectsTab', () => {
     })
 
     it('displays error state', () => {
-      vi.mocked(accessClient.useQuery).mockReturnValue({
-        data: null,
-        isPending: false,
-        isError: true,
+      vi.mocked(useAllProjects).mockReturnValue({
+        projects: [],
+        isLoading: false,
         error: new Error('Failed to load'),
-      } as never)
+        refetch: vi.fn(),
+      })
 
       render(<ProjectsTab />, { wrapper })
 
@@ -324,14 +322,12 @@ describe('ProjectsTab', () => {
       const mockDeleteMutate = vi.fn()
       const mockRefetch = vi.fn()
 
-      vi.mocked(accessClient.useQuery).mockReturnValue({
-        data: { resources: mockProjects, next: null },
-        isPending: false,
-        isError: false,
+      vi.mocked(useAllProjects).mockReturnValue({
+        projects: mockProjects,
+        isLoading: false,
         error: null,
-        isFetching: false,
         refetch: mockRefetch,
-      } as never)
+      })
 
       vi.mocked(accessClient.useMutation).mockReturnValue({
         mutate: mockDeleteMutate,
@@ -358,14 +354,12 @@ describe('ProjectsTab', () => {
       const mockDeleteMutate = vi.fn()
       const mockRefetch = vi.fn().mockResolvedValue({})
 
-      vi.mocked(accessClient.useQuery).mockReturnValue({
-        data: { resources: mockProjects, next: null },
-        isPending: false,
-        isError: false,
+      vi.mocked(useAllProjects).mockReturnValue({
+        projects: mockProjects,
+        isLoading: false,
         error: null,
-        isFetching: false,
         refetch: mockRefetch,
-      } as never)
+      })
 
       vi.mocked(accessClient.useMutation).mockReturnValue({
         mutate: mockDeleteMutate,
@@ -493,14 +487,12 @@ describe('ProjectsTab', () => {
 
     it('refetches after successful create from empty state', async () => {
       const mockRefetch = vi.fn().mockResolvedValue({})
-      vi.mocked(accessClient.useQuery).mockReturnValue({
-        data: { resources: [], next: null },
-        isPending: false,
-        isError: false,
+      vi.mocked(useAllProjects).mockReturnValue({
+        projects: [],
+        isLoading: false,
         error: null,
-        isFetching: false,
         refetch: mockRefetch,
-      } as never)
+      })
 
       const mockCreateMutate = vi.fn()
       vi.mocked(accessClient.useMutation).mockReturnValue({
@@ -535,14 +527,12 @@ describe('ProjectsTab', () => {
 
     it('refetches after successful create from table view', async () => {
       const mockRefetch = vi.fn().mockResolvedValue({})
-      vi.mocked(accessClient.useQuery).mockReturnValue({
-        data: { resources: mockProjects, next: null },
-        isPending: false,
-        isError: false,
+      vi.mocked(useAllProjects).mockReturnValue({
+        projects: mockProjects,
+        isLoading: false,
         error: null,
-        isFetching: false,
         refetch: mockRefetch,
-      } as never)
+      })
 
       const mockCreateMutate = vi.fn()
       vi.mocked(accessClient.useMutation).mockReturnValue({
@@ -595,14 +585,12 @@ describe('ProjectsTab', () => {
         updated_at: '2024-01-01T00:00:00Z',
       }))
 
-      vi.mocked(accessClient.useQuery).mockReturnValue({
-        data: { resources: manyProjects, next: null },
-        isPending: false,
-        isError: false,
+      vi.mocked(useAllProjects).mockReturnValue({
+        projects: manyProjects,
+        isLoading: false,
         error: null,
-        isFetching: false,
         refetch: vi.fn(),
-      } as never)
+      })
 
       const user = userEvent.setup()
       render(<ProjectsTab />, { wrapper })
@@ -627,14 +615,12 @@ describe('ProjectsTab', () => {
         updated_at: '2024-01-01T00:00:00Z',
       }))
 
-      vi.mocked(accessClient.useQuery).mockReturnValue({
-        data: { resources: manyProjects, next: null },
-        isPending: false,
-        isError: false,
+      vi.mocked(useAllProjects).mockReturnValue({
+        projects: manyProjects,
+        isLoading: false,
         error: null,
-        isFetching: false,
         refetch: vi.fn(),
-      } as never)
+      })
 
       const user = userEvent.setup()
       render(<ProjectsTab />, { wrapper })
@@ -662,14 +648,12 @@ describe('ProjectsTab', () => {
     })
 
     it('has no accessibility violations in empty state', async () => {
-      vi.mocked(accessClient.useQuery).mockReturnValue({
-        data: { resources: [], next: null },
-        isPending: false,
-        isError: false,
+      vi.mocked(useAllProjects).mockReturnValue({
+        projects: [],
+        isLoading: false,
         error: null,
-        isFetching: false,
         refetch: vi.fn(),
-      } as never)
+      })
 
       const { container } = render(<ProjectsTab />, { wrapper })
 

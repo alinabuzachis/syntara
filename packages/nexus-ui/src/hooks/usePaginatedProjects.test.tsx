@@ -118,6 +118,23 @@ describe('usePaginatedProjects', () => {
     })
   })
 
+  describe('clearTypeaheadOnly', () => {
+    it('clears filter text without collapsing merged pages', () => {
+      const { result, rerender } = renderHook(() => usePaginatedProjects(), { wrapper })
+
+      act(() => result.current.loadMore())
+      mockQueryData = { resources: page2, next: null, prev: 'cursor-1', total: 4 }
+      rerender()
+
+      expect(result.current.projects).toHaveLength(4)
+
+      act(() => result.current.clearTypeaheadOnly())
+
+      expect(result.current.filterValue).toBe('')
+      expect(result.current.projects).toHaveLength(4)
+    })
+  })
+
   describe('loadMore', () => {
     it('accumulates projects from previous pages', () => {
       const { result, rerender } = renderHook(() => usePaginatedProjects(), { wrapper })

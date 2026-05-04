@@ -21,6 +21,7 @@ import { accessClient } from './accessClient'
 import { assignRoleSchema } from './assignRoleSchema'
 import type { AssignRoleFormData } from './assignRoleSchema'
 import { TypeaheadSelect } from './TypeaheadSelect'
+import { useAllProjects } from './useAllProjects'
 
 const PAGE_SIZE = 20
 
@@ -36,6 +37,7 @@ type AssignRoleFormBodyProps = {
   groupOptions: { value: string; label: string }[]
   roleOptions: { value: string; label: string }[]
   roleDisabled: boolean
+  isProjectsLoading: boolean
   onUserSearchChange: (term: string) => void
   hasMoreUsers: boolean
   isUsersLoading: boolean
@@ -57,6 +59,7 @@ function AssignRoleFormBody({
   groupOptions,
   roleOptions,
   roleDisabled,
+  isProjectsLoading,
   onUserSearchChange,
   hasMoreUsers,
   isUsersLoading,
@@ -119,6 +122,7 @@ function AssignRoleFormBody({
                 onChange={field.onChange}
                 placeholder="Select a project..."
                 hasError={!!errors.projectId}
+                isLoading={isProjectsLoading}
               />
             )}
           />
@@ -243,15 +247,11 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
     setValue('groupId', '')
   }, [principalType, setValue])
 
-  const projectsQuery = accessClient.useQuery('get', '/projects', {
-    params: { query: { limit: 100 } },
-  })
+  const { projects: allProjects, isLoading: isProjectsLoading } = useAllProjects()
   const projectOptions = useMemo(
     () =>
-      (projectsQuery.data?.resources ?? [])
-        .filter((p): p is typeof p & { id: string } => !!p.id)
-        .map((p) => ({ value: p.id, label: p.name })),
-    [projectsQuery.data]
+      allProjects.filter((p): p is typeof p & { id: string } => !!p.id).map((p) => ({ value: p.id, label: p.name })),
+    [allProjects]
   )
 
   const [userSearchTerm, setUserSearchTerm] = useState('')
@@ -356,6 +356,7 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
             groupOptions={groupOptions}
             roleOptions={roleOptions}
             roleDisabled={isProjectScoped && !selectedProjectId}
+            isProjectsLoading={isProjectsLoading}
             onUserSearchChange={setUserSearchTerm}
             hasMoreUsers={!!usersQuery.data?.next}
             isUsersLoading={usersQuery.isFetching}

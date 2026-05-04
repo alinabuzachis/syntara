@@ -8,6 +8,7 @@ import { getErrorMessage } from '../../utils/apiErrors'
 
 import { accessClient } from './accessClient'
 import type { PermissionRow, RoleAssignmentRead } from './types'
+import { useAllProjects } from './useAllProjects'
 
 function buildPermissionRows(assignments: RoleAssignmentRead[]): PermissionRow[] {
   return assignments.map((a) => {
@@ -97,10 +98,8 @@ export function useAssignmentsData() {
     setAllFilters(newFilters)
   }
 
-  const projectsQuery = accessClient.useQuery('get', '/projects', {
-    params: { query: { limit: 100 } },
-  })
-  const projects = useMemo(() => projectsQuery.data?.resources ?? [], [projectsQuery.data])
+  const { projects: allProjectsList } = useAllProjects()
+  const projects = useMemo(() => allProjectsList, [allProjectsList])
   const projectNameMap = useMemo(
     () => new Map(projects.filter((p): p is typeof p & { id: string } => !!p.id).map((p) => [p.id, p.name])),
     [projects]

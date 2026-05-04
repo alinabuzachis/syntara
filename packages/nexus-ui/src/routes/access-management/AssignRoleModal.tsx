@@ -20,6 +20,7 @@ import { useAlerts } from '../../components/alerts'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { accessClient } from '../access/accessClient'
+import { useAllProjects } from '../access/useAllProjects'
 
 import { MultiRoleSelect, type RoleOption } from './MultiRoleSelect'
 
@@ -123,9 +124,7 @@ export function AssignRoleModal({
     }
   }, [isOpen, reset])
 
-  const projectsQuery = accessClient.useQuery('get', '/projects', {
-    params: { query: { limit: 100 } },
-  })
+  const { projects: allProjects } = useAllProjects()
 
   // ── Server-side role search ──────────────────────────────────────────────
   const [roleSearch, setRoleSearch] = useState('')
@@ -154,10 +153,10 @@ export function AssignRoleModal({
   }
 
   const projectOptions = useMemo(() => {
-    return (projectsQuery.data?.resources ?? [])
+    return allProjects
       .filter((p): p is typeof p & { id: string } => !!p.id)
       .map((p) => ({ value: p.id, label: p.name }))
-  }, [projectsQuery.data])
+  }, [allProjects])
 
   const { mutateAsync: createRoleAssignment } = accessClient.useMutation('post', '/role-assignments')
   const { mutateAsync: createProjectRoleAssignment } = accessClient.useMutation(

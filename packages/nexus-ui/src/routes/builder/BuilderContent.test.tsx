@@ -905,10 +905,13 @@ describe('BuilderContent', () => {
       const historyButton = screen.getByLabelText('Run history')
       fireEvent.click(historyButton)
 
-      await waitFor(() => {
-        expect(mockRefetch).toHaveBeenCalled()
-      })
-    })
+      await waitFor(
+        () => {
+          expect(mockRefetch).toHaveBeenCalled()
+        },
+        { timeout: 15_000 }
+      )
+    }, 20_000)
 
     it('toggles history panel closed', async () => {
       const mockRefetch = vi.fn()

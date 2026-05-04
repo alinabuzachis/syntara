@@ -10,6 +10,7 @@ import { AlertProvider } from '../../components/alerts'
 import { accessClient } from './accessClient'
 import { EditAssignmentDialog } from './EditAssignmentDialog'
 import type { PermissionRow } from './types'
+import { useAllRoles } from './useAllRoles'
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -26,6 +27,10 @@ vi.mock('./accessClient', () => ({
 
 vi.mock('../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
+}))
+
+vi.mock('./useAllRoles', () => ({
+  useAllRoles: vi.fn(),
 }))
 
 const queryClient = new QueryClient({
@@ -48,6 +53,7 @@ const mockRoles = {
       description: null,
       policies: [],
       is_builtin: true,
+      is_system_scoped: true,
       project_id: null,
       labels: {},
       created_at: null,
@@ -59,6 +65,7 @@ const mockRoles = {
       description: null,
       policies: [],
       is_builtin: true,
+      is_system_scoped: true,
       project_id: null,
       labels: {},
       created_at: null,
@@ -70,6 +77,7 @@ const mockRoles = {
       description: null,
       policies: [],
       is_builtin: true,
+      is_system_scoped: false,
       project_id: null,
       labels: {},
       created_at: null,
@@ -158,14 +166,12 @@ const mockMutationReturn = {
 }
 
 function setupDefaultMocks() {
-  vi.mocked(accessClient.useQuery).mockReturnValue({
-    data: mockRoles,
-    isPending: false,
-    isError: false,
+  vi.mocked(useAllRoles).mockReturnValue({
+    roles: mockRoles.resources,
+    isLoading: false,
     error: null,
-    isFetching: false,
     refetch: vi.fn(),
-  } as never)
+  })
 
   vi.mocked(accessClient.useMutation).mockReturnValue(mockMutationReturn as never)
 }

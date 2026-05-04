@@ -21,6 +21,7 @@ import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { accessClient } from '../../access/accessClient'
 import { TypeaheadSelect } from '../../access/TypeaheadSelect'
+import { useAllProjectRoles } from '../../access/useAllProjectRoles'
 
 const assignProjectRoleSchema = z.object({
   userId: z.string().min(1, 'User is required'),
@@ -133,11 +134,7 @@ export function AssignProjectRoleModal({
     },
   })
 
-  const projectRolesQuery = accessClient.useQuery('get', '/projects/{project_id}/roles', {
-    params: { path: { project_id: projectId }, query: { limit: 100 } },
-  })
-  const projectRoles = useMemo(() => projectRolesQuery.data?.resources ?? [], [projectRolesQuery.data])
-  const rolesLoading = projectRolesQuery.isLoading
+  const { roles: projectRoles, isLoading: rolesLoading } = useAllProjectRoles(projectId)
 
   const selectedUserId = useWatch({ control, name: 'userId' })
 

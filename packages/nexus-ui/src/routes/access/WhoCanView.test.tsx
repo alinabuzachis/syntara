@@ -7,10 +7,15 @@ import { axe } from 'vitest-axe'
 
 import { accessClient } from './accessClient'
 import type { ResourceActionMap } from './canIUtils'
+import { useAllProjects } from './useAllProjects'
 import { WhoCanView } from './WhoCanView'
 
 const { mockMutate } = vi.hoisted(() => ({
   mockMutate: vi.fn<(...args: unknown[]) => void>(),
+}))
+
+vi.mock('./useAllProjects', () => ({
+  useAllProjects: vi.fn(),
 }))
 
 vi.mock('./accessClient', () => ({
@@ -83,6 +88,22 @@ describe('WhoCanView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     queryClient.clear()
+    vi.mocked(useAllProjects).mockReturnValue({
+      projects: [
+        {
+          id: 'proj-1',
+          name: 'default',
+          description: undefined,
+          labels: {},
+          is_default: false,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+        },
+      ],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    })
     // Reset to default idle state
     vi.mocked(accessClient.useMutation).mockReturnValue({
       mutate: mockMutate,
@@ -266,13 +287,6 @@ describe('WhoCanView', () => {
         isSuccess: true,
         data: { users: [{ id: 'u1', username: 'alice' }] },
       })
-
-      // Mock projects query
-      vi.mocked(accessClient.useQuery).mockReturnValue({
-        data: { resources: [{ id: 'proj-1', name: 'default' }], next: null },
-        isPending: false,
-        error: null,
-      } as never)
 
       render(<WhoCanView {...sampleResourceActions} />, { wrapper })
 

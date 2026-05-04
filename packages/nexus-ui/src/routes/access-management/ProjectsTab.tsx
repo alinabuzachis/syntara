@@ -25,6 +25,7 @@ import { detachPromise } from '../../utils/detachPromise'
 import { formatItemCount } from '../../utils/formatItemCount'
 import { accessClient } from '../access/accessClient'
 import type { ProjectRead } from '../access/types'
+import { useAllProjects } from '../access/useAllProjects'
 
 import { ProjectFormModal } from './ProjectFormModal'
 
@@ -163,10 +164,7 @@ export function ProjectsTab() {
     setPage(1)
   }
 
-  const query = accessClient.useQuery('get', '/projects', {
-    params: { query: { limit: 100, include_total: true } },
-  })
-  const allProjects = query.data?.resources ?? []
+  const { projects: allProjects, isLoading, error, refetch } = useAllProjects()
 
   // Client-side filtering
   const filteredProjects = allProjects.filter((project) =>
@@ -207,7 +205,7 @@ export function ProjectsTab() {
             variant: 'success',
             autoDismiss: true,
           })
-          query.refetch().catch(() => {})
+          refetch().catch(() => {})
         },
         onError: (error: unknown) => {
           showAlert({
@@ -222,10 +220,13 @@ export function ProjectsTab() {
     )
   }
 
-  const queryState = useQueryState(query, {
-    title: 'Error loading projects',
-    onRetry: () => detachPromise(query.refetch()),
-  })
+  const queryState = useQueryState(
+    { error, isPending: isLoading, refetch },
+    {
+      title: 'Error loading projects',
+      onRetry: () => detachPromise(refetch()),
+    }
+  )
   if (queryState) return queryState
 
   if (allProjects.length === 0 && !hasActiveFilters) {
@@ -244,7 +245,7 @@ export function ProjectsTab() {
             setFormModalOpen(false)
           }}
           onSuccess={() => {
-            query.refetch().catch(() => {})
+            refetch().catch(() => {})
           }}
         />
       </>
@@ -316,7 +317,7 @@ export function ProjectsTab() {
           setProjectToEdit(null)
         }}
         onSuccess={() => {
-          query.refetch().catch(() => {})
+          refetch().catch(() => {})
         }}
       />
 

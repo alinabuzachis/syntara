@@ -7,6 +7,7 @@ import { axe } from 'vitest-axe'
 
 import { identityProvidersClient, usersClient } from '../../../../client'
 import { AlertProvider } from '../../../../components/alerts'
+import { useAllGroups } from '../../../access/useAllGroups'
 
 import { GroupMappingTab } from './GroupMappingTab'
 
@@ -37,6 +38,10 @@ vi.mock('../../access/accessClient', () => ({
   },
 }))
 
+vi.mock('../../../access/useAllGroups', () => ({
+  useAllGroups: vi.fn(),
+}))
+
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },
 })
@@ -51,6 +56,12 @@ const mockNexusGroups = [
   { id: 'g1', name: 'admin', description: 'Admins', created_at: '2026-01-01T00:00:00Z' },
   { id: 'g2', name: 'users', description: 'Users', created_at: '2026-01-02T00:00:00Z' },
 ]
+
+const mockAllGroups = mockNexusGroups.map((g) => ({
+  ...g,
+  is_builtin: false,
+  updated_at: g.created_at,
+}))
 
 const defaultProps = {
   providerId: 'provider-123',
@@ -68,6 +79,13 @@ const defaultProps = {
 
 describe('GroupMappingTab', () => {
   beforeEach(() => {
+    vi.mocked(useAllGroups).mockReturnValue({
+      groups: mockAllGroups,
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    })
+
     vi.mocked(usersClient.useQuery).mockReturnValue({
       data: { resources: mockNexusGroups },
       isPending: false,

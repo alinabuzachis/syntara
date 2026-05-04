@@ -5,6 +5,7 @@ import type React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
+import { accessClient } from '../routes/access/accessClient'
 import type { ProjectRead } from '../routes/access/types'
 
 import { useProjectSelector } from './useProjectSelector'
@@ -25,8 +26,12 @@ vi.mock('../components/alerts', () => ({
   }),
 }))
 
-const mockSetSelectedProjectId = vi.fn()
 let mockSelectedProjectId: string | null = null
+
+/** Keeps `mockSelectedProjectId` in sync so UI reflects selection (toggle label / filter reset). */
+const mockSetSelectedProjectId = vi.fn((id: string | null) => {
+  mockSelectedProjectId = id
+})
 
 vi.mock('../stores/useProjectStore', () => ({
   useProjectStore: () => ({
@@ -309,6 +314,44 @@ describe('useProjectSelector', () => {
     })
   })
 
+  // ── Pagination reset (selection vs View more) ─────────────────────────
+
+  describe('pagination reset behavior', () => {
+    const typeaheadInput = () => screen.getByRole('textbox', { name: 'Type to filter' })
+
+    it('clears typeahead filter when selecting a project', async () => {
+      const user = userEvent.setup()
+      renderSelector()
+
+      await user.click(screen.getByDisplayValue('All projects'))
+      await user.type(typeaheadInput(), 'findme')
+
+      await user.click(screen.getByRole('option', { name: /Beta/i }))
+
+      await user.click(screen.getByDisplayValue('Beta'))
+      expect(typeaheadInput()).toHaveValue('')
+    })
+
+    it('does not clear typeahead filter when View more is clicked', async () => {
+      mockQueryResponse = {
+        data: makePaginatedData(sampleProjects, 'cursor-page-2'),
+        isPending: false,
+        isFetching: false,
+      }
+      Object.assign(mockQueryResponse, { refetch: mockRefetch, error: null })
+
+      const user = userEvent.setup()
+      renderSelector()
+
+      await user.click(screen.getByDisplayValue('All projects'))
+      await user.type(typeaheadInput(), 'alp')
+
+      await user.click(screen.getByRole('option', { name: 'View more' }))
+
+      expect(typeaheadInput()).toHaveValue('alp')
+    })
+  })
+
   // ── View more ──────────────────────────────────────────────────────────
 
   describe('view more', () => {
@@ -349,6 +392,69 @@ describe('useProjectSelector', () => {
       await user.click(screen.getByDisplayValue('All projects'))
 
       expect(screen.getByText('Type to refine results')).toBeInTheDocument()
+    })
+
+    it('keeps the menu open when View more is clicked', async () => {
+      mockQueryResponse = {
+        data: makePaginatedData(sampleProjects, 'cursor-page-2'),
+        isPending: false,
+        isFetching: false,
+      }
+      Object.assign(mockQueryResponse, { refetch: mockRefetch, error: null })
+      const user = userEvent.setup()
+      renderSelector()
+
+      await user.click(screen.getByDisplayValue('All projects'))
+      await user.click(screen.getByRole('option', { name: 'View more' }))
+
+      expect(screen.getByRole('option', { name: 'Create project' })).toBeVisible()
+    })
+
+    it('keeps selection when choosing a project only returned after View more', async () => {
+      const page2Only: ProjectRead = {
+        id: 'proj-only-page-2',
+        name: 'Omega',
+        description: 'Loaded after View more',
+        labels: {},
+        is_default: false,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+      }
+
+      const useQuerySpy = vi.mocked(accessClient.useQuery)
+      useQuerySpy.mockImplementation(
+        (_method: string, _path: string, opts?: { params?: { query?: Record<string, unknown> } }) => {
+          const hasCursor = opts?.params?.query?.cursor != null && opts.params.query.cursor !== ''
+          const data = hasCursor
+            ? makePaginatedData([page2Only], null)
+            : makePaginatedData([sampleProjects[0]], 'cursor-next')
+          return {
+            data,
+            isPending: false,
+            isFetching: false,
+            refetch: mockRefetch,
+            error: null,
+          }
+        }
+      )
+
+      try {
+        const user = userEvent.setup()
+        renderSelector()
+
+        await user.click(screen.getByDisplayValue('All projects'))
+        await user.click(screen.getByRole('option', { name: 'View more' }))
+
+        await waitFor(() => {
+          expect(screen.getByRole('option', { name: /Omega/i })).toBeInTheDocument()
+        })
+
+        await user.click(screen.getByRole('option', { name: /Omega/i }))
+
+        expect(mockSelectedProjectId).toBe('proj-only-page-2')
+      } finally {
+        useQuerySpy.mockImplementation(() => mockQueryResponse)
+      }
     })
   })
 

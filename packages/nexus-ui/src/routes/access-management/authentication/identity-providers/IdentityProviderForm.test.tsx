@@ -42,6 +42,15 @@ vi.mock('wouter/use-browser-location', () => ({
   },
 }))
 
+vi.mock('../../../access/useAllGroups', () => ({
+  useAllGroups: vi.fn(() => ({
+    groups: [],
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  })),
+}))
+
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },
 })

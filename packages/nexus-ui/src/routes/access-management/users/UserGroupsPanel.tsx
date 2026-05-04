@@ -32,6 +32,7 @@ import { detachPromise } from '../../../utils/detachPromise'
 import { accessClient } from '../../access/accessClient'
 import { PaginationFooter } from '../../access/PaginationFooter'
 import { TypeaheadSelect } from '../../access/TypeaheadSelect'
+import { useAllGroups } from '../../access/useAllGroups'
 import { MembershipSourceLabels } from '../MembershipSourceLabels'
 import { getMembershipSources } from '../membershipSourceUtils'
 
@@ -80,20 +81,17 @@ function AddToGroupModal({
   const [error, setError] = useState<string | null>(null)
   const { showAlert } = useAlerts()
 
-  const groupsQuery = accessClient.useQuery('get', '/groups', {
-    params: { query: { limit: 100, include_total: true } },
-  })
+  const { groups: allGroupsForPicker } = useAllGroups()
 
   const availableGroups = useMemo(() => {
-    const allGroups = groupsQuery.data?.resources ?? []
-    return allGroups
+    return allGroupsForPicker
       .filter((g): g is typeof g & { id: string } => !!g.id && !existingGroupIds.includes(g.id))
       .map((g) => ({
         value: g.id,
         label: g.name,
         description: g.description ?? undefined,
       }))
-  }, [groupsQuery.data, existingGroupIds])
+  }, [allGroupsForPicker, existingGroupIds])
 
   const { mutate: addMember, isPending } = accessClient.useMutation('post', '/groups/{group_id}/members')
 
@@ -202,19 +200,17 @@ export function UserGroupsPanel({ userId }: Readonly<UserGroupsPanelProps>) {
     params: { path: { user_id: userId } },
   })
 
-  const allGroupsQuery = accessClient.useQuery('get', '/groups', {
-    params: { query: { limit: 100 } },
-  })
+  const { groups: allGroupsList } = useAllGroups()
 
   const groups = useMemo(() => {
     const userGroups = query.data?.resources ?? []
     const hasAuthenticated = userGroups.some((g) => g.name === 'authenticated')
     if (hasAuthenticated) return userGroups
 
-    const authenticatedGroup = (allGroupsQuery.data?.resources ?? []).find((g) => g.name === 'authenticated')
+    const authenticatedGroup = allGroupsList.find((g) => g.name === 'authenticated')
     if (authenticatedGroup) return [authenticatedGroup, ...userGroups]
     return userGroups
-  }, [query.data, allGroupsQuery.data])
+  }, [query.data, allGroupsList])
 
   const filteredGroups = useMemo(() => {
     let result = groups
