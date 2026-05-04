@@ -5,6 +5,8 @@ Tests soft delete functionality and error handling.
 
 import pytest
 from httpx import AsyncClient
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models.group import Group
 from tests.helpers.error_data import assert_error_data
@@ -95,6 +97,32 @@ class TestGroupsDeleteContract:
 
         data = create_response.json()
         assert data["name"] == original_name
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("group_name", ["auditors", "users", "admins", "authenticated"])
+    async def test_delete_builtin_group_forbidden(
+        self,
+        admin_client: AsyncClient,
+        test_db_session: AsyncSession,
+        group_name: str,
+    ) -> None:
+        """Test that deleting a builtin group returns 403 Forbidden."""
+        result = await test_db_session.exec(
+            select(Group).where(Group.name == group_name, Group.deleted_at.is_(None))  # type: ignore[union-attr]
+        )
+        group = result.one()
+
+        response = await admin_client.delete(f"{GROUPS_URL}/{group.id}")
+
+        assert response.status_code == 403
+        assert_error_data(
+            response,
+            error_type="https://api.nexus.com/errors/forbidden",
+            title="Forbidden",
+            detail=f"The built-in '{group_name}' group cannot be deleted",
+            code="BUILTIN_GROUP_DELETE_FORBIDDEN",
+            retryable=False,
+        )
 
     @pytest.mark.asyncio
     async def test_delete_group_unauthenticated(self, base_client: AsyncClient, test_group: Group) -> None:
