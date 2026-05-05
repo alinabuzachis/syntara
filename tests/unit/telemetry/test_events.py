@@ -1,9 +1,11 @@
 """Unit tests for telemetry event models and builders."""
 
+from unittest.mock import patch
+
 import pytest
 from pydantic import ValidationError
 
-from nexus.telemetry.events.base import BaseTelemetryEvent
+from nexus.telemetry.events.base import BaseTelemetryEvent, _build_context
 from nexus.telemetry.events.node_execution import (
     NodeExecutionEvent,
     NodeExecutionEventBuilder,
@@ -68,6 +70,56 @@ class TestBaseTelemetryEventName:
             pass
 
         assert HTMLParserEvent._get_event_name() == "html_parser"
+
+
+class TestBaseTelemetryEventContext:
+    """Tests for the context dict attached to all telemetry events."""
+
+    @pytest.fixture(autouse=True)
+    def _clear_context_cache(self) -> None:
+        """Clear the _build_context lru_cache so each test gets fresh values."""
+        _build_context.cache_clear()
+
+    def test_to_segment_event_includes_context(self, override_settings) -> None:
+        """to_segment_event() must include a context dict with version info."""
+
+        class StubEvent(BaseTelemetryEvent):
+            pass
+
+        with (
+            override_settings(container_image_version="v1.2.3-deadbeef"),
+            patch(
+                "importlib.metadata.version",
+                return_value="4.5.6",
+            ),
+        ):
+            event = StubEvent(entitlement_id="ent-1")
+            segment_event = event.to_segment_event()
+
+        ctx = segment_event["context"]
+        assert ctx == {
+            "nexus_version": "4.5.6",
+            "container_image_version": "v1.2.3-deadbeef",
+        }
+
+    def test_context_not_in_properties(self, override_settings) -> None:
+        """Version info must live in context, not in properties."""
+
+        class StubEvent(BaseTelemetryEvent):
+            pass
+
+        with (
+            override_settings(container_image_version="img-tag"),
+            patch(
+                "importlib.metadata.version",
+                return_value="0.0.1",
+            ),
+        ):
+            event = StubEvent(entitlement_id="ent-2")
+            props = event.to_segment_event()["properties"]
+
+        assert "nexus_version" not in props  # type: ignore[operator]
+        assert "container_image_version" not in props  # type: ignore[operator]
 
 
 # =============================================================================

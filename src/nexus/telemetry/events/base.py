@@ -4,9 +4,28 @@ Provides the abstract base for all telemetry events transmitted to Segment.com.
 """
 
 import re
+from functools import lru_cache
 from uuid import UUID
 
 from sqlmodel import Field, SQLModel
+
+
+@lru_cache
+def _build_context() -> dict[str, str]:
+    """Build the shared telemetry context (cached for process lifetime).
+
+    Returns:
+        Dictionary with nexus_version and container_image_version.
+
+    """
+    from importlib.metadata import version as get_package_version  # noqa: PLC0415
+
+    from nexus.core.config.base import get_settings  # noqa: PLC0415
+
+    return {
+        "nexus_version": get_package_version("nexus"),
+        "container_image_version": get_settings().container_image_version,
+    }
 
 
 class BaseTelemetryEvent(SQLModel):
@@ -17,6 +36,9 @@ class BaseTelemetryEvent(SQLModel):
 
     The event name is derived from the class name by converting CamelCase to
     snake_case and removing the "Event" suffix.
+
+    A shared ``context`` dict containing ``nexus_version`` and
+    ``container_image_version`` is automatically attached to every event.
 
     """
 
@@ -47,10 +69,11 @@ class BaseTelemetryEvent(SQLModel):
         """Convert to Segment Track API format.
 
         Returns:
-            Dictionary with event name and properties for Segment Track API.
+            Dictionary with event name, properties, and context for Segment Track API.
 
         """
         return {
             "event": self._get_event_name(),
             "properties": self.model_dump(),
+            "context": _build_context(),
         }

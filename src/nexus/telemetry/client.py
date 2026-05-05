@@ -181,10 +181,14 @@ class TelemetryClientRegistry:
             elif isinstance(properties.get("request_id"), uuid.UUID):
                 properties["request_id"] = str(properties["request_id"])
 
+            raw_context = segment_event.get("context", {})
+            context: dict[str, object] = dict(raw_context) if isinstance(raw_context, dict) else {}
+
             client.track(
                 anonymous_id=self._anonymous_id,
                 event=segment_event["event"],
                 properties=properties,
+                context=context,
             )
         except Exception:
             logger.exception("Failed to send telemetry event (fire-and-forget)")

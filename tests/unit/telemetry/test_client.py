@@ -80,10 +80,14 @@ class TestTelemetryClientRegistry:
         expected_properties = dict(raw) if isinstance(raw, dict) else {}
         expected_properties["entitlement_id"] = "test-user"
 
+        raw_context = event.to_segment_event().get("context", {})
+        expected_context = dict(raw_context) if isinstance(raw_context, dict) else {}
+
         mock_client.track.assert_called_once_with(
             anonymous_id="anon-id-123",
             event="workflow_execution_start",
             properties=expected_properties,
+            context=expected_context,
         )
 
     @patch("nexus.telemetry.client.logger")

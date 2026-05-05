@@ -936,6 +936,11 @@ class TelemetrySettings(BaseSettings):
         description="Interval in seconds between periodic analytics collection cycles",
     )
 
+    container_image_version: str = Field(
+        default="",
+        description="Container image version/tag, injected at build time via APP_CONTAINER_IMAGE_VERSION",
+    )
+
 
 # =============================================================================
 # Workflow Engine Configuration

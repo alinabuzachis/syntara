@@ -37,6 +37,8 @@ COPY samples/ ./samples/
 # Stage 2: Runtime - minimal image with Python and app copied from builder
 FROM registry.access.redhat.com/ubi9/ubi-minimal:latest@sha256:83006d535923fcf1345067873524a3980316f51794f01d8655be55d6e9387183
 
+ARG CONTAINER_IMAGE_VERSION=""
+
 USER root
 
 # Install Python 3.12 runtime and dependencies via RPM
@@ -64,7 +66,8 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PYTHONPATH=/opt/app-root/src/src \
-    PATH="/opt/app-root/src/.venv/bin:/opt/app-root/bin:$PATH"
+    PATH="/opt/app-root/src/.venv/bin:/opt/app-root/bin:$PATH" \
+    APP_CONTAINER_IMAGE_VERSION="${CONTAINER_IMAGE_VERSION}"
 
 WORKDIR /opt/app-root/src
 
