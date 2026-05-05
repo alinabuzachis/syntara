@@ -4,11 +4,13 @@ This module provides a single base class that ALL services must inherit from to 
 consistent filtering, sorting, pagination, and label handling across the entire system.
 """
 
+import time
 from collections.abc import Awaitable, Callable, Iterable
 from datetime import datetime
 from typing import Any
 from uuid import UUID
 
+import structlog
 from pydantic import TypeAdapter, ValidationError
 from sqlalchemy import Select, func
 from sqlmodel import select
@@ -29,8 +31,10 @@ from nexus.core.utils.cursor import (
 )
 from nexus.core.utils.filters import Filter, apply_filters, parse_filters
 from nexus.core.utils.labels import apply_label_filters, parse_label_filter, parse_labels_query
-from nexus.core.utils.pagination import generate_response
+from nexus.core.utils.pagination import PaginationResult, generate_response
 from nexus.core.utils.sorting import apply_sorting, parse_sort
+
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class DefaultEnrichQueryMixin(EnrichQueryMixin):
@@ -551,7 +555,7 @@ class BaseService:
                     error_message = f"Invalid value for field '{field_name}': {error_detail}"
                     raise SafeValueError(error_message) from e
 
-    async def list_resources(  # noqa: C901, PLR0912, PLR0915
+    async def list_resources(
         self,
         model: type[TModel],
         response_type: type[TResponse],
@@ -645,78 +649,208 @@ class BaseService:
         if query_params_items:
             query_params = {key: value for key, value in query_params_items if key not in excluded_params}
 
-        # Validate query parameters against model field types
+        table_name = getattr(model, "__tablename__", model.__name__)
+        logger.debug(
+            "list_query_start",
+            table=table_name,
+            limit=limit,
+            cursor=cursor,
+            sort=sort,
+            filter_fields=list(query_params.keys()),
+        )
+
+        start = time.monotonic()
+        try:
+            result = await self._execute_list_query(
+                model=model,
+                response_type=response_type,
+                response_type_converter=response_type_converter,
+                post_query_callback=post_query_callback,
+                limit=limit,
+                cursor=cursor,
+                sort=sort,
+                special_field_handlers=special_field_handlers,
+                query_params=query_params,
+                include_total=include_total,
+                allowed_projects=allowed_projects,
+            )
+        except Exception:
+            elapsed_ms = round((time.monotonic() - start) * 1000, 2)
+            logger.exception(
+                "list_query_failed",
+                table=table_name,
+                duration_ms=elapsed_ms,
+                filters=query_params,
+            )
+            raise
+
+        duration_ms = round((time.monotonic() - start) * 1000, 2)
+        logger.debug(
+            "list_query_complete",
+            table=table_name,
+            duration_ms=duration_ms,
+            result_count=len(result.resources),
+            has_next=result.next is not None,
+            filter_fields=list(query_params.keys()),
+        )
+
+        return result
+
+    async def _execute_list_query(
+        self,
+        model: type[TModel],
+        response_type: type[TResponse],
+        response_type_converter: Callable[[TModel], Any] | None,
+        post_query_callback: Callable[[list[TModel]], Awaitable[None]] | None,
+        limit: int,
+        cursor: str | None,
+        sort: str | None,
+        special_field_handlers: dict[str, Any] | None,
+        query_params: dict[str, str],
+        *,
+        include_total: bool,
+        allowed_projects: AllowedProjectsResult | None,
+    ) -> TResponse:
+        """Execute the list query with filtering, sorting, pagination, and conversion."""
         self._validate_query_params(query_params, model)
 
-        # Build base query with optional soft delete filter
+        built = self._build_list_query(
+            model,
+            query_params,
+            sort,
+            cursor,
+            limit,
+            special_field_handlers,
+            allowed_projects,
+        )
+        if built is None:
+            return response_type(resources=[], next=None, prev=None, total=0 if include_total else None)
+
+        query, filters, label_filters, is_backward = built
+
+        trimmed, pagination = await self._fetch_and_paginate(
+            query,
+            model,
+            query_params,
+            filters,
+            label_filters,
+            sort,
+            cursor,
+            limit,
+            include_total=include_total,
+            is_backward=is_backward,
+            special_field_handlers=special_field_handlers,
+            allowed_projects=allowed_projects,
+        )
+
+        if post_query_callback:
+            await post_query_callback(trimmed)
+        else:
+            await self.post_processing_mixin.post_process(trimmed)
+
+        if response_type_converter:
+            converted = [response_type_converter(r) for r in trimmed]
+        else:
+            converted = [self.convert_resource_mixin.convert_resource(r) for r in trimmed]
+
+        return response_type(
+            resources=converted,
+            next=pagination["next"],
+            prev=pagination["prev"],
+            total=pagination["total"],
+        )
+
+    def _build_list_query(
+        self,
+        model: type[TModel],
+        query_params: dict[str, str],
+        sort: str | None,
+        cursor: str | None,
+        limit: int,
+        special_field_handlers: dict[str, Any] | None,
+        allowed_projects: AllowedProjectsResult | None,
+    ) -> (
+        tuple[
+            Select[tuple[TModel]] | SelectOfScalar[tuple[TModel]],
+            list[Filter],
+            dict[str, str],
+            bool,
+        ]
+        | None
+    ):
+        """Build filtered, sorted, paginated query. Returns None when project access is empty."""
         query: Select[tuple[TModel]] | SelectOfScalar[tuple[TModel]] = select(model)
-        # Only apply soft delete filter if model has deleted_at field
         if hasattr(model, "deleted_at"):
             query = query.filter(model.deleted_at.is_(None))  # type: ignore[attr-defined]
 
-        # Apply project scope filter if provided
         if allowed_projects is not None and not allowed_projects.all_projects:
             if not hasattr(model, "project_id"):
                 msg = f"Model {model.__name__} does not have a project_id field for project scope filtering"
                 raise ValueError(msg)
             if not allowed_projects.project_ids:
-                # User has no project access — return empty result
-                return response_type(resources=[], next=None, prev=None, total=0 if include_total else None)
+                return None
             query = query.filter(model.project_id.in_(allowed_projects.project_ids))  # type: ignore[attr-defined]
 
-        # Apply standard filters
         query, filters = self._apply_standard_filters(query, query_params, model, special_field_handlers)
-
-        # Apply label filters
         query, label_filters = self._apply_label_filters(query, query_params, model)
-
-        # Apply special filters if provided
         if special_field_handlers:
             query = self._apply_special_filters(query, filters, model, special_field_handlers)
 
-        # Detect if this is backward pagination before applying sorting
-        is_backward_pagination = False
+        is_backward = False
         if cursor:
             try:
                 cursor_data = decode_cursor(cursor)
-                direction_str = cursor_data.get("direction", "next")
-                is_backward_pagination = direction_str == PaginationDirection.PREV.value
+                is_backward = cursor_data.get("direction", "next") == PaginationDirection.PREV.value
             except (ValueError, KeyError):
                 pass
 
-        # Apply sorting (reversed if backward pagination) and pagination
-        query, sort_direction = self._apply_sorting(query, sort, model, reverse_for_backward=is_backward_pagination)
+        query, sort_direction = self._apply_sorting(query, sort, model, reverse_for_backward=is_backward)
         query, needs_reverse = self._apply_cursor_pagination(query, cursor, sort_direction, model)
-
-        # Apply limit+1 for N+1 pattern (fetch one extra to detect if more pages exist)
         query = query.limit(limit + 1)
-
-        # Allow subclasses to extend the query with additional options
         query = self.enrich_query_mixin.enrich(query)
 
-        # Execute query
-        result = await self.session.exec(query)  # type: ignore[arg-type]
-        resources_list = list(result.all())
-
-        # Reverse results if backward pagination requires it
+        # Reverse is only needed during execution, encode it into the backward flag
+        # so _fetch_and_paginate knows whether to reverse results
         if needs_reverse:
-            resources_list.reverse()
+            is_backward = True
 
-        resources = resources_list
+        return query, filters, label_filters, is_backward
 
-        # Get total count if requested
+    async def _fetch_and_paginate(
+        self,
+        query: Select[tuple[TModel]] | SelectOfScalar[tuple[TModel]],
+        model: type[TModel],
+        query_params: dict[str, str],
+        filters: list[Filter],
+        label_filters: dict[str, str],
+        sort: str | None,
+        cursor: str | None,
+        limit: int,
+        *,
+        include_total: bool,
+        is_backward: bool,
+        special_field_handlers: dict[str, Any] | None,
+        allowed_projects: AllowedProjectsResult | None,
+    ) -> tuple[list[TModel], PaginationResult]:
+        """Execute query, apply N+1 pagination, and return trimmed resources with metadata."""
+        result = await self.session.exec(query)  # type: ignore[arg-type]
+        resources = list(result.all())
+
+        if is_backward:
+            resources.reverse()
+
         total_count = None
         if include_total:
             total_count = await self._get_total_count(
-                filters, model, special_field_handlers, label_filters, allowed_projects
+                filters,
+                model,
+                special_field_handlers,
+                label_filters,
+                allowed_projects,
             )
 
-        # Detect if we're on the first page during backward pagination
-        # N+1 pattern can detect "has more" in fetch direction, but during backward pagination
-        # we need to check if there are items BEFORE (newer than) the current page
         is_first_page = False
-        if is_backward_pagination and len(resources) > 0:
-            # Check if any items exist before the first item in our results
+        if is_backward and len(resources) > 0:
             has_items_before = await self._check_has_items_before(  # type: ignore[type-var]
                 first_item=resources[0],
                 query_params=query_params,
@@ -728,9 +862,7 @@ class BaseService:
             )
             is_first_page = not has_items_before
 
-        # Generate pagination response using N+1 pattern
-        # The generate_response function will trim items and detect edges
-        pagination_metadata = generate_response(
+        pagination = generate_response(
             items=resources,  # type: ignore[arg-type]
             limit=limit,
             cursor=cursor,
@@ -739,32 +871,8 @@ class BaseService:
             is_first_page=is_first_page,
         )
 
-        # Extract trimmed items from pagination response
-        trimmed_resources: list[TModel] = pagination_metadata["trimmed_items"]  # type: ignore[assignment]
-
-        # Call post-query callback with TRIMMED database objects
-        # Use parameter callback if provided, otherwise use mixin method
-        if post_query_callback:
-            await post_query_callback(trimmed_resources)
-        else:
-            await self.post_processing_mixin.post_process(trimmed_resources)
-
-        # Convert database objects to response objects
-        # Use parameter converter if provided, otherwise use mixin method
-        if response_type_converter:
-            converted_resources = [response_type_converter(resource) for resource in trimmed_resources]
-        else:
-            converted_resources = [
-                self.convert_resource_mixin.convert_resource(resource) for resource in trimmed_resources
-            ]
-
-        # Construct and return typed response object
-        return response_type(
-            resources=converted_resources,
-            next=pagination_metadata["next"],
-            prev=pagination_metadata["prev"],
-            total=pagination_metadata["total"],
-        )
+        trimmed: list[TModel] = pagination["trimmed_items"]  # type: ignore[assignment]
+        return trimmed, pagination
 
     async def count_resources(
         self,

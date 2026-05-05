@@ -1,6 +1,7 @@
 """Unit tests for AuditEventService (read operations)."""
 
 import itertools
+import logging
 
 import pytest
 from sqlmodel import func, select
@@ -337,3 +338,88 @@ class TestAuditEventServiceList:
 
         assert len(response.resources) == 3
         assert all(base + timedelta(days=1) <= r.created_at <= base + timedelta(days=3) for r in response.resources)
+
+
+# ------------------------------------------------------------------ #
+# Telemetry / structured logging
+# ------------------------------------------------------------------ #
+
+
+class TestAuditEventServiceTelemetry:
+    """Test structured debug logging emitted by BaseService.list_resources."""
+
+    _BASE_LOGGER = "nexus.core.services.base"
+
+    @pytest.mark.asyncio
+    async def test_list_resources_logs_query_context(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        audit_events_factory: AuditEventsFactory,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """list_resources emits a list_query_start debug log with query parameters."""
+        await audit_events_factory.create_events(count=2)
+
+        service = AuditEventService(test_db_session, test_user)
+        with caplog.at_level(logging.DEBUG, logger=self._BASE_LOGGER):
+            await service.list_resources(
+                model=AuditEventRecord,
+                response_type=AuditEventListResponse,
+                limit=10,
+                query_params_items=[("event_category", "user_action")],
+            )
+
+        assert any("list_query_start" in r.message for r in caplog.records)
+
+    @pytest.mark.asyncio
+    async def test_list_resources_logs_result_count(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        audit_events_factory: AuditEventsFactory,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """list_resources emits a list_query_complete debug log with result_count."""
+        await audit_events_factory.create_events(count=3)
+
+        service = AuditEventService(test_db_session, test_user)
+        with caplog.at_level(logging.DEBUG, logger=self._BASE_LOGGER):
+            await service.list_resources(
+                model=AuditEventRecord,
+                response_type=AuditEventListResponse,
+                limit=50,
+            )
+
+        complete_records = [r for r in caplog.records if "list_query_complete" in r.message]
+        assert len(complete_records) == 1
+
+    @pytest.mark.asyncio
+    async def test_list_resources_logs_query_failed_on_error(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """list_resources emits list_query_failed and re-raises on exception."""
+        from unittest.mock import patch
+
+        service = AuditEventService(test_db_session, test_user)
+
+        with (
+            patch.object(
+                service,
+                "_validate_query_params",
+                side_effect=RuntimeError("db gone"),
+            ),
+            caplog.at_level(logging.DEBUG, logger=self._BASE_LOGGER),
+            pytest.raises(RuntimeError, match="db gone"),
+        ):
+            await service.list_resources(
+                model=AuditEventRecord,
+                response_type=AuditEventListResponse,
+                limit=10,
+            )
+
+        failed_records = [r for r in caplog.records if "list_query_failed" in r.message]
+        assert len(failed_records) == 1
