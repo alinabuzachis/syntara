@@ -145,16 +145,16 @@ Use a docked icon navigation (left sidebar) with PatternFly's [flyout panels com
 
 Every page **must** follow this structural hierarchy:
 
-| Layer              | Component                    | Purpose                                 |
-| ------------------ | ---------------------------- | --------------------------------------- |
-| App Shell          | `Compass`                    | Overall application frame               |
-| Navigation         | `AppDockedNav`               | Left sidebar with icons                 |
-| Page Content       | `CompassContent` + `AppPage` | Main content area wrapper               |
-| Page Header        | `AppPageHeader`              | Page title and actions                  |
-| Content Frame      | `AppPanel`                   | `Panel` → `PanelMain` → `PanelMainBody` |
+| Layer              | Component                    | Purpose                                   |
+| ------------------ | ---------------------------- | ----------------------------------------- |
+| App Shell          | `Compass`                    | Overall application frame                 |
+| Navigation         | `AppDockedNav`               | Left sidebar with icons                   |
+| Page Content       | `CompassContent` + `AppPage` | Main content area wrapper                 |
+| Page Header        | `AppPageHeader`              | Page title and actions                    |
+| Content Frame      | `AppPanel`                   | `Panel` → `PanelMain` → `PanelMainBody`   |
 | Content Stack      | `PanelContentStack`          | Full-height flex column inside `AppPanel` |
-| Main Content       | Table / Canvas / Form        | Primary page content                    |
-| Footer (on tables) | `PaginationFooter`           | Navigation between table pages          |
+| Main Content       | Table / Canvas / Form        | Primary page content                      |
+| Footer (on tables) | `PaginationFooter`           | Navigation between table pages            |
 
 For **floating panels on the workflow canvas** under the glass theme, prefer `AppPanel` with `variant="raised"` for compact controls (opaque + shadow) or `opaqueFloatingFill` for large flat shells without raised chrome; see JSDoc on `packages/nexus-ui/src/components/AppPanel.tsx`.
 
@@ -166,11 +166,11 @@ Use `AppPageMain` with `isCentered` for page-level centered layouts (loading spi
 
 Use `PanelContentStack` (from `src/components/PanelContentStack.tsx`) as the main content column inside `AppPanel isFullHeight`. It provides the correct flex behavior (`flex: 1`, `minHeight: 0`) so nested scroll areas resolve height correctly.
 
-| Variant              | Use case                                                           |
-| -------------------- | ------------------------------------------------------------------ |
-| `default`            | Standard full-height panel content                                 |
-| `pageGutter`         | List pages with horizontal inset (workflows, executions, approvals)|
-| `credentialDetailTab`| Detail tabs with `lg` padding                                      |
+| Variant               | Use case                                                            |
+| --------------------- | ------------------------------------------------------------------- |
+| `default`             | Standard full-height panel content                                  |
+| `pageGutter`          | List pages with horizontal inset (workflows, executions, approvals) |
+| `credentialDetailTab` | Detail tabs with `lg` padding                                       |
 
 ### Page Header Structure
 
@@ -417,30 +417,63 @@ Use for single-field quick edits.
 
 Use when users need to inspect structured data (JSON, policy definitions, configuration) without leaving the list page. Triggered from a kebab menu action (e.g., "View policy JSON").
 
-| Element       | Specification                                                                          |
-| ------------- | -------------------------------------------------------------------------------------- |
-| Modal variant | Medium — PatternFly's [Modal Sizes](https://www.patternfly.org/components/modal#modal-sizes) |
-| Title         | Descriptive label (e.g., "Policy definition")                                          |
+| Element       | Specification                                                                                                                     |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Modal variant | Medium — PatternFly's [Modal Sizes](https://www.patternfly.org/components/modal#modal-sizes)                                      |
+| Title         | Descriptive label (e.g., "Policy definition")                                                                                     |
 | Body          | Read-only content with PatternFly's [Clipboard Copy](https://www.patternfly.org/components/clipboard-copy) when copying is useful |
-| Close button  | `variant="primary"` — the only action (no Cancel, no secondary)                        |
+| Close button  | `variant="primary"` — the only action (no Cancel, no secondary)                                                                   |
 
-### Delete/Remove/Cancel/Stop: Destructive Confirmation Modal
+### Delete: Destructive Confirmation Modal with Checkbox
 
-**Always** use a destructive confirmation modal for these actions.
+**Always** use `ConfirmationDialog` from `src/components/ConfirmationDialog.tsx` for delete actions. Never build modals from raw `Modal` + `ModalHeader` + `ModalBody` + `ModalFooter`.
 
-| Element       | Specification                                                                                                                                                |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Modal variant | Small — PatternFly's [Small Variant Modal](https://www.patternfly.org/components/modal#modal-sizes)                                                          |
-| Title         | `"[Delete/Remove/Cancel/Stop] [resource type]?"` with warning icon — PatternFly's [Title Icon Modal](https://www.patternfly.org/components/modal#title-icon) |
-| Body          | `[Name of resource]` and consequence                                                                                                                         |
-| Action button | `variant="danger"`                                                                                                                                           |
-| Cancel button | `variant="link"`                                                                                                                                             |
+| Element       | Specification                                                                                              |
+| ------------- | ---------------------------------------------------------------------------------------------------------- |
+| Component     | `ConfirmationDialog` with `destructiveAcknowledgement` prop                                                |
+| Modal variant | Small (default)                                                                                            |
+| Title         | `"Delete [resource type]?"` with `titleIconVariant="warning"`                                              |
+| Body          | `"The [resource] <strong>[name]</strong> will be deleted. This cannot be undone."`                         |
+| Checkbox      | `"I understand this [resource] will be permanently deleted."` — Delete button stays disabled until checked |
+| Action button | `confirmVariant="danger"`, `confirmLabel="Delete"`                                                         |
+| Cancel button | `variant="link"` (handled by ConfirmationDialog)                                                           |
+
+```tsx
+<ConfirmationDialog
+  isOpen={deleteDialog.isOpen}
+  onClose={deleteDialog.close}
+  onConfirm={handleDelete}
+  title="Delete credential?"
+  confirmLabel="Delete"
+  confirmVariant="danger"
+  titleIconVariant="warning"
+  destructiveAcknowledgement={{
+    checkboxId: 'delete-credential-ack',
+    label: 'I understand this credential will be permanently deleted.',
+  }}
+>
+  The credential <strong>{credential.name}</strong> will be deleted. This cannot be undone.
+</ConfirmationDialog>
+```
 
 **Post-delete behavior:**
 
 - From list/table view → stay on list, item removed
 - From details page → navigate back to list/table
 - Show feedback → PatternFly's [Dismissible Success Toast Alert](https://www.patternfly.org/components/alert#alert-variations)
+
+### Remove/Unassign/Cancel/Stop: Confirmation Modal without Checkbox
+
+These are reversible actions. Use `ConfirmationDialog` with warning icon but no checkbox.
+
+| Element       | Specification                                                                                   |
+| ------------- | ----------------------------------------------------------------------------------------------- |
+| Component     | `ConfirmationDialog` (no `destructiveAcknowledgement`)                                          |
+| Modal variant | Small (default)                                                                                 |
+| Title         | `"[Remove/Unassign/Cancel/Stop] [resource type]?"` with `titleIconVariant="warning"`            |
+| Body          | Describe what happens: `"This [action] the [resource] <strong>[name]</strong>. [consequence]."` |
+| Action button | `confirmVariant="danger"`, `confirmLabel="[Remove/Unassign/etc.]"`                              |
+| Cancel button | `variant="link"` (handled by ConfirmationDialog)                                                |
 
 **Post-cancel/stop behavior:**
 
@@ -576,11 +609,11 @@ Never use raw `<span>`, `<p>`, or `<div>` for text content. Use PatternFly typog
 
 Pages that support role-based access must adapt their UI based on the authenticated user's permissions. Three tiers:
 
-| Permission Level        | Navigation             | Controls                               | Actions                        |
-| ----------------------- | ---------------------- | -------------------------------------- | ------------------------------ |
-| **No read permission**  | Hidden from navigation | Nothing rendered (empty screen)        | None                           |
-| **Read only** (auditor) | Visible in navigation  | All controls rendered as **read-only** | No save, reset, or edit buttons |
-| **Read + write** (admin)| Visible in navigation  | All controls editable                  | Full CRUD actions available    |
+| Permission Level         | Navigation             | Controls                               | Actions                         |
+| ------------------------ | ---------------------- | -------------------------------------- | ------------------------------- |
+| **No read permission**   | Hidden from navigation | Nothing rendered (empty screen)        | None                            |
+| **Read only** (auditor)  | Visible in navigation  | All controls rendered as **read-only** | No save, reset, or edit buttons |
+| **Read + write** (admin) | Visible in navigation  | All controls editable                  | Full CRUD actions available     |
 
 - Use a permission hook (e.g., `useSettingsPermissions`) to determine the user's access level
 - Gate navigation items with the `canView` flag — hide items the user cannot access
@@ -593,11 +626,11 @@ Pages that support role-based access must adapt their UI based on the authentica
 
 For panels that display structured data (input/output panels in the workflow builder), provide a view toggle:
 
-| View       | Use case                                          | Component                |
-| ---------- | ------------------------------------------------- | ------------------------ |
-| **Schema** | Tree view showing data shape with type labels     | `TreeView` (read-only)   |
-| **Table**  | Tabular view with column headers from data keys   | `DataTableView` (shared) |
-| **JSON**   | Formatted JSON with search                        | `CodeEditor` (read-only) |
+| View       | Use case                                        | Component                |
+| ---------- | ----------------------------------------------- | ------------------------ |
+| **Schema** | Tree view showing data shape with type labels   | `TreeView` (read-only)   |
+| **Table**  | Tabular view with column headers from data keys | `DataTableView` (shared) |
+| **JSON**   | Formatted JSON with search                      | `CodeEditor` (read-only) |
 
 - Use a shared `ViewToggle` component with `ToggleGroup` for switching between views
 - Show the toggle **only when data exists** — hide it and show an empty state when no data is available

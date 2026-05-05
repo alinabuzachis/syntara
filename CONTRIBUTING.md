@@ -6,6 +6,24 @@ We're excited that you're interested in contributing to the Nexus UI project. Th
 
 All pull requests must pass the `Success` CI gate before merging. This includes unit tests, SonarCloud analysis, E2E tests, and other required checks.
 
+## AI-Assisted Development
+
+This project ships with AI agent skills (in `.claude/skills/`) that handle the repetitive parts of the development workflow — implementing features, reviewing code, and writing tests — while enforcing the project's standards automatically. These skills work with Claude Code, Cursor, or any tool that reads the skill files.
+
+**New contributors should read [`docs/ai-assisted-development.md`](docs/ai-assisted-development.md) before writing any code.** It explains:
+
+- How to use the **Frontend Specialist** agent to implement a feature using PatternFly, typed API clients, and Zod + react-hook-form
+- How to use the **PR Review** skill to check your code against the quality checklist before opening a PR
+- How to use the **Playwright E2E** skill to write end-to-end tests that work in both mock-API and real-backend mode
+- How to apply the **UX Design System** skill to match the Automation Orchestrator design language
+- How to review your implementation locally (dev server, browser states, keyboard/accessibility)
+- How to fix common guideline violations flagged during review
+- How to use the `/build-ui-feature` command to walk through the full workflow step by step
+
+The guide includes copy-ready prompt templates, a workflow diagram, and worked examples.
+
+---
+
 ## Prerequisites
 
 - Node.js 22+ (see package.json for exact requirements)
@@ -13,110 +31,6 @@ All pull requests must pass the `Success` CI gate before merging. This includes 
 - Familiarity with React, TypeScript, and modern web development practices
 
 ## Getting Started
-
-### Choose Your Contribution Path
-
-We have two development workflows depending on the size of your change:
-
-#### Quick Fix Path (No Spec Needed)
-
-**Use this for:**
-
-- Bug fixes (typos, styling issues, broken links)
-- Documentation updates
-- Dependency updates
-- Small refactors (< 50 lines changed)
-- UI tweaks and polish
-
-**Workflow:**
-
-1. Create branch: `git checkout -b fix/short-description` or `docs/short-description`
-2. Make your change
-3. Run tests: `npm test`
-4. Commit with conventional commit format: `fix: description` or `docs: description`
-5. Create PR
-
-**No spec, plan, or tasks files needed!**
-
-#### Feature Development Path (Spec Kit Required)
-
-**Use this for:**
-
-- New features
-- Significant refactors
-- Architecture changes
-- Multi-file changes (> 50 lines)
-- Changes requiring design decisions
-
-**Follow the Spec Kit workflow** (see section below)
-
----
-
-### Specification-Driven Development with GitHub Spec Kit
-
-This project utilizes [GitHub's Spec Kit](https://github.com/github/spec-kit) for **feature development**. This aligns our development workflow with the backend repository.
-
-**When to use Spec Kit:**
-
-- You're adding new functionality
-- Multiple files will be changed
-- You need to make design/architecture decisions
-- The change requires planning and task breakdown
-
-**When NOT to use Spec Kit:**
-
-- Simple bug fixes
-- Documentation updates
-- Trivial changes (see "Quick Fix Path" above)
-
-#### Setup
-
-1.  **Configuration**: The project is already configured with:
-    - `.specify/` - Templates and configuration
-    - `.cursor/commands/` - Cursor AI commands (prefixed with `speckit.`)
-
-    To sync new commands from `.claude/` to `.cursor/`, run:
-
-    ```bash
-    npm run sync-cursor-commands
-    ```
-
-#### Workflow (Using Cursor AI)
-
-We use **Cursor Composer** (Cmd+I / Ctrl+I) to drive the Spec Kit workflow.
-
-1.  **Specify** (`@speckit.specify`)
-    - Open Composer and type: `@speckit.specify "Description of your feature"`
-    - This generates a specification file in `specs/NNN-feature-name/spec.md`.
-    - Review and refine the generated spec.
-
-2.  **Plan** (`@speckit.plan`)
-    - With the spec file open or referenced, type: `@speckit.plan`
-    - This generates an implementation plan in `specs/NNN-feature-name/plan.md`.
-    - It covers architecture, data models, and technical approach.
-
-3.  **Tasks** (`@speckit.tasks`)
-    - With the plan file open, type: `@speckit.tasks`
-    - This breaks the plan into actionable, sequential tasks in `specs/NNN-feature-name/tasks.md`.
-
-4.  **Implement** (`@speckit.implement`)
-    - Type: `@speckit.implement`
-    - The agent will read the tasks and start implementing them one by one.
-    - It will create/edit files, run tests, and mark tasks as complete.
-
-### Spec Numbering and Branching
-
-To align with the backend process:
-
-1.  **One Branch Per Feature**: Create a branch for your feature (e.g., `feature/dark-mode`).
-2.  **Numbered Specs**: Specs must be placed in `specs/` with a sequential number prefix.
-    - Example: `specs/011-theme-switcher/`
-    - Check the `specs/` directory to find the next available number.
-    - You can verify the sequence by running:
-      ```bash
-      npm run check-specs
-      ```
-3.  **Commit Specs**: The spec files (`spec.md`, `plan.md`, `tasks.md`) should be committed to the repository to serve as permanent documentation.
 
 ### 1. Fork and Clone the Repository
 

@@ -10,7 +10,7 @@ Claude, you have access to the following skills. Use them when appropriate:
 - See `.claude/skills/testing_guidelines.md` for testing standards, coverage, and accessibility testing
 - See `.claude/skills/pr_review.md` for PR review steps
 - See `.claude/skills/playwright_e2e.md` for comprehensive E2E testing with Playwright
-- See `.claude/skills/patternfly_ux_design_system.md` for PatternFly UX design system rules and opinionated component usage
+- See `.claude/skills/patternfly-ux-design-system.md` for PatternFly UX design system rules and opinionated component usage
 
 ### Accessibility review (always)
 
@@ -134,6 +134,7 @@ For how the UI is structured, see these comprehensive guides:
 
 | Working on...                       | Read this                                                                                                                                                                                                                                          |
 | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **New here / onboarding**           | [`docs/ai-assisted-development.md`](docs/ai-assisted-development.md) — AI agent prompts, screenshot workflow, full example                                                                                                                         |
 | **API integration**                 | [`docs/data-flow.md`](docs/data-flow.md) — OpenAPI contracts and type-safe clients                                                                                                                                                                 |
 | **Workflow transformations**        | [`docs/data-flow.md`](docs/data-flow.md) — Nested to flat conversions                                                                                                                                                                              |
 | **Step registry (`NodeRegistry`)**  | [`docs/architecture.md`](docs/architecture.md) — auto-discovery of step types                                                                                                                                                                      |
@@ -150,8 +151,8 @@ For how the UI is structured, see these comprehensive guides:
 | **Testing standards**               | [`.claude/skills/testing_guidelines.md`](.claude/skills/testing_guidelines.md) — coverage, queries, accessibility                                                                                                                                  |
 | **Visual regression testing**       | [`packages/nexus-ui/VISUAL_REGRESSION.md`](packages/nexus-ui/VISUAL_REGRESSION.md) — page registry, baselines, CI screenshots                                                                                                                      |
 | **New workflow step type**          | `packages/nexus-ui/src/routes/builder/registry/nodes/QUICK_START.md`                                                                                                                                                                               |
-| **UX / PatternFly design system**   | [`.claude/skills/patternfly_ux_design_system.md`](.claude/skills/patternfly_ux_design_system.md) — PF6 patterns                                                                                                                                    |
-| **Library docs / llms.txt links**   | [`.claude/skills/library_references.md`](.claude/skills/library_references.md) — fetch before writing React, Zod, Zustand, Vitest, Vite, or TanStack Query code                                                                                   |
+| **UX / PatternFly design system**   | [`.claude/skills/patternfly-ux-design-system.md`](.claude/skills/patternfly-ux-design-system.md) — PF6 patterns                                                                                                                                    |
+| **Library docs / llms.txt links**   | [`.claude/skills/library_references.md`](.claude/skills/library_references.md) — fetch before writing React, Zod, Zustand, Vitest, Vite, or TanStack Query code                                                                                    |
 | **Page content frame (`AppPanel`)** | `packages/nexus-ui/src/components/AppPanel.tsx` — `Panel` → `PanelMain` → `PanelMainBody`; see JSDoc (glass vs `opaqueFloatingFill` vs `variant="raised"`) and [patternfly-react#12372](https://github.com/patternfly/patternfly-react/pull/12372) |
 
 ### Quick Reference: Common Tasks

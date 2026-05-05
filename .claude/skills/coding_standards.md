@@ -945,7 +945,7 @@ The same rules apply to `showWarning` and `showInfo`.
 
 Never use raw `<span>`, `<p>`, or `<div>` for text content when a PatternFly component exists. Use PF `Content`, `HelperText`, `Label`, or `Title` instead — they pick up design tokens for font size, color, and spacing automatically.
 
-See [`.claude/skills/patternfly_ux_design_system.md`](patternfly_ux_design_system.md) — section 13 "No Raw HTML for Text Content" for the full component mapping table and code examples.
+See [`.claude/skills/patternfly-ux-design-system.md`](patternfly-ux-design-system.md) — section 13 "No Raw HTML for Text Content" for the full component mapping table and code examples.
 
 ---
 

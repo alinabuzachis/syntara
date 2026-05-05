@@ -342,14 +342,15 @@ See [docs/zustand-architecture.md](docs/zustand-architecture.md) for the complet
 
 ## Further Reading
 
-| Topic                         | Document                                                                       |
-| ----------------------------- | ------------------------------------------------------------------------------ |
-| Architecture overview         | [docs/architecture.md](docs/architecture.md)                                   |
-| API integration & data flow   | [docs/data-flow.md](docs/data-flow.md)                                         |
-| Zustand state management      | [docs/zustand-architecture.md](docs/zustand-architecture.md)                   |
-| WebSocket infrastructure      | [docs/websocket-architecture.md](docs/websocket-architecture.md)               |
-| Execution visualizer protocol | [docs/execution-visualizer-protocol.md](docs/execution-visualizer-protocol.md) |
-| Error handling                | [docs/error-handling.md](docs/error-handling.md)                               |
-| Workflow loading & saving     | [docs/workflow-loading-saving.md](docs/workflow-loading-saving.md)             |
-| Testing guide                 | [packages/nexus-ui/TESTING.md](packages/nexus-ui/TESTING.md)                   |
-| Contributing guidelines       | [CONTRIBUTING.md](CONTRIBUTING.md)                                             |
+| Topic                         | Document                                                                                   |
+| ----------------------------- | ------------------------------------------------------------------------------------------ |
+| **AI-assisted development**   | [docs/ai-assisted-development.md](docs/ai-assisted-development.md) — prompts and workflows |
+| Architecture overview         | [docs/architecture.md](docs/architecture.md)                                               |
+| API integration & data flow   | [docs/data-flow.md](docs/data-flow.md)                                                     |
+| Zustand state management      | [docs/zustand-architecture.md](docs/zustand-architecture.md)                               |
+| WebSocket infrastructure      | [docs/websocket-architecture.md](docs/websocket-architecture.md)                           |
+| Execution visualizer protocol | [docs/execution-visualizer-protocol.md](docs/execution-visualizer-protocol.md)             |
+| Error handling                | [docs/error-handling.md](docs/error-handling.md)                                           |
+| Workflow loading & saving     | [docs/workflow-loading-saving.md](docs/workflow-loading-saving.md)                         |
+| Testing guide                 | [packages/nexus-ui/TESTING.md](packages/nexus-ui/TESTING.md)                               |
+| Contributing guidelines       | [CONTRIBUTING.md](CONTRIBUTING.md)                                                         |
