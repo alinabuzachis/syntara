@@ -533,6 +533,7 @@ class ToolProviderService(BaseService):
                 provider_type=validation_result.provider_type,
                 validated_at=provider.last_validated_at or datetime.now(UTC),
                 error=validation_result.error,
+                timeout=validation_result.timeout,
             )
 
         except Exception as e:  # noqa: BLE001
@@ -573,6 +574,7 @@ class ToolProviderService(BaseService):
                 provider_type=validation_result.provider_type,
                 validated_at=datetime.now(UTC),
                 error=validation_result.error,
+                timeout=validation_result.timeout,
             )
 
         except Exception as e:  # noqa: BLE001

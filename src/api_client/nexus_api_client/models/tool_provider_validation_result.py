@@ -21,18 +21,21 @@ class ToolProviderValidationResult:
         provider_type: The type of provider that was validated
         validated_at: Timestamp when validation was performed
         error: Optional error message if validation failed
+        timeout: Whether the validation failed due to a timeout
 
         Attributes:
             valid (bool):
             provider_type (str):
             validated_at (datetime.datetime):
             error (None | str | Unset):
+            timeout (bool | Unset):  Default: False.
     """
 
     valid: bool
     provider_type: str
     validated_at: datetime.datetime
     error: None | str | Unset = UNSET
+    timeout: bool | Unset = False
 
     def to_dict(self) -> dict[str, Any]:
         valid = self.valid
@@ -47,6 +50,8 @@ class ToolProviderValidationResult:
         else:
             error = self.error
 
+        timeout = self.timeout
+
         field_dict: dict[str, Any] = {}
 
         field_dict.update(
@@ -58,6 +63,8 @@ class ToolProviderValidationResult:
         )
         if error is not UNSET:
             field_dict["error"] = error
+        if timeout is not UNSET:
+            field_dict["timeout"] = timeout
 
         return field_dict
 
@@ -79,11 +86,14 @@ class ToolProviderValidationResult:
 
         error = _parse_error(d.pop("error", UNSET))
 
+        timeout = d.pop("timeout", UNSET)
+
         tool_provider_validation_result = cls(
             valid=valid,
             provider_type=provider_type,
             validated_at=validated_at,
             error=error,
+            timeout=timeout,
         )
 
         return tool_provider_validation_result

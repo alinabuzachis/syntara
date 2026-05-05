@@ -168,6 +168,19 @@ def mcp_provider(nexus_api: NexusApiRegistry) -> str:
         body=ToolProviderPatch(status=ProviderStatus.AVAILABLE),
     ).assert_and_get()
 
+    # Poll until the PATCH commit is visible to new transactions.
+    # FastAPI's dependency-with-yield commits the session AFTER the HTTP
+    # response is delivered, so a subsequent request may read stale data.
+    prov_status = None
+    for _attempt in range(20):
+        prov = nexus_api.tool_manager.get_tool_provider(provider_id=UUID(provider_id)).assert_and_get()
+        prov_status = prov.status
+        if prov_status == ProviderStatus.AVAILABLE:
+            break
+        time.sleep(0.25)
+    else:
+        pytest.fail(f"Provider status never became AVAILABLE, got: {prov_status}")
+
     # Refresh tools (the worker will reach the MCP server via compose DNS)
     nexus_api.tool_manager.refresh_tool_provider(provider_id=UUID(provider_id)).assert_and_get()
 

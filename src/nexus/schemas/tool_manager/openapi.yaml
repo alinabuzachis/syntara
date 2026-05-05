@@ -1184,6 +1184,7 @@ components:
             provider_type: The type of provider that was validated
             validated_at: Timestamp when validation was performed
             error: Optional error message if validation failed
+            timeout: Whether the validation failed due to a timeout
       properties:
         valid:
           type: boolean
@@ -1200,6 +1201,10 @@ components:
             - type: string
             - type: 'null'
           title: Error
+        timeout:
+          type: boolean
+          title: Timeout
+          default: false
       required:
         - valid
         - provider_type

@@ -214,13 +214,14 @@ class TestMCPProvider:
         assert result.provider_type == "mcp"
         assert isinstance(result.validated_at, datetime)
         assert result.error is None
+        assert result.timeout is False
 
         mock_client.get_tools.assert_called_once()
 
     @pytest.mark.asyncio
     @patch("nexus.tool_manager.lib.providers.mcp.mcp_provider.MultiServerMCPClient")
     async def test_validate_connection_timeout(self, mock_client_class: Mock) -> None:
-        """Test connection validation timeout handling."""
+        """Test connection validation timeout handling with retries."""
         # Setup
         mock_client = AsyncMock()
         mock_client.get_tools.side_effect = TimeoutError("Timed out")
@@ -238,8 +239,10 @@ class TestMCPProvider:
         assert isinstance(result.validated_at, datetime)
         assert result.error is not None
         assert "Timed out" in result.error
+        assert result.timeout is True
 
-        mock_client.get_tools.assert_called_once()
+        # Timeouts are retriable — all 3 attempts should be made
+        assert mock_client.get_tools.call_count == 3
 
     @pytest.mark.asyncio
     @patch("nexus.tool_manager.lib.providers.mcp.mcp_provider.MultiServerMCPClient")
@@ -262,6 +265,7 @@ class TestMCPProvider:
         assert isinstance(result.validated_at, datetime)
         assert result.error is not None
         assert "Network error" in result.error
+        assert result.timeout is False
 
         mock_client.get_tools.assert_called_once()
 

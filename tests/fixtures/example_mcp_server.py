@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-import socket
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
@@ -77,25 +76,32 @@ class BaseServer(ABC):
         logger.info("Test MCP server started at %s, MCP endpoint at %s", self.server_url, self.base_url)
 
     async def _wait_for_server_ready(self, *, max_timeout: float = 10.0) -> None:
-        """Wait for server to be ready by attempting connection checks.
+        """Wait for server to be ready by attempting HTTP requests.
+
+        A TCP socket check is not sufficient because the ASGI application may
+        not be fully initialised yet (the streamable-http transport in FastMCP
+        can race), which leads to ``ASGI callable returned without completing
+        response`` errors and 30-second timeouts in CI.
 
         Args:
             max_timeout: Maximum time to wait for server startup
 
         """
-        start_time = asyncio.get_event_loop().time()
-        while (asyncio.get_event_loop().time() - start_time) < max_timeout:
-            try:
-                # Try to connect to the server socket
-                with socket.create_connection((self.host, self.port), timeout=1.0):
-                    logger.debug("Server socket connection successful")
-                    # Give a bit more time for FastMCP to fully initialize
-                    await asyncio.sleep(0.5)
-                    return
-            except OSError:
-                pass
+        import httpx
 
-            await asyncio.sleep(0.1)
+        start_time = asyncio.get_event_loop().time()
+        async with httpx.AsyncClient() as client:
+            while (asyncio.get_event_loop().time() - start_time) < max_timeout:
+                try:
+                    # Make a real HTTP request so we know the ASGI app is ready.
+                    # Any HTTP response (even 4xx/5xx) means the server is up.
+                    response = await client.get(f"http://{self.host}:{self.port}/", timeout=2.0)
+                    logger.debug("Server HTTP check returned status %s", response.status_code)
+                    return
+                except (httpx.ConnectError, httpx.ReadError, httpx.RemoteProtocolError):
+                    pass
+
+                await asyncio.sleep(0.1)
 
         msg = f"Server did not start within {max_timeout}s"
         raise TimeoutError(msg)

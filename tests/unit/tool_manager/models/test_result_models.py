@@ -138,6 +138,7 @@ def test_connection_validation_result_creation() -> None:
     assert result.provider_type == "mcp"
     assert result.validated_at == now
     assert result.error is None
+    assert result.timeout is False
 
 
 def test_connection_validation_result_with_error() -> None:
@@ -155,3 +156,23 @@ def test_connection_validation_result_with_error() -> None:
     assert result.provider_type == "custom"
     assert result.validated_at == now
     assert result.error == "Authentication failed"
+    assert result.timeout is False
+
+
+def test_connection_validation_result_with_timeout() -> None:
+    """Test ToolProviderValidationResult with timeout."""
+    now = datetime.now(UTC)
+
+    result = ToolProviderValidationResult(
+        valid=False,
+        provider_type="mcp",
+        validated_at=now,
+        error="Connection timed out",
+        timeout=True,
+    )
+
+    assert result.valid is False
+    assert result.provider_type == "mcp"
+    assert result.validated_at == now
+    assert result.error == "Connection timed out"
+    assert result.timeout is True

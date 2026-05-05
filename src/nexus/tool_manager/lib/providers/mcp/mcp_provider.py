@@ -128,24 +128,25 @@ class MCPProvider(ToolProviderAdapter):
             return "MCP session failed to establish connection - Forbidden"
         return f"Connection validation failed with HTTP error: {error}"
 
-    async def validate_connection(self) -> ToolProviderValidationResult:
-        """Validate connection to the MCP server.
+    async def _attempt_validate_connection(self, attempt_timeout: int) -> tuple[list[str], bool]:
+        """Attempt a single validation against the MCP server.
+
+        Args:
+            attempt_timeout: Timeout in seconds for the connection attempt
 
         Returns:
-            ToolProviderValidationResult containing validation details
+            A tuple of (error_messages, retriable). error_messages is empty on
+            success. retriable is True when the caller should retry (e.g. on timeout).
 
         """
-        timeout = 30
-        validation_errors: list[str] = []
+        errors: list[str] = []
+        retriable = False
+        # Reset client so each attempt starts with a fresh MCP session
+        self._client = None
 
         try:
-            logger.info("Validating connection to MCP provider", provider_name=self.provider_name)
-
-            # Get client and attempt to connect
             client = await self._get_client()
-
-            # Test connection by attempting to list tools
-            tools = await asyncio.wait_for(client.get_tools(), timeout=timeout)
+            tools = await asyncio.wait_for(client.get_tools(), timeout=attempt_timeout)
 
             logger.info(
                 "Successfully validated MCP provider, found tools",
@@ -153,35 +154,70 @@ class MCPProvider(ToolProviderAdapter):
                 tool_count=len(tools),
             )
         except* TimeoutError as eg:
-            # Extract all exceptions from potentially nested ExceptionGroups
             all_exceptions = extract_all_exceptions(eg)
-            validation_errors.extend([str(e) for e in all_exceptions])
+            errors.extend([str(e) for e in all_exceptions])
+            retriable = True
         except* httpx.ConnectError as eg:
-            # Extract all exceptions from potentially nested ExceptionGroups
             all_exceptions = extract_all_exceptions(eg)
-            validation_errors.extend([str(e) for e in all_exceptions])
+            errors.extend([str(e) for e in all_exceptions])
         except* ConnectionError as eg:
-            # Extract all exceptions from potentially nested ExceptionGroups
             all_exceptions = extract_all_exceptions(eg)
-            validation_errors.extend([str(e) for e in all_exceptions])
+            errors.extend([str(e) for e in all_exceptions])
         except* HTTPStatusError as eg:
-            # Extract all exceptions from potentially nested ExceptionGroups
             all_exceptions = extract_all_exceptions(eg)
-
-            # Process each exception, handling HTTPStatusError with sanitization
             for exception in all_exceptions:
                 if isinstance(exception, HTTPStatusError):
                     msg = self._process_http_status_error(exception)
-                    validation_errors.append(msg)
+                    errors.append(msg)
                 else:
-                    # Handle any non-HTTPStatusError exceptions that might be mixed in
-                    validation_errors.append(str(exception))
+                    errors.append(str(exception))
+
+        return errors, retriable
+
+    async def validate_connection(self) -> ToolProviderValidationResult:
+        """Validate connection to the MCP server.
+
+        Uses retry logic because the streamable-http transport in FastMCP
+        has a known race condition where the SSE stream handler can fail
+        intermittently with ``ASGI callable returned without completing
+        response``, which manifests as a timeout on the client side.
+
+        Returns:
+            ToolProviderValidationResult containing validation details
+
+        """
+        max_attempts = 3
+        per_attempt_timeout = 15
+        validation_errors: list[str] = []
+        timed_out = False
+
+        logger.info("Validating connection to MCP provider", provider_name=self.provider_name)
+
+        for attempt in range(1, max_attempts + 1):
+            validation_errors, retriable = await self._attempt_validate_connection(per_attempt_timeout)
+
+            if not validation_errors:
+                break
+
+            if retriable:
+                timed_out = True
+                if attempt < max_attempts:
+                    logger.warning(
+                        "MCP validation attempt timed out, retrying",
+                        provider_name=self.provider_name,
+                        attempt=attempt,
+                        max_attempts=max_attempts,
+                    )
+                    continue
+            # Non-retriable error or last attempt — stop
+            break
 
         return ToolProviderValidationResult(
             valid=len(validation_errors) == 0,
             provider_type="mcp",
             validated_at=datetime.now(UTC),
             error="\n".join(validation_errors) if validation_errors else None,
+            timeout=timed_out,
         )
 
     async def get_base_tools(self) -> list[BaseTool]:
