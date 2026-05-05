@@ -41,11 +41,14 @@ export default defineConfig({
           },
         },
         {
-          command: `npm run start --prefix packages/nexus-ui -- --port ${uiPort}`,
+          command: process.env.CI
+            ? `npm run build --prefix packages/nexus-ui && npm run preview --prefix packages/nexus-ui -- --port ${uiPort}`
+            : `npm run start --prefix packages/nexus-ui -- --port ${uiPort}`,
           cwd: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..'),
           url: baseURL,
           reuseExistingServer: !process.env.CI,
-          timeout: 120_000,
+          // Build step in CI adds ~60s on top of the dev server startup
+          timeout: 180_000,
           env: {
             VITE_API_URL: `http://localhost:${apiPort}`,
           },

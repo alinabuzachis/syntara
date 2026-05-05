@@ -7,6 +7,7 @@
     "clean": "rm -rf dist node_modules",
     "start": "vite --open",
     "build": "vite build",
+    "preview": "vite preview",
     "test": "concurrently npm:lint npm:tsc npm:vitest",
     "test:coverage": "vitest run --coverage",
     "test:coverage:shard": "vitest run --coverage",

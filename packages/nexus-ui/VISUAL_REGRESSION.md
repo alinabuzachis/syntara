@@ -5,9 +5,9 @@ Automated screenshot testing for every page in the application.
 ## How It Works
 
 - **Baselines** are Linux-generated PNGs committed in the repo under `e2e/visual-regression/page-screenshots.spec.ts-snapshots/`.
-- **CI** builds the app against the mock API, takes screenshots on Ubuntu, and compares them pixel-by-pixel to the committed baselines.
+- **CI uses a production build** (`vite build` + `vite preview`) to take screenshots. This ensures every screenshot reflects the latest source code from disk, with no dev-server caching or HMR artifacts. Local development uses the Vite dev server for fast iteration — see [CI vs Local](#ci-vs-local) for details.
 - **`/update-screenshots`** is a PR comment command that triggers a workflow to regenerate baselines on Ubuntu and commit them to your branch.
-- **Troubleshooting `/update-screenshots`:** The workflow only commits when Playwright actually writes new/changed PNGs. If the PR comment says **“already up to date”** but you deleted baselines, open the workflow run log and confirm **page-screenshots** tests ran (not skipped). Repository or organization Actions variables must **not** set `NEXUS_E2E_SKIP_WEB_SERVER` to a random non-empty value — only `1` / `true` / `yes` skip mock webServer + snapshot tests. The baseline workflow forces this var off at the job level as a safeguard.
+- **Troubleshooting `/update-screenshots`:** The workflow only commits when Playwright actually writes new/changed PNGs. If the PR comment says **”already up to date”** but you deleted baselines, open the workflow run log and confirm **page-screenshots** tests ran (not skipped). Repository or organization Actions variables must **not** set `NEXUS_E2E_SKIP_WEB_SERVER` to a random non-empty value — only `1` / `true` / `yes` skip mock webServer + snapshot tests. The baseline workflow forces this var off at the job level as a safeguard.
 - **macOS snapshots** are gitignored. Only Linux baselines are used in CI.
 - **Explicit viewport** (1280x720) is set in `playwright.config.ts` so every screenshot uses identical dimensions regardless of the runner's display.
 - **`fullPage: true`** captures the entire scrollable page, including content below the fold.
@@ -80,6 +80,16 @@ A single page can have multiple registry entries for different visual states:
 - **Form pages** -- navigate directly to the create/edit route
 
 See existing entries in `page-registry.ts` for examples.
+
+## CI vs Local
+
+| | CI (GitHub Actions) | Local development |
+|---|---|---|
+| **App server** | `vite build` + `vite preview` | `vite` (dev server) |
+| **Why** | Production build reads source files fresh — no transform caching | Dev server is faster for iteration |
+| **Controlled by** | `process.env.CI` in `playwright.config.ts` | Absence of `CI` env var |
+
+The `playwright.config.ts` webServer command switches automatically: when `CI` is set (all GitHub Actions runners), it runs a full production build then serves the static output. Locally, it uses the Vite dev server. The mock API server is the same in both cases.
 
 ## Running Locally
 

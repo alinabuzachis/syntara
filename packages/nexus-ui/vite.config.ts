@@ -5,6 +5,20 @@ import svgr from 'vite-plugin-svgr'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
+  const proxyConfig = {
+    '/api': {
+      target: env.VITE_API_URL || 'http://localhost:3000',
+      changeOrigin: true,
+      secure: false,
+    },
+    '/ws': {
+      target: env.VITE_WS_URL || env.VITE_API_URL || 'http://localhost:3000',
+      changeOrigin: true,
+      secure: false,
+      ws: true,
+    },
+  }
+
   return {
     plugins: [
       react({
@@ -20,27 +34,16 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
-      host: true, // Listen on all addresses for Docker
+      host: true,
       port: 5173,
       strictPort: true,
-      proxy: {
-        '/api': {
-          target: env.VITE_API_URL || 'http://localhost:3000',
-          changeOrigin: true,
-          secure: false,
-        },
-        '/ws': {
-          target: env.VITE_WS_URL || env.VITE_API_URL || 'http://localhost:3000',
-          changeOrigin: true,
-          secure: false,
-          ws: true, // Enable WebSocket proxying
-        },
-      },
+      proxy: proxyConfig,
     },
     preview: {
       host: true,
       port: 5173,
       strictPort: true,
+      proxy: proxyConfig,
     },
   }
 })
