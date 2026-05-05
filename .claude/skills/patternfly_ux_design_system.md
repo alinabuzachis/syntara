@@ -152,10 +152,25 @@ Every page **must** follow this structural hierarchy:
 | Page Content       | `CompassContent` + `AppPage` | Main content area wrapper               |
 | Page Header        | `AppPageHeader`              | Page title and actions                  |
 | Content Frame      | `AppPanel`                   | `Panel` → `PanelMain` → `PanelMainBody` |
+| Content Stack      | `PanelContentStack`          | Full-height flex column inside `AppPanel` |
 | Main Content       | Table / Canvas / Form        | Primary page content                    |
-| Footer (on tables) | Pagination component         | Navigation between table pages          |
+| Footer (on tables) | `PaginationFooter`           | Navigation between table pages          |
 
 For **floating panels on the workflow canvas** under the glass theme, prefer `AppPanel` with `variant="raised"` for compact controls (opaque + shadow) or `opaqueFloatingFill` for large flat shells without raised chrome; see JSDoc on `packages/nexus-ui/src/components/AppPanel.tsx`.
+
+### Centered Layout for Loading / Empty States
+
+Use `AppPageMain` with `isCentered` for page-level centered layouts (loading spinners, empty states). For nested slots (e.g. `StackItem` + `isFilled`), use `flexCenteredBothAxes` from `src/app/flexCenteredBothAxes.ts`.
+
+### Panel Content Stack
+
+Use `PanelContentStack` (from `src/components/PanelContentStack.tsx`) as the main content column inside `AppPanel isFullHeight`. It provides the correct flex behavior (`flex: 1`, `minHeight: 0`) so nested scroll areas resolve height correctly.
+
+| Variant              | Use case                                                           |
+| -------------------- | ------------------------------------------------------------------ |
+| `default`            | Standard full-height panel content                                 |
+| `pageGutter`         | List pages with horizontal inset (workflows, executions, approvals)|
+| `credentialDetailTab`| Detail tabs with `lg` padding                                      |
 
 ### Page Header Structure
 
@@ -169,11 +184,21 @@ There are different kinds of page headers:
 
 - **Details page header**
   - Left-aligned back button + left-aligned page header
-  - Right-aligned page actions
+  - Optional: resource icon and type label badge alongside the resource name
+  - Right-aligned page actions ordered left to right: `Switch` toggle (if applicable), primary action button, kebab menu with remaining actions
 
 - **Form page header**
   - Left-aligned page title
-  - Right-aligned page actions
+  - Right-aligned action buttons: "Save [resource]" (primary) and "Cancel" (link variant)
+
+### Tabs
+
+When a page uses tabs, the tabs must live inside the `CompassPanel`, not outside it.
+
+- Tab labels should be clear, professional, and action-oriented
+- Use sentence case for tab labels
+- Avoid colloquial language, slang, or informal phrasing
+- Avoid punctuation in tab labels (no question marks, exclamation points)
 
 ---
 
@@ -211,12 +236,10 @@ Filter bar is visible when data exists or when filters are active; hidden only w
   - Every table row has a kebab menu (⋮) in the rightmost column containing all available actions for that resource
   - The actions column has no column header label
   - All row actions live inside the kebab — no direct buttons or links in the actions column
+  - **Exception — inline enable/disable**: A `Switch` toggle may appear in a dedicated "State" column (not the actions column) for resources where toggling the enabled state is the most frequent action. The switch patches the resource directly with toast alerts for success/failure.
   - Action order: non-destructive actions first (e.g., "Edit", "Duplicate", "Disable"), then a divider, then destructive actions last (e.g., "Delete", "Remove")
   - On the **details page header**, the same actions appear in a kebab menu. Frequently used actions are promoted to direct buttons in the header based on usage patterns — these become the primary actions for that resource. The remaining actions stay in the kebab.
-- **Footer/pagination** — uses cursor-based pagination via `ScrollableTableContainer`'s `footer` prop (`TableFooterProps`):
-  - Left: Item count — `"5 workflows (of 100 total)"` format showing current page count and overall total
-  - Right: **Previous / Next** buttons using cursor tokens from the API (`prev`, `next`). No page numbers, no per-page selector, no jump-to-page — the API returns opaque cursor strings, not offsets
-  - Pass `{ content, prev, next, onPrev, onNext }` to the `footer` prop
+- **Footer/pagination** — use `PaginationFooter` via the `ScrollableTableContainer` `footer` prop. `PaginationFooter` wraps PatternFly's [Pagination](https://www.patternfly.org/components/pagination) component; supports `page`, `perPage`, `total` (optional), `hasNext`, `onPrev`, `onNext`, and `onPerPageChange`. When `total` is unknown (cursor-based APIs), item count is estimated from `page`, `perPage`, and `hasNext`. Pair with `useCursorPagination` from `src/hooks/useCursorPagination.tsx` for cursor state management
 
 ### Form Component
 
@@ -229,6 +252,32 @@ Filter bar is visible when data exists or when filters are active; hidden only w
   - Use PatternFly's [Validated component](https://www.patternfly.org/components/forms/form/#validated) for general form validation
   - Use PatternFly's [Number Input component](https://www.patternfly.org/components/number-input/#numberinput) for number input fields
   - Use PatternFly's [popover help text](https://www.patternfly.org/components/popover/design-guidelines) on form field labels
+- **Validation behavior:**
+  - The primary action (Save / Create) is **always clickable** — never disable it because of missing required fields
+  - When the user clicks Save with invalid or missing fields, apply `validated="error"` (danger styling) to the invalid fields and show a toast notification explaining what needs attention
+  - Selecting/filling the required field clears the danger styling immediately
+
+### Typeahead Selector Patterns
+
+All typeahead dropdown menus should have a **max height** to prevent the dropdown from growing unbounded. Use PatternFly's `menuHeight` prop or equivalent CSS constraint.
+
+#### Project Selector (with favorites)
+
+The project selector is a special typeahead that supports favorites. This pattern is specific to the project selector — resource pickers (e.g., credential selectors, integration pickers) do **not** include favorites.
+
+- **Favorites** — star icon to mark items as favorites; favorites appear in a grouped section at the top of the dropdown
+- **Grouped sections** — separate "Favorites" and "All" groups when favorites are active
+- **Sticky footer** — a persistent "Create [resource]" action pinned at the bottom of the dropdown, always visible regardless of scroll position
+- **Clear filter** — a clear button (×) in the search field to reset the typeahead filter
+- **Data persistence during filtering** — preserve existing data while filtering to avoid loading/error flash states; only show loading on initial fetch
+
+#### Resource Pickers (without favorites)
+
+Resource pickers (credential selectors, integration pickers, etc.) use a standard typeahead without favorites:
+
+- **Typeahead search** — filter options by typing
+- **Clear filter** — a clear button (×) to reset the typeahead filter
+- **Max height** — constrain the dropdown to prevent unbounded growth
 
 ### Details Component
 
@@ -262,6 +311,8 @@ When building or reviewing any page, verify every item:
 - [ ] Uses `AppPage` as outer wrapper
 - [ ] Uses `AppPageHeader` for title and actions
 - [ ] Uses `StackItem isFilled` + `AppPanel isFullHeight` for content
+- [ ] Uses `PanelContentStack` for the main content column inside `AppPanel`
+- [ ] Loading / empty states use `AppPageMain isCentered`
 - [ ] Inner content has consistent padding
 
 ### Header
@@ -361,6 +412,17 @@ Use for single-field quick edits.
 - Renaming resources (when save happens elsewhere)
 - Toggling settings — use PatternFly's [Switch Checked with Label component](http://patternfly.org/components/switch#checked-with-label)
 - Single-value changes
+
+### View: Read-Only Detail Modal (from Kebab)
+
+Use when users need to inspect structured data (JSON, policy definitions, configuration) without leaving the list page. Triggered from a kebab menu action (e.g., "View policy JSON").
+
+| Element       | Specification                                                                          |
+| ------------- | -------------------------------------------------------------------------------------- |
+| Modal variant | Medium — PatternFly's [Modal Sizes](https://www.patternfly.org/components/modal#modal-sizes) |
+| Title         | Descriptive label (e.g., "Policy definition")                                          |
+| Body          | Read-only content with PatternFly's [Clipboard Copy](https://www.patternfly.org/components/clipboard-copy) when copying is useful |
+| Close button  | `variant="primary"` — the only action (no Cancel, no secondary)                        |
 
 ### Delete/Remove/Cancel/Stop: Destructive Confirmation Modal
 
@@ -510,7 +572,41 @@ Never use raw `<span>`, `<p>`, or `<div>` for text content. Use PatternFly typog
 
 ---
 
-## 14. Workflow Builder
+## 14. Role-Based UI States
+
+Pages that support role-based access must adapt their UI based on the authenticated user's permissions. Three tiers:
+
+| Permission Level        | Navigation             | Controls                               | Actions                        |
+| ----------------------- | ---------------------- | -------------------------------------- | ------------------------------ |
+| **No read permission**  | Hidden from navigation | Nothing rendered (empty screen)        | None                           |
+| **Read only** (auditor) | Visible in navigation  | All controls rendered as **read-only** | No save, reset, or edit buttons |
+| **Read + write** (admin)| Visible in navigation  | All controls editable                  | Full CRUD actions available    |
+
+- Use a permission hook (e.g., `useSettingsPermissions`) to determine the user's access level
+- Gate navigation items with the `canView` flag — hide items the user cannot access
+- Pass `isDisabled` / `isReadOnly` props to form controls for read-only users
+- Hide action buttons (Save, Reset, Delete) entirely for read-only users — do not disable them
+
+---
+
+## 15. Data Panel View Modes
+
+For panels that display structured data (input/output panels in the workflow builder), provide a view toggle:
+
+| View       | Use case                                          | Component                |
+| ---------- | ------------------------------------------------- | ------------------------ |
+| **Schema** | Tree view showing data shape with type labels     | `TreeView` (read-only)   |
+| **Table**  | Tabular view with column headers from data keys   | `DataTableView` (shared) |
+| **JSON**   | Formatted JSON with search                        | `CodeEditor` (read-only) |
+
+- Use a shared `ViewToggle` component with `ToggleGroup` for switching between views
+- Show the toggle **only when data exists** — hide it and show an empty state when no data is available
+- Default view may differ by context (e.g., JSON for output panels, Schema for input panels)
+- Output panels are **read-only** (no drag-and-drop); input panels may support drag-and-drop from schema fields
+
+---
+
+## 16. Workflow Builder
 
 The automation builder experience is based on [React Flow](https://reactflow.dev/) as the underlying graph/canvas foundation, with PatternFly as the visual wrapper. The canvas is built **left to right**.
 
@@ -538,10 +634,18 @@ The automation builder experience is based on [React Flow](https://reactflow.dev
 ### Canvas Controls
 
 - Should be anchored to the **bottom-left corner** of the canvas view
+- Canvas overlays (controls, legend, undo/redo) use `AppPanel` with `variant="raised"` for opaque + shadow
+- Workflow step nodes also use `variant="raised"` with a border-radius override to match `Card` / canvas chrome
+
+### Execution View Panels
+
+- The **run details panel** provides an Overview/Details toggle for inspecting execution state
+- Panels may use a `ResizableDivider` to allow users to resize panel split areas
+- The most recent run details can display inline in the editor after workflow execution
 
 ---
 
-## 15. Accessibility Guidelines
+## 17. Accessibility Guidelines
 
 While PatternFly provides a strong foundation with accessibility built into its individual components, achieving full [WCAG 2.1 AA](https://www.w3.org/WAI/WCAG2AA-Conformance) and [Section 508](https://www.section508.gov/) compliance requires careful implementation within the Automation Orchestrator codebase.
 
@@ -592,7 +696,7 @@ PatternFly handles the internal accessibility of its elements (e.g., a dropdown 
 
 ---
 
-## 16. Styling Rules
+## 18. Styling Rules
 
 ### No Global, Unscoped CSS
 
@@ -638,7 +742,7 @@ If you believe a global style is the only option, follow the PatternFly gaps pro
 
 ---
 
-## 17. Use Chrome DevTools MCP to Verify Implementation
+## 19. Use Chrome DevTools MCP to Verify Implementation
 
 This project ships with a Chrome DevTools MCP server configured in `.mcp.json`. Use it to inspect the live application while implementing or reviewing UI — verify that PatternFly components render correctly, design tokens are applied, and layouts match the spec.
 
@@ -685,13 +789,13 @@ This project ships with a Chrome DevTools MCP server configured in `.mcp.json`. 
 
 ---
 
-## 18. Getting Started for Developers
+## 20. Getting Started for Developers
 
 - Point to the AO UI repository for implementation references
 - Utilize the UI/UX skills defined in this document and the Cursor rules
-- Follow the accessibility guidelines in section 15
-- Follow the styling rules in section 16
-- Use Chrome DevTools MCP (section 17) to verify your implementation against the live app
+- Follow the accessibility guidelines in section 17
+- Follow the styling rules in section 18
+- Use Chrome DevTools MCP (section 19) to verify your implementation against the live app
 
 ---
 
@@ -731,9 +835,20 @@ What are you building?
 │   ├── Confirm button variant="primary", Cancel variant="link"
 │   └── Post-disable: stay in place + toast
 │
+├── View read-only detail (from kebab)
+│   ├── Medium modal with descriptive title
+│   ├── Read-only content with optional ClipboardCopy
+│   └── Single "Close" button (variant="primary")
+│
+├── Role-based access page
+│   ├── No read → hide from nav, empty screen on direct visit
+│   ├── Read only → controls disabled, no action buttons
+│   └── Read + write → full edit capability
+│
 └── Canvas/builder view
     ├── Use React Flow + PatternFly wrapper
     ├── Left-to-right layout
-    ├── Canvas controls at bottom-left
-    └── Side panel for step details (not modal)
+    ├── Canvas controls at bottom-left (AppPanel variant="raised")
+    ├── Side panel for step details (not modal)
+    └── Input/Output panels with Schema/Table/JSON view toggle
 ```
