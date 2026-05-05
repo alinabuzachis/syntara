@@ -283,6 +283,11 @@ jobs:
           always()
           && github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/github-script@v9
+        env:
+          VIEW_URLS_JSON: ${{ steps.publish-diffs.outputs.view-urls }}
+          DIFF_BRANCH: ${{ steps.publish-diffs.outputs.diff-branch }}
+          SCREENSHOTS_OUTCOME: ${{ steps.screenshots.outcome }}
+          BASELINES_OUTCOME: ${{ steps.baselines.outcome }}
         with:
           script: |
             const fs = require('fs');
@@ -291,8 +296,11 @@ jobs:
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
 
             let viewUrls = {};
-            try { viewUrls = JSON.parse('${{ steps.publish-diffs.outputs.view-urls }}' || '{}'); } catch {}
-            const diffBranch = '${{ steps.publish-diffs.outputs.diff-branch }}';
+            const viewUrlsJson = process.env.VIEW_URLS_JSON || '{}';
+            try { viewUrls = JSON.parse(viewUrlsJson); } catch {}
+            const diffBranch = process.env.DIFF_BRANCH || '';
+            const screenshotsOutcome = process.env.SCREENSHOTS_OUTCOME || '';
+            const baselinesOutcome = process.env.BASELINES_OUTCOME || '';
 
             // Read test results from Playwright JSON reporter
             const resultsPath = path.resolve('packages/nexus-ui/test-results/results.json');
@@ -325,13 +333,13 @@ jobs:
 
             let body = '';
 
-            if ('${{ steps.screenshots.outcome }}' === 'failure') {
+            if (screenshotsOutcome === 'failure') {
               const summaryPath = path.resolve('packages/nexus-ui/visual-diff-summary.json');
               let summary = { changed: [], count: 0, files: [] };
               try { summary = JSON.parse(fs.readFileSync(summaryPath, 'utf-8')); } catch { /* no summary */ }
 
               const hasDiffs = summary.count > 0;
-              const baselinesFailed = '${{ steps.baselines.outcome }}' === 'failure';
+              const baselinesFailed = baselinesOutcome === 'failure';
               const isMissingBaselines = baselinesFailed && !hasDiffs;
 
               let heading;
@@ -403,7 +411,7 @@ jobs:
               lines.push('3. Or run locally: `npx playwright test page-screenshots --update-snapshots`');
 
               body = lines.join('\n');
-            } else if ('${{ steps.baselines.outcome }}' === 'failure') {
+            } else if (baselinesOutcome === 'failure') {
               body = [
                 marker,
                 '### :warning: Visual Regression — missing baselines',

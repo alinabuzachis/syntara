@@ -9,6 +9,10 @@ permissions:
   contents: write
   pull-requests: write
 
+concurrency:
+  group: update-screenshots-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
 jobs:
   update-baselines:
     name: Generate & Commit Baselines
@@ -58,11 +62,24 @@ jobs:
         working-directory: packages/nexus-ui
 
       - name: Generate screenshots
+        id: screenshots
+        continue-on-error: true
         run: npx playwright test e2e/visual-regression/page-screenshots.spec.ts --update-snapshots
         working-directory: packages/nexus-ui
 
+      - name: Upload Playwright results on failure
+        if: steps.screenshots.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: update-baselines-results
+          path: |
+            packages/nexus-ui/test-results/
+            packages/nexus-ui/playwright-report/
+          retention-days: 7
+
       - name: Commit updated baselines
         id: commit
+        continue-on-error: true
         working-directory: packages/nexus-ui
         env:
           PR_REF: ${{ steps.pr.outputs.ref }}
@@ -84,15 +101,55 @@ jobs:
           fi
 
       - name: Post result comment
+        if: ${{ !cancelled() && steps.pr.outcome == 'success' }}
         uses: actions/github-script@v9
+        env:
+          COMMITTED: ${{ steps.commit.outputs.committed }}
+          ADDED: ${{ steps.commit.outputs.added }}
+          MODIFIED: ${{ steps.commit.outputs.modified }}
+          TESTS_FAILED: ${{ steps.screenshots.outcome == 'failure' }}
+          COMMIT_FAILED: ${{ steps.commit.outcome == 'failure' }}
+          COMMIT_OUTCOME: ${{ steps.commit.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         with:
           script: |
-            const committed = '${{ steps.commit.outputs.committed }}' === 'true';
-            const added = '${{ steps.commit.outputs.added }}';
-            const modified = '${{ steps.commit.outputs.modified }}';
+            const committed = process.env.COMMITTED === 'true';
+            const added = process.env.ADDED || '0';
+            const modified = process.env.MODIFIED || '0';
+            const testsFailed = process.env.TESTS_FAILED === 'true';
+            const commitFailed = process.env.COMMIT_FAILED === 'true';
+            const commitOutcome = process.env.COMMIT_OUTCOME || '';
+            const runUrl = process.env.RUN_URL;
 
             let body;
-            if (committed) {
+            if (commitFailed && testsFailed) {
+              body = [
+                '### :x: Visual baselines not updated — screenshot generation and commit both failed',
+                '',
+                'Screenshot generation failed, and the commit step also encountered an error.',
+                '',
+                `Check the [workflow run](${runUrl}) logs and the \`update-baselines-results\` artifact for details.`,
+              ].join('\n');
+            } else if (commitFailed) {
+              body = [
+                '### :x: Visual baselines not updated — commit/push failed',
+                '',
+                'Screenshots were generated but could not be committed to the branch.',
+                '',
+                `Check the [workflow run](${runUrl}) logs for details.`,
+              ].join('\n');
+            } else if (committed && testsFailed) {
+              body = [
+                '### :camera: Visual baselines partially updated',
+                '',
+                `- **${added}** new baseline(s) added`,
+                `- **${modified}** existing baseline(s) updated`,
+                '',
+                ':warning: Some screenshot tests failed — baselines for passing tests were committed, but failing tests still need fixes in `page-registry.ts`.',
+                '',
+                `Check the [workflow run](${runUrl}) logs and the \`update-baselines-results\` artifact for details.`,
+              ].join('\n');
+            } else if (committed) {
               body = [
                 '### :camera: Visual baselines updated',
                 '',
@@ -101,6 +158,22 @@ jobs:
                 '',
                 'The updated `-linux.png` files have been committed to this branch.',
                 'Review the image diffs in the Files Changed tab.',
+              ].join('\n');
+            } else if (testsFailed) {
+              body = [
+                '### :warning: Visual baselines not updated — test failures',
+                '',
+                'Screenshot generation failed for one or more pages. No baselines were committed.',
+                '',
+                `Check the [workflow run](${runUrl}) logs and the \`update-baselines-results\` artifact for details — the \`page-registry.ts\` entry likely has a locator or setup error.`,
+              ].join('\n');
+            } else if (commitOutcome !== 'success') {
+              body = [
+                '### :warning: Visual baselines update did not complete',
+                '',
+                'The workflow hit an error before baseline generation completed.',
+                '',
+                `Check the [workflow run](${runUrl}) logs for details.`,
               ].join('\n');
             } else {
               body = [
@@ -116,3 +189,9 @@ jobs:
               issue_number: context.issue.number,
               body,
             });
+
+      - name: Fail job if screenshots had errors
+        if: steps.screenshots.outcome == 'failure' || steps.commit.outcome == 'failure'
+        run: |
+          echo "::error::Screenshot generation or commit had failures — see comment on PR"
+          exit 1
