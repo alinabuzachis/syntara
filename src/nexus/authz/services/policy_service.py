@@ -315,13 +315,23 @@ class PolicyService(BaseService):
         if query_params_items:
             query_params = {k: v for k, v in query_params_items if k not in excluded_params}
 
-        all_builtins = self._filter_builtin_policies(query_params)
+        project_eligible = query_params.pop("project_eligible", None) == "true"
+        scope_filter = "project" if project_eligible else None
+
+        all_builtins = self._filter_builtin_policies(query_params, scope_filter=scope_filter)
+
+        filtered_items: Iterable[tuple[str, str]] | None = query_params_items
+        if query_params_items:
+            filtered_items = [(k, v) for k, v in query_params_items if k not in ("project_eligible", "scope")]
+            if project_eligible:
+                filtered_items = [*filtered_items, ("scope", "project")]
+
         return await self._list_with_builtins(
             all_builtins,
             limit,
             cursor,
             sort,
-            query_params_items,
+            filtered_items,
             include_total=include_total,
         )
 
