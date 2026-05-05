@@ -2,11 +2,11 @@
 
 Test 2.1: Create 100 workflows sequentially via POST /api/v1/workflows
     KPI: Creation Success Rate > 99%
-    MetricType: WORKFLOW_STATUS, WORKFLOW_CREATION_SUCCESS_RATE
+    MetricType: WORKFLOW_CREATION_SUCCESS_RATE
 
 Test 2.4: Create workflows with duplicate names
-    KPI: Creation Failure Categorization — categorized by reason
-    MetricType: WORKFLOW_STATUS
+    KPI: Creation Failure Categorization — rate drops on failure
+    MetricType: WORKFLOW_CREATION_SUCCESS_RATE
 
 Run with:
     make test-performance
@@ -107,12 +107,14 @@ class TestSequentialWorkflowCreation:
             )
 
         records_response = nexus_api.internal_metrics.get_records(
-            metric_type="workflow_status",
+            metric_type="workflow_creation_success_rate",
             limit=SEQUENTIAL_WORKFLOW_COUNT + 10,
         )
         records_response.assert_successful()
         records = records_response.parsed.to_dict() if records_response.parsed is not None else {}
-        assert records.get("total", 0) > 0, "No workflow_status metric records emitted during sequential creation test"
+        assert records.get("total", 0) > 0, (
+            "No workflow_creation_success_rate metric records emitted during sequential creation test"
+        )
 
         # Cleanup: delete created workflows
         for wf_id in created_ids:
@@ -127,8 +129,7 @@ class TestDuplicateNameFailureCategorization:
 
     Validates:
         - Duplicate-name creation returns a non-2xx status (409 Conflict expected)
-        - Server-side workflow_status records carry appropriate labels
-          for failure categorization
+        - Server-side workflow_creation_success_rate records reflect the failure
     """
 
     @pytest.fixture(autouse=True)
@@ -205,14 +206,14 @@ class TestDuplicateNameFailureCategorization:
                 ),
             )
 
-            records = poll_for_metric_records(nexus_api.internal_metrics, "workflow_status")
+            records = poll_for_metric_records(nexus_api.internal_metrics, "workflow_creation_success_rate")
 
             if records.get("total", 0) > 0:
-                for record in records.get("records", []):
-                    labels = record.get("labels", {})
-                    assert "status" in labels or "reason" in labels or "error_type" in labels, (
-                        f"Workflow status record missing categorization labels: {labels}"
-                    )
+                values = [r.get("value", 1.0) for r in records.get("records", [])]
+                assert any(v < 1.0 for v in values), (
+                    f"Expected creation success rate to drop below 1.0 after "
+                    f"duplicate-name failure, got values: {values}"
+                )
         finally:
             if created_id:
                 try:
