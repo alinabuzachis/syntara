@@ -991,3 +991,23 @@ export function useResourceActions() {
 
 - Simple pass-through of query data (already referentially stable from React Query)
 - Primitive return values (strings, numbers, booleans — identity-stable by nature)
+
+---
+
+## 22. Full list via cursor pagination — `fetchAllPages` + `useAll*` hooks
+
+**Do not** use a single `useQuery` with `limit: 100` (or any fixed cap) for data that must include every row (dropdown option lists, the Settings page, group pickers, etc.). When the API returns more than one page, the rest is silently missing.
+
+**Do** load the full list by following `next` cursors in a small utility, then cache with React Query in a dedicated hook:
+
+- Use `fetchAllPages` from `src/utils/fetchAllPages.ts` (safety caps: `MAX_PAGES`, `MAX_ITEMS`, loop detection).
+- Expose one hook per resource, e.g. `useAllProjects`, `useAllSettings`, in the route/feature folder, with `queryKey` like `['all-projects']` and a matching test file.
+- **Tables** that paginate in the UI should keep using **`useCursorPagination`** — `fetchAllPages` is only for “need every row once” scenarios (dropdowns, full settings catalog, modals).
+
+```typescript
+// ❌ BAD — at most 100 projects, no second page
+accessClient.useQuery('get', '/projects', { params: { query: { limit: 100 } } })
+
+// ✅ GOOD — shared hook, all pages merged, React Query dedupes across consumers
+const { projects } = useAllProjects()
+```

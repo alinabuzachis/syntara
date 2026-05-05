@@ -6,6 +6,7 @@ import { axe } from 'vitest-axe'
 import { settingsClient } from '../../../client'
 
 import Settings from './Settings'
+import { useAllSettings } from './useAllSettings'
 import { useSettingsPermissions } from './useSettingsPermissions'
 
 const mockMutate = vi.fn()
@@ -36,6 +37,10 @@ vi.mock('./useSettingsPermissions', () => ({
   useSettingsPermissions: vi.fn(() => ({ canRead: true, canWrite: true })),
 }))
 
+vi.mock('./useAllSettings', () => ({
+  useAllSettings: vi.fn(),
+}))
+
 const mockCategories = {
   results: [
     {
@@ -60,7 +65,7 @@ const mockSettings = {
       value: null,
       default_value: 4000,
       effective_value: 4000,
-      value_type: 'integer',
+      value_type: 'integer' as const,
       requires_restart: false,
       cache_ttl_seconds: null,
       validation_schema: null,
@@ -78,7 +83,7 @@ const mockSettings = {
       value: null,
       default_value: false,
       effective_value: false,
-      value_type: 'boolean',
+      value_type: 'boolean' as const,
       requires_restart: false,
       cache_ttl_seconds: null,
       validation_schema: null,
@@ -91,12 +96,28 @@ const mockSettings = {
   prev: null,
 }
 
-function mockQueries({ isPending = false, error = null as unknown } = {}) {
+function mockQueries({ isPending = false, error = null as Error | null } = {}) {
   vi.mocked(settingsClient.useQuery).mockImplementation((_method: string, path: string) => {
     if (path === '/settings/categories') {
-      return { data: isPending ? undefined : mockCategories, isPending, error, refetch: vi.fn() } as never
+      return {
+        data: isPending ? undefined : mockCategories,
+        isPending,
+        error,
+        refetch: vi.fn(),
+      } as never
     }
-    return { data: isPending ? undefined : mockSettings, isPending, error, refetch: vi.fn() } as never
+    return {
+      data: undefined,
+      isPending: false,
+      error: null,
+      refetch: vi.fn(),
+    } as never
+  })
+  vi.mocked(useAllSettings).mockReturnValue({
+    settings: isPending ? [] : mockSettings.resources,
+    isLoading: isPending,
+    error,
+    refetch: vi.fn(),
   })
 }
 
@@ -205,7 +226,7 @@ describe('Settings', () => {
     )
     expect(mockShowSuccess).toHaveBeenCalledWith({
       title: 'Settings saved',
-      description: expect.any(String) as unknown as string,
+      description: 'Your changes have been saved successfully.',
     })
     expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled()
   })
@@ -223,7 +244,7 @@ describe('Settings', () => {
 
     expect(mockShowError).toHaveBeenCalledWith({
       title: 'Version conflict',
-      description: expect.any(String) as unknown as string,
+      description: 'Settings were modified by another user. The page has been refreshed.',
     })
     expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled()
   })
@@ -245,9 +266,25 @@ describe('Settings', () => {
   it('renders settings error state separately from categories', () => {
     vi.mocked(settingsClient.useQuery).mockImplementation((_method: string, path: string) => {
       if (path === '/settings/categories') {
-        return { data: mockCategories, isPending: false, error: null, refetch: vi.fn() } as never
+        return {
+          data: mockCategories,
+          isPending: false,
+          error: null,
+          refetch: vi.fn(),
+        } as never
       }
-      return { data: undefined, isPending: false, error: new Error('Settings failed'), refetch: vi.fn() } as never
+      return {
+        data: undefined,
+        isPending: false,
+        error: null,
+        refetch: vi.fn(),
+      } as never
+    })
+    vi.mocked(useAllSettings).mockReturnValue({
+      settings: [],
+      isLoading: false,
+      error: new Error('Settings failed'),
+      refetch: vi.fn(),
     })
     render(<Settings />)
 

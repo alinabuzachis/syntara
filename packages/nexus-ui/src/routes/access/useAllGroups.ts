@@ -1,16 +1,23 @@
-import type { Group } from '@ansible/nexus-contracts'
+import type { Group, UsersAPI } from '@ansible/nexus-contracts'
 import { useQuery } from '@tanstack/react-query'
 
 import { fetchAllPages, MAX_PAGE_SIZE } from '../../utils/fetchAllPages'
 
 import { accessFetchClient } from './accessClient'
 
+type GroupRead = UsersAPI.components['schemas']['GroupRead']
+
+function isGroupRow(row: GroupRead): row is Group {
+  return typeof row.id === 'string'
+}
+
 async function fetchAllGroups(): Promise<Group[]> {
-  return fetchAllPages<Group>((cursor) =>
+  const rows = await fetchAllPages<GroupRead>((cursor) =>
     accessFetchClient.GET('/groups', {
       params: { query: { limit: MAX_PAGE_SIZE, cursor } },
     })
   )
+  return rows.filter(isGroupRow)
 }
 
 /**

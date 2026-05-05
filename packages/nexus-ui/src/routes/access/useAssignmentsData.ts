@@ -98,8 +98,7 @@ export function useAssignmentsData() {
     setAllFilters(newFilters)
   }
 
-  const { projects: allProjectsList } = useAllProjects()
-  const projects = useMemo(() => allProjectsList, [allProjectsList])
+  const { projects } = useAllProjects()
   const projectNameMap = useMemo(
     () => new Map(projects.filter((p): p is typeof p & { id: string } => !!p.id).map((p) => [p.id, p.name])),
     [projects]

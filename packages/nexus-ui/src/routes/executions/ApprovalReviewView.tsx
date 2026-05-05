@@ -22,7 +22,7 @@ import {
   ToggleGroupItem,
 } from '@patternfly/react-core'
 import { useQueryClient } from '@tanstack/react-query'
-import { Controller, useForm } from 'react-hook-form'
+import { Controller, useForm, useWatch } from 'react-hook-form'
 
 import { approvalsClient } from '../../client'
 import { useAlerts } from '../../components/alerts'
@@ -89,7 +89,6 @@ export function ApprovalReviewView({ approval, activityNameMap, onClose }: Appro
   const {
     handleSubmit,
     setValue,
-    watch,
     setError,
     control,
     formState: { errors },
@@ -102,7 +101,7 @@ export function ApprovalReviewView({ approval, activityNameMap, onClose }: Appro
   })
 
   const handleError = useFormMutationErrorHandler(setError)
-  const currentStatus = watch('status')
+  const currentStatus = useWatch({ control, name: 'status' })
   const approvalId = approval.id
 
   if (!approvalId) return null

@@ -106,6 +106,7 @@ export const approvalsClient = createClient(approvalsFetchClient)
 
 const settingsFetchClient = createFetchClient<SettingsAPI.paths>({ baseUrl: '/api/v1/' })
 settingsFetchClient.use(authMiddleware)
+export { settingsFetchClient }
 export const settingsClient = createClient(settingsFetchClient)
 
 const identityProvidersFetchClient = createFetchClient<IdentityProvidersAPI.paths>({

@@ -13,6 +13,7 @@ import { getErrorCode } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 
 import { SettingsCategoryTab } from './SettingsCategoryTab'
+import { useAllSettings } from './useAllSettings'
 import { useSettingsPermissions } from './useSettingsPermissions'
 
 export default function Settings() {
@@ -24,10 +25,12 @@ export default function Settings() {
   const { canRead, canWrite } = useSettingsPermissions()
 
   const categoriesQuery = settingsClient.useQuery('get', '/settings/categories', { enabled: canRead })
-  const settingsQuery = settingsClient.useQuery('get', '/settings', {
-    params: { query: { limit: 100 } },
-    enabled: canRead,
-  })
+  const {
+    settings: allSettings,
+    isLoading: settingsLoading,
+    error: settingsError,
+    refetch: refetchSettings,
+  } = useAllSettings({ enabled: canRead })
 
   const { mutate: bulkUpdate, isPending: isSaving } = settingsClient.useMutation('patch', '/settings')
 
@@ -35,13 +38,15 @@ export default function Settings() {
     title: 'Error loading setting categories',
     onRetry: () => detachPromise(categoriesQuery.refetch()),
   })
-  const settingsState = useQueryState(settingsQuery, {
-    title: 'Error loading settings',
-    onRetry: () => detachPromise(settingsQuery.refetch()),
-  })
+  const settingsState = useQueryState(
+    { error: settingsError, isPending: settingsLoading, refetch: refetchSettings },
+    {
+      title: 'Error loading settings',
+      onRetry: () => detachPromise(refetchSettings()),
+    }
+  )
 
   const categories = categoriesQuery.data?.results ?? []
-  const allSettings = useMemo(() => settingsQuery.data?.resources ?? [], [settingsQuery.data?.resources])
 
   const settingsByCategory = useMemo(() => {
     const grouped = new Map<string, (typeof allSettings)[number][]>()
@@ -98,7 +103,7 @@ export default function Settings() {
         onSuccess: () => {
           setEdits(new Map())
           showSuccess({ title: 'Settings saved', description: 'Your changes have been saved successfully.' })
-          detachPromise(settingsQuery.refetch())
+          detachPromise(refetchSettings())
         },
         onError: (err) => {
           if (getErrorCode(err) === 'SETTING_VERSION_CONFLICT') {
@@ -106,7 +111,7 @@ export default function Settings() {
               title: 'Version conflict',
               description: 'Settings were modified by another user. The page has been refreshed.',
             })
-            detachPromise(settingsQuery.refetch())
+            detachPromise(refetchSettings())
             setEdits(new Map())
           } else {
             handleMutationError({ title: 'Save failed' })(err)
@@ -114,7 +119,7 @@ export default function Settings() {
         },
       }
     )
-  }, [edits, allSettings, bulkUpdate, showSuccess, showError, handleMutationError, settingsQuery])
+  }, [edits, allSettings, bulkUpdate, showSuccess, showError, handleMutationError, refetchSettings])
 
   const hasChanges = edits.size > 0
   const hasValidationErrors = validationErrors.size > 0

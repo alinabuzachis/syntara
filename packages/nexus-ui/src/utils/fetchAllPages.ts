@@ -15,6 +15,7 @@ export const MAX_PAGES = 50
 export const MAX_ITEMS = 5_000
 
 type PaginatedPayload<T> = {
+  /** Readonly matches openapi-fetch list payloads; spread below produces mutable copies. */
   resources?: readonly T[] | null
   next?: string | null
 }
@@ -45,7 +46,7 @@ function warnCapReached(count: number): void {
  * @throws When a page returns an error or missing payload.
  */
 export async function fetchAllPages<T>(
-  fetchPage: (cursor: string | undefined) => Promise<FetchPageResult<T> | object>
+  fetchPage: (cursor: string | undefined) => Promise<FetchPageResult<T>>
 ): Promise<T[]> {
   const allResources: T[] = []
   let cursor: string | undefined
@@ -53,7 +54,7 @@ export async function fetchAllPages<T>(
 
   for (let pageIndex = 0; pageIndex < MAX_PAGES; pageIndex++) {
     const result = await fetchPage(cursor)
-    const { data, error } = result as FetchPageResult<T>
+    const { data, error } = result
     if (error) throw new Error(JSON.stringify(error))
     if (!data) throw new Error('Empty response')
 
