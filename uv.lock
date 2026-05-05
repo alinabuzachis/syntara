@@ -3,6 +3,23 @@ revision = 3
 requires-python = ">=3.12, <3.14"
 
 [[package]]
+name = "aap-orchestrator-cli"
+version = "0.1.0"
+source = { editable = "src/cli" }
+dependencies = [
+    { name = "nexus-api-client" },
+    { name = "pyyaml" },
+    { name = "typer" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "nexus-api-client", editable = "src/api_client" },
+    { name = "pyyaml", specifier = ">=6.0" },
+    { name = "typer", specifier = ">=0.9.0" },
+]
+
+[[package]]
 name = "aiofile"
 version = "3.9.0"
 source = { registry = "https://pypi.org/simple" }
@@ -722,7 +739,7 @@ wheels = [
 
 [[package]]
 name = "external-services"
-version = "26.4.29.0"
+version = "26.5.4.0"
 source = { git = "#fa008895dbdfc4883bc4ef90219a44e51feb4321" }
 dependencies = [
     { name = "dnspython" },
@@ -1860,6 +1877,7 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
+    { name = "aap-orchestrator-cli" },
     { name = "azure-identity" },
     { name = "fastmcp" },
     { name = "httpx" },
@@ -1901,6 +1919,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "aap-orchestrator-cli", marker = "extra == 'dev'", editable = "src/cli" },
     { name = "aiofiles", specifier = ">=24.1.0" },
     { name = "alembic", specifier = ">=1.12.0" },
     { name = "argon2-cffi", specifier = ">=25.1.0" },
