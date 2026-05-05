@@ -139,6 +139,14 @@ class NexusWorkflow:
         self._timeout_tasks: dict[str, asyncio.Task[Any]] = {}
         self._timed_out_converge_nodes: set[str] = set()
 
+    def _skip_unselected_triggers(self, trigger_node_id: str, graph: WorkflowGraph) -> None:
+        """Mark unselected triggers as skipped and propagate to their exclusive downstream nodes."""
+        for other_trigger in graph.get_trigger_nodes():
+            if other_trigger.id != trigger_node_id:
+                self.skipped_nodes.add(other_trigger.id)
+                workflow.logger.info(f"Trigger {other_trigger.id} marked as skipped (not selected)")
+                self._mark_downstream_as_skipped(other_trigger.id, graph)
+
     async def _execute_trigger(
         self,
         trigger_node_id: str,
@@ -149,6 +157,8 @@ class NexusWorkflow:
         """Execute the trigger node and schedule its successors."""
         trigger_node = graph.get_node(trigger_node_id)
         workflow.logger.info(f"Executing trigger node: {trigger_node.id}")
+
+        self._skip_unselected_triggers(trigger_node_id, graph)
 
         self.node_inputs[trigger_node.id] = trigger_inputs
 

@@ -25392,6 +25392,12 @@ components:
           description: Input data for workflow execution
           title: Input Data
           type: object
+        trigger_node_id:
+          anyOf:
+            - type: string
+            - type: 'null'
+          description: Trigger node ID to start from (defaults to first trigger)
+          title: Trigger Node Id
         workflow_id:
           description: Workflow ID to execute
           format: uuid
@@ -25475,6 +25481,11 @@ components:
         temporal_workflow_id:
           title: Temporal Workflow Id
           type: string
+        trigger_node_id:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Trigger Node Id
         updated_at:
           format: date-time
           title: Updated At

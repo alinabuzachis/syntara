@@ -87,6 +87,7 @@ class TemporalExecutionService:
         input_data: dict[str, Any] | None = None,
         workflow_id: str | None = None,
         request_id: UUID | None = None,
+        trigger_node_id: str | None = None,
     ) -> WorkflowStartResponse:
         """Start a V2 workflow from dict definition.
 
@@ -96,6 +97,7 @@ class TemporalExecutionService:
             input_data: Input parameters for the workflow trigger
             workflow_id: Optional workflow ID (auto-generated if not provided)
             request_id: Optional X-Request-Id (UUID) from the originating HTTP request
+            trigger_node_id: Optional trigger node ID to start from (defaults to first trigger)
 
         Returns:
             WorkflowStartResponse containing:
@@ -139,10 +141,17 @@ class TemporalExecutionService:
                 msg = "V2 workflow must have at least one trigger"
                 raise SafeValueError(msg)  # noqa: TRY301
 
-            # Get the first trigger (for now, we only support single trigger execution)
-            trigger_node_id = triggers[0].get("id")
-            if not trigger_node_id:
+            # Build validated trigger ID list once
+            trigger_ids = [t["id"] for t in triggers if "id" in t]
+            if not trigger_ids:
                 msg = "Trigger node must have an 'id' field"
+                raise SafeValueError(msg)  # noqa: TRY301
+
+            # Select trigger node to execute
+            if trigger_node_id is None:
+                trigger_node_id = trigger_ids[0]
+            elif trigger_node_id not in trigger_ids:
+                msg = f"Specified trigger_node_id '{trigger_node_id}' not found in workflow triggers: {trigger_ids}"
                 raise SafeValueError(msg)  # noqa: TRY301
 
             # Generate internal workflow ID if not provided

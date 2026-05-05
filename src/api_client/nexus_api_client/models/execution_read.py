@@ -49,6 +49,7 @@ class ExecutionRead:
             deleted_by (None | Unset | UUID):
             labels (ExecutionReadLabels | Unset):
             project_id (None | Unset | UUID):
+            trigger_node_id (None | str | Unset):
             workflow_definition (ExecutionReadWorkflowDefinitionType0 | None | Unset): Workflow definition from the executed
                 version. Only included when requested via ?include=workflow_definition query parameter.
     """
@@ -71,6 +72,7 @@ class ExecutionRead:
     deleted_by: None | Unset | UUID = UNSET
     labels: ExecutionReadLabels | Unset = UNSET
     project_id: None | Unset | UUID = UNSET
+    trigger_node_id: None | str | Unset = UNSET
     workflow_definition: ExecutionReadWorkflowDefinitionType0 | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
@@ -157,6 +159,12 @@ class ExecutionRead:
         else:
             project_id = self.project_id
 
+        trigger_node_id: None | str | Unset
+        if isinstance(self.trigger_node_id, Unset):
+            trigger_node_id = UNSET
+        else:
+            trigger_node_id = self.trigger_node_id
+
         workflow_definition: dict[str, Any] | None | Unset
         if isinstance(self.workflow_definition, Unset):
             workflow_definition = UNSET
@@ -195,6 +203,8 @@ class ExecutionRead:
             field_dict["labels"] = labels
         if project_id is not UNSET:
             field_dict["project_id"] = project_id
+        if trigger_node_id is not UNSET:
+            field_dict["trigger_node_id"] = trigger_node_id
         if workflow_definition is not UNSET:
             field_dict["workflow_definition"] = workflow_definition
 
@@ -354,6 +364,15 @@ class ExecutionRead:
 
         project_id = _parse_project_id(d.pop("project_id", UNSET))
 
+        def _parse_trigger_node_id(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        trigger_node_id = _parse_trigger_node_id(d.pop("trigger_node_id", UNSET))
+
         def _parse_workflow_definition(data: object) -> ExecutionReadWorkflowDefinitionType0 | None | Unset:
             if data is None:
                 return data
@@ -390,6 +409,7 @@ class ExecutionRead:
             deleted_by=deleted_by,
             labels=labels,
             project_id=project_id,
+            trigger_node_id=trigger_node_id,
             workflow_definition=workflow_definition,
         )
 

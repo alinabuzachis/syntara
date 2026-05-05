@@ -65,6 +65,7 @@ class ExecutionsConvertResourceMixin(ConvertResourceMixin):
             updated_at=resource.updated_at,
             updated_by=resource.updated_by,
             input_data=resource.input_data,
+            trigger_node_id=resource.trigger_node_id,
             error_details=resource.error_details,
             labels=resource.labels,
             deleted_at=resource.deleted_at,
@@ -125,6 +126,7 @@ class ExecutionService(BaseService):
         self,
         workflow_id: UUID,
         input_data: dict[str, Any],
+        trigger_node_id: str | None = None,
     ) -> ExecutionRead:
         """Create and start a new workflow execution.
 
@@ -137,6 +139,7 @@ class ExecutionService(BaseService):
         Args:
             workflow_id: ID of workflow to execute
             input_data: Input parameters for the workflow
+            trigger_node_id: Optional trigger node ID to start from (defaults to first trigger)
 
         Returns:
             Created execution with status=PENDING
@@ -197,6 +200,7 @@ class ExecutionService(BaseService):
                     input_data=input_data,
                     workflow_id=str(workflow.id),
                     request_id=request_id_context_var.get(),
+                    trigger_node_id=trigger_node_id,
                 )
             temporal_workflow_id = temporal_result.temporal_workflow_id
             execution_id = UUID(temporal_result.execution_id)
@@ -223,6 +227,7 @@ class ExecutionService(BaseService):
             temporal_workflow_id=temporal_workflow_id,
             status=ExecutionStatus.PENDING,
             input_data=input_data,
+            trigger_node_id=trigger_node_id,
             created_by=self.user.id,
             updated_by=self.user.id,
         )

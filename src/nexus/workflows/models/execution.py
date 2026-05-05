@@ -162,6 +162,15 @@ class Execution(UserOwnedResource, SoftDeletableResource, table=True):
         description="Timestamp when execution completed/failed/cancelled",
     )
 
+    # Trigger node selection
+    trigger_node_id: str | None = Field(
+        default=None,
+        nullable=True,
+        max_length=FieldLimits.NAME_MAX_LENGTH,
+        sa_type=String(FieldLimits.NAME_MAX_LENGTH),  # type: ignore[call-overload]
+        description="Trigger node ID used to start this execution (None = first trigger in definition list)",
+    )
+
     # Input data and error details
     input_data: dict[str, Any] = Field(
         default_factory=dict,
@@ -246,6 +255,9 @@ class ExecutionCreate(SQLModel):
 
     workflow_id: UUID = Field(..., description="Workflow ID to execute")
     input_data: dict[str, Any] = Field(default_factory=dict, description="Input data for workflow execution")
+    trigger_node_id: str | None = Field(
+        default=None, description="Trigger node ID to start from (defaults to first trigger)"
+    )
 
 
 class CurrentActivity(SQLModel):
@@ -287,6 +299,7 @@ class ExecutionRead(SQLModel):
     updated_at: datetime
     updated_by: UUID | None  # User who last modified the execution
     input_data: dict[str, Any]
+    trigger_node_id: str | None = None
     error_details: str | None
     labels: dict[str, Any] = Field(default_factory=dict)
     current_activities: list[CurrentActivity] = Field(

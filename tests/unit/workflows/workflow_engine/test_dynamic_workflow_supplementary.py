@@ -318,6 +318,137 @@ class TestMarkRemainingUnreachableNodes:
         assert "node_b" not in wf.skipped_nodes
 
 
+class TestUnselectedTriggerSkipping:
+    """Tests for marking unselected triggers and their downstream nodes as skipped."""
+
+    @pytest.fixture(autouse=True)
+    def _async_execute_activity(self, _mock_temporal_workflow: MagicMock) -> None:
+        """Make workflow.execute_activity awaitable for trigger execution tests."""
+        _mock_temporal_workflow.execute_activity = AsyncMock(return_value={"output": {"status": "ok"}})
+
+    @pytest.mark.asyncio
+    async def test_unselected_triggers_marked_skipped(self) -> None:
+        """Unselected trigger nodes are added to skipped_nodes."""
+        backend = InMemoryGraphBackend()
+        backend.add_node("trigger_a", {"id": "trigger_a", "type": "manual_trigger", "config": {}})
+        backend.add_node("trigger_b", {"id": "trigger_b", "type": "manual_trigger", "config": {}})
+        backend.add_node("node_a", {"id": "node_a", "type": "script", "config": {}})
+        backend.add_node("node_b", {"id": "node_b", "type": "script", "config": {}})
+        backend.add_edge("trigger_a", "node_a", None)
+        backend.add_edge("trigger_b", "node_b", None)
+        graph = WorkflowGraph(backend)
+
+        wf = _make_workflow()
+        await wf._execute_trigger(
+            trigger_node_id="trigger_a",
+            trigger_inputs={"key": "value"},
+            graph=graph,
+            pending_tasks={},
+        )
+
+        assert "trigger_b" in wf.skipped_nodes
+        assert "trigger_a" not in wf.skipped_nodes
+
+    @pytest.mark.asyncio
+    async def test_exclusive_downstream_of_unselected_trigger_skipped(self) -> None:
+        """Downstream nodes exclusive to an unselected trigger are skipped."""
+        backend = InMemoryGraphBackend()
+        backend.add_node("trigger_a", {"id": "trigger_a", "type": "manual_trigger", "config": {}})
+        backend.add_node("trigger_b", {"id": "trigger_b", "type": "manual_trigger", "config": {}})
+        backend.add_node("node_a", {"id": "node_a", "type": "script", "config": {}})
+        backend.add_node("exclusive_b", {"id": "exclusive_b", "type": "script", "config": {}})
+        backend.add_edge("trigger_a", "node_a", None)
+        backend.add_edge("trigger_b", "exclusive_b", None)
+        graph = WorkflowGraph(backend)
+
+        wf = _make_workflow()
+        await wf._execute_trigger(
+            trigger_node_id="trigger_a",
+            trigger_inputs={},
+            graph=graph,
+            pending_tasks={},
+        )
+
+        assert "trigger_b" in wf.skipped_nodes
+        assert "exclusive_b" in wf.skipped_nodes
+
+    @pytest.mark.asyncio
+    async def test_shared_downstream_not_skipped(self) -> None:
+        """Nodes reachable from the active trigger are NOT skipped."""
+        backend = InMemoryGraphBackend()
+        backend.add_node("trigger_a", {"id": "trigger_a", "type": "manual_trigger", "config": {}})
+        backend.add_node("trigger_b", {"id": "trigger_b", "type": "manual_trigger", "config": {}})
+        backend.add_node("shared_node", {"id": "shared_node", "type": "script", "config": {}})
+        backend.add_edge("trigger_a", "shared_node", None)
+        backend.add_edge("trigger_b", "shared_node", None)
+        graph = WorkflowGraph(backend)
+
+        wf = _make_workflow()
+        await wf._execute_trigger(
+            trigger_node_id="trigger_a",
+            trigger_inputs={},
+            graph=graph,
+            pending_tasks={},
+        )
+
+        assert "trigger_b" in wf.skipped_nodes
+        assert "shared_node" not in wf.skipped_nodes
+
+    @pytest.mark.asyncio
+    async def test_single_trigger_no_skipping(self) -> None:
+        """With only one trigger, nothing is skipped."""
+        backend = InMemoryGraphBackend()
+        backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "config": {}})
+        backend.add_node("node_a", {"id": "node_a", "type": "script", "config": {}})
+        backend.add_edge("trigger", "node_a", None)
+        graph = WorkflowGraph(backend)
+
+        wf = _make_workflow()
+        await wf._execute_trigger(
+            trigger_node_id="trigger",
+            trigger_inputs={},
+            graph=graph,
+            pending_tasks={},
+        )
+
+        assert len(wf.skipped_nodes) == 0
+
+    @pytest.mark.asyncio
+    async def test_three_triggers_only_selected_runs(self) -> None:
+        """With 3 triggers, all non-selected triggers and their exclusive downstream are skipped."""
+        backend = InMemoryGraphBackend()
+        backend.add_node("trigger_a", {"id": "trigger_a", "type": "manual_trigger", "config": {}})
+        backend.add_node("trigger_b", {"id": "trigger_b", "type": "manual_trigger", "config": {}})
+        backend.add_node("trigger_c", {"id": "trigger_c", "type": "manual_trigger", "config": {}})
+        backend.add_node("node_a", {"id": "node_a", "type": "script", "config": {}})
+        backend.add_node("exclusive_b", {"id": "exclusive_b", "type": "script", "config": {}})
+        backend.add_node("exclusive_c", {"id": "exclusive_c", "type": "script", "config": {}})
+        backend.add_node("shared_bc", {"id": "shared_bc", "type": "script", "config": {}})
+        backend.add_edge("trigger_a", "node_a", None)
+        backend.add_edge("trigger_b", "exclusive_b", None)
+        backend.add_edge("trigger_b", "shared_bc", None)
+        backend.add_edge("trigger_c", "exclusive_c", None)
+        backend.add_edge("trigger_c", "shared_bc", None)
+        graph = WorkflowGraph(backend)
+
+        wf = _make_workflow()
+        await wf._execute_trigger(
+            trigger_node_id="trigger_a",
+            trigger_inputs={},
+            graph=graph,
+            pending_tasks={},
+        )
+
+        assert "trigger_b" in wf.skipped_nodes
+        assert "trigger_c" in wf.skipped_nodes
+        assert "exclusive_b" in wf.skipped_nodes
+        assert "exclusive_c" in wf.skipped_nodes
+        # shared_bc has ALL predecessors (trigger_b, trigger_c) skipped, so it is also skipped
+        assert "shared_bc" in wf.skipped_nodes
+        assert "trigger_a" not in wf.skipped_nodes
+        assert "node_a" not in wf.skipped_nodes
+
+
 class TestLoopBodyCompleteEdgeCases:
     """Additional edge cases for loop body completion checks."""
 

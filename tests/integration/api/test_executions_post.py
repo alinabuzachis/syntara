@@ -279,3 +279,56 @@ async def test_create_execution_temporal_workflow_start_failure(
     result = await test_db_session.exec(select(func.count()).select_from(Execution))
     executions_after = result.one()
     assert executions_after == executions_before, "No orphaned execution should be created on Temporal failure"
+
+
+@pytest.mark.asyncio
+async def test_create_execution_with_trigger_node_id(
+    auth_client: AsyncClient,
+    test_db_session: AsyncSession,
+    test_user: User,
+    test_workflow: Workflow,
+) -> None:
+    """Test that trigger_node_id round-trips through the API and database."""
+    response = await auth_client.post(
+        "/api/v1/executions",
+        json={
+            "workflow_id": str(test_workflow.id),
+            "input_data": {},
+            "trigger_node_id": "trigger_manual",
+        },
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["trigger_node_id"] == "trigger_manual"
+
+    # Verify persisted to database
+    result = await test_db_session.exec(select(Execution).where(Execution.id == uuid.UUID(data["id"])))
+    execution = result.one()
+    assert execution.trigger_node_id == "trigger_manual"
+
+
+@pytest.mark.asyncio
+async def test_create_execution_without_trigger_node_id(
+    auth_client: AsyncClient,
+    test_db_session: AsyncSession,
+    test_user: User,
+    test_workflow: Workflow,
+) -> None:
+    """Test that trigger_node_id defaults to None when not provided."""
+    response = await auth_client.post(
+        "/api/v1/executions",
+        json={
+            "workflow_id": str(test_workflow.id),
+            "input_data": {},
+        },
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["trigger_node_id"] is None
+
+    # Verify persisted to database as None
+    result = await test_db_session.exec(select(Execution).where(Execution.id == uuid.UUID(data["id"])))
+    execution = result.one()
+    assert execution.trigger_node_id is None

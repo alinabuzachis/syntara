@@ -162,6 +162,100 @@ class TestStartWorkflow:
             )
 
 
+class TestTriggerSelection:
+    """Test trigger node selection logic for multi-trigger workflows."""
+
+    # NexusWorkflow.run signature: (workflow_def, execution_id, trigger_node_id, ...)
+    TRIGGER_NODE_ID_ARG_INDEX = 2
+
+    def _get_trigger_node_id_from_call(self, mock_client: Mock) -> str:
+        """Extract trigger_node_id passed to NexusWorkflow.run from the mock call."""
+        call_kwargs = mock_client.start_workflow.call_args
+        temporal_args = call_kwargs.kwargs.get("args") or call_kwargs[1].get("args")
+        expected_min = self.TRIGGER_NODE_ID_ARG_INDEX + 1
+        assert len(temporal_args) >= expected_min, (
+            f"Expected at least {expected_min} args to NexusWorkflow.run, got {len(temporal_args)}"
+        )
+        return str(temporal_args[self.TRIGGER_NODE_ID_ARG_INDEX])
+
+    @pytest.mark.asyncio
+    async def test_start_workflow_defaults_to_first_trigger(self) -> None:
+        """When trigger_node_id is not specified, use triggers[0]."""
+        multi_trigger_workflow = {
+            "schema_version": "2.0.0",
+            "triggers": [
+                {"id": "trigger_1", "type": "manual_trigger", "config": {}},
+                {"id": "trigger_2", "type": "manual_trigger", "config": {}},
+            ],
+            "nodes": [],
+            "edges": [],
+        }
+
+        mock_client = Mock()
+        mock_handle = Mock()
+        mock_handle.first_execution_run_id = "run-789"
+        mock_client.start_workflow = AsyncMock(return_value=mock_handle)
+
+        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
+
+        await service.start_workflow(
+            workflow_def=multi_trigger_workflow,
+            workflow_name="multi-trigger-workflow",
+        )
+
+        assert self._get_trigger_node_id_from_call(mock_client) == "trigger_1"
+
+    @pytest.mark.asyncio
+    async def test_start_workflow_with_explicit_trigger_node_id(self) -> None:
+        """When trigger_node_id is specified, use that trigger."""
+        multi_trigger_workflow = {
+            "schema_version": "2.0.0",
+            "triggers": [
+                {"id": "manual_1", "type": "manual_trigger", "config": {}},
+                {"id": "manual_2", "type": "manual_trigger", "config": {}},
+            ],
+            "nodes": [],
+            "edges": [],
+        }
+
+        mock_client = Mock()
+        mock_handle = Mock()
+        mock_handle.first_execution_run_id = "run-202"
+        mock_client.start_workflow = AsyncMock(return_value=mock_handle)
+
+        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
+
+        await service.start_workflow(
+            workflow_def=multi_trigger_workflow,
+            workflow_name="multi-trigger-workflow",
+            trigger_node_id="manual_2",
+        )
+
+        assert self._get_trigger_node_id_from_call(mock_client) == "manual_2"
+
+    @pytest.mark.asyncio
+    async def test_start_workflow_with_invalid_trigger_node_id(self) -> None:
+        """When trigger_node_id doesn't exist in workflow, raise SafeValueError."""
+        workflow_def = {
+            "schema_version": "2.0.0",
+            "triggers": [
+                {"id": "manual_1", "type": "manual_trigger", "config": {}},
+            ],
+            "nodes": [],
+            "edges": [],
+        }
+
+        mock_client = Mock()
+        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
+
+        with pytest.raises(SafeValueError, match="not found in workflow triggers"):
+            await service.start_workflow(
+                workflow_def=workflow_def,
+                workflow_name="test-workflow",
+                trigger_node_id="nonexistent_trigger",
+            )
+
+
 class TestGetWorkflowStatus:
     """Test getting workflow status."""
 
