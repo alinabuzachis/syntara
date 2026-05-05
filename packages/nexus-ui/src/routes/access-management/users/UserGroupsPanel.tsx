@@ -11,7 +11,7 @@ import {
   StackItem,
 } from '@patternfly/react-core'
 import { PlusIcon, RhUiTrashIcon } from '@patternfly/react-icons'
-import { ActionsColumn, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
 
@@ -24,13 +24,13 @@ import { FilterBar } from '../../../components/filters'
 import { IconLabel } from '../../../components/IconLabel'
 import { PanelContentStack } from '../../../components/PanelContentStack'
 import { useQueryState } from '../../../components/states/useQueryState'
+import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
 import { useFilterState } from '../../../hooks/useFilterState'
 import type { FilterFieldDefinition } from '../../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../../types/filters'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 import { accessClient } from '../../access/accessClient'
-import { PaginationFooter } from '../../access/PaginationFooter'
 import { TypeaheadSelect } from '../../access/TypeaheadSelect'
 import { useAllGroups } from '../../access/useAllGroups'
 import { BUILTIN_AUTHENTICATED_GROUP_NAME } from '../adminConstants'
@@ -179,53 +179,6 @@ function getGroupActions(group: Group, onRemove: (g: GroupInfo) => void): IActio
   ]
 }
 
-function GroupsTable({
-  groups,
-  onRemove,
-}: Readonly<{
-  groups: { id?: string; name: string; description?: string | null }[]
-  onRemove: (g: GroupInfo) => void
-}>) {
-  return (
-    <Table aria-label="User groups table" isStriped style={{ width: '100%' }}>
-      <Thead>
-        <Tr>
-          <Th>Name</Th>
-          <Th>Description</Th>
-          <Th>Source</Th>
-          <Th screenReaderText="Actions" />
-        </Tr>
-      </Thead>
-      <Tbody>
-        {groups.map((group) => (
-          <Tr key={group.id}>
-            <Td dataLabel="Name">
-              {group.name}
-              {group.name === BUILTIN_AUTHENTICATED_GROUP_NAME && (
-                <>
-                  {' '}
-                  <Label isCompact color="grey">
-                    All users
-                  </Label>
-                </>
-              )}
-            </Td>
-            <Td dataLabel="Description">{group.description ?? ''}</Td>
-            <Td dataLabel="Source">
-              <MembershipSourceLabels sources={getMembershipSources(group)} />
-            </Td>
-            <Td isActionCell>
-              {group.name !== BUILTIN_AUTHENTICATED_GROUP_NAME && (
-                <ActionsColumn items={getGroupActions(group as Group, onRemove)} />
-              )}
-            </Td>
-          </Tr>
-        ))}
-      </Tbody>
-    </Table>
-  )
-}
-
 export function UserGroupsPanel({ userId }: Readonly<UserGroupsPanelProps>) {
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [groupToRemove, setGroupToRemove] = useState<GroupInfo | null>(null)
@@ -370,20 +323,54 @@ export function UserGroupsPanel({ userId }: Readonly<UserGroupsPanelProps>) {
             />
           </AppPageMain>
         ) : (
-          <AppPageMain style={{ overflow: 'auto' }}>
-            <GroupsTable groups={paginatedGroups} onRemove={setGroupToRemove} />
-          </AppPageMain>
+          <ScrollableTableContainer
+            aria-label="User groups table"
+            footer={{
+              page,
+              perPage,
+              total: filteredGroups.length,
+              hasNext: page * perPage < filteredGroups.length,
+              onPrev: () => setPage((p) => Math.max(1, p - 1)),
+              onNext: () => setPage((p) => p + 1),
+              onPerPageChange: handlePerPageChange,
+            }}
+          >
+            <Thead>
+              <Tr>
+                <Th>Name</Th>
+                <Th>Description</Th>
+                <Th>Source</Th>
+                <Th screenReaderText="Actions" />
+              </Tr>
+            </Thead>
+            <Tbody>
+              {paginatedGroups.map((group) => (
+                <Tr key={group.id}>
+                  <Td dataLabel="Name">
+                    {group.name}
+                    {group.name === BUILTIN_AUTHENTICATED_GROUP_NAME && (
+                      <>
+                        {' '}
+                        <Label isCompact color="grey">
+                          All users
+                        </Label>
+                      </>
+                    )}
+                  </Td>
+                  <Td dataLabel="Description">{group.description ?? ''}</Td>
+                  <Td dataLabel="Source">
+                    <MembershipSourceLabels sources={getMembershipSources(group)} />
+                  </Td>
+                  <Td isActionCell>
+                    {group.name !== BUILTIN_AUTHENTICATED_GROUP_NAME && (
+                      <ActionsColumn items={getGroupActions(group as Group, setGroupToRemove)} />
+                    )}
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </ScrollableTableContainer>
         )}
-
-        <PaginationFooter
-          page={page}
-          perPage={perPage}
-          total={filteredGroups.length}
-          hasNext={page * perPage < filteredGroups.length}
-          onPrev={() => setPage((p) => Math.max(1, p - 1))}
-          onNext={() => setPage((p) => p + 1)}
-          onPerPageChange={handlePerPageChange}
-        />
       </PanelContentStack>
 
       <AddToGroupModal

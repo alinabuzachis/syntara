@@ -181,7 +181,7 @@ export function UsersTab() {
             <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
           </StackItem>
         ) : (
-          <ScrollableTableContainer aria-label="Users" footer={getFooterProps(data, users.length, 'user', 'users')}>
+          <ScrollableTableContainer aria-label="Users" footer={getFooterProps(data)}>
             <Thead>
               <Tr>
                 <Th sort={getSortParams(0)}>Username</Th>

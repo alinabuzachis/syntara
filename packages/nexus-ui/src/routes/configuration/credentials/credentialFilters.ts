@@ -1,8 +1,6 @@
 import type { FilterFieldDefinition } from '../../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../../types/filters'
 
-export { createFilterChangeHandler } from '../../../hooks/useFilterChangeHandler'
-
 export function getCredentialNameFilterDefinition(): FilterFieldDefinition {
   return {
     key: 'name',

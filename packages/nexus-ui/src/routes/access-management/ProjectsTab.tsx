@@ -2,7 +2,7 @@ import { Button, Flex, FlexItem, Modal, ModalBody, ModalFooter, ModalHeader, Sta
 import { PlusIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { navigate } from 'wouter/use-browser-location'
 
 import { AppPageMain } from '../../app/AppPage'
@@ -22,7 +22,6 @@ import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { formatDateTime } from '../../utils/dateUtils'
 import { detachPromise } from '../../utils/detachPromise'
-import { formatItemCount } from '../../utils/formatItemCount'
 import { accessClient } from '../access/accessClient'
 import type { ProjectRead } from '../access/types'
 import { useAllProjects } from '../access/useAllProjects'
@@ -152,7 +151,11 @@ export function ProjectsTab() {
   const { filters, setAllFilters, clearAllFilters } = useFilterState()
   const { activeSortIndex, sortDirection, getSortParams } = useSortState(projectSortFieldByColumn)
   const [page, setPage] = useState(1)
-  const perPage = 20
+  const [perPage, setPerPage] = useState(20)
+  const handlePerPageChange = useCallback((newPerPage: number) => {
+    setPerPage(newPerPage)
+    setPage(1)
+  }, [])
   const [projectToDelete, setProjectToDelete] = useState<ProjectRead | null>(null)
   const [projectToEdit, setProjectToEdit] = useState<ProjectRead | null>(null)
   const [formModalOpen, setFormModalOpen] = useState(false)
@@ -289,11 +292,13 @@ export function ProjectsTab() {
           <ScrollableTableContainer
             aria-label="Projects"
             footer={{
-              content: formatItemCount(sortedProjects.length, 'project', 'projects'),
-              prev: page > 1 ? 'prev' : null,
-              next: hasNext ? 'next' : null,
+              page,
+              perPage,
+              total: sortedProjects.length,
+              hasNext,
               onPrev: () => setPage(Math.max(1, page - 1)),
               onNext: () => setPage(page + 1),
+              onPerPageChange: handlePerPageChange,
             }}
           >
             <ProjectsTable

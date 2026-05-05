@@ -290,7 +290,7 @@ export default function Workflows() {
               <ScrollableTableContainer
                 aria-label="Workflows table"
                 useFixedLayout={false}
-                footer={getFooterProps(workflowsQuery.data, sortedWorkflows.length, 'workflow', 'workflows')}
+                footer={getFooterProps(workflowsQuery.data)}
               >
                 <Thead>
                   <Tr>

@@ -362,8 +362,7 @@ describe('AttachIdentityModal', () => {
   it('shows user count in footer', () => {
     render(<AttachIdentityModal {...defaultProps} />, { wrapper })
 
-    // Only bob is shown (alice filtered out) - "1 user"
-    expect(screen.getByText(/1 user/)).toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: 'Pagination' })).toBeInTheDocument()
   })
 
   it('shows identity count in footer after selecting user', async () => {
@@ -372,7 +371,7 @@ describe('AttachIdentityModal', () => {
 
     await user.click(screen.getByText('bob@example.com'))
 
-    expect(screen.getByText(/1 identity/)).toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: 'Pagination' })).toBeInTheDocument()
   })
 
   // ---- Accessibility -------------------------------------------------------

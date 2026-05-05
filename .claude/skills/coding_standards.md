@@ -282,7 +282,7 @@ export function MyListPage() {
     <AppPage>
       <FilterBar ... />
       <ScrollableTableContainer
-        footer={getFooterProps(query.data, items.length, 'item', 'items')}
+        footer={getFooterProps(query.data)}
       >
         {/* table content */}
       </ScrollableTableContainer>

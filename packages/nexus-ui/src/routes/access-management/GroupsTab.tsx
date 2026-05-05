@@ -134,10 +134,7 @@ export function GroupsTab() {
               <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
             </AppPageMain>
           ) : (
-            <ScrollableTableContainer
-              aria-label="Groups table"
-              footer={getFooterProps(data, results.length, 'group', 'groups')}
-            >
+            <ScrollableTableContainer aria-label="Groups table" footer={getFooterProps(data)}>
               <Thead>
                 <Tr>
                   <Th sort={getSortParams(0)}>Name</Th>

@@ -1,8 +1,8 @@
-import { Button, Content, ContentVariants, StackItem } from '@patternfly/react-core'
+import { Button, StackItem } from '@patternfly/react-core'
 import { RhUiEditIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
-import { useCallback, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import { AppPage, AppPageMain } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
@@ -16,19 +16,17 @@ import { PageTitleWithProject } from '../../../components/PageTitleWithProject'
 import { PanelContentStack } from '../../../components/PanelContentStack'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
-import { useCursorReset } from '../../../hooks/useCursorPagination'
+import { useCursorPagination, useCursorReset } from '../../../hooks/useCursorPagination'
 import { useDeleteAction } from '../../../hooks/useDeleteAction'
-import { useFilterState } from '../../../hooks/useFilterState'
 import { useProjectSelector } from '../../../hooks/useProjectSelector'
 import { useTableSort } from '../../../hooks/useTableSort'
 import type { FilterFieldDefinition } from '../../../types/filters'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
-import { buildFilterParams } from '../../../utils/filterUtils'
 
 import type { Credential, CredentialExtended, CredentialType } from './credentialConstants'
 import { CredentialEmptyState } from './CredentialEmptyState'
-import { createFilterChangeHandler, getCredentialNameFilterDefinition } from './credentialFilters'
+import { getCredentialNameFilterDefinition } from './credentialFilters'
 import { FlatCredentialsTableBody, GroupedCredentialsTableBody } from './CredentialsTableBody'
 import { DeleteCredentialDialog } from './DeleteCredentialDialog'
 import { DisableCredentialDialog } from './DisableCredentialDialog'
@@ -41,9 +39,20 @@ export default function Credentials() {
   const { showAlert } = useAlerts()
   const { selectedProject, isAllProjects, projects, ProjectSelector } = useProjectSelector()
 
+  const {
+    cursor,
+    filters,
+    hasActiveFilters,
+    queryParams,
+    handleFilterChange,
+    handleClearAllFilters,
+    resetPagination,
+    getFooterProps,
+  } = useCursorPagination({
+    extraParams: selectedProject?.id ? { project_id: selectedProject.id } : undefined,
+  })
+
   // UI state
-  const [cursor, setCursor] = useState<string | null>(null)
-  const resetPagination = useCallback(() => setCursor(null), [])
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [credentialToEdit, setCredentialToEdit] = useState<Credential | null>(null)
   const {
@@ -54,31 +63,12 @@ export default function Credentials() {
     openDeleteDialog,
     closeDeleteDialog,
   } = useDeleteCredentialState()
-  // Filter state
-  const { filters, clearAllFilters, setAllFilters } = useFilterState()
   const filterFieldDefinitions = useMemo<FilterFieldDefinition[]>(() => [getCredentialNameFilterDefinition()], [])
-  const handleFilterChange = createFilterChangeHandler(cursor, resetPagination, clearAllFilters, setAllFilters)
-  const handleClearAllFilters = () => {
-    if (cursor) setCursor(null)
-    clearAllFilters()
-  }
-
-  // Query params
-  const queryParams = useMemo(() => {
-    const params: Record<string, unknown> = { limit: 20, include_total: true }
-    if (selectedProject?.id) {
-      params.project_id = selectedProject.id
-    }
-    Object.assign(params, buildFilterParams(filters))
-    if (cursor) params.cursor = cursor
-    return params
-  }, [filters, cursor, selectedProject])
 
   // Fetch credentials
   const query = credentialsClient.useQuery('get', '/credentials', { params: { query: queryParams } })
   // Cast to extended type - backend returns workflow_count but contract doesn't declare it
   const credentials = (query.data?.resources ?? []) as CredentialExtended[]
-  const hasActiveFilters = filters.length > 0
 
   useCursorReset(credentials.length, hasActiveFilters, cursor, query.isFetching, resetPagination)
 
@@ -283,33 +273,7 @@ export default function Credentials() {
                   <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
                 </AppPageMain>
               ) : (
-                <ScrollableTableContainer
-                  aria-label="Credentials table"
-                  footer={{
-                    content: (
-                      <>
-                        {results.length} {results.length === 1 ? 'credential' : 'credentials'}
-                        {query.data?.total != null && query.data.total > results.length && (
-                          <Content
-                            component={ContentVariants.small}
-                            style={{
-                              margin: 0,
-                              display: 'inline',
-                              color: 'var(--pf-t--global--text--color--subtle)',
-                            }}
-                          >
-                            {' '}
-                            (of {query.data.total} total)
-                          </Content>
-                        )}
-                      </>
-                    ),
-                    prev: query.data?.prev ?? null,
-                    next: query.data?.next ?? null,
-                    onPrev: () => setCursor(query.data?.prev ?? null),
-                    onNext: () => setCursor(query.data?.next ?? null),
-                  }}
-                >
+                <ScrollableTableContainer aria-label="Credentials table" footer={getFooterProps(query.data)}>
                   <Thead>
                     <Tr>
                       <Th sort={getSortParams(0)}>Name</Th>

@@ -1,6 +1,6 @@
 import { Alert, Button, Flex, FlexItem, Label, LabelGroup, StackItem } from '@patternfly/react-core'
 import { PlusIcon, RhUiTrashIcon } from '@patternfly/react-icons'
-import { ActionsColumn, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
 import { type ReactNode, useMemo, useState } from 'react'
 
@@ -14,6 +14,7 @@ import { IconLabel } from '../../components/IconLabel'
 import { PanelContentStack } from '../../components/PanelContentStack'
 import { ErrorState } from '../../components/states/ErrorState'
 import { LoadingState } from '../../components/states/LoadingState'
+import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { useFilterState } from '../../hooks/useFilterState'
 import { useSortState } from '../../hooks/useSortState'
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
@@ -21,7 +22,6 @@ import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import { getErrorCode, getErrorMessage, getErrorStatus } from '../../utils/apiErrors'
 import { detachPromise } from '../../utils/detachPromise'
 import { accessClient } from '../access/accessClient'
-import { PaginationFooter } from '../access/PaginationFooter'
 
 import { AssignRoleModal } from './AssignRoleModal'
 
@@ -138,61 +138,6 @@ function getAssignmentActions(row: RoleAssignmentRow, onUnassign: (row: RoleAssi
   ]
 }
 
-function RoleAssignmentsTable({
-  rows,
-  getSortParams,
-  onUnassign,
-}: Readonly<{
-  rows: RoleAssignmentRow[]
-  getSortParams: (columnIndex: number) => ThProps['sort']
-  onUnassign: (row: RoleAssignmentRow) => void
-}>) {
-  return (
-    <Table aria-label="Role assignments table" isStriped style={{ width: '100%' }}>
-      <Thead>
-        <Tr>
-          <Th sort={getSortParams(0)}>Role Name</Th>
-          <Th sort={getSortParams(1)}>Description</Th>
-          <Th sort={getSortParams(2)}>Scope</Th>
-          <Th sort={getSortParams(3)}>Project</Th>
-          <Th>Policies</Th>
-          <Th screenReaderText="Actions" />
-        </Tr>
-      </Thead>
-      <Tbody>
-        {rows.map((row) => (
-          <Tr key={row.id}>
-            <Td dataLabel="Role Name">{row.roleName}</Td>
-            <Td dataLabel="Description">{row.roleDescription ?? '-'}</Td>
-            <Td dataLabel="Scope">
-              <Label isCompact color={row.scopeType === 'system' ? 'blue' : 'green'}>
-                {row.scopeType === 'system' ? 'System' : 'Project'}
-              </Label>
-            </Td>
-            <Td dataLabel="Project">{row.scopeType === 'project' ? row.scope : '-'}</Td>
-            <Td dataLabel="Policies">
-              {row.policies.length > 0 ? (
-                <LabelGroup numLabels={3}>
-                  {row.policies.map((policy) => (
-                    <Label key={policy.name} isCompact>
-                      {policy.name}
-                    </Label>
-                  ))}
-                </LabelGroup>
-              ) : (
-                '-'
-              )}
-            </Td>
-            <Td isActionCell>
-              <ActionsColumn items={getAssignmentActions(row, onUnassign)} />
-            </Td>
-          </Tr>
-        ))}
-      </Tbody>
-    </Table>
-  )
-}
-
 function useRoleAssignmentData(principalType: 'user' | 'group', principalId: string) {
   const userAssignmentsQuery = accessClient.useQuery(
     'get',
@@ -267,6 +212,84 @@ function useRoleAssignmentData(principalType: 'user' | 'group', principalId: str
     deleteAssignment,
     refetch,
   }
+}
+
+function RoleAssignmentsTable({
+  paginatedRows,
+  sortedRows,
+  page,
+  perPage,
+  getSortParams,
+  onUnassign,
+  onPrev,
+  onNext,
+  onPerPageChange,
+}: Readonly<{
+  paginatedRows: RoleAssignmentRow[]
+  sortedRows: RoleAssignmentRow[]
+  page: number
+  perPage: number
+  getSortParams: (columnIndex: number) => ThProps['sort']
+  onUnassign: (row: RoleAssignmentRow) => void
+  onPrev: () => void
+  onNext: () => void
+  onPerPageChange: (perPage: number) => void
+}>) {
+  return (
+    <ScrollableTableContainer
+      aria-label="Role assignments table"
+      footer={{
+        page,
+        perPage,
+        total: sortedRows.length,
+        hasNext: page * perPage < sortedRows.length,
+        onPrev,
+        onNext,
+        onPerPageChange,
+      }}
+    >
+      <Thead>
+        <Tr>
+          <Th sort={getSortParams(0)}>Role Name</Th>
+          <Th sort={getSortParams(1)}>Description</Th>
+          <Th sort={getSortParams(2)}>Scope</Th>
+          <Th sort={getSortParams(3)}>Project</Th>
+          <Th>Policies</Th>
+          <Th screenReaderText="Actions" />
+        </Tr>
+      </Thead>
+      <Tbody>
+        {paginatedRows.map((row) => (
+          <Tr key={row.id}>
+            <Td dataLabel="Role Name">{row.roleName}</Td>
+            <Td dataLabel="Description">{row.roleDescription ?? '-'}</Td>
+            <Td dataLabel="Scope">
+              <Label isCompact color={row.scopeType === 'system' ? 'blue' : 'green'}>
+                {row.scopeType === 'system' ? 'System' : 'Project'}
+              </Label>
+            </Td>
+            <Td dataLabel="Project">{row.scopeType === 'project' ? row.scope : '-'}</Td>
+            <Td dataLabel="Policies">
+              {row.policies.length > 0 ? (
+                <LabelGroup numLabels={3}>
+                  {row.policies.map((policy) => (
+                    <Label key={policy.name} isCompact>
+                      {policy.name}
+                    </Label>
+                  ))}
+                </LabelGroup>
+              ) : (
+                '-'
+              )}
+            </Td>
+            <Td isActionCell>
+              <ActionsColumn items={getAssignmentActions(row, onUnassign)} />
+            </Td>
+          </Tr>
+        ))}
+      </Tbody>
+    </ScrollableTableContainer>
+  )
 }
 
 export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<RoleAssignmentsPanelProps>) {
@@ -389,9 +412,17 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
     }
   } else {
     tableContent = (
-      <AppPageMain style={{ overflow: 'auto' }}>
-        <RoleAssignmentsTable rows={paginatedRows} getSortParams={getSortParams} onUnassign={setRowToUnassign} />
-      </AppPageMain>
+      <RoleAssignmentsTable
+        paginatedRows={paginatedRows}
+        sortedRows={sortedRows}
+        page={page}
+        perPage={perPage}
+        getSortParams={getSortParams}
+        onUnassign={setRowToUnassign}
+        onPrev={() => setPage((p) => Math.max(1, p - 1))}
+        onNext={() => setPage((p) => p + 1)}
+        onPerPageChange={handlePerPageChange}
+      />
     )
   }
 
@@ -435,16 +466,6 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
         </StackItem>
 
         {tableContent}
-
-        <PaginationFooter
-          page={page}
-          perPage={perPage}
-          total={sortedRows.length}
-          hasNext={page * perPage < sortedRows.length}
-          onPrev={() => setPage((p) => Math.max(1, p - 1))}
-          onNext={() => setPage((p) => p + 1)}
-          onPerPageChange={handlePerPageChange}
-        />
       </PanelContentStack>
 
       <AssignRoleModal

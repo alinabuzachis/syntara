@@ -111,7 +111,7 @@ vi.mock('../../../utils/dateUtils', () => ({
   formatDateTime: (v: string | null | undefined) => v ?? 'N/A',
 }))
 
-vi.mock('../../access/PaginationFooter', () => ({
+vi.mock('../../../components/table/PaginationFooter', () => ({
   PaginationFooter: ({
     onPrev,
     onNext,
@@ -626,13 +626,13 @@ describe('ProjectRoleAssignmentsTab', () => {
     const user = userEvent.setup()
     render(<ProjectRoleAssignmentsTab projectId="proj-1" />, { wrapper })
 
-    const paginationFooter = screen.getByTestId('pagination-footer')
+    const footer = screen.getByTestId('pagination-footer')
 
     // Click next page
-    await user.click(within(paginationFooter).getByRole('button', { name: 'Go to next page' }))
+    await user.click(within(footer).getByRole('button', { name: 'Go to next page' }))
 
     // Click previous page
-    await user.click(within(paginationFooter).getByRole('button', { name: 'Go to previous page' }))
+    await user.click(within(footer).getByRole('button', { name: 'Go to previous page' }))
 
     // Verify the component still renders correctly
     expect(screen.getByRole('grid', { name: 'Project role assignments' })).toBeInTheDocument()
@@ -640,15 +640,27 @@ describe('ProjectRoleAssignmentsTab', () => {
 
   it('changes per page via pagination footer', async () => {
     const user = userEvent.setup()
+    const manyAssignments = Array.from({ length: 12 }, (_, i) => ({
+      id: `gen-${i}`,
+      principal_id: `u${i}`,
+      principal_name: `user-${i}`,
+      principal_type: 'user' as const,
+      role_name: 'viewer',
+      created_at: '2024-01-01T00:00:00Z',
+      project_id: 'proj-1',
+      project_name: 'Test Project',
+    }))
+    setupMocks(manyAssignments)
     render(<ProjectRoleAssignmentsTab projectId="proj-1" />, { wrapper })
 
-    const paginationFooter = screen.getByTestId('pagination-footer')
+    // Default perPage=20: all 12 rows visible
+    expect(screen.getAllByText('viewer')).toHaveLength(12)
 
-    // Change per page to 10
-    await user.click(within(paginationFooter).getByRole('button', { name: 'Set 10 per page' }))
+    // Change to 10 per page
+    await user.click(screen.getByRole('button', { name: 'Set 10 per page' }))
 
-    // Verify the component still renders correctly
-    expect(screen.getByRole('grid', { name: 'Project role assignments' })).toBeInTheDocument()
+    // Only the first 10 rows should now be visible
+    expect(screen.getAllByText('viewer')).toHaveLength(10)
   })
 
   it('closes the assign modal via onClose callback', async () => {

@@ -1,6 +1,6 @@
 import { Button, Flex, FlexItem, Label, LabelGroup, StackItem } from '@patternfly/react-core'
 import { PlusIcon, RhUiTrashIcon } from '@patternfly/react-icons'
-import { ActionsColumn, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
 
@@ -13,6 +13,7 @@ import { FilterBar } from '../../../components/filters'
 import { IconLabel } from '../../../components/IconLabel'
 import { PanelContentStack } from '../../../components/PanelContentStack'
 import { useQueryState } from '../../../components/states/useQueryState'
+import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
 import { useFilterState } from '../../../hooks/useFilterState'
 import { useSortState } from '../../../hooks/useSortState'
 import type { FilterConfig, FilterFieldDefinition } from '../../../types/filters'
@@ -20,7 +21,6 @@ import { FilterOperatorEnum, FilterTypeEnum } from '../../../types/filters'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 import { accessClient } from '../../access/accessClient'
-import { PaginationFooter } from '../../access/PaginationFooter'
 
 import { AssignProjectRoleModal } from './AssignProjectRoleModal'
 
@@ -125,15 +125,38 @@ function getAssignmentActions(row: RoleAssignmentRow, onUnassign: (row: RoleAssi
 
 function RoleAssignmentsTable({
   rows,
+  sortedRows,
+  page,
+  perPage,
   getSortParams,
   onUnassign,
+  onPrev,
+  onNext,
+  onPerPageChange,
 }: Readonly<{
   rows: RoleAssignmentRow[]
+  sortedRows: RoleAssignmentRow[]
+  page: number
+  perPage: number
   getSortParams: (columnIndex: number) => ThProps['sort']
   onUnassign: (row: RoleAssignmentRow) => void
+  onPrev: () => void
+  onNext: () => void
+  onPerPageChange: (perPage: number) => void
 }>) {
   return (
-    <Table aria-label="Project role assignments" isStriped style={{ width: '100%' }}>
+    <ScrollableTableContainer
+      aria-label="Project role assignments"
+      footer={{
+        page,
+        perPage,
+        total: sortedRows.length,
+        hasNext: page * perPage < sortedRows.length,
+        onPrev,
+        onNext,
+        onPerPageChange,
+      }}
+    >
       <Thead>
         <Tr>
           <Th sort={getSortParams(0)}>Principal Name</Th>
@@ -172,7 +195,7 @@ function RoleAssignmentsTable({
           </Tr>
         ))}
       </Tbody>
-    </Table>
+    </ScrollableTableContainer>
   )
 }
 
@@ -337,20 +360,18 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAss
             />
           </AppPageMain>
         ) : (
-          <AppPageMain style={{ overflow: 'auto' }}>
-            <RoleAssignmentsTable rows={paginatedRows} getSortParams={getSortParams} onUnassign={setRowToUnassign} />
-          </AppPageMain>
+          <RoleAssignmentsTable
+            rows={paginatedRows}
+            sortedRows={sortedRows}
+            page={page}
+            perPage={perPage}
+            getSortParams={getSortParams}
+            onUnassign={setRowToUnassign}
+            onPrev={() => setPage((p) => Math.max(1, p - 1))}
+            onNext={() => setPage((p) => p + 1)}
+            onPerPageChange={handlePerPageChange}
+          />
         )}
-
-        <PaginationFooter
-          page={page}
-          perPage={perPage}
-          total={sortedRows.length}
-          hasNext={page * perPage < sortedRows.length}
-          onPrev={() => setPage((p) => Math.max(1, p - 1))}
-          onNext={() => setPage((p) => p + 1)}
-          onPerPageChange={handlePerPageChange}
-        />
       </PanelContentStack>
 
       <AssignProjectRoleModal

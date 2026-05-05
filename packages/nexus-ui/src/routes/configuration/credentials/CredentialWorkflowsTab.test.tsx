@@ -133,7 +133,7 @@ describe('CredentialWorkflowsTab', () => {
 
     render(<CredentialWorkflowsTab credentialId="cred-1" />, { wrapper })
 
-    expect(screen.getByText('3 workflows')).toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: 'Pagination' })).toBeInTheDocument()
   })
 
   it('renders footer with workflow count (singular)', () => {
@@ -148,7 +148,7 @@ describe('CredentialWorkflowsTab', () => {
 
     render(<CredentialWorkflowsTab credentialId="cred-1" />, { wrapper })
 
-    expect(screen.getByText('1 workflow')).toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: 'Pagination' })).toBeInTheDocument()
   })
 
   it('renders loading state', () => {

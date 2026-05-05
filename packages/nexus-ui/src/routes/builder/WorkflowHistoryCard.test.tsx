@@ -149,7 +149,7 @@ describe('WorkflowHistoryCard', () => {
     it('renders filter bar when onFilterChange is provided', () => {
       const onFilterChange = vi.fn()
       render(<WorkflowHistoryCard {...defaultProps} filters={[]} onFilterChange={onFilterChange} />)
-      expect(screen.getByText('Status')).toBeInTheDocument()
+      expect(screen.getByText('Filter by status')).toBeInTheDocument()
     })
 
     it('does not render filter bar when onFilterChange is not provided', () => {

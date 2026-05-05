@@ -1,37 +1,20 @@
-import { Button, Content, ContentVariants, Flex, FlexItem, Pagination, Stack, StackItem } from '@patternfly/react-core'
-import { RhUiCaretLeftIcon, RhUiCaretRightIcon } from '@patternfly/react-icons'
+import { Stack, StackItem } from '@patternfly/react-core'
 import { Table } from '@patternfly/react-table'
 import type { CSSProperties, ReactNode } from 'react'
 
 import { scrollableTableShellStackStyle } from '../../app/panelContentStackStyle'
 import { AppPanel } from '../AppPanel'
 
-export type TableFooterProps = {
-  /** Content to display (e.g., count, status). Used as footer label; with prev/next, compact buttons render beside it; with page/perPage, Pagination is used. */
-  content: ReactNode
-  /** Optional previous page cursor */
-  prev?: string | null
-  /** Optional next page cursor */
-  next?: string | null
-  /** Callback when previous page is clicked */
-  onPrev?: () => void
-  /** Callback when next page is clicked */
-  onNext?: () => void
-  /** Current page number (1-based). When present with perPage, PF Pagination is rendered. */
-  page?: number
-  /** Current items per page */
-  perPage?: number
-  /** Total item count (used for pagination display) */
-  total?: number | null
-  /** Callback when items per page changes */
-  onPerPageChange?: (perPage: number) => void
-}
+import { PaginationFooter, type PaginationFooterProps } from './PaginationFooter'
+
+/** Footer props passed to {@link ScrollableTableContainer}. Forwarded directly to {@link PaginationFooter}. */
+export type TableFooterProps = PaginationFooterProps
 
 type ScrollableTableContainerProps = {
   /** The table content (Thead, Tbody, etc.) */
   children: ReactNode
-  /** Optional footer content (e.g., pagination) - can be a ReactNode or TableFooterProps */
-  footer?: ReactNode | TableFooterProps
+  /** Pagination footer props — always renders {@link PaginationFooter} when provided. */
+  footer?: TableFooterProps
   /** Aria label for the table */
   'aria-label': string
   /** Whether the table is expandable (affects table layout) */
@@ -95,63 +78,14 @@ export function ScrollableTableContainer({
                 flex: '0 0 auto',
                 width: '100%',
                 borderTop: '1px solid rgba(196, 181, 253, 0.2)',
+                paddingBottom: 'var(--pf-t--global--spacer--sm)',
               }}
             >
-              {typeof footer === 'object' && 'content' in footer ? <TableFooterContent footer={footer} /> : footer}
+              <PaginationFooter {...footer} />
             </StackItem>
           )}
         </Stack>
       </AppPanel>
     </StackItem>
-  )
-}
-
-function TableFooterContent({ footer }: Readonly<{ footer: TableFooterProps }>) {
-  if (footer.page != null && footer.perPage != null) {
-    const { page, perPage } = footer
-    const hasNext = !!footer.next
-    const itemCount = footer.total ?? (hasNext ? (page + 1) * perPage : page * perPage)
-    return (
-      <Pagination
-        itemCount={itemCount}
-        page={page}
-        perPage={perPage}
-        onSetPage={(_event, newPage) => {
-          if (newPage > page) {
-            footer.onNext?.()
-          } else {
-            footer.onPrev?.()
-          }
-        }}
-        onPerPageSelect={(_event, newPerPage) => footer.onPerPageChange?.(newPerPage)}
-        variant="bottom"
-        isCompact
-        style={{ justifyContent: 'space-between' }}
-      />
-    )
-  }
-
-  return (
-    <Flex
-      justifyContent={{ default: 'justifyContentSpaceBetween' }}
-      alignItems={{ default: 'alignItemsCenter' }}
-      style={{
-        padding: 'var(--pf-t--global--spacer--md) var(--pf-t--global--spacer--lg)',
-      }}
-    >
-      <FlexItem>
-        <Content component={ContentVariants.p}>{footer.content}</Content>
-      </FlexItem>
-      {(footer.prev || footer.next) && (
-        <Flex gap={{ default: 'gapSm' }}>
-          <Button variant="plain" isDisabled={!footer.prev} onClick={footer.onPrev} aria-label="Previous page">
-            <RhUiCaretLeftIcon /> Previous
-          </Button>
-          <Button variant="plain" isDisabled={!footer.next} onClick={footer.onNext} aria-label="Next page">
-            Next <RhUiCaretRightIcon />
-          </Button>
-        </Flex>
-      )}
-    </Flex>
   )
 }

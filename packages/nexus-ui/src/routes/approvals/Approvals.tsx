@@ -274,7 +274,7 @@ export default function Approvals() {
               <ScrollableTableContainer
                 aria-label="Approvals table"
                 isExpandable
-                footer={getFooterProps(approvalsQuery.data, sortedApprovals.length, 'approval', 'approvals')}
+                footer={getFooterProps(approvalsQuery.data)}
               >
                 <ApprovalsTableHead
                   getSortParams={getSortParams}

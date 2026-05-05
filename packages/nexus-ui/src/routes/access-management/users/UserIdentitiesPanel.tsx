@@ -17,7 +17,7 @@ import {
 } from '@patternfly/react-core'
 import { PluggedIcon, RhUiKeyIcon, RhUiLinkIcon, UnpluggedIcon } from '@patternfly/react-icons'
 import { ExpandableRowContent, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../../app/AppRoute'
@@ -29,11 +29,12 @@ import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { FilterBar } from '../../../components/filters/FilterBar'
 import { PanelContentStack } from '../../../components/PanelContentStack'
 import { ProviderIcon } from '../../../components/ProviderIcon'
+import { LoadingState } from '../../../components/states/LoadingState'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
 import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
 import { useTableSort } from '../../../hooks/useTableSort'
-import type { FilterFieldDefinition } from '../../../types/filters'
+import type { FilterConfig, FilterFieldDefinition } from '../../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../../types/filters'
 import { formatDateTime } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
@@ -41,6 +42,14 @@ import { detachPromise } from '../../../utils/detachPromise'
 import { AttachIdentityModal } from './AttachIdentityModal'
 import type { UserIdentity } from './identityUtils'
 import { applyLocalFilters, useLocalFilterState } from './identityUtils'
+
+function getIdentitySortKey(sortIndex: number, identity: UserIdentity): string {
+  return (
+    [identity.provider_name, identity.created_at, identity.last_used_at ?? ''][sortIndex] ??
+    identity.provider_name ??
+    ''
+  )
+}
 
 const identityFilterDefs: FilterFieldDefinition[] = [
   {
@@ -212,6 +221,25 @@ function IdentityRow({
   )
 }
 
+function useIdentityPagination() {
+  const identitiesFilter = useLocalFilterState()
+  const { setAllFilters } = identitiesFilter
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(20)
+  const handlePerPageChange = useCallback((n: number) => {
+    setPerPage(n)
+    setPage(1)
+  }, [])
+  const handleFilterChange = useCallback(
+    (f: FilterConfig[]) => {
+      setAllFilters(f)
+      setPage(1)
+    },
+    [setAllFilters]
+  )
+  return { identitiesFilter, page, setPage, perPage, handlePerPageChange, handleFilterChange }
+}
+
 type UserIdentitiesPanelProps = {
   userId: string
   currentUserId?: string
@@ -235,8 +263,8 @@ export function UserIdentitiesPanel({
   const [isAttachOpen, setIsAttachOpen] = useState(false)
   const [identityToDetach, setIdentityToDetach] = useState<UserIdentity | null>(null)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
-  const identitiesFilter = useLocalFilterState()
-  const { providers } = useAuthProviders()
+  const { identitiesFilter, page, setPage, perPage, handlePerPageChange, handleFilterChange } = useIdentityPagination()
+  const { providers, isLoading: isProvidersLoading } = useAuthProviders()
   const isSelf = userId === currentUserId
   useLinkError(showAlert)
 
@@ -261,10 +289,7 @@ export function UserIdentitiesPanel({
 
   const { activeSortIndex, getSortParams, sortData } = useTableSort({ initialSortIndex: 0, initialDirection: 'asc' })
 
-  const getSortKey = (identity: UserIdentity) =>
-    [identity.provider_name, identity.created_at, identity.last_used_at ?? ''][activeSortIndex] ??
-    identity.provider_name
-  const sortedIdentities = sortData(filteredIdentities, getSortKey)
+  const sortedIdentities = sortData(filteredIdentities, (i) => getIdentitySortKey(activeSortIndex, i))
 
   const queryState = useQueryState(query, {
     title: 'Error loading identities',
@@ -323,6 +348,9 @@ export function UserIdentitiesPanel({
     )
   }
 
+  // Prevent "No identity providers configured" from flashing before useAuthProviders settles.
+  if (isProvidersLoading && identities.length === 0) return <LoadingState />
+
   if (!showTable) {
     return (
       <>
@@ -345,7 +373,7 @@ export function UserIdentitiesPanel({
             <FilterBar
               fieldDefinitions={identityFilterDefs}
               filters={identitiesFilter.filters}
-              onFilterChange={identitiesFilter.setAllFilters}
+              onFilterChange={handleFilterChange}
               showClearAll
             />
           </FlexItem>
@@ -367,11 +395,13 @@ export function UserIdentitiesPanel({
           aria-label="User identities table"
           isExpandable
           footer={{
-            content: (
-              <>
-                {sortedIdentities.length} {sortedIdentities.length === 1 ? 'identity' : 'identities'}
-              </>
-            ),
+            page,
+            perPage,
+            total: sortedIdentities.length,
+            hasNext: page * perPage < sortedIdentities.length,
+            onPrev: () => setPage((p) => Math.max(1, p - 1)),
+            onNext: () => setPage((p) => p + 1),
+            onPerPageChange: handlePerPageChange,
           }}
         >
           <Thead>
@@ -383,7 +413,7 @@ export function UserIdentitiesPanel({
               <Th screenReaderText="Actions" />
             </Tr>
           </Thead>
-          {sortedIdentities.map((identity, rowIndex) => (
+          {sortedIdentities.slice((page - 1) * perPage, page * perPage).map((identity, rowIndex) => (
             <IdentityRow
               key={identity.id}
               identity={identity}

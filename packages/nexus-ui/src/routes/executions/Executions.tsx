@@ -158,10 +158,7 @@ export default function Executions() {
                 )}
               </AppPageMain>
             ) : (
-              <ScrollableTableContainer
-                aria-label="Executions table"
-                footer={getFooterProps(executionsQuery.data, sortedExecutions.length, 'execution', 'executions')}
-              >
+              <ScrollableTableContainer aria-label="Executions table" footer={getFooterProps(executionsQuery.data)}>
                 <Thead>
                   <Tr>
                     <Th modifier="nowrap" style={{ minWidth: '200px', width: '200px' }} sort={getSortParams(0)}>

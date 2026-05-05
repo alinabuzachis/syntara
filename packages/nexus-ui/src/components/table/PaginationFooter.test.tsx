@@ -29,25 +29,22 @@ describe('PaginationFooter', () => {
     expect(screen.getByText(/of/i)).toBeInTheDocument()
   })
 
-  it('estimates itemCount when total is null and hasNext is true', () => {
-    render(<PaginationFooter {...defaultProps} total={null} hasNext={true} page={2} perPage={10} />)
+  it('enables next button when total is null and hasNext is true', () => {
+    render(<PaginationFooter {...defaultProps} total={null} hasNext={true} page={1} perPage={20} />)
 
-    // itemCount = page * perPage + 1 = 2 * 10 + 1 = 21
-    expect(screen.getByRole('navigation', { name: /pagination/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /next/i })).not.toBeDisabled()
   })
 
-  it('estimates itemCount when total is null and hasNext is false', () => {
-    render(<PaginationFooter {...defaultProps} total={null} hasNext={false} page={2} perPage={10} />)
+  it('disables next button when total is null and hasNext is false', () => {
+    render(<PaginationFooter {...defaultProps} total={null} hasNext={false} page={1} perPage={20} />)
 
-    // itemCount = page * perPage = 2 * 10 = 20
-    expect(screen.getByRole('navigation', { name: /pagination/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /next/i })).toBeDisabled()
   })
 
-  it('estimates itemCount when total is undefined', () => {
-    render(<PaginationFooter {...defaultProps} total={undefined} hasNext={true} page={1} perPage={20} />)
+  it('disables prev button on page 1 regardless of hasNext', () => {
+    render(<PaginationFooter {...defaultProps} total={null} hasNext={false} page={1} perPage={20} />)
 
-    // itemCount = 1 * 20 + 1 = 21
-    expect(screen.getByRole('navigation', { name: /pagination/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /prev/i })).toBeDisabled()
   })
 
   it('calls onNext when navigating forward', async () => {

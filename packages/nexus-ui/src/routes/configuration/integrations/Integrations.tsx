@@ -280,10 +280,7 @@ export default function Integrations() {
                   <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
                 </AppPageMain>
               ) : (
-                <ScrollableTableContainer
-                  aria-label="Integrations table"
-                  footer={getFooterProps(query.data, results.length, 'integration', 'integrations')}
-                >
+                <ScrollableTableContainer aria-label="Integrations table" footer={getFooterProps(query.data)}>
                   <Thead>
                     <Tr>
                       <Th sort={getSortParams(0)}>Name</Th>

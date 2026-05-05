@@ -108,6 +108,8 @@ export function ProjectRolesTab({ projectId }: Readonly<{ projectId: string }>) 
     getSortParams,
     queryParams,
     page,
+    perPage,
+    handlePerPageChange,
     goToPrevPage,
     goToNextPage,
   } = useBuiltinListState(sortFieldByColumn)
@@ -219,18 +221,13 @@ export function ProjectRolesTab({ projectId }: Readonly<{ projectId: string }>) 
             aria-label="Project roles"
             useFixedLayout={false}
             footer={{
-              content: (
-                <>
-                  {roles.length} {roles.length === 1 ? 'role' : 'roles'}
-                  {rolesQuery.data?.total != null && rolesQuery.data.total > roles.length && (
-                    <> of {rolesQuery.data.total}</>
-                  )}
-                </>
-              ),
-              prev: page > 1 ? 'prev' : null,
-              next: rolesQuery.data?.next ?? null,
+              page,
+              perPage,
+              total: rolesQuery.data?.total ?? null,
+              hasNext: !!rolesQuery.data?.next,
               onPrev: goToPrevPage,
               onNext: () => goToNextPage(rolesQuery.data?.next ?? null),
+              onPerPageChange: handlePerPageChange,
             }}
           >
             <ProjectRolesTable

@@ -27,7 +27,6 @@ import { FilterBar } from '../../../components/filters/FilterBar'
 import { PanelContentStack } from '../../../components/PanelContentStack'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
-import { TotalCount } from '../../../components/table/TotalCount'
 import { useCursorPagination, useCursorReset, type UseCursorPaginationResult } from '../../../hooks/useCursorPagination'
 import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
 import { useTableSort } from '../../../hooks/useTableSort'
@@ -160,29 +159,7 @@ function IntegrationToolsLoadedView({
                   />
                 </AppPageMain>
               ) : (
-                <ScrollableTableContainer
-                  aria-label="Tools table"
-                  isExpandable
-                  footer={{
-                    ...getFooterProps(queryData, results.length, 'tool', 'tools'),
-                    content: (
-                      <>
-                        {selectedToolIds.size > 0 ? (
-                          <>
-                            {selectedToolIds.size} of {results.length} {results.length === 1 ? 'tool' : 'tools'} enabled
-                          </>
-                        ) : (
-                          <>
-                            {results.length} {results.length === 1 ? 'tool' : 'tools'}
-                          </>
-                        )}
-                        {queryData?.total != null && queryData.total > results.length && (
-                          <TotalCount total={queryData.total} />
-                        )}
-                      </>
-                    ),
-                  }}
-                >
+                <ScrollableTableContainer aria-label="Tools table" isExpandable footer={getFooterProps(queryData)}>
                   <Thead>
                     <Tr>
                       <Th

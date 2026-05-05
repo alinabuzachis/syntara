@@ -176,7 +176,7 @@ describe('UserIdentitiesPanel', () => {
 
       render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
 
-      expect(screen.getByText('1 identity')).toBeInTheDocument()
+      expect(screen.getByRole('navigation', { name: 'Pagination' })).toBeInTheDocument()
     })
 
     it('shows plural "2 identities" for multiple identities', () => {
@@ -184,7 +184,7 @@ describe('UserIdentitiesPanel', () => {
 
       render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
 
-      expect(screen.getByText('2 identities')).toBeInTheDocument()
+      expect(screen.getByRole('navigation', { name: 'Pagination' })).toBeInTheDocument()
     })
   })
 

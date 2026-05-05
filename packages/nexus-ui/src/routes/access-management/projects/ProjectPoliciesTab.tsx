@@ -103,6 +103,8 @@ export function ProjectPoliciesTab({ projectId }: Readonly<{ projectId: string }
     getSortParams,
     queryParams,
     page,
+    perPage,
+    handlePerPageChange,
     goToPrevPage,
     goToNextPage,
   } = useBuiltinListState(sortFieldByColumn)
@@ -176,18 +178,13 @@ export function ProjectPoliciesTab({ projectId }: Readonly<{ projectId: string }
           <ScrollableTableContainer
             aria-label="Project policies"
             footer={{
-              content: (
-                <>
-                  {policies.length} {policies.length === 1 ? 'policy' : 'policies'}
-                  {policiesQuery.data?.total != null && policiesQuery.data.total > policies.length && (
-                    <> of {policiesQuery.data.total}</>
-                  )}
-                </>
-              ),
-              prev: page > 1 ? 'prev' : null,
-              next: policiesQuery.data?.next ?? null,
+              page,
+              perPage,
+              total: policiesQuery.data?.total ?? null,
+              hasNext: !!policiesQuery.data?.next,
               onPrev: goToPrevPage,
               onNext: () => goToNextPage(policiesQuery.data?.next ?? null),
+              onPerPageChange: handlePerPageChange,
             }}
           >
             <ProjectPoliciesTable

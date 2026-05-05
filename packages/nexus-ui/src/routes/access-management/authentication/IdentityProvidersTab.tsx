@@ -226,10 +226,7 @@ export function IdentityProvidersTab() {
           <EmptyStateFilter clearAllFilters={() => handleFilterChange([])} />
         </StackItem>
       ) : (
-        <ScrollableTableContainer
-          aria-label="Identity providers table"
-          footer={getFooterProps(query.data, providers.length, 'provider', 'providers')}
-        >
+        <ScrollableTableContainer aria-label="Identity providers table" footer={getFooterProps(query.data)}>
           <Thead>
             <Tr>
               <Th sort={getSortParams(0)}>Name</Th>

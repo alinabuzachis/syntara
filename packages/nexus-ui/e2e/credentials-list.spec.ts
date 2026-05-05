@@ -124,7 +124,7 @@ test.describe('Cursor-Based Pagination', () => {
       .catch(() => false)
     test.skip(!hasTable, 'No credential data available; seed data required')
 
-    const credentialCountText = app.getByText(/\d+ credentials?/)
+    const credentialCountText = app.getByText(/of \d+/)
     await expect(credentialCountText.first()).toBeVisible()
   })
 

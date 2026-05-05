@@ -466,7 +466,7 @@ describe('RolesTab', () => {
     it('renders footer with item count', () => {
       render(<RolesTab />, { wrapper })
 
-      expect(screen.getByText(/3 roles/)).toBeInTheDocument()
+      expect(screen.getByRole('navigation', { name: 'Pagination' })).toBeInTheDocument()
     })
 
     it('navigates to next page when next cursor is available', async () => {

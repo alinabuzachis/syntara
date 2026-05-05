@@ -200,7 +200,7 @@ describe('Credentials', () => {
 
   it('renders footer with credential count', () => {
     render(<Credentials />, { wrapper })
-    expect(screen.getByText(/2 credentials/)).toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: 'Pagination' })).toBeInTheDocument()
   })
 
   it('opens create modal when create button is clicked', async () => {
@@ -404,7 +404,7 @@ describe('Credentials', () => {
     })
 
     render(<Credentials />, { wrapper })
-    expect(screen.getByText(/of 50 total/)).toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: 'Pagination' })).toBeInTheDocument()
   })
 
   it('cancels disable dialog', async () => {

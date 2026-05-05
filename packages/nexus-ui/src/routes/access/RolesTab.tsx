@@ -26,7 +26,6 @@ import { useQueryState } from '../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
-import { formatItemCount } from '../../utils/formatItemCount'
 
 import { accessClient } from './accessClient'
 import { AddRoleDialog } from './AddRoleDialog'
@@ -172,6 +171,8 @@ export function RolesTab() {
     getSortParams,
     queryParams: baseQueryParams,
     page,
+    perPage,
+    handlePerPageChange,
     goToPrevPage,
     goToNextPage,
   } = useBuiltinListState(sortFieldByColumn)
@@ -274,11 +275,13 @@ export function RolesTab() {
             aria-label="Roles"
             useFixedLayout={false}
             footer={{
-              content: formatItemCount(roles.length, 'role', 'roles', rolesQuery.data?.total),
-              prev: page > 1 ? 'prev' : null,
-              next: rolesQuery.data?.next ?? null,
+              page,
+              perPage,
+              total: rolesQuery.data?.total ?? null,
+              hasNext: !!rolesQuery.data?.next,
               onPrev: goToPrevPage,
               onNext: () => goToNextPage(rolesQuery.data?.next ?? null),
+              onPerPageChange: handlePerPageChange,
             }}
           >
             <RolesTable

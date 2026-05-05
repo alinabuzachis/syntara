@@ -1,6 +1,7 @@
 import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import { Content, ContentVariants, EmptyState, EmptyStateBody, Label, Stack, StackItem } from '@patternfly/react-core'
 import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import { useCallback, useState } from 'react'
 import { useLocation } from 'wouter'
 
 import { AppPageMain } from '../../../app/AppPage'
@@ -30,6 +31,14 @@ const labelMarginStyle = { marginRight: 'var(--pf-t--global--spacer--xs)' } as c
 
 export function CredentialWorkflowsTab({ credentialId }: Readonly<CredentialWorkflowsTabProps>) {
   const [, navigate] = useLocation()
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(20)
+
+  const handlePerPageChange = useCallback((newPerPage: number) => {
+    setPerPage(newPerPage)
+    setPage(1)
+  }, [])
+
   const query = credentialsClient.useQuery('get', '/credentials/{credential_id}/workflows', {
     params: { path: { credential_id: credentialId } },
   })
@@ -64,21 +73,21 @@ export function CredentialWorkflowsTab({ credentialId }: Readonly<CredentialWork
     )
   }
 
+  const paginatedWorkflows = workflows.slice((page - 1) * perPage, page * perPage)
+
   return (
     <PanelContentStack variant="credentialDetailTab">
       <AppPageMain style={{ overflow: 'auto' }}>
         <ScrollableTableContainer
           aria-label="Workflows using this credential"
           footer={{
-            content: (
-              <>
-                {workflows.length} {workflows.length === 1 ? 'workflow' : 'workflows'}
-              </>
-            ),
-            prev: null,
-            next: null,
-            onPrev: () => {},
-            onNext: () => {},
+            page,
+            perPage,
+            total: workflows.length,
+            hasNext: page * perPage < workflows.length,
+            onPrev: () => setPage((p) => Math.max(1, p - 1)),
+            onNext: () => setPage((p) => p + 1),
+            onPerPageChange: handlePerPageChange,
           }}
         >
           <Thead>
@@ -91,7 +100,7 @@ export function CredentialWorkflowsTab({ credentialId }: Readonly<CredentialWork
             </Tr>
           </Thead>
           <Tbody>
-            {workflows.map((workflow) => (
+            {paginatedWorkflows.map((workflow) => (
               <Tr
                 key={workflow.id}
                 isClickable

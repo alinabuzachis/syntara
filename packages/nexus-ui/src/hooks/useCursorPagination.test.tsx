@@ -1,4 +1,4 @@
-import { act, render, renderHook } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { FilterConfig } from '../types/filters'
@@ -319,146 +319,53 @@ describe('useCursorPagination', () => {
   })
 
   describe('getFooterProps', () => {
-    it('returns singular label when itemCount is 1', () => {
+    it('returns hasNext true when data.next is a cursor string', () => {
       const { result } = renderHook(() => useCursorPagination())
 
-      const footerProps = result.current.getFooterProps(
-        { resources: [{}], prev: null, next: null, total: 1 },
-        1,
-        'workflow',
-        'workflows'
-      )
+      const footerProps = result.current.getFooterProps({ resources: [{}], prev: null, next: 'next-cursor' })
 
-      // content is a React element; extract text from the fragment
-      const { container } = renderContent(footerProps.content)
-      expect(container.textContent).toContain('1 workflow')
-      expect(container.textContent).not.toContain('1 workflows')
+      expect(footerProps.hasNext).toBe(true)
     })
 
-    it('returns plural label when itemCount is not 1', () => {
+    it('returns hasNext false when data.next is null', () => {
       const { result } = renderHook(() => useCursorPagination())
 
-      const footerProps = result.current.getFooterProps(
-        { resources: [{}, {}], prev: null, next: null, total: 2 },
-        2,
-        'workflow',
-        'workflows'
-      )
+      const footerProps = result.current.getFooterProps({ resources: [{}], prev: null, next: null })
 
-      const { container } = renderContent(footerProps.content)
-      expect(container.textContent).toContain('2 workflows')
+      expect(footerProps.hasNext).toBe(false)
     })
 
-    it('returns plural label when itemCount is 0', () => {
+    it('returns hasNext false when data is undefined', () => {
       const { result } = renderHook(() => useCursorPagination())
 
-      const footerProps = result.current.getFooterProps(
-        { resources: [], prev: null, next: null, total: 0 },
-        0,
-        'credential',
-        'credentials'
-      )
+      const footerProps = result.current.getFooterProps(undefined)
 
-      const { container } = renderContent(footerProps.content)
-      expect(container.textContent).toContain('0 credentials')
+      expect(footerProps.hasNext).toBe(false)
     })
 
-    it('shows total count when total exceeds itemCount', () => {
+    it('returns total from data', () => {
       const { result } = renderHook(() => useCursorPagination())
 
-      const footerProps = result.current.getFooterProps(
-        { resources: Array.from<unknown>({ length: 20 }), prev: null, next: 'next-cursor', total: 100 },
-        20,
-        'item',
-        'items'
-      )
+      const footerProps = result.current.getFooterProps({ resources: [{}], prev: null, next: null, total: 42 })
 
-      const { container } = renderContent(footerProps.content)
-      expect(container.textContent).toContain('20 items')
-      expect(container.textContent).toContain('of 100 total')
+      expect(footerProps.total).toBe(42)
     })
 
-    it('does not show total count when total equals itemCount', () => {
+    it('returns null total when data has no total', () => {
       const { result } = renderHook(() => useCursorPagination())
 
-      const footerProps = result.current.getFooterProps(
-        { resources: Array.from<unknown>({ length: 5 }), prev: null, next: null, total: 5 },
-        5,
-        'item',
-        'items'
-      )
+      const footerProps = result.current.getFooterProps({ resources: [{}] })
 
-      const { container } = renderContent(footerProps.content)
-      expect(container.textContent).not.toContain('total')
-    })
-
-    it('does not show total count when total is null', () => {
-      const { result } = renderHook(() => useCursorPagination())
-
-      const footerProps = result.current.getFooterProps(
-        { resources: [{}, {}], prev: null, next: null, total: null },
-        2,
-        'item',
-        'items'
-      )
-
-      const { container } = renderContent(footerProps.content)
-      expect(container.textContent).not.toContain('total')
-    })
-
-    it('does not show total count when total is undefined', () => {
-      const { result } = renderHook(() => useCursorPagination())
-
-      const footerProps = result.current.getFooterProps({ resources: [{}], prev: null, next: null }, 1, 'item', 'items')
-
-      const { container } = renderContent(footerProps.content)
-      expect(container.textContent).not.toContain('total')
-    })
-
-    it('returns prev and next cursors from data', () => {
-      const { result } = renderHook(() => useCursorPagination())
-
-      const footerProps = result.current.getFooterProps(
-        { resources: [{}], prev: 'prev-cursor', next: 'next-cursor', total: 50 },
-        20,
-        'item',
-        'items'
-      )
-
-      expect(footerProps.prev).toBe('prev-cursor')
-      expect(footerProps.next).toBe('next-cursor')
-    })
-
-    it('returns null for prev and next when data is undefined', () => {
-      const { result } = renderHook(() => useCursorPagination())
-
-      const footerProps = result.current.getFooterProps(undefined, 0, 'item', 'items')
-
-      expect(footerProps.prev).toBeNull()
-      expect(footerProps.next).toBeNull()
-    })
-
-    it('returns null for prev and next when cursors are null', () => {
-      const { result } = renderHook(() => useCursorPagination())
-
-      const footerProps = result.current.getFooterProps({ resources: [{}], prev: null, next: null }, 1, 'item', 'items')
-
-      expect(footerProps.prev).toBeNull()
-      expect(footerProps.next).toBeNull()
+      expect(footerProps.total).toBeNull()
     })
 
     it('onPrev sets cursor to prev value', () => {
       const { result } = renderHook(() => useCursorPagination())
 
-      const footerProps = result.current.getFooterProps(
-        { resources: [{}], prev: 'prev-cursor', next: 'next-cursor' },
-        1,
-        'item',
-        'items'
-      )
+      const footerProps = result.current.getFooterProps({ resources: [{}], prev: 'prev-cursor', next: 'next-cursor' })
 
       act(() => {
-        footerProps.onPrev?.()
+        footerProps.onPrev()
       })
 
       expect(result.current.cursor).toBe('prev-cursor')
@@ -467,15 +374,10 @@ describe('useCursorPagination', () => {
     it('onNext sets cursor to next value', () => {
       const { result } = renderHook(() => useCursorPagination())
 
-      const footerProps = result.current.getFooterProps(
-        { resources: [{}], prev: 'prev-cursor', next: 'next-cursor' },
-        1,
-        'item',
-        'items'
-      )
+      const footerProps = result.current.getFooterProps({ resources: [{}], prev: 'prev-cursor', next: 'next-cursor' })
 
       act(() => {
-        footerProps.onNext?.()
+        footerProps.onNext()
       })
 
       expect(result.current.cursor).toBe('next-cursor')
@@ -484,15 +386,14 @@ describe('useCursorPagination', () => {
     it('onPrev sets cursor to null when prev is null', () => {
       const { result } = renderHook(() => useCursorPagination())
 
-      // First set a cursor so we can verify it gets cleared
       act(() => {
         result.current.setCursor('some-cursor')
       })
 
-      const footerProps = result.current.getFooterProps({ resources: [{}], prev: null, next: null }, 1, 'item', 'items')
+      const footerProps = result.current.getFooterProps({ resources: [{}], prev: null, next: null })
 
       act(() => {
-        footerProps.onPrev?.()
+        footerProps.onPrev()
       })
 
       expect(result.current.cursor).toBeNull()
@@ -505,10 +406,10 @@ describe('useCursorPagination', () => {
         result.current.setCursor('some-cursor')
       })
 
-      const footerProps = result.current.getFooterProps({ resources: [{}] }, 1, 'item', 'items')
+      const footerProps = result.current.getFooterProps({ resources: [{}] })
 
       act(() => {
-        footerProps.onNext?.()
+        footerProps.onNext()
       })
 
       expect(result.current.cursor).toBeNull()
@@ -613,10 +514,3 @@ describe('useCursorReset', () => {
     expect(resetPagination).not.toHaveBeenCalled()
   })
 })
-
-/**
- * Helper to render React content (ReactNode) and return the container for text assertions.
- */
-function renderContent(content: React.ReactNode) {
-  return render(<>{content}</>)
-}

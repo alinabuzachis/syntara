@@ -2,7 +2,7 @@ import { Button, Flex, FlexItem, Label, LabelGroup, StackItem } from '@patternfl
 import { PlusIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 
 import { AppPageMain } from '../../app/AppPage'
 import { ConfirmationDialog } from '../../components/ConfirmationDialog'
@@ -14,7 +14,6 @@ import { PanelContentStack } from '../../components/PanelContentStack'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import type { FilterFieldDefinition } from '../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
-import { formatItemCount } from '../../utils/formatItemCount'
 
 import { AssignRoleDialog } from './AssignRoleDialog'
 import { EditAssignmentDialog } from './EditAssignmentDialog'
@@ -91,6 +90,29 @@ export function AssignmentsTab() {
 
   const filterFieldDefinitions = useMemo(() => buildProjectFilterDefs(baseFilterDefs, projectNameMap), [projectNameMap])
 
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(20)
+
+  const handlePerPageChange = useCallback((newPerPage: number) => {
+    setPerPage(newPerPage)
+    setPage(1)
+  }, [])
+
+  const handleFilterChangeWithReset = useCallback(
+    (newFilters: typeof filters) => {
+      handleFilterChange(newFilters)
+      setPage(1)
+    },
+    [handleFilterChange]
+  )
+
+  const clearAllFiltersWithReset = useCallback(() => {
+    clearAllFilters()
+    setPage(1)
+  }, [clearAllFilters])
+
+  const paginatedRows = sortedRows.slice((page - 1) * perPage, page * perPage)
+
   const getAssignmentActions = (row: PermissionRow): IAction[] => [
     {
       title: <IconLabel icon={<RhUiEditFillIcon />}>Edit assignment</IconLabel>,
@@ -123,9 +145,9 @@ export function AssignmentsTab() {
               <FilterBar
                 fieldDefinitions={filterFieldDefinitions}
                 filters={filters}
-                onFilterChange={handleFilterChange}
+                onFilterChange={handleFilterChangeWithReset}
                 showClearAll={true}
-                clearAllFilters={clearAllFilters}
+                clearAllFilters={clearAllFiltersWithReset}
               />
             </FlexItem>
             <FlexItem>
@@ -144,7 +166,13 @@ export function AssignmentsTab() {
           <ScrollableTableContainer
             aria-label="Role assignments"
             footer={{
-              content: formatItemCount(sortedRows.length, 'assignment', 'assignments'),
+              page,
+              perPage,
+              total: sortedRows.length,
+              hasNext: page * perPage < sortedRows.length,
+              onPrev: () => setPage((p) => Math.max(1, p - 1)),
+              onNext: () => setPage((p) => p + 1),
+              onPerPageChange: handlePerPageChange,
             }}
           >
             <Thead>
@@ -169,7 +197,7 @@ export function AssignmentsTab() {
               </Tr>
             </Thead>
             <Tbody>
-              {sortedRows.map((row) => (
+              {paginatedRows.map((row) => (
                 <Tr key={`${row.sourceEndpoint}-${row.id}`}>
                   <Td dataLabel="Principal Name">{row.principalName}</Td>
                   <Td dataLabel="Principal Type">

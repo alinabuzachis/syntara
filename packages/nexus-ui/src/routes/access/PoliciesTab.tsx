@@ -13,7 +13,6 @@ import { ScrollableTableContainer } from '../../components/table/ScrollableTable
 import { useDialogState } from '../../hooks/useDialogState'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import { detachPromise } from '../../utils/detachPromise'
-import { formatItemCount } from '../../utils/formatItemCount'
 
 import { accessClient } from './accessClient'
 import { PolicyJsonModal } from './PolicyJsonModal'
@@ -149,6 +148,8 @@ export function PoliciesTab() {
     getSortParams,
     queryParams: baseQueryParams,
     page,
+    perPage,
+    handlePerPageChange,
     goToPrevPage,
     goToNextPage,
   } = useBuiltinListState(sortFieldByColumn)
@@ -179,14 +180,14 @@ export function PoliciesTab() {
     return queryState
   }
 
-  const queryData = policiesQuery.data
   const tableFooter = {
-    content: formatItemCount(policies.length, 'policy', 'policies', queryData?.total),
-    // `prev` is only used for Previous button enabled state; cursor history is in goToPrevPage.
-    prev: page > 1 ? (queryData?.prev ?? '1') : null,
-    next: queryData?.next ?? null,
+    page,
+    perPage,
+    total: policiesQuery.data?.total ?? null,
+    hasNext: !!policiesQuery.data?.next,
     onPrev: goToPrevPage,
-    onNext: () => goToNextPage(queryData?.next ?? null),
+    onNext: () => goToNextPage(policiesQuery.data?.next ?? null),
+    onPerPageChange: handlePerPageChange,
   }
 
   if (policies.length === 0 && !hasActiveFilters) {
@@ -211,16 +212,14 @@ export function PoliciesTab() {
             <EmptyStateFilter clearAllFilters={clearAllFilters} />
           </StackItem>
         ) : (
-          <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
-            <ScrollableTableContainer aria-label="Policies" footer={tableFooter}>
-              <PoliciesTableBody
-                policies={policies}
-                projectNameMap={projectNameMap}
-                getSortParams={getSortParams}
-                onViewPolicyJson={policyJsonDialog.open}
-              />
-            </ScrollableTableContainer>
-          </StackItem>
+          <ScrollableTableContainer aria-label="Policies" footer={tableFooter}>
+            <PoliciesTableBody
+              policies={policies}
+              projectNameMap={projectNameMap}
+              getSortParams={getSortParams}
+              onViewPolicyJson={policyJsonDialog.open}
+            />
+          </ScrollableTableContainer>
         )}
       </Stack>
 

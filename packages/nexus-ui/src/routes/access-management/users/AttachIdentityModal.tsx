@@ -14,7 +14,7 @@ import {
 } from '@patternfly/react-core'
 import { RhUiArrowLeftIcon, RhUiKeyIcon } from '@patternfly/react-icons'
 import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { navigate } from 'wouter/use-browser-location'
 
 import './UserIdentitiesPanel.css'
@@ -25,6 +25,7 @@ import { useAlerts } from '../../../components/alerts'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { FilterBar } from '../../../components/filters/FilterBar'
 import { PanelContentStack } from '../../../components/PanelContentStack'
+import { type PaginationFooterProps } from '../../../components/table/PaginationFooter'
 import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
 import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
 import { useTableSort } from '../../../hooks/useTableSort'
@@ -71,10 +72,7 @@ function UsersStep({
   users,
   usersFilter,
   usersSort,
-  prev,
-  next,
-  onPrev,
-  onNext,
+  footerProps,
   onResetPage,
   onSelect,
   onClose,
@@ -82,10 +80,7 @@ function UsersStep({
   users: UserSummary[]
   usersFilter: ReturnType<typeof useLocalFilterState>
   usersSort: ReturnType<typeof useTableSort>
-  prev: string | null
-  next: string | null
-  onPrev: () => void
-  onNext: () => void
+  footerProps: PaginationFooterProps
   onResetPage: () => void
   onSelect: (user: UserSummary) => void
   onClose: () => void
@@ -111,20 +106,7 @@ function UsersStep({
           <EmptyStateFilter clearAllFilters={usersFilter.clearAllFilters} />
         </StackItem>
       ) : (
-        <ScrollableTableContainer
-          aria-label="Select a user"
-          footer={{
-            content: (
-              <>
-                {users.length} {users.length === 1 ? 'user' : 'users'}
-              </>
-            ),
-            prev,
-            next,
-            onPrev,
-            onNext,
-          }}
-        >
+        <ScrollableTableContainer aria-label="Select a user" footer={footerProps}>
           <Thead>
             <Tr>
               <Th sort={usersSort.getSortParams(0)}>Username</Th>
@@ -176,6 +158,14 @@ function IdentitiesStep({
   onBack: () => void
   onClose: () => void
 }) {
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(20)
+  const handlePerPageChange = useCallback((n: number) => {
+    setPerPage(n)
+    setPage(1)
+  }, [])
+  const paginatedIdentities = identities.slice((page - 1) * perPage, page * perPage)
+
   const hasActiveFilters = identitiesFilter.filters.length > 0
 
   return (
@@ -200,7 +190,14 @@ function IdentitiesStep({
         <FilterBar
           fieldDefinitions={identityFilterDefs}
           filters={identitiesFilter.filters}
-          onFilterChange={identitiesFilter.setAllFilters}
+          onFilterChange={(f) => {
+            identitiesFilter.setAllFilters(f)
+            setPage(1)
+          }}
+          clearAllFilters={() => {
+            identitiesFilter.clearAllFilters()
+            setPage(1)
+          }}
           showClearAll
           isCompact
         />
@@ -230,11 +227,13 @@ function IdentitiesStep({
           <ScrollableTableContainer
             aria-label="Select an identity"
             footer={{
-              content: (
-                <>
-                  {identities.length} {identities.length === 1 ? 'identity' : 'identities'}
-                </>
-              ),
+              page,
+              perPage,
+              total: identities.length,
+              hasNext: page * perPage < identities.length,
+              onPrev: () => setPage((p) => Math.max(1, p - 1)),
+              onNext: () => setPage((p) => p + 1),
+              onPerPageChange: handlePerPageChange,
             }}
           >
             <Thead>
@@ -245,7 +244,7 @@ function IdentitiesStep({
               </Tr>
             </Thead>
             <Tbody>
-              {identities.map((identity) => {
+              {paginatedIdentities.map((identity) => {
                 const isSelected = selectedIdentityId === identity.id
                 return (
                   <Tr
@@ -318,6 +317,11 @@ export function AttachIdentityModal({
   const [selectedUser, setSelectedUser] = useState<UserSummary | null>(null)
   const [selectedIdentityId, setSelectedIdentityId] = useState<string | null>(null)
   const [cursorHistory, setCursorHistory] = useState<string[]>([])
+  const [perPage, setPerPage] = useState(20)
+  const handlePerPageChange = useCallback((newPerPage: number) => {
+    setPerPage(newPerPage)
+    setCursorHistory([])
+  }, [])
   const usersCursor = cursorHistory.length > 0 ? cursorHistory[cursorHistory.length - 1] : null
 
   const usersFilter = useLocalFilterState()
@@ -331,11 +335,11 @@ export function AttachIdentityModal({
   )
 
   const usersQueryParams = useMemo(() => {
-    const params: Record<string, unknown> = { limit: 20 }
+    const params: Record<string, unknown> = { limit: perPage, include_total: true }
     Object.assign(params, buildFilterParams(usersFilter.filters))
     if (usersCursor) params.cursor = usersCursor
     return params
-  }, [usersFilter.filters, usersCursor])
+  }, [usersFilter.filters, usersCursor, perPage])
 
   const usersQuery = usersClient.useQuery('get', '/users', { params: { query: usersQueryParams } }, { enabled: isOpen })
   const userIdentitiesQuery = usersClient.useQuery(
@@ -350,8 +354,18 @@ export function AttachIdentityModal({
   const sortedUsers = usersSort.sortData(otherUsers, (user) =>
     usersSort.activeSortIndex === 1 ? user.email : user.username
   )
-  const hasPrev = cursorHistory.length > 0
   const usersNext = usersData?.next ?? null
+  const usersFooterProps: PaginationFooterProps = {
+    page: cursorHistory.length + 1,
+    perPage,
+    total: usersData?.total ?? null,
+    hasNext: !!usersNext,
+    onPrev: () => setCursorHistory((h) => h.slice(0, -1)),
+    onNext: () => {
+      if (usersNext) setCursorHistory((h) => [...h, usersNext])
+    },
+    onPerPageChange: handlePerPageChange,
+  }
 
   const userIdentities = userIdentitiesQuery.data?.resources ?? []
   const filteredIdentities = applyLocalFilters(userIdentities, identitiesFilter.filters, (i, key) =>
@@ -413,12 +427,7 @@ export function AttachIdentityModal({
             users={sortedUsers}
             usersFilter={usersFilter}
             usersSort={usersSort}
-            prev={hasPrev ? 'has-prev' : null}
-            next={usersNext}
-            onPrev={() => setCursorHistory((h) => h.slice(0, -1))}
-            onNext={() => {
-              if (usersNext) setCursorHistory((h) => [...h, usersNext])
-            }}
+            footerProps={usersFooterProps}
             onResetPage={() => setCursorHistory([])}
             onSelect={setSelectedUser}
             onClose={handleClose}

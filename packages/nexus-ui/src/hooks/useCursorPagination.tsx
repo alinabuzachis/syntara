@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import type { TableFooterProps } from '../components/table/ScrollableTableContainer'
-import { TotalCount } from '../components/table/TotalCount'
+import type { PaginationFooterProps } from '../components/table/PaginationFooter'
 import type { FilterConfig } from '../types/filters'
 import { buildFilterParams } from '../utils/filterUtils'
 
@@ -50,12 +49,7 @@ export type UseCursorPaginationResult = {
   /** Handler for changing items per page */
   handlePerPageChange: (perPage: number) => void
   /** Build footer props for ScrollableTableContainer from a query response */
-  getFooterProps: (
-    data: PaginatedResponse | undefined,
-    itemCount: number,
-    singularLabel: string,
-    pluralLabel: string
-  ) => TableFooterProps
+  getFooterProps: (data: PaginatedResponse | undefined) => PaginationFooterProps
 }
 
 /**
@@ -138,15 +132,11 @@ export function useCursorPagination(options: UseCursorPaginationOptions = {}): U
   }, [filters, cursor, perPage, extraParams, extraParamsChanged])
 
   const getFooterProps = useCallback(
-    (data: PaginatedResponse | undefined, itemCount: number, singularLabel: string, pluralLabel: string) => ({
-      content: (
-        <>
-          {itemCount} {itemCount === 1 ? singularLabel : pluralLabel}
-          {data?.total != null && data.total > itemCount && <TotalCount total={data.total} />}
-        </>
-      ),
-      prev: data?.prev ?? null,
-      next: data?.next ?? null,
+    (data: PaginatedResponse | undefined): PaginationFooterProps => ({
+      page,
+      perPage,
+      total: data?.total ?? null,
+      hasNext: !!data?.next,
       onPrev: () => {
         setCursor(data?.prev ?? null)
         setPage((p) => Math.max(1, p - 1))
@@ -155,9 +145,6 @@ export function useCursorPagination(options: UseCursorPaginationOptions = {}): U
         setCursor(data?.next ?? null)
         setPage((p) => p + 1)
       },
-      page,
-      perPage,
-      total: data?.total ?? null,
       onPerPageChange: handlePerPageChange,
     }),
     [page, perPage, handlePerPageChange]

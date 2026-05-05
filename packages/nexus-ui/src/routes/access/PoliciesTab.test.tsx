@@ -199,7 +199,7 @@ describe('PoliciesTab', () => {
 
     render(<PoliciesTab />, { wrapper })
 
-    expect(screen.getByText('2 policies of 100')).toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: 'Pagination' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /next page/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /previous page/i })).toBeInTheDocument()
   })
@@ -350,7 +350,7 @@ describe('PoliciesTab', () => {
 
     render(<PoliciesTab />, { wrapper })
 
-    expect(screen.getByText('2 policies of 40')).toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: 'Pagination' })).toBeInTheDocument()
 
     const prevButton = screen.getByRole('button', { name: /previous page/i })
     const nextButton = screen.getByRole('button', { name: /next page/i })
