@@ -108,21 +108,8 @@ def _make_session(jti: str = "jti-abc") -> SessionInfo:
 
 
 def _patch_session_store(mock_store: AsyncMock) -> MagicMock:
-    """Create a patched SessionStore class whose context manager yields *mock_store*."""
-    ctx = AsyncMock()
-    ctx.__aenter__ = AsyncMock(return_value=mock_store)
-    ctx.__aexit__ = AsyncMock(return_value=None)
-    return MagicMock(return_value=ctx)
-
-
-def _patch_session_store_unavailable() -> MagicMock:
-    """Create a patched SessionStore whose context manager raises OSError (Redis down)."""
-    from redis.exceptions import ConnectionError as RedisConnectionError
-
-    ctx = AsyncMock()
-    ctx.__aenter__ = AsyncMock(side_effect=RedisConnectionError("Connection refused"))
-    ctx.__aexit__ = AsyncMock(return_value=None)
-    return MagicMock(return_value=ctx)
+    """Create a patched SessionStore class that returns *mock_store*."""
+    return MagicMock(return_value=mock_store)
 
 
 # =============================================================================
@@ -160,7 +147,7 @@ class TestLoginEndpoint:
         with (
             patch("nexus.auth.router._get_token_service", return_value=mock_token_service),
             patch("nexus.auth.router.verify_password", return_value=True),
-            patch("nexus.auth.router.SessionStore", _patch_session_store(mock_store)),
+            patch("nexus.auth.router.create_session_store", _patch_session_store(mock_store)),
             patch("nexus.auth.router.get_settings", return_value=mock_settings),
             patch("nexus.auth.router.set_refresh_cookie") as mock_set_cookie,
         ):
@@ -196,7 +183,7 @@ class TestLoginEndpoint:
         with (
             patch("nexus.auth.router._get_token_service", return_value=mock_token_service),
             patch("nexus.auth.router.verify_password", return_value=True),
-            patch("nexus.auth.router.SessionStore", _patch_session_store(mock_store)),
+            patch("nexus.auth.router.create_session_store", _patch_session_store(mock_store)),
             patch("nexus.auth.router.get_settings", return_value=mock_settings),
             patch("nexus.auth.router.set_refresh_cookie"),
         ):
@@ -280,8 +267,8 @@ class TestLoginEndpoint:
             await login(body, request, response, db)
 
     @pytest.mark.asyncio
-    async def test_login_raises_503_when_redis_unavailable(self) -> None:
-        """Login should raise SessionStoreUnavailableError when Redis is down."""
+    async def test_login_raises_503_when_session_store_unavailable(self) -> None:
+        """Login should raise SessionStoreUnavailableError when DB is down."""
         user = _make_user()
         request = _make_request()
         response = _make_response()
@@ -296,28 +283,23 @@ class TestLoginEndpoint:
         mock_token_service.create_access_token.return_value = "access-token-123"
         mock_token_service.create_refresh_token.return_value = ("refresh-jwt", "jti-1", datetime.now(UTC))
 
-        # First SessionStore call (get_token_version) succeeds;
-        # second call (create session) fails with ConnectionError.
-        ok_store = AsyncMock()
-        ok_store.get_token_version = AsyncMock(return_value=1)
+        # SessionStore is now a plain class; create raises SQLAlchemyError.
+        from sqlalchemy.exc import SQLAlchemyError
 
-        mock_session_store_cls = MagicMock(
-            side_effect=[
-                _patch_session_store(ok_store).return_value,
-                _patch_session_store_unavailable().return_value,
-            ]
-        )
+        mock_store = AsyncMock()
+        mock_store.get_token_version = AsyncMock(return_value=1)
+        mock_store.create = AsyncMock(side_effect=SQLAlchemyError("DB connection failed"))
 
         with (
             patch("nexus.auth.router._get_token_service", return_value=mock_token_service),
             patch("nexus.auth.router.verify_password", return_value=True),
             patch("nexus.auth.router._get_user_group_names", return_value=["authenticated"]),
-            patch("nexus.auth.router.SessionStore", mock_session_store_cls),
+            patch("nexus.auth.router.create_session_store", _patch_session_store(mock_store)),
             pytest.raises(SessionStoreUnavailableError),
         ):
             await login(body, request, response, db)
 
-        db.rollback.assert_called_once()
+        db.rollback.assert_not_called()
 
 
 # =============================================================================
@@ -370,7 +352,7 @@ class TestRefreshEndpoint:
 
     @pytest.mark.asyncio
     async def test_raises_when_session_not_in_store(self) -> None:
-        """Refresh should raise RefreshTokenRevokedError when JTI not in Redis."""
+        """Refresh should raise RefreshTokenRevokedError when JTI not in session store."""
         db = AsyncMock()
 
         payload = _make_payload()
@@ -378,11 +360,11 @@ class TestRefreshEndpoint:
         mock_token_service.decode_token.return_value = payload
 
         mock_store = AsyncMock()
-        mock_store.get.return_value = None
+        mock_store.get_with_token_version.return_value = None
 
         with (
             patch("nexus.auth.router._get_token_service", return_value=mock_token_service),
-            patch("nexus.auth.router.SessionStore", _patch_session_store(mock_store)),
+            patch("nexus.auth.router.create_session_store", _patch_session_store(mock_store)),
             pytest.raises(RefreshTokenRevokedError),
         ):
             await refresh_token("valid-token", db)
@@ -395,7 +377,7 @@ class TestRefreshEndpoint:
         mock_token_service.decode_token.return_value = payload
 
         mock_store = AsyncMock()
-        mock_store.get.return_value = _make_session()
+        mock_store.get_with_token_version.return_value = (_make_session(), 0)
 
         db = AsyncMock()
         mock_result = MagicMock()
@@ -404,7 +386,7 @@ class TestRefreshEndpoint:
 
         with (
             patch("nexus.auth.router._get_token_service", return_value=mock_token_service),
-            patch("nexus.auth.router.SessionStore", _patch_session_store(mock_store)),
+            patch("nexus.auth.router.create_session_store", _patch_session_store(mock_store)),
             pytest.raises(AuthenticationRequiredError),
         ):
             await refresh_token("valid-token", db)
@@ -419,7 +401,7 @@ class TestRefreshEndpoint:
         mock_token_service.decode_token.return_value = payload
 
         mock_store = AsyncMock()
-        mock_store.get.return_value = _make_session()
+        mock_store.get_with_token_version.return_value = (_make_session(), 0)
 
         db = AsyncMock()
         mock_result = MagicMock()
@@ -428,7 +410,7 @@ class TestRefreshEndpoint:
 
         with (
             patch("nexus.auth.router._get_token_service", return_value=mock_token_service),
-            patch("nexus.auth.router.SessionStore", _patch_session_store(mock_store)),
+            patch("nexus.auth.router.create_session_store", _patch_session_store(mock_store)),
             pytest.raises(AuthenticationRequiredError),
         ):
             await refresh_token("valid-token", db)
@@ -444,7 +426,7 @@ class TestRefreshEndpoint:
         mock_token_service.create_access_token.return_value = "new-access-token"
 
         mock_store = AsyncMock()
-        mock_store.get.return_value = _make_session()
+        mock_store.get_with_token_version.return_value = (_make_session(), 0)
 
         db = AsyncMock()
         mock_result = MagicMock()
@@ -457,7 +439,7 @@ class TestRefreshEndpoint:
 
         with (
             patch("nexus.auth.router._get_token_service", return_value=mock_token_service),
-            patch("nexus.auth.router.SessionStore", _patch_session_store(mock_store)),
+            patch("nexus.auth.router.create_session_store", _patch_session_store(mock_store)),
             patch("nexus.auth.router.get_settings", return_value=mock_settings),
         ):
             result = await refresh_token("the-refresh-jwt", db)
@@ -467,17 +449,22 @@ class TestRefreshEndpoint:
         assert result.token_type == "Bearer"  # noqa: S105
 
     @pytest.mark.asyncio
-    async def test_raises_503_when_redis_unavailable(self) -> None:
-        """Refresh should raise SessionStoreUnavailableError when Redis is down."""
+    async def test_raises_503_when_session_store_unavailable(self) -> None:
+        """Refresh should raise SessionStoreUnavailableError when DB is down."""
+        from sqlalchemy.exc import SQLAlchemyError
+
         db = AsyncMock()
 
         payload = _make_payload()
         mock_token_service = MagicMock()
         mock_token_service.decode_token.return_value = payload
 
+        mock_store = AsyncMock()
+        mock_store.get_with_token_version.side_effect = SQLAlchemyError("DB connection failed")
+
         with (
             patch("nexus.auth.router._get_token_service", return_value=mock_token_service),
-            patch("nexus.auth.router.SessionStore", _patch_session_store_unavailable()),
+            patch("nexus.auth.router.create_session_store", _patch_session_store(mock_store)),
             pytest.raises(SessionStoreUnavailableError),
         ):
             await refresh_token("valid-token", db)
@@ -495,7 +482,7 @@ class TestRefreshEndpoint:
         mock_token_service.create_access_token.return_value = "new-access-token"
 
         mock_store = AsyncMock()
-        mock_store.get.return_value = _make_session()
+        mock_store.get_with_token_version.return_value = (_make_session(), 0)
 
         db = AsyncMock()
         mock_result = MagicMock()
@@ -508,7 +495,7 @@ class TestRefreshEndpoint:
 
         with (
             patch("nexus.auth.router._get_token_service", return_value=mock_token_service),
-            patch("nexus.auth.router.SessionStore", _patch_session_store(mock_store)),
+            patch("nexus.auth.router.create_session_store", _patch_session_store(mock_store)),
             patch("nexus.auth.router.get_settings", return_value=mock_settings),
         ):
             await refresh_token("the-refresh-jwt", db)
@@ -590,7 +577,7 @@ class TestLogoutEndpoint:
 
     @pytest.mark.asyncio
     async def test_success_revokes_session_and_clears_cookie(self) -> None:
-        """Successful logout revokes session in Redis and clears cookie."""
+        """Successful logout revokes session in session store and clears cookie."""
         request = _make_request()
         response = _make_response()
         db = AsyncMock()
@@ -605,7 +592,7 @@ class TestLogoutEndpoint:
 
         with (
             patch("nexus.auth.router._get_token_service", return_value=mock_token_service),
-            patch("nexus.auth.router.SessionStore", _patch_session_store(mock_store)),
+            patch("nexus.auth.router.create_session_store", _patch_session_store(mock_store)),
             patch("nexus.auth.router.clear_refresh_cookie") as mock_clear,
         ):
             result = await logout("the-refresh-jwt", request, response, db)
@@ -615,24 +602,29 @@ class TestLogoutEndpoint:
         mock_clear.assert_called_once_with(response)
 
     @pytest.mark.asyncio
-    async def test_raises_503_when_redis_unavailable(self) -> None:
-        """Logout should raise SessionStoreUnavailableError when Redis is down."""
+    async def test_raises_503_when_session_store_unavailable(self) -> None:
+        """Logout should raise SessionStoreUnavailableError when DB is down."""
+        from sqlalchemy.exc import SQLAlchemyError
+
         response = _make_response()
 
         payload = _make_payload(jti="jti-123")
         mock_token_service = MagicMock()
         mock_token_service.decode_token.return_value = payload
 
+        mock_store = AsyncMock()
+        mock_store.get.side_effect = SQLAlchemyError("DB connection failed")
+
         with (
             patch("nexus.auth.router._get_token_service", return_value=mock_token_service),
-            patch("nexus.auth.router.SessionStore", _patch_session_store_unavailable()),
+            patch("nexus.auth.router.create_session_store", _patch_session_store(mock_store)),
             pytest.raises(SessionStoreUnavailableError),
         ):
             await logout("the-refresh-jwt", _make_request(), response, AsyncMock())
 
     @pytest.mark.asyncio
     async def test_success_when_session_already_expired(self) -> None:
-        """Logout succeeds even when session was already expired in Redis."""
+        """Logout succeeds even when session was already expired in session store."""
         request = _make_request()
         response = _make_response()
         db = AsyncMock()
@@ -647,7 +639,7 @@ class TestLogoutEndpoint:
 
         with (
             patch("nexus.auth.router._get_token_service", return_value=mock_token_service),
-            patch("nexus.auth.router.SessionStore", _patch_session_store(mock_store)),
+            patch("nexus.auth.router.create_session_store", _patch_session_store(mock_store)),
             patch("nexus.auth.router.clear_refresh_cookie") as mock_clear,
         ):
             result = await logout("the-refresh-jwt", request, response, db)
@@ -683,7 +675,7 @@ class TestLogoutEndpoint:
 
         with (
             patch("nexus.auth.router._get_token_service", return_value=mock_token_service),
-            patch("nexus.auth.router.SessionStore", _patch_session_store(mock_store)),
+            patch("nexus.auth.router.create_session_store", _patch_session_store(mock_store)),
             patch("nexus.auth.router.clear_refresh_cookie"),
             patch("nexus.auth.router._maybe_rp_logout", return_value=rp_info),
         ):
@@ -722,7 +714,7 @@ class TestLogoutEndpoint:
 
         with (
             patch("nexus.auth.router._get_token_service", return_value=mock_token_service),
-            patch("nexus.auth.router.SessionStore", _patch_session_store(mock_store)),
+            patch("nexus.auth.router.create_session_store", _patch_session_store(mock_store)),
             patch("nexus.auth.router.clear_refresh_cookie"),
             patch("nexus.auth.router._maybe_rp_logout", return_value=rp_info),
         ):
@@ -887,7 +879,7 @@ class TestGetMeEndpoint:
 
         request = _make_request()  # No refresh token in cookie
 
-        result = await get_me(request, payload)
+        result = await get_me(request, payload, AsyncMock())
 
         assert result.id == user_id
         assert result.username == "alice"
@@ -907,7 +899,7 @@ class TestGetMeEndpoint:
 
         request = _make_request()  # No refresh token in cookie
 
-        result = await get_me(request, payload)
+        result = await get_me(request, payload, AsyncMock())
 
         assert result.username == ""
         assert result.email == ""
@@ -915,7 +907,7 @@ class TestGetMeEndpoint:
         assert result.rp_logout_enabled is False  # No refresh token
 
     @pytest.mark.asyncio
-    @patch("nexus.auth.router.SessionStore")
+    @patch("nexus.auth.router.create_session_store")
     @patch("nexus.auth.router._get_token_service")
     async def test_rp_logout_enabled_true(
         self,
@@ -950,9 +942,9 @@ class TestGetMeEndpoint:
         )
         mock_store = AsyncMock()
         mock_store.get.return_value = session
-        mock_session_store_cls.return_value.__aenter__.return_value = mock_store
+        mock_session_store_cls.return_value = mock_store
 
-        result = await get_me(request, payload)
+        result = await get_me(request, payload, AsyncMock())
 
         assert result.rp_logout_enabled is True
 
@@ -962,7 +954,7 @@ class TestVerifyIdpTestPermission:
     """Tests for _verify_idp_test_permission session revocation check."""
 
     @pytest.mark.asyncio
-    @patch("nexus.auth.router.SessionStore")
+    @patch("nexus.auth.router.create_session_store")
     @patch("nexus.auth.router._get_token_service")
     @patch("nexus.auth.router.get_refresh_token_from_cookie")
     async def test_raises_when_session_revoked(
@@ -980,7 +972,7 @@ class TestVerifyIdpTestPermission:
 
         mock_store = AsyncMock()
         mock_store.get.return_value = None  # Session revoked
-        mock_session_store_cls.return_value.__aenter__.return_value = mock_store
+        mock_session_store_cls.return_value = mock_store
 
         request = _make_request(cookie_value="fake-refresh-token")
         db = AsyncMock()
@@ -992,7 +984,7 @@ class TestVerifyIdpTestPermission:
     @patch("nexus.auth.router.get_opa_client")
     @patch("nexus.auth.router.authorize", new_callable=AsyncMock)
     @patch("nexus.auth.router._find_non_deleted_user", new_callable=AsyncMock)
-    @patch("nexus.auth.router.SessionStore")
+    @patch("nexus.auth.router.create_session_store")
     @patch("nexus.auth.router._get_token_service")
     @patch("nexus.auth.router.get_refresh_token_from_cookie")
     async def test_proceeds_when_session_active(
@@ -1021,7 +1013,7 @@ class TestVerifyIdpTestPermission:
         )
         mock_store = AsyncMock()
         mock_store.get.return_value = session
-        mock_session_store_cls.return_value.__aenter__.return_value = mock_store
+        mock_session_store_cls.return_value = mock_store
 
         mock_user = MagicMock()
         mock_user.id = UUID(user_id)
@@ -1115,7 +1107,7 @@ class TestLoginAuditEvents:
 
     @pytest.mark.asyncio
     @patch("nexus.auth.router._get_token_service")
-    @patch("nexus.auth.router.SessionStore")
+    @patch("nexus.auth.router.create_session_store")
     @patch("nexus.auth.router._get_user_group_names", new_callable=AsyncMock)
     @patch("nexus.auth.router.verify_password", return_value=True)
     async def test_successful_login_emits_all_events_in_order(
@@ -1146,8 +1138,7 @@ class TestLoginAuditEvents:
         mock_store_instance = AsyncMock()
         mock_store_instance.get_token_version = AsyncMock(return_value=1)
         mock_store_instance.create = AsyncMock()
-        mock_session_store.return_value.__aenter__ = AsyncMock(return_value=mock_store_instance)
-        mock_session_store.return_value.__aexit__ = AsyncMock(return_value=False)
+        mock_session_store.return_value = mock_store_instance
 
         mock_token_svc.return_value.create_access_token.return_value = "access-token"
         mock_token_svc.return_value.create_refresh_token.return_value = ("refresh-token", "jti-123", 3600)
@@ -1198,8 +1189,7 @@ def _setup_oidc_callback_mocks() -> tuple[MagicMock, MagicMock, MagicMock, Magic
     mock_store_instance = AsyncMock()
     mock_store_instance.create = AsyncMock()
     mock_session_store = MagicMock()
-    mock_session_store.return_value.__aenter__ = AsyncMock(return_value=mock_store_instance)
-    mock_session_store.return_value.__aexit__ = AsyncMock(return_value=False)
+    mock_session_store.return_value = mock_store_instance
 
     mock_settings = MagicMock()
     mock_settings.jwt_issuer = "http://localhost:3000"
@@ -1426,7 +1416,7 @@ class TestOIDCAuditEvents:
         with (
             patch("nexus.auth.router._process_oidc_callback") as mock_process,
             patch("nexus.auth.router._get_token_service", return_value=mock_token_service),
-            patch("nexus.auth.router.SessionStore", return_value=mock_session_store),
+            patch("nexus.auth.router.create_session_store", mock_session_store),
             patch("nexus.auth.router.get_settings", return_value=mock_settings),
             patch("nexus.auth.router.set_refresh_cookie"),
             patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit,
@@ -1702,10 +1692,7 @@ class TestResolveEndSessionEndpoint:
             return_value={"end_session_endpoint": "https://idp.example.com/discovered-logout"}
         )
 
-        with patch("nexus.auth.router.OIDCService") as mock_cls:
-            mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_service)
-            mock_cls.return_value.__aexit__ = AsyncMock(return_value=None)
-
+        with patch("nexus.auth.router.OIDCService", return_value=mock_service):
             result = await _resolve_end_session_endpoint(config)
 
         assert result == "https://idp.example.com/discovered-logout"
@@ -1725,9 +1712,10 @@ class TestResolveEndSessionEndpoint:
             end_session_endpoint=None,
         )
 
-        with patch("nexus.auth.router.OIDCService") as mock_cls:
-            mock_cls.return_value.__aenter__ = AsyncMock(side_effect=OIDCError("Discovery failed"))
+        mock_service = AsyncMock()
+        mock_service.fetch_discovery_config = AsyncMock(side_effect=OIDCError("Discovery failed"))
 
+        with patch("nexus.auth.router.OIDCService", return_value=mock_service):
             result = await _resolve_end_session_endpoint(config)
 
         assert result is None

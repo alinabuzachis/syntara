@@ -1,150 +1,100 @@
-"""Integration tests for SessionStore with real Redis instance.
+"""Integration tests for SessionStore with real PostgreSQL instance.
 
-These tests require a running Redis instance (configured via environment variables).
+These tests require a running PostgreSQL instance (configured via environment variables).
 They test real interactions including:
 - Session creation with TTL
 - Session retrieval with metadata
 - Session revocation
 - Bulk revocation for a user
 - Listing user sessions
-- TTL expiry behavior
+- Token version tracking
 """
 
 import asyncio
-from collections.abc import AsyncGenerator
 from uuid import uuid4
 
 import pytest
-import pytest_asyncio
-import redis.asyncio as redis
+from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.auth.session.session_store import (
-    REFRESH_TOKEN_KEY_PREFIX,
-    SessionStore,
-)
-from nexus.core.config.base import get_settings
+from nexus.auth.session.session_store import SessionStore
+from nexus.core.models import User
 
 pytestmark = pytest.mark.integration
 
 
-# ============================================================================
-# Fixtures
-# ============================================================================
+@pytest.fixture
+async def test_user(test_db_session: AsyncSession) -> User:
+    """Create a real user in the database for FK-constrained session tests."""
+    user = User(
+        username=f"test-{uuid4().hex[:8]}",
+        full_name="Test User",
+        is_enabled=True,
+    )
+    test_db_session.add(user)
+    await test_db_session.flush()
+    return user
 
 
-@pytest_asyncio.fixture(autouse=True)
-async def cleanup_sessions() -> AsyncGenerator[None, None]:
-    """Clean up all test session keys before and after each test."""
-    settings = get_settings()
-
-    async def _cleanup() -> None:
-        client = redis.Redis(
-            host=settings.cache_host,
-            port=settings.cache_port,
-            db=settings.cache_db,
-            password=settings.cache_password.get_secret_value() if settings.cache_password else None,
-            decode_responses=True,
-        )
-        try:
-            pattern = f"{REFRESH_TOKEN_KEY_PREFIX}*"
-            cursor = 0
-            while True:
-                cursor, keys = await client.scan(cursor, match=pattern, count=100)
-                if keys:
-                    await client.delete(*keys)
-                if cursor == 0:
-                    break
-        finally:
-            await client.aclose()
-
-    await _cleanup()
-    yield
-    await _cleanup()
-
-
-@pytest_asyncio.fixture(autouse=True)
-async def cleanup_token_version() -> AsyncGenerator[None, None]:
-    """Clean up all user_token_version:* keys before and after each test."""
-    settings = get_settings()
-
-    async def _cleanup() -> None:
-        client = redis.Redis(
-            host=settings.cache_host,
-            port=settings.cache_port,
-            db=settings.cache_db,
-            password=settings.cache_password.get_secret_value() if settings.cache_password else None,
-            decode_responses=True,
-        )
-        try:
-            pattern = "user_token_version:*"
-            cursor = 0
-            while True:
-                cursor, keys = await client.scan(cursor, match=pattern, count=100)
-                if keys:
-                    await client.delete(*keys)
-                if cursor == 0:
-                    break
-        finally:
-            await client.aclose()
-
-    await _cleanup()
-    yield
-    await _cleanup()
-
-
-# ============================================================================
-# Tests
-# ============================================================================
+@pytest.fixture
+async def second_user(test_db_session: AsyncSession) -> User:
+    """Create a second user for multi-user tests."""
+    user = User(
+        username=f"test-{uuid4().hex[:8]}",
+        full_name="Second User",
+        is_enabled=True,
+    )
+    test_db_session.add(user)
+    await test_db_session.flush()
+    return user
 
 
 class TestSessionCreate:
     """Tests for session creation."""
 
     @pytest.mark.asyncio
-    async def test_create_stores_session(self) -> None:
-        """Creating a session should store it in Redis."""
+    async def test_create_stores_session(self, test_db_session: AsyncSession, test_user: User) -> None:
+        """Creating a session should store it in PostgreSQL."""
         jti = f"test-{uuid4()}"
-        user_id = uuid4()
 
-        async with SessionStore() as store:
-            await store.create(
-                jti=jti,
-                user_id=user_id,
-                device="pytest-agent",
-                ip_address="127.0.0.1",
-            )
-            session = await store.get(jti)
+        store = SessionStore(test_db_session)
+        await store.create(
+            jti=jti,
+            user_id=test_user.id,
+            device="pytest-agent",
+            ip_address="127.0.0.1",
+        )
+        session = await store.get(jti)
 
         assert session is not None
         assert session.jti == jti
-        assert session.user_id == str(user_id)
+        assert session.user_id == str(test_user.id)
         assert session.device == "pytest-agent"
         assert session.ip_address == "127.0.0.1"
 
     @pytest.mark.asyncio
-    async def test_create_with_custom_ttl(self) -> None:
+    async def test_create_with_custom_ttl(self, test_db_session: AsyncSession, test_user: User) -> None:
         """Session should respect custom TTL."""
         jti = f"test-{uuid4()}"
 
-        async with SessionStore() as store:
-            await store.create(
-                jti=jti,
-                user_id=uuid4(),
-                ttl_seconds=60,
-            )
-            session = await store.get(jti)
+        store = SessionStore(test_db_session)
+        await store.create(
+            jti=jti,
+            user_id=test_user.id,
+            ttl_seconds=60,
+        )
+        session = await store.get(jti)
 
         assert session is not None
         assert 0 < session.ttl <= 60
 
     @pytest.mark.asyncio
-    async def test_create_without_optional_fields(self) -> None:
+    async def test_create_without_optional_fields(self, test_db_session: AsyncSession, test_user: User) -> None:
         """Session can be created without device and ip_address."""
         jti = f"test-{uuid4()}"
 
-        async with SessionStore() as store:
-            await store.create(jti=jti, user_id=uuid4())
-            session = await store.get(jti)
+        store = SessionStore(test_db_session)
+        await store.create(jti=jti, user_id=test_user.id)
+        session = await store.get(jti)
 
         assert session is not None
         assert session.device is None
@@ -155,46 +105,45 @@ class TestSessionGet:
     """Tests for session retrieval."""
 
     @pytest.mark.asyncio
-    async def test_get_nonexistent_returns_none(self) -> None:
+    async def test_get_nonexistent_returns_none(self, test_db_session: AsyncSession) -> None:
         """Getting a nonexistent session should return None."""
-        async with SessionStore() as store:
-            session = await store.get("nonexistent-jti")
+        store = SessionStore(test_db_session)
+        session = await store.get("nonexistent-jti")
 
         assert session is None
 
     @pytest.mark.asyncio
-    async def test_get_returns_correct_metadata(self) -> None:
+    async def test_get_returns_correct_metadata(self, test_db_session: AsyncSession, test_user: User) -> None:
         """Retrieved session should contain all stored metadata."""
         jti = f"test-{uuid4()}"
-        user_id = uuid4()
 
-        async with SessionStore() as store:
-            await store.create(
-                jti=jti,
-                user_id=user_id,
-                device="Chrome/120",
-                ip_address="10.0.0.1",
-                ttl_seconds=3600,
-            )
-            session = await store.get(jti)
+        store = SessionStore(test_db_session)
+        await store.create(
+            jti=jti,
+            user_id=test_user.id,
+            device="Chrome/120",
+            ip_address="10.0.0.1",
+            ttl_seconds=3600,
+        )
+        session = await store.get(jti)
 
         assert session is not None
         assert session.jti == jti
-        assert session.user_id == str(user_id)
+        assert session.user_id == str(test_user.id)
         assert session.device == "Chrome/120"
         assert session.ip_address == "10.0.0.1"
         assert session.issued_at is not None
         assert session.ttl > 0
 
     @pytest.mark.asyncio
-    async def test_get_expired_session_returns_none(self) -> None:
+    async def test_get_expired_session_returns_none(self, test_db_session: AsyncSession, test_user: User) -> None:
         """A session with a very short TTL should expire and return None."""
         jti = f"test-{uuid4()}"
 
-        async with SessionStore() as store:
-            await store.create(jti=jti, user_id=uuid4(), ttl_seconds=1)
-            await asyncio.sleep(1.5)
-            session = await store.get(jti)
+        store = SessionStore(test_db_session)
+        await store.create(jti=jti, user_id=test_user.id, ttl_seconds=1)
+        await asyncio.sleep(1.5)
+        session = await store.get(jti)
 
         assert session is None
 
@@ -203,45 +152,45 @@ class TestSessionRevoke:
     """Tests for session revocation."""
 
     @pytest.mark.asyncio
-    async def test_revoke_existing_returns_true(self) -> None:
+    async def test_revoke_existing_returns_true(self, test_db_session: AsyncSession, test_user: User) -> None:
         """Revoking an existing session should return True."""
         jti = f"test-{uuid4()}"
 
-        async with SessionStore() as store:
-            await store.create(jti=jti, user_id=uuid4(), ttl_seconds=300)
-            result = await store.revoke(jti)
+        store = SessionStore(test_db_session)
+        await store.create(jti=jti, user_id=test_user.id, ttl_seconds=300)
+        result = await store.revoke(jti)
 
         assert result is True
 
     @pytest.mark.asyncio
-    async def test_revoke_removes_session(self) -> None:
+    async def test_revoke_removes_session(self, test_db_session: AsyncSession, test_user: User) -> None:
         """Revoked session should no longer be retrievable."""
         jti = f"test-{uuid4()}"
 
-        async with SessionStore() as store:
-            await store.create(jti=jti, user_id=uuid4(), ttl_seconds=300)
-            await store.revoke(jti)
-            session = await store.get(jti)
+        store = SessionStore(test_db_session)
+        await store.create(jti=jti, user_id=test_user.id, ttl_seconds=300)
+        await store.revoke(jti)
+        session = await store.get(jti)
 
         assert session is None
 
     @pytest.mark.asyncio
-    async def test_revoke_nonexistent_returns_false(self) -> None:
+    async def test_revoke_nonexistent_returns_false(self, test_db_session: AsyncSession) -> None:
         """Revoking a nonexistent session should return False."""
-        async with SessionStore() as store:
-            result = await store.revoke("nonexistent-jti")
+        store = SessionStore(test_db_session)
+        result = await store.revoke("nonexistent-jti")
 
         assert result is False
 
     @pytest.mark.asyncio
-    async def test_revoke_idempotent(self) -> None:
+    async def test_revoke_idempotent(self, test_db_session: AsyncSession, test_user: User) -> None:
         """Revoking the same session twice should return False the second time."""
         jti = f"test-{uuid4()}"
 
-        async with SessionStore() as store:
-            await store.create(jti=jti, user_id=uuid4(), ttl_seconds=300)
-            first = await store.revoke(jti)
-            second = await store.revoke(jti)
+        store = SessionStore(test_db_session)
+        await store.create(jti=jti, user_id=test_user.id, ttl_seconds=300)
+        first = await store.revoke(jti)
+        second = await store.revoke(jti)
 
         assert first is True
         assert second is False
@@ -251,42 +200,40 @@ class TestRevokeAllForUser:
     """Tests for bulk user session revocation."""
 
     @pytest.mark.asyncio
-    async def test_revokes_all_sessions_for_user(self) -> None:
+    async def test_revokes_all_sessions_for_user(self, test_db_session: AsyncSession, test_user: User) -> None:
         """Should revoke all sessions belonging to a specific user."""
-        user_id = uuid4()
+        store = SessionStore(test_db_session)
+        await store.create(jti=f"test-{uuid4()}", user_id=test_user.id, ttl_seconds=300)
+        await store.create(jti=f"test-{uuid4()}", user_id=test_user.id, ttl_seconds=300)
+        await store.create(jti=f"test-{uuid4()}", user_id=test_user.id, ttl_seconds=300)
 
-        async with SessionStore() as store:
-            await store.create(jti=f"test-{uuid4()}", user_id=user_id, ttl_seconds=300)
-            await store.create(jti=f"test-{uuid4()}", user_id=user_id, ttl_seconds=300)
-            await store.create(jti=f"test-{uuid4()}", user_id=user_id, ttl_seconds=300)
-
-            count = await store.revoke_all_for_user(user_id)
+        count = await store.revoke_all_for_user(test_user.id)
 
         assert count == 3
 
     @pytest.mark.asyncio
-    async def test_does_not_revoke_other_users_sessions(self) -> None:
+    async def test_does_not_revoke_other_users_sessions(
+        self, test_db_session: AsyncSession, test_user: User, second_user: User
+    ) -> None:
         """Should not revoke sessions belonging to other users."""
-        user_a = uuid4()
-        user_b = uuid4()
         jti_b = f"test-{uuid4()}"
 
-        async with SessionStore() as store:
-            await store.create(jti=f"test-{uuid4()}", user_id=user_a, ttl_seconds=300)
-            await store.create(jti=jti_b, user_id=user_b, ttl_seconds=300)
+        store = SessionStore(test_db_session)
+        await store.create(jti=f"test-{uuid4()}", user_id=test_user.id, ttl_seconds=300)
+        await store.create(jti=jti_b, user_id=second_user.id, ttl_seconds=300)
 
-            await store.revoke_all_for_user(user_a)
+        await store.revoke_all_for_user(test_user.id)
 
-            session_b = await store.get(jti_b)
+        session_b = await store.get(jti_b)
 
         assert session_b is not None
-        assert session_b.user_id == str(user_b)
+        assert session_b.user_id == str(second_user.id)
 
     @pytest.mark.asyncio
-    async def test_returns_zero_when_no_sessions(self) -> None:
+    async def test_returns_zero_when_no_sessions(self, test_db_session: AsyncSession, test_user: User) -> None:
         """Should return 0 when user has no sessions."""
-        async with SessionStore() as store:
-            count = await store.revoke_all_for_user(uuid4())
+        store = SessionStore(test_db_session)
+        count = await store.revoke_all_for_user(test_user.id)
 
         assert count == 0
 
@@ -295,109 +242,136 @@ class TestListUserSessions:
     """Tests for listing user sessions."""
 
     @pytest.mark.asyncio
-    async def test_lists_all_sessions_for_user(self) -> None:
+    async def test_lists_all_sessions_for_user(self, test_db_session: AsyncSession, test_user: User) -> None:
         """Should return all active sessions for a user."""
-        user_id = uuid4()
+        store = SessionStore(test_db_session)
+        await store.create(jti=f"test-{uuid4()}", user_id=test_user.id, device="Chrome", ttl_seconds=300)
+        await store.create(jti=f"test-{uuid4()}", user_id=test_user.id, device="Firefox", ttl_seconds=300)
 
-        async with SessionStore() as store:
-            await store.create(jti=f"test-{uuid4()}", user_id=user_id, device="Chrome", ttl_seconds=300)
-            await store.create(jti=f"test-{uuid4()}", user_id=user_id, device="Firefox", ttl_seconds=300)
-
-            sessions = await store.list_user_sessions(user_id)
+        sessions = await store.list_user_sessions(test_user.id)
 
         assert len(sessions) == 2
         devices = {s.device for s in sessions}
         assert devices == {"Chrome", "Firefox"}
 
     @pytest.mark.asyncio
-    async def test_does_not_include_other_users(self) -> None:
+    async def test_does_not_include_other_users(
+        self, test_db_session: AsyncSession, test_user: User, second_user: User
+    ) -> None:
         """Should only return sessions for the requested user."""
-        user_a = uuid4()
-        user_b = uuid4()
+        store = SessionStore(test_db_session)
+        await store.create(jti=f"test-{uuid4()}", user_id=test_user.id, ttl_seconds=300)
+        await store.create(jti=f"test-{uuid4()}", user_id=second_user.id, ttl_seconds=300)
 
-        async with SessionStore() as store:
-            await store.create(jti=f"test-{uuid4()}", user_id=user_a, ttl_seconds=300)
-            await store.create(jti=f"test-{uuid4()}", user_id=user_b, ttl_seconds=300)
-
-            sessions = await store.list_user_sessions(user_a)
+        sessions = await store.list_user_sessions(test_user.id)
 
         assert len(sessions) == 1
-        assert sessions[0].user_id == str(user_a)
+        assert sessions[0].user_id == str(test_user.id)
 
     @pytest.mark.asyncio
-    async def test_returns_empty_when_no_sessions(self) -> None:
+    async def test_returns_empty_when_no_sessions(self, test_db_session: AsyncSession, test_user: User) -> None:
         """Should return empty list when user has no sessions."""
-        async with SessionStore() as store:
-            sessions = await store.list_user_sessions(uuid4())
+        store = SessionStore(test_db_session)
+        sessions = await store.list_user_sessions(test_user.id)
 
         assert sessions == []
 
 
-class TestSessionStoreContextManager:
-    """Tests for the async context manager behavior."""
+class TestGetWithTokenVersion:
+    """Tests for get_with_token_version JOIN query."""
 
     @pytest.mark.asyncio
-    async def test_connects_and_disconnects(self) -> None:
-        """Context manager should establish and tear down connection."""
-        store = SessionStore()
-        assert store._client is None
-
-        async with store:
-            assert store._client is not None
-
-        assert store._client is None  # type: ignore[unreachable]
-
-    @pytest.mark.asyncio
-    async def test_operations_work_across_context_reuse(self) -> None:
-        """Multiple context manager uses should each work independently."""
+    async def test_returns_session_and_version(self, test_db_session: AsyncSession, test_user: User) -> None:
+        """Should return session info and token version in a single query."""
         jti = f"test-{uuid4()}"
-        user_id = uuid4()
+        store = SessionStore(test_db_session)
+        await store.create(jti=jti, user_id=test_user.id, device="Chrome", ttl_seconds=300)
+        await store.increment_token_version(test_user.id)
+        await store.increment_token_version(test_user.id)
 
-        async with SessionStore() as store:
-            await store.create(jti=jti, user_id=user_id, ttl_seconds=300)
+        result = await store.get_with_token_version(jti)
 
-        async with SessionStore() as store:
-            session = await store.get(jti)
+        assert result is not None
+        session_info, version = result
+        assert session_info.jti == jti
+        assert session_info.user_id == str(test_user.id)
+        assert session_info.device == "Chrome"
+        assert version == 2
 
-        assert session is not None
-        assert session.user_id == str(user_id)
+    @pytest.mark.asyncio
+    async def test_returns_none_for_nonexistent(self, test_db_session: AsyncSession) -> None:
+        """Should return None for a nonexistent session."""
+        store = SessionStore(test_db_session)
+        result = await store.get_with_token_version("nonexistent-jti")
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_returns_none_for_revoked(self, test_db_session: AsyncSession, test_user: User) -> None:
+        """Should return None for a revoked session."""
+        jti = f"test-{uuid4()}"
+        store = SessionStore(test_db_session)
+        await store.create(jti=jti, user_id=test_user.id, ttl_seconds=300)
+        await store.revoke(jti)
+
+        result = await store.get_with_token_version(jti)
+
+        assert result is None
 
 
 class TestTokenVersion:
-    """Tests for token version tracking in Redis."""
+    """Tests for token version tracking."""
 
     @pytest.mark.asyncio
-    async def test_increment_token_version_returns_incrementing_values(self) -> None:
-        """increment_token_version should return incrementing values."""
-        user_id = uuid4()
-
-        async with SessionStore() as store:
-            v1 = await store.increment_token_version(user_id)
-            v2 = await store.increment_token_version(user_id)
-            v3 = await store.increment_token_version(user_id)
+    async def test_increment_returns_increasing_values(self, test_db_session: AsyncSession, test_user: User) -> None:
+        """Each increment should return a higher version number."""
+        store = SessionStore(test_db_session)
+        v1 = await store.increment_token_version(test_user.id)
+        v2 = await store.increment_token_version(test_user.id)
+        v3 = await store.increment_token_version(test_user.id)
 
         assert v1 == 1
         assert v2 == 2
         assert v3 == 3
 
     @pytest.mark.asyncio
-    async def test_get_token_version_returns_zero_for_unknown_user(self) -> None:
-        """get_token_version should return 0 for a user with no version set."""
-        user_id = uuid4()
+    async def test_get_version_returns_current(self, test_db_session: AsyncSession, test_user: User) -> None:
+        """get_token_version should return the current version."""
+        store = SessionStore(test_db_session)
+        await store.increment_token_version(test_user.id)
+        await store.increment_token_version(test_user.id)
 
-        async with SessionStore() as store:
-            version = await store.get_token_version(user_id)
+        version = await store.get_token_version(test_user.id)
+
+        assert version == 2
+
+    @pytest.mark.asyncio
+    async def test_get_version_returns_zero_for_new_user(self, test_db_session: AsyncSession, test_user: User) -> None:
+        """get_token_version should return 0 for a user with no increments."""
+        store = SessionStore(test_db_session)
+        version = await store.get_token_version(test_user.id)
 
         assert version == 0
 
+
+class TestSessionStoreInstantiation:
+    """Tests for SessionStore instantiation."""
+
+    def test_instantiation_with_db_session(self, test_db_session: AsyncSession) -> None:
+        """SessionStore should accept a database session."""
+        store = SessionStore(test_db_session)
+        assert store._db is test_db_session
+
     @pytest.mark.asyncio
-    async def test_get_token_version_returns_correct_value_after_increment(self) -> None:
-        """get_token_version should return the correct value after increments."""
-        user_id = uuid4()
+    async def test_operations_work_across_store_reuse(self, test_db_session: AsyncSession, test_user: User) -> None:
+        """Multiple SessionStore instances with same session should see same data."""
+        jti = f"test-{uuid4()}"
 
-        async with SessionStore() as store:
-            await store.increment_token_version(user_id)
-            await store.increment_token_version(user_id)
-            version = await store.get_token_version(user_id)
+        store1 = SessionStore(test_db_session)
+        await store1.create(jti=jti, user_id=test_user.id, ttl_seconds=300)
 
-        assert version == 2
+        store2 = SessionStore(test_db_session)
+        session = await store2.get(jti)
+
+        assert session is not None
+        assert session.user_id == str(test_user.id)

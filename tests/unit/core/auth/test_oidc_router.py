@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from nexus.auth.exceptions import SessionStoreUnavailableError
 from nexus.auth.router import (
@@ -161,21 +161,8 @@ def _make_user_claims(
 
 
 def _patch_session_store(mock_store: AsyncMock) -> MagicMock:
-    """Create a patched SessionStore class whose context manager yields *mock_store*."""
-    ctx = AsyncMock()
-    ctx.__aenter__ = AsyncMock(return_value=mock_store)
-    ctx.__aexit__ = AsyncMock(return_value=None)
-    return MagicMock(return_value=ctx)
-
-
-def _patch_session_store_unavailable() -> MagicMock:
-    """Create a patched SessionStore whose context manager raises ConnectionError (Redis down)."""
-    from redis.exceptions import ConnectionError as RedisConnectionError
-
-    ctx = AsyncMock()
-    ctx.__aenter__ = AsyncMock(side_effect=RedisConnectionError("Connection refused"))
-    ctx.__aexit__ = AsyncMock(return_value=None)
-    return MagicMock(return_value=ctx)
+    """Create a patched SessionStore class that returns *mock_store*."""
+    return MagicMock(return_value=mock_store)
 
 
 def _make_oidc_service_mock(
@@ -183,17 +170,15 @@ def _make_oidc_service_mock(
     state_data: dict[str, str] | None = None,
     user_claims: dict[str, str | None] | None = None,
 ) -> MagicMock:
-    """Build a mock OIDCService with async context manager support and common defaults."""
+    """Build a mock OIDCService (plain class, no context manager)."""
     mock = MagicMock(spec=OIDCService)
-    mock.__aenter__ = AsyncMock(return_value=mock)
-    mock.__aexit__ = AsyncMock(return_value=False)
     mock.fetch_discovery_config = AsyncMock(return_value=_make_discovery_response())
-    mock.generate_state_and_nonce.return_value = ("state-abc", "nonce-xyz")
+    mock.generate_nonce.return_value = "nonce-xyz"
     mock.generate_pkce.return_value = ("verifier-123", "challenge-456")
-    mock.store_oidc_state = AsyncMock()
+    mock.store_oidc_state.return_value = "state-abc"
     mock.build_authorization_url.return_value = "https://idp.example.com/oauth/authorize?..."
     if state_data is not None:
-        mock.retrieve_oidc_state = AsyncMock(return_value=state_data)
+        mock.retrieve_oidc_state.return_value = state_data
     if user_claims is not None:
         mock.exchange_code_for_tokens = AsyncMock(return_value={"id_token": "fake-id-token"})
         mock.validate_id_token.return_value = {"sub": "oidc-sub"}
@@ -301,7 +286,6 @@ class TestOidcAuthorize:
         assert response.status_code == 302
         assert response.headers["location"] == "https://idp.example.com/oauth/authorize?..."
         mock_svc.store_oidc_state.assert_called_once_with(
-            state="state-abc",
             provider_id=provider.id,
             nonce="nonce-xyz",
             code_verifier="verifier-123",
@@ -354,8 +338,8 @@ class TestOidcAuthorize:
         assert "auth_error=" in response.headers["location"]
 
     @pytest.mark.asyncio
-    async def test_generates_pkce_and_stores_state_in_redis(self) -> None:
-        """Should generate PKCE values and store state in Redis."""
+    async def test_generates_pkce_and_stores_state(self) -> None:
+        """Should generate PKCE values and store state as signed JWT."""
         provider = _make_provider()
         provider_id = provider.id
 
@@ -510,7 +494,7 @@ class TestOidcCallback:
         db = AsyncMock()
 
         mock_svc = _make_oidc_service_mock()
-        mock_svc.retrieve_oidc_state = AsyncMock(return_value=None)  # State not found
+        mock_svc.retrieve_oidc_state.return_value = None  # State not found
 
         mock_settings = MagicMock()
         mock_settings.jwt_issuer = "http://localhost:3000"
@@ -567,7 +551,7 @@ class TestOidcCallback:
         with (
             patch("nexus.auth.router.OIDCService", return_value=mock_oidc_service),
             patch("nexus.auth.router._get_token_service", return_value=mock_token_service),
-            patch("nexus.auth.router.SessionStore", _patch_session_store(mock_store)),
+            patch("nexus.auth.router.create_session_store", _patch_session_store(mock_store)),
             patch("nexus.auth.router.get_settings", return_value=mock_settings),
             patch("nexus.auth.router.set_refresh_cookie") as mock_set_cookie,
             patch("nexus.auth.router._resolve_oidc_user", AsyncMock(return_value=(new_user, new_identity))),
@@ -621,7 +605,7 @@ class TestOidcCallback:
         with (
             patch("nexus.auth.router.OIDCService", return_value=mock_oidc_service),
             patch("nexus.auth.router._get_token_service", return_value=mock_token_service),
-            patch("nexus.auth.router.SessionStore", _patch_session_store(mock_store)),
+            patch("nexus.auth.router.create_session_store", _patch_session_store(mock_store)),
             patch("nexus.auth.router.get_settings", return_value=mock_settings),
             patch("nexus.auth.router.set_refresh_cookie"),
             patch("nexus.auth.router._resolve_oidc_user", AsyncMock(return_value=(existing_user, existing_identity))),
@@ -756,7 +740,7 @@ class TestOidcCallback:
         with (
             patch("nexus.auth.router.OIDCService", return_value=mock_oidc_service),
             patch("nexus.auth.router._get_token_service", return_value=mock_token_service),
-            patch("nexus.auth.router.SessionStore", _patch_session_store(mock_store)),
+            patch("nexus.auth.router.create_session_store", _patch_session_store(mock_store)),
             patch("nexus.auth.router.get_settings", return_value=mock_settings),
             patch("nexus.auth.router.set_refresh_cookie") as mock_set_cookie,
             patch("nexus.auth.router._resolve_oidc_user", AsyncMock(return_value=(test_user, test_identity))),
@@ -812,7 +796,7 @@ class TestOidcCallback:
         with (
             patch("nexus.auth.router.OIDCService", return_value=mock_oidc_service),
             patch("nexus.auth.router._get_token_service", return_value=mock_token_service),
-            patch("nexus.auth.router.SessionStore", _patch_session_store(mock_store)),
+            patch("nexus.auth.router.create_session_store", _patch_session_store(mock_store)),
             patch("nexus.auth.router.get_settings", return_value=mock_settings),
             patch("nexus.auth.router.set_refresh_cookie"),
             patch("nexus.auth.router._resolve_oidc_user", AsyncMock(return_value=(test_user, test_identity))),
@@ -832,8 +816,8 @@ class TestOidcCallback:
         assert call_kwargs["idp"] == "Okta"
 
     @pytest.mark.asyncio
-    async def test_raises_503_when_redis_unavailable(self) -> None:
-        """OIDC callback should raise SessionStoreUnavailableError when Redis is down."""
+    async def test_raises_503_when_session_store_unavailable(self) -> None:
+        """OIDC callback should raise SessionStoreUnavailableError when DB is down."""
         provider = _make_provider()
         request = _make_request()
 
@@ -859,6 +843,9 @@ class TestOidcCallback:
         mock_token_service = MagicMock()
         mock_token_service.create_refresh_token.return_value = ("refresh-jwt", "jti-1", datetime.now(UTC))
 
+        mock_store = AsyncMock()
+        mock_store.create.side_effect = SQLAlchemyError("DB connection failed")
+
         mock_settings = MagicMock()
         mock_settings.jwt_issuer = "http://localhost:3000"
         mock_settings.cors_allow_origins = ["http://localhost:3000"]
@@ -866,7 +853,7 @@ class TestOidcCallback:
         with (
             patch("nexus.auth.router.OIDCService", return_value=mock_oidc_service),
             patch("nexus.auth.router._get_token_service", return_value=mock_token_service),
-            patch("nexus.auth.router.SessionStore", _patch_session_store_unavailable()),
+            patch("nexus.auth.router.create_session_store", _patch_session_store(mock_store)),
             patch("nexus.auth.router.get_settings", return_value=mock_settings),
             patch("nexus.auth.router.sync_idp_groups", new_callable=AsyncMock, return_value=True),
             pytest.raises(SessionStoreUnavailableError),
@@ -1654,7 +1641,7 @@ class TestHandleLinkFlow:
     """Tests for the _handle_link_flow helper function."""
 
     @pytest.mark.asyncio
-    @patch("nexus.auth.router.SessionStore")
+    @patch("nexus.auth.router.create_session_store")
     async def test_rejects_when_session_expired(self, mock_store_cls: MagicMock) -> None:
         """Should raise OIDCError when the session JTI is no longer valid."""
         provider = _make_provider()
@@ -1666,8 +1653,7 @@ class TestHandleLinkFlow:
 
         mock_store = AsyncMock()
         mock_store.get = AsyncMock(return_value=None)
-        mock_store_cls.return_value.__aenter__ = AsyncMock(return_value=mock_store)
-        mock_store_cls.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_store_cls.return_value = mock_store
 
         db = AsyncMock()
 
@@ -1676,7 +1662,7 @@ class TestHandleLinkFlow:
 
     @pytest.mark.asyncio
     @patch("nexus.auth.router.UserIdentityService")
-    @patch("nexus.auth.router.SessionStore")
+    @patch("nexus.auth.router.create_session_store")
     async def test_succeeds_when_session_is_valid(self, mock_store_cls: MagicMock, mock_svc_cls: MagicMock) -> None:
         """Should create identity when session is still active."""
         user = _make_user(email="user@example.com")
@@ -1692,8 +1678,7 @@ class TestHandleLinkFlow:
         mock_session.user_id = str(user.id)
         mock_store = AsyncMock()
         mock_store.get = AsyncMock(return_value=mock_session)
-        mock_store_cls.return_value.__aenter__ = AsyncMock(return_value=mock_store)
-        mock_store_cls.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_store_cls.return_value = mock_store
 
         # Identity service
         mock_svc = mock_svc_cls.return_value

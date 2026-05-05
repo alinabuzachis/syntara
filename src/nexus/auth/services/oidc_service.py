@@ -9,34 +9,28 @@ Handles the full OpenID Connect authorization code flow with PKCE:
 """
 
 import hashlib
-import hmac
 import ipaddress
-import json
 import secrets
 import socket
+import time
 from base64 import urlsafe_b64encode
 from functools import lru_cache
-from types import TracebackType
 from typing import Any
 from urllib.parse import urlencode, urlparse
 from uuid import UUID
 
 import httpx
 import jwt as pyjwt
-import redis.asyncio as aioredis
 import structlog
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from jwt import PyJWKClient
-from redis.exceptions import ConnectionError as RedisConnectionError
 from starlette import status
 
 from nexus.core.config.base import get_settings
+from nexus.core.lib.encryption import EncryptionError, SecretEncryptor, key_from_string
 from nexus.identity_providers.models.identity_provider_configuration import OIDCClaimMapping
 
 logger = structlog.stdlib.get_logger(__name__)
 
-OIDC_STATE_KEY_PREFIX = "oidc_state:"
 OIDC_STATE_TTL_SECONDS = 600  # 10 minutes
 
 # Bounded cache for PyJWKClient instances keyed by jwks_uri.
@@ -66,72 +60,9 @@ class OIDCError(Exception):
 class OIDCService:
     """Service for OIDC authorization code flow with PKCE.
 
-    Manages a single Redis connection for the lifetime of the service instance.
-    Use as an async context manager for automatic cleanup:
-
-        async with OIDCService() as svc:
-            await svc.store_oidc_state(...)
+    Stateless utility — no connection state. OIDC flow state is encoded
+    as a signed JWT in the OAuth2 state parameter (no server-side storage).
     """
-
-    def __init__(self) -> None:
-        """Initialize OIDC service."""
-        self._client: aioredis.Redis | None = None
-        self._settings = get_settings()
-
-    async def __aenter__(self) -> "OIDCService":
-        """Async context manager entry - establishes Redis connection."""
-        self._connect()
-        return self
-
-    async def __aexit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
-    ) -> None:
-        """Async context manager exit - closes Redis connection."""
-        await self._disconnect()
-
-    def _connect(self) -> None:
-        """Establish connection to Redis."""
-        if self._client is None:
-            self._client = aioredis.Redis(
-                host=self._settings.cache_host,
-                port=self._settings.cache_port,
-                db=self._settings.cache_db,
-                password=(self._settings.cache_password.get_secret_value() if self._settings.cache_password else None),
-                decode_responses=True,
-            )
-
-    async def _disconnect(self) -> None:
-        """Close Redis connection. Safe to call multiple times."""
-        if self._client:
-            try:
-                await self._client.aclose()
-            except (RedisConnectionError, OSError) as e:
-                logger.warning("Error during OIDC Redis disconnect", error=str(e))
-            finally:
-                self._client = None
-
-    def _ensure_connected(self) -> aioredis.Redis:
-        """Return Redis client, raising if not connected."""
-        if self._client is None:
-            msg = "OIDCService Redis client not connected. Use 'async with OIDCService()' as context manager."
-            raise RuntimeError(msg)
-        return self._client
-
-    @staticmethod
-    def _compute_state_hmac(data: str) -> str:
-        """Compute HMAC-SHA256 over OIDC state data for integrity verification.
-
-        Derives a purpose-specific key via HKDF (RFC 5869) to avoid using the
-        raw secret encryption key directly for HMAC.
-        """
-        settings = get_settings()
-        secret = settings.secret_encryption_key.get_secret_value()
-        hkdf = HKDF(algorithm=hashes.SHA256(), length=32, salt=None, info=b"oidc-state-hmac")
-        key = hkdf.derive(secret.encode())
-        return hmac.new(key, data.encode(), hashlib.sha256).hexdigest()
 
     def _validate_url(self, url: str) -> None:
         """Validate a URL to mitigate SSRF attacks.
@@ -161,7 +92,7 @@ class OIDCService:
 
         """
         parsed = urlparse(url)
-        allow_private = self._settings.oidc_allow_private_networks
+        allow_private = get_settings().oidc_allow_private_networks
 
         # Scheme check: require HTTPS unless private networks are allowed
         if parsed.scheme == "http" and not allow_private:
@@ -262,20 +193,19 @@ class OIDCService:
         code_challenge = urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
         return code_verifier, code_challenge
 
-    def generate_state_and_nonce(self) -> tuple[str, str]:
-        """Generate cryptographically secure state and nonce values.
+    def generate_nonce(self) -> str:
+        """Generate a cryptographically secure nonce value."""
+        return secrets.token_urlsafe(32)
 
-        Returns:
-            Tuple of (state, nonce)
+    # AAD (Associated Authenticated Data) for AES-GCM encryption of OIDC state.
+    # Binds ciphertext to this specific context so encrypted values from other
+    # uses of SecretEncryptor (e.g. credential fields, id_token_hint) cannot
+    # be substituted.
+    _STATE_AAD_ID = "oidc-flow"
+    _STATE_AAD_FIELD = "state"
 
-        """
-        state = secrets.token_urlsafe(32)
-        nonce = secrets.token_urlsafe(32)
-        return state, nonce
-
-    async def store_oidc_state(
+    def store_oidc_state(
         self,
-        state: str,
         provider_id: UUID,
         nonce: str,
         code_verifier: str,
@@ -284,77 +214,59 @@ class OIDCService:
         flow_type: str | None = None,
         user_id: str | None = None,
         session_jti: str | None = None,
-    ) -> None:
-        """Store OIDC state in Redis for callback verification.
+    ) -> str:
+        """Encrypt OIDC flow state and return as the OAuth2 state parameter.
 
-        Args:
-            state: The state parameter
-            provider_id: Identity provider UUID
-            nonce: The nonce value
-            code_verifier: PKCE code verifier
-            redirect_to: URL to redirect the user to after successful login
-            origin: Frontend origin captured from the authorize request (Referer)
-            flow_type: Optional flow type (e.g. "link" for self-service identity linking)
-            user_id: Optional user ID (required when flow_type is "link")
-            session_jti: Optional session JTI for re-verification on callback (link flow)
-
+        Uses AES-256-GCM (via SecretEncryptor) so the payload — including
+        the PKCE code_verifier — is not visible in the browser URL bar.
+        An ``exp`` timestamp is embedded for TTL enforcement on decode.
         """
-        client = self._ensure_connected()
-        key = f"{OIDC_STATE_KEY_PREFIX}{state}"
-        state_payload: dict[str, str] = {
+        now = time.time()
+        payload: dict[str, Any] = {
             "provider_id": str(provider_id),
             "nonce": nonce,
             "code_verifier": code_verifier,
+            "exp": now + OIDC_STATE_TTL_SECONDS,
         }
         if redirect_to:
-            state_payload["redirect_to"] = redirect_to
+            payload["redirect_to"] = redirect_to
         if origin:
-            state_payload["origin"] = origin
+            payload["origin"] = origin
         if flow_type:
-            state_payload["flow_type"] = flow_type
+            payload["flow_type"] = flow_type
         if user_id:
-            state_payload["user_id"] = user_id
+            payload["user_id"] = user_id
         if session_jti:
-            state_payload["session_jti"] = session_jti
+            payload["session_jti"] = session_jti
 
-        raw = json.dumps(state_payload, sort_keys=True)
-        mac = self._compute_state_hmac(raw)
-        envelope = json.dumps({"data": state_payload, "mac": mac})
-        await client.setex(key, OIDC_STATE_TTL_SECONDS, envelope)
-        logger.debug("Stored OIDC state", state=state[:8] + "...")
+        settings = get_settings()
+        enc_key = key_from_string(settings.secret_encryption_key.get_secret_value())
+        encryptor = SecretEncryptor(enc_key)
+        token = encryptor.encrypt_field(payload, self._STATE_AAD_ID, self._STATE_AAD_FIELD)
+        logger.debug("Encrypted OIDC state")
+        return token
 
-    async def retrieve_oidc_state(self, state: str) -> dict[str, str] | None:
-        """Retrieve and delete OIDC state from Redis.
+    def retrieve_oidc_state(self, state: str) -> dict[str, str] | None:
+        """Decrypt and validate an encrypted OIDC state parameter.
 
-        Args:
-            state: The state parameter from the callback
-
-        Returns:
-            State data dict or None if not found/expired
-
+        Checks the embedded ``exp`` timestamp for TTL enforcement.
+        Returns state data dict or None if invalid/expired/tampered.
         """
-        client = self._ensure_connected()
-        key = f"{OIDC_STATE_KEY_PREFIX}{state}"
-        pipe = client.pipeline()
-        pipe.get(key)
-        pipe.delete(key)
-        results = await pipe.execute()
-        data = results[0]
-
-        if data is None:
+        settings = get_settings()
+        enc_key = key_from_string(settings.secret_encryption_key.get_secret_value())
+        encryptor = SecretEncryptor(enc_key)
+        try:
+            payload: dict[str, Any] = encryptor.decrypt_field(state, self._STATE_AAD_ID, self._STATE_AAD_FIELD)
+        except EncryptionError:
+            logger.warning("OIDC state decryption failed (invalid or tampered)")
             return None
 
-        envelope = json.loads(data)
-        state_payload = envelope["data"]
-        expected_mac = envelope["mac"]
-
-        raw = json.dumps(state_payload, sort_keys=True)
-        actual_mac = self._compute_state_hmac(raw)
-        if not hmac.compare_digest(expected_mac, actual_mac):
-            logger.warning("OIDC state HMAC verification failed", state=state[:8] + "...")
+        exp = payload.pop("exp", 0)
+        if time.time() > exp:
+            logger.warning("OIDC state expired")
             return None
 
-        result: dict[str, str] = state_payload
+        result: dict[str, str] = {k: str(v) for k, v in payload.items()}
         return result
 
     async def exchange_code_for_tokens(

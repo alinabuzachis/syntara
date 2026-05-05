@@ -859,8 +859,8 @@ async def login(body: LoginRequest, ...) -> AccessTokenResponse:
         raise AuthenticationRequiredError
 
     # Create session
-    async with SessionStore() as store:
-        await store.create(jti=jti, user_id=user.id, ...)
+    store = create_session_store(db)
+    await store.create(jti=jti, user_id=user.id, ...)
 
     AuditEventDispatcher.dispatch(
         SessionLifecycleEvent(

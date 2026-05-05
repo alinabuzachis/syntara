@@ -1,317 +1,219 @@
-# ruff: noqa: PT019
-"""Unit tests for SessionStore."""
+"""Unit tests for SessionStore (PostgreSQL-backed).
 
-from datetime import UTC, datetime
+Tests cover:
+- Session creation with all optional fields
+- Session retrieval (active, revoked, expired)
+- Session retrieval with token version (JOIN query)
+- Single session revocation (active, already-revoked)
+- Bulk revocation by user, IDP, and identity
+- Token version increment and retrieval
+- Listing active sessions for a user
+"""
+
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
 
 import pytest
-from redis.exceptions import ConnectionError as RedisConnectionError
 
-from nexus.auth.session.session_store import (
-    IDENTITY_SESSIONS_KEY_PREFIX,
-    IDP_SESSIONS_KEY_PREFIX,
-    REFRESH_TOKEN_KEY_PREFIX,
-    RefreshTokenMetadata,
-    SessionStore,
-)
+from nexus.auth.session.models import RefreshSession
+from nexus.auth.session.session_store import SessionInfo, SessionStore
 
 
 def _mock_settings() -> MagicMock:
     mock = MagicMock()
     mock.jwt_refresh_token_lifetime_hours = 8
-    mock.redis_url = "redis://localhost:6379"
     return mock
 
 
-def _make_redis_client(pipe: MagicMock | None = None) -> MagicMock:
-    """Create a mock Redis client where pipeline() is sync but pipeline.execute() is async."""
-    client = MagicMock()
-    if pipe is None:
-        pipe = MagicMock()
-        pipe.execute = AsyncMock(return_value=[True])
-    client.pipeline.return_value = pipe
-    return client
+def _make_refresh_session(
+    *,
+    jti: str = "test-jti",
+    user_id=None,
+    issued_at=None,
+    expires_at=None,
+    revoked_at=None,
+    device: str | None = "test-agent",
+    ip_address: str | None = "127.0.0.1",
+    amr=None,
+    idp: str | None = None,
+    idp_id: str | None = None,
+    identity_id: str | None = None,
+    issuer: str | None = None,
+    subject: str | None = None,
+    id_token_hint: str | None = None,
+    rp_logout_enabled: bool = False,
+) -> RefreshSession:
+    """Build a RefreshSession row for testing."""
+    now = datetime.now(UTC)
+    if user_id is None:
+        user_id = uuid4()
+    if issued_at is None:
+        issued_at = now - timedelta(minutes=5)
+    if expires_at is None:
+        expires_at = now + timedelta(hours=8)
+    return RefreshSession(
+        jti=jti,
+        user_id=user_id,
+        issued_at=issued_at,
+        expires_at=expires_at,
+        revoked_at=revoked_at,
+        device=device,
+        ip_address=ip_address,
+        amr=amr or ["pwd"],
+        idp=idp,
+        idp_id=idp_id,
+        identity_id=identity_id,
+        issuer=issuer,
+        subject=subject,
+        id_token_hint=id_token_hint,
+        rp_logout_enabled=rp_logout_enabled,
+    )
 
 
-class TestCreateIdpIndex:
-    """Tests for IDP secondary index maintenance during session creation."""
+@pytest.fixture
+def mock_db() -> AsyncMock:  # noqa: D103
+    return AsyncMock()
 
-    @pytest.mark.asyncio
-    @patch("nexus.auth.session.session_store.get_settings", return_value=_mock_settings())
-    async def test_create_adds_jti_to_idp_set_by_id(self, _patched_settings: MagicMock) -> None:
-        """Should add JTI to idp_sessions:{idp_id} set with TTL when idp_id is provided."""
-        mock_pipe = MagicMock()
-        mock_pipe.execute = AsyncMock(return_value=[True, 1, True])
-        mock_client = _make_redis_client(mock_pipe)
 
-        store = SessionStore()
-        store._client = mock_client
+@pytest.fixture
+def store(mock_db: AsyncMock) -> SessionStore:  # noqa: D103
+    with patch("nexus.auth.session.session_store.get_settings", return_value=_mock_settings()):
+        return SessionStore(mock_db)
 
-        await store.create(jti="test-jti", user_id="user-123", idp="Azure", idp_id="provider-uuid-456")
 
-        mock_pipe.setex.assert_called_once()
-        mock_pipe.sadd.assert_called_once_with(f"{IDP_SESSIONS_KEY_PREFIX}provider-uuid-456", "test-jti")
-        mock_pipe.expire.assert_called_once()
-        mock_pipe.execute.assert_called_once()
-
-    @pytest.mark.asyncio
-    @patch("nexus.auth.session.session_store.get_settings", return_value=_mock_settings())
-    async def test_create_skips_idp_set_when_only_name_provided(self, _patched_settings: MagicMock) -> None:
-        """Should not add to IDP set when only idp name is provided without idp_id."""
-        mock_pipe = MagicMock()
-        mock_pipe.execute = AsyncMock(return_value=[True])
-        mock_client = _make_redis_client(mock_pipe)
-
-        store = SessionStore()
-        store._client = mock_client
-
-        await store.create(jti="test-jti", user_id="user-123", idp="Azure")
-
-        mock_pipe.setex.assert_called_once()
-        mock_pipe.sadd.assert_not_called()
-
-    @pytest.mark.asyncio
-    @patch("nexus.auth.session.session_store.get_settings", return_value=_mock_settings())
-    async def test_create_skips_idp_set_for_local_auth(self, _patched_settings: MagicMock) -> None:
-        """Should not add to IDP set when idp is None (local auth)."""
-        mock_pipe = MagicMock()
-        mock_pipe.execute = AsyncMock(return_value=[True])
-        mock_client = _make_redis_client(mock_pipe)
-
-        store = SessionStore()
-        store._client = mock_client
-
-        await store.create(jti="test-jti", user_id="user-123")
-
-        mock_pipe.setex.assert_called_once()
-        mock_pipe.sadd.assert_not_called()
+class TestCreate:
+    """Tests for SessionStore.create."""
 
     @pytest.mark.asyncio
-    @patch("nexus.auth.session.session_store.get_settings", return_value=_mock_settings())
-    async def test_create_adds_jti_to_identity_set_when_provided(self, _patched_settings: MagicMock) -> None:
-        """Should add JTI to identity_sessions:{identity_id} set with TTL when identity_id is provided."""
-        mock_pipe = MagicMock()
-        mock_pipe.execute = AsyncMock(return_value=[True, 1, True, 1, True])
-        mock_client = _make_redis_client(mock_pipe)
+    async def test_creates_session_with_defaults(self, store: SessionStore, mock_db: AsyncMock) -> None:
+        """Should add a RefreshSession to the db and flush."""
+        user_id = uuid4()
 
-        store = SessionStore()
-        store._client = mock_client
+        await store.create(jti="jti-1", user_id=user_id)
+
+        mock_db.add.assert_called_once()
+        session_arg = mock_db.add.call_args[0][0]
+        assert isinstance(session_arg, RefreshSession)
+        assert session_arg.jti == "jti-1"
+        assert session_arg.user_id == user_id
+        assert session_arg.revoked_at is None
+        mock_db.flush.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_creates_session_with_all_fields(self, store: SessionStore, mock_db: AsyncMock) -> None:
+        """Should persist all optional fields."""
+        user_id = uuid4()
 
         await store.create(
-            jti="test-jti",
-            user_id="user-123",
+            jti="jti-full",
+            user_id=user_id,
+            device="Firefox",
+            ip_address="10.0.0.1",
+            ttl_seconds=3600,
+            amr=["fed"],
             idp="Azure",
-            idp_id="provider-uuid-456",
-            identity_id="identity-uuid-789",
-            issuer="https://login.microsoftonline.com/tenant",
-            subject="sub-claim-123",
-        )
-
-        mock_pipe.setex.assert_called_once()
-        # Should call sadd twice: once for IDP, once for identity
-        assert mock_pipe.sadd.call_count == 2
-        # Check identity index call
-        calls = [str(call) for call in mock_pipe.sadd.call_args_list]
-        assert any(f"{IDENTITY_SESSIONS_KEY_PREFIX}identity-uuid-789" in call for call in calls)
-        # Should set TTL for both indexes
-        assert mock_pipe.expire.call_count == 2
-
-    @pytest.mark.asyncio
-    @patch("nexus.auth.session.session_store.get_settings", return_value=_mock_settings())
-    async def test_create_skips_identity_set_for_local_auth(self, _patched_settings: MagicMock) -> None:
-        """Should not add to identity set when identity_id is None (local auth)."""
-        mock_pipe = MagicMock()
-        mock_pipe.execute = AsyncMock(return_value=[True])
-        mock_client = _make_redis_client(mock_pipe)
-
-        store = SessionStore()
-        store._client = mock_client
-
-        await store.create(jti="test-jti", user_id="user-123", identity_id=None)
-
-        mock_pipe.setex.assert_called_once()
-        # Should not call sadd for identity index
-        mock_pipe.sadd.assert_not_called()
-
-
-class TestRevokeByIdp:
-    """Tests for revoke_by_idp using secondary index."""
-
-    @pytest.mark.asyncio
-    async def test_revokes_sessions_using_idp_set(self) -> None:
-        """Should use the IDP set index to find and delete sessions."""
-        mock_client = _make_redis_client()
-        mock_client.smembers = AsyncMock(return_value={b"jti-1", b"jti-2", b"jti-3"})
-        mock_client.delete = AsyncMock(return_value=3)
-
-        store = SessionStore()
-        store._client = mock_client
-
-        result = await store.revoke_by_idp("Azure")
-
-        assert result == 3
-        mock_client.smembers.assert_called_once_with(f"{IDP_SESSIONS_KEY_PREFIX}Azure")
-        # Should delete session keys and the index set
-        assert mock_client.delete.call_count == 2  # session keys + index set
-
-    @pytest.mark.asyncio
-    async def test_returns_zero_when_no_sessions(self) -> None:
-        """Should return 0 when IDP has no sessions."""
-        mock_client = _make_redis_client()
-        mock_client.smembers = AsyncMock(return_value=set())
-
-        store = SessionStore()
-        store._client = mock_client
-
-        result = await store.revoke_by_idp("Unknown")
-
-        assert result == 0
-        mock_client.delete.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_cleans_up_index_set_after_revocation(self) -> None:
-        """Should delete the IDP index set after revoking sessions."""
-        mock_client = _make_redis_client()
-        mock_client.smembers = AsyncMock(return_value={b"jti-1"})
-        mock_client.delete = AsyncMock(return_value=1)
-
-        store = SessionStore()
-        store._client = mock_client
-
-        await store.revoke_by_idp("Okta")
-
-        # Second delete call should be for the index set
-        calls = mock_client.delete.call_args_list
-        index_key = f"{IDP_SESSIONS_KEY_PREFIX}Okta"
-        assert any(index_key in str(call) for call in calls)
-
-    @pytest.mark.asyncio
-    async def test_raises_on_redis_error(self) -> None:
-        """Should raise RedisConnectionError when Redis fails during revoke_by_idp."""
-        mock_client = _make_redis_client()
-        mock_client.smembers = AsyncMock(side_effect=RedisConnectionError("connection lost"))
-
-        store = SessionStore()
-        store._client = mock_client
-
-        with pytest.raises(RedisConnectionError):
-            await store.revoke_by_idp("FailingProvider")
-
-
-class TestRevokeByIdentity:
-    """Tests for revoke_by_identity using identity secondary index."""
-
-    @pytest.mark.asyncio
-    async def test_revokes_sessions_using_identity_set(self) -> None:
-        """Should use the identity set index to find and delete sessions."""
-        mock_client = _make_redis_client()
-        mock_client.smembers = AsyncMock(return_value={b"jti-1", b"jti-2"})
-        mock_client.delete = AsyncMock(return_value=2)
-
-        store = SessionStore()
-        store._client = mock_client
-
-        result = await store.revoke_by_identity("identity-uuid-123")
-
-        assert result == 2
-        mock_client.smembers.assert_called_once_with(f"{IDENTITY_SESSIONS_KEY_PREFIX}identity-uuid-123")
-        # Should delete session keys and the index set
-        assert mock_client.delete.call_count == 2
-
-    @pytest.mark.asyncio
-    async def test_returns_zero_when_no_sessions(self) -> None:
-        """Should return 0 when identity has no sessions."""
-        mock_client = _make_redis_client()
-        mock_client.smembers = AsyncMock(return_value=set())
-
-        store = SessionStore()
-        store._client = mock_client
-
-        result = await store.revoke_by_identity("unknown-identity")
-
-        assert result == 0
-        mock_client.delete.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_cleans_up_index_set_after_revocation(self) -> None:
-        """Should delete the identity index set after revoking sessions."""
-        mock_client = _make_redis_client()
-        mock_client.smembers = AsyncMock(return_value={b"jti-1"})
-        mock_client.delete = AsyncMock(return_value=1)
-
-        store = SessionStore()
-        store._client = mock_client
-
-        await store.revoke_by_identity("identity-uuid-456")
-
-        # Second delete call should be for the index set
-        calls = mock_client.delete.call_args_list
-        index_key = f"{IDENTITY_SESSIONS_KEY_PREFIX}identity-uuid-456"
-        assert any(index_key in str(call) for call in calls)
-
-    @pytest.mark.asyncio
-    async def test_raises_on_redis_error(self) -> None:
-        """Should raise RedisConnectionError when Redis fails during revoke_by_identity."""
-        mock_client = _make_redis_client()
-        mock_client.smembers = AsyncMock(side_effect=RedisConnectionError("connection lost"))
-
-        store = SessionStore()
-        store._client = mock_client
-
-        with pytest.raises(RedisConnectionError):
-            await store.revoke_by_identity("failing-identity")
-
-
-class TestRpLogoutEnabledField:
-    """Tests for rp_logout_enabled field on RefreshTokenMetadata and SessionInfo."""
-
-    def test_metadata_serialization_roundtrip(self) -> None:
-        """rp_logout_enabled should survive JSON serialization/deserialization."""
-        metadata = RefreshTokenMetadata(
-            user_id="user-123",
-            issued_at=datetime.now(UTC).isoformat(),
-            rp_logout_enabled=True,
-        )
-        json_str = metadata.to_json()
-        restored = RefreshTokenMetadata.from_json(json_str)
-        assert restored.rp_logout_enabled is True
-
-    def test_metadata_defaults_to_false(self) -> None:
-        """rp_logout_enabled should default to False."""
-        metadata = RefreshTokenMetadata(
-            user_id="user-123",
-            issued_at=datetime.now(UTC).isoformat(),
-        )
-        assert metadata.rp_logout_enabled is False
-
-    def test_metadata_backward_compat_missing_field(self) -> None:
-        """Sessions created before the field was added should deserialize with False."""
-        import json
-
-        old_data = json.dumps(
-            {
-                "user_id": "user-123",
-                "issued_at": datetime.now(UTC).isoformat(),
-            }
-        )
-        restored = RefreshTokenMetadata.from_json(old_data)
-        assert restored.rp_logout_enabled is False
-
-    @pytest.mark.asyncio
-    async def test_get_returns_rp_logout_enabled(self) -> None:
-        """SessionStore.get should return rp_logout_enabled from stored metadata."""
-        metadata = RefreshTokenMetadata(
-            user_id="user-123",
-            issued_at=datetime.now(UTC).isoformat(),
+            idp_id="provider-uuid",
+            identity_id="identity-uuid",
+            issuer="https://login.example.com",
+            subject="sub-123",
+            id_token_hint="eyJhbGci...",  # noqa: S106
             rp_logout_enabled=True,
         )
 
-        mock_pipe = MagicMock()
-        mock_pipe.execute = AsyncMock(return_value=[metadata.to_json(), 3600])
-        mock_client = _make_redis_client(mock_pipe)
+        session_arg = mock_db.add.call_args[0][0]
+        assert session_arg.device == "Firefox"
+        assert session_arg.ip_address == "10.0.0.1"
+        assert session_arg.amr == ["fed"]
+        assert session_arg.idp == "Azure"
+        assert session_arg.idp_id == "provider-uuid"
+        assert session_arg.identity_id == "identity-uuid"
+        assert session_arg.issuer == "https://login.example.com"
+        assert session_arg.subject == "sub-123"
+        assert session_arg.id_token_hint == "eyJhbGci..."  # noqa: S105
+        assert session_arg.rp_logout_enabled is True
 
-        store = SessionStore()
-        store._client = mock_client
+    @pytest.mark.asyncio
+    async def test_uses_default_ttl_from_settings(self, store: SessionStore, mock_db: AsyncMock) -> None:
+        """Should compute expires_at from settings when ttl_seconds is None."""
+        await store.create(jti="jti-default-ttl", user_id=uuid4())
+
+        session_arg = mock_db.add.call_args[0][0]
+        expected_ttl = 8 * 3600  # jwt_refresh_token_lifetime_hours = 8
+        actual_ttl = (session_arg.expires_at - session_arg.issued_at).total_seconds()
+        assert actual_ttl == pytest.approx(expected_ttl, abs=1)
+
+    @pytest.mark.asyncio
+    async def test_uses_custom_ttl(self, store: SessionStore, mock_db: AsyncMock) -> None:
+        """Should use provided ttl_seconds for expires_at."""
+        await store.create(jti="jti-custom-ttl", user_id=uuid4(), ttl_seconds=1800)
+
+        session_arg = mock_db.add.call_args[0][0]
+        actual_ttl = (session_arg.expires_at - session_arg.issued_at).total_seconds()
+        assert actual_ttl == pytest.approx(1800, abs=1)
+
+
+class TestGet:
+    """Tests for SessionStore.get."""
+
+    @pytest.mark.asyncio
+    async def test_returns_session_info_when_found(self, store: SessionStore, mock_db: AsyncMock) -> None:
+        """Should return SessionInfo for an active, non-revoked session."""
+        row = _make_refresh_session(jti="active-jti", idp="Azure")
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = row
+        mock_db.exec.return_value = mock_result
+
+        result = await store.get("active-jti")
+
+        assert result is not None
+        assert isinstance(result, SessionInfo)
+        assert result.jti == "active-jti"
+        assert result.user_id == str(row.user_id)
+        assert result.idp == "Azure"
+        assert result.ttl > 0
+        mock_db.exec.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_returns_none_when_not_found(self, store: SessionStore, mock_db: AsyncMock) -> None:
+        """Should return None when no matching session exists."""
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = None
+        mock_db.exec.return_value = mock_result
+
+        result = await store.get("missing-jti")
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_returns_none_for_revoked_session(self, store: SessionStore, mock_db: AsyncMock) -> None:
+        """Should return None because the SQL query filters out revoked sessions."""
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = None
+        mock_db.exec.return_value = mock_result
+
+        result = await store.get("revoked-jti")
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_returns_none_for_expired_session(self, store: SessionStore, mock_db: AsyncMock) -> None:
+        """Should return None because the SQL query filters out expired sessions."""
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = None
+        mock_db.exec.return_value = mock_result
+
+        result = await store.get("expired-jti")
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_returns_rp_logout_enabled(self, store: SessionStore, mock_db: AsyncMock) -> None:
+        """Should include rp_logout_enabled in returned SessionInfo."""
+        row = _make_refresh_session(rp_logout_enabled=True)
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = row
+        mock_db.exec.return_value = mock_result
 
         result = await store.get("test-jti")
 
@@ -319,314 +221,343 @@ class TestRpLogoutEnabledField:
         assert result.rp_logout_enabled is True
 
     @pytest.mark.asyncio
-    @patch("nexus.auth.session.session_store.get_settings", return_value=_mock_settings())
-    async def test_create_persists_rp_logout_enabled(self, _patched_settings: MagicMock) -> None:
-        """SessionStore.create should include rp_logout_enabled in stored metadata."""
-        import json
-
-        mock_pipe = MagicMock()
-        mock_pipe.execute = AsyncMock(return_value=[True])
-        mock_client = _make_redis_client(mock_pipe)
-
-        store = SessionStore()
-        store._client = mock_client
-
-        await store.create(jti="test-jti", user_id="user-123", rp_logout_enabled=True)
-
-        # Extract the JSON that was passed to setex
-        setex_call = mock_pipe.setex.call_args
-        stored_json = setex_call[0][2]  # third positional arg is the value
-        stored_data = json.loads(stored_json)
-        assert stored_data["rp_logout_enabled"] is True
-
-
-class TestEnsureConnected:
-    """Tests for _ensure_connected."""
-
-    @patch("nexus.auth.session.session_store.get_settings", return_value=_mock_settings())
-    def test_raises_when_connect_fails(self, _patched_settings: MagicMock) -> None:
-        """Should raise RedisConnectionError when connection cannot be established."""
-        store = SessionStore()
-        store._client = None
-        with (
-            patch.object(store, "connect", side_effect=RedisConnectionError("fail")),
-            pytest.raises(RedisConnectionError),
-        ):
-            store._ensure_connected()
-
-    @patch("nexus.auth.session.session_store.get_settings", return_value=_mock_settings())
-    def test_returns_client_when_connected(self, _patched_settings: MagicMock) -> None:
-        """Should return the client when already connected."""
-        store = SessionStore()
-        mock_client = MagicMock()
-        store._client = mock_client
-        assert store._ensure_connected() is mock_client
-
-
-class TestConnect:
-    """Tests for connect and disconnect."""
-
-    @patch("nexus.auth.session.session_store.get_settings", return_value=_mock_settings())
-    @patch("nexus.auth.session.session_store.redis.Redis")
-    def test_connect_creates_client(self, mock_redis: MagicMock, _patched_settings: MagicMock) -> None:
-        """Should create a Redis client on connect."""
-        store = SessionStore()
-        store.connect()
-        mock_redis.assert_called_once()
-        assert store._client is not None
-
-    @pytest.mark.asyncio
-    @patch("nexus.auth.session.session_store.get_settings", return_value=_mock_settings())
-    async def test_disconnect_closes_client(self, _patched_settings: MagicMock) -> None:
-        """Should close and clear the client on disconnect."""
-        store = SessionStore()
-        mock_client = AsyncMock()
-        store._client = mock_client
-
-        await store.disconnect()
-
-        mock_client.aclose.assert_called_once()
-        assert store._client is None
-
-    @pytest.mark.asyncio
-    @patch("nexus.auth.session.session_store.get_settings", return_value=_mock_settings())
-    async def test_disconnect_handles_error(self, _patched_settings: MagicMock) -> None:
-        """Should clear client even if disconnect fails."""
-        store = SessionStore()
-        mock_client = AsyncMock()
-        mock_client.aclose.side_effect = OSError("connection reset")
-        store._client = mock_client
-
-        await store.disconnect()
-
-        assert store._client is None
-
-
-class TestGet:
-    """Tests for SessionStore.get."""
-
-    @pytest.mark.asyncio
-    async def test_returns_session_info_when_found(self) -> None:
-        """Should return SessionInfo when token exists in Redis."""
-        metadata = RefreshTokenMetadata(
-            user_id="user-123",
-            issued_at=datetime.now(UTC).isoformat(),
-            device="test-agent",
-            ip_address="127.0.0.1",
-            amr=["fed"],
-            idp="Azure",
-        )
-
-        mock_pipe = MagicMock()
-        mock_pipe.execute = AsyncMock(return_value=[metadata.to_json(), 3600])
-        mock_client = _make_redis_client(mock_pipe)
-
-        store = SessionStore()
-        store._client = mock_client
+    async def test_computes_ttl_from_expires_at(self, store: SessionStore, mock_db: AsyncMock) -> None:
+        """Should compute TTL as seconds remaining until expires_at."""
+        now = datetime.now(UTC)
+        row = _make_refresh_session(expires_at=now + timedelta(seconds=7200))
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = row
+        mock_db.exec.return_value = mock_result
 
         result = await store.get("test-jti")
 
         assert result is not None
-        assert result.jti == "test-jti"
-        assert result.user_id == "user-123"
-        assert result.idp == "Azure"
-        assert result.ttl == 3600
+        assert 7100 < result.ttl <= 7200
+
+
+class TestGetWithTokenVersion:
+    """Tests for SessionStore.get_with_token_version."""
 
     @pytest.mark.asyncio
-    async def test_returns_none_when_not_found(self) -> None:
-        """Should return None when token doesn't exist."""
-        mock_pipe = MagicMock()
-        mock_pipe.execute = AsyncMock(return_value=[None, -2])
-        mock_client = _make_redis_client(mock_pipe)
+    async def test_returns_session_and_version(self, store: SessionStore, mock_db: AsyncMock) -> None:
+        """Should return (SessionInfo, token_version) for active session."""
+        row = _make_refresh_session(jti="versioned-jti", device="Chrome", ip_address="10.0.0.5", idp="local")
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = (row, 3)
+        mock_db.exec.return_value = mock_result
 
-        store = SessionStore()
-        store._client = mock_client
+        result = await store.get_with_token_version("versioned-jti")
 
-        result = await store.get("missing-jti")
+        assert result is not None
+        info, version = result
+        assert isinstance(info, SessionInfo)
+        assert info.jti == "versioned-jti"
+        assert info.user_id == str(row.user_id)
+        assert info.device == "Chrome"
+        assert version == 3
+        mock_db.exec.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_returns_none_when_not_found(self, store: SessionStore, mock_db: AsyncMock) -> None:
+        """Should return None when session does not exist or is revoked/expired."""
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = None
+        mock_db.exec.return_value = mock_result
+
+        result = await store.get_with_token_version("missing-jti")
 
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_returns_none_on_json_decode_error(self) -> None:
-        """Should return None when stored data is not valid JSON."""
-        mock_pipe = MagicMock()
-        mock_pipe.execute = AsyncMock(return_value=["not-json{", 3600])
-        mock_client = _make_redis_client(mock_pipe)
+    async def test_computes_ttl_correctly(self, store: SessionStore, mock_db: AsyncMock) -> None:
+        """Should compute TTL from expires_at for the returned SessionInfo."""
+        now = datetime.now(UTC)
+        row = _make_refresh_session(jti="ttl-jti", expires_at=now + timedelta(seconds=5000))
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = (row, 0)
+        mock_db.exec.return_value = mock_result
 
-        store = SessionStore()
-        store._client = mock_client
+        result = await store.get_with_token_version("ttl-jti")
 
-        result = await store.get("bad-jti")
-
-        assert result is None
+        assert result is not None
+        info, _ = result
+        assert 4900 < info.ttl <= 5000
 
 
 class TestRevoke:
-    """Tests for SessionStore.revoke."""
+    """Tests for SessionStore.revoke (soft-revoke)."""
 
     @pytest.mark.asyncio
-    async def test_returns_true_when_deleted(self) -> None:
-        """Should return True when token is found and deleted."""
-        mock_client = _make_redis_client()
-        mock_client.delete = AsyncMock(return_value=1)
+    async def test_returns_true_when_revoked(self, store: SessionStore, mock_db: AsyncMock) -> None:
+        """Should return True when an active session is soft-revoked."""
+        mock_result = MagicMock()
+        mock_result.rowcount = 1
+        mock_db.execute.return_value = mock_result
 
-        store = SessionStore()
-        store._client = mock_client
-
-        result = await store.revoke("test-jti")
+        result = await store.revoke("active-jti")
 
         assert result is True
-        mock_client.delete.assert_called_once_with(f"{REFRESH_TOKEN_KEY_PREFIX}test-jti")
+        mock_db.execute.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_returns_false_when_not_found(self) -> None:
-        """Should return False when token doesn't exist."""
-        mock_client = _make_redis_client()
-        mock_client.delete = AsyncMock(return_value=0)
+    async def test_returns_false_when_already_revoked(self, store: SessionStore, mock_db: AsyncMock) -> None:
+        """Should return False when session was already revoked (rowcount=0)."""
+        mock_result = MagicMock()
+        mock_result.rowcount = 0
+        mock_db.execute.return_value = mock_result
 
-        store = SessionStore()
-        store._client = mock_client
-
-        result = await store.revoke("missing-jti")
+        result = await store.revoke("already-revoked-jti")
 
         assert result is False
 
-
-class TestRevokeKeyIfOwned:
-    """Tests for _revoke_key_if_owned."""
-
     @pytest.mark.asyncio
-    async def test_returns_true_when_user_owns_key(self) -> None:
-        """Should return True and delete when key belongs to user."""
-        metadata = RefreshTokenMetadata(
-            user_id="user-123",
-            issued_at=datetime.now(UTC).isoformat(),
-        )
-        mock_client = _make_redis_client()
-        mock_client.ttl = AsyncMock(return_value=3600)
-        mock_client.getdel = AsyncMock(return_value=metadata.to_json())
+    async def test_returns_false_when_not_found(self, store: SessionStore, mock_db: AsyncMock) -> None:
+        """Should return False when no session exists with the given JTI."""
+        mock_result = MagicMock()
+        mock_result.rowcount = 0
+        mock_db.execute.return_value = mock_result
 
-        store = SessionStore()
-        store._client = mock_client
-
-        result = await store._revoke_key_if_owned(mock_client, "key", "user-123")
-
-        assert result is True
-
-    @pytest.mark.asyncio
-    async def test_restores_key_when_user_does_not_own(self) -> None:
-        """Should restore the key when it belongs to a different user."""
-        metadata = RefreshTokenMetadata(
-            user_id="other-user",
-            issued_at=datetime.now(UTC).isoformat(),
-        )
-        mock_client = _make_redis_client()
-        mock_client.ttl = AsyncMock(return_value=3600)
-        mock_client.getdel = AsyncMock(return_value=metadata.to_json())
-        mock_client.set = AsyncMock()
-
-        store = SessionStore()
-        store._client = mock_client
-
-        result = await store._revoke_key_if_owned(mock_client, "key", "user-123")
-
-        assert result is False
-        mock_client.set.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_returns_false_when_key_missing(self) -> None:
-        """Should return False when key doesn't exist."""
-        mock_client = _make_redis_client()
-        mock_client.ttl = AsyncMock(return_value=-2)
-        mock_client.getdel = AsyncMock(return_value=None)
-
-        store = SessionStore()
-        store._client = mock_client
-
-        result = await store._revoke_key_if_owned(mock_client, "key", "user-123")
+        result = await store.revoke("nonexistent-jti")
 
         assert result is False
 
 
 class TestRevokeAllForUser:
-    """Tests for revoke_all_for_user."""
+    """Tests for SessionStore.revoke_all_for_user."""
 
     @pytest.mark.asyncio
-    async def test_revokes_matching_keys(self) -> None:
-        """Should scan and revoke all keys belonging to the user."""
-        metadata = RefreshTokenMetadata(
-            user_id="user-123",
-            issued_at=datetime.now(UTC).isoformat(),
-        )
+    async def test_returns_count_of_revoked_sessions(self, store: SessionStore, mock_db: AsyncMock) -> None:
+        """Should return the number of sessions revoked."""
+        mock_result = MagicMock()
+        mock_result.rowcount = 3
+        mock_db.execute.return_value = mock_result
 
-        mock_client = _make_redis_client()
-        mock_client.scan = AsyncMock(return_value=(0, [b"refresh_token:jti-1"]))
-        mock_client.ttl = AsyncMock(return_value=3600)
-        mock_client.getdel = AsyncMock(return_value=metadata.to_json())
+        count = await store.revoke_all_for_user(uuid4())
 
-        store = SessionStore()
-        store._client = mock_client
+        assert count == 3
 
-        result = await store.revoke_all_for_user("user-123")
+    @pytest.mark.asyncio
+    async def test_returns_zero_when_no_sessions(self, store: SessionStore, mock_db: AsyncMock) -> None:
+        """Should return 0 when user has no active sessions."""
+        mock_result = MagicMock()
+        mock_result.rowcount = 0
+        mock_db.execute.return_value = mock_result
 
-        assert result == 1
+        count = await store.revoke_all_for_user(uuid4())
+
+        assert count == 0
+
+    @pytest.mark.asyncio
+    async def test_accepts_string_user_id(self, store: SessionStore, mock_db: AsyncMock) -> None:
+        """Should accept user_id as a string and convert to UUID."""
+        mock_result = MagicMock()
+        mock_result.rowcount = 1
+        mock_db.execute.return_value = mock_result
+
+        user_id = uuid4()
+        count = await store.revoke_all_for_user(str(user_id))
+
+        assert count == 1
+
+
+class TestRevokeByIdp:
+    """Tests for SessionStore.revoke_by_idp."""
+
+    @pytest.mark.asyncio
+    async def test_returns_count_of_revoked_sessions(self, store: SessionStore, mock_db: AsyncMock) -> None:
+        """Should return the number of sessions revoked for the IDP."""
+        mock_result = MagicMock()
+        mock_result.rowcount = 5
+        mock_db.execute.return_value = mock_result
+
+        count = await store.revoke_by_idp("provider-uuid-456")
+
+        assert count == 5
+
+    @pytest.mark.asyncio
+    async def test_returns_zero_when_no_sessions(self, store: SessionStore, mock_db: AsyncMock) -> None:
+        """Should return 0 when IDP has no active sessions."""
+        mock_result = MagicMock()
+        mock_result.rowcount = 0
+        mock_db.execute.return_value = mock_result
+
+        count = await store.revoke_by_idp("unknown-provider")
+
+        assert count == 0
+
+
+class TestRevokeByIdentity:
+    """Tests for SessionStore.revoke_by_identity."""
+
+    @pytest.mark.asyncio
+    async def test_returns_count_of_revoked_sessions(self, store: SessionStore, mock_db: AsyncMock) -> None:
+        """Should return the number of sessions revoked for the identity."""
+        mock_result = MagicMock()
+        mock_result.rowcount = 2
+        mock_db.execute.return_value = mock_result
+
+        count = await store.revoke_by_identity("identity-uuid-123")
+
+        assert count == 2
+
+    @pytest.mark.asyncio
+    async def test_returns_zero_when_no_sessions(self, store: SessionStore, mock_db: AsyncMock) -> None:
+        """Should return 0 when identity has no active sessions."""
+        mock_result = MagicMock()
+        mock_result.rowcount = 0
+        mock_db.execute.return_value = mock_result
+
+        count = await store.revoke_by_identity("unknown-identity")
+
+        assert count == 0
+
+    @pytest.mark.asyncio
+    async def test_accepts_uuid_identity_id(self, store: SessionStore, mock_db: AsyncMock) -> None:
+        """Should accept identity_id as a UUID and convert to string."""
+        mock_result = MagicMock()
+        mock_result.rowcount = 1
+        mock_db.execute.return_value = mock_result
+
+        count = await store.revoke_by_identity(uuid4())
+
+        assert count == 1
+
+
+class TestIncrementTokenVersion:
+    """Tests for SessionStore.increment_token_version."""
+
+    @pytest.mark.asyncio
+    async def test_returns_new_version(self, store: SessionStore, mock_db: AsyncMock) -> None:
+        """Should return the incremented token version."""
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = (4,)
+        mock_db.execute.return_value = mock_result
+
+        version = await store.increment_token_version(uuid4())
+
+        assert version == 4
+        mock_db.execute.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_returns_zero_when_user_not_found(self, store: SessionStore, mock_db: AsyncMock) -> None:
+        """Should return 0 when user does not exist."""
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = None
+        mock_db.execute.return_value = mock_result
+
+        version = await store.increment_token_version(uuid4())
+
+        assert version == 0
+
+
+class TestGetTokenVersion:
+    """Tests for SessionStore.get_token_version."""
+
+    @pytest.mark.asyncio
+    async def test_returns_current_version(self, store: SessionStore, mock_db: AsyncMock) -> None:
+        """Should return the current token version for the user."""
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = (7,)
+        mock_db.execute.return_value = mock_result
+
+        version = await store.get_token_version(uuid4())
+
+        assert version == 7
+
+    @pytest.mark.asyncio
+    async def test_returns_zero_when_user_not_found(self, store: SessionStore, mock_db: AsyncMock) -> None:
+        """Should return 0 when user does not exist."""
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = None
+        mock_db.execute.return_value = mock_result
+
+        version = await store.get_token_version(uuid4())
+
+        assert version == 0
 
 
 class TestListUserSessions:
-    """Tests for list_user_sessions."""
+    """Tests for SessionStore.list_user_sessions."""
 
     @pytest.mark.asyncio
-    async def test_returns_sessions_for_user(self) -> None:
-        """Should return sessions belonging to the user."""
-        metadata = RefreshTokenMetadata(
-            user_id="user-123",
-            issued_at=datetime.now(UTC).isoformat(),
-            amr=["pwd"],
-            idp="local",
+    async def test_returns_sessions_for_user(self, store: SessionStore, mock_db: AsyncMock) -> None:
+        """Should return a list of SessionInfo for the user's active sessions."""
+        user_id = uuid4()
+        rows = [
+            _make_refresh_session(jti="jti-1", user_id=user_id, device="Chrome"),
+            _make_refresh_session(jti="jti-2", user_id=user_id, device="Firefox"),
+        ]
+        mock_result = MagicMock()
+        mock_result.all.return_value = rows
+        mock_db.exec.return_value = mock_result
+
+        sessions = await store.list_user_sessions(user_id)
+
+        assert len(sessions) == 2
+        assert all(isinstance(s, SessionInfo) for s in sessions)
+        assert sessions[0].jti == "jti-1"
+        assert sessions[1].jti == "jti-2"
+
+    @pytest.mark.asyncio
+    async def test_returns_empty_list_when_no_sessions(self, store: SessionStore, mock_db: AsyncMock) -> None:
+        """Should return empty list when user has no active sessions."""
+        mock_result = MagicMock()
+        mock_result.all.return_value = []
+        mock_db.exec.return_value = mock_result
+
+        sessions = await store.list_user_sessions(uuid4())
+
+        assert sessions == []
+
+    @pytest.mark.asyncio
+    async def test_accepts_string_user_id(self, store: SessionStore, mock_db: AsyncMock) -> None:
+        """Should accept user_id as a string."""
+        mock_result = MagicMock()
+        mock_result.all.return_value = []
+        mock_db.exec.return_value = mock_result
+
+        user_id = uuid4()
+        sessions = await store.list_user_sessions(str(user_id))
+
+        assert sessions == []
+        mock_db.exec.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_session_info_fields_are_populated(self, store: SessionStore, mock_db: AsyncMock) -> None:
+        """Should populate all SessionInfo fields from the database row."""
+        user_id = uuid4()
+        row = _make_refresh_session(
+            jti="full-jti",
+            user_id=user_id,
+            device="Safari",
+            ip_address="192.168.1.1",
+            amr=["fed", "mfa"],
+            idp="Okta",
+            idp_id="okta-uuid",
+            identity_id="ident-uuid",
+            issuer="https://okta.example.com",
+            subject="sub-456",
+            id_token_hint="hint-token",  # noqa: S106
+            rp_logout_enabled=True,
         )
+        mock_result = MagicMock()
+        mock_result.all.return_value = [row]
+        mock_db.exec.return_value = mock_result
 
-        mock_pipe = MagicMock()
-        mock_pipe.execute = AsyncMock(return_value=[metadata.to_json(), 3600])
-        mock_client = _make_redis_client(mock_pipe)
-        mock_client.scan = AsyncMock(return_value=(0, [b"refresh_token:jti-1"]))
-
-        store = SessionStore()
-        store._client = mock_client
-
-        sessions = await store.list_user_sessions("user-123")
+        sessions = await store.list_user_sessions(user_id)
 
         assert len(sessions) == 1
-        assert sessions[0].user_id == "user-123"
-
-    @pytest.mark.asyncio
-    async def test_returns_empty_when_no_sessions(self) -> None:
-        """Should return empty list when user has no sessions."""
-        mock_client = _make_redis_client()
-        mock_client.scan = AsyncMock(return_value=(0, []))
-
-        store = SessionStore()
-        store._client = mock_client
-
-        sessions = await store.list_user_sessions("user-123")
-
-        assert sessions == []
-
-    @pytest.mark.asyncio
-    async def test_filters_out_other_users(self) -> None:
-        """Should not include sessions from other users."""
-        metadata = RefreshTokenMetadata(
-            user_id="other-user",
-            issued_at=datetime.now(UTC).isoformat(),
-        )
-
-        mock_pipe = MagicMock()
-        mock_pipe.execute = AsyncMock(return_value=[metadata.to_json(), 3600])
-        mock_client = _make_redis_client(mock_pipe)
-        mock_client.scan = AsyncMock(return_value=(0, [b"refresh_token:jti-1"]))
-
-        store = SessionStore()
-        store._client = mock_client
-
-        sessions = await store.list_user_sessions("user-123")
-
-        assert sessions == []
+        s = sessions[0]
+        assert s.jti == "full-jti"
+        assert s.user_id == str(user_id)
+        assert s.device == "Safari"
+        assert s.ip_address == "192.168.1.1"
+        assert s.amr == ["fed", "mfa"]
+        assert s.idp == "Okta"
+        assert s.idp_id == "okta-uuid"
+        assert s.identity_id == "ident-uuid"
+        assert s.issuer == "https://okta.example.com"
+        assert s.subject == "sub-456"
+        assert s.id_token_hint == "hint-token"  # noqa: S105
+        assert s.rp_logout_enabled is True
+        assert s.ttl > 0

@@ -4,8 +4,8 @@
 Tests cover:
 - Discovery configuration fetching
 - PKCE generation
-- State and nonce generation
-- Redis state storage and retrieval
+- Nonce generation
+- Signed JWT state encoding and decoding
 - Token exchange
 - ID token validation
 - User claims extraction
@@ -13,7 +13,7 @@ Tests cover:
 """
 
 import hashlib
-import json
+import time
 from base64 import urlsafe_b64encode
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -25,8 +25,6 @@ import pytest
 from starlette import status
 
 from nexus.auth.services.oidc_service import (
-    OIDC_STATE_KEY_PREFIX,
-    OIDC_STATE_TTL_SECONDS,
     OIDCError,
     OIDCService,
 )
@@ -185,111 +183,157 @@ class TestGeneratePKCE:
         assert challenge1 != challenge2
 
 
-class TestGenerateStateAndNonce:
-    """Tests for generate_state_and_nonce method."""
+class TestGenerateNonce:
+    """Tests for generate_nonce method."""
 
-    def test_generates_state_and_nonce(self, oidc_service: OIDCService) -> None:
-        """Test that state and nonce are generated."""
-        state, nonce = oidc_service.generate_state_and_nonce()
+    def test_generates_nonce(self, oidc_service: OIDCService) -> None:
+        """Test that a nonce is generated."""
+        nonce = oidc_service.generate_nonce()
 
-        assert isinstance(state, str)
         assert isinstance(nonce, str)
-        assert len(state) > 0
         assert len(nonce) > 0
 
     def test_generates_unique_values(self, oidc_service: OIDCService) -> None:
         """Test that multiple calls generate unique values."""
-        state1, nonce1 = oidc_service.generate_state_and_nonce()
-        state2, nonce2 = oidc_service.generate_state_and_nonce()
+        nonce1 = oidc_service.generate_nonce()
+        nonce2 = oidc_service.generate_nonce()
 
-        assert state1 != state2
         assert nonce1 != nonce2
 
 
 class TestStoreOidcState:
-    """Tests for store_oidc_state method."""
+    """Tests for store_oidc_state method (AES-256-GCM encryption)."""
 
-    @pytest.mark.asyncio
-    async def test_stores_state_in_redis_with_ttl(self, oidc_service: OIDCService) -> None:
-        """Test that state is stored in Redis with correct TTL."""
+    def test_returns_encrypted_token(self, oidc_service: OIDCService) -> None:
+        """Test that state is returned as an encrypted token string."""
+        with patch("nexus.auth.services.oidc_service.get_settings") as mock_settings:
+            mock_settings.return_value.secret_encryption_key.get_secret_value.return_value = "a" * 64
+            state = oidc_service.store_oidc_state(
+                provider_id=uuid4(),
+                nonce="test-nonce-456",
+                code_verifier="test-verifier-789",
+            )
+
+        assert isinstance(state, str)
+        assert len(state) > 0
+
+    def test_payload_is_not_readable(self, oidc_service: OIDCService) -> None:
+        """Test that the code_verifier is not visible in the state token."""
+        with patch("nexus.auth.services.oidc_service.get_settings") as mock_settings:
+            mock_settings.return_value.secret_encryption_key.get_secret_value.return_value = "a" * 64
+            state = oidc_service.store_oidc_state(
+                provider_id=uuid4(),
+                nonce="test-nonce",
+                code_verifier="super-secret-verifier",
+            )
+
+        assert "super-secret-verifier" not in state
+
+    def test_includes_all_fields(self, oidc_service: OIDCService) -> None:
+        """Test that all state fields survive encrypt/decrypt roundtrip."""
         provider_id = uuid4()
-        state = "test-state-123"
-        nonce = "test-nonce-456"
-        code_verifier = "test-verifier-789"
 
-        mock_redis = AsyncMock()
-        mock_redis.setex = AsyncMock()
-        oidc_service._client = mock_redis
+        with patch("nexus.auth.services.oidc_service.get_settings") as mock_settings:
+            mock_settings.return_value.secret_encryption_key.get_secret_value.return_value = "a" * 64
+            state = oidc_service.store_oidc_state(
+                provider_id=provider_id,
+                nonce="test-nonce",
+                code_verifier="test-verifier",
+                redirect_to="https://example.com/dashboard",
+                origin="https://example.com",
+                flow_type="link",
+                user_id="user-123",
+                session_jti="jti-456",
+            )
 
-        await oidc_service.store_oidc_state(state, provider_id, nonce, code_verifier)
+            result = oidc_service.retrieve_oidc_state(state)
 
-        expected_key = f"{OIDC_STATE_KEY_PREFIX}{state}"
-        mock_redis.setex.assert_called_once()
-        call_args = mock_redis.setex.call_args
-        assert call_args[0][0] == expected_key
-        assert call_args[0][1] == OIDC_STATE_TTL_SECONDS
-        # Verify stored envelope contains data and HMAC
-        envelope = json.loads(call_args[0][2])
-        assert envelope["data"]["provider_id"] == str(provider_id)
-        assert envelope["data"]["nonce"] == nonce
-        assert envelope["data"]["code_verifier"] == code_verifier
-        assert "mac" in envelope
+        assert result is not None
+        assert result["provider_id"] == str(provider_id)
+        assert result["nonce"] == "test-nonce"
+        assert result["code_verifier"] == "test-verifier"
+        assert result["redirect_to"] == "https://example.com/dashboard"
+        assert result["origin"] == "https://example.com"
+        assert result["flow_type"] == "link"
+        assert result["user_id"] == "user-123"
+        assert result["session_jti"] == "jti-456"
 
 
 class TestRetrieveOidcState:
-    """Tests for retrieve_oidc_state method."""
+    """Tests for retrieve_oidc_state method (AES-256-GCM decryption)."""
 
-    @pytest.mark.asyncio
-    async def test_retrieves_and_deletes_state(self, oidc_service: OIDCService) -> None:
-        """Test that state is retrieved and deleted from Redis."""
-        state = "test-state-123"
-        provider_id = str(uuid4())
-        payload = {
-            "provider_id": provider_id,
-            "nonce": "test-nonce",
-            "code_verifier": "test-verifier",
-        }
-        raw = json.dumps(payload, sort_keys=True)
-        mac = OIDCService._compute_state_hmac(raw)
-        stored_data = json.dumps({"data": payload, "mac": mac})
+    def test_decrypts_valid_state(self, oidc_service: OIDCService) -> None:
+        """Test that a valid encrypted state is decrypted."""
+        provider_id = uuid4()
 
-        mock_pipeline = AsyncMock()
-        mock_pipeline.get = MagicMock()
-        mock_pipeline.delete = MagicMock()
-        mock_pipeline.execute = AsyncMock(return_value=[stored_data, 1])
-
-        mock_redis = AsyncMock()
-        mock_redis.pipeline = MagicMock(return_value=mock_pipeline)
-        oidc_service._client = mock_redis
-
-        result = await oidc_service.retrieve_oidc_state(state)
+        with patch("nexus.auth.services.oidc_service.get_settings") as mock_settings:
+            mock_settings.return_value.secret_encryption_key.get_secret_value.return_value = "a" * 64
+            state = oidc_service.store_oidc_state(
+                provider_id=provider_id,
+                nonce="test-nonce",
+                code_verifier="test-verifier",
+            )
+            result = oidc_service.retrieve_oidc_state(state)
 
         assert result is not None
-        assert result["provider_id"] == provider_id
+        assert result["provider_id"] == str(provider_id)
         assert result["nonce"] == "test-nonce"
         assert result["code_verifier"] == "test-verifier"
 
-        expected_key = f"{OIDC_STATE_KEY_PREFIX}{state}"
-        mock_pipeline.get.assert_called_once_with(expected_key)
-        mock_pipeline.delete.assert_called_once_with(expected_key)
-
-    @pytest.mark.asyncio
-    async def test_returns_none_for_missing_state(self, oidc_service: OIDCService) -> None:
-        """Test that None is returned for missing/expired state."""
-        state = "missing-state"
-
-        mock_pipeline = AsyncMock()
-        mock_pipeline.get = MagicMock()
-        mock_pipeline.delete = MagicMock()
-        mock_pipeline.execute = AsyncMock(return_value=[None, 0])
-
-        mock_redis = AsyncMock()
-        mock_redis.pipeline = MagicMock(return_value=mock_pipeline)
-        oidc_service._client = mock_redis
-
-        result = await oidc_service.retrieve_oidc_state(state)
+    def test_returns_none_for_tampered_state(self, oidc_service: OIDCService) -> None:
+        """Test that a tampered token returns None."""
+        with patch("nexus.auth.services.oidc_service.get_settings") as mock_settings:
+            mock_settings.return_value.secret_encryption_key.get_secret_value.return_value = "a" * 64
+            result = oidc_service.retrieve_oidc_state("tampered-garbage-token")
 
         assert result is None
+
+    def test_returns_none_for_wrong_key(self, oidc_service: OIDCService) -> None:
+        """Test that decryption with a different key fails."""
+        with patch("nexus.auth.services.oidc_service.get_settings") as mock_settings:
+            mock_settings.return_value.secret_encryption_key.get_secret_value.return_value = "a" * 64
+            state = oidc_service.store_oidc_state(
+                provider_id=uuid4(),
+                nonce="test-nonce",
+                code_verifier="test-verifier",
+            )
+
+        with patch("nexus.auth.services.oidc_service.get_settings") as mock_settings:
+            mock_settings.return_value.secret_encryption_key.get_secret_value.return_value = "b" * 64
+            result = oidc_service.retrieve_oidc_state(state)
+
+        assert result is None
+
+    def test_returns_none_for_expired_state(self, oidc_service: OIDCService) -> None:
+        """Test that state with an expired timestamp returns None."""
+        with patch("nexus.auth.services.oidc_service.get_settings") as mock_settings:
+            mock_settings.return_value.secret_encryption_key.get_secret_value.return_value = "a" * 64
+
+            # Encrypt state with exp in the past
+            with patch("nexus.auth.services.oidc_service.time.time", return_value=time.time() - 700):
+                state = oidc_service.store_oidc_state(
+                    provider_id=uuid4(),
+                    nonce="test-nonce",
+                    code_verifier="test-verifier",
+                )
+
+            result = oidc_service.retrieve_oidc_state(state)
+
+        assert result is None
+
+    def test_exp_is_stripped_from_result(self, oidc_service: OIDCService) -> None:
+        """Test that the exp claim is not returned to the caller."""
+        with patch("nexus.auth.services.oidc_service.get_settings") as mock_settings:
+            mock_settings.return_value.secret_encryption_key.get_secret_value.return_value = "a" * 64
+            state = oidc_service.store_oidc_state(
+                provider_id=uuid4(),
+                nonce="test-nonce",
+                code_verifier="test-verifier",
+            )
+            result = oidc_service.retrieve_oidc_state(state)
+
+        assert result is not None
+        assert "exp" not in result
 
 
 class TestExchangeCodeForTokens:
@@ -406,22 +450,26 @@ class TestExchangeCodeForTokens:
     @pytest.mark.asyncio
     async def test_rejects_http_token_endpoint(self, oidc_service: OIDCService) -> None:
         """Test that token exchange rejects HTTP endpoints (SSRF, AAP-71276)."""
-        oidc_service._settings = MagicMock(oidc_allow_private_networks=False)
-        with pytest.raises(OIDCError, match="OIDC issuer URL must use HTTPS"):
-            await oidc_service.exchange_code_for_tokens(
-                token_endpoint="http://example.com/token",
-                code="auth-code-123",
-                redirect_uri="https://app.example.com/callback",
-                client_id="client-123",
-                client_secret="secret-456",
-                code_verifier="verifier-789",
-            )
+        with patch("nexus.auth.services.oidc_service.get_settings") as mock_gs:
+            mock_gs.return_value.oidc_allow_private_networks = False
+            with pytest.raises(OIDCError, match="OIDC issuer URL must use HTTPS"):
+                await oidc_service.exchange_code_for_tokens(
+                    token_endpoint="http://example.com/token",
+                    code="auth-code-123",
+                    redirect_uri="https://app.example.com/callback",
+                    client_id="client-123",
+                    client_secret="secret-456",
+                    code_verifier="verifier-789",
+                )
 
     @pytest.mark.asyncio
     async def test_rejects_private_ip_token_endpoint(self, oidc_service: OIDCService) -> None:
         """Test that token exchange rejects endpoints resolving to private IPs (SSRF, AAP-71276)."""
-        oidc_service._settings = MagicMock(oidc_allow_private_networks=False)
-        with patch("nexus.auth.services.oidc_service.socket.getaddrinfo") as mock_getaddrinfo:
+        with (
+            patch("nexus.auth.services.oidc_service.get_settings") as mock_gs,
+            patch("nexus.auth.services.oidc_service.socket.getaddrinfo") as mock_getaddrinfo,
+        ):
+            mock_gs.return_value.oidc_allow_private_networks = False
             mock_getaddrinfo.return_value = [(None, None, None, None, ("127.0.0.1", 443))]
             with pytest.raises(OIDCError, match="private or internal network"):
                 await oidc_service.exchange_code_for_tokens(
@@ -436,16 +484,17 @@ class TestExchangeCodeForTokens:
     @pytest.mark.asyncio
     async def test_rejects_non_http_scheme_token_endpoint(self, oidc_service: OIDCService) -> None:
         """Test that token exchange rejects non-HTTP(S) schemes (SSRF, AAP-71276)."""
-        oidc_service._settings = MagicMock(oidc_allow_private_networks=False)
-        with pytest.raises(OIDCError, match="OIDC issuer URL must use HTTPS"):
-            await oidc_service.exchange_code_for_tokens(
-                token_endpoint="ftp://example.com/token",
-                code="auth-code-123",
-                redirect_uri="https://app.example.com/callback",
-                client_id="client-123",
-                client_secret="secret-456",
-                code_verifier="verifier-789",
-            )
+        with patch("nexus.auth.services.oidc_service.get_settings") as mock_gs:
+            mock_gs.return_value.oidc_allow_private_networks = False
+            with pytest.raises(OIDCError, match="OIDC issuer URL must use HTTPS"):
+                await oidc_service.exchange_code_for_tokens(
+                    token_endpoint="ftp://example.com/token",
+                    code="auth-code-123",
+                    redirect_uri="https://app.example.com/callback",
+                    client_id="client-123",
+                    client_secret="secret-456",
+                    code_verifier="verifier-789",
+                )
 
 
 class TestFetchUserinfo:
@@ -536,12 +585,13 @@ class TestFetchUserinfo:
     @pytest.mark.asyncio
     async def test_userinfo_ssrf_validation(self, oidc_service: OIDCService) -> None:
         """Test that userinfo endpoint is validated against SSRF."""
-        oidc_service._settings = MagicMock(oidc_allow_private_networks=False)
-        with pytest.raises(OIDCError, match="OIDC issuer URL must use HTTPS"):
-            await oidc_service.fetch_userinfo(
-                userinfo_endpoint="http://example.com/userinfo",
-                access_token="access-token-123",
-            )
+        with patch("nexus.auth.services.oidc_service.get_settings") as mock_gs:
+            mock_gs.return_value.oidc_allow_private_networks = False
+            with pytest.raises(OIDCError, match="OIDC issuer URL must use HTTPS"):
+                await oidc_service.fetch_userinfo(
+                    userinfo_endpoint="http://example.com/userinfo",
+                    access_token="access-token-123",
+                )
 
 
 class TestValidateIdToken:
@@ -681,20 +731,24 @@ class TestValidateIdToken:
 
     def test_rejects_http_jwks_uri(self, oidc_service: OIDCService) -> None:
         """Test that ID token validation rejects HTTP jwks_uri (SSRF, AAP-71276)."""
-        oidc_service._settings = MagicMock(oidc_allow_private_networks=False)
-        with pytest.raises(OIDCError, match="OIDC issuer URL must use HTTPS"):
-            oidc_service.validate_id_token(
-                id_token="mock-token",
-                jwks_uri="http://example.com/jwks",
-                issuer="https://example.com",
-                client_id="client-123",
-                nonce="nonce-456",
-            )
+        with patch("nexus.auth.services.oidc_service.get_settings") as mock_gs:
+            mock_gs.return_value.oidc_allow_private_networks = False
+            with pytest.raises(OIDCError, match="OIDC issuer URL must use HTTPS"):
+                oidc_service.validate_id_token(
+                    id_token="mock-token",
+                    jwks_uri="http://example.com/jwks",
+                    issuer="https://example.com",
+                    client_id="client-123",
+                    nonce="nonce-456",
+                )
 
     def test_rejects_private_ip_jwks_uri(self, oidc_service: OIDCService) -> None:
         """Test that ID token validation rejects jwks_uri resolving to private IPs (SSRF, AAP-71276)."""
-        oidc_service._settings = MagicMock(oidc_allow_private_networks=False)
-        with patch("nexus.auth.services.oidc_service.socket.getaddrinfo") as mock_getaddrinfo:
+        with (
+            patch("nexus.auth.services.oidc_service.get_settings") as mock_gs,
+            patch("nexus.auth.services.oidc_service.socket.getaddrinfo") as mock_getaddrinfo,
+        ):
+            mock_gs.return_value.oidc_allow_private_networks = False
             mock_getaddrinfo.return_value = [(None, None, None, None, ("10.0.0.1", 443))]
             with pytest.raises(OIDCError, match="private or internal network"):
                 oidc_service.validate_id_token(

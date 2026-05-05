@@ -739,7 +739,7 @@ wheels = [
 
 [[package]]
 name = "external-services"
-version = "26.5.4.0"
+version = "26.4.30.0"
 source = { git = "#fa008895dbdfc4883bc4ef90219a44e51feb4321" }
 dependencies = [
     { name = "dnspython" },
@@ -1844,6 +1844,7 @@ dependencies = [
     { name = "alembic" },
     { name = "argon2-cffi" },
     { name = "asyncpg" },
+    { name = "cachetools" },
     { name = "cryptography" },
     { name = "fastapi" },
     { name = "filelock" },
@@ -1899,6 +1900,7 @@ dev = [
     { name = "scikit-learn-stubs" },
     { name = "testcontainers", extra = ["redis"] },
     { name = "types-aiofiles" },
+    { name = "types-cachetools" },
     { name = "types-jsonschema" },
     { name = "types-python-dateutil" },
     { name = "types-pyyaml" },
@@ -1925,6 +1927,7 @@ requires-dist = [
     { name = "argon2-cffi", specifier = ">=25.1.0" },
     { name = "asyncpg", specifier = ">=0.30.0" },
     { name = "azure-identity", marker = "extra == 'dev'", specifier = ">=1.19.0" },
+    { name = "cachetools", specifier = ">=5.0" },
     { name = "cryptography", specifier = ">=42.0.0" },
     { name = "external-services", marker = "extra == 'integration'", git = "" },
     { name = "fastapi", specifier = ">=0.104.0,<0.122" },
@@ -1974,6 +1977,7 @@ requires-dist = [
     { name = "testcontainers", extras = ["postgres", "redis"], marker = "extra == 'dev'", specifier = ">=4.14.0" },
     { name = "tiktoken", specifier = ">=0.5.0" },
     { name = "types-aiofiles", marker = "extra == 'dev'", specifier = ">=24.1.0" },
+    { name = "types-cachetools", marker = "extra == 'dev'", specifier = ">=5.0" },
     { name = "types-jsonschema", marker = "extra == 'dev'", specifier = ">=4.0.0" },
     { name = "types-python-dateutil", marker = "extra == 'dev'", specifier = ">=2.8.0" },
     { name = "types-pyyaml", marker = "extra == 'dev'", specifier = ">=6.0.0" },
@@ -3607,6 +3611,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/84/6c/6d23908a8217e36704aa9c79d99a620f2fdd388b66a4b7f72fbc6b6ff6c6/types_aiofiles-25.1.0.20251011.tar.gz", hash = "sha256:1c2b8ab260cb3cd40c15f9d10efdc05a6e1e6b02899304d80dfa0410e028d3ff", size = 14535, upload-time = "2025-10-11T02:44:51.237Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/71/0f/76917bab27e270bb6c32addd5968d69e558e5b6f7fb4ac4cbfa282996a96/types_aiofiles-25.1.0.20251011-py3-none-any.whl", hash = "sha256:8ff8de7f9d42739d8f0dadcceeb781ce27cd8d8c4152d4a7c52f6b20edb8149c", size = 14338, upload-time = "2025-10-11T02:44:50.054Z" },
+]
+
+[[package]]
+name = "types-cachetools"
+version = "6.2.0.20260408"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ec/61/475b0e8f4a92e5e33affcc6f4e6344c6dee540824021d22f695ea170da63/types_cachetools-6.2.0.20260408.tar.gz", hash = "sha256:0d8ae2dd5ba0b4cfe6a55c34396dd0415f1be07d0033d84781cdc4ed9c2ebc6b", size = 9854, upload-time = "2026-04-08T04:31:49.665Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bb/7d/579f50f4f004ee93c7d1baa95339591cac1fe02f4e3fb8fc0f900ee4a80f/types_cachetools-6.2.0.20260408-py3-none-any.whl", hash = "sha256:470e0b274737feae74beed3d764885bf4664002ecc393fba3778846b13ce92cb", size = 9350, upload-time = "2026-04-08T04:31:48.826Z" },
 ]
 
 [[package]]

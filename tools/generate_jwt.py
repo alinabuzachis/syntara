@@ -26,7 +26,7 @@ Usage:
     # Output as JSON (for scripting)
     uv run tools/generate_jwt.py --json
 
-    # Generate tokens and store refresh token in Redis
+    # Generate tokens and store refresh token in the database
     uv run tools/generate_jwt.py --store-refresh
 
 Examples:
@@ -52,7 +52,7 @@ import structlog
 from sqlmodel import select
 
 from nexus.auth.services.token_service import KeyManager, TokenService
-from nexus.auth.session.session_store import SessionStore
+from nexus.auth.session import create_session_store
 from nexus.core.config.base import get_settings
 from nexus.core.database.session import AsyncSessionLocal
 from nexus.core.models import User
@@ -150,7 +150,7 @@ async def generate_tokens(
     Args:
         user: The user to generate tokens for
         access_only: If True, only generate access token
-        store_refresh: If True, store refresh token in Redis
+        store_refresh: If True, store refresh token in the database
         role_override: If set, use this role instead of the user's actual role
         key_name: If set, sign with this key ("primary" or "backup")
 
@@ -186,13 +186,14 @@ async def generate_tokens(
         result["refresh_token_expires_at"] = expires_at.isoformat()
 
         if store_refresh:
-            # Store refresh token in Redis
-            async with SessionStore() as store:
+            async with AsyncSessionLocal() as db:
+                store = create_session_store(db)
                 await store.create(
                     jti=jti,
                     user_id=user.id,
                     device="generate_jwt.py CLI tool",
                 )
+                await db.commit()
             result["refresh_token_stored"] = True
 
     return result
@@ -218,7 +219,7 @@ def print_tokens(tokens: dict, *, as_json: bool = False) -> None:
             print(f"Refresh Token JTI: {tokens['refresh_token_jti']}")
             print(f"Refresh Token Expires: {tokens['refresh_token_expires_at']}")
             if tokens.get("refresh_token_stored"):
-                print("Refresh Token stored in Redis: Yes")
+                print("Refresh Token stored in DB: Yes")
 
 
 async def main() -> int:

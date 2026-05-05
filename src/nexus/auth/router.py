@@ -20,8 +20,7 @@ from uuid import UUID
 import structlog
 from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import RedirectResponse
-from redis.exceptions import ConnectionError as RedisConnectionError
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -55,7 +54,7 @@ from nexus.auth.schemas import (
 from nexus.auth.services.idp_group_sync import sync_idp_groups
 from nexus.auth.services.oidc_service import OIDCError, OIDCService
 from nexus.auth.services.token_service import TokenPayload
-from nexus.auth.session.session_store import SessionInfo, SessionStore
+from nexus.auth.session import SessionInfo, create_session_store
 from nexus.authz.dependencies import get_opa_client
 from nexus.authz.engine import AuthzRequest, authorize
 from nexus.authz.resolver import AUTHENTICATED_GROUP_NAME
@@ -186,15 +185,9 @@ async def login(
     # Resolve group names for JWT claims (before modifying session state)
     user_group_names = await _get_user_group_names(db, user.id)
 
-    # Fetch current groups version from Redis
-    async with SessionStore() as store:
-        token_version = await store.get_token_version(user.id)
-
-    # Update last_login (commit deferred until after Redis session is created
-    # to avoid updating last_login when the session store is unreachable).
+    # token_version is now a column on the User model — read directly
+    token_version = user.token_version
     is_first_login = user.last_login is None
-    user.update_last_login()
-    db.add(user)
 
     # Create access token
     token_service = _get_token_service()
@@ -209,21 +202,20 @@ async def login(
         token_version=token_version,
     )
 
-    # Create refresh token and store session
+    # Create refresh token and store session in PostgreSQL
     refresh_token_str, jti, _exp = token_service.create_refresh_token(user.id)
 
     try:
-        async with SessionStore() as store:
-            await store.create(
-                jti=jti,
-                user_id=user.id,
-                # Stored for future session management UI (e.g., "list active sessions")
-                device=user_agent,
-                ip_address=client_host,
-                amr=[AMR.PASSWORD],
-                idp="local",
-            )
-    except (OSError, RedisConnectionError, RuntimeError) as exc:
+        store = create_session_store(db)
+        await store.create(
+            jti=jti,
+            user_id=user.id,
+            device=user_agent,
+            ip_address=client_host,
+            amr=[AMR.PASSWORD],
+            idp="local",
+        )
+    except SQLAlchemyError as exc:
         AuditEventDispatcher.dispatch(
             SessionLifecycleEvent(
                 action=SessionAction.CREATE,
@@ -234,10 +226,7 @@ async def login(
                 error_type=type(exc).__name__,
             )
         )
-        # Redis connection or session store errors — roll back last_login
-        # so user state stays consistent (they didn't get a session).
-        logger.exception("Redis connection failed during login", error=str(exc))
-        await db.rollback()
+        logger.exception("Session store failed during login", error=str(exc))
         raise SessionStoreUnavailableError from exc
     AuditEventDispatcher.dispatch(
         SessionLifecycleEvent(
@@ -245,7 +234,8 @@ async def login(
         )
     )
 
-    # Commit last_login only after Redis session is successfully created
+    user.update_last_login()
+    db.add(user)
     await db.commit()
     AuditEventDispatcher.dispatch(
         UserLoginEvent(
@@ -328,81 +318,70 @@ async def refresh_token(
         logger.warning("Failed to decode refresh token", error=str(e))
         raise AuthenticationRequiredError from e
 
-    # Check refresh token in Redis
+    # Check refresh token in session store (single JOIN query for session + token_version)
     try:
-        async with SessionStore() as store:
-            session = await store.get(payload.jti) if payload.jti else None
+        store = create_session_store(db)
+        if not payload.jti:
+            raise RefreshTokenRevokedError
 
-            if session is None:
-                logger.warning("Refresh token not found in session store", jti=payload.jti)
-                raise RefreshTokenRevokedError
+        session_result = await store.get_with_token_version(payload.jti)
+        if session_result is None:
+            logger.warning("Refresh token not found in session store", jti=payload.jti)
+            raise RefreshTokenRevokedError
 
-            # Acceptable race window: the refresh token could be revoked (e.g. via
-            # logout or session revocation) between the session check above and the
-            # access token creation below.  This is acceptable because the resulting
-            # access token has a short lifetime (default 15 minutes) and is stateless,
-            # so it cannot be individually revoked anyway.
+        session, token_version = session_result
 
-            # Load user from database to get current info
-            result = await db.exec(select(User).filter(User.id == payload.sub))  # type: ignore[arg-type]
-            user = result.one_or_none()
+        # Load user from database to get current info
+        result = await db.exec(select(User).filter(User.id == payload.sub))  # type: ignore[arg-type]
+        user = result.one_or_none()
 
-            if not user:
-                logger.warning("User not found for refresh token", user_id=payload.sub)
-                raise AuthenticationRequiredError
+        if not user:
+            logger.warning("User not found for refresh token", user_id=payload.sub)
+            raise AuthenticationRequiredError
 
-            if not user.is_enabled:
-                logger.warning("Inactive user attempted token refresh", user_id=payload.sub)
-                raise AuthenticationRequiredError
+        if not user.is_enabled:
+            logger.warning("Inactive user attempted token refresh", user_id=payload.sub)
+            raise AuthenticationRequiredError
 
-            # Create new access token with fresh claims from the database.
-            # Always use the DB username — the refresh token payload may contain
-            # a stale preferred_username if the user renamed their account.
-            username = user.username
+        username = user.username
+        amr = session.amr or payload.amr or ["pwd"]
+        idp = session.idp or payload.idp or "local"
 
-            # Preserve amr/idp from the session metadata (set during login)
-            amr = session.amr or payload.amr or ["pwd"]
-            idp = session.idp or payload.idp or "local"
+        user_group_names = await _get_user_group_names(db, user.id)
 
-            # Refresh group memberships from DB on token refresh
-            user_group_names = await _get_user_group_names(db, user.id)
+        access_token = token_service.create_access_token(
+            user_id=user.id,
+            username=username,
+            email=user.email,
+            full_name=user.full_name,
+            amr=amr,
+            idp=idp,
+            groups=user_group_names,
+            token_version=token_version,
+        )
 
-            # Fetch current groups version from Redis
-            token_version = await store.get_token_version(user.id)
-
-            access_token = token_service.create_access_token(
+        AuditEventDispatcher.dispatch(
+            SessionLifecycleEvent(
+                action=SessionAction.REFRESH,
                 user_id=user.id,
-                username=username,
-                email=user.email,
-                full_name=user.full_name,
-                amr=amr,
-                idp=idp,
-                groups=user_group_names,
-                token_version=token_version,
-            )
-
-            AuditEventDispatcher.dispatch(
-                SessionLifecycleEvent(
-                    action=SessionAction.REFRESH,
-                    user_id=user.id,
-                    username=user.username,
-                    jti=payload.jti,
-                    idp=idp,
-                )
-            )
-
-            logger.info(
-                "Token refreshed successfully",
-                user_id=str(user.id),
+                username=user.username,
                 jti=payload.jti,
+                idp=idp,
             )
+        )
 
-            return AccessTokenResponse(
-                access_token=access_token,
-                expires_in=settings.jwt_access_token_lifetime_minutes * 60,
-            )
-    except (OSError, RedisConnectionError) as exc:
-        logger.exception("Redis connection failed during refresh", error=str(exc))
+        logger.info(
+            "Token refreshed successfully",
+            user_id=str(user.id),
+            jti=payload.jti,
+        )
+
+        return AccessTokenResponse(
+            access_token=access_token,
+            expires_in=settings.jwt_access_token_lifetime_minutes * 60,
+        )
+    except SQLAlchemyError as exc:
+        logger.exception("Session store failed during refresh", error=str(exc))
         raise SessionStoreUnavailableError from exc
 
 
@@ -448,9 +427,9 @@ async def _resolve_end_session_endpoint(config: OIDCConfiguration) -> str | None
         return None
 
     try:
-        async with OIDCService() as oidc_service:
-            discovery = await oidc_service.fetch_discovery_config(config.issuer_url)
-            return discovery.get("end_session_endpoint")
+        oidc_service = OIDCService()
+        discovery = await oidc_service.fetch_discovery_config(config.issuer_url)
+        return discovery.get("end_session_endpoint")
     except OIDCError:
         logger.warning("Failed to discover end_session_endpoint for RP logout")
         return None
@@ -469,7 +448,7 @@ async def _maybe_rp_logout(
 
     Args:
         db: Database session
-        session_info: Session metadata from Redis (None for local sessions)
+        session_info: Session metadata (None for local sessions)
         post_logout_redirect_uri: Where to redirect after IdP logout
             (caller-provided post_logout_redirect_uri validated against
             CORS origins, or the global setting as fallback)
@@ -550,7 +529,7 @@ async def logout(
 ) -> dict[str, str]:
     """Logout by revoking the refresh token session.
 
-    The refresh token is revoked in Redis and the cookie is cleared.
+    The refresh token is revoked in the session store and the cookie is cleared.
     Always returns JSON. For OIDC sessions with RP-initiated logout
     enabled, the response includes a ``redirect_url`` the frontend
     should navigate to (``window.location.href``). If the IdP's
@@ -604,25 +583,24 @@ async def logout(
     # Get session metadata before revoking (needed for RP-logout)
     session_metadata = None
     try:
-        async with SessionStore() as store:
-            session_metadata = await store.get(payload.jti)
+        store = create_session_store(db)
+        session_metadata = await store.get(payload.jti)
 
-            # Revoke the session in Redis
-            revoked = await store.revoke(payload.jti)
+        revoked = await store.revoke(payload.jti)
 
-            if revoked:
-                logger.info(
-                    "User logged out successfully",
-                    user_id=payload.sub,
-                    jti=payload.jti,
-                )
-            else:
-                logger.info(
-                    "Logout for already-expired session",
-                    user_id=payload.sub,
-                    jti=payload.jti,
-                )
-    except (OSError, RedisConnectionError) as exc:
+        if revoked:
+            logger.info(
+                "User logged out successfully",
+                user_id=payload.sub,
+                jti=payload.jti,
+            )
+        else:
+            logger.info(
+                "Logout for already-expired session",
+                user_id=payload.sub,
+                jti=payload.jti,
+            )
+    except SQLAlchemyError as exc:
         AuditEventDispatcher.dispatch(
             SessionLifecycleEvent(
                 action=SessionAction.REVOKE,
@@ -632,7 +610,7 @@ async def logout(
                 error_type=type(exc).__name__,
             )
         )
-        logger.exception("Redis connection failed during logout", error=str(exc))
+        logger.exception("Session store failed during logout", error=str(exc))
         raise SessionStoreUnavailableError from exc
     AuditEventDispatcher.dispatch(
         SessionLifecycleEvent(
@@ -670,6 +648,7 @@ async def logout(
 async def get_me(
     request: Request,
     payload: Annotated[TokenPayload, Depends(get_token_payload)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> UserInfo:
     """Get current authenticated user information from token claims."""
     rp_logout_enabled = False
@@ -681,10 +660,10 @@ async def get_me(
             token_payload = token_service.decode_token(raw_refresh_token, token_type="refresh")  # noqa: S106
 
             if token_payload.jti:
-                async with SessionStore() as store:
-                    session_metadata = await store.get(token_payload.jti)
-                    if session_metadata:
-                        rp_logout_enabled = session_metadata.rp_logout_enabled
+                store = create_session_store(db)
+                session_metadata = await store.get(token_payload.jti)
+                if session_metadata:
+                    rp_logout_enabled = session_metadata.rp_logout_enabled
         except (InvalidTokenError, RuntimeError, ValueError):
             logger.debug("Could not determine RP-logout status for /auth/me")
 
@@ -801,11 +780,11 @@ async def _verify_idp_test_permission(request: Request, db: AsyncSession) -> Non
 
     # Verify the session hasn't been revoked
     if payload.jti:
-        async with SessionStore() as store:
-            session = await store.get(payload.jti)
-            if session is None:
-                msg = "Session expired or revoked. Please log in again."
-                raise OIDCError(msg)
+        store = create_session_store(db)
+        session = await store.get(payload.jti)
+        if session is None:
+            msg = "Session expired or revoked. Please log in again."
+            raise OIDCError(msg)
 
     # Load the user for authz metadata
     user = await _find_non_deleted_user(db, UUID(str(payload.sub)))
@@ -862,63 +841,54 @@ async def _build_oidc_authorize_redirect(
             msg = "Authentication required to link identity"
             raise OIDCError(msg) from e
         # Verify session is active
-        async with SessionStore() as store:
-            session = await store.get(payload.jti) if payload.jti else None
-            if session is None:
-                msg = "Session expired. Please log in again."
-                raise OIDCError(msg)
+        store = create_session_store(db)
+        session = await store.get(payload.jti) if payload.jti else None
+        if session is None:
+            msg = "Session expired. Please log in again."
+            raise OIDCError(msg)
         flow_type = "link"
         link_user_id = str(payload.sub)
         link_session_jti = payload.jti
 
-    async with OIDCService() as oidc_service:
-        provider = await _load_enabled_provider(db, provider_id)
-        config = provider.configuration
+    oidc_service = OIDCService()
+    provider = await _load_enabled_provider(db, provider_id)
+    config = provider.configuration
 
-        # Get OIDC endpoints (auto-discovery or manual)
-        discovery = await _get_oidc_endpoints(oidc_service, config)
+    discovery = await _get_oidc_endpoints(oidc_service, config)
 
-        # Generate state, nonce, and PKCE (recommended for all clients per OAuth 2.1)
-        state, nonce = oidc_service.generate_state_and_nonce()
-        code_verifier, code_challenge = oidc_service.generate_pkce()
+    nonce = oidc_service.generate_nonce()
+    code_verifier, code_challenge = oidc_service.generate_pkce()
 
-        # Capture the frontend origin from the Referer header (validated against CORS origins)
-        # so the callback can redirect back to the correct frontend.
-        origin = _extract_referer_origin(request)
+    origin = _extract_referer_origin(request)
+    safe_redirect = _safe_redirect_url(redirect_to, origin=origin) if redirect_to else None
 
-        # Validate and store redirect_to (prevents storing malicious URLs in Redis)
-        safe_redirect = _safe_redirect_url(redirect_to, origin=origin) if redirect_to else None
+    # Encode OIDC flow state as a signed JWT (no server-side storage)
+    state = oidc_service.store_oidc_state(
+        provider_id=provider.id,
+        nonce=nonce,
+        code_verifier=code_verifier,
+        redirect_to=safe_redirect,
+        origin=origin,
+        flow_type=flow_type,
+        user_id=link_user_id,
+        session_jti=link_session_jti,
+    )
 
-        # Store state in Redis (including where to redirect after login)
-        await oidc_service.store_oidc_state(
-            state=state,
-            provider_id=provider.id,
-            nonce=nonce,
-            code_verifier=code_verifier,
-            redirect_to=safe_redirect,
-            origin=origin,
-            flow_type=flow_type,
-            user_id=link_user_id,
-            session_jti=link_session_jti,
-        )
+    redirect_uri = config.redirect_uri
 
-        # Use the redirect_uri configured on the provider
-        redirect_uri = config.redirect_uri
+    auth_url = oidc_service.build_authorization_url(
+        authorization_endpoint=discovery["authorization_endpoint"],
+        client_id=config.client_id,
+        redirect_uri=redirect_uri,
+        scopes=config.scopes,
+        state=state,
+        nonce=nonce,
+        code_challenge=code_challenge,
+    )
 
-        # Build authorization URL
-        auth_url = oidc_service.build_authorization_url(
-            authorization_endpoint=discovery["authorization_endpoint"],
-            client_id=config.client_id,
-            redirect_uri=redirect_uri,
-            scopes=config.scopes,
-            state=state,
-            nonce=nonce,
-            code_challenge=code_challenge,
-        )
+    logger.info("Redirecting to OIDC provider", provider_id=str(provider_id), provider_name=provider.name)
 
-        logger.info("Redirecting to OIDC provider", provider_id=str(provider_id), provider_name=provider.name)
-
-        return RedirectResponse(url=auth_url, status_code=302)
+    return RedirectResponse(url=auth_url, status_code=302)
 
 
 async def _get_oidc_endpoints(
@@ -1400,22 +1370,22 @@ async def _build_login_session_redirect(
         encrypted_id_token = encryptor.encrypt_field(id_token_raw, "session", "id_token_hint")
 
     try:
-        async with SessionStore() as store:
-            await store.create(
-                jti=jti,
-                user_id=user.id,
-                device=user_agent,
-                ip_address=client_host,
-                amr=[AMR.FEDERATED],
-                idp=provider.name,
-                idp_id=str(provider.id),
-                identity_id=str(identity.id),
-                issuer=identity.issuer,
-                subject=identity.subject,
-                id_token_hint=encrypted_id_token,
-                rp_logout_enabled=rp_logout_enabled,
-            )
-    except (OSError, RedisConnectionError) as exc:
+        store = create_session_store(db)
+        await store.create(
+            jti=jti,
+            user_id=user.id,
+            device=user_agent,
+            ip_address=client_host,
+            amr=[AMR.FEDERATED],
+            idp=provider.name,
+            idp_id=str(provider.id),
+            identity_id=str(identity.id),
+            issuer=identity.issuer,
+            subject=identity.subject,
+            id_token_hint=encrypted_id_token,
+            rp_logout_enabled=rp_logout_enabled,
+        )
+    except SQLAlchemyError as exc:
         AuditEventDispatcher.dispatch(
             SessionLifecycleEvent(
                 action=SessionAction.CREATE,
@@ -1429,7 +1399,7 @@ async def _build_login_session_redirect(
         AuditEventDispatcher.dispatch(
             LoginAttemptEvent(username=user.username, method=LoginMethod.OIDC, error_type=type(exc).__name__)
         )
-        logger.exception("Redis connection failed during OIDC callback", error=str(exc))
+        logger.exception("Session store failed during OIDC callback", error=str(exc))
         await db.rollback()
         raise SessionStoreUnavailableError from exc
     AuditEventDispatcher.dispatch(
@@ -1438,7 +1408,8 @@ async def _build_login_session_redirect(
         )
     )
 
-    # Commit last_login only after Redis session is successfully created
+    user.update_last_login()
+    db.add(user)
     await db.commit()
 
     stored_origin = _revalidate_origin(state_data.get("origin"))
@@ -1577,47 +1548,45 @@ async def _process_oidc_callback(
         logger.warning("OIDC callback missing authorization code")
         raise _OIDCCallbackError(_OIDC_ERR_MISSING_CODE)
 
-    async with OIDCService() as oidc_service:
-        state_data = await oidc_service.retrieve_oidc_state(state)
-        if state_data is None:
-            logger.warning("OIDC callback with invalid or expired state")
-            raise _OIDCCallbackError(_OIDC_ERR_STATE_EXPIRED)
+    oidc_service = OIDCService()
+    state_data = oidc_service.retrieve_oidc_state(state)
+    if state_data is None:
+        logger.warning("OIDC callback with invalid or expired state")
+        raise _OIDCCallbackError(_OIDC_ERR_STATE_EXPIRED)
 
-        # Origin captured from the Referer during /oidc/authorize — used for redirect fallback.
-        # Re-validate against current CORS settings (AAP-71277).
-        origin = _revalidate_origin(state_data.get("origin"))
+    origin = _revalidate_origin(state_data.get("origin"))
 
-        try:
-            provider = await _load_enabled_provider(db, state_data["provider_id"])
-        except OIDCError as e:
-            raise _OIDCCallbackError(_OIDC_ERR_PROVIDER_UNAVAILABLE, origin=origin) from e
+    try:
+        provider = await _load_enabled_provider(db, state_data["provider_id"])
+    except OIDCError as e:
+        raise _OIDCCallbackError(_OIDC_ERR_PROVIDER_UNAVAILABLE, origin=origin) from e
 
-        config = await _load_provider_config(db, provider)
+    config = await _load_provider_config(db, provider)
 
-        try:
-            discovery = await _get_oidc_endpoints(oidc_service, config)
-        except OIDCError as e:
-            logger.exception("OIDC endpoint resolution failed during callback")
-            raise _OIDCCallbackError(_OIDC_ERR_DISCOVERY_FAILED, origin=origin) from e
+    try:
+        discovery = await _get_oidc_endpoints(oidc_service, config)
+    except OIDCError as e:
+        logger.exception("OIDC endpoint resolution failed during callback")
+        raise _OIDCCallbackError(_OIDC_ERR_DISCOVERY_FAILED, origin=origin) from e
 
-        redirect_uri = config.redirect_uri
+    redirect_uri = config.redirect_uri
 
-        try:
-            user_claims, raw_merged_claims, id_token_raw = await _exchange_and_validate_tokens(
-                oidc_service,
-                discovery,
-                config,
-                redirect_uri,
-                code,
-                state_data["code_verifier"],
-                state_data["nonce"],
-            )
-        except OIDCError as e:
-            logger.warning("OIDC token exchange/validation failed", error=str(e), provider=provider.name)
-            raise _OIDCCallbackError(_OIDC_ERR_AUTH_FAILED, origin=origin) from e
-        except Exception as e:
-            logger.exception("Unexpected error during OIDC token exchange", provider=provider.name)
-            raise _OIDCCallbackError(_OIDC_ERR_AUTH_FAILED, origin=origin) from e
+    try:
+        user_claims, raw_merged_claims, id_token_raw = await _exchange_and_validate_tokens(
+            oidc_service,
+            discovery,
+            config,
+            redirect_uri,
+            code,
+            state_data["code_verifier"],
+            state_data["nonce"],
+        )
+    except OIDCError as e:
+        logger.warning("OIDC token exchange/validation failed", error=str(e), provider=provider.name)
+        raise _OIDCCallbackError(_OIDC_ERR_AUTH_FAILED, origin=origin) from e
+    except Exception as e:
+        logger.exception("Unexpected error during OIDC token exchange", provider=provider.name)
+        raise _OIDCCallbackError(_OIDC_ERR_AUTH_FAILED, origin=origin) from e
 
     # Handle test-signin flow — return raw claims to frontend, no session created
     if state_data.get("flow_type") == "test_signin":
@@ -1677,8 +1646,6 @@ async def _resolve_and_login_user(
                 raise _OIDCCallbackError(_OIDC_ERR_NO_GROUP_MATCH, origin=origin)
 
     is_first_login = user.last_login is None
-    user.update_last_login()
-    db.add(user)
     return (user, identity, is_first_login)
 
 
@@ -1702,23 +1669,23 @@ async def _process_link_callback(
         raise _OIDCCallbackError(msg, origin=origin, redirect_to=link_redirect) from e
 
 
-async def _verify_link_session(session_jti: str | None, user_id_str: str) -> None:
+async def _verify_link_session(db: AsyncSession, session_jti: str | None, user_id_str: str) -> None:
     """Re-verify the session that initiated the link flow is still active and owned by the user."""
     if not session_jti:
         return
-    async with SessionStore() as store:
-        session = await store.get(session_jti)
-        if session is None:
-            msg = "Session expired. Please log in again."
-            raise OIDCError(msg)
-        if session.user_id != user_id_str:
-            logger.warning(
-                "Link flow session user mismatch",
-                session_user_id=session.user_id,
-                state_user_id=user_id_str,
-            )
-            msg = "Session does not match. Please log in again."
-            raise OIDCError(msg)
+    store = create_session_store(db)
+    session = await store.get(session_jti)
+    if session is None:
+        msg = "Session expired. Please log in again."
+        raise OIDCError(msg)
+    if session.user_id != user_id_str:
+        logger.warning(
+            "Link flow session user mismatch",
+            session_user_id=session.user_id,
+            state_user_id=user_id_str,
+        )
+        msg = "Session does not match. Please log in again."
+        raise OIDCError(msg)
 
 
 async def _handle_link_flow(
@@ -1735,7 +1702,7 @@ async def _handle_link_flow(
 
     user_id = UUID(user_id_str)
 
-    await _verify_link_session(state_data.get("session_jti"), user_id_str)
+    await _verify_link_session(db, state_data.get("session_jti"), user_id_str)
 
     user = await _load_active_user(db, user_id)
 

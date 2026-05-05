@@ -52,6 +52,7 @@ dependencies = [
     "prometheus-client>=0.19.0",
     "PyJWT[crypto]>=2.8.0",
     "argon2-cffi>=25.1.0",
+    "cachetools>=5.0",
     "cryptography>=42.0.0",
     "jmespath>=1.0.0",
 ]
@@ -67,6 +68,7 @@ dev = [
     "httpx>=0.25.0",  # for testing FastAPI
     "respx>=0.20.0",  # for mocking httpx requests
     "websockets>=12.0",  # for WebSocket client testing
+    "types-cachetools>=5.0",
     "types-pyyaml>=6.0.12",  # type stubs for PyYAML
     "types-aiofiles>=24.1.0",  # type stubs for aiofiles
     "ruamel.yaml>=0.17.40",

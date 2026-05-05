@@ -20,6 +20,7 @@ from sqlmodel import SQLModel
 from nexus.agent_orchestrator.models.invocation import Invocation
 from nexus.agent_orchestrator.token_manager.models import TokenUsageRecord, UserTokenConfig
 from nexus.approvals.models.approval_request import ApprovalRequest
+from nexus.auth.session.models import RefreshSession
 from nexus.authz.models import (
     Policy,
     Project,
@@ -81,6 +82,7 @@ _ = (
     Role,
     Policy,
     RoleAssignment,
+    RefreshSession,
 )
 
 # this is the Alembic Config object, which provides

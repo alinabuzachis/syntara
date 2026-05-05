@@ -5,7 +5,7 @@ dependencies, and infrastructure for the Nexus platform.
 
 Submodules:
     - services: Token creation, validation, and key management
-    - session: Redis-based refresh token storage
+    - session: PostgreSQL-based refresh token storage
     - exceptions: Authentication-specific exceptions
     - dependencies: FastAPI dependency injection functions
 """

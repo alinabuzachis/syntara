@@ -408,7 +408,7 @@ class TokenService:
 
     This service handles ES256 JWT creation and validation for both
     access tokens (short-lived, stateless) and refresh tokens (longer-lived,
-    tracked in Redis).
+    tracked in PostgreSQL).
     """
 
     def __init__(self, key_manager: KeyManager | None = None) -> None:

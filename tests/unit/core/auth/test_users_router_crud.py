@@ -99,10 +99,13 @@ class TestUpdateUserEndpoint:
         updated_user = _make_user(full_name="Updated")
         service = AsyncMock()
         service.update_user = AsyncMock(return_value=updated_user)
+        db = AsyncMock()
+
+        mock_store = AsyncMock()
 
         request = UserUpdate(full_name="Updated")
-        with patch("nexus.users.users_router.SessionStore"):
-            result = await update_user(updated_user.id, request, service)
+        with patch("nexus.users.users_router.create_session_store", return_value=mock_store):
+            result = await update_user(updated_user.id, request, service, db)
 
         assert result.full_name == "Updated"
         service.update_user.assert_called_once()
@@ -112,16 +115,14 @@ class TestUpdateUserEndpoint:
         user = _make_user()
         service = AsyncMock()
         service.update_user = AsyncMock(return_value=user)
+        db = AsyncMock()
 
         mock_store = AsyncMock()
-        mock_store_cls = MagicMock()
-        mock_store_cls.return_value.__aenter__ = AsyncMock(return_value=mock_store)
-        mock_store_cls.return_value.__aexit__ = AsyncMock(return_value=None)
 
         request = UserUpdate(password=SecretStr("newpassword"))
 
-        with patch("nexus.users.users_router.SessionStore", mock_store_cls):
-            await update_user(user.id, request, service)
+        with patch("nexus.users.users_router.create_session_store", return_value=mock_store):
+            await update_user(user.id, request, service, db)
 
         mock_store.revoke_all_for_user.assert_called_once_with(user.id)
 
@@ -134,8 +135,10 @@ class TestDeleteUserEndpoint:
     async def test_calls_delete(self) -> None:
         user_id = uuid4()
         service = AsyncMock()
+        db = AsyncMock()
+        mock_store = AsyncMock()
 
-        with patch("nexus.users.users_router.SessionStore"):
-            await delete_user(user_id, service)
+        with patch("nexus.users.users_router.create_session_store", return_value=mock_store):
+            await delete_user(user_id, service, db)
 
         service.delete_user.assert_called_once_with(user_id)

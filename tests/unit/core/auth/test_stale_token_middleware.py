@@ -2,9 +2,9 @@
 
 Tests cover:
 - Pass-through when no Authorization header is present
-- X-Token-Stale header set when token_ver < Redis version
-- No X-Token-Stale header when token_ver >= Redis version
-- Graceful handling of Redis or decode errors
+- X-Token-Stale header set when token_ver < DB version
+- No X-Token-Stale header when token_ver >= DB version
+- Graceful handling of DB or decode errors
 """
 
 from datetime import UTC, datetime
@@ -17,7 +17,7 @@ from starlette.routing import Route
 from starlette.testclient import TestClient
 
 from nexus.auth.exceptions import InvalidTokenError
-from nexus.auth.middleware import StaleTokenMiddleware
+from nexus.auth.middleware import StaleTokenMiddleware, _token_version_cache
 from nexus.auth.services.token_service import TokenPayload
 
 
@@ -55,34 +55,53 @@ def _mock_token_service(payload: TokenPayload | None = None, error: Exception | 
     return mock
 
 
+def _mock_async_session(token_version: int | None = None, error: Exception | None = None) -> AsyncMock:
+    """Create a mock AsyncSessionLocal context manager that returns a mock session."""
+    mock_session = AsyncMock()
+    if error:
+        mock_session.execute.side_effect = error
+    else:
+        mock_result = MagicMock()
+        if token_version is not None:
+            mock_result.one_or_none.return_value = (token_version,)
+        else:
+            mock_result.one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+
+    # Build the async context manager
+    mock_ctx = AsyncMock()
+    mock_ctx.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_ctx.__aexit__ = AsyncMock(return_value=False)
+    return mock_ctx
+
+
 class TestStaleTokenMiddleware:
     """Tests for StaleTokenMiddleware."""
+
+    def setup_method(self) -> None:
+        """Clear the TTL cache between tests."""
+        _token_version_cache.clear()
 
     def test_no_auth_header_passes_through(self) -> None:
         """When no Authorization header is present, response passes through unchanged."""
         app = _build_app()
 
-        with patch("nexus.auth.middleware.SessionStore"):
-            client = TestClient(app)
-            response = client.get("/")
+        client = TestClient(app)
+        response = client.get("/")
 
         assert response.status_code == 200
         assert "X-Token-Stale" not in response.headers
 
     def test_stale_header_set_when_token_outdated(self) -> None:
-        """When token token_ver < Redis version, X-Token-Stale header is set."""
+        """When token token_ver < DB version, X-Token-Stale header is set."""
         app = _build_app()
         payload = _make_payload(sub="user-123", token_version=1)
 
-        mock_store = AsyncMock()
-        mock_store.get_token_version = AsyncMock(return_value=5)
-        mock_store.__aenter__ = AsyncMock(return_value=mock_store)
-        mock_store.__aexit__ = AsyncMock(return_value=False)
-
         mock_ts = _mock_token_service(payload=payload)
+        mock_ctx = _mock_async_session(token_version=5)
 
         with (
-            patch("nexus.auth.middleware.SessionStore", return_value=mock_store),
+            patch("nexus.auth.middleware.AsyncSessionLocal", return_value=mock_ctx),
             patch("nexus.auth.middleware.TokenService", return_value=mock_ts),
         ):
             client = TestClient(app)
@@ -92,19 +111,15 @@ class TestStaleTokenMiddleware:
         assert response.headers.get("X-Token-Stale") == "true"
 
     def test_no_stale_header_when_token_current(self) -> None:
-        """When token token_ver >= Redis version, no X-Token-Stale header."""
+        """When token token_ver >= DB version, no X-Token-Stale header."""
         app = _build_app()
         payload = _make_payload(sub="user-123", token_version=5)
 
-        mock_store = AsyncMock()
-        mock_store.get_token_version = AsyncMock(return_value=5)
-        mock_store.__aenter__ = AsyncMock(return_value=mock_store)
-        mock_store.__aexit__ = AsyncMock(return_value=False)
-
         mock_ts = _mock_token_service(payload=payload)
+        mock_ctx = _mock_async_session(token_version=5)
 
         with (
-            patch("nexus.auth.middleware.SessionStore", return_value=mock_store),
+            patch("nexus.auth.middleware.AsyncSessionLocal", return_value=mock_ctx),
             patch("nexus.auth.middleware.TokenService", return_value=mock_ts),
         ):
             client = TestClient(app)
@@ -114,19 +129,15 @@ class TestStaleTokenMiddleware:
         assert "X-Token-Stale" not in response.headers
 
     def test_no_stale_header_when_token_ahead(self) -> None:
-        """When token token_ver > Redis version, no X-Token-Stale header."""
+        """When token token_ver > DB version, no X-Token-Stale header."""
         app = _build_app()
         payload = _make_payload(sub="user-123", token_version=10)
 
-        mock_store = AsyncMock()
-        mock_store.get_token_version = AsyncMock(return_value=3)
-        mock_store.__aenter__ = AsyncMock(return_value=mock_store)
-        mock_store.__aexit__ = AsyncMock(return_value=False)
-
         mock_ts = _mock_token_service(payload=payload)
+        mock_ctx = _mock_async_session(token_version=3)
 
         with (
-            patch("nexus.auth.middleware.SessionStore", return_value=mock_store),
+            patch("nexus.auth.middleware.AsyncSessionLocal", return_value=mock_ctx),
             patch("nexus.auth.middleware.TokenService", return_value=mock_ts),
         ):
             client = TestClient(app)
@@ -135,20 +146,16 @@ class TestStaleTokenMiddleware:
         assert response.status_code == 200
         assert "X-Token-Stale" not in response.headers
 
-    def test_redis_error_passes_through(self) -> None:
-        """When Redis connection fails, response passes through without error."""
+    def test_db_error_passes_through(self) -> None:
+        """When DB connection fails, response passes through without error."""
         app = _build_app()
         payload = _make_payload(sub="user-123", token_version=0)
 
-        mock_store = AsyncMock()
-        mock_store.get_token_version = AsyncMock(side_effect=OSError("connection refused"))
-        mock_store.__aenter__ = AsyncMock(return_value=mock_store)
-        mock_store.__aexit__ = AsyncMock(return_value=False)
-
         mock_ts = _mock_token_service(payload=payload)
+        mock_ctx = _mock_async_session(error=OSError("connection refused"))
 
         with (
-            patch("nexus.auth.middleware.SessionStore", return_value=mock_store),
+            patch("nexus.auth.middleware.AsyncSessionLocal", return_value=mock_ctx),
             patch("nexus.auth.middleware.TokenService", return_value=mock_ts),
         ):
             client = TestClient(app)
@@ -164,7 +171,6 @@ class TestStaleTokenMiddleware:
         mock_ts = _mock_token_service(error=InvalidTokenError())
 
         with (
-            patch("nexus.auth.middleware.SessionStore"),
             patch("nexus.auth.middleware.TokenService", return_value=mock_ts),
         ):
             client = TestClient(app)

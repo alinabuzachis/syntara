@@ -20,7 +20,7 @@ class AuthError(NexusError):
 
 @fastapi_exception(handler="nexus.auth.error_handlers.session_store_unavailable_handler")
 class SessionStoreUnavailableError(AuthError):
-    """Raised when the session store (Redis) is unreachable (503 Service Unavailable)."""
+    """Raised when the session store is unreachable (503 Service Unavailable)."""
 
     def __init__(self, message: str = "Session service is temporarily unavailable") -> None:
         """Initialize the exception.
@@ -101,7 +101,7 @@ class RefreshTokenRevokedError(AuthError):
     """Raised when a refresh token has been revoked.
 
     This exception is raised when:
-    - Refresh token JTI is not found in Redis (already revoked or expired)
+    - Refresh token JTI is not found in session store (already revoked or expired)
     - Rotated refresh token is used after grace period
     """
 

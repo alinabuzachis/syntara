@@ -8,7 +8,7 @@ from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth.exceptions import LastSignInMethodError, UserIdentityNotFoundError, UserNotFoundError
-from nexus.auth.session import SessionStore
+from nexus.auth.session import create_session_store
 from nexus.core.models import User, UserIdentity
 from nexus.core.models.user_identity_schemas import UserIdentityListResponse, UserIdentityRead
 from nexus.identity_providers.models.identity_provider import IdentityProvider
@@ -136,14 +136,14 @@ class UserIdentityService:
 
         # Revoke ALL sessions for user before deleting identity
         user_id = identity.user_id
-        async with SessionStore() as store:
-            revoked_count = await store.revoke_all_for_user(user_id)
-            logger.info(
-                "Revoked sessions for user during identity deletion",
-                user_id=str(user_id),
-                identity_id=str(identity_id),
-                revoked_count=revoked_count,
-            )
+        store = create_session_store(self.session)
+        revoked_count = await store.revoke_all_for_user(user_id)
+        logger.info(
+            "Revoked sessions for user during identity deletion",
+            user_id=str(user_id),
+            identity_id=str(identity_id),
+            revoked_count=revoked_count,
+        )
 
         await self.session.delete(identity)
         await self.session.flush()
@@ -192,14 +192,14 @@ class UserIdentityService:
         source_user_id = identity.user_id
 
         # Revoke ALL sessions for source user before moving identity
-        async with SessionStore() as store:
-            revoked_count = await store.revoke_all_for_user(source_user_id)
-            logger.info(
-                "Revoked sessions for source user during identity attach",
-                source_user_id=str(source_user_id),
-                identity_id=str(identity_id),
-                revoked_count=revoked_count,
-            )
+        store = create_session_store(self.session)
+        revoked_count = await store.revoke_all_for_user(source_user_id)
+        logger.info(
+            "Revoked sessions for source user during identity attach",
+            source_user_id=str(source_user_id),
+            identity_id=str(identity_id),
+            revoked_count=revoked_count,
+        )
 
         # Move identity to target user
         identity.user_id = target_user_id

@@ -126,11 +126,10 @@ async def test_delete_provider_invalidates_affected_user_tokens() -> None:
     mock_service = AsyncMock()
     mock_service.delete_provider = AsyncMock()
 
-    with patch("nexus.identity_providers.router.SessionStore") as mock_store_cls:
+    with patch("nexus.identity_providers.router.create_session_store") as mock_store_cls:
         mock_store = AsyncMock()
         mock_store.increment_token_version = AsyncMock()
-        mock_store_cls.return_value.__aenter__ = AsyncMock(return_value=mock_store)
-        mock_store_cls.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_store_cls.return_value = mock_store
 
         await delete_identity_provider(provider_id, mock_service, mock_db)
 
@@ -153,12 +152,12 @@ async def test_delete_provider_no_affected_users_skips_token_invalidation() -> N
     mock_service = AsyncMock()
     mock_service.delete_provider = AsyncMock()
 
-    with patch("nexus.identity_providers.router.SessionStore") as mock_store_cls:
+    with patch("nexus.identity_providers.router.create_session_store") as mock_store_cls:
         await delete_identity_provider(provider_id, mock_service, mock_db)
 
     mock_service.delete_provider.assert_called_once_with(provider_id)
-    # SessionStore should not be used when there are no affected users
-    mock_store_cls.return_value.__aenter__.assert_not_called()
+    # SessionStore should not be instantiated when there are no affected users
+    mock_store_cls.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -188,11 +187,10 @@ async def test_delete_provider_queries_affected_users_before_delete() -> None:
 
     mock_db.exec = AsyncMock(side_effect=track_exec)
 
-    with patch("nexus.identity_providers.router.SessionStore") as mock_store_cls:
+    with patch("nexus.identity_providers.router.create_session_store") as mock_store_cls:
         mock_store = AsyncMock()
         mock_store.increment_token_version = AsyncMock()
-        mock_store_cls.return_value.__aenter__ = AsyncMock(return_value=mock_store)
-        mock_store_cls.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_store_cls.return_value = mock_store
 
         await delete_identity_provider(provider_id, mock_service, mock_db)
 

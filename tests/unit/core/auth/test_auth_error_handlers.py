@@ -199,5 +199,5 @@ class TestNewExceptions:
         assert exc.message == "Session service is temporarily unavailable"
 
     def test_session_store_unavailable_error_custom_message(self) -> None:
-        exc = SessionStoreUnavailableError("Redis is down")
-        assert exc.message == "Redis is down"
+        exc = SessionStoreUnavailableError("Database connection failed")
+        assert exc.message == "Database connection failed"

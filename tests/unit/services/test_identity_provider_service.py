@@ -361,11 +361,10 @@ async def test_delete_provider_success() -> None:
 
     service = _make_service(mock_session, secret_service=mock_secret)
 
-    with patch("nexus.identity_providers.services.identity_provider_service.SessionStore") as mock_store_cls:
+    with patch("nexus.identity_providers.services.identity_provider_service.create_session_store") as mock_store_cls:
         mock_store = AsyncMock()
         mock_store.revoke_by_idp = AsyncMock(return_value=0)
-        mock_store_cls.return_value.__aenter__ = AsyncMock(return_value=mock_store)
-        mock_store_cls.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_store_cls.return_value = mock_store
 
         await service.delete_provider(provider.id)
 
@@ -421,11 +420,10 @@ async def test_delete_provider_revokes_sessions_and_deletes_identities() -> None
 
     service = _make_service(mock_session, secret_service=mock_secret)
 
-    with patch("nexus.identity_providers.services.identity_provider_service.SessionStore") as mock_store_cls:
+    with patch("nexus.identity_providers.services.identity_provider_service.create_session_store") as mock_store_cls:
         mock_store = AsyncMock()
         mock_store.revoke_by_idp = AsyncMock(return_value=5)
-        mock_store_cls.return_value.__aenter__ = AsyncMock(return_value=mock_store)
-        mock_store_cls.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_store_cls.return_value = mock_store
 
         await service.delete_provider(provider.id)
 

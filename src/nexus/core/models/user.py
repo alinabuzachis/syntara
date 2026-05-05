@@ -126,6 +126,11 @@ class User(SoftDeletableResource, table=True):
         description="User metadata for authorization conditions",
     )
 
+    token_version: int = Field(
+        default=0,
+        sa_column_kwargs={"server_default": text("0")},
+    )
+
     # Table arguments for partial unique constraints
     __table_args__ = (
         # Partial unique index for username (only for non-deleted users)

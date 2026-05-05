@@ -23,13 +23,13 @@ Both methods produce the same JWT access/refresh token pair. Passwords are hashe
 ### Refresh (`POST /api/v1/auth/refresh`)
 
 1. The refresh token is read automatically from the `ao_refresh_token` cookie.
-2. The server validates the token signature and checks that the session exists in Redis.
-3. A new access token is issued with fresh claims from the database — including current group memberships and the latest `token_ver` from Redis. The `amr` and `idp` values are preserved from the session metadata (set during login).
+2. The server validates the token signature and checks that the session exists in PostgreSQL (a single JOIN query fetches the session and `token_version` together).
+3. A new access token is issued with fresh claims from the database — including current group memberships and the latest `token_version` from the users table. The `amr` and `idp` values are preserved from the session metadata (set during login).
 4. The refresh token itself is **not rotated** — this is intentional. The fixed expiration acts as a hard session boundary, forcing re-authentication with the identity provider so that group memberships are refreshed on a predictable cadence.
 
 ### Logout (`POST /api/v1/auth/logout`)
 
-1. The refresh token session is revoked in Redis.
+1. The refresh token session is soft-revoked in PostgreSQL (`revoked_at` is set).
 2. The `ao_refresh_token` cookie is cleared.
 3. The access token remains valid until it naturally expires (stateless JWT — no server-side revocation).
 4. If the session was authenticated via an OIDC provider with RP-initiated logout enabled, the response includes a `redirect_url` the frontend should navigate to (`window.location.href`) to terminate the upstream IdP session.
@@ -50,7 +50,7 @@ When `enable_rp_initiated_logout` is set to `true` on an OIDC provider's configu
 
 **How it works:**
 
-1. During OIDC login, the ID token is encrypted (AES-256-GCM via `APP_SECRET_ENCRYPTION_KEY`) and stored in the Redis session as `id_token_hint`.
+1. During OIDC login, the ID token is encrypted (AES-256-GCM via `APP_SECRET_ENCRYPTION_KEY`) and stored in the session as `id_token_hint`.
 2. On logout, the backend resolves the IdP's `end_session_endpoint` — first from the provider's static configuration, falling back to OIDC discovery (`.well-known/openid-configuration`).
 3. The backend builds a logout URL with `id_token_hint` (decrypted) and `post_logout_redirect_uri` parameters.
 4. The logout JSON response includes `redirect_url` — the frontend navigates to this URL to complete the IdP logout.
@@ -71,36 +71,43 @@ Returns the authenticated user's information from the access token claims (no da
 | Default lifetime | 15 minutes | 8 hours |
 | Transport | `Authorization: Bearer <token>` | `ao_refresh_token` HttpOnly cookie |
 | Contains | `sub`, `iss`, `iat`, `exp`, `name`, `preferred_username`, `email`, `role`, `groups`, `token_ver`, `amr`, `idp` | `sub`, `iss`, `iat`, `exp`, `jti` |
-| Server-side state | None (stateless) | Session stored in Redis (keyed by `jti`) |
+| Server-side state | None (stateless) | Session stored in PostgreSQL `refresh_sessions` table (keyed by `jti`) |
 
 ## Session Storage
 
-Refresh token sessions are stored in Redis with the key pattern `refresh_token:<jti>`. Each session records:
+Refresh token sessions are stored in the PostgreSQL `refresh_sessions` table, keyed by `jti` (JWT ID). Each session records:
 
-- `user_id` — UUID of the authenticated user
+- `user_id` — UUID of the authenticated user (FK to `users.id` with CASCADE)
 - `issued_at` — when the session was created
+- `expires_at` — when the session expires
+- `revoked_at` — soft-revocation timestamp (NULL = active, set on revoke)
 - `device` — User-Agent string
 - `ip_address` — client IP
 - `amr` — authentication method references (e.g., `["pwd"]` for local, `["fed"]` for OIDC)
 - `idp` — identity provider name (e.g., `"local"`, `"Azure"`)
-- `identity_id` — UserIdentity UUID for federated sessions (None for local password sessions)
+- `idp_id` — identity provider UUID for indexed bulk revocation
+- `identity_id` — UserIdentity UUID for indexed bulk revocation
 - `issuer` — OIDC issuer URL for federated sessions
 - `subject` — OIDC subject claim for federated sessions
 - `id_token_hint` — encrypted ID token for RP-initiated logout (only stored when `enable_rp_initiated_logout` is enabled on the provider)
 
-Sessions are automatically expired by Redis TTL matching the refresh token lifetime.
+Expired sessions are physically deleted by an hourly background cleanup worker (batched in groups of 1000 to avoid long-running transactions).
 
-### Secondary Indexes
+### Database Indexes
 
-Two secondary Redis set indexes are maintained for efficient bulk revocation:
+Partial indexes (`WHERE revoked_at IS NULL`) keep index size small and lookups fast:
 
-1. **`idp_sessions:<provider_id>`** — Tracks all sessions authenticated via a specific identity provider (by provider UUID). Enables O(m) revocation when a provider is deleted instead of scanning all session keys.
+1. **`ix_refresh_sessions_user_id`** — for `revoke_all_for_user` and `list_user_sessions`. Enables O(1) bulk revocation via indexed UPDATE.
 
-2. **`identity_sessions:<identity_id>`** — Tracks all sessions created with a specific UserIdentity (by identity UUID). Enables O(m) revocation when an identity is moved to another user or deleted.
+2. **`ix_refresh_sessions_idp_id`** — for bulk revocation when a provider is deleted. Enables O(m) revocation.
+
+3. **`ix_refresh_sessions_identity_id`** — for bulk revocation when an identity is moved or deleted. Enables O(m) revocation.
+
+4. **`ix_refresh_sessions_expires_at`** — for the cleanup worker to efficiently find expired sessions.
 
 ### Session Revocation
 
-Sessions are explicitly revoked (all refresh tokens deleted from Redis) when:
+Sessions are soft-revoked (`revoked_at` is set) when:
 
 | Event | Scope | Method |
 |-------|-------|--------|
@@ -108,26 +115,25 @@ Sessions are explicitly revoked (all refresh tokens deleted from Redis) when:
 | **Account disabled** | All sessions for user | User's `is_enabled` is set to `false` via `PATCH /users/{id}` |
 | **Account deletion** | All sessions for user | User is soft-deleted via `DELETE /users/{id}` |
 | **Logout** | Single session | User logs out via `POST /auth/logout` (revokes current session only) |
-| **Provider deletion** | All sessions for provider | Identity provider is deleted — uses `idp_sessions:<provider_id>` index |
+| **Provider deletion** | All sessions for provider | Identity provider is deleted — uses `ix_refresh_sessions_idp_id` index |
 | **Identity re-association** | All sessions for source user | Identity moved to different user via `POST /auth/users/{user_id}/identities` |
 | **Identity deletion** | All sessions for user | Identity detached via `DELETE /auth/users/{user_id}/identities/{identity_id}` |
 
 Stateless access tokens cannot be individually revoked and remain valid until they expire (default 15 minutes). A token blocklist or generation counter would be needed to close this window completely.
 
-### Redis Availability
+### Storage Dependencies
 
-Redis is a **hard dependency** for the session layer, not an optional cache. If Redis is unavailable:
+Authentication uses **PostgreSQL only** for session storage. Redis is not required for any auth operation. OIDC flow state is encrypted (AES-256-GCM) and encoded in the OAuth2 `state` parameter (no server-side storage required).
 
-| Flow | Impact |
-|------|--------|
-| **Login** | Fails — session cannot be created (database changes are rolled back) |
-| **Token refresh** | Fails — session cannot be validated → 401 |
-| **Logout** | Fails — session cannot be revoked (cookie is still cleared) |
-| **OIDC authorize** | Fails — state/nonce/PKCE cannot be stored |
-| **OIDC callback** | Fails — state cannot be retrieved |
-| **Access token validation** | **Unaffected** — stateless JWT verified locally |
-
-Existing access tokens continue to work until they expire (default 15 minutes), but no new sessions can be created, refreshed, or revoked. This is by design — sessions should fail explicitly rather than silently degrade.
+| Flow | Storage | Notes |
+|------|---------|-------|
+| **Login** | PostgreSQL (`refresh_sessions` table) | Session INSERT in same transaction as `last_login` update |
+| **Token refresh** | PostgreSQL (JOIN query) | Single query fetches session + `token_version` |
+| **Logout** | PostgreSQL | Soft-revoke via `UPDATE SET revoked_at` |
+| **OIDC authorize** | None (encrypted state) | State encrypted and encoded in the OAuth2 `state` parameter |
+| **OIDC callback** | None (encrypted state) | State decrypted from the `state` parameter |
+| **Access token validation** | None | Stateless JWT verified locally |
+| **Stale token check** | In-process cache + PostgreSQL | `cachetools.TTLCache` (5s) for `token_version` lookups |
 
 ### Token Version (Stale Token Detection)
 
@@ -135,13 +141,13 @@ When an admin changes a user's account (group memberships, profile, role, etc.),
 
 #### Mechanism
 
-Each user has a `token_version` counter in Redis (key: `user_token_version:<user_id>`). The counter is included in the access token as the `token_ver` claim.
+Each user has a `token_version` column on the `users` table. The counter is included in the access token as the `token_ver` claim.
 
 ```
 Admin changes user's account (groups, profile, etc.)
-  -> Redis: INCR user_token_version:<user_id>
+  -> SQL: UPDATE users SET token_version = token_version + 1 WHERE id = :uid
   -> User's next API request:
-       StaleTokenMiddleware compares token's token_ver vs Redis version
+       StaleTokenMiddleware compares token's token_ver vs DB version (5s TTLCache)
        Token is stale → response includes X-Token-Stale: true header
   -> Frontend detects header → triggers background POST /auth/refresh
   -> New access token has updated claims + current token_ver
@@ -160,9 +166,9 @@ Admin changes user's account (groups, profile, etc.)
 
 #### Backend components
 
-- **`SessionStore.increment_token_version(user_id)`** — called after any admin action that changes a user's account. Uses Redis `INCR` with TTL matching the refresh token lifetime.
-- **`SessionStore.get_token_version(user_id)`** — called during login and refresh to embed the current version in the new access token's `token_ver` claim. Returns `0` if no key exists (no changes have occurred).
-- **`StaleTokenMiddleware`** — Starlette middleware registered in `main.py`. On every authenticated request, it decodes `sub` and `token_ver` from the token (lightweight, no signature verification — the auth dependency already validated it), fetches the Redis version, and sets `X-Token-Stale: true` if the token is outdated. Errors are swallowed to avoid blocking requests.
+- **`SessionStore.increment_token_version(user_id)`** — called after any admin action that changes a user's account. Uses `UPDATE users SET token_version = token_version + 1 ... RETURNING token_version`. Also invalidates the middleware's in-process TTLCache entry for the user.
+- **`SessionStore.get_with_token_version(jti)`** — called during refresh. A single JOIN query fetches the session and the user's `token_version` together, which is embedded in the new access token's `token_ver` claim. During login, `token_version` is read directly from the already-loaded `User` object (zero additional queries).
+- **`StaleTokenMiddleware`** — Starlette middleware registered in `main.py`. On every authenticated request, it decodes `sub` and `token_ver` from the token (lightweight, no signature verification — the auth dependency already validated it), checks the version via an in-process `cachetools.TTLCache` (5-second TTL, max 4096 entries), and sets `X-Token-Stale: true` if the token is outdated. Cache misses query PostgreSQL directly. Errors are swallowed to avoid blocking requests.
 - **CORS `expose_headers`** — `X-Token-Stale` is added to the CORS `expose_headers` list so the browser allows the frontend to read it.
 
 #### Frontend handling
@@ -201,7 +207,7 @@ clear_key_manager_cache()
 clear_token_service_cache()
 ```
 
-These can be wired to a signal handler, an admin endpoint, or a Redis pub/sub listener depending on operational requirements. The simplest production approach is a rolling restart.
+These can be wired to a signal handler or an admin endpoint depending on operational requirements. The simplest production approach is a rolling restart.
 
 ### Emergency Key Compromise
 
@@ -319,7 +325,7 @@ Identity management is also available in the UI under each user's "Identities" t
 ```
 User clicks "Log in with Azure"
   -> Frontend redirects to: GET /api/v1/auth/oidc/authorize?provider_id=X
-  -> Backend generates auth URL with state/nonce/PKCE, stores in Redis
+  -> Backend generates auth URL with state/nonce/PKCE encrypted in the OAuth2 state parameter
   -> Backend 302 redirects to provider's authorization endpoint
   -> User authenticates at the provider
   -> Provider redirects to: GET /api/v1/auth/oidc/callback?code=X&state=Y
@@ -589,7 +595,7 @@ Authenticated users can link additional OIDC identities to their account from th
 User clicks "Connect" on an unlinked provider
   -> Browser navigates to: GET /api/v1/auth/oidc/authorize?provider_id=X&flow=link&redirect_to=...
   -> Backend verifies the user's session via ao_refresh_token cookie
-  -> Backend stores flow_type="link" and user_id in Redis state
+  -> Backend encodes flow_type="link" and user_id in encrypted state parameter
   -> OIDC flow proceeds normally (redirect to provider, callback)
   -> On callback, backend creates a UserIdentity for the authenticated user
   -> No new session is created (user is already logged in)
@@ -614,7 +620,7 @@ Access tokens for OIDC-authenticated users include:
 - `idp` = provider name (e.g., `"Azure"`, `"Okta"`)
 - `role` = user's role from the database
 
-These values are preserved across token refreshes via session metadata stored in Redis.
+These values are preserved across token refreshes via session metadata stored in the `refresh_sessions` table.
 
 ### Test Connection
 

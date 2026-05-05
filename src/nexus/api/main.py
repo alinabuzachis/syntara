@@ -30,6 +30,7 @@ from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.middleware import AuditMiddleware
 from nexus.audit.services.writer import init_audit_writer
 from nexus.auth.middleware import StaleTokenMiddleware
+from nexus.auth.session.cleanup import get_session_cleanup_worker
 from nexus.authz.exceptions import (  # noqa: F401
     BuiltinProtectionError,
     PolicyNameConflictError,
@@ -194,6 +195,9 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
     metrics_cleanup_worker = get_metrics_cleanup_worker()
     metrics_cleanup_worker.start()
 
+    session_cleanup_worker = get_session_cleanup_worker()
+    session_cleanup_worker.start()
+
     # Initialize audit event database persistence
     audit_writer = init_audit_writer(session_factory=AuditSessionLocal)
     app.state.audit_writer = audit_writer
@@ -209,6 +213,7 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
         "periodic_collector": periodic_collector,
         "completion_poller": completion_poller,
         "metrics_cleanup_worker": metrics_cleanup_worker,
+        "session_cleanup_worker": session_cleanup_worker,
         "runtime_settings": runtime_settings,
     }
 
@@ -219,6 +224,7 @@ async def _lifespan_shutdown(resources: dict[str, Any]) -> None:
     await resources["audit_writer"].drain()
     logger.info("Audit event writer drained")
 
+    await resources["session_cleanup_worker"].stop()
     await resources["metrics_cleanup_worker"].stop()
     await resources["completion_poller"].stop()
 

@@ -8,7 +8,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth import get_current_user
 from nexus.auth.exceptions import UserNotLocalError
-from nexus.auth.session.session_store import SessionStore
+from nexus.auth.session import create_session_store
 from nexus.authz.dependencies import PermissionChecker
 from nexus.authz.models.assignments import PrincipalType, RoleAssignment
 from nexus.authz.role_assignment_router import (
@@ -151,6 +151,7 @@ async def update_user(
     user_id: UUID,
     request: UserUpdate,
     service: Annotated[UsersService, Depends(get_user_service)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> UserRead:
     """Update a user.
 
@@ -169,19 +170,18 @@ async def update_user(
 
     # When a user's password is changed or their account is deactivated,
     # revoke all their existing refresh token sessions.  This is a hard
-    # requirement — if Redis is unavailable, the request fails so that
-    # compromised sessions cannot persist.
+    # requirement — if the session store is unavailable, the request fails
+    # so that compromised sessions cannot persist.
     # Note: stateless access tokens remain valid until expiry (default 15
     # minutes) since they cannot be individually revoked.  A token blocklist
     # or generation counter would be needed to close this window completely.
+    store = create_session_store(db)
     if password is not None or request.is_enabled is False:
-        async with SessionStore() as store:
-            await store.revoke_all_for_user(user_id)
+        await store.revoke_all_for_user(user_id)
 
     # Signal that the user's token claims are stale so the frontend
     # triggers a background refresh on the next API response.
-    async with SessionStore() as store:
-        await store.increment_token_version(user_id)
+    await store.increment_token_version(user_id)
 
     return UserRead.model_validate(user)
 
@@ -196,16 +196,16 @@ async def update_user(
 async def delete_user(
     user_id: UUID,
     service: Annotated[UsersService, Depends(get_user_service)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> None:
     """Soft delete a user."""
     await service.delete_user(user_id)
-    async with SessionStore() as store:
-        await store.revoke_all_for_user(user_id)
+    store = create_session_store(db)
+    await store.revoke_all_for_user(user_id)
 
     # Signal stale token so the deleted user's next request triggers a
     # refresh attempt, which will fail with 401 (user not found).
-    async with SessionStore() as store:
-        await store.increment_token_version(user_id)
+    await store.increment_token_version(user_id)
 
 
 @router.get(
@@ -248,8 +248,8 @@ async def set_user_groups(
     if user.password_hash is None:
         raise UserNotLocalError(user_id)
     result = await service.set_user_groups(user_id, request.group_ids)
-    async with SessionStore() as store:
-        await store.increment_token_version(user_id)
+    store = create_session_store(db)
+    await store.increment_token_version(user_id)
     return result
 
 

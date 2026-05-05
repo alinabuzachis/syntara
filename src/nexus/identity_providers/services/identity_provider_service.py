@@ -14,7 +14,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
 from nexus.auth.exceptions import GroupNotFoundError
-from nexus.auth.session.session_store import SessionStore
+from nexus.auth.session import create_session_store
 from nexus.core.models import User, UserIdentity
 from nexus.core.models.group import Group, user_groups, user_idp_groups
 from nexus.core.services import BaseService
@@ -389,10 +389,10 @@ class IdentityProviderService(BaseService, SecretConsumerMixin):
             )
 
         # Revoke all sessions authenticated via this provider (indexed by ID)
-        async with SessionStore() as store:
-            revoked = await store.revoke_by_idp(str(provider_id))
-            if revoked > 0:
-                logger.info("Revoked sessions for deleted provider", provider=provider.name, count=revoked)
+        store = create_session_store(self.session)
+        revoked = await store.revoke_by_idp(str(provider_id))
+        if revoked > 0:
+            logger.info("Revoked sessions for deleted provider", provider=provider.name, count=revoked)
 
         # Delete encrypted secrets — null FK first to avoid constraint violation
         secret_id = provider.secret_id

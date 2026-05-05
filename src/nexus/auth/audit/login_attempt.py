@@ -44,7 +44,7 @@ class LoginAttemptEvent:
     The error_type field can be:
     - None: Success (no error)
     - LoginErrorReason: Business/classified error (e.g., BAD_PASSWORD, UNKNOWN_USER)
-    - str: Technical exception class name (e.g., "RedisConnectionError")
+    - str: Technical exception class name (e.g., "SQLAlchemyError")
     """
 
     username: str | None

@@ -9,7 +9,7 @@ from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth import get_current_user
-from nexus.auth.session.session_store import SessionStore
+from nexus.auth.session import create_session_store
 from nexus.authz.dependencies import PermissionChecker
 from nexus.core.database.session import get_db
 from nexus.core.models import User, UserIdentity
@@ -159,6 +159,6 @@ async def delete_identity_provider(
 
     # Invalidate tokens for all affected users so they get logged out
     if affected_user_ids:
-        async with SessionStore() as store:
-            for user_id in affected_user_ids:
-                await store.increment_token_version(user_id)
+        store = create_session_store(db)
+        for user_id in affected_user_ids:
+            await store.increment_token_version(user_id)

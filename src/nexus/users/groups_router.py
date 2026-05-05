@@ -8,7 +8,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth import get_current_user
 from nexus.auth.exceptions import UserNotLocalError
-from nexus.auth.session.session_store import SessionStore
+from nexus.auth.session import create_session_store
 from nexus.authz.dependencies import PermissionChecker
 from nexus.authz.models.assignments import PrincipalType, RoleAssignment
 from nexus.authz.role_assignment_router import (
@@ -201,8 +201,8 @@ async def add_member(
     user = await get_user(db, request.user_id)
     _ensure_local_user(user)
     await service.add_member(group_id, request.user_id)
-    async with SessionStore() as store:
-        await store.increment_token_version(request.user_id)
+    store = create_session_store(db)
+    await store.increment_token_version(request.user_id)
     return GroupMemberAddResponse()
 
 
@@ -223,8 +223,8 @@ async def remove_member(
     user = await get_user(db, user_id)
     _ensure_local_user(user)
     await service.remove_member(group_id, user_id)
-    async with SessionStore() as store:
-        await store.increment_token_version(user_id)
+    store = create_session_store(db)
+    await store.increment_token_version(user_id)
 
 
 @router.get(
