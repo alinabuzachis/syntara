@@ -39,7 +39,9 @@ class TestMCPProviderIntegration:
         assert validate_response.status_code == 200, f"Provider validation failed: {validate_response.text}"
 
         validation_result = validate_response.json()
-        assert validation_result["valid"] is True, f"Provider validation failed: {validation_result.get('error')}"
+        assert validation_result["valid"] is True, (
+            f"Provider validation failed: {validation_result.get('error')} (timeout={validation_result.get('timeout')})"
+        )
 
         # Verify provider status changed to available
         get_provider_response = await jwt_client.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")
@@ -134,7 +136,7 @@ class TestMCPProviderIntegration:
         # This means we also need to lazy-import our ExampleMCPServer to avoid it being loaded early.
         from tests.fixtures.example_mcp_server import ExampleMCPServer
 
-        test_server = ExampleMCPServer(host="localhost", port=8765)
+        test_server = ExampleMCPServer()
 
         async with test_server.running():
             provider_data = {
@@ -229,7 +231,7 @@ class TestMCPProviderIntegration:
 
         from tests.fixtures.example_mcp_server import ExampleMCPServer
 
-        test_server = ExampleMCPServer(host="localhost", port=8765, auth=StaticTokenVerifier(tokens={"an-api-key": {}}))
+        test_server = ExampleMCPServer(auth=StaticTokenVerifier(tokens={"an-api-key": {}}))
 
         async with test_server.running():
             # Step 1: Create provider with unauthorised user
@@ -293,7 +295,7 @@ class TestMCPProviderIntegration:
         # This means we also need to lazy-import our ExampleMCPServer to avoid it being loaded early.
         from tests.fixtures.example_mcp_server import ForbiddenMCPServer
 
-        test_server = ForbiddenMCPServer(host="localhost", port=8766)
+        test_server = ForbiddenMCPServer()
 
         async with test_server.running():
             # Step 1: Create provider with forbidden user
@@ -352,7 +354,7 @@ class TestMCPProviderIntegration:
 
         from tests.fixtures.example_mcp_server import ExampleMCPServer
 
-        test_server = ExampleMCPServer(host="localhost", port=8768)
+        test_server = ExampleMCPServer()
 
         async with test_server.running():
             # Step 1: Create provider with working server
@@ -424,7 +426,7 @@ class TestMCPProviderIntegration:
         # This means we also need to lazy-import our ExampleMCPServer to avoid it being loaded early.
         from tests.fixtures.example_mcp_server import ExampleMCPServer
 
-        test_server = ExampleMCPServer(host="localhost", port=8766)
+        test_server = ExampleMCPServer()
 
         async with test_server.running():
             # Step 1: Create MCP provider
@@ -449,7 +451,7 @@ class TestMCPProviderIntegration:
             assert validate_response.status_code == 200
 
             validation_result = validate_response.json()
-            assert validation_result["valid"] is True
+            assert validation_result["valid"] is True, f"Validation failed: {validation_result.get('error')}"
 
             # Step 3: Refresh tools to discover and persist them
             refresh_response = await jwt_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/refresh_tools")
@@ -498,7 +500,7 @@ class TestMCPProviderIntegration:
         # This means we also need to lazy-import our ExampleMCPServer to avoid it being loaded early.
         from tests.fixtures.example_mcp_server import ExampleMCPServer
 
-        test_server = ExampleMCPServer(host="localhost", port=8767)
+        test_server = ExampleMCPServer()
 
         async with test_server.running():
             # Step 1: Create MCP provider to test factory integration
@@ -523,7 +525,7 @@ class TestMCPProviderIntegration:
             assert validate_response.status_code == 200
 
             validation_result = validate_response.json()
-            assert validation_result["valid"] is True
+            assert validation_result["valid"] is True, f"Validation failed: {validation_result.get('error')}"
 
             # Step 3: Verify provider status is now available
             get_provider_response = await jwt_client.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")

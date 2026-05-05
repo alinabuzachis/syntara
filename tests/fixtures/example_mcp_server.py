@@ -29,19 +29,19 @@ class ForbiddenMiddleware(BaseHTTPMiddleware):
 class BaseServer(ABC):
     """Test server using FastMCP for integration testing."""
 
-    def __init__(self, host: str = "localhost", port: int = 8765, auth: AuthProvider | None = None) -> None:
+    def __init__(self, host: str = "localhost", port: int = 0, auth: AuthProvider | None = None) -> None:
         """Initialize test MCP server.
 
         Args:
             host: Host to bind server to
-            port: Port to bind server to
+            port: Port to bind server to (0 = OS-assigned free port)
             auth: Authentication provider for the server
 
         """
         self.host = host
         self.port = port
-        self.server_url = f"http://{host}:{port}"
-        self.base_url = f"http://{host}:{port}/mcp"  # MCP endpoint path
+        self.server_url = ""  # Set after server starts
+        self.base_url = ""  # Set after server starts
         self.mcp_app = FastMCP("Example MCP Server", auth=auth)
         self._server: uvicorn.Server | None = None
         self._server_task: asyncio.Task[None] | None = None
@@ -70,10 +70,35 @@ class BaseServer(ABC):
         self._server = uvicorn.Server(config)
         self._server_task = asyncio.create_task(self._server.serve())
 
-        # Wait for server to be ready with health check
+        # Wait for uvicorn to bind the socket so we know the actual port
+        await self._wait_for_socket_bound()
+
+        # Resolve actual port (important when port=0 for OS-assigned ports)
+        actual_port = self._server.servers[0].sockets[0].getsockname()[1]
+        self.port = actual_port
+        self.server_url = f"http://{self.host}:{actual_port}"
+        self.base_url = f"http://{self.host}:{actual_port}/mcp"
+
+        # Wait for ASGI app to be fully ready
         await self._wait_for_server_ready()
 
         logger.info("Test MCP server started at %s, MCP endpoint at %s", self.server_url, self.base_url)
+
+    async def _wait_for_socket_bound(self, *, max_timeout: float = 10.0) -> None:
+        """Wait for uvicorn to bind the server socket.
+
+        Args:
+            max_timeout: Maximum time to wait for socket binding
+
+        """
+        start_time = asyncio.get_event_loop().time()
+        while (asyncio.get_event_loop().time() - start_time) < max_timeout:
+            if self._server and self._server.started:
+                return
+            await asyncio.sleep(0.05)
+
+        msg = f"Server socket did not bind within {max_timeout}s"
+        raise TimeoutError(msg)
 
     async def _wait_for_server_ready(self, *, max_timeout: float = 10.0) -> None:
         """Wait for server to be ready by attempting HTTP requests.
@@ -136,12 +161,12 @@ class BaseServer(ABC):
 class ExampleMCPServer(BaseServer):
     """Test MCP server using FastMCP for integration testing."""
 
-    def __init__(self, host: str = "localhost", port: int = 8765, auth: AuthProvider | None = None) -> None:
+    def __init__(self, host: str = "localhost", port: int = 0, auth: AuthProvider | None = None) -> None:
         """Initialize test MCP server.
 
         Args:
             host: Host to bind server to
-            port: Port to bind server to
+            port: Port to bind server to (0 = OS-assigned free port)
             auth: Authentication provider for the server
 
         """
@@ -230,12 +255,12 @@ class ExampleMCPServer(BaseServer):
 class ForbiddenMCPServer(BaseServer):
     """Test MCP server using FastMCP for integration testing that rejects all requests."""
 
-    def __init__(self, host: str = "localhost", port: int = 8765, auth: AuthProvider | None = None) -> None:
+    def __init__(self, host: str = "localhost", port: int = 0, auth: AuthProvider | None = None) -> None:
         """Initialize test MCP server.
 
         Args:
             host: Host to bind server to
-            port: Port to bind server to
+            port: Port to bind server to (0 = OS-assigned free port)
             auth: Authentication provider for the server
 
         """
