@@ -13,10 +13,10 @@ from nexus.audit.context_managers import actor_context, audit_context
 from nexus.audit.decorators import audit
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.emitter import (
-    AuditActorContext,
     activity_id_context_var,
     actor_context_var,
     execution_id_context_var,
+    request_id_context_var,
     workflow_id_context_var,
 )
 from nexus.audit.events.audit_context import AuditContextEvent, AuditContextHandler
@@ -73,10 +73,56 @@ class TestActorContext:
         assert activity_id_context_var.get() is None
         assert execution_id_context_var.get() is None
 
+    async def test_actor_context_sets_and_resets_request_id(self) -> None:
+        """Test that actor_context sets and resets request_id context variable."""
+        test_request_id = uuid4()
+
+        with actor_context(request_id=test_request_id):
+            assert request_id_context_var.get() == test_request_id
+
+        assert request_id_context_var.get() is None
+
+    async def test_actor_context_system_actor_with_all_context(self) -> None:
+        """Test actor_context with no user (SYSTEM) and full context IDs.
+
+        This mirrors the Temporal worker use case where workflow metadata
+        provides execution context but there is no human actor.
+        """
+        test_workflow_id = uuid4()
+        test_execution_id = uuid4()
+        test_request_id = uuid4()
+        test_activity_id = "run_script"
+
+        with actor_context(
+            workflow_id=test_workflow_id,
+            execution_id=test_execution_id,
+            request_id=test_request_id,
+            activity_id=test_activity_id,
+        ):
+            _actor_context = actor_context_var.get()
+            assert _actor_context is not None
+            assert _actor_context.actor_id is None
+            assert _actor_context.actor_username is None
+            assert _actor_context.actor_type == ActorType.SYSTEM
+            assert workflow_id_context_var.get() == test_workflow_id
+            assert execution_id_context_var.get() == test_execution_id
+            assert request_id_context_var.get() == test_request_id
+            assert activity_id_context_var.get() == test_activity_id
+
+        assert actor_context_var.get() is None
+        assert workflow_id_context_var.get() is None
+        assert execution_id_context_var.get() is None
+        assert request_id_context_var.get() is None
+        assert activity_id_context_var.get() is None
+
     async def test_actor_context_with_defaults(self) -> None:
         """Test actor_context with default values (actor=None means SYSTEM)."""
         with actor_context():
-            assert actor_context_var.get() == AuditActorContext()
+            ctx = actor_context_var.get()
+            assert ctx is not None
+            assert ctx.actor_id is None
+            assert ctx.actor_username is None
+            assert ctx.actor_type == ActorType.SYSTEM
             assert workflow_id_context_var.get() is None
             assert activity_id_context_var.get() is None
             assert execution_id_context_var.get() is None
@@ -101,6 +147,20 @@ class TestActorContext:
 
         # Assert - context should be reset even after exception
         assert actor_context_var.get() == original_actor_context
+
+    async def test_actor_context_resets_request_id_on_exception(self) -> None:
+        """Test that request_id is reset even when an exception occurs."""
+        test_request_id = uuid4()
+        error_msg = "boom"
+
+        with (
+            pytest.raises(RuntimeError, match="boom"),
+            actor_context(request_id=test_request_id),
+        ):
+            assert request_id_context_var.get() == test_request_id
+            raise RuntimeError(error_msg)
+
+        assert request_id_context_var.get() is None
 
     async def test_actor_context_nested_contexts(
         self, test_user: User, user_factory: Callable[..., Awaitable["User"]]

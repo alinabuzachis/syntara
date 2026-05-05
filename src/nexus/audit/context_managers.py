@@ -11,6 +11,7 @@ from nexus.audit.emitter import (
     activity_id_context_var,
     actor_context_var,
     execution_id_context_var,
+    request_id_context_var,
     workflow_id_context_var,
 )
 from nexus.audit.events.audit_context import AuditContextEvent
@@ -22,6 +23,27 @@ from nexus.core.models.user import User
 _RESERVED_AUDIT_FIELDS = frozenset(AuditContextData.model_fields.keys())
 
 
+def _build_actor_context(actor: User | None) -> AuditActorContext:
+    """Build an AuditActorContext from a User or fall back to SYSTEM.
+
+    When *actor* is a ``User``, fields are extracted atomically to guarantee
+    integrity (prevents mismatched id/username pairs).  When *actor* is
+    ``None``, the actor type is set to ``ActorType.SYSTEM`` with no actor
+    identity.
+    """
+    if actor is not None:
+        return AuditActorContext(
+            actor_id=actor.id,
+            actor_username=actor.username,
+            actor_type=ActorType.USER,
+        )
+    return AuditActorContext(
+        actor_id=None,
+        actor_username=None,
+        actor_type=ActorType.SYSTEM,
+    )
+
+
 @contextmanager
 def actor_context(
     *,
@@ -29,6 +51,7 @@ def actor_context(
     workflow_id: UUID | None = None,
     activity_id: str | None = None,
     execution_id: UUID | None = None,
+    request_id: UUID | None = None,
 ) -> Generator[None, None, None]:
     """Context manager to inject actor context for audit events.
 
@@ -36,30 +59,28 @@ def actor_context(
     Extracts actor_id, actor_type, and actor_name atomically from the User object
     to guarantee integrity (prevents mismatched id/username pairs).
 
+    This context manager supports both HTTP and non-HTTP contexts (e.g. Temporal
+    workers, background tasks). When ``actor`` is ``None``, events are attributed
+    to ``ActorType.SYSTEM``.
+
     Args:
         actor: User object to extract actor information from. If None, events
             will have actor_id=None, actor_type=SYSTEM, actor_name=None.
         workflow_id: Optional workflow identifier for workflow-scoped events
         activity_id: Optional workflow activity identifier for workflow-scoped events
         execution_id: Optional execution identifier for execution tracing
+        request_id: Optional X-Request-Id (UUID) from the originating HTTP request,
+            propagated through non-HTTP contexts (e.g. Temporal workflow metadata)
 
     """
-    # Extract actor fields atomically from User object to ensure integrity
-    actor_id = actor.id if actor is not None else None
-    actor_username = actor.username if actor is not None else None
-    actor_type = ActorType.USER if actor is not None else ActorType.SYSTEM
-
-    _actor_context = AuditActorContext(
-        actor_id=actor_id,
-        actor_username=actor_username,
-        actor_type=actor_type,
-    )
+    _actor_context = _build_actor_context(actor)
 
     # Set new context using context variables for async-safe operations
     token_actor = actor_context_var.set(_actor_context)
     token_workflow_id = workflow_id_context_var.set(workflow_id)
     token_activity_id = activity_id_context_var.set(activity_id)
     token_execution_id = execution_id_context_var.set(execution_id)
+    token_request_id = request_id_context_var.set(request_id)
 
     try:
         yield
@@ -69,6 +90,7 @@ def actor_context(
         workflow_id_context_var.reset(token_workflow_id)
         activity_id_context_var.reset(token_activity_id)
         execution_id_context_var.reset(token_execution_id)
+        request_id_context_var.reset(token_request_id)
 
 
 @contextmanager
@@ -106,16 +128,7 @@ def audit_context(
         msg = f"Reserved audit field names cannot be passed as context_data: {overlap}"
         raise ValueError(msg)
 
-    # Extract actor fields atomically from User object to ensure integrity
-    actor_id = actor.id if actor is not None else None
-    actor_username = actor.username if actor is not None else None
-    actor_type = ActorType.USER if actor is not None else ActorType.SYSTEM
-
-    _actor_context = AuditActorContext(
-        actor_id=actor_id,
-        actor_username=actor_username,
-        actor_type=actor_type,
-    )
+    _actor_context = _build_actor_context(actor)
 
     # Set actor context for this audit operation
     token_actor = actor_context_var.set(_actor_context)

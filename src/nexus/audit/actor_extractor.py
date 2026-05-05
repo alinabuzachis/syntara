@@ -106,7 +106,7 @@ def extract_actor(
         return AuditActorContext(
             actor_id=actor_context.actor_id,
             actor_username=actor_context.actor_username,
-            actor_type=ActorType.USER,
+            actor_type=actor_context.actor_type,
         )
 
     # Strategy 2: FastAPI dependency injection
