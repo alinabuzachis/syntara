@@ -1,7 +1,7 @@
 import { FormGroup, TextInput } from '@patternfly/react-core'
 import { Controller, type Control } from 'react-hook-form'
 
-import { FieldErrorMessage, FieldHelpIcon } from './formFieldHelpers'
+import { FieldErrorMessage, FieldHelpPopover } from './formFieldHelpers'
 import { type IdentityProviderFormData } from './identityProviderFormSchema'
 
 export function ManualEndpointFields({ control }: Readonly<{ control: Control<IdentityProviderFormData> }>) {
@@ -15,7 +15,9 @@ export function ManualEndpointFields({ control }: Readonly<{ control: Control<Id
             label="Authorization endpoint"
             fieldId="authorization-endpoint"
             isRequired
-            labelHelp={FieldHelpIcon('URL where users are redirected to authenticate with the identity provider.')}
+            labelHelp={
+              <FieldHelpPopover helpText="URL where users are redirected to authenticate with the identity provider." />
+            }
           >
             <TextInput
               id="authorization-endpoint"
@@ -35,7 +37,7 @@ export function ManualEndpointFields({ control }: Readonly<{ control: Control<Id
             label="Token endpoint"
             fieldId="token-endpoint"
             isRequired
-            labelHelp={FieldHelpIcon('URL where authorization codes are exchanged for tokens.')}
+            labelHelp={<FieldHelpPopover helpText="URL where authorization codes are exchanged for tokens." />}
           >
             <TextInput
               id="token-endpoint"
@@ -55,7 +57,7 @@ export function ManualEndpointFields({ control }: Readonly<{ control: Control<Id
             label="JWKS URI"
             fieldId="jwks-uri"
             isRequired
-            labelHelp={FieldHelpIcon('URL to fetch public keys for token signature verification.')}
+            labelHelp={<FieldHelpPopover helpText="URL to fetch public keys for token signature verification." />}
           >
             <TextInput
               id="jwks-uri"
@@ -74,7 +76,7 @@ export function ManualEndpointFields({ control }: Readonly<{ control: Control<Id
           <FormGroup
             label="Userinfo endpoint"
             fieldId="userinfo-endpoint"
-            labelHelp={FieldHelpIcon('URL to fetch additional user claims (optional).')}
+            labelHelp={<FieldHelpPopover helpText="URL to fetch additional user claims (optional)." />}
           >
             <TextInput
               id="userinfo-endpoint"
@@ -93,7 +95,9 @@ export function ManualEndpointFields({ control }: Readonly<{ control: Control<Id
           <FormGroup
             label="End session endpoint"
             fieldId="end-session-endpoint"
-            labelHelp={FieldHelpIcon('URL for single logout — users are redirected here on sign-out (optional).')}
+            labelHelp={
+              <FieldHelpPopover helpText="URL for single logout — users are redirected here on sign-out (optional)." />
+            }
           >
             <TextInput
               id="end-session-endpoint"

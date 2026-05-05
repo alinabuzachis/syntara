@@ -1,5 +1,6 @@
-import { Button, FormHelperText, HelperText, HelperTextItem, Popover } from '@patternfly/react-core'
-import { OutlinedQuestionCircleIcon, RhUiErrorIcon } from '@patternfly/react-icons'
+import { FormGroupLabelHelp, FormHelperText, HelperText, HelperTextItem, Popover } from '@patternfly/react-core'
+import { RhUiErrorIcon } from '@patternfly/react-icons'
+import { useRef } from 'react'
 import type { FieldError } from 'react-hook-form'
 
 export function FieldErrorMessage({ error }: Readonly<{ error?: FieldError }>) {
@@ -15,12 +16,16 @@ export function FieldErrorMessage({ error }: Readonly<{ error?: FieldError }>) {
   )
 }
 
-export function FieldHelpIcon(helpText: string) {
+export type FieldHelpPopoverProps = Readonly<{
+  helpText: string
+}>
+
+/** Label help for FormGroup: PatternFly FormGroupLabelHelp + Popover with shared ref (PF-recommended). */
+export function FieldHelpPopover({ helpText }: FieldHelpPopoverProps) {
+  const triggerRef = useRef<HTMLSpanElement>(null)
   return (
-    <Popover bodyContent={helpText}>
-      <Button variant="plain" aria-label="More info" onClick={(e) => e.preventDefault()}>
-        <OutlinedQuestionCircleIcon />
-      </Button>
+    <Popover triggerRef={triggerRef} bodyContent={helpText} aria-label="Field help">
+      <FormGroupLabelHelp ref={triggerRef} aria-label="More info" />
     </Popover>
   )
 }

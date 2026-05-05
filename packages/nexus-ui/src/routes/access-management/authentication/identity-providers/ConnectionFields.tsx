@@ -1,7 +1,7 @@
 import { FormGroup, FormHelperText, HelperText, HelperTextItem, Switch, TextInput } from '@patternfly/react-core'
 import { Controller, type Control } from 'react-hook-form'
 
-import { FieldErrorMessage, FieldHelpIcon, HintOrError } from './formFieldHelpers'
+import { FieldErrorMessage, FieldHelpPopover, HintOrError } from './formFieldHelpers'
 import { type IdentityProviderFormData } from './identityProviderFormSchema'
 import { ManualEndpointFields } from './ManualEndpointFields'
 
@@ -20,9 +20,9 @@ export function ConnectionFields({
             label="Issuer URL"
             fieldId="issuer-url"
             isRequired
-            labelHelp={FieldHelpIcon(
-              'The base URL of your OpenID Connect provider. Used to discover endpoints automatically.'
-            )}
+            labelHelp={
+              <FieldHelpPopover helpText="The base URL of your OpenID Connect provider. Used to discover endpoints automatically." />
+            }
           >
             <TextInput
               id="issuer-url"
@@ -69,7 +69,9 @@ export function ConnectionFields({
             label="Client ID"
             fieldId="client-id"
             isRequired
-            labelHelp={FieldHelpIcon('The OAuth 2.0 client identifier registered with your identity provider.')}
+            labelHelp={
+              <FieldHelpPopover helpText="The OAuth 2.0 client identifier registered with your identity provider." />
+            }
           >
             <TextInput
               id="client-id"
@@ -90,7 +92,9 @@ export function ConnectionFields({
             label="Client secret"
             fieldId="client-secret"
             isRequired={!isEdit}
-            labelHelp={FieldHelpIcon('The OAuth 2.0 client secret used to authenticate with the identity provider.')}
+            labelHelp={
+              <FieldHelpPopover helpText="The OAuth 2.0 client secret used to authenticate with the identity provider." />
+            }
           >
             <TextInput
               id="client-secret"

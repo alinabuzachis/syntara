@@ -31,7 +31,7 @@ import { detachPromise } from '../../../../utils/detachPromise'
 
 import { UserClaimMappingFields } from './ClaimMappingFields'
 import { ConnectionFields } from './ConnectionFields'
-import { FieldErrorMessage, FieldHelpIcon, HintOrError } from './formFieldHelpers'
+import { FieldErrorMessage, FieldHelpPopover, HintOrError } from './formFieldHelpers'
 import { type IdentityProviderFormData } from './identityProviderFormSchema'
 import { IdpTypeKey, IDP_TYPE_OPTIONS, IDP_TYPE_PRESETS } from './idpTypePresets'
 
@@ -205,7 +205,9 @@ function ScopesField({
             label="Scopes"
             fieldId="scopes"
             isRequired
-            labelHelp={FieldHelpIcon('OAuth 2.0 scopes to request from the identity provider during authentication.')}
+            labelHelp={
+              <FieldHelpPopover helpText="OAuth 2.0 scopes to request from the identity provider during authentication." />
+            }
           >
             <TagInput
               id="scopes"
@@ -362,7 +364,7 @@ export function IdentityProviderFormFields({
                 label="Provider name"
                 fieldId="provider-name"
                 isRequired
-                labelHelp={FieldHelpIcon('A unique display name for this identity provider.')}
+                labelHelp={<FieldHelpPopover helpText="A unique display name for this identity provider." />}
               >
                 <TextInput
                   id="provider-name"
@@ -396,9 +398,9 @@ export function IdentityProviderFormFields({
           <FormGroup
             label="Redirect URI"
             fieldId="redirect-uri"
-            labelHelp={FieldHelpIcon(
-              "Copy this value into your identity provider's OAuth app configuration as the allowed redirect URI."
-            )}
+            labelHelp={
+              <FieldHelpPopover helpText="Copy this value into your identity provider's OAuth app configuration as the allowed redirect URI." />
+            }
           >
             <ClipboardCopy isReadOnly>{OIDC_REDIRECT_URI}</ClipboardCopy>
           </FormGroup>
