@@ -71,6 +71,7 @@ from nexus.metrics.middleware import MetricsMiddleware
 from nexus.metrics.openmetrics import openmetrics_endpoint
 from nexus.metrics.queue_depth_poller import get_queue_depth_poller
 from nexus.settings.cache.settings_cache import SettingsCache, set_runtime_settings
+from nexus.settings.store import check_catalog_completeness
 from nexus.telemetry.client import flush_telemetry, get_telemetry_registry, initialize_telemetry
 from nexus.telemetry.periodic_collector import PeriodicCollector
 from nexus.workflows.error_handlers import (
@@ -110,6 +111,26 @@ def _discover_and_register_audit_handlers() -> None:
         logger.exception("Failed to discover and register audit handlers - audit system degraded")
 
 
+async def _check_settings_catalog(session_factory: Any = None) -> None:  # noqa: ANN401
+    """Verify every catalog setting has been seeded into the database."""
+    factory = session_factory or AsyncSessionLocal
+    async with factory() as session:
+        missing_keys = await check_catalog_completeness(session)
+    if missing_keys:
+        sorted_keys = ", ".join(sorted(missing_keys))
+        logger.error(
+            "Runtime settings catalog is out of date",
+            missing_count=len(missing_keys),
+            missing_keys=sorted_keys,
+        )
+        msg = (
+            f"Cannot start: runtime settings have not been seeded. "
+            f"{len(missing_keys)} setting(s) missing from the database.\n"
+            f"Missing keys: {sorted_keys}"
+        )
+        raise RuntimeError(msg)
+
+
 async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
     """Initialize application resources during startup.
 
@@ -117,8 +138,9 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
     """
     settings = get_settings()
 
+    await _check_settings_catalog()
+
     # Initialize the process-wide settings cache
-    # Settings catalog must be seeded first: uv run python tools/seed_settings.py
     runtime_settings = SettingsCache(session_factory=AsyncSessionLocal)
     set_runtime_settings(runtime_settings)
 

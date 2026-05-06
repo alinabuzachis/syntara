@@ -92,7 +92,7 @@ That's it. After running migrations and the seeder, the definition is upserted i
 
 ```bash
 uv run alembic upgrade head
-uv run python tools/seed_settings.py
+uv run python -m nexus.seed --only settings
 ```
 
 If no row matching the setting exists, a row will be inserted. If a row does exist, the user-controlled `value` and `version` will be preserved but the other metadata fields (including `default_value`) will be updated. The seeder does not run at app startup — it runs as a post-migration step.
@@ -352,5 +352,5 @@ category:
 2. Add the slug to the `SettingCategory` enum in
    `src/nexus/settings/models/runtime_setting.py` (used for type-safe
    references in `SETTINGS_CATALOG`).
-3. Run the seeder (`make dev` or `uv run python tools/seed_settings.py`) —
+3. Run the seeder (`make dev` or `uv run python -m nexus.seed --only settings`) —
    no migration is needed.

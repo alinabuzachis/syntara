@@ -20,6 +20,19 @@ if TYPE_CHECKING:
     from sqlmodel.ext.asyncio.session import AsyncSession
 
 
+async def check_catalog_completeness(session: AsyncSession) -> set[str]:
+    """Return catalog keys missing from the ``runtime_settings`` table.
+
+    An empty set means the database is up to date with the catalog.
+    """
+    from nexus.settings.catalog import SETTINGS_CATALOG  # noqa: PLC0415
+
+    catalog_keys = {d.key for d in SETTINGS_CATALOG}
+    result = await session.exec(select(RuntimeSetting.key))
+    db_keys = set(result.all())
+    return catalog_keys - db_keys
+
+
 class SettingsStore:
     """Read-only data access layer for runtime settings.
 
