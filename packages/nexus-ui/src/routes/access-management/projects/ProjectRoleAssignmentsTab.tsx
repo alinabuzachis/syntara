@@ -241,10 +241,9 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAss
     [assignments]
   )
 
-  const assignedRolesByUser = useMemo(() => {
+  const assignedRolesByPrincipal = useMemo(() => {
     const map = new Map<string, Set<string>>()
     for (const a of assignments) {
-      if (a.principal_type !== 'user') continue
       const existing = map.get(a.principal_id)
       if (existing) {
         existing.add(a.role_name)
@@ -317,7 +316,7 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAss
         <AssignProjectRoleModal
           projectId={projectId}
           isOpen={assignModalOpen}
-          assignedRolesByUser={assignedRolesByUser}
+          assignedRolesByPrincipal={assignedRolesByPrincipal}
           onClose={() => setAssignModalOpen(false)}
           onSuccess={refetch}
         />
@@ -377,7 +376,7 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAss
       <AssignProjectRoleModal
         projectId={projectId}
         isOpen={assignModalOpen}
-        assignedRolesByUser={assignedRolesByUser}
+        assignedRolesByPrincipal={assignedRolesByPrincipal}
         onClose={() => setAssignModalOpen(false)}
         onSuccess={refetch}
       />

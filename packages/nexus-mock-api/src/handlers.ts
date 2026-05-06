@@ -2241,36 +2241,110 @@ export const handlers = [
   // ── Access Management: Project Role Assignments ─────────────────────────
 
   http.get('/api/v1/projects/:project_id/role-assignments', ({ params }) => {
-    const assignments = mockProjectRoleAssignments.filter((a) => a.project_id === params.project_id)
-    return HttpResponse.json(assignments)
+    const pid = params.project_id as string
+
+    const userEntries = mockProjectRoleAssignments
+      .filter((a) => a.project_id === pid)
+      .map((a) => ({
+        id: a.id,
+        principal_id: a.user_id,
+        principal_name: a.username,
+        principal_type: 'user' as const,
+        role_name: a.role_name,
+        role_policies: mockRoles.find((r) => r.name === a.role_name)?.policies ?? [],
+        project_id: a.project_id,
+        created_at: a.created_at,
+      }))
+
+    const groupEntries = mockProjectGroupRoleAssignments
+      .filter((a) => a.project_id === pid)
+      .map((a) => ({
+        id: a.id,
+        principal_id: a.group_id,
+        principal_name: a.group_name,
+        principal_type: 'group' as const,
+        role_name: a.role_name,
+        role_policies: mockRoles.find((r) => r.name === a.role_name)?.policies ?? [],
+        project_id: a.project_id,
+        created_at: a.created_at,
+      }))
+
+    return HttpResponse.json({ resources: [...userEntries, ...groupEntries] })
   }),
 
   http.post('/api/v1/projects/:project_id/role-assignments', async ({ params, request }) => {
-    const body = (await request.json()) as { user_id: string; role_name: string }
+    const body = (await request.json()) as { principal_type: 'user' | 'group'; principal_id: string; role_name: string }
+    const projectId = params.project_id as string
+
+    if (body.principal_type === 'group') {
+      const assignment = {
+        id: uuidv4(),
+        group_id: body.principal_id,
+        group_name: groups.find((g) => g.id === body.principal_id)?.name ?? body.principal_id,
+        project_id: projectId,
+        role_name: body.role_name,
+        created_at: new Date().toISOString(),
+      }
+      mockProjectGroupRoleAssignments.push(assignment)
+      return HttpResponse.json(
+        {
+          id: assignment.id,
+          principal_type: 'group',
+          principal_id: assignment.group_id,
+          principal_name: assignment.group_name,
+          role_name: assignment.role_name,
+          project_id: assignment.project_id,
+          created_at: assignment.created_at,
+        },
+        { status: 201 }
+      )
+    }
+
     const assignment = {
       id: uuidv4(),
-      user_id: body.user_id,
-      username: users.find((u) => u.id === body.user_id)?.username ?? body.user_id,
-      project_id: params.project_id as string,
+      user_id: body.principal_id,
+      username: users.find((u) => u.id === body.principal_id)?.username ?? body.principal_id,
+      project_id: projectId,
       role_name: body.role_name,
       created_at: new Date().toISOString(),
     }
     mockProjectRoleAssignments.push(assignment)
-    return HttpResponse.json(assignment, { status: 201 })
+    return HttpResponse.json(
+      {
+        id: assignment.id,
+        principal_type: 'user',
+        principal_id: assignment.user_id,
+        principal_name: assignment.username,
+        role_name: assignment.role_name,
+        project_id: assignment.project_id,
+        created_at: assignment.created_at,
+      },
+      { status: 201 }
+    )
   }),
 
   http.delete('/api/v1/projects/:project_id/role-assignments/:assignment_id', ({ params }) => {
-    const idx = mockProjectRoleAssignments.findIndex(
-      (a) => a.id === params.assignment_id && a.project_id === params.project_id
-    )
-    if (idx === -1) {
-      return HttpResponse.json(
-        { type: 'not-found', title: 'Not Found', detail: 'Assignment not found', code: 'NOT_FOUND', retryable: false },
-        { status: 404 }
-      )
+    const assignmentId = params.assignment_id as string
+    const projectId = params.project_id as string
+
+    const userIdx = mockProjectRoleAssignments.findIndex((a) => a.id === assignmentId && a.project_id === projectId)
+    if (userIdx !== -1) {
+      mockProjectRoleAssignments.splice(userIdx, 1)
+      return new HttpResponse(null, { status: 204 })
     }
-    mockProjectRoleAssignments.splice(idx, 1)
-    return new HttpResponse(null, { status: 204 })
+
+    const groupIdx = mockProjectGroupRoleAssignments.findIndex(
+      (a) => a.id === assignmentId && a.project_id === projectId
+    )
+    if (groupIdx !== -1) {
+      mockProjectGroupRoleAssignments.splice(groupIdx, 1)
+      return new HttpResponse(null, { status: 204 })
+    }
+
+    return HttpResponse.json(
+      { type: 'not-found', title: 'Not Found', detail: 'Assignment not found', code: 'NOT_FOUND', retryable: false },
+      { status: 404 }
+    )
   }),
 
   // ── Access Management: Project Group Role Assignments ───────────────────

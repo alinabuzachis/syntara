@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -116,6 +116,21 @@ const mockUsers = [
   { id: 'u2', username: 'bob', email: 'bob@test.com', full_name: 'Bob' },
 ]
 
+const mockGroups = [
+  { id: 'g1', name: 'developers', description: 'Dev team', is_builtin: false },
+  { id: 'g2', name: 'admins', description: 'Admin team', is_builtin: true },
+]
+
+function getTypeaheadInput(groupName: string) {
+  return within(screen.getByRole('group', { name: groupName })).getByRole('textbox')
+}
+
+function queryTypeaheadInput(groupName: string) {
+  const group = screen.queryByRole('group', { name: groupName })
+  if (!group) return null
+  return within(group).queryByRole('textbox')
+}
+
 describe('AssignProjectRoleModal', () => {
   const mockOnClose = vi.fn()
   const mockOnSuccess = vi.fn()
@@ -132,6 +147,17 @@ describe('AssignProjectRoleModal', () => {
       if (path === '/users') {
         return {
           data: { resources: mockUsers, next: null },
+          isPending: false,
+          isLoading: false,
+          isError: false,
+          error: null,
+          isFetching: false,
+          refetch: vi.fn(),
+        } as never
+      }
+      if (path === '/groups') {
+        return {
+          data: { resources: mockGroups, next: null },
           isPending: false,
           isLoading: false,
           isError: false,
@@ -159,14 +185,14 @@ describe('AssignProjectRoleModal', () => {
     setupMocks()
   })
 
-  function renderModal(isOpen = true, assignedRolesByUser = emptyAssignedRoles) {
+  function renderModal(isOpen = true, assignedRolesByPrincipal = emptyAssignedRoles) {
     return render(
       <AssignProjectRoleModal
         projectId="proj-1"
         isOpen={isOpen}
         onClose={mockOnClose}
         onSuccess={mockOnSuccess}
-        assignedRolesByUser={assignedRolesByUser}
+        assignedRolesByPrincipal={assignedRolesByPrincipal}
       />,
       { wrapper }
     )
@@ -183,10 +209,11 @@ describe('AssignProjectRoleModal', () => {
     expect(screen.getByText('Assign role')).toBeInTheDocument()
   })
 
-  it('renders user and role form fields', () => {
+  it('renders principal type, user, and role form fields', () => {
     renderModal()
-    expect(screen.getByText('User')).toBeInTheDocument()
-    expect(screen.getByText('Role')).toBeInTheDocument()
+    expect(screen.getByLabelText('Principal type')).toBeInTheDocument()
+    expect(getTypeaheadInput('User')).toBeInTheDocument()
+    expect(getTypeaheadInput('Role')).toBeInTheDocument()
   })
 
   it('shows all project roles from the project endpoint', () => {
@@ -207,16 +234,16 @@ describe('AssignProjectRoleModal', () => {
     const user = userEvent.setup()
     renderModal()
 
-    const userInput = screen.getByPlaceholderText('Select a user...')
+    const userInput = getTypeaheadInput('User')
     await user.click(userInput)
     const aliceOption = await screen.findByRole('option', { name: /alice/i })
     await user.click(aliceOption)
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText('Select a role...')).not.toBeDisabled()
+      expect(getTypeaheadInput('Role')).not.toBeDisabled()
     })
 
-    const roleInput = screen.getByPlaceholderText('Select a role...')
+    const roleInput = getTypeaheadInput('Role')
     await user.click(roleInput)
     const roleOption = await screen.findByRole('option', { name: /project-admin/i })
     await user.click(roleOption)
@@ -253,5 +280,71 @@ describe('AssignProjectRoleModal', () => {
     })
 
     expect(mockOnSuccess).not.toHaveBeenCalled()
+  })
+
+  it('switches to group selector when principal type is changed to Group', async () => {
+    const user = userEvent.setup()
+    renderModal()
+
+    const principalTypeSelect = screen.getByLabelText('Principal type')
+    await user.selectOptions(principalTypeSelect, 'group')
+
+    expect(getTypeaheadInput('Group')).toBeInTheDocument()
+    expect(queryTypeaheadInput('User')).not.toBeInTheDocument()
+  })
+
+  it('submits group assignment with correct principal_type', async () => {
+    const user = userEvent.setup()
+    renderModal()
+
+    const principalTypeSelect = screen.getByLabelText('Principal type')
+    await user.selectOptions(principalTypeSelect, 'group')
+
+    const groupInput = getTypeaheadInput('Group')
+    await user.click(groupInput)
+    const groupOption = await screen.findByRole('option', { name: /developers/i })
+    await user.click(groupOption)
+
+    await waitFor(() => {
+      expect(getTypeaheadInput('Role')).not.toBeDisabled()
+    })
+
+    const roleInput = getTypeaheadInput('Role')
+    await user.click(roleInput)
+    const roleOption = await screen.findByRole('option', { name: /project-admin/i })
+    await user.click(roleOption)
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Assign' })).not.toBeDisabled()
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Assign' }))
+
+    await waitFor(() => {
+      expect(mockMutate).toHaveBeenCalled()
+    })
+
+    const callArgs = mockMutate.mock.calls[0][0] as {
+      body: { principal_type: string; principal_id: string; role_name: string }
+    }
+    expect(callArgs.body.principal_type).toBe('group')
+    expect(callArgs.body.principal_id).toBe('g1')
+    expect(callArgs.body.role_name).toBe('project-admin')
+  })
+
+  it('resets principal selection when switching principal type', async () => {
+    const user = userEvent.setup()
+    renderModal()
+
+    const userInput = getTypeaheadInput('User')
+    await user.click(userInput)
+    const aliceOption = await screen.findByRole('option', { name: /alice/i })
+    await user.click(aliceOption)
+
+    const principalTypeSelect = screen.getByLabelText('Principal type')
+    await user.selectOptions(principalTypeSelect, 'group')
+
+    const groupInput = getTypeaheadInput('Group')
+    expect(groupInput).toHaveValue('')
   })
 })
