@@ -116,6 +116,26 @@ class RefreshTokenRevokedError(AuthError):
         super().__init__(message)
 
 
+@fastapi_exception(handler="nexus.auth.error_handlers.token_globally_revoked_handler")
+class TokenGloballyRevokedError(AuthError):
+    """Raised when a token was issued before the global revocation timestamp.
+
+    This exception is raised when:
+    - An access token's ``iat`` claim precedes the global revocation timestamp
+    - A refresh token's ``iat`` claim precedes the global revocation timestamp
+    """
+
+    def __init__(self, message: str = "Token was issued before the global revocation timestamp") -> None:
+        """Initialize the exception.
+
+        Args:
+            message: Human-readable error message
+
+        """
+        self.message = message
+        super().__init__(message)
+
+
 # ============================================================================
 # Group management exceptions
 # ============================================================================

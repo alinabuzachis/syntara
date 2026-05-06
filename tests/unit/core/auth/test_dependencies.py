@@ -75,15 +75,17 @@ class TestUserFromPayload:
 class TestGetCurrentUser:
     """Tests for get_current_user dependency."""
 
-    def test_raises_when_no_credentials(self) -> None:
+    @pytest.mark.asyncio
+    async def test_raises_when_no_credentials(self) -> None:
         """Should raise AuthenticationRequiredError when credentials are None."""
         request = MagicMock()
         request.headers = {}
 
         with pytest.raises(AuthenticationRequiredError):
-            get_current_user(request, credentials=None)
+            await get_current_user(request, credentials=None)
 
-    def test_returns_user_for_valid_token(self) -> None:
+    @pytest.mark.asyncio
+    async def test_returns_user_for_valid_token(self) -> None:
         """Should return a User for a valid access token."""
         user_id = uuid4()
         payload = _make_payload(sub=str(user_id), preferred_username="bob")
@@ -95,14 +97,18 @@ class TestGetCurrentUser:
         request = MagicMock()
         request.headers = {}
 
-        with patch("nexus.auth.dependencies._get_token_service", return_value=mock_token_service):
-            user = get_current_user(request, credentials=credentials)
+        with (
+            patch("nexus.auth.dependencies._get_token_service", return_value=mock_token_service),
+            patch("nexus.auth.services.global_revocation.is_token_globally_revoked", return_value=None),
+        ):
+            user = await get_current_user(request, credentials=credentials)
 
         assert user.id == user_id
         assert user.username == "bob"
         mock_token_service.decode_token.assert_called_once_with("valid-jwt", token_type="access")  # noqa: S106
 
-    def test_propagates_invalid_token_error(self) -> None:
+    @pytest.mark.asyncio
+    async def test_propagates_invalid_token_error(self) -> None:
         """Should propagate InvalidTokenError from token service."""
         mock_token_service = MagicMock()
         mock_token_service.decode_token.side_effect = InvalidTokenError
@@ -115,7 +121,7 @@ class TestGetCurrentUser:
             patch("nexus.auth.dependencies._get_token_service", return_value=mock_token_service),
             pytest.raises(InvalidTokenError),
         ):
-            get_current_user(request, credentials=credentials)
+            await get_current_user(request, credentials=credentials)
 
 
 class TestGetTokenPayload:

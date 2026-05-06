@@ -30,6 +30,7 @@ if TYPE_CHECKING:
         RefreshTokenRevokedError,
         SessionStoreUnavailableError,
         TokenExpiredError,
+        TokenGloballyRevokedError,
         UserAlreadyInGroupError,
         UserIdentityNotFoundError,
         UserNotFoundError,
@@ -188,6 +189,44 @@ def refresh_token_revoked_handler(
         retryable=False,
         instance=str(request.url),
     )
+
+
+def token_globally_revoked_handler(
+    request: Request,
+    exc: TokenGloballyRevokedError,
+) -> JSONResponse:
+    """Handle TokenGloballyRevokedError with RFC 9457 format.
+
+    Clears the ``ao_refresh_token`` cookie so the client does not
+    keep retrying with a revoked refresh token.
+
+    Args:
+        request: FastAPI request object
+        exc: The token globally revoked exception
+
+    Returns:
+        RFC 9457 compliant 401 error response with cleared cookie
+
+    """
+    from nexus.auth.cookies import clear_refresh_cookie  # noqa: PLC0415
+
+    logger.warning(
+        "Token globally revoked",
+        path=str(request.url),
+        method=request.method,
+    )
+
+    response = create_problem_details_response(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        problem_type=PROBLEM_TYPES["unauthorized"],
+        title="Unauthorized",
+        detail=exc.message,
+        code="TOKEN_GLOBALLY_REVOKED",
+        retryable=False,
+        instance=str(request.url),
+    )
+    clear_refresh_cookie(response)
+    return response
 
 
 def group_not_found_handler(

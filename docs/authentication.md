@@ -121,6 +121,128 @@ Sessions are soft-revoked (`revoked_at` is set) when:
 
 Stateless access tokens cannot be individually revoked and remain valid until they expire (default 15 minutes). A token blocklist or generation counter would be needed to close this window completely.
 
+### Global Token Revocation
+
+In an emergency (e.g., suspected key compromise, bulk account takeover, or compliance-mandated session termination), an administrator can invalidate **all** tokens issued before a given point in time using the admin CLI.
+
+#### Usage
+
+```bash
+# Interactive — prompts for confirmation
+uv run python -m nexus.admin revoke-all-sessions
+
+# Non-interactive (CI/scripts)
+uv run python -m nexus.admin revoke-all-sessions --yes
+```
+
+The command writes the current UTC time to the `global_revocation_timestamp` singleton table. All tokens whose `iat` (issued-at) claim precedes this timestamp are rejected.
+
+#### Options
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--yes` | `false` | Skip the confirmation prompt |
+
+#### What happens when the command runs
+
+1. The `revoked_before` column in the `global_revocation_timestamp` table is updated to the current UTC time. If no row exists yet, the singleton row is inserted.
+2. An audit event (`global_revocation`) is emitted with the actor name and timestamp.
+
+#### How enforcement works
+
+Once the timestamp is set, every authenticated request is checked:
+
+- **Access tokens** (`get_current_user` dependency) — if the token's `iat` precedes the revocation timestamp, the request is rejected with `401 TOKEN_GLOBALLY_REVOKED`. The user must re-authenticate.
+- **Refresh tokens** (`POST /auth/refresh`) — if the refresh token's `iat` precedes the revocation timestamp, the refresh cookie is cleared and the request is rejected with `401 TOKEN_GLOBALLY_REVOKED`. The user must log in again.
+
+Tokens issued **after** the revocation timestamp are unaffected.
+
+#### Performance and caching
+
+The global revocation timestamp is cached in each API worker process for **5 seconds** (in-process `TTLCache`). This avoids a database round-trip on every authenticated request but introduces a brief **post-revocation vulnerability window**: after an admin sets the revocation timestamp, tokens issued before that time may still be accepted for up to 5 seconds while the cached value remains fresh.
+
+In practice this means that in an emergency scenario (e.g., suspected key compromise, bulk account takeover) there is a short window during which an attacker with valid stolen tokens can still make authenticated requests. Once the cache expires, the next request fetches the updated timestamp and enforcement takes effect.
+
+#### Audit trail
+
+Two audit events are emitted:
+
+| Event | When | Fields |
+|-------|------|--------|
+| `global_revocation` | Admin runs the CLI command | `actor_username`, `actor_source` (`cli`), `revocation_timestamp` |
+| `global_revocation_reject` | A token is rejected | `user_id`, `username`, `token_type` (`access` or `refresh`), `token_issued_at`, `revocation_timestamp` |
+
+#### Protection from API modification
+
+The revocation timestamp is stored in a dedicated database table (`global_revocation_timestamp`) and **cannot** be modified via the REST API. Only the admin CLI can set this value.
+
+### User Session Revocation
+
+An administrator can revoke all active sessions for a specific user without affecting other users. This is useful for incident response (e.g., compromised account) or administrative actions (e.g., revoking access for a departing employee).
+
+#### Usage
+
+```bash
+# Interactive — prompts for confirmation
+uv run python -m nexus.admin revoke-user-sessions --username alice
+
+# Non-interactive (CI/scripts)
+uv run python -m nexus.admin revoke-user-sessions --username alice --yes
+```
+
+#### Options
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--username` | *(required)* | Username of the user whose sessions should be revoked (case-insensitive) |
+| `--yes` | `false` | Skip the confirmation prompt |
+
+#### What happens when the command runs
+
+1. The user is looked up by username in the database (case-insensitive, non-deleted users only).
+2. All refresh token sessions for the user are deleted from the session store via `revoke_all_for_user()`.
+3. The user's token version counter is incremented so any remaining access tokens trigger a refresh attempt, which will issue a new token with current claims.
+4. An audit event (`session_revocation`) is emitted with the actor name, target username, and number of sessions revoked.
+
+### IdP Session Revocation
+
+An administrator can revoke all active sessions that were authenticated via a specific identity provider. This is useful when an IdP is compromised, misconfigured, or being decommissioned — without needing to delete the provider itself.
+
+#### Usage
+
+```bash
+# Interactive — prompts for confirmation
+uv run python -m nexus.admin revoke-idp-sessions --idp-name "Corporate Okta"
+
+# Non-interactive (CI/scripts)
+uv run python -m nexus.admin revoke-idp-sessions --idp-name "Corporate Okta" --yes
+```
+
+#### Options
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--idp-name` | *(required)* | Name of the identity provider whose sessions should be revoked |
+| `--yes` | `false` | Skip the confirmation prompt |
+
+#### What happens when the command runs
+
+1. The identity provider is looked up by name in the database (non-deleted providers only).
+2. All refresh token sessions authenticated via this provider are deleted from the session store using the `idp_sessions:<provider_id>` secondary index.
+3. An audit event (`session_revocation`) is emitted with the actor name, target provider name, and number of sessions revoked.
+
+Users who authenticated via this provider will need to re-authenticate. Sessions from other providers and local password sessions are unaffected.
+
+### Revocation Audit Trail
+
+All CLI revocation commands emit audit events:
+
+| Command | Event | Fields |
+|---------|-------|--------|
+| `revoke-all-sessions` | `global_token_revocation` | `actor_username`, `actor_source`, `revocation_timestamp` |
+| `revoke-user-sessions` | `session_revocation` | `actor_username`, `actor_source`, `target_type` (`user`), `target_identifier`, `sessions_revoked` |
+| `revoke-idp-sessions` | `session_revocation` | `actor_username`, `actor_source`, `target_type` (`idp`), `target_identifier`, `sessions_revoked` |
+
 ### Storage Dependencies
 
 Authentication uses **PostgreSQL only** for session storage. Redis is not required for any auth operation. OIDC flow state is encrypted (AES-256-GCM) and encoded in the OAuth2 `state` parameter (no server-side storage required).

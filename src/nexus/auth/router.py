@@ -36,7 +36,11 @@ from nexus.auth.cookies import (
     get_refresh_token_from_cookie,
     set_refresh_cookie,
 )
-from nexus.auth.dependencies import _get_token_service, get_refresh_token, get_token_payload
+from nexus.auth.dependencies import (
+    _get_token_service,
+    get_refresh_token,
+    get_token_payload,
+)
 from nexus.auth.exceptions import (
     AuthenticationRequiredError,
     InvalidTokenError,
@@ -274,7 +278,9 @@ async def login(
 )
 @audit(EventCategory.USER_ACTION)
 async def refresh_token(
-    raw_refresh_token: Annotated[str, Depends(get_refresh_token)],
+    request: Request,  # noqa: ARG001
+    response: Response,  # noqa: ARG001
+    payload: Annotated[TokenPayload, Depends(get_refresh_token)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> AccessTokenResponse:
     """Refresh access token using the refresh token cookie.
@@ -291,7 +297,11 @@ async def refresh_token(
     successor so that the hard session expiration remains enforced.
 
     Args:
-        raw_refresh_token: The refresh token extracted from the cookie
+        request: FastAPI request object
+        response: FastAPI response object
+        payload: Decoded and validated refresh-token payload (extracted,
+            decoded, and checked for global revocation by the
+            ``get_refresh_token`` dependency)
         db: Database session
 
     Returns:
@@ -301,22 +311,12 @@ async def refresh_token(
         AuthenticationRequiredError: If refresh token is missing or invalid
         TokenExpiredError: If refresh token has expired
         RefreshTokenRevokedError: If refresh token has been revoked
+        TokenGloballyRevokedError: If refresh token was issued before the
+            global revocation timestamp
 
     """
     settings = get_settings()
     token_service = _get_token_service()
-
-    # Decode and validate refresh token
-    try:
-        payload: TokenPayload = token_service.decode_token(
-            raw_refresh_token,
-            token_type="refresh",  # noqa: S106
-        )
-    except InvalidTokenError:
-        raise
-    except Exception as e:
-        logger.warning("Failed to decode refresh token", error=str(e))
-        raise AuthenticationRequiredError from e
 
     # Check refresh token in session store (single JOIN query for session + token_version)
     try:
@@ -521,7 +521,7 @@ async def _maybe_rp_logout(
 )
 @audit(EventCategory.SECURITY_EVENT)
 async def logout(
-    raw_refresh_token: Annotated[str, Depends(get_refresh_token)],
+    payload: Annotated[TokenPayload, Depends(get_refresh_token)],
     request: Request,
     response: Response,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -537,7 +537,9 @@ async def logout(
     instead so the frontend can warn the user.
 
     Args:
-        raw_refresh_token: The refresh token extracted from the cookie
+        payload: Decoded and validated refresh-token payload (extracted,
+            decoded, and checked for global revocation by the
+            ``get_refresh_token`` dependency)
         request: FastAPI request object (for Referer origin extraction)
         response: FastAPI response object (cookie cleared here)
         db: Database session
@@ -548,25 +550,11 @@ async def logout(
 
     Raises:
         AuthenticationRequiredError: If refresh token cookie is missing or invalid
+        TokenGloballyRevokedError: If refresh token was issued before the
+            global revocation timestamp
 
     """
-    token_service = _get_token_service()
     settings = get_settings()
-
-    # Decode the refresh token to get the JTI
-    try:
-        payload: TokenPayload = token_service.decode_token(
-            raw_refresh_token,
-            token_type="refresh",  # noqa: S106
-        )
-    except InvalidTokenError:
-        # Clear the cookie even if the token is invalid
-        clear_refresh_cookie(response)
-        raise
-    except Exception as e:
-        logger.warning("Failed to decode refresh token during logout", error=str(e))
-        clear_refresh_cookie(response)
-        raise AuthenticationRequiredError from e
 
     if not payload.jti:
         clear_refresh_cookie(response)

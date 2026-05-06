@@ -20,6 +20,7 @@ from sqlmodel import SQLModel
 from nexus.agent_orchestrator.models.invocation import Invocation
 from nexus.agent_orchestrator.token_manager.models import TokenUsageRecord, UserTokenConfig
 from nexus.approvals.models.approval_request import ApprovalRequest
+from nexus.auth.models.global_revocation_timestamp import GlobalRevocationTimestamp
 from nexus.auth.session.models import RefreshSession
 from nexus.authz.models import (
     Policy,
@@ -52,6 +53,7 @@ from nexus.workflows.models.execution import Execution
 # Ensure models are registered with SQLModel metadata
 
 _ = (
+    GlobalRevocationTimestamp,
     Installation,
     Invocation,
     User,

@@ -17,6 +17,7 @@ Usage:
 
 import threading
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -25,6 +26,7 @@ from nexus.auth.cookies import get_refresh_token_from_cookie
 from nexus.auth.exceptions import (
     AuthenticationRequiredError,
     InvalidTokenError,
+    TokenGloballyRevokedError,
 )
 from nexus.auth.services.token_service import TokenPayload, TokenService
 from nexus.core.auth.jwt_utils import extract_actor_claims
@@ -70,6 +72,54 @@ def clear_token_service_cache() -> None:
         _token_service_instance = None
 
 
+def _safe_parse_uuid(value: str) -> UUID | None:
+    """Parse a UUID string, returning ``None`` on failure."""
+    try:
+        return UUID(value)
+    except ValueError:
+        return None
+
+
+async def _check_global_revocation(payload: TokenPayload, *, token_type: str) -> None:
+    """Reject the token if it was issued before the global revocation timestamp.
+
+    Dispatches an audit event and raises ``TokenGloballyRevokedError``
+    when the token is revoked.  Does nothing when no revocation
+    timestamp is configured or the token was issued after it.
+
+    Args:
+        payload: Decoded token payload (must have ``iat`` and ``sub``).
+        token_type: ``"access"`` or ``"refresh"`` — included in the
+            audit event for observability.
+
+    Raises:
+        InvalidTokenError: If the token has no ``iat`` claim.
+        TokenGloballyRevokedError: If the token predates the revocation
+            timestamp.
+
+    """
+    if payload.iat is None:
+        raise InvalidTokenError
+
+    from nexus.auth.services.global_revocation import is_token_globally_revoked  # noqa: PLC0415
+
+    revocation_ts = await is_token_globally_revoked(payload.iat)
+    if revocation_ts is not None:
+        from nexus.audit.dispatcher import AuditEventDispatcher  # noqa: PLC0415
+        from nexus.auth.audit.global_revocation import GlobalRevocationRejectEvent  # noqa: PLC0415
+
+        AuditEventDispatcher.dispatch(
+            GlobalRevocationRejectEvent(
+                user_id=None if not payload.sub else _safe_parse_uuid(payload.sub),
+                username=payload.preferred_username,
+                token_issued_at=payload.iat.isoformat(),
+                revocation_timestamp=revocation_ts.isoformat(),
+                token_type=token_type,
+            )
+        )
+        raise TokenGloballyRevokedError
+
+
 def _user_from_payload(payload: TokenPayload) -> User:
     """Construct a ``User`` instance from validated JWT claims.
 
@@ -110,7 +160,7 @@ def _user_from_payload(payload: TokenPayload) -> User:
     )
 
 
-def get_current_user(
+async def get_current_user(
     request: Request,  # noqa: ARG001
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)] = None,
 ) -> User:
@@ -120,6 +170,9 @@ def get_current_user(
     claims -- no database round-trip is performed.  Permission or role changes
     therefore take up to one access-token lifetime to propagate to existing
     sessions.
+
+    Tokens issued before the global revocation timestamp are hard-rejected
+    with a 401 response.
 
     Args:
         request: FastAPI request object
@@ -131,6 +184,8 @@ def get_current_user(
     Raises:
         AuthenticationRequiredError: If no valid credentials provided
         InvalidTokenError: If token is invalid
+        TokenGloballyRevokedError: If token was issued before the global
+            revocation timestamp
 
     """
     if not credentials:
@@ -142,6 +197,8 @@ def get_current_user(
         credentials.credentials,
         token_type="access",  # noqa: S106
     )
+
+    await _check_global_revocation(payload, token_type="access")  # noqa: S106
 
     return _user_from_payload(payload)
 
@@ -174,20 +231,42 @@ def get_token_payload(
     )
 
 
-def get_refresh_token(request: Request) -> str:
-    """Extract and validate the refresh token from the request cookie.
+async def get_refresh_token(request: Request) -> TokenPayload:
+    """Extract, decode, and validate the refresh token from the request cookie.
+
+    Extracts the JWT from the ``ao_refresh_token`` HttpOnly cookie, decodes
+    it as a refresh token, and checks whether it was issued before the global
+    revocation timestamp.
 
     Args:
         request: FastAPI request object
 
     Returns:
-        The raw JWT refresh token string
+        Decoded and validated refresh-token payload.
 
     Raises:
         AuthenticationRequiredError: If the refresh token cookie is missing
+            or cannot be decoded.
+        InvalidTokenError: If the token is structurally invalid.
+        TokenGloballyRevokedError: If the token was issued before the global
+            revocation timestamp.
 
     """
     raw_token = get_refresh_token_from_cookie(request)
     if not raw_token:
         raise AuthenticationRequiredError
-    return raw_token
+
+    token_service = _get_token_service()
+    try:
+        payload = token_service.decode_token(
+            raw_token,
+            token_type="refresh",  # noqa: S106
+        )
+    except InvalidTokenError:
+        raise
+    except Exception as e:
+        raise AuthenticationRequiredError from e
+
+    await _check_global_revocation(payload, token_type="refresh")  # noqa: S106
+
+    return payload
