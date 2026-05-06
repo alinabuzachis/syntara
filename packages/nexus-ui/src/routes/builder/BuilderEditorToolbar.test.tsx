@@ -13,6 +13,7 @@ describe('BuilderEditorToolbar', () => {
     selectedProject: { id: 'proj-1', name: 'Test Project' } as const,
     isEnabled: false,
     isKebabOpen: false,
+    historyCardOpen: false,
     isSavingToggle: false,
     dispatch: vi.fn(),
     handleToggleHistory: vi.fn(),

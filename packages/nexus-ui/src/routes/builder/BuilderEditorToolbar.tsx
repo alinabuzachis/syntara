@@ -52,6 +52,7 @@ type BuilderEditorToolbarProps = Readonly<{
   selectedProject: ProjectRead | null
   isEnabled: boolean
   isKebabOpen: boolean
+  historyCardOpen: boolean
   isSavingToggle: boolean
   dispatch: Dispatch<BuilderAction>
   handleToggleHistory: () => void
@@ -70,6 +71,7 @@ export function BuilderEditorToolbar({
   selectedProject,
   isEnabled,
   isKebabOpen,
+  historyCardOpen,
   isSavingToggle,
   dispatch,
   handleToggleHistory,
@@ -137,7 +139,7 @@ export function BuilderEditorToolbar({
         />
       </Tooltip>
 
-      {!isNew && workflow?.id && <RunHistoryToggleButton onClick={handleToggleHistory} />}
+      {!isNew && workflow?.id && <RunHistoryToggleButton onClick={handleToggleHistory} isActive={historyCardOpen} />}
 
       <Divider orientation={{ default: 'vertical' }} />
 

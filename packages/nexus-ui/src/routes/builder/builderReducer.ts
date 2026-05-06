@@ -10,7 +10,6 @@ export type BuilderState = {
   deleteDialogOpen: boolean
   detailsOpen: boolean
   historyCardOpen: boolean
-  selectedExecutionId: string | null
   isKebabOpen: boolean
   addNodePanelOpen: boolean
   nodeEditorMode: 'add' | 'edit' | null
@@ -40,7 +39,6 @@ export type BuilderAction =
   | { type: 'TOGGLE_DETAILS' }
   | { type: 'SET_HISTORY_CARD_OPEN'; payload: boolean }
   | { type: 'TOGGLE_HISTORY' }
-  | { type: 'SET_SELECTED_EXECUTION_ID'; payload: string | null }
   | { type: 'SET_KEBAB_OPEN'; payload: boolean }
   | { type: 'SET_ADD_NODE_PANEL'; payload: boolean }
   | { type: 'OPEN_NODE_EDITOR_ADD'; payload: { nodeTypeId: string; nodeSubtypeId: string | null } }
@@ -90,7 +88,6 @@ const SIMPLE_STATE_KEY_MAP: Record<
     | 'deleteDialogOpen'
     | 'detailsOpen'
     | 'historyCardOpen'
-    | 'selectedExecutionId'
     | 'isKebabOpen'
     | 'addNodePanelOpen'
     | 'selectedNode'
@@ -110,7 +107,6 @@ const SIMPLE_STATE_KEY_MAP: Record<
   SET_DELETE_DIALOG: 'deleteDialogOpen',
   SET_DETAILS_OPEN: 'detailsOpen',
   SET_HISTORY_CARD_OPEN: 'historyCardOpen',
-  SET_SELECTED_EXECUTION_ID: 'selectedExecutionId',
   SET_KEBAB_OPEN: 'isKebabOpen',
   SET_ADD_NODE_PANEL: 'addNodePanelOpen',
   SET_SELECTED_NODE: 'selectedNode',
@@ -283,7 +279,6 @@ const SIMPLE_ACTIONS = [
   'SET_DELETE_DIALOG',
   'SET_DETAILS_OPEN',
   'SET_HISTORY_CARD_OPEN',
-  'SET_SELECTED_EXECUTION_ID',
   'SET_KEBAB_OPEN',
   'SET_ADD_NODE_PANEL',
   'SET_SELECTED_NODE',
@@ -392,7 +387,6 @@ export function builderReducer(state: BuilderState, action: BuilderAction): Buil
         addNodePanelOpen: false,
         detailsOpen: false,
         historyCardOpen: false,
-        selectedExecutionId: null,
         mostRecentExecutionId: null,
         mostRecentRunPanelOpen: false,
         // Reset edge connection context
@@ -416,7 +410,6 @@ export function getInitialBuilderState(): BuilderState {
     deleteDialogOpen: false,
     detailsOpen: false,
     historyCardOpen: false,
-    selectedExecutionId: null,
     isKebabOpen: false,
     addNodePanelOpen: false,
     nodeEditorMode: null,

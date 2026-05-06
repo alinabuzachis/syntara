@@ -22,8 +22,6 @@ describe('BuilderWorkflowAppPageHeader', () => {
     workflowTags: [] as string[],
     isNew: true,
     workflow: undefined as { id: string } | undefined,
-    isViewingExecution: false,
-    selectedExecutionCreatedAt: undefined as string | undefined,
     historyCardOpen: false,
     isPending: false,
     selectedProject: null,
@@ -44,52 +42,6 @@ describe('BuilderWorkflowAppPageHeader', () => {
 
   it('has no accessibility violations in editor mode', async () => {
     const { container } = render(<BuilderWorkflowAppPageHeader {...baseProps} />)
-    expect(await axe(container)).toHaveNoViolations()
-  })
-
-  it('has no accessibility violations when viewing execution', async () => {
-    const { container } = render(
-      <BuilderWorkflowAppPageHeader
-        {...baseProps}
-        isViewingExecution
-        selectedExecutionCreatedAt="2024-01-01T00:00:00.000Z"
-      />
-    )
-    expect(await axe(container)).toHaveNoViolations()
-  })
-
-  it('shows Back to editor button when viewing execution', async () => {
-    const user = userEvent.setup()
-    const dispatch = vi.fn()
-    render(
-      <BuilderWorkflowAppPageHeader
-        {...baseProps}
-        isViewingExecution
-        selectedExecutionCreatedAt="2024-01-01T00:00:00.000Z"
-        dispatch={dispatch}
-      />
-    )
-
-    const button = screen.getByRole('button', { name: 'Back to editor' })
-    expect(button).toBeInTheDocument()
-    await user.click(button)
-    expect(dispatch).toHaveBeenCalledWith({ type: 'SET_SELECTED_EXECUTION_ID', payload: null })
-    expect(dispatch).toHaveBeenCalledWith({ type: 'SET_HISTORY_CARD_OPEN', payload: false })
-  })
-
-  it('hides Back to editor button when not viewing execution', () => {
-    render(<BuilderWorkflowAppPageHeader {...baseProps} />)
-    expect(screen.queryByRole('button', { name: 'Back to editor' })).not.toBeInTheDocument()
-  })
-
-  it('has no accessibility violations when viewing execution with Back to editor', async () => {
-    const { container } = render(
-      <BuilderWorkflowAppPageHeader
-        {...baseProps}
-        isViewingExecution
-        selectedExecutionCreatedAt="2024-01-01T00:00:00.000Z"
-      />
-    )
     expect(await axe(container)).toHaveNoViolations()
   })
 

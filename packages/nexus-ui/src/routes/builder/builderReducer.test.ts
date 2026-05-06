@@ -131,12 +131,6 @@ describe('builderReducer', () => {
   })
 
   describe('Execution and UI state actions', () => {
-    it('SET_SELECTED_EXECUTION_ID sets selectedExecutionId', () => {
-      const action: BuilderAction = { type: 'SET_SELECTED_EXECUTION_ID', payload: 'exec-123' }
-      const result = builderReducer(initialState, action)
-      expect(result.selectedExecutionId).toBe('exec-123')
-    })
-
     it('SET_KEBAB_OPEN sets isKebabOpen', () => {
       const action: BuilderAction = { type: 'SET_KEBAB_OPEN', payload: true }
       const result = builderReducer(initialState, action)
@@ -493,7 +487,6 @@ describe('builderReducer', () => {
         addNodePanelOpen: true,
         detailsOpen: true,
         historyCardOpen: true,
-        selectedExecutionId: 'exec-123',
         sourceNodeId: 'source-1',
         targetNodeId: 'target-1',
         edgeIdToReplace: 'edge-1',
@@ -529,7 +522,6 @@ describe('builderReducer', () => {
       expect(result.addNodePanelOpen).toBe(false)
       expect(result.detailsOpen).toBe(false)
       expect(result.historyCardOpen).toBe(false)
-      expect(result.selectedExecutionId).toBeNull()
       expect(result.sourceNodeId).toBeNull()
       expect(result.targetNodeId).toBeNull()
       expect(result.edgeIdToReplace).toBeNull()
@@ -590,7 +582,6 @@ describe('builderReducer', () => {
       expect(state.deleteDialogOpen).toBe(false)
       expect(state.detailsOpen).toBe(false)
       expect(state.historyCardOpen).toBe(false)
-      expect(state.selectedExecutionId).toBeNull()
       expect(state.isKebabOpen).toBe(false)
       expect(state.addNodePanelOpen).toBe(false)
       expect(state.nodeEditorMode).toBeNull()

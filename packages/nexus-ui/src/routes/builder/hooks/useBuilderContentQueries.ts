@@ -9,20 +9,10 @@ export function useBuilderContentQueries(options: {
   workflowId: string | null
   isNew: boolean
   executionFilters: FilterConfig[]
-  selectedExecutionId: string | null
-  historyCardOpen: boolean
   mostRecentExecutionId: string | null
   mostRecentRunPanelOpen: boolean
 }) {
-  const {
-    workflowId,
-    isNew,
-    executionFilters,
-    selectedExecutionId,
-    historyCardOpen,
-    mostRecentExecutionId,
-    mostRecentRunPanelOpen,
-  } = options
+  const { workflowId, isNew, executionFilters, mostRecentExecutionId, mostRecentRunPanelOpen } = options
 
   const executionsQueryParams = useMemo(() => {
     const params: Record<string, unknown> = { workflow_id: workflowId ?? '' }
@@ -43,18 +33,6 @@ export function useBuilderContentQueries(options: {
     }
   )
 
-  const selectedExecutionQuery = executionsClient.useQuery(
-    'get',
-    '/executions/{execution_id}',
-    {
-      params: {
-        path: { execution_id: selectedExecutionId ?? '' },
-        query: { include: 'activities' },
-      },
-    },
-    { enabled: !!selectedExecutionId && historyCardOpen }
-  )
-
   const mostRecentExecutionQuery = executionsClient.useQuery(
     'get',
     '/executions/{execution_id}',
@@ -71,5 +49,5 @@ export function useBuilderContentQueries(options: {
     enabled: isNew,
   })
 
-  return { executionsQuery, selectedExecutionQuery, mostRecentExecutionQuery, workflowsListQuery }
+  return { executionsQuery, mostRecentExecutionQuery, workflowsListQuery }
 }

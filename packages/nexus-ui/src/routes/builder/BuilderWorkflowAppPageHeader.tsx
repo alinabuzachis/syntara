@@ -1,4 +1,4 @@
-import { Button, Flex, FlexItem, Label, TextInput } from '@patternfly/react-core'
+import { Button, Flex, FlexItem, TextInput } from '@patternfly/react-core'
 import { useState, type Dispatch, type ReactNode } from 'react'
 
 import { AppPageHeader } from '../../app/AppPageHeader'
@@ -9,11 +9,8 @@ import { BuilderEditorToolbar } from './BuilderEditorToolbar'
 import type { BuilderAction } from './builderReducer'
 import { EditWorkflowDetailsPopover } from './EditWorkflowDetailsPopover'
 import { EnableWorkflowConfirmDialog } from './EnableWorkflowConfirmDialog'
-import { formatHistoryDateTime } from './historyDateUtils'
-import { RunHistoryToggleButton } from './RunHistoryToggleButton'
 
 type BuilderToolbarContentProps = Readonly<{
-  isViewingExecution: boolean
   isLiveRunActive?: boolean
   historyCardOpen: boolean
   hasApprovalPending?: boolean
@@ -22,7 +19,6 @@ type BuilderToolbarContentProps = Readonly<{
   onReviewApproval?: () => void
   dispatch: Dispatch<BuilderAction>
   handleToggleHistory: () => void
-  // Editor toolbar props
   isNew: boolean
   workflow: { id: string } | undefined
   isPending: boolean
@@ -37,12 +33,10 @@ type BuilderToolbarContentProps = Readonly<{
 
 /**
  * Renders appropriate toolbar based on builder state:
- * - Viewing execution: history toggle + back button
  * - Live run active: optional approval review + back button
  * - Default: full editor toolbar
  */
 function BuilderToolbarContent({
-  isViewingExecution,
   isLiveRunActive,
   historyCardOpen,
   hasApprovalPending,
@@ -62,23 +56,6 @@ function BuilderToolbarContent({
   handleSaveWorkflow,
   handleToggleEnable,
 }: BuilderToolbarContentProps) {
-  if (isViewingExecution) {
-    return (
-      <>
-        <RunHistoryToggleButton onClick={handleToggleHistory} isActive={historyCardOpen} />
-        <Button
-          variant="primary"
-          onClick={() => {
-            dispatch({ type: 'SET_SELECTED_EXECUTION_ID', payload: null })
-            dispatch({ type: 'SET_HISTORY_CARD_OPEN', payload: false })
-          }}
-        >
-          Back to editor
-        </Button>
-      </>
-    )
-  }
-
   if (isLiveRunActive && onBackToEditor) {
     return (
       <>
@@ -102,6 +79,7 @@ function BuilderToolbarContent({
       selectedProject={selectedProject}
       isEnabled={isEnabled}
       isKebabOpen={isKebabOpen}
+      historyCardOpen={historyCardOpen}
       isSavingToggle={isSavingToggle}
       dispatch={dispatch}
       handleToggleHistory={handleToggleHistory}
@@ -123,8 +101,6 @@ export type BuilderWorkflowAppPageHeaderProps = Readonly<{
   workflowTags: string[]
   isNew: boolean
   workflow: { id: string } | undefined
-  isViewingExecution: boolean
-  selectedExecutionCreatedAt: string | undefined
   historyCardOpen: boolean
   isPending: boolean
   selectedProject: ProjectRead | null
@@ -152,8 +128,6 @@ export function BuilderWorkflowAppPageHeader({
   workflowTags,
   isNew,
   workflow,
-  isViewingExecution,
-  selectedExecutionCreatedAt,
   historyCardOpen,
   isPending,
   selectedProject,
@@ -236,16 +210,10 @@ export function BuilderWorkflowAppPageHeader({
                 }}
               />
             </FlexItem>
-            {isViewingExecution && selectedExecutionCreatedAt && (
-              <FlexItem>
-                <Label>{`Viewing run: ${formatHistoryDateTime(selectedExecutionCreatedAt)}`}</Label>
-              </FlexItem>
-            )}
           </Flex>
         }
       >
         <BuilderToolbarContent
-          isViewingExecution={isViewingExecution}
           isLiveRunActive={isLiveRunActive}
           historyCardOpen={historyCardOpen}
           hasApprovalPending={hasApprovalPending}

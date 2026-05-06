@@ -66,10 +66,12 @@ vi.mock('wouter', async (importOriginal) => {
   }
 })
 
+const mockRequestNavigation = vi.fn()
 vi.mock('../../app/useUnsavedChanges', () => ({
   useUnsavedChanges: () => ({
     registerSaveHandler: vi.fn(),
     unregisterSaveHandler: vi.fn(),
+    requestNavigation: mockRequestNavigation,
   }),
 }))
 
@@ -1006,7 +1008,7 @@ describe('BuilderContent', () => {
       })
     })
 
-    it('handles execution selection', async () => {
+    it('navigates to execution page on execution selection', async () => {
       vi.mocked(executionsClient.useQuery).mockImplementation((method, path) => {
         if (method === 'get' && path === '/executions') {
           return {
@@ -1040,19 +1042,17 @@ describe('BuilderContent', () => {
       const historyButton = screen.getByLabelText('Run history')
       fireEvent.click(historyButton)
 
-      // Wait for history card with executions
       await waitFor(() => {
         expect(screen.getByText('Run History')).toBeInTheDocument()
       })
 
-      // Click on an execution to select it in the history panel
       const statusText = screen.getByText('Completed')
       expect(statusText).toBeInTheDocument()
       const row = statusText.closest('button')
       expect(row).not.toBeNull()
       fireEvent.click(row!)
       await waitFor(() => {
-        expect(row).toHaveClass('pf-m-current')
+        expect(mockRequestNavigation).toHaveBeenCalledWith('/executions/exec-1')
       })
     })
   })

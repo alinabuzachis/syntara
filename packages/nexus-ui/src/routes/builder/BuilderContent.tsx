@@ -1,8 +1,8 @@
-import { type Execution, ExecutionStatusEnum, type WorkflowAPI } from '@ansible/nexus-contracts'
+import { ExecutionStatusEnum, type WorkflowAPI } from '@ansible/nexus-contracts'
 import { Flex, FlexItem, Stack, StackItem } from '@patternfly/react-core'
 import { useQueryClient } from '@tanstack/react-query'
 import { useReactFlow, useNodesInitialized } from '@xyflow/react'
-import { useCallback, useEffect, useMemo, useReducer, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
 import { useLocation } from 'wouter'
 
 import { AppPage } from '../../app/AppPage'
@@ -23,11 +23,9 @@ import { BuilderWorkflowAppPageHeader } from './BuilderWorkflowAppPageHeader'
 import { BuilderDialogs } from './components/BuilderDialogs'
 import { NodeEditorOverlay } from './components/NodeEditorOverlay'
 import { ExecutionDetailsPanel } from './ExecutionDetailsPanel'
-import { ExecutionViewContent } from './ExecutionViewContent'
 import { useBuilderApproval } from './hooks/useBuilderApproval'
 import { useBuilderContentQueries } from './hooks/useBuilderContentQueries'
 import { useBuilderDerivedUiFlags } from './hooks/useBuilderDerivedUiFlags'
-import { useBuilderExecutionCanvasState } from './hooks/useBuilderExecutionCanvasState'
 import { useBuilderFlowInteractionHandlers } from './hooks/useBuilderFlowInteractionHandlers'
 import { useBuilderLiveRunPanel } from './hooks/useBuilderLiveRunPanel'
 import { useBuilderSaveWorkflow, type UseBuilderSaveWorkflowParams } from './hooks/useBuilderSaveWorkflow'
@@ -47,7 +45,7 @@ type BuilderContentProps = {
   workflowId: string | null
 }
 
-// eslint-disable-next-line max-lines-per-function, complexity, sonarjs/cognitive-complexity
+// eslint-disable-next-line max-lines-per-function, complexity
 export function BuilderContent(props: BuilderContentProps) {
   const { workflow, isNew, workflowId } = props
   const [, setLocation] = useLocation()
@@ -65,14 +63,9 @@ export function BuilderContent(props: BuilderContentProps) {
     markDirty,
     duplicateActivity,
   } = useWorkflowStore()
-  const { registerSaveHandler, unregisterSaveHandler } = useUnsavedChanges()
+  const { registerSaveHandler, unregisterSaveHandler, requestNavigation } = useUnsavedChanges()
 
   const [executionFilters, setExecutionFilters] = useState<FilterConfig[]>([])
-  const [historyPanelHeight, setHistoryPanelHeight] = useState(300)
-  const handleHistoryResize = useCallback(
-    (dy: number) => setHistoryPanelHeight((h) => Math.min(600, Math.max(100, h - dy))),
-    []
-  )
 
   const [state, dispatch] = useReducer(builderReducer, getInitialBuilderState())
   const {
@@ -80,7 +73,6 @@ export function BuilderContent(props: BuilderContentProps) {
     deleteDialogOpen,
     detailsOpen,
     historyCardOpen,
-    selectedExecutionId,
     isKebabOpen,
     addNodePanelOpen,
     nodeEditorMode,
@@ -109,19 +101,16 @@ export function BuilderContent(props: BuilderContentProps) {
     nodeEditorMode
   )
 
-  useUndoRedoKeyboard({ disabled: isNodeEditorOpen || !!selectedExecutionId })
+  useUndoRedoKeyboard({ disabled: isNodeEditorOpen })
   useEffect(() => () => useWorkflowStore.temporal.getState().clear(), [])
 
-  const { executionsQuery, selectedExecutionQuery, mostRecentExecutionQuery, workflowsListQuery } =
-    useBuilderContentQueries({
-      workflowId,
-      isNew,
-      executionFilters,
-      selectedExecutionId,
-      historyCardOpen,
-      mostRecentExecutionId,
-      mostRecentRunPanelOpen,
-    })
+  const { executionsQuery, mostRecentExecutionQuery, workflowsListQuery } = useBuilderContentQueries({
+    workflowId,
+    isNew,
+    executionFilters,
+    mostRecentExecutionId,
+    mostRecentRunPanelOpen,
+  })
 
   useBuilderWorkflowLifecycle({
     workflowId,
@@ -189,15 +178,6 @@ export function BuilderContent(props: BuilderContentProps) {
       handleSaveWorkflow,
     })
 
-  const { selectedExecution, executionWorkflow, executionActivities, isViewingExecution } =
-    useBuilderExecutionCanvasState(
-      historyCardOpen,
-      selectedExecutionId,
-      executionsQuery,
-      selectedExecutionQuery as { data?: Execution },
-      dispatch
-    )
-
   const {
     handleNodeClick,
     handleClearDesiredPosition,
@@ -233,7 +213,7 @@ export function BuilderContent(props: BuilderContentProps) {
     mostRecentExecutionId,
     mostRecentRunPanelOpen,
     executionStatus: mostRecentExecution?.status,
-    isViewingExecution,
+    isViewingExecution: false,
   })
 
   const isTerminalStatus =
@@ -266,17 +246,6 @@ export function BuilderContent(props: BuilderContentProps) {
     [expandAllEvent, collapseAllEvent]
   )
 
-  const widenExecutionChrome = isViewingExecution && !!selectedExecutionId
-
-  const executionFilledStackItemStyle: CSSProperties = widenExecutionChrome
-    ? {
-        minHeight: 0,
-        paddingInline: 'var(--pf-t--global--spacer--sm)',
-        paddingBlockStart: 'var(--pf-t--global--spacer--xs)',
-        paddingBlockEnd: 'var(--pf-t--global--spacer--sm)',
-      }
-    : { minHeight: 0 }
-
   return (
     <NodeActionsContext.Provider value={nodeActionsValue}>
       <NodeExpandedAllContext.Provider value={nodeExpandedAllContextValue}>
@@ -289,8 +258,6 @@ export function BuilderContent(props: BuilderContentProps) {
                 workflowTags={workflowTags}
                 isNew={isNew}
                 workflow={workflow?.id ? { id: workflow.id } : undefined}
-                isViewingExecution={isViewingExecution}
-                selectedExecutionCreatedAt={selectedExecution?.created_at ?? undefined}
                 historyCardOpen={historyCardOpen}
                 isPending={isPending}
                 selectedProject={selectedProject}
@@ -309,11 +276,11 @@ export function BuilderContent(props: BuilderContentProps) {
                 onReviewApproval={openApprovalView}
               />
             </StackItem>
-            <StackItem isFilled style={executionFilledStackItemStyle}>
+            <StackItem isFilled style={{ minHeight: 0 }}>
               <Flex
                 alignItems={{ default: 'alignItemsStretch' }}
                 flexWrap={{ default: 'nowrap' }}
-                gap={{ default: widenExecutionChrome ? 'gapLg' : 'gapSm' }}
+                gap={{ default: 'gapSm' }}
                 style={{
                   position: 'relative',
                   minWidth: 0,
@@ -341,57 +308,33 @@ export function BuilderContent(props: BuilderContentProps) {
                     }}
                   >
                     <StackItem isFilled style={{ minHeight: 0 }}>
-                      {isViewingExecution && selectedExecutionId ? (
-                        <ExecutionViewContent
-                          workflow={executionWorkflow}
-                          executionStatus={selectedExecution?.status ?? null}
-                          executionActivities={executionActivities}
-                          executionId={selectedExecutionId}
+                      <AppPanel
+                        hasNoPadding
+                        isFullHeight
+                        style={{
+                          position: 'relative',
+                          minWidth: 0,
+                          width: '100%',
+                          height: '100%',
+                        }}
+                      >
+                        <BuilderFlow
+                          workflowId={workflowId}
+                          panelOpen={isAddNodePanelOpen || !!selectedNode}
+                          activeEdgeButtonNodeId={isAddNodePanelOpen ? sourceNodeId : null}
+                          activeEdgeButtonHandle={isAddNodePanelOpen ? sourceHandle : null}
+                          activeEdgeId={isAddNodePanelOpen ? edgeIdToReplace : null}
+                          executionStatus={canvasExecutionStatus}
+                          disableDeleteKey={isNodeEditorOpen}
+                          disableSpacePanning={isNodeEditorOpen}
+                          onNodeClick={wrappedHandleNodeClick}
+                          onAddNodeFromEdge={handleAddNodeFromEdge}
+                          onNodesDeleted={handleNodesDeleted}
+                          newNodeDesiredPosition={state.newNodeDesiredPosition}
+                          onClearDesiredPosition={handleClearDesiredPosition}
                         />
-                      ) : (
-                        <AppPanel
-                          hasNoPadding
-                          isFullHeight
-                          style={{
-                            position: 'relative',
-                            minWidth: 0,
-                            width: '100%',
-                            height: '100%',
-                          }}
-                        >
-                          <BuilderFlow
-                            workflowId={workflowId}
-                            panelOpen={isAddNodePanelOpen || !!selectedNode}
-                            activeEdgeButtonNodeId={isAddNodePanelOpen ? sourceNodeId : null}
-                            activeEdgeButtonHandle={isAddNodePanelOpen ? sourceHandle : null}
-                            activeEdgeId={isAddNodePanelOpen ? edgeIdToReplace : null}
-                            executionStatus={canvasExecutionStatus}
-                            disableDeleteKey={isNodeEditorOpen}
-                            disableSpacePanning={isNodeEditorOpen}
-                            onNodeClick={wrappedHandleNodeClick}
-                            onAddNodeFromEdge={handleAddNodeFromEdge}
-                            onNodesDeleted={handleNodesDeleted}
-                            newNodeDesiredPosition={state.newNodeDesiredPosition}
-                            onClearDesiredPosition={handleClearDesiredPosition}
-                          />
-                        </AppPanel>
-                      )}
+                      </AppPanel>
                     </StackItem>
-                    {isViewingExecution && selectedExecutionId && (
-                      <>
-                        <ResizableDivider onResize={handleHistoryResize} />
-                        <StackItem style={{ flexShrink: 0, height: `${historyPanelHeight}px`, overflow: 'hidden' }}>
-                          <ExecutionDetailsPanel
-                            executionId={selectedExecutionId}
-                            workflowDefinition={
-                              executionWorkflow?.version.workflow_definition as Parameters<
-                                typeof ExecutionDetailsPanel
-                              >[0]['workflowDefinition']
-                            }
-                          />
-                        </StackItem>
-                      </>
-                    )}
                     {showMostRecentRunPanelInEditor && mostRecentExecutionId && (
                       <>
                         <ResizableDivider onResize={handleMostRecentResize} />
@@ -443,8 +386,9 @@ export function BuilderContent(props: BuilderContentProps) {
                     <WorkflowHistoryCard
                       executions={executionsQuery.data?.resources ?? []}
                       onClose={() => dispatch({ type: 'SET_HISTORY_CARD_OPEN', payload: false })}
-                      onExecutionSelect={(id) => dispatch({ type: 'SET_SELECTED_EXECUTION_ID', payload: id })}
-                      selectedExecutionId={selectedExecutionId}
+                      onExecutionSelect={(id) => {
+                        requestNavigation(`/executions/${id}`)
+                      }}
                       filters={executionFilters}
                       onFilterChange={setExecutionFilters}
                     />
@@ -478,7 +422,7 @@ export function BuilderContent(props: BuilderContentProps) {
                   nodeSubtypeId={nodeEditorNodeSubtypeId}
                   sourceNodeId={sourceNodeId}
                   replacementNodeId={replacementNodeId}
-                  executionId={selectedExecutionId}
+                  executionId={null}
                   workflowId={workflowId}
                   onConnect={handleConnectFromPanel}
                   onClose={() => dispatch({ type: 'CLOSE_NODE_EDITOR' })}
