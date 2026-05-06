@@ -23559,6 +23559,11 @@ components:
             - type: string
             - type: 'null'
           title: Description
+        helper_text:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Helper Text
         category:
           type: string
           title: Category
@@ -23596,6 +23601,7 @@ components:
         - key
         - name
         - description
+        - helper_text
         - category
         - group
         - value

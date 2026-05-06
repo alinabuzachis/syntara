@@ -17,6 +17,7 @@ class RuntimeSettingRead(BaseResource):
     key: str
     name: str
     description: str | None
+    helper_text: str | None
     category: str
     group: str | None
     value: Any

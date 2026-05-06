@@ -27,6 +27,7 @@ class RuntimeSettingRead:
         key (str):
         name (str):
         description (None | str):
+        helper_text (None | str):
         category (str):
         group (None | str):
         value (Any):
@@ -47,6 +48,7 @@ class RuntimeSettingRead:
     key: str
     name: str
     description: None | str
+    helper_text: None | str
     category: str
     group: None | str
     value: Any
@@ -71,6 +73,9 @@ class RuntimeSettingRead:
 
         description: None | str
         description = self.description
+
+        helper_text: None | str
+        helper_text = self.helper_text
 
         category = self.category
 
@@ -121,6 +126,7 @@ class RuntimeSettingRead:
                 "key": key,
                 "name": name,
                 "description": description,
+                "helper_text": helper_text,
                 "category": category,
                 "group": group,
                 "value": value,
@@ -160,6 +166,13 @@ class RuntimeSettingRead:
             return cast(None | str, data)
 
         description = _parse_description(d.pop("description"))
+
+        def _parse_helper_text(data: object) -> None | str:
+            if data is None:
+                return data
+            return cast(None | str, data)
+
+        helper_text = _parse_helper_text(d.pop("helper_text"))
 
         category = d.pop("category")
 
@@ -236,6 +249,7 @@ class RuntimeSettingRead:
             key=key,
             name=name,
             description=description,
+            helper_text=helper_text,
             category=category,
             group=group,
             value=value,

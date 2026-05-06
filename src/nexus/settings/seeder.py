@@ -39,6 +39,7 @@ logger = structlog.stdlib.get_logger(__name__)
 _UPSERT_UPDATE_FIELDS = (
     "name",
     "description",
+    "helper_text",
     "default_value",
     "value_type",
     "category",
@@ -142,6 +143,7 @@ async def _upsert_settings(session: AsyncSession) -> tuple[int, int]:
             "id": uuid4(),
             "name": defn.name,
             "description": defn.description,
+            "helper_text": defn.helper_text,
             "key": defn.key,
             "category": defn.category,
             "value_type": defn.value_type,

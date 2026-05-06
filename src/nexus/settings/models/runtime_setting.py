@@ -156,6 +156,13 @@ class RuntimeSetting(NamedResource, table=True):
         description="Logical grouping for display and filtering",
     )
 
+    helper_text: str | None = Field(
+        default=None,
+        max_length=FieldLimits.DESCRIPTION_MAX_LENGTH,
+        sa_type=String(FieldLimits.DESCRIPTION_MAX_LENGTH),  # type: ignore[call-overload]
+        description="Short inline guidance shown below the setting field in the UI",
+    )
+
     group: str | None = Field(
         default=None,
         max_length=FieldLimits.NAME_MAX_LENGTH,

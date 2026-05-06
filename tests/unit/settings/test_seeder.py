@@ -41,6 +41,12 @@ def test_catalog_entries_are_setting_definitions() -> None:
         assert isinstance(entry, SettingDefinition)
 
 
+def test_catalog_entries_have_helper_text() -> None:
+    """Every SettingDefinition in the catalog must have a non-empty helper_text."""
+    missing = [d.key for d in SETTINGS_CATALOG if not d.helper_text]
+    assert missing == [], f"Settings missing helper_text: {missing}"
+
+
 def test_catalog_contains_expected_keys() -> None:
     """The catalog includes expected context_manager seed settings."""
     keys = {d.key for d in SETTINGS_CATALOG}
@@ -86,6 +92,20 @@ async def test_seed_is_idempotent_value_unchanged(
     await test_db_session.refresh(setting)
     assert setting.value == 8000
     assert setting.version == 5
+
+
+@pytest.mark.asyncio
+async def test_seed_persists_helper_text(
+    test_db_session: AsyncSession,
+    test_session_factory: Callable[[], object],
+) -> None:
+    """seed_settings() persists helper_text from the catalog to the database."""
+    await seed_settings(test_session_factory)
+
+    first_definition = SETTINGS_CATALOG[0]
+    result = await test_db_session.exec(select(RuntimeSetting).where(RuntimeSetting.key == first_definition.key))
+    setting = result.one()
+    assert setting.helper_text == first_definition.helper_text
 
 
 @pytest.mark.asyncio
