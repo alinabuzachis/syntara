@@ -117,35 +117,6 @@ class TestBaseAgentErrorHandling:
         assert exc_info.value.__cause__ == original_error
 
 
-class TestBaseAgentEmptyResponseHandling:
-    """Test BaseAgent empty response handling."""
-
-    def test_handle_empty_response_returns_proper_format(self) -> None:
-        """Test that empty response handler returns GenericAgentResponse."""
-        agent = ConcreteAgent()
-        invocation_id = str(uuid4())
-        response_metadata: dict[str, object] = {"model": "test-model"}
-
-        result = agent._handle_empty_response(invocation_id, response_metadata, message=None)
-
-        assert result.type == "answer"
-        assert "couldn't generate an answer" in result.content
-        assert result.response_metadata["warning"] == "empty_response"
-        assert result.response_metadata["model"] == "test-model"
-
-    def test_handle_empty_response_uses_custom_message(self) -> None:
-        """Test that empty response handler uses provided custom message."""
-        agent = ConcreteAgent()
-        invocation_id = str(uuid4())
-        response_metadata: dict[str, object] = {}
-        custom_message = "Custom fallback message"
-
-        result = agent._handle_empty_response(invocation_id, response_metadata, message=custom_message)
-
-        assert result.content == custom_message
-        assert result.response_metadata["warning"] == "empty_response"
-
-
 class TestBaseAgentLogging:
     """Test BaseAgent logging helper methods."""
 

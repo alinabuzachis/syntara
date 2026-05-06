@@ -2,7 +2,7 @@
 
 from nexus.agent_orchestrator.error_handlers import llm_configuration_error_handler
 from nexus.core.exception_registry import fastapi_exception
-from nexus.core.exceptions import NexusError
+from nexus.core.exceptions import NexusError, RetryableError
 
 
 class AgentOrchestratorError(NexusError):
@@ -47,6 +47,19 @@ class LLMConfigurationError(AgentOrchestratorError):
     This exception indicates a server-side configuration issue,
     not a problem with the client's request.
     """
+
+
+class EmptyLLMResponseError(AgentOrchestratorError, RetryableError):
+    """Raised when the LLM returns an empty response with no tool calls.
+
+    MRO: EmptyLLMResponseError → AgentOrchestratorError → RetryableError → NexusError.
+    RetryableError is a pure marker (no __init__); super().__init__ chains through
+    AgentOrchestratorError to NexusError without conflict.
+    """
+
+    def __init__(self, invocation_id: str | None = None) -> None:
+        """Initialize with optional invocation ID for context."""
+        super().__init__("LLM returned empty response with no tool calls", invocation_id)
 
 
 class InvocationCancelledError(AgentOrchestratorError):

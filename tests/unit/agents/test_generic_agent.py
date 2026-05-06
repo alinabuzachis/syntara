@@ -226,11 +226,46 @@ class TestGenericAgentPromptEngineering:
         assert call_args is not None
 
     @pytest.mark.asyncio
-    async def test_generic_agent_handles_empty_llm_response(self) -> None:
-        """Test GenericAgent handles empty LLM responses."""
+    async def test_generic_agent_raises_on_empty_llm_response(self) -> None:
+        """Test GenericAgent raises EmptyLLMResponseError on empty LLM response."""
         mock_llm = Mock()
         mock_llm_with_tools = AsyncMock()
         mock_llm_with_tools.ainvoke.return_value = AIMessage(content="", response_metadata={})
+        mock_llm.bind_tools.return_value = mock_llm_with_tools
+        mock_llm.model_name = "anthropic/claude-3.5-sonnet"
+
+        agent = GenericAgent(llm=mock_llm, available_tools=[])
+        invocation_id = str(uuid4())
+        state: AgentState = {
+            "prompt": "test query",
+            "original_prompt": "test query",
+            "session_id": "test-session",
+            "invocation_id": invocation_id,
+            "user_id": None,
+            "context_package": None,
+            "current_agent": "generic_agent",
+            "messages": [HumanMessage("test")],
+            "result": None,
+            "metadata": None,
+            "llm_token_usage_log": [],
+        }
+
+        with patch("nexus.core.utils.retry.get_settings") as mock_settings:
+            mock_settings.return_value.adapter_max_retries = 0
+            mock_settings.return_value.adapter_request_timeout_seconds = 30
+            with pytest.raises(AgentOrchestratorError):
+                await agent.execute_as_node(state)
+
+    @pytest.mark.asyncio
+    async def test_generic_agent_allows_tool_calls_with_empty_text(self) -> None:
+        """Test GenericAgent does not raise when LLM returns tool_calls with empty text."""
+        mock_llm = Mock()
+        mock_llm_with_tools = AsyncMock()
+        mock_llm_with_tools.ainvoke.return_value = AIMessage(
+            content="",
+            response_metadata={},
+            tool_calls=[{"name": "get_greeting", "args": {"name": "jimmy"}, "id": "call_1"}],
+        )
         mock_llm.bind_tools.return_value = mock_llm_with_tools
         mock_llm.model_name = "anthropic/claude-3.5-sonnet"
 
@@ -253,10 +288,7 @@ class TestGenericAgentPromptEngineering:
         response = await agent.execute_as_node(state)
 
         assert isinstance(response, dict)
-        result = response["result"]
-        assert result is not None
-        assert result["content"] is not None
-        assert "couldn't generate an answer" in result["content"]
+        assert response["result"] is not None
 
     @pytest.mark.asyncio
     async def test_generic_agent_raises_error_for_malformed_llm_response(self) -> None:

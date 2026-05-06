@@ -203,6 +203,13 @@ class TestErrorClassification:
         error = HTTPException(status_code=status_code, detail="Test error")
         assert is_retryable_error(error) is expected_retryable
 
+    def test_retryable_error_marker_is_retryable(self) -> None:
+        """Test that exceptions inheriting RetryableError are classified as retryable."""
+        from nexus.agent_orchestrator.exceptions import EmptyLLMResponseError
+
+        error = EmptyLLMResponseError(invocation_id="test-id")
+        assert is_retryable_error(error) is True
+
     def test_value_error_is_not_retryable(self) -> None:
         """Test that ValueError is not retryable."""
         error = ValueError("Invalid value")
@@ -398,6 +405,32 @@ class TestRetryDecorator:
             with pytest.raises(openai.AuthenticationError):
                 await mock_llm_call(invocation_id=uuid4())
             assert call_count == 1  # No retries
+
+    @pytest.mark.asyncio
+    async def test_retryable_error_subclass_triggers_retry(
+        self,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
+        """Test that RetryableError subclasses are retried by the decorator."""
+        from nexus.agent_orchestrator.exceptions import EmptyLLMResponseError
+
+        call_count = 0
+
+        @retry_with_backoff
+        async def mock_llm_call(invocation_id: UUID, **kwargs: Any) -> str:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise EmptyLLMResponseError(invocation_id=str(invocation_id))
+            return "success"
+
+        with override_settings(
+            adapter_max_retries=3,
+            adapter_initial_backoff_seconds=0.1,
+        ):
+            result = await mock_llm_call(invocation_id=uuid4())
+            assert result == "success"
+            assert call_count == 2  # Initial + 1 retry
 
     @pytest.mark.asyncio
     async def test_rate_limit_error_retryable(

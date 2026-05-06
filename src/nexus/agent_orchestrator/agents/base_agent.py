@@ -12,9 +12,6 @@ from nexus.agent_orchestrator.exceptions import (
     AgentRateLimitError,
     AgentTimeoutError,
 )
-from nexus.agent_orchestrator.models.agent_response import (
-    GenericAgentResponse,
-)
 from nexus.agent_orchestrator.models.agent_state import AgentState
 from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.types import MetricType
@@ -28,7 +25,6 @@ class BaseAgent(ABC):
     Provides common functionality including:
     - Standardized error handling
     - Logging patterns
-    - Empty response handling
     - LangGraph node execution interface via Template Method pattern
     """
 
@@ -181,36 +177,4 @@ class BaseAgent(ABC):
             "Agent node execution completed successfully",
             agent_class=self.__class__.__name__,
             invocation_id=invocation_id,
-        )
-
-    def _handle_empty_response(
-        self,
-        invocation_id: str,
-        response_metadata: dict[str, object],
-        message: str | None,
-    ) -> GenericAgentResponse:
-        """Handle cases where the agent produces an empty response.
-
-        Args:
-            invocation_id: Invocation ID for logging
-            response_metadata: Metadata from the LLM response
-            message: Custom message to return, or None to use default
-
-        Returns:
-            GenericAgentResponse with message and warning metadata
-
-        """
-        self.logger.warning(
-            "Empty response for execution",
-            invocation_id=invocation_id,
-        )
-        if not message:
-            message = (
-                "I apologize, but I couldn't generate an answer to your question. "
-                "Please try rephrasing or providing more details."
-            )
-        response_metadata["warning"] = "empty_response"
-        return GenericAgentResponse(
-            content=message,
-            response_metadata=response_metadata,
         )

@@ -27,6 +27,15 @@ class NexusError(Exception):
         super().__init__(message)
 
 
+class RetryableError(NexusError):
+    """Marker base class for exceptions that should trigger retry logic.
+
+    Mix into domain exceptions via multiple inheritance so retry_with_backoff
+    retries them automatically. Named as a behavioral trait rather than the
+    {Resource}{Condition}Error convention used by domain exceptions.
+    """
+
+
 @fastapi_exception(handler=safe_value_error_handler)
 class SafeValueError(ValueError, NexusError):
     """ValueError subclass for user-safe validation error messages.

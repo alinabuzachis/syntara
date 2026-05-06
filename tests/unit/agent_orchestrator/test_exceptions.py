@@ -8,9 +8,11 @@ from nexus.agent_orchestrator.exceptions import (
     AgentRateLimitError,
     AgentTimeoutError,
     ContextIntegrationError,
+    EmptyLLMResponseError,
     LLMConfigurationError,
     OrchestrationError,
 )
+from nexus.core.exceptions import RetryableError
 
 
 class TestLLMConfigurationError:
@@ -46,6 +48,33 @@ class TestAgentOrchestratorError:
         assert str(error) == message
         assert error.message == message
         assert error.invocation_id is None
+
+
+class TestEmptyLLMResponseError:
+    """Tests for EmptyLLMResponseError exception."""
+
+    def test_initialization_with_invocation_id(self) -> None:
+        """Test EmptyLLMResponseError preserves invocation_id."""
+        invocation_id = str(uuid4())
+        error = EmptyLLMResponseError(invocation_id=invocation_id)
+
+        assert str(error) == "LLM returned empty response with no tool calls"
+        assert error.message == "LLM returned empty response with no tool calls"
+        assert error.invocation_id == invocation_id
+
+    def test_initialization_without_invocation_id(self) -> None:
+        """Test EmptyLLMResponseError defaults invocation_id to None."""
+        error = EmptyLLMResponseError()
+
+        assert str(error) == "LLM returned empty response with no tool calls"
+        assert error.invocation_id is None
+
+    def test_inherits_from_both_base_classes(self) -> None:
+        """Test EmptyLLMResponseError inherits from AgentOrchestratorError and RetryableError."""
+        error = EmptyLLMResponseError(invocation_id="test-id")
+
+        assert isinstance(error, AgentOrchestratorError)
+        assert isinstance(error, RetryableError)
 
 
 class TestExceptionInheritance:

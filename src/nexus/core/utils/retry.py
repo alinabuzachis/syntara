@@ -18,6 +18,7 @@ import structlog
 from fastapi import HTTPException
 
 from nexus.core.config.base import AdapterRetrySettings, get_settings
+from nexus.core.exceptions import RetryableError
 
 # HTTP status code constants for error classification
 _HTTP_STATUS_MIN_SERVER_ERROR = 500
@@ -75,8 +76,11 @@ def is_retryable_error(error: Exception) -> bool:
         True if error should trigger retry, False otherwise
 
     """
-    # Check OpenAI SDK exceptions first (primary path)
-    if isinstance(error, openai.APIConnectionError | openai.APITimeoutError | openai.RateLimitError):
+    # Check Nexus RetryableError marker and OpenAI SDK exceptions (primary path)
+    if isinstance(
+        error,
+        RetryableError | openai.APIConnectionError | openai.APITimeoutError | openai.RateLimitError,
+    ):
         return True
 
     # Check non-retryable OpenAI SDK exceptions

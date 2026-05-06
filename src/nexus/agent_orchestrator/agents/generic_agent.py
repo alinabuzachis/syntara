@@ -12,6 +12,7 @@ from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
 
 from nexus.agent_orchestrator.agents.base_agent import BaseAgent
+from nexus.agent_orchestrator.exceptions import EmptyLLMResponseError
 from nexus.agent_orchestrator.models import GenericAgentResponse
 from nexus.agent_orchestrator.models.agent_state import AgentState
 from nexus.core.utils.retry import retry_with_backoff
@@ -94,6 +95,12 @@ class GenericAgent(BaseAgent):
             model=getattr(self.llm, "model_name", None),
         )
 
+        # Tool-call-only responses (empty text but tool_calls present) are valid;
+        # check BEFORE mutating state so retry_with_backoff replays the original messages.
+        answer = str(result_message.text)
+        if (not answer or not answer.strip()) and not result_message.tool_calls:
+            raise EmptyLLMResponseError(invocation_id=state["invocation_id"])
+
         # Collect token usage from LLM response for post-LLM update
         token_entry = self._build_token_usage_entry(result_message)
         token_log: list[dict[str, Any]] = [token_entry] if token_entry is not None else []
@@ -101,17 +108,8 @@ class GenericAgent(BaseAgent):
         # Update AgentState
         state["messages"] = [result_message]
         state["llm_token_usage_log"] = token_log
-        answer = str(result_message.text)
         response_metadata = result_message.response_metadata
         response_model: GenericAgentResponse = GenericAgentResponse(content=answer, response_metadata=response_metadata)
-
-        # Handle empty responses
-        if not answer or not answer.strip():
-            response_model = self._handle_empty_response(
-                state["invocation_id"],
-                result_message.response_metadata,
-                message=None,
-            )
 
         state["result"] = response_model.model_dump(by_alias=True)
 
@@ -146,22 +144,25 @@ class GenericAgent(BaseAgent):
                 lambda: structured_llm.ainvoke(messages),
                 model=getattr(self.llm, "model_name", None),
             )
-
-            # Token usage unavailable: json_mode returns a parsed dict, not an AIMessage
-            state["llm_token_usage_log"] = []
-            state["messages"] = []
-
-            result_dict = GenericAgentResponse(
-                content=parsed_output,
-                response_metadata={},
-            ).model_dump(by_alias=True)
-            result_dict["structured_output_metadata"] = {"fallback_strategy_used": "native"}
-            state["result"] = result_dict
-
-            return state
         except Exception:  # noqa: BLE001
             logger.warning("Structured output failed, falling back to standard execution", exc_info=True)
             return await self._execute_standard(state)
+
+        if parsed_output is None:
+            raise EmptyLLMResponseError(invocation_id=state.get("invocation_id"))
+
+        # Token usage unavailable: json_mode returns a parsed dict, not an AIMessage
+        state["llm_token_usage_log"] = []
+        state["messages"] = []
+
+        result_dict = GenericAgentResponse(
+            content=parsed_output,
+            response_metadata={},
+        ).model_dump(by_alias=True)
+        result_dict["structured_output_metadata"] = {"fallback_strategy_used": "native"}
+        state["result"] = result_dict
+
+        return state
 
     async def _extract_structured_output(self, state: AgentState, response_schema: dict[str, Any]) -> AgentState:
         """Post-tool-loop extraction: reformat result into schema.
