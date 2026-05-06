@@ -15,6 +15,7 @@ const baseSetting: RuntimeSetting = {
   key: 'context_manager.max_total_tokens',
   name: 'Max total tokens',
   description: 'Maximum total tokens in context package',
+  helper_text: 'Minimum 1 token',
   category: 'context_manager',
   group: 'Token limits',
   value: null,
@@ -74,10 +75,10 @@ describe('SettingField', () => {
     expect(screen.getByText('Compression mode')).toBeInTheDocument()
   })
 
-  it('shows description with min constraint', () => {
+  it('shows helper_text from API', () => {
     render(<SettingField setting={baseSetting} value={4000} onChange={vi.fn()} onResetSingle={vi.fn()} />)
 
-    expect(screen.getByText(/min: 1/)).toBeInTheDocument()
+    expect(screen.getByText('Minimum 1 token')).toBeInTheDocument()
   })
 
   it('renders boolean setting with description in popover', () => {
@@ -97,12 +98,13 @@ describe('SettingField', () => {
     expect(screen.getByText('Enabled')).toBeInTheDocument()
   })
 
-  it('renders notification setting with description in helper text, no popover', () => {
+  it('renders notification setting with helper_text, no popover', () => {
     const notifSetting = {
       ...baseSetting,
       key: 'notifications.email_enabled',
       name: 'Email notifications',
       description: 'Send email notifications for workflow events',
+      helper_text: 'Requires SMTP configuration',
       category: 'notifications',
       value_type: 'boolean' as const,
       validation_schema: null,
@@ -110,7 +112,7 @@ describe('SettingField', () => {
     render(<SettingField setting={notifSetting} value={true} onChange={vi.fn()} onResetSingle={vi.fn()} />)
 
     expect(screen.getByText('Email notifications')).toBeInTheDocument()
-    expect(screen.getByText('Send email notifications for workflow events')).toBeInTheDocument()
+    expect(screen.getByText('Requires SMTP configuration')).toBeInTheDocument()
     expect(screen.queryByLabelText(/Help for/)).not.toBeInTheDocument()
   })
 
@@ -151,28 +153,30 @@ describe('SettingField', () => {
     expect(screen.getByText('user')).toBeInTheDocument()
   })
 
-  it('renders float setting with NumberInput', () => {
+  it('renders float setting with helper_text', () => {
     const floatSetting = {
       ...baseSetting,
       key: 'context_manager.compression_temperature',
       name: 'Compression temperature',
+      helper_text: 'Range 0.0-1.0. Lower is more deterministic.',
       value_type: 'float' as const,
       validation_schema: { min: 0, max: 1 } as unknown as RuntimeSetting['validation_schema'],
     }
     render(<SettingField setting={floatSetting} value={0.3} onChange={vi.fn()} onResetSingle={vi.fn()} />)
 
     expect(screen.getByText('Compression temperature')).toBeInTheDocument()
-    expect(screen.getByText(/0 - 1/)).toBeInTheDocument()
+    expect(screen.getByText('Range 0.0-1.0. Lower is more deterministic.')).toBeInTheDocument()
   })
 
-  it('shows description with max constraint only', () => {
+  it('shows no helper text when helper_text is null', () => {
     const setting = {
       ...baseSetting,
+      helper_text: null,
       validation_schema: { max: 100 } as unknown as RuntimeSetting['validation_schema'],
     }
     render(<SettingField setting={setting} value={50} onChange={vi.fn()} onResetSingle={vi.fn()} />)
 
-    expect(screen.getByText(/max: 100/)).toBeInTheDocument()
+    expect(screen.queryByText(/max: 100/)).not.toBeInTheDocument()
   })
 
   it('calls onChange when integer plus button clicked', async () => {

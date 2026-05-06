@@ -45,12 +45,13 @@ describe('useAllSettings', () => {
         key: 'app.debug',
         name: 'Debug',
         description: null,
+        helper_text: null,
         category: 'application',
         group: 'General',
         value: null,
         default_value: false,
         effective_value: false,
-        value_type: 'boolean',
+        value_type: 'boolean' as const,
         requires_restart: false,
         cache_ttl_seconds: null,
         validation_schema: null,
@@ -63,6 +64,7 @@ describe('useAllSettings', () => {
     const mockResponse = {
       data: { resources: mockSettings },
       error: undefined,
+      response: new Response(),
     } satisfies Awaited<ReturnType<typeof settingsFetchClient.GET>>
 
     vi.mocked(settingsFetchClient.GET).mockResolvedValue(mockResponse)
@@ -84,12 +86,13 @@ describe('useAllSettings', () => {
         key: 'a',
         name: 'A',
         description: null,
+        helper_text: null,
         category: 'c',
         group: 'g',
         value: null,
         default_value: 1,
         effective_value: 1,
-        value_type: 'integer',
+        value_type: 'integer' as const,
         requires_restart: false,
         cache_ttl_seconds: null,
         validation_schema: null,
@@ -104,12 +107,13 @@ describe('useAllSettings', () => {
         key: 'b',
         name: 'B',
         description: null,
+        helper_text: null,
         category: 'c',
         group: 'g',
         value: null,
         default_value: 2,
         effective_value: 2,
-        value_type: 'integer',
+        value_type: 'integer' as const,
         requires_restart: false,
         cache_ttl_seconds: null,
         validation_schema: null,
@@ -122,11 +126,13 @@ describe('useAllSettings', () => {
     const mockResponse1 = {
       data: { resources: page1, next: 'c1' },
       error: undefined,
+      response: new Response(),
     } satisfies Awaited<ReturnType<typeof settingsFetchClient.GET>>
 
     const mockResponse2 = {
       data: { resources: page2 },
       error: undefined,
+      response: new Response(),
     } satisfies Awaited<ReturnType<typeof settingsFetchClient.GET>>
 
     vi.mocked(settingsFetchClient.GET).mockResolvedValueOnce(mockResponse1).mockResolvedValueOnce(mockResponse2)
@@ -144,7 +150,8 @@ describe('useAllSettings', () => {
   it('returns error when fetch fails', async () => {
     const mockResponse = {
       data: undefined,
-      error: { detail: 'Forbidden' },
+      error: { type: 'error', title: 'Forbidden', detail: 'Forbidden', code: 'FORBIDDEN', retryable: false },
+      response: new Response(null, { status: 403 }),
     } satisfies Awaited<ReturnType<typeof settingsFetchClient.GET>>
 
     vi.mocked(settingsFetchClient.GET).mockResolvedValue(mockResponse)
@@ -162,6 +169,7 @@ describe('useAllSettings', () => {
     const mockResponse = {
       data: { resources: [] },
       error: undefined,
+      response: new Response(),
     } satisfies Awaited<ReturnType<typeof settingsFetchClient.GET>>
 
     vi.mocked(settingsFetchClient.GET).mockResolvedValue(mockResponse)

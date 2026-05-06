@@ -13,6 +13,7 @@ const makeSetting = (overrides: Partial<RuntimeSetting> = {}): RuntimeSetting =>
   key: 'context_manager.max_total_tokens',
   name: 'Max total tokens',
   description: 'Maximum total tokens',
+  helper_text: 'Minimum 1 token',
   category: 'context_manager',
   group: 'Token limits',
   value: null,

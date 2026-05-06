@@ -12,9 +12,8 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List runtime settings
-     * @description Retrieve a paginated list of runtime settings with optional filtering
-     *     by category and group. Uses cursor-based pagination.
+     * List Settings
+     * @description List all runtime settings with pagination, filtering, and sorting.
      */
     get: operations['list_settings']
     put?: never
@@ -23,10 +22,8 @@ export interface paths {
     options?: never
     head?: never
     /**
-     * Bulk update settings
-     * @description Update multiple settings in a single request. Each update includes
-     *     the setting key, new value, and expected version for optimistic locking.
-     *     If any update fails, the entire batch is rolled back.
+     * Bulk Update Settings
+     * @description Update multiple settings in a single request.
      */
     patch: operations['bulk_update_settings']
     trace?: never
@@ -39,34 +36,12 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List setting categories
-     * @description Retrieve all setting categories with their group names.
-     *     Categories are derived from the settings catalog.
+     * List Categories
+     * @description List all setting categories with their group names.
      */
     get: operations['list_categories']
     put?: never
     post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/settings/reset': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /**
-     * Bulk reset settings to defaults
-     * @description Reset all settings (or those in a specific category) to their
-     *     default values. Each setting's version is incremented.
-     */
-    post: operations['bulk_reset_settings']
     delete?: never
     options?: never
     head?: never
@@ -81,8 +56,8 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get a single setting
-     * @description Retrieve a single runtime setting by its dot-namespaced key.
+     * Get Setting
+     * @description Get a single runtime setting by its dot-namespaced key.
      */
     get: operations['get_setting']
     put?: never
@@ -91,32 +66,10 @@ export interface paths {
     options?: never
     head?: never
     /**
-     * Update a setting value
-     * @description Update a runtime setting's value. Requires the current `expected_version`
-     *     for optimistic locking.
+     * Update Setting
+     * @description Update a runtime setting value with optimistic locking.
      */
     patch: operations['update_setting']
-    trace?: never
-  }
-  '/settings/{key}/reset': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /**
-     * Reset a setting to its default value
-     * @description Clear the user-set override so the setting falls back to its
-     *     `default_value`. Requires `expected_version` for optimistic locking.
-     */
-    post: operations['reset_setting']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
     trace?: never
   }
 }
@@ -124,177 +77,402 @@ export type webhooks = Record<string, never>
 export interface components {
   schemas: {
     /**
-     * @description Expected value type for a runtime setting
+     * SettingValueType
+     * @description Expected value type for a runtime setting, used for UI rendering and validation.
      * @enum {string}
      */
     SettingValueType: 'string' | 'integer' | 'float' | 'boolean' | 'json'
-    /** @description A single runtime setting with its current and default values. */
-    RuntimeSettingRead: {
-      /** Format: uuid */
-      id: string
-      /** @description Dot-namespaced setting key */
+    /**
+     * RuntimeSettingRead
+     * @description Read schema for a single runtime setting.
+     */
+    RuntimeSettingRead: components['schemas']['BaseResource'] & {
+      /** Key */
       key: string
-      /** @description Human-readable display name */
+      /** Name */
       name: string
-      description?: string | null
-      /** @description Category slug for UI tab grouping */
+      /** Description */
+      description: string | null
+      /** Helper Text */
+      helper_text: string | null
+      /** Category */
       category: string
-      /** @description Group name for UI section headings within a category */
-      group?: string | null
-      /** @description User-set override value (null if using default) */
-      value?: unknown
-      /** @description Factory default value */
-      default_value?: unknown
-      /** @description Resolved value (value if set, otherwise default_value) */
+      /** Group */
+      group: string | null
+      /** Value */
+      value: unknown
+      /** Default Value */
+      default_value: unknown
+      /** Effective Value */
       effective_value: unknown
       value_type: components['schemas']['SettingValueType']
+      /** Requires Restart */
       requires_restart: boolean
-      cache_ttl_seconds?: number | null
-      /**
-       * @description Validation constraints. Possible keys:
-       *     - `min` (integer/float): Minimum value
-       *     - `max` (integer/float): Maximum value
-       *     - `allowed_values` (string): List of allowed values
-       *     - `pattern` (string): Regex pattern
-       */
-      validation_schema?: Record<string, never> | null
-      /** @description Optimistic lock version */
+      /** Cache Ttl Seconds */
+      cache_ttl_seconds: number | null
+      /** Validation Schema */
+      validation_schema: {
+        [key: string]: unknown
+      } | null
+      /** Version */
       version: number
-      /** Format: date-time */
-      created_at: string
-      /** Format: date-time */
-      updated_at: string
     }
+    /**
+     * SettingUpdate
+     * @description Request body for PATCH /settings/{key}.
+     */
     SettingUpdate: {
-      /** @description New value (native type matching value_type) */
+      /** Value */
       value: unknown
-      /** @description Current version for optimistic locking */
-      expected_version: number
+      /** Expected Version */
+      expected_version?: number | null
     }
-    SettingResetRequest: {
-      /** @description Current version for optimistic locking */
-      expected_version: number
-    }
+    /**
+     * SettingBulkUpdateItem
+     * @description A single setting update within a bulk request.
+     */
     SettingBulkUpdateItem: {
-      /** @description Dot-namespaced setting key */
+      /** Key */
       key: string
-      /** @description New value */
+      /** Value */
       value: unknown
-      expected_version: number
+      /** Expected Version */
+      expected_version?: number | null
     }
+    /**
+     * SettingBulkUpdateRequest
+     * @description Request body for PATCH /settings (bulk update).
+     */
     SettingBulkUpdateRequest: {
+      /** Updates */
       updates: components['schemas']['SettingBulkUpdateItem'][]
     }
-    SettingBulkResetItem: {
-      /** @description Dot-namespaced setting key */
-      key: string
-      expected_version: number
-    }
-    SettingBulkResetRequest: {
-      resets: components['schemas']['SettingBulkResetItem'][]
-    }
+    /**
+     * SettingCategoryRead
+     * @description Read schema for a setting category.
+     */
     SettingCategoryRead: {
-      /** @description Category identifier */
+      /** Slug */
       slug: string
-      /** @description Human-readable display name */
+      /** Name */
       name: string
-      description?: string | null
-      /** @description Ordered list of group names within this category */
+      /** Description */
+      description: string | null
+      /**
+       * Display Order
+       * @default 0
+       */
+      display_order?: number
+      /** Group Names */
       group_names: string[]
     }
+    /**
+     * SettingsListResponse
+     * @description Paginated list response for runtime settings.
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
+     */
+    SettingsListResponse: components['schemas']['ResourcesResponseBase'] & {
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources: components['schemas']['RuntimeSettingRead'][]
+    }
+    /**
+     * CategoriesListResponse
+     * @description Response schema for listing setting categories.
+     */
     CategoriesListResponse: {
+      /** Results */
       results: components['schemas']['SettingCategoryRead'][]
     }
     /**
      * Paginated Response Base
      * @description Pagination metadata structure for list responses
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
      */
     ResourcesResponseBase: {
       /**
-       * Next Page Cursor
+       * Next
        * @description Cursor for next page of results
-       * @example eyJpZCI6InV1aWQifQ
        */
       next?: string | null
       /**
-       * Previous Page Cursor
+       * Prev
        * @description Cursor for previous page of results
-       * @example eyJpZCI6InV1aWQifQ
        */
       prev?: string | null
       /**
-       * Total Count
+       * Total
        * @description Total count of resources (only when include_total=true)
-       * @example 150
        */
       total?: number | null
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources?: unknown[]
     }
     /**
-     * RFC 9457 Problem Details
-     * @description RFC 9457 Problem Details format for error responses.
-     *     This format provides machine-readable and human-readable error information
-     *     with consistent structure for all API error responses.
+     * Base Resource
+     * @description Foundational schema for all API resources with system-managed metadata
+     */
+    BaseResource: {
+      /**
+       * Resource ID
+       * Format: uuid
+       * @description Unique identifier for the resource
+       * @example 550e8400-e29b-41d4-a716-446655440000
+       */
+      readonly id?: string
+      /**
+       * Created At
+       * Format: date-time
+       * @description Timestamp when resource was created
+       * @example 2025-10-09T12:00:00Z
+       */
+      readonly created_at?: string
+      /**
+       * Updated At
+       * Format: date-time
+       * @description Timestamp when resource was last updated
+       * @example 2025-10-09T12:30:00Z
+       */
+      readonly updated_at?: string
+      /**
+       * Labels
+       * @description Key-value pairs for resource labeling and filtering
+       * @default {}
+       * @example {
+       *       "environment": "production",
+       *       "region": "us-east-1",
+       *       "team": "platform"
+       *     }
+       */
+      labels?: {
+        [key: string]: string
+      }
+    }
+    /**
+     * ErrorData
+     * @description RFC 9457 Problem Details format for error event data.
+     *     This model is used for streaming error events and follows the RFC 9457 Problem Details specification. It provides machine-readable and human-readable error information with consistent structure.
+     *     Attributes:
+     *         type: URI reference identifying the problem type
+     *         title: Short, human-readable summary of the problem
+     *         detail: Human-readable explanation specific to this occurrence
+     *         code: Machine-readable error code for programmatic handling
+     *         retryable: Whether this error can be retried by creating a new invocation
+     *         instance: Optional URI reference identifying the specific occurrence
+     * @example {
+     *       "type": "https://api.nexus.com/errors/llm-error",
+     *       "title": "LLM Rate Limit Exceeded",
+     *       "detail": "OpenRouter API rate limit exceeded. Please try again in a few moments.",
+     *       "code": "RATE_LIMIT_EXCEEDED",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
+     * @example {
+     *       "type": "https://api.nexus.com/errors/timeout-error",
+     *       "title": "Streaming Timeout",
+     *       "detail": "LLM streaming timed out after 30 seconds",
+     *       "code": "STREAM_TIMEOUT",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
      */
     ErrorData: {
       /**
-       * Problem Type URI
+       * Type
        * @description URI reference identifying the problem type
-       * @example https://api.nexus.com/errors/validation-error
+       * @example https://api.nexus.com/errors/llm-error
        */
       type: string
       /**
-       * Problem Title
+       * Title
        * @description Short, human-readable summary of the problem
-       * @example Validation Error
+       * @example LLM Service Unavailable
        */
       title: string
       /**
-       * Problem Detail
+       * Detail
        * @description Human-readable explanation specific to this occurrence
-       * @example Field 'name' must be between 1 and 255 characters
+       * @example OpenRouter API returned error: rate limit exceeded. Please try again in a few moments.
        */
       detail: string
       /**
-       * Error Code
+       * Code
        * @description Machine-readable error code for programmatic handling
-       * @example VALIDATION_ERROR
+       * @example RATE_LIMIT_EXCEEDED
        */
       code: string
       /**
-       * Retryable Flag
-       * @description Whether this error can be retried
-       * @example false
+       * Retryable
+       * @description Whether this error can be retried by creating a new invocation
+       * @example true
        */
       retryable: boolean
       /**
-       * Problem Instance
-       * @description URI reference identifying the specific occurrence
-       * @example /api/v1/workflows
+       * Instance
+       * @description Optional URI reference identifying the specific occurrence
+       * @example /invocations/550e8400-e29b-41d4-a716-446655440000
        */
       instance?: string | null
     }
   }
-  responses: never
+  responses: {
+    /** @description Bad Request */
+    BadRequestError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/bad-request",
+         *       "title": "Bad Request",
+         *       "detail": "The request was malformed or contained invalid parameters",
+         *       "code": "BAD_REQUEST",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Unauthorized */
+    UnauthorizedError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/unauthorized",
+         *       "title": "Unauthorized",
+         *       "detail": "Authentication is required to access this resource",
+         *       "code": "UNAUTHORIZED",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Forbidden */
+    ForbiddenError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/forbidden",
+         *       "title": "Forbidden",
+         *       "detail": "You do not have permission to access this resource",
+         *       "code": "FORBIDDEN",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Not Found */
+    NotFoundError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/not-found",
+         *       "title": "Resource Not Found",
+         *       "detail": "No resource exists with the provided identifier",
+         *       "code": "NOT_FOUND",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Conflict */
+    ConflictError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/conflict",
+         *       "title": "Conflict",
+         *       "detail": "The request conflicts with the current state of the resource",
+         *       "code": "CONFLICT",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Validation Error */
+    ValidationError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/validation-error",
+         *       "title": "Validation Error",
+         *       "detail": "Field 'name' must be between 1 and 255 characters",
+         *       "code": "VALIDATION_ERROR",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Internal Server Error */
+    InternalServerError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/internal-error",
+         *       "title": "Internal Server Error",
+         *       "detail": "An unexpected error occurred",
+         *       "code": "INTERNAL_ERROR",
+         *       "retryable": true
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+  }
   parameters: {
-    /** @description Dot-namespaced setting key (e.g. `context_manager.max_total_tokens`) */
-    keyParam: string
-    /**
-     * @description Number of resources to return per page
-     * @example 20
-     */
+    /** @description Maximum number of results per page */
     limitParam: number
-    /**
-     * @description Opaque cursor for pagination (from previous response)
-     * @example eyJpZCI6InV1aWQifQ
-     */
-    cursorParam: string
-    /**
-     * @description Sort order for resources.
-     *     - Ascending: `field` (e.g., `name`)
-     *     - Descending: `-field` (e.g., `-created_at`)
-     * @example -created_at
-     */
-    sortParam: string
+    /** @description Pagination cursor from previous response */
+    cursorParam: string | null
+    /** @description Sort parameter (e.g., 'name', '-created_at') */
+    sortParam: string | null
+    /** @description Include total count in response (expensive) */
+    includeTotalParam: boolean
   }
   requestBodies: never
   headers: never
@@ -305,27 +483,16 @@ export interface operations {
   list_settings: {
     parameters: {
       query?: {
-        /**
-         * @description Number of resources to return per page
-         * @example 20
-         */
+        /** @description Maximum number of results per page */
         limit?: components['parameters']['limitParam']
-        /**
-         * @description Opaque cursor for pagination (from previous response)
-         * @example eyJpZCI6InV1aWQifQ
-         */
+        /** @description Pagination cursor from previous response */
         cursor?: components['parameters']['cursorParam']
-        /**
-         * @description Sort order for resources.
-         *     - Ascending: `field` (e.g., `name`)
-         *     - Descending: `-field` (e.g., `-created_at`)
-         * @example -created_at
-         */
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
         sort?: components['parameters']['sortParam']
-        /** @description Filter by category slug (e.g. `context_manager`) */
-        category?: string
-        /** @description Filter by group name (e.g. `Token limits`) */
-        group?: string
+        /** @description Include total count in response (expensive) */
+        include_total?: components['parameters']['includeTotalParam']
+        category?: string | null
+        group?: string | null
       }
       header?: never
       path?: never
@@ -339,20 +506,16 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['ResourcesResponseBase'] & {
-            resources: components['schemas']['RuntimeSettingRead'][]
-          }
+          'application/json': components['schemas']['SettingsListResponse']
         }
       }
-      /** @description Insufficient permissions */
-      403: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   bulk_update_settings: {
@@ -377,33 +540,13 @@ export interface operations {
           'application/json': components['schemas']['RuntimeSettingRead'][]
         }
       }
-      /** @description Setting not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Version conflict */
-      409: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Validation error */
-      422: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   list_categories: {
@@ -424,30 +567,13 @@ export interface operations {
           'application/json': components['schemas']['CategoriesListResponse']
         }
       }
-    }
-  }
-  bulk_reset_settings: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['SettingBulkResetRequest']
-      }
-    }
-    responses: {
-      /** @description Settings reset to defaults */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['RuntimeSettingRead'][]
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   get_setting: {
@@ -456,7 +582,7 @@ export interface operations {
       header?: never
       path: {
         /** @description Dot-namespaced setting key (e.g. `context_manager.max_total_tokens`) */
-        key: components['parameters']['keyParam']
+        key: string
       }
       cookie?: never
     }
@@ -471,15 +597,13 @@ export interface operations {
           'application/json': components['schemas']['RuntimeSettingRead']
         }
       }
-      /** @description Setting not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   update_setting: {
@@ -488,7 +612,7 @@ export interface operations {
       header?: never
       path: {
         /** @description Dot-namespaced setting key (e.g. `context_manager.max_total_tokens`) */
-        key: components['parameters']['keyParam']
+        key: string
       }
       cookie?: never
     }
@@ -507,78 +631,13 @@ export interface operations {
           'application/json': components['schemas']['RuntimeSettingRead']
         }
       }
-      /** @description Setting not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Version conflict */
-      409: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Validation error */
-      422: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-    }
-  }
-  reset_setting: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        /** @description Dot-namespaced setting key (e.g. `context_manager.max_total_tokens`) */
-        key: components['parameters']['keyParam']
-      }
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['SettingResetRequest']
-      }
-    }
-    responses: {
-      /** @description Setting reset to default */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['RuntimeSettingRead']
-        }
-      }
-      /** @description Setting not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Version conflict */
-      409: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
 }

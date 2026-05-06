@@ -130,21 +130,7 @@ export function SettingField({
     }
   }, [fieldError, setting.key, onValidationChange])
 
-  const buildHelperText = () => {
-    const parts: string[] = []
-    if (isNotifications && setting.description) parts.push(setting.description)
-    if (numericBounds) {
-      const { min, max } = numericBounds
-      if (min !== undefined && max !== undefined) {
-        parts.push(`(${min.toString()} - ${max.toString()})`)
-      } else if (min !== undefined) {
-        parts.push(`(min: ${min.toString()})`)
-      } else if (max !== undefined) {
-        parts.push(`(max: ${max.toString()})`)
-      }
-    }
-    return parts.length > 0 ? parts.join(' ') : null
-  }
+  const helperText = setting.helper_text ?? null
 
   const kebabMenu = (
     <Dropdown
@@ -188,13 +174,13 @@ export function SettingField({
         </FlexItem>
         {showKebab && <FlexItem>{kebabMenu}</FlexItem>}
       </Flex>
-      {(fieldError || buildHelperText()) && (
+      {(fieldError || helperText) && (
         <FormHelperText>
           <HelperText>
             {fieldError ? (
               <HelperTextItem variant="error">{fieldError}</HelperTextItem>
             ) : (
-              <HelperTextItem>{buildHelperText()}</HelperTextItem>
+              <HelperTextItem variant="default">{helperText}</HelperTextItem>
             )}
           </HelperText>
         </FormHelperText>
