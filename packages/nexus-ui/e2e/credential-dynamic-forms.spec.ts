@@ -1,8 +1,18 @@
+import { generateKeyPairSync } from 'node:crypto'
+
 import type { Page } from '@playwright/test'
 
 import { test, expect } from './fixtures'
 import { deleteCredentialByName, goToCredentialsList } from './helpers/credentials'
 import { buildUniqueName } from './helpers/workflows'
+
+function generateTestSSHKey(): string {
+  const { privateKey } = generateKeyPairSync('ed25519', {
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    publicKeyEncoding: { type: 'spki', format: 'pem' },
+  })
+  return privateKey
+}
 
 async function openCreateModal(app: Page) {
   await goToCredentialsList(app, { ensureCreateEnabled: true })
@@ -107,9 +117,7 @@ test.describe('Dynamic Credential Form Rendering', () => {
     await modal.getByRole('textbox', { name: 'Credential name' }).fill(name)
     await modal.getByRole('combobox', { name: 'Credential type' }).selectOption({ label: 'SSH Key' })
     await modal.getByRole('textbox', { name: 'Username' }).fill('deploy')
-    await modal
-      .getByRole('textbox', { name: 'Private key' })
-      .fill('-----BEGIN OPENSSH PRIVATE KEY-----\ntest-key-content\n-----END OPENSSH PRIVATE KEY-----')
+    await modal.getByRole('textbox', { name: 'Private key' }).fill(generateTestSSHKey())
     await modal.getByRole('button', { name: 'Create credential' }).click()
 
     try {
