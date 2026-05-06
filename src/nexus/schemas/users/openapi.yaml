@@ -738,7 +738,7 @@ paths:
         - bearerAuth: []
     post:
       summary: Add Member
-      description: Add a local user to a group.
+      description: Add a user to a group.
       operationId: add_member
       x-app-permission:
         resource: group
@@ -1234,6 +1234,14 @@ components:
           description: Enable or disable user account
           title: Is Enabled
 
+    AuthType:
+      type: string
+      enum:
+        - local
+        - federated
+      title: AuthType
+      description: Authentication type for users.
+
     UserRead:
       type: object
       title: UserRead
@@ -1271,10 +1279,9 @@ components:
           type: boolean
           default: false
           title: Is Builtin
-        has_password:
-          type: boolean
-          default: false
-          title: Has Password
+        auth_type:
+          $ref: '#/components/schemas/AuthType'
+          default: local
         last_login:
           anyOf:
             - type: string
@@ -1638,10 +1645,9 @@ components:
           type: boolean
           default: false
           title: Is Builtin
-        has_password:
-          type: boolean
-          default: false
-          title: Has Password
+        auth_type:
+          $ref: '#/components/schemas/AuthType'
+          default: local
         last_login:
           anyOf:
             - type: string

@@ -67,6 +67,7 @@ from nexus.core.database.session import get_db
 from nexus.core.lib.encryption import SecretEncryptor, key_from_string
 from nexus.core.models import Group, User, UserIdentity
 from nexus.core.models.group import user_groups
+from nexus.core.models.user import AuthType
 from nexus.core.services.secret_service import create_secret_service
 from nexus.identity_providers.models.identity_provider import IdentityProvider
 from nexus.identity_providers.models.identity_provider_configuration import (
@@ -736,16 +737,13 @@ async def oidc_authorize(
             OIDCFlowEvent(provider_id=provider_id, stage=OIDCStage.AUTHORIZE, error_type=type(e).__name__)
         )
         logger.warning("OIDC authorize failed, redirecting to login", provider_id=str(provider_id), error=str(e))
-        base_url = _get_frontend_base_url(origin)
-        return RedirectResponse(url=f"{base_url}?auth_error={quote(str(e))}", status_code=302)
+        return _build_authorize_error_redirect(origin, redirect_to, flow, str(e))
     except Exception as e:
         AuditEventDispatcher.dispatch(
             OIDCFlowEvent(provider_id=provider_id, stage=OIDCStage.AUTHORIZE, error_type=type(e).__name__)
         )
-        # Safety net: this is a browser endpoint — never return JSON errors
         logger.exception("Unexpected error during OIDC authorize", provider_id=str(provider_id))
-        base_url = _get_frontend_base_url(origin)
-        return RedirectResponse(url=f"{base_url}?auth_error={quote(_OIDC_ERR_DISCOVERY_FAILED)}", status_code=302)
+        return _build_authorize_error_redirect(origin, redirect_to, flow, _OIDC_ERR_DISCOVERY_FAILED)
 
 
 async def _verify_idp_test_permission(request: Request, db: AsyncSession) -> None:
@@ -1174,6 +1172,7 @@ async def _auto_create_user(
         email=email,
         full_name=full_name,
         password_hash=None,
+        auth_type=AuthType.FEDERATED,
         is_enabled=True,
     )
     db.add(user)
@@ -1293,9 +1292,11 @@ async def oidc_callback(
     if flow_type == "test_signin":
         return _build_test_signin_response(raw_merged_claims, state_data.get("origin"))
 
-    # For link flow, identity was already created — just redirect back (no session creation)
+    # For link flow: if a local user was converted to federated, identity is non-None
+    # and we must create a new session (the old password session was revoked).
+    # Otherwise, just redirect back — the existing session is still valid.
     if flow_type == "link":
-        return _build_link_success_redirect(user, provider, state_data)
+        return await _build_link_redirect(user, provider, identity, state_data, request, db, id_token_raw)
 
     # Login flow: user and identity are guaranteed non-None here
     if user is None or identity is None:  # pragma: no cover - defensive guard for type narrowing
@@ -1307,6 +1308,25 @@ async def oidc_callback(
     )
 
 
+def _build_authorize_error_redirect(
+    origin: str | None,
+    redirect_to: str | None,
+    flow: str | None,
+    error_msg: str,
+) -> RedirectResponse:
+    """Build error redirect for OIDC authorize failures.
+
+    For link flows, redirects back to the originating page with link_error
+    so the UI can display the error inline instead of dumping the user
+    on the base URL.
+    """
+    if flow == "link" and redirect_to:
+        safe_redirect = _safe_redirect_url(redirect_to, origin=origin)
+        return RedirectResponse(url=f"{safe_redirect}?link_error={quote(error_msg)}", status_code=302)
+    base_url = _get_frontend_base_url(origin)
+    return RedirectResponse(url=f"{base_url}?auth_error={quote(error_msg)}", status_code=302)
+
+
 def _build_callback_error_redirect(e: "_OIDCCallbackError") -> RedirectResponse:
     """Build error redirect for OIDC callback failures."""
     if e.redirect_to:
@@ -1316,12 +1336,24 @@ def _build_callback_error_redirect(e: "_OIDCCallbackError") -> RedirectResponse:
     return RedirectResponse(url=f"{base_url}?auth_error={quote(str(e))}", status_code=302)
 
 
-def _build_link_success_redirect(
+async def _build_link_redirect(
     user: User | None,
     provider: IdentityProvider,
+    identity: UserIdentity | None,
     state_data: dict[str, str],
+    request: Request,
+    db: AsyncSession,
+    id_token_raw: str,
 ) -> RedirectResponse:
-    """Build redirect after successful identity link."""
+    """Build redirect after successful identity link.
+
+    When *identity* is non-None a local user was converted to federated
+    and a new OIDC session is created (the old password session was revoked).
+    """
+    if identity is not None and user is not None:
+        return await _build_login_session_redirect(
+            user, provider, identity, state_data, request, db, id_token_raw, is_first_login=False
+        )
     stored_origin = state_data.get("origin")
     redirect_to = _safe_redirect_url(state_data.get("redirect_to"), origin=stored_origin)
     logger.info("OIDC identity link successful", user_id=str(user.id) if user else "unknown", provider=provider.name)
@@ -1582,8 +1614,8 @@ async def _process_oidc_callback(
 
     # Handle self-service link flow — create identity for authenticated user
     if state_data.get("flow_type") == "link":
-        user = await _process_link_callback(db, state_data, user_claims, provider, origin)
-        return user, provider, state_data, None, raw_merged_claims, id_token_raw, False
+        user, link_identity = await _process_link_callback(db, state_data, user_claims, provider, origin)
+        return user, provider, state_data, link_identity, raw_merged_claims, id_token_raw, False
 
     user, identity, is_first_login = await _resolve_and_login_user(db, user_claims, raw_merged_claims, provider, origin)
     return user, provider, state_data, identity, raw_merged_claims, id_token_raw, is_first_login
@@ -1643,8 +1675,14 @@ async def _process_link_callback(
     user_claims: dict[str, str | None],
     provider: IdentityProvider,
     origin: str | None,
-) -> User:
-    """Process the OIDC callback for identity linking. Wraps _handle_link_flow with error handling."""
+) -> tuple[User, UserIdentity | None]:
+    """Process the OIDC callback for identity linking. Wraps _handle_link_flow with error handling.
+
+    Returns:
+        Tuple of (user, identity). Identity is non-None when a local user was
+        converted to federated — the caller must create a new session.
+
+    """
     link_redirect = state_data.get("redirect_to")
     try:
         return await _handle_link_flow(db, state_data, user_claims, provider)
@@ -1681,8 +1719,14 @@ async def _handle_link_flow(
     state_data: dict[str, str],
     user_claims: dict[str, str | None],
     provider: IdentityProvider,
-) -> User:
-    """Handle self-service identity linking for an authenticated user."""
+) -> tuple[User, UserIdentity | None]:
+    """Handle self-service identity linking for an authenticated user.
+
+    Returns:
+        Tuple of (user, identity). Identity is non-None when a local user was
+        converted to federated, signalling the caller to create a new session.
+
+    """
     user_id_str = state_data.get("user_id")
     if not user_id_str:
         msg = "Invalid link flow state"
@@ -1694,6 +1738,10 @@ async def _handle_link_flow(
 
     user = await _load_active_user(db, user_id)
 
+    if user.is_builtin:
+        msg = "Cannot link federated identity to a built-in user account"
+        raise OIDCError(msg)
+
     sub = user_claims.get("sub")
     if not sub:
         msg = "Identity provider did not return a subject identifier"
@@ -1701,6 +1749,7 @@ async def _handle_link_flow(
 
     issuer = provider.configuration.issuer_url
     identity_service = UserIdentityService(db)
+    was_local = user.auth_type == AuthType.LOCAL
 
     # Check if this (issuer, sub) is already linked to any user
     existing = await identity_service.find_by_issuer_and_subject(issuer, sub)
@@ -1737,12 +1786,12 @@ async def _handle_link_flow(
         existing = await identity_service.find_by_issuer_and_subject(issuer, sub)
         if existing and existing.user_id == user.id:
             # Same user won the race — treat as success
-            return await _load_active_user(db, user.id)
+            return await _load_active_user(db, user.id), None
         msg = "This identity is already linked to another account"
         raise OIDCError(msg) from e
 
     await db.refresh(user)
-    return user
+    return user, identity if was_local else None
 
 
 def _build_test_signin_response(

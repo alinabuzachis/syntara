@@ -7,7 +7,6 @@ from fastapi import Depends, Query, Request, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth import get_current_user
-from nexus.auth.exceptions import UserNotLocalError
 from nexus.auth.session import create_session_store
 from nexus.authz.dependencies import PermissionChecker
 from nexus.authz.models.assignments import PrincipalType, RoleAssignment
@@ -35,7 +34,6 @@ from nexus.core.models.group import (
 )
 from nexus.core.models.user_schemas import GroupMemberListResponse
 from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
-from nexus.core.queries.user_queries import get_user_by_id as get_user
 from nexus.users.services.group_service import GroupsService
 
 router = NexusRouter(prefix="/groups", tags=["Groups"])
@@ -170,20 +168,6 @@ async def delete_group(
 # ============================================================================
 
 
-def _ensure_local_user(user: User) -> None:
-    """Verify that a user is a local user (has a password hash).
-
-    Args:
-        user: User instance to check
-
-    Raises:
-        UserNotLocalError: If the user is not a local user
-
-    """
-    if user.password_hash is None:
-        raise UserNotLocalError(user.id)
-
-
 @router.post(
     "/{group_id}/members",
     status_code=status.HTTP_201_CREATED,
@@ -197,9 +181,7 @@ async def add_member(
     service: Annotated[GroupsService, Depends(get_group_service)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> GroupMemberAddResponse:
-    """Add a local user to a group."""
-    user = await get_user(db, request.user_id)
-    _ensure_local_user(user)
+    """Add a user to a group."""
     await service.add_member(group_id, request.user_id)
     store = create_session_store(db)
     await store.increment_token_version(request.user_id)
@@ -220,8 +202,6 @@ async def remove_member(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> None:
     """Remove a user from a group."""
-    user = await get_user(db, user_id)
-    _ensure_local_user(user)
     await service.remove_member(group_id, user_id)
     store = create_session_store(db)
     await store.increment_token_version(user_id)

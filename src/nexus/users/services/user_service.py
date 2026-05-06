@@ -16,11 +16,13 @@ from nexus.auth.exceptions import (
     AdminDeleteError,
     AdminDisableNoOtherAdminsError,
     AdminModifyError,
+    PasswordOnFederatedUserError,
     UserUsernameConflictError,
 )
 from nexus.auth.passwords import hash_password
 from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
+from nexus.core.models.user import AuthType
 from nexus.core.models.user_schemas import (
     UserListResponse,
     UserRead,
@@ -36,7 +38,7 @@ class UserConvertResourceMixin(ConvertResourceMixin):
     def convert_resource(self, resource: User) -> UserRead:  # type: ignore[override]
         """Convert User to UserRead format."""
         read = UserRead.model_validate(resource)
-        read.has_password = resource.password_hash is not None
+        read.auth_type = resource.auth_type
         return read
 
 
@@ -226,6 +228,9 @@ class UsersService(BaseService):
         # on itself, but this check catches it if no other admins remain.
         if is_enabled is False:
             await self._ensure_other_admins_exist(exclude_user_id=user_id)
+
+        if password is not None and target_user.auth_type == AuthType.FEDERATED:
+            raise PasswordOnFederatedUserError(user_id)
 
         has_changes = False
 

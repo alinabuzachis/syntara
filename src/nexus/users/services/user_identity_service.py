@@ -7,9 +7,15 @@ import structlog
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.auth.exceptions import LastSignInMethodError, UserIdentityNotFoundError, UserNotFoundError
+from nexus.auth.exceptions import (
+    IdentityOnBuiltinUserError,
+    LastSignInMethodError,
+    UserIdentityNotFoundError,
+    UserNotFoundError,
+)
 from nexus.auth.session import create_session_store
 from nexus.core.models import User, UserIdentity
+from nexus.core.models.user import AuthType
 from nexus.core.models.user_identity_schemas import UserIdentityListResponse, UserIdentityRead
 from nexus.identity_providers.models.identity_provider import IdentityProvider
 
@@ -79,7 +85,17 @@ class UserIdentityService:
         issuer: str,
         subject: str,
     ) -> UserIdentity:
-        """Create a new federated identity link."""
+        """Create a new federated identity link.
+
+        If the user is a non-builtin local user, they are converted to
+        federated: password_hash is cleared, auth_type set to FEDERATED,
+        and all sessions are revoked.
+        """
+        user_result = await self.session.exec(select(User).where(User.id == user_id))
+        user = user_result.one_or_none()
+        if user and user.is_builtin:
+            raise IdentityOnBuiltinUserError(user_id)
+
         identity = UserIdentity(
             user_id=user_id,
             identity_provider_id=identity_provider_id,
@@ -87,6 +103,10 @@ class UserIdentityService:
             subject=subject,
         )
         self.session.add(identity)
+
+        if user and user.auth_type == AuthType.LOCAL:
+            await self._convert_to_federated(user)
+
         await self.session.flush()
         logger.info(
             "Created user identity",
@@ -118,21 +138,15 @@ class UserIdentityService:
         if expected_user_id is not None and identity.user_id != expected_user_id:
             raise UserIdentityNotFoundError(identity_id)
 
-        # Prevent deleting the last sign-in method (unless force is set for admin cleanup)
+        # Prevent deleting the last sign-in method (unless force is set for admin cleanup).
+        # With mutual exclusivity, federated users never have passwords, so the only
+        # sign-in method check is whether this is the user's last identity.
         if not force:
-            user_result = await self.session.exec(
-                select(User).where(
-                    User.id == identity.user_id,
-                    User.deleted_at.is_(None),  # type: ignore[union-attr]
-                )
+            remaining = await self.session.exec(
+                select(UserIdentity).where(col(UserIdentity.user_id) == identity.user_id)
             )
-            user = user_result.one_or_none()
-            if user and not user.password_hash:
-                remaining = await self.session.exec(
-                    select(UserIdentity).where(col(UserIdentity.user_id) == identity.user_id)
-                )
-                if len(remaining.all()) <= 1:
-                    raise LastSignInMethodError
+            if len(remaining.all()) <= 1:
+                raise LastSignInMethodError
 
         # Revoke ALL sessions for user before deleting identity
         user_id = identity.user_id
@@ -189,6 +203,9 @@ class UserIdentityService:
         if not target_user:
             raise UserNotFoundError(target_user_id)
 
+        if target_user.is_builtin:
+            raise IdentityOnBuiltinUserError(target_user_id)
+
         source_user_id = identity.user_id
 
         # Revoke ALL sessions for source user before moving identity
@@ -205,6 +222,10 @@ class UserIdentityService:
         identity.user_id = target_user_id
         identity.updated_at = datetime.now(UTC)
         self.session.add(identity)
+
+        if target_user.auth_type == AuthType.LOCAL:
+            await self._convert_to_federated(target_user)
+
         await self.session.flush()
 
         logger.info(
@@ -223,4 +244,18 @@ class UserIdentityService:
             updated_at=identity.updated_at,
             last_used_at=identity.last_used_at,
             provider_name=provider_name,
+        )
+
+    async def _convert_to_federated(self, user: User) -> None:
+        """Convert a local user to federated by clearing their password and revoking sessions."""
+        user.auth_type = AuthType.FEDERATED
+        user.password_hash = None
+        self.session.add(user)
+
+        store = create_session_store(self.session)
+        revoked = await store.revoke_all_for_user(user.id)
+        logger.info(
+            "Converted local user to federated",
+            user_id=str(user.id),
+            sessions_revoked=revoked,
         )

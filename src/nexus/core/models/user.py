@@ -5,6 +5,7 @@ for managing platform users with authentication and authorization.
 """
 
 from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Any, ClassVar
 
 from sqlalchemy import String, text
@@ -13,6 +14,13 @@ from sqlmodel import JSON, DateTime, Field, Index
 
 from nexus.core.constants import FieldLimits
 from nexus.core.models.base import SoftDeletableResource
+
+
+class AuthType(StrEnum):
+    """Authentication type for users."""
+
+    LOCAL = "local"
+    FEDERATED = "federated"
 
 
 class User(SoftDeletableResource, table=True):
@@ -49,6 +57,7 @@ class User(SoftDeletableResource, table=True):
         "email",
         "full_name",
         "is_enabled",
+        "auth_type",
     ]
 
     # Sortable fields for API list endpoints
@@ -59,6 +68,7 @@ class User(SoftDeletableResource, table=True):
         "email",
         "full_name",
         "last_login",
+        "auth_type",
     ]
 
     # Required fields
@@ -89,7 +99,15 @@ class User(SoftDeletableResource, table=True):
         default=None,
         exclude=True,
         sa_type=String(255),  # type: ignore[call-overload]
-        description="Argon2id password hash for local authentication (null for federated-only users)",
+        description="Argon2id password hash for local authentication (null for federated users)",
+    )
+
+    auth_type: AuthType = Field(
+        default=AuthType.LOCAL,
+        sa_type=String(10),  # type: ignore[call-overload]
+        description="Authentication type: 'local' (password) or 'federated' (identity provider). Mutually exclusive.",
+        index=True,
+        sa_column_kwargs={"server_default": text("'local'")},
     )
 
     # Optional fields with defaults

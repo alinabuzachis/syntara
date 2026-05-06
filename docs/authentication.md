@@ -425,7 +425,8 @@ Key concepts:
 - **Identities are keyed on `(issuer, sub)`**, not email. This prevents account confusion when different providers use the same email.
 - The `user_identities` table links federated identities to users. Each row represents one OIDC identity.
 - **Local users (password-based) have no `user_identities` rows.** The table is exclusively for federated identities.
-- A user can have **multiple federated identities** (from different providers) plus an optional local password.
+- **Local and federated users are mutually exclusive.** A user is either local (`auth_type = 'local'`, password-based) or federated (`auth_type = 'federated'`, identity-provider-based), never both. Setting a password on a federated user or linking an identity to a local user returns 409 Conflict. A database CHECK constraint enforces this invariant.
+- A federated user can have **multiple federated identities** from different providers.
 - Existing OIDC users get their `user_identities` row created automatically on next login.
 
 ### Identity Management
@@ -536,7 +537,7 @@ When a user authenticates via OIDC and no `UserIdentity` exists for their `(issu
    - `email` from the `email` claim (must contain `@`). Duplicate emails are allowed across users.
    - `full_name` from the `name` claim
    - `role` = `VIEWER` (default for auto-provisioned users)
-   - `password_hash` = `null` (federated-only user, cannot use local login)
+   - `auth_type` = `'federated'`, `password_hash` = `null` (federated user, cannot use local login)
 4. A `UserIdentity` row is created linking `(issuer, sub)` to the user
 5. Disabled users (`is_enabled = false`) are rejected
 6. If the linked user was deleted (stale identity), the identity is cleaned up and the flow restarts from step 2
@@ -692,7 +693,7 @@ The `UserRead` response schema includes:
 
 - **`is_enabled`** — whether the user account is enabled (renamed from `is_active`)
 - **`is_builtin`** — whether this is a built-in system user (e.g., the seeded admin). Built-in users have special protection rules (see [Built-in Admin Protection](#built-in-admin-protection)).
-- **`has_password`** — whether the user has a local password set. Used by the UI to determine if the user can log in locally (displayed as "Local" in the Identity Provider field alongside any federated providers).
+- **`auth_type`** — `"local"` or `"federated"`. Determines whether the user authenticates via local password or an external identity provider. These are mutually exclusive (enforced by a database CHECK constraint).
 
 ### `user_identities` Table
 
@@ -709,9 +710,37 @@ The `UserRead` response schema includes:
 
 **Constraint**: `UNIQUE(issuer, subject)` — each `(issuer, sub)` pair can only be linked to one user.
 
+### Local / Federated User Types
+
+Users are one of two types, enforced at the database level:
+
+| Auth Type | `auth_type` | `password_hash` | `user_identities` rows | Can log in via |
+|-----------|-------------|-----------------|------------------------|----------------|
+| Local | `'local'` | Set (Argon2id) | None | Username + password |
+| Federated | `'federated'` | `NULL` | One or more | OIDC identity provider |
+
+A `CHECK` constraint on the `users` table enforces this invariant:
+
+```sql
+(auth_type = 'local' AND password_hash IS NOT NULL)
+OR (auth_type = 'federated' AND password_hash IS NULL)
+```
+
+**Local-to-federated conversion:** Non-builtin local users can link an identity provider. When they do, the user is permanently converted to federated: `auth_type` is set to `'federated'`, `password_hash` is cleared, and all sessions are revoked. This is a one-way conversion — federated users cannot set a password. Built-in users (e.g., the seeded admin) cannot link identity providers.
+
+**Enforcement points:**
+
+| Action | Guard | Error Code |
+|--------|-------|------------|
+| Set password on federated user (`PATCH /users/{id}`) | `PasswordOnFederatedUserError` | `PASSWORD_ON_FEDERATED_USER` (409) |
+| Attach identity to built-in user (`POST /users/{id}/identities`) | `IdentityOnBuiltinUserError` | `IDENTITY_ON_BUILTIN_USER` (409) |
+| Self-service OIDC link for built-in user | `OIDCError` | Redirects with `link_error` param |
+
+OIDC auto-created users are always created with `auth_type = 'federated'`. Users created via `POST /users` (with a password) are always `auth_type = 'local'`.
+
 ### Self-Service Identity Linking
 
-Authenticated users can link additional OIDC identities to their account from the **User Detail > Identities** tab:
+Users can link OIDC identities to their account from the **User Detail > Identities** tab. Local users see a conversion warning before linking — the action permanently removes their password and converts them to a federated account. Built-in users cannot link identity providers.
 
 ```
 User clicks "Connect" on an unlinked provider

@@ -270,6 +270,36 @@ class AdminDisableNoOtherAdminsError(UserError):
 # ============================================================================
 
 
+@fastapi_exception(handler="nexus.auth.error_handlers.password_on_federated_user_handler")
+class PasswordOnFederatedUserError(UserError):
+    """Raised when attempting to set a password on a federated user."""
+
+    def __init__(self, user_id: UUID) -> None:
+        """Initialize exception with user ID.
+
+        Args:
+            user_id: UUID of the federated user
+
+        """
+        self.user_id = user_id
+        super().__init__(f"Cannot set password on federated user {user_id}")
+
+
+@fastapi_exception(handler="nexus.auth.error_handlers.identity_on_builtin_user_handler")
+class IdentityOnBuiltinUserError(UserError):
+    """Raised when attempting to link a federated identity to a built-in user."""
+
+    def __init__(self, user_id: UUID) -> None:
+        """Initialize exception with user ID.
+
+        Args:
+            user_id: UUID of the built-in user
+
+        """
+        self.user_id = user_id
+        super().__init__(f"Cannot link federated identity to built-in user {user_id}")
+
+
 @fastapi_exception(handler="nexus.auth.error_handlers.last_admin_removal_handler")
 class LastAdminRemovalError(UserError):
     """Raised when removing the last enabled admin from the admins group."""
@@ -324,18 +354,3 @@ class UserNotInGroupError(MembershipError):
         self.user_id = user_id
         self.group_id = group_id
         super().__init__(f"User {user_id} is not a member of group {group_id}")
-
-
-@fastapi_exception(handler="nexus.auth.error_handlers.user_not_local_handler")
-class UserNotLocalError(MembershipError):
-    """Raised when a non-local user is used in a group membership operation."""
-
-    def __init__(self, user_id: UUID) -> None:
-        """Initialize exception with user ID.
-
-        Args:
-            user_id: UUID of the non-local user
-
-        """
-        self.user_id = user_id
-        super().__init__(f"User {user_id} is not a local user")

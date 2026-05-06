@@ -595,21 +595,23 @@ async def test_db_engine(worker_id: str) -> AsyncGenerator[AsyncEngine, None]:
         test_database_url = pg.get_connection_url(driver="asyncpg")
         engine = create_async_engine(test_database_url, echo=False, poolclass=NullPool)
 
-        # Migrations require APP_ADMIN_PASSWORD_PATH for bootstrap admin seeding.
-        # Create a temporary password file for the test session.
+        # APP_ADMIN_PASSWORD_PATH is required for bootstrap admin seeding
+        # during migrations AND when test fixtures call seed_authz_data.
+        # Keep the temp file and env var alive for the entire test session.
         with tempfile.NamedTemporaryFile(mode="w", suffix="-admin-pw", delete=False) as pw_file:
             pw_file.write("test-admin-password")
             pw_path = pw_file.name
+        os.environ["APP_ADMIN_PASSWORD_PATH"] = pw_path
+        get_settings.cache_clear()
         try:
-            os.environ["APP_ADMIN_PASSWORD_PATH"] = pw_path
             await _upgrade_database_schema(test_database_url)
+
+            logger.debug("Test database ready (container) for worker '%s'", worker_id)
+            yield engine
+            await engine.dispose()
         finally:
             os.environ.pop("APP_ADMIN_PASSWORD_PATH", None)
             Path(pw_path).unlink(missing_ok=True)
-
-        logger.debug("Test database ready (container) for worker '%s'", worker_id)
-        yield engine
-        await engine.dispose()
 
 
 @pytest.fixture(scope="session")
@@ -922,11 +924,14 @@ async def test_user(user_factory: Callable[..., Awaitable["User"]]) -> "User":
 @pytest_asyncio.fixture
 async def non_local_user(test_db_session: AsyncSession) -> "User":
     """Create a non-local (federated) user without a password hash."""
+    from nexus.core.models.user import AuthType
+
     user = User(
         id=uuid4(),
         username="federateduser",
         email="federated@example.com",
         full_name="Federated User",
+        auth_type=AuthType.FEDERATED,
     )
     test_db_session.add(user)
     await test_db_session.commit()

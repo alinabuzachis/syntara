@@ -44,6 +44,7 @@ from .audit_event_read import AuditEventRead
 from .audit_event_read_labels import AuditEventReadLabels
 from .auth_provider_info import AuthProviderInfo
 from .auth_providers_response import AuthProvidersResponse
+from .auth_type import AuthType
 from .batch_approval_decision import BatchApprovalDecision
 from .batch_approval_decision_status import BatchApprovalDecisionStatus
 from .batch_approval_request import BatchApprovalRequest
@@ -305,6 +306,7 @@ __all__ = (
     "AuditEventReadLabels",
     "AuthProviderInfo",
     "AuthProvidersResponse",
+    "AuthType",
     "BatchApprovalDecision",
     "BatchApprovalDecisionStatus",
     "BatchApprovalRequest",

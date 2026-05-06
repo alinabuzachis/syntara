@@ -13,7 +13,7 @@ from nexus.auth.exceptions import SessionStoreUnavailableError
 from nexus.auth.router import (
     _auto_create_user,
     _build_callback_error_redirect,
-    _build_link_success_redirect,
+    _build_link_redirect,
     _build_test_signin_response,
     _create_identity_with_race_handling,
     _exchange_and_validate_tokens,
@@ -56,7 +56,10 @@ def _make_user(
     username: str = "testuser",
     is_enabled: bool = True,
     password_hash: str | None = None,
+    auth_type: str = "federated",
 ) -> User:
+    from nexus.core.models.user import AuthType
+
     return User(
         id=UUID(user_id) if user_id else uuid4(),
         username=username,
@@ -64,6 +67,7 @@ def _make_user(
         full_name="Test User",
         is_enabled=is_enabled,
         password_hash=password_hash,
+        auth_type=AuthType(auth_type),
     )
 
 
@@ -836,7 +840,15 @@ class TestOidcCallback:
         user_result.one_or_none.return_value = None
         username_result = MagicMock()
         username_result.one_or_none.return_value = None
-        db.exec.side_effect = [provider_result, user_result, username_result]
+        # create_identity checks is_builtin and auth_type on the auto-created user
+        from nexus.core.models.user import AuthType
+
+        auto_created_user = MagicMock()
+        auto_created_user.auth_type = AuthType.FEDERATED
+        auto_created_user.is_builtin = False
+        auth_type_result = MagicMock()
+        auth_type_result.one_or_none.return_value = auto_created_user
+        db.exec.side_effect = [provider_result, user_result, username_result, auth_type_result]
 
         mock_oidc_service = _make_oidc_service_mock(state_data=state_data, user_claims=user_claims)
 
@@ -1691,9 +1703,10 @@ class TestHandleLinkFlow:
         mock_result.one_or_none.return_value = user
         db.exec.return_value = mock_result
 
-        result = await _handle_link_flow(db, state_data, user_claims, provider)
+        result_user, result_identity = await _handle_link_flow(db, state_data, user_claims, provider)
 
-        assert result == user
+        assert result_user == user
+        assert result_identity is None
         mock_svc.create_identity.assert_called_once()
 
     @pytest.mark.asyncio
@@ -1717,9 +1730,28 @@ class TestHandleLinkFlow:
         mock_result.one_or_none.return_value = user
         db.exec.return_value = mock_result
 
-        result = await _handle_link_flow(db, state_data, user_claims, provider)
+        result_user, result_identity = await _handle_link_flow(db, state_data, user_claims, provider)
 
-        assert result == user
+        assert result_user == user
+        assert result_identity is None
+
+    @pytest.mark.asyncio
+    async def test_rejects_link_for_builtin_user(self) -> None:
+        """Should raise OIDCError when the user is a built-in user."""
+        user = _make_user(email="builtin@example.com", password_hash="$argon2id$hash", auth_type="local")
+        # Mark the user as builtin
+        user.is_builtin = True
+        provider = _make_provider()
+        user_claims = _make_user_claims(email="builtin@example.com")
+        state_data = {"user_id": str(user.id)}
+
+        db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = user
+        db.exec.return_value = mock_result
+
+        with pytest.raises(OIDCError, match="Cannot link federated identity to a built-in user"):
+            await _handle_link_flow(db, state_data, user_claims, provider)
 
     @pytest.mark.asyncio
     @patch("nexus.auth.router.UserIdentityService")
@@ -1957,7 +1989,7 @@ class TestOidcCallbackLinkFlow:
         with (
             patch("nexus.auth.router.OIDCService", return_value=mock_oidc_service),
             patch("nexus.auth.router.get_settings", return_value=mock_settings),
-            patch("nexus.auth.router._process_link_callback", AsyncMock(return_value=user)),
+            patch("nexus.auth.router._process_link_callback", AsyncMock(return_value=(user, None))),
         ):
             response = await oidc_callback(
                 state="valid-state",
@@ -2150,11 +2182,12 @@ class TestBuildCallbackErrorRedirect:
         assert location.startswith("http://localhost:3000/settings")
 
 
-class TestBuildLinkSuccessRedirect:
-    """Tests for the _build_link_success_redirect helper."""
+class TestBuildLinkRedirect:
+    """Tests for the _build_link_redirect helper."""
 
-    def test_redirects_to_stored_redirect_to(self) -> None:
-        """Should redirect to the stored redirect_to URL."""
+    @pytest.mark.asyncio
+    async def test_redirects_to_stored_redirect_to(self) -> None:
+        """Should redirect to the stored redirect_to URL when no conversion (identity=None)."""
         user = _make_user()
         provider = _make_provider(name="TestIdP")
         state_data = {
@@ -2166,12 +2199,13 @@ class TestBuildLinkSuccessRedirect:
         mock_settings.cors_allow_origins = ["http://localhost:3000"]
 
         with patch("nexus.auth.router.get_settings", return_value=mock_settings):
-            response = _build_link_success_redirect(user, provider, state_data)
+            response = await _build_link_redirect(user, provider, None, state_data, MagicMock(), AsyncMock(), "")
 
         assert response.status_code == 302
         assert response.headers["location"] == "http://localhost:3000/settings/identity"
 
-    def test_handles_none_user(self) -> None:
+    @pytest.mark.asyncio
+    async def test_handles_none_user(self) -> None:
         """Should not crash when user is None."""
         provider = _make_provider(name="TestIdP")
         state_data = {"origin": "http://localhost:3000"}
@@ -2180,7 +2214,7 @@ class TestBuildLinkSuccessRedirect:
         mock_settings.cors_allow_origins = ["http://localhost:3000"]
 
         with patch("nexus.auth.router.get_settings", return_value=mock_settings):
-            response = _build_link_success_redirect(None, provider, state_data)
+            response = await _build_link_redirect(None, provider, None, state_data, MagicMock(), AsyncMock(), "")
 
         assert response.status_code == 302
 

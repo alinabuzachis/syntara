@@ -80,21 +80,15 @@ class TestAddMember:
     async def test_add_member_non_local_user(
         self, admin_client: AsyncClient, test_group: Group, non_local_user: User
     ) -> None:
-        """Test 403 when adding a non-local (federated) user to a group."""
+        """Test that a non-local (federated) user can be added to a group."""
         response = await admin_client.post(
             f"{GROUPS_URL}/{test_group.id}/members",
             json={"user_id": str(non_local_user.id)},
         )
 
-        assert response.status_code == 403
-        assert_error_data(
-            response,
-            error_type="https://api.nexus.com/errors/forbidden",
-            title="Local User Required",
-            detail="Only local users can be assigned group memberships",
-            code="USER_NOT_LOCAL",
-            retryable=False,
-        )
+        assert response.status_code == 201
+        data = response.json()
+        assert data["message"] == "Member added successfully"
 
     @pytest.mark.asyncio
     async def test_add_member_unauthenticated(
@@ -160,20 +154,17 @@ class TestRemoveMember:
     async def test_remove_member_non_local_user(
         self, admin_client: AsyncClient, test_group: Group, non_local_user: User
     ) -> None:
-        """Test 403 when removing a non-local (federated) user from a group."""
+        """Test that a non-local (federated) user can be added and removed from a group."""
+        await admin_client.post(
+            f"{GROUPS_URL}/{test_group.id}/members",
+            json={"user_id": str(non_local_user.id)},
+        )
+
         response = await admin_client.delete(
             f"{GROUPS_URL}/{test_group.id}/members/{non_local_user.id}",
         )
 
-        assert response.status_code == 403
-        assert_error_data(
-            response,
-            error_type="https://api.nexus.com/errors/forbidden",
-            title="Local User Required",
-            detail="Only local users can be assigned group memberships",
-            code="USER_NOT_LOCAL",
-            retryable=False,
-        )
+        assert response.status_code == 204
 
     @pytest.mark.asyncio
     async def test_remove_member_unauthenticated(
@@ -517,7 +508,7 @@ class TestSetUserGroups:
     async def test_set_user_groups_non_local_user(
         self, admin_client: AsyncClient, non_local_user: User, multiple_test_groups: list[Group]
     ) -> None:
-        """Test 403 when setting groups for a non-local (federated) user."""
+        """Test that groups can be set for a non-local (federated) user."""
         group_ids = [str(g.id) for g in multiple_test_groups[:1]]
 
         response = await admin_client.put(
@@ -525,15 +516,7 @@ class TestSetUserGroups:
             json={"group_ids": group_ids},
         )
 
-        assert response.status_code == 403
-        assert_error_data(
-            response,
-            error_type="https://api.nexus.com/errors/forbidden",
-            title="Local User Required",
-            detail="Only local users can be assigned group memberships",
-            code="USER_NOT_LOCAL",
-            retryable=False,
-        )
+        assert response.status_code == 200
 
     @pytest.mark.asyncio
     async def test_set_user_groups_unauthenticated(

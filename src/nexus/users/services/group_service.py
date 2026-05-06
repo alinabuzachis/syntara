@@ -485,7 +485,7 @@ class GroupsService(BaseService):
         resources = []
         for u in users:
             read = GroupMemberRead.model_validate(u)
-            read.has_password = u.password_hash is not None
+            read.auth_type = u.auth_type
             read.membership_sources = sources.get(u.id, [MembershipSource(type="manual")])
             resources.append(read)
 
@@ -600,9 +600,6 @@ class GroupsService(BaseService):
             )
 
         # Groups without any IdP tracking rows are manually assigned.
-        # Dual-source (manual + IdP) is not possible because manual group assignment
-        # is restricted to local users only (enforced by _ensure_local_user / UserNotLocalError).
-        # IdP users get their groups exclusively through IdP sync.
         for gid in group_ids:
             if gid not in idp_managed_groups:
                 sources.setdefault(gid, []).append(MembershipSource(type="manual"))

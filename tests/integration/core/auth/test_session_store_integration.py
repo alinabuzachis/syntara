@@ -29,6 +29,7 @@ async def test_user(test_db_session: AsyncSession) -> User:
         username=f"test-{uuid4().hex[:8]}",
         full_name="Test User",
         is_enabled=True,
+        password_hash="$argon2id$placeholder",  # noqa: S106
     )
     test_db_session.add(user)
     await test_db_session.flush()
@@ -42,6 +43,7 @@ async def second_user(test_db_session: AsyncSession) -> User:
         username=f"test-{uuid4().hex[:8]}",
         full_name="Second User",
         is_enabled=True,
+        password_hash="$argon2id$placeholder",  # noqa: S106
     )
     test_db_session.add(user)
     await test_db_session.flush()

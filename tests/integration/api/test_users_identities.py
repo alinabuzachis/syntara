@@ -46,20 +46,46 @@ async def identity_provider(
 
 
 @pytest.fixture
+async def federated_user(test_db_session: AsyncSession) -> User:
+    """Create a federated user for identity tests."""
+    from nexus.core.models.user import AuthType
+
+    user = User(
+        id=uuid4(),
+        username="fed-test-user",
+        email="fed-test@example.com",
+        full_name="Federated Test User",
+        auth_type=AuthType.FEDERATED,
+        is_enabled=True,
+    )
+    test_db_session.add(user)
+    await test_db_session.commit()
+    return user
+
+
+@pytest.fixture
 async def user_identity(
     test_db_session: AsyncSession,
-    test_user: User,
+    federated_user: User,
     identity_provider: IdentityProvider,
 ) -> UserIdentity:
-    """Create a test user identity."""
+    """Create test identities on a federated user (two, so one can be detached)."""
     identity = UserIdentity(
         id=uuid4(),
-        user_id=test_user.id,
+        user_id=federated_user.id,
         identity_provider_id=identity_provider.id,
         issuer="https://idp.example.com",
         subject="test-subject-123",
     )
+    second_identity = UserIdentity(
+        id=uuid4(),
+        user_id=federated_user.id,
+        identity_provider_id=identity_provider.id,
+        issuer="https://idp.example.com",
+        subject="test-subject-456",
+    )
     test_db_session.add(identity)
+    test_db_session.add(second_identity)
     await test_db_session.commit()
     return identity
 
@@ -79,21 +105,20 @@ class TestListUserIdentities:
     @pytest.mark.asyncio
     async def test_list_identities_with_identity(
         self,
-        auth_client: AsyncClient,
-        test_user: User,
+        admin_client: AsyncClient,
+        federated_user: User,
         user_identity: UserIdentity,
         identity_provider: IdentityProvider,
     ) -> None:
         """Test listing identities returns linked identities."""
-        response = await auth_client.get(f"{USERS_URL}/{test_user.id}/identities")
+        response = await admin_client.get(f"{USERS_URL}/{federated_user.id}/identities")
 
         assert response.status_code == 200
         data = response.json()["resources"]
-        assert len(data) == 1
-        assert data[0]["id"] == str(user_identity.id)
-        assert data[0]["user_id"] == str(test_user.id)
+        assert len(data) == 2
+        ids = {d["id"] for d in data}
+        assert str(user_identity.id) in ids
         assert data[0]["issuer"] == "https://idp.example.com"
-        assert data[0]["subject"] == "test-subject-123"
         assert data[0]["provider_name"] == identity_provider.name
 
     @pytest.mark.asyncio
@@ -115,20 +140,21 @@ class TestAttachUserIdentity:
         identity_provider: IdentityProvider,
     ) -> None:
         """Test moving an identity from one user to another."""
-        from nexus.auth.passwords import hash_password
+        from nexus.core.models.user import AuthType
 
-        # Create source and target users
+        # Create source and target users (both federated — identities can only be
+        # attached to federated users)
         source = User(
             username="source-user",
             email="source@example.com",
             full_name="Source User",
-            password_hash=hash_password("password123"),
+            auth_type=AuthType.FEDERATED,
         )
         target = User(
             username="target-user",
             email="target@example.com",
             full_name="Target User",
-            password_hash=hash_password("password123"),
+            auth_type=AuthType.FEDERATED,
         )
         test_db_session.add(source)
         test_db_session.add(target)
@@ -173,13 +199,13 @@ class TestDetachUserIdentity:
     @pytest.mark.asyncio
     async def test_detach_identity_success(
         self,
-        auth_client: AsyncClient,
-        test_user: User,
+        admin_client: AsyncClient,
+        federated_user: User,
         user_identity: UserIdentity,
     ) -> None:
-        """Test successfully detaching an identity from a user with a password."""
-        response = await auth_client.delete(
-            f"{USERS_URL}/{test_user.id}/identities/{user_identity.id}",
+        """Test successfully detaching an identity from a federated user."""
+        response = await admin_client.delete(
+            f"{USERS_URL}/{federated_user.id}/identities/{user_identity.id}",
         )
 
         assert response.status_code == 204
@@ -215,12 +241,15 @@ class TestDetachUserIdentity:
     ) -> None:
         """Test 409 when detaching the last identity from a user with no password."""
         # Create a federated-only user (no password)
+        from nexus.core.models.user import AuthType
+
         fed_user = User(
             id=uuid4(),
             username="fed-only-user",
             email="fed-only@example.com",
             full_name="Federated Only",
             password_hash=None,
+            auth_type=AuthType.FEDERATED,
             is_enabled=True,
         )
         test_db_session.add(fed_user)

@@ -10,7 +10,10 @@ import pytest_asyncio
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.auth.passwords import hash_password
 from nexus.core.models import User
+
+_TEST_PW_HASH = hash_password("testpassword")
 
 
 @pytest_asyncio.fixture
@@ -39,6 +42,7 @@ async def test_users(test_db_session: AsyncSession) -> list[User]:
             username="alice",
             email="alice@example.com",
             full_name="Alice Smith",
+            password_hash=_TEST_PW_HASH,
             is_enabled=True,
             labels={
                 "environment": "production",
@@ -53,6 +57,7 @@ async def test_users(test_db_session: AsyncSession) -> list[User]:
             username="bob",
             email="bob@example.com",
             full_name="Bob Johnson",
+            password_hash=_TEST_PW_HASH,
             is_enabled=True,
             labels={
                 "environment": "production",
@@ -67,6 +72,7 @@ async def test_users(test_db_session: AsyncSession) -> list[User]:
             username="charlie",
             email="charlie@example.com",
             full_name="Charlie Brown",
+            password_hash=_TEST_PW_HASH,
             is_enabled=False,
             labels={
                 "environment": "staging",
@@ -81,6 +87,7 @@ async def test_users(test_db_session: AsyncSession) -> list[User]:
             username="diana",
             email="diana@example.com",
             full_name="Diana Prince",
+            password_hash=_TEST_PW_HASH,
             is_enabled=True,
             labels={
                 "environment": "production",
@@ -95,6 +102,7 @@ async def test_users(test_db_session: AsyncSession) -> list[User]:
             username="eve",
             email="eve@example.com",
             full_name="Eve Davis",
+            password_hash=_TEST_PW_HASH,
             is_enabled=False,
             labels={"environment": "development", "region": "us-west-1", "team": "dev", "experimental": "true"},
             created_at=datetime(2025, 1, 5, 14, 0, 0),

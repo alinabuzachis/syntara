@@ -24,9 +24,11 @@ if TYPE_CHECKING:
         BuiltinGroupDeleteError,
         GroupNameConflictError,
         GroupNotFoundError,
+        IdentityOnBuiltinUserError,
         InvalidTokenError,
         LastAdminRemovalError,
         LastSignInMethodError,
+        PasswordOnFederatedUserError,
         RefreshTokenRevokedError,
         SessionStoreUnavailableError,
         TokenExpiredError,
@@ -35,7 +37,6 @@ if TYPE_CHECKING:
         UserIdentityNotFoundError,
         UserNotFoundError,
         UserNotInGroupError,
-        UserNotLocalError,
         UserUsernameConflictError,
     )
 
@@ -514,6 +515,47 @@ def builtin_group_delete_handler(
 
 
 # ============================================================================
+# Auth type exclusivity error handlers
+# ============================================================================
+
+
+def password_on_federated_user_handler(
+    request: Request,
+    exc: PasswordOnFederatedUserError,
+) -> JSONResponse:
+    """Handle PasswordOnFederatedUserError with RFC 9457 format."""
+    logger.warning("Attempted to set password on federated user", exc_info=exc)
+
+    return create_problem_details_response(
+        status_code=status.HTTP_409_CONFLICT,
+        problem_type=PROBLEM_TYPES["resource_conflict"],
+        title="Password Not Allowed",
+        detail="Cannot set a password on a federated user",
+        code="PASSWORD_ON_FEDERATED_USER",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def identity_on_builtin_user_handler(
+    request: Request,
+    exc: IdentityOnBuiltinUserError,
+) -> JSONResponse:
+    """Handle IdentityOnBuiltinUserError with RFC 9457 format."""
+    logger.warning("Attempted to link identity to built-in user", exc_info=exc)
+
+    return create_problem_details_response(
+        status_code=status.HTTP_409_CONFLICT,
+        problem_type=PROBLEM_TYPES["resource_conflict"],
+        title="Identity Link Not Allowed",
+        detail="Cannot link a federated identity to a built-in user",
+        code="IDENTITY_ON_BUILTIN_USER",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+# ============================================================================
 # Membership error handlers
 # ============================================================================
 
@@ -567,33 +609,6 @@ def user_not_in_group_handler(
         title="Membership Not Found",
         detail="The user is not a member of this group",
         code="USER_NOT_IN_GROUP",
-        retryable=False,
-        instance=str(request.url),
-    )
-
-
-def user_not_local_handler(
-    request: Request,
-    exc: UserNotLocalError,
-) -> JSONResponse:
-    """Handle UserNotLocalError with RFC 9457 format.
-
-    Args:
-        request: FastAPI request object
-        exc: The user not local exception
-
-    Returns:
-        RFC 9457 compliant 403 error response
-
-    """
-    logger.warning("Non-local user used in group membership operation", exc_info=exc)
-
-    return create_problem_details_response(
-        status_code=status.HTTP_403_FORBIDDEN,
-        problem_type=PROBLEM_TYPES["forbidden"],
-        title="Local User Required",
-        detail="Only local users can be assigned group memberships",
-        code="USER_NOT_LOCAL",
         retryable=False,
         instance=str(request.url),
     )

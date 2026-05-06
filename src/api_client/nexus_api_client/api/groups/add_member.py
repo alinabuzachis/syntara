@@ -102,7 +102,7 @@ def sync_detailed(
 ) -> Response[ErrorData | GroupMemberAddResponse]:
     """Add Member
 
-     Add a local user to a group.
+     Add a user to a group.
 
     Args:
         group_id (UUID):
@@ -136,7 +136,7 @@ def sync(
 ) -> ErrorData | GroupMemberAddResponse | None:
     """Add Member
 
-     Add a local user to a group.
+     Add a user to a group.
 
     Args:
         group_id (UUID):
@@ -165,7 +165,7 @@ async def asyncio_detailed(
 ) -> Response[ErrorData | GroupMemberAddResponse]:
     """Add Member
 
-     Add a local user to a group.
+     Add a user to a group.
 
     Args:
         group_id (UUID):
@@ -197,7 +197,7 @@ async def asyncio(
 ) -> ErrorData | GroupMemberAddResponse | None:
     """Add Member
 
-     Add a local user to a group.
+     Add a user to a group.
 
     Args:
         group_id (UUID):

@@ -7,7 +7,6 @@ from fastapi import Depends, Query, Request, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth import get_current_user
-from nexus.auth.exceptions import UserNotLocalError
 from nexus.auth.session import create_session_store
 from nexus.authz.dependencies import PermissionChecker
 from nexus.authz.models.assignments import PrincipalType, RoleAssignment
@@ -33,7 +32,6 @@ from nexus.core.models.user_schemas import (
     UserUpdate,
 )
 from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
-from nexus.core.queries.user_queries import get_user_by_id as fetch_user
 from nexus.users.services.group_service import GroupsService
 from nexus.users.services.user_identity_service import UserIdentityService
 from nexus.users.services.user_service import UsersService
@@ -244,9 +242,6 @@ async def set_user_groups(
     Replace all current memberships with the provided list of group IDs.
     An empty list removes the user from all groups.
     """
-    user = await fetch_user(db, user_id)
-    if user.password_hash is None:
-        raise UserNotLocalError(user_id)
     result = await service.set_user_groups(user_id, request.group_ids)
     store = create_session_store(db)
     await store.increment_token_version(user_id)

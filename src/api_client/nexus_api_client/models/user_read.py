@@ -9,6 +9,7 @@ from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 from dateutil.parser import isoparse
 
+from ..models.auth_type import AuthType
 from ..types import UNSET, Unset
 
 T = TypeVar("T", bound="UserRead")
@@ -29,7 +30,7 @@ class UserRead:
             updated_at (datetime.datetime):
             email (None | str | Unset):
             is_builtin (bool | Unset):  Default: False.
-            has_password (bool | Unset):  Default: False.
+            auth_type (AuthType | Unset): Authentication type for users.
             last_login (datetime.datetime | None | Unset):
     """
 
@@ -41,7 +42,7 @@ class UserRead:
     updated_at: datetime.datetime
     email: None | str | Unset = UNSET
     is_builtin: bool | Unset = False
-    has_password: bool | Unset = False
+    auth_type: AuthType | Unset = UNSET
     last_login: datetime.datetime | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
@@ -66,7 +67,9 @@ class UserRead:
 
         is_builtin = self.is_builtin
 
-        has_password = self.has_password
+        auth_type: str | Unset = UNSET
+        if not isinstance(self.auth_type, Unset):
+            auth_type = self.auth_type.value
 
         last_login: None | str | Unset
         if isinstance(self.last_login, Unset):
@@ -92,8 +95,8 @@ class UserRead:
             field_dict["email"] = email
         if is_builtin is not UNSET:
             field_dict["is_builtin"] = is_builtin
-        if has_password is not UNSET:
-            field_dict["has_password"] = has_password
+        if auth_type is not UNSET:
+            field_dict["auth_type"] = auth_type
         if last_login is not UNSET:
             field_dict["last_login"] = last_login
 
@@ -125,7 +128,12 @@ class UserRead:
 
         is_builtin = d.pop("is_builtin", UNSET)
 
-        has_password = d.pop("has_password", UNSET)
+        _auth_type = d.pop("auth_type", UNSET)
+        auth_type: AuthType | Unset
+        if isinstance(_auth_type, Unset):
+            auth_type = UNSET
+        else:
+            auth_type = AuthType(_auth_type)
 
         def _parse_last_login(data: object) -> datetime.datetime | None | Unset:
             if data is None:
@@ -153,7 +161,7 @@ class UserRead:
             updated_at=updated_at,
             email=email,
             is_builtin=is_builtin,
-            has_password=has_password,
+            auth_type=auth_type,
             last_login=last_login,
         )
 

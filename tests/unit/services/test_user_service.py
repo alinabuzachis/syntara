@@ -408,8 +408,32 @@ async def test_is_duplicate_username_error(test_db_session: AsyncSession, test_u
 
 
 @pytest.mark.asyncio
-async def test_to_read_sets_has_password_true(test_db_session: AsyncSession, test_user: User) -> None:
-    """Test to_read sets has_password=True when user has a password hash."""
+async def test_update_user_rejects_password_on_federated_user(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test that setting a password on a federated user raises PasswordOnFederatedUserError."""
+    from nexus.auth.exceptions import PasswordOnFederatedUserError
+    from nexus.core.models.user import AuthType
+
+    service = UsersService(test_db_session, test_user)
+
+    federated_user = User(
+        id=uuid4(),
+        username="feduser",
+        email="fed@example.com",
+        full_name="Federated User",
+        password_hash=None,
+        auth_type=AuthType.FEDERATED,
+    )
+    test_db_session.add(federated_user)
+    await test_db_session.commit()
+    await test_db_session.refresh(federated_user)
+
+    with pytest.raises(PasswordOnFederatedUserError):
+        await service.update_user(federated_user.id, password="shouldfail123")  # noqa: S106
+
+
+@pytest.mark.asyncio
+async def test_to_read_sets_auth_type_local(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test to_read sets auth_type='local' for users with a password hash."""
     service = UsersService(test_db_session, test_user)
 
     user = await service.create_user(
@@ -422,22 +446,24 @@ async def test_to_read_sets_has_password_true(test_db_session: AsyncSession, tes
     result = service.to_read(user)
 
     assert isinstance(result, UserRead)
-    assert result.has_password is True
+    assert result.auth_type == "local"
     assert result.username == "withpass"
 
 
 @pytest.mark.asyncio
-async def test_to_read_sets_has_password_false(test_db_session: AsyncSession, test_user: User) -> None:
-    """Test to_read sets has_password=False when user has no password hash (OIDC-only)."""
+async def test_to_read_sets_auth_type_federated(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test to_read sets auth_type='federated' for users without a password hash."""
+    from nexus.core.models.user import AuthType
+
     service = UsersService(test_db_session, test_user)
 
-    # Create a user without a password hash (simulates an OIDC-only user)
     user = User(
         id=uuid4(),
         username="oidcuser",
         email="oidc@example.com",
         full_name="OIDC User",
         password_hash=None,
+        auth_type=AuthType.FEDERATED,
     )
     test_db_session.add(user)
     await test_db_session.commit()
@@ -446,7 +472,7 @@ async def test_to_read_sets_has_password_false(test_db_session: AsyncSession, te
     result = service.to_read(user)
 
     assert isinstance(result, UserRead)
-    assert result.has_password is False
+    assert result.auth_type == "federated"
 
 
 @pytest.mark.asyncio

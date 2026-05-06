@@ -44,7 +44,7 @@ class TestCreateUserEndpoint:
                 email=user.email,
                 full_name=user.full_name,
                 is_enabled=user.is_enabled,
-                has_password=True,
+                auth_type="local",
                 created_at=user.created_at,
                 updated_at=user.updated_at,
             )
@@ -79,7 +79,7 @@ class TestGetUserEndpoint:
                 email=user.email,
                 full_name=user.full_name,
                 is_enabled=user.is_enabled,
-                has_password=True,
+                auth_type="local",
                 created_at=user.created_at,
                 updated_at=user.updated_at,
             )

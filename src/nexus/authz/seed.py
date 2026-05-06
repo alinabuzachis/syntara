@@ -6,6 +6,7 @@ only creates groups, the default project, the admin user, and role
 assignments (which reference roles by name).
 """
 
+import secrets
 from pathlib import Path
 from uuid import uuid4
 
@@ -231,12 +232,16 @@ async def _seed_assignments_and_admin(
     existing_system_user = await session.exec(select(User).where(User.id == settings.system_user_id))
     system_user = existing_system_user.one_or_none()
     if not system_user:
+        from nexus.auth.passwords import hash_password  # noqa: PLC0415
+
         system_user = User(
             id=settings.system_user_id,
             username="system",
             email="system@nexus.local",
             full_name="System",
             is_active=True,
+            is_builtin=True,
+            password_hash=hash_password(secrets.token_hex(32)),
         )
         session.add(system_user)
         await session.flush()

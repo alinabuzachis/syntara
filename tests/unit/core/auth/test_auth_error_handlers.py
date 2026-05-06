@@ -10,14 +10,15 @@ from nexus.auth.error_handlers import (
     builtin_group_delete_handler,
     group_name_conflict_handler,
     group_not_found_handler,
+    identity_on_builtin_user_handler,
     last_admin_removal_handler,
     last_sign_in_method_handler,
+    password_on_federated_user_handler,
     session_store_unavailable_handler,
     user_already_in_group_handler,
     user_identity_not_found_handler,
     user_not_found_handler,
     user_not_in_group_handler,
-    user_not_local_handler,
     user_username_conflict_handler,
 )
 from nexus.auth.exceptions import (
@@ -27,14 +28,15 @@ from nexus.auth.exceptions import (
     BuiltinGroupDeleteError,
     GroupNameConflictError,
     GroupNotFoundError,
+    IdentityOnBuiltinUserError,
     LastAdminRemovalError,
     LastSignInMethodError,
+    PasswordOnFederatedUserError,
     SessionStoreUnavailableError,
     UserAlreadyInGroupError,
     UserIdentityNotFoundError,
     UserNotFoundError,
     UserNotInGroupError,
-    UserNotLocalError,
     UserUsernameConflictError,
 )
 
@@ -70,12 +72,6 @@ class TestExceptions:
         exc = AdminModifyError()
         assert "admin" in str(exc).lower()
 
-    def test_user_not_local_error(self) -> None:
-        user_id = uuid4()
-        exc = UserNotLocalError(user_id)
-        assert str(user_id) in str(exc)
-        assert exc.user_id == user_id
-
     def test_last_sign_in_method_error(self) -> None:
         exc = LastSignInMethodError()
         assert "sign-in method" in str(exc).lower()
@@ -103,11 +99,6 @@ class TestErrorHandlers:
     def test_admin_modify_handler_returns_403(self) -> None:
         exc = AdminModifyError()
         response = admin_modify_handler(_make_request(), exc)
-        assert response.status_code == 403
-
-    def test_user_not_local_handler_returns_403(self) -> None:
-        exc = UserNotLocalError(uuid4())
-        response = user_not_local_handler(_make_request(), exc)
         assert response.status_code == 403
 
     def test_group_not_found_handler_returns_404(self) -> None:
@@ -171,6 +162,18 @@ class TestErrorHandlers:
         assert response.status_code == 403
         assert b"BUILTIN_GROUP_DELETE_FORBIDDEN" in response.body
 
+    def test_password_on_federated_user_handler_returns_409(self) -> None:
+        exc = PasswordOnFederatedUserError(uuid4())
+        response = password_on_federated_user_handler(_make_request(), exc)
+        assert response.status_code == 409
+        assert b"PASSWORD_ON_FEDERATED_USER" in response.body
+
+    def test_identity_on_builtin_user_handler_returns_409(self) -> None:
+        exc = IdentityOnBuiltinUserError(uuid4())
+        response = identity_on_builtin_user_handler(_make_request(), exc)
+        assert response.status_code == 409
+        assert b"IDENTITY_ON_BUILTIN_USER" in response.body
+
 
 class TestNewExceptions:
     """Tests for new exception classes added in this branch."""
@@ -201,3 +204,15 @@ class TestNewExceptions:
     def test_session_store_unavailable_error_custom_message(self) -> None:
         exc = SessionStoreUnavailableError("Database connection failed")
         assert exc.message == "Database connection failed"
+
+    def test_password_on_federated_user_error(self) -> None:
+        user_id = uuid4()
+        exc = PasswordOnFederatedUserError(user_id)
+        assert str(user_id) in str(exc)
+        assert exc.user_id == user_id
+
+    def test_identity_on_builtin_user_error(self) -> None:
+        user_id = uuid4()
+        exc = IdentityOnBuiltinUserError(user_id)
+        assert str(user_id) in str(exc)
+        assert exc.user_id == user_id

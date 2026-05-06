@@ -339,7 +339,13 @@ async def test_resolve_user_groups_empty_when_no_groups(
 ) -> None:
     """User with no explicit groups still gets authenticated group."""
     # Create a user not in any explicit group
-    orphan = User(id=uuid4(), username="orphan", email="orphan@test.com", full_name="Orphan")
+    orphan = User(
+        id=uuid4(),
+        username="orphan",
+        email="orphan@test.com",
+        full_name="Orphan",
+        password_hash="$argon2id$test",  # noqa: S106
+    )
     seeded_db.add(orphan)
     await seeded_db.commit()
 

@@ -262,6 +262,7 @@ class TestLabelFilteringSQLAlchemy:
             username="complex-user",
             email="complex@example.com",
             full_name="Complex User",
+            password_hash="$argon2id$test",  # noqa: S106
             is_enabled=True,
             labels={f"label_{i}": f"value_{i}" for i in range(20)},  # 20 labels
             created_at=datetime(2025, 1, 6, 15, 0, 0),

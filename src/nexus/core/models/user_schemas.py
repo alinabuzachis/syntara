@@ -16,6 +16,7 @@ from nexus.core.constants import FieldLimits
 from nexus.core.models.base.query_params import BaseListParams
 from nexus.core.models.group import MembershipSource
 from nexus.core.models.pagination import ResourcesResponse
+from nexus.core.models.user import AuthType
 
 
 class UserCreate(SQLModel):
@@ -64,7 +65,7 @@ class UserRead(SQLModel):
     full_name: str
     is_enabled: bool
     is_builtin: bool = False
-    has_password: bool = False
+    auth_type: AuthType = AuthType.LOCAL
     last_login: datetime | None = None
     created_at: datetime
     updated_at: datetime

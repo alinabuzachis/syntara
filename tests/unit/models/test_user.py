@@ -50,6 +50,7 @@ async def test_create_user_with_all_fields(test_db_session: AsyncSession) -> Non
         username="fulluser",
         email="full@example.com",
         full_name="Full Test User",
+        password_hash="$argon2id$v=19$m=65536,t=3,p=4$test",  # noqa: S106
         is_enabled=True,
         last_login=now,
         preferences=preferences,

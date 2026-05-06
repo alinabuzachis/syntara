@@ -23,6 +23,7 @@ Environment Variables:
 """
 
 import asyncio
+import secrets
 import sys
 from pathlib import Path
 
@@ -70,11 +71,14 @@ async def create_system_user() -> None:
                 logger.info("System user already exists", user_id=system_user_id)
             else:
                 # Create system user
+                from nexus.auth.passwords import hash_password
+
                 system_user = User(
                     id=system_user_id,
                     username="system",
                     email="system@nexus.internal",
                     full_name="System User",
+                    password_hash=hash_password(secrets.token_hex(32)),
                     is_active=True,
                 )
                 session.add(system_user)

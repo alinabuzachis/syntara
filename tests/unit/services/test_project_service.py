@@ -195,7 +195,13 @@ async def test_delete_project_cascades_role_assignments(seeded_db: AsyncSession,
     svc = ProjectService(seeded_db, test_user)
     project = await svc.create_project(name="cascade-assignments")
 
-    other = User(id=uuid4(), username="cascade-u", email="cascade-u@test.com", full_name="CU")
+    other = User(
+        id=uuid4(),
+        username="cascade-u",
+        email="cascade-u@test.com",
+        full_name="CU",
+        password_hash="$argon2id$test",  # noqa: S106
+    )
     group = Group(id=uuid4(), name="cascade-grp", description="", labels={})
     seeded_db.add_all([other, group])
     await seeded_db.commit()

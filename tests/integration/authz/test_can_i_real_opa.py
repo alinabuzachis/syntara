@@ -58,6 +58,7 @@ async def _make_user(session: AsyncSession, username: str) -> User:
         username=username,
         email=f"{username}@test.local",
         full_name=username.title(),
+        password_hash="$argon2id$test",  # noqa: S106
         is_enabled=True,
     )
     session.add(user)
