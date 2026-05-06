@@ -24,18 +24,18 @@ class ActivityData:
     Attributes:
         activity_id (str):
         status (str):
-        completed_at (datetime.datetime | None | Unset):
         error_details (None | str | Unset):
         output_data (ActivityDataOutputDataType0 | None | Unset):
         started_at (datetime.datetime | None | Unset):
+        completed_at (datetime.datetime | None | Unset):
     """
 
     activity_id: str
     status: str
-    completed_at: datetime.datetime | None | Unset = UNSET
     error_details: None | str | Unset = UNSET
     output_data: ActivityDataOutputDataType0 | None | Unset = UNSET
     started_at: datetime.datetime | None | Unset = UNSET
+    completed_at: datetime.datetime | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -44,14 +44,6 @@ class ActivityData:
         activity_id = self.activity_id
 
         status = self.status
-
-        completed_at: None | str | Unset
-        if isinstance(self.completed_at, Unset):
-            completed_at = UNSET
-        elif isinstance(self.completed_at, datetime.datetime):
-            completed_at = self.completed_at.isoformat()
-        else:
-            completed_at = self.completed_at
 
         error_details: None | str | Unset
         if isinstance(self.error_details, Unset):
@@ -75,6 +67,14 @@ class ActivityData:
         else:
             started_at = self.started_at
 
+        completed_at: None | str | Unset
+        if isinstance(self.completed_at, Unset):
+            completed_at = UNSET
+        elif isinstance(self.completed_at, datetime.datetime):
+            completed_at = self.completed_at.isoformat()
+        else:
+            completed_at = self.completed_at
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -83,14 +83,14 @@ class ActivityData:
                 "status": status,
             }
         )
-        if completed_at is not UNSET:
-            field_dict["completed_at"] = completed_at
         if error_details is not UNSET:
             field_dict["error_details"] = error_details
         if output_data is not UNSET:
             field_dict["output_data"] = output_data
         if started_at is not UNSET:
             field_dict["started_at"] = started_at
+        if completed_at is not UNSET:
+            field_dict["completed_at"] = completed_at
 
         return field_dict
 
@@ -102,23 +102,6 @@ class ActivityData:
         activity_id = d.pop("activity_id")
 
         status = d.pop("status")
-
-        def _parse_completed_at(data: object) -> datetime.datetime | None | Unset:
-            if data is None:
-                return data
-            if isinstance(data, Unset):
-                return data
-            try:
-                if not isinstance(data, str):
-                    raise TypeError()
-                completed_at_type_0 = isoparse(data)
-
-                return completed_at_type_0
-            except (TypeError, ValueError, AttributeError, KeyError):
-                pass
-            return cast(datetime.datetime | None | Unset, data)
-
-        completed_at = _parse_completed_at(d.pop("completed_at", UNSET))
 
         def _parse_error_details(data: object) -> None | str | Unset:
             if data is None:
@@ -163,13 +146,30 @@ class ActivityData:
 
         started_at = _parse_started_at(d.pop("started_at", UNSET))
 
+        def _parse_completed_at(data: object) -> datetime.datetime | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                completed_at_type_0 = isoparse(data)
+
+                return completed_at_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(datetime.datetime | None | Unset, data)
+
+        completed_at = _parse_completed_at(d.pop("completed_at", UNSET))
+
         activity_data = cls(
             activity_id=activity_id,
             status=status,
-            completed_at=completed_at,
             error_details=error_details,
             output_data=output_data,
             started_at=started_at,
+            completed_at=completed_at,
         )
 
         activity_data.additional_properties = d

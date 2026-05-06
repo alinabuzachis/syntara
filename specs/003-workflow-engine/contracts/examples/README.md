@@ -175,7 +175,8 @@ retryPolicy:
 For production workflows, please refer to:
 - [Migration Guide](../../../../../docs/migrations/retryable-errors-string-to-int.md) - How to migrate from string to integer error codes
 - [Retry Policies](../../../../../docs/workflow-engine/retry-policies.md) - Complete retry policy documentation
-- [Workflow Definition Guide](../../../../../docs/workflow-engine/workflow-definition-guide.md) - Examples with current syntax
+- [Workflow Definition Guide](../../../../../docs/workflow-engine/workflow-definition-guide.md) - V2 workflow examples with retry policies
+- [V2 Workflow Definition Schema](../../../../../src/nexus/schemas/workflows/v2/workflow_definition.schema.json) - V2 graph-based workflow schema
 
 These example files are kept unchanged for historical reference. The deprecated `retryableErrors` values can be ignored or updated to use integer codes when adapting these examples.
 

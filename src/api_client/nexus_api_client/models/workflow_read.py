@@ -23,11 +23,12 @@ class WorkflowRead:
     """Schema for workflow response (GET /workflows/{id}).
 
     Includes all fields from the database table model.
+
     Note: deleted_at and deleted_by are None since soft-deleted workflows are excluded from queries.
 
         Attributes:
-            id (UUID):
             name (str): Workflow name
+            id (UUID):
             current_version (int):
             is_enabled (bool):
             created_by (UUID):
@@ -40,8 +41,8 @@ class WorkflowRead:
             deleted_by (None | Unset | UUID):
     """
 
-    id: UUID
     name: str
+    id: UUID
     current_version: int
     is_enabled: bool
     created_by: UUID
@@ -55,9 +56,9 @@ class WorkflowRead:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        id = str(self.id)
-
         name = self.name
+
+        id = str(self.id)
 
         current_version = self.current_version
 
@@ -107,8 +108,8 @@ class WorkflowRead:
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "id": id,
                 "name": name,
+                "id": id,
                 "current_version": current_version,
                 "is_enabled": is_enabled,
                 "created_by": created_by,
@@ -134,9 +135,9 @@ class WorkflowRead:
         from ..models.workflow_read_labels import WorkflowReadLabels
 
         d = dict(src_dict)
-        id = UUID(d.pop("id"))
-
         name = d.pop("name")
+
+        id = UUID(d.pop("id"))
 
         current_version = d.pop("current_version")
 
@@ -216,8 +217,8 @@ class WorkflowRead:
         deleted_by = _parse_deleted_by(d.pop("deleted_by", UNSET))
 
         workflow_read = cls(
-            id=id,
             name=name,
+            id=id,
             current_version=current_version,
             is_enabled=is_enabled,
             created_by=created_by,

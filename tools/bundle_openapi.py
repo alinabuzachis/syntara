@@ -252,7 +252,7 @@ def _discover_sub_specs() -> list[Path]:
         if domain_dir.name in _SKIP_DIRS:
             continue
 
-        for candidate in sorted(domain_dir.glob("*.yaml")) + sorted(domain_dir.glob("*.json")):
+        for candidate in sorted(domain_dir.rglob("*.yaml")) + sorted(domain_dir.rglob("*.json")):
             if candidate.name in _SKIP_FILES:
                 continue
             if candidate.name.startswith("websocket-"):

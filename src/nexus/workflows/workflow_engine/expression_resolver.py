@@ -2,8 +2,6 @@
 
 This module provides expression resolution for workflow definitions, supporting
 references to inputs, variables, activity outputs, and loop iteration variables.
-
-Note: This is V1 code still used by V2 activities for template resolution.
 """
 
 import ast

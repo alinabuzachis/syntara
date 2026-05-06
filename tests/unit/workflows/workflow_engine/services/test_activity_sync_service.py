@@ -589,7 +589,7 @@ class TestAgenticActivityCompletionDeferral:
         """
         metadata = create_test_metadata(
             activity_definitions_map={
-                "agent-activity": {"task": {"executor": "agentic"}},
+                "agent-activity": {"type": "agentic"},
             },
             pending_activity_updates={
                 1: {
@@ -609,7 +609,7 @@ class TestAgenticActivityCompletionDeferral:
         """Non-agentic activity should still be marked COMPLETED on ActivityTaskCompleted."""
         metadata = create_test_metadata(
             activity_definitions_map={
-                "script-activity": {"task": {"executor": "script"}},
+                "script-activity": {"type": "script"},
             },
             pending_activity_updates={
                 1: {
@@ -1385,15 +1385,12 @@ class TestIsAgenticActivity:
             ({"type": "agentic"}, True),
             ({"type": "script"}, False),
             ({"type": "aap_job_template"}, False),
-            ({"task": {"executor": "agentic"}}, True),
-            ({"task": {"executor": "script"}}, False),
             ({}, False),
-            ({"task": {}}, False),
         ],
-        ids=["v2_agentic", "v2_script", "v2_aap", "v1_agentic", "v1_script", "empty", "v1_empty_task"],
+        ids=["agentic", "script", "aap", "empty"],
     )
     def test_is_agentic_activity(self, activity_def: dict[str, object], expected: bool) -> None:  # noqa: FBT001
-        """Test agentic detection for v1 and v2 activity definitions."""
+        """Test agentic detection for activity definitions."""
         assert ActivitySyncService._is_agentic_activity(activity_def) == expected
 
 
@@ -1828,7 +1825,7 @@ class TestPendingOutputFlag:
             execution_id=self.execution_id,
             activity_index_map={"agent-node": 0},
             activity_definitions_map={
-                "agent-node": {"task": {"executor": "agentic"}},
+                "agent-node": {"type": "agentic"},
             },
             pending_activity_updates={
                 10: {
@@ -1864,7 +1861,7 @@ class TestPendingOutputFlag:
             execution_id=self.execution_id,
             activity_index_map={"agent-node": 0},
             activity_definitions_map={
-                "agent-node": {"task": {"executor": "agentic"}},
+                "agent-node": {"type": "agentic"},
             },
             pending_activity_updates={
                 10: {

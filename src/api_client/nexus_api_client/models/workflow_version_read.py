@@ -23,6 +23,7 @@ class WorkflowVersionRead:
     """Schema for workflow version response (GET /workflows/{id}/versions/{version}).
 
     WorkflowVersion entities are read-only and managed automatically by the system.
+
     Note: deleted_at and deleted_by are None since soft-deleted versions are excluded from queries.
 
         Attributes:

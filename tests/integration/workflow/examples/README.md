@@ -91,7 +91,7 @@ python tools/workflow_cli.py run tests/integration/workflow/examples/timeout-ret
 ### Via Integration Tests
 
 These workflows are used by the integration test suite in `tests/integration/workflow/`. Each example is:
-- Validated against the JSON schema (`workflow-definition.schema.json`)
+- Validated against the JSON schema (`v2/workflow_definition.schema.json`)
 - Tested end-to-end through Temporal
 - Verified for correct output and behavior
 
@@ -99,7 +99,7 @@ See the test files for programmatic usage examples.
 
 ## Schema Validation
 
-All examples are validated against `schemas/workflows/workflow-definition.schema.json`.
+All examples are validated against `schemas/workflows/v2/workflow_definition.schema.json`.
 
 Run validation tests:
 ```bash

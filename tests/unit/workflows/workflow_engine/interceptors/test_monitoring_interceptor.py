@@ -37,7 +37,7 @@ class TestMonitoringWorkflowInboundInterceptor:
         temporal_workflow_id = "workflow-123"
 
         mock_input = Mock(spec=WorkflowInterceptorClassInput)
-        mock_input.args = [{"schemaVersion": "1.0.0"}, execution_id, {"input": "data"}]
+        mock_input.args = [{"schema_version": "2.0.0"}, execution_id, {"input": "data"}]
 
         mock_workflow_info = Mock()
         mock_workflow_info.workflow_id = temporal_workflow_id
@@ -72,7 +72,7 @@ class TestMonitoringWorkflowInboundInterceptor:
     async def test_execute_workflow_handles_insufficient_args(self) -> None:
         """Test execute_workflow handles case when args are insufficient."""
         mock_input = Mock(spec=WorkflowInterceptorClassInput)
-        mock_input.args = [{"schemaVersion": "1.0.0"}]
+        mock_input.args = [{"schema_version": "2.0.0"}]
 
         interceptor = _MonitoringWorkflowInboundInterceptor(Mock())
 
@@ -97,7 +97,7 @@ class TestMonitoringWorkflowInboundInterceptor:
         temporal_workflow_id = "workflow-123"
 
         mock_input = Mock(spec=WorkflowInterceptorClassInput)
-        mock_input.args = [{"schemaVersion": "1.0.0"}, execution_id, {"input": "data"}]
+        mock_input.args = [{"schema_version": "2.0.0"}, execution_id, {"input": "data"}]
 
         mock_workflow_info = Mock()
         mock_workflow_info.workflow_id = temporal_workflow_id
@@ -120,7 +120,7 @@ class TestMonitoringWorkflowInboundInterceptor:
         """Test execute_workflow extracts execution_id from second argument."""
         execution_id = str(uuid4())
         temporal_workflow_id = "workflow-123"
-        workflow_def = {"schemaVersion": "1.0.0", "workflow": {"activities": []}}
+        workflow_def = {"schema_version": "2.0.0", "triggers": [], "nodes": [], "edges": []}
         input_data = {"key": "value"}
 
         mock_input = Mock(spec=WorkflowInterceptorClassInput)
@@ -153,7 +153,7 @@ class TestMonitoringWorkflowInboundInterceptor:
         temporal_workflow_id = "workflow-123"
 
         mock_input = Mock(spec=WorkflowInterceptorClassInput)
-        mock_input.args = [{"schemaVersion": "1.0.0"}, execution_id, {"input": "data"}]
+        mock_input.args = [{"schema_version": "2.0.0"}, execution_id, {"input": "data"}]
 
         mock_workflow_info = Mock()
         mock_workflow_info.workflow_id = temporal_workflow_id
@@ -183,7 +183,7 @@ class TestMonitoringWorkflowInboundInterceptor:
         temporal_workflow_id = "workflow-123"
 
         mock_input = Mock(spec=WorkflowInterceptorClassInput)
-        mock_input.args = [{"schemaVersion": "1.0.0"}, execution_id, {"input": "data"}]
+        mock_input.args = [{"schema_version": "2.0.0"}, execution_id, {"input": "data"}]
 
         mock_workflow_info = Mock()
         mock_workflow_info.workflow_id = temporal_workflow_id
@@ -213,7 +213,7 @@ class TestMonitoringWorkflowInboundInterceptor:
         expected_result = {"status": "completed", "data": [1, 2, 3]}
 
         mock_input = Mock(spec=WorkflowInterceptorClassInput)
-        mock_input.args = [{"schemaVersion": "1.0.0"}, execution_id, {}]
+        mock_input.args = [{"schema_version": "2.0.0"}, execution_id, {}]
 
         mock_workflow_info = Mock()
         mock_workflow_info.workflow_id = "workflow-123"

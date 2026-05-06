@@ -213,9 +213,9 @@ components:
             description: |-
               Execution object with the same structure as REST API GET /executions/{id}?include=activities.
               This allows unified UI processing logic for both WebSocket and REST data sources.
-              References the Execution schema from ../workflows/shared-schemas.yaml with activities field populated.
+              References the ExecutionRead schema from v2/shared-schemas.yaml with activities field populated.
             allOf:
-              - $ref: ../workflows/shared-schemas.yaml#/components/schemas/Execution
+              - $ref: v2/shared-schemas.yaml#/components/schemas/ExecutionRead
           timestamp:
             type: string
             format: date-time

@@ -90,7 +90,7 @@ class OpenAPISchema:
         - schemas/{domain}/openapi.{json|yaml|yml} -> domain is parent directory
           (e.g., 'example/openapi.yaml' -> 'example')
         - schemas/{domain}/{descriptor}.openapi.{json|yaml|yml} -> descriptor is domain
-          (e.g., 'workflows/executions.openapi.yaml' -> 'executions')
+          (e.g., 'workflows/v2/executions_openapi.yaml' -> 'executions')
         - schemas/{domain}/{descriptor}_openapi.{json|yaml|yml} -> descriptor is domain
           (e.g., 'workflows/sub_openapi.json' -> 'sub')
         """

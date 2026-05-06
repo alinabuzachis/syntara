@@ -520,12 +520,7 @@ class ActivitySyncService:
     @staticmethod
     def _is_agentic_activity(activity_def: dict[str, Any]) -> bool:
         """Check whether an activity definition uses the agentic executor."""
-        # V2: node type is directly "agentic"
-        if activity_def.get("type") == "agentic":
-            return True
-        # V1 fallback: nested under task.executor
-        task = activity_def.get("task")
-        return isinstance(task, dict) and task.get("executor") == "agentic"
+        return activity_def.get("type") == "agentic"
 
     _TRIGGER_ACTIVITY_TYPES: frozenset[ActivityName] = frozenset(
         {

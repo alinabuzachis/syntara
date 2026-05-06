@@ -1325,7 +1325,7 @@ components:
       description: Paginated list response for roles.
 
     WorkflowListResponse:
-      $ref: "../workflows/openapi.yaml#/components/schemas/WorkflowListResponse"
+      $ref: "../workflows/v2/openapi.yaml#/components/schemas/WorkflowListResponse"
 
     ApprovalListResponse:
       $ref: "../approvals/openapi.yaml#/components/schemas/ApprovalListResponse"

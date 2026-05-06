@@ -35,130 +35,89 @@ paths:
   /executions:
     get:
       summary: List executions
-      description: |
-        Retrieve executions with filtering, sorting, and cursor-based pagination.
+      description: Retrieve executions with filtering, sorting, and cursor-based pagination.
       operationId: list_executions
+      tags:
+        - executions
+      security:
+        - bearerAuth: []
       x-app-permission:
         resource: execution
         action: read
       parameters:
-        - name: workflow_id
-          in: query
-          required: false
-          schema:
-            type: string
-            format: uuid
-          description: Filter by workflow ID
-        - name: created_by
-          in: query
-          required: false
-          schema:
-            type: string
-            format: uuid
-          description: Filter by user who created the execution
-        - name: status
-          in: query
-          required: false
-          style: deepObject
-          explode: true
-          schema:
-            allOf:
-              - $ref: '#/components/schemas/ExecutionStatus'
-                description: Exact match of status. ?status=<status>
-              - type: object
-                properties:
-                  in:
-                    type: string
-                    description: Match any of the comma-separated values. ?status[in]=<val1,val2>
-          description: |
-            Filter executions by status.
-            - Exact match: `status=running`
-            - Multiple values: `status[in]=running,pending`
         - $ref: ../../base/shared-resources.openapi.yaml#/components/parameters/limitParam
         - $ref: ../../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
-        - $ref: ../../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
         - $ref: ../../base/shared-resources.openapi.yaml#/components/parameters/sortParam
-        - $ref: ../../base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
-        - $ref: ../../base/shared-resources.openapi.yaml#/components/parameters/updatedAtFilterParam
-        - $ref: ../../base/shared-resources.openapi.yaml#/components/parameters/labelsFilterParam
+        - $ref: ../../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
       responses:
         '200':
-          description: List of executions
+          description: Successful Response
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: ../../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
-                  - type: object
-                    properties:
-                      resources:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/Execution'
-                        maxItems: 100
-                    required:
-                      - resources
+                $ref: '#/components/schemas/ExecutionListResponse'
+        '400':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
+        '401':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError'
+        '404':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/NotFoundError'
+        '409':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
+        '422':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ValidationError'
+        '500':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
     post:
       summary: Create execution
-      description: Start a new workflow execution
+      description: Start a new workflow execution.
       operationId: create_execution
+      tags:
+        - executions
+      security:
+        - bearerAuth: []
       x-app-permission:
-        resource: execution
-        action: run
+        resource: null
+        action: null
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateExecutionRequest'
+              $ref: '#/components/schemas/ExecutionCreate'
       responses:
         '201':
-          description: Execution started
+          description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Execution'
+                $ref: '#/components/schemas/ExecutionRead'
         '400':
-          description: Workflow is disabled
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
-              example:
-                type: https://api.nexus.com/errors/workflow-disabled
-                title: Workflow Disabled
-                detail: Cannot execute a disabled workflow
-                code: WORKFLOW_DISABLED
-                retryable: false
-                instance: /api/v1/executions
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
+        '401':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError'
         '404':
-          description: Workflow not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
-              example:
-                type: https://api.nexus.com/errors/not-found
-                title: Workflow Not Found
-                detail: No workflow exists with the provided identifier
-                code: WORKFLOW_NOT_FOUND
-                retryable: false
-                instance: /api/v1/executions
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/NotFoundError'
+        '409':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
+        '422':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ValidationError'
+        '500':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
 
   /executions/{execution_id}:
     get:
       summary: Get execution
-      description: |
-        Retrieve details of a specific execution with optional includes.
-
-        **Include Parameters**:
-        - `workflow_definition`: Include the v2 workflow definition from the executed version (for building visualization graph)
-        - `activities`: Include the list of activities with their current status (for completed executions or fallback)
-
-        **Usage**:
-        - Normal request: `GET /executions/{id}` - returns execution without optional fields
-        - Visualization: `GET /executions/{id}?include=workflow_definition&include=activities` - for building graph and checking execution status
+      description: Retrieve details of a specific execution with optional includes.
       operationId: get_execution
+      tags:
+        - executions
+      security:
+        - bearerAuth: []
       x-app-permission:
         resource: execution
         action: read
@@ -169,65 +128,47 @@ paths:
           schema:
             type: string
             format: uuid
+            title: Execution Id
         - name: include
           in: query
           required: false
           schema:
-            type: string
-          description: |
-            Comma-separated list of related data to include in the response.
-            Valid values: workflow_definition, activities
-          example: workflow_definition,activities
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Include
+            description: "Comma-separated list of related data to include. Valid values: workflow_definition, activities"
       responses:
         '200':
-          description: Execution details with optional includes
+          description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Execution'
+                $ref: '#/components/schemas/ExecutionRead'
+        '400':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
+        '401':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError'
         '404':
-          description: Execution not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
-    patch:
-      summary: Control execution
-      description: Pause, resume, or cancel a workflow execution
-      operationId: control_execution
-      parameters:
-        - name: execution_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ExecutionControlRequest'
-      responses:
-        '200':
-          description: Execution control applied
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Execution'
-        '404':
-          description: Execution not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/NotFoundError'
+        '409':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
+        '422':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ValidationError'
+        '500':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
 
   /executions/{execution_id}/activities:
     get:
       summary: List activity executions
-      description: |
-        Retrieve activity executions for a workflow execution with cursor-based pagination.
+      description: Retrieve activity executions for a workflow execution.
       operationId: list_execution_activities
+      tags:
+        - executions
+      security:
+        - bearerAuth: []
       x-app-permission:
         resource: execution
         action: read
@@ -238,54 +179,45 @@ paths:
           schema:
             type: string
             format: uuid
+            title: Execution Id
         - $ref: ../../base/shared-resources.openapi.yaml#/components/parameters/limitParam
         - $ref: ../../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
-        - $ref: ../../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
         - $ref: ../../base/shared-resources.openapi.yaml#/components/parameters/sortParam
-        - $ref: ../../base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
+        - $ref: ../../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
       responses:
         '200':
-          description: List of activity executions
+          description: Successful Response
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: ../../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
-                  - type: object
-                    properties:
-                      resources:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/ActivityExecution'
-                        maxItems: 100
-                    required:
-                      - resources
+                $ref: '#/components/schemas/ActivityExecutionListResponse'
+        '400':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
+        '401':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError'
         '404':
-          description: Execution not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/NotFoundError'
+        '409':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
+        '422':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ValidationError'
+        '500':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
 
   /executions/{execution_id}/activities/{activity_id}/signal:
     post:
       summary: Send signal to activity in workflow
-      description: |
-        Send a signal to a specific activity within a running workflow execution.
-
-        This endpoint allows external systems to send arbitrary signals to
-        activities that are waiting for external events. Used by:
-        - Agent Orchestrator to deliver agentic activity results
-        - Approval service to deliver approval decisions
-
-        The signal is durable - if the workflow is temporarily unavailable,
-        the signal will be delivered when it becomes available again.
+      description: Send a signal to a specific activity within a running workflow execution.
       operationId: signal_activity
+      tags:
+        - executions
+      security:
+        - bearerAuth: []
       x-app-permission:
         resource: execution
         action: run
-      tags:
-        - Executions
       parameters:
         - name: execution_id
           in: path
@@ -293,11 +225,13 @@ paths:
           schema:
             type: string
             format: uuid
+            title: Execution Id
         - name: activity_id
           in: path
           required: true
           schema:
             type: string
+            title: Activity Id
       requestBody:
         required: true
         content:
@@ -306,51 +240,59 @@ paths:
               $ref: '#/components/schemas/ActivitySignalPayload'
       responses:
         '200':
-          description: Signal sent successfully
+          description: Successful Response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SignalResponse'
+        '400':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
+        '401':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError'
         '404':
-          description: Execution not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/NotFoundError'
+        '409':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
+        '422':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ValidationError'
         '500':
-          description: Failed to send signal
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
-        '503':
-          description: Temporal workflow engine unavailable
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
 
   # Note: Approval endpoints are in a separate API
   # See: src/nexus/schemas/approvals/openapi.yaml
 
 components:
   schemas:
-    Execution:
-      $ref: ./shared-schemas.yaml#/components/schemas/Execution
+    ExecutionRead:
+      $ref: ./shared-schemas.yaml#/components/schemas/ExecutionRead
 
     ActivityExecution:
       $ref: ./shared-schemas.yaml#/components/schemas/ActivityExecution
+
+    ActivityData:
+      $ref: ./shared-schemas.yaml#/components/schemas/ActivityData
+
+    ActivityStatus:
+      $ref: ./shared-schemas.yaml#/components/schemas/ActivityStatus
+
+    CurrentActivity:
+      $ref: ./shared-schemas.yaml#/components/schemas/CurrentActivity
+
+    ExecutionListResponse:
+      $ref: ./shared-schemas.yaml#/components/schemas/ExecutionListResponse
+
+    ActivityExecutionListResponse:
+      $ref: ./shared-schemas.yaml#/components/schemas/ActivityExecutionListResponse
 
     # Note: Approval schemas are in src/nexus/schemas/approvals/openapi.yaml
 
     ExecutionStatus:
       $ref: ./shared-schemas.yaml#/components/schemas/ExecutionStatus
 
-    CreateExecutionRequest:
-      $ref: ./shared-schemas.yaml#/components/schemas/CreateExecutionRequest
-
-    ExecutionControlRequest:
-      $ref: ./shared-schemas.yaml#/components/schemas/ExecutionControlRequest
+    ExecutionCreate:
+      $ref: ./shared-schemas.yaml#/components/schemas/ExecutionCreate
 
     SignalResponse:
       type: object
@@ -374,34 +316,20 @@ components:
     ActivitySignalPayload:
       type: object
       title: Activity Signal Payload
-      description: |
-        Signal payload for delivering results to an async activity.
-
-        For agentic activities, the signal_data should conform to the agentic
-        resultSchema (status, output, tool_calls, etc.).
-
-        For approval activities, the signal_data should conform to the approval
-        resultSchema (status, approver, decision, timestamp, etc.).
-
-        See the individual node type schemas in the v2 schema directory for
-        the expected signal_data structure per node type.
+      description: Generic signal payload for sending arbitrary data to a specific activity within a running workflow execution.
       required:
         - signal_data
       properties:
         signal_data:
           type: object
           additionalProperties: true
-          description: |
-            Result data to deliver to the activity. Structure must conform to
-            the resultSchema of the target node type.
-          example:
-            status: completed
-            output: "Analysis complete. Found 3 issues."
-            tool_calls:
-              - tool_id: "550e8400-e29b-41d4-a716-446655440000"
-                tool_name: "code_scanner"
-                duration_ms: 1500
-                status: success
+          title: Signal Data
+          description: Arbitrary JSON data to send to the activity. The structure depends on what the activity expects to receive.
+          examples:
+            - action: resume
+              result:
+                value: 42
+              status: completed
 
   securitySchemes:
     bearerAuth:

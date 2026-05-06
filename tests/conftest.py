@@ -17,7 +17,7 @@ import os
 import tempfile
 from collections.abc import AsyncGenerator, Awaitable, Callable, Generator
 from contextlib import AbstractContextManager, ExitStack, contextmanager
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from importlib.util import find_spec
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -1286,45 +1286,6 @@ def task_queue() -> str:
 
     """
     return "test-workflow-queue"
-
-
-@pytest_asyncio.fixture
-async def run_workflow_from_file(
-    temporal_client: Client,
-    temporal_worker: Worker,
-    task_queue: str,
-) -> Callable[..., Awaitable[dict[str, Any]]]:
-    """Return a function that runs a workflow from a YAML file.
-
-    TODO: V1 YAML workflow parsing (parse_workflow_yaml) was removed. This fixture
-    needs to be reimplemented for V2 graph-based workflows.
-    """
-
-    async def _run(
-        workflow_path: str,
-        workflow_id: str | None = None,
-        inputs: dict[str, Any] | None = None,
-        execution_timeout: timedelta | None = None,
-    ) -> dict[str, Any]:
-        msg = "run_workflow_from_file is not available: V1 YAML workflow parsing was removed"
-        raise NotImplementedError(msg)
-
-    return _run
-
-
-@pytest.fixture
-def load_workflow() -> Callable[[str], Any]:
-    """Return a function that loads and parses a workflow YAML file.
-
-    TODO: V1 YAML workflow parsing (parse_workflow_yaml) was removed. This fixture
-    needs to be reimplemented for V2 graph-based workflows.
-    """
-
-    def _load(workflow_path: str) -> dict[str, Any]:
-        msg = "load_workflow is not available: V1 YAML workflow parsing was removed"
-        raise NotImplementedError(msg)
-
-    return _load
 
 
 # ============================================================================

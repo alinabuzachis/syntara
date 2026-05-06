@@ -17932,11 +17932,13 @@ paths:
       summary: List executions
       description: Retrieve executions with filtering, sorting, and cursor-based pagination.
       operationId: list_executions
+      tags:
+        - executions
+      security:
+        - bearerAuth: []
       x-app-permission:
         resource: execution
         action: read
-      tags:
-        - executions
       parameters:
         - name: limit
           in: query
@@ -17980,11 +17982,11 @@ paths:
           description: Include total count in response (expensive)
       responses:
         '200':
+          description: Successful Response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ExecutionListResponse'
-          description: Successful Response
         '400':
           description: Bad Request
           content:
@@ -18071,30 +18073,30 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
-      security:
-        - bearerAuth: []
     post:
       summary: Create execution
       description: Start a new workflow execution.
       operationId: create_execution
+      tags:
+        - executions
+      security:
+        - bearerAuth: []
       x-app-permission:
         resource: null
         action: null
-      tags:
-        - executions
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ExecutionCreate'
-        required: true
       responses:
         '201':
+          description: Successful Response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ExecutionRead'
-          description: Successful Response
         '400':
           description: Bad Request
           content:
@@ -18181,43 +18183,42 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
-      security:
-        - bearerAuth: []
   /executions/{execution_id}:
     get:
       summary: Get execution
       description: Retrieve details of a specific execution with optional includes.
       operationId: get_execution
+      tags:
+        - executions
+      security:
+        - bearerAuth: []
       x-app-permission:
         resource: execution
         action: read
-      tags:
-        - executions
       parameters:
-        - in: path
-          name: execution_id
+        - name: execution_id
+          in: path
           required: true
           schema:
+            type: string
             format: uuid
             title: Execution Id
-            type: string
-        - description: 'Comma-separated list of related data to include. Valid values: workflow_definition, activities'
+        - name: include
           in: query
-          name: include
           required: false
           schema:
             anyOf:
               - type: string
               - type: 'null'
-            description: 'Comma-separated list of related data to include. Valid values: workflow_definition, activities'
             title: Include
+            description: 'Comma-separated list of related data to include. Valid values: workflow_definition, activities'
       responses:
         '200':
+          description: Successful Response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ExecutionRead'
-          description: Successful Response
         '400':
           description: Bad Request
           content:
@@ -18304,26 +18305,26 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
-      security:
-        - bearerAuth: []
   /executions/{execution_id}/activities:
     get:
       summary: List activity executions
       description: Retrieve activity executions for a workflow execution.
       operationId: list_execution_activities
+      tags:
+        - executions
+      security:
+        - bearerAuth: []
       x-app-permission:
         resource: execution
         action: read
-      tags:
-        - executions
       parameters:
-        - in: path
-          name: execution_id
+        - name: execution_id
+          in: path
           required: true
           schema:
+            type: string
             format: uuid
             title: Execution Id
-            type: string
         - name: limit
           in: query
           required: false
@@ -18366,11 +18367,11 @@ paths:
           description: Include total count in response (expensive)
       responses:
         '200':
+          description: Successful Response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ActivityExecutionListResponse'
-          description: Successful Response
         '400':
           description: Bad Request
           content:
@@ -18457,45 +18458,45 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
-      security:
-        - bearerAuth: []
   /executions/{execution_id}/activities/{activity_id}/signal:
     post:
       summary: Send signal to activity in workflow
       description: Send a signal to a specific activity within a running workflow execution.
       operationId: signal_activity
+      tags:
+        - executions
+      security:
+        - bearerAuth: []
       x-app-permission:
         resource: execution
         action: run
-      tags:
-        - executions
       parameters:
-        - in: path
-          name: execution_id
+        - name: execution_id
+          in: path
           required: true
           schema:
+            type: string
             format: uuid
             title: Execution Id
-            type: string
-        - in: path
-          name: activity_id
+        - name: activity_id
+          in: path
           required: true
           schema:
-            title: Activity Id
             type: string
+            title: Activity Id
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ActivitySignalPayload'
-        required: true
       responses:
         '200':
+          description: Successful Response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SignalResponse'
-          description: Successful Response
         '400':
           description: Bad Request
           content:
@@ -18582,8 +18583,6 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
-      security:
-        - bearerAuth: []
   /workflows:
     get:
       summary: List Workflows
@@ -18599,6 +18598,8 @@ paths:
       operationId: list_workflows
       tags:
         - workflows
+      security:
+        - bearerAuth: []
       x-app-permission:
         resource: workflow
         action: read
@@ -18736,14 +18737,14 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
-      security:
-        - bearerAuth: []
     post:
       summary: Create Workflow
       description: Create a new workflow with initial version.
       operationId: create_workflow
       tags:
         - workflows
+      security:
+        - bearerAuth: []
       x-app-permission:
         resource: workflow
         action: create
@@ -18846,8 +18847,6 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
-      security:
-        - bearerAuth: []
   /workflows/{workflow_id}:
     get:
       summary: Get Workflow
@@ -18855,6 +18854,8 @@ paths:
       operationId: get_workflow
       tags:
         - workflows
+      security:
+        - bearerAuth: []
       x-app-permission:
         resource: workflow
         action: read
@@ -18959,8 +18960,6 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
-      security:
-        - bearerAuth: []
     patch:
       summary: Update Workflow
       description: |-
@@ -18973,6 +18972,8 @@ paths:
       operationId: update_workflow
       tags:
         - workflows
+      security:
+        - bearerAuth: []
       x-app-permission:
         resource: workflow
         action: update
@@ -19083,14 +19084,14 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
-      security:
-        - bearerAuth: []
     delete:
       summary: Delete Workflow
       description: Soft delete a workflow.
       operationId: delete_workflow
       tags:
         - workflows
+      security:
+        - bearerAuth: []
       x-app-permission:
         resource: workflow
         action: delete
@@ -19191,8 +19192,6 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
-      security:
-        - bearerAuth: []
   /workflows/{workflow_id}/versions:
     get:
       summary: List Workflow Versions
@@ -19200,6 +19199,8 @@ paths:
       operationId: list_workflow_versions
       tags:
         - workflows
+      security:
+        - bearerAuth: []
       x-app-permission:
         resource: workflow
         action: read
@@ -19304,8 +19305,6 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
-      security:
-        - bearerAuth: []
   /workflows/{workflow_id}/versions/{version}:
     get:
       summary: Get Workflow Version
@@ -19313,6 +19312,8 @@ paths:
       operationId: get_workflow_version
       tags:
         - workflows
+      security:
+        - bearerAuth: []
       x-app-permission:
         resource: workflow
         action: read
@@ -19330,6 +19331,7 @@ paths:
           schema:
             type: integer
             title: Version
+          description: Version number to retrieve
       responses:
         '200':
           description: Workflow version details
@@ -19423,8 +19425,6 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
-      security:
-        - bearerAuth: []
 components:
   schemas:
     ErrorData:
@@ -23464,13 +23464,11 @@ components:
             type: string
           title: Labels
     WorkflowListResponse:
+      type: object
+      required:
+        - resources
       title: WorkflowListResponse
       description: Paginated list response for workflows.
-      examples:
-        - next: eyJpZCI6InV1aWQifQ
-          total: 150
-        - next: eyJpZCI6Im5leHQifQ
-          prev: eyJpZCI6InByZXYifQ
       properties:
         next:
           anyOf:
@@ -23486,21 +23484,23 @@ components:
           description: Cursor for previous page of results
         total:
           anyOf:
-            - minimum: 0.0
-              type: integer
+            - type: integer
+              minimum: 0.0
             - type: 'null'
           title: Total
           description: Total count of resources (only when include_total=true)
         resources:
           type: array
-          title: Resources
-          description: Array of resources in current page
-          maxItems: 100
           items:
             $ref: '#/components/schemas/WorkflowRead'
-      required:
-        - resources
-      type: object
+          maxItems: 100
+          title: Resources
+          description: Array of resources in current page
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
     SettingValueType:
       type: string
       title: SettingValueType
@@ -25386,136 +25386,13 @@ components:
           default: Member added successfully
           description: Confirmation message
           title: Message
-    ExecutionCreate:
-      description: |-
-        Schema for creating a new execution (POST /executions).
-
-        Excludes auto-generated fields: id, created_at, created_by (set by backend).
-      properties:
-        input_data:
-          additionalProperties: true
-          description: Input data for workflow execution
-          title: Input Data
-          type: object
-        trigger_node_id:
-          anyOf:
-            - type: string
-            - type: 'null'
-          description: Trigger node ID to start from (defaults to first trigger)
-          title: Trigger Node Id
-        workflow_id:
-          description: Workflow ID to execute
-          format: uuid
-          title: Workflow Id
-          type: string
-      required:
-        - workflow_id
-      title: ExecutionCreate
-      type: object
     ExecutionRead:
+      type: object
+      title: ExecutionRead
       description: |-
         Schema for execution response (GET /executions/{id}).
 
         Includes all fields from the database table model.
-      properties:
-        activities:
-          anyOf:
-            - items:
-                $ref: '#/components/schemas/ActivityData'
-              type: array
-            - type: 'null'
-          description: List of activities with their current status. Only included when requested via ?include=activities query parameter.
-          title: Activities
-        completed_at:
-          anyOf:
-            - format: date-time
-              type: string
-            - type: 'null'
-          title: Completed At
-        created_at:
-          format: date-time
-          title: Created At
-          type: string
-        created_by:
-          format: uuid
-          title: Created By
-          type: string
-        current_activities:
-          description: Currently executing activities
-          items:
-            $ref: '#/components/schemas/CurrentActivity'
-          title: Current Activities
-          type: array
-        deleted_at:
-          anyOf:
-            - format: date-time
-              type: string
-            - type: 'null'
-          title: Deleted At
-        deleted_by:
-          anyOf:
-            - format: uuid
-              type: string
-            - type: 'null'
-          title: Deleted By
-        error_details:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Error Details
-        id:
-          format: uuid
-          title: Id
-          type: string
-        input_data:
-          additionalProperties: true
-          title: Input Data
-          type: object
-        labels:
-          additionalProperties: true
-          title: Labels
-          type: object
-        project_id:
-          anyOf:
-            - format: uuid
-              type: string
-            - type: 'null'
-          title: Project Id
-        status:
-          $ref: '#/components/schemas/ExecutionStatus'
-        temporal_workflow_id:
-          title: Temporal Workflow Id
-          type: string
-        trigger_node_id:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Trigger Node Id
-        updated_at:
-          format: date-time
-          title: Updated At
-          type: string
-        updated_by:
-          anyOf:
-            - format: uuid
-              type: string
-            - type: 'null'
-          title: Updated By
-        workflow_definition:
-          anyOf:
-            - additionalProperties: true
-              type: object
-            - type: 'null'
-          description: Workflow definition from the executed version. Only included when requested via ?include=workflow_definition query parameter.
-          title: Workflow Definition
-        workflow_id:
-          format: uuid
-          title: Workflow Id
-          type: string
-        workflow_version_id:
-          format: uuid
-          title: Workflow Version Id
-          type: string
       required:
         - id
         - workflow_id
@@ -25529,129 +25406,105 @@ components:
         - updated_by
         - input_data
         - error_details
-      title: ExecutionRead
-      type: object
-    ExecutionListResponse:
-      title: ExecutionListResponse
-      description: Paginated list response for executions.
-      examples:
-        - next: eyJpZCI6InV1aWQifQ
-          total: 150
-        - next: eyJpZCI6Im5leHQifQ
-          prev: eyJpZCI6InByZXYifQ
       properties:
-        next:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Next
-          description: Cursor for next page of results
-        prev:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Prev
-          description: Cursor for previous page of results
-        total:
-          anyOf:
-            - minimum: 0.0
-              type: integer
-            - type: 'null'
-          title: Total
-          description: Total count of resources (only when include_total=true)
-        resources:
-          type: array
-          title: Resources
-          description: Array of resources in current page
-          maxItems: 100
-          items:
-            $ref: '#/components/schemas/ExecutionRead'
-      required:
-        - resources
-      type: object
-    ActivityData:
-      description: Activity data for execution response.
-      properties:
-        activity_id:
-          title: Activity Id
+        id:
           type: string
+          format: uuid
+          title: Id
+        workflow_id:
+          type: string
+          format: uuid
+          title: Workflow Id
+        workflow_version_id:
+          type: string
+          format: uuid
+          title: Workflow Version Id
+        project_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Project Id
+        temporal_workflow_id:
+          type: string
+          title: Temporal Workflow Id
+        status:
+          $ref: '#/components/schemas/ExecutionStatus'
+        created_by:
+          type: string
+          format: uuid
+          title: Created By
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
         completed_at:
           anyOf:
-            - format: date-time
-              type: string
+            - type: string
+              format: date-time
             - type: 'null'
           title: Completed At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        updated_by:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Updated By
+        input_data:
+          additionalProperties: true
+          type: object
+          title: Input Data
+        trigger_node_id:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Trigger Node Id
         error_details:
           anyOf:
             - type: string
             - type: 'null'
           title: Error Details
-        output_data:
+        labels:
+          additionalProperties: true
+          type: object
+          title: Labels
+        current_activities:
+          type: array
+          items:
+            $ref: '#/components/schemas/CurrentActivity'
+          title: Current Activities
+          description: Currently executing activities
+        deleted_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Deleted At
+        deleted_by:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Deleted By
+        workflow_definition:
           anyOf:
             - additionalProperties: true
               type: object
             - type: 'null'
-          title: Output Data
-        started_at:
+          title: Workflow Definition
+          description: Workflow definition from the executed version. Only included when requested via ?include=workflow_definition query parameter.
+        activities:
           anyOf:
-            - format: date-time
-              type: string
+            - type: array
+              items:
+                $ref: '#/components/schemas/ActivityData'
             - type: 'null'
-          title: Started At
-        status:
-          title: Status
-          type: string
-      required:
-        - activity_id
-        - status
-      title: ActivityData
-      type: object
-    CurrentActivity:
-      description: Currently executing activity information.
-      properties:
-        activity_name:
-          description: Name of the activity
-          title: Activity Name
-          type: string
-        iteration:
-          anyOf:
-            - type: integer
-            - type: 'null'
-          description: Iteration number for loops
-          title: Iteration
-        temporal_activity_id:
-          description: Temporal activity ID
-          title: Temporal Activity Id
-          type: string
-      required:
-        - activity_name
-        - temporal_activity_id
-      title: CurrentActivity
-      type: object
-    ExecutionStatus:
-      type: string
-      title: ExecutionStatus
-      description: Current state of a workflow execution lifecycle.
-      enum:
-        - pending
-        - running
-        - paused
-        - completed
-        - failed
-        - cancelled
-    ActivityStatus:
-      type: string
-      title: ActivityStatus
-      description: Activity execution status enumeration.
-      enum:
-        - pending
-        - running
-        - waiting
-        - completed
-        - failed
-        - retrying
-        - skipped
-        - cancelled
+          title: Activities
+          description: List of activities with their current status. Only included when requested via ?include=activities query parameter.
     ActivityExecution:
       properties:
         id:
@@ -25778,14 +25631,84 @@ components:
             updated_at: Last update timestamp
             labels: Optional key-value metadata
       additionalProperties: false
-    ActivityExecutionListResponse:
-      title: ActivityExecutionListResponse
-      description: Paginated list response for activity executions.
-      examples:
-        - next: eyJpZCI6InV1aWQifQ
-          total: 150
-        - next: eyJpZCI6Im5leHQifQ
-          prev: eyJpZCI6InByZXYifQ
+    ActivityData:
+      type: object
+      title: ActivityData
+      description: Activity data for execution response.
+      required:
+        - activity_id
+        - status
+      properties:
+        activity_id:
+          type: string
+          title: Activity Id
+        status:
+          type: string
+          title: Status
+        error_details:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Error Details
+        output_data:
+          anyOf:
+            - additionalProperties: true
+              type: object
+            - type: 'null'
+          title: Output Data
+        started_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Started At
+        completed_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Completed At
+    ActivityStatus:
+      type: string
+      title: ActivityStatus
+      description: Activity execution status enumeration.
+      enum:
+        - pending
+        - running
+        - waiting
+        - completed
+        - failed
+        - retrying
+        - skipped
+        - cancelled
+    CurrentActivity:
+      type: object
+      title: CurrentActivity
+      description: Currently executing activity information.
+      required:
+        - activity_name
+        - temporal_activity_id
+      properties:
+        activity_name:
+          type: string
+          description: Name of the activity
+          title: Activity Name
+        temporal_activity_id:
+          type: string
+          description: Temporal activity ID
+          title: Temporal Activity Id
+        iteration:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          description: Iteration number for loops
+          title: Iteration
+    ExecutionListResponse:
+      type: object
+      required:
+        - resources
+      title: ExecutionListResponse
+      description: Paginated list response for executions.
       properties:
         next:
           anyOf:
@@ -25801,21 +25724,98 @@ components:
           description: Cursor for previous page of results
         total:
           anyOf:
-            - minimum: 0.0
-              type: integer
+            - type: integer
+              minimum: 0.0
             - type: 'null'
           title: Total
           description: Total count of resources (only when include_total=true)
         resources:
           type: array
+          items:
+            $ref: '#/components/schemas/ExecutionRead'
+          maxItems: 100
           title: Resources
           description: Array of resources in current page
-          maxItems: 100
-          items:
-            $ref: '#/components/schemas/ActivityExecution'
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
+    ActivityExecutionListResponse:
+      type: object
       required:
         - resources
+      title: ActivityExecutionListResponse
+      description: Paginated list response for activity executions.
+      properties:
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Next
+          description: Cursor for next page of results
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Prev
+          description: Cursor for previous page of results
+        total:
+          anyOf:
+            - type: integer
+              minimum: 0.0
+            - type: 'null'
+          title: Total
+          description: Total count of resources (only when include_total=true)
+        resources:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActivityExecution'
+          maxItems: 100
+          title: Resources
+          description: Array of resources in current page
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
+    ExecutionStatus:
+      type: string
+      title: ExecutionStatus
+      description: Current state of a workflow execution lifecycle.
+      enum:
+        - pending
+        - running
+        - paused
+        - completed
+        - failed
+        - cancelled
+    ExecutionCreate:
       type: object
+      title: ExecutionCreate
+      description: |-
+        Schema for creating a new execution (POST /executions).
+
+        Excludes auto-generated fields: id, created_at, created_by (set by backend).
+      required:
+        - workflow_id
+      properties:
+        workflow_id:
+          type: string
+          format: uuid
+          title: Workflow Id
+          description: Workflow ID to execute
+        input_data:
+          additionalProperties: true
+          type: object
+          title: Input Data
+          description: Input data for workflow execution
+        trigger_node_id:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Trigger Node Id
+          description: Trigger node ID to start from (defaults to first trigger)
     SignalResponse:
       type: object
       title: Signal Response
@@ -25848,9 +25848,9 @@ components:
           description: Arbitrary JSON data to send to the activity. The structure depends on what the activity expects to receive.
           examples:
             - action: resume
-              status: completed
               result:
                 value: 42
+              status: completed
     WorkflowRead:
       type: object
       title: WorkflowRead
@@ -25858,6 +25858,7 @@ components:
         Schema for workflow response (GET /workflows/{id}).
 
         Includes all fields from the database table model.
+
         Note: deleted_at and deleted_by are None since soft-deleted workflows are excluded from queries.
       required:
         - name
@@ -25868,28 +25869,28 @@ components:
         - created_at
         - updated_at
       properties:
-        id:
-          type: string
-          format: uuid
-          title: Id
         name:
           type: string
-          minLength: 1
           maxLength: 255
-          description: Workflow name
+          minLength: 1
           title: Name
+          description: Workflow name
         description:
           anyOf:
             - type: string
               maxLength: 2000
             - type: 'null'
-          description: Workflow description
           title: Description
+          description: Workflow description
         labels:
-          type: object
           additionalProperties: true
-          description: Workflow labels
+          type: object
           title: Labels
+          description: Workflow labels
+        id:
+          type: string
+          format: uuid
+          title: Id
         current_version:
           type: integer
           title: Current Version
@@ -25943,28 +25944,28 @@ components:
         - updated_at
         - version
       properties:
-        id:
-          type: string
-          format: uuid
-          title: Id
         name:
           type: string
-          minLength: 1
           maxLength: 255
-          description: Workflow name
+          minLength: 1
           title: Name
+          description: Workflow name
         description:
           anyOf:
             - type: string
               maxLength: 2000
             - type: 'null'
-          description: Workflow description
           title: Description
+          description: Workflow description
         labels:
-          type: object
           additionalProperties: true
-          description: Workflow labels
+          type: object
           title: Labels
+          description: Workflow labels
+        id:
+          type: string
+          format: uuid
+          title: Id
         current_version:
           type: integer
           title: Current Version
@@ -26011,6 +26012,7 @@ components:
         Schema for workflow version response (GET /workflows/{id}/versions/{version}).
 
         WorkflowVersion entities are read-only and managed automatically by the system.
+
         Note: deleted_at and deleted_by are None since soft-deleted versions are excluded from queries.
       required:
         - id
@@ -26037,9 +26039,14 @@ components:
           type: string
           title: Schema Version
         workflow_definition:
-          type: object
           additionalProperties: true
+          type: object
           title: Workflow Definition
+        change_description:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Change Description
         created_by:
           type: string
           format: uuid
@@ -26052,11 +26059,6 @@ components:
           type: string
           format: date-time
           title: Updated At
-        change_description:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Change Description
         deleted_at:
           anyOf:
             - type: string
@@ -26094,37 +26096,37 @@ components:
       properties:
         name:
           type: string
-          minLength: 1
           maxLength: 255
-          description: Workflow name
+          minLength: 1
           title: Name
+          description: Workflow name
         description:
           anyOf:
             - type: string
               maxLength: 2000
             - type: 'null'
-          description: Workflow description
           title: Description
+          description: Workflow description
         labels:
-          type: object
           additionalProperties: true
-          description: Workflow labels
+          type: object
           title: Labels
+          description: Workflow labels
         workflow_definition:
-          description: Workflow definition object
           title: Workflow Definition
+          description: Workflow definition object
         is_enabled:
           type: boolean
-          default: true
-          description: Enable workflow for execution
           title: Is Enabled
+          description: Enable workflow for execution
+          default: true
         project_id:
           anyOf:
             - type: string
               format: uuid
             - type: 'null'
-          description: Project to assign workflow to
           title: Project Id
+          description: Project to assign workflow to
     WorkflowUpdate:
       type: object
       title: WorkflowUpdate
@@ -26149,19 +26151,19 @@ components:
             - type: 'null'
           title: Description
           description: Update workflow description
+        labels:
+          anyOf:
+            - additionalProperties: true
+              type: object
+            - type: 'null'
+          title: Labels
+          description: Update workflow labels
         is_enabled:
           anyOf:
             - type: boolean
             - type: 'null'
           title: Is Enabled
           description: Enable/disable workflow
-        labels:
-          anyOf:
-            - type: object
-              additionalProperties: true
-            - type: 'null'
-          title: Labels
-          description: Update workflow labels
         workflow_definition:
           anyOf:
             - {}

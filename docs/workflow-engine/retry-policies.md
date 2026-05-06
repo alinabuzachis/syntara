@@ -16,19 +16,17 @@ This document explains:
 ### Basic Retry Policy
 
 ```yaml
-activities:
+nodes:
   - id: api_call
-    type: task
-    retryPolicy:
-      maxAttempts: 3
+    type: http_request
+    config:
+      method: GET
+      url: https://api.example.com/data
+    retry_policy:
+      max_attempts: 3
       backoff: exponential
-      initialInterval: 1
-      maxInterval: 60
-    task:
-      executor: api
-      config:
-        method: GET
-        url: https://api.example.com/data
+      initial_interval: 1
+      max_interval: 60
 ```
 
 **Behavior**: Uses default retryable error codes `[408, 429, 500, 502, 503, 504]`
@@ -38,23 +36,21 @@ activities:
 ### Custom Retry Policy
 
 ```yaml
-activities:
+nodes:
   - id: api_call
-    type: task
-    retryPolicy:
-      maxAttempts: 5
+    type: http_request
+    config:
+      method: POST
+      url: https://api.example.com/submit
+    retry_policy:
+      max_attempts: 5
       backoff: exponential
-      initialInterval: 5
-      maxInterval: 300
+      initial_interval: 5
+      max_interval: 300
       multiplier: 2.0
-      retryableErrors:
+      retryable_errors:
         - 429  # Only retry on rate limiting
         - 503  # Only retry on service unavailable
-    task:
-      executor: api
-      config:
-        method: POST
-        url: https://api.example.com/submit
 ```
 
 **Behavior**: Only retries on errors with codes 429 or 503
@@ -65,18 +61,18 @@ activities:
 
 ### Required Fields
 
-None - all fields are optional. If you omit the `retryPolicy` entirely, activities use Temporal's default retry behavior.
+None - all fields are optional. If you omit the `retry_policy` entirely, nodes use Temporal's default retry behavior.
 
 ### Optional Fields
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `maxAttempts` | integer | 3 | Maximum number of retry attempts (including initial attempt) |
+| `max_attempts` | integer | 3 | Maximum number of retry attempts (including initial attempt) |
 | `backoff` | string | `"exponential"` | Backoff strategy: `exponential`, `fixed`, or `linear` |
-| `initialInterval` | integer | `1` | Initial delay before first retry in seconds |
-| `maxInterval` | integer | `null` | Maximum delay between retries in seconds (caps exponential growth) |
+| `initial_interval` | integer | `1` | Initial delay before first retry in seconds |
+| `max_interval` | integer | `null` | Maximum delay between retries in seconds (caps exponential growth) |
 | `multiplier` | float | `2.0` | Backoff multiplier for exponential strategy |
-| `retryableErrors` | array of integers | `[408, 429, 500, 502, 503, 504]` | Error codes that trigger retries (whitelist) |
+| `retryable_errors` | array of integers | `[408, 429, 500, 502, 503, 504]` | Error codes that trigger retries (whitelist) |
 
 ### Interval Values
 
@@ -93,15 +89,15 @@ Intervals are specified as integers representing seconds:
 
 ### Exponential Backoff (Default)
 
-Each retry interval is multiplied by the `multiplier` value, up to `maxInterval`.
+Each retry interval is multiplied by the `multiplier` value, up to `max_interval`.
 
 ```yaml
-retryPolicy:
+retry_policy:
   backoff: exponential
-  initialInterval: 1      # 1 second
-  maxInterval: 60         # 60 seconds (1 minute)
+  initial_interval: 1      # 1 second
+  max_interval: 60         # 60 seconds (1 minute)
   multiplier: 2.0
-  maxAttempts: 5
+  max_attempts: 5
 ```
 
 **Retry intervals**: 1s → 2s → 4s → 8s → 16s
@@ -113,10 +109,10 @@ retryPolicy:
 Same interval between all retries.
 
 ```yaml
-retryPolicy:
+retry_policy:
   backoff: fixed
-  initialInterval: 10
-  maxAttempts: 3
+  initial_interval: 10
+  max_attempts: 3
 ```
 
 **Retry intervals**: 10s → 10s → 10s
@@ -125,14 +121,14 @@ retryPolicy:
 
 ### Linear Backoff
 
-Each retry interval increases by `initialInterval`.
+Each retry interval increases by `initial_interval`.
 
 ```yaml
-retryPolicy:
+retry_policy:
   backoff: linear
-  initialInterval: 5
-  maxInterval: 30
-  maxAttempts: 4
+  initial_interval: 5
+  max_interval: 30
+  max_attempts: 4
 ```
 
 **Retry intervals**: 5s → 10s → 15s → 20s
@@ -143,8 +139,8 @@ retryPolicy:
 
 The workflow engine uses a **whitelist approach** for retry decisions:
 
-- **✅ Retryable**: Error code is **IN** the `retryableErrors` list
-- **❌ Non-retryable**: Error code is **NOT IN** the `retryableErrors` list
+- **✅ Retryable**: Error code is **IN** the `retryable_errors` list
+- **❌ Non-retryable**: Error code is **NOT IN** the `retryable_errors` list
 - **❌ Non-retryable**: No error code extracted from error message
 
 ### Decision Flowchart
@@ -171,7 +167,7 @@ Extract Error Code from Message
 │         │ │ Fail Immediately │
 └─────────┘ └──────────────────┘
    ↓
-Check maxAttempts
+Check max_attempts
    ↓
 Apply Backoff
    ↓
@@ -194,11 +190,11 @@ Retry Activity
 
 ## Default Retryable Error Codes
 
-If you **omit** the `retryableErrors` field, the system uses these defaults:
+If you **omit** the `retryable_errors` field, the system uses these defaults:
 
 ```yaml
 # Implicit default
-retryableErrors:
+retryable_errors:
   - 408  # Request Timeout
   - 429  # Too Many Requests (rate limiting)
   - 500  # Internal Server Error
@@ -251,12 +247,12 @@ These codes indicate **permanent failures** that won't succeed on retry:
 ### Example: Rate Limiting Only
 
 ```yaml
-retryPolicy:
-  maxAttempts: 5
+retry_policy:
+  max_attempts: 5
   backoff: exponential
-  initialInterval: 5
-  maxInterval: 300
-  retryableErrors:
+  initial_interval: 5
+  max_interval: 300
+  retryable_errors:
     - 429  # Only retry on rate limiting
 ```
 
@@ -269,34 +265,32 @@ retryPolicy:
 ### Example: Custom Script Exit Codes
 
 ```yaml
-activities:
+nodes:
   - id: run_script
-    type: task
-    retryPolicy:
-      maxAttempts: 3
-      retryableErrors:
+    type: script
+    config:
+      language: bash
+      code: |
+        #!/bin/bash
+        # Check if resource is available
+        if ! check_resource; then
+          echo "Resource temporarily unavailable"
+          exit 2  # Will trigger retry
+        fi
+
+        # Process resource
+        if ! process_resource; then
+          echo "Processing failed"
+          exit 1  # Will NOT trigger retry (not in list)
+        fi
+
+        exit 0  # Success
+    retry_policy:
+      max_attempts: 3
+      retryable_errors:
         - 2  # Custom: temporary resource unavailable
         - 3  # Custom: retry recommended
         - 4  # Custom: rate limit reached
-    task:
-      executor: script
-      config:
-        language: bash
-        code: |
-          #!/bin/bash
-          # Check if resource is available
-          if ! check_resource; then
-            echo "Resource temporarily unavailable"
-            exit 2  # Will trigger retry
-          fi
-
-          # Process resource
-          if ! process_resource; then
-            echo "Processing failed"
-            exit 1  # Will NOT trigger retry (not in list)
-          fi
-
-          exit 0  # Success
 ```
 
 **Behavior**:
@@ -309,9 +303,9 @@ activities:
 ### Example: No Retries (Fail-Fast)
 
 ```yaml
-retryPolicy:
-  maxAttempts: 1
-  retryableErrors: []  # Empty list = no retries
+retry_policy:
+  max_attempts: 1
+  retryable_errors: []  # Empty list = no retries
 ```
 
 **Behavior**: ALL errors fail immediately without retries
@@ -321,9 +315,9 @@ retryPolicy:
 ### Example: Retry All Server Errors
 
 ```yaml
-retryPolicy:
-  maxAttempts: 3
-  retryableErrors:
+retry_policy:
+  max_attempts: 3
+  retryable_errors:
     - 500
     - 501
     - 502
@@ -414,25 +408,23 @@ If no numeric code can be extracted:
 **Scenario**: Third-party API with rate limits and occasional server errors
 
 ```yaml
-activities:
+nodes:
   - id: fetch_data
-    type: task
-    retryPolicy:
-      maxAttempts: 5
+    type: http_request
+    config:
+      method: GET
+      url: https://api.example.com/data
+      headers:
+        Authorization: ${secrets.api_token}
+    retry_policy:
+      max_attempts: 5
       backoff: exponential
-      initialInterval: 5
-      maxInterval: 300
-      retryableErrors:
+      initial_interval: 5
+      max_interval: 300
+      retryable_errors:
         - 429  # Too Many Requests
         - 500  # Internal Server Error
         - 503  # Service Unavailable
-    task:
-      executor: api
-      config:
-        method: GET
-        url: https://api.example.com/data
-        headers:
-          Authorization: ${secrets.api_token}
 ```
 
 **Retry behavior**:
@@ -447,36 +439,34 @@ activities:
 **Scenario**: Bash script that checks external service availability
 
 ```yaml
-activities:
+nodes:
   - id: check_service
-    type: task
-    retryPolicy:
-      maxAttempts: 3
+    type: script
+    config:
+      language: bash
+      code: |
+        #!/bin/bash
+        SERVICE_URL="https://service.example.com/health"
+
+        # Check if service is healthy
+        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$SERVICE_URL")
+
+        if [ "$HTTP_CODE" -eq 200 ]; then
+          echo "Service is healthy"
+          exit 0  # Success
+        elif [ "$HTTP_CODE" -eq 503 ]; then
+          echo "Service temporarily unavailable (503)"
+          exit 2  # Retryable
+        else
+          echo "Service check failed with HTTP $HTTP_CODE"
+          exit 1  # Non-retryable
+        fi
+    retry_policy:
+      max_attempts: 3
       backoff: fixed
-      initialInterval: 10
-      retryableErrors:
+      initial_interval: 10
+      retryable_errors:
         - 2  # Service temporarily unavailable
-    task:
-      executor: script
-      config:
-        language: bash
-        code: |
-          #!/bin/bash
-          SERVICE_URL="https://service.example.com/health"
-
-          # Check if service is healthy
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$SERVICE_URL")
-
-          if [ "$HTTP_CODE" -eq 200 ]; then
-            echo "Service is healthy"
-            exit 0  # Success
-          elif [ "$HTTP_CODE" -eq 503 ]; then
-            echo "Service temporarily unavailable (503)"
-            exit 2  # Retryable
-          else
-            echo "Service check failed with HTTP $HTTP_CODE"
-            exit 1  # Non-retryable
-          fi
 ```
 
 **Retry behavior**:
@@ -489,55 +479,48 @@ activities:
 **Scenario**: Workflow that calls multiple services with different retry needs
 
 ```yaml
-workflow:
-  activities:
-    # Critical service - retry aggressively
-    - id: critical_api
-      type: task
-      retryPolicy:
-        maxAttempts: 10
-        backoff: exponential
-        initialInterval: 1
-        maxInterval: 600
-        retryableErrors:
-          - 408
-          - 429
-          - 500
-          - 502
-          - 503
-          - 504
-      task:
-        executor: api
-        config:
-          method: POST
-          url: https://critical-service.example.com/process
+nodes:
+  # Critical service - retry aggressively
+  - id: critical_api
+    type: http_request
+    config:
+      method: POST
+      url: https://critical-service.example.com/process
+    retry_policy:
+      max_attempts: 10
+      backoff: exponential
+      initial_interval: 1
+      max_interval: 600
+      retryable_errors:
+        - 408
+        - 429
+        - 500
+        - 502
+        - 503
+        - 504
 
-    # Best-effort service - limited retries
-    - id: optional_api
-      type: task
-      retryPolicy:
-        maxAttempts: 2
-        backoff: fixed
-        initialInterval: 5
-        retryableErrors:
-          - 503  # Only retry on service unavailable
-      task:
-        executor: api
-        config:
-          method: GET
-          url: https://optional-service.example.com/enrich
+  # Best-effort service - limited retries
+  - id: optional_api
+    type: http_request
+    config:
+      method: GET
+      url: https://optional-service.example.com/enrich
+    retry_policy:
+      max_attempts: 2
+      backoff: fixed
+      initial_interval: 5
+      retryable_errors:
+        - 503  # Only retry on service unavailable
 
-    # Idempotent operation - no retries
-    - id: send_notification
-      type: task
-      retryPolicy:
-        maxAttempts: 1
-        retryableErrors: []  # Never retry
-      task:
-        executor: api
-        config:
-          method: POST
-          url: https://notifications.example.com/send
+  # Idempotent operation - no retries
+  - id: send_notification
+    type: http_request
+    config:
+      method: POST
+      url: https://notifications.example.com/send
+    retry_policy:
+      max_attempts: 1
+      retryable_errors: []  # Never retry
 ```
 
 **Retry behavior**:
@@ -550,19 +533,17 @@ workflow:
 **Scenario**: Standard API integration with no special requirements
 
 ```yaml
-activities:
+nodes:
   - id: fetch_user
-    type: task
-    retryPolicy:
-      maxAttempts: 3
+    type: http_request
+    config:
+      method: GET
+      url: https://api.example.com/users/${trigger.userId}
+    retry_policy:
+      max_attempts: 3
       backoff: exponential
-      initialInterval: 1
-      # retryableErrors not specified - uses defaults
-    task:
-      executor: api
-      config:
-        method: GET
-        url: https://api.example.com/users/${input.userId}
+      initial_interval: 1
+      # retryable_errors not specified - uses defaults
 ```
 
 **Retry behavior** (uses defaults `[408, 429, 500, 502, 503, 504]`):
@@ -575,67 +556,18 @@ activities:
 ### Unit Test: Validate Retry Policy Configuration
 
 ```python
-from nexus.workflows.yaml_workflow_parser import parse_workflow_yaml
+from nexus.workflows.workflow_engine.models.workflow_definition import RetryPolicy
 
 def test_custom_retry_policy():
-    workflow_yaml = """
-schemaVersion: "1.0.0"
-version: 1
-metadata:
-  name: test-workflow
-triggers:
-- type: manual
-workflow:
-  activities:
-  - id: api_call
-    type: task
-    retryPolicy:
-      maxAttempts: 5
-      backoff: exponential
-      retryableErrors:
-      - 429
-      - 503
-    task:
-      executor: api
-      config:
-        method: GET
-        url: https://api.example.com/data
-"""
-
-    workflow_def = parse_workflow_yaml(workflow_yaml)
-    retry_policy = workflow_def.workflow.activities[0].retry_policy
+    retry_policy = RetryPolicy.model_validate({
+        "max_attempts": 5,
+        "backoff": "exponential",
+        "retryable_errors": [429, 503],
+    })
 
     assert retry_policy.max_attempts == 5
     assert retry_policy.backoff == "exponential"
     assert retry_policy.retryable_errors == [429, 503]
-```
-
-### Integration Test: Verify Retry Execution
-
-```python
-import pytest
-from temporalio.testing import WorkflowEnvironment
-
-@pytest.mark.asyncio
-async def test_retry_on_503_error():
-    """Test that 503 errors are retried according to whitelist."""
-    async with await WorkflowEnvironment.start_time_skipping() as env:
-        # Create a workflow with activity that fails with 503
-        # Assert that:
-        # 1. Activity is retried maxAttempts times
-        # 2. Retry intervals follow backoff strategy
-        # 3. Workflow eventually fails if all retries exhausted
-        pass
-
-@pytest.mark.asyncio
-async def test_fail_fast_on_401_error():
-    """Test that 401 errors fail immediately (not in whitelist)."""
-    async with await WorkflowEnvironment.start_time_skipping() as env:
-        # Create a workflow with activity that fails with 401
-        # Assert that:
-        # 1. Activity fails immediately without retries
-        # 2. Workflow fails with non-retryable error
-        pass
 ```
 
 ## Performance Considerations
@@ -648,9 +580,9 @@ async def test_fail_fast_on_401_error():
 
 ### Retry Decision Performance
 
-- **Time Complexity**: O(m) where m is the number of codes in retryableErrors list
+- **Time Complexity**: O(m) where m is the number of codes in retryable_errors list
 - **Typical Performance**: < 1ms per decision (linear search on small lists)
-- **Optimization**: Keep retryableErrors lists small (< 20 codes recommended)
+- **Optimization**: Keep retryable_errors lists small (< 20 codes recommended)
 
 ### Backoff Strategy Impact
 
@@ -668,39 +600,43 @@ async def test_fail_fast_on_401_error():
 
 ```yaml
 # ⚠️ DANGER: Non-idempotent operation with retries
-activities:
+nodes:
   - id: charge_credit_card
-    type: task
-    retryPolicy:
-      maxAttempts: 3
-      retryableErrors: [500, 503]
+    type: http_request
+    config:
+      method: POST
+      url: https://payments.example.com/charge
+    retry_policy:
+      max_attempts: 3
+      retryable_errors: [500, 503]
 ```
 
 **Solution**: Either make the operation idempotent or disable retries:
 
 ```yaml
 # ✅ Option 1: Disable retries
-retryPolicy:
-  maxAttempts: 1
-  retryableErrors: []
+retry_policy:
+  max_attempts: 1
+  retryable_errors: []
 
 # ✅ Option 2: Make operation idempotent
 # Add idempotency key to API request
-task:
-  config:
-    body:
-      idempotencyKey: ${execution.id}
-      amount: ${input.amount}
+config:
+  method: POST
+  url: https://payments.example.com/charge
+  body:
+    idempotencyKey: ${execution.id}
+    amount: ${trigger.amount}
 ```
 
 ### Pitfall 2: Retrying on Validation Errors
 
-**Problem**: Validation errors (400, 422) won't succeed on retry but are sometimes added to retryableErrors.
+**Problem**: Validation errors (400, 422) won't succeed on retry but are sometimes added to retryable_errors.
 
 ```yaml
 # ❌ BAD: Retrying validation errors
-retryPolicy:
-  retryableErrors:
+retry_policy:
+  retryable_errors:
     - 400  # Bad Request - won't succeed on retry
     - 422  # Unprocessable Entity - won't succeed on retry
 ```
@@ -709,8 +645,8 @@ retryPolicy:
 
 ```yaml
 # ✅ GOOD: Only transient errors
-retryPolicy:
-  retryableErrors:
+retry_policy:
+  retryable_errors:
     - 429  # Rate limiting
     - 500  # Server error
     - 503  # Service unavailable
@@ -722,43 +658,43 @@ retryPolicy:
 
 ```yaml
 # ❌ BAD: Too many retries
-retryPolicy:
-  maxAttempts: 100  # Will take hours with exponential backoff
+retry_policy:
+  max_attempts: 100  # Will take hours with exponential backoff
 ```
 
 **Solution**: Use reasonable limits:
 
 ```yaml
 # ✅ GOOD: Reasonable retry count
-retryPolicy:
-  maxAttempts: 5  # Sufficient for transient errors
-  maxInterval: 300  # Cap maximum delay
+retry_policy:
+  max_attempts: 5  # Sufficient for transient errors
+  max_interval: 300  # Cap maximum delay
 ```
 
-### Pitfall 4: No maxInterval Cap
+### Pitfall 4: No max_interval Cap
 
 **Problem**: Exponential backoff without a cap can lead to very long delays.
 
 ```yaml
 # ❌ BAD: Unbounded exponential backoff
-retryPolicy:
+retry_policy:
   backoff: exponential
-  initialInterval: 1
+  initial_interval: 1
   multiplier: 2.0
-  maxAttempts: 10
-  # Missing maxInterval - could reach 512s (8.5 minutes) on last retry
+  max_attempts: 10
+  # Missing max_interval - could reach 512s (8.5 minutes) on last retry
 ```
 
-**Solution**: Always set maxInterval:
+**Solution**: Always set max_interval:
 
 ```yaml
 # ✅ GOOD: Capped exponential backoff
-retryPolicy:
+retry_policy:
   backoff: exponential
-  initialInterval: 1
-  maxInterval: 60  # Never wait more than 1 minute
+  initial_interval: 1
+  max_interval: 60  # Never wait more than 1 minute
   multiplier: 2.0
-  maxAttempts: 10
+  max_attempts: 10
 ```
 
 ## Best Practices
@@ -768,10 +704,10 @@ retryPolicy:
 Unless you have specific requirements, use default retryable error codes:
 
 ```yaml
-retryPolicy:
-  maxAttempts: 3
+retry_policy:
+  max_attempts: 3
   backoff: exponential
-  # Let retryableErrors default to [408, 429, 500, 502, 503, 504]
+  # Let retryable_errors default to [408, 429, 500, 502, 503, 504]
 ```
 
 ### 2. Customize for Domain-Specific Services
@@ -779,9 +715,9 @@ retryPolicy:
 If you know which errors are transient for your specific service:
 
 ```yaml
-retryPolicy:
-  maxAttempts: 5
-  retryableErrors:
+retry_policy:
+  max_attempts: 5
+  retryable_errors:
     - 429  # This API only has transient rate limiting issues
 ```
 
@@ -790,34 +726,33 @@ retryPolicy:
 If using custom exit codes in scripts, document them:
 
 ```yaml
-activities:
+nodes:
   - id: custom_script
-    type: task
-    retryPolicy:
-      retryableErrors:
+    type: script
+    config:
+      language: bash
+      code: |
+        # Exit codes:
+        # 0 - Success
+        # 1 - Permanent failure (auth, validation, etc.)
+        # 2 - Temporary resource lock (retryable)
+        # 3 - Rate limit reached (retryable)
+        # 4 - Upstream service unavailable (retryable)
+    retry_policy:
+      retryable_errors:
         - 2  # Temporary resource lock (custom)
         - 3  # Rate limit reached (custom)
         - 4  # Upstream service unavailable (custom)
-    task:
-      executor: script
-      config:
-        code: |
-          # Exit codes:
-          # 0 - Success
-          # 1 - Permanent failure (auth, validation, etc.)
-          # 2 - Temporary resource lock (retryable)
-          # 3 - Rate limit reached (retryable)
-          # 4 - Upstream service unavailable (retryable)
 ```
 
 ### 4. Cap Exponential Backoff
 
-Always set maxInterval to prevent unbounded delays:
+Always set max_interval to prevent unbounded delays:
 
 ```yaml
-retryPolicy:
+retry_policy:
   backoff: exponential
-  maxInterval: 300  # Never wait more than 5 minutes
+  max_interval: 300  # Never wait more than 5 minutes
 ```
 
 ### 5. Test Retry Behavior
@@ -846,21 +781,22 @@ Track retry metrics in production:
 If an operation isn't idempotent and can't be made idempotent:
 
 ```yaml
-retryPolicy:
-  maxAttempts: 1
-  retryableErrors: []  # Never retry
+retry_policy:
+  max_attempts: 1
+  retryable_errors: []  # Never retry
 ```
 
 ## Related Documentation
 
 - [Migration Guide: String to Integer Error Codes](../migrations/retryable-errors-string-to-int.md)
 - [Workflow Definition Guide](workflow-definition-guide.md)
+- [V2 Workflow Definition Schema](../../src/nexus/schemas/workflows/v2/workflow_definition.schema.json)
 - [Error Handling Best Practices](error-handling.md)
 - [Temporal Retry Policies](https://docs.temporal.io/dev-guide/python/features#retry-policies)
 
 ## Summary
 
-- **Whitelist Approach**: Only errors with codes in `retryableErrors` list trigger retries
+- **Whitelist Approach**: Only errors with codes in `retryable_errors` list trigger retries
 - **Default Codes**: `[408, 429, 500, 502, 503, 504]` cover common transient errors
 - **Customization**: Specify exact codes for domain-specific retry logic
 - **Error Extraction**: Numeric codes automatically extracted from error messages

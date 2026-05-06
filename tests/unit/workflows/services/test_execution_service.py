@@ -164,8 +164,8 @@ class TestCreateExecution:
         workflow_version = Mock(spec=WorkflowVersion)
         workflow_version.id = version_id
         workflow_version.version = 1
-        workflow_version.schema_version = "1.0.0"
-        workflow_version.workflow_definition = {"schemaVersion": "1.0.0", "workflow": {"activities": []}}
+        workflow_version.schema_version = "2.0.0"
+        workflow_version.workflow_definition = {"schema_version": "2.0.0", "triggers": [], "nodes": [], "edges": []}
 
         # Mock database query
         mock_result = Mock()
