@@ -14,13 +14,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.authz.engine import AllowedProjectsResult
 from nexus.core.models import User
 from nexus.core.services import BaseService
 from nexus.core.services.extensions import ConvertResourceMixin
 from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.types import ComponentLabel, MetricType
-from nexus.telemetry.events.workflow_emitters import emit_workflow_version_created
+from nexus.workflows.audit.workflow_version import WorkflowVersionCreatedEvent
 from nexus.workflows.exceptions import (
     WorkflowNameConflictError,
     WorkflowNotFoundError,
@@ -63,9 +64,11 @@ class WorkflowService(BaseService):
 
     @staticmethod
     def _emit_version_telemetry(workflow: Workflow, version: WorkflowVersion) -> None:
-        emit_workflow_version_created(
-            workflow_id=str(workflow.id),
-            version=version.version,
+        AuditEventDispatcher.dispatch(
+            WorkflowVersionCreatedEvent(
+                workflow_id=workflow.id,
+                version=version.version,
+            )
         )
 
     def _is_duplicate_name_error(self, e: IntegrityError) -> bool:

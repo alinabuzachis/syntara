@@ -1,4 +1,4 @@
-"""Unit tests for workflow_emitters: emit_workflow_error, emit_workflow_version_created, and helpers."""
+"""Unit tests for workflow_emitters: emit_workflow_error and helpers."""
 
 from unittest.mock import MagicMock, patch
 
@@ -7,15 +7,12 @@ import pytest
 from nexus.telemetry.events.workflow_emitters import (
     _map_execution_status_to_telemetry,
     emit_workflow_error,
-    emit_workflow_version_created,
 )
 from nexus.telemetry.events.workflow_error import TimedOutComponent
-from nexus.telemetry.events.workflow_version import WorkflowVersionCreatedEvent
 from nexus.workflows.models.execution import ExecutionStatus
 from nexus.workflows.workflow_engine.models.workflow_definition import WorkflowTerminalStatus
 from tests.unit.telemetry.conftest import (
     VALID_WORKFLOW_EXECUTION_ID,
-    VALID_WORKFLOW_ID,
 )
 
 VALID_EXECUTION_ID = VALID_WORKFLOW_EXECUTION_ID
@@ -224,49 +221,3 @@ class TestMapExecutionStatusToTelemetry:
     )
     def test_non_terminal_statuses_map_to_cancelled(self, status: ExecutionStatus) -> None:
         assert _map_execution_status_to_telemetry(status) == WorkflowTerminalStatus.CANCELLED
-
-
-class TestEmitWorkflowVersionCreated:
-    """Tests for emit_workflow_version_created emitter function."""
-
-    @patch("nexus.telemetry.events.workflow_emitters.get_telemetry_registry")
-    def test_skips_when_registry_not_initialized(self, mock_get_registry: MagicMock) -> None:
-        registry = MagicMock()
-        registry.is_initialized.return_value = False
-        mock_get_registry.return_value = registry
-
-        emit_workflow_version_created(
-            workflow_id=VALID_WORKFLOW_ID,
-            version=3,
-        )
-
-        registry.send_event.assert_not_called()
-
-    @patch("nexus.telemetry.events.workflow_emitters.get_telemetry_registry")
-    def test_emits_event_with_correct_fields(self, mock_get_registry: MagicMock) -> None:
-        registry = MagicMock()
-        registry.is_initialized.return_value = True
-        registry.entitlement_id = "ent-test-456"
-        mock_get_registry.return_value = registry
-
-        emit_workflow_version_created(
-            workflow_id=VALID_WORKFLOW_ID,
-            version=5,
-        )
-
-        registry.send_event.assert_called_once()
-        event = registry.send_event.call_args[0][0]
-        assert isinstance(event, WorkflowVersionCreatedEvent)
-        assert event.workflow_id == VALID_WORKFLOW_ID
-        assert event.version == 5
-        assert event.entitlement_id == "ent-test-456"
-        assert event.request_id is None
-
-    @patch("nexus.telemetry.events.workflow_emitters.get_telemetry_registry")
-    def test_does_not_raise_on_exception(self, mock_get_registry: MagicMock) -> None:
-        mock_get_registry.side_effect = RuntimeError("boom")
-
-        emit_workflow_version_created(
-            workflow_id=VALID_WORKFLOW_ID,
-            version=1,
-        )
