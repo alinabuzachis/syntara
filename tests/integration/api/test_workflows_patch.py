@@ -4,11 +4,26 @@ Tests for updating workflow metadata.
 Tests MUST FAIL before implementation (TDD approach).
 """
 
-import pytest
-from httpx import AsyncClient
+from uuid import uuid4
 
+import pytest
+import pytest_asyncio
+from httpx import AsyncClient
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+from nexus.authz.models import Project
 from tests.helpers.error_data import assert_error_data
 from tests.helpers.workflow import create_minimal_workflow_definition, create_workflow_definition_with_activities
+
+
+@pytest_asyncio.fixture
+async def project(test_db_session: AsyncSession) -> Project:
+    """Create a test project."""
+    project = Project(name=f"test-project-{uuid4().hex[:8]}", description="Test project")
+    test_db_session.add(project)
+    await test_db_session.commit()
+    await test_db_session.refresh(project)
+    return project
 
 
 @pytest.mark.asyncio
@@ -468,3 +483,30 @@ async def test_patch_workflow_duplicate_name_error(jwt_client: AsyncClient) -> N
     get_response = await jwt_client.get(f"/api/v1/workflows/{workflow1_id}")
     assert get_response.status_code == 200
     assert get_response.json()["name"] == "workflow-one"
+
+
+@pytest.mark.asyncio
+async def test_patch_workflow_preserves_project_id(jwt_client: AsyncClient, project: Project) -> None:
+    """Test that PATCH response includes the correct project_id."""
+    workflow = {
+        "name": "project-patch-test",
+        "project_id": str(project.id),
+        "workflow_definition": create_minimal_workflow_definition(
+            name="project-patch-test",
+            description="Workflow in a project",
+            activity_id="proj_activity",
+        ),
+    }
+
+    create_response = await jwt_client.post("/api/v1/workflows", json=workflow)
+    assert create_response.status_code == 201
+    workflow_id = create_response.json()["id"]
+
+    response = await jwt_client.patch(
+        f"/api/v1/workflows/{workflow_id}",
+        json={"description": "Updated description"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["project_id"] == str(project.id)

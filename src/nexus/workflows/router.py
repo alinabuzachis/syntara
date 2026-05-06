@@ -157,6 +157,7 @@ async def get_workflow(
             "updated_at": workflow.updated_at,
             "deleted_at": workflow.deleted_at,
             "deleted_by": workflow.deleted_by,
+            "project_id": workflow.project_id,
             "version": deserialize_workflow_version(current_version),
         }
     )
@@ -204,6 +205,7 @@ async def update_workflow(
             "updated_at": workflow.updated_at,
             "deleted_at": workflow.deleted_at,
             "deleted_by": workflow.deleted_by,
+            "project_id": workflow.project_id,
             "version": deserialize_workflow_version(current_version),
         }
     )

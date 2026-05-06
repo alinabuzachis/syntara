@@ -4,10 +4,25 @@ Tests for retrieving a single workflow by ID.
 Tests MUST FAIL before implementation (TDD approach).
 """
 
-import pytest
-from httpx import AsyncClient
+from uuid import uuid4
 
+import pytest
+import pytest_asyncio
+from httpx import AsyncClient
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+from nexus.authz.models import Project
 from tests.helpers.workflow import create_minimal_workflow_definition
+
+
+@pytest_asyncio.fixture
+async def project(test_db_session: AsyncSession) -> Project:
+    """Create a test project."""
+    project = Project(name=f"test-project-{uuid4().hex[:8]}", description="Test project")
+    test_db_session.add(project)
+    await test_db_session.commit()
+    await test_db_session.refresh(project)
+    return project
 
 
 @pytest.mark.asyncio
@@ -139,6 +154,7 @@ async def test_get_workflow_response_schema(jwt_client: AsyncClient) -> None:
         "name",
         "current_version",
         "is_enabled",
+        "project_id",
         "created_at",
         "updated_at",
         "version",  # New: version object should be included
@@ -169,3 +185,27 @@ async def test_get_workflow_response_schema(jwt_client: AsyncClient) -> None:
     assert version["schema_version"] == "2.0.0"
     assert "nodes" in version["workflow_definition"]
     assert "triggers" in version["workflow_definition"]
+
+
+@pytest.mark.asyncio
+async def test_get_workflow_returns_project_id(jwt_client: AsyncClient, project: Project) -> None:
+    """Test that GET returns the correct project_id for a project-scoped workflow."""
+    workflow = {
+        "name": "project-scoped-workflow",
+        "project_id": str(project.id),
+        "workflow_definition": create_minimal_workflow_definition(
+            name="project-scoped",
+            description="Workflow in a project",
+            activity_id="proj_activity",
+        ),
+    }
+
+    create_response = await jwt_client.post("/api/v1/workflows", json=workflow)
+    assert create_response.status_code == 201
+    workflow_id = create_response.json()["id"]
+
+    response = await jwt_client.get(f"/api/v1/workflows/{workflow_id}")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["project_id"] == str(project.id)
