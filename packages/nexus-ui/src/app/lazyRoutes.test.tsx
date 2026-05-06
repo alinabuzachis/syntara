@@ -18,7 +18,6 @@ import {
   IntegrationForm,
   Integrations,
   IntegrationTools,
-  MyProfile,
 } from './lazyRoutes'
 
 // Stub every route component so lazy resolution succeeds without
@@ -52,9 +51,6 @@ vi.mock('../routes/access-management/authentication/identity-providers/AddIdenti
 vi.mock('../routes/access-management/authentication/identity-providers/EditIdentityProvider', () => ({
   EditIdentityProvider: () => <div>EditIdentityProvider</div>,
 }))
-vi.mock('../routes/profile/MyProfile', () => ({
-  MyProfile: () => <div>MyProfile</div>,
-}))
 
 describe('lazyRoutes', () => {
   it('exports all lazy components', () => {
@@ -74,7 +70,6 @@ describe('lazyRoutes', () => {
       Authentication,
       AddIdentityProvider,
       EditIdentityProvider,
-      MyProfile,
     ]
     for (const component of components) {
       expect(component).toBeDefined()
@@ -98,7 +93,6 @@ describe('lazyRoutes', () => {
       ['Authentication', Authentication, 'Authentication'],
       ['AddIdentityProvider', AddIdentityProvider, 'AddIdentityProvider'],
       ['EditIdentityProvider', EditIdentityProvider, 'EditIdentityProvider'],
-      ['MyProfile', MyProfile, 'MyProfile'],
     ] as const)('resolves %s', async (_name, Component, expectedText) => {
       render(
         <Suspense fallback={<div>loading</div>}>

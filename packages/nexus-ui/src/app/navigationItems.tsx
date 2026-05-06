@@ -25,7 +25,6 @@ import {
   IntegrationTools,
   Integrations,
   Settings,
-  MyProfile,
   UserDetail,
 } from './lazyRoutes'
 
@@ -251,12 +250,6 @@ export const navigationItems: INavigationItem[] = [
     ],
   },
   // Hidden routes (not shown in navigation, but needed for routing)
-  {
-    label: 'My Profile',
-    path: AppRoute.Profile,
-    element: <MyProfile />,
-    hidden: true,
-  },
   {
     label: 'Edit Workflow',
     path: AppRoute.WorkflowBuilder.Edit,

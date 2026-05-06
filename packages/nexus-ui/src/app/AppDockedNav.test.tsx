@@ -38,6 +38,19 @@ vi.mock('../stores/useAuthStore', () => ({
   ),
 }))
 
+// Mock authClient used by UserMenuDropdown to fetch current user
+const MOCK_CURRENT_USER_ID = 'abc123de-f456-7890-abcd-ef1234567890'
+const { mockAuthClientUseQuery } = vi.hoisted(() => ({
+  mockAuthClientUseQuery: vi.fn().mockReturnValue({
+    data: { id: 'abc123de-f456-7890-abcd-ef1234567890', username: 'testuser' },
+  }),
+}))
+vi.mock('../client', () => ({
+  authClient: {
+    useQuery: mockAuthClientUseQuery,
+  },
+}))
+
 function renderDockedNav() {
   return render(
     <ColorSchemeProvider>
@@ -49,6 +62,9 @@ function renderDockedNav() {
 describe('AppDockedNav', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockAuthClientUseQuery.mockImplementation(() => ({
+      data: { id: MOCK_CURRENT_USER_ID, username: 'testuser' },
+    }))
     localStorage.clear()
     document.documentElement.classList.add('pf-v6-theme-dark', 'pf-v6-theme-glass')
   })
@@ -102,6 +118,27 @@ describe('AppDockedNav', () => {
     // Menu should be open - check for dropdown items
     expect(screen.getByText('My Profile')).toBeInTheDocument()
     expect(screen.getByText('Logout')).toBeInTheDocument()
+  })
+
+  it('navigates to user detail page when My Profile is clicked', async () => {
+    const user = userEvent.setup()
+    renderDockedNav()
+
+    await user.click(screen.getByRole('button', { name: 'User menu' }))
+    await user.click(screen.getByText('My Profile'))
+
+    expect(mockNavigate).toHaveBeenCalledWith(`/access-management/users/${MOCK_CURRENT_USER_ID}`)
+  })
+
+  it('does not navigate when My Profile is clicked and user has not loaded', async () => {
+    mockAuthClientUseQuery.mockImplementation(() => ({ data: undefined }))
+    const user = userEvent.setup()
+    renderDockedNav()
+
+    await user.click(screen.getByRole('button', { name: 'User menu' }))
+    await user.click(screen.getByText('My Profile'))
+
+    expect(mockNavigate).not.toHaveBeenCalledWith(expect.stringContaining('/access-management/users/'))
   })
 
   it('toggles user menu isExpanded state when clicked', async () => {

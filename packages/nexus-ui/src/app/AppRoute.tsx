@@ -56,6 +56,7 @@ export const AppRoute = {
   Auth: {
     TestSignInCallback: '/auth/test-signin-callback',
   },
+  /** Kept as an excluded-route reference only — no longer reachable from the UI */
   Profile: '/profile',
   Support: {
     Root: '/support/glossary',

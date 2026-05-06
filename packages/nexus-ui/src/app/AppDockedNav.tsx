@@ -40,6 +40,7 @@ import {
 import { useMemo, useRef, useState } from 'react'
 import { useLocation } from 'wouter'
 
+import { authClient } from '../client'
 import { useAlerts } from '../components/alerts'
 import { useAuthStore } from '../stores/useAuthStore'
 import { useColorScheme } from '../theme/useColorScheme'
@@ -158,6 +159,7 @@ function UserMenuDropdown() {
   const [, setLocation] = useLocation()
   const logout = useAuthStore((s) => s.logout)
   const { showAlert } = useAlerts()
+  const { data: currentUser } = authClient.useQuery('get', '/auth/me')
 
   const handleLogoutClick = () => {
     setIsOpen(false)
@@ -197,9 +199,12 @@ function UserMenuDropdown() {
         <DropdownList>
           <DropdownItem
             key="profile"
+            isDisabled={!currentUser?.id}
             onClick={() => {
-              setLocation(AppRoute.Profile)
-              setIsOpen(false)
+              if (currentUser?.id) {
+                setLocation(AppRoute.AccessManagement.UserDetail.replace(':userId', currentUser.id))
+                setIsOpen(false)
+              }
             }}
           >
             My Profile

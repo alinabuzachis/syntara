@@ -535,18 +535,6 @@ export const pages: PageEntry[] = [
       await expect(page.getByRole('heading', { name: 'Glossary' })).toBeVisible()
     },
   },
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // PROFILE
-  // ══════════════════════════════════════════════════════════════════════════
-  {
-    section: 'profile',
-    name: 'my-profile',
-    path: AppRoute.Profile,
-    waitFor: async (page) => {
-      await expect(page.getByRole('heading', { name: 'My Profile' })).toBeVisible()
-    },
-  },
 ]
 
 // ---------------------------------------------------------------------------
@@ -572,6 +560,7 @@ export const excludedDynamic: string[] = [
   AppRoute.AccessManagement.ProjectDetailTab,
   AppRoute.AccessManagement.UserDetailTab,
   AppRoute.Auth.TestSignInCallback,
+  AppRoute.Profile, // redirects to user detail — no longer a standalone page
 ]
 
 /** All excluded route patterns (union of both lists) */

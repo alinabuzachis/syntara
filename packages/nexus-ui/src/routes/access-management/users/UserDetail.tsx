@@ -113,6 +113,12 @@ function UserDetailsTab({
         <DescriptionListDescription>{user.username}</DescriptionListDescription>
       </DescriptionListGroup>
       <DescriptionListGroup>
+        <DescriptionListTerm>User ID</DescriptionListTerm>
+        <DescriptionListDescription>
+          <code style={{ fontSize: 'var(--pf-t--global--font--size--sm)' }}>{user.id}</code>
+        </DescriptionListDescription>
+      </DescriptionListGroup>
+      <DescriptionListGroup>
         <DescriptionListTerm>First Name</DescriptionListTerm>
         <DescriptionListDescription>{first_name}</DescriptionListDescription>
       </DescriptionListGroup>

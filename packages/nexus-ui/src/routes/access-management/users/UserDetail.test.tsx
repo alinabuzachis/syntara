@@ -157,6 +157,7 @@ describe('UserDetail', () => {
 
       // Description list fields
       expect(screen.getByText('jdoe')).toBeInTheDocument()
+      expect(screen.getByText(VALID_USER_ID)).toBeInTheDocument()
       expect(screen.getByText('John')).toBeInTheDocument()
       expect(screen.getByText('Doe')).toBeInTheDocument()
       expect(screen.getByText('jdoe@nexus.local')).toBeInTheDocument()
@@ -167,6 +168,7 @@ describe('UserDetail', () => {
       render(<UserDetail />, { wrapper })
 
       expect(screen.getByText('Username')).toBeInTheDocument()
+      expect(screen.getByText('User ID')).toBeInTheDocument()
       expect(screen.getByText('First Name')).toBeInTheDocument()
       expect(screen.getByText('Last Name')).toBeInTheDocument()
       expect(screen.getByText('Email')).toBeInTheDocument()
