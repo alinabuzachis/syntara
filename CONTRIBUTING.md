@@ -4,38 +4,6 @@ Thank you for your interest in contributing to the Nexus project!
 
 This document outlines the guidelines and best practices for contributing to this automation nexus system.
 
-## Specification-Driven Development with GitHub Spec Kit
-
-This project utilizes [GitHub's Spec Kit](https://github.com/github/spec-kit), an open-source toolkit designed for specification-driven development with AI coding agents. Spec Kit provides a structured four-phase framework that flips the traditional development approach by starting with specifications as the primary artifact, rather than code.
-
-### Key Concepts
-
-In specification-driven development, the specification becomes the source of truth that AI tools and agents use to generate, test, and validate code. Instead of coding first and writing documentation later, we:
-
-1. **Specify** - Define what we're building and why, focusing on user journeys and success criteria
-2. **Plan** - Create technical implementation plans that respect our architecture and constraints  
-3. **Tasks** - Break specifications into small, reviewable chunks that solve specific problems
-4. **Implement** - Execute tasks systematically with focused, reviewable changes
-
-### Project Spec Kit Files
-
-Our project includes several Spec Kit files that guide development:
-
-- **Constitution** - Establishes non-negotiable principles and guidelines for the project
-- **Specifications** - Define the behavior and requirements for features and components
-- **Implementation Plans** - Detail technical approaches and architectural decisions
-
-These files work together to ensure consistent, high-quality development that aligns with project goals and maintains architectural integrity.
-
-### Working with Spec Kit
-
-When contributing to this project, familiarize yourself with our specification files to understand:
-- Project principles and constraints defined in our Constitution
-- Feature specifications that define expected behavior
-- Technical implementation approaches and patterns
-
-For more information about GitHub Spec Kit, visit the [official repository](https://github.com/github/spec-kit) and read about [specification-driven development principles](https://github.com/github/spec-kit/blob/main/spec-driven.md).
-
 ## Ways to Contribute
 
 There are many ways you can help make Nexus better:

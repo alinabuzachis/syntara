@@ -10,11 +10,10 @@ These existing documents define core standards and should be consulted first:
 
 | Document | Scope |
 |----------|-------|
-| [Constitution](../../.specify/memory/constitution.md) | Architecture principles, code quality, API specs, documentation, workflow |
 | [Decision Records](../../decision-records.md) | Technology choices and rationale (Temporal, FastAPI, SQLModel, Redis, structlog, etc.) |
 | [Error Handling Strategy](../error-handling-strategy.md) | RFC 9457 compliance, exception patterns, security |
 | [AGENTS.md](../../AGENTS.md) | AI agent instructions, technology choices, development workflow |
-| [CONTRIBUTING.md](../../CONTRIBUTING.md) | Human contributor guide, SpecKit workflow, PR process |
+| [CONTRIBUTING.md](../../CONTRIBUTING.md) | Human contributor guide, PR process |
 
 ### Standards in This Directory
 

@@ -472,11 +472,6 @@ api-spec-bundle: ## Bundle all domain sub-specs into a single merged openapi.yam
 
 # Tools
 # ========================================================
-.PHONY: install-cursor-commands
-install-cursor-commands: ## Sync Claude commands to Cursor format
-	@echo "🔄 Syncing commands from .claude/ to .cursor/..."
-	uv run python tools/install_cursor_commands.py
-
 .PHONY: generate-api-client
 generate-api-client: ## Generate the Nexus Python API client from the OpenAPI spec
 	@echo "Generating client from $(OPENAPI_SPEC)..."
@@ -542,11 +537,6 @@ endif
 # ========================================================
 FORMAT_PATHS := src/ tools/ tests/
 
-.PHONY: check-path-sequence
-check-path-sequence: ## Validate numbering sequence under specs/
-	@echo "🔢 Validating numbered entries in specs/..."
-	uv run python tools/ci/check_path_sequence.py specs/ --strict
-
 .PHONY: reachability
 reachability: ## Verify all standards docs are reachable from CLAUDE.md
 	@echo "🔍 Checking standards reachability from CLAUDE.md..."
@@ -589,8 +579,6 @@ lint: ## Run linters and type checking (no file modifications)
 	fi
 	@echo "📝 Running type checking..."
 	$(MAKE) typecheck
-	@echo "📝 Running path sequence validation..."
-	$(MAKE) check-path-sequence
 	@echo "📝 Running pre-commit validation checks..."
 	SKIP=ruff-format,yamlfmt,trailing-whitespace,end-of-file-fixer,mixed-line-ending,pyrefly,check-path-sequence uv run pre-commit run --all-files
 	@echo "✅ All lint checks passed"

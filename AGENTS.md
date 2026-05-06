@@ -65,10 +65,9 @@ Nexus is a distributed multi-agent system that enables coordinated AI agents to 
 
 ### Standards Reference
 
-Consult these standards when making changes. The constitution is the highest authority; other documents provide domain-specific detail.
+Consult these standards when making changes.
 
 **Core:**
-- [Constitution](/.specify/memory/constitution.md) — architecture principles, code quality, API specs, documentation, workflow
 - [Decision Records](/decision-records.md) — technology choices and rationale
 - [Error Handling Strategy](/docs/error-handling-strategy.md) — RFC 9457 compliance, exception patterns
 
