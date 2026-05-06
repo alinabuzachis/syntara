@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # authz-seed-demo-data.sh - Seed demo data to exercise all roles and features
 #
-# Prerequisites: Backend running on localhost:8000
+# Prerequisites: Backend running on localhost:8000, `ao` CLI installed, `jq` installed
 # Usage: ./tools/authz-seed-demo-data.sh [--clean] [--custom-policies]
 #
 # Creates:
@@ -17,30 +17,33 @@
 
 set -euo pipefail
 
-CLI="uv run python tools/authz_cli.py"
-BASE_URL="${APP_API_URL:-http://localhost:8000}"
-API="$BASE_URL/api/v1"
+# -- Configuration --
+CLI="uv run python tools/authz_cli.py"  # kept for --clean only (DB-direct ops)
+AO="uv run ao --base-url ${AO_URL:-http://localhost:8000/api/v1}"
 ADMIN_PASSWORD_PATH="${APP_ADMIN_PASSWORD_PATH:-.secrets/admin-password}"
-ADMIN_PASSWORD=$(cat "$ADMIN_PASSWORD_PATH" 2>/dev/null || echo "admin")
+ADMIN_PASSWORD=$(cat "$ADMIN_PASSWORD_PATH" 2>/dev/null || echo "admin1234")
 
 info()  { echo "==> $*"; }
 step()  { echo "  -> $*"; }
 warn()  { echo "  !! $*"; }
 
-get_token() {
-    curl -sf "$API/auth/login" \
-        -H "Content-Type: application/json" \
-        -d "{\"username\": \"$1\", \"password\": \"$ADMIN_PASSWORD\"}" | python3 -c "
-import sys, json
-print(json.load(sys.stdin)['access_token'])
-" 2>/dev/null
-}
+# -- Associative arrays for ID tracking --
+declare -A USER_IDS
+declare -A GROUP_IDS
+declare -A PROJECT_IDS
+declare -A WF_IDS
 
 # ---------------------------------------------------------------------------
 # Pre-flight
 # ---------------------------------------------------------------------------
-if ! curl -sf "$BASE_URL/health" > /dev/null 2>&1; then
-    echo "ERROR: Backend not reachable at $BASE_URL"
+if ! command -v jq &>/dev/null; then
+    echo "ERROR: jq is required but not installed"
+    echo "Install with: brew install jq (macOS) or apt install jq (Ubuntu)"
+    exit 1
+fi
+
+if ! curl -sf "${AO_URL:-http://localhost:8000}/health" > /dev/null 2>&1; then
+    echo "ERROR: Backend not reachable at ${AO_URL:-http://localhost:8000}"
     echo "Start it with: make run"
     exit 1
 fi
@@ -63,63 +66,338 @@ while [[ $# -gt 0 ]]; do
 done
 
 # ---------------------------------------------------------------------------
+# Helper functions
+# ---------------------------------------------------------------------------
+
+create_user() {
+    local username="$1" email="$2" fullname="$3"
+    local id
+    id=$($AO users create --username "$username" --email "$email" \
+         --full-name "$fullname" --password "$ADMIN_PASSWORD" 2>/dev/null | jq -r '.id // empty')
+    if [ -n "$id" ]; then
+        USER_IDS["$username"]="$id"
+        step "user: $username"
+    else
+        warn "Failed to create user: $username"
+    fi
+}
+
+create_group() {
+    local name="$1" desc="$2"
+    local id
+    id=$($AO groups create --name "$name" --description "$desc" 2>/dev/null | jq -r '.id // empty')
+    if [ -n "$id" ]; then
+        GROUP_IDS["$name"]="$id"
+        step "group: $name"
+    else
+        warn "Failed to create group: $name"
+    fi
+}
+
+add_member() {
+    local group_name="$1" username="$2"
+    local group_id="${GROUP_IDS[$group_name]:-}"
+    local user_id="${USER_IDS[$username]:-}"
+    if [ -z "$group_id" ] || [ -z "$user_id" ]; then
+        warn "Cannot add $username to $group_name: missing ID"
+        return
+    fi
+    $AO groups add-member "$group_id" --user-id "$user_id" > /dev/null 2>&1 \
+        && step "$username -> $group_name" \
+        || warn "Failed: $username -> $group_name"
+}
+
+create_project() {
+    local name="$1" desc="$2"
+    local id
+    id=$($AO projects create --name "$name" --description "$desc" 2>/dev/null | jq -r '.id // empty')
+    if [ -n "$id" ]; then
+        PROJECT_IDS["$name"]="$id"
+        step "project: $name"
+    else
+        warn "Failed to create project: $name"
+    fi
+}
+
+assign_role() {
+    local role="$1" principal_type="$2" principal_name="$3" project_name="${4:-}"
+    local principal_id project_args=""
+
+    if [ "$principal_type" = "user" ]; then
+        principal_id="${USER_IDS[$principal_name]:-}"
+    else
+        principal_id="${GROUP_IDS[$principal_name]:-}"
+    fi
+
+    if [ -z "$principal_id" ]; then
+        warn "Cannot assign $role: missing $principal_type ID for $principal_name"
+        return
+    fi
+
+    if [ -n "$project_name" ]; then
+        local project_id="${PROJECT_IDS[$project_name]:-}"
+        if [ -z "$project_id" ]; then
+            warn "Cannot assign $role: missing project ID for $project_name"
+            return
+        fi
+        project_args="--project-id $project_id"
+    fi
+
+    # shellcheck disable=SC2086
+    $AO role-assignments create \
+        --principal-type "$principal_type" \
+        --principal-id "$principal_id" \
+        --role-name "$role" \
+        $project_args > /dev/null 2>&1 \
+        && step "$role -> $principal_type:$principal_name${project_name:+ in $project_name}" \
+        || warn "Failed: $role -> $principal_type:$principal_name"
+}
+
+simple_wf() {
+    local name="$1" project="$2"
+    local project_id="${PROJECT_IDS[$project]:-}"
+    local project_args=""
+    if [ -n "$project_id" ]; then
+        project_args="--project-id $project_id"
+    fi
+
+    local wf_def
+    wf_def=$(jq -n --arg name "$name" '{
+        schema_version: "2.0.0",
+        name: $name,
+        description: ("Sample workflow: " + $name),
+        triggers: [{id: "trigger_manual", type: "manual_trigger"}],
+        nodes: [{
+            id: "step1", type: "script",
+            name: ("Run " + $name),
+            config: {language: "python", code: ("print(\"Running " + $name + "\")"), timeout: 300}
+        }],
+        edges: [{from: "trigger_manual", to: "step1"}]
+    }')
+
+    local result id
+    # shellcheck disable=SC2086
+    result=$($AO workflows create \
+        --name "$name" \
+        --description "Sample workflow: $name" \
+        --workflow-definition "$wf_def" \
+        $project_args 2>/dev/null) || true
+    id=$(echo "$result" | jq -r '.id // empty')
+    if [ -n "$id" ]; then
+        WF_IDS["$name"]="$id"
+        step "workflow: $name"
+    else
+        warn "Failed to create workflow: $name"
+    fi
+}
+
+approval_wf() {
+    local name="$1" desc="$2" project_id="$3"
+    local wf_def
+    wf_def=$(jq -n --arg name "$name" --arg desc "$desc" '{
+        schema_version: "2.0.0",
+        name: $name,
+        description: $desc,
+        triggers: [{id: "trigger_manual", type: "manual_trigger"}],
+        nodes: [
+            {id: "prepare", type: "script", name: "Prepare",
+             config: {language: "python", code: ("print(\"Preparing " + $name + "...\")"), timeout: 300}},
+            {id: "review", type: "approval", name: "Review and approve",
+             config: {timeout: 3600}},
+            {id: "execute", type: "script", name: "Execute",
+             config: {language: "python", code: ("print(\"Executing " + $name + "\")"), timeout: 600}},
+            {id: "rollback", type: "script", name: "Handle rejection",
+             config: {language: "python", code: ("print(\"" + $name + " rejected\")"), timeout: 60}}
+        ],
+        edges: [
+            {from: "trigger_manual", to: "prepare"},
+            {from: "prepare", to: "review"},
+            {from: "review", to: "execute", from_port: "approved"},
+            {from: "review", to: "rollback", from_port: "rejected"}
+        ]
+    }')
+
+    local result id
+    result=$($AO workflows create \
+        --name "$name" \
+        --description "$desc" \
+        --workflow-definition "$wf_def" \
+        --project-id "$project_id" 2>/dev/null) || true
+    id=$(echo "$result" | jq -r '.id // empty')
+    if [ -n "$id" ]; then
+        WF_IDS["$name"]="$id"
+        step "approval workflow: $name"
+    else
+        warn "Failed to create approval workflow: $name"
+    fi
+}
+
+create_credential() {
+    local name="$1" type_id="$2" inputs="$3" project_id="${4:-}"
+    # CredentialCreate requires project_id; org-level creds use the default project
+    if [ -z "$project_id" ]; then
+        project_id="${PROJECT_IDS[default]:-}"
+    fi
+    step "credential: $name"
+    $AO credentials create \
+        --name "$name" \
+        --credential-type-id "$type_id" \
+        --project-id "$project_id" \
+        --inputs "$inputs" > /dev/null 2>&1 \
+        || warn "  failed: $name"
+}
+
+run_wf() {
+    local name="$1" user="$2"
+    local wf_id="${WF_IDS[$name]:-}"
+
+    if [ -z "$wf_id" ]; then
+        wf_id=$($AO workflows list --limit 100 2>/dev/null | jq -r --arg n "$name" \
+            '.resources[] | select(.name==$n) | .id // empty' | head -1)
+    fi
+    if [ -z "$wf_id" ]; then
+        warn "Workflow $name not found"
+        return
+    fi
+
+    step "$user runs $name"
+    $AO executions create --workflow-id "$wf_id" --input-data '{}' > /dev/null 2>&1 \
+        || warn "  execution failed"
+}
+
+create_approval() {
+    local wf_name="$1" node_id="$2" approval_name="$3"
+    local wf_id="${WF_IDS[$wf_name]:-}"
+
+    if [ -z "$wf_id" ]; then
+        wf_id=$($AO workflows list --limit 100 2>/dev/null | jq -r --arg n "$wf_name" \
+            '.resources[] | select(.name==$n) | .id // empty' | head -1)
+    fi
+    [ -z "$wf_id" ] && return
+
+    local wf_version_id
+    wf_version_id=$($AO workflows list-versions "$wf_id" 2>/dev/null | jq -r \
+        '(.versions // .resources // .) | if type == "array" then .[0].id // empty else empty end')
+    [ -z "$wf_version_id" ] && return
+
+    local exec_result exec_id
+    exec_result=$($AO executions create --workflow-id "$wf_id" --input-data '{}' 2>/dev/null) || true
+    exec_id=$(echo "$exec_result" | jq -r '.id // empty')
+    [ -z "$exec_id" ] && return
+
+    step "approval: $approval_name"
+
+    local wf_context next_approved next_rejected
+    wf_context=$(jq -n --arg vid "$wf_version_id" --arg wname "$wf_name" '{
+        workflow_version_id: $vid,
+        workflow_name: $wname,
+        inputs: {}
+    }')
+    next_approved='{"id":"execute","name":"Execute","type":"task"}'
+    next_rejected='{"id":"rollback","name":"Handle rejection","type":"task"}'
+
+    $AO approvals create \
+        --execution-id "$exec_id" \
+        --approval-node-id "$node_id" \
+        --name "$approval_name" \
+        --workflow-context "$wf_context" \
+        --next-step-approved "$next_approved" \
+        --next-step-rejected "$next_rejected" > /dev/null 2>&1 \
+        && step "  created" || warn "  failed"
+}
+
+create_project_policy() {
+    local project_id="$1" name="$2" desc="$3" statements="$4"
+    step "Policy: $name"
+    $AO projects create-policy "$project_id" \
+        --name "$name" \
+        --description "$desc" \
+        --statements "$statements" > /dev/null 2>&1 \
+        && step "  created" || warn "  failed (may already exist)"
+}
+
+create_project_role() {
+    local project_id="$1" name="$2" desc="$3" policies="$4"
+    step "Role: $name"
+    $AO projects create-role "$project_id" \
+        --name "$name" \
+        --description "$desc" \
+        --policies "$policies" > /dev/null 2>&1 \
+        && step "  created" || warn "  failed (may already exist)"
+}
+
+# ---------------------------------------------------------------------------
+# Authenticate
+# ---------------------------------------------------------------------------
+info "Authenticating with ao CLI..."
+$AO authentication login --username admin --password "$ADMIN_PASSWORD" > /dev/null 2>&1
+step "authenticated as admin"
+
+# Resolve pre-existing entity IDs
+info "Resolving pre-existing entities..."
+USER_IDS["admin"]=$($AO users list 2>/dev/null | jq -r '.resources[] | select(.username=="admin") | .id // empty' | head -1)
+GROUP_IDS["admins"]=$($AO groups list 2>/dev/null | jq -r '.resources[] | select(.name=="admins") | .id // empty' | head -1)
+PROJECT_IDS["default"]=$($AO projects list 2>/dev/null | jq -r '.resources[] | select(.name=="default") | .id // empty' | head -1)
+step "admin=${USER_IDS[admin]:-?}  admins=${GROUP_IDS[admins]:-?}  default=${PROJECT_IDS[default]:-?}"
+
+# ---------------------------------------------------------------------------
 # 1. Users (20 users with varied personas)
 # ---------------------------------------------------------------------------
 info "Creating users..."
 
 # Engineering leads
-$CLI create-user alice   --email alice@example.com   --full-name "Alice Chen"       --password "$ADMIN_PASSWORD"
-$CLI create-user bob     --email bob@example.com     --full-name "Bob Martinez"     --password "$ADMIN_PASSWORD"
+create_user alice   alice@example.com   "Alice Chen"
+create_user bob     bob@example.com     "Bob Martinez"
 
 # Backend engineers
-$CLI create-user carol   --email carol@example.com   --full-name "Carol Williams"   --password "$ADMIN_PASSWORD"
-$CLI create-user dave    --email dave@example.com    --full-name "Dave Patel"       --password "$ADMIN_PASSWORD"
-$CLI create-user elena   --email elena@example.com   --full-name "Elena Novak"      --password "$ADMIN_PASSWORD"
+create_user carol   carol@example.com   "Carol Williams"
+create_user dave    dave@example.com    "Dave Patel"
+create_user elena   elena@example.com   "Elena Novak"
 
 # Frontend engineers
-$CLI create-user frank   --email frank@example.com   --full-name "Frank Okafor"     --password "$ADMIN_PASSWORD"
-$CLI create-user grace   --email grace@example.com   --full-name "Grace Kim"        --password "$ADMIN_PASSWORD"
+create_user frank   frank@example.com   "Frank Okafor"
+create_user grace   grace@example.com   "Grace Kim"
 
 # SRE / DevOps
-$CLI create-user hector  --email hector@example.com  --full-name "Hector Reyes"     --password "$ADMIN_PASSWORD"
-$CLI create-user iris    --email iris@example.com    --full-name "Iris Tanaka"      --password "$ADMIN_PASSWORD"
+create_user hector  hector@example.com  "Hector Reyes"
+create_user iris    iris@example.com    "Iris Tanaka"
 
 # QA engineers
-$CLI create-user james   --email james@example.com   --full-name "James O'Brien"    --password "$ADMIN_PASSWORD"
-$CLI create-user karen   --email karen@example.com   --full-name "Karen Liu"        --password "$ADMIN_PASSWORD"
-$CLI create-user leo     --email leo@example.com     --full-name "Leo Andersen"     --password "$ADMIN_PASSWORD"
+create_user james   james@example.com   "James O'Brien"
+create_user karen   karen@example.com   "Karen Liu"
+create_user leo     leo@example.com     "Leo Andersen"
 
 # Data engineers
-$CLI create-user maya    --email maya@example.com    --full-name "Maya Gupta"       --password "$ADMIN_PASSWORD"
-$CLI create-user nate    --email nate@example.com    --full-name "Nate Fischer"     --password "$ADMIN_PASSWORD"
+create_user maya    maya@example.com    "Maya Gupta"
+create_user nate    nate@example.com    "Nate Fischer"
 
 # Product managers
-$CLI create-user olivia  --email olivia@example.com  --full-name "Olivia Santos"    --password "$ADMIN_PASSWORD"
-$CLI create-user paul    --email paul@example.com    --full-name "Paul Johansson"   --password "$ADMIN_PASSWORD"
+create_user olivia  olivia@example.com  "Olivia Santos"
+create_user paul    paul@example.com    "Paul Johansson"
 
 # Security
-$CLI create-user quinn   --email quinn@example.com   --full-name "Quinn Harper"     --password "$ADMIN_PASSWORD"
+create_user quinn   quinn@example.com   "Quinn Harper"
 
 # Executive / read-only stakeholders
-$CLI create-user rachel  --email rachel@example.com  --full-name "Rachel Nakamura"  --password "$ADMIN_PASSWORD"
-$CLI create-user sam     --email sam@example.com     --full-name "Sam Dubois"       --password "$ADMIN_PASSWORD"
-$CLI create-user tina    --email tina@example.com    --full-name "Tina Kowalski"    --password "$ADMIN_PASSWORD"
+create_user rachel  rachel@example.com  "Rachel Nakamura"
+create_user sam     sam@example.com     "Sam Dubois"
+create_user tina    tina@example.com    "Tina Kowalski"
 
 # ---------------------------------------------------------------------------
 # 2. Groups (10 groups)
 # ---------------------------------------------------------------------------
 info "Creating groups..."
 
-$CLI create-group backend-eng     --description "Backend engineering team"
-$CLI create-group frontend-eng    --description "Frontend engineering team"
-$CLI create-group sre             --description "Site reliability engineering"
-$CLI create-group qa              --description "Quality assurance"
-$CLI create-group data-eng        --description "Data engineering and analytics"
-$CLI create-group product         --description "Product management"
-$CLI create-group security        --description "Security team"
-$CLI create-group leadership      --description "Engineering leadership and executives"
-$CLI create-group on-call         --description "Current on-call rotation"
-$CLI create-group release-managers --description "Release management (cross-functional)"
+create_group backend-eng     "Backend engineering team"
+create_group frontend-eng    "Frontend engineering team"
+create_group sre             "Site reliability engineering"
+create_group qa              "Quality assurance"
+create_group data-eng        "Data engineering and analytics"
+create_group product         "Product management"
+create_group security        "Security team"
+create_group leadership      "Engineering leadership and executives"
+create_group on-call         "Current on-call rotation"
+create_group release-managers "Release management (cross-functional)"
 
 # ---------------------------------------------------------------------------
 # 3. Group memberships
@@ -127,65 +405,72 @@ $CLI create-group release-managers --description "Release management (cross-func
 info "Adding users to groups..."
 
 # admins group
-$CLI add-group-member admins alice
-$CLI add-group-member admins bob
+add_member admins alice
+add_member admins bob
 
 # backend-eng
-$CLI add-group-member backend-eng alice
-$CLI add-group-member backend-eng carol
-$CLI add-group-member backend-eng dave
-$CLI add-group-member backend-eng elena
+add_member backend-eng alice
+add_member backend-eng carol
+add_member backend-eng dave
+add_member backend-eng elena
 
 # frontend-eng
-$CLI add-group-member frontend-eng bob
-$CLI add-group-member frontend-eng frank
-$CLI add-group-member frontend-eng grace
+add_member frontend-eng bob
+add_member frontend-eng frank
+add_member frontend-eng grace
 
 # sre
-$CLI add-group-member sre hector
-$CLI add-group-member sre iris
+add_member sre hector
+add_member sre iris
 
 # qa
-$CLI add-group-member qa james
-$CLI add-group-member qa karen
-$CLI add-group-member qa leo
+add_member qa james
+add_member qa karen
+add_member qa leo
 
 # data-eng
-$CLI add-group-member data-eng maya
-$CLI add-group-member data-eng nate
+add_member data-eng maya
+add_member data-eng nate
 
 # product
-$CLI add-group-member product olivia
-$CLI add-group-member product paul
+add_member product olivia
+add_member product paul
 
 # security
-$CLI add-group-member security quinn
+add_member security quinn
 
 # leadership
-$CLI add-group-member leadership rachel
-$CLI add-group-member leadership sam
-$CLI add-group-member leadership tina
+add_member leadership rachel
+add_member leadership sam
+add_member leadership tina
 
 # on-call (rotating - currently hector and carol)
-$CLI add-group-member on-call hector
-$CLI add-group-member on-call carol
+add_member on-call hector
+add_member on-call carol
 
 # release-managers (cross-functional)
-$CLI add-group-member release-managers alice
-$CLI add-group-member release-managers bob
-$CLI add-group-member release-managers hector
-$CLI add-group-member release-managers olivia
+add_member release-managers alice
+add_member release-managers bob
+add_member release-managers hector
+add_member release-managers olivia
 
 # ---------------------------------------------------------------------------
 # 4. Projects
 # ---------------------------------------------------------------------------
 info "Creating projects..."
 
-$CLI create-project storefront      --description "Customer-facing web storefront"
-$CLI create-project payment-service --description "Payment processing backend"
-$CLI create-project data-pipeline   --description "Data ingestion and analytics pipeline"
-$CLI create-project mobile-app      --description "iOS and Android mobile application"
-$CLI create-project internal-tools  --description "Internal developer tooling and dashboards"
+create_project storefront      "Customer-facing web storefront"
+create_project payment-service "Payment processing backend"
+create_project data-pipeline   "Data ingestion and analytics pipeline"
+create_project mobile-app      "iOS and Android mobile application"
+create_project internal-tools  "Internal developer tooling and dashboards"
+
+# Convenience aliases
+STOREFRONT_ID="${PROJECT_IDS[storefront]:-}"
+PAYMENT_ID="${PROJECT_IDS[payment-service]:-}"
+PIPELINE_ID="${PROJECT_IDS[data-pipeline]:-}"
+MOBILE_ID="${PROJECT_IDS[mobile-app]:-}"
+TOOLS_ID="${PROJECT_IDS[internal-tools]:-}"
 
 # ---------------------------------------------------------------------------
 # 5. Project-level role assignments
@@ -193,260 +478,160 @@ $CLI create-project internal-tools  --description "Internal developer tooling an
 info "Assigning project-level roles..."
 
 # -- storefront: frontend-heavy, bob leads --
-$CLI assign-role project-admin   --user bob     --project storefront
-$CLI assign-role project-user    --user frank   --project storefront
-$CLI assign-role project-user    --user grace   --project storefront
-$CLI assign-role project-user    --user carol   --project storefront  # backend support
-$CLI assign-role project-auditor --user james   --project storefront  # QA
-$CLI assign-role project-auditor --user olivia  --project storefront  # PM
-$CLI assign-role project-auditor --user rachel  --project storefront  # exec visibility
+assign_role project-admin   user bob     storefront
+assign_role project-user    user frank   storefront
+assign_role project-user    user grace   storefront
+assign_role project-user    user carol   storefront
+assign_role project-auditor user james   storefront
+assign_role project-auditor user olivia  storefront
+assign_role project-auditor user rachel  storefront
 
 # -- payment-service: backend-heavy, alice leads --
-$CLI assign-role project-admin   --user alice   --project payment-service
-$CLI assign-role project-user    --user carol   --project payment-service
-$CLI assign-role project-user    --user dave    --project payment-service
-$CLI assign-role project-user    --user elena   --project payment-service
-$CLI assign-role project-auditor --user quinn   --project payment-service  # security review
-$CLI assign-role project-auditor --user karen   --project payment-service  # QA
-$CLI assign-role project-auditor --user paul    --project payment-service  # PM
+assign_role project-admin   user alice   payment-service
+assign_role project-user    user carol   payment-service
+assign_role project-user    user dave    payment-service
+assign_role project-user    user elena   payment-service
+assign_role project-auditor user quinn   payment-service
+assign_role project-auditor user karen   payment-service
+assign_role project-auditor user paul    payment-service
 
 # -- data-pipeline: data team owns, SRE supports --
-$CLI assign-role project-admin   --user maya    --project data-pipeline
-$CLI assign-role project-user    --user nate    --project data-pipeline
-$CLI assign-role project-user    --user hector  --project data-pipeline  # SRE infra support
-$CLI assign-role project-user    --user iris    --project data-pipeline  # SRE infra support
-$CLI assign-role project-auditor --user leo     --project data-pipeline  # QA
-$CLI assign-role project-auditor --user sam     --project data-pipeline  # exec visibility
+assign_role project-admin   user maya    data-pipeline
+assign_role project-user    user nate    data-pipeline
+assign_role project-user    user hector  data-pipeline
+assign_role project-user    user iris    data-pipeline
+assign_role project-auditor user leo     data-pipeline
+assign_role project-auditor user sam     data-pipeline
 
 # -- mobile-app: frontend + backend collaboration --
-$CLI assign-role project-admin   --user bob     --project mobile-app
-$CLI assign-role project-admin   --user alice   --project mobile-app
-$CLI assign-role project-user    --user frank   --project mobile-app
-$CLI assign-role project-user    --user grace   --project mobile-app
-$CLI assign-role project-user    --user dave    --project mobile-app     # backend APIs
-$CLI assign-role project-auditor --user james   --project mobile-app     # QA
-$CLI assign-role project-auditor --user karen   --project mobile-app     # QA
-$CLI assign-role project-auditor --user olivia  --project mobile-app     # PM
-$CLI assign-role project-auditor --user tina    --project mobile-app     # exec visibility
+assign_role project-admin   user bob     mobile-app
+assign_role project-admin   user alice   mobile-app
+assign_role project-user    user frank   mobile-app
+assign_role project-user    user grace   mobile-app
+assign_role project-user    user dave    mobile-app
+assign_role project-auditor user james   mobile-app
+assign_role project-auditor user karen   mobile-app
+assign_role project-auditor user olivia  mobile-app
+assign_role project-auditor user tina    mobile-app
 
 # -- internal-tools: SRE owns, everyone can read --
-$CLI assign-role project-admin   --user hector  --project internal-tools
-$CLI assign-role project-user    --user iris    --project internal-tools
-$CLI assign-role project-user    --user elena   --project internal-tools
-$CLI assign-role project-user    --user nate    --project internal-tools
-$CLI assign-role project-auditor --user quinn   --project internal-tools  # security
+assign_role project-admin   user hector  internal-tools
+assign_role project-user    user iris    internal-tools
+assign_role project-user    user elena   internal-tools
+assign_role project-user    user nate    internal-tools
+assign_role project-auditor user quinn   internal-tools
 
 # ---------------------------------------------------------------------------
-# 6. Get admin token for API calls
-# ---------------------------------------------------------------------------
-info "Obtaining admin token..."
-ADMIN_TOKEN=$(get_token "admin")
-if [ -z "$ADMIN_TOKEN" ]; then
-    echo "ERROR: Failed to obtain admin token"
-    exit 1
-fi
-step "admin token obtained"
-
-# ---------------------------------------------------------------------------
-# 7. Resolve project IDs
-# ---------------------------------------------------------------------------
-info "Resolving project IDs..."
-
-resolve_project_id() {
-    curl -sf "$API/projects" -H "Authorization: Bearer $ADMIN_TOKEN" | python3 -c "
-import sys, json
-for p in json.load(sys.stdin):
-    if p['name'] == '$1': print(p['id']); break
-" 2>/dev/null || true
-}
-
-STOREFRONT_ID=$(resolve_project_id "storefront")
-PAYMENT_ID=$(resolve_project_id "payment-service")
-PIPELINE_ID=$(resolve_project_id "data-pipeline")
-MOBILE_ID=$(resolve_project_id "mobile-app")
-TOOLS_ID=$(resolve_project_id "internal-tools")
-
-step "storefront=$STOREFRONT_ID"
-step "payment-service=$PAYMENT_ID"
-step "data-pipeline=$PIPELINE_ID"
-step "mobile-app=$MOBILE_ID"
-step "internal-tools=$TOOLS_ID"
-
-# ---------------------------------------------------------------------------
-# 8. Custom policies, roles & assignments (optional)
+# 6. Custom policies, roles & assignments (optional)
 # ---------------------------------------------------------------------------
 if [ "$CUSTOM_POLICIES" = true ]; then
 
 info "Creating custom project policies..."
 
-create_policy() {
-    local project_id="$1" name="$2" desc="$3" statements="$4"
-    step "Policy: $name"
-    curl -sf "$API/projects/$project_id/policies" \
-        -H "Authorization: Bearer $ADMIN_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d "{\"name\": \"$name\", \"description\": \"$desc\", \"statements\": $statements}" \
-        > /dev/null && step "  created" || warn "  failed (may already exist)"
-}
-
 # -- data-pipeline policies --
-create_policy "$PIPELINE_ID" "etl-operator" \
+create_project_policy "$PIPELINE_ID" "etl-operator" \
     "Run and monitor ETL workflows" \
     '[{"effect":"allow","actions":["workflow:read","execution:read","execution:run"],"scope":"project"}]'
 
-create_policy "$PIPELINE_ID" "data-viewer" \
+create_project_policy "$PIPELINE_ID" "data-viewer" \
     "Read-only access to pipeline workflows and credentials" \
     '[{"effect":"allow","actions":["workflow:read","execution:read","credential:read"],"scope":"project"}]'
 
-create_policy "$PIPELINE_ID" "data-quality-admin" \
+create_project_policy "$PIPELINE_ID" "data-quality-admin" \
     "Manage data quality workflows and approve pipeline runs" \
     '[{"effect":"allow","actions":["workflow:read","workflow:update","execution:read","execution:run","approval:read","approval:decide"],"scope":"project"}]'
 
 # -- payment-service policies --
-create_policy "$PAYMENT_ID" "pci-auditor" \
+create_project_policy "$PAYMENT_ID" "pci-auditor" \
     "Read-only access with credential visibility for PCI compliance audits" \
     '[{"effect":"allow","actions":["workflow:read","execution:read","credential:read","approval:read"],"scope":"project"}]'
 
-create_policy "$PAYMENT_ID" "deploy-approver" \
+create_project_policy "$PAYMENT_ID" "deploy-approver" \
     "Approve production deployments but cannot modify workflows" \
     '[{"effect":"allow","actions":["workflow:read","execution:read","approval:read","approval:decide"],"scope":"project"}]'
 
 # -- storefront policies --
-create_policy "$STOREFRONT_ID" "feature-flag-manager" \
+create_project_policy "$STOREFRONT_ID" "feature-flag-manager" \
     "Manage feature flag workflows and run deployments" \
     '[{"effect":"allow","actions":["workflow:read","workflow:create","workflow:update","execution:read","execution:run"],"scope":"project"}]'
 
-create_policy "$STOREFRONT_ID" "cdn-operator" \
+create_project_policy "$STOREFRONT_ID" "cdn-operator" \
     "Run CDN and cache-related workflows" \
     '[{"effect":"allow","actions":["workflow:read","execution:read","execution:run"],"scope":"project"}]'
 
 # -- internal-tools policies --
-create_policy "$TOOLS_ID" "infra-operator" \
+create_project_policy "$TOOLS_ID" "infra-operator" \
     "Run infrastructure workflows and view credentials" \
     '[{"effect":"allow","actions":["workflow:read","execution:read","execution:run","credential:read"],"scope":"project"}]'
 
 info "Creating custom project roles..."
 
-create_role() {
-    local project_id="$1" name="$2" desc="$3" policies="$4"
-    step "Role: $name"
-    curl -sf "$API/projects/$project_id/roles" \
-        -H "Authorization: Bearer $ADMIN_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d "{\"name\": \"$name\", \"description\": \"$desc\", \"policies\": $policies}" \
-        > /dev/null && step "  created" || warn "  failed (may already exist)"
-}
-
 # -- data-pipeline roles (mix of custom + builtin policies) --
-create_role "$PIPELINE_ID" "etl-engineer" \
+create_project_role "$PIPELINE_ID" "etl-engineer" \
     "Run ETL workflows and view pipeline credentials" \
     '["etl-operator", "credential:read:project"]'
 
-create_role "$PIPELINE_ID" "data-stakeholder" \
+create_project_role "$PIPELINE_ID" "data-stakeholder" \
     "Read-only stakeholder view of data pipeline" \
     '["data-viewer"]'
 
-create_role "$PIPELINE_ID" "data-quality-lead" \
+create_project_role "$PIPELINE_ID" "data-quality-lead" \
     "Manage data quality checks and approve pipeline changes" \
     '["data-quality-admin", "credential:read:project", "role:read:project"]'
 
 # -- payment-service roles --
-create_role "$PAYMENT_ID" "compliance-reviewer" \
+create_project_role "$PAYMENT_ID" "compliance-reviewer" \
     "PCI compliance reviewer with deploy approval authority" \
     '["pci-auditor", "deploy-approver"]'
 
-create_role "$PAYMENT_ID" "payment-deployer" \
+create_project_role "$PAYMENT_ID" "payment-deployer" \
     "Deploy payment services and manage credentials" \
     '["deploy-approver", "credential:read:project", "credential:update:project"]'
 
 # -- storefront roles --
-create_role "$STOREFRONT_ID" "frontend-lead" \
+create_project_role "$STOREFRONT_ID" "frontend-lead" \
     "Manage feature flags and CDN for storefront" \
     '["feature-flag-manager", "cdn-operator", "credential:read:project"]'
 
-create_role "$STOREFRONT_ID" "release-engineer" \
+create_project_role "$STOREFRONT_ID" "release-engineer" \
     "Run deployments and manage CDN cache" \
     '["cdn-operator", "execution:run:project"]'
 
 # -- internal-tools roles --
-create_role "$TOOLS_ID" "platform-engineer" \
+create_project_role "$TOOLS_ID" "platform-engineer" \
     "Operate infrastructure workflows and manage tool credentials" \
     '["infra-operator", "credential:update:project"]'
 
 info "Assigning custom roles..."
 
 # -- data-pipeline: custom role assignments --
-$CLI assign-role etl-engineer    --user nate    --project data-pipeline
-$CLI assign-role data-stakeholder --user paul   --project data-pipeline
-$CLI assign-role data-stakeholder --user rachel --project data-pipeline
-$CLI assign-role data-quality-lead --user maya  --project data-pipeline
-$CLI assign-role data-stakeholder --group leadership --project data-pipeline
+assign_role etl-engineer     user  nate    data-pipeline
+assign_role data-stakeholder user  paul    data-pipeline
+assign_role data-stakeholder user  rachel  data-pipeline
+assign_role data-quality-lead user maya    data-pipeline
+assign_role data-stakeholder group leadership data-pipeline
 
 # -- payment-service: custom role assignments --
-$CLI assign-role compliance-reviewer --user quinn  --project payment-service
-$CLI assign-role payment-deployer    --user elena  --project payment-service
-$CLI assign-role compliance-reviewer --group security --project payment-service
+assign_role compliance-reviewer user  quinn    payment-service
+assign_role payment-deployer    user  elena    payment-service
+assign_role compliance-reviewer group security payment-service
 
 # -- storefront: custom role assignments --
-$CLI assign-role frontend-lead    --user bob    --project storefront
-$CLI assign-role release-engineer --user hector --project storefront
-$CLI assign-role release-engineer --group on-call --project storefront
+assign_role frontend-lead    user  bob    storefront
+assign_role release-engineer user  hector storefront
+assign_role release-engineer group on-call storefront
 
 # -- internal-tools: custom role assignments --
-$CLI assign-role platform-engineer --user iris   --project internal-tools
-$CLI assign-role platform-engineer --user elena  --project internal-tools
-$CLI assign-role platform-engineer --group sre   --project internal-tools
+assign_role platform-engineer user  iris   internal-tools
+assign_role platform-engineer user  elena  internal-tools
+assign_role platform-engineer group sre    internal-tools
 
 fi
 
 # ---------------------------------------------------------------------------
-# 9. Workflows
+# 7. Workflows
 # ---------------------------------------------------------------------------
 info "Creating workflows..."
-
-# Helper: create a simple workflow via CLI (as admin)
-simple_wf() {
-    local name="$1" project="$2"
-    if [ -n "$project" ]; then
-        $CLI create-sample-workflow --name "$name" --project "$project"
-    else
-        $CLI create-sample-workflow --name "$name"
-    fi
-}
-
-# Helper: create an approval-gated workflow via API
-approval_wf() {
-    local name="$1" desc="$2" project_id="$3"
-    step "Creating approval-gated workflow: $name"
-    curl -sf -H "Authorization: Bearer $ADMIN_TOKEN" "$API/workflows" \
-        -H "Content-Type: application/json" \
-        -d "$(cat <<WFEOF
-{
-    "name": "$name",
-    "description": "$desc",
-    "project_id": "$project_id",
-    "workflow_definition": {
-        "schema_version": "2.0.0",
-        "name": "$name",
-        "description": "$desc",
-        "triggers": [{"id": "trigger_manual", "type": "manual_trigger"}],
-        "nodes": [
-            {"id": "prepare", "type": "script", "name": "Prepare", "config": {"language": "python", "code": "print('Preparing $name...')", "timeout": 300}},
-            {"id": "review", "type": "approval", "name": "Review and approve", "config": {"timeout": 3600}},
-            {"id": "execute", "type": "script", "name": "Execute", "config": {"language": "python", "code": "print('Executing $name')", "timeout": 600}},
-            {"id": "rollback", "type": "script", "name": "Handle rejection", "config": {"language": "python", "code": "print('$name rejected')", "timeout": 60}}
-        ],
-        "edges": [
-            {"from": "trigger_manual", "to": "prepare"},
-            {"from": "prepare", "to": "review"},
-            {"from": "review", "to": "execute", "from_port": "approved"},
-            {"from": "review", "to": "rollback", "from_port": "rejected"}
-        ]
-    }
-}
-WFEOF
-)" > /dev/null && step "  $name created" || warn "  $name failed"
-}
 
 # -- storefront (6 workflows) --
 simple_wf "build-storefront"     "storefront"
@@ -491,40 +676,19 @@ simple_wf "hello-world"         "default"
 simple_wf "smoke-test"          "default"
 
 # ---------------------------------------------------------------------------
-# 8b. Credentials (org-level + project-scoped)
+# 8. Credentials
 # ---------------------------------------------------------------------------
 info "Creating credentials..."
 
-resolve_credential_type_id() {
-    curl -sf "$API/credential_types" -H "Authorization: Bearer $ADMIN_TOKEN" | python3 -c "
-import sys, json
-for t in json.load(sys.stdin).get('resources', []):
-    if t['name'] == '$1': print(t['id']); break
-" 2>/dev/null
-}
-
-BEARER_TYPE=$(resolve_credential_type_id "HTTP Bearer Token")
-BASIC_TYPE=$(resolve_credential_type_id "HTTP Basic Auth")
-LLM_TYPE=$(resolve_credential_type_id "LLM Provider")
-AAP_TYPE=$(resolve_credential_type_id "Ansible Automation Platform")
-SSH_TYPE=$(resolve_credential_type_id "SSH Key")
+BEARER_TYPE=$($AO credentials list-types 2>/dev/null | jq -r '.resources[] | select(.name=="HTTP Bearer Token") | .id // empty' | head -1)
+BASIC_TYPE=$($AO credentials list-types 2>/dev/null | jq -r '.resources[] | select(.name=="HTTP Basic Auth") | .id // empty' | head -1)
+LLM_TYPE=$($AO credentials list-types 2>/dev/null | jq -r '.resources[] | select(.name=="LLM Provider") | .id // empty' | head -1)
+AAP_TYPE=$($AO credentials list-types 2>/dev/null | jq -r '.resources[] | select(.name=="Ansible Automation Platform") | .id // empty' | head -1)
+SSH_TYPE=$($AO credentials list-types 2>/dev/null | jq -r '.resources[] | select(.name=="SSH Key") | .id // empty' | head -1)
 
 step "bearer=$BEARER_TYPE basic=$BASIC_TYPE llm=$LLM_TYPE aap=$AAP_TYPE ssh=$SSH_TYPE"
 
-create_credential() {
-    local name="$1" type_id="$2" inputs="$3" project_id="${4:-}"
-    local body="{\"name\": \"$name\", \"credential_type_id\": \"$type_id\", \"inputs\": $inputs"
-    if [ -n "$project_id" ]; then
-        body="$body, \"project_id\": \"$project_id\""
-    fi
-    body="$body}"
-    step "Creating credential: $name"
-    curl -sf -H "Authorization: Bearer $ADMIN_TOKEN" "$API/credentials" \
-        -H "Content-Type: application/json" \
-        -d "$body" > /dev/null && step "  $name created" || warn "  $name failed"
-}
-
-# -- Org-level credentials (project_id=NULL, visible to all) --
+# -- Org-level credentials (use default project since project_id is required) --
 create_credential "OpenRouter API Key" "$LLM_TYPE" \
     '{"api_key": "sk-or-v1-demo-openrouter-key", "provider": "openrouter"}' ""
 create_credential "GitHub Actions Token" "$BEARER_TYPE" \
@@ -569,35 +733,6 @@ create_credential "Internal Vault Token" "$BEARER_TYPE" \
 # ---------------------------------------------------------------------------
 info "Creating sample executions..."
 
-get_wf_id() {
-    curl -sf -H "Authorization: Bearer $ADMIN_TOKEN" "$API/workflows?limit=100" 2>/dev/null | python3 -c "
-import sys, json
-data = json.load(sys.stdin)
-wfs = data.get('resources', data) if isinstance(data, dict) else data
-for w in wfs:
-    if w['name'] == '$1': print(w['id']); break
-" 2>/dev/null || true
-}
-
-create_exec() {
-    curl -sf -H "Authorization: Bearer $ADMIN_TOKEN" "$API/executions" \
-        -H "Content-Type: application/json" \
-        -d "{\"workflow_id\": \"$1\", \"input_data\": {}}" 2>/dev/null | python3 -c "
-import sys, json
-print(json.load(sys.stdin).get('id', ''))
-" 2>/dev/null
-}
-
-run_wf() {
-    local name="$1" user="$2"
-    local wf_id
-    wf_id=$(get_wf_id "$name")
-    if [ -n "$wf_id" ]; then
-        step "$user runs $name"
-        create_exec "$wf_id" > /dev/null || warn "  execution failed"
-    fi
-}
-
 run_wf "run-e2e-tests"         "frank"
 run_wf "build-storefront"      "grace"
 run_wf "lighthouse-audit"      "bob"
@@ -612,47 +747,9 @@ run_wf "hello-world"           "admin"
 run_wf "smoke-test"            "hector"
 
 # ---------------------------------------------------------------------------
-# 11. Pending approval requests
+# 10. Pending approval requests
 # ---------------------------------------------------------------------------
 info "Creating pending approval requests..."
-
-create_approval() {
-    local wf_name="$1" node_id="$2" approval_name="$3"
-    local wf_id exec_id wf_version_id
-
-    wf_id=$(get_wf_id "$wf_name")
-    [ -z "$wf_id" ] && return
-
-    wf_version_id=$(curl -sf -H "Authorization: Bearer $ADMIN_TOKEN" "$API/workflows/$wf_id/versions" | python3 -c "
-import sys, json
-data = json.load(sys.stdin)
-versions = data.get('versions', data.get('resources', data)) if isinstance(data, dict) else data
-if versions: print(versions[0]['id'])
-" 2>/dev/null || true)
-    [ -z "$wf_version_id" ] && return
-
-    exec_id=$(create_exec "$wf_id")
-    [ -z "$exec_id" ] && return
-
-    step "Creating approval: $approval_name"
-    curl -sf -H "Authorization: Bearer $ADMIN_TOKEN" "$API/approvals" \
-        -H "Content-Type: application/json" \
-        -d "$(cat <<EOF
-{
-    "execution_id": "$exec_id",
-    "approval_node_id": "$node_id",
-    "name": "$approval_name",
-    "workflow_context": {
-        "workflow_version_id": "$wf_version_id",
-        "workflow_name": "$wf_name",
-        "inputs": {}
-    },
-    "next_step_approved": {"id": "execute", "name": "Execute", "type": "task"},
-    "next_step_rejected": {"id": "rollback", "name": "Handle rejection", "type": "task"}
-}
-EOF
-)" > /dev/null && step "  approval created" || warn "  approval creation failed"
-}
 
 create_approval "deploy-storefront-prod"  "review" "Deploy storefront v3.2 to production"
 create_approval "deploy-payment-prod"     "review" "Deploy payment-service hotfix to production"

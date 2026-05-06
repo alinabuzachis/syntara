@@ -670,6 +670,8 @@ async def cmd_clean(args: argparse.Namespace) -> None:
         ("executions", None),
         ("workflow_versions", None),
         ("workflows", None),
+        ("credentials", None),
+        ("credential_types", "managed = false"),
         ("role_assignments", None),
         ("user_groups", "group_id IN (SELECT id FROM groups WHERE is_builtin = false)"),
         ("roles", "is_builtin = false"),

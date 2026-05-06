@@ -133,7 +133,8 @@ def _is_complex_field(spec: dict[str, Any], fprop: dict[str, Any]) -> bool:
             _, target = _resolve_ref(spec, item["$ref"])
             if target.get("type") == "object" or "properties" in target:
                 return True
-    return False
+    # Untyped fields (no type, no $ref, no anyOf) accept arbitrary values — treat as complex
+    return "type" not in fprop and "$ref" not in fprop and "anyOf" not in fprop
 
 
 def _load_json_arg(value: str) -> object:
