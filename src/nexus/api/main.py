@@ -69,6 +69,7 @@ from nexus.metrics.internal_api import (
 )
 from nexus.metrics.middleware import MetricsMiddleware
 from nexus.metrics.openmetrics import openmetrics_endpoint
+from nexus.metrics.queue_depth_poller import get_queue_depth_poller
 from nexus.settings.cache.settings_cache import SettingsCache, set_runtime_settings
 from nexus.telemetry.client import flush_telemetry, get_telemetry_registry, initialize_telemetry
 from nexus.telemetry.periodic_collector import PeriodicCollector
@@ -195,6 +196,9 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
     metrics_cleanup_worker = get_metrics_cleanup_worker()
     metrics_cleanup_worker.start()
 
+    queue_depth_poller = get_queue_depth_poller()
+    queue_depth_poller.start()
+
     session_cleanup_worker = get_session_cleanup_worker()
     session_cleanup_worker.start()
 
@@ -213,6 +217,7 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
         "periodic_collector": periodic_collector,
         "completion_poller": completion_poller,
         "metrics_cleanup_worker": metrics_cleanup_worker,
+        "queue_depth_poller": queue_depth_poller,
         "session_cleanup_worker": session_cleanup_worker,
         "runtime_settings": runtime_settings,
     }
@@ -224,6 +229,7 @@ async def _lifespan_shutdown(resources: dict[str, Any]) -> None:
     await resources["audit_writer"].drain()
     logger.info("Audit event writer drained")
 
+    await resources["queue_depth_poller"].stop()
     await resources["session_cleanup_worker"].stop()
     await resources["metrics_cleanup_worker"].stop()
     await resources["completion_poller"].stop()

@@ -93,14 +93,20 @@ class PeriodicWorker:
         interval_seconds: Seconds to sleep between the end of one callback
             and the start of the next.
         session_factory: Injectable async session maker for database access.
-            Required — no default to ensure test compatibility.
+            Required when ``coordinate=True`` (the default).  May be omitted
+            (``None``) for uncoordinated workers that do not need database
+            access.
         callback: Async work function called each cycle. Receives the
-            session_factory so it can open its own database sessions.
+            session_factory (which may be ``None``) so it can open its own
+            database sessions when needed.
         cleanup_callback: Optional async function called during stop() for
             resource cleanup (e.g., flushing buffers).
         coordinate: Whether to acquire an advisory lock before running the
             callback. Set to False for tasks that must run in every worker
             (e.g., per-process connection cleanup). Defaults to True.
+
+    Raises:
+        ValueError: If ``coordinate=True`` and ``session_factory`` is None.
 
     """
 
@@ -109,12 +115,15 @@ class PeriodicWorker:
         *,
         name: str,
         interval_seconds: float,
-        session_factory: async_sessionmaker[AsyncSession],
+        session_factory: async_sessionmaker[AsyncSession] | None = None,
         callback: Callable[[Any], Awaitable[None]],
         cleanup_callback: Callable[[], Awaitable[None]] | None = None,
         coordinate: bool = True,
     ) -> None:
         """Initialize the periodic worker with the given configuration."""
+        if coordinate and session_factory is None:
+            msg = f"PeriodicWorker {name!r}: session_factory is required when coordinate=True"
+            raise ValueError(msg)
         self._name = name
         self._interval_seconds = interval_seconds
         self._session_factory = session_factory
@@ -201,6 +210,8 @@ class PeriodicWorker:
         # Coordinated mode: acquire transaction-level advisory lock.
         # The lock auto-releases when the session context manager exits
         # (transaction ROLLBACK), so no explicit unlock is needed.
+        if self._session_factory is None:
+            return
         async with self._session_factory() as session:
             try:
                 acquired = await _try_advisory_xact_lock(session, self._lock_key)
