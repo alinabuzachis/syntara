@@ -20,6 +20,7 @@ Run with: pytest --run-performance
 
 from __future__ import annotations
 
+import logging
 import re
 import time
 from typing import TYPE_CHECKING, Any
@@ -30,6 +31,10 @@ import pytest
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
     from nexus_api_client.api.internal_metrics import InternalMetricsApi
+    from nexus_api_client.models.invocation_create_request_contextdata import (
+        InvocationCreateRequestContextdata,
+    )
+    from nexus_api_client.types import Unset
 
 pytestmark = pytest.mark.performance
 
@@ -319,22 +324,45 @@ def submit_invocation(
     nexus_api: NexusApiRegistry,
     prompt: str,
     session_id: str | None = None,
+    model: str | None = None,
+    credential_id: str | None = None,
 ) -> tuple[float, bool, str | None]:
     """Submit a single invocation and measure API response time.
+
+    When *model* is provided it is passed via ``context_data`` so the
+    invocation executor selects it instead of the deployment default.
+    When *credential_id* is provided it is injected into
+    ``context_data.metadata`` so the executor resolves the LLM API key
+    from the stored credential.
 
     Returns (elapsed_ms, success, invocation_id).
     """
     from uuid import uuid4
 
     from nexus_api_client.models.invocation_create_request import InvocationCreateRequest
+    from nexus_api_client.types import UNSET
 
     sid = session_id or uuid4().hex
+    ctx: InvocationCreateRequestContextdata | Unset = UNSET
+    if model or credential_id:
+        from nexus_api_client.models.invocation_create_request_contextdata import (
+            InvocationCreateRequestContextdata as _Ctx,
+        )
+
+        ctx_dict: dict[str, object] = {}
+        if model:
+            ctx_dict["model"] = model
+        if credential_id:
+            ctx_dict["metadata"] = {"credential_id": credential_id}
+        ctx = _Ctx.from_dict(ctx_dict)
+
     start = time.monotonic()
     try:
         r = nexus_api.invocation.create(
             body=InvocationCreateRequest(
                 prompt=prompt,
                 session_id=sid,
+                context_data=ctx,
             ),
         )
         elapsed_ms = (time.monotonic() - start) * 1000
@@ -343,6 +371,55 @@ def submit_invocation(
     except Exception:
         elapsed_ms = (time.monotonic() - start) * 1000
         return elapsed_ms, False, None
+
+
+_logger = logging.getLogger(__name__)
+
+
+def find_llm_credential_id(nexus_api: NexusApiRegistry) -> str | None:
+    """Discover the first enabled LLM Provider credential on the deployment.
+
+    First resolves the credential type ID for "LLM Provider" via the
+    credential types API, then queries credentials filtered by that type.
+    Returns the credential UUID string, or ``None`` when none is found.
+    """
+    try:
+        llm_type_id = _find_llm_credential_type_id(nexus_api)
+        if not llm_type_id:
+            return None
+
+        from uuid import UUID as _UUID
+
+        r = nexus_api.credentials.list(credential_type_id=_UUID(llm_type_id), enabled=True)
+        if not (r.is_success and r.parsed):
+            return None
+
+        resources = getattr(r.parsed, "resources", None) or []
+        for cred in resources:
+            cred_id = getattr(cred, "id", None)
+            if cred_id is not None:
+                return str(cred_id)
+    except Exception:
+        _logger.warning("Failed to discover LLM credential", exc_info=True)
+    return None
+
+
+def _find_llm_credential_type_id(nexus_api: NexusApiRegistry) -> str | None:
+    """Return the credential type ID whose name contains 'LLM'."""
+    try:
+        r = nexus_api.credentials.list_types()
+        if not (r.is_success and r.parsed):
+            return None
+        resources = getattr(r.parsed, "resources", None) or []
+        for ct in resources:
+            name = str(getattr(ct, "name", "") or "")
+            if "llm" in name.lower():
+                ct_id = getattr(ct, "id", None)
+                if ct_id is not None:
+                    return str(ct_id)
+    except Exception:
+        _logger.warning("Failed to list credential types", exc_info=True)
+    return None
 
 
 def poll_for_invocation_terminal_status(
