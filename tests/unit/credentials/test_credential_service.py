@@ -24,6 +24,7 @@ from nexus.credentials.services.credential_service import (
     _get_secret_field_ids,
     _mask_all_secrets,
     _validate_inputs,
+    _validate_ssh_private_key,
 )
 
 BEARER_TYPE_INPUTS = {
@@ -39,6 +40,21 @@ BASIC_AUTH_TYPE_INPUTS = {
         {"id": "password", "label": "Password", "type": "string", "secret": True},
     ],
     "required": ["username", "password"],
+}
+
+BOOLEAN_TYPE_INPUTS = {
+    "fields": [
+        {"id": "verify_ssl", "label": "Verify SSL", "type": "boolean", "secret": False},
+    ],
+    "required": [],
+}
+
+SSH_TYPE_INPUTS = {
+    "fields": [
+        {"id": "username", "label": "Username", "type": "string", "secret": False},
+        {"id": "ssh_private_key", "label": "Key", "type": "string", "secret": True, "multiline": True},
+    ],
+    "required": ["username", "ssh_private_key"],
 }
 
 
@@ -509,3 +525,100 @@ class TestValidateInputs:
     def test_unknown_fields_still_rejected_in_patch_mode(self) -> None:
         with pytest.raises(CredentialValidationError, match="Unknown field"):
             _validate_inputs({"bogus": "val"}, BEARER_TYPE_INPUTS, allow_sentinel=True)
+
+    def test_boolean_field_accepts_true(self) -> None:
+        _validate_inputs({"verify_ssl": True}, BOOLEAN_TYPE_INPUTS)
+
+    def test_boolean_field_accepts_false(self) -> None:
+        _validate_inputs({"verify_ssl": False}, BOOLEAN_TYPE_INPUTS)
+
+    def test_boolean_field_rejects_string(self) -> None:
+        with pytest.raises(CredentialValidationError, match="must be a boolean"):
+            _validate_inputs({"verify_ssl": "true"}, BOOLEAN_TYPE_INPUTS)
+
+    def test_boolean_field_rejects_string_yes(self) -> None:
+        with pytest.raises(CredentialValidationError, match="must be a boolean"):
+            _validate_inputs({"verify_ssl": "yes"}, BOOLEAN_TYPE_INPUTS)
+
+    def test_boolean_field_rejects_integer(self) -> None:
+        with pytest.raises(CredentialValidationError, match="must be a boolean"):
+            _validate_inputs({"verify_ssl": 1}, BOOLEAN_TYPE_INPUTS)
+
+    def test_boolean_field_none_skipped(self) -> None:
+        _validate_inputs({"verify_ssl": None}, BOOLEAN_TYPE_INPUTS)
+
+    def test_boolean_field_sentinel_skipped(self) -> None:
+        _validate_inputs({"verify_ssl": ENCRYPTED_SENTINEL}, BOOLEAN_TYPE_INPUTS, allow_sentinel=True)
+
+
+class TestValidateSSHPrivateKey:
+    """Tests for _validate_ssh_private_key helper."""
+
+    @pytest.fixture
+    def unprotected_ed25519_key(self) -> str:
+        from cryptography.hazmat.primitives.asymmetric import ed25519
+        from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat
+
+        key = ed25519.Ed25519PrivateKey.generate()
+        return key.private_bytes(
+            encoding=Encoding.PEM,
+            format=PrivateFormat.OpenSSH,
+            encryption_algorithm=NoEncryption(),
+        ).decode("utf-8")
+
+    @pytest.fixture
+    def passphrase_protected_pem_key(self) -> str:
+        from cryptography.hazmat.primitives.asymmetric import ed25519
+        from cryptography.hazmat.primitives.serialization import (
+            BestAvailableEncryption,
+            Encoding,
+            PrivateFormat,
+        )
+
+        key = ed25519.Ed25519PrivateKey.generate()
+        return key.private_bytes(
+            encoding=Encoding.PEM,
+            format=PrivateFormat.PKCS8,
+            encryption_algorithm=BestAvailableEncryption(b"testpassword"),
+        ).decode("utf-8")
+
+    @pytest.fixture
+    def unprotected_pem_key(self) -> str:
+        from cryptography.hazmat.primitives.asymmetric import ed25519
+        from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat
+
+        key = ed25519.Ed25519PrivateKey.generate()
+        return key.private_bytes(
+            encoding=Encoding.PEM,
+            format=PrivateFormat.PKCS8,
+            encryption_algorithm=NoEncryption(),
+        ).decode("utf-8")
+
+    def test_unprotected_key_accepted(self, unprotected_ed25519_key: str) -> None:
+        _validate_ssh_private_key(unprotected_ed25519_key)
+
+    def test_unprotected_pem_key_accepted(self, unprotected_pem_key: str) -> None:
+        _validate_ssh_private_key(unprotected_pem_key)
+
+    def test_passphrase_protected_key_rejected(self, passphrase_protected_pem_key: str) -> None:
+        with pytest.raises(CredentialValidationError, match="passphrase-protected"):
+            _validate_ssh_private_key(passphrase_protected_pem_key)
+
+    def test_garbage_string_rejected(self) -> None:
+        with pytest.raises(CredentialValidationError, match="Invalid SSH private key"):
+            _validate_ssh_private_key("this is not a key")
+
+    def test_empty_string_rejected(self) -> None:
+        with pytest.raises(CredentialValidationError, match="Invalid SSH private key"):
+            _validate_ssh_private_key("")
+
+    def test_validate_inputs_ssh_field_calls_validation(self) -> None:
+        with pytest.raises(CredentialValidationError, match="Invalid SSH private key"):
+            _validate_inputs({"username": "deploy", "ssh_private_key": "garbage"}, SSH_TYPE_INPUTS)
+
+    def test_validate_inputs_ssh_sentinel_skipped(self) -> None:
+        _validate_inputs(
+            {"username": "deploy", "ssh_private_key": ENCRYPTED_SENTINEL},
+            SSH_TYPE_INPUTS,
+            allow_sentinel=True,
+        )

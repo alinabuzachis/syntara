@@ -13,6 +13,8 @@ if TYPE_CHECKING:
 from uuid import UUID
 
 import structlog
+from cryptography.exceptions import UnsupportedAlgorithm
+from cryptography.hazmat.primitives.serialization import load_pem_private_key, load_ssh_private_key
 from sqlalchemy import Select, case, func, literal_column, or_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
@@ -52,6 +54,45 @@ def _get_secret_field_ids(type_inputs: dict[str, Any]) -> set[str]:
     """Extract the set of field IDs marked as secret from a credential type's inputs schema."""
     fields = type_inputs.get("fields", [])
     return {f["id"] for f in fields if f.get("secret", False)}
+
+
+_SSH_KEY_ENCRYPTED_MSG = "SSH private key is passphrase-protected. Only unprotected keys are supported."
+
+
+def _validate_ssh_private_key(value: str) -> None:
+    """Reject passphrase-protected or malformed SSH private keys."""
+    data = value.encode("utf-8")
+    try:
+        load_ssh_private_key(data, password=None)
+        return
+    except (TypeError, UnsupportedAlgorithm):
+        raise CredentialValidationError(_SSH_KEY_ENCRYPTED_MSG) from None
+    except ValueError:
+        pass
+
+    try:
+        load_pem_private_key(data, password=None)
+        return
+    except TypeError:
+        raise CredentialValidationError(_SSH_KEY_ENCRYPTED_MSG) from None
+    except (ValueError, UnsupportedAlgorithm):
+        msg = "Invalid SSH private key format."
+        raise CredentialValidationError(msg) from None
+
+
+def _validate_field_value(field_id: str, value: Any, field_def: dict[str, Any]) -> None:  # noqa: ANN401
+    """Validate a single field value against its schema definition."""
+    choices = field_def.get("choices")
+    if choices and value not in choices:
+        msg = f"Invalid value '{value}' for field '{field_id}'. Must be one of: {', '.join(choices)}"
+        raise CredentialValidationError(msg)
+
+    if field_def.get("type") == "boolean" and not isinstance(value, bool):
+        msg = f"Field '{field_id}' must be a boolean (true/false), got {type(value).__name__}"
+        raise CredentialValidationError(msg)
+
+    if field_id == "ssh_private_key":
+        _validate_ssh_private_key(value)
 
 
 def _validate_inputs(
@@ -105,15 +146,12 @@ def _validate_inputs(
             msg = f"Missing required field(s): {', '.join(sorted(missing))}"
             raise CredentialValidationError(msg)
 
-    # Validate choices
+    # Validate choices, types, and format
     for field_id, value in inputs.items():
         if value is None or value == ENCRYPTED_SENTINEL:
             continue
         field_def = field_defs.get(field_id, {})
-        choices = field_def.get("choices")
-        if choices and value not in choices:
-            msg = f"Invalid value '{value}' for field '{field_id}'. Must be one of: {', '.join(choices)}"
-            raise CredentialValidationError(msg)
+        _validate_field_value(field_id, value, field_def)
 
 
 class CredentialEnrichQuery(EnrichQueryMixin):
