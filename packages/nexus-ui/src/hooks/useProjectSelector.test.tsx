@@ -593,6 +593,39 @@ describe('useProjectSelector', () => {
       })
     })
 
+    it('selects new project only after refetch completes', async () => {
+      const createdProject: ProjectRead = {
+        id: 'proj-new-2',
+        name: 'Created Project',
+        description: '',
+        labels: {},
+        is_default: false,
+        created_at: '2024-03-01T00:00:00Z',
+        updated_at: '2024-03-01T00:00:00Z',
+      }
+
+      let resolveRefetch!: () => void
+      mockRefetch.mockReturnValue(new Promise<void>((r) => (resolveRefetch = r)))
+
+      mockMutate.mockImplementation((_body: unknown, opts: { onSuccess: (data: ProjectRead) => void }) => {
+        opts.onSuccess(createdProject)
+      })
+
+      const user = userEvent.setup()
+      renderSelector({ requireProject: true })
+
+      await user.click(screen.getByPlaceholderText('Select a project'))
+      await user.click(screen.getByRole('option', { name: 'Create project' }))
+      await user.type(screen.getByLabelText('Project name'), 'Created Project')
+      await user.click(screen.getByRole('button', { name: 'Add' }))
+
+      await waitFor(() => expect(mockRefetch).toHaveBeenCalled())
+      expect(mockSetSelectedProjectId).not.toHaveBeenCalledWith('proj-new-2')
+
+      resolveRefetch()
+      await waitFor(() => expect(mockSetSelectedProjectId).toHaveBeenCalledWith('proj-new-2'))
+    })
+
     it('calls error handler on create failure', async () => {
       mockMutate.mockImplementation((_body: unknown, opts: { onError: (err: unknown) => void }) => {
         opts.onError({ detail: 'Name already exists' })

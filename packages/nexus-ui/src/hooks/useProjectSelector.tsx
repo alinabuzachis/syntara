@@ -189,10 +189,15 @@ export function useProjectSelector(options?: UseProjectSelectorOptions): UseProj
       <ProjectFormModal
         isOpen={createDialogOpen}
         onClose={() => setCreateDialogOpen(false)}
-        onSuccess={() => detachPromise(projectsQuery.refetch())}
+        onSuccess={() => {}} // refetch is handled in onCreated to avoid a race with setSelectedProjectId
         onCreated={(created) => {
           setCreateDialogOpen(false)
-          setSelectedProjectId(created.id ?? null)
+          const newId = created.id ?? null
+          detachPromise(
+            projectsQuery.refetch().finally(() => {
+              setSelectedProjectId(newId)
+            })
+          )
         }}
       />
     </>
