@@ -46,7 +46,7 @@ import { isValidUUID } from '../../../../utils/generateUUID'
 
 import { GroupMappingTab } from './GroupMappingTab'
 import { type GroupMappingConfig } from './groupMappingUtils'
-import { IDP_TYPE_PRESETS } from './idpTypePresets'
+import { IdpTypeKey, IDP_TYPE_PRESETS } from './idpTypePresets'
 
 type ProviderData = IdentityProvidersAPI.components['schemas']['IdentityProviderResponse']
 type ProviderConfig = NonNullable<ProviderData['configuration']>
@@ -65,6 +65,18 @@ function DetailField({ label, children }: Readonly<{ label: string; children: Re
       <DescriptionListTerm>{label}</DescriptionListTerm>
       <DescriptionListDescription>{children}</DescriptionListDescription>
     </DescriptionListGroup>
+  )
+}
+
+function AapRoleMappingField({ config }: Readonly<{ config: ProviderConfig }>) {
+  if (config.idp_type !== IdpTypeKey.AAP) return null
+  const enabled = config.aap_role_mapping_enabled ?? false
+  return (
+    <DetailField label="AAP role mapping">
+      <Label color={enabled ? 'blue' : 'grey'} isCompact>
+        {enabled ? 'Enabled' : 'Disabled'}
+      </Label>
+    </DetailField>
   )
 }
 
@@ -102,6 +114,7 @@ function ProviderDetailsContent({ provider }: Readonly<{ provider: ProviderData 
           {autoCreateGroups ? 'Enabled' : 'Disabled'}
         </Label>
       </DetailField>
+      <AapRoleMappingField config={config} />
       {!config.auto_discovery && (
         <>
           {config.authorization_endpoint && (

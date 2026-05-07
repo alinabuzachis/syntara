@@ -35,6 +35,7 @@ import {
   identityProviderEditSchema,
   type IdentityProviderFormData,
 } from './identityProviderFormSchema'
+import { IdpTypeKey } from './idpTypePresets'
 
 const PROVIDER_TYPE_OIDC = 'oidc' as const
 
@@ -96,6 +97,7 @@ function toCreatePayload(formData: IdentityProviderFormData) {
       claim_mapping: claimMappingPayload(formData),
       ...groupMappingFields(formData),
       auto_create_groups: formData.autoCreateGroups,
+      ...(formData.idpType === IdpTypeKey.AAP ? { aap_role_mapping_enabled: formData.aapRoleMappingEnabled } : {}),
     },
   }
 }
@@ -118,6 +120,7 @@ function toPatchPayload(formData: IdentityProviderFormData) {
       claim_mapping: claimMappingPayload(formData),
       ...groupMappingFields(formData),
       auto_create_groups: formData.autoCreateGroups,
+      ...(formData.idpType === IdpTypeKey.AAP ? { aap_role_mapping_enabled: formData.aapRoleMappingEnabled } : {}),
     },
   }
 }
@@ -150,6 +153,16 @@ function toGroupMappingValues(config?: ProviderConfig): IdentityProviderFormData
   }
 }
 
+function toEndpointValues(c?: ProviderConfig) {
+  return {
+    authorizationEndpoint: stringOrEmpty(c?.authorization_endpoint),
+    tokenEndpoint: stringOrEmpty(c?.token_endpoint),
+    jwksUri: stringOrEmpty(c?.jwks_uri),
+    userinfoEndpoint: stringOrEmpty(c?.userinfo_endpoint),
+    endSessionEndpoint: stringOrEmpty(c?.end_session_endpoint),
+  }
+}
+
 function toFormValues(provider: {
   name?: string
   enabled?: boolean
@@ -165,15 +178,12 @@ function toFormValues(provider: {
     clientId: stringOrEmpty(c?.client_id),
     clientSecret: '',
     scopes: c?.scopes ?? 'openid profile email',
-    authorizationEndpoint: stringOrEmpty(c?.authorization_endpoint),
-    tokenEndpoint: stringOrEmpty(c?.token_endpoint),
-    jwksUri: stringOrEmpty(c?.jwks_uri),
-    userinfoEndpoint: stringOrEmpty(c?.userinfo_endpoint),
-    endSessionEndpoint: stringOrEmpty(c?.end_session_endpoint),
+    ...toEndpointValues(c),
     enableRpInitiatedLogout: c?.enable_rp_initiated_logout ?? false,
     claimMapping: toClaimMappingValues(c?.claim_mapping),
     groupMapping: toGroupMappingValues(c),
     autoCreateGroups: c?.auto_create_groups ?? false,
+    aapRoleMappingEnabled: c?.aap_role_mapping_enabled ?? false,
   }
 }
 

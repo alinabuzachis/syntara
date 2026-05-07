@@ -262,6 +262,33 @@ function AutoCreateGroupsField({ control }: Readonly<{ control: Control<Identity
   )
 }
 
+function AapRoleMappingField({ control }: Readonly<{ control: Control<IdentityProviderFormData> }>) {
+  return (
+    <Controller
+      name="aapRoleMappingEnabled"
+      control={control}
+      render={({ field }) => (
+        <FormGroup fieldId="aap-role-mapping-enabled">
+          <Switch
+            id="aap-role-mapping-enabled"
+            label="Map AAP system roles to groups"
+            hasCheckIcon
+            isChecked={field.value}
+            onChange={(_event, checked) => field.onChange(checked)}
+          />
+          <FormHelperText>
+            <HelperText>
+              <HelperTextItem>
+                Map AAP system roles (administrator, auditor, user) to built-in admins, auditors, and users groups.
+              </HelperTextItem>
+            </HelperText>
+          </FormHelperText>
+        </FormGroup>
+      )}
+    />
+  )
+}
+
 function JmespathExpressionField({
   control,
   idpType,
@@ -343,6 +370,8 @@ export function IdentityProviderFormFields({
       setValue('scopes', preset.scopes)
       setValue('claimMapping', preset.claimMapping)
       setValue('groupMapping', { jmespathExpression: preset.groupMappingExpression, entries: [] })
+      setValue('aapRoleMappingEnabled', preset.aapRoleMappingEnabled)
+      setValue('enableRpInitiatedLogout', preset.enableRpInitiatedLogout)
     },
     [setValue]
   )
@@ -407,6 +436,7 @@ export function IdentityProviderFormFields({
 
           <ScopesField control={control} isPresetTemplate={isPresetTemplate} />
           <AutoCreateGroupsField control={control} />
+          {idpType === IdpTypeKey.AAP && <AapRoleMappingField control={control} />}
           <RpInitiatedLogoutField control={control} />
           {onTestConnection && (
             <FormGroup fieldId="test-connection">

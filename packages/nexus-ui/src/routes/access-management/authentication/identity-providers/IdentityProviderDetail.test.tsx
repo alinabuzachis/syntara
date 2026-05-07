@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
@@ -9,6 +9,7 @@ import { identityProvidersClient } from '../../../../client'
 import { AlertProvider } from '../../../../components/alerts'
 
 import { IdentityProviderDetail } from './IdentityProviderDetail'
+import { IdpTypeKey } from './idpTypePresets'
 
 type MutationCallbacks = {
   onSuccess?: () => void
@@ -281,7 +282,7 @@ describe('IdentityProviderDetail', () => {
       ...mockProvider,
       configuration: {
         ...mockProvider.configuration,
-        idp_type: 'aap',
+        idp_type: IdpTypeKey.AAP,
       },
     }
 
@@ -290,6 +291,50 @@ describe('IdentityProviderDetail', () => {
     render(<IdentityProviderDetail />, { wrapper: createWrapper() })
 
     expect(screen.getByText('Ansible Automation Platform')).toBeInTheDocument()
+  })
+
+  it('shows AAP role mapping as Enabled for AAP providers with mapping enabled', () => {
+    const aapProvider = {
+      ...mockProvider,
+      configuration: {
+        ...mockProvider.configuration,
+        idp_type: IdpTypeKey.AAP,
+        aap_role_mapping_enabled: true,
+      },
+    }
+
+    vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn({ data: aapProvider }))
+
+    render(<IdentityProviderDetail />, { wrapper: createWrapper() })
+
+    const roleMappingGroup = screen.getByText('AAP role mapping').parentElement!.parentElement!
+    expect(within(roleMappingGroup).getByText('Enabled')).toBeInTheDocument()
+  })
+
+  it('shows AAP role mapping as Disabled for AAP providers with mapping disabled', () => {
+    const aapProvider = {
+      ...mockProvider,
+      configuration: {
+        ...mockProvider.configuration,
+        idp_type: IdpTypeKey.AAP,
+        aap_role_mapping_enabled: false,
+      },
+    }
+
+    vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn({ data: aapProvider }))
+
+    render(<IdentityProviderDetail />, { wrapper: createWrapper() })
+
+    const roleMappingGroup = screen.getByText('AAP role mapping').parentElement!.parentElement!
+    expect(within(roleMappingGroup).getByText('Disabled')).toBeInTheDocument()
+  })
+
+  it('does not show AAP role mapping for non-AAP providers', () => {
+    vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn())
+
+    render(<IdentityProviderDetail />, { wrapper: createWrapper() })
+
+    expect(screen.queryByText('AAP role mapping')).not.toBeInTheDocument()
   })
 
   it('shows raw idp_type value as label for unknown types', () => {

@@ -7,6 +7,7 @@ import { axe } from 'vitest-axe'
 
 import { IdentityProviderFormFields } from './IdentityProviderFormFields'
 import { identityProviderDefaults, type IdentityProviderFormData } from './identityProviderFormSchema'
+import { IdpTypeKey } from './idpTypePresets'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },
@@ -14,14 +15,22 @@ const queryClient = new QueryClient({
 
 const completedDefaults = {
   ...identityProviderDefaults,
-  idpType: 'custom',
+  idpType: IdpTypeKey.CUSTOM,
   issuerUrl: 'https://example.com',
   clientId: 'test-client',
 }
 
-function TestWrapper({ isEdit = false }: { isEdit?: boolean }) {
+const aapDefaults = {
+  ...identityProviderDefaults,
+  idpType: IdpTypeKey.AAP,
+  issuerUrl: 'https://aap.example.com',
+  clientId: 'aap-client',
+  aapRoleMappingEnabled: true,
+}
+
+function TestWrapper({ isEdit = false, defaults }: { isEdit?: boolean; defaults?: IdentityProviderFormData }) {
   const methods = useForm<IdentityProviderFormData>({
-    defaultValues: completedDefaults,
+    defaultValues: defaults ?? completedDefaults,
   })
 
   return (
@@ -172,5 +181,50 @@ describe('IdentityProviderFormFields', () => {
 
     const results = await axe(container)
     expect(results).toHaveNoViolations()
+  })
+
+  it('shows AAP role mapping toggle when AAP template is selected', () => {
+    render(<TestWrapper defaults={aapDefaults} />)
+
+    expect(screen.getByLabelText(/Map AAP system roles to groups/)).toBeInTheDocument()
+  })
+
+  it('hides AAP role mapping toggle for custom template', () => {
+    render(<TestWrapper />)
+
+    expect(screen.queryByLabelText(/Map AAP system roles to groups/)).not.toBeInTheDocument()
+  })
+
+  it('has no accessibility violations with AAP template', async () => {
+    const { container } = render(<TestWrapper defaults={aapDefaults} />)
+
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
+
+  it('toggles AAP role mapping switch off and on', async () => {
+    const user = userEvent.setup()
+    render(<TestWrapper defaults={aapDefaults} />)
+
+    const toggle = screen.getByLabelText(/Map AAP system roles to groups/)
+    expect(toggle).toBeChecked()
+
+    await user.click(toggle)
+    expect(toggle).not.toBeChecked()
+
+    await user.click(toggle)
+    expect(toggle).toBeChecked()
+  })
+
+  it('prefills AAP role mapping and single logout when AAP template is selected', async () => {
+    const user = userEvent.setup()
+    render(<TestWrapper />)
+
+    const templateButton = screen.getByRole('button', { name: /Custom/ })
+    await user.click(templateButton)
+    await user.click(screen.getByRole('option', { name: /Ansible Automation Platform/ }))
+
+    expect(screen.getByLabelText(/Map AAP system roles to groups/)).toBeChecked()
+    expect(screen.getByLabelText(/Single logout/)).toBeChecked()
   })
 })

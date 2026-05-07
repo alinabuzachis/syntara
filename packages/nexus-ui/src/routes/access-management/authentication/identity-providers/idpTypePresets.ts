@@ -21,6 +21,8 @@ export type IdpTypePreset = {
     groups: string | null
   }
   groupMappingExpression: string
+  enableRpInitiatedLogout: boolean
+  aapRoleMappingEnabled: boolean
 }
 
 export const IDP_TYPE_PRESETS: Record<string, IdpTypePreset> = {
@@ -35,6 +37,8 @@ export const IDP_TYPE_PRESETS: Record<string, IdpTypePreset> = {
       groups: null,
     },
     groupMappingExpression: "[aap_teams[*].join('/', [organization, name]), aap_organizations[*].name] | []",
+    enableRpInitiatedLogout: true,
+    aapRoleMappingEnabled: true,
   },
   [IdpTypeKey.CUSTOM]: {
     label: 'Custom',
@@ -47,6 +51,8 @@ export const IDP_TYPE_PRESETS: Record<string, IdpTypePreset> = {
       groups: null,
     },
     groupMappingExpression: 'groups[*]',
+    enableRpInitiatedLogout: false,
+    aapRoleMappingEnabled: false,
   },
 }
 

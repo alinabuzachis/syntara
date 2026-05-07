@@ -29,6 +29,7 @@ const validAddData = {
   },
   groupMapping: null,
   autoCreateGroups: false,
+  aapRoleMappingEnabled: false,
   enableRpInitiatedLogout: false,
 } as const
 
@@ -261,6 +262,7 @@ describe('identityProviderDefaults', () => {
       },
       groupMapping: null,
       autoCreateGroups: false,
+      aapRoleMappingEnabled: false,
       enableRpInitiatedLogout: false,
     })
   })

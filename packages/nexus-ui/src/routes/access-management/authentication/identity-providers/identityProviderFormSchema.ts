@@ -49,6 +49,7 @@ const baseFields = {
   claimMapping: claimMappingSchema,
   groupMapping: groupMappingSchema,
   autoCreateGroups: z.boolean(),
+  aapRoleMappingEnabled: z.boolean(),
 }
 
 const manualEndpointRefinement = (
@@ -134,4 +135,5 @@ export const identityProviderDefaults: IdentityProviderFormData = {
   },
   groupMapping: null,
   autoCreateGroups: false,
+  aapRoleMappingEnabled: false,
 }

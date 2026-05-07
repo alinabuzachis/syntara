@@ -223,6 +223,12 @@ export interface components {
        * @default false
        */
       auto_create_groups?: boolean
+      /**
+       * Aap Role Mapping Enabled
+       * @description Map AAP aap_system_role claim to built-in groups
+       * @default false
+       */
+      aap_role_mapping_enabled?: boolean
     }
     /**
      * OIDCConfigurationResponse
@@ -315,6 +321,12 @@ export interface components {
        * @default false
        */
       auto_create_groups?: boolean
+      /**
+       * Aap Role Mapping Enabled
+       * @description Map AAP aap_system_role claim to built-in groups
+       * @default false
+       */
+      aap_role_mapping_enabled?: boolean
     }
     /**
      * OIDCConfigurationPatch
@@ -410,6 +422,11 @@ export interface components {
        * @description Auto-create Nexus groups from IdP group values on login (omit to keep existing)
        */
       auto_create_groups?: boolean | null
+      /**
+       * Aap Role Mapping Enabled
+       * @description Map AAP aap_system_role claim to built-in groups (omit to keep existing)
+       */
+      aap_role_mapping_enabled?: boolean | null
     }
     /**
      * IdentityProviderCreate
