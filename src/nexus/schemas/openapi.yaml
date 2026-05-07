@@ -19488,6 +19488,147 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+  /workflows/{workflow_id}/test:
+    post:
+      summary: Test a single node in a workflow
+      description: |-
+        Test a single node in a workflow with mocked predecessor outputs.
+
+        Creates a test execution that:
+        1. Uses mocked outputs for all nodes in pre_resolved_nodes
+        2. Executes the target_node_id for real with actual logic
+        3. Stops after the target node completes
+        4. Returns results in the execution response
+
+        This enables testing individual nodes in isolation without running the entire workflow.
+
+        Args:
+            workflow_id: Workflow ID to test
+            request: Test execution request with target node and mocked outputs
+            execution_service: Execution service (injected by FastAPI)
+
+        Returns:
+            Created test execution with mode=TEST and status=PENDING
+
+        Raises:
+            HTTPException: 404 if workflow not found
+            HTTPException: 400 if target_node_id not found in workflow
+            HTTPException: 503 if Temporal unavailable
+      operationId: test_workflow_node
+      tags:
+        - workflows
+      security:
+        - bearerAuth: []
+      x-app-permission:
+        resource: workflow
+        action: update
+      parameters:
+        - name: workflow_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Workflow Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestExecutionCreate'
+      responses:
+        '201':
+          description: Test execution created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecutionRead'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
   /workflows/{workflow_id}/versions:
     get:
       summary: List Workflow Versions
@@ -25933,6 +26074,15 @@ components:
             - type: string
             - type: 'null'
           title: Error Details
+        mode:
+          $ref: '#/components/schemas/ExecutionMode'
+          default: standard
+        execution_metadata:
+          anyOf:
+            - additionalProperties: true
+              type: object
+            - type: 'null'
+          title: Execution Metadata
         labels:
           additionalProperties: true
           type: object
@@ -26281,6 +26431,36 @@ components:
             - type: 'null'
           title: Trigger Node Id
           description: Trigger node ID to start from (defaults to first trigger)
+    TestExecutionCreate:
+      type: object
+      title: TestExecutionCreate
+      description: Request body for POST /workflows/{workflow_id}/test.
+      required:
+        - target_node_id
+      properties:
+        target_node_id:
+          type: string
+          title: Target Node Id
+          description: The node to execute for real
+        pre_resolved_nodes:
+          additionalProperties:
+            $ref: '#/components/schemas/PreResolvedNodeOutput'
+          type: object
+          title: Pre Resolved Nodes
+          description: Mock outputs for predecessor nodes. Keys are node IDs.
+        trigger_inputs:
+          additionalProperties: true
+          type: object
+          title: Trigger Inputs
+          description: Input data for the trigger node
+    ExecutionMode:
+      type: string
+      title: ExecutionMode
+      description: Execution mode for workflow runs.
+      enum:
+        - standard
+        - test
+        - debug
     SignalResponse:
       type: object
       title: Signal Response
@@ -26641,6 +26821,23 @@ components:
             - type: 'null'
           title: Change Description
           description: Description of changes for version history
+    PreResolvedNodeOutput:
+      type: object
+      title: PreResolvedNodeOutput
+      description: Typed structure for a single pre-resolved node's mock output.
+      properties:
+        output:
+          additionalProperties: true
+          type: object
+          title: Output
+          description: Mock output data for the node
+        control:
+          anyOf:
+            - additionalProperties: true
+              type: object
+            - type: 'null'
+          title: Control
+          description: Control data for condition/loop routing (e.g., next_port)
   securitySchemes:
     bearerAuth:
       type: http

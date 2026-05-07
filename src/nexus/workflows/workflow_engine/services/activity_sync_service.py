@@ -23,6 +23,7 @@ from temporalio.client import Client, WorkflowHandle
 from temporalio.exceptions import TemporalError
 
 from nexus.audit.dispatcher import AuditEventDispatcher
+from nexus.core.constants import FieldLimits
 from nexus.core.exceptions import SafeValueError
 from nexus.telemetry.collector import _TERMINAL_STATUSES
 from nexus.telemetry.events.workflow_emitters import (
@@ -40,6 +41,8 @@ from nexus.workflows.services.activity_update_publisher import ActivityUpdatePub
 from nexus.workflows.utils.datetime import ensure_timezone_aware
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, NodeType
 from nexus.workflows.workflow_engine.utils.credential_scrubber import scrub_credentials
+
+PRE_RESOLVED_ACTIVITY_ID_PREFIX = "pre-resolved-"
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -1194,18 +1197,68 @@ class ActivitySyncService:
         metadata: ExecutionMonitorMetadata,
         handle: WorkflowHandle[Any, Any],
     ) -> None:
-        """Query workflow for skipped nodes and update them in database."""
+        """Query workflow for skipped and pre-resolved nodes and update them in database."""
         try:
             skipped_node_ids: list[str] = await handle.query("get_skipped_nodes")
+            pre_resolved_node_ids: list[str] = await handle.query("get_pre_resolved_nodes")
+            all_skipped = list(set(skipped_node_ids) | set(pre_resolved_node_ids))
+
+            # Pre-resolved nodes never get Temporal activities, so they may not have
+            # ActivityExecution records. Create SKIPPED records for any that are missing.
+            if pre_resolved_node_ids:
+                await self._ensure_activity_records_exist(metadata, pre_resolved_node_ids, ActivityStatus.SKIPPED)
+
             await self._sync_nodes_to_terminal_status(
                 metadata,
-                node_ids=skipped_node_ids,
+                node_ids=all_skipped,
                 target_status=ActivityStatus.SKIPPED,
             )
         except Exception:
             logger.exception(
                 "Error syncing skipped nodes (activities may remain PENDING)",
                 execution_id=metadata.execution_id,
+            )
+
+    async def _ensure_activity_records_exist(
+        self,
+        metadata: ExecutionMonitorMetadata,
+        node_ids: list[str],
+        status: ActivityStatus,
+    ) -> None:
+        """Create ActivityExecution records for nodes that don't have one yet."""
+        async with self.session_factory() as session:
+            result = await session.exec(
+                select(ActivityExecution.activity_name).where(
+                    ActivityExecution.execution_id == metadata.execution_id,
+                    ActivityExecution.activity_name.in_(node_ids),  # type: ignore[attr-defined]
+                )
+            )
+            existing = set(result.all())
+            missing = [nid for nid in node_ids if nid not in existing]
+
+            if not missing:
+                return
+
+            now = datetime.now(UTC)
+            for node_id in missing:
+                session.add(
+                    ActivityExecution(
+                        execution_id=metadata.execution_id,
+                        activity_name=node_id,
+                        activity_definition=metadata.activity_definitions_map.get(node_id),
+                        temporal_activity_id=f"{PRE_RESOLVED_ACTIVITY_ID_PREFIX}{node_id}"[
+                            : FieldLimits.NAME_MAX_LENGTH
+                        ],
+                        status=status,
+                        started_at=now,
+                        completed_at=now,
+                    )
+                )
+            await session.commit()
+            logger.info(
+                "Created activity records for pre-resolved nodes",
+                execution_id=metadata.execution_id,
+                node_count=len(missing),
             )
 
     async def _sync_failed_nodes(

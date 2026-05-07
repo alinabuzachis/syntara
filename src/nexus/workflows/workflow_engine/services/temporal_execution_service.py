@@ -88,6 +88,10 @@ class TemporalExecutionService:
         workflow_id: str | None = None,
         request_id: UUID | None = None,
         trigger_node_id: str | None = None,
+        *,
+        pre_resolved_outputs: dict[str, dict[str, Any]] | None = None,
+        stop_after_nodes: list[str] | None = None,
+        include_node_results: bool = False,
     ) -> WorkflowStartResponse:
         """Start a V2 workflow from dict definition.
 
@@ -98,6 +102,9 @@ class TemporalExecutionService:
             workflow_id: Optional workflow ID (auto-generated if not provided)
             request_id: Optional X-Request-Id (UUID) from the originating HTTP request
             trigger_node_id: Optional trigger node ID to start from (defaults to first trigger)
+            pre_resolved_outputs: Mock outputs for predecessor nodes (for test executions)
+            stop_after_nodes: Stop execution after these nodes complete (for test executions)
+            include_node_results: Include node results in workflow response (for test executions)
 
         Returns:
             WorkflowStartResponse containing:
@@ -178,7 +185,16 @@ class TemporalExecutionService:
             ):
                 handle = await self.temporal_client.start_workflow(
                     NexusWorkflow.run,
-                    args=[workflow_def, execution_id, trigger_node_id, input_data or {}, False, request_id],
+                    args=[
+                        workflow_def,
+                        execution_id,
+                        trigger_node_id,
+                        input_data or {},
+                        include_node_results,
+                        request_id,
+                        pre_resolved_outputs,
+                        stop_after_nodes,
+                    ],
                     id=temporal_workflow_id,
                     task_queue=self.task_queue,
                 )

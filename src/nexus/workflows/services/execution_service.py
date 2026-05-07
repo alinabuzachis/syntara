@@ -32,8 +32,10 @@ from nexus.workflows.models.execution import (
     Execution,
     ExecutionInclude,
     ExecutionListResponse,
+    ExecutionMode,
     ExecutionRead,
     ExecutionStatus,
+    PreResolvedNodeOutput,
 )
 from nexus.workflows.models.workflow import Workflow
 from nexus.workflows.models.workflow_version import WorkflowVersion
@@ -70,6 +72,8 @@ class ExecutionsConvertResourceMixin(ConvertResourceMixin):
             labels=resource.labels,
             deleted_at=resource.deleted_at,
             deleted_by=resource.deleted_by,
+            mode=resource.mode,
+            execution_metadata=resource.execution_metadata,
         )
 
         if self.include and len(self.include) > 0:
@@ -253,6 +257,223 @@ class ExecutionService(BaseService):
         )
         recorder.increment("total_workflows")
         recorder.increment_gauge("active_workflows")
+
+        return self.convert_resource_mixin.convert_resource(execution)  # type: ignore[no-any-return]
+
+    @staticmethod
+    def _validate_pre_resolved_nodes(
+        pre_resolved_nodes: dict[str, "PreResolvedNodeOutput"],
+        target_node_id: str,
+        node_ids: set[str],
+        all_nodes: list[dict[str, Any]],
+        workflow_def: dict[str, Any],
+    ) -> None:
+        """Validate pre_resolved_nodes against the workflow definition."""
+        from nexus.core.exceptions import SafeValueError  # noqa: PLC0415
+
+        trigger_ids = {t["id"] for t in workflow_def.get("triggers", []) if "id" in t}
+        invalid_pre_resolved = set(pre_resolved_nodes.keys()) - node_ids
+        if invalid_pre_resolved:
+            trigger_refs = invalid_pre_resolved & trigger_ids
+            non_trigger_refs = invalid_pre_resolved - trigger_ids
+            parts = []
+            if trigger_refs:
+                parts.append(f"trigger nodes cannot be pre-resolved: {sorted(trigger_refs)}")
+            if non_trigger_refs:
+                parts.append(f"unknown node IDs: {sorted(non_trigger_refs)}")
+            msg = f"pre_resolved_nodes contains invalid entries: {'; '.join(parts)}"
+            raise SafeValueError(msg)
+
+        if target_node_id in pre_resolved_nodes:
+            msg = (
+                f"target_node_id '{target_node_id}' must not appear in "
+                "pre_resolved_nodes — it would be skipped instead of executed"
+            )
+            raise SafeValueError(msg)
+
+        control_flow_types = {"condition", "loop", "approval"}
+        for node_id, node_output in pre_resolved_nodes.items():
+            node_def = next((n for n in all_nodes if n.get("id") == node_id), None)
+            if (
+                node_def
+                and node_def.get("type") in control_flow_types
+                and (not node_output.control or "next_port" not in node_output.control)
+            ):
+                msg = (
+                    f"Pre-resolved node '{node_id}' is a {node_def['type']} node "
+                    "and requires control.next_port for routing"
+                )
+                raise SafeValueError(msg)
+
+    async def create_test_execution(
+        self,
+        workflow_id: UUID,
+        target_node_id: str,
+        pre_resolved_nodes: dict[str, "PreResolvedNodeOutput"],
+        trigger_inputs: dict[str, Any],
+    ) -> ExecutionRead:
+        """Create and start a test execution for a single node.
+
+        Test executions use mocked outputs for predecessor nodes and stop after the target node completes.
+
+        Args:
+            workflow_id: ID of workflow to execute
+            target_node_id: The node to execute for real
+            pre_resolved_nodes: Mock outputs for predecessor nodes
+            trigger_inputs: Input data for the trigger node
+
+        Returns:
+            Created execution with mode=TEST and status=PENDING
+
+        Raises:
+            WorkflowNotFoundError: If workflow not found
+            SafeValueError: If target_node_id not found in workflow definition
+            Exception: If Temporal workflow start fails
+
+        """
+        from nexus.core.exceptions import SafeValueError  # noqa: PLC0415
+
+        logger.info(
+            "Creating test execution for workflow",
+            workflow_id=workflow_id,
+            user_id=self.user.id,
+            target_node_id=target_node_id,
+        )
+
+        recorder = get_metrics_recorder()
+        component = ComponentLabel.EXECUTION_SERVICE
+
+        # Step 1: Validate workflow exists (is_enabled intentionally not checked —
+        # users may test nodes in disabled/draft workflows during development)
+        result = await self.session.exec(
+            select(Workflow, WorkflowVersion)
+            .join(
+                WorkflowVersion,
+                and_(
+                    WorkflowVersion.workflow_id == Workflow.id,
+                    WorkflowVersion.version == Workflow.current_version,
+                ),
+            )
+            .where(Workflow.id == workflow_id)
+            .where(Workflow.deleted_at.is_(None))  # type: ignore[union-attr]
+        )
+        row = result.first()
+
+        if row is None:
+            raise WorkflowNotFoundError(workflow_id)
+
+        workflow, workflow_version = row
+
+        logger.info(
+            "Workflow validated for test execution",
+            workflow_name=workflow.name,
+            version=workflow_version.version,
+            schema_version=workflow_version.schema_version,
+        )
+
+        # Step 2: Validate target_node_id exists in workflow definition
+        workflow_def = workflow_version.workflow_definition
+        all_nodes = workflow_def.get("nodes", [])
+        node_ids = {node["id"] for node in all_nodes if "id" in node}
+
+        if target_node_id not in node_ids:
+            msg = (
+                f"Target node '{target_node_id}' not found in workflow. "
+                f"Available nodes: {sorted(node_ids)}. "
+                "Note: trigger nodes are not valid test targets."
+            )
+            raise SafeValueError(msg)
+
+        self._validate_pre_resolved_nodes(
+            pre_resolved_nodes,
+            target_node_id,
+            node_ids,
+            all_nodes,
+            workflow_def,
+        )
+
+        # Convert PreResolvedNodeOutput objects to dicts for Temporal and metadata
+        pre_resolved_dicts = {node_id: output.model_dump() for node_id, output in pre_resolved_nodes.items()}
+
+        # Step 3: Start Temporal workflow with test parameters (if temporal_service is available)
+        from nexus.audit.emitter import request_id_context_var  # noqa: PLC0415
+
+        if self.temporal_service is not None:
+            logger.info("Starting Temporal workflow for test execution...")
+            with recorder.time(
+                MetricType.WORKFLOW_START_LATENCY,
+                labels={"component": component.value},
+            ):
+                temporal_result = await self.temporal_service.start_workflow(
+                    workflow_def=workflow_def,
+                    workflow_name=workflow.name,
+                    input_data=trigger_inputs,
+                    workflow_id=str(workflow.id),
+                    request_id=request_id_context_var.get(),
+                    trigger_node_id=None,  # Use default trigger for test executions
+                    pre_resolved_outputs=pre_resolved_dicts,
+                    stop_after_nodes=[target_node_id],
+                    include_node_results=True,  # Include results in response for test executions
+                )
+            temporal_workflow_id = temporal_result.temporal_workflow_id
+            execution_id = UUID(temporal_result.execution_id)
+            logger.info(
+                "Temporal test workflow started",
+                temporal_workflow_id=temporal_result.temporal_workflow_id,
+                temporal_run_id=temporal_result.temporal_run_id,
+                execution_id=execution_id,
+            )
+        else:
+            # For testing without Temporal, generate a stub ID
+            execution_id = uuid4()
+            temporal_workflow_id = f"test-exec-{execution_id}"
+            logger.warning(
+                "No Temporal service available, using stub workflow ID", temporal_workflow_id=temporal_workflow_id
+            )
+
+        # Step 4: Create execution record in database with TEST mode
+        execution = Execution(
+            id=execution_id,
+            workflow_id=workflow.id,
+            workflow_version_id=workflow_version.id,
+            project_id=workflow.project_id,
+            temporal_workflow_id=temporal_workflow_id,
+            status=ExecutionStatus.PENDING,
+            mode=ExecutionMode.TEST,
+            input_data=trigger_inputs,
+            trigger_node_id=None,  # Test executions use default trigger
+            execution_metadata={
+                "target_node_id": target_node_id,
+                "pre_resolved_nodes": pre_resolved_dicts,
+            },
+            created_by=self.user.id,
+            updated_by=self.user.id,
+        )
+
+        self.session.add(execution)
+        await self.session.commit()
+
+        logger.info(
+            "Test execution created successfully",
+            execution_id=execution.id,
+            temporal_workflow_id=execution.temporal_workflow_id,
+            mode="test",
+        )
+
+        recorder.record(
+            MetricType.WORKFLOW_STATUS,
+            value=1,
+            labels={
+                "workflow_id": str(workflow.id),
+                "execution_id": str(execution.id),
+                "status": "started",
+                "workflow_type": workflow.name,
+                "execution_mode": "test",
+            },
+        )
+
+        # Intentionally omitting total_workflows/active_workflows gauge increments
+        # to avoid skewing production metrics with test executions
 
         return self.convert_resource_mixin.convert_resource(execution)  # type: ignore[no-any-return]
 

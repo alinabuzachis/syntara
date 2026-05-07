@@ -64,6 +64,14 @@ class WorkflowsApi:
         endpoint_module = self._load_endpoint_module("update_workflow")
         return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
+    def test_node(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("test_workflow_node")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
+
+    async def async_test_node(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("test_workflow_node")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
+
     def list_versions(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("list_workflow_versions")
         return endpoint_module.sync_detailed(client=self._client, **kwargs)

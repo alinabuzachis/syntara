@@ -44,7 +44,8 @@ class _MonitoringWorkflowInboundInterceptor(WorkflowInboundInterceptor):
 
         """
         # Get execution_id and request_id from workflow args (DynamicWorkflow.run)
-        # Args are: [workflow_def_dict, execution_id, trigger_node_id, trigger_inputs, include_node_results, request_id]
+        # Args: [workflow_def_dict, execution_id, trigger_node_id, trigger_inputs,
+        #        include_node_results, request_id, pre_resolved_outputs, stop_after_nodes]
         min_args_for_monitoring = 2
         if len(input.args) >= min_args_for_monitoring:
             execution_id = input.args[1]

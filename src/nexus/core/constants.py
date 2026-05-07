@@ -28,6 +28,9 @@ class FieldLimits:
     # Pagination limits
     MAX_ITEMS_PER_PAGE = 100
 
+    # Test execution limits
+    MAX_PRE_RESOLVED_NODES = 100
+
     # Cursor and JSON limits for security
     MAX_CURSOR_SIZE = 1024  # 1KB limit for cursor tokens
 

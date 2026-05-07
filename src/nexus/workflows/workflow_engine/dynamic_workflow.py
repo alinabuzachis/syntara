@@ -37,6 +37,9 @@ from nexus.workflows.workflow_engine.unified_eval import safe_eval_with_namespac
 # Temporal-level fallback to prevent activities from running indefinitely.
 DEFAULT_ACTIVITY_TIMEOUT_SECONDS = 30
 
+# Marker value for pre-resolved node inputs in test executions
+PRE_RESOLVED_MARKER = "__pre_resolved"
+
 
 def _parse_items(items: Any) -> Any:  # noqa: ANN401
     """Parse loop items from string JSON to a list if needed."""
@@ -92,6 +95,8 @@ class NexusWorkflow:
         trigger_inputs: dict[str, Any],
         include_node_results: bool = False,  # noqa: FBT001, FBT002
         request_id: str | None = None,
+        pre_resolved_outputs: dict[str, dict[str, Any]] | None = None,
+        stop_after_nodes: list[str] | None = None,
     ) -> dict[str, Any]:
         """Execute a v2 workflow with concurrent execution and convergence support.
 
@@ -105,6 +110,8 @@ class NexusWorkflow:
             trigger_inputs: User-provided inputs for the trigger
             include_node_results: Whether to include full node results in return value (default: False for production)
             request_id: Optional X-Request-Id (UUID) from the originating HTTP request
+            pre_resolved_outputs: Optional dict mapping node IDs to pre-computed outputs for single-node testing
+            stop_after_nodes: Optional list of node IDs to stop scheduling successors after execution
 
         Returns:
             Workflow execution result matching WorkflowResultResponse schema.
@@ -115,7 +122,12 @@ class NexusWorkflow:
         # by the application code BEFORE starting the workflow execution.
         # This keeps the workflow logic independent of infrastructure concerns.
         graph = WorkflowGraph.from_dict(workflow_definition)
-        self._initialize_state(execution_id, request_id=request_id)
+        self._initialize_state(
+            execution_id,
+            request_id=request_id,
+            pre_resolved_outputs=pre_resolved_outputs,
+            stop_after_nodes=stop_after_nodes,
+        )
 
         pending_tasks: dict[str, asyncio.Task[Any]] = {}
         await self._execute_trigger(trigger_node_id, trigger_inputs, graph, pending_tasks)
@@ -125,7 +137,13 @@ class NexusWorkflow:
 
         return self._build_result(execution_id, include_node_results)
 
-    def _initialize_state(self, execution_id: str, request_id: str | None = None) -> None:
+    def _initialize_state(
+        self,
+        execution_id: str,
+        request_id: str | None = None,
+        pre_resolved_outputs: dict[str, dict[str, Any]] | None = None,
+        stop_after_nodes: list[str] | None = None,
+    ) -> None:
         """Initialize all workflow state for a new execution."""
         self.execution_id = execution_id
         self.request_id = request_id
@@ -139,6 +157,8 @@ class NexusWorkflow:
         self.loop_iteration_results: dict[str, dict[str, list[Any]]] = {}
         self._timeout_tasks: dict[str, asyncio.Task[Any]] = {}
         self._timed_out_converge_nodes: set[str] = set()
+        self.pre_resolved_outputs: dict[str, dict[str, Any]] = pre_resolved_outputs or {}
+        self.stop_after_nodes: set[str] = set(stop_after_nodes) if stop_after_nodes else set()
 
     def _skip_unselected_triggers(self, trigger_node_id: str, graph: WorkflowGraph) -> None:
         """Mark unselected triggers as skipped and propagate to their exclusive downstream nodes."""
@@ -297,6 +317,10 @@ class NexusWorkflow:
         # Handle branch skipping for control-flow nodes
         if from_port and completed_node.type in (NodeType.CONDITION, NodeType.APPROVAL):
             self._skip_non_taken_branches(completed_node_id, from_port, graph)
+
+        # Stop after nodes: return after branch-skipping but before scheduling successors
+        if completed_node_id in self.stop_after_nodes:
+            return
 
         successors = graph.get_next_activities_by_port(completed_node_id, from_port)
         is_loop_iterate = completed_node.type == NodeType.LOOP and from_port == "iterate"
@@ -1125,6 +1149,11 @@ class NexusWorkflow:
             Node execution result (output portion only, already mapped by activity)
 
         """
+        # Pre-resolved outputs: skip execution and use mocked output
+        if node.id in self.pre_resolved_outputs:
+            self.node_inputs[node.id] = {PRE_RESOLVED_MARKER: True}
+            return self._process_node_result(node, self.pre_resolved_outputs[node.id])
+
         node_id = node.id
         node_type = node.type
 
@@ -1361,6 +1390,19 @@ class NexusWorkflow:
 
         """
         return list(self.skipped_nodes)
+
+    @workflow.query
+    def get_pre_resolved_nodes(self) -> list[str]:
+        """Query to get list of pre-resolved node IDs.
+
+        Pre-resolved nodes had their outputs mocked during test execution
+        and were not actually executed.
+
+        Returns:
+            List of node IDs that were pre-resolved with mock data
+
+        """
+        return list(self.pre_resolved_outputs.keys())
 
     @workflow.query
     def get_failed_nodes(self) -> dict[str, str]:

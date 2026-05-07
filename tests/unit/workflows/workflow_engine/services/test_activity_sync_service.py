@@ -2104,11 +2104,15 @@ class TestSyncNodesToTerminalStatus:
         metadata = self._create_metadata(activity_index_map={"node-B": 1})
 
         handle = AsyncMock()
-        handle.query = AsyncMock(return_value=["node-B"])
+        skipped_return = ["node-B"]
+        pre_resolved_return: list[str] = []
+        handle.query = AsyncMock(side_effect=[skipped_return, pre_resolved_return])
 
         await self.service._sync_skipped_nodes(metadata, handle)
 
-        handle.query.assert_awaited_once_with("get_skipped_nodes")
+        assert handle.query.await_count == 2
+        handle.query.assert_any_await("get_skipped_nodes")
+        handle.query.assert_any_await("get_pre_resolved_nodes")
         assert activity.status == ActivityStatus.SKIPPED
         assert activity.completed_at is not None
         assert activity.error_details is None
@@ -2121,7 +2125,7 @@ class TestSyncNodesToTerminalStatus:
         metadata = self._create_metadata(activity_index_map={"node-B": 1})
 
         handle = AsyncMock()
-        handle.query = AsyncMock(return_value=["node-B"])
+        handle.query = AsyncMock(side_effect=[["node-B"], []])
 
         with patch.object(self.service, "_publish_activity_patches", new_callable=AsyncMock) as mock_publish:
             await self.service._sync_skipped_nodes(metadata, handle)
@@ -2139,7 +2143,7 @@ class TestSyncNodesToTerminalStatus:
         """When no nodes skipped, no database operations should occur."""
         metadata = self._create_metadata()
         handle = AsyncMock()
-        handle.query = AsyncMock(return_value=[])
+        handle.query = AsyncMock(side_effect=[[], []])
 
         await self.service._sync_skipped_nodes(metadata, handle)
 
@@ -2153,6 +2157,79 @@ class TestSyncNodesToTerminalStatus:
         handle.query = AsyncMock(side_effect=RuntimeError("workflow not reachable"))
 
         await self.service._sync_skipped_nodes(metadata, handle)
+
+    # -- _ensure_activity_records_exist tests --
+
+    @pytest.mark.asyncio
+    async def test_ensure_activity_records_creates_missing_records(self) -> None:
+        """Pre-resolved nodes without existing records get SKIPPED ActivityExecution rows."""
+        mock_result = Mock()
+        mock_result.all.return_value = []
+        mock_session = Mock()
+        mock_session.exec = AsyncMock(return_value=mock_result)
+        mock_session.add = Mock()
+        mock_session.commit = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        self.mock_session_factory.return_value = mock_session
+
+        node_def = {"id": "node-A", "type": "script"}
+        metadata = self._create_metadata()
+        metadata.activity_definitions_map = {"node-A": node_def}
+
+        await self.service._ensure_activity_records_exist(metadata, ["node-A"], ActivityStatus.SKIPPED)
+
+        mock_session.add.assert_called_once()
+        record = mock_session.add.call_args[0][0]
+        assert record.activity_name == "node-A"
+        assert record.status == ActivityStatus.SKIPPED
+        assert record.activity_definition == node_def
+        assert record.temporal_activity_id.startswith("pre-resolved-")
+        assert record.started_at is not None
+        assert record.completed_at is not None
+        mock_session.commit.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_ensure_activity_records_skips_existing(self) -> None:
+        """Nodes that already have records are not duplicated."""
+        mock_result = Mock()
+        mock_result.all.return_value = ["node-A"]
+        mock_session = Mock()
+        mock_session.exec = AsyncMock(return_value=mock_result)
+        mock_session.add = Mock()
+        mock_session.commit = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        self.mock_session_factory.return_value = mock_session
+
+        metadata = self._create_metadata()
+
+        await self.service._ensure_activity_records_exist(metadata, ["node-A"], ActivityStatus.SKIPPED)
+
+        mock_session.add.assert_not_called()
+        mock_session.commit.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_ensure_activity_records_mixed_existing_and_missing(self) -> None:
+        """Only missing nodes get new records when some already exist."""
+        mock_result = Mock()
+        mock_result.all.return_value = ["node-A"]
+        mock_session = Mock()
+        mock_session.exec = AsyncMock(return_value=mock_result)
+        mock_session.add = Mock()
+        mock_session.commit = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        self.mock_session_factory.return_value = mock_session
+
+        metadata = self._create_metadata()
+
+        await self.service._ensure_activity_records_exist(metadata, ["node-A", "node-B"], ActivityStatus.SKIPPED)
+
+        mock_session.add.assert_called_once()
+        record = mock_session.add.call_args[0][0]
+        assert record.activity_name == "node-B"
+        mock_session.commit.assert_awaited_once()
 
 
 # ---------------------------------------------------------------------------

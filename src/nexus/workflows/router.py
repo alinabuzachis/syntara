@@ -13,7 +13,9 @@ from nexus.authz.engine import VisibilityResult
 from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.core.nexus_router import NexusRouter
+from nexus.workflows.executions_router import get_temporal_execution_service
 from nexus.workflows.models import WorkflowListParams
+from nexus.workflows.models.execution import ExecutionRead, TestExecutionCreate
 from nexus.workflows.models.workflow import (
     Workflow,
     WorkflowCreate,
@@ -27,8 +29,9 @@ from nexus.workflows.models.workflow_version import (
     WorkflowVersionListResponse,
     WorkflowVersionRead,
 )
-from nexus.workflows.services import WorkflowService
+from nexus.workflows.services import ExecutionService, WorkflowService
 from nexus.workflows.utils.serialization import deserialize_workflow_version
+from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
 
 router = NexusRouter(prefix="/workflows", tags=["workflows"])
 
@@ -73,6 +76,21 @@ def get_workflow_service(
     This centralizes WorkflowService creation across all endpoints.
     """
     return WorkflowService(db, current_user)
+
+
+def get_execution_service(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    temporal_service: Annotated[
+        TemporalExecutionService | None,
+        Depends(get_temporal_execution_service),
+    ],
+) -> ExecutionService:
+    """Dependency provider for ExecutionService.
+
+    FastAPI will call this function automatically, injecting all dependencies.
+    """
+    return ExecutionService(db, current_user, temporal_service=temporal_service)
 
 
 # ============================================================================
@@ -224,6 +242,52 @@ async def delete_workflow(
 ) -> None:
     """Soft delete a workflow."""
     await service.delete_workflow(workflow_id)
+
+
+@router.post(
+    "/{workflow_id}/test",
+    response_model=ExecutionRead,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(_wf_perm_update)],
+    operation_id="test_workflow_node",
+    summary="Test a single node in a workflow",
+    response_description="Test execution created",
+)
+async def test_workflow_node(
+    workflow_id: UUID,
+    request: TestExecutionCreate,
+    execution_service: Annotated[ExecutionService, Depends(get_execution_service)],
+) -> ExecutionRead:
+    """Test a single node in a workflow with mocked predecessor outputs.
+
+    Creates a test execution that:
+    1. Uses mocked outputs for all nodes in pre_resolved_nodes
+    2. Executes the target_node_id for real with actual logic
+    3. Stops after the target node completes
+    4. Returns results in the execution response
+
+    This enables testing individual nodes in isolation without running the entire workflow.
+
+    Args:
+        workflow_id: Workflow ID to test
+        request: Test execution request with target node and mocked outputs
+        execution_service: Execution service (injected by FastAPI)
+
+    Returns:
+        Created test execution with mode=TEST and status=PENDING
+
+    Raises:
+        HTTPException: 404 if workflow not found
+        HTTPException: 400 if target_node_id not found in workflow
+        HTTPException: 503 if Temporal unavailable
+
+    """
+    return await execution_service.create_test_execution(
+        workflow_id=workflow_id,
+        target_node_id=request.target_node_id,
+        pre_resolved_nodes=request.pre_resolved_nodes,
+        trigger_inputs=request.trigger_inputs,
+    )
 
 
 # ============================================================================

@@ -256,6 +256,54 @@ paths:
         '500':
           $ref: '../../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
 
+  /workflows/{workflow_id}/test:
+    post:
+      summary: Test a single node in a workflow
+      description: "Test a single node in a workflow with mocked predecessor outputs.\n\nCreates a test execution that:\n1. Uses mocked outputs for all nodes in pre_resolved_nodes\n2. Executes the target_node_id for real with actual logic\n3. Stops after the target node completes\n4. Returns results in the execution response\n\nThis enables testing individual nodes in isolation without running the entire workflow.\n\nArgs:\n    workflow_id: Workflow ID to test\n    request: Test execution request with target node and mocked outputs\n    execution_service: Execution service (injected by FastAPI)\n\nReturns:\n    Created test execution with mode=TEST and status=PENDING\n\nRaises:\n    HTTPException: 404 if workflow not found\n    HTTPException: 400 if target_node_id not found in workflow\n    HTTPException: 503 if Temporal unavailable"
+      operationId: test_workflow_node
+      tags:
+        - workflows
+      security:
+        - bearerAuth: []
+      x-app-permission:
+        resource: workflow
+        action: update
+      parameters:
+        - name: workflow_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Workflow Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestExecutionCreate'
+      responses:
+        '201':
+          description: Test execution created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecutionRead'
+        '400':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
+        '401':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError'
+        '404':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/NotFoundError'
+        '409':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
+        '422':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ValidationError'
+        '500':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
+
   /workflows/{workflow_id}/versions:
     get:
       summary: List Workflow Versions
@@ -485,6 +533,18 @@ components:
 
     WorkflowUpdate:
       $ref: ./shared-schemas.yaml#/components/schemas/WorkflowUpdate
+
+    TestExecutionCreate:
+      $ref: ./shared-schemas.yaml#/components/schemas/TestExecutionCreate
+
+    PreResolvedNodeOutput:
+      $ref: ./shared-schemas.yaml#/components/schemas/PreResolvedNodeOutput
+
+    ExecutionMode:
+      $ref: ./shared-schemas.yaml#/components/schemas/ExecutionMode
+
+    ExecutionRead:
+      $ref: ./shared-schemas.yaml#/components/schemas/ExecutionRead
 
   securitySchemes:
     bearerAuth:

@@ -5,11 +5,11 @@ SQLModel Pattern 1 (separate models with table=False for API operations).
 """
 
 from datetime import datetime
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import TYPE_CHECKING, Any, ClassVar
 from uuid import UUID
 
-from pydantic import ConfigDict
+from pydantic import ConfigDict, field_validator, model_validator
 from sqlalchemy import BigInteger, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import CheckConstraint, Column, DateTime, Field, Index, Relationship, SQLModel
@@ -30,6 +30,14 @@ class ExecutionInclude(str, Enum):
 
     WORKFLOW_DEFINITION = "workflow_definition"
     ACTIVITIES = "activities"
+
+
+class ExecutionMode(StrEnum):
+    """Execution mode for workflow runs."""
+
+    STANDARD = "standard"
+    TEST = "test"
+    DEBUG = "debug"
 
 
 class ExecutionStatus(str, Enum):
@@ -90,6 +98,7 @@ class Execution(UserOwnedResource, SoftDeletableResource, table=True):
                 "workflow_id",
                 "project_id",
                 "status",
+                "mode",
                 "completed_at",
             ]
         )
@@ -192,6 +201,25 @@ class Execution(UserOwnedResource, SoftDeletableResource, table=True):
         description="Last Temporal event ID processed for incremental activity sync (0 = never synced)",
     )
 
+    # Execution mode and metadata
+    mode: ExecutionMode = Field(
+        default=ExecutionMode.STANDARD,
+        description="Execution mode (standard, test, debug)",
+        sa_column=postgres_enum_column(
+            ExecutionMode,
+            "executionmode",
+            index=True,
+            create_constraint=True,
+            server_default=text("'standard'::executionmode"),
+        ),
+    )
+
+    execution_metadata: dict[str, Any] | None = Field(
+        default=None,
+        sa_column=Column(JSONB, nullable=True),
+        description="Additional metadata for test/debug executions",
+    )
+
     # Relationships
     workflow: "Workflow" = Relationship(
         back_populates="executions",
@@ -260,6 +288,58 @@ class ExecutionCreate(SQLModel):
     )
 
 
+class PreResolvedNodeOutput(SQLModel):
+    """Typed structure for a single pre-resolved node's mock output."""
+
+    output: dict[str, Any] = Field(default_factory=dict, description="Mock output data for the node")
+    control: dict[str, Any] | None = Field(
+        default=None, description="Control data for condition/loop routing (e.g., next_port)"
+    )
+
+
+class TestExecutionCreate(SQLModel):
+    """Request body for POST /workflows/{workflow_id}/test."""
+
+    __test__ = False  # Prevent pytest from collecting this as a test class
+
+    target_node_id: str = Field(description="The node to execute for real")
+    pre_resolved_nodes: dict[str, PreResolvedNodeOutput] = Field(
+        default_factory=dict,
+        description="Mock outputs for predecessor nodes. Keys are node IDs.",
+    )
+    trigger_inputs: dict[str, Any] = Field(default_factory=dict, description="Input data for the trigger node")
+
+    @field_validator("target_node_id")
+    @classmethod
+    def validate_target_node_id_not_empty(cls, v: str) -> str:
+        """Reject empty or whitespace-only target node IDs."""
+        stripped = v.strip()
+        if not stripped:
+            msg = "target_node_id must not be empty"
+            raise ValueError(msg)
+        return stripped
+
+    @field_validator("pre_resolved_nodes")
+    @classmethod
+    def validate_pre_resolved_nodes_size(cls, v: dict[str, PreResolvedNodeOutput]) -> dict[str, PreResolvedNodeOutput]:
+        """Enforce maximum number of pre-resolved nodes."""
+        if len(v) > FieldLimits.MAX_PRE_RESOLVED_NODES:
+            msg = f"pre_resolved_nodes contains {len(v)} entries, maximum is {FieldLimits.MAX_PRE_RESOLVED_NODES}"
+            raise ValueError(msg)
+        return v
+
+    @model_validator(mode="after")
+    def validate_target_not_in_pre_resolved(self) -> "TestExecutionCreate":
+        """Reject target_node_id appearing in pre_resolved_nodes."""
+        if self.target_node_id in self.pre_resolved_nodes:
+            msg = (
+                f"target_node_id '{self.target_node_id}' must not appear in "
+                "pre_resolved_nodes — it would be skipped instead of executed"
+            )
+            raise ValueError(msg)
+        return self
+
+
 class CurrentActivity(SQLModel):
     """Currently executing activity information."""
 
@@ -307,6 +387,8 @@ class ExecutionRead(SQLModel):
     )
     deleted_at: datetime | None = None
     deleted_by: UUID | None = None
+    mode: ExecutionMode = ExecutionMode.STANDARD
+    execution_metadata: dict[str, Any] | None = None
 
     # Optional: Only populated when ?include=workflow_definition
     workflow_definition: dict[str, Any] | None = Field(

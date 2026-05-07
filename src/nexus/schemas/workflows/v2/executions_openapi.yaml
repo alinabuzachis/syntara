@@ -294,6 +294,12 @@ components:
     ExecutionCreate:
       $ref: ./shared-schemas.yaml#/components/schemas/ExecutionCreate
 
+    TestExecutionCreate:
+      $ref: ./shared-schemas.yaml#/components/schemas/TestExecutionCreate
+
+    ExecutionMode:
+      $ref: ./shared-schemas.yaml#/components/schemas/ExecutionMode
+
     SignalResponse:
       type: object
       title: Signal Response

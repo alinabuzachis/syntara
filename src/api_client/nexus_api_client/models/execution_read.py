@@ -9,12 +9,14 @@ from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 from dateutil.parser import isoparse
 
+from ..models.execution_mode import ExecutionMode
 from ..models.execution_status import ExecutionStatus
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
     from ..models.activity_data import ActivityData
     from ..models.current_activity import CurrentActivity
+    from ..models.execution_read_execution_metadata_type_0 import ExecutionReadExecutionMetadataType0
     from ..models.execution_read_input_data import ExecutionReadInputData
     from ..models.execution_read_labels import ExecutionReadLabels
     from ..models.execution_read_workflow_definition_type_0 import ExecutionReadWorkflowDefinitionType0
@@ -44,6 +46,8 @@ class ExecutionRead:
             error_details (None | str):
             project_id (None | Unset | UUID):
             trigger_node_id (None | str | Unset):
+            mode (ExecutionMode | Unset): Execution mode for workflow runs.
+            execution_metadata (ExecutionReadExecutionMetadataType0 | None | Unset):
             labels (ExecutionReadLabels | Unset):
             current_activities (list[CurrentActivity] | Unset): Currently executing activities
             deleted_at (datetime.datetime | None | Unset):
@@ -68,6 +72,8 @@ class ExecutionRead:
     error_details: None | str
     project_id: None | Unset | UUID = UNSET
     trigger_node_id: None | str | Unset = UNSET
+    mode: ExecutionMode | Unset = UNSET
+    execution_metadata: ExecutionReadExecutionMetadataType0 | None | Unset = UNSET
     labels: ExecutionReadLabels | Unset = UNSET
     current_activities: list[CurrentActivity] | Unset = UNSET
     deleted_at: datetime.datetime | None | Unset = UNSET
@@ -77,6 +83,7 @@ class ExecutionRead:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        from ..models.execution_read_execution_metadata_type_0 import ExecutionReadExecutionMetadataType0
         from ..models.execution_read_workflow_definition_type_0 import ExecutionReadWorkflowDefinitionType0
 
         id = str(self.id)
@@ -125,6 +132,18 @@ class ExecutionRead:
             trigger_node_id = UNSET
         else:
             trigger_node_id = self.trigger_node_id
+
+        mode: str | Unset = UNSET
+        if not isinstance(self.mode, Unset):
+            mode = self.mode.value
+
+        execution_metadata: dict[str, Any] | None | Unset
+        if isinstance(self.execution_metadata, Unset):
+            execution_metadata = UNSET
+        elif isinstance(self.execution_metadata, ExecutionReadExecutionMetadataType0):
+            execution_metadata = self.execution_metadata.to_dict()
+        else:
+            execution_metadata = self.execution_metadata
 
         labels: dict[str, Any] | Unset = UNSET
         if not isinstance(self.labels, Unset):
@@ -195,6 +214,10 @@ class ExecutionRead:
             field_dict["project_id"] = project_id
         if trigger_node_id is not UNSET:
             field_dict["trigger_node_id"] = trigger_node_id
+        if mode is not UNSET:
+            field_dict["mode"] = mode
+        if execution_metadata is not UNSET:
+            field_dict["execution_metadata"] = execution_metadata
         if labels is not UNSET:
             field_dict["labels"] = labels
         if current_activities is not UNSET:
@@ -214,6 +237,7 @@ class ExecutionRead:
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.activity_data import ActivityData
         from ..models.current_activity import CurrentActivity
+        from ..models.execution_read_execution_metadata_type_0 import ExecutionReadExecutionMetadataType0
         from ..models.execution_read_input_data import ExecutionReadInputData
         from ..models.execution_read_labels import ExecutionReadLabels
         from ..models.execution_read_workflow_definition_type_0 import ExecutionReadWorkflowDefinitionType0
@@ -299,6 +323,30 @@ class ExecutionRead:
             return cast(None | str | Unset, data)
 
         trigger_node_id = _parse_trigger_node_id(d.pop("trigger_node_id", UNSET))
+
+        _mode = d.pop("mode", UNSET)
+        mode: ExecutionMode | Unset
+        if isinstance(_mode, Unset):
+            mode = UNSET
+        else:
+            mode = ExecutionMode(_mode)
+
+        def _parse_execution_metadata(data: object) -> ExecutionReadExecutionMetadataType0 | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, dict):
+                    raise TypeError()
+                execution_metadata_type_0 = ExecutionReadExecutionMetadataType0.from_dict(data)
+
+                return execution_metadata_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(ExecutionReadExecutionMetadataType0 | None | Unset, data)
+
+        execution_metadata = _parse_execution_metadata(d.pop("execution_metadata", UNSET))
 
         _labels = d.pop("labels", UNSET)
         labels: ExecutionReadLabels | Unset
@@ -404,6 +452,8 @@ class ExecutionRead:
             error_details=error_details,
             project_id=project_id,
             trigger_node_id=trigger_node_id,
+            mode=mode,
+            execution_metadata=execution_metadata,
             labels=labels,
             current_activities=current_activities,
             deleted_at=deleted_at,

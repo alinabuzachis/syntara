@@ -238,3 +238,25 @@ class NamespaceResolver:
 
         """
         return self._loop_node_id
+
+    def snapshot(self) -> dict[str, Any]:
+        """Export current namespace state for breakpoint/resume.
+
+        Returns:
+            Dict with deep copies of namespaces and loop context
+
+        """
+        return {
+            "namespaces": copy.deepcopy(self.namespaces),
+            "loop_node_id": self._loop_node_id,
+        }
+
+    def restore(self, state: dict[str, Any]) -> None:
+        """Restore namespace state from a snapshot.
+
+        Args:
+            state: State dict previously returned by snapshot()
+
+        """
+        self.namespaces = copy.deepcopy(state["namespaces"])
+        self._loop_node_id = state.get("loop_node_id")

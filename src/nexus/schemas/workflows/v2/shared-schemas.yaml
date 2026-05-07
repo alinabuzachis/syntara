@@ -281,6 +281,15 @@ components:
             - type: string
             - type: 'null'
           title: Error Details
+        mode:
+          $ref: "#/components/schemas/ExecutionMode"
+          default: standard
+        execution_metadata:
+          anyOf:
+            - additionalProperties: true
+              type: object
+            - type: 'null'
+          title: Execution Metadata
         labels:
           additionalProperties: true
           type: object
@@ -421,6 +430,12 @@ components:
       title: ExecutionStatus
       description: Current state of a workflow execution lifecycle.
       enum: [pending, running, paused, completed, failed, cancelled]
+
+    ExecutionMode:
+      type: string
+      title: ExecutionMode
+      description: Execution mode for workflow runs.
+      enum: [standard, test, debug]
 
     ActivityStatus:
       type: string
@@ -651,6 +666,48 @@ components:
             - type: 'null'
           title: Trigger Node Id
           description: Trigger node ID to start from (defaults to first trigger)
+
+    PreResolvedNodeOutput:
+      type: object
+      title: PreResolvedNodeOutput
+      description: Typed structure for a single pre-resolved node's mock output.
+      properties:
+        output:
+          additionalProperties: true
+          type: object
+          title: Output
+          description: Mock output data for the node
+        control:
+          anyOf:
+            - additionalProperties: true
+              type: object
+            - type: 'null'
+          title: Control
+          description: Control data for condition/loop routing (e.g., next_port)
+
+    TestExecutionCreate:
+      type: object
+      title: TestExecutionCreate
+      description: |-
+        Request body for POST /workflows/{workflow_id}/test.
+      required:
+        - target_node_id
+      properties:
+        target_node_id:
+          type: string
+          title: Target Node Id
+          description: The node to execute for real
+        pre_resolved_nodes:
+          additionalProperties:
+            $ref: '#/components/schemas/PreResolvedNodeOutput'
+          type: object
+          title: Pre Resolved Nodes
+          description: Mock outputs for predecessor nodes. Keys are node IDs.
+        trigger_inputs:
+          additionalProperties: true
+          type: object
+          title: Trigger Inputs
+          description: Input data for the trigger node
 
     # WebSocket-specific schemas
     WebSocketMessage:

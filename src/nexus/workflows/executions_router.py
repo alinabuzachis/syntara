@@ -115,6 +115,7 @@ async def list_executions(
     - workflow_id: Filter by workflow ID (workflow_id=uuid)
     - created_by: Filter by creator user ID (created_by=uuid)
     - status: Filter by execution status (status=pending|running|completed|failed|cancelled)
+    - mode: Filter by execution mode (mode=standard|test|debug)
     - labels: Filter by labels using bracket notation (labels[environment]=production)
 
     Uses cursor-based pagination for scalability and consistency.
