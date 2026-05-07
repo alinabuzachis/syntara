@@ -240,10 +240,10 @@ describe('RolesTab', () => {
       expect(customLabels.length).toBe(2)
     })
 
-    it('renders Add role button', () => {
+    it('renders Create role button', () => {
       render(<RolesTab />, { wrapper })
 
-      expect(screen.getByRole('button', { name: /add role/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /create role/i })).toBeInTheDocument()
     })
 
     it('renders table column headers', () => {
@@ -417,15 +417,15 @@ describe('RolesTab', () => {
     })
   })
 
-  describe('Add role dialog', () => {
-    it('opens AddRoleDialog when Add role button is clicked', async () => {
+  describe('Create role dialog', () => {
+    it('opens AddRoleDialog when Create role button is clicked', async () => {
       const user = userEvent.setup()
       render(<RolesTab />, { wrapper })
 
-      await user.click(screen.getByRole('button', { name: /add role/i }))
+      await user.click(screen.getByRole('button', { name: /create role/i }))
 
       await waitFor(() => {
-        expect(screen.getByText('Add Role')).toBeInTheDocument()
+        expect(screen.getByRole('heading', { name: 'Create role' })).toBeInTheDocument()
       })
     })
   })

@@ -105,7 +105,7 @@ describe('GroupsTab Component', () => {
     it('renders without crashing', () => {
       render(<GroupsTab />, { wrapper })
 
-      expect(screen.getByText('Add group')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Create group' })).toBeInTheDocument()
       expect(screen.getByRole('textbox', { name: /name filter/i })).toBeInTheDocument()
     })
 
@@ -159,7 +159,7 @@ describe('GroupsTab Component', () => {
 
       expect(screen.getByText('No groups')).toBeInTheDocument()
       expect(screen.getByText('Create a group to organize users and manage access.')).toBeInTheDocument()
-      expect(screen.getByText('Add group')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Create group' })).toBeInTheDocument()
     })
   })
 
@@ -675,11 +675,11 @@ describe('GroupsTab Component', () => {
   })
 
   describe('Create Group', () => {
-    it('opens create modal when Add group button is clicked', async () => {
+    it('opens create modal when Create group button is clicked', async () => {
       const user = userEvent.setup()
       render(<GroupsTab />, { wrapper })
 
-      await user.click(screen.getByRole('button', { name: 'Add group' }))
+      await user.click(screen.getByRole('button', { name: 'Create group' }))
 
       await waitFor(() => {
         // Modal should show the name input field
@@ -701,7 +701,7 @@ describe('GroupsTab Component', () => {
 
       render(<GroupsTab />, { wrapper })
 
-      await user.click(screen.getByRole('button', { name: 'Add group' }))
+      await user.click(screen.getByRole('button', { name: 'Create group' }))
 
       await waitFor(() => {
         // Modal should show the name input field

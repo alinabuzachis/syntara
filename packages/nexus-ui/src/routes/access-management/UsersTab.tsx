@@ -1,6 +1,6 @@
 import type { User } from '@ansible/nexus-contracts'
 import { Button, Divider, Flex, FlexItem, StackItem } from '@patternfly/react-core'
-import { PlusIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+import { RhUiAddIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useCallback, useMemo } from 'react'
@@ -132,7 +132,7 @@ export function UsersTab() {
       <EmptyStateNoData
         title="No users"
         description="Create a user to manage access to the platform."
-        buttonText="Add user"
+        buttonText="Create user"
         addData={() => navigate(AppRoute.AccessManagement.CreateUser)}
       />
     )
@@ -168,10 +168,10 @@ export function UsersTab() {
             <FlexItem>
               <Button
                 variant="primary"
-                icon={<PlusIcon />}
+                icon={<RhUiAddIcon />}
                 onClick={() => navigate(AppRoute.AccessManagement.CreateUser)}
               >
-                Add user
+                Create user
               </Button>
             </FlexItem>
           </Flex>

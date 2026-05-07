@@ -14,7 +14,7 @@ import {
   TextArea,
   TextInput,
 } from '@patternfly/react-core'
-import { RhUiErrorIcon } from '@patternfly/react-icons'
+import { RhUiAddIcon, RhUiErrorIcon } from '@patternfly/react-icons'
 import { useEffect } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 
@@ -39,7 +39,7 @@ export type GroupFormModalProps = {
 
 export function GroupFormModal({ group, initialName, isOpen, onClose, onSuccess }: Readonly<GroupFormModalProps>) {
   const isEditMode = Boolean(group)
-  const title = isEditMode ? 'Edit group' : 'Add group'
+  const title = isEditMode ? 'Edit group' : 'Create group'
 
   const { showAlert } = useAlerts()
 
@@ -187,8 +187,15 @@ export function GroupFormModal({ group, initialName, isOpen, onClose, onSuccess 
         </Form>
       </ModalBody>
       <ModalFooter>
-        <Button variant="primary" type="submit" form="group-form" isDisabled={isPending} isLoading={isPending}>
-          {isEditMode ? 'Save' : 'Add'}
+        <Button
+          variant="primary"
+          type="submit"
+          form="group-form"
+          isDisabled={isPending}
+          isLoading={isPending}
+          icon={isEditMode ? undefined : <RhUiAddIcon />}
+        >
+          {isEditMode ? 'Save' : 'Create group'}
         </Button>
         <Button variant="link" onClick={handleClose} isDisabled={isPending}>
           Cancel

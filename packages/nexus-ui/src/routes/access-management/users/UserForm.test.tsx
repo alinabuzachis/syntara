@@ -124,12 +124,12 @@ describe('UserForm', () => {
   })
 
   describe('create mode', () => {
-    it('renders with "Create User" heading and "Create" submit button', () => {
+    it('renders with "Create User" heading and "Create user" submit button', () => {
       setupCreateMocks()
       render(<UserForm mode="create" />, { wrapper })
 
       expect(screen.getByRole('heading', { name: 'Create User' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Create' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Create user' })).toBeInTheDocument()
     })
 
     it('renders a Cancel button that navigates back to users list', async () => {
@@ -156,7 +156,7 @@ describe('UserForm', () => {
       await user.type(screen.getByRole('textbox', { name: 'Email' }), 'new@nexus.local')
       await user.type(screen.getByLabelText('Password'), 'securepass123')
 
-      await user.click(screen.getByRole('button', { name: 'Create' }))
+      await user.click(screen.getByRole('button', { name: 'Create user' }))
 
       await waitFor(() => {
         expect(mockMutate).toHaveBeenCalled()
@@ -185,7 +185,7 @@ describe('UserForm', () => {
       await user.type(screen.getByRole('textbox', { name: 'Email' }), 'new@nexus.local')
       await user.type(screen.getByLabelText('Password'), 'securepass123')
 
-      await user.click(screen.getByRole('button', { name: 'Create' }))
+      await user.click(screen.getByRole('button', { name: 'Create user' }))
 
       await waitFor(() => {
         expect(mockMutate).toHaveBeenCalled()
@@ -211,7 +211,7 @@ describe('UserForm', () => {
       await user.type(screen.getByRole('textbox', { name: 'Email' }), 'new@nexus.local')
       await user.type(screen.getByLabelText('Password'), 'securepass123')
 
-      await user.click(screen.getByRole('button', { name: 'Create' }))
+      await user.click(screen.getByRole('button', { name: 'Create user' }))
 
       await waitFor(() => {
         expect(mockMutate).toHaveBeenCalled()

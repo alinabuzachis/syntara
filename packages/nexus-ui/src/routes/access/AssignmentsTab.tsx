@@ -1,5 +1,5 @@
 import { Button, Flex, FlexItem, Label, LabelGroup, StackItem } from '@patternfly/react-core'
-import { PlusIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+import { RhUiAddIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useCallback, useMemo, useState } from 'react'
@@ -151,7 +151,7 @@ export function AssignmentsTab() {
               />
             </FlexItem>
             <FlexItem>
-              <Button variant="primary" icon={<PlusIcon />} onClick={() => setIsAddDialogOpen(true)}>
+              <Button variant="primary" icon={<RhUiAddIcon />} onClick={() => setIsAddDialogOpen(true)}>
                 Add assignment
               </Button>
             </FlexItem>

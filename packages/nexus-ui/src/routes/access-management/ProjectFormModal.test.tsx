@@ -94,11 +94,11 @@ describe('ProjectFormModal', () => {
   })
 
   describe('Create Mode', () => {
-    it('renders with "Add project" title when no project is provided', () => {
+    it('renders with "Create project" title when no project is provided', () => {
       render(<ProjectFormModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />, { wrapper })
 
-      expect(screen.getByText('Add project')).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Create project' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Create project' })).toBeInTheDocument()
     })
 
     it('renders form fields with placeholders', () => {
@@ -112,7 +112,7 @@ describe('ProjectFormModal', () => {
       const user = userEvent.setup()
       render(<ProjectFormModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />, { wrapper })
 
-      await user.click(screen.getByRole('button', { name: 'Add' }))
+      await user.click(screen.getByRole('button', { name: 'Create project' }))
 
       await waitFor(() => {
         expect(mockCreateMutate).not.toHaveBeenCalled()
@@ -123,7 +123,7 @@ describe('ProjectFormModal', () => {
       const user = userEvent.setup()
       render(<ProjectFormModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />, { wrapper })
 
-      await user.click(screen.getByRole('button', { name: 'Add' }))
+      await user.click(screen.getByRole('button', { name: 'Create project' }))
 
       await waitFor(() => {
         expect(screen.getByText('Project name is required')).toBeInTheDocument()
@@ -136,7 +136,7 @@ describe('ProjectFormModal', () => {
 
       await user.type(screen.getByRole('textbox', { name: 'Project name' }), 'New Project')
       await user.type(screen.getByRole('textbox', { name: 'Description' }), 'A description')
-      await user.click(screen.getByRole('button', { name: 'Add' }))
+      await user.click(screen.getByRole('button', { name: 'Create project' }))
 
       await waitFor(() => {
         expect(mockCreateMutate).toHaveBeenCalled()
@@ -152,7 +152,7 @@ describe('ProjectFormModal', () => {
       render(<ProjectFormModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />, { wrapper })
 
       await user.type(screen.getByRole('textbox', { name: 'Project name' }), 'New Project')
-      await user.click(screen.getByRole('button', { name: 'Add' }))
+      await user.click(screen.getByRole('button', { name: 'Create project' }))
 
       await waitFor(() => {
         expect(mockCreateMutate).toHaveBeenCalled()
@@ -172,7 +172,7 @@ describe('ProjectFormModal', () => {
       render(<ProjectFormModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />, { wrapper })
 
       await user.type(screen.getByRole('textbox', { name: 'Project name' }), 'New Project')
-      await user.click(screen.getByRole('button', { name: 'Add' }))
+      await user.click(screen.getByRole('button', { name: 'Create project' }))
 
       await waitFor(() => {
         expect(mockCreateMutate).toHaveBeenCalled()
@@ -268,7 +268,7 @@ describe('ProjectFormModal', () => {
     it('does not render content when isOpen is false', () => {
       render(<ProjectFormModal isOpen={false} onClose={mockOnClose} onSuccess={mockOnSuccess} />, { wrapper })
 
-      expect(screen.queryByText('Add project')).not.toBeInTheDocument()
+      expect(screen.queryByText('Create project')).not.toBeInTheDocument()
     })
 
     it('calls onClose when Cancel button is clicked', async () => {

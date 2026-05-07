@@ -1,5 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Alert, Button, FlexItem, Form, Stack, StackItem } from '@patternfly/react-core'
+import { RhUiAddIcon } from '@patternfly/react-icons'
+import type { BaseSyntheticEvent, ReactNode } from 'react'
+import type { Control } from 'react-hook-form'
 import { useForm, useWatch } from 'react-hook-form'
 import { navigate } from 'wouter/use-browser-location'
 
@@ -29,10 +32,141 @@ const DEFAULT_VALUES: UserFormData = {
   is_enabled: true,
 }
 
+function PasswordWarningAlert({ isSelf }: Readonly<{ isSelf: boolean }>) {
+  const title = isSelf ? 'You will be signed out' : 'User will be signed out'
+  const description = isSelf
+    ? 'Changing your own password will end all active sessions. You will need to sign in again with your new password.'
+    : "Changing this user's password will revoke all their active sessions. They will need to sign in again."
+  return (
+    <StackItem>
+      <Alert variant="warning" title={title} isInline>
+        {description}
+      </Alert>
+    </StackItem>
+  )
+}
+
+function UserFormWarningAlerts({
+  showDisableWarning,
+  showPasswordWarning,
+  isSelf,
+}: Readonly<{ showDisableWarning: boolean; showPasswordWarning: boolean; isSelf: boolean }>) {
+  return (
+    <>
+      {showDisableWarning ? (
+        <StackItem>
+          <Alert variant="warning" title="You will be signed out" isInline>
+            Disabling your own account will immediately end your current session. You will need another admin to
+            re-enable it.
+          </Alert>
+        </StackItem>
+      ) : null}
+      {showPasswordWarning ? <PasswordWarningAlert isSelf={isSelf} /> : null}
+    </>
+  )
+}
+
+function UserFormHeaderActions({
+  isEdit,
+  isSaving,
+  submitLabel,
+  onCancel,
+}: Readonly<{ isEdit: boolean; isSaving: boolean; submitLabel: string; onCancel: () => void }>) {
+  return (
+    <>
+      <FlexItem grow={{ default: 'grow' }} />
+      <Button variant="link" onClick={onCancel}>
+        Cancel
+      </Button>
+      <Button
+        type="submit"
+        form="user-form"
+        isLoading={isSaving}
+        isDisabled={isSaving}
+        icon={isEdit ? undefined : <RhUiAddIcon />}
+      >
+        {submitLabel}
+      </Button>
+    </>
+  )
+}
+
+type UserFormMainPanelProps = {
+  control: Control<UserFormData>
+  isEdit: boolean
+  isBuiltinUser: boolean
+  isFederatedUser: boolean
+  isSelf: boolean
+  statusToggleDisabledReason?: string
+  showDisableWarning: boolean
+  showPasswordWarning: boolean
+  onFormSubmit: (event?: BaseSyntheticEvent) => Promise<void>
+}
+
+function UserFormMainPanel({
+  control,
+  isEdit,
+  isBuiltinUser,
+  isFederatedUser,
+  isSelf,
+  statusToggleDisabledReason,
+  showDisableWarning,
+  showPasswordWarning,
+  onFormSubmit,
+}: Readonly<UserFormMainPanelProps>) {
+  return (
+    <AppPanel isFullHeight panelMainBodyProps={{ style: { padding: 'var(--pf-t--global--spacer--xl)' } }}>
+      <Stack hasGutter style={{ maxWidth: '600px' }}>
+        <UserFormWarningAlerts
+          showDisableWarning={showDisableWarning}
+          showPasswordWarning={showPasswordWarning}
+          isSelf={isSelf}
+        />
+        <StackItem>
+          <Form id="user-form" onSubmit={onFormSubmit}>
+            <UserFormFields
+              control={control}
+              isEdit={isEdit}
+              isBuiltinUser={isBuiltinUser}
+              isBuiltinSelf={isBuiltinUser && isSelf}
+              isFederatedUser={isFederatedUser}
+              statusToggleDisabledReason={statusToggleDisabledReason}
+            />
+          </Form>
+        </StackItem>
+      </Stack>
+    </AppPanel>
+  )
+}
+
+function UserFormEditNotFoundPage({ onBack, onRetry }: Readonly<{ onBack: () => void; onRetry: () => void }>) {
+  return (
+    <AppPage>
+      <AppPageHeader title="Edit User" />
+      <AppPageMain>
+        <AppPanel isFullHeight>
+          <UserNotFoundState onBack={onBack} onRetry={onRetry} />
+        </AppPanel>
+      </AppPageMain>
+    </AppPage>
+  )
+}
+
+function UserFormEditBusyPage({ pageTitle, children }: Readonly<{ pageTitle: string; children: ReactNode }>) {
+  return (
+    <AppPage>
+      <AppPageHeader title={pageTitle} />
+      <AppPageMain>
+        <AppPanel isFullHeight>{children}</AppPanel>
+      </AppPageMain>
+    </AppPage>
+  )
+}
+
 export function UserForm({ mode }: Readonly<UserFormProps>) {
   const isEdit = mode === 'edit'
   const pageTitle = isEdit ? 'Edit User' : 'Create User'
-  const submitLabel = isEdit ? 'Save' : 'Create'
+  const submitLabel = isEdit ? 'Save' : 'Create user'
 
   const {
     userId,
@@ -79,77 +213,35 @@ export function UserForm({ mode }: Readonly<UserFormProps>) {
   })
   if (isEdit && userQuery.error) {
     return (
-      <AppPage>
-        <AppPageHeader title="Edit User" />
-        <AppPageMain>
-          <AppPanel isFullHeight>
-            <UserNotFoundState
-              onBack={navigateBack}
-              onRetry={() => {
-                detachPromise(refetchUser())
-              }}
-            />
-          </AppPanel>
-        </AppPageMain>
-      </AppPage>
+      <UserFormEditNotFoundPage
+        onBack={navigateBack}
+        onRetry={() => {
+          detachPromise(refetchUser())
+        }}
+      />
     )
   }
   if (isEdit && queryState) {
-    return (
-      <AppPage>
-        <AppPageHeader title={pageTitle} />
-        <AppPageMain>
-          <AppPanel isFullHeight>{queryState}</AppPanel>
-        </AppPageMain>
-      </AppPage>
-    )
+    return <UserFormEditBusyPage pageTitle={pageTitle}>{queryState}</UserFormEditBusyPage>
   }
 
   return (
     <AppPage>
       <AppPageHeader title={pageTitle}>
-        <FlexItem grow={{ default: 'grow' }} />
-        <Button variant="link" onClick={navigateBack}>
-          Cancel
-        </Button>
-        <Button type="submit" form="user-form" isLoading={isSaving} isDisabled={isSaving}>
-          {submitLabel}
-        </Button>
+        <UserFormHeaderActions isEdit={isEdit} isSaving={isSaving} submitLabel={submitLabel} onCancel={navigateBack} />
       </AppPageHeader>
       <AppPageMain>
-        <AppPanel isFullHeight panelMainBodyProps={{ style: { padding: 'var(--pf-t--global--spacer--xl)' } }}>
-          <Stack hasGutter style={{ maxWidth: '600px' }}>
-            {showDisableWarning && (
-              <StackItem>
-                <Alert variant="warning" title="You will be signed out" isInline>
-                  Disabling your own account will immediately end your current session. You will need another admin to
-                  re-enable it.
-                </Alert>
-              </StackItem>
-            )}
-            {showPasswordWarning && (
-              <StackItem>
-                <Alert variant="warning" title={isSelf ? 'You will be signed out' : 'User will be signed out'} isInline>
-                  {isSelf
-                    ? 'Changing your own password will end all active sessions. You will need to sign in again with your new password.'
-                    : "Changing this user's password will revoke all their active sessions. They will need to sign in again."}
-                </Alert>
-              </StackItem>
-            )}
-            <StackItem>
-              <Form id="user-form" onSubmit={handleSubmit(onSubmit)}>
-                <UserFormFields
-                  control={control}
-                  isEdit={isEdit}
-                  isBuiltinUser={isBuiltinUser}
-                  isBuiltinSelf={isBuiltinUser && isSelf}
-                  isFederatedUser={isFederatedUser}
-                  statusToggleDisabledReason={statusToggleDisabledReason}
-                />
-              </Form>
-            </StackItem>
-          </Stack>
-        </AppPanel>
+        <UserFormMainPanel
+          control={control}
+          isEdit={isEdit}
+          isBuiltinUser={isBuiltinUser}
+          isFederatedUser={isFederatedUser}
+          isSelf={isSelf}
+          statusToggleDisabledReason={statusToggleDisabledReason}
+          showDisableWarning={showDisableWarning}
+          showPasswordWarning={showPasswordWarning}
+          onFormSubmit={handleSubmit(onSubmit)}
+        />
       </AppPageMain>
     </AppPage>
   )

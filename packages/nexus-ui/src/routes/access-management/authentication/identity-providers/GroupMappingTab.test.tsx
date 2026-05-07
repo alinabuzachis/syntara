@@ -436,7 +436,7 @@ describe('GroupMappingTab', () => {
 
       // The GroupFormModal should be open with the pre-filled name
       await waitFor(() => {
-        expect(screen.getByText('Add group')).toBeInTheDocument()
+        expect(screen.getByRole('heading', { name: 'Create group' })).toBeInTheDocument()
       })
     })
   })

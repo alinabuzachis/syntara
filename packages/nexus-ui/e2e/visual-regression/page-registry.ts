@@ -267,7 +267,7 @@ export const pages: PageEntry[] = [
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {
-      await page.getByRole('button', { name: 'Add group' }).click()
+      await page.getByRole('button', { name: 'Create group' }).click()
       await expect(page.getByRole('dialog')).toBeVisible()
     },
   },
@@ -320,7 +320,7 @@ export const pages: PageEntry[] = [
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {
-      await page.getByRole('button', { name: /add project/i }).click()
+      await page.getByRole('button', { name: 'Create project' }).click()
       await expect(page.getByRole('dialog')).toBeVisible()
     },
   },
@@ -354,7 +354,7 @@ export const pages: PageEntry[] = [
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {
-      await page.getByRole('button', { name: /add role/i }).click()
+      await page.getByRole('button', { name: 'Create role' }).click()
       await expect(page.getByRole('dialog')).toBeVisible()
     },
   },

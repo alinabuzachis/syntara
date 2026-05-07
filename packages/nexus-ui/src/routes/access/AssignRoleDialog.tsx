@@ -10,6 +10,7 @@ import {
   ModalFooter,
   ModalHeader,
 } from '@patternfly/react-core'
+import { RhUiAddIcon } from '@patternfly/react-icons'
 import { useEffect, useMemo, useState } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 
@@ -370,8 +371,8 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
         </Form>
       </ModalBody>
       <ModalFooter>
-        <Button variant="primary" form="assign-role-form" type="submit" isLoading={isPending}>
-          Add
+        <Button variant="primary" form="assign-role-form" type="submit" isLoading={isPending} icon={<RhUiAddIcon />}>
+          Add assignment
         </Button>
         <Button variant="link" onClick={onClose}>
           Cancel

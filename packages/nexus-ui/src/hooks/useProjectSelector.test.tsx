@@ -542,7 +542,7 @@ describe('useProjectSelector', () => {
       await user.type(screen.getByLabelText('Description'), 'A new test project')
 
       // Submit
-      await user.click(screen.getByRole('button', { name: 'Add' }))
+      await user.click(screen.getByRole('button', { name: 'Create project' }))
 
       await waitFor(() => {
         expect(mockMutate).toHaveBeenCalledWith(
@@ -579,7 +579,7 @@ describe('useProjectSelector', () => {
 
       // Fill and submit
       await user.type(screen.getByLabelText('Project name'), 'New Project')
-      await user.click(screen.getByRole('button', { name: 'Add' }))
+      await user.click(screen.getByRole('button', { name: 'Create project' }))
 
       await waitFor(() => {
         expect(mockShowAlert).toHaveBeenCalledWith(
@@ -617,7 +617,7 @@ describe('useProjectSelector', () => {
       await user.click(screen.getByPlaceholderText('Select a project'))
       await user.click(screen.getByRole('option', { name: 'Create project' }))
       await user.type(screen.getByLabelText('Project name'), 'Created Project')
-      await user.click(screen.getByRole('button', { name: 'Add' }))
+      await user.click(screen.getByRole('button', { name: 'Create project' }))
 
       await waitFor(() => expect(mockRefetch).toHaveBeenCalled())
       expect(mockSetSelectedProjectId).not.toHaveBeenCalledWith('proj-new-2')
@@ -640,7 +640,7 @@ describe('useProjectSelector', () => {
 
       // Fill and submit
       await user.type(screen.getByLabelText('Project name'), 'Duplicate')
-      await user.click(screen.getByRole('button', { name: 'Add' }))
+      await user.click(screen.getByRole('button', { name: 'Create project' }))
 
       await waitFor(() => {
         expect(mockMutate).toHaveBeenCalled()

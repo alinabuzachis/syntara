@@ -14,6 +14,7 @@ import {
   ModalHeader,
   TextInput,
 } from '@patternfly/react-core'
+import { RhUiAddIcon } from '@patternfly/react-icons'
 import { useMemo } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 
@@ -102,7 +103,7 @@ export function AddRoleDialog({ onClose, onSuccess }: Readonly<AddRoleDialogProp
 
   return (
     <Modal isOpen onClose={onClose} variant="medium">
-      <ModalHeader title="Add Role" />
+      <ModalHeader title="Create role" />
       <ModalBody>
         <Form id="add-role-form" onSubmit={handleSubmit(onSubmit)}>
           <FormGroup label="Name" isRequired fieldId="role-name">
@@ -220,8 +221,8 @@ export function AddRoleDialog({ onClose, onSuccess }: Readonly<AddRoleDialogProp
         </Form>
       </ModalBody>
       <ModalFooter>
-        <Button variant="primary" form="add-role-form" type="submit" isLoading={isPending}>
-          Add
+        <Button variant="primary" form="add-role-form" type="submit" isLoading={isPending} icon={<RhUiAddIcon />}>
+          Create role
         </Button>
         <Button variant="link" onClick={onClose}>
           Cancel

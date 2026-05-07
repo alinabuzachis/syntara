@@ -104,11 +104,11 @@ describe('GroupFormModal Component', () => {
   })
 
   describe('Create Mode', () => {
-    it('renders with "Add group" title when no group is provided', () => {
+    it('renders with "Create group" title when no group is provided', () => {
       render(<GroupFormModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />, { wrapper })
 
-      expect(screen.getByText('Add group')).toBeInTheDocument()
-      expect(screen.getByText('Add')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Create group' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Create group' })).toBeInTheDocument()
     })
 
     it('renders form fields', () => {
@@ -122,7 +122,7 @@ describe('GroupFormModal Component', () => {
       const user = userEvent.setup()
       render(<GroupFormModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />, { wrapper })
 
-      await user.click(screen.getByText('Add'))
+      await user.click(screen.getByRole('button', { name: 'Create group' }))
 
       await waitFor(() => {
         expect(mockCreateMutate).not.toHaveBeenCalled()
@@ -141,7 +141,7 @@ describe('GroupFormModal Component', () => {
       await user.click(descInput)
       await user.keyboard('A new group')
 
-      await user.click(screen.getByRole('button', { name: 'Add' }))
+      await user.click(screen.getByRole('button', { name: 'Create group' }))
 
       await waitFor(() => {
         expect(mockCreateMutate).toHaveBeenCalled()
@@ -162,7 +162,7 @@ describe('GroupFormModal Component', () => {
       await user.click(screen.getByRole('textbox', { name: 'Group name' }))
       await user.keyboard('New Group')
 
-      await user.click(screen.getByRole('button', { name: 'Add' }))
+      await user.click(screen.getByRole('button', { name: 'Create group' }))
 
       await waitFor(() => {
         expect(mockCreateMutate).toHaveBeenCalled()
@@ -279,7 +279,7 @@ describe('GroupFormModal Component', () => {
     it('does not render content when isOpen is false', () => {
       render(<GroupFormModal isOpen={false} onClose={mockOnClose} onSuccess={mockOnSuccess} />, { wrapper })
 
-      expect(screen.queryByText('Add group')).not.toBeInTheDocument()
+      expect(screen.queryByText('Create group')).not.toBeInTheDocument()
     })
 
     it('calls onClose when Cancel button is clicked', async () => {
@@ -297,7 +297,7 @@ describe('GroupFormModal Component', () => {
       const user = userEvent.setup()
       render(<GroupFormModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />, { wrapper })
 
-      await user.click(screen.getByText('Add'))
+      await user.click(screen.getByRole('button', { name: 'Create group' }))
 
       await waitFor(() => {
         expect(screen.getByText('Group name is required')).toBeInTheDocument()

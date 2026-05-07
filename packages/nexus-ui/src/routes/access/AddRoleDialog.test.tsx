@@ -120,9 +120,9 @@ describe('AddRoleDialog', () => {
   })
 
   describe('Rendering', () => {
-    it('renders modal with "Add Role" title', () => {
+    it('renders modal with "Create role" title', () => {
       renderDialog()
-      expect(screen.getByText('Add Role')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Create role' })).toBeInTheDocument()
     })
 
     it('renders name input', () => {
@@ -135,9 +135,9 @@ describe('AddRoleDialog', () => {
       expect(screen.getByRole('textbox', { name: /role description/i })).toBeInTheDocument()
     })
 
-    it('renders Add button', () => {
+    it('renders Create role button', () => {
       renderDialog()
-      expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Create role' })).toBeInTheDocument()
     })
 
     it('renders Cancel button', () => {
@@ -156,7 +156,7 @@ describe('AddRoleDialog', () => {
       const user = userEvent.setup()
       renderDialog()
 
-      await user.click(screen.getByRole('button', { name: 'Add' }))
+      await user.click(screen.getByRole('button', { name: 'Create role' }))
 
       await waitFor(() => {
         expect(screen.getByText('Name is required')).toBeInTheDocument()
@@ -169,7 +169,7 @@ describe('AddRoleDialog', () => {
       renderDialog()
 
       await user.type(screen.getByRole('textbox', { name: /role name/i }), 'Invalid Name!')
-      await user.click(screen.getByRole('button', { name: 'Add' }))
+      await user.click(screen.getByRole('button', { name: 'Create role' }))
 
       await waitFor(() => {
         expect(screen.getByText(/lowercase alphanumeric with hyphens, starting and ending/i)).toBeInTheDocument()
@@ -182,7 +182,7 @@ describe('AddRoleDialog', () => {
       renderDialog()
 
       await user.type(screen.getByRole('textbox', { name: /role name/i }), 'valid-role')
-      await user.click(screen.getByRole('button', { name: 'Add' }))
+      await user.click(screen.getByRole('button', { name: 'Create role' }))
 
       await waitFor(() => {
         expect(screen.getByText(/at least one policy/i)).toBeInTheDocument()
@@ -209,7 +209,7 @@ describe('AddRoleDialog', () => {
       await user.click(itemText)
 
       // Submit the form
-      await user.click(screen.getByRole('button', { name: 'Add' }))
+      await user.click(screen.getByRole('button', { name: 'Create role' }))
 
       await waitFor(() => {
         expect(mockMutate).toHaveBeenCalled()
@@ -239,7 +239,7 @@ describe('AddRoleDialog', () => {
       const itemText = menuitem.querySelector('.pf-v6-c-menu__item-text') ?? menuitem
       await user.click(itemText)
 
-      await user.click(screen.getByRole('button', { name: 'Add' }))
+      await user.click(screen.getByRole('button', { name: 'Create role' }))
 
       await waitFor(() => {
         expect(mockMutate).toHaveBeenCalled()
@@ -267,7 +267,7 @@ describe('AddRoleDialog', () => {
       const itemText = menuitem.querySelector('.pf-v6-c-menu__item-text') ?? menuitem
       await user.click(itemText)
 
-      await user.click(screen.getByRole('button', { name: 'Add' }))
+      await user.click(screen.getByRole('button', { name: 'Create role' }))
 
       await waitFor(() => {
         expect(mockMutate).toHaveBeenCalled()
@@ -296,7 +296,7 @@ describe('AddRoleDialog', () => {
       const itemText = menuitem.querySelector('.pf-v6-c-menu__item-text') ?? menuitem
       await user.click(itemText)
 
-      await user.click(screen.getByRole('button', { name: 'Add' }))
+      await user.click(screen.getByRole('button', { name: 'Create role' }))
 
       await waitFor(() => {
         expect(mockMutate).toHaveBeenCalled()

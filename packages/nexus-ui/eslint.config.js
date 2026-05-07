@@ -233,6 +233,8 @@ export default tseslint.config(
     rules: {
       'react-hooks/rules-of-hooks': 'off',
       'react-refresh/only-export-components': 'off',
+      // Testing Library rules target RTL/vitest patterns; Playwright specs use locator-based APIs
+      'testing-library/prefer-screen-queries': 'off',
     },
   },
   {

@@ -13,7 +13,7 @@ import {
   TextArea,
   TextInput,
 } from '@patternfly/react-core'
-import { RhUiErrorIcon } from '@patternfly/react-icons'
+import { RhUiAddIcon, RhUiErrorIcon } from '@patternfly/react-icons'
 import { useEffect } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 
@@ -39,7 +39,7 @@ export type ProjectFormModalProps = {
 
 export function ProjectFormModal({ project, isOpen, onClose, onSuccess, onCreated }: Readonly<ProjectFormModalProps>) {
   const isEditMode = Boolean(project)
-  const title = isEditMode ? 'Edit project' : 'Add project'
+  const title = isEditMode ? 'Edit project' : 'Create project'
 
   const { showAlert } = useAlerts()
 
@@ -188,8 +188,15 @@ export function ProjectFormModal({ project, isOpen, onClose, onSuccess, onCreate
         </Form>
       </ModalBody>
       <ModalFooter>
-        <Button variant="primary" type="submit" form="project-form" isDisabled={isPending} isLoading={isPending}>
-          {isEditMode ? 'Save' : 'Add'}
+        <Button
+          variant="primary"
+          type="submit"
+          form="project-form"
+          isDisabled={isPending}
+          isLoading={isPending}
+          icon={isEditMode ? undefined : <RhUiAddIcon />}
+        >
+          {isEditMode ? 'Save' : 'Create project'}
         </Button>
         <Button variant="link" onClick={handleClose} isDisabled={isPending}>
           Cancel

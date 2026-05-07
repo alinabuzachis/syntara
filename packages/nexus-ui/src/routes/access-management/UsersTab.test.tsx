@@ -216,7 +216,7 @@ describe('UsersTab Component', () => {
     it('renders without crashing', () => {
       render(<UsersTab />, { wrapper })
 
-      expect(screen.getByText('Add user')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Create user' })).toBeInTheDocument()
     })
 
     it('renders users in table', () => {
@@ -269,7 +269,7 @@ describe('UsersTab Component', () => {
 
       expect(screen.getByText('No users')).toBeInTheDocument()
       expect(screen.getByText('Create a user to manage access to the platform.')).toBeInTheDocument()
-      expect(screen.getByText('Add user')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Create user' })).toBeInTheDocument()
     })
   })
 
@@ -427,11 +427,11 @@ describe('UsersTab Component', () => {
   })
 
   describe('Navigation', () => {
-    it('navigates to create user page when Add user is clicked', async () => {
+    it('navigates to create user page when Create user is clicked', async () => {
       const user = userEvent.setup()
       render(<UsersTab />, { wrapper })
 
-      await user.click(screen.getByRole('button', { name: /add user/i }))
+      await user.click(screen.getByRole('button', { name: /create user/i }))
 
       expect(mockNavigate).toHaveBeenCalledWith('/access-management/users/create')
     })

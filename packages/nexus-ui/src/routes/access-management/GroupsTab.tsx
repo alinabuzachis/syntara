@@ -1,6 +1,6 @@
 import type { Group } from '@ansible/nexus-contracts'
 import { Badge, Button, Flex, FlexItem, StackItem } from '@patternfly/react-core'
-import { PlusIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+import { RhUiAddIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { Thead, Tbody, Tr, Th, Td, ActionsColumn } from '@patternfly/react-table'
 import { useMemo } from 'react'
 import { navigate } from 'wouter/use-browser-location'
@@ -105,7 +105,7 @@ export function GroupsTab() {
         <EmptyStateNoData
           title="No groups"
           description="Create a group to organize users and manage access."
-          buttonText="Add group"
+          buttonText="Create group"
           addData={() => formDialog.open(null)}
         />
       ) : (
@@ -122,8 +122,8 @@ export function GroupsTab() {
                 />
               </FlexItem>
               <FlexItem>
-                <Button variant="primary" icon={<PlusIcon />} onClick={() => formDialog.open(null)}>
-                  Add group
+                <Button variant="primary" icon={<RhUiAddIcon />} onClick={() => formDialog.open(null)}>
+                  Create group
                 </Button>
               </FlexItem>
             </Flex>

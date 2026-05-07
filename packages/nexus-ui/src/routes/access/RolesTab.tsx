@@ -10,7 +10,7 @@ import {
   FlexItem,
   StackItem,
 } from '@patternfly/react-core'
-import { PlusIcon, RhUiEditFillIcon, RhUiLockIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+import { RhUiAddIcon, RhUiEditFillIcon, RhUiLockIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
@@ -26,6 +26,7 @@ import { useQueryState } from '../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
+import { detachPromise } from '../../utils/detachPromise'
 
 import { accessClient } from './accessClient'
 import { AddRoleDialog } from './AddRoleDialog'
@@ -200,7 +201,7 @@ export function RolesTab() {
   const { mutate: deleteRole } = accessClient.useMutation('delete', '/roles/{role_id}')
 
   const handleRolesChanged = () => {
-    rolesQuery.refetch().catch(() => {})
+    detachPromise(rolesQuery.refetch())
   }
 
   const handleDelete = () => {
@@ -223,7 +224,7 @@ export function RolesTab() {
   // Loading/error states
   const queryState = useQueryState(rolesQuery, {
     title: 'Error loading roles',
-    onRetry: () => rolesQuery.refetch(),
+    onRetry: () => detachPromise(rolesQuery.refetch()),
   })
 
   if (queryState) {
@@ -259,8 +260,8 @@ export function RolesTab() {
               />
             </FlexItem>
             <FlexItem>
-              <Button variant="primary" icon={<PlusIcon />} onClick={() => setIsAddDialogOpen(true)}>
-                Add role
+              <Button variant="primary" icon={<RhUiAddIcon />} onClick={() => setIsAddDialogOpen(true)}>
+                Create role
               </Button>
             </FlexItem>
           </Flex>

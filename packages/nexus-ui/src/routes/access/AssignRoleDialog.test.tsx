@@ -222,7 +222,7 @@ describe('AssignRoleDialog', () => {
     it('renders Add and Cancel buttons', () => {
       render(<AssignRoleDialog {...defaultProps} />, { wrapper })
 
-      expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Add assignment' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
     })
 
@@ -308,7 +308,7 @@ describe('AssignRoleDialog', () => {
       await user.click(roleOption)
 
       // Submit
-      await user.click(screen.getByRole('button', { name: 'Add' }))
+      await user.click(screen.getByRole('button', { name: 'Add assignment' }))
     }
 
     it('calls assignProjectRole mutation for user-project type', async () => {
@@ -360,7 +360,7 @@ describe('AssignRoleDialog', () => {
       const roleOption = await screen.findByRole('option', { name: /ProjectAdmin/ })
       await user.click(roleOption)
 
-      await user.click(screen.getByRole('button', { name: 'Add' }))
+      await user.click(screen.getByRole('button', { name: 'Add assignment' }))
 
       await waitFor(() => {
         expect(mockMutate).toHaveBeenCalled()
@@ -463,7 +463,7 @@ describe('AssignRoleDialog', () => {
       const roleOption = await screen.findByRole('option', { name: 'Admin' })
       await user.click(roleOption)
 
-      await user.click(screen.getByRole('button', { name: 'Add' }))
+      await user.click(screen.getByRole('button', { name: 'Add assignment' }))
 
       await waitFor(() => {
         expect(mockMutate).toHaveBeenCalled()
@@ -505,7 +505,7 @@ describe('AssignRoleDialog', () => {
       const roleOption = await screen.findByRole('option', { name: /Viewer/ })
       await user.click(roleOption)
 
-      await user.click(screen.getByRole('button', { name: 'Add' }))
+      await user.click(screen.getByRole('button', { name: 'Add assignment' }))
 
       await waitFor(() => {
         expect(mockMutate).toHaveBeenCalled()
@@ -613,7 +613,7 @@ describe('AssignRoleDialog', () => {
       roleOption = await screen.findByRole('option', { name: /Viewer/ })
       await user.click(roleOption)
 
-      await user.click(screen.getByRole('button', { name: 'Add' }))
+      await user.click(screen.getByRole('button', { name: 'Add assignment' }))
 
       await waitFor(() => {
         expect(mockMutate).toHaveBeenCalled()

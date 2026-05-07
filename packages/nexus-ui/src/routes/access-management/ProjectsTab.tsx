@@ -1,5 +1,5 @@
 import { Button, Flex, FlexItem, Modal, ModalBody, ModalFooter, ModalHeader, StackItem } from '@patternfly/react-core'
-import { PlusIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+import { RhUiAddIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
 import { useCallback, useState } from 'react'
@@ -238,7 +238,7 @@ export function ProjectsTab() {
         <EmptyStateNoData
           title="No projects yet"
           description="Create a project to organize workflows and manage access."
-          buttonText="Add project"
+          buttonText="Create project"
           addData={() => setFormModalOpen(true)}
         />
         <ProjectFormModal
@@ -273,8 +273,8 @@ export function ProjectsTab() {
               />
             </FlexItem>
             <FlexItem>
-              <Button variant="primary" icon={<PlusIcon />} onClick={() => setFormModalOpen(true)}>
-                Add project
+              <Button variant="primary" icon={<RhUiAddIcon />} onClick={() => setFormModalOpen(true)}>
+                Create project
               </Button>
             </FlexItem>
           </Flex>

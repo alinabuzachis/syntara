@@ -119,10 +119,10 @@ describe('ProjectsTab', () => {
       expect(screen.getByText('Gamma')).toBeInTheDocument()
     })
 
-    it('renders Add project button', () => {
+    it('renders Create project button', () => {
       render(<ProjectsTab />, { wrapper })
 
-      expect(screen.getByRole('button', { name: /add project/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /create project/i })).toBeInTheDocument()
     })
 
     it('renders table column headers', () => {
@@ -163,7 +163,7 @@ describe('ProjectsTab', () => {
 
       expect(screen.getByText('No projects yet')).toBeInTheDocument()
       expect(screen.getByText('Create a project to organize workflows and manage access.')).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /add project/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /create project/i })).toBeInTheDocument()
     })
 
     it('opens create modal from empty state button', async () => {
@@ -178,7 +178,7 @@ describe('ProjectsTab', () => {
 
       render(<ProjectsTab />, { wrapper })
 
-      await user.click(screen.getByRole('button', { name: /add project/i }))
+      await user.click(screen.getByRole('button', { name: /create project/i }))
 
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Enter project name')).toBeInTheDocument()
@@ -452,11 +452,11 @@ describe('ProjectsTab', () => {
   })
 
   describe('Create Project', () => {
-    it('opens create modal when Add project button is clicked', async () => {
+    it('opens create modal when Create project button is clicked', async () => {
       const user = userEvent.setup()
       render(<ProjectsTab />, { wrapper })
 
-      await user.click(screen.getByRole('button', { name: /add project/i }))
+      await user.click(screen.getByRole('button', { name: /create project/i }))
 
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Enter project name')).toBeInTheDocument()
@@ -504,11 +504,11 @@ describe('ProjectsTab', () => {
       render(<ProjectsTab />, { wrapper })
 
       // Open modal from empty state
-      await user.click(screen.getByRole('button', { name: /add project/i }))
+      await user.click(screen.getByRole('button', { name: /create project/i }))
 
       // Fill in name and submit
       await user.type(screen.getByRole('textbox', { name: 'Project name' }), 'New')
-      await user.click(screen.getByRole('button', { name: 'Add' }))
+      await user.click(screen.getByRole('button', { name: 'Create project' }))
 
       await waitFor(() => {
         expect(mockCreateMutate).toHaveBeenCalled()
@@ -544,11 +544,11 @@ describe('ProjectsTab', () => {
       render(<ProjectsTab />, { wrapper })
 
       // Open modal
-      await user.click(screen.getByRole('button', { name: /add project/i }))
+      await user.click(screen.getByRole('button', { name: /create project/i }))
 
       // Fill in name and submit
       await user.type(screen.getByRole('textbox', { name: 'Project name' }), 'New')
-      await user.click(screen.getByRole('button', { name: 'Add' }))
+      await user.click(screen.getByRole('button', { name: 'Create project' }))
 
       await waitFor(() => {
         expect(mockCreateMutate).toHaveBeenCalled()
