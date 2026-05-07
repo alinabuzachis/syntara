@@ -70,11 +70,29 @@ describe('TaskActivityDetails', () => {
     expect(screen.getByText('2 tools')).toBeInTheDocument()
   })
 
-  it('renders AAP job template name when provided', () => {
+  it('renders AAP job template with static name', () => {
     const mockAAPTask = {
       type: 'aap_job_template',
       id: 'task-5',
       name: 'Launch Job',
+      config: {
+        job_template_name: 'Demo template',
+        job_template_id: 123,
+      },
+    } as TaskActivity
+
+    render(<TaskActivityDetails data={mockAAPTask} />)
+
+    expect(screen.getByText('Launch Job')).toBeInTheDocument()
+    expect(screen.getByText('Job template')).toBeInTheDocument()
+    expect(screen.getByText('Demo template')).toBeInTheDocument()
+  })
+
+  it('renders AAP job template expression with expression label and shows the expression', () => {
+    const mockAAPTask = {
+      type: 'aap_job_template',
+      id: 'task-6',
+      name: 'Dynamic Launch Job',
       config: {
         job_template_name: '${name_via_ai.analysis.default_job_template}',
         job_template_id: 123,
@@ -83,13 +101,15 @@ describe('TaskActivityDetails', () => {
 
     render(<TaskActivityDetails data={mockAAPTask} />)
 
+    expect(screen.getByText('Dynamic Launch Job')).toBeInTheDocument()
+    expect(screen.getByText('Job template expression')).toBeInTheDocument()
     expect(screen.getByText('${name_via_ai.analysis.default_job_template}')).toBeInTheDocument()
   })
 
   it('renders AAP workflow template name when provided', () => {
     const mockAAPWFTask = {
       type: 'aap_workflow_job_template',
-      id: 'task-6',
+      id: 'task-7',
       name: 'Launch Workflow',
       config: {
         workflow_job_template_name: 'my-long-workflow-template-name',
@@ -98,13 +118,32 @@ describe('TaskActivityDetails', () => {
 
     render(<TaskActivityDetails data={mockAAPWFTask} />)
 
+    expect(screen.getByText('Launch Workflow')).toBeInTheDocument()
+    expect(screen.getByText('Workflow job template')).toBeInTheDocument()
     expect(screen.getByText('my-long-workflow-template-name')).toBeInTheDocument()
+  })
+
+  it('renders AAP workflow template expression with expression label and shows the expression', () => {
+    const mockAAPWFTask = {
+      type: 'aap_workflow_job_template',
+      id: 'task-8',
+      name: 'Dynamic Launch Workflow',
+      config: {
+        workflow_job_template_name: '{{workflow.context.template_name}}',
+      },
+    } as TaskActivity
+
+    render(<TaskActivityDetails data={mockAAPWFTask} />)
+
+    expect(screen.getByText('Dynamic Launch Workflow')).toBeInTheDocument()
+    expect(screen.getByText('Workflow job template expression')).toBeInTheDocument()
+    expect(screen.getByText('{{workflow.context.template_name}}')).toBeInTheDocument()
   })
 
   it('renders agentic task with model', () => {
     const mockAgenticTaskWithModel = {
       type: 'agentic',
-      id: 'task-6',
+      id: 'task-9',
       name: 'AI Agent with Model',
       config: {
         model: 'claude-3-opus',

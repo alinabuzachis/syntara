@@ -1,5 +1,4 @@
 import { ExecutorTypeEnum, type TaskActivity } from '@ansible/nexus-contracts'
-import { Content } from '@patternfly/react-core'
 import { type Node, type NodeProps } from '@xyflow/react'
 
 import { Details } from '../../../../components/details/Details'
@@ -108,6 +107,13 @@ export function TaskActivityDetails(
   const toolsCount = agentConfig?.tool_selections?.length
   const toolsText = toolsCount !== undefined ? formatCount(toolsCount, 'tool') : undefined
 
+  // Helper to detect if a value is an expression (${...} or {{...}})
+  const isExpression = (value?: string): boolean => {
+    if (!value) return false
+    const trimmed = value.trim()
+    return trimmed.includes('${') || trimmed.includes('{{')
+  }
+
   return (
     <>
       <StandardNodeHeader
@@ -130,11 +136,15 @@ export function TaskActivityDetails(
               {renderText('URL', (config as { url: string }).url)}
             </>
           )}
-          {aapJobConfig?.job_template_name && (
-            <Content style={{ overflowWrap: 'anywhere' }}>{aapJobConfig.job_template_name}</Content>
+          {renderText(
+            isExpression(aapJobConfig?.job_template_name) ? 'Job template expression' : 'Job template',
+            aapJobConfig?.job_template_name
           )}
-          {aapWorkflowConfig?.workflow_job_template_name && (
-            <Content style={{ overflowWrap: 'anywhere' }}>{aapWorkflowConfig.workflow_job_template_name}</Content>
+          {renderText(
+            isExpression(aapWorkflowConfig?.workflow_job_template_name)
+              ? 'Workflow job template expression'
+              : 'Workflow job template',
+            aapWorkflowConfig?.workflow_job_template_name
           )}
           {/* Render agentic task details */}
           {taskExecutor === ExecutorTypeEnum.AGENTIC && (
