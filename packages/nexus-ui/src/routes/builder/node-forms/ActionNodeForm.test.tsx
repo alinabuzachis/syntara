@@ -226,4 +226,16 @@ describe('ActionNodeForm', () => {
 
     expect(screen.getByTestId('code-editor')).toBeInTheDocument()
   })
+
+  it('shows Developer Preview label for script executor', () => {
+    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} initialData={{ executor: 'script' }} />)
+
+    expect(screen.getByText('Developer Preview')).toBeInTheDocument()
+  })
+
+  it('does not show Developer Preview label for HTTP request executor', () => {
+    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} initialData={{ executor: 'http_request' }} />)
+
+    expect(screen.queryByText('Developer Preview')).not.toBeInTheDocument()
+  })
 })

@@ -63,17 +63,19 @@ const HTTP_METHOD_OPTIONS: Array<{ label: HttpMethod; value: HttpMethod }> = [
 ]
 
 /** Script + API form fields (Stack content) for action node. */
-function ActionParametersContent(props: {
-  register: ReturnType<typeof useFormContext<ActionFormValues>>['register']
-  control: ReturnType<typeof useFormContext<ActionFormValues>>['control']
-  getValues: ReturnType<typeof useFormContext<ActionFormValues>>['getValues']
-  setValue: ReturnType<typeof useFormContext<ActionFormValues>>['setValue']
-  errors: { code?: { message?: string }; url?: { message?: string } }
-  executor: ActionFormValues['executor']
-  scriptEditorRef?: React.RefObject<ExpandableCodeEditorHandle | null>
-  editorLanguage: CodeLanguage
-  projectId?: string
-}) {
+function ActionParametersContent(
+  props: Readonly<{
+    register: ReturnType<typeof useFormContext<ActionFormValues>>['register']
+    control: ReturnType<typeof useFormContext<ActionFormValues>>['control']
+    getValues: ReturnType<typeof useFormContext<ActionFormValues>>['getValues']
+    setValue: ReturnType<typeof useFormContext<ActionFormValues>>['setValue']
+    errors: { code?: { message?: string }; url?: { message?: string } }
+    executor: ActionFormValues['executor']
+    scriptEditorRef?: React.RefObject<ExpandableCodeEditorHandle | null>
+    editorLanguage: CodeLanguage
+    projectId?: string
+  }>
+) {
   const { register, control, getValues, setValue, errors, executor, scriptEditorRef, editorLanguage, projectId } = props
   return (
     <Stack
@@ -267,12 +269,12 @@ function ActionFormFields({
   validationErrors,
   scriptEditorRef,
   projectId,
-}: {
+}: Readonly<{
   onHeaderContentChange?: (content: ReactNode | null) => void
   validationErrors?: { code?: { message?: string }; url?: { message?: string } }
   scriptEditorRef?: React.RefObject<ExpandableCodeEditorHandle | null>
   projectId?: string
-}) {
+}>) {
   const {
     register,
     control,
@@ -303,8 +305,8 @@ function ActionFormFields({
         </FlexItem>
         {executor === ExecutorTypeEnum.SCRIPT && (
           <FlexItem>
-            <Label isCompact color="purple">
-              NOT SCOPED FOR GA
+            <Label isCompact color="orange" style={{ fontSize: 'var(--pf-t--global--font--size--sm)' }}>
+              Developer Preview
             </Label>
           </FlexItem>
         )}

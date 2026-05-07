@@ -1,5 +1,4 @@
 import { ExecutorTypeEnum, type TaskActivity } from '@ansible/nexus-contracts'
-import { Label } from '@patternfly/react-core'
 import { type Node, type NodeProps } from '@xyflow/react'
 
 import { Details } from '../../../../components/details/Details'
@@ -100,18 +99,12 @@ export function TaskActivityDetails(
 
   const toolsCount = agentConfig?.tool_selections?.length
   const toolsText = toolsCount !== undefined ? formatCount(toolsCount, 'tool') : undefined
-  const notScopedForGaBadge =
-    taskExecutor === ExecutorTypeEnum.SCRIPT ? (
-      <Label isCompact color="purple">
-        NOT SCOPED FOR GA
-      </Label>
-    ) : undefined
 
   return (
     <>
       <StandardNodeHeader
         icon={iconNode}
-        badge={notScopedForGaBadge}
+        badge={undefined}
         title={props.data.name}
         subtitle={taskExecutorLabel}
         expandable

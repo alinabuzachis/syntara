@@ -79,8 +79,8 @@ export function NodeTypeOptionsList(props: NodeTypeOptionsListProps) {
                     </FlexItem>
                     {nodeType.id === RegistryNodeId.ACTION_SCRIPT && (
                       <FlexItem>
-                        <Label isCompact color="purple">
-                          NOT SCOPED FOR GA
+                        <Label isCompact color="orange" style={{ fontSize: 'var(--pf-t--global--font--size--sm)' }}>
+                          Developer Preview
                         </Label>
                       </FlexItem>
                     )}
