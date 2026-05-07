@@ -193,7 +193,7 @@ The CLI is built dynamically at runtime from the OpenAPI specification — there
 
 1. The CLI locates the schema sources under `src/nexus/schemas/`
 2. It hashes all source files and compares against a saved manifest in `~/.aap/orchestrator/spec-hashes.json`
-3. If anything changed (or no cache exists), the spec is re-bundled and cached to `~/.aap/orchestrator/openapi.yaml`
+3. If anything changed (or no cache exists), the spec is re-bundled and cached to `~/.aap/orchestrator/openapi.json`
 4. Commands, arguments, and options are constructed from the cached spec at runtime
 
 When the API spec changes, the CLI automatically picks up the changes on the next invocation — no code generation step required.
@@ -223,6 +223,16 @@ src/
 
 | File | Purpose |
 |------|---------|
-| `openapi.yaml` | Cached bundled OpenAPI spec |
+| `openapi.json` | Cached bundled OpenAPI spec |
 | `spec-hashes.json` | SHA-256 manifest of schema source files |
 | `<instance>.json` | Saved auth token (one per server instance) |
+
+### Benchmarking CLI overhead
+
+Set `AO_BENCHMARK=1` to print a timing breakdown to `stderr` for one CLI invocation:
+
+```bash
+AO_BENCHMARK=1 ao --base-url http://localhost:8000/api/v1 groups list --limit 1
+```
+
+The summary includes startup phases such as spec loading and dynamic command construction, plus request phases such as client creation, model import, endpoint import, API call, and response formatting.

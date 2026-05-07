@@ -14,6 +14,8 @@ import time
 from pathlib import Path
 from urllib.parse import urlparse
 
+from .benchmark import note, phase
+
 _CONFIG_DIR = Path.home() / ".aap" / "orchestrator"
 
 
@@ -31,36 +33,42 @@ def _token_path(base_url: str) -> Path:
 
 def save_token(base_url: str, access_token: str, expires_in: int | None = None) -> Path:
     """Persist a token for the given instance. Returns the file path."""
-    _CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    saved_at = time.time()
-    data: dict[str, object] = {
-        "base_url": base_url,
-        "access_token": access_token,
-        "saved_at": saved_at,
-    }
-    if expires_in is not None:
-        data["expires_at"] = saved_at + expires_in
-    path = _token_path(base_url)
-    path.write_text(json.dumps(data, indent=2) + "\n")
-    path.chmod(0o600)
-    return path
+    with phase("auth.save_token"):
+        _CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        saved_at = time.time()
+        data: dict[str, object] = {
+            "base_url": base_url,
+            "access_token": access_token,
+            "saved_at": saved_at,
+        }
+        if expires_in is not None:
+            data["expires_at"] = saved_at + expires_in
+        path = _token_path(base_url)
+        path.write_text(json.dumps(data, indent=2) + "\n")
+        path.chmod(0o600)
+        return path
 
 
 def load_token(base_url: str) -> str | None:
     """Return a cached token for *base_url*, or ``None`` if missing/expired."""
-    path = _token_path(base_url)
-    if not path.exists():
-        return None
-    try:
-        data = json.loads(path.read_text())
-    except (json.JSONDecodeError, OSError):
-        return None
-    expires_at = data.get("expires_at")
-    if expires_at is not None and time.time() >= expires_at:
-        path.unlink(missing_ok=True)
-        return None
-    token = data.get("access_token")
-    return str(token) if token is not None else None
+    with phase("auth.load_token"):
+        path = _token_path(base_url)
+        if not path.exists():
+            note("token_source", "missing")
+            return None
+        try:
+            data = json.loads(path.read_text())
+        except (json.JSONDecodeError, OSError):
+            note("token_source", "invalid_cache")
+            return None
+        expires_at = data.get("expires_at")
+        if expires_at is not None and time.time() >= expires_at:
+            path.unlink(missing_ok=True)
+            note("token_source", "expired")
+            return None
+        token = data.get("access_token")
+        note("token_source", "cache")
+        return str(token) if token is not None else None
 
 
 def clear_token(base_url: str) -> bool:

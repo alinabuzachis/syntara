@@ -2,21 +2,36 @@
 
 from __future__ import annotations
 
-import typer
+from .benchmark import note, phase
 
-from .auth import load_token
-from .commands import set_dynamic_commands
-from .spec import load_spec
+with phase("startup.import.typer"):
+    import typer
 
-_spec = load_spec()
+with phase("startup.import.auth"):
+    from .auth import load_token
 
-app = typer.Typer(
-    name="ao",
-    help="AAP Orchestrator API command-line client.",
-    no_args_is_help=True,
-)
+with phase("startup.import.commands"):
+    from .commands import set_dynamic_commands
 
-set_dynamic_commands(app, _spec)
+with phase("startup.import.spec"):
+    from .spec import load_spec
+
+with phase("startup.load_spec"):
+    _spec = load_spec()
+
+with phase("startup.create_app"):
+    app = typer.Typer(
+        name="ao",
+        help=(
+            "AAP Orchestrator API command-line client.\n\n"
+            "Set AO_BENCHMARK=1 to print per-phase execution timings to stderr "
+            "for a single invocation."
+        ),
+        no_args_is_help=True,
+    )
+
+with phase("startup.set_dynamic_commands"):
+    set_dynamic_commands(app, _spec)
 
 
 @app.callback()
@@ -36,9 +51,14 @@ def main(
     ),
 ) -> None:
     """AAP Orchestrator API command-line client."""
-    ctx.ensure_object(dict)
-    resolved_url = base_url or "http://localhost:8000/api/v1"
-    ctx.obj["base_url"] = resolved_url
-    if token is None:
-        token = load_token(resolved_url)
-    ctx.obj["token"] = token
+    with phase("startup.main_callback"):
+        ctx.ensure_object(dict)
+        resolved_url = base_url or "http://localhost:8000/api/v1"
+        ctx.obj["base_url"] = resolved_url
+        note("base_url", resolved_url)
+        if token is None:
+            with phase("startup.load_token"):
+                token = load_token(resolved_url)
+        else:
+            note("token_source", "option_or_env")
+        ctx.obj["token"] = token

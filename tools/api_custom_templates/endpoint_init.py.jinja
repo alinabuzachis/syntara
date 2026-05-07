@@ -1,14 +1,11 @@
 """{{ endpoint_collection.tag }} API endpoints."""
 from __future__ import annotations
 
-from typing import Any
+import importlib
+from typing import Any, Protocol, cast
 
 from ...client import AuthenticatedClient
 from ...types import Response
-
-{% for endpoint in endpoint_collection.endpoints %}
-from . import {{ endpoint.name.replace('__', '_') }}
-{% endfor %}
 
 {% set tag = endpoint_collection.tag %}
 {% if tag.endswith('s') %}
@@ -25,11 +22,23 @@ from . import {{ endpoint.name.replace('__', '_') }}
 {% set ns.all_short_names = ns.all_short_names + [short] %}
 {% endfor %}
 
+
+class _EndpointModule(Protocol):
+    def sync_detailed(self, *, client: AuthenticatedClient, **kwargs: Any) -> Response[Any]: ...
+
+    async def asyncio_detailed(
+        self, *, client: AuthenticatedClient, **kwargs: Any
+    ) -> Response[Any]: ...
+
+
 class {{ class_name(endpoint_collection.tag) }}Api:
     """Registry for {{ endpoint_collection.tag }} API endpoints."""
 
     def __init__(self, client: AuthenticatedClient) -> None:
         self._client = client
+
+    def _load_endpoint_module(self, module_name: str) -> _EndpointModule:
+        return cast(_EndpointModule, importlib.import_module(f"{__name__}.{module_name}"))
 
 {% for endpoint in endpoint_collection.endpoints %}
 {% set prefix = endpoint.name.split('_api_v1_')[0] %}
@@ -38,9 +47,11 @@ class {{ class_name(endpoint_collection.tag) }}Api:
 {% set short_name = prefix %}
 {% endif %}
     def {{ short_name }}(self, **kwargs: Any) -> Response[Any]:
-        return {{ endpoint.name.replace('__', '_') }}.sync_detailed(client=self._client, **kwargs)
+        endpoint_module = self._load_endpoint_module("{{ endpoint.name.replace('__', '_') }}")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
 
     async def async_{{ short_name }}(self, **kwargs: Any) -> Response[Any]:
-        return await {{ endpoint.name.replace('__', '_') }}.asyncio_detailed(client=self._client, **kwargs)
+        endpoint_module = self._load_endpoint_module("{{ endpoint.name.replace('__', '_') }}")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
 {% endfor %}

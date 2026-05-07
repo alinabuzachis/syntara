@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import importlib.util
 import json
 import re
 from collections import defaultdict
@@ -16,6 +17,7 @@ import click
 import typer
 
 from .auth import save_token
+from .benchmark import note, phase
 
 # ---------------------------------------------------------------------------
 # Helpers (ported from tools/generate_cli.py)
@@ -69,23 +71,28 @@ def _operationid_to_command(operation_id: str, tag_module: str) -> str:
     return name.replace("_", "-")
 
 
-# ---------------------------------------------------------------------------
-# Discover available endpoint modules from the generated API directory
-# ---------------------------------------------------------------------------
-
-
 def _discover_endpoint_modules() -> dict[str, list[str]]:
-    """Return {tag_module: [module_name, ...]} by scanning the api/ package."""
-    import nexus_api_client
+    """Return {tag_module: [module_name, ...]} by scanning the generated client package."""
+    with phase("startup.discover_endpoint_modules"):
+        package_spec = importlib.util.find_spec("nexus_api_client")
+        if not package_spec or not package_spec.submodule_search_locations:
+            note("endpoint_discovery", "package_missing")
+            return {}
 
-    api_dir = Path(nexus_api_client.__file__).resolve().parent / "api"
-    result: dict[str, list[str]] = {}
-    for tag_dir in sorted(api_dir.iterdir()):
-        if not tag_dir.is_dir() or tag_dir.name.startswith("__"):
-            continue
-        modules = sorted(f.stem for f in tag_dir.iterdir() if f.suffix == ".py" and f.stem != "__init__")
-        result[tag_dir.name] = modules
-    return result
+        package_dir = Path(next(iter(package_spec.submodule_search_locations)))
+        api_dir = package_dir / "api"
+        if not api_dir.is_dir():
+            note("endpoint_discovery", "api_dir_missing")
+            return {}
+
+        note("endpoint_discovery", "package_dir_scan")
+        result: dict[str, list[str]] = {}
+        for tag_dir in sorted(api_dir.iterdir()):
+            if not tag_dir.is_dir() or tag_dir.name.startswith("__"):
+                continue
+            modules = sorted(f.stem for f in tag_dir.iterdir() if f.suffix == ".py" and f.stem != "__init__")
+            result[tag_dir.name] = modules
+        return result
 
 
 def _match_module(operation_id: str, available_modules: list[str]) -> str | None:
@@ -238,13 +245,15 @@ def _parse_endpoints(spec: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
 
 def _create_client(base_url: str, token: str | None, *, needs_auth: bool) -> object:
     """Instantiate the appropriate API client."""
-    client_mod = importlib.import_module("nexus_api_client.client")
-    if needs_auth:
-        if not token:
-            typer.echo("Error: --token or AO_TOKEN required", err=True)
-            raise typer.Exit(1)
-        return client_mod.AuthenticatedClient(base_url=base_url, token=token, verify_ssl=False)
-    return client_mod.Client(base_url=base_url, verify_ssl=False)
+    with phase("request.create_client.import_client_module"):
+        client_mod = importlib.import_module("nexus_api_client.client")
+    with phase("request.create_client.instantiate"):
+        if needs_auth:
+            if not token:
+                typer.echo("Error: --token or AO_TOKEN required", err=True)
+                raise typer.Exit(1)
+            return client_mod.AuthenticatedClient(base_url=base_url, token=token, verify_ssl=False)
+        return client_mod.Client(base_url=base_url, verify_ssl=False)
 
 
 def _build_body_data(
@@ -285,7 +294,7 @@ def _format_response(response: Any) -> dict[str, Any] | None:
     return None
 
 
-def _make_command_callback(
+def _make_command_callback(  # noqa: PLR0915
     ep: dict[str, Any],
     tag_module: str,
     endpoint_module: str,
@@ -312,47 +321,67 @@ def _make_command_callback(
 
     def callback(**kwargs: Any) -> None:
         ctx = click.get_current_context()
-        base_url: str = ctx.obj["base_url"]
-        client = _create_client(base_url, ctx.obj.get("token"), needs_auth=needs_auth)
+        note("command", ctx.command_path)
+        note("operation_id", ep["operation_id"])
+        with phase("request.command_total"):
+            base_url: str = ctx.obj["base_url"]
+            with phase("request.create_client"):
+                client = _create_client(base_url, ctx.obj.get("token"), needs_auth=needs_auth)
 
-        api_kwargs: dict[str, Any] = {}
-        for pp in path_param_names:
-            api_kwargs[pp] = kwargs[pp]
+            api_kwargs: dict[str, Any] = {}
+            with phase("request.build_path_params"):
+                for pp in path_param_names:
+                    api_kwargs[pp] = kwargs[pp]
 
-        if body_fields and model_class_name and model_module_name:
-            body_data = _build_body_data(kwargs, body_fields, body_field_names, complex_field_names, path_param_set)
-            mod = importlib.import_module(f"nexus_api_client.models.{model_module_name}")
-            model_cls = getattr(mod, model_class_name)
-            api_kwargs["body"] = model_cls.from_dict(body_data)
+            if body_fields and model_class_name and model_module_name:
+                with phase("request.build_body_data"):
+                    body_data = _build_body_data(
+                        kwargs,
+                        body_fields,
+                        body_field_names,
+                        complex_field_names,
+                        path_param_set,
+                    )
+                with phase("request.import_model_module"):
+                    mod = importlib.import_module(f"nexus_api_client.models.{model_module_name}")
+                with phase("request.model_from_dict"):
+                    model_cls = getattr(mod, model_class_name)
+                    api_kwargs["body"] = model_cls.from_dict(body_data)
 
-        for qp in query_param_names:
-            val = kwargs.get(qp)
-            if val is not None:
-                api_kwargs[qp] = val
+            with phase("request.build_query_params"):
+                for qp in query_param_names:
+                    val = kwargs.get(qp)
+                    if val is not None:
+                        api_kwargs[qp] = val
 
-        ep_mod = importlib.import_module(f"nexus_api_client.api.{tag_module}.{endpoint_module}")
-        response = ep_mod.sync_detailed(client=client, **api_kwargs)
+            with phase("request.import_endpoint_module"):
+                ep_mod = importlib.import_module(f"nexus_api_client.api.{tag_module}.{endpoint_module}")
+            with phase("request.api_call"):
+                response = ep_mod.sync_detailed(client=client, **api_kwargs)
 
-        if not response.is_success:
-            try:
-                err = json.loads(response.content)
-            except (json.JSONDecodeError, UnicodeDecodeError):
-                err = response.content.decode()
-            typer.echo(
-                json.dumps({"error": err, "status": response.status_code.value}, indent=2),
-                err=True,
-            )
-            raise typer.Exit(1)
+            if not response.is_success:
+                with phase("request.parse_error"):
+                    try:
+                        err = json.loads(response.content)
+                    except (json.JSONDecodeError, UnicodeDecodeError):
+                        err = response.content.decode()
+                typer.echo(
+                    json.dumps({"error": err, "status": response.status_code.value}, indent=2),
+                    err=True,
+                )
+                raise typer.Exit(1)
 
-        parsed_dict = _format_response(response)
+            with phase("request.format_response"):
+                parsed_dict = _format_response(response)
 
-        if is_login and parsed_dict and "access_token" in parsed_dict:
-            path = save_token(
-                base_url,
-                parsed_dict["access_token"],
-                parsed_dict.get("expires_in"),
-            )
-            typer.echo(f"\nToken saved to {path}", err=True)
+            if is_login and parsed_dict and "access_token" in parsed_dict:
+                with phase("request.save_token"):
+                    path = save_token(
+                        base_url,
+                        parsed_dict["access_token"],
+                        parsed_dict.get("expires_in"),
+                    )
+                typer.echo(f"\nToken saved to {path}", err=True)
 
     return callback
 
@@ -422,31 +451,37 @@ def _build_click_command(
     spec: dict[str, Any],
 ) -> click.Command:
     """Build a Click Command from an OpenAPI endpoint descriptor."""
-    cmd_name = _operationid_to_command(ep["operation_id"], tag_module)
-    body_fields = _extract_body_fields(spec, ep["body_ref"])
-    callback = _make_command_callback(ep, tag_module, endpoint_module, body_fields, ep["body_ref"], spec)
+    with phase("startup.build_click_command"):
+        cmd_name = _operationid_to_command(ep["operation_id"], tag_module)
+        body_fields = _extract_body_fields(spec, ep["body_ref"])
+        callback = _make_command_callback(ep, tag_module, endpoint_module, body_fields, ep["body_ref"], spec)
 
-    used: set[str] = set()
+        used: set[str] = set()
 
-    path_params: list[click.Parameter] = []
-    for pp in ep["path_params"]:
-        used.add(pp)
-        path_params.append(
-            typer.core.TyperArgument(param_decls=[pp], type=str, required=True, help=pp.replace("_", " ").title())
+        path_params: list[click.Parameter] = []
+        for pp in ep["path_params"]:
+            used.add(pp)
+            path_params.append(
+                typer.core.TyperArgument(
+                    param_decls=[pp],
+                    type=str,
+                    required=True,
+                    help=pp.replace("_", " ").title(),
+                )
+            )
+
+        params: list[click.Parameter] = [
+            *path_params,
+            *_build_body_params(body_fields, used),
+            *_build_query_params(ep, used),
+        ]
+
+        return typer.core.TyperCommand(
+            name=cmd_name,
+            callback=callback,
+            params=params,
+            help=ep["summary"] or cmd_name,
         )
-
-    params: list[click.Parameter] = [
-        *path_params,
-        *_build_body_params(body_fields, used),
-        *_build_query_params(ep, used),
-    ]
-
-    return typer.core.TyperCommand(
-        name=cmd_name,
-        callback=callback,
-        params=params,
-        help=ep["summary"] or cmd_name,
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -476,40 +511,44 @@ class DynamicTyperGroup(typer.core.TyperGroup):
 
 def _build_dynamic_commands(spec: dict[str, Any]) -> dict[str, click.Command]:
     """Parse the OpenAPI spec and return a dict of group_name -> click.Group."""
-    endpoints_by_tag = _parse_endpoints(spec)
-    available_modules = _discover_endpoint_modules()
+    with phase("startup.build_dynamic_commands"):
+        with phase("startup.parse_endpoints"):
+            endpoints_by_tag = _parse_endpoints(spec)
+        available_modules = _discover_endpoint_modules()
 
-    groups: dict[str, click.Command] = {}
+        groups: dict[str, click.Command] = {}
 
-    for tag_module in sorted(endpoints_by_tag):
-        endpoints = endpoints_by_tag[tag_module]
-        tag_avail = available_modules.get(tag_module, [])
-        if not tag_avail:
-            continue
+        with phase("startup.assemble_command_groups"):
+            for tag_module in sorted(endpoints_by_tag):
+                endpoints = endpoints_by_tag[tag_module]
+                tag_avail = available_modules.get(tag_module, [])
+                if not tag_avail:
+                    continue
 
-        tag_display = tag_module
-        for t in spec.get("tags", []):
-            if _tag_to_module(t["name"]) == tag_module:
-                tag_display = t["name"]
-                break
+                tag_display = tag_module
+                for t in spec.get("tags", []):
+                    if _tag_to_module(t["name"]) == tag_module:
+                        tag_display = t["name"]
+                        break
 
-        group_name = tag_module.replace("_", "-")
-        group = _OrderedTyperGroup(
-            name=group_name,
-            help=f"{tag_display} operations.",
-        )
+                group_name = tag_module.replace("_", "-")
+                group = _OrderedTyperGroup(
+                    name=group_name,
+                    help=f"{tag_display} operations.",
+                )
 
-        for ep in endpoints:
-            endpoint_module = _match_module(ep["operation_id"], tag_avail)
-            if endpoint_module is None:
-                continue
-            cmd = _build_click_command(ep, tag_module, endpoint_module, spec)
-            group.add_command(cmd)
+                for ep in endpoints:
+                    endpoint_module = _match_module(ep["operation_id"], tag_avail)
+                    if endpoint_module is None:
+                        continue
+                    cmd = _build_click_command(ep, tag_module, endpoint_module, spec)
+                    group.add_command(cmd)
 
-        if group.commands:
-            groups[group_name] = group
+                if group.commands:
+                    groups[group_name] = group
 
-    return groups
+        note("dynamic_command_group_count", len(groups))
+        return groups
 
 
 def set_dynamic_commands(app: typer.Typer, spec: dict[str, Any]) -> None:

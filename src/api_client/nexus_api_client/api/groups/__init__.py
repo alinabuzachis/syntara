@@ -2,23 +2,17 @@
 
 from __future__ import annotations
 
-from typing import Any
+import importlib
+from typing import Any, Protocol, cast
 
 from ...client import AuthenticatedClient
 from ...types import Response
-from . import (
-    add_member,
-    create_group,
-    create_group_role_assignment,
-    delete_group,
-    delete_group_role_assignment,
-    get_group,
-    list_group_role_assignments,
-    list_groups,
-    list_members,
-    remove_member,
-    update_group,
-)
+
+
+class _EndpointModule(Protocol):
+    def sync_detailed(self, *, client: AuthenticatedClient, **kwargs: Any) -> Response[Any]: ...
+
+    async def asyncio_detailed(self, *, client: AuthenticatedClient, **kwargs: Any) -> Response[Any]: ...
 
 
 class GroupsApi:
@@ -27,68 +21,93 @@ class GroupsApi:
     def __init__(self, client: AuthenticatedClient) -> None:
         self._client = client
 
+    def _load_endpoint_module(self, module_name: str) -> _EndpointModule:
+        return cast(_EndpointModule, importlib.import_module(f"{__name__}.{module_name}"))
+
     def list(self, **kwargs: Any) -> Response[Any]:
-        return list_groups.sync_detailed(client=self._client, **kwargs)
+        endpoint_module = self._load_endpoint_module("list_groups")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
 
     async def async_list(self, **kwargs: Any) -> Response[Any]:
-        return await list_groups.asyncio_detailed(client=self._client, **kwargs)
+        endpoint_module = self._load_endpoint_module("list_groups")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
     def create(self, **kwargs: Any) -> Response[Any]:
-        return create_group.sync_detailed(client=self._client, **kwargs)
+        endpoint_module = self._load_endpoint_module("create_group")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
 
     async def async_create(self, **kwargs: Any) -> Response[Any]:
-        return await create_group.asyncio_detailed(client=self._client, **kwargs)
+        endpoint_module = self._load_endpoint_module("create_group")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
     def get(self, **kwargs: Any) -> Response[Any]:
-        return get_group.sync_detailed(client=self._client, **kwargs)
+        endpoint_module = self._load_endpoint_module("get_group")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
 
     async def async_get(self, **kwargs: Any) -> Response[Any]:
-        return await get_group.asyncio_detailed(client=self._client, **kwargs)
+        endpoint_module = self._load_endpoint_module("get_group")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
     def delete(self, **kwargs: Any) -> Response[Any]:
-        return delete_group.sync_detailed(client=self._client, **kwargs)
+        endpoint_module = self._load_endpoint_module("delete_group")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
 
     async def async_delete(self, **kwargs: Any) -> Response[Any]:
-        return await delete_group.asyncio_detailed(client=self._client, **kwargs)
+        endpoint_module = self._load_endpoint_module("delete_group")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
     def update(self, **kwargs: Any) -> Response[Any]:
-        return update_group.sync_detailed(client=self._client, **kwargs)
+        endpoint_module = self._load_endpoint_module("update_group")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
 
     async def async_update(self, **kwargs: Any) -> Response[Any]:
-        return await update_group.asyncio_detailed(client=self._client, **kwargs)
+        endpoint_module = self._load_endpoint_module("update_group")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
     def list_members(self, **kwargs: Any) -> Response[Any]:
-        return list_members.sync_detailed(client=self._client, **kwargs)
+        endpoint_module = self._load_endpoint_module("list_members")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
 
     async def async_list_members(self, **kwargs: Any) -> Response[Any]:
-        return await list_members.asyncio_detailed(client=self._client, **kwargs)
+        endpoint_module = self._load_endpoint_module("list_members")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
     def add_member(self, **kwargs: Any) -> Response[Any]:
-        return add_member.sync_detailed(client=self._client, **kwargs)
+        endpoint_module = self._load_endpoint_module("add_member")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
 
     async def async_add_member(self, **kwargs: Any) -> Response[Any]:
-        return await add_member.asyncio_detailed(client=self._client, **kwargs)
+        endpoint_module = self._load_endpoint_module("add_member")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
     def remove_member(self, **kwargs: Any) -> Response[Any]:
-        return remove_member.sync_detailed(client=self._client, **kwargs)
+        endpoint_module = self._load_endpoint_module("remove_member")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
 
     async def async_remove_member(self, **kwargs: Any) -> Response[Any]:
-        return await remove_member.asyncio_detailed(client=self._client, **kwargs)
+        endpoint_module = self._load_endpoint_module("remove_member")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
     def list_role_assignments(self, **kwargs: Any) -> Response[Any]:
-        return list_group_role_assignments.sync_detailed(client=self._client, **kwargs)
+        endpoint_module = self._load_endpoint_module("list_group_role_assignments")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
 
     async def async_list_role_assignments(self, **kwargs: Any) -> Response[Any]:
-        return await list_group_role_assignments.asyncio_detailed(client=self._client, **kwargs)
+        endpoint_module = self._load_endpoint_module("list_group_role_assignments")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
     def create_role_assignment(self, **kwargs: Any) -> Response[Any]:
-        return create_group_role_assignment.sync_detailed(client=self._client, **kwargs)
+        endpoint_module = self._load_endpoint_module("create_group_role_assignment")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
 
     async def async_create_role_assignment(self, **kwargs: Any) -> Response[Any]:
-        return await create_group_role_assignment.asyncio_detailed(client=self._client, **kwargs)
+        endpoint_module = self._load_endpoint_module("create_group_role_assignment")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
     def delete_role_assignment(self, **kwargs: Any) -> Response[Any]:
-        return delete_group_role_assignment.sync_detailed(client=self._client, **kwargs)
+        endpoint_module = self._load_endpoint_module("delete_group_role_assignment")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
 
     async def async_delete_role_assignment(self, **kwargs: Any) -> Response[Any]:
-        return await delete_group_role_assignment.asyncio_detailed(client=self._client, **kwargs)
+        endpoint_module = self._load_endpoint_module("delete_group_role_assignment")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
