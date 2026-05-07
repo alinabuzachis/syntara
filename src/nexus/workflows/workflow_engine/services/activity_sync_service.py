@@ -22,14 +22,17 @@ from temporalio.api.history.v1 import HistoryEvent
 from temporalio.client import Client, WorkflowHandle
 from temporalio.exceptions import TemporalError
 
+from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.core.exceptions import SafeValueError
+from nexus.telemetry.collector import _TERMINAL_STATUSES
 from nexus.telemetry.events.workflow_emitters import (
+    _map_execution_status_to_telemetry,
     emit_activities,
-    emit_workflow_completed,
     emit_workflow_error,
     emit_workflow_start,
 )
 from nexus.telemetry.events.workflow_error import RETRY_REASON_MAX_LENGTH, TimedOutComponent
+from nexus.workflows.audit.workflow_completed import WorkflowCompletedEvent
 from nexus.workflows.models.activity_execution import ActivityExecution, ActivityStatus
 from nexus.workflows.models.execution import Execution, ExecutionStatus
 from nexus.workflows.models.workflow_version import WorkflowVersion
@@ -851,13 +854,26 @@ class ActivitySyncService:
                         "Failed to publish final snapshot for execution (non-fatal)", execution_id=metadata.execution_id
                     )
 
-                # Emit workflow completed telemetry (activity counts are now accurate)
-                emit_workflow_completed(
-                    execution=execution,
-                    status=status,
-                    completed_at=completed_at,
-                    error_details=error_details,
-                    request_id=metadata.request_id,
+                # Dispatch workflow-completed domain event through audit framework
+                # (activity counts are now accurate after commit)
+                activities = execution.activities or []
+                node_count = sum(1 for a in activities if a.status in _TERMINAL_STATUSES)
+                error_count = sum(1 for a in activities if a.status == ActivityStatus.FAILED)
+                duration_ms = int((completed_at - execution.created_at).total_seconds() * 1000)
+                telemetry_status = _map_execution_status_to_telemetry(status)
+                error_type: str | None = "ActivityExecutionError" if error_details else None
+
+                AuditEventDispatcher.dispatch(
+                    WorkflowCompletedEvent(
+                        execution_id=execution.id,
+                        workflow_id=execution.workflow_id,
+                        status=telemetry_status,
+                        duration_ms=duration_ms,
+                        node_count=node_count,
+                        error_count=error_count,
+                        error_type=error_type,
+                        request_id=metadata.request_id,
+                    )
                 )
 
                 # Emit workflow error telemetry for engine-level workflow timeouts
