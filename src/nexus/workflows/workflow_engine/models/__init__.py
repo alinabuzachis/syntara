@@ -16,6 +16,7 @@ from .responses import (
 )
 from .workflow_definition import (
     AAPJobTemplateExecutorConfig,
+    AAPWorkflowJobTemplateExecutorConfig,
     ActivityTerminalStatus,
     AgenticExecutorConfig,
     APIExecutorConfig,
@@ -29,6 +30,7 @@ from .workflow_definition import (
 
 __all__ = [
     "AAPJobTemplateExecutorConfig",
+    "AAPWorkflowJobTemplateExecutorConfig",
     "APIExecutorConfig",
     "ActivityTerminalStatus",
     "AgenticExecutorConfig",

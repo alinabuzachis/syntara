@@ -52,7 +52,7 @@ def _get_kwargs(
 
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": "/aap/job-templates",
+        "url": "/aap/job_templates",
         "params": params,
     }
 

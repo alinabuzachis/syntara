@@ -784,6 +784,93 @@ class TestProxyGet:
         assert params == {"page_size": "50"}
 
 
+class TestListWorkflowJobTemplates:
+    """Tests for list_workflow_job_templates."""
+
+    @pytest.mark.asyncio
+    async def test_returns_workflow_templates(self) -> None:
+        service = _service()
+        aap_response = {
+            "count": 2,
+            "results": [
+                {"id": 1, "name": "Deploy Workflow", "description": "Full deployment"},
+                {"id": 2, "name": "Backup Workflow", "description": None},
+            ],
+        }
+
+        with (
+            patch.object(service, "_resolve_connection", return_value=_connection()),
+            patch.object(service, "_proxy_get", new_callable=AsyncMock, return_value=aap_response),
+        ):
+            result = await service.list_workflow_job_templates(AAPResourceQuery())
+
+        assert result.count == 2
+        assert len(result.results) == 2
+        assert result.results[0].id == 1
+        assert result.results[0].name == "Deploy Workflow"
+        assert result.results[1].description is None
+
+    @pytest.mark.asyncio
+    async def test_filters_by_organization(self) -> None:
+        service = _service()
+
+        with (
+            patch.object(service, "_resolve_connection", return_value=_connection()),
+            patch.object(service, "_resolve_organization_id", return_value=42),
+            patch.object(service, "_proxy_get", new_callable=AsyncMock, return_value={"results": []}) as mock_get,
+        ):
+            await service.list_workflow_job_templates(AAPResourceQuery(organization="Engineering"))
+
+        # Verify organization filter was passed
+        call_params = mock_get.call_args[0][2]
+        assert call_params["organization"] == "42"
+
+
+class TestGetWorkflowJobTemplate:
+    """Tests for get_workflow_job_template."""
+
+    @pytest.mark.asyncio
+    async def test_returns_template_detail(self) -> None:
+        service = _service()
+        aap_response = {
+            "id": 1,
+            "name": "Deploy Workflow",
+            "description": "Full deployment workflow",
+            "ask_inventory_on_launch": True,
+            "ask_variables_on_launch": True,
+            "ask_limit_on_launch": False,
+            "ask_scm_branch_on_launch": True,
+            "ask_labels_on_launch": True,
+            "ask_tags_on_launch": False,
+            "ask_skip_tags_on_launch": False,
+            "survey_enabled": False,
+        }
+
+        with (
+            patch.object(service, "_resolve_connection", return_value=_connection()),
+            patch.object(service, "_proxy_get", new_callable=AsyncMock, return_value=aap_response),
+        ):
+            result = await service.get_workflow_job_template(workflow_job_template_id=1)
+
+        assert result.id == 1
+        assert result.name == "Deploy Workflow"
+        assert result.ask_inventory_on_launch is True
+        assert result.ask_scm_branch_on_launch is True
+
+    @pytest.mark.asyncio
+    async def test_adds_public_url_when_configured(self) -> None:
+        service = _service()
+        aap_response = {"id": 1, "name": "Test"}
+
+        with (
+            patch.object(service, "_resolve_connection", return_value=_connection()),
+            patch.object(service, "_proxy_get", new_callable=AsyncMock, return_value=aap_response),
+        ):
+            result = await service.get_workflow_job_template(workflow_job_template_id=1)
+
+        assert result.url == "https://aap.example.com/execution/templates/workflow-job-template/1/details"
+
+
 class TestCredentialAuthorization:
     """Tests for credential-based authorization (security)."""
 

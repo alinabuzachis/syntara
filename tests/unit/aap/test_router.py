@@ -89,7 +89,7 @@ class TestListOrganizations:
 
 
 class TestListJobTemplates:
-    """Tests for GET /api/v1/aap/job-templates."""
+    """Tests for GET /api/v1/aap/job_templates."""
 
     @pytest.mark.asyncio
     async def test_returns_job_templates(self, app: FastAPI, mock_service: AsyncMock) -> None:
@@ -100,7 +100,7 @@ class TestListJobTemplates:
         )
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            response = await client.get("/api/v1/aap/job-templates")
+            response = await client.get("/api/v1/aap/job_templates")
 
         assert response.status_code == 200
         data = response.json()
@@ -109,7 +109,7 @@ class TestListJobTemplates:
 
 
 class TestGetJobTemplate:
-    """Tests for GET /api/v1/aap/job-templates/{job_template_id}."""
+    """Tests for GET /api/v1/aap/job_templates/{job_template_id}."""
 
     @pytest.mark.asyncio
     async def test_returns_job_template_detail(self, app: FastAPI, mock_service: AsyncMock) -> None:
@@ -125,7 +125,7 @@ class TestGetJobTemplate:
         )
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            response = await client.get("/api/v1/aap/job-templates/1")
+            response = await client.get("/api/v1/aap/job_templates/1")
 
         assert response.status_code == 200
         data = response.json()
@@ -155,7 +155,7 @@ class TestListInventories:
 
 
 class TestListExecutionEnvironments:
-    """Tests for GET /api/v1/aap/execution-environments."""
+    """Tests for GET /api/v1/aap/execution_environments."""
 
     @pytest.mark.asyncio
     async def test_returns_execution_environments(self, app: FastAPI, mock_service: AsyncMock) -> None:
@@ -166,7 +166,7 @@ class TestListExecutionEnvironments:
         )
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            response = await client.get("/api/v1/aap/execution-environments")
+            response = await client.get("/api/v1/aap/execution_environments")
 
         assert response.status_code == 200
         data = response.json()
@@ -195,7 +195,7 @@ class TestListCredentials:
 
 
 class TestListInstanceGroups:
-    """Tests for GET /api/v1/aap/instance-groups."""
+    """Tests for GET /api/v1/aap/instance_groups."""
 
     @pytest.mark.asyncio
     async def test_returns_instance_groups(self, app: FastAPI, mock_service: AsyncMock) -> None:
@@ -206,7 +206,7 @@ class TestListInstanceGroups:
         )
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            response = await client.get("/api/v1/aap/instance-groups")
+            response = await client.get("/api/v1/aap/instance_groups")
 
         assert response.status_code == 200
         data = response.json()

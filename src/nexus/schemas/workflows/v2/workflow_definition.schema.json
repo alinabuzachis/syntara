@@ -170,6 +170,23 @@
             {
               "properties": {
                 "type": {
+                  "const": "aap_workflow_job_template"
+                },
+                "config": {
+                  "$ref": "executors/aap_workflow_job_template.schema.json#/configSchema"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/node_base"
+            },
+            {
+              "properties": {
+                "type": {
                   "const": "http_request"
                 },
                 "config": {

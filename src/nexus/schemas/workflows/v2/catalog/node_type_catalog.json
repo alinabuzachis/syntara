@@ -56,6 +56,17 @@
       "since": "2.0.0"
     },
     {
+      "type": "aap_workflow_job_template",
+      "name": "AAP Workflow Job Template",
+      "description": "Launch Ansible Automation Platform workflow job templates",
+      "labels": {
+        "category": "executor"
+      },
+      "schema_ref": "../executors/aap_workflow_job_template.schema.json",
+      "deprecated": false,
+      "since": "2.0.0"
+    },
+    {
       "type": "http_request",
       "name": "HTTP Request",
       "description": "Make HTTP API requests",

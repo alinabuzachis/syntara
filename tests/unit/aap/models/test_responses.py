@@ -8,6 +8,8 @@ from nexus.aap.models.responses import (
     AAPJobTemplateDetail,
     AAPLabel,
     AAPSummaryField,
+    AAPWorkflowJobTemplate,
+    AAPWorkflowJobTemplateDetail,
 )
 
 
@@ -564,3 +566,462 @@ class TestAAPLabel:
 
         errors = exc_info.value.errors()
         assert any(error["loc"] == ("name",) for error in errors)
+
+
+class TestAAPWorkflowJobTemplate:
+    """Test the AAPWorkflowJobTemplate model."""
+
+    def test_creates_workflow_job_template_with_valid_data(self):
+        """Should create AAPWorkflowJobTemplate with id, name, and description."""
+        template = AAPWorkflowJobTemplate(id=1, name="Deploy Application", description="Full deployment workflow")
+
+        assert template.id == 1
+        assert template.name == "Deploy Application"
+        assert template.description == "Full deployment workflow"
+
+    def test_creates_workflow_job_template_without_description(self):
+        """Should create AAPWorkflowJobTemplate with id and name, description is optional."""
+        template = AAPWorkflowJobTemplate(id=2, name="Backup Database")
+
+        assert template.id == 2
+        assert template.name == "Backup Database"
+        assert template.description is None
+
+    def test_requires_id_field(self):
+        """Should require 'id' field."""
+        with pytest.raises(ValidationError) as exc_info:
+            AAPWorkflowJobTemplate(name="Deploy Application")
+
+        errors = exc_info.value.errors()
+        assert any(error["loc"] == ("id",) for error in errors)
+
+    def test_requires_name_field(self):
+        """Should require 'name' field."""
+        with pytest.raises(ValidationError) as exc_info:
+            AAPWorkflowJobTemplate(id=1)
+
+        errors = exc_info.value.errors()
+        assert any(error["loc"] == ("name",) for error in errors)
+
+
+class TestAAPWorkflowJobTemplateDetailValidation:
+    """Test validation and field extraction for AAPWorkflowJobTemplateDetail."""
+
+    def test_creates_workflow_job_template_detail_with_minimal_data(self):
+        """Should create workflow job template detail with just required fields."""
+        data = {"id": 1, "name": "Deploy Application"}
+
+        template = AAPWorkflowJobTemplateDetail(**data)
+
+        assert template.id == 1
+        assert template.name == "Deploy Application"
+        assert template.description is None
+        assert template.url is None
+        assert template.ask_inventory_on_launch is False
+        assert template.ask_credential_on_launch is False
+        assert template.ask_variables_on_launch is False
+        assert template.ask_limit_on_launch is False
+        assert template.ask_scm_branch_on_launch is False
+        assert template.ask_labels_on_launch is False
+        assert template.ask_tags_on_launch is False
+        assert template.ask_skip_tags_on_launch is False
+        assert template.survey_enabled is False
+        assert template.default_inventory is None
+        assert template.default_labels == []
+
+    def test_accepts_all_prompt_on_launch_flags(self):
+        """Should accept all prompt-on-launch boolean flags."""
+        data = {
+            "id": 1,
+            "name": "Deploy Application",
+            "ask_inventory_on_launch": True,
+            "ask_credential_on_launch": True,
+            "ask_variables_on_launch": True,
+            "ask_limit_on_launch": True,
+            "ask_scm_branch_on_launch": True,
+            "ask_labels_on_launch": True,
+            "ask_tags_on_launch": True,
+            "ask_skip_tags_on_launch": True,
+            "survey_enabled": True,
+        }
+
+        template = AAPWorkflowJobTemplateDetail(**data)
+
+        assert template.ask_inventory_on_launch is True
+        assert template.ask_credential_on_launch is True
+        assert template.ask_variables_on_launch is True
+        assert template.ask_limit_on_launch is True
+        assert template.ask_scm_branch_on_launch is True
+        assert template.ask_labels_on_launch is True
+        assert template.ask_tags_on_launch is True
+        assert template.ask_skip_tags_on_launch is True
+        assert template.survey_enabled is True
+
+    def test_accepts_scalar_default_values(self):
+        """Should accept scalar default values from AAP workflow template."""
+        data = {
+            "id": 1,
+            "name": "Deploy Application",
+            "limit": "webservers",
+            "scm_branch": "production",
+            "job_tags": "deploy,config",
+            "skip_tags": "slow,experimental",
+            "extra_vars": '{"environment": "production", "version": "1.2.3"}',
+        }
+
+        template = AAPWorkflowJobTemplateDetail(**data)
+
+        assert template.limit == "webservers"
+        assert template.scm_branch == "production"
+        assert template.job_tags == "deploy,config"
+        assert template.skip_tags == "slow,experimental"
+        assert template.extra_vars == '{"environment": "production", "version": "1.2.3"}'
+
+    def test_scalar_defaults_are_optional(self):
+        """Should allow scalar default values to be None."""
+        data = {
+            "id": 1,
+            "name": "Deploy Application",
+            # All scalar defaults omitted
+        }
+
+        template = AAPWorkflowJobTemplateDetail(**data)
+
+        assert template.limit is None
+        assert template.scm_branch is None
+        assert template.job_tags is None
+        assert template.skip_tags is None
+        assert template.extra_vars is None
+
+    def test_extracts_default_inventory_from_summary_fields(self):
+        """Should extract default inventory from summary_fields."""
+        data = {
+            "id": 1,
+            "name": "Deploy Application",
+            AAP_SUMMARY_FIELDS_KEY: {
+                "inventory": {"id": 5, "name": "Production Inventory"},
+            },
+        }
+
+        template = AAPWorkflowJobTemplateDetail(**data)
+
+        assert template.default_inventory is not None
+        assert template.default_inventory.id == 5
+        assert template.default_inventory.name == "Production Inventory"
+
+    def test_extracts_default_labels_from_summary_fields(self):
+        """Should extract default labels from summary_fields.labels.results."""
+        data = {
+            "id": 1,
+            "name": "Deploy Application",
+            AAP_SUMMARY_FIELDS_KEY: {
+                "labels": {
+                    "count": 3,
+                    "results": [
+                        {"id": 10, "name": "production"},
+                        {"id": 11, "name": "critical"},
+                        {"id": 12, "name": "automated"},
+                    ],
+                },
+            },
+        }
+
+        template = AAPWorkflowJobTemplateDetail(**data)
+
+        assert len(template.default_labels) == 3
+        assert template.default_labels[0].id == 10
+        assert template.default_labels[0].name == "production"
+        assert template.default_labels[1].id == 11
+        assert template.default_labels[1].name == "critical"
+        assert template.default_labels[2].id == 12
+        assert template.default_labels[2].name == "automated"
+
+    def test_handles_missing_inventory_in_summary_fields(self):
+        """Should handle missing inventory in summary_fields gracefully."""
+        data = {
+            "id": 1,
+            "name": "Deploy Application",
+            AAP_SUMMARY_FIELDS_KEY: {},
+        }
+
+        template = AAPWorkflowJobTemplateDetail(**data)
+
+        assert template.default_inventory is None
+
+    def test_handles_empty_labels_results(self):
+        """Should handle empty labels results gracefully."""
+        data = {
+            "id": 1,
+            "name": "Deploy Application",
+            AAP_SUMMARY_FIELDS_KEY: {
+                "labels": {
+                    "count": 0,
+                    "results": [],
+                },
+            },
+        }
+
+        template = AAPWorkflowJobTemplateDetail(**data)
+
+        assert template.default_labels == []
+
+    def test_handles_missing_summary_fields_key(self):
+        """Should handle missing summary_fields key gracefully."""
+        data = {
+            "id": 1,
+            "name": "Deploy Application",
+            # No summary_fields at all
+        }
+
+        template = AAPWorkflowJobTemplateDetail(**data)
+
+        assert template.default_inventory is None
+        assert template.default_labels == []
+
+    def test_does_not_override_existing_default_inventory(self):
+        """Should not override default_inventory if already set."""
+        data = {
+            "id": 1,
+            "name": "Deploy Application",
+            "default_inventory": {"id": 99, "name": "Explicit Inventory"},
+            AAP_SUMMARY_FIELDS_KEY: {
+                "inventory": {"id": 5, "name": "Summary Inventory"},
+            },
+        }
+
+        template = AAPWorkflowJobTemplateDetail(**data)
+
+        # Should keep the explicit value, not the summary_fields value
+        assert template.default_inventory is not None
+        assert template.default_inventory.id == 99
+        assert template.default_inventory.name == "Explicit Inventory"
+
+    def test_does_not_override_existing_default_labels(self):
+        """Should not override default_labels if already set."""
+        data = {
+            "id": 1,
+            "name": "Deploy Application",
+            "default_labels": [{"id": 99, "name": "explicit-label"}],
+            AAP_SUMMARY_FIELDS_KEY: {
+                "labels": {
+                    "count": 1,
+                    "results": [{"id": 10, "name": "summary-label"}],
+                },
+            },
+        }
+
+        template = AAPWorkflowJobTemplateDetail(**data)
+
+        # Should keep the explicit value, not the summary_fields value
+        assert len(template.default_labels) == 1
+        assert template.default_labels[0].id == 99
+        assert template.default_labels[0].name == "explicit-label"
+
+    def test_skips_invalid_inventory_missing_id(self):
+        """Should skip inventory if it's missing required 'id' field."""
+        data = {
+            "id": 1,
+            "name": "Deploy Application",
+            AAP_SUMMARY_FIELDS_KEY: {
+                "inventory": {"name": "Invalid Inventory"},  # Missing 'id'
+            },
+        }
+
+        template = AAPWorkflowJobTemplateDetail(**data)
+
+        assert template.default_inventory is None
+
+    def test_skips_invalid_inventory_missing_name(self):
+        """Should skip inventory if it's missing required 'name' field."""
+        data = {
+            "id": 1,
+            "name": "Deploy Application",
+            AAP_SUMMARY_FIELDS_KEY: {
+                "inventory": {"id": 5},  # Missing 'name'
+            },
+        }
+
+        template = AAPWorkflowJobTemplateDetail(**data)
+
+        assert template.default_inventory is None
+
+    def test_skips_invalid_inventory_not_dict(self):
+        """Should skip inventory if it's not a dict."""
+        data = {
+            "id": 1,
+            "name": "Deploy Application",
+            AAP_SUMMARY_FIELDS_KEY: {
+                "inventory": "invalid",  # Not a dict
+            },
+        }
+
+        template = AAPWorkflowJobTemplateDetail(**data)
+
+        assert template.default_inventory is None
+
+    def test_handles_non_dict_summary_fields(self):
+        """Should handle non-dict summary_fields gracefully."""
+        data = {
+            "id": 1,
+            "name": "Deploy Application",
+            AAP_SUMMARY_FIELDS_KEY: "invalid",  # Not a dict
+        }
+
+        template = AAPWorkflowJobTemplateDetail(**data)
+
+        assert template.default_inventory is None
+        assert template.default_labels == []
+
+    def test_handles_non_list_labels_results(self):
+        """Should handle non-list labels results gracefully."""
+        data = {
+            "id": 1,
+            "name": "Deploy Application",
+            AAP_SUMMARY_FIELDS_KEY: {
+                "labels": {
+                    "count": 1,
+                    "results": "invalid",  # Not a list
+                },
+            },
+        }
+
+        template = AAPWorkflowJobTemplateDetail(**data)
+
+        assert template.default_labels == []
+
+    def test_rejects_scm_branch_exceeding_max_length(self):
+        """Should reject scm_branch exceeding maxLength of 256."""
+        data = {
+            "id": 1,
+            "name": "Deploy Application",
+            "scm_branch": "x" * 257,  # Exceeds 256
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            AAPWorkflowJobTemplateDetail(**data)
+
+        errors = exc_info.value.errors()
+        assert any(error["loc"] == ("scm_branch",) for error in errors)
+
+    def test_accepts_scm_branch_at_max_length(self):
+        """Should accept scm_branch at exactly maxLength of 256."""
+        scm_branch = "x" * 256
+        template = AAPWorkflowJobTemplateDetail(id=1, name="Deploy Application", scm_branch=scm_branch)
+
+        assert template.scm_branch == scm_branch
+        assert len(template.scm_branch) == 256
+
+    def test_rejects_limit_exceeding_max_length(self):
+        """Should reject limit exceeding maxLength of 2048."""
+        data = {
+            "id": 1,
+            "name": "Deploy Application",
+            "limit": "x" * 2049,  # Exceeds 2048
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            AAPWorkflowJobTemplateDetail(**data)
+
+        errors = exc_info.value.errors()
+        assert any(error["loc"] == ("limit",) for error in errors)
+
+    def test_accepts_limit_at_max_length(self):
+        """Should accept limit at exactly maxLength of 2048."""
+        limit = "x" * 2048
+        template = AAPWorkflowJobTemplateDetail(id=1, name="Deploy Application", limit=limit)
+
+        assert template.limit == limit
+        assert len(template.limit) == 2048
+
+    def test_rejects_job_tags_exceeding_max_length(self):
+        """Should reject job_tags exceeding maxLength of 2048."""
+        data = {
+            "id": 1,
+            "name": "Deploy Application",
+            "job_tags": "x" * 2049,  # Exceeds 2048
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            AAPWorkflowJobTemplateDetail(**data)
+
+        errors = exc_info.value.errors()
+        assert any(error["loc"] == ("job_tags",) for error in errors)
+
+    def test_accepts_job_tags_at_max_length(self):
+        """Should accept job_tags at exactly maxLength of 2048."""
+        job_tags = "x" * 2048
+        template = AAPWorkflowJobTemplateDetail(id=1, name="Deploy Application", job_tags=job_tags)
+
+        assert template.job_tags == job_tags
+        assert len(template.job_tags) == 2048
+
+    def test_rejects_skip_tags_exceeding_max_length(self):
+        """Should reject skip_tags exceeding maxLength of 2048."""
+        data = {
+            "id": 1,
+            "name": "Deploy Application",
+            "skip_tags": "x" * 2049,  # Exceeds 2048
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            AAPWorkflowJobTemplateDetail(**data)
+
+        errors = exc_info.value.errors()
+        assert any(error["loc"] == ("skip_tags",) for error in errors)
+
+    def test_accepts_skip_tags_at_max_length(self):
+        """Should accept skip_tags at exactly maxLength of 2048."""
+        skip_tags = "x" * 2048
+        template = AAPWorkflowJobTemplateDetail(id=1, name="Deploy Application", skip_tags=skip_tags)
+
+        assert template.skip_tags == skip_tags
+        assert len(template.skip_tags) == 2048
+
+    def test_rejects_extra_vars_exceeding_max_length(self):
+        """Should reject extra_vars exceeding maxLength of 1048576 (1MB)."""
+        data = {
+            "id": 1,
+            "name": "Deploy Application",
+            "extra_vars": "x" * 1048577,  # Exceeds 1MB
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            AAPWorkflowJobTemplateDetail(**data)
+
+        errors = exc_info.value.errors()
+        assert any(error["loc"] == ("extra_vars",) for error in errors)
+
+    def test_accepts_extra_vars_at_max_length(self):
+        """Should accept extra_vars at exactly maxLength of 1048576 (1MB)."""
+        extra_vars = "x" * 1048576
+        template = AAPWorkflowJobTemplateDetail(id=1, name="Deploy Application", extra_vars=extra_vars)
+
+        assert template.extra_vars == extra_vars
+        assert len(template.extra_vars) == 1048576
+
+    def test_requires_id_field(self):
+        """Should require 'id' field."""
+        with pytest.raises(ValidationError) as exc_info:
+            AAPWorkflowJobTemplateDetail(name="Deploy Application")
+
+        errors = exc_info.value.errors()
+        assert any(error["loc"] == ("id",) for error in errors)
+
+    def test_requires_name_field(self):
+        """Should require 'name' field."""
+        with pytest.raises(ValidationError) as exc_info:
+            AAPWorkflowJobTemplateDetail(id=1)
+
+        errors = exc_info.value.errors()
+        assert any(error["loc"] == ("name",) for error in errors)
+
+    def test_handles_non_dict_input_in_validator(self):
+        """Should return non-dict input unchanged (validator safety check)."""
+        # This tests the validator's defensive check at the beginning
+        # The validator checks isinstance(data, dict) and returns data unchanged if not
+        # We can test this by passing a non-dict directly to the validator
+        from nexus.aap.models.responses import AAPWorkflowJobTemplateDetail
+
+        # Call the validator directly with non-dict data
+        result = AAPWorkflowJobTemplateDetail.extract_summary_fields("not a dict")
+        assert result == "not a dict"

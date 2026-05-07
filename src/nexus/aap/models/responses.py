@@ -142,6 +142,14 @@ class AAPJobTemplate(BaseModel):
     description: str | None = None
 
 
+class AAPWorkflowJobTemplate(BaseModel):
+    """AAP workflow job template resource."""
+
+    id: int
+    name: str
+    description: str | None = None
+
+
 class AAPSummaryField(BaseModel):
     """Summary field with id and name from AAP summary_fields."""
 
@@ -370,6 +378,78 @@ class AAPJobTemplateDetail(BaseModel):
                 logger.warning("Skipping invalid credentials", error=str(e))
                 # Keep default_credentials as empty list rather than failing entire response
                 data["default_credentials"] = []
+
+        # Extract labels from nested labels.results structure
+        if "default_labels" not in data:
+            labels = _extract_labels(summary)
+            if labels:
+                data["default_labels"] = labels
+
+        return data
+
+
+class AAPWorkflowJobTemplateDetail(BaseModel):
+    """AAP workflow job template with prompt-on-launch capabilities and default values."""
+
+    id: int
+    name: str
+    description: str | None = None
+    url: str | None = Field(None, description="Link to the workflow template in AAP Controller UI")
+    # Prompt-on-launch flags
+    ask_inventory_on_launch: bool = False
+    ask_credential_on_launch: bool = False
+    ask_variables_on_launch: bool = False
+    ask_limit_on_launch: bool = False
+    ask_scm_branch_on_launch: bool = False
+    ask_labels_on_launch: bool = False
+    ask_tags_on_launch: bool = False
+    ask_skip_tags_on_launch: bool = False
+    survey_enabled: bool = False
+    # Default values extracted from summary_fields (for related resources)
+    default_inventory: AAPSummaryField | None = Field(
+        default=None,
+        title="Default Inventory",
+        description="Default inventory from workflow template summary_fields",
+    )
+    default_labels: list[AAPSummaryField] = Field(
+        default_factory=list,
+        title="Default Labels",
+        description="Default labels from workflow template summary_fields",
+    )
+    # Default values from workflow template direct fields
+    limit: str | None = Field(default=None, max_length=2048, description="Default limit pattern")
+    scm_branch: str | None = Field(default=None, max_length=256, description="Default SCM branch")
+    job_tags: str | None = Field(default=None, max_length=2048, description="Default job tags")
+    skip_tags: str | None = Field(default=None, max_length=2048, description="Default skip tags")
+    extra_vars: str | None = Field(
+        default=None, max_length=1048576, description="Default extra variables (YAML format, max 1MB)"
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def extract_summary_fields(cls, data: Any) -> Any:  # noqa: ANN401 - Pydantic validator accepts arbitrary input
+        """Extract default values from AAP's summary_fields into top-level fields.
+
+        AAP returns:
+        {
+          "id": 123,
+          "summary_fields": {
+            "inventory": {"id": 1, "name": "Default Inventory"},
+            "labels": {"count": 2, "results": [{"id": 1, "name": "label1"}, {"id": 2, "name": "label2"}]}
+          }
+        }
+
+        We extract these to default_inventory and default_labels (as list of AAPSummaryField).
+        """
+        if not isinstance(data, dict):
+            return data
+
+        summary = data.get(AAP_SUMMARY_FIELDS_KEY, {})
+        if not isinstance(summary, dict):
+            return data
+
+        # Extract single-value summary fields
+        _extract_and_set_field(data, summary, "inventory", "default_inventory")
 
         # Extract labels from nested labels.results structure
         if "default_labels" not in data:

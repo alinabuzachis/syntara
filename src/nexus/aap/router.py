@@ -32,6 +32,8 @@ from nexus.aap.models.responses import (
     AAPLabel,
     AAPListResponse,
     AAPOrganization,
+    AAPWorkflowJobTemplate,
+    AAPWorkflowJobTemplateDetail,
 )
 from nexus.aap.services.aap_proxy_service import AAPProxyService
 from nexus.auth import get_current_user
@@ -76,7 +78,7 @@ async def list_organizations(
     return await service.list_organizations(query, user_id=current_user.id)
 
 
-@router.get("/job-templates", operation_id="list_aap_job_templates")
+@router.get("/job_templates", operation_id="list_aap_job_templates")
 async def list_job_templates(
     query: Annotated[AAPResourceQuery, Depends()],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -86,7 +88,7 @@ async def list_job_templates(
     return await service.list_job_templates(query, user_id=current_user.id)
 
 
-@router.get("/job-templates/{job_template_id}", operation_id="get_aap_job_template")
+@router.get("/job_templates/{job_template_id}", operation_id="get_aap_job_template")
 async def get_job_template(
     job_template_id: Annotated[int, Path(ge=1)],
     query: Annotated[AAPBaseQuery, Depends()],
@@ -99,6 +101,31 @@ async def get_job_template(
     return await service.get_job_template(job_template_id, credential_id=credential_id_str, user_id=current_user.id)
 
 
+@router.get("/workflow_job_templates", operation_id="list_aap_workflow_job_templates")
+async def list_workflow_job_templates(
+    query: Annotated[AAPResourceQuery, Depends()],
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[AAPProxyService, Depends(_get_aap_proxy_service)],
+) -> AAPListResponse[AAPWorkflowJobTemplate]:
+    """List AAP workflow job templates, optionally filtered by organization."""
+    return await service.list_workflow_job_templates(query, user_id=current_user.id)
+
+
+@router.get("/workflow_job_templates/{workflow_job_template_id}", operation_id="get_aap_workflow_job_template")
+async def get_workflow_job_template(
+    workflow_job_template_id: Annotated[int, Path(ge=1)],
+    query: Annotated[AAPBaseQuery, Depends()],
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[AAPProxyService, Depends(_get_aap_proxy_service)],
+) -> AAPWorkflowJobTemplateDetail:
+    """Get AAP workflow job template details including prompt-on-launch capabilities."""
+    # Convert UUID to string for service layer (accepts UUID | str, returns str | None)
+    credential_id_str = str(query.credential_id) if query.credential_id else None
+    return await service.get_workflow_job_template(
+        workflow_job_template_id, credential_id=credential_id_str, user_id=current_user.id
+    )
+
+
 @router.get("/inventories", operation_id="list_aap_inventories")
 async def list_inventories(
     query: Annotated[AAPResourceQuery, Depends()],
@@ -109,7 +136,7 @@ async def list_inventories(
     return await service.list_inventories(query, user_id=current_user.id)
 
 
-@router.get("/execution-environments", operation_id="list_aap_execution_environments")
+@router.get("/execution_environments", operation_id="list_aap_execution_environments")
 async def list_execution_environments(
     query: Annotated[AAPResourceQuery, Depends()],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -129,7 +156,7 @@ async def list_credentials(
     return await service.list_credentials(query, user_id=current_user.id)
 
 
-@router.get("/instance-groups", operation_id="list_aap_instance_groups")
+@router.get("/instance_groups", operation_id="list_aap_instance_groups")
 async def list_instance_groups(
     query: Annotated[AAPBaseQuery, Depends()],
     current_user: Annotated[User, Depends(get_current_user)],

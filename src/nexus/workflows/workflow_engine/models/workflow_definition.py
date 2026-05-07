@@ -66,6 +66,7 @@ class ActivityName(StrEnum):
     LOOP = "loop"
     # Executor nodes
     AAP_JOB_TEMPLATE = "execute_aap_job_template_activity"
+    AAP_WORKFLOW_JOB_TEMPLATE = "execute_aap_workflow_job_template_activity"
     AGENTIC = "execute_agentic_activity"
     APPROVAL = "execute_approval_activity"
     HTTP_REQUEST = "execute_http_request_activity"
@@ -90,6 +91,7 @@ class NodeType(str, Enum):
     LOOP = "loop"
     # Executor nodes
     AAP_JOB_TEMPLATE = "aap_job_template"
+    AAP_WORKFLOW_JOB_TEMPLATE = "aap_workflow_job_template"
     AGENTIC = "agentic"
     APPROVAL = "approval"
     HTTP_REQUEST = "http_request"
@@ -317,17 +319,30 @@ class AAPJobType(str, Enum):
     CHECK = "check"
 
 
-class AAPJobTemplateExecutorConfig(TemplateAwareBaseModel):
-    """Configuration for AAP Job Template executor."""
+class AAPResourceReferenceMixin(BaseModel):
+    """Mixin for AAP executor configs with common fields and resource reference validation.
 
+    Provides shared fields used by both AAP job template and workflow job template configs,
+    including authentication, organization/inventory references, prompt-on-launch overrides,
+    and label support.
+    """
+
+    # Authentication
     credential_id: str | None = Field(
         default=None,
         description="Nexus credential UUID for AAP API authentication. Separate from legacy credentials list.",
     )
-    job_template_id: int | None = Field(
+
+    # Organization and inventory references
+    organization_id: int | None = Field(
         default=None,
         ge=1,
-        description="AAP job template ID to launch",
+        description="AAP organization ID (takes precedence over organization_name)",
+        alias="organizationId",
+    )
+    organization_name: str | None = Field(
+        default=None,
+        description="AAP organization name (used with template_name or inventory_name)",
     )
     inventory_id: int | None = Field(
         default=None,
@@ -338,18 +353,11 @@ class AAPJobTemplateExecutorConfig(TemplateAwareBaseModel):
         default=None,
         description="Override default inventory by name (requires organization_name)",
     )
-    job_credentials: list[int] | None = Field(
-        default=None,
-        description="List of AAP credential IDs to use (takes precedence over credential_names)",
-    )
-    credential_names: list[str] | None = Field(
-        default=None,
-        description="List of AAP credential names to use (requires organization_name, resolved at launch time)",
-        alias="credentialNames",
-    )
+
+    # Prompt-on-launch overrides (common to both job and workflow job templates)
     extra_vars: dict[str, Any] = Field(
         default_factory=dict,
-        description="Extra variables to pass to job",
+        description="Extra variables to pass to job/workflow job",
     )
     limit: str | None = Field(
         default=None,
@@ -363,74 +371,21 @@ class AAPJobTemplateExecutorConfig(TemplateAwareBaseModel):
         default=None,
         description="Ansible tags to skip (comma-separated)",
     )
-    verbosity: AAPVerbosity = Field(
-        default=AAPVerbosity.NORMAL,
-        description="Job verbosity level (0-5)",
-    )
-    timeout: int = Field(
-        default=constants.DEFAULT_AAP_TIMEOUT_SECONDS,
-        ge=1,
-        description="Timeout for job execution in seconds (default from APP_AAP_TIMEOUT_SECONDS)",
-    )
-    job_template_name: str | None = Field(
-        default=None,
-        description="AAP job template name (used with organization_name)",
-    )
-    organization_id: int | None = Field(
-        default=None,
-        ge=1,
-        description="AAP organization ID (takes precedence over organization_name)",
-        alias="organizationId",
-    )
-    organization_name: str | None = Field(
-        default=None,
-        description="AAP organization name (used with job_template_name or inventory_name)",
-    )
-    # UI-only fields — stored in config, sent in launch body only when
-    # the AAP job template has "prompt on launch" enabled for the field.
-    job_type: AAPJobType | None = Field(
-        default=None,
-        description="Job type override: 'run' or 'check' (dry run)",
-    )
-    forks: int | None = Field(
-        default=None,
-        ge=0,
-        description="Number of parallel forks for job execution",
-    )
-    job_slicing: int | None = Field(
-        default=None,
-        ge=1,
-        description="Number of job slices",
-    )
-    diff_mode: bool | None = Field(
-        default=None,
-        description="Enable diff mode for playbook runs",
-    )
-    # The following fields are stored in the config for future prompt-on-launch
-    # support but are NOT yet forwarded in _build_launch_body because the AAP
-    # launch API requires these as nested resource references (IDs/objects),
-    # not simple scalar values.
-    execution_environment: str | None = Field(
-        default=None,
-        description="Execution environment override (deferred — requires ID resolution)",
-    )
-    instance_group_id: int | None = Field(
-        default=None,
-        ge=1,
-        description="Override instance group by ID (takes precedence over instance_group_name)",
-    )
-    instance_group_name: str | None = Field(
-        default=None,
-        description="Override instance group by name (requires organization_name for lookup)",
-    )
     labels: list[str] | None = Field(
         default=None,
         description=(
-            "AAP label names to append to job template's default labels. "
+            "AAP label names to append to template's default labels. "
             "Names are resolved to IDs at launch time. "
             "New labels that don't exist in AAP will be created automatically. "
             "Note: Labels are APPENDED to template defaults, not replaced."
         ),
+    )
+
+    # Execution settings
+    timeout: int = Field(
+        default=constants.DEFAULT_AAP_TIMEOUT_SECONDS,
+        ge=1,
+        description="Timeout for execution in seconds (default from APP_AAP_TIMEOUT_SECONDS)",
     )
 
     def _validate_id_or_name_reference(
@@ -464,6 +419,75 @@ class AAPJobTemplateExecutorConfig(TemplateAwareBaseModel):
             msg = f"Either {resource_type}_id or {resource_type}_name must be specified"
             raise SafeValueError(msg)
 
+
+class AAPJobTemplateExecutorConfig(AAPResourceReferenceMixin, TemplateAwareBaseModel):
+    """Configuration for AAP Job Template executor.
+
+    Inherits common AAP fields from AAPResourceReferenceMixin (credential_id, organization,
+    inventory, extra_vars, limit, tags, skip_tags, labels, timeout).
+    """
+
+    # Job template reference
+    job_template_id: int | None = Field(
+        default=None,
+        ge=1,
+        description="AAP job template ID to launch",
+    )
+    job_template_name: str | None = Field(
+        default=None,
+        description="AAP job template name (used with organization_name)",
+    )
+
+    # Job-specific credentials (workflow jobs don't support this)
+    job_credentials: list[int] | None = Field(
+        default=None,
+        description="List of AAP credential IDs to use (takes precedence over credential_names)",
+    )
+    credential_names: list[str] | None = Field(
+        default=None,
+        description="List of AAP credential names to use (requires organization_name, resolved at launch time)",
+        alias="credentialNames",
+    )
+
+    # Job-specific prompt-on-launch fields
+    verbosity: AAPVerbosity = Field(
+        default=AAPVerbosity.NORMAL,
+        description="Job verbosity level (0-5)",
+    )
+    job_type: AAPJobType | None = Field(
+        default=None,
+        description="Job type override: 'run' or 'check' (dry run)",
+    )
+    forks: int | None = Field(
+        default=None,
+        ge=0,
+        description="Number of parallel forks for job execution",
+    )
+    job_slicing: int | None = Field(
+        default=None,
+        ge=1,
+        description="Number of job slices",
+    )
+    diff_mode: bool | None = Field(
+        default=None,
+        description="Enable diff mode for playbook runs",
+    )
+
+    # Deferred prompt-on-launch fields (require ID resolution)
+    execution_environment: str | None = Field(
+        default=None,
+        description="Execution environment override (deferred — requires ID resolution)",
+    )
+    instance_group_id: int | None = Field(
+        default=None,
+        ge=1,
+        description="Override instance group by ID (takes precedence over instance_group_name)",
+    )
+    instance_group_name: str | None = Field(
+        default=None,
+        description="Override instance group by name (requires organization_name for lookup)",
+    )
+
     @model_validator(mode="after")
     def validate_references(self) -> "AAPJobTemplateExecutorConfig":
         """Validate job template and inventory references."""
@@ -473,6 +497,54 @@ class AAPJobTemplateExecutorConfig(TemplateAwareBaseModel):
             self.job_template_name,
             self.organization_name,
             AAPResourceType.JOB_TEMPLATES.field_prefix,
+            required=True,
+        )
+
+        # Validate inventory reference (optional)
+        self._validate_id_or_name_reference(
+            self.inventory_id,
+            self.inventory_name,
+            self.organization_name,
+            AAPResourceType.INVENTORIES.field_prefix,
+            required=False,
+        )
+
+        return self
+
+
+class AAPWorkflowJobTemplateExecutorConfig(AAPResourceReferenceMixin, TemplateAwareBaseModel):
+    """Configuration for AAP Workflow Job Template executor.
+
+    Inherits common AAP fields from AAPResourceReferenceMixin (credential_id, organization,
+    inventory, extra_vars, limit, tags, skip_tags, labels, timeout).
+    """
+
+    # Workflow job template reference
+    workflow_job_template_id: int | None = Field(
+        default=None,
+        ge=1,
+        description="AAP workflow job template ID to launch",
+    )
+    workflow_job_template_name: str | None = Field(
+        default=None,
+        description="AAP workflow job template name (used with organization_name)",
+    )
+
+    # Workflow-specific prompt-on-launch field (not available for regular job templates)
+    scm_branch: str | None = Field(
+        default=None,
+        description="SCM branch override for projects in workflow",
+    )
+
+    @model_validator(mode="after")
+    def validate_references(self) -> "AAPWorkflowJobTemplateExecutorConfig":
+        """Validate workflow job template and inventory references."""
+        # Validate workflow job template reference
+        self._validate_id_or_name_reference(
+            self.workflow_job_template_id,
+            self.workflow_job_template_name,
+            self.organization_name,
+            AAPResourceType.WORKFLOW_JOB_TEMPLATES.field_prefix,
             required=True,
         )
 

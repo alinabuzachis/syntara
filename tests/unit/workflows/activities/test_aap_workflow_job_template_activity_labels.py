@@ -1,4 +1,4 @@
-"""Unit tests for AAP label resolution in job template activity.
+"""Unit tests for AAP label resolution in workflow job template activity.
 
 Tests label name → ID resolution including:
 - Resolving existing labels by name
@@ -12,8 +12,12 @@ from unittest.mock import AsyncMock
 import httpx
 import pytest
 
-from nexus.workflows.workflow_engine.activities.aap_common import resolve_label_ids
-from nexus.workflows.workflow_engine.activities.aap_job_template_activity import AAPJobExecutionError
+from nexus.workflows.workflow_engine.activities.aap_common import (
+    resolve_label_ids,
+)
+from nexus.workflows.workflow_engine.activities.aap_workflow_job_template_activity import (
+    AAPWorkflowJobExecutionError,
+)
 
 TEST_AAP_URL = "http://test.aap"
 TEST_ORG_NAME = "Engineering"
@@ -67,7 +71,7 @@ class TestLabelResolution:
             auth_headers={},
             basic_auth=None,
             base_url=TEST_AAP_URL,
-            error_class=AAPJobExecutionError,
+            error_class=AAPWorkflowJobExecutionError,
         )
 
         assert label_ids == [10, 20]
@@ -111,7 +115,7 @@ class TestLabelResolution:
             auth_headers={},
             basic_auth=None,
             base_url=TEST_AAP_URL,
-            error_class=AAPJobExecutionError,
+            error_class=AAPWorkflowJobExecutionError,
         )
 
         assert label_ids == [30]
@@ -154,7 +158,7 @@ class TestLabelResolution:
             auth_headers={},
             basic_auth=None,
             base_url=TEST_AAP_URL,
-            error_class=AAPJobExecutionError,
+            error_class=AAPWorkflowJobExecutionError,
         )
 
         assert label_ids == [40]
@@ -168,7 +172,7 @@ class TestLabelResolution:
         org_response = create_http_response(200, {"results": []})
         client.get.return_value = org_response
 
-        with pytest.raises(AAPJobExecutionError, match="Organization 'NonExistent' not found"):
+        with pytest.raises(AAPWorkflowJobExecutionError, match="Organization 'NonExistent' not found"):
             await resolve_label_ids(
                 client,
                 ["dev"],
@@ -177,7 +181,7 @@ class TestLabelResolution:
                 auth_headers={},
                 basic_auth=None,
                 base_url=TEST_AAP_URL,
-                error_class=AAPJobExecutionError,
+                error_class=AAPWorkflowJobExecutionError,
             )
 
     async def test_error_on_label_lookup_failure(self) -> None:
@@ -195,7 +199,7 @@ class TestLabelResolution:
         )
         client.get.side_effect = [org_response, label_error]
 
-        with pytest.raises(AAPJobExecutionError, match="Failed to resolve/create label 'dev'"):
+        with pytest.raises(AAPWorkflowJobExecutionError, match="Failed to resolve/create label 'dev'"):
             await resolve_label_ids(
                 client,
                 ["dev"],
@@ -204,7 +208,7 @@ class TestLabelResolution:
                 auth_headers={},
                 basic_auth=None,
                 base_url=TEST_AAP_URL,
-                error_class=AAPJobExecutionError,
+                error_class=AAPWorkflowJobExecutionError,
             )
 
     async def test_error_on_label_creation_failure(self) -> None:
@@ -227,7 +231,7 @@ class TestLabelResolution:
         client.get.side_effect = [org_response, label_lookup_response]
         client.post.side_effect = create_error
 
-        with pytest.raises(AAPJobExecutionError, match="Failed to resolve/create label 'staging'"):
+        with pytest.raises(AAPWorkflowJobExecutionError, match="Failed to resolve/create label 'staging'"):
             await resolve_label_ids(
                 client,
                 ["staging"],
@@ -236,7 +240,7 @@ class TestLabelResolution:
                 auth_headers={},
                 basic_auth=None,
                 base_url=TEST_AAP_URL,
-                error_class=AAPJobExecutionError,
+                error_class=AAPWorkflowJobExecutionError,
             )
 
     async def test_resolve_multiple_labels_mixed_scenarios(self) -> None:
@@ -271,7 +275,7 @@ class TestLabelResolution:
             auth_headers={},
             basic_auth=None,
             base_url=TEST_AAP_URL,
-            error_class=AAPJobExecutionError,
+            error_class=AAPWorkflowJobExecutionError,
         )
 
         assert label_ids == [10, 50, 20]
@@ -302,7 +306,7 @@ class TestLabelResolution:
             auth_headers=auth_headers,
             basic_auth=basic_auth,
             base_url=TEST_AAP_URL,
-            error_class=AAPJobExecutionError,
+            error_class=AAPWorkflowJobExecutionError,
         )
 
         # Verify all requests included auth
@@ -333,7 +337,7 @@ class TestLabelResolution:
             auth_headers={},
             basic_auth=None,
             base_url=TEST_AAP_URL,
-            error_class=AAPJobExecutionError,
+            error_class=AAPWorkflowJobExecutionError,
         )
 
         assert label_ids == [42]

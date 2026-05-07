@@ -6,6 +6,7 @@ from typing import Any
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
 
 from .aap_job_template_activity import execute_aap_job_template_activity
+from .aap_workflow_job_template_activity import execute_aap_workflow_job_template_activity
 from .agentic_activity import execute_agentic_activity
 from .approval_activity import create_approval_request_activity
 from .condition import condition
@@ -28,6 +29,7 @@ _TEMPORAL_ACTIVITIES: list[Callable[..., Any]] = [
     register_activity_monitoring,
     resolve_workflow_credentials,
     execute_aap_job_template_activity,
+    execute_aap_workflow_job_template_activity,
     execute_agentic_activity,
     create_approval_request_activity,
     condition,

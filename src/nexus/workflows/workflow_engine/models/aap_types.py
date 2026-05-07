@@ -11,6 +11,7 @@ class AAPResourceType(StrEnum):
     """
 
     JOB_TEMPLATES = "job_templates"
+    WORKFLOW_JOB_TEMPLATES = "workflow_job_templates"
     INVENTORIES = "inventories"
     INSTANCE_GROUPS = "instance_groups"
 
@@ -24,6 +25,8 @@ class AAPResourceType(StrEnum):
         """
         if self == AAPResourceType.JOB_TEMPLATES:
             return "job template"
+        if self == AAPResourceType.WORKFLOW_JOB_TEMPLATES:
+            return "workflow job template"
         if self == AAPResourceType.INSTANCE_GROUPS:
             return "instance group"
         # INVENTORIES
@@ -49,6 +52,8 @@ class AAPResourceType(StrEnum):
         """
         if self == AAPResourceType.JOB_TEMPLATES:
             return "job_template"
+        if self == AAPResourceType.WORKFLOW_JOB_TEMPLATES:
+            return "workflow_job_template"
         if self == AAPResourceType.INSTANCE_GROUPS:
             return "instance_group"
         # INVENTORIES

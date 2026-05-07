@@ -344,7 +344,7 @@ class TestAAPJobTemplateCancellation:
             with pytest.raises(CancelledError):
                 await execute_aap_job_template_activity(activity_config, None)
 
-            # Verify cancel endpoint was called
+            # Verify cancel endpoint was called (plural "jobs" as per AAP API)
             cancel_call = mock_post.call_args_list[1]
             assert "/jobs/123/cancel/" in str(cancel_call)
 

@@ -752,6 +752,7 @@ class NexusWorkflow:
     # Note: agentic and approval are NOT in this map as they require signal handling
     _EXECUTOR_ACTIVITY_MAP: ClassVar[dict[str, str]] = {
         NodeType.AAP_JOB_TEMPLATE: ActivityName.AAP_JOB_TEMPLATE,
+        NodeType.AAP_WORKFLOW_JOB_TEMPLATE: ActivityName.AAP_WORKFLOW_JOB_TEMPLATE,
         NodeType.HTTP_REQUEST: ActivityName.HTTP_REQUEST,
         NodeType.SCRIPT: ActivityName.SCRIPT,
         NodeType.CONDITION: ActivityName.CONDITION,
@@ -1141,7 +1142,9 @@ class NexusWorkflow:
             resolved_config = self._resolve_node_config(node)
 
         default_timeout = (
-            DEFAULT_AAP_TIMEOUT_SECONDS if node_type == NodeType.AAP_JOB_TEMPLATE else DEFAULT_ACTIVITY_TIMEOUT_SECONDS
+            DEFAULT_AAP_TIMEOUT_SECONDS
+            if node_type in (NodeType.AAP_JOB_TEMPLATE, NodeType.AAP_WORKFLOW_JOB_TEMPLATE)
+            else DEFAULT_ACTIVITY_TIMEOUT_SECONDS
         )
         # AAP nodes always have "timeout" via AAPJobTemplateExecutorConfig's model default;
         # the fallback here is only effective for non-AAP node types.

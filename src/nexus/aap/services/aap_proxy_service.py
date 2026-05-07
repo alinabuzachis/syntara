@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 import structlog
+from pydantic import BaseModel
 
 from nexus.aap.auth import AAPConnection, resolve_aap_connection
 from nexus.aap.credential_resolver import resolve_aap_connection_from_credential
@@ -24,6 +25,8 @@ from nexus.aap.models.responses import (
     AAPLabel,
     AAPListResponse,
     AAPOrganization,
+    AAPWorkflowJobTemplate,
+    AAPWorkflowJobTemplateDetail,
 )
 
 if TYPE_CHECKING:
@@ -99,6 +102,66 @@ class AAPProxyService:
             self._client = None
             self._client_connection = None
 
+    # ------------------------------------------------------------------
+    # Shared template helpers (DRY - reduce duplication)
+    # ------------------------------------------------------------------
+
+    async def _list_templates[T](
+        self,
+        resource_path: str,
+        mapper: Callable[[dict[str, Any]], T],
+        query: AAPResourceQuery,
+        user_id: UUID | None = None,
+    ) -> AAPListResponse[T]:
+        """List templates generically for job_templates and workflow_job_templates.
+
+        Reduces code duplication between list_job_templates and list_workflow_job_templates.
+        """
+        connection = await self._resolve_connection(credential_id=query.credential_id, user_id=user_id)
+        params = self._build_params(search=query.search, page_size=query.page_size)
+
+        if query.organization:
+            org_id = await self._resolve_organization_id(connection, query.organization)
+            if org_id is None:
+                # Organization not found — return empty list rather than widening the query
+                logger.warning(_LOG_ORG_NOT_FOUND, organization=query.organization)
+                return AAPListResponse(count=0, results=[])
+            params["organization"] = str(org_id)
+
+        data = await self._proxy_get(connection, f"{_AAP_API_PREFIX}/{resource_path}/", params)
+        results = _safe_map(data, mapper)
+        return AAPListResponse(count=data.get("count", len(results)), results=results)
+
+    async def _get_template_detail[T: BaseModel](
+        self,
+        resource_path: str,
+        template_id: int,
+        model_class: type[T],
+        url_path: str,
+        credential_id: str | None = None,
+        user_id: UUID | None = None,
+    ) -> T:
+        """Get template detail generically for job_templates and workflow_job_templates.
+
+        Reduces code duplication between get_job_template and get_workflow_job_template.
+        """
+        connection = await self._resolve_connection(credential_id=credential_id, user_id=user_id)
+        data = await self._proxy_get(connection, f"{_AAP_API_PREFIX}/{resource_path}/{template_id}/", {})
+        detail = model_class.model_validate(data)
+        # Only set detail.url if aap_public_url is explicitly configured (avoid leaking internal addresses)
+        # Type ignore: T is bound to BaseModel but url attribute exists on both AAPJobTemplateDetail
+        # and AAPWorkflowJobTemplateDetail (the only two types passed to this helper)
+        if self._settings.aap_public_url:
+            public_url = self._settings.aap_public_url.rstrip("/")
+            detail.url = f"{public_url}/execution/templates/{url_path}/{template_id}/details"  # type: ignore[attr-defined]
+        else:
+            detail.url = None  # type: ignore[attr-defined]
+        return detail
+
+    # ------------------------------------------------------------------
+    # Public service methods
+    # ------------------------------------------------------------------
+
     async def list_organizations(
         self, query: AAPBaseQuery, user_id: UUID | None = None
     ) -> AAPListResponse[AAPOrganization]:
@@ -113,37 +176,49 @@ class AAPProxyService:
         self, query: AAPResourceQuery, user_id: UUID | None = None
     ) -> AAPListResponse[AAPJobTemplate]:
         """List AAP job templates, optionally filtered by organization."""
-        connection = await self._resolve_connection(credential_id=query.credential_id, user_id=user_id)
-        params = self._build_params(search=query.search, page_size=query.page_size)
-
-        if query.organization:
-            org_id = await self._resolve_organization_id(connection, query.organization)
-            if org_id is None:
-                # Organization not found — return empty list rather than widening the query
-                logger.warning(_LOG_ORG_NOT_FOUND, organization=query.organization)
-                return AAPListResponse(count=0, results=[])
-            params["organization"] = str(org_id)
-
-        data = await self._proxy_get(connection, f"{_AAP_API_PREFIX}/job_templates/", params)
-        results = _safe_map(
-            data, lambda r: AAPJobTemplate(id=r["id"], name=r["name"], description=r.get("description"))
+        return await self._list_templates(
+            "job_templates",
+            lambda r: AAPJobTemplate(id=r["id"], name=r["name"], description=r.get("description")),
+            query,
+            user_id,
         )
-        return AAPListResponse(count=data.get("count", len(results)), results=results)
 
     async def get_job_template(
         self, job_template_id: int, credential_id: str | None = None, user_id: UUID | None = None
     ) -> AAPJobTemplateDetail:
         """Get AAP job template details including prompt-on-launch flags."""
-        connection = await self._resolve_connection(credential_id=credential_id, user_id=user_id)
-        data = await self._proxy_get(connection, f"{_AAP_API_PREFIX}/job_templates/{job_template_id}/", {})
-        detail = AAPJobTemplateDetail.model_validate(data)
-        # Only set detail.url if aap_public_url is explicitly configured (avoid leaking internal addresses)
-        if self._settings.aap_public_url:
-            public_url = self._settings.aap_public_url.rstrip("/")
-            detail.url = f"{public_url}/execution/templates/job-template/{job_template_id}/details"
-        else:
-            detail.url = None
-        return detail
+        return await self._get_template_detail(
+            "job_templates",
+            job_template_id,
+            AAPJobTemplateDetail,
+            "job-template",
+            credential_id,
+            user_id,
+        )
+
+    async def list_workflow_job_templates(
+        self, query: AAPResourceQuery, user_id: UUID | None = None
+    ) -> AAPListResponse[AAPWorkflowJobTemplate]:
+        """List AAP workflow job templates, optionally filtered by organization."""
+        return await self._list_templates(
+            "workflow_job_templates",
+            lambda r: AAPWorkflowJobTemplate(id=r["id"], name=r["name"], description=r.get("description")),
+            query,
+            user_id,
+        )
+
+    async def get_workflow_job_template(
+        self, workflow_job_template_id: int, credential_id: str | None = None, user_id: UUID | None = None
+    ) -> AAPWorkflowJobTemplateDetail:
+        """Get AAP workflow job template details including prompt-on-launch flags."""
+        return await self._get_template_detail(
+            "workflow_job_templates",
+            workflow_job_template_id,
+            AAPWorkflowJobTemplateDetail,
+            "workflow-job-template",
+            credential_id,
+            user_id,
+        )
 
     async def list_inventories(
         self, query: AAPResourceQuery, user_id: UUID | None = None

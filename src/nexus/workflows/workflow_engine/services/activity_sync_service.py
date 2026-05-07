@@ -1342,6 +1342,7 @@ class ActivitySyncService:
                         NodeType.LOOP,
                         # V2 executor nodes
                         NodeType.AAP_JOB_TEMPLATE,
+                        NodeType.AAP_WORKFLOW_JOB_TEMPLATE,
                         NodeType.AGENTIC,
                         NodeType.APPROVAL,
                         NodeType.HTTP_REQUEST,

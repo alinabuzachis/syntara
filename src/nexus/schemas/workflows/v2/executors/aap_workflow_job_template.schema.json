@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://syntara-orchestration.io/schemas/workflows/v2/executors/aap_workflow_job_template",
+  "title": "AAP Workflow Job Template Node",
+  "description": "Launch Ansible Automation Platform workflow job templates",
+  "configSchema": {
+    "type": "object",
+    "description": "Workflow job template must be specified by ID or name. When both are provided, ID takes precedence.",
+    "properties": {
+      "credential_id": {
+        "$ref": "../common-definitions.schema.json#/$defs/credential_id"
+      },
+      "workflow_job_template_id": {
+        "type": "integer",
+        "description": "AAP workflow job template ID to launch (takes precedence over name)",
+        "minimum": 1
+      },
+      "workflow_job_template_name": {
+        "type": "string",
+        "description": "AAP workflow job template name (requires organization_name)",
+        "minLength": 1
+      },
+      "organization_name": {
+        "type": "string",
+        "description": "AAP organization name (required with name-based lookup)",
+        "minLength": 1
+      },
+      "organization_id": {
+        "type": "integer",
+        "description": "AAP organization ID (takes precedence over organization_name)",
+        "minimum": 1
+      },
+      "inventory_id": {
+        "type": "integer",
+        "description": "Override default inventory by ID",
+        "minimum": 1
+      },
+      "inventory_name": {
+        "type": "string",
+        "description": "Override default inventory by name (requires organization_name)",
+        "minLength": 1
+      },
+      "extra_vars": {
+        "type": "object",
+        "description": "Extra variables to pass to the workflow (supports templating)",
+        "additionalProperties": true
+      },
+      "limit": {
+        "type": "string",
+        "description": "Limit workflow execution to specific hosts"
+      },
+      "scm_branch": {
+        "type": "string",
+        "description": "Source control branch override"
+      },
+      "tags": {
+        "type": "string",
+        "description": "Ansible tags to run (comma-separated)"
+      },
+      "skip_tags": {
+        "type": "string",
+        "description": "Ansible tags to skip (comma-separated)"
+      },
+      "labels": {
+        "type": "array",
+        "description": "AAP label names to append to workflow template's default labels (resolved to IDs at launch time)",
+        "items": {
+          "type": "string"
+        }
+      },
+      "timeout": {
+        "type": "integer",
+        "description": "Timeout for workflow job execution in seconds",
+        "minimum": 1
+      }
+    },
+    "anyOf": [
+      {
+        "required": ["workflow_job_template_id"]
+      },
+      {
+        "required": ["workflow_job_template_name", "organization_name"]
+      }
+    ],
+    "allOf": [
+      {
+        "if": {
+          "required": ["inventory_name"]
+        },
+        "then": {
+          "required": ["organization_name"]
+        }
+      }
+    ],
+    "additionalProperties": false
+  },
+  "resultSchema": {
+    "description": "Result structure available in result namespace (discriminated union)",
+    "oneOf": [
+      {
+        "title": "Completed Result",
+        "type": "object",
+        "required": ["status", "workflow_job_id", "created", "started", "finished"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "completed",
+            "description": "Execution succeeded"
+          },
+          "workflow_job_id": {
+            "type": "integer",
+            "description": "AAP workflow job ID"
+          },
+          "workflow_job_status": {
+            "type": "string",
+            "description": "Workflow job status (successful, failed, etc.)"
+          },
+          "created": {
+            "type": "string",
+            "description": "Workflow job creation timestamp (ISO 8601)"
+          },
+          "started": {
+            "type": "string",
+            "description": "Workflow job start timestamp (ISO 8601)"
+          },
+          "finished": {
+            "type": "string",
+            "description": "Workflow job finish timestamp (ISO 8601)"
+          },
+          "artifacts": {
+            "type": "object",
+            "description": "Workflow job artifacts",
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "title": "Failed Result",
+        "allOf": [
+          {
+            "$ref": "../common-definitions.schema.json#/$defs/baseFailedResult"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "workflow_job_id": {
+                "type": "integer",
+                "description": "AAP workflow job ID (if workflow was launched before failure)"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      }
+    ],
+    "discriminator": {
+      "propertyName": "status"
+    }
+  }
+}

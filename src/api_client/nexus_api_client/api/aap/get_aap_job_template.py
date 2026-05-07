@@ -45,7 +45,7 @@ def _get_kwargs(
 
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": f"/aap/job-templates/{job_template_id}",
+        "url": f"/aap/job_templates/{job_template_id}",
         "params": params,
     }
 

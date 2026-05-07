@@ -6,9 +6,9 @@ Full execution requires an AAP instance, so we test the auth setup path only.
 
 from unittest.mock import MagicMock
 
-from nexus.workflows.workflow_engine.activities.aap_job_template_activity import (
-    _get_aap_auth_headers,
-    _get_aap_basic_auth,
+from nexus.workflows.workflow_engine.activities.aap_common import (
+    get_aap_auth_headers,
+    get_aap_basic_auth,
 )
 
 
@@ -21,7 +21,7 @@ class TestAAPCredentialInjection:
         settings.aap_token.get_secret_value.return_value = "settings-token"
         settings.aap_username = None
 
-        headers = _get_aap_auth_headers(settings)
+        headers = get_aap_auth_headers(settings)
         assert headers["Authorization"] == "Bearer settings-token"
 
     def test_settings_basic_auth(self) -> None:
@@ -31,7 +31,7 @@ class TestAAPCredentialInjection:
         settings.aap_username = "admin"
         settings.aap_password.get_secret_value.return_value = "pass"
 
-        basic_auth = _get_aap_basic_auth(settings)
+        basic_auth = get_aap_basic_auth(settings)
         assert basic_auth is not None
 
     def test_credential_override_structure(self) -> None:
