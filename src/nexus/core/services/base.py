@@ -19,6 +19,7 @@ from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
 # Import individual utilities to avoid circular imports
 from nexus.authz.engine import AllowedProjectsResult
+from nexus.core.constants import FieldLimits
 from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
 from nexus.core.services.extensions import ConvertResourceMixin, EnrichQueryMixin, PostProcessingMixin
@@ -646,6 +647,8 @@ class BaseService:
             )
 
         """
+        limit = min(limit, FieldLimits.MAX_ITEMS_PER_PAGE)
+
         # Extract filtering parameters from query params, excluding pagination/sorting params
         excluded_params = {"limit", "cursor", "sort", "include_total"}
         query_params: dict[str, str] = {}

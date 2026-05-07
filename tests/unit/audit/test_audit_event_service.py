@@ -283,6 +283,29 @@ class TestAuditEventServiceList:
         assert dumped["nullable_field"] is None
 
     @pytest.mark.asyncio
+    async def test_list_clamps_limit_to_max_items_per_page(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        audit_events_factory: AuditEventsFactory,
+    ) -> None:
+        """Internal callers passing limit > MAX_ITEMS_PER_PAGE get clamped."""
+        from nexus.core.constants import FieldLimits
+
+        overshoot = FieldLimits.MAX_ITEMS_PER_PAGE + 16
+        await audit_events_factory.create_events(count=overshoot)
+
+        service = AuditEventService(test_db_session, test_user)
+        response = await service.list_resources(
+            model=AuditEventRecord,
+            response_type=AuditEventListResponse,
+            limit=overshoot,
+        )
+
+        assert len(response.resources) <= FieldLimits.MAX_ITEMS_PER_PAGE
+        assert response.next is not None
+
+    @pytest.mark.asyncio
     async def test_list_filter_by_event_category(
         self,
         test_db_session: AsyncSession,
