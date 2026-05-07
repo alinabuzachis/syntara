@@ -214,6 +214,26 @@ describe('useUpstreamNodes', () => {
     })
   })
 
+  it('resolves trigger via display ID (trigger-0) in edges', () => {
+    const trigger = makeActivity('real-trigger-id', 'manual_trigger', 'Manual Trigger')
+    const target = makeActivity('node-1', 'script', 'My Script')
+    const edge: EdgeConnection = {
+      id: 'e1',
+      source: 'trigger-0',
+      target: 'node-1',
+    }
+
+    useWorkflowStore.setState({
+      currentWorkflow: makeWorkflow([target], [trigger]),
+      edges: [edge],
+    })
+
+    const { result } = renderHook(() => useUpstreamNodes('node-1'))
+
+    expect(result.current).toHaveLength(1)
+    expect(result.current[0]).toEqual({ id: 'real-trigger-id', name: 'Manual Trigger', type: 'manual_trigger' })
+  })
+
   it('does not return the node itself', () => {
     const activity = makeActivity('node-a', 'script', 'Self Loop')
     const otherActivity = makeActivity('node-b', 'script', 'Other')

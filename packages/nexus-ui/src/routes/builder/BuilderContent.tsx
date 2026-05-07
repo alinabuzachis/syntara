@@ -95,6 +95,7 @@ export function BuilderContent(props: BuilderContentProps) {
     isEnabled,
     mostRecentExecutionId,
     mostRecentRunPanelOpen,
+    selectedTriggerIndex,
   } = state
 
   const expandAllEvent = useMemo(() => new EventTarget(), [])
@@ -245,6 +246,12 @@ export function BuilderContent(props: BuilderContentProps) {
     handleNodeClick,
   })
 
+  const triggers = currentWorkflow?.triggers ?? []
+  const selectedTrigger = triggers[selectedTriggerIndex] ?? triggers[0]
+  const triggerName = selectedTrigger?.name ?? 'Trigger'
+  const triggerNodeId = selectedTrigger?.id
+  const triggerInputSchema = selectedTrigger?.config?.input_schema as Record<string, unknown> | undefined
+
   const nodeExpandedAllContextValue = useMemo(
     () => ({ expandAllEvent, collapseAllEvent }),
     [expandAllEvent, collapseAllEvent]
@@ -278,6 +285,7 @@ export function BuilderContent(props: BuilderContentProps) {
                 hasApprovalPending={!!pendingApproval}
                 isApprovalLoading={isApprovalLoading}
                 onReviewApproval={openApprovalView}
+                triggers={triggers}
               />
             </StackItem>
             <StackItem isFilled style={{ minHeight: 0 }}>
@@ -330,7 +338,7 @@ export function BuilderContent(props: BuilderContentProps) {
                           activeEdgeId={isAddNodePanelOpen ? edgeIdToReplace : null}
                           executionStatus={canvasExecutionStatus}
                           disableDeleteKey={isNodeEditorOpen}
-                          disableSpacePanning={isNodeEditorOpen}
+                          disableSpacePanning={isNodeEditorOpen || confirmDialogOpen}
                           onNodeClick={wrappedHandleNodeClick}
                           onAddNodeFromEdge={handleAddNodeFromEdge}
                           onNodesDeleted={handleNodesDeleted}
@@ -451,6 +459,9 @@ export function BuilderContent(props: BuilderContentProps) {
             approvalViewOpen={approvalViewOpen}
             activityNameMap={activityNameMap}
             handleApprovalClose={handleApprovalClose}
+            triggerName={triggerName}
+            triggerNodeId={triggerNodeId}
+            triggerInputSchema={triggerInputSchema}
           />
         </AppPage>
       </NodeExpandedAllContext.Provider>

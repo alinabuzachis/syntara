@@ -34,12 +34,19 @@ function safeJSONReviver(key: string, value: unknown): unknown {
 /**
  * Create a manual trigger (v2).
  */
-export function createManualTrigger(id: string, _requiresApproval?: boolean, name?: string): Activity {
+export function createManualTrigger(
+  id: string,
+  _requiresApproval?: boolean,
+  name?: string,
+  inputSchema?: Record<string, unknown>
+): Activity {
   return {
     id,
     type: 'manual_trigger',
     name: name ?? 'Manual Trigger',
-    config: {},
+    config: {
+      ...(inputSchema && { input_schema: inputSchema }),
+    },
   }
 }
 

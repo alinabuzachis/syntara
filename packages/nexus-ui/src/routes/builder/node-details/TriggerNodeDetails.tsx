@@ -84,6 +84,23 @@ function validateISO8601Interval(interval: string): boolean {
   return true
 }
 
+function parseInputSchemaConfig(inputSchema: string | undefined): Record<string, unknown> {
+  const config: Record<string, unknown> = {}
+  if (!inputSchema?.trim()) return config
+  try {
+    config.input_schema = JSON.parse(inputSchema.trim()) as Record<string, unknown>
+  } catch {
+    throw new Error('Input schema must be valid JSON')
+  }
+  return config
+}
+
+function serializeInputSchema(rawSchema: unknown): string | undefined {
+  if (typeof rawSchema === 'string') return rawSchema
+  if (rawSchema && typeof rawSchema === 'object') return JSON.stringify(rawSchema, null, 2)
+  return undefined
+}
+
 type TriggerNodeDetailsProps = {
   trigger: Trigger
   triggerIndex: number
@@ -102,6 +119,7 @@ export function TriggerNodeDetails({ trigger, triggerIndex, onClose, onHeaderCon
       return {
         name: trigger.name,
         triggerType: TriggerTypeEnum.MANUAL_TRIGGER,
+        inputSchema: serializeInputSchema(trigger.config?.input_schema),
       }
     }
 
@@ -145,7 +163,7 @@ export function TriggerNodeDetails({ trigger, triggerIndex, onClose, onHeaderCon
           id: triggerId,
           type: 'manual_trigger',
           name: name ?? 'Manual Trigger',
-          config: {},
+          config: parseInputSchemaConfig(data.inputSchema),
         } as unknown as Trigger
       } else if (data.triggerType === TriggerTypeEnum.SCHEDULED) {
         const triggerId = trigger.id ?? 'scheduled_trigger'

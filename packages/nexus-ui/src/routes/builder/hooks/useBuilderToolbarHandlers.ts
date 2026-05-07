@@ -10,7 +10,7 @@ import type { BuilderAction } from '../builderReducer'
 type ShowAlert = (options: AlertMessage) => void
 
 type ExecuteWorkflowMutate = (
-  variables: { body: { workflow_id: string; input_data?: Record<string, never> } },
+  variables: { body: { workflow_id: string; input_data?: Record<string, unknown>; trigger_node_id?: string | null } },
   options?: {
     onSuccess?: (data: { id?: string }) => void
     onError?: (error: unknown) => void
@@ -59,47 +59,52 @@ export function useBuilderToolbarHandlers({
   setLocation,
   handleSaveWorkflow,
 }: UseBuilderToolbarHandlersOptions) {
-  const handleRunWorkflow = useCallback(async () => {
-    if (!workflow?.id) return
+  const handleRunWorkflow = useCallback(
+    async (inputData?: Record<string, unknown>, triggerNodeId?: string) => {
+      if (!workflow?.id) return
 
-    // Save workflow first if there are unsaved changes
-    const isDirty = useWorkflowStore.getState().isDirty
-    if (isDirty) {
-      try {
-        const saved = await handleSaveWorkflow()
-        if (!saved) {
-          // Save failed (validation error), close dialog and don't proceed with run
+      const isDirty = useWorkflowStore.getState().isDirty
+      if (isDirty) {
+        try {
+          const saved = await handleSaveWorkflow()
+          if (!saved) {
+            dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
+            return
+          }
+        } catch {
           dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
           return
         }
-      } catch {
-        // Save threw an error, close dialog and abort run
-        dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
-        return
       }
-    }
 
-    // Now execute with the latest saved version
-    executeWorkflow(
-      { body: { workflow_id: workflow.id, input_data: {} } },
-      {
-        onSuccess: (data) => {
-          showSuccess({ title: 'Workflow started', description: `Successfully started workflow "${workflowName}"` })
-          dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
-          if (data.id) {
-            dispatch({ type: 'SET_MOST_RECENT_EXECUTION', payload: data.id })
-          }
+      executeWorkflow(
+        {
+          body: {
+            workflow_id: workflow.id,
+            input_data: inputData ?? {},
+            ...(triggerNodeId && { trigger_node_id: triggerNodeId }),
+          },
         },
-        onError: (error) => {
-          showError({
-            title: 'Workflow failed',
-            description: `Failed to start workflow "${workflowName}": ${getErrorMessage(error)}`,
-          })
-          dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
-        },
-      }
-    )
-  }, [workflow, workflowName, executeWorkflow, handleSaveWorkflow, showSuccess, showError, dispatch])
+        {
+          onSuccess: (data) => {
+            showSuccess({ title: 'Workflow started', description: `Successfully started workflow "${workflowName}"` })
+            dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
+            if (data.id) {
+              dispatch({ type: 'SET_MOST_RECENT_EXECUTION', payload: data.id })
+            }
+          },
+          onError: (error) => {
+            showError({
+              title: 'Workflow failed',
+              description: `Failed to start workflow "${workflowName}": ${getErrorMessage(error)}`,
+            })
+            dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
+          },
+        }
+      )
+    },
+    [workflow, workflowName, executeWorkflow, handleSaveWorkflow, showSuccess, showError, dispatch]
+  )
 
   const handleDeleteWorkflow = useCallback(() => {
     if (!workflow?.id) return

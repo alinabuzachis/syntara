@@ -1,4 +1,4 @@
-import { getNodeOutputSchema } from '@ansible/nexus-contracts'
+import { getNodeOutputSchema, TriggerTypeEnum, type OutputFieldDef } from '@ansible/nexus-contracts'
 import { ExpandableSection, Stack, StackItem, Title } from '@patternfly/react-core'
 import { useEffect, useMemo, useState } from 'react'
 
@@ -6,6 +6,7 @@ import { AppPageMain } from '../../../app/AppPage'
 import { AppPanel } from '../../../components/AppPanel'
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import { selectActivities, selectTriggers } from '../../../stores/workflowStoreSelectors'
+import { parseTriggerIndex } from '../../../utils/triggerNodeIds'
 
 import { useUpstreamNodes, type UpstreamNodeInfo } from './hooks/useUpstreamNodes'
 import { InputEmptyState } from './InputEmptyState'
@@ -17,6 +18,56 @@ import { InputSchemaPreview } from './views/InputSchemaPreview'
 import { InputSchemaView } from './views/InputSchemaView'
 import { InputTableView } from './views/InputTableView'
 import { ViewToggle, type PanelView } from './ViewToggle'
+
+function mapJsonSchemaType(type?: string): OutputFieldDef['type'] {
+  switch (type) {
+    case 'string':
+      return 'string'
+    case 'number':
+    case 'integer':
+      return 'number'
+    case 'boolean':
+      return 'boolean'
+    case 'object':
+      return 'object'
+    case 'array':
+      return 'array'
+    case undefined:
+    default:
+      return 'unknown'
+  }
+}
+
+type InputSchemaProperties = Record<string, { type?: string; description?: string }>
+
+function getTriggerInputSchemaFields(
+  nodeId: string,
+  triggersList: { id: string; config?: Record<string, unknown> }[] | undefined
+): OutputFieldDef[] | null {
+  let trigger = triggersList?.find((t) => t.id === nodeId)
+  if (!trigger) {
+    const displayIndex = parseTriggerIndex(nodeId)
+    if (displayIndex !== undefined && triggersList?.[displayIndex]) {
+      trigger = triggersList[displayIndex]
+    }
+  }
+  if (!trigger) return null
+  const inputSchema = trigger.config?.input_schema as Record<string, unknown> | undefined
+  if (!inputSchema || typeof inputSchema !== 'object') return null
+  const properties = inputSchema.properties as InputSchemaProperties | undefined
+  if (!properties || Object.keys(properties).length === 0) return null
+  return Object.entries(properties).map(([name, prop]) => ({
+    name,
+    type: mapJsonSchemaType(prop.type),
+    description: prop.description ?? `Input parameter: ${name}`,
+  }))
+}
+
+const TRIGGER_TYPES: ReadonlySet<string> = new Set([
+  TriggerTypeEnum.MANUAL_TRIGGER,
+  TriggerTypeEnum.SCHEDULED,
+  TriggerTypeEnum.EVENT,
+])
 
 type InputPanelProps = {
   nodeId: string
@@ -66,18 +117,22 @@ export function InputPanel({ nodeId, executionData, sourceNodeId }: Readonly<Inp
 
   const nodeSectionTitle = selectedUpstreamNode?.name ? `[ ${selectedUpstreamNode.name} ]` : '[ Upstream node ]'
 
+  const expressionNodeId =
+    selectedUpstreamNode && TRIGGER_TYPES.has(selectedUpstreamNode.type) ? 'trigger' : selectedNodeId
+
   function renderNodeContent() {
     if (!hasData) {
       const schema = selectedUpstreamNode ? getNodeOutputSchema(selectedUpstreamNode.type) : null
-      if (!schema) {
+      const effectiveSchema = schema ?? getTriggerInputSchemaFields(selectedNodeId, triggers)
+      if (!effectiveSchema) {
         return <InputEmptyState variant="connected-not-run" />
       }
-      return <InputSchemaPreview fields={schema} nodeId={selectedNodeId} />
+      return <InputSchemaPreview fields={effectiveSchema} nodeId={expressionNodeId} />
     }
 
     switch (activeView) {
       case 'schema':
-        return <InputSchemaView data={selectedData} nodeId={selectedNodeId} />
+        return <InputSchemaView data={selectedData} nodeId={expressionNodeId} />
       case 'table':
         return <InputTableView data={selectedData} />
       case 'json':

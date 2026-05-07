@@ -29,6 +29,7 @@ type BuilderToolbarContentProps = Readonly<{
   handleToggleDetails: () => void
   handleSaveWorkflow: (overrideIsEnabled?: boolean) => Promise<boolean>
   handleToggleEnable: (checked: boolean) => void
+  triggers?: { id: string; name?: string }[]
 }>
 
 /**
@@ -55,6 +56,7 @@ function BuilderToolbarContent({
   handleToggleDetails,
   handleSaveWorkflow,
   handleToggleEnable,
+  triggers,
 }: BuilderToolbarContentProps) {
   if (isLiveRunActive && onBackToEditor) {
     return (
@@ -86,6 +88,7 @@ function BuilderToolbarContent({
       handleToggleDetails={handleToggleDetails}
       handleSaveWorkflow={handleSaveWorkflow}
       onToggleEnable={handleToggleEnable}
+      triggers={triggers}
     />
   )
 }
@@ -111,6 +114,7 @@ export type BuilderWorkflowAppPageHeaderProps = Readonly<{
   hasApprovalPending?: boolean
   isApprovalLoading?: boolean
   onReviewApproval?: () => void
+  triggers?: { id: string; name?: string }[]
   ProjectSelector: ReactNode
   dispatch: Dispatch<BuilderAction>
   markDirty: () => void
@@ -138,6 +142,7 @@ export function BuilderWorkflowAppPageHeader({
   hasApprovalPending,
   isApprovalLoading,
   onReviewApproval,
+  triggers,
   ProjectSelector,
   dispatch,
   markDirty,
@@ -232,6 +237,7 @@ export function BuilderWorkflowAppPageHeader({
           handleToggleDetails={handleToggleDetails}
           handleSaveWorkflow={handleSaveWorkflow}
           handleToggleEnable={handleToggleEnable}
+          triggers={triggers}
         />
       </AppPageHeader>
 

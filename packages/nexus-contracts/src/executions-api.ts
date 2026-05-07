@@ -182,7 +182,9 @@ export interface components {
        */
       completed_at?: string | null
       /** @description Input parameters for the execution */
-      input_data?: Record<string, never>
+      input_data?: Record<string, unknown>
+      /** @description Trigger node ID used to start this execution (null = first trigger) */
+      trigger_node_id?: string | null
       /** @description Error information if execution failed */
       error_details?: string | null
       /** @description Currently executing activities */
@@ -228,9 +230,9 @@ export interface components {
        */
       completed_at?: string | null
       /** @description Resolved config values passed to the activity at runtime */
-      input_data?: Record<string, never>
+      input_data?: Record<string, unknown>
       /** @description Activity results (after output mapping applied) */
-      output_data?: Record<string, never> | null
+      output_data?: Record<string, unknown> | null
       /** @description Error information if failed */
       error_details?: string | null
       /** @description Number of retry attempts */
@@ -255,7 +257,12 @@ export interface components {
        */
       workflow_id: string
       /** @description Input parameters for the workflow execution (validated against trigger's input_schema if defined) */
-      input_data?: Record<string, never>
+      input_data?: Record<string, unknown>
+      /**
+       * Trigger Node Id
+       * @description Trigger node ID to start from (defaults to first trigger)
+       */
+      trigger_node_id?: string | null
     }
     /**
      * Execution Control Request

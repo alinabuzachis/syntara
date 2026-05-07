@@ -1,10 +1,18 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
+import { useWorkflowStore } from '../../../stores/useWorkflowStore'
+import { ColorSchemeProvider } from '../../../theme/ColorSchemeProvider'
+
 import { BuilderDialogs } from './BuilderDialogs'
+
+vi.mock('../../../stores/useWorkflowStore', () => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  useWorkflowStore: vi.fn((selector: (s: any) => unknown) => selector({ isDirty: false })),
+}))
 
 vi.mock('../../../client', () => ({
   approvalsClient: {
@@ -16,7 +24,11 @@ vi.mock('../../../client', () => ({
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 
 function wrapper({ children }: { children: React.ReactNode }) {
-  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ColorSchemeProvider>{children}</ColorSchemeProvider>
+    </QueryClientProvider>
+  )
 }
 
 function renderDialogs(overrides: Partial<React.ComponentProps<typeof BuilderDialogs>> = {}) {
@@ -32,16 +44,23 @@ function renderDialogs(overrides: Partial<React.ComponentProps<typeof BuilderDia
     approvalViewOpen: false,
     activityNameMap: new Map(),
     handleApprovalClose: vi.fn(),
+    triggerName: 'Manual Trigger',
     ...overrides,
   }
   return render(<BuilderDialogs {...props} />, { wrapper })
 }
 
 describe('BuilderDialogs', () => {
+  beforeEach(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    vi.mocked(useWorkflowStore).mockImplementation((selector: (s: any) => unknown) => selector({ isDirty: false }))
+  })
+
   it('renders nothing visible when all dialogs are closed', () => {
     renderDialogs()
 
     expect(screen.queryByText('Run Test Workflow?')).not.toBeInTheDocument()
+    expect(screen.queryByText('Set mock output data for Manual Trigger')).not.toBeInTheDocument()
     expect(screen.queryByText('Delete workflow?')).not.toBeInTheDocument()
     expect(screen.queryByText('Review approval')).not.toBeInTheDocument()
   })
@@ -53,25 +72,131 @@ describe('BuilderDialogs', () => {
     expect(screen.getByRole('button', { name: 'Run now' })).toBeInTheDocument()
   })
 
-  it('shows the delete confirmation dialog when deleteDialogOpen is true', () => {
+  it('shows the run workflow modal after confirming the run dialog', async () => {
+    const user = userEvent.setup()
+    renderDialogs({ confirmDialogOpen: true })
+
+    await user.click(screen.getByRole('button', { name: 'Run now' }))
+
+    expect(screen.getByText('Set mock output data for Manual Trigger')).toBeInTheDocument()
+  })
+
+  it('shows trigger name in confirmation dialog body when workflow is clean', () => {
+    renderDialogs({ confirmDialogOpen: true, triggerName: 'Webhook' })
+
+    expect(screen.getByText(/starting from Webhook/)).toBeInTheDocument()
+    expect(screen.queryByText(/unsaved changes/)).not.toBeInTheDocument()
+  })
+
+  it('shows save warning and "Save and run" label when workflow is dirty', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    vi.mocked(useWorkflowStore).mockImplementation((selector: (s: any) => unknown) => selector({ isDirty: true }))
+    renderDialogs({ confirmDialogOpen: true })
+
+    expect(screen.getByRole('button', { name: 'Save and run' })).toBeInTheDocument()
+    expect(screen.getByText(/unsaved changes will be saved/)).toBeInTheDocument()
+  })
+
+  it('shows delete confirmation dialog when deleteDialogOpen is true', () => {
     renderDialogs({ deleteDialogOpen: true })
 
     expect(screen.getByText('Delete workflow?')).toBeInTheDocument()
     expect(screen.getByText(/will be deleted/)).toBeInTheDocument()
   })
 
-  it('calls handleRunWorkflow when run dialog is confirmed', async () => {
+  it('calls handleRunWorkflow when run modal is confirmed', async () => {
     const user = userEvent.setup()
     const handleRunWorkflow = vi.fn()
     renderDialogs({ confirmDialogOpen: true, handleRunWorkflow })
 
     await user.click(screen.getByRole('button', { name: 'Run now' }))
+    await user.click(screen.getByRole('button', { name: 'Run' }))
 
     expect(handleRunWorkflow).toHaveBeenCalledTimes(1)
   })
 
+  it('resets state and shows confirmation dialog again on second run open', async () => {
+    const user = userEvent.setup()
+    const defaultProps: React.ComponentProps<typeof BuilderDialogs> = {
+      workflowName: 'Test Workflow',
+      workflowId: 'wf-1',
+      confirmDialogOpen: true,
+      deleteDialogOpen: false,
+      dispatch: vi.fn(),
+      handleRunWorkflow: vi.fn(),
+      handleDeleteWorkflow: vi.fn(),
+      pendingApproval: null,
+      approvalViewOpen: false,
+      activityNameMap: new Map(),
+      handleApprovalClose: vi.fn(),
+      triggerName: 'Manual Trigger',
+    }
+    const { rerender } = render(
+      <QueryClientProvider client={queryClient}>
+        <ColorSchemeProvider>
+          <BuilderDialogs {...defaultProps} />
+        </ColorSchemeProvider>
+      </QueryClientProvider>
+    )
+
+    // Advance to run modal
+    await user.click(screen.getByRole('button', { name: 'Run now' }))
+    expect(screen.getByText('Set mock output data for Manual Trigger')).toBeInTheDocument()
+
+    // Simulate reducer closing the dialog (e.g. after a successful run)
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <ColorSchemeProvider>
+          <BuilderDialogs {...defaultProps} confirmDialogOpen={false} />
+        </ColorSchemeProvider>
+      </QueryClientProvider>
+    )
+    expect(screen.queryByText('Set mock output data for Manual Trigger')).not.toBeInTheDocument()
+
+    // Re-open: should show the confirmation dialog, not the run modal directly
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <ColorSchemeProvider>
+          <BuilderDialogs {...defaultProps} confirmDialogOpen={true} />
+        </ColorSchemeProvider>
+      </QueryClientProvider>
+    )
+    expect(screen.getByText('Run Test Workflow?')).toBeInTheDocument()
+  })
+
+  it('closes run modal when onClose is called from RunWorkflowModal', async () => {
+    const user = userEvent.setup()
+    const dispatch = vi.fn()
+    renderDialogs({ confirmDialogOpen: true, dispatch })
+
+    // Advance to run modal
+    await user.click(screen.getByRole('button', { name: 'Run now' }))
+    expect(screen.getByText('Set mock output data for Manual Trigger')).toBeInTheDocument()
+
+    // Close via the modal's X button
+    const dialog = screen.getByRole('dialog')
+    const closeBtn = dialog.querySelector('button[aria-label="Close"]')
+    expect(closeBtn).not.toBeNull()
+    await user.click(closeBtn!)
+
+    expect(dispatch).toHaveBeenCalledWith({ type: 'SET_CONFIRM_DIALOG', payload: false })
+  })
+
+  it('checking "Don\'t show again" and confirming run stores the preference', async () => {
+    const user = userEvent.setup()
+    renderDialogs({ confirmDialogOpen: true })
+
+    const checkbox = screen.getByRole('checkbox', { name: "Don't show again" })
+    await user.click(checkbox)
+    expect(checkbox).toBeChecked()
+
+    await user.click(screen.getByRole('button', { name: 'Run now' }))
+    // Run modal is now shown — confirmedRun is true, preference was recorded
+    expect(screen.getByText('Set mock output data for Manual Trigger')).toBeInTheDocument()
+  })
+
   describe('accessibility', () => {
-    it('has no violations with run dialog open', async () => {
+    it('has no violations with run confirmation dialog open', async () => {
       const { container } = renderDialogs({ confirmDialogOpen: true })
       expect(await axe(container)).toHaveNoViolations()
     })

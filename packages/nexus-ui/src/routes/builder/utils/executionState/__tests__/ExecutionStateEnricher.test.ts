@@ -265,7 +265,7 @@ describe('ExecutionStateEnricher', () => {
       expect(result).toBe('pending')
     })
 
-    it('returns passed when source has completed', () => {
+    it('returns passed when source has completed and target has started', () => {
       const edge = { source: 'task-1', target: 'task-2' }
       const activityStates = new Map<string, ActivityState>([
         [
@@ -277,11 +277,32 @@ describe('ExecutionStateEnricher', () => {
             completedAt: '2024-01-01T00:01:00Z',
           },
         ],
+        ['task-2', { activityId: 'task-2', status: 'running', startedAt: '2024-01-01T00:01:00Z', completedAt: null }],
       ])
 
       const result = enricher.determineEdgeStatus(edge, activityStates)
 
       expect(result).toBe('passed')
+    })
+
+    it('returns pending when source completed but target is skipped', () => {
+      const edge = { source: 'task-1', target: 'task-2' }
+      const activityStates = new Map<string, ActivityState>([
+        [
+          'task-1',
+          {
+            activityId: 'task-1',
+            status: 'failed',
+            startedAt: '2024-01-01T00:00:00Z',
+            completedAt: '2024-01-01T00:01:00Z',
+          },
+        ],
+        ['task-2', { activityId: 'task-2', status: 'skipped', startedAt: null, completedAt: null }],
+      ])
+
+      const result = enricher.determineEdgeStatus(edge, activityStates)
+
+      expect(result).toBe('pending')
     })
 
     it('returns pending when source has not started', () => {
@@ -367,13 +388,23 @@ describe('ExecutionStateEnricher', () => {
       expect(result).toBe('pending')
     })
 
-    it('returns passed for trigger edges when target has started', () => {
+    it('returns passed for trigger edges when trigger completed and target has started', () => {
       const edge = { source: 'trigger-0', target: 'task-1', sourceHandle: null }
+      const triggerMap = new Map([['trigger-0', 'real-trigger-id']])
       const activityStates = new Map<string, ActivityState>([
+        [
+          'real-trigger-id',
+          {
+            activityId: 'real-trigger-id',
+            status: 'completed',
+            startedAt: '2024-01-01T00:00:00Z',
+            completedAt: '2024-01-01T00:00:01Z',
+          },
+        ],
         ['task-1', { activityId: 'task-1', status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
       ])
 
-      const result = enricher.determineEdgeStatus(edge, activityStates)
+      const result = enricher.determineEdgeStatus(edge, activityStates, undefined, triggerMap)
 
       expect(result).toBe('passed')
     })
@@ -442,61 +473,53 @@ describe('ExecutionStateEnricher', () => {
   describe('enrichTriggerNode', () => {
     it('returns trigger data as-is when not in execution view', () => {
       const triggerData = { name: 'Manual trigger', details: 'Manual', triggerType: 'manual' }
-      const edges: EdgeConnection[] = []
       const activityStates = new Map<string, ActivityState>()
 
-      const result = enricher.enrichTriggerNode('trigger-0', triggerData, null, edges, activityStates)
+      const result = enricher.enrichTriggerNode('trigger-real-id', triggerData, null, activityStates)
 
       expect(result).toEqual(triggerData)
       expect(result.__executionState).toBeUndefined()
     })
 
-    it('marks trigger as completed when any connected node has started', () => {
+    it('uses trigger status from activityStates when available', () => {
       const triggerData = { name: 'Manual trigger', details: 'Manual', triggerType: 'manual' }
-      const edges: EdgeConnection[] = [
-        { id: '1', source: 'trigger-0', target: 'task-1', sourceHandle: 'source', targetHandle: 'target' },
-        { id: '2', source: 'trigger-0', target: 'task-2', sourceHandle: 'source', targetHandle: 'target' },
-      ]
       const activityStates = new Map<string, ActivityState>([
-        ['task-1', { activityId: 'task-1', status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
-        ['task-2', { activityId: 'task-2', status: 'pending', startedAt: null, completedAt: null }],
+        [
+          'trigger-real-id',
+          {
+            activityId: 'trigger-real-id',
+            status: 'completed',
+            startedAt: '2024-01-01T00:00:00Z',
+            completedAt: '2024-01-01T00:00:01Z',
+          },
+        ],
       ])
 
-      const result = enricher.enrichTriggerNode('trigger-0', triggerData, 'running', edges, activityStates)
+      const result = enricher.enrichTriggerNode('trigger-real-id', triggerData, 'running', activityStates)
 
       expect(result.__executionState?.status).toBe('completed')
+      expect(result.__executionState?.started_at).toBe('2024-01-01T00:00:00Z')
       expect(
         ((result as Record<string, unknown>).metadata as Record<string, unknown> | undefined)?.__showExecutionBadge
       ).toBe(true)
     })
 
-    it('marks trigger as completed when execution is running even if targets are pending', () => {
-      const triggerData = { name: 'Manual trigger', details: 'Manual', triggerType: 'manual' }
-      const edges: EdgeConnection[] = [
-        { id: '1', source: 'trigger-0', target: 'task-1', sourceHandle: 'source', targetHandle: 'target' },
-        { id: '2', source: 'trigger-0', target: 'task-2', sourceHandle: 'source', targetHandle: 'target' },
-      ]
+    it('marks trigger as skipped when activityStates reports skipped', () => {
+      const triggerData = { name: 'Webhook trigger', details: 'Webhook', triggerType: 'webhook' }
       const activityStates = new Map<string, ActivityState>([
-        ['task-1', { activityId: 'task-1', status: 'pending', startedAt: null, completedAt: null }],
-        ['task-2', { activityId: 'task-2', status: 'pending', startedAt: null, completedAt: null }],
+        ['trigger-b-id', { activityId: 'trigger-b-id', status: 'skipped', startedAt: null, completedAt: null }],
       ])
 
-      const result = enricher.enrichTriggerNode('trigger-0', triggerData, 'running', edges, activityStates)
+      const result = enricher.enrichTriggerNode('trigger-b-id', triggerData, 'completed', activityStates)
 
-      expect(result.__executionState?.status).toBe('completed')
-      expect(
-        ((result as Record<string, unknown>).metadata as Record<string, unknown> | undefined)?.__showExecutionBadge
-      ).toBe(true)
+      expect(result.__executionState?.status).toBe('skipped')
     })
 
-    it('marks trigger as pending when execution is pending', () => {
+    it('marks trigger as pending when not found in activityStates', () => {
       const triggerData = { name: 'Manual trigger', details: 'Manual', triggerType: 'manual' }
-      const edges: EdgeConnection[] = [
-        { id: '1', source: 'trigger-0', target: 'task-1', sourceHandle: 'source', targetHandle: 'target' },
-      ]
       const activityStates = new Map<string, ActivityState>()
 
-      const result = enricher.enrichTriggerNode('trigger-0', triggerData, 'pending', edges, activityStates)
+      const result = enricher.enrichTriggerNode('trigger-real-id', triggerData, 'pending', activityStates)
 
       expect(result.__executionState?.status).toBe('pending')
       expect(
@@ -504,17 +527,13 @@ describe('ExecutionStateEnricher', () => {
       ).toBe(true)
     })
 
-    it('marks trigger as pending when trigger has no outgoing edges and execution is pending', () => {
+    it('falls back to completed when triggerRealId is undefined and execution has started', () => {
       const triggerData = { name: 'Manual trigger', details: 'Manual', triggerType: 'manual' }
-      const edges: EdgeConnection[] = []
       const activityStates = new Map<string, ActivityState>()
 
-      const result = enricher.enrichTriggerNode('trigger-0', triggerData, 'pending', edges, activityStates)
+      const result = enricher.enrichTriggerNode(undefined, triggerData, 'running', activityStates)
 
-      expect(result.__executionState?.status).toBe('pending')
-      expect(
-        ((result as Record<string, unknown>).metadata as Record<string, unknown> | undefined)?.__showExecutionBadge
-      ).toBe(true)
+      expect(result.__executionState?.status).toBe('completed')
     })
 
     it('preserves existing metadata when adding execution badge', () => {
@@ -524,10 +543,9 @@ describe('ExecutionStateEnricher', () => {
         triggerType: 'manual',
         metadata: { customProp: 'value' },
       }
-      const edges: EdgeConnection[] = []
       const activityStates = new Map<string, ActivityState>()
 
-      const result = enricher.enrichTriggerNode('trigger-0', triggerData, 'running', edges, activityStates)
+      const result = enricher.enrichTriggerNode('trigger-real-id', triggerData, 'running', activityStates)
 
       expect(result.metadata).toEqual({
         customProp: 'value',

@@ -1,10 +1,21 @@
 import { TriggerTypeEnum } from '@ansible/nexus-contracts'
-import { FormGroup, FormSelect, FormSelectOption, Stack, StackItem } from '@patternfly/react-core'
+import {
+  FormGroup,
+  FormHelperText,
+  FormSelect,
+  FormSelectOption,
+  HelperText,
+  HelperTextItem,
+  Stack,
+  StackItem,
+} from '@patternfly/react-core'
 import type { ReactNode } from 'react'
 import { useEffect, useMemo } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
+import { ExpandableCodeEditor } from '../../../components/ExpandableCodeEditor'
 import { DateRangeCadencePicker } from '../../../components/forms/DateRangeCadencePicker'
+import { JsonEditorControls } from '../../../components/JsonEditorToolbar'
 
 import { ActivityNameField } from './shared/ActivityNameField'
 import { zodResolver } from './shared/formSchemaUtils'
@@ -13,6 +24,18 @@ import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 import { triggerFormSchema, type TriggerFormData } from './triggerFormSchema'
 
 export type { TriggerFormData }
+
+const EXAMPLE_INPUT_SCHEMA = JSON.stringify(
+  {
+    type: 'object',
+    properties: {
+      name: { type: 'string' },
+    },
+    required: ['name'],
+  },
+  null,
+  2
+)
 
 type TriggerNodeFormProps = {
   onSubmit: (data: TriggerFormData) => void
@@ -62,6 +85,43 @@ function TriggerFormFields({
   const parametersContent = (
     <Stack hasGutter>
       <input type="hidden" {...register('triggerType')} />
+
+      {triggerType === TriggerTypeEnum.MANUAL_TRIGGER && (
+        <StackItem>
+          <FormGroup label="Input schema" fieldId="trigger-input-schema">
+            <Controller
+              control={control}
+              name="inputSchema"
+              render={({ field }) => (
+                <ExpandableCodeEditor
+                  code={field.value ?? ''}
+                  onCodeChange={field.onChange}
+                  language="json"
+                  height="150px"
+                  modalTitle="Edit input schema"
+                  ariaLabel="Input schema editor"
+                  additionalControls={
+                    <JsonEditorControls
+                      code={field.value ?? ''}
+                      onCodeChange={field.onChange}
+                      defaultCode={''}
+                      downloadFilename="input-schema.json"
+                      exampleCode={EXAMPLE_INPUT_SCHEMA}
+                    />
+                  }
+                />
+              )}
+            />
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem>
+                  Optional JSON Schema defining the input data required to run this workflow.
+                </HelperTextItem>
+              </HelperText>
+            </FormHelperText>
+          </FormGroup>
+        </StackItem>
+      )}
 
       {triggerType === TriggerTypeEnum.SCHEDULED && (
         <>
@@ -133,6 +193,7 @@ export function TriggerNodeForm(props: TriggerNodeFormProps) {
     const cleanedData: TriggerFormData = {
       name: data.name,
       triggerType: data.triggerType,
+      inputSchema: data.triggerType === TriggerTypeEnum.MANUAL_TRIGGER ? data.inputSchema : undefined,
       scheduleType: data.triggerType === TriggerTypeEnum.SCHEDULED ? data.scheduleType : undefined,
       interval:
         data.triggerType === TriggerTypeEnum.SCHEDULED && data.scheduleType === 'interval' ? data.interval : undefined,

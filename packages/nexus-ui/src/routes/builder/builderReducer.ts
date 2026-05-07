@@ -25,6 +25,7 @@ export type BuilderState = {
   newNodeDesiredPosition: FlowPosition | null
   mostRecentExecutionId: string | null
   mostRecentRunPanelOpen: boolean
+  selectedTriggerIndex: number
   workflowName: string
   workflowDescription: string
   workflowTags: string[]
@@ -74,6 +75,7 @@ export type BuilderAction =
   | { type: 'CLEAR_SELECTED_IF_DELETED'; payload: string[] }
   | { type: 'SET_MOST_RECENT_EXECUTION'; payload: string }
   | { type: 'CLOSE_MOST_RECENT_RUN_PANEL' }
+  | { type: 'SET_SELECTED_TRIGGER'; payload: number }
   | { type: 'INIT_WORKFLOW'; payload: { name: string; description: string; tags: string[]; isEnabled: boolean } }
 
 // Lookup table for simple state updates - maps action type to the state key it updates
@@ -101,6 +103,7 @@ const SIMPLE_STATE_KEY_MAP: Record<
     | 'workflowDescription'
     | 'workflowTags'
     | 'isEnabled'
+    | 'selectedTriggerIndex'
   >
 > = {
   SET_CONFIRM_DIALOG: 'confirmDialogOpen',
@@ -120,6 +123,7 @@ const SIMPLE_STATE_KEY_MAP: Record<
   SET_WORKFLOW_DESCRIPTION: 'workflowDescription',
   SET_WORKFLOW_TAGS: 'workflowTags',
   SET_IS_ENABLED: 'isEnabled',
+  SET_SELECTED_TRIGGER: 'selectedTriggerIndex',
 }
 
 /**
@@ -292,6 +296,7 @@ const SIMPLE_ACTIONS = [
   'SET_WORKFLOW_DESCRIPTION',
   'SET_WORKFLOW_TAGS',
   'SET_IS_ENABLED',
+  'SET_SELECTED_TRIGGER',
 ] as const
 
 // Panel action types
@@ -387,6 +392,7 @@ export function builderReducer(state: BuilderState, action: BuilderAction): Buil
         addNodePanelOpen: false,
         detailsOpen: false,
         historyCardOpen: false,
+        selectedTriggerIndex: 0,
         mostRecentExecutionId: null,
         mostRecentRunPanelOpen: false,
         // Reset edge connection context
@@ -425,6 +431,7 @@ export function getInitialBuilderState(): BuilderState {
     newNodeDesiredPosition: null,
     mostRecentExecutionId: null,
     mostRecentRunPanelOpen: false,
+    selectedTriggerIndex: 0,
     workflowName: '',
     workflowDescription: '',
     workflowTags: [],

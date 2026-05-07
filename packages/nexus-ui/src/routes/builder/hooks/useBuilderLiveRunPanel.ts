@@ -48,11 +48,7 @@ export function useBuilderLiveRunPanel({
   const isActive = mostRecentRunPanelOpen && !!mostRecentExecutionId
   const isRunningOrPending =
     executionStatus === ExecutionStatusEnum.RUNNING || executionStatus === ExecutionStatusEnum.PENDING
-  const isTerminal =
-    executionStatus === ExecutionStatusEnum.COMPLETED ||
-    executionStatus === ExecutionStatusEnum.FAILED ||
-    executionStatus === ExecutionStatusEnum.CANCELLED
-  const canvasExecutionStatus = isActive && !isTerminal ? (executionStatus ?? null) : null
+  const canvasExecutionStatus = isActive ? (executionStatus ?? null) : null
   const showMostRecentRunPanelInEditor = isActive && !isViewingExecution
 
   useExecutionWebSocket(mostRecentExecutionId ?? '', {

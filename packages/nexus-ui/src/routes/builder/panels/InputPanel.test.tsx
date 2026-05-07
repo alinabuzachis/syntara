@@ -68,6 +68,30 @@ describe('InputPanel', () => {
     expect(screen.getByText('Run previous node to populate input')).toBeInTheDocument()
   })
 
+  it('shows trigger input_schema fields as schema preview', () => {
+    mockUseUpstreamNodes.mockReturnValue([{ id: 'trigger-0', name: 'Manual Trigger', type: 'manual_trigger' }])
+    mockTriggers.mockReturnValue([
+      {
+        id: 'real-trigger-id',
+        name: 'Manual Trigger',
+        type: 'manual_trigger',
+        config: {
+          input_schema: {
+            type: 'object',
+            properties: {
+              hostname: { type: 'string', description: 'Target server' },
+            },
+          },
+        },
+      },
+    ] as unknown as { id: string; name: string; type: string }[])
+
+    render(<InputPanel nodeId="node-1" />)
+
+    expect(screen.getByText('Expected output fields (run node to see actual values)')).toBeInTheDocument()
+    expect(screen.getByText('T hostname')).toBeInTheDocument()
+  })
+
   it('renders header with "Input" title', () => {
     mockUseUpstreamNodes.mockReturnValue([])
 

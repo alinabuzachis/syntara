@@ -134,7 +134,7 @@ describe('useBuilderLiveRunPanel', () => {
       expect(result.current.canvasExecutionStatus).toBeNull()
     })
 
-    it('is null when execution reaches completed (terminal) state', () => {
+    it('retains status when execution reaches completed (terminal) state', () => {
       const { result } = renderHook(
         () =>
           useBuilderLiveRunPanel(
@@ -147,10 +147,10 @@ describe('useBuilderLiveRunPanel', () => {
         { wrapper: makeWrapper(queryClient) }
       )
 
-      expect(result.current.canvasExecutionStatus).toBeNull()
+      expect(result.current.canvasExecutionStatus).toBe('completed')
     })
 
-    it('is null when execution reaches failed (terminal) state', () => {
+    it('retains status when execution reaches failed (terminal) state', () => {
       const { result } = renderHook(
         () =>
           useBuilderLiveRunPanel(
@@ -159,10 +159,10 @@ describe('useBuilderLiveRunPanel', () => {
         { wrapper: makeWrapper(queryClient) }
       )
 
-      expect(result.current.canvasExecutionStatus).toBeNull()
+      expect(result.current.canvasExecutionStatus).toBe('failed')
     })
 
-    it('is null when execution reaches cancelled (terminal) state', () => {
+    it('retains status when execution reaches cancelled (terminal) state', () => {
       const { result } = renderHook(
         () =>
           useBuilderLiveRunPanel(
@@ -175,7 +175,7 @@ describe('useBuilderLiveRunPanel', () => {
         { wrapper: makeWrapper(queryClient) }
       )
 
-      expect(result.current.canvasExecutionStatus).toBeNull()
+      expect(result.current.canvasExecutionStatus).toBe('cancelled')
     })
 
     it('returns status when execution is paused (non-terminal)', () => {

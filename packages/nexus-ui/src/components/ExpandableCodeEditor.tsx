@@ -68,6 +68,8 @@ export type ExpandableCodeEditorProps = {
   onBlur?: (value: string) => void
   /** Called when text is dropped onto the editor (e.g. from an external drag source). */
   onDropText?: (text: string) => void
+  /** Extra CodeEditorControl elements rendered in the editor toolbar alongside the expand button. */
+  additionalControls?: React.ReactNode
 }
 
 export type ExpandableCodeEditorHandle = {
@@ -93,6 +95,7 @@ export const ExpandableCodeEditor = forwardRef<ExpandableCodeEditorHandle, Expan
       isDarkTheme,
       onBlur,
       onDropText,
+      additionalControls,
     },
     ref
   ) {
@@ -178,7 +181,12 @@ export const ExpandableCodeEditor = forwardRef<ExpandableCodeEditorHandle, Expan
             isReadOnly={isReadOnly}
             isLineNumbersVisible={isLineNumbersVisible}
             isDarkTheme={effectiveTheme}
-            customControls={expandControl}
+            customControls={
+              <>
+                {additionalControls}
+                {expandControl}
+              </>
+            }
             aria-label={ariaLabel}
             options={{ ariaLabel }}
           />
@@ -202,6 +210,7 @@ export const ExpandableCodeEditor = forwardRef<ExpandableCodeEditorHandle, Expan
                   setValue(value)
                   onCodeChange(value)
                 }}
+                onKeyDown={stopKeyboardPropagation}
                 language={monacoLanguage}
                 height={modalHeight}
                 isReadOnly={isReadOnly}

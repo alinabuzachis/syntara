@@ -71,10 +71,9 @@ export function useBuilderFlowGraph({
         definitionId: trigger.id,
       }
       const enrichedTriggerData = executionStateEnricher.enrichTriggerNode(
-        triggerId,
+        trigger.id,
         triggerData,
         executionStatus,
-        storedEdges,
         activityStates
       )
       nodes.push({

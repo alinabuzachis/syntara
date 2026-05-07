@@ -17,7 +17,7 @@ import {
   RhUiEllipsisVerticalFillIcon,
   RhUiAddSquareIcon,
 } from '@patternfly/react-icons'
-import { useCallback, type Dispatch, type Ref } from 'react'
+import { useCallback, useState, type Dispatch, type Ref } from 'react'
 
 import type { ProjectRead } from '../access/types'
 
@@ -59,6 +59,7 @@ type BuilderEditorToolbarProps = Readonly<{
   handleToggleDetails: () => void
   handleSaveWorkflow: (overrideIsEnabled?: boolean) => Promise<boolean>
   onToggleEnable: (checked: boolean) => void
+  triggers?: { id: string; name?: string }[]
 }>
 
 /**
@@ -78,7 +79,29 @@ export function BuilderEditorToolbar({
   handleToggleDetails,
   handleSaveWorkflow,
   onToggleEnable,
+  triggers,
 }: BuilderEditorToolbarProps) {
+  const [isRunDropdownOpen, setIsRunDropdownOpen] = useState(false)
+  const hasMultipleTriggers = (triggers?.length ?? 0) > 1
+
+  const renderRunMenuToggle = useCallback(
+    (toggleRef: Ref<MenuToggleElement>) => (
+      <MenuToggle
+        ref={toggleRef}
+        variant="plain"
+        onClick={() => setIsRunDropdownOpen((prev) => !prev)}
+        isExpanded={isRunDropdownOpen}
+        aria-label="Run workflow"
+      >
+        <Icon isInline>
+          <RhUiPlayIcon />
+        </Icon>{' '}
+        Run
+      </MenuToggle>
+    ),
+    [isRunDropdownOpen]
+  )
+
   const renderKebabMenuToggle = useCallback(
     (toggleRef: Ref<MenuToggleElement>) => (
       <WorkflowKebabToggle toggleRef={toggleRef} isKebabOpen={isKebabOpen} dispatch={dispatch} />
@@ -109,18 +132,42 @@ export function BuilderEditorToolbar({
       {!isNew && workflow?.id && (
         <>
           <Divider orientation={{ default: 'vertical' }} />
-          <Button
-            variant="plain"
-            onClick={() => dispatch({ type: 'SET_CONFIRM_DIALOG', payload: true })}
-            icon={
-              <Icon isInline>
-                <RhUiPlayIcon />
-              </Icon>
-            }
-            iconPosition="start"
-          >
-            Run
-          </Button>
+          {hasMultipleTriggers ? (
+            <Dropdown
+              isOpen={isRunDropdownOpen}
+              onOpenChange={setIsRunDropdownOpen}
+              toggle={renderRunMenuToggle}
+              popperProps={{ position: 'left' }}
+            >
+              <DropdownList>
+                {triggers?.map((trigger, index) => (
+                  <DropdownItem
+                    key={trigger.id}
+                    onClick={() => {
+                      dispatch({ type: 'SET_SELECTED_TRIGGER', payload: index })
+                      dispatch({ type: 'SET_CONFIRM_DIALOG', payload: true })
+                      setIsRunDropdownOpen(false)
+                    }}
+                  >
+                    {trigger.name ?? `Trigger ${index + 1}`}
+                  </DropdownItem>
+                ))}
+              </DropdownList>
+            </Dropdown>
+          ) : (
+            <Button
+              variant="plain"
+              onClick={() => dispatch({ type: 'SET_CONFIRM_DIALOG', payload: true })}
+              icon={
+                <Icon isInline>
+                  <RhUiPlayIcon />
+                </Icon>
+              }
+              iconPosition="start"
+            >
+              Run
+            </Button>
+          )}
         </>
       )}
 

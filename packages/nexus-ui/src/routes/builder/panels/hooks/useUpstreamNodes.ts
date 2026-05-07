@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 
 import { useWorkflowStore } from '../../../../stores/useWorkflowStore'
 import { selectEdges, selectActivities, selectTriggers } from '../../../../stores/workflowStoreSelectors'
+import { buildTriggerNodeId } from '../../../../utils/triggerNodeIds'
 import { getUpstreamNodeIds } from '../../utils/edgeHelpers'
 
 export type UpstreamNodeInfo = {
@@ -42,12 +43,15 @@ export function useUpstreamNodes(nodeId: string): UpstreamNodeInfo[] {
     }
 
     if (triggers) {
-      for (const trigger of triggers) {
-        nodeMap.set(trigger.id, {
+      for (let i = 0; i < triggers.length; i++) {
+        const trigger = triggers[i]
+        const info: UpstreamNodeInfo = {
           id: trigger.id,
           name: trigger.name,
           type: trigger.type,
-        })
+        }
+        nodeMap.set(trigger.id, info)
+        nodeMap.set(buildTriggerNodeId(i), info)
       }
     }
 

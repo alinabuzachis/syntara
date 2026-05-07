@@ -182,45 +182,33 @@ export class ExecutionStateEnricher {
   /**
    * Enrich trigger node data with execution state.
    *
-   * A trigger is considered:
-   * - 'completed' if ANY connected node has started (status !== 'pending')
-   * - 'pending' otherwise
+   * Trigger nodes are treated the same as regular activity nodes — their status
+   * is read directly from `activityStates` using the trigger's real ID.
    *
-   * @param triggerId - The trigger node ID (e.g., 'trigger-0')
+   * @param triggerRealId - The trigger's real ID (from workflow definition) for activityStates lookup
    * @param executionStatus - Current execution status (null if not in execution view)
-   * @param edges - All edges in the workflow
    * @param activityStates - Map of activity states from execution store
    * @returns Trigger data enriched with execution metadata
    */
   enrichTriggerNode<T extends Record<string, unknown>>(
-    triggerId: string,
+    triggerRealId: string | undefined,
     triggerData: T,
     executionStatus: string | null | undefined,
-    edges: EdgeConnection[],
     activityStates: Map<string, ActivityState>
   ): T & { metadata?: { __showExecutionBadge?: boolean }; __executionState?: ExecutionState } {
-    // If not in execution view, return as-is
     if (!executionStatus) {
       return triggerData
     }
 
-    // Find all edges from this trigger
-    const outgoingEdges = edges.filter((e) => e.source === triggerId)
+    const triggerState = triggerRealId ? activityStates.get(triggerRealId) : undefined
 
-    // Check if any target node has started
-    const anyTargetStarted = outgoingEdges.some((edge) => {
-      const targetState = activityStates.get(edge.target)
-      return targetState && targetState.status !== ACTIVITY_STATUS.PENDING
-    })
-
-    // Trigger is 'completed' if any connected node started OR if the execution
-    // itself is running/completed (the trigger must have fired for that to happen).
     const executionHasStarted =
       executionStatus === 'running' ||
       executionStatus === 'paused' ||
       executionStatus === 'completed' ||
       executionStatus === 'failed'
-    const status = anyTargetStarted || executionHasStarted ? ACTIVITY_STATUS.COMPLETED : ACTIVITY_STATUS.PENDING
+
+    const status = triggerState?.status ?? (executionHasStarted ? ACTIVITY_STATUS.COMPLETED : ACTIVITY_STATUS.PENDING)
 
     return {
       ...triggerData,
@@ -230,9 +218,9 @@ export class ExecutionStateEnricher {
       },
       __executionState: {
         status,
-        started_at: undefined,
-        completed_at: undefined,
-        error_details: undefined,
+        started_at: triggerState?.startedAt ?? undefined,
+        completed_at: triggerState?.completedAt ?? undefined,
+        error_details: triggerState?.errorDetails ?? undefined,
       },
     }
   }
@@ -262,12 +250,15 @@ export class ExecutionStateEnricher {
   determineEdgeStatus(
     edge: { source: string; target: string; sourceHandle?: string | null },
     activityStates: Map<string, ActivityState>,
-    activities?: Activity[]
+    activities?: Activity[],
+    triggerDisplayToRealId?: Map<string, string>
   ): 'passed' | 'pending' {
-    // For trigger edges, check if target has started
-    // Edge is "passed" when trigger has fired (i.e., when target node started)
     if (edge.source.startsWith('trigger-')) {
-      return edgePassedWhenTargetStarted(activityStates, edge.target)
+      const triggerRealId = triggerDisplayToRealId?.get(edge.source)
+      const sourceState = triggerRealId ? activityStates.get(triggerRealId) : undefined
+      const sourceCompleted = sourceState ? TERMINAL_ACTIVITY_STATUSES.includes(sourceState.status) : false
+      const targetStarted = edgePassedWhenTargetStarted(activityStates, edge.target) === 'passed'
+      return sourceCompleted && targetStarted ? 'passed' : 'pending'
     }
 
     // For branching nodes (conditional, approval, or loop), check if target has started
@@ -282,11 +273,11 @@ export class ExecutionStateEnricher {
       return edgePassedWhenTargetStarted(activityStates, edge.target)
     }
 
-    // For regular edges, edge is "passed" if source activity completed/failed/cancelled
-    // This matches the logic in useEdgeStatus.deriveEdgeStatus
+    // For regular edges, edge is "passed" only when source reached terminal state
+    // AND target has actually started (not pending/skipped)
     const sourceState = activityStates.get(edge.source)
-    if (sourceState) {
-      return TERMINAL_ACTIVITY_STATUSES.includes(sourceState.status) ? 'passed' : 'pending'
+    if (sourceState && TERMINAL_ACTIVITY_STATUSES.includes(sourceState.status)) {
+      return edgePassedWhenTargetStarted(activityStates, edge.target)
     }
 
     return 'pending'

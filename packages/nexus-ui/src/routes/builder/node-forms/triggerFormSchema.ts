@@ -10,6 +10,7 @@ const triggerFormSchemaBase = z.object({
   triggerType: z.string(),
   scheduleType: z.string().optional(),
   interval: z.string().optional(),
+  inputSchema: z.string().optional(),
 })
 
 export const triggerFormSchema = triggerFormSchemaBase.superRefine((data, ctx) => {

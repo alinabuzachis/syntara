@@ -126,6 +126,147 @@ describe('TriggerNodeDetails Component', () => {
     })
   })
 
+  describe('Manual Trigger with input_schema', () => {
+    it('reads input_schema object from config and passes as JSON string', () => {
+      const trigger = {
+        type: 'manual_trigger' as const,
+        name: 'Trigger',
+        config: {
+          input_schema: {
+            type: 'object',
+            properties: { name: { type: 'string' } },
+          },
+        },
+      }
+
+      render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
+
+      const initialData = JSON.parse(screen.getByTestId('initial-data').textContent ?? '{}') as Record<string, unknown>
+      expect(initialData.inputSchema).toBe(
+        JSON.stringify({ type: 'object', properties: { name: { type: 'string' } } }, null, 2)
+      )
+    })
+
+    it('reads input_schema string from config as-is', () => {
+      const schemaStr = '{"type":"object","properties":{"x":{"type":"number"}}}'
+      const trigger = {
+        type: 'manual_trigger' as const,
+        name: 'Trigger',
+        config: { input_schema: schemaStr },
+      }
+
+      render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
+
+      const initialData = JSON.parse(screen.getByTestId('initial-data').textContent ?? '{}') as Record<string, unknown>
+      expect(initialData.inputSchema).toBe(schemaStr)
+    })
+
+    it('writes parsed input_schema to config on submit', async () => {
+      const user = userEvent.setup()
+      const schemaJson = '{"type":"object","properties":{"name":{"type":"string"}}}'
+
+      const formSpy = vi.spyOn(TriggerNodeFormModule, 'TriggerNodeForm')
+      formSpy.mockImplementation(({ onSubmit }) => (
+        <button
+          data-testid="submit-with-schema"
+          onClick={() => {
+            onSubmit({
+              name: 'Trigger',
+              triggerType: TriggerTypeEnum.MANUAL_TRIGGER,
+              inputSchema: schemaJson,
+            })
+          }}
+          type="button"
+        >
+          Submit
+        </button>
+      ))
+
+      const trigger = { type: 'manual_trigger' as const, name: 'Trigger', config: {} }
+      render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
+
+      await user.click(screen.getByTestId('submit-with-schema'))
+
+      expect(mockUpdateTrigger).toHaveBeenCalledWith(0, {
+        id: 'manual_trigger',
+        type: 'manual_trigger',
+        name: 'Trigger',
+        config: { input_schema: JSON.parse(schemaJson) as Record<string, unknown> },
+      })
+
+      formSpy.mockRestore()
+    })
+
+    it('omits input_schema from config when empty', async () => {
+      const user = userEvent.setup()
+
+      const formSpy = vi.spyOn(TriggerNodeFormModule, 'TriggerNodeForm')
+      formSpy.mockImplementation(({ onSubmit }) => (
+        <button
+          data-testid="submit-empty-schema"
+          onClick={() => {
+            onSubmit({
+              name: 'Trigger',
+              triggerType: TriggerTypeEnum.MANUAL_TRIGGER,
+              inputSchema: '',
+            })
+          }}
+          type="button"
+        >
+          Submit
+        </button>
+      ))
+
+      const trigger = { type: 'manual_trigger' as const, name: 'Trigger', config: {} }
+      render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
+
+      await user.click(screen.getByTestId('submit-empty-schema'))
+
+      expect(mockUpdateTrigger).toHaveBeenCalledWith(0, {
+        id: 'manual_trigger',
+        type: 'manual_trigger',
+        name: 'Trigger',
+        config: {},
+      })
+
+      formSpy.mockRestore()
+    })
+
+    it('rejects invalid JSON in inputSchema', async () => {
+      const user = userEvent.setup()
+
+      const formSpy = vi.spyOn(TriggerNodeFormModule, 'TriggerNodeForm')
+      formSpy.mockImplementation(({ onSubmit }) => (
+        <button
+          data-testid="submit-bad-schema"
+          onClick={() => {
+            onSubmit({
+              name: 'Trigger',
+              triggerType: TriggerTypeEnum.MANUAL_TRIGGER,
+              inputSchema: 'not valid json',
+            })
+          }}
+          type="button"
+        >
+          Submit
+        </button>
+      ))
+
+      const trigger = { type: 'manual_trigger' as const, name: 'Trigger', config: {} }
+      render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
+
+      await user.click(screen.getByTestId('submit-bad-schema'))
+
+      expect(mockShowError).toHaveBeenCalledWith({
+        title: 'Update failed',
+        description: 'Input schema must be valid JSON',
+      })
+      expect(mockOnClose).not.toHaveBeenCalled()
+
+      formSpy.mockRestore()
+    })
+  })
+
   describe('Scheduled Trigger - Interval', () => {
     it('renders TriggerNodeForm with interval scheduled trigger data', () => {
       const trigger = {

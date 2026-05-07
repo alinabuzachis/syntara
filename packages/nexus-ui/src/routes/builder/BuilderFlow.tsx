@@ -1,4 +1,3 @@
-/* eslint-disable max-lines */
 // TODO: Refactor into smaller hooks to reduce file size (AAP-74113)
 // Suggested hooks: useWorkflowGraphInit, useExecutionStateEnrichment, useCanvasInteractions
 import { Spinner } from '@patternfly/react-core'
@@ -42,6 +41,7 @@ import { useBuilderFlowGraph, executionStateEnricher } from './hooks/useBuilderF
 import { useButtonEdgeMaintenance } from './hooks/useButtonEdgeMaintenance'
 import { useConnectionHandlers } from './hooks/useConnectionHandlers'
 import { useEdgeActiveState } from './hooks/useEdgeActiveState'
+import { useEdgeExecutionStatus } from './hooks/useEdgeExecutionStatus'
 import { useEdgeSynchronization } from './hooks/useEdgeSynchronization'
 import { useExternalNodeSelection } from './hooks/useExternalNodeSelection'
 import { useLoopBackNodeTypes } from './hooks/useLoopBackNodeTypes'
@@ -101,8 +101,16 @@ export function BuilderFlow(props: BuilderFlowProps) {
   // In builder/editor mode (executionStatus is null), always use null — ignore stale store data.
   const storeExecutionStatus = useExecutionStore((state) => state.visualization?.status)
   const effectiveExecutionStatus = resolveExecutionStatus(executionStatus, storeExecutionStatus)
-  const edgeExecutionStatus = effectiveExecutionStatus ?? (isExecutionView ? 'pending' : null)
-  const isReadOnly = isExecutionView || !!effectiveExecutionStatus
+  // Terminal states (completed/failed/cancelled) keep edge colors but restore edit mode in builder.
+  // Only active states (running/pending/paused/waiting) lock the canvas read-only.
+  const isActiveExecution =
+    effectiveExecutionStatus !== null &&
+    effectiveExecutionStatus !== 'completed' &&
+    effectiveExecutionStatus !== 'failed' &&
+    effectiveExecutionStatus !== 'cancelled'
+  const isReadOnly = isExecutionView || isActiveExecution
+  // Button-edge maintenance must also see null for terminal states so it recreates the "+" buttons.
+  const buttonEdgeExecutionStatus = isActiveExecution ? effectiveExecutionStatus : null
 
   // Track pending edge that was dragged to canvas
   const [pendingEdge, setPendingEdge] = useState<PendingEdge | null>(null)
@@ -359,6 +367,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     isInitialized,
     setStoredEdges,
     workflowVersion,
+    isActiveExecution,
   })
 
   useLoopBackNodeTypes({ edges, isInitialized, setNodes })
@@ -422,7 +431,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     pendingEdge,
     setNodes,
     setEdges,
-    executionStatus: edgeExecutionStatus,
+    executionStatus: buttonEdgeExecutionStatus,
   })
 
   // Use custom hook to manage edge active states
@@ -520,6 +529,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
     // Pre-index activities by ID for O(1) lookup instead of O(n) find
     const activities = currentWorkflow?.workflow.activities ?? []
+    const triggers = currentWorkflow?.triggers ?? []
     const activitiesById = new Map(activities.map((a) => [a.id, a]))
     const storedEdges = useWorkflowStore.getState().edges
 
@@ -528,11 +538,12 @@ export function BuilderFlow(props: BuilderFlowProps) {
       const updatedNodes = currentNodes.map((node) => {
         // Enrich trigger nodes
         if (node.id.startsWith('trigger-')) {
+          const triggerIndex = Number.parseInt(node.id.split('-')[1], 10)
+          const triggerRealId = triggers[triggerIndex]?.id
           const enriched = executionStateEnricher.enrichTriggerNode(
-            node.id,
+            triggerRealId,
             node.data as Record<string, unknown>,
             effectiveExecutionStatus,
-            storedEdges,
             activityStates
           )
           return applyEnrichedData(node, enriched, anyChangedRef)
@@ -557,37 +568,13 @@ export function BuilderFlow(props: BuilderFlowProps) {
     })
   }, [activityStates, effectiveExecutionStatus, isInitialized, currentWorkflow, applyEnrichedData])
 
-  // Update edge execution status when activity states change (for WebSocket updates)
-  // Also clear edge execution status when returning to edit mode
-  useEffect(() => {
-    if (!isInitialized) return
-
-    // Get current activities from workflow store
-    const activities = currentWorkflow?.workflow.activities ?? []
-
-    setEdges((currentEdges) =>
-      currentEdges.map((edge): EdgeType => {
-        // In execution mode: determine status from activity states
-        // In edit mode (effectiveExecutionStatus is null): clear status
-        const edgeExecutionStatus = effectiveExecutionStatus
-          ? executionStateEnricher.determineEdgeStatus(edge, activityStates, activities)
-          : undefined
-
-        // Only update if status changed to avoid unnecessary re-renders
-        if (edge.data?.executionStatus !== edgeExecutionStatus) {
-          return {
-            ...edge,
-            data: {
-              ...edge.data,
-              executionStatus: edgeExecutionStatus,
-            },
-          }
-        }
-
-        return edge
-      })
-    )
-  }, [activityStates, effectiveExecutionStatus, isInitialized, currentWorkflow])
+  useEdgeExecutionStatus({
+    effectiveExecutionStatus,
+    isInitialized,
+    currentWorkflow,
+    activityStates,
+    setEdges,
+  })
 
   const isValidConnection = useCallback(
     (connection: EdgeType | Connection) => {

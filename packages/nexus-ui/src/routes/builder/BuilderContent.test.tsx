@@ -9,6 +9,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { executionsClient, workflowClient } from '../../client'
 import { AlertProvider } from '../../components/alerts'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
+import { ColorSchemeProvider } from '../../theme/ColorSchemeProvider'
 
 import { BuilderContent } from './BuilderContent'
 
@@ -95,7 +96,9 @@ const queryClient = new QueryClient({
 const wrapper = ({ children }: { children: ReactNode }) => (
   <QueryClientProvider client={queryClient}>
     <AlertProvider>
-      <ReactFlowProvider>{children}</ReactFlowProvider>
+      <ColorSchemeProvider>
+        <ReactFlowProvider>{children}</ReactFlowProvider>
+      </ColorSchemeProvider>
     </AlertProvider>
   </QueryClientProvider>
 )
@@ -567,11 +570,7 @@ describe('BuilderContent', () => {
 
       await waitFor(() => {
         expect(screen.getByText(/Run Test Workflow\?/)).toBeInTheDocument()
-        expect(
-          screen.getByText(
-            /You are about to manually run this workflow\. This action will start the workflow immediately, bypassing its normal trigger conditions/
-          )
-        ).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Run now' })).toBeInTheDocument()
       })
     })
 
@@ -584,8 +583,7 @@ describe('BuilderContent', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Run' }))
       await screen.findByText(/Run Test Workflow\?/)
 
-      const cancelButton = screen.getByRole('button', { name: 'Cancel' })
-      fireEvent.click(cancelButton)
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
 
       await waitFor(() => {
         expect(screen.queryByText(/Run Test Workflow\?/)).not.toBeInTheDocument()
@@ -613,9 +611,9 @@ describe('BuilderContent', () => {
 
       fireEvent.click(screen.getByRole('button', { name: 'Run' }))
       await screen.findByText(/Run Test Workflow\?/)
-
-      const confirmButton = screen.getByRole('button', { name: 'Run now' })
-      fireEvent.click(confirmButton)
+      fireEvent.click(screen.getByRole('button', { name: 'Run now' }))
+      await screen.findByText(/Set mock output data for/)
+      fireEvent.click(screen.getByRole('button', { name: 'Run' }))
 
       await waitFor(() => {
         expect(mockExecuteMutate).toHaveBeenCalled()
@@ -644,9 +642,9 @@ describe('BuilderContent', () => {
 
       fireEvent.click(screen.getByRole('button', { name: 'Run' }))
       await screen.findByText(/Run Test Workflow\?/)
-
-      const confirmButton = screen.getByRole('button', { name: 'Run now' })
-      fireEvent.click(confirmButton)
+      fireEvent.click(screen.getByRole('button', { name: 'Run now' }))
+      await screen.findByText(/Set mock output data for/)
+      fireEvent.click(screen.getByRole('button', { name: 'Run' }))
 
       await waitFor(() => {
         expect(screen.getByText('Workflow failed')).toBeInTheDocument()
@@ -662,9 +660,7 @@ describe('BuilderContent', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Run' }))
       await screen.findByText(/Run Test Workflow\?/)
 
-      // Cancel closes modal (tests SET_CONFIRM_DIALOG reducer)
-      const cancelButton = screen.getByRole('button', { name: 'Cancel' })
-      fireEvent.click(cancelButton)
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
 
       await waitFor(() => {
         expect(screen.queryByText(/Run Test Workflow\?/)).not.toBeInTheDocument()
@@ -679,17 +675,16 @@ describe('BuilderContent', () => {
 
       fireEvent.click(screen.getByRole('button', { name: 'Run' }))
       await screen.findByText(/Run Test Workflow\?/)
+      fireEvent.click(screen.getByRole('button', { name: 'Run now' }))
+      await screen.findByText(/Set mock output data for/)
 
-      // Find the modal's X close button (tests onClose callback - lines 1183-1185)
       const modal = screen.getByRole('dialog')
-
       const closeButton = modal.querySelector('button[aria-label="Close"]')
       expect(closeButton).not.toBeNull()
       fireEvent.click(closeButton!)
 
-      // Modal should close
       await waitFor(() => {
-        expect(screen.queryByText(/Run Test Workflow\?/)).not.toBeInTheDocument()
+        expect(screen.queryByText(/Set mock output data for/)).not.toBeInTheDocument()
       })
     })
   })
@@ -2111,8 +2106,9 @@ describe('BuilderContent', () => {
 
       fireEvent.click(screen.getByRole('button', { name: 'Run' }))
       await screen.findByText(/Run Test Workflow\?/)
-
       fireEvent.click(screen.getByRole('button', { name: 'Run now' }))
+      await screen.findByText(/Set mock output data for/)
+      fireEvent.click(screen.getByRole('button', { name: 'Run' }))
 
       await waitFor(() => {
         expect(mockExecuteMutate).toHaveBeenCalled()
@@ -2396,12 +2392,12 @@ describe('BuilderContent', () => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
 
-      // Click Run
+      // Click Run → confirmation dialog → input modal → confirm
       fireEvent.click(screen.getByRole('button', { name: 'Run' }))
       await screen.findByText(/Run Test Workflow\?/)
-
-      // Confirm
       fireEvent.click(screen.getByRole('button', { name: 'Run now' }))
+      await screen.findByText(/Set mock output data for/)
+      fireEvent.click(screen.getByRole('button', { name: 'Run' }))
 
       await waitFor(() => {
         expect(mockExecuteMutate).toHaveBeenCalled()

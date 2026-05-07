@@ -12,6 +12,8 @@ type UseEdgeSynchronizationOptions = {
   setStoredEdges: (edges: EdgeConnection[]) => void
   /** UI-only version counter — reset first-sync guard when this changes. */
   workflowVersion: number
+  /** When true (active execution in progress), skip syncing so execution-status colors don't mark the workflow dirty. */
+  isActiveExecution?: boolean
 }
 
 /**
@@ -36,6 +38,7 @@ export function useEdgeSynchronization({
   isInitialized,
   setStoredEdges,
   workflowVersion,
+  isActiveExecution = false,
 }: UseEdgeSynchronizationOptions) {
   const lastEdgesSignatureRef = useRef<string>('')
   const isSyncingRef = useRef(false)
@@ -50,6 +53,9 @@ export function useEdgeSynchronization({
 
   useEffect(() => {
     if (!isInitialized) return
+
+    // Skip during active execution — edge execution-status colors are transient and must not mark the workflow dirty.
+    if (isActiveExecution) return
 
     // Prevent re-entrant syncing (when syncConvergeBranches modifies workflow → edges recompute → effect runs again)
     if (isSyncingRef.current) return
@@ -142,7 +148,7 @@ export function useEdgeSynchronization({
     queueMicrotask(() => {
       isSyncingRef.current = false
     })
-  }, [edges, isInitialized, setStoredEdges])
+  }, [edges, isInitialized, setStoredEdges, isActiveExecution])
 
   // Return refs for testing/debugging purposes
   return { lastEdgesSignatureRef, isSyncingRef }

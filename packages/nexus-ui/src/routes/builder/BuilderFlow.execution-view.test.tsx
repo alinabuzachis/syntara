@@ -207,6 +207,7 @@ describe('BuilderFlow execution view', () => {
     setExecutionState(
       new Map([
         ['task-1', { status: 'completed' }],
+        ['loop-1', { status: 'running' }],
         ['task-loop-body', { status: 'pending' }],
       ])
     )
