@@ -1,5 +1,5 @@
 import { renderHook } from '@testing-library/react'
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 
 import type { FlowPosition } from '../types'
 
@@ -29,6 +29,7 @@ describe('useNodePositioning', () => {
   }
 
   beforeEach(() => {
+    vi.useFakeTimers()
     vi.clearAllMocks()
     newlyAddedNodeIdsRef.current = new Set()
     mockSetNodes.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
@@ -36,6 +37,10 @@ describe('useNodePositioning', () => {
         return updater([])
       }
     })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('does nothing when no newly added nodes', () => {
@@ -77,6 +82,7 @@ describe('useNodePositioning', () => {
       })
     )
 
+    vi.runAllTimers()
     expect(mockSetNodes).toHaveBeenCalled()
     const positionedNode = capturedNodes.find((n) => (n as { id: string }).id === 'node-1') as {
       position: { x: number; y: number }
@@ -108,6 +114,7 @@ describe('useNodePositioning', () => {
       })
     )
 
+    vi.runAllTimers()
     expect(mockSetNodes).toHaveBeenCalled()
   })
 
@@ -139,12 +146,14 @@ describe('useNodePositioning', () => {
       })
     )
 
+    vi.runAllTimers()
     expect(mockSetNodes).toHaveBeenCalled()
     const positionedLoop = capturedNodes.find((n) => (n as { id: string }).id === 'loop-1') as {
       position: { x: number; y: number }
     }
     // Loop height 100 → center at y+50; center at 150 so top-left y = 100
     expect(positionedLoop?.position).toEqual({ x: 200, y: 100 })
+    vi.runAllTimers()
     expect(mockOnClear).toHaveBeenCalled()
   })
 
@@ -167,6 +176,7 @@ describe('useNodePositioning', () => {
       })
     )
 
+    vi.runAllTimers()
     expect(newlyAddedNodeIdsRef.current.has('node-1')).toBe(false)
   })
 
@@ -182,6 +192,7 @@ describe('useNodePositioning', () => {
     )
 
     // Should not be processed (no measured property)
+    vi.runAllTimers()
     expect(newlyAddedNodeIdsRef.current.has('node-1')).toBe(true)
   })
 
@@ -199,6 +210,7 @@ describe('useNodePositioning', () => {
     )
 
     // Should not be processed (already has position)
+    vi.runAllTimers()
     expect(newlyAddedNodeIdsRef.current.has('node-1')).toBe(true)
   })
 
@@ -226,12 +238,14 @@ describe('useNodePositioning', () => {
       })
     )
 
+    vi.runAllTimers()
     expect(mockSetNodes).toHaveBeenCalled()
     const positionedNode = capturedNodes.find((n) => (n as { id: string }).id === 'node-1') as {
       position: { x: number; y: number }
     }
     // Node height 50 → center at y+25; we want center at 150 so top-left y = 125
     expect(positionedNode?.position).toEqual({ x: 200, y: 125 })
+    vi.runAllTimers()
     expect(mockOnClear).toHaveBeenCalled()
   })
 
@@ -255,12 +269,11 @@ describe('useNodePositioning', () => {
       })
     )
 
+    vi.runAllTimers()
     expect(mockSetNodes).toHaveBeenCalled()
   })
 
   it('calls updateNode for positioned loop nodes after timeout', () => {
-    vi.useFakeTimers()
-
     const nodes = [
       { id: 'loop-1', type: 'loop', position: { x: 0, y: 0 }, measured: { width: 240, height: 100 } },
       { id: 'body-1', type: 'task', position: { x: 0, y: 0 }, measured: { width: 100, height: 50 } },
@@ -289,8 +302,6 @@ describe('useNodePositioning', () => {
 
     // updateNode should have been called for positioned nodes
     expect(mockUpdateNode).toHaveBeenCalled()
-
-    vi.useRealTimers()
   })
 
   it('positions loop body node relative to loop node', () => {
@@ -318,13 +329,15 @@ describe('useNodePositioning', () => {
       })
     )
 
+    vi.runAllTimers()
     expect(mockSetNodes).toHaveBeenCalled()
     const positionedBody = capturedNodes.find((n) => (n as { id: string }).id === 'body-1') as {
       position: { x: number; y: number }
     }
-    // Body node should be positioned to the right (240 + 80) and below (0 + 100) the loop
-    expect(positionedBody?.position.x).toBeGreaterThan(240)
-    expect(positionedBody?.position.y).toBeGreaterThan(0)
+    // Body node positioned to avoid button edge overlap
+    // Loop is positioned at baseX=50, baseY=50, width=240, so body is at 50+240+40=330, 50+160=210
+    expect(positionedBody?.position.x).toBe(330) // 50 (loop.x) + 240 (loop.width) + 40 (horizontalSpacing)
+    expect(positionedBody?.position.y).toBe(210) // 50 (loop.y) + 160 (verticalOffset)
   })
 
   it('does not position loop body node if loop position is not found', () => {
@@ -350,6 +363,7 @@ describe('useNodePositioning', () => {
     )
 
     // Body node should not be positioned if loop is not found
+    vi.runAllTimers()
     expect(newlyAddedNodeIdsRef.current.has('body-1')).toBe(true)
   })
 
@@ -381,6 +395,7 @@ describe('useNodePositioning', () => {
     )
 
     // Should clear desiredPosition even if not used for first loop
+    vi.runAllTimers()
     expect(mockOnClear).toHaveBeenCalled()
   })
 
@@ -409,6 +424,7 @@ describe('useNodePositioning', () => {
       })
     )
 
+    vi.runAllTimers()
     expect(mockSetNodes).toHaveBeenCalled()
     // Both nodes should be positioned
     expect(capturedNodes.length).toBe(2)

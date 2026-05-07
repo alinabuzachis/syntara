@@ -1,11 +1,9 @@
 import { EdgeHandleEnum } from '@ansible/nexus-contracts'
-import { useEffect, type Dispatch, type RefObject, type SetStateAction } from 'react'
+import { useEffect, useRef, type Dispatch, type MutableRefObject, type RefObject, type SetStateAction } from 'react'
 
 import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
 import type { FlowPosition } from '../types'
 import type { EdgeType } from '../utils/workflowToGraph'
-
-let loopPositionTimerId: ReturnType<typeof setTimeout> | null = null
 
 type UseNodePositioningParams = {
   nodes: NodeType[]
@@ -53,6 +51,7 @@ type PositionLoopNodeOptions = {
 
 function positionLoopNode(options: PositionLoopNodeOptions): NodeType {
   const { node, newlyAddedNodeIdsRef, baseX, baseY, loopPositions, positionedNodes, overridePosition } = options
+
   if (
     newlyAddedNodeIdsRef.current.has(node.id) &&
     node.measured &&
@@ -63,7 +62,8 @@ function positionLoopNode(options: PositionLoopNodeOptions): NodeType {
     const loopWidth = node.measured?.width ?? 240
     const loopHeight = node.measured?.height ?? 0
     const position = overridePosition ?? { x: baseX, y: baseY }
-    loopPositions.set(node.id, { x: position.x, y: position.y, width: loopWidth, height: loopHeight })
+    const loopPosData = { x: position.x, y: position.y, width: loopWidth, height: loopHeight }
+    loopPositions.set(node.id, loopPosData)
     newlyAddedNodeIdsRef.current.delete(node.id)
     const updatedNode = { ...node, position }
     positionedNodes.set(node.id, updatedNode)
@@ -86,8 +86,9 @@ function positionLoopBodyNode(
   const loopPos = loopPositions.get(loopNodeId)
   if (!loopPos) return node
 
-  const horizontalSpacing = 80
-  const verticalOffset = 100
+  // Position to the right and below the loop node, avoiding button edge overlap
+  const horizontalSpacing = 40
+  const verticalOffset = 160
   const calculatedX = loopPos.x + loopPos.width + horizontalSpacing
   const calculatedY = loopPos.y + verticalOffset
 
@@ -107,10 +108,19 @@ type LoopPositioningContext = {
   updateNodePositions: UseNodePositioningParams['updateNodePositions']
   desiredPosition: FlowPosition | null
   onClearDesiredPosition?: () => void
+  loopPositionTimerRef: MutableRefObject<ReturnType<typeof setTimeout> | null>
 }
 
 function positionLoopBranch(ctx: LoopPositioningContext) {
-  const { nodesToPosition, newlyAddedNodeIdsRef, loopBodyNodeMap, setNodes, getViewport, updateNode } = ctx
+  const {
+    nodesToPosition,
+    newlyAddedNodeIdsRef,
+    loopBodyNodeMap,
+    setNodes,
+    getViewport,
+    updateNode,
+    loopPositionTimerRef,
+  } = ctx
   const viewport = getViewport()
   const padding = 50
   const baseX = (-viewport.x + padding) / viewport.zoom
@@ -159,9 +169,9 @@ function positionLoopBranch(ctx: LoopPositioningContext) {
       positionedNodes.forEach((node, nodeId) => {
         loopBranchPositions[nodeId] = node.position
       })
-      if (loopPositionTimerId !== null) clearTimeout(loopPositionTimerId)
-      loopPositionTimerId = setTimeout(() => {
-        loopPositionTimerId = null
+      if (loopPositionTimerRef.current !== null) clearTimeout(loopPositionTimerRef.current)
+      loopPositionTimerRef.current = setTimeout(() => {
+        loopPositionTimerRef.current = null
         applyPositionedNodes(positionedNodes, updateNode)
       }, 100)
     }
@@ -259,49 +269,57 @@ export function useNodePositioning({
   desiredPosition,
   onClearDesiredPosition,
 }: UseNodePositioningParams) {
+  const loopPositionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   useEffect(() => {
     if (newlyAddedNodeIdsRef.current.size === 0 || !isInitialized) return
 
-    const loopBodyNodeMap = buildLoopBodyNodeMap(edges)
+    // Wait for next render to ensure useNodeUpdates has finished adding nodes to the DOM
+    // This prevents React from batching our setNodes call with useNodeUpdates' setNodes
+    const timeoutId = setTimeout(() => {
+      const loopBodyNodeMap = buildLoopBodyNodeMap(edges)
 
-    const nodesToPosition = nodes.filter((node) => {
-      if (!newlyAddedNodeIdsRef.current.has(node.id) || !node.measured) return false
-      return node.position.x === 0 && node.position.y === 0
-    })
-
-    if (nodesToPosition.length === 0) return
-
-    const hasLoopBodyNodes = nodesToPosition.some((n) => n.type === 'loop' || loopBodyNodeMap.has(n.id))
-
-    if (hasLoopBodyNodes) {
-      positionLoopBranch({
-        nodesToPosition,
-        newlyAddedNodeIdsRef,
-        loopBodyNodeMap,
-        setNodes,
-        getViewport,
-        updateNode,
-        updateNodePositions,
-        desiredPosition,
-        onClearDesiredPosition,
+      const nodesToPosition = nodes.filter((node) => {
+        if (!newlyAddedNodeIdsRef.current.has(node.id) || !node.measured) return false
+        return node.position.x === 0 && node.position.y === 0
       })
-    } else {
-      positionStandardNodes({
-        nodesToPosition,
-        newlyAddedNodeIdsRef,
-        containerRef,
-        setNodes,
-        getViewport,
-        updateNodePositions,
-        desiredPosition,
-        onClearDesiredPosition,
-      })
-    }
+
+      if (nodesToPosition.length === 0) return
+
+      const hasLoopBodyNodes = nodesToPosition.some((n) => n.type === 'loop' || loopBodyNodeMap.has(n.id))
+
+      if (hasLoopBodyNodes) {
+        positionLoopBranch({
+          nodesToPosition,
+          newlyAddedNodeIdsRef,
+          loopBodyNodeMap,
+          setNodes,
+          getViewport,
+          updateNode,
+          updateNodePositions,
+          desiredPosition,
+          onClearDesiredPosition,
+          loopPositionTimerRef,
+        })
+      } else {
+        positionStandardNodes({
+          nodesToPosition,
+          newlyAddedNodeIdsRef,
+          containerRef,
+          setNodes,
+          getViewport,
+          updateNodePositions,
+          desiredPosition,
+          onClearDesiredPosition,
+        })
+      }
+    }, 0) // Wait for next tick
 
     return () => {
-      if (loopPositionTimerId !== null) {
-        clearTimeout(loopPositionTimerId)
-        loopPositionTimerId = null
+      clearTimeout(timeoutId)
+      if (loopPositionTimerRef.current !== null) {
+        clearTimeout(loopPositionTimerRef.current)
+        loopPositionTimerRef.current = null
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

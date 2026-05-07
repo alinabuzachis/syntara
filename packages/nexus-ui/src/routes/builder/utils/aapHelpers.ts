@@ -270,9 +270,8 @@ function setWorkflowCredentialField(config: AAPWorkflowTemplateConfig, data: AAP
 }
 
 function setWorkflowLabelsField(config: AAPWorkflowTemplateConfig, data: AAPWorkflowTemplateFormData): void {
-  if (data.labels && data.labels.length > 0) {
-    config.labels = data.labels
-  }
+  // Workflow templates support label overrides (array of label names)
+  if (data.labels?.length) config.labels = data.labels
 }
 
 function setWorkflowExtraVarsField(config: AAPWorkflowTemplateConfig, data: AAPWorkflowTemplateFormData): void {
