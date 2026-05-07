@@ -3,7 +3,7 @@
 # For local development, use packages/nexus-ui/Containerfile
 
 # Build stage
-FROM registry.access.redhat.com/ubi9/nodejs-24:latest@sha256:c3ba7e2cb2c762f82ca521b2ada79a9a583fee9076dace0a9eb7e2e0935b136b AS builder
+FROM registry.access.redhat.com/ubi9/nodejs-24:latest@sha256:ff19cb9b28dc11ecea5f2eccbd687cc809b95ebdc842ea7d0c3d9c7a59b89f4a AS builder
 
 USER root
 
