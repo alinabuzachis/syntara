@@ -305,6 +305,58 @@ async def test_resolve_effective_policies_group_project_scoped(seeded_db: AsyncS
     assert len(proj_policies) >= 1
 
 
+@pytest.mark.asyncio
+async def test_resolve_effective_policies_cross_project_isolation(seeded_db: AsyncSession, test_user: User) -> None:
+    """Identically-named roles/policies in different projects resolve independently."""
+    proj_a = Project(name="isolation-proj-a", labels={})
+    proj_b = Project(name="isolation-proj-b", labels={})
+    seeded_db.add(proj_a)
+    seeded_db.add(proj_b)
+    await seeded_db.flush()
+
+    policy_a = Policy(
+        name="shared-policy",
+        statements=[{"name": "shared-policy", "effect": "allow", "actions": ["action-a"], "scope": "any"}],
+        is_builtin=False,
+        labels={},
+        project_id=proj_a.id,
+    )
+    policy_b = Policy(
+        name="shared-policy",
+        statements=[{"name": "shared-policy", "effect": "allow", "actions": ["action-b"], "scope": "any"}],
+        is_builtin=False,
+        labels={},
+        project_id=proj_b.id,
+    )
+    seeded_db.add(policy_a)
+    seeded_db.add(policy_b)
+    await seeded_db.flush()
+
+    role_a = Role(name="shared-role", is_builtin=False, policy_names=["shared-policy"], labels={}, project_id=proj_a.id)
+    role_b = Role(name="shared-role", is_builtin=False, policy_names=["shared-policy"], labels={}, project_id=proj_b.id)
+    seeded_db.add(role_a)
+    seeded_db.add(role_b)
+    await seeded_db.flush()
+
+    assignment = RoleAssignment(
+        principal_type=PrincipalType.USER,
+        principal_id=test_user.id,
+        role_name="shared-role",
+        project_id=proj_b.id,
+    )
+    seeded_db.add(assignment)
+    await seeded_db.commit()
+
+    policies = await resolve_effective_policies(seeded_db, test_user.id)
+    proj_b_policies = [p for p in policies if p.get("scope") == "project" and p.get("project") == "isolation-proj-b"]
+
+    assert len(proj_b_policies) == 1
+    assert proj_b_policies[0]["actions"] == ["action-b"]
+
+    proj_a_policies = [p for p in policies if p.get("scope") == "project" and p.get("project") == "isolation-proj-a"]
+    assert len(proj_a_policies) == 0
+
+
 # ============================================================================
 # resolve_user_groups
 # ============================================================================

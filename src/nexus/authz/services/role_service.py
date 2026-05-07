@@ -14,6 +14,7 @@ from nexus.authz.role_conventions import (
     BUILTIN_ROLES,
     builtin_role_policy_names,
     builtin_role_uuid,
+    get_builtin_policy,
     get_builtin_role,
     is_builtin_policy,
     is_builtin_role,
@@ -83,7 +84,7 @@ class RoleService(BaseService):
             msg = f"Role name '{name}' is reserved for a built-in role"
             raise RoleNameConflictError(msg)
         await self._check_name_conflict(name, project_id)
-        await self._validate_policy_names(policies)
+        await self._validate_policy_names(policies, project_id)
 
         role = Role(
             name=name,
@@ -374,7 +375,7 @@ class RoleService(BaseService):
         if description is not None:
             role.description = description
         if policies is not None:
-            await self._validate_policy_names(policies)
+            await self._validate_policy_names(policies, role.project_id)
             role.policy_names = policies
         if labels is not None:
             role.labels = labels
@@ -426,21 +427,50 @@ class RoleService(BaseService):
             msg = f"Role '{name}' already exists in {scope}"
             raise RoleNameConflictError(msg)
 
-    async def _validate_policy_names(self, policy_names: list[str]) -> None:
-        """Validate that all policy names refer to known builtins or custom DB policies."""
+    async def _validate_policy_names(
+        self,
+        policy_names: list[str],
+        project_id: UUID | None = None,
+    ) -> None:
+        """Validate that all policy names exist and belong to the correct scope.
+
+        Project-scoped roles may only reference policies from the same project.
+        System-scoped roles may only reference global policies.
+        """
         from nexus.authz.models.policy import Policy  # noqa: PLC0415
+
+        is_project_role = project_id is not None
+        mismatched = []
+        for name in policy_names:
+            info = get_builtin_policy(name)
+            if info is None:
+                continue
+            is_project_policy = info.scope == "project"
+            if is_project_role != is_project_policy:
+                mismatched.append(name)
+        if mismatched:
+            scope = f"project {project_id}" if is_project_role else "global scope"
+            msg = f"Policies not available in {scope}: {', '.join(sorted(mismatched))}"
+            raise SafeValueError(msg)
 
         unknown = [n for n in policy_names if not is_builtin_policy(n)]
         if not unknown:
             return
 
-        result = await self.session.exec(
-            select(Policy.name).where(Policy.name.in_(unknown))  # type: ignore[attr-defined]
+        query = select(Policy.name, Policy.project_id).where(
+            Policy.name.in_(unknown)  # type: ignore[attr-defined]
         )
-        found = set(result.all())
+        if project_id is not None:
+            query = query.where(Policy.project_id == project_id)
+        else:
+            query = query.where(Policy.project_id.is_(None))  # type: ignore[union-attr]
+
+        result = await self.session.exec(query)
+        found = {name for name, _ in result.all()}
         still_unknown = [n for n in unknown if n not in found]
         if still_unknown:
-            msg = f"Unknown policies: {', '.join(sorted(still_unknown))}"
+            scope = f"project {project_id}" if project_id else "global scope"
+            msg = f"Policies not found in {scope}: {', '.join(sorted(still_unknown))}"
             raise SafeValueError(msg)
 
     @staticmethod

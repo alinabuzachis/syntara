@@ -50,7 +50,7 @@ async def test_create_role(test_db_session: AsyncSession, test_user: User) -> No
 async def test_create_role_with_unknown_policy(test_db_session: AsyncSession, test_user: User) -> None:
     """Creating a role with non-existent policy names raises SafeValueError."""
     svc = RoleService(test_db_session, test_user)
-    with pytest.raises(SafeValueError, match="Unknown policies"):
+    with pytest.raises(SafeValueError, match="Policies not found"):
         await svc.create_role(name="bad-role", policies=["nonexistent:policy"])
 
 
@@ -230,7 +230,175 @@ async def test_name_conflict_scoped_to_project(test_db_session: AsyncSession, te
     await test_db_session.refresh(project)
 
     svc = RoleService(test_db_session, test_user)
-    await svc.create_role(name="scoped-role", policies=[_P_READ], project_id=project.id)
+    await svc.create_role(name="scoped-role", policies=["workflow:read:project"], project_id=project.id)
     global_role = await svc.create_role(name="scoped-role", policies=[_P_READ])
     assert global_role.name == "scoped-role"
     assert global_role.project_id is None
+
+
+# ============================================================================
+# Policy scope validation on role create/update
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_project_role_rejects_global_policy(test_db_session: AsyncSession, test_user: User) -> None:
+    """A project-scoped role cannot reference a global policy."""
+    from nexus.authz.models.policy import Policy
+    from nexus.authz.models.project import Project
+
+    project = Project(name="scope-test-proj", labels={})
+    test_db_session.add(project)
+    await test_db_session.flush()
+
+    global_policy = Policy(
+        name="global-only-policy",
+        statements=[{"name": "global-only-policy", "effect": "allow", "actions": ["test:read"], "scope": "any"}],
+        is_builtin=False,
+        project_id=None,
+        labels={},
+    )
+    test_db_session.add(global_policy)
+    await test_db_session.commit()
+
+    svc = RoleService(test_db_session, test_user)
+    with pytest.raises(SafeValueError, match="Policies not found in project"):
+        await svc.create_role(name="bad-role", policies=["global-only-policy"], project_id=project.id)
+
+
+@pytest.mark.asyncio
+async def test_project_role_rejects_other_project_policy(test_db_session: AsyncSession, test_user: User) -> None:
+    """A project-scoped role cannot reference a policy from a different project."""
+    from nexus.authz.models.policy import Policy
+    from nexus.authz.models.project import Project
+
+    proj_a = Project(name="proj-a", labels={})
+    proj_b = Project(name="proj-b", labels={})
+    test_db_session.add_all([proj_a, proj_b])
+    await test_db_session.flush()
+
+    policy_a = Policy(
+        name="shared-name",
+        statements=[{"name": "shared-name", "effect": "allow", "actions": ["cred:read"], "scope": "any"}],
+        is_builtin=False,
+        project_id=proj_a.id,
+        labels={},
+    )
+    test_db_session.add(policy_a)
+    await test_db_session.commit()
+
+    svc = RoleService(test_db_session, test_user)
+    with pytest.raises(SafeValueError, match="Policies not found in project"):
+        await svc.create_role(name="cross-proj-role", policies=["shared-name"], project_id=proj_b.id)
+
+
+@pytest.mark.asyncio
+async def test_project_role_accepts_same_project_policy(test_db_session: AsyncSession, test_user: User) -> None:
+    """A project-scoped role can reference a policy from the same project."""
+    from nexus.authz.models.policy import Policy
+    from nexus.authz.models.project import Project
+
+    project = Project(name="same-proj", labels={})
+    test_db_session.add(project)
+    await test_db_session.flush()
+
+    policy = Policy(
+        name="proj-policy",
+        statements=[{"name": "proj-policy", "effect": "allow", "actions": ["test:read"], "scope": "any"}],
+        is_builtin=False,
+        project_id=project.id,
+        labels={},
+    )
+    test_db_session.add(policy)
+    await test_db_session.commit()
+
+    svc = RoleService(test_db_session, test_user)
+    role = await svc.create_role(name="same-proj-role", policies=["proj-policy"], project_id=project.id)
+    assert role.policy_names == ["proj-policy"]
+
+
+@pytest.mark.asyncio
+async def test_global_role_rejects_project_policy(test_db_session: AsyncSession, test_user: User) -> None:
+    """A system-scoped role cannot reference a project-scoped policy."""
+    from nexus.authz.models.policy import Policy
+    from nexus.authz.models.project import Project
+
+    project = Project(name="proj-for-global-test", labels={})
+    test_db_session.add(project)
+    await test_db_session.flush()
+
+    policy = Policy(
+        name="proj-scoped-policy",
+        statements=[{"name": "proj-scoped-policy", "effect": "allow", "actions": ["test:read"], "scope": "any"}],
+        is_builtin=False,
+        project_id=project.id,
+        labels={},
+    )
+    test_db_session.add(policy)
+    await test_db_session.commit()
+
+    svc = RoleService(test_db_session, test_user)
+    with pytest.raises(SafeValueError, match="Policies not found in global scope"):
+        await svc.create_role(name="sys-role", policies=["proj-scoped-policy"])
+
+
+@pytest.mark.asyncio
+async def test_update_role_rejects_cross_project_policy(test_db_session: AsyncSession, test_user: User) -> None:
+    """Updating a project role to reference another project's policy is rejected."""
+    from nexus.authz.models.policy import Policy
+    from nexus.authz.models.project import Project
+
+    proj_a = Project(name="update-proj-a", labels={})
+    proj_b = Project(name="update-proj-b", labels={})
+    test_db_session.add_all([proj_a, proj_b])
+    await test_db_session.flush()
+
+    policy_a = Policy(
+        name="update-policy-a",
+        statements=[{"name": "update-policy-a", "effect": "allow", "actions": ["test:read"], "scope": "any"}],
+        is_builtin=False,
+        project_id=proj_a.id,
+        labels={},
+    )
+    policy_b = Policy(
+        name="update-policy-b",
+        statements=[{"name": "update-policy-b", "effect": "allow", "actions": ["test:read"], "scope": "any"}],
+        is_builtin=False,
+        project_id=proj_b.id,
+        labels={},
+    )
+    test_db_session.add_all([policy_a, policy_b])
+    await test_db_session.commit()
+
+    svc = RoleService(test_db_session, test_user)
+    role = await svc.create_role(name="update-test-role", policies=["update-policy-a"], project_id=proj_a.id)
+
+    with pytest.raises(SafeValueError, match="Policies not found in project"):
+        await svc.update_role(role.id, policies=["update-policy-b"])
+
+
+# ============================================================================
+# Builtin policy scope validation
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_system_role_rejects_project_scoped_builtin(test_db_session: AsyncSession, test_user: User) -> None:
+    """A system-scoped role cannot reference a project-scoped builtin policy."""
+    svc = RoleService(test_db_session, test_user)
+    with pytest.raises(SafeValueError, match="Policies not available in global scope"):
+        await svc.create_role(name="bad-sys-role", policies=["policy:update:project"])
+
+
+@pytest.mark.asyncio
+async def test_project_role_rejects_system_scoped_builtin(test_db_session: AsyncSession, test_user: User) -> None:
+    """A project-scoped role cannot reference a system-scoped builtin policy."""
+    from nexus.authz.models.project import Project
+
+    project = Project(name="builtin-scope-proj", labels={})
+    test_db_session.add(project)
+    await test_db_session.commit()
+
+    svc = RoleService(test_db_session, test_user)
+    with pytest.raises(SafeValueError, match="Policies not available in project"):
+        await svc.create_role(name="bad-proj-role", policies=["policy:update:any"], project_id=project.id)

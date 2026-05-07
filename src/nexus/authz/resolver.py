@@ -8,7 +8,7 @@ from typing import Any
 from uuid import UUID
 
 import structlog
-from sqlmodel import select
+from sqlmodel import or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.models.assignments import PrincipalType, RoleAssignment
@@ -33,6 +33,7 @@ async def _resolve_roles_to_policies(
     seen: set[str],
     result: list[dict[str, Any]],
     project: str = "",
+    project_id: UUID | None = None,
 ) -> None:
     """Resolve role names to policy statements and add to result.
 
@@ -51,7 +52,7 @@ async def _resolve_roles_to_policies(
             custom_role_names.append(rn)
 
     if custom_role_names:
-        await _resolve_custom_roles(db, custom_role_names, seen, result, project)
+        await _resolve_custom_roles(db, custom_role_names, seen, result, project, project_id)
 
 
 def _add_builtin_role_statements(
@@ -75,19 +76,50 @@ def _add_builtin_role_statements(
                 result.append(entry)
 
 
+async def _load_custom_policies(
+    db: AsyncSession,
+    names: list[str],
+    project_id: UUID | None,
+) -> dict[str, Policy]:
+    """Load custom policies by name, scoped to *project_id* or global.
+
+    When both a project-scoped and global policy share a name, the
+    project-scoped policy takes precedence.
+    """
+    if not names:
+        return {}
+    policies_result = await db.exec(
+        select(Policy).where(
+            Policy.name.in_(names),  # type: ignore[attr-defined]
+            or_(Policy.project_id == project_id, Policy.project_id.is_(None)),  # type: ignore[union-attr]
+        )
+    )
+    result: dict[str, Policy] = {}
+    for p in policies_result.all():
+        if p.name not in result or p.project_id is not None:
+            result[p.name] = p
+    return result
+
+
 async def _resolve_custom_roles(
     db: AsyncSession,
     role_names: list[str],
     seen: set[str],
     result: list[dict[str, Any]],
     project: str,
+    project_id: UUID | None = None,
 ) -> None:
     """Resolve custom (non-builtin) roles via DB.
 
     Reads ``policy_names`` from each Role, then resolves each name
     against builtins first, falling back to the policies table.
     """
-    roles_result = await db.exec(select(Role).where(Role.name.in_(role_names)))  # type: ignore[attr-defined]
+    roles_result = await db.exec(
+        select(Role).where(
+            Role.name.in_(role_names),  # type: ignore[attr-defined]
+            or_(Role.project_id == project_id, Role.project_id.is_(None)),  # type: ignore[union-attr]
+        )
+    )
     roles = list(roles_result.all())
     if not roles:
         return
@@ -97,12 +129,7 @@ async def _resolve_custom_roles(
         all_policy_names.update(role.policy_names)
 
     custom_policy_names = [n for n in all_policy_names if not is_builtin_policy(n)]
-    custom_policies: dict[str, Policy] = {}
-    if custom_policy_names:
-        policies_result = await db.exec(
-            select(Policy).where(Policy.name.in_(custom_policy_names))  # type: ignore[attr-defined]
-        )
-        custom_policies = {p.name: p for p in policies_result.all()}
+    custom_policies = await _load_custom_policies(db, custom_policy_names, project_id)
 
     for role in roles:
         for pn in role.policy_names:
@@ -214,9 +241,9 @@ async def resolve_effective_policies(
         )
         project_map = {p.id: p.name for p in projects_result.all()}
 
-        for project_id, names in project_role_names.items():
-            project_name = project_map.get(project_id, str(project_id))
-            await _resolve_roles_to_policies(db, names, seen, result, project=project_name)
+        for pid, names in project_role_names.items():
+            project_name = project_map.get(pid, str(pid))
+            await _resolve_roles_to_policies(db, names, seen, result, project=project_name, project_id=pid)
 
     return result
 

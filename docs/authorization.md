@@ -451,6 +451,8 @@ Custom roles and policies are created via the API and stored in the database. Th
 - **System-level**: Created via `/roles` and `/policies` endpoints (admin only)
 - **Project-level**: Created via `/projects/{id}/roles` and `/projects/{id}/policies` endpoints (project-admin)
 
+**Scope matching**: Roles can only reference policies from the same scope. Project-scoped roles can only include policies from the same project. System-scoped roles can only include global policies. Cross-project or cross-scope policy assignments are rejected at creation and update time.
+
 ## CLI Tools
 
 The `tools/authz_cli.py` script provides commands for managing authorization data during development:
