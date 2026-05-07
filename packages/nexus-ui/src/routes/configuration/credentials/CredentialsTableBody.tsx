@@ -1,4 +1,4 @@
-import { Content, ContentVariants, Flex, FlexItem, Label, Switch } from '@patternfly/react-core'
+import { Content, ContentVariants, Flex, FlexItem, Label, Switch, Truncate } from '@patternfly/react-core'
 import { RhUiCaretDownIcon, RhUiCaretRightIcon, RhUiKeyIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
@@ -22,7 +22,7 @@ function CredentialRow({ credential, credType, getRowActions, onToggleEnabled }:
     <Tr>
       <Td dataLabel="Name">
         <LinkCell href={AppRoute.Configuration.Credentials.Detail.replace(':credentialId', credential.id ?? '')}>
-          {credential.name}
+          <Truncate content={credential.name} />
         </LinkCell>
         {credential.description && (
           <Content

@@ -10,6 +10,7 @@ import {
   Stack,
   StackItem,
   Switch,
+  Truncate,
 } from '@patternfly/react-core'
 import { PlusIcon, RhUiEditIcon, RhUiSecurityIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
@@ -240,23 +241,31 @@ export function IdentityProvidersTab() {
             {providers.map((provider) => (
               <Tr key={provider.id}>
                 <Td dataLabel="Name">
-                  <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
-                    <FlexItem>
+                  <Flex
+                    alignItems={{ default: 'alignItemsCenter' }}
+                    gap={{ default: 'gapSm' }}
+                    flexWrap={{ default: 'nowrap' }}
+                  >
+                    <FlexItem style={{ flexShrink: 0 }}>
                       <ProviderIcon name={provider.name ?? ''} idpType={provider.configuration?.idp_type} />
                     </FlexItem>
-                    <FlexItem>
+                    <FlexItem style={{ minWidth: 0 }}>
                       {provider.id ? (
                         <Button variant="link" isInline onClick={() => navigate(providerDetailPath(provider.id ?? ''))}>
-                          {provider.name}
+                          <Truncate content={provider.name ?? ''} />
                         </Button>
                       ) : (
-                        provider.name
+                        <Truncate content={provider.name ?? ''} />
                       )}
                     </FlexItem>
                   </Flex>
                 </Td>
-                <Td dataLabel="Issuer URL">{provider.configuration?.issuer_url ?? ''}</Td>
-                <Td dataLabel="Client ID">{provider.configuration?.client_id ?? ''}</Td>
+                <Td dataLabel="Issuer URL">
+                  <Truncate content={provider.configuration?.issuer_url ?? ''} />
+                </Td>
+                <Td dataLabel="Client ID">
+                  <Truncate content={provider.configuration?.client_id ?? ''} />
+                </Td>
                 <Td dataLabel="State">
                   <Switch
                     id={`provider-toggle-${provider.id}`}

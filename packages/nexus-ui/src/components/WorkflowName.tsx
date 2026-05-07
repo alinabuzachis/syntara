@@ -1,3 +1,5 @@
+import { Truncate } from '@patternfly/react-core'
+
 import { workflowClient } from '../client'
 
 /**
@@ -8,6 +10,8 @@ export type WorkflowNameProps = {
   workflowId: string
   /** Optional fallback to display while loading or on error (defaults to workflow ID) */
   fallback?: React.ReactNode
+  /** When true, renders with PatternFly Truncate (ellipsis + tooltip on overflow) */
+  truncate?: boolean
 }
 
 /**
@@ -20,9 +24,10 @@ export type WorkflowNameProps = {
  * ```tsx
  * <WorkflowName workflowId="workflow-123" />
  * <WorkflowName workflowId="workflow-456" fallback="Loading..." />
+ * <WorkflowName workflowId="workflow-789" truncate />
  * ```
  */
-export function WorkflowName({ workflowId, fallback }: WorkflowNameProps) {
+export function WorkflowName({ workflowId, fallback, truncate: shouldTruncate }: WorkflowNameProps) {
   const { data, isLoading, isError } = workflowClient.useQuery('get', '/workflows/{workflow_id}', {
     params: {
       path: {
@@ -31,10 +36,8 @@ export function WorkflowName({ workflowId, fallback }: WorkflowNameProps) {
     },
   })
 
-  // While loading or on error, show fallback (defaults to workflow ID)
   if (isLoading || isError || !data?.name) {
-    return <>{fallback ?? workflowId}</>
+    return shouldTruncate ? <Truncate content={workflowId} /> : <>{fallback ?? workflowId}</>
   }
-
-  return <>{data.name}</>
+  return shouldTruncate ? <Truncate content={data.name} /> : <>{data.name}</>
 }

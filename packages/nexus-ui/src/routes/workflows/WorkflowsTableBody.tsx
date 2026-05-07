@@ -1,5 +1,5 @@
 import type { Workflow as WorkflowWithId, WorkflowAPI } from '@ansible/nexus-contracts'
-import { Flex, FlexItem, Label } from '@patternfly/react-core'
+import { Flex, FlexItem, Label, Truncate } from '@patternfly/react-core'
 import { RhUiCaretDownIcon, RhUiCaretRightIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
@@ -23,7 +23,9 @@ function WorkflowRow({ workflow, getRowActions }: Readonly<WorkflowRowProps>) {
   return (
     <Tr key={workflow.id}>
       <Td dataLabel="Name">
-        <LinkCell href={`/workflow-builder/${workflow.id}`}>{workflow.name}</LinkCell>
+        <LinkCell href={`/workflow-builder/${workflow.id}`}>
+          <Truncate content={workflow.name ?? ''} />
+        </LinkCell>
       </Td>
       <Td dataLabel="Created at">
         <DateCell dateString={getDateField(workflow, 'createdAt')} />

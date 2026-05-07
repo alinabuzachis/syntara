@@ -1,4 +1,4 @@
-import { Button, Flex, FlexItem, Label, LabelGroup, StackItem } from '@patternfly/react-core'
+import { Button, Flex, FlexItem, Label, LabelGroup, StackItem, Truncate } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
@@ -177,29 +177,27 @@ export function AssignmentsTab() {
           >
             <Thead>
               <Tr>
-                <Th width={15} sort={getSortParams(0)}>
-                  Principal Name
-                </Th>
-                <Th width={10} sort={getSortParams(1)} modifier="nowrap">
+                <Th sort={getSortParams(0)}>Principal Name</Th>
+                <Th sort={getSortParams(1)} modifier="nowrap">
                   Principal Type
                 </Th>
-                <Th width={10} sort={getSortParams(2)}>
-                  Role Name
-                </Th>
-                <Th width={10} sort={getSortParams(3)} modifier="nowrap">
+                <Th sort={getSortParams(2)}>Role Name</Th>
+                <Th sort={getSortParams(3)} modifier="nowrap">
                   Scope
                 </Th>
-                <Th width={10} sort={getSortParams(4)} modifier="nowrap">
+                <Th sort={getSortParams(4)} modifier="nowrap">
                   Project
                 </Th>
-                <Th width={30}>Policies</Th>
+                <Th>Policies</Th>
                 <Th screenReaderText="Actions" />
               </Tr>
             </Thead>
             <Tbody>
               {paginatedRows.map((row) => (
                 <Tr key={`${row.sourceEndpoint}-${row.id}`}>
-                  <Td dataLabel="Principal Name">{row.principalName}</Td>
+                  <Td dataLabel="Principal Name">
+                    <Truncate content={row.principalName} />
+                  </Td>
                   <Td dataLabel="Principal Type">
                     <Label color={row.principalType === 'user' ? 'blue' : 'teal'} isCompact>
                       {row.principalType === 'user' ? 'User' : 'Group'}

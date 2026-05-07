@@ -1,4 +1,4 @@
-import { Alert, Button, Flex, FlexItem, Label, LabelGroup, StackItem } from '@patternfly/react-core'
+import { Alert, Button, Flex, FlexItem, Label, LabelGroup, StackItem, Truncate } from '@patternfly/react-core'
 import { PlusIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
@@ -261,8 +261,12 @@ function RoleAssignmentsTable({
       <Tbody>
         {paginatedRows.map((row) => (
           <Tr key={row.id}>
-            <Td dataLabel="Role Name">{row.roleName}</Td>
-            <Td dataLabel="Description">{row.roleDescription ?? '-'}</Td>
+            <Td dataLabel="Role Name">
+              <Truncate content={row.roleName} />
+            </Td>
+            <Td dataLabel="Description">
+              <Truncate content={row.roleDescription ?? '-'} />
+            </Td>
             <Td dataLabel="Scope">
               <Label isCompact color={row.scopeType === 'system' ? 'blue' : 'green'}>
                 {row.scopeType === 'system' ? 'System' : 'Project'}

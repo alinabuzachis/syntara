@@ -1,4 +1,4 @@
-import { Button, Label, LabelGroup, Flex, FlexItem, StackItem } from '@patternfly/react-core'
+import { Button, Label, LabelGroup, Flex, FlexItem, StackItem, Truncate } from '@patternfly/react-core'
 import { PlusIcon, RhUiEditFillIcon, RhUiLockIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
@@ -69,8 +69,12 @@ function ProjectRolesTable({
       <Tbody>
         {roles.map((role) => (
           <Tr key={role.id}>
-            <Td dataLabel="Name">{role.name}</Td>
-            <Td dataLabel="Description">{role.description ?? '-'}</Td>
+            <Td dataLabel="Name">
+              <Truncate content={role.name} />
+            </Td>
+            <Td dataLabel="Description">
+              <Truncate content={role.description ?? '-'} />
+            </Td>
             <Td dataLabel="Policies">
               <LabelGroup isCompact numLabels={5}>
                 {(role.policies ?? []).map((policy) => (
@@ -219,7 +223,6 @@ export function ProjectRolesTab({ projectId }: Readonly<{ projectId: string }>) 
         ) : (
           <ScrollableTableContainer
             aria-label="Project roles"
-            useFixedLayout={false}
             footer={{
               page,
               perPage,

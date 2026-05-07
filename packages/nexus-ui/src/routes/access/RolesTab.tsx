@@ -9,6 +9,7 @@ import {
   Flex,
   FlexItem,
   StackItem,
+  Truncate,
 } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiEditFillIcon, RhUiLockIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
@@ -127,8 +128,12 @@ function RolesTable({
       <Tbody>
         {roles.map((role) => (
           <Tr key={role.id}>
-            <Td dataLabel="Name">{role.name}</Td>
-            <Td dataLabel="Description">{role.description ?? '-'}</Td>
+            <Td dataLabel="Name">
+              <Truncate content={role.name} />
+            </Td>
+            <Td dataLabel="Description">
+              <Truncate content={role.description ?? '-'} />
+            </Td>
             <Td dataLabel="Policies">
               <LabelGroup isCompact numLabels={5}>
                 {(role.policies ?? []).map((policy) => (
@@ -274,7 +279,6 @@ export function RolesTab() {
         ) : (
           <ScrollableTableContainer
             aria-label="Roles"
-            useFixedLayout={false}
             footer={{
               page,
               perPage,

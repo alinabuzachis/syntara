@@ -1,5 +1,5 @@
 import type { ExecutionsAPI } from '@ansible/nexus-contracts'
-import { Flex, FlexItem, Label } from '@patternfly/react-core'
+import { Flex, FlexItem, Label, Truncate } from '@patternfly/react-core'
 import { RhUiCaretDownIcon, RhUiCaretRightIcon } from '@patternfly/react-icons'
 import { Tbody, Td, Tr } from '@patternfly/react-table'
 
@@ -27,18 +27,20 @@ type ExecutionRowProps = {
 function ExecutionRow({ execution }: Readonly<ExecutionRowProps>) {
   return (
     <Tr>
-      <Td dataLabel="Workflow name" modifier="nowrap" style={{ minWidth: '200px', width: '200px' }}>
+      <Td dataLabel="Workflow name">
         {execution.workflow_id ? (
           <LinkCell href={`/workflow-builder/${execution.workflow_id}`}>
-            <WorkflowName workflowId={execution.workflow_id} />
+            <WorkflowName workflowId={execution.workflow_id} truncate />
           </LinkCell>
         ) : (
           '—'
         )}
       </Td>
-      <Td dataLabel="Run ID" modifier="nowrap" style={{ minWidth: '250px', width: '250px' }}>
+      <Td dataLabel="Run ID">
         <LinkCell href={`/executions/${execution.id}`}>
-          <code style={{ fontSize: 'var(--pf-t--global--font-size--sm)' }}>{execution.id}</code>
+          <code style={{ fontSize: 'var(--pf-t--global--font-size--sm)' }}>
+            <Truncate content={execution.id} />
+          </code>
         </LinkCell>
       </Td>
       <Td dataLabel="Status">{execution.status && <StatusLabel status={execution.status} />}</Td>

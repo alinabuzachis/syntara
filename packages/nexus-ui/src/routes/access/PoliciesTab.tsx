@@ -1,4 +1,4 @@
-import { Stack, StackItem } from '@patternfly/react-core'
+import { Stack, StackItem, Truncate } from '@patternfly/react-core'
 import { RhUiCodeIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
@@ -116,9 +116,13 @@ function PoliciesTableBody({
         {policies.map((policy) => (
           <Tr key={policy.id} data-testid={`policy-row-${policy.id}`}>
             <Td dataLabel="Name">
-              <code>{policy.name}</code>
+              <code>
+                <Truncate content={policy.name} />
+              </code>
             </Td>
-            <Td dataLabel="Description">{policy.description ?? '-'}</Td>
+            <Td dataLabel="Description">
+              <Truncate content={policy.description ?? '-'} />
+            </Td>
             <Td dataLabel="Scope">
               <ScopeLabel scope={policy.scope} />
             </Td>

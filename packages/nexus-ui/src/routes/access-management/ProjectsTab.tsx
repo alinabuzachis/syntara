@@ -1,4 +1,14 @@
-import { Button, Flex, FlexItem, Modal, ModalBody, ModalFooter, ModalHeader, StackItem } from '@patternfly/react-core'
+import {
+  Button,
+  Flex,
+  FlexItem,
+  Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+  StackItem,
+  Truncate,
+} from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
@@ -98,10 +108,12 @@ function ProjectsTable({
                   navigate(AppRoute.AccessManagement.ProjectDetail.replace(':projectId', project.id ?? ''))
                 }
               >
-                {project.name}
+                <Truncate content={project.name ?? ''} />
               </Button>
             </Td>
-            <Td dataLabel="Description">{project.description ?? ''}</Td>
+            <Td dataLabel="Description">
+              <Truncate content={project.description ?? ''} />
+            </Td>
             <Td dataLabel="Created">{formatDateTime(project.created_at)}</Td>
             <Td dataLabel="Updated">{formatDateTime(project.updated_at)}</Td>
             <Td isActionCell>

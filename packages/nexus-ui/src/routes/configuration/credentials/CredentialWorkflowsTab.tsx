@@ -1,5 +1,14 @@
 import type { ExecutionsAPI } from '@ansible/nexus-contracts'
-import { Content, ContentVariants, EmptyState, EmptyStateBody, Label, Stack, StackItem } from '@patternfly/react-core'
+import {
+  Content,
+  ContentVariants,
+  EmptyState,
+  EmptyStateBody,
+  Label,
+  Stack,
+  StackItem,
+  Truncate,
+} from '@patternfly/react-core'
 import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import { useCallback, useState } from 'react'
 import { useLocation } from 'wouter'
@@ -116,7 +125,9 @@ export function CredentialWorkflowsTab({ credentialId }: Readonly<CredentialWork
                     </Content>
                   )}
                 </Td>
-                <Td dataLabel="Created By">{workflow.created_by ?? DASH}</Td>
+                <Td dataLabel="Created By">
+                  <Truncate content={workflow.created_by ?? DASH} />
+                </Td>
                 <Td dataLabel="Nodes Using Credential">
                   {workflow.node_names && workflow.node_names.length > 0
                     ? workflow.node_names.map((nodeName: string) => (

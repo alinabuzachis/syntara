@@ -1,6 +1,6 @@
 import type { ToolProvider } from '@ansible/nexus-contracts'
 import { ProviderStatusEnum } from '@ansible/nexus-contracts'
-import { Button, Label, StackItem } from '@patternfly/react-core'
+import { Button, Label, StackItem, Truncate } from '@patternfly/react-core'
 import {
   RhUiCheckCircleIcon,
   RhUiCloseCircleIcon,
@@ -294,7 +294,9 @@ export default function Integrations() {
                   <Tbody>
                     {results.map((provider) => (
                       <Tr key={provider.id}>
-                        <Td dataLabel="Name">{provider.name}</Td>
+                        <Td dataLabel="Name">
+                          <Truncate content={provider.name ?? ''} />
+                        </Td>
                         <Td dataLabel="Status">
                           <StatusLabel status={provider.status ?? 'unknown'} />
                         </Td>
@@ -303,7 +305,9 @@ export default function Integrations() {
                             provider.configuration?.provider_type ??
                             ''}
                         </Td>
-                        <Td dataLabel="API URL">{provider.configuration?.base_url ?? ''}</Td>
+                        <Td dataLabel="API URL">
+                          <Truncate content={provider.configuration?.base_url ?? ''} />
+                        </Td>
                         <Td dataLabel="Tools">{provider.tool_count}</Td>
                         <Td isActionCell>
                           <ActionsColumn items={getRowActions(provider)} />

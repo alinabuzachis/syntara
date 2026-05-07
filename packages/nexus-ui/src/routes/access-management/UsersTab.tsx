@@ -1,5 +1,5 @@
 import type { User } from '@ansible/nexus-contracts'
-import { Button, Divider, Flex, FlexItem, StackItem } from '@patternfly/react-core'
+import { Button, Divider, Flex, FlexItem, StackItem, Truncate } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
@@ -196,12 +196,16 @@ export function UsersTab() {
                 <Tr key={user.id}>
                   <Td dataLabel="Username">
                     <Button variant="link" isInline onClick={() => navigate(getUserDetailPath(user.id))}>
-                      {user.username}
+                      <Truncate content={user.username} />
                     </Button>
                     {!user.is_enabled && <DisabledBadge />}
                   </Td>
-                  <Td dataLabel="Name">{user.full_name ?? ''}</Td>
-                  <Td dataLabel="Email">{user.email}</Td>
+                  <Td dataLabel="Name">
+                    <Truncate content={user.full_name ?? ''} />
+                  </Td>
+                  <Td dataLabel="Email">
+                    <Truncate content={user.email ?? ''} />
+                  </Td>
                   <Td dataLabel="Last Login">{formatDateTime(user.last_login)}</Td>
                   <Td isActionCell>
                     {!user.is_builtin && <ActionsColumn items={getRowActions(user, deleteDialog.open)} />}

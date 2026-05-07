@@ -287,11 +287,7 @@ export default function Workflows() {
                 )}
               </AppPageMain>
             ) : (
-              <ScrollableTableContainer
-                aria-label="Workflows table"
-                useFixedLayout={false}
-                footer={getFooterProps(workflowsQuery.data)}
-              >
+              <ScrollableTableContainer aria-label="Workflows table" footer={getFooterProps(workflowsQuery.data)}>
                 <Thead>
                   <Tr>
                     <Th>Name</Th>

@@ -1,4 +1,4 @@
-import { Label, StackItem } from '@patternfly/react-core'
+import { Label, StackItem, Truncate } from '@patternfly/react-core'
 import { RhUiEditFillIcon, RhUiLockIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
@@ -72,9 +72,13 @@ function ProjectPoliciesTable({
         {policies.map((policy) => (
           <Tr key={policy.id}>
             <Td dataLabel="Name">
-              <code>{policy.name}</code>
+              <code>
+                <Truncate content={policy.name} />
+              </code>
             </Td>
-            <Td dataLabel="Description">{policy.description ?? '-'}</Td>
+            <Td dataLabel="Description">
+              <Truncate content={policy.description ?? '-'} />
+            </Td>
             <Td dataLabel="Type">
               {policy.is_builtin ? (
                 <Label color="grey" icon={<RhUiLockIcon />} isCompact>

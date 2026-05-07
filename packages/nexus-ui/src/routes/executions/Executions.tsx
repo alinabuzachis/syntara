@@ -161,10 +161,10 @@ export default function Executions() {
               <ScrollableTableContainer aria-label="Executions table" footer={getFooterProps(executionsQuery.data)}>
                 <Thead>
                   <Tr>
-                    <Th modifier="nowrap" style={{ minWidth: '200px', width: '200px' }} sort={getSortParams(0)}>
+                    <Th modifier="nowrap" sort={getSortParams(0)}>
                       Workflow name
                     </Th>
-                    <Th modifier="nowrap" style={{ minWidth: '250px', width: '250px' }} sort={getSortParams(1)}>
+                    <Th modifier="nowrap" sort={getSortParams(1)}>
                       Run ID
                     </Th>
                     <Th sort={getSortParams(2)}>Status</Th>

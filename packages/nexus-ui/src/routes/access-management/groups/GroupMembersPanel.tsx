@@ -1,6 +1,6 @@
-import { Button, Flex, FlexItem, StackItem } from '@patternfly/react-core'
+import { Button, Flex, FlexItem, StackItem, Truncate } from '@patternfly/react-core'
 import { PlusIcon, RhUiTrashIcon } from '@patternfly/react-icons'
-import { ActionsColumn, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
 
@@ -13,7 +13,7 @@ import { FilterBar } from '../../../components/filters'
 import { IconLabel } from '../../../components/IconLabel'
 import { PanelContentStack } from '../../../components/PanelContentStack'
 import { useQueryState } from '../../../components/states/useQueryState'
-import { PaginationFooter } from '../../../components/table/PaginationFooter'
+import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
 import { useFilterState } from '../../../hooks/useFilterState'
 import type { FilterFieldDefinition } from '../../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../../types/filters'
@@ -188,52 +188,55 @@ export function GroupMembersPanel({ groupId, onMembershipChange }: Readonly<Grou
             />
           </AppPageMain>
         ) : (
-          <AppPageMain style={{ overflow: 'auto' }}>
-            <Table aria-label="Group members table" isStriped style={{ width: '100%' }}>
-              <Thead>
-                <Tr>
-                  <Th>Username</Th>
-                  <Th>Name</Th>
-                  <Th>Email</Th>
-                  <Th>Source</Th>
-                  <Th screenReaderText="Actions" />
+          <ScrollableTableContainer
+            aria-label="Group members table"
+            footer={{
+              page,
+              perPage,
+              total: filteredMembers.length,
+              hasNext: page * perPage < filteredMembers.length,
+              onPrev: () => setPage((p) => Math.max(1, p - 1)),
+              onNext: () => setPage((p) => p + 1),
+              onPerPageChange: handlePerPageChange,
+            }}
+          >
+            <Thead>
+              <Tr>
+                <Th>Username</Th>
+                <Th>Name</Th>
+                <Th>Email</Th>
+                <Th>Source</Th>
+                <Th screenReaderText="Actions" />
+              </Tr>
+            </Thead>
+            <Tbody>
+              {paginatedMembers.map((member) => (
+                <Tr key={member.id}>
+                  <Td dataLabel="Username">
+                    <Truncate content={member.username} />
+                    {!member.is_enabled && <DisabledBadge />}
+                  </Td>
+                  <Td dataLabel="Name">
+                    <Truncate content={member.full_name ?? ''} />
+                  </Td>
+                  <Td dataLabel="Email">
+                    <Truncate content={member.email ?? ''} />
+                  </Td>
+                  <Td dataLabel="Source">
+                    <MembershipSourceLabels sources={getMembershipSources(member)} />
+                  </Td>
+                  <Td isActionCell>
+                    {!member.is_builtin && (
+                      <ActionsColumn
+                        items={getMemberActions({ id: member.id, username: member.username }, setMemberToRemove)}
+                      />
+                    )}
+                  </Td>
                 </Tr>
-              </Thead>
-              <Tbody>
-                {paginatedMembers.map((member) => (
-                  <Tr key={member.id}>
-                    <Td dataLabel="Username">
-                      {member.username}
-                      {!member.is_enabled && <DisabledBadge />}
-                    </Td>
-                    <Td dataLabel="Name">{member.full_name ?? ''}</Td>
-                    <Td dataLabel="Email">{member.email}</Td>
-                    <Td dataLabel="Source">
-                      <MembershipSourceLabels sources={getMembershipSources(member)} />
-                    </Td>
-                    <Td isActionCell>
-                      {!member.is_builtin && (
-                        <ActionsColumn
-                          items={getMemberActions({ id: member.id, username: member.username }, setMemberToRemove)}
-                        />
-                      )}
-                    </Td>
-                  </Tr>
-                ))}
-              </Tbody>
-            </Table>
-          </AppPageMain>
+              ))}
+            </Tbody>
+          </ScrollableTableContainer>
         )}
-
-        <PaginationFooter
-          page={page}
-          perPage={perPage}
-          total={filteredMembers.length}
-          hasNext={page * perPage < filteredMembers.length}
-          onPrev={() => setPage((p) => Math.max(1, p - 1))}
-          onNext={() => setPage((p) => p + 1)}
-          onPerPageChange={handlePerPageChange}
-        />
       </PanelContentStack>
 
       <AddMemberModal

@@ -1,5 +1,5 @@
 import type { Group } from '@ansible/nexus-contracts'
-import { Badge, Button, Flex, FlexItem, StackItem } from '@patternfly/react-core'
+import { Badge, Button, Flex, FlexItem, StackItem, Truncate } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { Thead, Tbody, Tr, Th, Td, ActionsColumn } from '@patternfly/react-table'
 import { useMemo } from 'react'
@@ -156,10 +156,12 @@ export function GroupsTab() {
                           navigate(AppRoute.AccessManagement.GroupDetail.replace(':groupId', group.id ?? ''))
                         }
                       >
-                        {group.name}
+                        <Truncate content={group.name} />
                       </Button>
                     </Td>
-                    <Td dataLabel="Description">{group.description ?? ''}</Td>
+                    <Td dataLabel="Description">
+                      <Truncate content={group.description ?? ''} />
+                    </Td>
                     <Td dataLabel="Members">
                       <Badge isRead>{group.member_count ?? 0}</Badge>
                     </Td>

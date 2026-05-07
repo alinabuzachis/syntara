@@ -9,6 +9,7 @@ import {
   ModalFooter,
   ModalHeader,
   StackItem,
+  Truncate,
 } from '@patternfly/react-core'
 import { PlusIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
@@ -169,6 +170,24 @@ function AddToGroupModal({
   )
 }
 
+function applyGroupFilters<T extends { name: string; description?: string | null }>(
+  groups: T[],
+  filters: { key: string; value: unknown }[]
+): T[] {
+  let result = groups
+  const nameFilter = filters.find((f) => f.key === 'name')
+  if (nameFilter) {
+    const term = String(nameFilter.value).toLowerCase()
+    result = result.filter((g) => g.name.toLowerCase().includes(term))
+  }
+  const descFilter = filters.find((f) => f.key === 'description')
+  if (descFilter) {
+    const term = String(descFilter.value).toLowerCase()
+    result = result.filter((g) => (g.description ?? '').toLowerCase().includes(term))
+  }
+  return result
+}
+
 function getGroupActions(group: Group, onRemove: (g: GroupInfo) => void): IAction[] {
   if (group.name === BUILTIN_AUTHENTICATED_GROUP_NAME) return []
   return [
@@ -213,20 +232,7 @@ export function UserGroupsPanel({ userId }: Readonly<UserGroupsPanelProps>) {
     return userGroups
   }, [query.data, allGroupsList])
 
-  const filteredGroups = useMemo(() => {
-    let result = groups
-    const nameFilter = filters.find((f) => f.key === 'name')
-    if (nameFilter) {
-      const term = String(nameFilter.value).toLowerCase()
-      result = result.filter((g) => g.name.toLowerCase().includes(term))
-    }
-    const descFilter = filters.find((f) => f.key === 'description')
-    if (descFilter) {
-      const term = String(descFilter.value).toLowerCase()
-      result = result.filter((g) => (g.description ?? '').toLowerCase().includes(term))
-    }
-    return result
-  }, [groups, filters])
+  const filteredGroups = useMemo(() => applyGroupFilters(groups, filters), [groups, filters])
 
   const paginatedGroups = useMemo(() => {
     const start = (page - 1) * perPage
@@ -347,7 +353,7 @@ export function UserGroupsPanel({ userId }: Readonly<UserGroupsPanelProps>) {
               {paginatedGroups.map((group) => (
                 <Tr key={group.id}>
                   <Td dataLabel="Name">
-                    {group.name}
+                    <Truncate content={group.name} />
                     {group.name === BUILTIN_AUTHENTICATED_GROUP_NAME && (
                       <>
                         {' '}
@@ -357,7 +363,9 @@ export function UserGroupsPanel({ userId }: Readonly<UserGroupsPanelProps>) {
                       </>
                     )}
                   </Td>
-                  <Td dataLabel="Description">{group.description ?? ''}</Td>
+                  <Td dataLabel="Description">
+                    <Truncate content={group.description ?? ''} />
+                  </Td>
                   <Td dataLabel="Source">
                     <MembershipSourceLabels sources={getMembershipSources(group)} />
                   </Td>

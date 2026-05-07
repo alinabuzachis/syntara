@@ -1,4 +1,4 @@
-import { Button, Flex, FlexItem, Label, LabelGroup, StackItem } from '@patternfly/react-core'
+import { Button, Flex, FlexItem, Label, LabelGroup, StackItem, Truncate } from '@patternfly/react-core'
 import { PlusIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
@@ -169,13 +169,17 @@ function RoleAssignmentsTable({
       <Tbody>
         {rows.map((row) => (
           <Tr key={row.id}>
-            <Td dataLabel="Principal Name">{row.principalName}</Td>
+            <Td dataLabel="Principal Name">
+              <Truncate content={row.principalName} />
+            </Td>
             <Td dataLabel="Principal Type">
               <Label isCompact color={row.principalType === 'user' ? 'blue' : 'teal'}>
                 {row.principalType === 'user' ? 'User' : 'Group'}
               </Label>
             </Td>
-            <Td dataLabel="Role Name">{row.roleName}</Td>
+            <Td dataLabel="Role Name">
+              <Truncate content={row.roleName} />
+            </Td>
             <Td dataLabel="Policies">
               {row.rolePolicies.length > 0 ? (
                 <LabelGroup numLabels={3}>
