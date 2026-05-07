@@ -51,10 +51,14 @@ export function BuilderContent(props: BuilderContentProps) {
   const [, setLocation] = useLocation()
   const { showSuccess, showError } = useAlerts()
   const workflowProjectId = isNew ? undefined : (workflow as { project_id?: string })?.project_id
+  const [saveAttemptedWithoutProject, setSaveAttemptedWithoutProject] = useState(false)
   const { selectedProject, ProjectSelector } = useProjectSelector({
     requireProject: isNew,
     initialProjectId: workflowProjectId ?? undefined,
+    hasValidationError: saveAttemptedWithoutProject,
+    onProjectSelect: () => setSaveAttemptedWithoutProject(false),
   })
+
   const queryClient = useQueryClient()
   const reactFlowInstance = useReactFlow()
   const nodesInitialized = useNodesInitialized()
@@ -156,6 +160,9 @@ export function BuilderContent(props: BuilderContentProps) {
     setLocation,
     showSuccess,
     showError,
+    onMissingProjectForCreate: () => {
+      setSaveAttemptedWithoutProject(true)
+    },
     markClean,
     createWorkflow: createWorkflow as UseBuilderSaveWorkflowParams['createWorkflow'],
     updateWorkflow,
@@ -271,7 +278,6 @@ export function BuilderContent(props: BuilderContentProps) {
                 workflow={workflow?.id ? { id: workflow.id } : undefined}
                 historyCardOpen={historyCardOpen}
                 isPending={isPending}
-                selectedProject={selectedProject}
                 isEnabled={isEnabled}
                 isKebabOpen={isKebabOpen}
                 ProjectSelector={ProjectSelector}

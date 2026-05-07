@@ -22,6 +22,15 @@ import { detachPromise } from '../utils/detachPromise'
 import { PROJECT_SELECTOR_MAX_WIDTH, projectSelectorUx } from './projectSelectorUtils'
 import { usePaginatedProjects } from './usePaginatedProjects'
 
+function resolveMenuToggleStatus(
+  requireProject: boolean,
+  hasValidationError: boolean,
+  selectedProjectId: string | null
+): 'danger' | undefined {
+  if (requireProject && hasValidationError && !selectedProjectId) return 'danger'
+  return undefined
+}
+
 const ALL_PROJECTS_VALUE = '__all__'
 const CREATE_PROJECT_VALUE = '__create__'
 const VIEW_MORE_VALUE = '__view_more__'
@@ -31,6 +40,16 @@ type UseProjectSelectorOptions = {
   requireProject?: boolean
   /** Server-provided project ID to seed into the store on mount. User selections take precedence afterward. */
   initialProjectId?: string | null
+  /**
+   * When true with `requireProject` and no project selected in the store, applies `MenuToggle`
+   * danger styling so the selector surfaces a validation failure (e.g. save attempted without project).
+   */
+  hasValidationError?: boolean
+  /**
+   * Called when the user explicitly selects a project from the dropdown. Use this to clear
+   * any validation error state set by the caller (e.g. reset `saveAttemptedWithoutProject`).
+   */
+  onProjectSelect?: (project: ProjectRead | null) => void
 }
 
 type UseProjectSelectorResult = {
@@ -43,10 +62,21 @@ type UseProjectSelectorResult = {
 /**
  * Hook that provides a project selector dropdown and the currently selected project.
  * Uses server-side filtering with debounced typeahead and progressive "View more" loading.
+ * When "All projects" is selected, selectedProject is null and no project_id filter is applied.
+ * Selection persists across page navigation via Zustand store with localStorage.
+ *
+ * When `requireProject` is true, the "All projects" option is hidden and the toggle shows
+ * `projectSelectorUx.selectProjectPlaceholder` when nothing is selected.
+ *
+ * When `hasValidationError` is true with `requireProject` and no project selected, the typeahead
+ * `MenuToggle` uses `status="danger"`.
+ *
+ * Includes a "Create project" option in the dropdown that opens a modal dialog.
  */
 export function useProjectSelector(options?: UseProjectSelectorOptions): UseProjectSelectorResult {
-  const { requireProject = false, initialProjectId } = options ?? {}
+  const { requireProject = false, initialProjectId, hasValidationError = false, onProjectSelect } = options ?? {}
   const { selectedProjectId, setSelectedProjectId } = useProjectStore()
+  const menuToggleStatus = resolveMenuToggleStatus(requireProject, hasValidationError, selectedProjectId)
   const [isOpen, setIsOpen] = useState(false)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
 
@@ -121,8 +151,20 @@ export function useProjectSelector(options?: UseProjectSelectorOptions): UseProj
       } else {
         clearTypeaheadOnly()
       }
+      if (onProjectSelect) {
+        const selected = projectId ? (projects.find((p) => p.id === projectId) ?? null) : null
+        onProjectSelect(selected)
+      }
     },
-    [setSelectedProjectId, resetPagination, debouncedFilter, updateFilter, clearTypeaheadOnly]
+    [
+      setSelectedProjectId,
+      resetPagination,
+      debouncedFilter,
+      updateFilter,
+      clearTypeaheadOnly,
+      onProjectSelect,
+      projects,
+    ]
   )
 
   const ProjectSelector = (
@@ -134,10 +176,18 @@ export function useProjectSelector(options?: UseProjectSelectorOptions): UseProj
         onSelect={handleSelect}
         selected={selectedProjectId ?? (requireProject ? undefined : ALL_PROJECTS_VALUE)}
         toggle={(toggleRef) => (
-          <MenuToggle ref={toggleRef} variant="typeahead" onClick={() => setIsOpen(!isOpen)} isExpanded={isOpen}>
+          <MenuToggle
+            ref={toggleRef}
+            variant="typeahead"
+            onClick={() => setIsOpen(!isOpen)}
+            isExpanded={isOpen}
+            status={menuToggleStatus}
+          >
             <TextInputGroup isPlain>
               <TextInputGroupMain
                 value={isOpen ? filterValue : toggleLabel}
+                aria-label="Project"
+                aria-invalid={menuToggleStatus === 'danger'}
                 onChange={(_e, val) => {
                   updateFilter(val)
                   if (!isOpen) setIsOpen(true)

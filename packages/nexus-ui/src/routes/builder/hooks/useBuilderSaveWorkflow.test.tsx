@@ -47,7 +47,8 @@ function buildParams(overrides: Partial<UseBuilderSaveWorkflowParams> = {}): Use
     isEnabled: true,
     workflowId: null,
     isNew: true,
-    selectedProject: null,
+    /** Create path requires a project; tests that assert missing-project behavior override with `null`. */
+    selectedProject: { id: 'default-test-project' },
     workflowsListResources: undefined,
     queryClient: {
       invalidateQueries: vi.fn().mockResolvedValue(undefined),
@@ -74,6 +75,33 @@ describe('useBuilderSaveWorkflow', () => {
 
     await expect(result.current()).resolves.toBe(false)
     expect(showError).toHaveBeenCalledWith({ title: 'Validation failed', description: 'No workflow to save' })
+  })
+
+  it('returns false and shows danger toast when create path has no project', async () => {
+    const showError = vi.fn()
+    const onMissingProjectForCreate = vi.fn()
+    const createWorkflow = vi.fn()
+    const { result } = renderHook(() =>
+      useBuilderSaveWorkflow(
+        buildParams({
+          showError,
+          onMissingProjectForCreate,
+          isNew: true,
+          selectedProject: null,
+          workflowId: null,
+          createWorkflow,
+        })
+      )
+    )
+
+    await expect(result.current()).resolves.toBe(false)
+    expect(showError).toHaveBeenCalledWith({
+      title: 'Project required',
+      description: 'Select a project to save this workflow.',
+    })
+    expect(onMissingProjectForCreate).toHaveBeenCalledOnce()
+    expect(createWorkflow).not.toHaveBeenCalled()
+    expect(validateWorkflowMock).not.toHaveBeenCalled()
   })
 
   it('returns false and shows error when validation fails', async () => {
@@ -124,21 +152,23 @@ describe('useBuilderSaveWorkflow', () => {
       labels: {},
     })
     expect(markClean).toHaveBeenCalled()
-    expect(showSuccess).toHaveBeenCalledWith({ title: 'Workflow saved', description: 'Workflow updated successfully' })
+    expect(showSuccess).toHaveBeenCalledWith({ title: 'Workflow updated', description: 'test-wf has been saved.' })
     expect(invalidateQueries).toHaveBeenCalled()
   })
 
   it('creates workflow in one call without labels when there are no tags', async () => {
+    const showSuccess = vi.fn()
     const createWorkflow = vi.fn((...args: Parameters<CreateWorkflow>) => {
       detachPromise(args[1]?.onSuccess?.({ id: 'new-wf-id' }))
     }) as MockedFunction<CreateWorkflow>
     const setLocation = vi.fn()
     const { result } = renderHook(() =>
-      useBuilderSaveWorkflow(buildParams({ createWorkflow, setLocation, workflowTags: [] }))
+      useBuilderSaveWorkflow(buildParams({ createWorkflow, setLocation, workflowTags: [], showSuccess }))
     )
 
     await expect(result.current()).resolves.toBe(true)
 
+    expect(showSuccess).toHaveBeenCalledWith({ title: 'Workflow created', description: 'test-wf has been saved.' })
     expect(createWorkflow).toHaveBeenCalledTimes(1)
     const [{ body }] = createWorkflow.mock.calls[0]
     expect(body.labels).toBeUndefined()

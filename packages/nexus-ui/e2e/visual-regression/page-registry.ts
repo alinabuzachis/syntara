@@ -537,7 +537,7 @@ export const pages: PageEntry[] = [
     },
     setup: async (page) => {
       // "Create credential" is disabled when "All projects" is selected — pick a project first
-      await page.getByRole('textbox', { name: 'Type to filter' }).click()
+      await page.getByRole('textbox', { name: 'Project' }).click()
       await page.getByRole('option', { name: 'default' }).click()
       await page.getByRole('button', { name: /create credential/i }).click()
       await expect(page.getByRole('dialog')).toBeVisible()

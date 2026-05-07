@@ -3,7 +3,6 @@ import { useState, type Dispatch, type ReactNode } from 'react'
 
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
-import type { ProjectRead } from '../access/types'
 
 import { BuilderEditorToolbar } from './BuilderEditorToolbar'
 import type { BuilderAction } from './builderReducer'
@@ -22,7 +21,6 @@ type BuilderToolbarContentProps = Readonly<{
   isNew: boolean
   workflow: { id: string } | undefined
   isPending: boolean
-  selectedProject: ProjectRead | null
   isEnabled: boolean
   isKebabOpen: boolean
   isSavingToggle: boolean
@@ -49,7 +47,6 @@ function BuilderToolbarContent({
   isNew,
   workflow,
   isPending,
-  selectedProject,
   isEnabled,
   isKebabOpen,
   isSavingToggle,
@@ -78,7 +75,6 @@ function BuilderToolbarContent({
       isNew={isNew}
       workflow={workflow}
       isPending={isPending}
-      selectedProject={selectedProject}
       isEnabled={isEnabled}
       isKebabOpen={isKebabOpen}
       historyCardOpen={historyCardOpen}
@@ -106,7 +102,6 @@ export type BuilderWorkflowAppPageHeaderProps = Readonly<{
   workflow: { id: string } | undefined
   historyCardOpen: boolean
   isPending: boolean
-  selectedProject: ProjectRead | null
   isEnabled: boolean
   isKebabOpen: boolean
   isLiveRunActive?: boolean
@@ -134,7 +129,6 @@ export function BuilderWorkflowAppPageHeader({
   workflow,
   historyCardOpen,
   isPending,
-  selectedProject,
   isEnabled,
   isKebabOpen,
   isLiveRunActive,
@@ -230,7 +224,6 @@ export function BuilderWorkflowAppPageHeader({
           isNew={isNew}
           workflow={workflow}
           isPending={isPending}
-          selectedProject={selectedProject}
           isEnabled={isEnabled}
           isKebabOpen={isKebabOpen}
           isSavingToggle={isSavingToggle}

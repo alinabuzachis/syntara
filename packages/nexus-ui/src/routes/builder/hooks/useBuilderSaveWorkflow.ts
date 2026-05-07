@@ -44,6 +44,8 @@ export type UseBuilderSaveWorkflowParams = {
   setLocation: (to: string) => void
   showSuccess: (options: AlertMessage) => void
   showError: (options: AlertMessage) => void
+  /** Called when saving on create path without a project (UI can highlight the project selector). */
+  onMissingProjectForCreate?: () => void
   markClean: () => void
   createWorkflow: (
     args: { body: CreateWorkflowBodyExtended },
@@ -67,7 +69,7 @@ export type UseBuilderSaveWorkflowParams = {
 function runCreateWorkflowSave(options: {
   createPayload: CreateWorkflowBodyExtended
   createWorkflow: UseBuilderSaveWorkflowParams['createWorkflow']
-  onSaveSuccess: (message: string, workflowIdToNavigate?: string) => Promise<void>
+  onSaveSuccess: (workflowIdToNavigate?: string) => Promise<void>
   onSaveError: (error: unknown, action: string) => void
 }): void {
   const { createPayload, createWorkflow, onSaveSuccess, onSaveError } = options
@@ -75,7 +77,7 @@ function runCreateWorkflowSave(options: {
     { body: createPayload },
     {
       onSuccess: (data) => {
-        detachPromise(onSaveSuccess('Workflow created successfully', data.id))
+        detachPromise(onSaveSuccess(data.id))
       },
       onError: (error) => onSaveError(error, 'create'),
     }
@@ -99,6 +101,7 @@ export function useBuilderSaveWorkflow(
     setLocation,
     showSuccess,
     showError,
+    onMissingProjectForCreate,
     markClean,
     createWorkflow,
     updateWorkflow,
@@ -117,6 +120,15 @@ export function useBuilderSaveWorkflow(
       return new Promise((resolve) => {
         if (!currentWorkflow) {
           showError({ title: 'Validation failed', description: 'No workflow to save' })
+          resolve(false)
+          return
+        }
+
+        // Create path (POST): require a project. Update path (PATCH) does not use project_id here.
+        const willPatchExisting = Boolean(workflowId && !isNew)
+        if (!willPatchExisting && !selectedProject?.id) {
+          showError({ title: 'Project required', description: 'Select a project to save this workflow.' })
+          onMissingProjectForCreate?.()
           resolve(false)
           return
         }
@@ -170,8 +182,10 @@ export function useBuilderSaveWorkflow(
           workflow_definition: workflowDef as PatchWorkflowBody['workflow_definition'],
         }
 
-        const onSaveSuccess = async (successMessage: string, workflowIdToNavigate?: string) => {
-          showSuccess({ title: 'Workflow saved', description: successMessage })
+        const action = isNew ? 'created' : 'updated'
+
+        const onSaveSuccess = async (workflowIdToNavigate?: string) => {
+          showSuccess({ title: `Workflow ${action}`, description: `${nameToSave} has been saved.` })
           markClean()
           await queryClient.invalidateQueries({ predicate: isWorkflowQuery })
 
@@ -182,11 +196,11 @@ export function useBuilderSaveWorkflow(
           resolve(true)
         }
 
-        const onSaveError = (error: unknown, action: string) => {
+        const onSaveError = (error: unknown, errorAction: string) => {
           const errorMessage = getErrorMessage(error)
           showError({
-            title: `${action.charAt(0).toUpperCase()}${action.slice(1)} failed`,
-            description: `Failed to ${action} workflow: ${errorMessage}`,
+            title: `${errorAction.charAt(0).toUpperCase()}${errorAction.slice(1)} failed`,
+            description: `Failed to ${errorAction} workflow: ${errorMessage}`,
           })
           resolve(false)
         }
@@ -199,7 +213,7 @@ export function useBuilderSaveWorkflow(
             },
             {
               onSuccess: async () => {
-                await onSaveSuccess('Workflow updated successfully', workflowId)
+                await onSaveSuccess(workflowId)
               },
               onError: (error) => onSaveError(error, 'update'),
             }
@@ -229,6 +243,7 @@ export function useBuilderSaveWorkflow(
       createWorkflow,
       showSuccess,
       showError,
+      onMissingProjectForCreate,
       setLocation,
       queryClient,
       markClean,

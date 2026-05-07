@@ -24,7 +24,6 @@ describe('BuilderWorkflowAppPageHeader', () => {
     workflow: undefined as { id: string } | undefined,
     historyCardOpen: false,
     isPending: false,
-    selectedProject: null,
     isEnabled: true,
     isKebabOpen: false,
     ProjectSelector: <span>Project</span>,

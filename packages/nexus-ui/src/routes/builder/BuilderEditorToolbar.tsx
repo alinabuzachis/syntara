@@ -19,8 +19,6 @@ import {
 } from '@patternfly/react-icons'
 import { useCallback, useState, type Dispatch, type Ref } from 'react'
 
-import type { ProjectRead } from '../access/types'
-
 import type { BuilderAction } from './builderReducer'
 import { EnabledWorkflowSwitch } from './EnabledWorkflowSwitch'
 import { RunHistoryToggleButton } from './RunHistoryToggleButton'
@@ -49,7 +47,6 @@ type BuilderEditorToolbarProps = Readonly<{
   isNew: boolean
   workflow: { id: string } | undefined
   isPending: boolean
-  selectedProject: ProjectRead | null
   isEnabled: boolean
   isKebabOpen: boolean
   historyCardOpen: boolean
@@ -69,7 +66,6 @@ export function BuilderEditorToolbar({
   isNew,
   workflow,
   isPending,
-  selectedProject,
   isEnabled,
   isKebabOpen,
   historyCardOpen,
@@ -190,24 +186,20 @@ export function BuilderEditorToolbar({
 
       <Divider orientation={{ default: 'vertical' }} />
 
-      <Tooltip
-        content="Select a project before saving"
-        trigger={isNew && !selectedProject ? 'mouseenter focus' : 'manual'}
+      <Button
+        variant="plain"
+        onClick={() => handleSaveWorkflow()}
+        isLoading={isPending}
+        isAriaDisabled={isPending}
+        icon={
+          <Icon isInline>
+            <RhUiSaveFillIcon />
+          </Icon>
+        }
+        iconPosition="start"
       >
-        <Button
-          variant="plain"
-          onClick={() => handleSaveWorkflow()}
-          isAriaDisabled={isPending || (isNew && !selectedProject)}
-          icon={
-            <Icon isInline>
-              <RhUiSaveFillIcon />
-            </Icon>
-          }
-          iconPosition="start"
-        >
-          {isPending ? 'Saving...' : 'Save'}
-        </Button>
-      </Tooltip>
+        {isPending ? 'Saving...' : 'Save'}
+      </Button>
 
       {!isNew && (
         <>

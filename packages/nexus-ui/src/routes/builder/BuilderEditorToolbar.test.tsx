@@ -10,7 +10,6 @@ describe('BuilderEditorToolbar', () => {
     isNew: false,
     workflow: { id: 'wf-1' },
     isPending: false,
-    selectedProject: { id: 'proj-1', name: 'Test Project' } as const,
     isEnabled: false,
     isKebabOpen: false,
     historyCardOpen: false,
@@ -133,22 +132,11 @@ describe('BuilderEditorToolbar', () => {
     expect(saveButton).toHaveAttribute('aria-disabled', 'true')
   })
 
-  it('disables Save button for new workflow without project', () => {
-    render(<BuilderEditorToolbar {...defaultProps} isNew={true} workflow={undefined} selectedProject={null} />)
+  it('Save button is always clickable for new workflows (validation happens on save, not before)', () => {
+    render(<BuilderEditorToolbar {...defaultProps} isNew={true} workflow={undefined} />)
 
     const saveButton = screen.getByRole('button', { name: /^Save$/i })
-    expect(saveButton).toHaveAttribute('aria-disabled', 'true')
-  })
-
-  it('shows tooltip when Save is disabled for new workflow without project', async () => {
-    const user = userEvent.setup()
-
-    render(<BuilderEditorToolbar {...defaultProps} isNew={true} workflow={undefined} selectedProject={null} />)
-
-    const saveButton = screen.getByRole('button', { name: /^Save$/i })
-    await user.hover(saveButton)
-
-    expect(await screen.findByText(/Select a project before saving/i)).toBeInTheDocument()
+    expect(saveButton).not.toHaveAttribute('aria-disabled', 'true')
   })
 
   it('renders enabled/disabled switch for existing workflows', () => {
@@ -196,9 +184,7 @@ describe('BuilderEditorToolbar', () => {
   })
 
   it('has no accessibility violations for new workflow', async () => {
-    const { container } = render(
-      <BuilderEditorToolbar {...defaultProps} isNew={true} workflow={undefined} selectedProject={null} />
-    )
+    const { container } = render(<BuilderEditorToolbar {...defaultProps} isNew={true} workflow={undefined} />)
 
     expect(await axe(container)).toHaveNoViolations()
   })

@@ -306,6 +306,13 @@ describe('useProjectSelector', () => {
       expect(screen.getByRole('option', { name: /Beta/i })).toBeInTheDocument()
     })
 
+    it('applies danger styling when save was attempted without a project while requireProject and no selection', () => {
+      // PatternFly v6 MenuToggle with status="danger" sets aria-invalid on the TextInputGroupMain wrapper.
+      // Once PF exposes this on the accessible input, replace with: getByRole('textbox', { name: 'Project' }).toBeInvalid()
+      const { container } = renderSelector({ requireProject: true, hasValidationError: true })
+      expect(container.querySelector('[aria-invalid="true"]')).toBeInTheDocument()
+    })
+
     it('selects a project when option is clicked', async () => {
       const user = userEvent.setup()
       renderSelector()
@@ -355,7 +362,7 @@ describe('useProjectSelector', () => {
   // ── Pagination reset (selection vs View more) ─────────────────────────
 
   describe('pagination reset behavior', () => {
-    const typeaheadInput = () => screen.getByRole('textbox', { name: 'Type to filter' })
+    const typeaheadInput = () => screen.getByRole('textbox', { name: 'Project' })
 
     it('clears typeahead filter when selecting a project', async () => {
       const user = userEvent.setup()
@@ -718,6 +725,12 @@ describe('useProjectSelector', () => {
       await user.click(screen.getByDisplayValue('All projects'))
       await user.click(screen.getByRole('option', { name: 'Create project' }))
 
+      const results = await axe(container)
+      expect(results).toHaveNoViolations()
+    })
+
+    it('has no accessibility violations in danger (validation error) state', async () => {
+      const { container } = renderSelector({ requireProject: true, hasValidationError: true })
       const results = await axe(container)
       expect(results).toHaveNoViolations()
     })

@@ -184,8 +184,8 @@ test.describe('Project Selector — Workflows', () => {
     // Switch back to All projects — list uses GET /api/v1/workflows (not /projects/:id/workflows)
     const requestPromise = app.waitForRequest((req) => isGlobalWorkflowsListUrl(req.url()))
 
-    // After selecting a project the placeholder shows the project name, so use textbox role
-    await app.getByRole('textbox', { name: 'Type to filter' }).click()
+    // After selecting a project the textbox has aria-label="Project" (set in useProjectSelector)
+    await app.getByRole('textbox', { name: 'Project' }).click()
     await app.getByRole('option', { name: 'All projects' }).waitFor({ state: 'visible', timeout: 10_000 })
     await app.getByRole('option', { name: 'All projects' }).click()
 
