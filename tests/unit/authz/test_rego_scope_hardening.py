@@ -49,8 +49,15 @@ class TestSelfScopeBypass:
         )
         assert result["allow"] is True
 
-    def test_self_scope_non_user_resource_denied(self, opa_evaluate):
-        """Self-scope requires resource.type == 'user'; workflow type should fail."""
+    def test_self_scope_rejects_mismatched_resource_type(self, opa_evaluate):
+        """Self-scope must not match when resource type differs from policy target.
+
+        A self-scoped policy granting workflow:read should not match just
+        because resource.id == user.id — that would be a privilege
+        escalation (SEC-006).  Self-scope is only valid for resource
+        types with an explicit _scope_matches rule (user, user_identity,
+        group).
+        """
         policies = [
             allow_policy("user:read:self", ["workflow:read"], scope="self"),
         ]

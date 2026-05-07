@@ -10,8 +10,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from temporalio.service import RPCError
 
 from nexus.auth import get_current_user
-from nexus.authz.dependencies import PermissionChecker, ProjectScopeFilter, get_opa_client
-from nexus.authz.engine import AllowedProjectsResult, AuthzRequest, authorize
+from nexus.authz.dependencies import PermissionChecker, VisibilityFilter, get_opa_client
+from nexus.authz.engine import AuthzRequest, VisibilityResult, authorize
 from nexus.authz.exceptions import AuthorizationDeniedError
 from nexus.authz.models.project import Project
 from nexus.core.database.session import get_db
@@ -107,7 +107,7 @@ async def list_executions(
     request: Request,
     service: Annotated[ExecutionService, Depends(get_execution_service)],
     params: Annotated[ExecutionListParams, Query()],
-    allowed_projects: Annotated[AllowedProjectsResult, Depends(ProjectScopeFilter("execution", "read"))],
+    visibility: Annotated[VisibilityResult, Depends(VisibilityFilter("execution", "read"))],
 ) -> ExecutionListResponse:
     """List executions with filtering, sorting, and pagination.
 
@@ -123,7 +123,7 @@ async def list_executions(
         request: FastAPI request object containing query parameters
         service: Execution service (injected by FastAPI)
         params: Query parameters for pagination and filtering
-        allowed_projects: Resolved project access for the current user
+        visibility: Resolved visibility for the current user
 
     Returns:
         ExecutionListResponse with executions, pagination metadata, and optional total
@@ -136,7 +136,7 @@ async def list_executions(
         sort=params.sort,
         query_params_items=request.query_params.items(),
         include_total=params.include_total,
-        allowed_projects=allowed_projects,
+        allowed_projects=visibility.to_allowed_projects(),
     )
 
 

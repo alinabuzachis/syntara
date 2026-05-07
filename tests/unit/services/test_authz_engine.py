@@ -3,6 +3,8 @@
 Tests cover:
 - authorize() with mocked OPA client
 - resolve_allowed_projects() for global and project-scoped access
+- resolve_visibility() for unified list-endpoint visibility
+- VisibilityResult conversion methods
 - assign_project_admin() helper
 - assign_authenticated_group_project_user() helper
 """
@@ -16,10 +18,12 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.engine import (
     AuthzRequest,
+    VisibilityResult,
     assign_authenticated_group_project_user,
     assign_project_admin,
     authorize,
     resolve_allowed_projects,
+    resolve_visibility,
 )
 from nexus.authz.models.assignments import PrincipalType
 from nexus.authz.models.project import Project
@@ -218,3 +222,117 @@ async def test_assign_authenticated_group_missing(test_db_session: AsyncSession)
 
     result = await assign_authenticated_group_project_user(test_db_session, uuid4())
     assert result is None
+
+
+# ---------------------------------------------------------------------------
+# VisibilityResult unit tests
+# ---------------------------------------------------------------------------
+
+
+class TestVisibilityResult:
+    """Tests for VisibilityResult conversion methods."""
+
+    def test_to_allowed_projects_unrestricted(self) -> None:
+        result = VisibilityResult(unrestricted=True)
+        ap = result.to_allowed_projects()
+        assert ap.all_projects is True
+
+    def test_to_allowed_projects_scoped(self) -> None:
+        pid = uuid4()
+        result = VisibilityResult(unrestricted=False, allowed_project_ids=[pid])
+        ap = result.to_allowed_projects()
+        assert ap.all_projects is False
+        assert ap.project_ids == [pid]
+
+    def test_to_id_restriction_unrestricted(self) -> None:
+        result = VisibilityResult(unrestricted=True)
+        assert result.to_id_restriction() is None
+
+    def test_to_id_restriction_no_self_scope(self) -> None:
+        result = VisibilityResult(unrestricted=False, has_self_scope=False)
+        assert result.to_id_restriction() == []
+
+    def test_to_id_restriction_self_scope_user(self) -> None:
+        uid = uuid4()
+        result = VisibilityResult(has_self_scope=True, self_user_id=uid)
+        assert result.to_id_restriction() == [uid]
+
+    def test_to_id_restriction_self_scope_groups(self) -> None:
+        gid1, gid2 = uuid4(), uuid4()
+        result = VisibilityResult(has_self_scope=True, self_user_id=uuid4(), self_group_ids=[gid1, gid2])
+        assert result.to_id_restriction(use_group_ids=True) == [gid1, gid2]
+
+    def test_to_id_restriction_self_scope_no_user_id(self) -> None:
+        result = VisibilityResult(has_self_scope=True, self_user_id=None)
+        assert result.to_id_restriction() == []
+
+
+# ---------------------------------------------------------------------------
+# resolve_visibility() tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_resolve_visibility_unrestricted(
+    seeded_db: AsyncSession,
+    test_user: User,
+    mock_opa: AsyncMock,
+) -> None:
+    """resolve_visibility() returns unrestricted=True when OPA returns '*'."""
+    result = await resolve_visibility(seeded_db, mock_opa, test_user.id, "workflow", "read")
+    assert result.unrestricted is True
+
+
+@pytest.mark.asyncio
+async def test_resolve_visibility_project_scoped(
+    seeded_db: AsyncSession,
+    test_user: User,
+    mock_opa: AsyncMock,
+) -> None:
+    """resolve_visibility() maps project names to IDs."""
+    proj_result = await seeded_db.exec(select(Project).where(Project.name == "default"))
+    default_project = proj_result.first()
+    assert default_project is not None
+
+    mock_opa.evaluate.return_value = {
+        "allow": True,
+        "allowed_projects": ["default"],
+    }
+    result = await resolve_visibility(seeded_db, mock_opa, test_user.id, "workflow", "read")
+    assert result.unrestricted is False
+    assert default_project.id in result.allowed_project_ids
+
+
+@pytest.mark.asyncio
+async def test_resolve_visibility_self_scope(
+    seeded_db: AsyncSession,
+    test_user: User,
+    mock_opa: AsyncMock,
+) -> None:
+    """resolve_visibility() detects self-scope policies in effective policies."""
+    mock_opa.evaluate.return_value = {
+        "allow": True,
+        "allowed_projects": [],
+    }
+    result = await resolve_visibility(seeded_db, mock_opa, test_user.id, "user", "read")
+    assert result.unrestricted is False
+    assert result.has_self_scope is True
+    assert result.self_user_id == test_user.id
+
+
+@pytest.mark.asyncio
+async def test_resolve_visibility_no_access(
+    seeded_db: AsyncSession,
+    test_user: User,
+    mock_opa: AsyncMock,
+) -> None:
+    """resolve_visibility() returns empty result when no policies match."""
+    mock_opa.evaluate.return_value = {
+        "allow": False,
+        "allowed_projects": [],
+    }
+    result = await resolve_visibility(seeded_db, mock_opa, test_user.id, "nonexistent", "read")
+    assert result.unrestricted is False
+    assert result.allowed_project_ids == []
+    assert result.has_self_scope is False
+    assert result.self_user_id is None

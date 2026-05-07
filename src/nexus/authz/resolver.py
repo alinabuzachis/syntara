@@ -228,7 +228,7 @@ async def resolve_user_groups(
     """Resolve group memberships for a user.
 
     Returns group info in the format expected by OPA:
-    [{"name": "group-name", "labels": {"key": "value"}}]
+    [{"name": "group-name", "id": "uuid", "labels": {"key": "value"}}]
     """
     group_ids = await get_user_group_ids(db, user_id)
 
@@ -241,4 +241,4 @@ async def resolve_user_groups(
             Group.deleted_at.is_(None),  # type: ignore[union-attr]
         )
     )
-    return [{"name": g.name, "labels": g.labels} for g in groups_result.all()]
+    return [{"name": g.name, "id": str(g.id), "labels": g.labels} for g in groups_result.all()]

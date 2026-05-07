@@ -17,8 +17,8 @@ from nexus.approvals.models.batch_response import BatchApprovalResponse
 from nexus.approvals.models.query_params import ApprovalListParams
 from nexus.approvals.services.approval_service import ApprovalService
 from nexus.auth import get_current_user
-from nexus.authz.dependencies import PermissionChecker, ProjectScopeFilter
-from nexus.authz.engine import AllowedProjectsResult
+from nexus.authz.dependencies import PermissionChecker, VisibilityFilter
+from nexus.authz.engine import VisibilityResult
 from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.core.nexus_router import NexusRouter
@@ -84,7 +84,7 @@ async def list_approvals(
     request: Request,
     service: Annotated[ApprovalService, Depends(get_approval_service)],
     params: Annotated[ApprovalListParams, Depends()],
-    allowed_projects: Annotated[AllowedProjectsResult, Depends(ProjectScopeFilter("approval", "read"))],
+    visibility: Annotated[VisibilityResult, Depends(VisibilityFilter("approval", "read"))],
 ) -> ApprovalListResponse:
     """List approval requests with filtering, sorting, and pagination.
 
@@ -101,7 +101,7 @@ async def list_approvals(
         sort=params.sort,
         query_params_items=request.query_params.items(),
         include_total=params.include_total,
-        allowed_projects=allowed_projects,
+        allowed_projects=visibility.to_allowed_projects(),
     )
 
 

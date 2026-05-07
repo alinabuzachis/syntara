@@ -8,7 +8,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth import get_current_user
 from nexus.auth.session import create_session_store
-from nexus.authz.dependencies import PermissionChecker
+from nexus.authz.dependencies import PermissionChecker, VisibilityFilter
+from nexus.authz.engine import VisibilityResult
 from nexus.authz.models.assignments import PrincipalType, RoleAssignment
 from nexus.authz.role_assignment_router import (
     PrincipalRoleAssignmentListParams,
@@ -98,19 +99,25 @@ async def create_group(
     )
 
 
-@router.get("", dependencies=[Depends(_group_read)], operation_id="list_groups", response_description="List of groups")
+@router.get("", dependencies=[NO_PERMISSION], operation_id="list_groups", response_description="List of groups")
 async def list_groups(
     request: Request,
     service: Annotated[GroupsService, Depends(get_group_service)],
     params: Annotated[GroupListParams, Query()],
+    visibility: Annotated[VisibilityResult, Depends(VisibilityFilter("group", "read"))],
 ) -> GroupListResponse:
-    """Retrieve list of groups with filtering and pagination."""
+    """Retrieve list of groups with visibility filtering.
+
+    Users with ``group:read:any`` see all groups.
+    Users with ``group:read:self`` see only their own groups.
+    """
     return await service.list_groups_cursor(
         limit=params.limit,
         cursor=params.cursor,
         sort=params.sort,
         query_params_items=request.query_params.items(),
         include_total=params.include_total,
+        id_restriction=visibility.to_id_restriction(use_group_ids=True),
     )
 
 

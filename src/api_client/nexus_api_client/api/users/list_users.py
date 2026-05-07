@@ -142,9 +142,10 @@ def sync_detailed(
 ) -> Response[ErrorData | ResourcesResponseUserRead]:
     """List Users
 
-     List users with filtering, sorting, and pagination.
+     List users with visibility filtering and pagination.
 
-    Uses cursor-based pagination for scalability and consistency.
+    Users with ``user:read:any`` see all users.
+    Users with ``user:read:self`` see only themselves.
 
     Args:
         limit (int | Unset): Maximum number of results per page Default: 20.
@@ -191,9 +192,10 @@ def sync(
 ) -> ErrorData | ResourcesResponseUserRead | None:
     """List Users
 
-     List users with filtering, sorting, and pagination.
+     List users with visibility filtering and pagination.
 
-    Uses cursor-based pagination for scalability and consistency.
+    Users with ``user:read:any`` see all users.
+    Users with ``user:read:self`` see only themselves.
 
     Args:
         limit (int | Unset): Maximum number of results per page Default: 20.
@@ -234,9 +236,10 @@ async def asyncio_detailed(
 ) -> Response[ErrorData | ResourcesResponseUserRead]:
     """List Users
 
-     List users with filtering, sorting, and pagination.
+     List users with visibility filtering and pagination.
 
-    Uses cursor-based pagination for scalability and consistency.
+    Users with ``user:read:any`` see all users.
+    Users with ``user:read:self`` see only themselves.
 
     Args:
         limit (int | Unset): Maximum number of results per page Default: 20.
@@ -280,9 +283,10 @@ async def asyncio(
 ) -> ErrorData | ResourcesResponseUserRead | None:
     """List Users
 
-     List users with filtering, sorting, and pagination.
+     List users with visibility filtering and pagination.
 
-    Uses cursor-based pagination for scalability and consistency.
+    Users with ``user:read:any`` see all users.
+    Users with ``user:read:self`` see only themselves.
 
     Args:
         limit (int | Unset): Maximum number of results per page Default: 20.

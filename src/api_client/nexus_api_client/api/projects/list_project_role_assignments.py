@@ -165,10 +165,11 @@ def sync_detailed(
 ) -> Response[ErrorData | RoleAssignmentListResponse]:
     """List Project Role Assignments
 
-     List role assignments for a project.
+     List role assignments for a project with policy-driven visibility.
 
-    Admin/auditor/project-admin see all assignments in the project;
-    other users see only their own.
+    Users with ``role-assignment:read:any`` see all assignments in the project.
+    Users with ``role-assignment:read:project`` for this project see all.
+    Users with ``role-assignment:read:self`` see only their own (direct and via groups).
 
     Args:
         project_id (UUID):
@@ -224,10 +225,11 @@ def sync(
 ) -> ErrorData | RoleAssignmentListResponse | None:
     """List Project Role Assignments
 
-     List role assignments for a project.
+     List role assignments for a project with policy-driven visibility.
 
-    Admin/auditor/project-admin see all assignments in the project;
-    other users see only their own.
+    Users with ``role-assignment:read:any`` see all assignments in the project.
+    Users with ``role-assignment:read:project`` for this project see all.
+    Users with ``role-assignment:read:self`` see only their own (direct and via groups).
 
     Args:
         project_id (UUID):
@@ -277,10 +279,11 @@ async def asyncio_detailed(
 ) -> Response[ErrorData | RoleAssignmentListResponse]:
     """List Project Role Assignments
 
-     List role assignments for a project.
+     List role assignments for a project with policy-driven visibility.
 
-    Admin/auditor/project-admin see all assignments in the project;
-    other users see only their own.
+    Users with ``role-assignment:read:any`` see all assignments in the project.
+    Users with ``role-assignment:read:project`` for this project see all.
+    Users with ``role-assignment:read:self`` see only their own (direct and via groups).
 
     Args:
         project_id (UUID):
@@ -333,10 +336,11 @@ async def asyncio(
 ) -> ErrorData | RoleAssignmentListResponse | None:
     """List Project Role Assignments
 
-     List role assignments for a project.
+     List role assignments for a project with policy-driven visibility.
 
-    Admin/auditor/project-admin see all assignments in the project;
-    other users see only their own.
+    Users with ``role-assignment:read:any`` see all assignments in the project.
+    Users with ``role-assignment:read:project`` for this project see all.
+    Users with ``role-assignment:read:self`` see only their own (direct and via groups).
 
     Args:
         project_id (UUID):

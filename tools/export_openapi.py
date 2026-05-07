@@ -33,14 +33,12 @@ from nexus.metrics.internal_api import (
 
 def _extract_route_permission(route: object) -> dict[str, object] | None:
     """Extract x-app-permission dict from a route's dependencies, or None."""
-    from nexus.authz.dependencies import PermissionChecker, ProjectScopeFilter
+    from nexus.authz.dependencies import PermissionChecker, ProjectScopeFilter, VisibilityFilter
     from nexus.authz.resource_actions import _get_dep_instance, _iter_route_deps
 
     for dep in _iter_route_deps(route):
         inner = _get_dep_instance(dep)
-        if isinstance(inner, PermissionChecker):
-            return {"resource": inner.resource_type, "action": inner.action}
-        if isinstance(inner, ProjectScopeFilter):
+        if isinstance(inner, (PermissionChecker, ProjectScopeFilter, VisibilityFilter)):
             return {"resource": inner.resource_type, "action": inner.action}
     return None
 

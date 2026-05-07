@@ -13,8 +13,10 @@ from nexus.authz.engine import (
     AllowedProjectsResult,
     AuthzRequest,
     AuthzResult,
+    VisibilityResult,
     authorize,
     resolve_allowed_projects,
+    resolve_visibility,
 )
 from nexus.authz.exceptions import AuthorizationDeniedError
 from nexus.authz.models.project import Project
@@ -251,6 +253,34 @@ class ProjectScopeFilter:
         opa_client = get_opa_client(request)
 
         return await resolve_allowed_projects(
+            db=db,
+            opa_client=opa_client,
+            user_id=current_user.id,
+            resource_type=self.resource_type,
+            action=self.action,
+            user_labels=current_user.labels,
+            user_metadata=current_user.authz_metadata,
+        )
+
+
+class VisibilityFilter:
+    """FastAPI dependency that resolves what a user is allowed to see."""
+
+    def __init__(self, resource_type: str, action: str) -> None:
+        """Initialize visibility filter."""
+        self.resource_type = resource_type
+        self.action = action
+
+    async def __call__(
+        self,
+        request: Request,
+        current_user: User = Depends(get_current_user),  # noqa: B008
+        db: AsyncSession = Depends(get_db),  # noqa: B008
+    ) -> VisibilityResult:
+        """Resolve visibility for the current user."""
+        opa_client = get_opa_client(request)
+
+        return await resolve_visibility(
             db=db,
             opa_client=opa_client,
             user_id=current_user.id,

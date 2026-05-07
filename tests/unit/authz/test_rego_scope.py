@@ -78,6 +78,70 @@ class TestSelfScopeOwnOnly:
         assert result["allow"] is False
 
 
+class TestGroupSelfScope:
+    """Self-scoped group policy allows when user is a member of the group."""
+
+    def test_group_self_scope_member_allowed(self, opa_evaluate):
+        group_id = "group-uuid-123"
+        policies = [
+            allow_policy("group:read:self", ["group:read"], scope="self"),
+        ]
+        result = opa_evaluate(
+            build_opa_input(
+                action="read",
+                resource_type="group",
+                resource_id=group_id,
+                groups=[{"name": "my-group", "id": group_id, "labels": {}}],
+                effective_policies=policies,
+            )
+        )
+        assert result["allow"] is True
+
+    def test_group_self_scope_non_member_denied(self, opa_evaluate):
+        policies = [
+            allow_policy("group:read:self", ["group:read"], scope="self"),
+        ]
+        result = opa_evaluate(
+            build_opa_input(
+                action="read",
+                resource_type="group",
+                resource_id="other-group-id",
+                groups=[{"name": "my-group", "id": "my-group-id", "labels": {}}],
+                effective_policies=policies,
+            )
+        )
+        assert result["allow"] is False
+
+    def test_group_self_scope_empty_groups_denied(self, opa_evaluate):
+        policies = [
+            allow_policy("group:read:self", ["group:read"], scope="self"),
+        ]
+        result = opa_evaluate(
+            build_opa_input(
+                action="read",
+                resource_type="group",
+                resource_id="some-group-id",
+                groups=[],
+                effective_policies=policies,
+            )
+        )
+        assert result["allow"] is False
+
+    def test_group_any_scope_still_works(self, opa_evaluate):
+        policies = [
+            allow_policy("group:read:any", ["group:read"], scope="any"),
+        ]
+        result = opa_evaluate(
+            build_opa_input(
+                action="read",
+                resource_type="group",
+                resource_id="any-group-id",
+                effective_policies=policies,
+            )
+        )
+        assert result["allow"] is True
+
+
 class TestProjectScopeBoundaries:
     """Project-scoped policy allows in matching project, denies in others."""
 

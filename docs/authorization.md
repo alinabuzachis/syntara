@@ -50,7 +50,7 @@ A policy contains one or more **statements** that define what actions are allowe
 - **actions**: List of `"resource_type:action"` strings. Supports wildcards like `"workflow:*"`.
 - **scope**: Controls where the policy applies:
   - `"any"` — applies globally to all resources
-  - `"self"` — applies only to the user's own resource (e.g., `user:read` on own user record)
+  - `"self"` — applies only to the user's own resources. Matches when `resource.id == user.id` (e.g., users) or when `resource.id` matches one of the user's group IDs (e.g., groups)
   - `"project"` — applies only within a specific project (set via project role assignments)
 
 There are two categories of policies:
@@ -203,21 +203,60 @@ async def create_workflow_in_project(...):
 | `resource_id_param` | Path parameter name for the resource ID (used with `resource_model`) |
 | `body_project_field` | JSON body field name containing a project UUID |
 
-### Filtering List Endpoints by Project
+### Filtering List Endpoints with VisibilityFilter
 
-Use `ProjectScopeFilter` to restrict list queries to projects the user can access:
+Use `VisibilityFilter` to restrict list queries based on the user's effective policies. It resolves project-scoped access, self-scope access, and unrestricted access in a single OPA call:
 
 ```python
-from nexus.authz.dependencies import ProjectScopeFilter
-from nexus.authz.engine import AllowedProjectsResult
+from nexus.authz.dependencies import VisibilityFilter
+from nexus.authz.engine import VisibilityResult
 
+# Project-scoped resources (workflows, executions, approvals, credentials, projects)
 @router.get("")
 async def list_workflows(
-    allowed: AllowedProjectsResult = Depends(ProjectScopeFilter("workflow", "read")),
+    visibility: VisibilityResult = Depends(VisibilityFilter("workflow", "read")),
 ):
-    # Use allowed.project_ids to filter your query
+    # Convert to AllowedProjectsResult for project-scoped filtering
+    allowed_projects = visibility.to_allowed_projects()
+    ...
+
+# System-scoped resources (users, groups)
+@router.get("")
+async def list_users(
+    visibility: VisibilityResult = Depends(VisibilityFilter("user", "read")),
+):
+    # Convert to ID restriction — None means unrestricted, [] means no access
+    id_restriction = visibility.to_id_restriction()
+    ...
+
+# Groups use group membership IDs instead of user ID
+@router.get("")
+async def list_groups(
+    visibility: VisibilityResult = Depends(VisibilityFilter("group", "read")),
+):
+    id_restriction = visibility.to_id_restriction(use_group_ids=True)
     ...
 ```
+
+`VisibilityResult` fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `unrestricted` | `bool` | User has `any`-scope access — no filtering needed |
+| `allowed_project_ids` | `list[UUID]` | Projects the user can access via `project`-scope policies |
+| `has_self_scope` | `bool` | User has `self`-scope access to their own resources |
+| `self_user_id` | `UUID \| None` | The user's own ID (set when `has_self_scope` is True) |
+| `self_group_ids` | `list[UUID]` | IDs of groups the user belongs to (set when `has_self_scope` is True) |
+
+`VisibilityResult` methods:
+
+| Method | Returns | Use Case |
+|--------|---------|----------|
+| `to_allowed_projects()` | `AllowedProjectsResult` | Project-scoped resources (workflows, executions, etc.) |
+| `to_id_restriction()` | `list[UUID] \| None` | System-scoped resources filtered by user ID (users) |
+| `to_id_restriction(use_group_ids=True)` | `list[UUID] \| None` | System-scoped resources filtered by group membership (groups) |
+
+> **Note:** `ProjectScopeFilter` still exists for backward compatibility but new endpoints should use `VisibilityFilter`.
 
 ## Conditions (ABAC)
 
@@ -306,7 +345,7 @@ DELETE /role-assignments/{id}      — revoke
 | `limit` | Page size |
 | `include_total` | Include total count |
 
-**Visibility:** Admins/auditors see all. Project-admins see their own plus all assignments in projects they administer. Other users see only their own (direct and via groups).
+**Visibility:** Driven by `VisibilityFilter("role-assignment", "read")`. Users with `any`-scope see all. Users with `project`-scope see assignments in their authorized projects. Users with `self`-scope see only their own (direct and via groups).
 
 ## Project Admin Endpoints
 

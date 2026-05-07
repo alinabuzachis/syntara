@@ -372,3 +372,27 @@ async def test_get_member_counts_multiple_groups(test_db_session: AsyncSession, 
 
     assert counts[group_a.id] == 2
     assert counts[group_b.id] == 1
+
+
+@pytest.mark.asyncio
+async def test_list_groups_with_id_restriction(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test listing groups with id_restriction returns only matching groups."""
+    service = GroupsService(test_db_session, test_user)
+
+    group1 = await service.create_group(name="visible-group", description=None)
+    await service.create_group(name="hidden-group", description=None)
+
+    result = await service.list_groups_cursor(id_restriction=[group1.id])
+    assert len(result.resources) == 1
+    assert result.resources[0].id == group1.id
+
+
+@pytest.mark.asyncio
+async def test_list_groups_with_empty_id_restriction(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test listing groups with empty id_restriction returns no groups."""
+    service = GroupsService(test_db_session, test_user)
+
+    await service.create_group(name="unreachable-group", description=None)
+
+    result = await service.list_groups_cursor(id_restriction=[])
+    assert len(result.resources) == 0

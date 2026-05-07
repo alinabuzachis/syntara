@@ -10,8 +10,8 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth import get_current_user
-from nexus.authz.dependencies import PermissionChecker, ProjectScopeFilter
-from nexus.authz.engine import AllowedProjectsResult
+from nexus.authz.dependencies import PermissionChecker, VisibilityFilter
+from nexus.authz.engine import VisibilityResult
 from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.core.nexus_router import NexusRouter
@@ -101,7 +101,7 @@ async def list_credentials(
     request: Request,
     service: Annotated[CredentialService, Depends(get_credential_service)],
     params: Annotated[CredentialListParams, Query()],
-    allowed_projects: Annotated[AllowedProjectsResult, Depends(ProjectScopeFilter("credential", "read"))],
+    visibility: Annotated[VisibilityResult, Depends(VisibilityFilter("credential", "read"))],
 ) -> CredentialListResponse:
     """List Credentials with filtering and pagination. Metadata only, no secrets."""
     return await service.list_credentials(
@@ -110,7 +110,7 @@ async def list_credentials(
         sort=params.sort,
         query_params_items=request.query_params.items(),
         include_total=params.include_total,
-        allowed_projects=allowed_projects,
+        allowed_projects=visibility.to_allowed_projects(),
     )
 
 

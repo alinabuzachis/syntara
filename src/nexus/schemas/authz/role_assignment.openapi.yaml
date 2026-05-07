@@ -65,15 +65,15 @@ paths:
     get:
       summary: List Role Assignments
       description: |-
-        List role assignments with project-aware visibility.
+        List role assignments with policy-driven visibility.
 
-        Admins/auditors see all. Project-admins see their own plus all
-        assignments in projects they administer. Other users see only their
-        own (direct and via groups).
+        Users with ``role-assignment:read:any`` see all.
+        Users with ``role-assignment:read:project`` see assignments in their projects.
+        Users with ``role-assignment:read:self`` see their own (direct and via groups).
       operationId: list_role_assignments
       x-app-permission:
-        resource: null
-        action: null
+        resource: role-assignment
+        action: read
       tags:
         - Role Assignments
       parameters:

@@ -219,6 +219,7 @@ class GroupsService(BaseService):
         query_params_items: Iterable[tuple[str, str]] | None = None,
         *,
         include_total: bool = False,
+        id_restriction: list[UUID] | None = None,
     ) -> GroupListResponse:
         """List groups with filtering, sorting, and pagination.
 
@@ -228,6 +229,7 @@ class GroupsService(BaseService):
             sort: Sort parameter (e.g., "name", "-created_at")
             query_params_items: Raw query parameter items from request (for filtering)
             include_total: Whether to include total count in response
+            id_restriction: Optional list of allowed group IDs to filter by
 
         Returns:
             GroupListResponse with groups, pagination metadata, and optional total
@@ -242,6 +244,7 @@ class GroupsService(BaseService):
             special_field_handlers=self._get_special_field_handlers(),
             query_params_items=query_params_items,
             include_total=include_total,
+            id_restriction=id_restriction,
         )
 
         # Enrich with member counts

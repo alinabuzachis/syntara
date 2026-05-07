@@ -26,9 +26,10 @@ paths:
     get:
       summary: List Users
       description: |-
-        List users with filtering, sorting, and pagination.
+        List users with visibility filtering and pagination.
 
-        Uses cursor-based pagination for scalability and consistency.
+        Users with ``user:read:any`` see all users.
+        Users with ``user:read:self`` see only themselves.
       operationId: list_users
       x-app-permission:
         resource: user
@@ -485,7 +486,11 @@ paths:
   /groups:
     get:
       summary: List Groups
-      description: Retrieve list of groups with filtering and pagination.
+      description: |-
+        Retrieve list of groups with visibility filtering.
+
+        Users with ``group:read:any`` see all groups.
+        Users with ``group:read:self`` see only their own groups.
       operationId: list_groups
       x-app-permission:
         resource: group

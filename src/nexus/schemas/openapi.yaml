@@ -5088,15 +5088,15 @@ paths:
     get:
       summary: List Role Assignments
       description: |-
-        List role assignments with project-aware visibility.
+        List role assignments with policy-driven visibility.
 
-        Admins/auditors see all. Project-admins see their own plus all
-        assignments in projects they administer. Other users see only their
-        own (direct and via groups).
+        Users with ``role-assignment:read:any`` see all.
+        Users with ``role-assignment:read:project`` see assignments in their projects.
+        Users with ``role-assignment:read:self`` see their own (direct and via groups).
       operationId: list_role_assignments
       x-app-permission:
-        resource: null
-        action: null
+        resource: role-assignment
+        action: read
       tags:
         - Role Assignments
       parameters:
@@ -10305,14 +10305,15 @@ paths:
     get:
       summary: List Project Role Assignments
       description: |-
-        List role assignments for a project.
+        List role assignments for a project with policy-driven visibility.
 
-        Admin/auditor/project-admin see all assignments in the project;
-        other users see only their own.
+        Users with ``role-assignment:read:any`` see all assignments in the project.
+        Users with ``role-assignment:read:project`` for this project see all.
+        Users with ``role-assignment:read:self`` see only their own (direct and via groups).
       operationId: list_project_role_assignments
       x-app-permission:
-        resource: null
-        action: null
+        resource: role-assignment
+        action: read
       tags:
         - Projects
       parameters:
@@ -14896,9 +14897,10 @@ paths:
     get:
       summary: List Users
       description: |-
-        List users with filtering, sorting, and pagination.
+        List users with visibility filtering and pagination.
 
-        Uses cursor-based pagination for scalability and consistency.
+        Users with ``user:read:any`` see all users.
+        Users with ``user:read:self`` see only themselves.
       operationId: list_users
       x-app-permission:
         resource: user
@@ -16134,7 +16136,11 @@ paths:
   /groups:
     get:
       summary: List Groups
-      description: Retrieve list of groups with filtering and pagination.
+      description: |-
+        Retrieve list of groups with visibility filtering.
+
+        Users with ``group:read:any`` see all groups.
+        Users with ``group:read:self`` see only their own groups.
       operationId: list_groups
       x-app-permission:
         resource: group

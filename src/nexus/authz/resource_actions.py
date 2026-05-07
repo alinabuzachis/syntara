@@ -123,7 +123,7 @@ def build_resource_actions(app: FastAPI) -> dict[str, list[str]]:
     """
     from fastapi.routing import APIRoute  # noqa: PLC0415
 
-    from nexus.authz.dependencies import PermissionChecker, ProjectScopeFilter  # noqa: PLC0415
+    from nexus.authz.dependencies import PermissionChecker, ProjectScopeFilter, VisibilityFilter  # noqa: PLC0415
     from nexus.authz.role_conventions import BUILTIN_POLICIES  # noqa: PLC0415
 
     pairs: set[tuple[str, str]] = set()
@@ -133,7 +133,7 @@ def build_resource_actions(app: FastAPI) -> dict[str, list[str]]:
             continue
         for dep in _iter_route_deps(route):
             inner = _get_dep_instance(dep)
-            if isinstance(inner, (PermissionChecker, ProjectScopeFilter)):
+            if isinstance(inner, (PermissionChecker, ProjectScopeFilter, VisibilityFilter)):
                 pairs.add((inner.resource_type, inner.action))
 
     for policy in BUILTIN_POLICIES:

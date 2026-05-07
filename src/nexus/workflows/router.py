@@ -8,8 +8,8 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth import get_current_user
-from nexus.authz.dependencies import PermissionChecker, ProjectScopeFilter
-from nexus.authz.engine import AllowedProjectsResult
+from nexus.authz.dependencies import PermissionChecker, VisibilityFilter
+from nexus.authz.engine import VisibilityResult
 from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.core.nexus_router import NexusRouter
@@ -109,7 +109,7 @@ async def list_workflows(
     request: Request,
     service: Annotated[WorkflowService, Depends(get_workflow_service)],
     params: Annotated[WorkflowListParams, Query()],
-    allowed_projects: Annotated[AllowedProjectsResult, Depends(ProjectScopeFilter("workflow", "read"))],
+    visibility: Annotated[VisibilityResult, Depends(VisibilityFilter("workflow", "read"))],
 ) -> WorkflowListResponse:
     """List workflows the current user has read access to.
 
@@ -126,7 +126,7 @@ async def list_workflows(
         sort=params.sort,
         query_params_items=request.query_params.items(),
         include_total=params.include_total,
-        allowed_projects=allowed_projects,
+        allowed_projects=visibility.to_allowed_projects(),
     )
 
 

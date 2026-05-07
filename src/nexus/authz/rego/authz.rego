@@ -51,6 +51,12 @@ _scope_matches(policy) if {
     input.resource.id == input.user.id
 }
 _scope_matches(policy) if {
+    policy.scope == "self"
+    input.resource.type == "group"
+    some group in input.groups
+    group.id == input.resource.id
+}
+_scope_matches(policy) if {
     policy.scope == "project"
     policy.project == input.resource.project
 }

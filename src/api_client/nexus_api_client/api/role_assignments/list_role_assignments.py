@@ -174,11 +174,11 @@ def sync_detailed(
 ) -> Response[ErrorData | RoleAssignmentListResponse]:
     """List Role Assignments
 
-     List role assignments with project-aware visibility.
+     List role assignments with policy-driven visibility.
 
-    Admins/auditors see all. Project-admins see their own plus all
-    assignments in projects they administer. Other users see only their
-    own (direct and via groups).
+    Users with ``role-assignment:read:any`` see all.
+    Users with ``role-assignment:read:project`` see assignments in their projects.
+    Users with ``role-assignment:read:self`` see their own (direct and via groups).
 
     Args:
         limit (int | Unset): Maximum number of results per page Default: 20.
@@ -234,11 +234,11 @@ def sync(
 ) -> ErrorData | RoleAssignmentListResponse | None:
     """List Role Assignments
 
-     List role assignments with project-aware visibility.
+     List role assignments with policy-driven visibility.
 
-    Admins/auditors see all. Project-admins see their own plus all
-    assignments in projects they administer. Other users see only their
-    own (direct and via groups).
+    Users with ``role-assignment:read:any`` see all.
+    Users with ``role-assignment:read:project`` see assignments in their projects.
+    Users with ``role-assignment:read:self`` see their own (direct and via groups).
 
     Args:
         limit (int | Unset): Maximum number of results per page Default: 20.
@@ -288,11 +288,11 @@ async def asyncio_detailed(
 ) -> Response[ErrorData | RoleAssignmentListResponse]:
     """List Role Assignments
 
-     List role assignments with project-aware visibility.
+     List role assignments with policy-driven visibility.
 
-    Admins/auditors see all. Project-admins see their own plus all
-    assignments in projects they administer. Other users see only their
-    own (direct and via groups).
+    Users with ``role-assignment:read:any`` see all.
+    Users with ``role-assignment:read:project`` see assignments in their projects.
+    Users with ``role-assignment:read:self`` see their own (direct and via groups).
 
     Args:
         limit (int | Unset): Maximum number of results per page Default: 20.
@@ -345,11 +345,11 @@ async def asyncio(
 ) -> ErrorData | RoleAssignmentListResponse | None:
     """List Role Assignments
 
-     List role assignments with project-aware visibility.
+     List role assignments with policy-driven visibility.
 
-    Admins/auditors see all. Project-admins see their own plus all
-    assignments in projects they administer. Other users see only their
-    own (direct and via groups).
+    Users with ``role-assignment:read:any`` see all.
+    Users with ``role-assignment:read:project`` see assignments in their projects.
+    Users with ``role-assignment:read:self`` see their own (direct and via groups).
 
     Args:
         limit (int | Unset): Maximum number of results per page Default: 20.

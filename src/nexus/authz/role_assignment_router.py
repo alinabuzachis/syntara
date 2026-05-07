@@ -9,8 +9,8 @@ from sqlmodel import Field, SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth import get_current_user
-from nexus.authz.dependencies import PermissionChecker, get_opa_client
-from nexus.authz.engine import resolve_allowed_projects
+from nexus.authz.dependencies import PermissionChecker, VisibilityFilter, get_opa_client
+from nexus.authz.engine import VisibilityResult, resolve_allowed_projects
 from nexus.authz.models.assignments import PrincipalType, RoleAssignment
 from nexus.authz.resolver import get_user_group_ids
 from nexus.authz.services.role_assignment_service import RoleAssignmentService
@@ -238,21 +238,14 @@ async def list_role_assignments(
     request: Request,
     params: Annotated[RoleAssignmentListParams, Depends()],
     service: Annotated[RoleAssignmentService, Depends(_get_service)],
-    current_user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    visibility: Annotated[VisibilityResult, Depends(VisibilityFilter("role-assignment", "read"))],
 ) -> RoleAssignmentListResponse:
-    """List role assignments with project-aware visibility.
+    """List role assignments with policy-driven visibility.
 
-    Admins/auditors see all. Project-admins see their own plus all
-    assignments in projects they administer. Other users see only their
-    own (direct and via groups).
+    Users with ``role-assignment:read:any`` see all.
+    Users with ``role-assignment:read:project`` see assignments in their projects.
+    Users with ``role-assignment:read:self`` see their own (direct and via groups).
     """
-    restrict_user_id, restrict_group_ids, allowed_project_ids = await _resolve_visibility(
-        db,
-        request,
-        current_user,
-    )
-
     contains = _parse_contains_filters(request)
 
     result = await service.list(
@@ -267,9 +260,9 @@ async def list_role_assignments(
         role_name_contains=contains.get("role_name_contains"),
         project_id=params.project_id,
         include_total=params.include_total,
-        restrict_user_id=restrict_user_id,
-        restrict_group_ids=restrict_group_ids,
-        allowed_project_ids=allowed_project_ids,
+        restrict_user_id=visibility.self_user_id if not visibility.unrestricted else None,
+        restrict_group_ids=list(visibility.self_group_ids) if visibility.has_self_scope else None,
+        allowed_project_ids=visibility.allowed_project_ids or None,
     )
     return RoleAssignmentListResponse(
         resources=[RoleAssignmentRead.model_validate(r) for r in result["resources"]],
@@ -349,36 +342,3 @@ async def delete_role_assignment(
 ) -> None:
     """Remove a role assignment."""
     await service.revoke(assignment_id)
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-async def _resolve_visibility(
-    db: AsyncSession,
-    request: Request,
-    current_user: User,
-) -> tuple[UUID | None, list[UUID] | None, list[UUID] | None]:
-    """Determine what the caller is allowed to see.
-
-    Returns (restrict_user_id, restrict_group_ids, allowed_project_ids).
-    All None means "show everything".
-    """
-    opa_client = get_opa_client(request)
-    allowed = await resolve_allowed_projects(
-        db=db,
-        opa_client=opa_client,
-        user_id=current_user.id,
-        resource_type="role-assignment",
-        action="read",
-        user_labels=current_user.labels,
-        user_metadata=current_user.authz_metadata,
-    )
-
-    if allowed.all_projects:
-        return None, None, None
-
-    group_ids = await get_user_group_ids(db, current_user.id)
-    return current_user.id, group_ids, allowed.project_ids

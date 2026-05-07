@@ -127,6 +127,58 @@ class AllowedProjectsResult:
     project_ids: list[UUID]
 
 
+async def _evaluate_list_scope(
+    db: AsyncSession,
+    opa_client: OPAClient,
+    user_id: UUID,
+    resource_type: str,
+    action: str,
+    user_labels: dict[str, str] | None = None,
+    user_metadata: dict[str, Any] | None = None,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[str]]:
+    """Shared OPA evaluation for list-scope resolution.
+
+    Returns (effective_policies, groups, allowed_project_names).
+    """
+    effective = await resolve_effective_policies(db, user_id)
+    groups = await resolve_user_groups(db, user_id)
+
+    opa_input: dict[str, Any] = {
+        "user": {
+            "id": str(user_id),
+            "metadata": user_metadata or {},
+            "labels": user_labels or {},
+        },
+        "action": action,
+        "resource": {
+            "type": resource_type,
+            "id": "",
+            "project": "",
+            "metadata": {},
+            "labels": {},
+        },
+        "groups": groups,
+        "effective_policies": effective,
+    }
+
+    opa_result = await opa_client.evaluate(opa_input)
+    allowed_projects: list[str] = list(opa_result.get("allowed_projects", []))
+    return effective, groups, allowed_projects
+
+
+async def _resolve_project_ids(db: AsyncSession, project_names: list[str]) -> list[UUID]:
+    """Map project names to IDs, excluding soft-deleted projects."""
+    if not project_names:
+        return []
+    projects_result = await db.exec(
+        select(Project).where(
+            Project.name.in_(project_names),  # type: ignore[attr-defined]
+            Project.deleted_at.is_(None),  # type: ignore[union-attr]
+        )
+    )
+    return [p.id for p in projects_result.all()]
+
+
 async def resolve_allowed_projects(
     db: AsyncSession,
     opa_client: OPAClient,
@@ -154,29 +206,15 @@ async def resolve_allowed_projects(
         AllowedProjectsResult with all_projects flag or list of project IDs.
 
     """
-    effective = await resolve_effective_policies(db, user_id)
-    groups = await resolve_user_groups(db, user_id)
-
-    opa_input: dict[str, Any] = {
-        "user": {
-            "id": str(user_id),
-            "metadata": user_metadata or {},
-            "labels": user_labels or {},
-        },
-        "action": action,
-        "resource": {
-            "type": resource_type,
-            "id": "",
-            "project": "",
-            "metadata": {},
-            "labels": {},
-        },
-        "groups": groups,
-        "effective_policies": effective,
-    }
-
-    opa_result = await opa_client.evaluate(opa_input)
-    allowed_projects: list[str] = list(opa_result.get("allowed_projects", []))
+    _, _, allowed_projects = await _evaluate_list_scope(
+        db,
+        opa_client,
+        user_id,
+        resource_type,
+        action,
+        user_labels,
+        user_metadata,
+    )
 
     logger.debug(
         "Resolved allowed projects",
@@ -186,23 +224,89 @@ async def resolve_allowed_projects(
         allowed_projects=allowed_projects,
     )
 
-    # If "*" is in the set, user has global access — no filtering needed
     if "*" in allowed_projects:
         return AllowedProjectsResult(all_projects=True, project_ids=[])
 
-    # Map project names to project IDs
-    if not allowed_projects:
-        return AllowedProjectsResult(all_projects=False, project_ids=[])
-
-    projects_result = await db.exec(
-        select(Project).where(
-            Project.name.in_(allowed_projects),  # type: ignore[attr-defined]
-            Project.deleted_at.is_(None),  # type: ignore[union-attr]
-        )
-    )
-    project_ids = [p.id for p in projects_result.all()]
-
+    project_ids = await _resolve_project_ids(db, allowed_projects)
     return AllowedProjectsResult(all_projects=False, project_ids=project_ids)
+
+
+@dataclass
+class VisibilityResult:
+    """Result of resolving what a user is allowed to see on a list endpoint."""
+
+    unrestricted: bool = False
+    allowed_project_ids: list[UUID] = field(default_factory=list)
+    has_self_scope: bool = False
+    self_user_id: UUID | None = None
+    self_group_ids: list[UUID] = field(default_factory=list)
+
+    def to_allowed_projects(self) -> AllowedProjectsResult:
+        """Convert to AllowedProjectsResult for project-scoped resources."""
+        return AllowedProjectsResult(self.unrestricted, self.allowed_project_ids)
+
+    def to_id_restriction(self, *, use_group_ids: bool = False) -> list[UUID] | None:
+        """Convert to id_restriction for system-scoped resources."""
+        if self.unrestricted:
+            return None
+        if not self.has_self_scope:
+            return []
+        if use_group_ids:
+            return list(self.self_group_ids)
+        return [self.self_user_id] if self.self_user_id else []
+
+
+async def resolve_visibility(
+    db: AsyncSession,
+    opa_client: OPAClient,
+    user_id: UUID,
+    resource_type: str,
+    action: str,
+    user_labels: dict[str, str] | None = None,
+    user_metadata: dict[str, Any] | None = None,
+) -> VisibilityResult:
+    """Resolve what a user is allowed to see for a list endpoint."""
+    effective, groups, allowed_projects = await _evaluate_list_scope(
+        db,
+        opa_client,
+        user_id,
+        resource_type,
+        action,
+        user_labels,
+        user_metadata,
+    )
+
+    if "*" in allowed_projects:
+        return VisibilityResult(unrestricted=True)
+
+    project_ids = await _resolve_project_ids(db, allowed_projects)
+
+    action_str = f"{resource_type}:{action}"
+    has_self = any(
+        p.get("scope") == "self" and action_str in p.get("actions", []) for p in effective if p.get("effect") == "allow"
+    )
+
+    group_ids: list[UUID] = []
+    if has_self:
+        group_ids = [UUID(g["id"]) for g in groups if g.get("id")]
+
+    logger.debug(
+        "Resolved visibility",
+        user_id=str(user_id),
+        resource_type=resource_type,
+        action=action,
+        unrestricted=False,
+        allowed_projects=allowed_projects,
+        has_self_scope=has_self,
+    )
+
+    return VisibilityResult(
+        unrestricted=False,
+        allowed_project_ids=project_ids,
+        has_self_scope=has_self,
+        self_user_id=user_id if has_self else None,
+        self_group_ids=group_ids,
+    )
 
 
 async def assign_project_admin(

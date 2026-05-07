@@ -260,7 +260,6 @@ def _mock_opa(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr("nexus.authz.dependencies.get_opa_client", _mock_getter)
     monkeypatch.setattr("nexus.authz.role_assignment_router.get_opa_client", _mock_getter)
-    monkeypatch.setattr("nexus.projects.router.get_opa_client", _mock_getter)
     monkeypatch.setattr("nexus.workflows.executions_router.get_opa_client", _mock_getter)
 
     # Also override via FastAPI dependency_overrides so Depends(get_opa_client) resolves correctly

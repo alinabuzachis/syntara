@@ -510,6 +510,62 @@ async def test_delete_builtin_user_raises_admin_delete_error(test_db_session: As
 
 
 @pytest.mark.asyncio
+async def test_list_users_with_id_restriction(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test listing users with id_restriction returns only matching users."""
+    service = UsersService(test_db_session, test_user)
+
+    user1 = await service.create_user(
+        username="restricted1",
+        email="r1@example.com",
+        full_name="R1",
+        password=TEST_PASSWORD,
+    )
+    await service.create_user(
+        username="restricted2",
+        email="r2@example.com",
+        full_name="R2",
+        password=TEST_PASSWORD,
+    )
+
+    result = await service.list_users_cursor(id_restriction=[user1.id])
+    assert len(result.resources) == 1
+    assert result.resources[0].id == user1.id
+
+
+@pytest.mark.asyncio
+async def test_list_users_with_empty_id_restriction(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test listing users with empty id_restriction returns no users."""
+    service = UsersService(test_db_session, test_user)
+
+    await service.create_user(
+        username="noaccess",
+        email="no@example.com",
+        full_name="No",
+        password=TEST_PASSWORD,
+    )
+
+    result = await service.list_users_cursor(id_restriction=[])
+    assert len(result.resources) == 0
+
+
+@pytest.mark.asyncio
+async def test_list_users_with_none_id_restriction(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test listing users with id_restriction=None returns all users."""
+    service = UsersService(test_db_session, test_user)
+
+    for i in range(3):
+        await service.create_user(
+            username=f"allaccess{i}",
+            email=f"all{i}@example.com",
+            full_name=f"All {i}",
+            password=TEST_PASSWORD,
+        )
+
+    result = await service.list_users_cursor(id_restriction=None)
+    assert len(result.resources) >= 3
+
+
+@pytest.mark.asyncio
 async def test_delete_last_admin_raises_error(test_db_session: AsyncSession) -> None:
     """Test deleting the last admin raises AdminDisableNoOtherAdminsError."""
     sole_admin = User(

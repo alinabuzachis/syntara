@@ -124,7 +124,10 @@ def sync_detailed(
 ) -> Response[ErrorData | ResourcesResponseGroupRead]:
     """List Groups
 
-     Retrieve list of groups with filtering and pagination.
+     Retrieve list of groups with visibility filtering.
+
+    Users with ``group:read:any`` see all groups.
+    Users with ``group:read:self`` see only their own groups.
 
     Args:
         limit (int | Unset): Maximum number of results per page Default: 20.
@@ -161,7 +164,10 @@ def sync(
 ) -> ErrorData | ResourcesResponseGroupRead | None:
     """List Groups
 
-     Retrieve list of groups with filtering and pagination.
+     Retrieve list of groups with visibility filtering.
+
+    Users with ``group:read:any`` see all groups.
+    Users with ``group:read:self`` see only their own groups.
 
     Args:
         limit (int | Unset): Maximum number of results per page Default: 20.
@@ -196,7 +202,10 @@ async def asyncio_detailed(
 ) -> Response[ErrorData | ResourcesResponseGroupRead]:
     """List Groups
 
-     Retrieve list of groups with filtering and pagination.
+     Retrieve list of groups with visibility filtering.
+
+    Users with ``group:read:any`` see all groups.
+    Users with ``group:read:self`` see only their own groups.
 
     Args:
         limit (int | Unset): Maximum number of results per page Default: 20.
@@ -234,7 +243,10 @@ async def asyncio(
 ) -> ErrorData | ResourcesResponseGroupRead | None:
     """List Groups
 
-     Retrieve list of groups with filtering and pagination.
+     Retrieve list of groups with visibility filtering.
+
+    Users with ``group:read:any`` see all groups.
+    Users with ``group:read:self`` see only their own groups.
 
     Args:
         limit (int | Unset): Maximum number of results per page Default: 20.

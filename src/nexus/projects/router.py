@@ -14,10 +14,9 @@ from nexus.approvals.models.approval_request import ApprovalListResponse
 from nexus.approvals.models.query_params import ApprovalListParams
 from nexus.approvals.services.approval_service import ApprovalService
 from nexus.auth import get_current_user
-from nexus.authz.dependencies import PermissionChecker, ProjectScopeFilter, get_opa_client
-from nexus.authz.engine import AllowedProjectsResult, AuthzRequest, authorize
+from nexus.authz.dependencies import PermissionChecker, VisibilityFilter
+from nexus.authz.engine import AllowedProjectsResult, VisibilityResult
 from nexus.authz.exceptions import PolicyNotFoundError, RoleNotFoundError
-from nexus.authz.resolver import get_user_group_ids
 from nexus.authz.role_assignment_router import (
     ProjectRoleAssignmentListParams,
     RoleAssignmentCreate,
@@ -138,7 +137,7 @@ async def create_project(
 async def list_projects(
     request: Request,
     service: Annotated[ProjectService, Depends(get_project_service)],
-    allowed_projects: Annotated[AllowedProjectsResult, Depends(ProjectScopeFilter("project", "read"))],
+    visibility: Annotated[VisibilityResult, Depends(VisibilityFilter("project", "read"))],
     params: Annotated[ProjectListParams, Query()],
 ) -> ProjectListResponse:
     """List projects the current user has read access to."""
@@ -148,7 +147,7 @@ async def list_projects(
         sort=params.sort,
         query_params_items=request.query_params.items(),
         include_total=params.include_total,
-        allowed_projects=allowed_projects,
+        allowed_projects=visibility.to_allowed_projects(),
     )
 
 
@@ -350,34 +349,21 @@ async def list_project_role_assignments(
     params: Annotated[ProjectRoleAssignmentListParams, Depends()],
     service: Annotated[RoleAssignmentService, Depends(_get_role_assignment_service)],
     project_service: Annotated[ProjectService, Depends(get_project_service)],
-    current_user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    visibility: Annotated[VisibilityResult, Depends(VisibilityFilter("role-assignment", "read"))],
 ) -> RoleAssignmentListResponse:
-    """List role assignments for a project.
+    """List role assignments for a project with policy-driven visibility.
 
-    Admin/auditor/project-admin see all assignments in the project;
-    other users see only their own.
+    Users with ``role-assignment:read:any`` see all assignments in the project.
+    Users with ``role-assignment:read:project`` for this project see all.
+    Users with ``role-assignment:read:self`` see only their own (direct and via groups).
     """
-    project = await project_service.get_project(project_id)
-    opa_client = get_opa_client(request)
-    authz_result = await authorize(
-        db,
-        opa_client,
-        AuthzRequest(
-            user_id=current_user.id,
-            action="read",
-            resource_type="role-assignment",
-            resource_id="",
-            resource_project=project.name,
-            user_labels=current_user.labels,
-            user_metadata=current_user.authz_metadata,
-        ),
+    await project_service.get_project(project_id)
+
+    can_see_all = visibility.unrestricted or project_id in visibility.allowed_project_ids
+    restrict_user_id = None if can_see_all else visibility.self_user_id
+    restrict_group_ids = (
+        None if can_see_all else (list(visibility.self_group_ids) if visibility.has_self_scope else None)
     )
-    restrict_user_id = None
-    restrict_group_ids = None
-    if not authz_result.allowed:
-        restrict_user_id = current_user.id
-        restrict_group_ids = await get_user_group_ids(db, current_user.id)
 
     contains = _parse_contains_filters(request)
     result = await service.list(

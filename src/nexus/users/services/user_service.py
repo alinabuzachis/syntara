@@ -142,6 +142,7 @@ class UsersService(BaseService):
         query_params_items: Iterable[tuple[str, str]] | None = None,
         *,
         include_total: bool = False,
+        id_restriction: list[UUID] | None = None,
     ) -> UserListResponse:
         """List users with filtering, sorting, and pagination.
 
@@ -151,6 +152,7 @@ class UsersService(BaseService):
             sort: Sort parameter (e.g., "username", "-created_at")
             query_params_items: Raw query parameter items from request (for filtering)
             include_total: Whether to include total count in response
+            id_restriction: Optional list of allowed user IDs to filter by
 
         Returns:
             UserListResponse with users, pagination metadata, and optional total
@@ -164,6 +166,7 @@ class UsersService(BaseService):
             sort=sort or "-created_at",
             query_params_items=query_params_items,
             include_total=include_total,
+            id_restriction=id_restriction,
         )
 
     async def get_user_by_id(self, user_id: UUID) -> User:

@@ -569,6 +569,7 @@ class BaseService:
         *,
         include_total: bool = False,
         allowed_projects: AllowedProjectsResult | None = None,
+        id_restriction: list[UUID] | None = None,
     ) -> TResponse:
         """List resources with unified filtering, sorting, and cursor-based pagination.
 
@@ -623,6 +624,9 @@ class BaseService:
                 resources to only those belonging to the user's authorized projects. If
                 all_projects is True, no filtering is applied. Requires model to have a
                 project_id field.
+            id_restriction: Optional list of allowed resource IDs. When provided, filters
+                resources to only those whose ID is in the list. If the list is empty,
+                returns an empty result immediately. If None, no ID filtering is applied.
 
         Returns:
             Typed response object containing:
@@ -673,6 +677,7 @@ class BaseService:
                 query_params=query_params,
                 include_total=include_total,
                 allowed_projects=allowed_projects,
+                id_restriction=id_restriction,
             )
         except Exception:
             elapsed_ms = round((time.monotonic() - start) * 1000, 2)
@@ -710,6 +715,7 @@ class BaseService:
         *,
         include_total: bool,
         allowed_projects: AllowedProjectsResult | None,
+        id_restriction: list[UUID] | None = None,
     ) -> TResponse:
         """Execute the list query with filtering, sorting, pagination, and conversion."""
         self._validate_query_params(query_params, model)
@@ -722,6 +728,7 @@ class BaseService:
             limit,
             special_field_handlers,
             allowed_projects,
+            id_restriction=id_restriction,
         )
         if built is None:
             return response_type(resources=[], next=None, prev=None, total=0 if include_total else None)
@@ -760,6 +767,29 @@ class BaseService:
             total=pagination["total"],
         )
 
+    @staticmethod
+    def _apply_access_filters(
+        query: Select[tuple[TModel]] | SelectOfScalar[tuple[TModel]],
+        model: type[TModel],
+        allowed_projects: AllowedProjectsResult | None,
+        id_restriction: list[UUID] | None,
+    ) -> Select[tuple[TModel]] | SelectOfScalar[tuple[TModel]] | None:
+        """Apply project-scope and ID-restriction filters. Returns None when access yields no results."""
+        if allowed_projects is not None and not allowed_projects.all_projects:
+            if not hasattr(model, "project_id"):
+                msg = f"Model {model.__name__} does not have a project_id field for project scope filtering"
+                raise ValueError(msg)
+            if not allowed_projects.project_ids:
+                return None
+            query = query.filter(model.project_id.in_(allowed_projects.project_ids))  # type: ignore[attr-defined]
+
+        if id_restriction is not None:
+            if not id_restriction:
+                return None
+            query = query.filter(model.id.in_(id_restriction))  # type: ignore[attr-defined]
+
+        return query
+
     def _build_list_query(
         self,
         model: type[TModel],
@@ -769,6 +799,8 @@ class BaseService:
         limit: int,
         special_field_handlers: dict[str, Any] | None,
         allowed_projects: AllowedProjectsResult | None,
+        *,
+        id_restriction: list[UUID] | None = None,
     ) -> (
         tuple[
             Select[tuple[TModel]] | SelectOfScalar[tuple[TModel]],
@@ -778,18 +810,15 @@ class BaseService:
         ]
         | None
     ):
-        """Build filtered, sorted, paginated query. Returns None when project access is empty."""
+        """Build filtered, sorted, paginated query. Returns None when access yields no results."""
         query: Select[tuple[TModel]] | SelectOfScalar[tuple[TModel]] = select(model)
         if hasattr(model, "deleted_at"):
             query = query.filter(model.deleted_at.is_(None))  # type: ignore[attr-defined]
 
-        if allowed_projects is not None and not allowed_projects.all_projects:
-            if not hasattr(model, "project_id"):
-                msg = f"Model {model.__name__} does not have a project_id field for project scope filtering"
-                raise ValueError(msg)
-            if not allowed_projects.project_ids:
-                return None
-            query = query.filter(model.project_id.in_(allowed_projects.project_ids))  # type: ignore[attr-defined]
+        result = self._apply_access_filters(query, model, allowed_projects, id_restriction)
+        if result is None:
+            return None
+        query = result
 
         query, filters = self._apply_standard_filters(query, query_params, model, special_field_handlers)
         query, label_filters = self._apply_label_filters(query, query_params, model)
