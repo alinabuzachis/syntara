@@ -7,14 +7,12 @@
 #       ./tools/scripts/e2e-run.sh [pytest-args...]
 #
 # Environment:
-#   COMPOSE_CMD           Full compose command with project/file args (required)
+#   COMPOSE_CMD           Full compose command with project/file args
+#                         (default: uv run podman-compose -p nexus -f podman-compose.yml)
 #   SEGMENT_SERVER_PORT   Mock Segment port (default: 9999)
 set -euo pipefail
 
-if [[ -z "${COMPOSE_CMD:-}" ]]; then
-    echo "❌ COMPOSE_CMD is required (e.g. 'uv run podman-compose -p nexus -f podman-compose.yml')"
-    exit 1
-fi
+COMPOSE_CMD="${COMPOSE_CMD:-uv run podman-compose -p nexus -f podman-compose.yml}"
 
 SEGMENT_SERVER_PORT="${SEGMENT_SERVER_PORT:-9999}"
 MAKE="${MAKE:-make}"
