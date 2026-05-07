@@ -29,6 +29,8 @@ const VIEW_MORE_VALUE = '__view_more__'
 type UseProjectSelectorOptions = {
   /** When true, hides the "All projects" option and shows "Select a project" as placeholder. */
   requireProject?: boolean
+  /** Server-provided project ID to seed into the store on mount. User selections take precedence afterward. */
+  initialProjectId?: string | null
 }
 
 type UseProjectSelectorResult = {
@@ -43,10 +45,16 @@ type UseProjectSelectorResult = {
  * Uses server-side filtering with debounced typeahead and progressive "View more" loading.
  */
 export function useProjectSelector(options?: UseProjectSelectorOptions): UseProjectSelectorResult {
-  const { requireProject = false } = options ?? {}
+  const { requireProject = false, initialProjectId } = options ?? {}
   const { selectedProjectId, setSelectedProjectId } = useProjectStore()
   const [isOpen, setIsOpen] = useState(false)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
+
+  useEffect(() => {
+    if (initialProjectId) {
+      setSelectedProjectId(initialProjectId)
+    }
+  }, [initialProjectId, setSelectedProjectId])
 
   const {
     projects,
@@ -64,8 +72,12 @@ export function useProjectSelector(options?: UseProjectSelectorOptions): UseProj
 
   const selectedProject = selectedProjectId ? (projects.find((p) => p.id === selectedProjectId) ?? null) : null
 
+  // Clear stale selections that no longer exist in the project list.
+  // Skip when initialProjectId is set — it's a trusted server value that
+  // may not yet appear in the paginated first page.
   useEffect(() => {
     if (
+      !initialProjectId &&
       selectedProjectId &&
       isInitialPage &&
       projects.length > 0 &&
@@ -73,7 +85,7 @@ export function useProjectSelector(options?: UseProjectSelectorOptions): UseProj
     ) {
       setSelectedProjectId(null)
     }
-  }, [selectedProjectId, projects, setSelectedProjectId, isInitialPage])
+  }, [initialProjectId, selectedProjectId, projects, setSelectedProjectId, isInitialPage])
 
   const toggleLabel =
     selectedProject?.name ??

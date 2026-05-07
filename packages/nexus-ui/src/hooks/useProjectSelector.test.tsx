@@ -174,6 +174,44 @@ describe('useProjectSelector', () => {
     })
   })
 
+  // ── initialProjectId ───────────────────────────────────────────────────
+
+  describe('initialProjectId', () => {
+    it('syncs initialProjectId to the store on mount', () => {
+      renderHook(() => useProjectSelector({ initialProjectId: 'proj-2' }), { wrapper })
+
+      expect(mockSetSelectedProjectId).toHaveBeenCalledWith('proj-2')
+    })
+
+    it('does not sync when initialProjectId is null', () => {
+      renderHook(() => useProjectSelector({ initialProjectId: null }), { wrapper })
+
+      expect(mockSetSelectedProjectId).not.toHaveBeenCalled()
+    })
+
+    it('allows user to change project after initial seed', async () => {
+      mockSelectedProjectId = 'proj-1'
+      const user = userEvent.setup()
+      renderSelector({ initialProjectId: 'proj-1' })
+
+      await user.click(screen.getByDisplayValue('Alpha'))
+      await user.click(screen.getByRole('option', { name: /Beta/i }))
+
+      expect(mockSetSelectedProjectId).toHaveBeenCalledWith('proj-2')
+    })
+
+    it('does not clear initialProjectId via stale-guard', async () => {
+      mockSelectedProjectId = null
+      renderHook(() => useProjectSelector({ initialProjectId: 'nonexistent-id' }), { wrapper })
+
+      await waitFor(() => {
+        expect(mockSetSelectedProjectId).toHaveBeenCalledWith('nonexistent-id')
+      })
+
+      expect(mockSetSelectedProjectId).not.toHaveBeenCalledWith(null)
+    })
+  })
+
   // ── Stale project cleanup ───────────────────────────────────────────────
 
   describe('stale project cleanup', () => {

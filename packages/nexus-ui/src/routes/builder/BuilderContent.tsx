@@ -50,7 +50,11 @@ export function BuilderContent(props: BuilderContentProps) {
   const { workflow, isNew, workflowId } = props
   const [, setLocation] = useLocation()
   const { showSuccess, showError } = useAlerts()
-  const { selectedProject, ProjectSelector } = useProjectSelector({ requireProject: isNew })
+  const workflowProjectId = isNew ? undefined : (workflow as { project_id?: string })?.project_id
+  const { selectedProject, ProjectSelector } = useProjectSelector({
+    requireProject: isNew,
+    initialProjectId: workflowProjectId ?? undefined,
+  })
   const queryClient = useQueryClient()
   const reactFlowInstance = useReactFlow()
   const nodesInitialized = useNodesInitialized()
