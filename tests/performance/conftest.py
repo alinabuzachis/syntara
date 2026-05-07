@@ -601,6 +601,9 @@ def poll_for_invocation_terminal_status(
 # ---------------------------------------------------------------------------
 
 
+PROBE_POLL_TIMEOUT = 60.0
+
+
 @pytest.fixture(scope="module")
 def perf_test_mode_enabled(
     nexus_api: NexusApiRegistry,
@@ -619,4 +622,64 @@ def perf_test_mode_enabled(
         pytest.skip(
             "metrics.perf_test_mode is disabled on the target instance. "
             "Enable it via the settings API before running performance tests."
+        )
+
+
+@pytest.fixture(scope="module")
+def llm_credential_id(
+    nexus_api: NexusApiRegistry,
+    perf_test_mode_enabled: None,
+) -> str | None:
+    """Discover the LLM Provider credential ID on the deployment.
+
+    Returns the credential UUID string, or ``None`` if no LLM credential
+    is found (the tests will still run but rely on the
+    ``E2E_LLM_CREDENTIAL_CONFIGURED`` fallback path).
+    """
+    return find_llm_credential_id(nexus_api)
+
+
+@pytest.fixture(scope="module")
+def llm_invocation_enabled(
+    nexus_api: NexusApiRegistry,
+    perf_test_mode_enabled: None,
+    llm_credential_id: str | None,
+) -> None:
+    """Verify that the LLM is configured and invocations complete successfully.
+
+    Sends a single probe invocation (with the discovered credential if
+    available), waits for it to reach a terminal status, and checks that
+    it did not fail with an LLM configuration error.  Skips the entire
+    module when the LLM is not configured.
+    """
+    _, ok, inv_id = submit_invocation(
+        nexus_api,
+        "Hello, this is an LLM connectivity probe",
+        credential_id=llm_credential_id,
+    )
+    if not ok or inv_id is None:
+        pytest.skip(
+            "Could not create a probe invocation. This suite requires a "
+            "working invocation endpoint with an LLM configured."
+        )
+
+    parsed = poll_for_invocation_terminal_status(
+        nexus_api,
+        inv_id,
+        timeout=PROBE_POLL_TIMEOUT,
+    )
+    status = str(parsed.get("status", "unknown"))
+    error_message = str(parsed.get("error_message", "") or "")
+
+    if status == "failed" and "LLM" in error_message:
+        cred_hint = (
+            " (credential configured)"
+            if llm_credential_id
+            else " (no LLM credential found via API - also ensure "
+            "E2E_LLM_CREDENTIAL_CONFIGURED=1 is set on the deployment)"
+        )
+        pytest.skip(
+            f"Probe invocation failed with LLM configuration error: "
+            f"{error_message}{cred_hint}. This suite requires a configured "
+            f"LLM so invocations can complete."
         )

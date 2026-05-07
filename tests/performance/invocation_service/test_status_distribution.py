@@ -64,13 +64,14 @@ class TestStatusDistribution:
     def _setup(
         self,
         nexus_api: NexusApiRegistry,
-        perf_test_mode_enabled: None,
+        llm_invocation_enabled: None,
     ) -> None:
         nexus_api.internal_metrics.reset_store().assert_successful()
 
     def test_failure_rate_below_threshold(
         self,
         nexus_api: NexusApiRegistry,
+        llm_credential_id: str | None,
     ) -> None:
         """200 invocations; failed status must be < 5% of terminal statuses."""
         session_id = f"perf-suite5-status-dist-{uuid4().hex[:8]}"
@@ -80,6 +81,7 @@ class TestStatusDistribution:
             session_id,
             prompt_prefix="Status distribution test",
             max_workers=MAX_WORKERS,
+            credential_id=llm_credential_id,
         )
 
         assert len(invocation_ids) > 0, (
@@ -141,7 +143,7 @@ class TestCancellationImpact:
     def _setup(
         self,
         nexus_api: NexusApiRegistry,
-        perf_test_mode_enabled: None,
+        llm_invocation_enabled: None,
     ) -> None:
         nexus_api.internal_metrics.reset_store().assert_successful()
 
@@ -149,6 +151,7 @@ class TestCancellationImpact:
     def test_cancelled_status_tracked_in_distribution(
         self,
         nexus_api: NexusApiRegistry,
+        llm_credential_id: str | None,
     ) -> None:
         """Cancel half of invocations mid-execution; cancelled must appear in status_distribution."""
         session_id = f"perf-suite5-cancellation-{uuid4().hex[:8]}"
@@ -161,6 +164,7 @@ class TestCancellationImpact:
                     nexus_api,
                     session_id,
                     f"Cancellation test {i}",
+                    llm_credential_id,
                 )
                 for i in range(CANCELLATION_INVOCATIONS)
             ]

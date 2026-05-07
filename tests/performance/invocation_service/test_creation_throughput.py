@@ -43,6 +43,7 @@ def _run_sustained_load(
     duration_seconds: int = SUSTAINED_DURATION_SECONDS,
     max_workers: int = MAX_WORKERS,
     batch_size: int = BATCH_SIZE,
+    credential_id: str | None = None,
 ) -> tuple[list[float], int, int, float]:
     """Run sustained invocation creation for the given duration.
 
@@ -53,6 +54,7 @@ def _run_sustained_load(
         duration_seconds: How long to sustain the load.
         max_workers: Maximum concurrent threads.
         batch_size: Number of in-flight requests to maintain.
+        credential_id: Optional LLM Provider credential ID.
 
     Returns:
         Tuple of (response_times, successes, failures, actual_elapsed_seconds).
@@ -75,6 +77,7 @@ def _run_sustained_load(
                     nexus_api,
                     session_id,
                     f"{prompt_prefix} {len(response_times) + len(pending)}",
+                    credential_id,
                 )
                 pending.add(future)
 
@@ -118,13 +121,14 @@ class TestCreationThroughput:
     def _setup(
         self,
         nexus_api: NexusApiRegistry,
-        perf_test_mode_enabled: None,
+        llm_invocation_enabled: None,
     ) -> None:
         nexus_api.internal_metrics.reset_store().assert_successful()
 
     def test_sustained_creation_throughput(
         self,
         nexus_api: NexusApiRegistry,
+        llm_credential_id: str | None,
     ) -> None:
         """Create invocations for 60s; throughput must be >= 10/sec."""
         session_id = f"perf-suite5-throughput-{uuid4().hex[:8]}"
@@ -132,6 +136,7 @@ class TestCreationThroughput:
             nexus_api,
             session_id,
             "Throughput test",
+            credential_id=llm_credential_id,
         )
 
         assert len(response_times) > 0, (
@@ -156,6 +161,7 @@ class TestCreationThroughput:
     def test_server_records_reflect_sustained_load(
         self,
         nexus_api: NexusApiRegistry,
+        llm_credential_id: str | None,
     ) -> None:
         """Server-side record count must reflect sustained invocation creation."""
         session_id = f"perf-suite5-server-records-{uuid4().hex[:8]}"
@@ -163,6 +169,7 @@ class TestCreationThroughput:
             nexus_api,
             session_id,
             "Record count test",
+            credential_id=llm_credential_id,
         )
 
         assert successes > 0, (

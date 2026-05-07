@@ -78,13 +78,14 @@ class TestE2EDuration:
     def _setup(
         self,
         nexus_api: NexusApiRegistry,
-        perf_test_mode_enabled: None,
+        llm_invocation_enabled: None,
     ) -> None:
         nexus_api.internal_metrics.reset_store().assert_successful()
 
     def test_e2e_duration_p95_under_target(
         self,
         nexus_api: NexusApiRegistry,
+        llm_credential_id: str | None,
     ) -> None:
         """Typical invocations end-to-end; p95 duration must be < 60s."""
         session_id = f"perf-suite5-e2e-typical-{uuid4().hex[:8]}"
@@ -94,6 +95,7 @@ class TestE2EDuration:
             session_id,
             prompts=TYPICAL_PROMPTS,
             max_workers=MAX_WORKERS,
+            credential_id=llm_credential_id,
         )
 
         assert len(invocation_ids) > 0, (
@@ -152,13 +154,14 @@ class TestE2EDurationLongRunning:
     def _setup(
         self,
         nexus_api: NexusApiRegistry,
-        perf_test_mode_enabled: None,
+        llm_invocation_enabled: None,
     ) -> None:
         nexus_api.internal_metrics.reset_store().assert_successful()
 
     def test_long_running_invocations_under_critical_threshold(
         self,
         nexus_api: NexusApiRegistry,
+        llm_credential_id: str | None,
     ) -> None:
         """Complex multi-step invocations; no single invocation must exceed 5min."""
         session_id = f"perf-suite5-e2e-complex-{uuid4().hex[:8]}"
@@ -168,6 +171,7 @@ class TestE2EDurationLongRunning:
             session_id,
             prompts=COMPLEX_PROMPTS,
             max_workers=COMPLEX_INVOCATION_COUNT,
+            credential_id=llm_credential_id,
         )
 
         assert len(invocation_ids) > 0, (

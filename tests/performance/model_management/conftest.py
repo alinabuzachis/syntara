@@ -3,10 +3,11 @@
 These tests run against a live Nexus deployment (typically OpenShift) and
 validate the Model Management KPIs from the Nexus Performance Test Plan.
 
-Suite-wide fixtures (perf_test_mode_enabled, compute_percentile) and
-helpers (poll_for_component_kpis, poll_for_metric_records,
-submit_invocation, find_llm_credential_id) are defined in the
-parent tests/performance/conftest.py and inherited automatically.
+Shared fixtures (perf_test_mode_enabled, llm_credential_id,
+llm_invocation_enabled) and helpers (compute_percentile,
+poll_for_component_kpis, poll_for_metric_records, submit_invocation,
+find_llm_credential_id, poll_for_invocation_terminal_status) are defined
+in the parent tests/performance/conftest.py and inherited automatically.
 This file adds model-management-specific test data and helpers.
 
 Model management tests exercise model selection and overhead via the
@@ -32,22 +33,8 @@ Run with:
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING
-
-import pytest
-
-from tests.performance.conftest import (
-    find_llm_credential_id,
-    poll_for_invocation_terminal_status,
-    submit_invocation,
-)
-
-if TYPE_CHECKING:
-    from nexus_api_client.api import NexusApiRegistry
 
 LLM_COMPONENT = "llm"
-
-PROBE_POLL_TIMEOUT = 60.0
 
 MODEL_SELECTION_PROMPTS: dict[str, list[str]] = {
     "code_generation": [
@@ -95,66 +82,3 @@ def get_configured_models() -> list[str]:
     if env_models.strip():
         return [m.strip() for m in env_models.split(",") if m.strip()]
     return list(DEFAULT_TEST_MODELS)
-
-
-@pytest.fixture(scope="module")
-def llm_credential_id(
-    nexus_api: NexusApiRegistry,
-    perf_test_mode_enabled: None,
-) -> str | None:
-    """Discover the LLM Provider credential ID on the deployment.
-
-    Returns the credential UUID string, or ``None`` if no LLM credential
-    is found (the tests will still run but rely on the
-    ``E2E_LLM_CREDENTIAL_CONFIGURED`` fallback path).
-    """
-    return find_llm_credential_id(nexus_api)
-
-
-@pytest.fixture(scope="module")
-def llm_invocation_enabled(
-    nexus_api: NexusApiRegistry,
-    perf_test_mode_enabled: None,
-    llm_credential_id: str | None,
-) -> None:
-    """Verify that the LLM is configured and invocations complete successfully.
-
-    Sends a single probe invocation (with the discovered credential if
-    available), waits for it to reach a terminal status, and checks that
-    it did not fail with an LLM configuration error.  Skips the entire
-    module when the LLM is not configured.
-    """
-    models = get_configured_models()
-    _, ok, inv_id = submit_invocation(
-        nexus_api,
-        "Hello, this is a model management probe",
-        model=models[0],
-        credential_id=llm_credential_id,
-    )
-    if not ok or inv_id is None:
-        pytest.skip(
-            "Could not create a probe invocation. Suite 14 requires a "
-            "working invocation endpoint with an LLM configured."
-        )
-
-    parsed = poll_for_invocation_terminal_status(
-        nexus_api,
-        inv_id,
-        timeout=PROBE_POLL_TIMEOUT,
-    )
-    status = str(parsed.get("status", "unknown"))
-    error_message = str(parsed.get("error_message", "") or "")
-
-    if status == "failed" and "LLM" in error_message:
-        cred_hint = (
-            " (credential configured)"
-            if llm_credential_id
-            else " (no LLM credential found via API - also ensure "
-            "E2E_LLM_CREDENTIAL_CONFIGURED=1 is set on the deployment)"
-        )
-        pytest.skip(
-            f"Probe invocation failed with LLM configuration error: "
-            f"{error_message}{cred_hint}. Suite 14 (Model Management) "
-            f"requires a configured LLM so invocations can complete and "
-            f"emit LLM_DURATION and REQUEST_DURATION metrics."
-        )
