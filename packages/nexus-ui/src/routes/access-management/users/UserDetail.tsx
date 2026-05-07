@@ -268,6 +268,7 @@ export function UserDetail() {
             <UserIdentitiesPanel
               userId={userId ?? ''}
               currentUserId={currentUserId}
+              isBuiltinUser={!!userData.is_builtin}
               isLocalUser={userData.auth_type === AUTH_TYPE_LOCAL}
               hasPassword={userData.auth_type === AUTH_TYPE_LOCAL}
             />

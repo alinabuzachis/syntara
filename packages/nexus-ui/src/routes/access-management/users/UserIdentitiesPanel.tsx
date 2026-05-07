@@ -8,14 +8,10 @@ import {
   EmptyStateBody,
   Flex,
   FlexItem,
-  Modal,
-  ModalBody,
-  ModalFooter,
-  ModalHeader,
   StackItem,
   Tooltip,
 } from '@patternfly/react-core'
-import { PluggedIcon, RhUiKeyIcon, RhUiLinkIcon, UnpluggedIcon } from '@patternfly/react-icons'
+import { RhUiKeyIcon, RhUiLinkIcon, UnpluggedIcon } from '@patternfly/react-icons'
 import { ExpandableRowContent, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import { useCallback, useEffect, useState } from 'react'
 import { navigate } from 'wouter/use-browser-location'
@@ -39,7 +35,7 @@ import { FilterOperatorEnum, FilterTypeEnum } from '../../../types/filters'
 import { formatDateTime } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
 
-import { AttachIdentityModal } from './AttachIdentityModal'
+import { ConnectAction, IdentityDialogs, type ConvertProviderInfo } from './IdentityDialogs'
 import type { UserIdentity } from './identityUtils'
 import { applyLocalFilters, useLocalFilterState } from './identityUtils'
 
@@ -61,55 +57,6 @@ const identityFilterDefs: FilterFieldDefinition[] = [
     placeholder: 'Filter by provider',
   },
 ]
-
-function DetachConfirmModal({
-  identity,
-  isDetaching,
-  onConfirm,
-  onCancel,
-}: {
-  identity: UserIdentity | null
-  isDetaching: boolean
-  onConfirm: () => void
-  onCancel: () => void
-}) {
-  return (
-    <Modal isOpen={!!identity} onClose={onCancel} variant="small">
-      <ModalHeader
-        title="Disconnect identity"
-        description="Are you sure? You will no longer be able to sign in with this identity."
-      />
-      <ModalBody>
-        <DescriptionList isHorizontal isCompact>
-          <DescriptionListGroup>
-            <DescriptionListTerm>Provider</DescriptionListTerm>
-            <DescriptionListDescription>{identity?.provider_name}</DescriptionListDescription>
-          </DescriptionListGroup>
-          <DescriptionListGroup>
-            <DescriptionListTerm>Issuer</DescriptionListTerm>
-            <DescriptionListDescription style={{ wordBreak: 'break-all' }}>
-              {identity?.issuer}
-            </DescriptionListDescription>
-          </DescriptionListGroup>
-          <DescriptionListGroup>
-            <DescriptionListTerm>Subject</DescriptionListTerm>
-            <DescriptionListDescription style={{ wordBreak: 'break-all' }}>
-              {identity?.subject}
-            </DescriptionListDescription>
-          </DescriptionListGroup>
-        </DescriptionList>
-      </ModalBody>
-      <ModalFooter>
-        <Button variant="danger" onClick={onConfirm} isLoading={isDetaching} isDisabled={isDetaching}>
-          Disconnect
-        </Button>
-        <Button variant="link" onClick={onCancel}>
-          Cancel
-        </Button>
-      </ModalFooter>
-    </Modal>
-  )
-}
 
 function useLinkError(showAlert: (config: AlertConfig) => void) {
   useEffect(() => {
@@ -243,11 +190,13 @@ function useIdentityPagination() {
 type UserIdentitiesPanelProps = {
   userId: string
   currentUserId?: string
+  /** Built-in users (e.g. admin) can never link identity providers. */
+  isBuiltinUser?: boolean
+  /** Local users see a conversion warning before linking an identity provider. */
   isLocalUser?: boolean
   /**
    * Whether this user can sign in with a local password (not inferred here — callers must supply).
    * Used so the last linked federated identity cannot be removed when no password fallback exists.
-   * Map from API when available; until then `auth_type === 'local'` implies true for admin UI.
    */
   hasPassword: boolean
 }
@@ -255,6 +204,7 @@ type UserIdentitiesPanelProps = {
 export function UserIdentitiesPanel({
   userId,
   currentUserId,
+  isBuiltinUser = false,
   isLocalUser = false,
   hasPassword,
 }: Readonly<UserIdentitiesPanelProps>) {
@@ -262,6 +212,7 @@ export function UserIdentitiesPanel({
   const handleMutationError = useMutationErrorHandler()
   const [isAttachOpen, setIsAttachOpen] = useState(false)
   const [identityToDetach, setIdentityToDetach] = useState<UserIdentity | null>(null)
+  const [convertProvider, setConvertProvider] = useState<ConvertProviderInfo | null>(null)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const { identitiesFilter, page, setPage, perPage, handlePerPageChange, handleFilterChange } = useIdentityPagination()
   const { providers, isLoading: isProvidersLoading } = useAuthProviders()
@@ -319,30 +270,33 @@ export function UserIdentitiesPanel({
 
   const hasActiveFilters = identitiesFilter.filters.length > 0
 
-  const attachAndDetachModals = (
-    <>
-      <AttachIdentityModal
-        isOpen={isAttachOpen}
-        onClose={() => setIsAttachOpen(false)}
-        currentUserId={userId}
-        onAttached={() => detachPromise(query.refetch())}
-      />
-      <DetachConfirmModal
-        identity={identityToDetach}
-        isDetaching={isDetaching}
-        onConfirm={confirmDetach}
-        onCancel={() => setIdentityToDetach(null)}
-      />
-    </>
+  const dialogs = (
+    <IdentityDialogs
+      isAttachOpen={isAttachOpen}
+      onCloseAttach={() => setIsAttachOpen(false)}
+      currentUserId={userId}
+      onAttached={() => detachPromise(query.refetch())}
+      identityToDetach={identityToDetach}
+      isDetaching={isDetaching}
+      onConfirmDetach={confirmDetach}
+      onCancelDetach={() => setIdentityToDetach(null)}
+      convertProvider={convertProvider}
+      onCloseConvert={() => setConvertProvider(null)}
+      onConfirmConvert={() => {
+        if (convertProvider) {
+          globalThis.location.href = convertProvider.authorizeUrl
+        }
+      }}
+    />
   )
 
-  const showTable = identities.length > 0 || (!isLocalUser && unlinkedProviders.length > 0) || hasActiveFilters
+  const showTable = identities.length > 0 || (!isBuiltinUser && unlinkedProviders.length > 0) || hasActiveFilters
 
-  if (isLocalUser && identities.length === 0) {
+  if (isBuiltinUser && identities.length === 0) {
     return (
-      <EmptyState headingLevel="h3" titleText="Local user" icon={RhUiKeyIcon}>
+      <EmptyState headingLevel="h3" titleText="Built-in user" icon={RhUiKeyIcon}>
         <EmptyStateBody>
-          This user authenticates with a local password. Local users cannot be linked to external identity providers.
+          The built-in administrator account cannot be linked to external identity providers.
         </EmptyStateBody>
       </EmptyState>
     )
@@ -360,7 +314,7 @@ export function UserIdentitiesPanel({
             authentication.
           </EmptyStateBody>
         </EmptyState>
-        {attachAndDetachModals}
+        {dialogs}
       </>
     )
   }
@@ -377,7 +331,7 @@ export function UserIdentitiesPanel({
               showClearAll
             />
           </FlexItem>
-          {!isLocalUser && (
+          {!isBuiltinUser && (
             <FlexItem>
               <Button variant="secondary" icon={<RhUiLinkIcon />} onClick={() => setIsAttachOpen(true)}>
                 Attach identity
@@ -432,39 +386,36 @@ export function UserIdentitiesPanel({
               onDisconnect={() => setIdentityToDetach(identity)}
             />
           ))}
-          {!isLocalUser && (
+          {!isBuiltinUser && (
             <Tbody>
-              {unlinkedProviders.map((provider) => (
-                <Tr key={`unlinked-${provider.id}`}>
-                  {identities.length > 0 && <Td />}
-                  <Td dataLabel="Provider">
-                    <ProviderLink name={provider.name} providerId={provider.id} />
-                  </Td>
-                  <Td dataLabel="Linked" colSpan={2}>
-                    <span style={{ color: 'var(--pf-t--global--color--200)' }}>Not connected</span>
-                  </Td>
-                  <Td isActionCell>
-                    {isSelf ? (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        icon={<PluggedIcon />}
-                        component="a"
-                        href={`${OIDC_AUTHORIZE_PATH}?provider_id=${encodeURIComponent(provider.id)}&flow=link&redirect_to=${encodeURIComponent(window.location.pathname)}`}
-                      >
-                        Connect
-                      </Button>
-                    ) : (
-                      <span style={{ color: 'var(--pf-t--global--color--200)' }}>—</span>
-                    )}
-                  </Td>
-                </Tr>
-              ))}
+              {unlinkedProviders.map((provider) => {
+                const authorizeUrl = `${OIDC_AUTHORIZE_PATH}?provider_id=${encodeURIComponent(provider.id)}&flow=link&redirect_to=${encodeURIComponent(globalThis.location.pathname)}`
+                return (
+                  <Tr key={`unlinked-${provider.id}`}>
+                    {identities.length > 0 && <Td />}
+                    <Td dataLabel="Provider">
+                      <ProviderLink name={provider.name} providerId={provider.id} />
+                    </Td>
+                    <Td dataLabel="Linked" colSpan={2}>
+                      <span style={{ color: 'var(--pf-t--global--color--200)' }}>Not connected</span>
+                    </Td>
+                    <Td isActionCell>
+                      <ConnectAction
+                        isSelf={isSelf}
+                        isLocalUser={isLocalUser}
+                        providerName={provider.name}
+                        authorizeUrl={authorizeUrl}
+                        onConvert={setConvertProvider}
+                      />
+                    </Td>
+                  </Tr>
+                )
+              })}
             </Tbody>
           )}
         </ScrollableTableContainer>
       )}
-      {attachAndDetachModals}
+      {dialogs}
     </PanelContentStack>
   )
 }

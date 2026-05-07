@@ -411,13 +411,15 @@ describe('UserIdentitiesPanel', () => {
       expect(screen.queryByText('Disconnect identity')).not.toBeInTheDocument()
     })
 
-    it('shows empty state for local users with no identities', () => {
+    it('shows empty state for builtin users with no identities', () => {
       setupMocks([])
 
-      render(<UserIdentitiesPanel userId="user-1" isLocalUser hasPassword={true} />, { wrapper })
+      render(<UserIdentitiesPanel userId="user-1" isBuiltinUser hasPassword={true} />, { wrapper })
 
-      expect(screen.getByRole('heading', { name: 'Local user' })).toBeInTheDocument()
-      expect(screen.getByText(/Local users cannot be linked to external identity providers/)).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Built-in user' })).toBeInTheDocument()
+      expect(
+        screen.getByText(/The built-in administrator account cannot be linked to external identity providers/)
+      ).toBeInTheDocument()
     })
 
     it('enables Disconnect button when there are multiple identities', () => {
@@ -438,6 +440,81 @@ describe('UserIdentitiesPanel', () => {
 
       const disconnectButton = screen.getByRole('button', { name: 'Disconnect' })
       expect(disconnectButton).not.toHaveAttribute('aria-disabled', 'true')
+    })
+  })
+
+  // ---- Local-to-federated conversion warning --------------------------------
+
+  describe('Local user conversion warning', () => {
+    const mockProviders = [
+      { id: 'provider-1', name: 'Azure', provider_type: 'oidc' },
+      { id: 'provider-3', name: 'GitHub', provider_type: 'oidc' },
+    ]
+
+    it('shows Connect buttons for local non-builtin users', () => {
+      mockUseAuthProviders.mockReturnValue({ providers: mockProviders, isLoading: false })
+      setupMocks([])
+
+      render(<UserIdentitiesPanel userId="user-1" currentUserId="user-1" isLocalUser hasPassword={true} />, { wrapper })
+
+      expect(screen.queryByRole('heading', { name: 'Built-in user' })).not.toBeInTheDocument()
+      expect(screen.getAllByRole('button', { name: /Connect/i })).toHaveLength(2)
+    })
+
+    it('opens conversion warning dialog when local user clicks Connect', async () => {
+      const user = userEvent.setup()
+      mockUseAuthProviders.mockReturnValue({ providers: mockProviders, isLoading: false })
+      setupMocks([])
+
+      render(<UserIdentitiesPanel userId="user-1" currentUserId="user-1" isLocalUser hasPassword={true} />, { wrapper })
+
+      const connectButtons = screen.getAllByRole('button', { name: /Connect/i })
+      await user.click(connectButtons[0])
+
+      expect(screen.getByText('Link identity provider?')).toBeInTheDocument()
+      expect(screen.getByText(/Your password will be permanently removed/)).toBeInTheDocument()
+      expect(screen.getByText(/This action cannot be undone/)).toBeInTheDocument()
+    })
+
+    it('requires acknowledgement checkbox before confirm is enabled', async () => {
+      const user = userEvent.setup()
+      mockUseAuthProviders.mockReturnValue({ providers: mockProviders, isLoading: false })
+      setupMocks([])
+
+      render(<UserIdentitiesPanel userId="user-1" currentUserId="user-1" isLocalUser hasPassword={true} />, { wrapper })
+
+      const connectButtons = screen.getAllByRole('button', { name: /Connect/i })
+      await user.click(connectButtons[0])
+
+      const confirmButton = screen.getByRole('button', { name: 'Convert and link' })
+      expect(confirmButton).toBeDisabled()
+
+      const checkbox = screen.getByRole('checkbox', { name: /I understand this action is irreversible/ })
+      await user.click(checkbox)
+
+      expect(confirmButton).toBeEnabled()
+    })
+
+    it('does not show conversion dialog for federated users', () => {
+      mockUseAuthProviders.mockReturnValue({ providers: mockProviders, isLoading: false })
+      setupMocks(mockIdentities)
+
+      render(<UserIdentitiesPanel userId="user-1" currentUserId="user-1" hasPassword={false} />, { wrapper })
+
+      // Federated user sees a link, not a button-with-dialog
+      expect(screen.getByRole('link', { name: /Connect/i })).toBeInTheDocument()
+      expect(screen.queryByText('Link identity provider?')).not.toBeInTheDocument()
+    })
+
+    it('does not show Connect buttons for builtin users', () => {
+      mockUseAuthProviders.mockReturnValue({ providers: mockProviders, isLoading: false })
+      setupMocks([])
+
+      render(<UserIdentitiesPanel userId="user-1" currentUserId="user-1" isBuiltinUser hasPassword={true} />, {
+        wrapper,
+      })
+
+      expect(screen.queryByRole('button', { name: /Connect/i })).not.toBeInTheDocument()
     })
   })
 
