@@ -137,6 +137,13 @@ export type WorkflowStore = {
    * NOT partialized — temporal does not track this.
    */
   _temporalBatchPending: boolean
+  /**
+   * When true, the post-layout undo-history clear is skipped once, then
+   * this flag resets to false.  Set by replaceWorkflowContent so that
+   * import-into-existing remains undoable after re-layout.
+   * NOT partialized — temporal does not track this.
+   */
+  _preserveHistoryOnLayout: boolean
   isDirty: boolean // Tracks whether changes have been made since last save/load
   setWorkflow: (workflow: WorkflowDefinition | null) => void
   // Atomic operation to load workflow and edges together - prevents race conditions
@@ -178,6 +185,12 @@ export type WorkflowStore = {
   // Atomic batch update to prevent race conditions
   batchRemoveNodesAndEdges: (params: { nodeIds: string[]; edges: EdgeConnection[]; triggerIndices?: number[] }) => void
   batchAddActivitiesAndEdges: (params: { activities: Activity[]; edges: EdgeConnection[] }) => void
+  /**
+   * Replace workflow content in-place, preserving undo history.
+   * Used by import-into-existing so the user can undo the import.
+   * Unlike loadWorkflowWithEdges, this does NOT clear temporal history.
+   */
+  replaceWorkflowContent: (workflow: WorkflowDefinition, edges: EdgeConnection[]) => void
   /** Batch-update canvas positions (merges with existing). */
   updateNodePositions: (
     positions: Record<string, { x: number; y: number }>,

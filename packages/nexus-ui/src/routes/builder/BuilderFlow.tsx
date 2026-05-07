@@ -327,7 +327,6 @@ export function BuilderFlow(props: BuilderFlowProps) {
     detachPromise(fitView({ maxZoom: 1 }))
   }, [nodes, edges, setNodes, setEdges, fitView, updateNodePositions])
 
-  // Use custom hook to manage workflow initialization and layout
   // Read positions snapshot once per version (non-reactive — avoids re-renders during drag)
   const hasStoredPositions = useMemo(
     () => Object.keys(useWorkflowStore.getState().nodePositions).length > 0,
@@ -336,8 +335,12 @@ export function BuilderFlow(props: BuilderFlowProps) {
   )
   const clearUndoHistory = useCallback(() => {
     const temporal = useWorkflowStore.temporal.getState()
-    temporal.pause()
-    temporal.clear()
+    if (useWorkflowStore.getState()._preserveHistoryOnLayout) {
+      useWorkflowStore.setState({ _preserveHistoryOnLayout: false })
+    } else {
+      temporal.pause()
+      temporal.clear()
+    }
     // Resume after React has settled (edge sync, button edge maintenance, etc.)
     // so that post-layout derived store updates don't create spurious undo entries.
     setTimeout(() => temporal.resume(), 200)

@@ -173,10 +173,16 @@ describe('BuilderContent - Delete Workflow', () => {
   })
 
   it('does not show delete button for new workflows', async () => {
+    const user = userEvent.setup()
     await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
 
-    // Kebab menu should not exist for new workflows
-    expect(screen.queryByLabelText('Workflow actions')).not.toBeInTheDocument()
+    // Kebab menu exists (for export/import) but delete should not be available
+    const kebabButton = screen.getByLabelText('Workflow actions')
+    await user.click(kebabButton)
+
+    await waitFor(() => {
+      expect(screen.queryByText('Delete workflow')).not.toBeInTheDocument()
+    })
   })
 
   it('opens delete confirmation modal when delete is clicked', async () => {

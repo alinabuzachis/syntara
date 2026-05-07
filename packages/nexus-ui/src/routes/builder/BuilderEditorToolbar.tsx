@@ -12,6 +12,8 @@ import {
 import {
   RhUiPlayIcon,
   RhUiCodeIcon,
+  RhUiExportIcon,
+  RhUiImportIcon,
   RhUiSaveFillIcon,
   RhUiTrashIcon,
   RhUiEllipsisVerticalFillIcon,
@@ -22,6 +24,7 @@ import { useCallback, useState, type Dispatch, type Ref } from 'react'
 import type { BuilderAction } from './builderReducer'
 import { EnabledWorkflowSwitch } from './EnabledWorkflowSwitch'
 import { RunHistoryToggleButton } from './RunHistoryToggleButton'
+import { useWorkflowImportExport } from './useWorkflowImportExport'
 
 type WorkflowKebabToggleProps = Readonly<{
   toggleRef: Ref<MenuToggleElement>
@@ -52,6 +55,7 @@ type BuilderEditorToolbarProps = Readonly<{
   historyCardOpen: boolean
   isSavingToggle: boolean
   dispatch: Dispatch<BuilderAction>
+  markDirty: () => void
   handleToggleHistory: () => void
   handleToggleDetails: () => void
   handleSaveWorkflow: (overrideIsEnabled?: boolean) => Promise<boolean>
@@ -71,6 +75,7 @@ export function BuilderEditorToolbar({
   historyCardOpen,
   isSavingToggle,
   dispatch,
+  markDirty,
   handleToggleHistory,
   handleToggleDetails,
   handleSaveWorkflow,
@@ -97,6 +102,7 @@ export function BuilderEditorToolbar({
     ),
     [isRunDropdownOpen]
   )
+  const { importFileRef, handleImportFile, handleExport } = useWorkflowImportExport({ dispatch, markDirty })
 
   const renderKebabMenuToggle = useCallback(
     (toggleRef: Ref<MenuToggleElement>) => (
@@ -208,16 +214,34 @@ export function BuilderEditorToolbar({
         </>
       )}
 
-      {!isNew && workflow?.id && (
-        <>
-          <Divider orientation={{ default: 'vertical' }} />
-          <Dropdown
-            isOpen={isKebabOpen}
-            onOpenChange={(isOpen) => dispatch({ type: 'SET_KEBAB_OPEN', payload: isOpen })}
-            popperProps={{ position: 'right' }}
-            toggle={renderKebabMenuToggle}
+      <Divider orientation={{ default: 'vertical' }} />
+      <Dropdown
+        isOpen={isKebabOpen}
+        onOpenChange={(isOpen) => dispatch({ type: 'SET_KEBAB_OPEN', payload: isOpen })}
+        popperProps={{ position: 'right' }}
+        toggle={renderKebabMenuToggle}
+      >
+        <DropdownList>
+          <DropdownItem onClick={handleExport}>
+            <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
+              <RhUiExportIcon />
+            </Icon>
+            Export workflow
+          </DropdownItem>
+          <DropdownItem
+            onClick={() => {
+              importFileRef.current?.click()
+              dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
+            }}
           >
-            <DropdownList>
+            <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
+              <RhUiImportIcon />
+            </Icon>
+            Import workflow definition
+          </DropdownItem>
+          {!isNew && workflow?.id && (
+            <>
+              <Divider />
               <DropdownItem
                 onClick={() => {
                   dispatch({ type: 'SET_DELETE_DIALOG', payload: true })
@@ -230,10 +254,11 @@ export function BuilderEditorToolbar({
                 </Icon>
                 Delete workflow
               </DropdownItem>
-            </DropdownList>
-          </Dropdown>
-        </>
-      )}
+            </>
+          )}
+        </DropdownList>
+      </Dropdown>
+      <input ref={importFileRef} type="file" accept=".json" onChange={handleImportFile} style={{ display: 'none' }} />
     </>
   )
 }

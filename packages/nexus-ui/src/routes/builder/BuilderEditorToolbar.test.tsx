@@ -15,6 +15,7 @@ describe('BuilderEditorToolbar', () => {
     historyCardOpen: false,
     isSavingToggle: false,
     dispatch: vi.fn(),
+    markDirty: vi.fn(),
     handleToggleHistory: vi.fn(),
     handleToggleDetails: vi.fn(),
     handleSaveWorkflow: vi.fn().mockResolvedValue(true),
@@ -171,10 +172,13 @@ describe('BuilderEditorToolbar', () => {
     expect(dispatch).toHaveBeenCalledWith({ type: 'SET_KEBAB_OPEN', payload: false })
   })
 
-  it('does not render kebab menu for new workflows', () => {
-    render(<BuilderEditorToolbar {...defaultProps} isNew={true} workflow={undefined} />)
+  it('renders kebab menu but not delete for new workflows', () => {
+    render(<BuilderEditorToolbar {...defaultProps} isNew={true} workflow={undefined} isKebabOpen={true} />)
 
-    expect(screen.queryByRole('button', { name: /Workflow actions/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Workflow actions/i })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: /Delete workflow/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: /Export workflow/i })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: /Import workflow definition/i })).toBeInTheDocument()
   })
 
   it('has no accessibility violations', async () => {

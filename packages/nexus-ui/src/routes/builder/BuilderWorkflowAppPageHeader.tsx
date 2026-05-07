@@ -17,6 +17,7 @@ type BuilderToolbarContentProps = Readonly<{
   onBackToEditor?: () => void
   onReviewApproval?: () => void
   dispatch: Dispatch<BuilderAction>
+  markDirty: () => void
   handleToggleHistory: () => void
   isNew: boolean
   workflow: { id: string } | undefined
@@ -43,6 +44,7 @@ function BuilderToolbarContent({
   onBackToEditor,
   onReviewApproval,
   dispatch,
+  markDirty,
   handleToggleHistory,
   isNew,
   workflow,
@@ -80,6 +82,7 @@ function BuilderToolbarContent({
       historyCardOpen={historyCardOpen}
       isSavingToggle={isSavingToggle}
       dispatch={dispatch}
+      markDirty={markDirty}
       handleToggleHistory={handleToggleHistory}
       handleToggleDetails={handleToggleDetails}
       handleSaveWorkflow={handleSaveWorkflow}
@@ -220,6 +223,7 @@ export function BuilderWorkflowAppPageHeader({
           onBackToEditor={onBackToEditor}
           onReviewApproval={onReviewApproval}
           dispatch={dispatch}
+          markDirty={markDirty}
           handleToggleHistory={handleToggleHistory}
           isNew={isNew}
           workflow={workflow}

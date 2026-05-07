@@ -113,6 +113,7 @@ export const useWorkflowStore: UseWorkflowStoreBound = create<WorkflowStore>()(
       nodePositions: {},
       _positionUndoVersion: 0,
       _temporalBatchPending: false,
+      _preserveHistoryOnLayout: false,
       isDirty: false,
 
       setWorkflow: (workflow) => {
@@ -136,6 +137,20 @@ export const useWorkflowStore: UseWorkflowStoreBound = create<WorkflowStore>()(
           isDirty: false,
         }))
         useWorkflowStore.temporal.getState().clear()
+      },
+
+      replaceWorkflowContent: (workflow, edges) => {
+        set((state) => ({
+          currentWorkflow: workflow,
+          workflowVersion: state.workflowVersion + 1,
+          edges,
+          nodePositions: {},
+          isDirty: true,
+          _preserveHistoryOnLayout: true,
+        }))
+        // Pause immediately so post-layout edge syncs don't create extra undo entries.
+        // Resumed by clearUndoHistory in BuilderFlow after layout settles.
+        useWorkflowStore.temporal.getState().pause()
       },
 
       markClean: () => {

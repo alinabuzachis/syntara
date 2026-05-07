@@ -1,6 +1,6 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { Button, List, ListItem, Stack, StackItem } from '@patternfly/react-core'
-import { RhUiEditFillIcon, RhUiHistoryIcon, RhUiPlayIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+import { RhUiEditFillIcon, RhUiExportIcon, RhUiHistoryIcon, RhUiPlayIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
@@ -27,8 +27,10 @@ import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { detachPromise } from '../../utils/detachPromise'
+import { downloadWorkflowExportById } from '../../utils/downloadWorkflowExport'
 import { accessClient } from '../access/accessClient'
 
+import { ImportWorkflowDialog } from './ImportWorkflowDialog'
 import { FlatWorkflowsTableBody, GroupedWorkflowsTableBody } from './WorkflowsTableBody'
 
 type Workflow = WorkflowAPI.components['schemas']['Workflow']
@@ -68,6 +70,7 @@ export default function Workflows() {
 
   const runDialog = useDialogState<Workflow>()
   const deleteDialog = useDialogState<Workflow>()
+  const [importDialogOpen, setImportDialogOpen] = useState(false)
 
   // Define filter field definitions for FilterBar
   const filterFieldDefinitions = useMemo<FilterFieldDefinition[]>(
@@ -228,6 +231,18 @@ export default function Workflows() {
       onClick: () => setLocation(`/executions?workflow_id=${workflow.id}`),
     },
     {
+      title: <IconLabel icon={<RhUiExportIcon />}>Export workflow</IconLabel>,
+      onClick: () => {
+        if (workflow.id) {
+          detachPromise(
+            downloadWorkflowExportById(workflow.id).catch((err: unknown) => {
+              showError({ title: 'Export failed', description: getErrorMessage(err) })
+            })
+          )
+        }
+      },
+    },
+    {
       isSeparator: true,
     },
     {
@@ -256,6 +271,9 @@ export default function Workflows() {
   return (
     <AppPage>
       <AppPageHeader title={<PageTitleWithProject title="Workflows" projectSelector={ProjectSelector} />}>
+        <Button variant="secondary" onClick={() => setImportDialogOpen(true)}>
+          Import workflow
+        </Button>
         <Button variant="primary" onClick={() => setLocation('/workflow-builder/new')}>
           Create workflow
         </Button>
@@ -359,6 +377,13 @@ export default function Workflows() {
           </StackItem>
         </Stack>
       </ConfirmationDialog>
+      <ImportWorkflowDialog
+        isOpen={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+        onSuccess={() => detachPromise(workflowsQuery.refetch())}
+        defaultProjectId={selectedProjectId}
+        projects={projects}
+      />
     </AppPage>
   )
 }

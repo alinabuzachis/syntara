@@ -855,4 +855,75 @@ describe('useWorkflowStore', () => {
       expect(useWorkflowStore.temporal.getState().pastStates.length).toBe(0)
     })
   })
+
+  describe('replaceWorkflowContent', () => {
+    beforeEach(() => {
+      useWorkflowStore.setState({ _temporalBatchPending: false, _preserveHistoryOnLayout: false })
+      useWorkflowStore.temporal.getState().resume()
+      useWorkflowStore.temporal.getState().clear()
+    })
+
+    it('replaces workflow and edges', () => {
+      const original = makeWorkflow('Original')
+      useWorkflowStore.getState().loadWorkflowWithEdges(original, [])
+
+      const replacement = makeWorkflow('Replacement', [createScriptActivity('a1', 'Step', 'python', 'pass')])
+      const newEdges: EdgeConnection[] = [
+        { id: 'e1', source: 'a', target: 'b', sourceHandle: 'source', targetHandle: 'target' },
+      ]
+      useWorkflowStore.getState().replaceWorkflowContent(replacement, newEdges)
+
+      const state = useWorkflowStore.getState()
+      expect(state.currentWorkflow?.name).toBe('Replacement')
+      expect(state.edges).toEqual(newEdges)
+    })
+
+    it('increments workflowVersion', () => {
+      useWorkflowStore.getState().loadWorkflowWithEdges(makeWorkflow('V1'), [])
+      const versionBefore = useWorkflowStore.getState().workflowVersion
+
+      useWorkflowStore.getState().replaceWorkflowContent(makeWorkflow('V2'), [])
+
+      expect(useWorkflowStore.getState().workflowVersion).toBe(versionBefore + 1)
+    })
+
+    it('sets isDirty to true', () => {
+      useWorkflowStore.getState().loadWorkflowWithEdges(makeWorkflow('Clean'), [])
+      expect(useWorkflowStore.getState().isDirty).toBe(false)
+
+      useWorkflowStore.getState().replaceWorkflowContent(makeWorkflow('Dirty'), [])
+
+      expect(useWorkflowStore.getState().isDirty).toBe(true)
+    })
+
+    it('resets nodePositions', () => {
+      useWorkflowStore.setState({ nodePositions: { node1: { x: 100, y: 200 } } })
+
+      useWorkflowStore.getState().replaceWorkflowContent(makeWorkflow('New'), [])
+
+      expect(useWorkflowStore.getState().nodePositions).toEqual({})
+    })
+
+    it('sets _preserveHistoryOnLayout to true', () => {
+      expect(useWorkflowStore.getState()._preserveHistoryOnLayout).toBe(false)
+
+      useWorkflowStore.getState().replaceWorkflowContent(makeWorkflow('New'), [])
+
+      expect(useWorkflowStore.getState()._preserveHistoryOnLayout).toBe(true)
+    })
+
+    it('preserves undo history (does not clear temporal)', () => {
+      useWorkflowStore.getState().loadWorkflowWithEdges(makeWorkflow('Initial'), [])
+      useWorkflowStore.getState().updateWorkflow((wf) => ({ ...wf, name: 'Changed' }))
+      const historyBefore = useWorkflowStore.temporal.getState().pastStates.length
+      expect(historyBefore).toBeGreaterThan(0)
+
+      // Resume temporal so replaceWorkflowContent's state change is tracked
+      useWorkflowStore.temporal.getState().resume()
+      useWorkflowStore.getState().replaceWorkflowContent(makeWorkflow('Imported'), [])
+
+      // History should still exist (not cleared like loadWorkflowWithEdges does)
+      expect(useWorkflowStore.temporal.getState().pastStates.length).toBeGreaterThanOrEqual(historyBefore)
+    })
+  })
 })
