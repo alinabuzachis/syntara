@@ -115,4 +115,19 @@ describe('TriggerNodeComponent', () => {
 
     expect(screen.getByText('Hello(World)')).toBeInTheDocument()
   })
+
+  it('renders long trigger name without overflow', () => {
+    render(
+      <TriggerNodeComponent
+        {...createNodeProps({
+          name: '${name_via_ai.analysis.default_trigger_configuration}',
+          details: 'Every 5 minutes on weekdays',
+          triggerType: 'scheduled',
+        })}
+      />
+    )
+
+    expect(screen.getByText('${name_via_ai.analysis.default_trigger_configuration}')).toBeInTheDocument()
+    expect(screen.getByText('Every 5 minutes on weekdays')).toBeInTheDocument()
+  })
 })

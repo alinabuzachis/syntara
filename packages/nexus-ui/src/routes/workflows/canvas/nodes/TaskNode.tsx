@@ -130,9 +130,11 @@ export function TaskActivityDetails(
               {renderText('URL', (config as { url: string }).url)}
             </>
           )}
-          {aapJobConfig?.job_template_name && <Content>{aapJobConfig.job_template_name}</Content>}
+          {aapJobConfig?.job_template_name && (
+            <Content style={{ overflowWrap: 'anywhere' }}>{aapJobConfig.job_template_name}</Content>
+          )}
           {aapWorkflowConfig?.workflow_job_template_name && (
-            <Content>{aapWorkflowConfig.workflow_job_template_name}</Content>
+            <Content style={{ overflowWrap: 'anywhere' }}>{aapWorkflowConfig.workflow_job_template_name}</Content>
           )}
           {/* Render agentic task details */}
           {taskExecutor === ExecutorTypeEnum.AGENTIC && (

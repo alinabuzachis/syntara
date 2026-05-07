@@ -122,14 +122,14 @@ function TriggerNodeDetails(
       </NodeHeader>
       <NodeBody>
         <div>
-          <Title headingLevel="h3" size={TitleSizes.md}>
+          <Title headingLevel="h3" size={TitleSizes.md} style={{ overflowWrap: 'anywhere' }}>
             {props.triggerName}
           </Title>
           {isScheduledTrigger && normalizedDetails && (
             <Content component={ContentVariants.small}>Schedule trigger</Content>
           )}
           {normalizedDetails && (
-            <Content component={ContentVariants.small} style={{ whiteSpace: 'pre-line' }}>
+            <Content component={ContentVariants.small} style={{ whiteSpace: 'pre-line', overflowWrap: 'anywhere' }}>
               {normalizedDetails}
             </Content>
           )}

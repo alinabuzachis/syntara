@@ -1,8 +1,12 @@
 import type { TaskActivity } from '@ansible/nexus-contracts'
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { TaskActivityDetails } from './TaskNode'
+
+vi.mock('./renderNodeIcon', () => ({
+  renderNodeIcon: () => null,
+}))
 
 describe('TaskActivityDetails', () => {
   it('renders script task details correctly', () => {
@@ -66,25 +70,35 @@ describe('TaskActivityDetails', () => {
     expect(screen.getByText('2 tools')).toBeInTheDocument()
   })
 
-  it.skip('renders AAP job template task details correctly', () => {
-    // SKIPPED: SVG import issue with Ansible icon in test environment
+  it('renders AAP job template name when provided', () => {
     const mockAAPTask = {
       type: 'aap_job_template',
       id: 'task-5',
-      name: 'AAP Job',
+      name: 'Launch Job',
       config: {
+        job_template_name: '${name_via_ai.analysis.default_job_template}',
         job_template_id: 123,
-        inventory_id: 456,
       },
     } as TaskActivity
 
     render(<TaskActivityDetails data={mockAAPTask} />)
 
-    expect(screen.getByText('AAP Job')).toBeInTheDocument()
-    expect(screen.getByText('Job Template ID')).toBeInTheDocument()
-    expect(screen.getByText('123')).toBeInTheDocument()
-    expect(screen.getByText('Inventory ID')).toBeInTheDocument()
-    expect(screen.getByText('456')).toBeInTheDocument()
+    expect(screen.getByText('${name_via_ai.analysis.default_job_template}')).toBeInTheDocument()
+  })
+
+  it('renders AAP workflow template name when provided', () => {
+    const mockAAPWFTask = {
+      type: 'aap_workflow_job_template',
+      id: 'task-6',
+      name: 'Launch Workflow',
+      config: {
+        workflow_job_template_name: 'my-long-workflow-template-name',
+      },
+    } as TaskActivity
+
+    render(<TaskActivityDetails data={mockAAPWFTask} />)
+
+    expect(screen.getByText('my-long-workflow-template-name')).toBeInTheDocument()
   })
 
   it('renders agentic task with model', () => {

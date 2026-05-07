@@ -91,6 +91,21 @@ describe('GenericNodeComponent', () => {
 
       expect(screen.queryByText('Click to configure')).not.toBeInTheDocument()
     })
+
+    it('renders long custom message without overflow', () => {
+      const nodeWithLongMessage = {
+        ...baseGenericNode,
+        metadata: {
+          __customMessage: 'Configure this step with a long expression ${name_via_ai.analysis.default}',
+        },
+      } as TaskActivity
+
+      render(<GenericNodeComponent {...createNodeProps(nodeWithLongMessage)} />)
+
+      expect(
+        screen.getByText('Configure this step with a long expression ${name_via_ai.analysis.default}')
+      ).toBeInTheDocument()
+    })
   })
 
   describe('Reverse Handles', () => {

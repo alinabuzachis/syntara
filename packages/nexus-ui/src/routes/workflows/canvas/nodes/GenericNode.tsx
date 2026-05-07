@@ -63,7 +63,9 @@ export function GenericNodeComponent(props: NodeProps<GenericNode>) {
       <NodeBody>
         <Flex alignItems={{ default: 'alignItemsCenter' }} justifyContent={{ default: 'justifyContentCenter' }}>
           <FlexItem>
-            <Content component={ContentVariants.h4}>{displayMessage}</Content>
+            <Content component={ContentVariants.h4} style={{ overflowWrap: 'anywhere' }}>
+              {displayMessage}
+            </Content>
           </FlexItem>
         </Flex>
       </NodeBody>
