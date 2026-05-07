@@ -628,6 +628,51 @@ Telemetry is configured via environment variables:
 - `APP_SEGMENT_WRITE_KEY` -- Segment.com write key for event transmission
 - `APP_SEGMENT_ENDPOINT` -- Segment.com endpoint URL
 
+## Observability & Metrics
+
+Nexus exposes two metrics surfaces: a Prometheus-compatible scrape endpoint for production monitoring, and an internal JSON API for ad-hoc performance testing.
+
+### `GET /metrics` — Prometheus / OpenMetrics
+
+A standard Prometheus text-exposition endpoint. Point any Prometheus-compatible scraper at it to collect counters, histograms, and gauges covering request traffic, LLM calls, workflow execution, cache performance, database queries, and more.
+
+Metrics are **per-instance and in-memory** — each service instance maintains its own counters and histograms, and they reset to zero on restart. A Prometheus-compatible scraper should poll this endpoint at a regular interval to capture data before it is lost.
+
+**Enabled by default.** Disable via environment variable:
+
+```bash
+APP_METRICS_OPENMETRICS_ENABLED=false   # returns 404 when disabled
+```
+
+**Example scrape:**
+
+```bash
+curl http://localhost:8000/metrics
+```
+
+### `/_internal/metrics/*` — Performance-Testing JSON API
+
+A set of hidden JSON endpoints for querying raw, in-memory metric records during performance-testing or debugging sessions. These routes are **not** listed in `/docs` or `/openapi.json`.
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/_internal/metrics/summary` | GET | Totals, retention window, record counts by type |
+| `/_internal/metrics/records` | GET | Paginated raw `MetricRecord` list (filterable by type, category, labels) |
+| `/_internal/metrics/kpis` | GET | Full KPI dashboard with percentiles, rates, and distributions per component |
+| `/_internal/metrics/kpis/{component}` | GET | KPI summary for a single component (e.g. `llm`, `database`, `api_service`) |
+| `/_internal/metrics/reset` | POST | Clear the in-memory store and counters |
+
+**Disabled by default.** Enable at runtime through the Settings API — no restart required:
+
+```bash
+# Enable via the Settings API (requires setting:write permission)
+curl -X PATCH http://localhost:8000/api/v1/settings/metrics.perf_test_mode \
+  -H "Content-Type: application/json" \
+  -d '{"value": true}'
+```
+
+When the setting is toggled back to `false`, the in-memory store is automatically flushed.
+
 ## Further reading
 
 - 📖 **[Developer Getting Started Guide](docs/developer-getting-started.md)** - Architecture deep dive with examples
