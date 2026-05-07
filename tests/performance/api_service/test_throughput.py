@@ -10,13 +10,12 @@ Run with:
 
 from __future__ import annotations
 
-import time
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING
 
 import pytest
 
-from tests.performance.conftest import poll_for_component_kpis
+from tests.performance.conftest import poll_for_component_kpis, run_load_window
 
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
@@ -28,68 +27,6 @@ TARGET_PEAK_RPS = 200
 RAMP_DURATION_SECONDS = 120
 RAMP_STEP_SECONDS = 10
 MAX_WORKERS = 300
-
-
-def _make_request(nexus_api: NexusApiRegistry) -> tuple[float, bool]:
-    """Make a single GET /workflows request via the generated client.
-
-    Returns (elapsed_ms, success).
-    """
-    start = time.monotonic()
-    try:
-        r = nexus_api.workflows.list()
-        elapsed_ms = (time.monotonic() - start) * 1000
-        return elapsed_ms, r.is_success
-    except Exception:
-        elapsed_ms = (time.monotonic() - start) * 1000
-        return elapsed_ms, False
-
-
-def _run_ramp_step(
-    executor: ThreadPoolExecutor,
-    nexus_api: NexusApiRegistry,
-    target_rps: int,
-    duration: int,
-) -> tuple[int, int, float]:
-    """Send requests at a steady *target_rps* for *duration* seconds.
-
-    Spreads requests evenly across the window by submitting one request
-    per ``1/target_rps`` interval (fire-and-forget into the pool).
-    Completed responses are counted at the end of the window.
-
-    Returns (completed, errors, actual_rps).
-    """
-    interval = 1.0 / target_rps
-    futures: list[Future[tuple[float, bool]]] = []
-    step_start = time.monotonic()
-    step_end = step_start + duration
-
-    next_send = step_start
-    while True:
-        now = time.monotonic()
-        if now >= step_end:
-            break
-        if now >= next_send:
-            futures.append(executor.submit(_make_request, nexus_api))
-            next_send += interval
-        else:
-            sleep_for = min(next_send - now, 0.001)
-            time.sleep(sleep_for)
-
-    completed = 0
-    errors = 0
-    for future in futures:
-        try:
-            _, success = future.result(timeout=30)
-            completed += 1
-            if not success:
-                errors += 1
-        except Exception:
-            errors += 1
-
-    wall_time = time.monotonic() - step_start
-    actual_rps = completed / max(wall_time, 0.001)
-    return completed, errors, actual_rps
 
 
 class TestThroughputRamp:
@@ -128,7 +65,7 @@ class TestThroughputRamp:
             for step in range(num_steps):
                 target_rps = max(int(rps_start + rps_increment * step), 1)
 
-                completed, errors, actual_rps = _run_ramp_step(executor, nexus_api, target_rps, RAMP_STEP_SECONDS)
+                completed, errors, actual_rps = run_load_window(executor, nexus_api, target_rps, RAMP_STEP_SECONDS)
 
                 per_step_rps.append(actual_rps)
                 total_requests += completed

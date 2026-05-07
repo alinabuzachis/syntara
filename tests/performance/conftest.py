@@ -27,8 +27,11 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 import pytest
+import structlog
 
 if TYPE_CHECKING:
+    from concurrent.futures import Future, ThreadPoolExecutor
+
     from nexus_api_client.api import NexusApiRegistry
     from nexus_api_client.api.internal_metrics import InternalMetricsApi
     from nexus_api_client.models.invocation_create_request_contextdata import (
@@ -37,6 +40,7 @@ if TYPE_CHECKING:
     from nexus_api_client.types import Unset
 
 pytestmark = pytest.mark.performance
+
 
 METRICS_POLL_INTERVAL = 0.5
 METRICS_POLL_TIMEOUT = 10.0
@@ -73,6 +77,56 @@ SIMPLE_WORKFLOW_DEFINITION: dict[str, Any] = {
 # Helpers
 # ---------------------------------------------------------------------------
 
+_AUTH_FAILURE_STATUS_CODES = frozenset({401, 403})
+
+logger = structlog.get_logger(__name__)
+
+
+def _extract_status_code(exc: Exception) -> int | None:
+    """Extract HTTP status code from known exception types."""
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code
+    from nexus_api_client.errors import UnexpectedStatus
+
+    if isinstance(exc, UnexpectedStatus):
+        return exc.status_code
+    return None
+
+
+def _log_request_failure(exc: Exception, *, context: str) -> None:
+    """Log and fail-fast on auth/permission errors.
+
+    HTTP errors (httpx.HTTPStatusError, UnexpectedStatus) are logged without
+    exc_info because their request/response objects carry Authorization and
+    Cookie headers that structlog processors may serialize into CI logs.
+    Only non-HTTP exceptions (timeouts, connection resets, etc.) include
+    exc_info since they don't carry credential-bearing objects.
+    """
+    from nexus_api_client.errors import UnexpectedStatus
+
+    status_code = _extract_status_code(exc)
+    if status_code in _AUTH_FAILURE_STATUS_CODES:
+        logger.error(
+            "Auth failure during performance test",
+            context=context,
+            status_code=status_code,
+        )
+        msg = (
+            f"Authentication/authorization failure (HTTP {status_code}) during {context}. "
+            "Aborting to avoid masking a broken security layer."
+        )
+        raise RuntimeError(msg) from exc
+
+    carries_http_objects = isinstance(exc, (httpx.HTTPStatusError, UnexpectedStatus))
+    logger.warning(
+        "Request failed during performance test",
+        context=context,
+        exc_type=type(exc).__name__,
+        status_code=status_code,
+        url=str(exc.request.url.copy_with(params=None)) if isinstance(exc, httpx.HTTPStatusError) else None,
+        exc_info=not carries_http_objects,
+    )
+
 
 def compute_percentile(values: list[float], percentile: float) -> float:
     """Compute a percentile from a sorted list of values.
@@ -92,6 +146,38 @@ def compute_percentile(values: list[float], percentile: float) -> float:
     if c >= n:
         return sorted_vals[-1]
     return sorted_vals[f] + (k - f) * (sorted_vals[c] - sorted_vals[f])
+
+
+def make_request(
+    nexus_api: NexusApiRegistry,
+    *,
+    limit: int | None = None,
+) -> tuple[float, bool]:
+    """Make a single GET /workflows request to exercise the database.
+
+    Used in performance tests to generate read load.
+
+    Args:
+        nexus_api: Authenticated API client registry.
+        limit: Maximum number of workflows to fetch per request.
+            When *None*, uses the server default.
+
+    Returns:
+        Tuple of (elapsed_ms, success).
+
+    """
+    start = time.monotonic()
+    try:
+        kwargs: dict[str, int] = {}
+        if limit is not None:
+            kwargs["limit"] = limit
+        r = nexus_api.workflows.list(**kwargs)
+        elapsed_ms = (time.monotonic() - start) * 1000
+        return elapsed_ms, r.is_success
+    except Exception as exc:
+        elapsed_ms = (time.monotonic() - start) * 1000
+        _log_request_failure(exc, context="make_request")
+        return elapsed_ms, False
 
 
 def poll_for_component_kpis(
@@ -190,8 +276,8 @@ def poll_until_resources_terminal(
                 if r.is_success and r.parsed:
                     status = str(r.parsed.status)
                     status_counts[status] = status_counts.get(status, 0) + 1
-            except Exception:
-                pass
+            except Exception as exc:
+                _log_request_failure(exc, context="poll_for_resource_status")
         terminal = sum(v for k, v in status_counts.items() if k in TERMINAL_STATUSES)
         if terminal >= len(resource_ids):
             break
@@ -251,8 +337,9 @@ def submit_execution(
         )
         elapsed_ms = (time.monotonic() - start) * 1000
         return elapsed_ms, r.is_success or r.status_code in (200, 201, 202)
-    except Exception:
+    except Exception as exc:
         elapsed_ms = (time.monotonic() - start) * 1000
+        _log_request_failure(exc, context="submit_execution")
         return elapsed_ms, False
 
 
@@ -275,9 +362,66 @@ def check_health(
         )
         elapsed_ms = (time.monotonic() - start) * 1000
         return elapsed_ms, response.status_code == 200
-    except Exception:
+    except Exception as exc:
         elapsed_ms = (time.monotonic() - start) * 1000
+        _log_request_failure(exc, context="check_health")
         return elapsed_ms, False
+
+
+def run_load_window(
+    executor: ThreadPoolExecutor,
+    nexus_api: NexusApiRegistry,
+    target_rps: int,
+    duration: int,
+) -> tuple[int, int, float]:
+    """Send requests at a steady rate for *duration* seconds.
+
+    Spreads requests evenly across the window by submitting one request
+    per ``1/target_rps`` interval (fire-and-forget into the pool).
+    Completed responses are counted at the end of the window.
+
+    Args:
+        executor: Thread pool executor for concurrent request submission.
+        nexus_api: Authenticated API client registry.
+        target_rps: Desired requests per second to sustain.
+        duration: How long (in seconds) to maintain the load.
+
+    Returns:
+        Tuple of (completed, errors, actual_rps).
+
+    """
+    interval = 1.0 / target_rps
+    futures: list[Future[tuple[float, bool]]] = []
+    window_start = time.monotonic()
+    window_end = window_start + duration
+
+    next_send = window_start
+    while True:
+        now = time.monotonic()
+        if now >= window_end:
+            break
+        if now >= next_send:
+            futures.append(executor.submit(make_request, nexus_api))
+            next_send += interval
+        else:
+            sleep_for = min(next_send - now, 0.001)
+            time.sleep(sleep_for)
+
+    completed = 0
+    errors = 0
+    for future in futures:
+        try:
+            _, success = future.result(timeout=30)
+            completed += 1
+            if not success:
+                errors += 1
+        except Exception as exc:
+            _log_request_failure(exc, context="run_load_window")
+            errors += 1
+
+    wall_time = time.monotonic() - window_start
+    actual_rps = completed / max(wall_time, 0.001)
+    return completed, errors, actual_rps
 
 
 def scrape_prometheus_metric(
@@ -368,8 +512,9 @@ def submit_invocation(
         elapsed_ms = (time.monotonic() - start) * 1000
         inv_id = str(r.parsed.id) if r.is_success and r.parsed else None
         return elapsed_ms, r.is_success or r.status_code in (200, 201, 202), inv_id
-    except Exception:
+    except Exception as exc:
         elapsed_ms = (time.monotonic() - start) * 1000
+        _log_request_failure(exc, context="submit_invocation")
         return elapsed_ms, False, None
 
 
@@ -444,8 +589,8 @@ def poll_for_invocation_terminal_status(
                 parsed = r.parsed.to_dict()
                 if str(parsed.get("status", "")) in terminal_statuses:
                     return parsed
-        except Exception:
-            pass
+        except Exception as exc:
+            _log_request_failure(exc, context="poll_for_invocation_terminal_status")
         time.sleep(interval)
 
     return parsed
