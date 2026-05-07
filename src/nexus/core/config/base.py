@@ -926,6 +926,18 @@ class TelemetrySettings(BaseSettings):
         description="Segment API endpoint URL",
     )
 
+    segment_max_retries: int = Field(
+        default=10,
+        description="Maximum number of retries for Segment batch uploads",
+        exclude=True,
+    )
+
+    segment_timeout: int = Field(
+        default=30,
+        description="HTTP timeout in seconds for Segment batch uploads",
+        exclude=True,
+    )
+
     entitlement_id: str = Field(
         default="",
         description="Unique Nexus installation identifier for anonymized telemetry tracking",

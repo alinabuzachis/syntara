@@ -89,6 +89,8 @@ class TelemetryClientRegistry:
         entitlement_id: str = "",
         anonymous_id: str = "",
         installation_salt: str = "",
+        max_retries: int = 10,
+        timeout: int = 30,
     ) -> None:
         """Initialize the Segment client.
 
@@ -101,6 +103,8 @@ class TelemetryClientRegistry:
             anonymous_id: Derived telemetry identifier used as Segment ``anonymousId``.
             installation_salt: Per-installation salt (installation UUID) for HMAC-based
                 user ID hashing.
+            max_retries: Maximum number of retries for batch uploads.
+            timeout: HTTP timeout in seconds for batch uploads.
 
         """
         if self._client is not None:
@@ -115,8 +119,8 @@ class TelemetryClientRegistry:
             host=host,
             gzip=True,
             max_queue_size=20000,
-            max_retries=10,
-            timeout=30,
+            max_retries=max_retries,
+            timeout=timeout,
             upload_interval=0.5,
             upload_size=100,
             on_error=self._error_handler,
@@ -313,6 +317,8 @@ async def initialize_telemetry(session_factory: async_sessionmaker[AsyncSession]
         entitlement_id=settings.entitlement_id,
         anonymous_id=anonymous_id,
         installation_salt=str(installation.salt),
+        max_retries=settings.segment_max_retries,
+        timeout=settings.segment_timeout,
     )
     return True
 

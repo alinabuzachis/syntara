@@ -11,6 +11,7 @@ Run with:
     make test-e2e-telemetry
 """
 
+import time
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -22,7 +23,7 @@ from nexus_api_client.models.credential_create_inputs import CredentialCreateInp
 from nexus_api_client.models.project_create import ProjectCreate
 from nexus_api_client.models.workflow_create import WorkflowCreate
 
-from tests.e2e.telemetry.conftest import get_captured_events
+from tests.e2e.telemetry.conftest import POLL_INTERVAL
 
 pytestmark = pytest.mark.e2e
 
@@ -30,21 +31,39 @@ pytestmark = pytest.mark.e2e
 ANALYTICS_TIMEOUT = 25.0
 
 
-def _clear_captured_events(segment_server_url: str) -> None:
-    """Delete all previously captured events from the mock Segment server."""
-    httpx.delete(f"{segment_server_url}/captured-events", timeout=5).raise_for_status()
-
-
 def _get_latest_credential_counts(segment_server_url: str) -> dict[str, Any]:
-    """Wait for a system_analytics event and return its credential counts."""
-    _clear_captured_events(segment_server_url)
-    events = get_captured_events(
-        segment_server_url,
-        event_type="system_analytics",
-        timeout=ANALYTICS_TIMEOUT,
+    """Wait for the next system_analytics event and return its credential counts.
+
+    Records the current event count, then polls until a new system_analytics
+    event appears beyond that baseline.  This avoids DELETE /captured-events
+    which would destroy events that parallel test workers depend on.
+    """
+    # Snapshot current system_analytics events to know the baseline count
+    r = httpx.get(
+        f"{segment_server_url}/captured-events",
+        params={"event_type": "system_analytics"},
+        timeout=5,
     )
-    assert len(events) == 1, f"Expected exactly 1 system_analytics event after clear, got {len(events)}"
-    return events[0]["properties"]["credentials"]  # type: ignore[no-any-return]
+    r.raise_for_status()
+    baseline_count = len(r.json())
+
+    # Poll until at least one NEW system_analytics event appears
+    elapsed = 0.0
+    while elapsed < ANALYTICS_TIMEOUT:
+        time.sleep(POLL_INTERVAL)
+        elapsed += POLL_INTERVAL
+        resp = httpx.get(
+            f"{segment_server_url}/captured-events",
+            params={"event_type": "system_analytics"},
+            timeout=5,
+        )
+        resp.raise_for_status()
+        all_events: list[dict[str, Any]] = resp.json()
+        if len(all_events) > baseline_count:
+            # Return the most recent event's credential counts
+            return all_events[-1]["properties"]["credentials"]  # type: ignore[no-any-return]
+
+    pytest.fail(f"No new system_analytics event after {ANALYTICS_TIMEOUT}s (baseline={baseline_count})")
 
 
 def _get_credential_type_id(nexus_api: NexusApiRegistry, name: str) -> UUID:

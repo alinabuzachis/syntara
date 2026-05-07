@@ -64,9 +64,19 @@ async def segment_batch(request: Request) -> JSONResponse:
             status_code=500,
         )
 
-    body = await _read_json(request)
+    try:
+        body = await _read_json(request)
+    except Exception as exc:
+        import traceback
+
+        traceback.print_exc()
+        return JSONResponse(
+            {"success": False, "error": str(exc)},
+            status_code=400,
+        )
+    batch = body.get("batch", [])
     with _state.lock:
-        for event in body.get("batch", []):
+        for event in batch:
             event["_delivery_method"] = "batch"
             _state.captured_events.append(event)
     return JSONResponse({"success": True})
@@ -128,13 +138,13 @@ async def set_behavior(request: Request) -> JSONResponse:
 @app.get("/health")
 async def health() -> JSONResponse:
     """Health check for readiness probes."""
-    return JSONResponse({"status": "ok"})
+    return JSONResponse({"status": "ok", "event_count": len(_state.captured_events)})
 
 
 def run_server(port: int = 9999) -> None:
     """Run the mock Segment server."""
     host = os.environ.get("SEGMENT_SERVER_HOST", "127.0.0.1")
-    uvicorn.run(app, host=host, port=port, log_level="warning")
+    uvicorn.run(app, host=host, port=port, log_level="info")
 
 
 if __name__ == "__main__":

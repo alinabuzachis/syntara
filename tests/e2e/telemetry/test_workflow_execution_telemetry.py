@@ -147,7 +147,7 @@ def completed_execution(
     # Collect all events correlated by request_id (api_call + workflow events).
     # The request_id is propagated through the interceptor chain to the
     # workflow emitters, so all event types carry it.
-    events = get_captured_events(segment_server_url, request_id=rid, timeout=10.0)
+    events = get_captured_events(segment_server_url, request_id=rid)
 
     return {"execution": execution, "events": events, "execution_id": exec_id, "request_id": rid}
 
