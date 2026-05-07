@@ -232,6 +232,7 @@ Filter bar is visible when data exists or when filters are active; hidden only w
 - **Table columns:**
   - Columns for "created" or "modified" should have username (linked) + date together
   - This pattern should be used for any column that includes a date/time and a who
+  - Date/time format: `MMM DD, YYYY, H:MM:SS AM/PM` — e.g., "Jan 15, 2026, 2:30:45 PM". Comma between date and time. Seconds included.
 - **Row Actions:**
   - Every table row has a kebab menu (⋮) in the rightmost column containing all available actions for that resource
   - The actions column has no column header label
@@ -362,6 +363,12 @@ Button alignment differs by context — this is intentional and follows PatternF
 
 ## 6. CRUD Patterns
 
+Use consistent action verb pairings across the UI:
+
+- "Create" is paired with "Delete"
+- "Add" is paired with "Remove"
+- "Assign" is paired with "Unassign"
+
 ### Create: Full Page
 
 Use for complex resources with many fields or multi-step creation.
@@ -411,6 +418,7 @@ Use for single-field quick edits.
 
 - Renaming resources (when save happens elsewhere)
 - Toggling settings — use PatternFly's [Switch Checked with Label component](http://patternfly.org/components/switch#checked-with-label)
+  - Do not use `isReversed` on the PatternFly Switch. The default behavior — toggle on the left, label on the right — is the standard. `isReversed` flips them and should be avoided.
 - Single-value changes
 
 ### View: Read-Only Detail Modal (from Kebab)
@@ -428,15 +436,17 @@ Use when users need to inspect structured data (JSON, policy definitions, config
 
 **Always** use `ConfirmationDialog` from `src/components/ConfirmationDialog.tsx` for delete actions. Never build modals from raw `Modal` + `ModalHeader` + `ModalBody` + `ModalFooter`.
 
-| Element       | Specification                                                                                              |
-| ------------- | ---------------------------------------------------------------------------------------------------------- |
-| Component     | `ConfirmationDialog` with `destructiveAcknowledgement` prop                                                |
-| Modal variant | Small (default)                                                                                            |
-| Title         | `"Delete [resource type]?"` with `titleIconVariant="warning"`                                              |
-| Body          | `"The [resource] <strong>[name]</strong> will be deleted. This cannot be undone."`                         |
-| Checkbox      | `"I understand this [resource] will be permanently deleted."` — Delete button stays disabled until checked |
-| Action button | `confirmVariant="danger"`, `confirmLabel="Delete"`                                                         |
-| Cancel button | `variant="link"` (handled by ConfirmationDialog)                                                           |
+| Element                           | Specification                                                                                                                                                           |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Component                         | `ConfirmationDialog` with `destructiveAcknowledgement` prop                                                                                                             |
+| Modal variant                     | Small (default)                                                                                                                                                         |
+| Title                             | `"Delete [resource type]?"` with `titleIconVariant="warning"`                                                                                                           |
+| Body                              | `"The [resource] <strong>[name]</strong> will be deleted. This cannot be undone."` — add context if relevant (e.g., "Assignments that use this role will lose access.") |
+| Body 2 (optional)                 | When the delete has interdependencies: `"Resources that will be deleted"` followed by a badge showing the count of affected resources                                   |
+| Checkbox                          | Standard: `"I understand this [resource] will be permanently deleted."` — Delete button stays disabled until checked                                                    |
+| Checkbox (with interdependencies) | `"I understand this [resource] and the resources shown above will be permanently deleted."`                                                                             |
+| Action button                     | `confirmVariant="danger"`, `confirmLabel="Delete"`                                                                                                                      |
+| Cancel button                     | `variant="link"` (handled by ConfirmationDialog)                                                                                                                        |
 
 ```tsx
 <ConfirmationDialog
@@ -466,14 +476,19 @@ Use when users need to inspect structured data (JSON, policy definitions, config
 
 These are reversible actions. Use `ConfirmationDialog` with warning icon but no checkbox.
 
-| Element       | Specification                                                                                   |
-| ------------- | ----------------------------------------------------------------------------------------------- |
-| Component     | `ConfirmationDialog` (no `destructiveAcknowledgement`)                                          |
-| Modal variant | Small (default)                                                                                 |
-| Title         | `"[Remove/Unassign/Cancel/Stop] [resource type]?"` with `titleIconVariant="warning"`            |
-| Body          | Describe what happens: `"This [action] the [resource] <strong>[name]</strong>. [consequence]."` |
-| Action button | `confirmVariant="danger"`, `confirmLabel="[Remove/Unassign/etc.]"`                              |
-| Cancel button | `variant="link"` (handled by ConfirmationDialog)                                                |
+| Element       | Specification                                                                        |
+| ------------- | ------------------------------------------------------------------------------------ |
+| Component     | `ConfirmationDialog` (no `destructiveAcknowledgement`)                               |
+| Modal variant | Small (default)                                                                      |
+| Title         | `"[Remove/Unassign/Cancel/Stop] [resource type]?"` with `titleIconVariant="warning"` |
+| Body          | See context-specific body copy below                                                 |
+| Action button | `confirmVariant="danger"`, `confirmLabel="[Remove/Unassign/etc.]"`                   |
+| Cancel button | `variant="link"` (handled by ConfirmationDialog)                                     |
+
+**Context-specific body copy:**
+
+- **Unassign:** `"This unassigns the role <strong>[resource name]</strong> from this principal. Related permissions will be revoked."`
+- **Remove:** `"This removes the assignment for role <strong>[role name]</strong> from <strong>[user/group name]</strong> in the project <strong>[project name]</strong>. Related permissions will be revoked."`
 
 **Post-cancel/stop behavior:**
 
@@ -513,7 +528,17 @@ Disable is **not** a destructive action — use a standard confirmation modal (n
 
 ---
 
-## 8. Feedback & Notifications
+## 8. Buttons
+
+- Use sentence case for all button labels
+- **Primary buttons** (in UI and dropdown menu items): `Icon + Action + Resource` — e.g., "Create project"
+- **Secondary / tertiary / link buttons**: `Action + Resource` — e.g., "Edit project" (no icon required)
+- When multiple buttons appear together, primary comes first then secondary — unless PatternFly specifies otherwise (e.g., wizards)
+- Delete should always use `variant="danger"` and must always be the last item in a dropdown menu, separated by a divider
+
+---
+
+## 9. Feedback & Notifications
 
 ### Success Feedback
 
@@ -536,7 +561,7 @@ Disable is **not** a destructive action — use a standard confirmation modal (n
 
 ---
 
-## 9. Bulk Actions
+## 10. Bulk Actions
 
 ### Table with Selection Checkboxes
 
@@ -548,7 +573,9 @@ Disable is **not** a destructive action — use a standard confirmation modal (n
 
 ---
 
-## 10. Statuses and Labels
+## 11. Statuses and Labels
+
+Use `Label` only when visual distinction is needed — for statuses, categorical metadata where users need to differentiate between types at a glance (e.g., User vs. Group), and user-generated tags. For informational text that doesn't require visual emphasis, use plain text.
 
 ### Statuses
 
@@ -556,18 +583,71 @@ Disable is **not** a destructive action — use a standard confirmation modal (n
 
 ### Labels/Tags
 
-- Use PatternFly's [Filled Non-status Label component](https://www.patternfly.org/components/label#filled-labels) and default to gray
 - If labels on a table reference a resource, make them clickable labels, navigating to the details page of the resource if one exists
+
+#### System-generated labels
+
+- Use PatternFly's [Filled Non-status Label component](https://www.patternfly.org/components/label#filled-labels) and default to gray
+- If used to categorize types (e.g., User vs. Group), use a colored variant
+- Color variants should have enough contrast to distinguish between them
+
+#### Filter labels
+
+- Use PatternFly's gray Filled Non-status Label component
+
+#### User-generated labels
+
+- Use PatternFly's colored [Outline Status Label component](https://www.patternfly.org/components/label#outlined-labels)
+
+#### Label colors
+
+**General**
+
+- If a label is used for a single thing (a count, a callout) and not to distinguish between 2+ different types, use a filled gray label
+
+**Workflow versioning**
+
+| State               | Style         |
+| ------------------- | ------------- |
+| Published           | Filled green  |
+| Unpublished changes | Filled yellow |
+| Draft               | Filled gray   |
+
+**Access Management — Assignments**
+
+| Dimension | Value   | Style         |
+| --------- | ------- | ------------- |
+| Type      | User    | Filled teal   |
+| Type      | Group   | Filled orange |
+| Scope     | System  | Filled blue   |
+| Scope     | Project | Filled purple |
+
+**Access Management — Roles**
+
+| Value    | Style       |
+| -------- | ----------- |
+| Built-in | Filled gray |
+| Custom   | Filled blue |
+| Policy   | Filled gray |
+
+**Access Management — Policies**
+
+| Value            | Style        |
+| ---------------- | ------------ |
+| Built-in         | Filled gray  |
+| Statement: Allow | Filled green |
+| Statement: Deny  | Filled red   |
+| Scope & resource | Filled gray  |
 
 ---
 
-## 11. Icons
+## 12. Icons
 
 All icons **must** come from the [Red Hat Design System](https://ux.redhat.com/) and the [icon set](https://ux.redhat.com/foundations/iconography/#ui-icons) for Red Hat UI. Although AO is built on top of PatternFly, it uses the Compass and Unified Theme frameworks. All icons must adhere to the Red Hat Design System (RHDS) icon set rather than the standard PatternFly defaults.
 
 ---
 
-## 12. Expand/Collapse Chevrons
+## 13. Expand/Collapse Chevrons
 
 - Use PatternFly's [Expandable Table component](https://www.patternfly.org/components/table#expandable) to ensure expand/collapse chevrons are correct:
   - **Collapsed:** chevron pointed to the right
@@ -576,7 +656,7 @@ All icons **must** come from the [Red Hat Design System](https://ux.redhat.com/)
 
 ---
 
-## 13. Content Rules
+## 14. Content Rules
 
 - Use **sentence case** by default across the application
 - Use **title case** only for navigation items and page titles
@@ -605,7 +685,7 @@ Never use raw `<span>`, `<p>`, or `<div>` for text content. Use PatternFly typog
 
 ---
 
-## 14. Role-Based UI States
+## 15. Role-Based UI States
 
 Pages that support role-based access must adapt their UI based on the authenticated user's permissions. Three tiers:
 
@@ -622,7 +702,7 @@ Pages that support role-based access must adapt their UI based on the authentica
 
 ---
 
-## 15. Data Panel View Modes
+## 16. Data Panel View Modes
 
 For panels that display structured data (input/output panels in the workflow builder), provide a view toggle:
 
@@ -639,7 +719,7 @@ For panels that display structured data (input/output panels in the workflow bui
 
 ---
 
-## 16. Workflow Builder
+## 17. Workflow Builder
 
 The automation builder experience is based on [React Flow](https://reactflow.dev/) as the underlying graph/canvas foundation, with PatternFly as the visual wrapper. The canvas is built **left to right**.
 
@@ -678,7 +758,7 @@ The automation builder experience is based on [React Flow](https://reactflow.dev
 
 ---
 
-## 17. Accessibility Guidelines
+## 18. Accessibility Guidelines
 
 While PatternFly provides a strong foundation with accessibility built into its individual components, achieving full [WCAG 2.1 AA](https://www.w3.org/WAI/WCAG2AA-Conformance) and [Section 508](https://www.section508.gov/) compliance requires careful implementation within the Automation Orchestrator codebase.
 
@@ -729,7 +809,7 @@ PatternFly handles the internal accessibility of its elements (e.g., a dropdown 
 
 ---
 
-## 18. Styling Rules
+## 19. Styling Rules
 
 ### No Global, Unscoped CSS
 
@@ -775,7 +855,7 @@ If you believe a global style is the only option, follow the PatternFly gaps pro
 
 ---
 
-## 19. Use Chrome DevTools MCP to Verify Implementation
+## 20. Use Chrome DevTools MCP to Verify Implementation
 
 This project ships with a Chrome DevTools MCP server configured in `.mcp.json`. Use it to inspect the live application while implementing or reviewing UI — verify that PatternFly components render correctly, design tokens are applied, and layouts match the spec.
 
@@ -822,7 +902,7 @@ This project ships with a Chrome DevTools MCP server configured in `.mcp.json`. 
 
 ---
 
-## 20. Getting Started for Developers
+## 21. Getting Started for Developers
 
 - Point to the AO UI repository for implementation references
 - Utilize the UI/UX skills defined in this document and the Cursor rules
