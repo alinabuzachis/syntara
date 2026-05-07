@@ -63,6 +63,7 @@ describe('useBuilderFlowInteractionHandlers', () => {
         targetNodeId: 't1',
         sourceHandle: null,
         targetHandle: 'th',
+        onRunStep: vi.fn(),
       })
     )
     return { ...view, dispatch, duplicateActivity, reactFlowInstance }

@@ -11,9 +11,11 @@ import { executionsClient, workflowClient } from '../../client'
 import { useAlerts } from '../../components/alerts'
 import { AppPanel } from '../../components/AppPanel'
 import { ResizableDivider } from '../../components/ResizableDivider'
+import { useDialogState } from '../../hooks/useDialogState'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
 import type { FilterConfig } from '../../types/filters'
+import { getAncestorNodes } from '../../utils/graphTraversal'
 import { NodeExpandedAllContext } from '../workflows/canvas/nodes/common/NodeExpandedAllContext'
 
 import { AddNodePanel } from './AddNodePanel'
@@ -22,6 +24,7 @@ import { builderReducer, getInitialBuilderState } from './builderReducer'
 import { BuilderWorkflowAppPageHeader } from './BuilderWorkflowAppPageHeader'
 import { BuilderDialogs } from './components/BuilderDialogs'
 import { NodeEditorOverlay } from './components/NodeEditorOverlay'
+import type { TestStepDialogData } from './components/TestStepDialog'
 import { ExecutionDetailsPanel } from './ExecutionDetailsPanel'
 import { useBuilderApproval } from './hooks/useBuilderApproval'
 import { useBuilderContentQueries } from './hooks/useBuilderContentQueries'
@@ -74,6 +77,9 @@ export function BuilderContent(props: BuilderContentProps) {
   const { registerSaveHandler, unregisterSaveHandler, requestNavigation } = useUnsavedChanges()
 
   const [executionFilters, setExecutionFilters] = useState<FilterConfig[]>([])
+
+  // Test step dialog state
+  const testStepDialog = useDialogState<TestStepDialogData>()
 
   const [state, dispatch] = useReducer(builderReducer, getInitialBuilderState())
   const {
@@ -190,6 +196,28 @@ export function BuilderContent(props: BuilderContentProps) {
       handleSaveWorkflow,
     })
 
+  const openTestStepDialog = testStepDialog.open
+  const handleRunStep = useCallback(
+    async (nodeId: string) => {
+      const node = reactFlowInstance.getNode(nodeId)
+      if (!node?.data) return
+
+      if (useWorkflowStore.getState().isDirty) {
+        const saved = await handleSaveWorkflow()
+        if (!saved) return
+      }
+
+      const ancestors = getAncestorNodes(nodeId, reactFlowInstance.getEdges(), reactFlowInstance.getNodes())
+
+      openTestStepDialog({
+        nodeId,
+        nodeName: (node.data as { name?: string }).name ?? nodeId,
+        predecessors: ancestors,
+      })
+    },
+    [reactFlowInstance, openTestStepDialog, handleSaveWorkflow]
+  )
+
   const {
     handleNodeClick,
     handleClearDesiredPosition,
@@ -205,6 +233,7 @@ export function BuilderContent(props: BuilderContentProps) {
     targetNodeId,
     sourceHandle,
     targetHandle,
+    onRunStep: handleRunStep,
   })
 
   /* Re-renders when React Flow node count changes (execution-view sequencing); see useBuilderWindowEffects */
@@ -468,6 +497,10 @@ export function BuilderContent(props: BuilderContentProps) {
             triggerName={triggerName}
             triggerNodeId={triggerNodeId}
             triggerInputSchema={triggerInputSchema}
+            testStepDialog={testStepDialog}
+            onTestExecutionCreated={(executionId) => {
+              dispatch({ type: 'SET_MOST_RECENT_EXECUTION', payload: executionId })
+            }}
           />
         </AppPage>
       </NodeExpandedAllContext.Provider>

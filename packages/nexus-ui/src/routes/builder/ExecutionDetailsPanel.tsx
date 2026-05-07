@@ -27,7 +27,11 @@ import { formatExecutionDateTime, formatElapsedTime } from '../../utils/dateUtil
 import { detachPromise } from '../../utils/detachPromise'
 import { NodeExecutionDetailsPanel } from '../executions/NodeExecutionDetailsPanel'
 import type { ActivityState } from '../workflows/execution/types'
-import { useExecutionStore, useExecutionStoreActions } from '../workflows/stores/useExecutionStore'
+import {
+  useExecutionStore,
+  useExecutionStoreActions,
+  type ExecutionMetadata,
+} from '../workflows/stores/useExecutionStore'
 
 import { CompactActivityList } from './CompactActivityList'
 import { ExecutionActivityTable } from './ExecutionActivityTable'
@@ -395,9 +399,25 @@ export function ExecutionDetailsPanel({
   const { elapsedMs, now } = useElapsedTime(startedAtValue, execution?.completed_at, isRunning)
   const elapsedLabel = elapsedMs !== undefined ? formatElapsedTime(elapsedMs) : undefined
 
+  const activities = execution?.activities
+  const executionMetadata = (execution as { execution_metadata?: ExecutionMetadata } | undefined)?.execution_metadata
+
+  const { injectPreResolvedStates, setExecutionMetadata } = useExecutionStore.getState()
+
   useEffect(() => {
-    setActivityExecutions(execution?.activities ?? [])
-  }, [execution?.activities, setActivityExecutions])
+    setActivityExecutions(activities ?? [])
+
+    // Pre-resolved nodes may not have ActivityExecution records yet (backend race).
+    // Inject SKIPPED states for any that are missing from the activity list.
+    const preResolved = executionMetadata?.pre_resolved_nodes
+    if (preResolved) {
+      const existingIds = new Set((activities ?? []).map((a) => a.activity_id))
+      const missing = Object.keys(preResolved).filter((id) => !existingIds.has(id))
+      injectPreResolvedStates(missing)
+    }
+
+    setExecutionMetadata(executionMetadata ?? null)
+  }, [activities, executionMetadata, setActivityExecutions, injectPreResolvedStates, setExecutionMetadata])
 
   const { nameMap, activityOrder } = useActivityNameMap(workflowDefinition, activityStates)
 

@@ -55,6 +55,8 @@ import { getLayoutedElements } from './utils/layoutEngine'
 import { validateConnection } from './utils/validateConnection'
 import { markerEnd, type EdgeType } from './utils/workflowToGraph'
 
+const TERMINAL_EXECUTION_STATUSES = new Set(['completed', 'failed', 'cancelled'])
+
 // eslint-disable-next-line max-lines-per-function, complexity
 export function BuilderFlow(props: BuilderFlowProps) {
   const isExecutionView = useIsExecutionView()
@@ -93,21 +95,16 @@ export function BuilderFlow(props: BuilderFlowProps) {
   const { fitView, getViewport, screenToFlowPosition, updateNode } = reactFlowInstance
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Get activity states from execution store (for execution view edge styling)
   const activityStates = useExecutionStore((state) => state.activityStates)
-
-  // In execution view, prefer the WebSocket-updated status from the store over the REST prop
-  // (which can be stale, e.g. still 'pending' after the WebSocket reports 'running').
-  // In builder/editor mode (executionStatus is null), always use null — ignore stale store data.
+  const executionMetadata = useExecutionStore((state) => state.executionMetadata)
+  const preResolvedNodes = useMemo(
+    () => new Set(Object.keys(executionMetadata?.pre_resolved_nodes ?? {})),
+    [executionMetadata]
+  )
   const storeExecutionStatus = useExecutionStore((state) => state.visualization?.status)
   const effectiveExecutionStatus = resolveExecutionStatus(executionStatus, storeExecutionStatus)
-  // Terminal states (completed/failed/cancelled) keep edge colors but restore edit mode in builder.
-  // Only active states (running/pending/paused/waiting) lock the canvas read-only.
   const isActiveExecution =
-    effectiveExecutionStatus !== null &&
-    effectiveExecutionStatus !== 'completed' &&
-    effectiveExecutionStatus !== 'failed' &&
-    effectiveExecutionStatus !== 'cancelled'
+    effectiveExecutionStatus !== null && !TERMINAL_EXECUTION_STATUSES.has(effectiveExecutionStatus)
   const isReadOnly = isExecutionView || isActiveExecution
   // Button-edge maintenance must also see null for terminal states so it recreates the "+" buttons.
   const buttonEdgeExecutionStatus = isActiveExecution ? effectiveExecutionStatus : null
@@ -124,6 +121,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     activityStates,
     onAddNodeFromEdge,
     workflowVersion,
+    preResolvedNodes,
   })
 
   // CRITICAL FIX: Use controlled state instead of useNodesState/useEdgesState
@@ -530,19 +528,16 @@ export function BuilderFlow(props: BuilderFlowProps) {
     // In execution mode, enrich nodes with execution state
     if (activityStates.size === 0) return
 
-    // Pre-index activities by ID for O(1) lookup instead of O(n) find
     const activities = currentWorkflow?.workflow.activities ?? []
     const triggers = currentWorkflow?.triggers ?? []
     const activitiesById = new Map(activities.map((a) => [a.id, a]))
-    const storedEdges = useWorkflowStore.getState().edges
+    const edgeSnapshot = useWorkflowStore.getState().edges
 
     setNodes((currentNodes) => {
       const anyChangedRef = { current: false }
       const updatedNodes = currentNodes.map((node) => {
-        // Enrich trigger nodes
         if (node.id.startsWith('trigger-')) {
-          const triggerIndex = Number.parseInt(node.id.split('-')[1], 10)
-          const triggerRealId = triggers[triggerIndex]?.id
+          const triggerRealId = triggers[Number.parseInt(node.id.split('-')[1], 10)]?.id
           const enriched = executionStateEnricher.enrichTriggerNode(
             triggerRealId,
             node.data as Record<string, unknown>,
@@ -551,25 +546,22 @@ export function BuilderFlow(props: BuilderFlowProps) {
           )
           return applyEnrichedData(node, enriched, anyChangedRef)
         }
-
-        // Enrich activity nodes
         const activity = activitiesById.get(node.id)
-        if (activity) {
-          const enriched = executionStateEnricher.enrichActivity(
-            activity,
-            effectiveExecutionStatus,
-            activityStates,
-            storedEdges
-          )
-          return applyEnrichedData(node, enriched, anyChangedRef)
-        }
-        return node
+        if (!activity) return node
+        const enriched = executionStateEnricher.enrichActivity(
+          activity,
+          effectiveExecutionStatus,
+          activityStates,
+          edgeSnapshot,
+          preResolvedNodes
+        )
+        return applyEnrichedData(node, enriched, anyChangedRef)
       })
 
       // Only return new array if something actually changed
       return anyChangedRef.current ? updatedNodes : currentNodes
     })
-  }, [activityStates, effectiveExecutionStatus, isInitialized, currentWorkflow, applyEnrichedData])
+  }, [activityStates, effectiveExecutionStatus, isInitialized, currentWorkflow, applyEnrichedData, preResolvedNodes])
 
   useEdgeExecutionStatus({
     effectiveExecutionStatus,
@@ -580,16 +572,9 @@ export function BuilderFlow(props: BuilderFlowProps) {
   })
 
   const isValidConnection = useCallback(
-    (connection: EdgeType | Connection) => {
-      return validateConnection(connection, edges)
-    },
+    (connection: EdgeType | Connection) => validateConnection(connection, edges),
     [edges]
   )
-
-  // Keep all edges visible during connection (including all button edges)
-  const edgesToRender = useMemo(() => {
-    return edges
-  }, [edges])
 
   return (
     <div
@@ -614,7 +599,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
       )}
       <ReactFlow<NodeType, EdgeType>
         nodes={nodes}
-        edges={edgesToRender}
+        edges={edges}
         nodeTypes={builderNodeTypes}
         edgeTypes={builderEdgeTypes}
         onNodesChange={onNodesChange}

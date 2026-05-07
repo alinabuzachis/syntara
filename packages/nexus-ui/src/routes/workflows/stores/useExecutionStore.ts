@@ -27,6 +27,15 @@ type ActivityExecution = ExecutionsAPI.components['schemas']['ActivityExecution'
 /** Activity input from REST API: Execution.activities (ActivityData) or list endpoint (ActivityExecution) */
 type ActivityInput = ActivityData | ActivityExecution
 
+/**
+ * Typed shape for execution_metadata from the REST API.
+ * Local definition until the backend OpenAPI spec includes this field.
+ */
+export type ExecutionMetadata = {
+  mode?: string
+  pre_resolved_nodes?: Record<string, { output: Record<string, unknown> }>
+}
+
 // ============================================================================
 // Store State
 // ============================================================================
@@ -41,6 +50,8 @@ type ExecutionStoreState = {
   activityStates: Map<string, ActivityState>
   /** Activity errors keyed by activity_id (for quick error lookups) */
   activityErrors: Map<string, string>
+  /** Execution metadata (includes mode, pre_resolved_nodes for test runs, etc.) */
+  executionMetadata: ExecutionMetadata | null
 
   // === WebSocket State ===
   /** WebSocket connection state */
@@ -103,6 +114,17 @@ type ExecutionStoreActions = {
    * Used by ExecutionDetailsPanel when loading execution data via REST API
    */
   setActivityExecutions: (activities: ActivityInput[]) => void
+
+  /**
+   * Inject SKIPPED states for pre-resolved nodes that lack backend activity records.
+   * Handles the race condition where the backend hasn't synced ActivityExecution records yet.
+   */
+  injectPreResolvedStates: (missingNodeIds: string[]) => void
+
+  /**
+   * Set execution metadata (mode, pre_resolved_nodes for test runs, etc.)
+   */
+  setExecutionMetadata: (metadata: ExecutionMetadata | null) => void
 
   // === Reset ===
   /**
@@ -187,6 +209,7 @@ const initialState: ExecutionStoreState = {
   visualization: null,
   activityStates: new Map(),
   activityErrors: new Map(),
+  executionMetadata: null,
 
   // WebSocket State
   isConnected: false,
@@ -249,11 +272,15 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       completedAt: execution.completed_at,
     }
 
+    // Extract execution metadata for test runs (mode, pre_resolved_nodes, etc.)
+    const executionMetadata = (execution as { execution_metadata?: ExecutionMetadata }).execution_metadata ?? null
+
     set({
       executionId: execution.id,
       visualization,
       activityStates: activityStateMap, // Store full ActivityState objects
       activityErrors,
+      executionMetadata,
       error: null,
     })
   },
@@ -330,6 +357,27 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
     })
   },
 
+  injectPreResolvedStates: (missingNodeIds: string[]) => {
+    if (missingNodeIds.length === 0) return
+    const updated = new Map(get().activityStates)
+    for (const id of missingNodeIds) {
+      if (!updated.has(id)) {
+        updated.set(id, {
+          activityId: id,
+          status: 'skipped' as const,
+          startedAt: null,
+          completedAt: null,
+          errorDetails: null,
+        })
+      }
+    }
+    set({ activityStates: updated })
+  },
+
+  setExecutionMetadata: (metadata: Record<string, unknown> | null) => {
+    set({ executionMetadata: metadata })
+  },
+
   // === Reset ===
 
   reset: () => {
@@ -338,6 +386,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       // Reset with new Map instances to avoid reference issues
       activityStates: new Map(),
       activityErrors: new Map(),
+      executionMetadata: null,
     })
   },
 }))

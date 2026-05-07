@@ -17,6 +17,7 @@ export type UseBuilderFlowInteractionHandlersOptions = {
   targetNodeId: string | null
   sourceHandle: string | null | undefined
   targetHandle: string | null | undefined
+  onRunStep: (nodeId: string) => void
 }
 
 /**
@@ -30,6 +31,7 @@ export function useBuilderFlowInteractionHandlers({
   targetNodeId,
   sourceHandle,
   targetHandle,
+  onRunStep,
 }: UseBuilderFlowInteractionHandlersOptions) {
   const handleNodeClick = useCallback(
     (_event: React.MouseEvent, node: Node<NodeType['data']>) => {
@@ -129,8 +131,13 @@ export function useBuilderFlowInteractionHandlers({
   )
 
   const nodeActionsValue = useMemo<NodeActionsContextValue>(
-    () => ({ onViewDetails: handleViewNodeDetails, onReplace: handleReplaceNode, onDuplicate: handleDuplicateNode }),
-    [handleViewNodeDetails, handleReplaceNode, handleDuplicateNode]
+    () => ({
+      onViewDetails: handleViewNodeDetails,
+      onReplace: handleReplaceNode,
+      onDuplicate: handleDuplicateNode,
+      onRunStep,
+    }),
+    [handleViewNodeDetails, handleReplaceNode, handleDuplicateNode, onRunStep]
   )
 
   return {

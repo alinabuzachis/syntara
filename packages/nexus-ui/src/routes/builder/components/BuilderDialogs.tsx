@@ -3,11 +3,14 @@ import { Checkbox, Content, Stack, StackItem } from '@patternfly/react-core'
 import { useState, type Dispatch } from 'react'
 
 import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
+import type { DialogState } from '../../../hooks/useDialogState'
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import type { BuilderAction } from '../builderReducer'
 
 import { ApprovalReviewModal } from './ApprovalReviewModal'
 import { RunWorkflowModal } from './RunWorkflowModal'
+import type { TestStepDialogData } from './TestStepDialog'
+import { TestStepDialog } from './TestStepDialog'
 
 const RUN_CONFIRM_DISMISSED_KEY = 'nexus-run-workflow-confirm-dismissed'
 
@@ -42,7 +45,42 @@ type BuilderDialogsProps = Readonly<{
   triggerName: string
   triggerNodeId?: string
   triggerInputSchema?: Record<string, unknown>
+  testStepDialog: DialogState<TestStepDialogData>
+  onTestExecutionCreated?: (executionId: string) => void
 }>
+
+function useRunConfirmState(confirmDialogOpen: boolean, isDirty: boolean, dispatch: Dispatch<BuilderAction>) {
+  const [confirmedRun, setConfirmedRun] = useState(false)
+  const [doNotShowAgain, setDoNotShowAgain] = useState(false)
+  const [prevOpen, setPrevOpen] = useState(confirmDialogOpen)
+
+  // getDerivedStateFromProps pattern — reset state on open/close transitions
+  if (confirmDialogOpen && !prevOpen) {
+    setPrevOpen(true)
+    setConfirmedRun(false)
+    setDoNotShowAgain(false)
+  } else if (!confirmDialogOpen && prevOpen) {
+    setPrevOpen(false)
+  }
+
+  const skipConfirm = confirmDialogOpen && !isDirty && getRunConfirmDismissed()
+
+  return {
+    showConfirmStep: confirmDialogOpen && !skipConfirm && !confirmedRun,
+    showInputStep: confirmDialogOpen && (skipConfirm || confirmedRun),
+    doNotShowAgain,
+    setDoNotShowAgain,
+    closeAll: () => {
+      dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
+      setConfirmedRun(false)
+      setDoNotShowAgain(false)
+    },
+    handleConfirmRun: () => {
+      if (doNotShowAgain) setRunConfirmDismissed()
+      setConfirmedRun(true)
+    },
+  }
+}
 
 export function BuilderDialogs({
   workflowName,
@@ -59,47 +97,12 @@ export function BuilderDialogs({
   triggerName,
   triggerNodeId,
   triggerInputSchema,
+  testStepDialog,
+  onTestExecutionCreated,
 }: BuilderDialogsProps) {
-  const [confirmedRun, setConfirmedRun] = useState(false)
-  const [doNotShowAgain, setDoNotShowAgain] = useState(false)
-  const [prevConfirmDialogOpen, setPrevConfirmDialogOpen] = useState(confirmDialogOpen)
   const isDirty = useWorkflowStore((state) => state.isDirty)
-
-  // Reset per-open state whenever the dialog transitions from closed → open.
-  // This handles the case where the run succeeds and the reducer closes the
-  // dialog directly (bypassing closeAll), leaving confirmedRun stale.
-  //
-  // Note: we use the React "derived state" pattern (setState during render) rather than
-  // useEffect because the project ESLint rule `react-hooks/set-state-in-effect` flags
-  // synchronous setState calls inside effects. Calling setState during render is the
-  // React-endorsed alternative for prop-driven state resets (getDerivedStateFromProps pattern).
-  if (confirmDialogOpen && !prevConfirmDialogOpen) {
-    setPrevConfirmDialogOpen(true)
-    setConfirmedRun(false)
-    setDoNotShowAgain(false)
-  } else if (!confirmDialogOpen && prevConfirmDialogOpen) {
-    setPrevConfirmDialogOpen(false)
-  }
-
-  // Derive which step to show without calling setState in effects.
-  // If dismissed previously, go straight to the input modal.
-  // Only skip the confirmation when clean — dirty runs always need explicit user agreement to save.
-  const skipConfirm = confirmDialogOpen && !isDirty && getRunConfirmDismissed()
-  const showConfirmStep = confirmDialogOpen && !skipConfirm && !confirmedRun
-  const showInputStep = confirmDialogOpen && (skipConfirm || confirmedRun)
-
-  const closeAll = () => {
-    dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
-    setConfirmedRun(false)
-    setDoNotShowAgain(false)
-  }
-
-  const handleConfirmRun = () => {
-    if (doNotShowAgain) {
-      setRunConfirmDismissed()
-    }
-    setConfirmedRun(true)
-  }
+  const { showConfirmStep, showInputStep, doNotShowAgain, setDoNotShowAgain, closeAll, handleConfirmRun } =
+    useRunConfirmState(confirmDialogOpen, isDirty, dispatch)
   return (
     <>
       <ConfirmationDialog
@@ -167,6 +170,15 @@ export function BuilderDialogs({
         isOpen={approvalViewOpen}
         activityNameMap={activityNameMap}
         onClose={handleApprovalClose}
+      />
+      <TestStepDialog
+        isOpen={testStepDialog.isOpen}
+        onClose={testStepDialog.close}
+        onExecutionCreated={onTestExecutionCreated}
+        nodeId={testStepDialog.item?.nodeId ?? null}
+        nodeName={testStepDialog.item?.nodeName ?? ''}
+        workflowId={workflowId ?? ''}
+        predecessors={testStepDialog.item?.predecessors}
       />
     </>
   )

@@ -14,6 +14,8 @@ export type NodeActionsContextValue = {
   onReplace: (nodeId: string) => void
   /** Duplicate the activity and place the copy near the original on the canvas. */
   onDuplicate: (nodeId: string) => void
+  /** Open the test step dialog for the given React Flow node ID. */
+  onRunStep: (nodeId: string) => void
 }
 
 /**

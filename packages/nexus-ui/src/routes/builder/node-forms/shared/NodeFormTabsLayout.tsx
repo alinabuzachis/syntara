@@ -1,44 +1,24 @@
-import { Flex, FlexItem, Stack, StackItem, Tab, Tabs } from '@patternfly/react-core'
+import { Stack, StackItem, Tab, Tabs } from '@patternfly/react-core'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 
 import { AppPageMain } from '../../../../app/AppPage'
-import { useAlerts } from '../../../../components/alerts'
-import { TestStepButton } from '../../panels/TestStepButton'
 
 type NodeFormTabsLayoutProps = {
   parametersContent: ReactNode
   settingsContent?: ReactNode
-  onTestStep?: () => void
-  isTestStepPending?: boolean
 }
 
-export function NodeFormTabsLayout({
-  parametersContent,
-  settingsContent,
-  onTestStep,
-  isTestStepPending,
-}: NodeFormTabsLayoutProps) {
+export function NodeFormTabsLayout({ parametersContent, settingsContent }: NodeFormTabsLayoutProps) {
   const [activeTabKey, setActiveTabKey] = useState<number>(0)
-  const { showInfo } = useAlerts()
 
   return (
     <Stack hasGutter style={{ height: '100%', minHeight: 0, flex: 1 }}>
       <StackItem>
-        <Flex alignItems={{ default: 'alignItemsCenter' }} justifyContent={{ default: 'justifyContentSpaceBetween' }}>
-          <FlexItem>
-            <Tabs activeKey={activeTabKey} onSelect={(_event, key) => setActiveTabKey(Number(key))}>
-              <Tab eventKey={0} title="Parameters" />
-              <Tab eventKey={1} title="Settings" />
-            </Tabs>
-          </FlexItem>
-          <FlexItem>
-            <TestStepButton
-              onTestStep={onTestStep ?? (() => showInfo({ title: 'Not yet implemented' }))}
-              isPending={isTestStepPending}
-            />
-          </FlexItem>
-        </Flex>
+        <Tabs activeKey={activeTabKey} onSelect={(_event, key) => setActiveTabKey(Number(key))}>
+          <Tab eventKey={0} title="Parameters" />
+          <Tab eventKey={1} title="Settings" />
+        </Tabs>
       </StackItem>
       <AppPageMain style={{ overflow: 'auto', paddingRight: 'var(--pf-t--global--spacer--md)' }}>
         <Stack hasGutter>

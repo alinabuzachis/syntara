@@ -1,4 +1,5 @@
 import { ExecutorTypeEnum, type TaskActivity } from '@ansible/nexus-contracts'
+import { Label } from '@patternfly/react-core'
 import { Handle, type NodeProps, Position } from '@xyflow/react'
 import React, { useEffect, useMemo, useState } from 'react'
 
@@ -25,6 +26,14 @@ type ExecutionState = {
 
 const DEFAULT_NODE_WIDTH = 240
 const WIDE_NODE_WIDTH = 360
+
+const NODE_BOTTOM_BADGE_STYLE: React.CSSProperties = {
+  position: 'absolute',
+  bottom: 'calc(-1 * var(--pf-t--global--spacer--lg))',
+  left: '50%',
+  transform: 'translateX(-50%)',
+  whiteSpace: 'nowrap',
+}
 
 /**
  * PatternFly `Panel` with `variant="raised"` uses the raised variant’s smaller corner radius; workflow nodes
@@ -120,6 +129,8 @@ export function NodeComponent(props: {
   const isSelected = props.nodeProps.selected
   const nodeWidth = isWideTaskNode(props.nodeProps) ? WIDE_NODE_WIDTH : DEFAULT_NODE_WIDTH
   const summary = props.semanticZoomSummary
+  const mockDataPinned =
+    (props.nodeProps.data as { metadata?: { __mockDataPinned?: boolean } }).metadata?.__mockDataPinned === true
 
   const panelStyle: React.CSSProperties = {
     overflow: 'visible', // Allow execution badge to overflow outside node
@@ -202,6 +213,13 @@ export function NodeComponent(props: {
             status={props.executionState?.status ?? 'pending'}
             retryCount={props.executionState?.retry_count}
           />
+        )}
+        {!isSemanticZoom && mockDataPinned && (
+          <div style={NODE_BOTTOM_BADGE_STYLE}>
+            <Label isCompact color="purple">
+              Mock data pinned
+            </Label>
+          </div>
         )}
         {!props.disableTarget && (
           <Handle

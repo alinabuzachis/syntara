@@ -253,6 +253,95 @@ describe('ExecutionStateEnricher', () => {
     })
   })
 
+  describe('enrichActivity with preResolvedNodes', () => {
+    it('marks node with __mockDataPinned when in preResolvedNodes set', () => {
+      const activity: Activity = {
+        id: 'task-1',
+        name: 'Task 1',
+        type: 'script',
+        config: { language: 'python', code: '' },
+      }
+      const preResolvedNodes = new Set(['task-1'])
+      const activityStates = new Map<string, ActivityState>([
+        [
+          'task-1',
+          {
+            activityId: 'task-1',
+            status: 'completed',
+            startedAt: '2024-01-01T00:00:00Z',
+            completedAt: '2024-01-01T00:01:00Z',
+          },
+        ],
+      ])
+      const edges: EdgeConnection[] = []
+
+      const result = enricher.enrichActivity(activity, 'running', activityStates, edges, preResolvedNodes)
+
+      expect(result.metadata?.__mockDataPinned).toBe(true)
+      expect(result.metadata?.__showExecutionBadge).toBe(true)
+    })
+
+    it('forces SKIPPED status for pre-resolved node without backend state', () => {
+      const activity: Activity = {
+        id: 'task-1',
+        name: 'Task 1',
+        type: 'script',
+        config: { language: 'python', code: '' },
+      }
+      const preResolvedNodes = new Set(['task-1'])
+      const activityStates = new Map<string, ActivityState>()
+      const edges: EdgeConnection[] = []
+
+      const result = enricher.enrichActivity(activity, 'running', activityStates, edges, preResolvedNodes)
+
+      expect(result.__executionState?.status).toBe('skipped')
+      expect(result.metadata?.__mockDataPinned).toBe(true)
+    })
+
+    it('uses backend state over forced SKIPPED when activityState exists', () => {
+      const activity: Activity = {
+        id: 'task-1',
+        name: 'Task 1',
+        type: 'script',
+        config: { language: 'python', code: '' },
+      }
+      const preResolvedNodes = new Set(['task-1'])
+      const activityStates = new Map<string, ActivityState>([
+        [
+          'task-1',
+          {
+            activityId: 'task-1',
+            status: 'completed',
+            startedAt: '2024-01-01T00:00:00Z',
+            completedAt: '2024-01-01T00:01:00Z',
+          },
+        ],
+      ])
+      const edges: EdgeConnection[] = []
+
+      const result = enricher.enrichActivity(activity, 'running', activityStates, edges, preResolvedNodes)
+
+      expect(result.__executionState?.status).toBe('completed')
+      expect(result.metadata?.__mockDataPinned).toBe(true)
+    })
+
+    it('does not mark node when not in preResolvedNodes set', () => {
+      const activity: Activity = {
+        id: 'task-2',
+        name: 'Task 2',
+        type: 'script',
+        config: { language: 'python', code: '' },
+      }
+      const preResolvedNodes = new Set(['task-1'])
+      const activityStates = new Map<string, ActivityState>()
+      const edges: EdgeConnection[] = []
+
+      const result = enricher.enrichActivity(activity, 'running', activityStates, edges, preResolvedNodes)
+
+      expect(result.metadata?.__mockDataPinned).toBeUndefined()
+    })
+  })
+
   describe('determineEdgeStatus', () => {
     it('returns pending when source is running (not terminal)', () => {
       const edge = { source: 'task-1', target: 'task-2' }

@@ -33,6 +33,7 @@ type UseBuilderFlowGraphParams = {
   activityStates: Map<string, ActivityState>
   onAddNodeFromEdge: ((sourceNodeId: string, sourceHandle: string) => void) | undefined
   workflowVersion: number
+  preResolvedNodes?: Set<string>
 }
 
 export { executionStateEnricher }
@@ -46,6 +47,7 @@ export function useBuilderFlowGraph({
   activityStates,
   onAddNodeFromEdge,
   workflowVersion,
+  preResolvedNodes,
 }: UseBuilderFlowGraphParams) {
   return useMemo(() => {
     if (!currentWorkflow) {
@@ -101,7 +103,13 @@ export function useBuilderFlowGraph({
         return
       }
 
-      const activityData = executionStateEnricher.enrichActivity(activity, executionStatus, activityStates, storedEdges)
+      const activityData = executionStateEnricher.enrichActivity(
+        activity,
+        executionStatus,
+        activityStates,
+        storedEdges,
+        preResolvedNodes
+      )
       nodes.push({
         id: activity.id,
         type: activity.type,
@@ -168,7 +176,13 @@ export function useBuilderFlowGraph({
         nodeType = FlowNodeType.APPROVAL
       }
 
-      const activityData = executionStateEnricher.enrichActivity(activity, executionStatus, activityStates, storedEdges)
+      const activityData = executionStateEnricher.enrichActivity(
+        activity,
+        executionStatus,
+        activityStates,
+        storedEdges,
+        preResolvedNodes
+      )
 
       const node = {
         id: activity.id,
@@ -194,5 +208,6 @@ export function useBuilderFlowGraph({
     onAddNodeFromEdge,
     activityStates,
     executionStatus,
+    preResolvedNodes,
   ])
 }

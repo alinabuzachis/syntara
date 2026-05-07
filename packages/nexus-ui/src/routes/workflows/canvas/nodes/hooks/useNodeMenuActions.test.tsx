@@ -37,10 +37,12 @@ function withNodeActions(value: NodeActionsContextValue) {
 const mockOnViewDetails = vi.fn()
 const mockOnReplace = vi.fn()
 const mockOnDuplicate = vi.fn()
+const mockOnRunStep = vi.fn()
 const defaultNodeActions: NodeActionsContextValue = {
   onViewDetails: mockOnViewDetails,
   onReplace: mockOnReplace,
   onDuplicate: mockOnDuplicate,
+  onRunStep: mockOnRunStep,
 }
 
 describe('useNodeMenuActions', () => {
@@ -140,7 +142,7 @@ describe('useNodeMenuActions', () => {
       expect(mockOnViewDetails).toHaveBeenCalledWith('task-1')
     })
 
-    it('calls showInfo for run step', () => {
+    it('calls onRunStep for run step', () => {
       const { result } = renderHook(() => useNodeMenuActions({ nodeId: 'task-1', nodeType: MenuNodeType.ACTIVITY }), {
         wrapper: withNodeActions(defaultNodeActions),
       })
@@ -150,7 +152,7 @@ describe('useNodeMenuActions', () => {
         runStep?.onClick()
       })
 
-      expect(mockShowInfo).toHaveBeenCalled()
+      expect(mockOnRunStep).toHaveBeenCalledWith('task-1')
     })
 
     it('calls onReplace with the node id', () => {

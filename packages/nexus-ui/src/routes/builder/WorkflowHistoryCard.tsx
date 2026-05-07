@@ -7,6 +7,7 @@ import {
   Flex,
   FlexItem,
   Icon,
+  Label,
   SimpleList,
   SimpleListGroup,
   SimpleListItem,
@@ -26,6 +27,7 @@ import { useElapsedTime } from '../../hooks/useElapsedTime'
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { formatElapsedTime } from '../../utils/dateUtils'
 import { getExecutionStatusFilterDefinition } from '../executions/executionFilters'
+import type { ExecutionMetadata } from '../workflows/stores/useExecutionStore'
 
 import { StatusLabel } from './ExecutionStatus'
 import { formatHistoryDateTime, getDateGroupLabel } from './historyDateUtils'
@@ -61,6 +63,7 @@ export function ExecutionHistoryRow({ execution, onSelect, isSelected }: Executi
   const { elapsedMs } = useElapsedTime(startedAtValue, execution.completed_at, isRunning)
   const elapsedLabel = elapsedMs !== undefined ? `Elapsed time: ${formatElapsedTime(elapsedMs)}` : 'Elapsed time: -'
   const truncatedId = execution.id ? execution.id.slice(0, TRUNCATED_ID_LENGTH) : null
+  const isTestRun = (execution as { execution_metadata?: ExecutionMetadata }).execution_metadata?.mode === 'test'
 
   return (
     <SimpleListItem itemId={execution.id} isActive={isSelected} onClick={onSelect}>
@@ -85,7 +88,16 @@ export function ExecutionHistoryRow({ execution, onSelect, isSelected }: Executi
             )}
           </Stack>
         </FlexItem>
-        <FlexItem style={{ flexShrink: 0 }}>{execution.status && <StatusLabel status={execution.status} />}</FlexItem>
+        <FlexItem style={{ flexShrink: 0 }}>
+          <Stack style={{ gap: 'var(--pf-t--global--spacer--sm)' }}>
+            {execution.status && <StatusLabel status={execution.status} />}
+            {isTestRun && (
+              <Label isCompact color="purple">
+                Test run
+              </Label>
+            )}
+          </Stack>
+        </FlexItem>
       </Flex>
     </SimpleListItem>
   )

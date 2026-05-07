@@ -45,6 +45,12 @@ function renderDialogs(overrides: Partial<React.ComponentProps<typeof BuilderDia
     activityNameMap: new Map(),
     handleApprovalClose: vi.fn(),
     triggerName: 'Manual Trigger',
+    testStepDialog: {
+      isOpen: false,
+      item: null,
+      open: vi.fn(),
+      close: vi.fn(),
+    },
     ...overrides,
   }
   return render(<BuilderDialogs {...props} />, { wrapper })
@@ -130,6 +136,12 @@ describe('BuilderDialogs', () => {
       activityNameMap: new Map(),
       handleApprovalClose: vi.fn(),
       triggerName: 'Manual Trigger',
+      testStepDialog: {
+        isOpen: false,
+        item: null,
+        open: vi.fn(),
+        close: vi.fn(),
+      },
     }
     const { rerender } = render(
       <QueryClientProvider client={queryClient}>

@@ -40,9 +40,6 @@ test.describe('Node editor panels', () => {
     await expect(app.getByRole('tab', { name: 'Parameters' })).toBeVisible()
     await expect(app.getByRole('tab', { name: 'Settings' })).toBeVisible()
 
-    // Verify "Test step" button is present
-    await expect(app.getByRole('button', { name: 'Test step' })).toBeVisible()
-
     // Output panel: no execution data → "No output data"
     await expect(app.getByText('No output data')).toBeVisible()
     await expect(app.getByText('Run the workflow to see output data here.')).toBeVisible()

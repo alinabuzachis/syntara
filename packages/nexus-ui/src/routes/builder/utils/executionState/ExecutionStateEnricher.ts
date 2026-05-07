@@ -91,18 +91,21 @@ export class ExecutionStateEnricher {
    * 3. Infers state for structural nodes (loop, converge, conditional) if no backend state
    * 4. Marks nodes as skipped when on non-taken branches
    * 5. Sets default pending state for structural nodes with no other state
+   * 6. Marks nodes with mock data pinned (test execution pre-resolved nodes)
    *
    * @param activity - The activity to enrich
    * @param executionStatus - Current execution status (null if not in execution view)
    * @param activityStates - Map of activity IDs to their execution states from backend
    * @param edges - All edges in the workflow
+   * @param preResolvedNodes - Set of node IDs that had mock data pinned (test execution)
    * @returns Activity enriched with execution metadata
    */
   enrichActivity(
     activity: Activity,
     executionStatus: string | null | undefined,
     activityStates: Map<string, ActivityState>,
-    edges: EdgeConnection[]
+    edges: EdgeConnection[],
+    preResolvedNodes?: Set<string>
   ): ActivityWithMetadata {
     // If not in execution view, return as-is
     if (!executionStatus) {
@@ -116,8 +119,30 @@ export class ExecutionStateEnricher {
       metadata: { ...baseMetadata, __showExecutionBadge: true },
     }
 
+    // Mark node if mock data was pinned (test execution pre-resolved node)
+    if (preResolvedNodes?.has(activity.id)) {
+      enrichedActivity = {
+        ...enrichedActivity,
+        metadata: {
+          ...enrichedActivity.metadata,
+          __mockDataPinned: true,
+        },
+      }
+    }
+
     // Step 1: Add direct backend state if available
     const activityState = activityStates.get(activity.id)
+
+    // Pre-resolved nodes may not have activity records yet (race with backend sync).
+    // Force them to SKIPPED if no backend state exists.
+    if (!activityState && preResolvedNodes?.has(activity.id)) {
+      enrichedActivity = {
+        ...enrichedActivity,
+        __executionState: { status: 'skipped' as const },
+      }
+      return enrichedActivity
+    }
+
     if (activityState) {
       enrichedActivity = {
         ...enrichedActivity,

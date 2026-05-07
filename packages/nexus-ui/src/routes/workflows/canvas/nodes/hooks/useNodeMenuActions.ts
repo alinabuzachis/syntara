@@ -78,7 +78,7 @@ type UseNodeMenuActionsOptions = {
 export function useNodeMenuActions(options: UseNodeMenuActionsOptions): NodeMenuAction[] {
   const { nodeId, nodeType, triggerIndex, additionalActions = [] } = options
   const { deleteElements } = useReactFlow()
-  const { showInfo, showError } = useAlerts()
+  const { showError } = useAlerts()
   const nodeActions = useNodeActions()
 
   const handleDelete = useCallback(() => {
@@ -95,8 +95,8 @@ export function useNodeMenuActions(options: UseNodeMenuActionsOptions): NodeMenu
   }, [nodeActions, nodeId])
 
   const handleRunStep = useCallback(() => {
-    showInfo({ title: 'Not yet implemented.' })
-  }, [showInfo])
+    nodeActions?.onRunStep(nodeId)
+  }, [nodeActions, nodeId])
 
   const handleDuplicate = useCallback(() => {
     nodeActions?.onDuplicate(nodeId)

@@ -51,6 +51,11 @@ export type ActivityMetadata = {
    * Runtime validation also exists in detectTaskNodeType().
    */
   __executorType?: ApiExecutorType
+  /**
+   * Set during test executions to indicate this node's input data was
+   * pre-resolved (mocked) instead of computed from upstream activities.
+   */
+  __mockDataPinned?: boolean
 }
 
 /**
@@ -84,6 +89,9 @@ function sanitizeMetadata(raw: Record<string, unknown>): ActivityMetadata {
     API_EXECUTOR_TYPES.has(raw.__executorType as ApiExecutorType)
   ) {
     sanitized.__executorType = raw.__executorType as ApiExecutorType
+  }
+  if ('__mockDataPinned' in raw && raw.__mockDataPinned === true) {
+    sanitized.__mockDataPinned = true
   }
 
   return sanitized
