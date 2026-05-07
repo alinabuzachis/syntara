@@ -145,3 +145,15 @@ export function formatTimeRange(startedAt?: string | null, completedAt?: string 
 export function formatDateForApi(date: Date): string {
   return date.toISOString()
 }
+
+/**
+ * Extracts the calendar date (YYYY-MM-DD) from a UTC ISO string for chip display.
+ * Avoids timezone shifts by using only the date portion.
+ *
+ * @example
+ * formatDateChipValue('2026-04-26T00:00:00.000Z') // → '2026-04-26'
+ * formatDateChipValue('2026-05-01T23:59:59.999Z') // → '2026-05-01'
+ */
+export function formatDateChipValue(isoValue: string): string {
+  return isoValue.split('T')[0] ?? ''
+}

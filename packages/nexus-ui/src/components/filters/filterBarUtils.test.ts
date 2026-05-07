@@ -34,10 +34,12 @@ describe('filterBarUtils', () => {
       expect(parseFilterDate(Number.NaN)).toBeUndefined()
     })
 
-    it('parses valid date string', () => {
+    it('parses valid date string as local date', () => {
       const result = parseFilterDate('2024-01-01')
       expect(result).toBeInstanceOf(Date)
-      expect(result?.toISOString()).toBe('2024-01-01T00:00:00.000Z')
+      expect(result?.getFullYear()).toBe(2024)
+      expect(result?.getMonth()).toBe(0)
+      expect(result?.getDate()).toBe(1)
     })
 
     it('parses Date object', () => {

@@ -18,6 +18,7 @@
     "gen:workflow": "npx openapi-typescript ./nexus/src/nexus/schemas/workflows/v2/openapi.yaml --output ./src/workflow-api.ts --default-non-nullable false",
     "gen:files": "npx openapi-typescript ./nexus/src/nexus/schemas/files/openapi.yaml --output ./src/files-api.ts --default-non-nullable false",
     "gen:aap": "npx openapi-typescript ./nexus/src/nexus/schemas/aap/openapi.yaml --output ./src/aap-api.ts --default-non-nullable false",
+    "gen:audit": "npx openapi-typescript ./nexus/src/nexus/schemas/audit/openapi.yaml --output ./src/audit-api.ts --default-non-nullable false",
     "gen:approvals": "npx openapi-typescript ./nexus/src/nexus/schemas/approvals/openapi.yaml --output ./src/approvals-api.ts --default-non-nullable false",
     "gen:executions": "npx openapi-typescript ./nexus/src/nexus/schemas/workflows/v2/executions_openapi.yaml --output ./src/executions-api.ts --default-non-nullable false",
     "gen:invocations": "npx openapi-typescript ./nexus/src/nexus/schemas/invocations/openapi.yaml --output ./src/invocations-api.ts --default-non-nullable false",

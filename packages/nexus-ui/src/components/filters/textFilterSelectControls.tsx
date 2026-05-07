@@ -369,6 +369,8 @@ export function SelectFilterInput({
 
   if (!selectedField.options && !selectedField.asyncOptions) return null
 
+  const showSearch = selectedField.searchable !== false
+
   let selectListBody: React.ReactNode
   if (isLoadingOptions) {
     selectListBody = <SelectOption isDisabled>Loading...</SelectOption>
@@ -393,13 +395,15 @@ export function SelectFilterInput({
         popperProps={popperProps}
         toggle={renderValueToggle}
       >
-        <SearchInput
-          value={searchValue}
-          onChange={handleSearchChange}
-          onClear={handleClearSearch}
-          placeholder="Search..."
-          style={{ padding: 'var(--pf-t--global--spacer--sm)' }}
-        />
+        {showSearch && (
+          <SearchInput
+            value={searchValue}
+            onChange={handleSearchChange}
+            onClear={handleClearSearch}
+            placeholder="Search..."
+            style={{ padding: 'var(--pf-t--global--spacer--sm)' }}
+          />
+        )}
         <SelectList>{selectListBody}</SelectList>
       </Select>
     </ToolbarItem>

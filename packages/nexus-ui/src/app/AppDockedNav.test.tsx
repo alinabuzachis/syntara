@@ -223,8 +223,8 @@ describe('AppDockedNav', () => {
     const menu = screen.getByRole('menu')
     const menuItems = within(menu).getAllByRole('menuitem')
 
-    // Access Management has 2 child items: Access Management, Identity Providers
-    expect(menuItems.length).toBe(2)
+    // Access Management has 3 child items: Access Management, Identity Providers, Audit Log
+    expect(menuItems.length).toBe(3)
     expect(menu).toBeInTheDocument()
   })
 

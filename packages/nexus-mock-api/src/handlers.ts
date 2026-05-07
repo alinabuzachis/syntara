@@ -47,6 +47,7 @@ import {
   aapCredentials,
   instanceGroups,
 } from './resources/aap'
+import { auditEvents } from './resources/auditEvents'
 
 // Define response types based on API contract
 type ToolsResponse = ToolManagerAPI.paths['/tools']['get']['responses']['200']['content']['application/json']
@@ -1922,7 +1923,7 @@ export const handlers = [
       Object.assign(credential.inputs, sanitized)
     }
     if (enabled != null) credential.enabled = enabled
-    credential.updated_at = new Date().toISOString()
+    ;(credential as { updated_at: string }).updated_at = new Date().toISOString()
     return HttpResponse.json(redactCredential(credential))
   }),
 
@@ -1977,6 +1978,123 @@ export const handlers = [
       )
     }
     return HttpResponse.json(credType)
+  }),
+
+  http.get('/api/v1/audit', ({ request }) => {
+    const url = new URL(request.url)
+    const cursor = url.searchParams.get('cursor')
+    const parsedLimit = Number.parseInt(url.searchParams.get('limit') ?? '20', 10)
+    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 20
+    const includeTotal = url.searchParams.get('include_total') === 'true'
+
+    const eventCategory = url.searchParams.get('event_category')
+    const eventAction = url.searchParams.get('event_action')
+    const eventStatus = url.searchParams.get('event_status')
+    const eventSeverity = url.searchParams.get('event_severity')
+    const actorType = url.searchParams.get('actor_type')
+    const actorUsername = url.searchParams.get('actor_username') ?? url.searchParams.get('actor_username[contains]')
+    const resourceName = url.searchParams.get('resource_name') ?? url.searchParams.get('resource_name[contains]')
+    const createdAtGte = url.searchParams.get('created_at[gte]')
+    const createdAtLte = url.searchParams.get('created_at[lte]')
+    const sort = url.searchParams.get('sort')
+
+    let filtered = auditEvents
+
+    if (eventCategory) {
+      filtered = filtered.filter((e) => e.event_category === eventCategory)
+    }
+    if (eventAction) {
+      const term = eventAction.toLowerCase()
+      filtered = filtered.filter((e) => e.event_action.toLowerCase().includes(term))
+    }
+    if (eventStatus) {
+      filtered = filtered.filter((e) => e.event_status === eventStatus)
+    }
+    if (eventSeverity) {
+      filtered = filtered.filter((e) => e.event_severity === eventSeverity)
+    }
+    if (actorType) {
+      filtered = filtered.filter((e) => e.actor_type === actorType)
+    }
+    if (actorUsername) {
+      const term = actorUsername.toLowerCase()
+      filtered = filtered.filter((e) => (e.actor_username ?? '').toLowerCase().includes(term))
+    }
+    if (resourceName) {
+      const term = resourceName.toLowerCase()
+      filtered = filtered.filter((e) => (e.resource_name ?? '').toLowerCase().includes(term))
+    }
+    if (createdAtGte) {
+      const fromTs = new Date(createdAtGte).getTime()
+      if (Number.isNaN(fromTs)) {
+        return HttpResponse.json(
+          {
+            type: 'about:blank',
+            title: 'Validation Error',
+            detail: "Invalid 'created_at[gte]' query parameter",
+            code: 'VALIDATION_ERROR',
+            retryable: false,
+          },
+          { status: 400 }
+        )
+      }
+      filtered = filtered.filter((e) => new Date(e.created_at).getTime() >= fromTs)
+    }
+    if (createdAtLte) {
+      const toTs = new Date(createdAtLte).getTime()
+      if (Number.isNaN(toTs)) {
+        return HttpResponse.json(
+          {
+            type: 'about:blank',
+            title: 'Validation Error',
+            detail: "Invalid 'created_at[lte]' query parameter",
+            code: 'VALIDATION_ERROR',
+            retryable: false,
+          },
+          { status: 400 }
+        )
+      }
+      filtered = filtered.filter((e) => new Date(e.created_at).getTime() <= toTs)
+    }
+
+    const sortField = sort ?? '-created_at'
+    const isDesc = sortField.startsWith('-')
+    const field = isDesc ? sortField.slice(1) : sortField
+    filtered = [...filtered].sort((a, b) => {
+      let cmp = 0
+      switch (field) {
+        case 'created_at':
+          cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          break
+        case 'event_action':
+          cmp = a.event_action.localeCompare(b.event_action)
+          break
+        case 'event_category':
+          cmp = a.event_category.localeCompare(b.event_category)
+          break
+        case 'actor_type':
+          cmp = (a.actor_type ?? '').localeCompare(b.actor_type ?? '')
+          break
+        case 'actor_username':
+          cmp = (a.actor_username ?? '').localeCompare(b.actor_username ?? '')
+          break
+        case 'resource_name':
+          cmp = (a.resource_name ?? '').localeCompare(b.resource_name ?? '')
+          break
+        case 'event_status':
+          cmp = (a.event_status ?? '').localeCompare(b.event_status ?? '')
+          break
+        case 'event_severity':
+          cmp = a.event_severity.localeCompare(b.event_severity)
+          break
+        default:
+          break
+      }
+      return isDesc ? -cmp : cmp
+    })
+
+    const body = paginate(filtered, cursor, limit, includeTotal)
+    return HttpResponse.json(body)
   }),
 
   // File upload mock handler

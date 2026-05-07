@@ -530,7 +530,7 @@ describe('FilterBar', () => {
       )
 
       // Find and click the close button for the first chip (gte)
-      const closeButton = screen.getByRole('button', { name: 'Close From: 2024-01-01T00:00:00.000Z' })
+      const closeButton = screen.getByRole('button', { name: 'Close From: 2024-01-01' })
       await user.click(closeButton)
 
       // Should call onFilterChange to remove the gte filter but keep lte

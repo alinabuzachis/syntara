@@ -169,7 +169,13 @@ export function FilterBar({
     : undefined
 
   return (
-    <Toolbar id="filter-toolbar" role="search" aria-label="Filters" clearAllFilters={handleClearAll} style={compactStyle}>
+    <Toolbar
+      id="filter-toolbar"
+      role="search"
+      aria-label="Filters"
+      clearAllFilters={handleClearAll}
+      style={compactStyle}
+    >
       <ToolbarContent>
         {/* Filter Controls Group */}
         <ToolbarGroup variant="filter-group" style={compactFilterGroupStyle}>

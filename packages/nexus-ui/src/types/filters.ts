@@ -169,6 +169,8 @@ export type FilterFieldDefinition = {
   onOptionSelected?: (value: string, label: string) => void
   /** Placeholder text for input controls */
   placeholder?: string
+  /** Show search input inside SELECT dropdowns (defaults to true) */
+  searchable?: boolean
 }
 
 /**

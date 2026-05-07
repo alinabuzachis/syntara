@@ -1,6 +1,7 @@
 import { Label, LabelGroup, ToolbarItem } from '@patternfly/react-core'
 
 import type { FilterConfig, FilterFieldDefinition, FilterOperator } from '../../types/filters'
+import { formatDateChipValue } from '../../utils/dateUtils'
 import { WorkflowName } from '../WorkflowName'
 
 /** Resolves a filter value to a display label from field options or getOptionLabel. */
@@ -31,10 +32,12 @@ function getScalarFilterDisplayValue(
   }
 
   if (operator === 'gte' || operator === 'gt') {
-    return `From: ${String(filter.value)}`
+    const formatted = formatDateChipValue(String(filter.value))
+    return `From: ${formatted || String(filter.value)}`
   }
   if (operator === 'lte' || operator === 'lt') {
-    return `To: ${String(filter.value)}`
+    const formatted = formatDateChipValue(String(filter.value))
+    return `To: ${formatted || String(filter.value)}`
   }
 
   return String(filter.value)

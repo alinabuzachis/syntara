@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   formatDate,
+  formatDateChipValue,
   formatDateTime,
   formatElapsedTime,
   formatExecutionDateTime,
@@ -184,5 +185,19 @@ describe('formatTimeRange', () => {
     // Both should have full dates
     expect(start).toContain('2026')
     expect(end).toContain('2026')
+  })
+})
+
+describe('formatDateChipValue', () => {
+  it('extracts date from ISO string', () => {
+    expect(formatDateChipValue('2026-04-26T00:00:00.000Z')).toBe('2026-04-26')
+  })
+
+  it('extracts date from end-of-day ISO string', () => {
+    expect(formatDateChipValue('2026-05-01T23:59:59.999Z')).toBe('2026-05-01')
+  })
+
+  it('returns empty string for invalid input', () => {
+    expect(formatDateChipValue('')).toBe('')
   })
 })

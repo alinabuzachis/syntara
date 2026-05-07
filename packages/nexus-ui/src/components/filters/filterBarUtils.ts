@@ -14,10 +14,27 @@ import type { FilterConfig } from '../../types/filters'
  * parseFilterDate(NaN) // → undefined
  * ```
  */
+/**
+ * Parses a date string, extracting the YYYY-MM-DD portion as a local Date
+ * to avoid timezone shifts when UTC midnight rolls back a day in western timezones.
+ */
+function parseDateString(value: string): Date | undefined {
+  const datePart = value.split('T')[0]
+  if (datePart) {
+    const [year, month, day] = datePart.split('-').map(Number)
+    if (year && month && day) {
+      return new Date(year, month - 1, day)
+    }
+  }
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? undefined : date
+}
+
 export function parseFilterDate(value: unknown): Date | undefined {
   if (value === null || value === undefined || value === '') return undefined
   if (value instanceof Date) return Number.isNaN(value.getTime()) ? undefined : value
-  if (typeof value === 'string' || typeof value === 'number') {
+  if (typeof value === 'string') return parseDateString(value)
+  if (typeof value === 'number') {
     const date = new Date(value)
     return Number.isNaN(date.getTime()) ? undefined : date
   }

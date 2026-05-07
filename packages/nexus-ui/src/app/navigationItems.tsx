@@ -1,4 +1,10 @@
-import { RhUiConnectedIcon, RhUiControlsIcon, RhUiKeyIcon, ShieldAltIcon } from '@patternfly/react-icons'
+import {
+  RhUiConnectedIcon,
+  RhUiControlsIcon,
+  RhUiDocumentIcon,
+  RhUiKeyIcon,
+  ShieldAltIcon,
+} from '@patternfly/react-icons'
 
 import { AppRoute } from './AppRoute'
 import {
@@ -8,6 +14,7 @@ import {
   ApprovalDetail,
   Approvals,
   Authentication,
+  AuditLog,
   Workflows,
   BuilderEdit,
   BuilderNew,
@@ -191,6 +198,12 @@ export const navigationItems: INavigationItem[] = [
             element: <IdentityProviderDetail />,
           },
         ],
+      },
+      {
+        label: 'Audit Log',
+        path: AppRoute.AccessManagement.AuditLog,
+        icon: <RhUiDocumentIcon />,
+        element: <AuditLog />,
       },
     ],
   },

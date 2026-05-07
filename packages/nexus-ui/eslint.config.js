@@ -222,6 +222,7 @@ export default tseslint.config(
       '**/routes/**/CredentialDetail.tsx',
       '**/routes/**/CredentialTypes.tsx',
       '**/routes/**/CredentialTypeDetail.tsx',
+      '**/routes/**/AuditLog.tsx',
       '**/vite-env.d.ts',
     ],
     rules: {

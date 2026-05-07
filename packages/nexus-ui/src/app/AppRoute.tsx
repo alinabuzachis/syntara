@@ -52,6 +52,7 @@ export const AppRoute = {
       IdentityProviderDetail: '/access-management/authentication/identity-providers/:providerId/:tab?',
       EditIdentityProvider: '/access-management/authentication/identity-providers/:providerId/edit',
     },
+    AuditLog: '/access-management/audit-log',
   },
   Auth: {
     TestSignInCallback: '/auth/test-signin-callback',
