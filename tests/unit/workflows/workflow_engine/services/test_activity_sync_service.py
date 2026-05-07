@@ -2153,3 +2153,77 @@ class TestSyncNodesToTerminalStatus:
         handle.query = AsyncMock(side_effect=RuntimeError("workflow not reachable"))
 
         await self.service._sync_skipped_nodes(metadata, handle)
+
+
+# ---------------------------------------------------------------------------
+# Tests: input_data credential scrubbing before DB persistence (AAP-74431)
+# ---------------------------------------------------------------------------
+
+
+class TestInputDataCredentialScrubbing(TestPendingOutputFlag):
+    """Verify input_data is scrubbed before writing to ActivityExecution (AAP-74431)."""
+
+    @pytest.mark.asyncio
+    async def test_credential_fields_scrubbed_before_persistence(self) -> None:
+        """Input data containing credential fields should be redacted before DB write."""
+        from nexus.workflows.workflow_engine.utils.credential_scrubber import REDACTED
+
+        activity = self._create_mock_activity_execution(activity_name="approval-node")
+        self._mock_session_with_activities([activity])
+
+        handle = self._create_mock_handle(
+            input_data={"url": "http://example.com", "bearer_token": "sk-secret-123"},
+            output_data={"status": "ok"},
+        )
+
+        metadata = create_test_metadata(
+            execution_id=self.execution_id,
+            activity_index_map={"approval-node": 0},
+            pending_activity_updates={
+                10: {
+                    "activity_id": "approval-node",
+                    "activity_name": "approval-node",
+                    "status": ActivityStatus.COMPLETED,
+                    "started_at": datetime.now(UTC),
+                    "completed_at": datetime.now(UTC),
+                    "error_details": None,
+                    "retry_count": 0,
+                },
+            },
+        )
+
+        await self.service._sync_activities_to_db(metadata, handle)
+
+        assert activity.input_data["bearer_token"] == REDACTED
+        assert activity.input_data["url"] == "http://example.com"
+
+    @pytest.mark.asyncio
+    async def test_clean_input_data_preserved(self) -> None:
+        """Input data without credential fields should pass through unchanged."""
+        activity = self._create_mock_activity_execution(activity_name="approval-node")
+        self._mock_session_with_activities([activity])
+
+        handle = self._create_mock_handle(
+            input_data={"url": "http://example.com", "method": "GET"},
+            output_data={"status": "ok"},
+        )
+
+        metadata = create_test_metadata(
+            execution_id=self.execution_id,
+            activity_index_map={"approval-node": 0},
+            pending_activity_updates={
+                10: {
+                    "activity_id": "approval-node",
+                    "activity_name": "approval-node",
+                    "status": ActivityStatus.COMPLETED,
+                    "started_at": datetime.now(UTC),
+                    "completed_at": datetime.now(UTC),
+                    "error_details": None,
+                    "retry_count": 0,
+                },
+            },
+        )
+
+        await self.service._sync_activities_to_db(metadata, handle)
+
+        assert activity.input_data == {"url": "http://example.com", "method": "GET"}

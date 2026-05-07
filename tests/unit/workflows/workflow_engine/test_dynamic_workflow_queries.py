@@ -2,14 +2,16 @@
 
 Tests cover:
 - get_skipped_nodes query
-- get_activity_input query
+- get_activity_input query (including credential scrubbing — AAP-74431)
 - get_activity_output query
 - _determine_output_port helper
 - _are_predecessors_complete helper
+- _scrub_activity_credentials (AAP-74431)
 - For-each loop state management (_clear_loop_body, _loop_body_complete, etc.)
 """
 
 import asyncio
+import copy
 from collections.abc import Generator
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -21,6 +23,7 @@ from nexus.workflows.workflow_engine.dynamic_workflow import NexusWorkflow
 from nexus.workflows.workflow_engine.graph import WorkflowGraph
 from nexus.workflows.workflow_engine.graph_backend import InMemoryGraphBackend
 from nexus.workflows.workflow_engine.models.workflow_definition import ForEachLoopState
+from nexus.workflows.workflow_engine.utils.credential_scrubber import REDACTED
 
 
 @pytest.fixture(autouse=True)
@@ -275,3 +278,127 @@ class TestForEachLoop:
         wf.loop_body_map["body_a"] = "loop_1"
         pending: dict[str, asyncio.Task[Any]] = {}
         assert wf._loop_has_pending_nodes("loop_1", pending) is False
+
+
+# ---------------------------------------------------------------------------
+# Tests: node_inputs isolation (AAP-74431 — Unit 1)
+# ---------------------------------------------------------------------------
+
+
+class TestNodeInputsIsolation:
+    """Verify node_inputs stores an independent copy, not a reference."""
+
+    def test_node_inputs_is_independent_copy(self) -> None:
+        wf = _make_workflow()
+        config: dict[str, Any] = {"url": "http://example.com", "method": "GET"}
+        wf.node_inputs["node_a"] = copy.deepcopy(config)
+        config["_resolved_credentials"] = {"extra_vars": {"bearer_token": "secret"}}
+        assert "_resolved_credentials" not in wf.node_inputs["node_a"]
+
+    def test_node_inputs_preserves_non_credential_data(self) -> None:
+        wf = _make_workflow()
+        config = {"url": "http://example.com", "timeout": 30}
+        wf.node_inputs["node_a"] = copy.deepcopy(config)
+        assert wf.node_inputs["node_a"] == {"url": "http://example.com", "timeout": 30}
+
+    def test_nested_values_are_independently_copied(self) -> None:
+        wf = _make_workflow()
+        nested = {"headers": {"Content-Type": "application/json"}, "body": {"key": "value"}}
+        wf.node_inputs["node_a"] = copy.deepcopy(nested)
+        nested["headers"]["Authorization"] = "Bearer secret"
+        assert "Authorization" not in wf.node_inputs["node_a"]["headers"]
+
+
+# ---------------------------------------------------------------------------
+# Tests: _scrub_activity_credentials (AAP-74431 — Unit 2)
+# ---------------------------------------------------------------------------
+
+
+class TestScrubActivityCredentials:
+    """Verify _scrub_activity_credentials actually redacts credential fields."""
+
+    def test_removes_resolved_credentials_key(self) -> None:
+        config: dict[str, Any] = {
+            "url": "http://example.com",
+            "_resolved_credentials": {"extra_vars": {"bearer_token": "secret"}},
+        }
+        NexusWorkflow._scrub_activity_credentials(config)
+        assert "_resolved_credentials" not in config
+
+    def test_redacts_credential_fields_at_top_level(self) -> None:
+        config: dict[str, Any] = {
+            "url": "http://example.com",
+            "bearer_token": "sk-secret-123",
+            "llm_api_key": "key-456",
+        }
+        NexusWorkflow._scrub_activity_credentials(config)
+        assert config["bearer_token"] == REDACTED
+        assert config["llm_api_key"] == REDACTED
+        assert config["url"] == "http://example.com"
+
+    def test_preserves_non_credential_fields(self) -> None:
+        config: dict[str, Any] = {"url": "http://example.com", "method": "POST", "timeout": 30}
+        NexusWorkflow._scrub_activity_credentials(config)
+        assert config == {"url": "http://example.com", "method": "POST", "timeout": 30}
+
+    def test_redacts_nested_credential_fields(self) -> None:
+        config: dict[str, Any] = {
+            "nested": {"bearer_token": "secret", "safe_key": "value"},
+        }
+        NexusWorkflow._scrub_activity_credentials(config)
+        assert config["nested"]["bearer_token"] == REDACTED
+        assert config["nested"]["safe_key"] == "value"
+
+    def test_preserves_dict_identity(self) -> None:
+        config: dict[str, Any] = {"bearer_token": "secret", "url": "http://example.com"}
+        original_id = id(config)
+        NexusWorkflow._scrub_activity_credentials(config)
+        assert id(config) == original_id
+
+
+# ---------------------------------------------------------------------------
+# Tests: get_activity_input credential scrubbing (AAP-74431 — Unit 3)
+# ---------------------------------------------------------------------------
+
+
+class TestGetActivityInputCredentialScrubbing:
+    """Verify get_activity_input returns scrubbed data."""
+
+    def test_returns_clean_data_unchanged(self) -> None:
+        wf = _make_workflow()
+        wf.node_inputs["node_a"] = {"url": "http://example.com", "method": "GET"}
+        result = wf.get_activity_input("node_a")
+        assert result == {"url": "http://example.com", "method": "GET"}
+
+    def test_scrubs_resolved_credentials_from_output(self) -> None:
+        wf = _make_workflow()
+        wf.node_inputs["node_a"] = {
+            "url": "http://example.com",
+            "_resolved_credentials": {"extra_vars": {"bearer_token": "secret"}},
+        }
+        result = wf.get_activity_input("node_a")
+        assert result is not None
+        assert result["_resolved_credentials"] == REDACTED
+
+    def test_scrubs_credential_field_names_from_output(self) -> None:
+        wf = _make_workflow()
+        wf.node_inputs["node_a"] = {
+            "url": "http://example.com",
+            "bearer_token": "sk-secret-123",
+        }
+        result = wf.get_activity_input("node_a")
+        assert result is not None
+        assert result["bearer_token"] == REDACTED
+
+    def test_returns_none_for_unknown_activity(self) -> None:
+        wf = _make_workflow()
+        assert wf.get_activity_input("nonexistent") is None
+
+    def test_does_not_mutate_node_inputs(self) -> None:
+        wf = _make_workflow()
+        wf.node_inputs["node_a"] = {
+            "url": "http://example.com",
+            "bearer_token": "sk-secret-123",
+        }
+        wf.get_activity_input("node_a")
+        assert wf.node_inputs["node_a"]["bearer_token"] == "sk-secret-123"  # noqa: S105

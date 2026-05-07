@@ -36,6 +36,7 @@ from nexus.workflows.models.workflow_version import WorkflowVersion
 from nexus.workflows.services.activity_update_publisher import ActivityUpdatePublisher
 from nexus.workflows.utils.datetime import ensure_timezone_aware
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, NodeType
+from nexus.workflows.workflow_engine.utils.credential_scrubber import scrub_credentials
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -1029,7 +1030,7 @@ class ActivitySyncService:
                     existing.started_at = activity_data["started_at"]
                     existing.completed_at = activity_data["completed_at"]
                     existing.input_data = (
-                        input_data
+                        scrub_credentials(input_data)
                         if isinstance(input_data, dict)
                         else {"raw": input_data}
                         if input_data is not None

@@ -6,6 +6,7 @@ downstream nodes execute concurrently. No dedicated parallel node type is needed
 
 import asyncio
 import collections
+import copy
 import json
 from datetime import timedelta
 from typing import Any, ClassVar, cast
@@ -1145,7 +1146,7 @@ class NexusWorkflow:
         # AAP nodes always have "timeout" via AAPJobTemplateExecutorConfig's model default;
         # the fallback here is only effective for non-AAP node types.
         timeout_seconds = cast("int", resolved_config.get("timeout", default_timeout))
-        self.node_inputs[node.id] = resolved_config
+        self.node_inputs[node.id] = copy.deepcopy(resolved_config)
 
         result = await self._dispatch_node(node, resolved_config, graph, timeout_seconds)
         return self._process_node_result(node, result)
@@ -1201,7 +1202,9 @@ class NexusWorkflow:
     def _scrub_activity_credentials(resolved_config: dict[str, Any]) -> None:
         """Remove resolved credentials from config after execution."""
         resolved_config.pop("_resolved_credentials", None)
-        scrub_credentials(resolved_config)
+        scrubbed = scrub_credentials(resolved_config)
+        resolved_config.clear()
+        resolved_config.update(scrubbed)
 
     async def _dispatch_node(
         self,
@@ -1322,7 +1325,10 @@ class NexusWorkflow:
             Activity input data or None if not found
 
         """
-        return self.node_inputs.get(activity_id)
+        data = self.node_inputs.get(activity_id)
+        if data is None:
+            return None
+        return cast("dict[str, Any]", scrub_credentials(data))
 
     @workflow.query
     def get_activity_output(self, activity_id: str) -> dict[str, Any] | None:
