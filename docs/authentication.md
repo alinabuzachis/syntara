@@ -511,6 +511,7 @@ The `configuration` object includes:
 | `group_jmespath_expression` | No | JMESPath expression to extract group values from token claims (see [Group Mapping and Login Enforcement](#group-mapping-and-login-enforcement)) |
 | `group_mapping_entries` | No | Maps IdP group values to Nexus groups (see [Group Mapping and Login Enforcement](#group-mapping-and-login-enforcement)) |
 | `auto_create_groups` | No | Auto-create Nexus groups from IdP group values on login (default: `false`) |
+| `aap_role_mapping_enabled` | No | Map AAP `aap_system_role` claim (`system_administrator`, `system_auditor`, `normal_user`) to built-in groups (default: `false`). Only effective when `idp_type` is `"aap"`. See [AAP Role Mapping](#aap-role-mapping) |
 | `enable_rp_initiated_logout` | No | Enable RP-initiated logout to terminate IdP sessions on Nexus logout (default: `false`) |
 | `end_session_endpoint` | No | IdP's end-session endpoint URL. Auto-discovered from `.well-known` if not set |
 
@@ -611,6 +612,26 @@ These two modes are **mutually exclusive** — a provider uses one or the other,
 Both modes respect the **JMESPath expression** configured on the provider. The expression is evaluated first to extract group values from the token claims, and only the extracted values are used for mapping or auto-creation. This means admins can use JMESPath to filter which groups are considered — for example, `groups[?starts_with(@, 'nexus-')]` would only extract groups prefixed with `nexus-`, ignoring all others in the token.
 
 **JMESPath validation**: Expressions are validated at configuration time — saving an invalid expression (e.g., `[[[bad`) returns a 422 error. If a valid expression fails at runtime (e.g., unexpected token claim structure), the group sync is aborted and login is denied rather than silently removing the user's groups.
+
+#### AAP Role Mapping
+
+When an AAP provider template is used (`idp_type: "aap"`), administrators can enable `aap_role_mapping_enabled` to automatically map the AAP `aap_system_role` claim to built-in Nexus groups. This is enabled by default in the UI when the AAP template is selected.
+
+The mapping uses the `aap_system_role` string claim from the AAP OIDC token:
+
+| `aap_system_role` value | Mapped Group |
+|---|---|
+| `system_administrator` | `admins` |
+| `system_auditor` | `auditors` |
+| `normal_user` / other / missing | `users` |
+
+**Key behaviors:**
+
+- **Additive**: AAP role mapping runs alongside JMESPath/auto-create/manual group mapping. The groups it resolves are merged with whatever the existing mapping produces.
+- **AAP-only**: The mapping only activates when both `aap_role_mapping_enabled` is `true` and `idp_type` is `"aap"`. Setting the flag on a custom provider has no effect.
+- **String matching**: The `aap_system_role` claim must be an exact string match (`"system_administrator"`, `"system_auditor"`). Unrecognised values or non-string types fall back to the `users` group.
+- **Always resolves a group**: Because the fallback is `users`, AAP role mapping always produces at least one group membership. This means login is never denied due to missing group mappings when AAP role mapping is enabled — even if a co-configured JMESPath expression fails at runtime, AAP role mapping still proceeds independently.
+- **Built-in groups only**: The mapping targets the seeded built-in groups (`admins`, `auditors`, `users`) by name and `is_builtin=True`, preventing collisions with user-created groups of the same name.
 
 #### Login denial rules
 

@@ -417,6 +417,11 @@ components:
           default: false
           title: Auto Create Groups
           description: Auto-create Nexus groups from IdP group values on login
+        aap_role_mapping_enabled:
+          type: boolean
+          default: false
+          title: Aap Role Mapping Enabled
+          description: Map AAP aap_system_role claim to built-in groups
 
     OIDCConfigurationResponse:
       type: object
@@ -515,6 +520,11 @@ components:
           default: false
           title: Auto Create Groups
           description: Auto-create Nexus groups from IdP group values on login
+        aap_role_mapping_enabled:
+          type: boolean
+          default: false
+          title: Aap Role Mapping Enabled
+          description: Map AAP aap_system_role claim to built-in groups
 
     OIDCConfigurationPatch:
       type: object
@@ -626,6 +636,12 @@ components:
             - type: 'null'
           title: Auto Create Groups
           description: Auto-create Nexus groups from IdP group values on login (omit to keep existing)
+        aap_role_mapping_enabled:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Aap Role Mapping Enabled
+          description: Map AAP aap_system_role claim to built-in groups (omit to keep existing)
 
     IdentityProviderCreate:
       type: object

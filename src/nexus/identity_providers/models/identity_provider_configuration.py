@@ -10,7 +10,7 @@ from typing import Annotated, ClassVar, Literal
 from uuid import UUID
 
 import jmespath
-from pydantic import ConfigDict, Field, field_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 from sqlmodel import SQLModel
 
 from nexus.core.lib.consumer_configuration import BaseConsumerConfiguration
@@ -123,6 +123,10 @@ class OIDCConfiguration(BaseConsumerConfiguration):
     auto_create_groups: bool = Field(
         default=False, description="Auto-create Nexus groups from IdP group values on login"
     )
+    aap_role_mapping_enabled: bool = Field(
+        default=False,
+        description="Map AAP aap_system_role claim to built-in groups",
+    )
 
     @field_validator("idp_type")
     @classmethod
@@ -135,6 +139,14 @@ class OIDCConfiguration(BaseConsumerConfiguration):
     def validate_group_jmespath_expression(cls, v: str | None) -> str | None:
         """Reject syntactically invalid JMESPath expressions at configuration time."""
         return _validate_jmespath(v)
+
+    @model_validator(mode="after")
+    def validate_aap_role_mapping_requires_aap_type(self) -> "OIDCConfiguration":
+        """Reject aap_role_mapping_enabled on non-AAP identity providers."""
+        if self.aap_role_mapping_enabled and self.idp_type != OIDCIdpType.AAP:
+            msg = "aap_role_mapping_enabled requires idp_type to be 'aap'"
+            raise ValueError(msg)
+        return self
 
     @classmethod
     def sensitive_fields(cls) -> frozenset[str]:
@@ -179,6 +191,10 @@ class OIDCConfigurationResponse(SQLModel):
     )
     auto_create_groups: bool = Field(
         default=False, description="Auto-create Nexus groups from IdP group values on login"
+    )
+    aap_role_mapping_enabled: bool = Field(
+        default=False,
+        description="Map AAP aap_system_role claim to built-in groups",
     )
 
     model_config: ClassVar[ConfigDict] = ConfigDict(
@@ -243,6 +259,10 @@ class OIDCConfigurationPatch(BaseConsumerConfiguration):
     )
     auto_create_groups: bool | None = Field(
         default=None, description="Auto-create Nexus groups from IdP group values on login (omit to keep existing)"
+    )
+    aap_role_mapping_enabled: bool | None = Field(
+        default=None,
+        description="Map AAP aap_system_role claim to built-in groups (omit to keep existing)",
     )
 
     @field_validator("idp_type")

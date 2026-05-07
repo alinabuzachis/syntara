@@ -22,6 +22,7 @@ from nexus.core.services.secret_consumer_mixin import SecretConsumerMixin
 from nexus.core.services.secret_service import SecretService
 from nexus.core.utils.filters import Filter
 from nexus.identity_providers.exceptions import (
+    IdentityProviderError,
     IdentityProviderNameConflictError,
     IdentityProviderNotFoundError,
 )
@@ -35,8 +36,10 @@ from nexus.identity_providers.models.identity_provider import (
 from nexus.identity_providers.models.identity_provider_configuration import (
     IdentityProviderConfigurationPatchTypes,
     OIDCConfiguration,
+    OIDCConfigurationPatch,
     OIDCConfigurationResponse,
     OIDCGroupMappingEntry,
+    OIDCIdpType,
 )
 from nexus.identity_providers.models.idp_group_mapping import IdpGroupMappingEntry
 
@@ -254,6 +257,17 @@ class IdentityProviderService(BaseService, SecretConsumerMixin):
         # Preserve existing auto_create_groups if not provided in patch
         if patch_config.auto_create_groups is None:
             patch_config.auto_create_groups = provider.configuration.auto_create_groups
+        # Preserve existing aap_role_mapping_enabled if not provided in patch
+        if patch_config.aap_role_mapping_enabled is None:
+            patch_config.aap_role_mapping_enabled = provider.configuration.aap_role_mapping_enabled
+
+        if (
+            isinstance(patch_config, OIDCConfigurationPatch)
+            and patch_config.aap_role_mapping_enabled
+            and patch_config.idp_type != OIDCIdpType.AAP
+        ):
+            msg = "aap_role_mapping_enabled requires idp_type to be 'aap'"
+            raise IdentityProviderError(msg)
 
         # Encrypt/preserve client_secret via SecretService
         safe_config, new_secret_id = await self._update_config(patch_config, provider.secret_id)

@@ -39,6 +39,7 @@ class OIDCConfiguration:
         group_jmespath_expression (None | str | Unset): JMESPath expression to extract group values from token claims
         group_mapping_entries (list[OIDCGroupMappingEntry] | Unset): IdP-to-Nexus group mapping entries
         auto_create_groups (bool | Unset): Auto-create Nexus groups from IdP group values on login Default: False.
+        aap_role_mapping_enabled (bool | Unset): Map AAP aap_system_role claim to built-in groups Default: False.
     """
 
     issuer_url: str
@@ -59,6 +60,7 @@ class OIDCConfiguration:
     group_jmespath_expression: None | str | Unset = UNSET
     group_mapping_entries: list[OIDCGroupMappingEntry] | Unset = UNSET
     auto_create_groups: bool | Unset = False
+    aap_role_mapping_enabled: bool | Unset = False
 
     def to_dict(self) -> dict[str, Any]:
         issuer_url = self.issuer_url
@@ -136,6 +138,8 @@ class OIDCConfiguration:
 
         auto_create_groups = self.auto_create_groups
 
+        aap_role_mapping_enabled = self.aap_role_mapping_enabled
+
         field_dict: dict[str, Any] = {}
 
         field_dict.update(
@@ -175,6 +179,8 @@ class OIDCConfiguration:
             field_dict["group_mapping_entries"] = group_mapping_entries
         if auto_create_groups is not UNSET:
             field_dict["auto_create_groups"] = auto_create_groups
+        if aap_role_mapping_enabled is not UNSET:
+            field_dict["aap_role_mapping_enabled"] = aap_role_mapping_enabled
 
         return field_dict
 
@@ -290,6 +296,8 @@ class OIDCConfiguration:
 
         auto_create_groups = d.pop("auto_create_groups", UNSET)
 
+        aap_role_mapping_enabled = d.pop("aap_role_mapping_enabled", UNSET)
+
         oidc_configuration = cls(
             issuer_url=issuer_url,
             client_id=client_id,
@@ -309,6 +317,7 @@ class OIDCConfiguration:
             group_jmespath_expression=group_jmespath_expression,
             group_mapping_entries=group_mapping_entries,
             auto_create_groups=auto_create_groups,
+            aap_role_mapping_enabled=aap_role_mapping_enabled,
         )
 
         return oidc_configuration

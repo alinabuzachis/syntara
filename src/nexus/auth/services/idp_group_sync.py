@@ -19,6 +19,7 @@ from nexus.core.models import Group, User, UserIdentity
 from nexus.core.models.group import user_groups, user_idp_groups
 from nexus.identity_providers.models.identity_provider_configuration import (
     OIDCConfiguration,
+    OIDCIdpType,
 )
 from nexus.identity_providers.models.idp_group_mapping import IdpGroupMappingEntry
 from nexus.settings.cache.settings_cache import get_runtime_settings
@@ -66,6 +67,8 @@ def match_group_entries(
                 "Wildcard '*' mapping matches all IdP groups — all provider users added to group",
                 nexus_group_id=str(entry.nexus_group_id),
             )
+            desired.add(entry.nexus_group_id)
+            continue
         for value in idp_group_values:
             if fnmatch(value, pattern):
                 desired.add(entry.nexus_group_id)
@@ -146,12 +149,94 @@ async def _resolve_auto_create_groups(
     return desired
 
 
+async def _resolve_aap_role_groups(
+    db: AsyncSession,
+    raw_merged_claims: dict[str, Any],
+    user_id: UUID,
+    config: OIDCConfiguration,
+) -> set[UUID] | None:
+    """Map AAP ``aap_system_role`` claim to built-in group IDs.
+
+    Validates that the token's ``iss`` claim matches the configured
+    ``issuer_url`` before trusting AAP-specific claims.  Returns ``None``
+    on issuer mismatch to signal that login should be denied.  Falls back
+    to the ``users`` group for ``normal_user`` or any unrecognised /
+    missing value.
+    """
+    token_issuer = raw_merged_claims.get("iss")
+    if not isinstance(token_issuer, str) or token_issuer.rstrip("/") != config.issuer_url.rstrip("/"):
+        logger.warning(
+            "AAP role mapping denied: token issuer does not match configured issuer_url",
+            token_issuer=token_issuer,
+            expected_issuer=config.issuer_url,
+            user_id=str(user_id),
+        )
+        return None
+
+    role_to_group = {
+        "system_administrator": "admins",
+        "system_auditor": "auditors",
+    }
+    system_role = raw_merged_claims.get("aap_system_role")
+    target_name = role_to_group.get(system_role, "users") if isinstance(system_role, str) else "users"
+
+    result = await db.execute(
+        select(Group).filter(
+            col(Group.name) == target_name,
+            col(Group.is_builtin) == True,  # noqa: E712
+            Group.deleted_at.is_(None),  # type: ignore[union-attr]
+        )
+    )
+    group = result.scalars().first()
+    if not group:
+        logger.error(
+            "Built-in group not found for AAP role mapping",
+            group_name=target_name,
+            user_id=str(user_id),
+        )
+        return set()
+
+    logger.debug(
+        "AAP role mapping resolved group",
+        group_name=target_name,
+        group_id=str(group.id),
+        user_id=str(user_id),
+        aap_system_role=system_role,
+    )
+    return {group.id}
+
+
 _DEFAULT_JMESPATH_EXPRESSION = "groups[*]"
 
 
 def _resolve_jmespath_expression(config: OIDCConfiguration) -> str:
     """Determine the JMESPath expression to use for group extraction."""
     return config.group_jmespath_expression or _DEFAULT_JMESPATH_EXPRESSION
+
+
+async def _resolve_claim_based_groups(
+    db: AsyncSession,
+    user: User,
+    raw_merged_claims: dict[str, Any],
+    config: OIDCConfiguration,
+    provider_id: UUID,
+    mapping_entries: list[IdpGroupMappingEntry],
+) -> set[UUID] | None:
+    """Resolve groups from JMESPath/auto-create/manual mapping. Returns None on extraction failure."""
+    jmespath_expr = _resolve_jmespath_expression(config)
+    idp_group_values = extract_idp_group_values(jmespath_expr, raw_merged_claims, user.id)
+    if idp_group_values is None:
+        logger.error(
+            "JMESPath group extraction failed",
+            expression=jmespath_expr,
+            user_id=str(user.id),
+            provider_id=str(provider_id),
+        )
+        return None
+
+    if config.auto_create_groups:
+        return await _resolve_auto_create_groups(db, idp_group_values, user.id)
+    return match_group_entries(mapping_entries, idp_group_values)
 
 
 async def sync_idp_groups(
@@ -172,7 +257,7 @@ async def sync_idp_groups(
         unless the user has groups from other sources.
 
     """
-    auto_create = config.auto_create_groups
+    aap_role_mapping = config.aap_role_mapping_enabled and config.idp_type == OIDCIdpType.AAP
     provider_id = identity.identity_provider_id
 
     # Load mapping entries from DB table
@@ -181,51 +266,60 @@ async def sync_idp_groups(
     )
     mapping_entries = list(mapping_entries_result.scalars().all())
 
-    if not auto_create and not mapping_entries:
-        return False  # no mappings and no auto-create — cannot resolve any groups
-
-    # 1. Extract group values from claims
-    jmespath_expr = _resolve_jmespath_expression(config)
-    idp_group_values = extract_idp_group_values(jmespath_expr, raw_merged_claims, user.id)
-    if idp_group_values is None:
-        # JMESPath extraction failed — deny login rather than silently removing
-        # all IdP-managed groups.  The expression was already validated at config
-        # time, so this indicates a runtime type mismatch in the token claims.
-        logger.error(
-            "Group sync aborted: JMESPath extraction failed, denying login",
-            expression=jmespath_expr,
-            user_id=str(user.id),
-            provider_id=str(provider_id),
-        )
+    has_claim_based = config.auto_create_groups or bool(mapping_entries)
+    if not has_claim_based and not aap_role_mapping:
         return False
 
-    # 2. Determine which Nexus groups the user should be in (from THIS provider)
-    if auto_create:
-        desired_group_ids = await _resolve_auto_create_groups(db, idp_group_values, user.id)
-    else:
-        desired_group_ids = match_group_entries(mapping_entries, idp_group_values)
+    desired_group_ids: set[UUID] = set()
+
+    if has_claim_based:
+        result = await _resolve_claim_based_groups(db, user, raw_merged_claims, config, provider_id, mapping_entries)
+        if result is None and not aap_role_mapping:
+            return False
+        if result is None and aap_role_mapping:
+            logger.warning(
+                "JMESPath extraction failed but login proceeding via AAP role mapping",
+                user_id=str(user.id),
+                provider_id=str(provider_id),
+            )
+        if result is not None:
+            desired_group_ids = result
+
+    if aap_role_mapping:
+        aap_group_ids = await _resolve_aap_role_groups(db, raw_merged_claims, user.id, config)
+        if aap_group_ids is None:
+            return False
+        desired_group_ids = desired_group_ids | aap_group_ids
 
     has_matched = len(desired_group_ids) > 0
 
-    # 3. Get current groups managed by THIS provider for this user
+    await _apply_group_membership_diff(db, user.id, provider_id, desired_group_ids)
+
+    return has_matched
+
+
+async def _apply_group_membership_diff(
+    db: AsyncSession,
+    user_id: UUID,
+    provider_id: UUID,
+    desired_group_ids: set[UUID],
+) -> None:
+    """Diff desired groups against current IdP-managed groups and apply changes."""
     current_rows = await db.execute(
         select(user_idp_groups.c.group_id).where(
-            user_idp_groups.c.user_id == user.id,
+            user_idp_groups.c.user_id == user_id,
             user_idp_groups.c.identity_provider_id == provider_id,
         )
     )
     current_idp_group_ids: set[UUID] = {row[0] for row in current_rows}
 
-    # 4. Diff: add new, remove stale (only groups managed by this provider)
     to_add = desired_group_ids - current_idp_group_ids
     to_remove = current_idp_group_ids - desired_group_ids
 
-    # 5. Apply changes to user_groups (the actual membership table)
     if to_add:
-        # Find which of the to_add groups the user is already a member of (from another source)
         existing_rows = await db.execute(
             select(user_groups.c.group_id).where(
-                user_groups.c.user_id == user.id,
+                user_groups.c.user_id == user_id,
                 user_groups.c.group_id.in_(to_add),
             )
         )
@@ -234,14 +328,13 @@ async def sync_idp_groups(
         if new_memberships:
             await db.execute(
                 user_groups.insert(),
-                [{"user_id": user.id, "group_id": gid} for gid in new_memberships],
+                [{"user_id": user_id, "group_id": gid} for gid in new_memberships],
             )
 
     if to_remove:
-        # Find which to_remove groups are also managed by another provider
         other_provider_rows = await db.execute(
             select(user_idp_groups.c.group_id).where(
-                user_idp_groups.c.user_id == user.id,
+                user_idp_groups.c.user_id == user_id,
                 user_idp_groups.c.group_id.in_(to_remove),
                 user_idp_groups.c.identity_provider_id != provider_id,
             )
@@ -251,31 +344,28 @@ async def sync_idp_groups(
         if removable:
             await db.execute(
                 sa_delete(user_groups).where(
-                    user_groups.c.user_id == user.id,
+                    user_groups.c.user_id == user_id,
                     user_groups.c.group_id.in_(removable),
                 )
             )
 
-    # 6. Update tracking table: clear old entries for this provider, insert desired
     await db.execute(
         sa_delete(user_idp_groups).where(
-            user_idp_groups.c.user_id == user.id,
+            user_idp_groups.c.user_id == user_id,
             user_idp_groups.c.identity_provider_id == provider_id,
         )
     )
     if desired_group_ids:
         await db.execute(
             user_idp_groups.insert(),
-            [{"user_id": user.id, "identity_provider_id": provider_id, "group_id": gid} for gid in desired_group_ids],
+            [{"user_id": user_id, "identity_provider_id": provider_id, "group_id": gid} for gid in desired_group_ids],
         )
 
     if to_add or to_remove:
         logger.info(
             "Synced IdP group memberships",
-            user_id=str(user.id),
+            user_id=str(user_id),
             provider_id=str(provider_id),
             added=len(to_add),
             removed=len(to_remove),
         )
-
-    return has_matched

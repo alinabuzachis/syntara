@@ -46,7 +46,12 @@ def _make_identity(user: User, provider_id: UUID) -> UserIdentity:
     )
 
 
-def _make_config(group_jmespath_expression: str | None = None) -> OIDCConfiguration:
+def _make_config(
+    group_jmespath_expression: str | None = None,
+    *,
+    aap_role_mapping_enabled: bool = False,
+    idp_type: str | None = None,
+) -> OIDCConfiguration:
     return OIDCConfiguration(
         provider_type="oidc",
         issuer_url="https://idp.example.com",
@@ -54,6 +59,8 @@ def _make_config(group_jmespath_expression: str | None = None) -> OIDCConfigurat
         client_secret="client-secret",
         redirect_uri="http://localhost:8000/callback",
         group_jmespath_expression=group_jmespath_expression,
+        aap_role_mapping_enabled=aap_role_mapping_enabled,
+        idp_type=idp_type,
     )
 
 
@@ -433,7 +440,7 @@ class TestMatchGroupEntries:
         group_id = uuid4()
         entries = [_make_db_entry(uuid4(), "*", group_id)]
         result = match_group_entries(entries, set())
-        assert result == set()
+        assert result == {group_id}
 
     def test_question_mark_wildcard(self):
         group_id = uuid4()
@@ -475,3 +482,279 @@ class TestOIDCIdpType:
         """OIDCIdpType enum should contain the expected values."""
         assert OIDCIdpType.AAP == "aap"
         assert OIDCIdpType.CUSTOM == "custom"
+
+
+def _make_builtin_group(name: str) -> MagicMock:
+    """Create a mock built-in Group object."""
+    group = MagicMock()
+    group.id = uuid4()
+    group.name = name
+    group.is_builtin = True
+    return group
+
+
+def _make_mock_db_for_aap(
+    mapping_entries: list[IdpGroupMappingEntry] | None = None,
+    builtin_group: MagicMock | None = None,
+) -> AsyncMock:
+    """Create a mock db session for AAP role mapping tests.
+
+    Call sequence:
+    1. IdpGroupMappingEntry query (mapping entries)
+    2. Built-in group lookup (_resolve_aap_role_groups)
+    3+ Empty results for remaining queries (current_idp_groups, etc.)
+    """
+    db = AsyncMock()
+    entries = mapping_entries or []
+
+    mapping_result = MagicMock()
+    mapping_scalars = MagicMock()
+    mapping_scalars.all = MagicMock(return_value=entries)
+    mapping_result.scalars = MagicMock(return_value=mapping_scalars)
+
+    builtin_result = MagicMock()
+    builtin_scalars = MagicMock()
+    builtin_scalars.first = MagicMock(return_value=builtin_group)
+    builtin_result.scalars = MagicMock(return_value=builtin_scalars)
+
+    def _make_empty_result() -> MagicMock:
+        r = MagicMock()
+        r.__iter__ = MagicMock(return_value=iter([]))
+        r.first = MagicMock(return_value=None)
+        r.scalars = MagicMock(
+            return_value=MagicMock(all=MagicMock(return_value=[]), first=MagicMock(return_value=None))
+        )
+        return r
+
+    call_count = 0
+
+    async def _execute_side_effect(*args: object, **kwargs: object) -> MagicMock:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return mapping_result
+        if call_count == 2:
+            return builtin_result
+        return _make_empty_result()
+
+    db.execute = AsyncMock(side_effect=_execute_side_effect)
+    return db
+
+
+class TestAapRoleMapping:
+    """Tests for AAP aap_system_role → built-in group mapping."""
+
+    @pytest.mark.asyncio
+    async def test_system_administrator_maps_to_admins_group(self):
+        user = _make_user()
+        provider_id = uuid4()
+        identity = _make_identity(user, provider_id)
+        admins_group = _make_builtin_group("admins")
+        config = _make_config(aap_role_mapping_enabled=True, idp_type="aap")
+        db = _make_mock_db_for_aap(builtin_group=admins_group)
+
+        result = await sync_idp_groups(
+            db, user, identity, {"iss": "https://idp.example.com", "aap_system_role": "system_administrator"}, config
+        )
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_system_auditor_maps_to_auditors_group(self):
+        user = _make_user()
+        provider_id = uuid4()
+        identity = _make_identity(user, provider_id)
+        auditors_group = _make_builtin_group("auditors")
+        config = _make_config(aap_role_mapping_enabled=True, idp_type="aap")
+        db = _make_mock_db_for_aap(builtin_group=auditors_group)
+
+        result = await sync_idp_groups(
+            db, user, identity, {"iss": "https://idp.example.com", "aap_system_role": "system_auditor"}, config
+        )
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_normal_user_maps_to_users_group(self):
+        user = _make_user()
+        provider_id = uuid4()
+        identity = _make_identity(user, provider_id)
+        users_group = _make_builtin_group("users")
+        config = _make_config(aap_role_mapping_enabled=True, idp_type="aap")
+        db = _make_mock_db_for_aap(builtin_group=users_group)
+
+        result = await sync_idp_groups(
+            db, user, identity, {"iss": "https://idp.example.com", "aap_system_role": "normal_user"}, config
+        )
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_missing_claim_maps_to_users_group(self):
+        user = _make_user()
+        provider_id = uuid4()
+        identity = _make_identity(user, provider_id)
+        users_group = _make_builtin_group("users")
+        config = _make_config(aap_role_mapping_enabled=True, idp_type="aap")
+        db = _make_mock_db_for_aap(builtin_group=users_group)
+
+        result = await sync_idp_groups(
+            db, user, identity, {"iss": "https://idp.example.com", "sub": "user-123"}, config
+        )
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_unrecognised_role_maps_to_users_group(self):
+        user = _make_user()
+        provider_id = uuid4()
+        identity = _make_identity(user, provider_id)
+        users_group = _make_builtin_group("users")
+        config = _make_config(aap_role_mapping_enabled=True, idp_type="aap")
+        db = _make_mock_db_for_aap(builtin_group=users_group)
+
+        result = await sync_idp_groups(
+            db, user, identity, {"iss": "https://idp.example.com", "aap_system_role": "some_future_role"}, config
+        )
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_non_string_role_maps_to_users_group(self):
+        """Non-string aap_system_role (e.g. integer) should fall back to users group."""
+        user = _make_user()
+        provider_id = uuid4()
+        identity = _make_identity(user, provider_id)
+        users_group = _make_builtin_group("users")
+        config = _make_config(aap_role_mapping_enabled=True, idp_type="aap")
+        db = _make_mock_db_for_aap(builtin_group=users_group)
+
+        result = await sync_idp_groups(
+            db, user, identity, {"iss": "https://idp.example.com", "aap_system_role": 42}, config
+        )
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_disabled_flag_skips_mapping(self):
+        user = _make_user()
+        provider_id = uuid4()
+        identity = _make_identity(user, provider_id)
+        config = _make_config(aap_role_mapping_enabled=False, idp_type="aap")
+        db = _make_mock_db(mapping_entries=[])
+
+        result = await sync_idp_groups(db, user, identity, {"aap_system_role": "system_administrator"}, config)
+        assert result is False
+
+    def test_non_aap_idp_type_rejects_aap_role_mapping(self):
+        """Setting aap_role_mapping_enabled on a non-AAP IDP is rejected at validation time."""
+        with pytest.raises(ValueError, match="aap_role_mapping_enabled requires idp_type to be 'aap'"):
+            _make_config(aap_role_mapping_enabled=True, idp_type="custom")
+
+    @pytest.mark.asyncio
+    async def test_aap_mapping_combined_with_claim_based(self):
+        """AAP role groups should merge with claim-based mapping groups."""
+        user = _make_user()
+        provider_id = uuid4()
+        identity = _make_identity(user, provider_id)
+        nexus_group_id = uuid4()
+        admins_group = _make_builtin_group("admins")
+
+        entry = _make_db_entry(provider_id, "dev-team", nexus_group_id)
+        config = _make_config(aap_role_mapping_enabled=True, idp_type="aap")
+        db = _make_mock_db_for_aap(mapping_entries=[entry], builtin_group=admins_group)
+
+        result = await sync_idp_groups(
+            db,
+            user,
+            identity,
+            {"iss": "https://idp.example.com", "groups": ["dev-team"], "aap_system_role": "system_administrator"},
+            config,
+        )
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_aap_mapping_proceeds_when_jmespath_fails(self):
+        """AAP role mapping should still resolve groups even if JMESPath extraction fails."""
+        user = _make_user()
+        provider_id = uuid4()
+        identity = _make_identity(user, provider_id)
+        nexus_group_id = uuid4()
+        admins_group = _make_builtin_group("admins")
+
+        entry = _make_db_entry(provider_id, "dev-team", nexus_group_id)
+        config = _make_config(aap_role_mapping_enabled=True, idp_type="aap")
+        db = _make_mock_db_for_aap(mapping_entries=[entry], builtin_group=admins_group)
+
+        result = await sync_idp_groups(
+            db,
+            user,
+            identity,
+            {"iss": "https://idp.example.com", "groups": 12345, "aap_system_role": "system_administrator"},
+            config,
+        )
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_builtin_group_not_found_returns_no_match(self):
+        """If the built-in group is missing (e.g. soft-deleted), AAP mapping resolves no groups."""
+        user = _make_user()
+        provider_id = uuid4()
+        identity = _make_identity(user, provider_id)
+        config = _make_config(aap_role_mapping_enabled=True, idp_type="aap")
+        db = _make_mock_db_for_aap(builtin_group=None)
+
+        result = await sync_idp_groups(
+            db, user, identity, {"iss": "https://idp.example.com", "aap_system_role": "system_administrator"}, config
+        )
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_issuer_mismatch_rejects_aap_claims(self):
+        """AAP role mapping must reject tokens whose iss doesn't match the configured issuer_url."""
+        user = _make_user()
+        provider_id = uuid4()
+        identity = _make_identity(user, provider_id)
+        config = _make_config(aap_role_mapping_enabled=True, idp_type="aap")
+        db = _make_mock_db_for_aap(builtin_group=_make_builtin_group("admins"))
+
+        result = await sync_idp_groups(
+            db,
+            user,
+            identity,
+            {"iss": "https://evil-provider.example.com", "aap_system_role": "system_administrator"},
+            config,
+        )
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_missing_issuer_rejects_aap_claims(self):
+        """AAP role mapping must reject tokens with no iss claim."""
+        user = _make_user()
+        provider_id = uuid4()
+        identity = _make_identity(user, provider_id)
+        config = _make_config(aap_role_mapping_enabled=True, idp_type="aap")
+        db = _make_mock_db_for_aap(builtin_group=_make_builtin_group("admins"))
+
+        result = await sync_idp_groups(db, user, identity, {"aap_system_role": "system_administrator"}, config)
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_issuer_trailing_slash_normalization(self):
+        """Issuer comparison should be tolerant of trailing slash differences."""
+        user = _make_user()
+        provider_id = uuid4()
+        identity = _make_identity(user, provider_id)
+        admins_group = _make_builtin_group("admins")
+        config = _make_config(aap_role_mapping_enabled=True, idp_type="aap")
+        db = _make_mock_db_for_aap(builtin_group=admins_group)
+
+        result = await sync_idp_groups(
+            db,
+            user,
+            identity,
+            {"iss": "https://idp.example.com/", "aap_system_role": "system_administrator"},
+            config,
+        )
+        assert result is True
+
+    def test_serialization_roundtrip(self):
+        config = _make_config(aap_role_mapping_enabled=True, idp_type="aap")
+        data = config.model_dump()
+        restored = OIDCConfiguration.model_validate(data)
+        assert restored.aap_role_mapping_enabled is True
+        assert restored.idp_type == "aap"
