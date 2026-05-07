@@ -42,6 +42,8 @@ import {
   organizations,
   jobTemplates,
   jobTemplateDetails,
+  workflowTemplates,
+  workflowTemplateDetails,
   inventories,
   executionEnvironments,
   aapCredentials,
@@ -3083,7 +3085,7 @@ export const handlers = [
     return HttpResponse.json({ count: filtered.length, results: filtered })
   }),
 
-  http.get('*/aap/job-templates/:id', ({ params, request }) => {
+  http.get('*/aap/job_templates/:id', ({ params, request }) => {
     const url = new URL(request.url)
     const validationError = validateCredentialId(url)
     if (validationError) return validationError
@@ -3119,7 +3121,7 @@ export const handlers = [
     })
   }),
 
-  http.get('*/aap/job-templates', ({ request }) => {
+  http.get('*/aap/job_templates', ({ request }) => {
     const url = new URL(request.url)
     const credentialId = url.searchParams.get('credential_id')
     const org = url.searchParams.get('organization')
@@ -3129,6 +3131,51 @@ export const handlers = [
     if (validationError) return validationError
 
     let filtered = org ? jobTemplates.filter((t) => t.organization === org) : jobTemplates
+    if (search) {
+      filtered = filtered.filter((t) => t.name.toLowerCase().includes(search))
+    }
+    return HttpResponse.json({ count: filtered.length, results: filtered })
+  }),
+
+  http.get('*/aap/workflow_job_templates/:id', ({ params, request }) => {
+    const url = new URL(request.url)
+    const validationError = validateCredentialId(url)
+    if (validationError) return validationError
+
+    const id = Number(params.id)
+    const template = workflowTemplates.find((t) => t.id === id)
+    if (!template) {
+      return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
+    }
+    const flags = workflowTemplateDetails[id] ?? {}
+    return HttpResponse.json({
+      id: template.id,
+      name: template.name,
+      description: template.description,
+      url: `https://aap.example.com/execution/templates/workflow-job-template/${id}/details`,
+      ask_inventory_on_launch: false,
+      ask_credential_on_launch: false,
+      ask_variables_on_launch: false,
+      ask_limit_on_launch: false,
+      ask_scm_branch_on_launch: false,
+      ask_labels_on_launch: false,
+      ask_tags_on_launch: false,
+      ask_skip_tags_on_launch: false,
+      survey_enabled: false,
+      ...flags,
+    })
+  }),
+
+  http.get('*/aap/workflow_job_templates', ({ request }) => {
+    const url = new URL(request.url)
+    const credentialId = url.searchParams.get('credential_id')
+    const org = url.searchParams.get('organization')
+    const search = url.searchParams.get('search')?.toLowerCase()
+
+    const validationError = validateCredentialId(url)
+    if (validationError) return validationError
+
+    let filtered = org ? workflowTemplates.filter((t) => t.organization === org) : workflowTemplates
     if (search) {
       filtered = filtered.filter((t) => t.name.toLowerCase().includes(search))
     }
@@ -3151,7 +3198,7 @@ export const handlers = [
     return HttpResponse.json({ count: filtered.length, results: filtered })
   }),
 
-  http.get('*/aap/execution-environments', ({ request }) => {
+  http.get('*/aap/execution_environments', ({ request }) => {
     const url = new URL(request.url)
     const credentialId = url.searchParams.get('credential_id')
     const search = url.searchParams.get('search')?.toLowerCase()
@@ -3198,7 +3245,7 @@ export const handlers = [
     })
   }),
 
-  http.get('*/aap/instance-groups', ({ request }) => {
+  http.get('*/aap/instance_groups', ({ request }) => {
     const url = new URL(request.url)
     const credentialId = url.searchParams.get('credential_id')
     const search = url.searchParams.get('search')?.toLowerCase()

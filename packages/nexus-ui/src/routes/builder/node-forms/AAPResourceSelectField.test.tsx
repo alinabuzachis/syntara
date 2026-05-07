@@ -4,7 +4,7 @@ import { FormProvider, useForm } from 'react-hook-form'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import type { AAPFormData } from './aapFormSchema'
+import type { AAPJobTemplateFormData } from './aapJobTemplateSchema'
 import { AAPResourceSelectField } from './AAPResourceSelectField'
 
 const mockItems = [
@@ -13,8 +13,8 @@ const mockItems = [
   { id: 103, name: 'Staging Inventory' },
 ] as const
 
-function TestWrapper({ children, defaultValues }: { children: React.ReactNode; defaultValues?: Partial<AAPFormData> }) {
-  const methods = useForm<AAPFormData>({
+function TestWrapper({ children, defaultValues }: { children: React.ReactNode; defaultValues?: Partial<AAPJobTemplateFormData> }) {
+  const methods = useForm<AAPJobTemplateFormData>({
     defaultValues: {
       name: '',
       organization_name: '',
@@ -27,13 +27,13 @@ function TestWrapper({ children, defaultValues }: { children: React.ReactNode; d
 
 function renderField(
   overrides: Partial<React.ComponentProps<typeof AAPResourceSelectField>> = {},
-  formDefaults?: Partial<AAPFormData>
+  formDefaults?: Partial<AAPJobTemplateFormData>
 ) {
   const props = {
     label: 'Inventory',
     fieldId: 'aap-inventory_name',
-    nameField: 'inventory_name' as keyof AAPFormData,
-    idField: 'inventory_id' as keyof AAPFormData,
+    nameField: 'inventory_name' as keyof AAPJobTemplateFormData,
+    idField: 'inventory_id' as keyof AAPJobTemplateFormData,
     items: [...mockItems],
     isLoading: false,
     helperText: 'Select an inventory to override the default',

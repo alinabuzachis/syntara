@@ -295,6 +295,59 @@ export function createAAPJobTemplateActivity(
   }
 }
 
+/**
+ * AAP Workflow Template config — matches the backend AAPWorkflowTemplateExecutorConfig fields.
+ * Workflow templates do NOT support job-specific fields like job_type, verbosity, forks, etc.
+ */
+export type AAPWorkflowTemplateConfig = {
+  credential_id?: string // Nexus credential for AAP authentication
+  organization_id?: number
+  organization_name?: string
+  workflow_job_template_name?: string
+  inventory_id?: number
+  inventory_name?: string
+  extra_vars?: Record<string, unknown>
+  limit?: string
+  scm_branch?: string // Workflow-specific: source control branch override
+  tags?: string
+  skip_tags?: string
+  labels?: string[] // AAP Controller label names (prompt-on-launch override, supports creating new labels)
+}
+
+/**
+ * Create an AAP Workflow Template node (v2).
+ */
+export function createAAPWorkflowTemplateActivity(
+  id: string,
+  name: string,
+  workflowTemplateId: number,
+  config?: AAPWorkflowTemplateConfig
+): Activity {
+  const activityConfig: Record<string, unknown> = { workflow_job_template_id: workflowTemplateId }
+
+  // Config already uses snake_case field names matching the API contract
+  // Filter out undefined/null/empty/invalid values while copying
+  if (config) {
+    for (const [key, value] of Object.entries(config)) {
+      // Skip undefined/null
+      if (value === undefined || value === null) continue
+      // For numbers: skip NaN and Infinity, but allow 0
+      if (typeof value === 'number' && !Number.isFinite(value)) continue
+      // For strings: skip empty strings (truthy predicate)
+      if (typeof value === 'string' && value === '') continue
+      // For all other types (including 0, false, arrays, objects): include
+      activityConfig[key] = value
+    }
+  }
+
+  return {
+    id,
+    type: ActivityTypeEnum.AAP_WORKFLOW_JOB_TEMPLATE,
+    name,
+    config: activityConfig,
+  }
+}
+
 // ============================================================================
 // Approval Node Factory
 // ============================================================================

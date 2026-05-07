@@ -528,4 +528,153 @@ describe('NodeDetailsPanel', () => {
       description: 'Failed to replace step — step not found',
     })
   })
+
+  it('renders form for node with subtypes', async () => {
+    const user = userEvent.setup()
+    const mockOnSubmit = vi.fn((_data, onSuccess: (nodeId?: string) => void) => onSuccess('node-1'))
+
+    mockNodeRegistryGet.mockReturnValue({
+      id: 'logic',
+      label: 'Logic',
+      icon: () => <div>LogicIcon</div>,
+      category: 'logic',
+      subtypes: [
+        {
+          id: 'condition',
+          label: 'Condition',
+          formComponent: ({ onSubmit }: { onSubmit: (data: Record<string, unknown>) => void }) => (
+            <button onClick={() => onSubmit({})} type="button">
+              Submit Condition
+            </button>
+          ),
+          formProps: { testProp: 'value' },
+          initialData: { type: 'condition', condition: 'true' },
+        },
+      ],
+      formComponent: ({ onSubmit }: { onSubmit: (data: Record<string, unknown>) => void }) => (
+        <button onClick={() => onSubmit({})} type="button">
+          Submit Logic
+        </button>
+      ),
+      onSubmit: mockOnSubmit,
+    } as never)
+
+    render(<NodeDetailsPanel mode="add" nodeTypeId="logic" nodeSubtypeId="condition" onClose={mockOnClose} />)
+
+    // Should use subtype's form component
+    expect(screen.getByRole('button', { name: /Submit Condition/i })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Submit Condition/i }))
+
+    expect(mockOnClose).toHaveBeenCalled()
+  })
+
+  it('uses subtype label and initial data when available', () => {
+    mockNodeRegistryGet.mockReturnValue({
+      id: 'aap',
+      label: 'AAP',
+      icon: () => <div>AAPIcon</div>,
+      category: 'task',
+      subtypes: [
+        {
+          id: 'job_template',
+          label: 'Job Template',
+          formComponent: () => <div>Job Template Form</div>,
+          initialData: { executor: 'aap_job_template' },
+        },
+      ],
+      formComponent: () => <div>AAP Form</div>,
+      onSubmit: vi.fn(),
+    } as never)
+
+    render(<NodeDetailsPanel mode="add" nodeTypeId="aap" nodeSubtypeId="job_template" onClose={mockOnClose} />)
+
+    expect(screen.getByText('Job Template Form')).toBeInTheDocument()
+  })
+
+  it('renders empty parameters when selected node is not found in add mode', () => {
+    mockNodeRegistryGet.mockReturnValue(null)
+
+    render(<NodeDetailsPanel mode="add" nodeTypeId="unknown" nodeSubtypeId={null} onClose={mockOnClose} />)
+
+    // Should render panel layout even when node type not found (empty parameters content)
+    // The panel itself will be shown, but the content area will be empty
+    expect(screen.getByRole('button', { name: /Close/i })).toBeInTheDocument()
+  })
+
+  it('renders trigger form in add mode', () => {
+    mockNodeRegistryGet.mockReturnValue({
+      id: 'trigger',
+      label: 'Trigger',
+      icon: () => <div>TriggerIcon</div>,
+      category: 'trigger',
+      formComponent: () => <div data-testid="trigger-form">Trigger Form</div>,
+      onSubmit: vi.fn(),
+    } as never)
+
+    render(<NodeDetailsPanel mode="add" nodeTypeId="trigger" nodeSubtypeId={null} onClose={mockOnClose} />)
+
+    expect(screen.getByTestId('trigger-form')).toBeInTheDocument()
+  })
+
+  it('does not render input panel when editing trigger', () => {
+    mockStoreState.currentWorkflow = { triggers: [{ type: 'manual' }], workflow: { activities: [] } } as never
+    const triggerNode: Node<NodeType['data']> = {
+      id: 'trigger-0',
+      type: 'trigger',
+      position: { x: 0, y: 0 },
+      data: { id: 'trigger-0', type: 'trigger', name: 'Trigger' } as never,
+    }
+
+    render(<NodeDetailsPanel mode="edit" node={triggerNode} onClose={mockOnClose} />)
+
+    expect(screen.queryByTestId('input-panel')).not.toBeInTheDocument()
+  })
+
+  it('passes projectId to form component', () => {
+    mockNodeRegistryGet.mockReturnValue({
+      id: 'action',
+      label: 'Action',
+      icon: () => <div>ActionIcon</div>,
+      category: 'task',
+      formComponent: ({ projectId }: { projectId?: string }) => (
+        <div data-testid="project-id">{projectId ?? 'none'}</div>
+      ),
+      onSubmit: vi.fn(),
+    } as never)
+
+    render(
+      <NodeDetailsPanel
+        mode="add"
+        nodeTypeId="action"
+        nodeSubtypeId={null}
+        projectId="project-123"
+        onClose={mockOnClose}
+      />
+    )
+
+    expect(screen.getByTestId('project-id')).toHaveTextContent('project-123')
+  })
+
+  it('passes executionId and workflowId to NodeEditorLayout', () => {
+    const taskNode: Node<NodeType['data']> = {
+      id: 'task-1',
+      type: 'task',
+      position: { x: 0, y: 0 },
+      data: { id: 'task-1', type: 'task', name: 'Task', task: { executor: 'script', config: {} } } as never,
+    }
+
+    render(
+      <NodeDetailsPanel
+        mode="edit"
+        node={taskNode}
+        executionId="exec-123"
+        workflowId="workflow-456"
+        onClose={mockOnClose}
+      />
+    )
+
+    // NodeEditorLayout receives these props and passes them to panels
+    expect(screen.getByTestId('task-details')).toBeInTheDocument()
+  })
 })

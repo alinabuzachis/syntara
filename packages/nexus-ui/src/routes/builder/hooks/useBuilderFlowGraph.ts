@@ -171,12 +171,14 @@ export function useBuilderFlowGraph({
 
       const activityData = executionStateEnricher.enrichActivity(activity, executionStatus, activityStates, storedEdges)
 
-      nodes.push({
+      const node = {
         id: activity.id,
         type: nodeType,
         position,
         data: activityData,
-      } as unknown as NodeType)
+      } as unknown as NodeType
+
+      nodes.push(node)
     })
 
     const loopBackNodeIds = detectLoopBackNodes(edges, nodes)

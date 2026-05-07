@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   createAgenticActivity,
   createAAPJobTemplateActivity,
+  createAAPWorkflowTemplateActivity,
   createApiActivity,
   createApprovalActivity,
   createConditionActivity,
@@ -447,6 +448,155 @@ describe('workflowFactories', () => {
         expect(activity.config.timeout).toBe(3600)
         expect(activity.config.job_slice_count).toBe(2)
         expect(activity.config.diff_mode).toBe(true)
+      })
+    })
+
+    describe('createAAPWorkflowTemplateActivity', () => {
+      it('creates an AAP workflow template activity', () => {
+        const activity = createAAPWorkflowTemplateActivity('aap-wf-1', 'Run Workflow', 456)
+
+        expect(activity.type).toBe('aap_workflow_job_template')
+        expect(activity.id).toBe('aap-wf-1')
+        expect(activity.config.workflow_job_template_id).toBe(456)
+      })
+
+      it('creates an AAP workflow template activity with full config', () => {
+        const activity = createAAPWorkflowTemplateActivity('aap-wf-1', 'Run Workflow', 456, {
+          inventory_id: 789,
+          extra_vars: { env: 'staging' },
+          limit: 'db-servers',
+          scm_branch: 'main',
+          tags: 'deploy',
+          skip_tags: 'debug',
+          labels: ['production', 'critical'],
+        })
+
+        expect(activity.config.workflow_job_template_id).toBe(456)
+        expect(activity.config.inventory_id).toBe(789)
+        expect(activity.config.extra_vars).toEqual({ env: 'staging' })
+        expect(activity.config.limit).toBe('db-servers')
+        expect(activity.config.scm_branch).toBe('main')
+        expect(activity.config.tags).toBe('deploy')
+        expect(activity.config.skip_tags).toBe('debug')
+        expect(activity.config.labels).toEqual(['production', 'critical'])
+      })
+
+      it('creates an AAP workflow template activity with credential and organization', () => {
+        const activity = createAAPWorkflowTemplateActivity('aap-wf-1', 'Run Workflow', 456, {
+          credential_id: 'cred-123',
+          organization_id: 10,
+          organization_name: 'Engineering',
+        })
+
+        expect(activity.config.credential_id).toBe('cred-123')
+        expect(activity.config.organization_id).toBe(10)
+        expect(activity.config.organization_name).toBe('Engineering')
+      })
+
+      it('creates an AAP workflow template activity with inventory name', () => {
+        const activity = createAAPWorkflowTemplateActivity('aap-wf-1', 'Run Workflow', 456, {
+          inventory_name: 'Production Inventory',
+        })
+
+        expect(activity.config.inventory_name).toBe('Production Inventory')
+      })
+
+      it('creates an AAP workflow template activity with workflow job template name', () => {
+        const activity = createAAPWorkflowTemplateActivity('aap-wf-1', 'Run Workflow', 456, {
+          workflow_job_template_name: 'Deploy Application',
+        })
+
+        expect(activity.config.workflow_job_template_name).toBe('Deploy Application')
+      })
+
+      it('does not include job-specific fields (job_type, verbosity, forks, etc.)', () => {
+        const activity = createAAPWorkflowTemplateActivity('aap-wf-1', 'Run Workflow', 456, {
+          inventory_id: 789,
+          extra_vars: { env: 'prod' },
+        })
+
+        // Workflow templates should NOT have job-specific fields
+        expect(activity.config).not.toHaveProperty('job_type')
+        expect(activity.config).not.toHaveProperty('verbosity')
+        expect(activity.config).not.toHaveProperty('forks')
+        expect(activity.config).not.toHaveProperty('timeout')
+        expect(activity.config).not.toHaveProperty('job_slice_count')
+        expect(activity.config).not.toHaveProperty('diff_mode')
+        expect(activity.config).not.toHaveProperty('execution_environment')
+        expect(activity.config).not.toHaveProperty('execution_environment_id')
+        expect(activity.config).not.toHaveProperty('instance_group_id')
+        expect(activity.config).not.toHaveProperty('instance_group_name')
+        expect(activity.config).not.toHaveProperty('job_credentials')
+      })
+
+      it('includes scm_branch field (workflow-specific)', () => {
+        const activity = createAAPWorkflowTemplateActivity('aap-wf-1', 'Run Workflow', 456, {
+          scm_branch: 'feature/new-deployment',
+        })
+
+        expect(activity.config.scm_branch).toBe('feature/new-deployment')
+      })
+
+      it('filters undefined values correctly', () => {
+        const activity = createAAPWorkflowTemplateActivity('aap-wf-1', 'Run Workflow', 456, {
+          inventory_id: undefined,
+          extra_vars: undefined,
+          limit: undefined,
+        })
+
+        expect(activity.config).not.toHaveProperty('inventory_id')
+        expect(activity.config).not.toHaveProperty('extra_vars')
+        expect(activity.config).not.toHaveProperty('limit')
+      })
+
+      it('handles numeric zero values correctly (defined predicate)', () => {
+        const activity = createAAPWorkflowTemplateActivity('aap-wf-1', 'Run Workflow', 456, {
+          inventory_id: 0,
+          organization_id: 0,
+        })
+
+        // Zero is a valid value for numeric fields (defined predicate)
+        expect(activity.config.inventory_id).toBe(0)
+        expect(activity.config.organization_id).toBe(0)
+      })
+
+      it('filters invalid numeric values (NaN, Infinity)', () => {
+        const activity = createAAPWorkflowTemplateActivity('aap-wf-1', 'Run Workflow', 456, {
+          inventory_id: Number.NaN,
+          organization_id: Number.POSITIVE_INFINITY,
+        })
+
+        expect(activity.config).not.toHaveProperty('inventory_id')
+        expect(activity.config).not.toHaveProperty('organization_id')
+      })
+
+      it('filters empty strings for truthy predicate fields', () => {
+        const activity = createAAPWorkflowTemplateActivity('aap-wf-1', 'Run Workflow', 456, {
+          organization_name: '',
+          workflow_job_template_name: '',
+          limit: '',
+        })
+
+        expect(activity.config).not.toHaveProperty('organization_name')
+        expect(activity.config).not.toHaveProperty('workflow_job_template_name')
+        expect(activity.config).not.toHaveProperty('limit')
+      })
+
+      it('includes empty arrays for labels field', () => {
+        const activity = createAAPWorkflowTemplateActivity('aap-wf-1', 'Run Workflow', 456, {
+          labels: [],
+        })
+
+        // Empty array is still truthy in JavaScript (all objects are truthy)
+        expect(activity.config.labels).toEqual([])
+      })
+
+      it('includes non-empty arrays for labels field', () => {
+        const activity = createAAPWorkflowTemplateActivity('aap-wf-1', 'Run Workflow', 456, {
+          labels: ['production'],
+        })
+
+        expect(activity.config.labels).toEqual(['production'])
       })
     })
 

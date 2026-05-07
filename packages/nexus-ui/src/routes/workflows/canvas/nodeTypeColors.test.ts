@@ -115,8 +115,8 @@ describe('getAddNodePanelColor', () => {
     expect(getAddNodePanelColor(RegistryNodeId.AGENT)).toBe(NODE_TYPE_COLORS.actionAgentic)
   })
 
-  it('returns actionAap color for aap', () => {
-    expect(getAddNodePanelColor(RegistryNodeId.AAP)).toBe(NODE_TYPE_COLORS.actionAap)
+  it('returns actionAap color for AAP execution category', () => {
+    expect(getAddNodePanelColor(RegistryNodeId.AAP_EXECUTION)).toBe(NODE_TYPE_COLORS.actionAap)
   })
 
   it('returns undefined for empty or unknown registry id', () => {

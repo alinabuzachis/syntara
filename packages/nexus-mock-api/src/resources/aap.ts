@@ -97,6 +97,79 @@ export const jobTemplateDetails: Record<number, Record<string, unknown>> = {
   },
 }
 
+export const workflowTemplates = [
+  {
+    id: 20,
+    name: 'Deploy Application Workflow',
+    description: 'Complete application deployment workflow',
+    organization: 'Default',
+  },
+  { id: 21, name: 'Database Backup Workflow', description: 'Backup and verify database', organization: 'Default' },
+  {
+    id: 22,
+    name: 'Infrastructure Provisioning',
+    description: 'Provision and configure infrastructure',
+    organization: 'Engineering',
+  },
+  { id: 23, name: 'Release Pipeline', description: 'Build, test, and deploy release', organization: 'Operations' },
+]
+
+/** Prompt-on-launch flags for each workflow template (keyed by template id). */
+export const workflowTemplateDetails: Record<number, Record<string, unknown>> = {
+  20: {
+    ask_inventory_on_launch: true,
+    ask_variables_on_launch: true,
+    ask_limit_on_launch: true,
+    ask_scm_branch_on_launch: true,
+    ask_labels_on_launch: true,
+    ask_tags_on_launch: true,
+    ask_skip_tags_on_launch: true,
+    survey_enabled: false,
+    default_inventory: { id: 1, name: 'Demo Inventory' },
+    default_labels: [
+      { id: 3, name: 'production' },
+      { id: 1, name: 'label1' },
+    ],
+    limit: 'webservers',
+    scm_branch: 'main',
+    job_tags: 'deploy,config',
+    skip_tags: 'slow',
+    extra_vars: '{"environment":"production"}',
+  },
+  21: {
+    ask_variables_on_launch: true,
+    ask_limit_on_launch: true,
+    survey_enabled: false,
+    default_inventory: { id: 2, name: 'Production' },
+    default_labels: [{ id: 2, name: 'label2' }],
+    limit: 'db-servers',
+  },
+  22: {
+    ask_inventory_on_launch: true,
+    ask_variables_on_launch: true,
+    ask_scm_branch_on_launch: true,
+    ask_labels_on_launch: true,
+    survey_enabled: false,
+    default_inventory: { id: 3, name: 'Staging' },
+    default_labels: [{ id: 4, name: 'staging' }],
+    scm_branch: 'develop',
+  },
+  23: {
+    ask_inventory_on_launch: true,
+    ask_variables_on_launch: true,
+    ask_tags_on_launch: true,
+    ask_skip_tags_on_launch: true,
+    survey_enabled: false,
+    default_inventory: { id: 2, name: 'Production' },
+    default_labels: [
+      { id: 3, name: 'production' },
+      { id: 5, name: 'development' },
+    ],
+    job_tags: 'build,test,deploy',
+    skip_tags: 'slow-tests',
+  },
+}
+
 export const executionEnvironments = [
   { id: 1, name: 'Default EE', description: 'Default execution environment' },
   { id: 2, name: 'Custom EE', description: 'Custom EE with extra collections' },

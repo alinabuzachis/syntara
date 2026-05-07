@@ -1,6 +1,6 @@
 import { ActivityTypeEnum, ExecutorTypeEnum, type TaskActivity } from '@ansible/nexus-contracts'
 
-import { FlowNodeType, RegistryNodeId } from '../../../constants'
+import { AAP_NODE_IDS, FlowNodeType, RegistryNodeId } from '../../../constants'
 
 import { detectTaskNodeType, DetectedExecutorType } from './nodes/common/detectTaskNodeType'
 
@@ -62,7 +62,11 @@ function getTaskNodeColor(data: TaskActivity | undefined): string {
   if (actualExecutor === ExecutorTypeEnum.HTTP_REQUEST) {
     return NODE_TYPE_COLORS.actionHttpRequest
   }
-  if (actualExecutor === ExecutorTypeEnum.AAP_JOB_TEMPLATE || actualExecutor === DetectedExecutorType.AAP) {
+  if (
+    actualExecutor === ExecutorTypeEnum.AAP_JOB_TEMPLATE ||
+    actualExecutor === ExecutorTypeEnum.AAP_WORKFLOW_JOB_TEMPLATE ||
+    actualExecutor === DetectedExecutorType.AAP
+  ) {
     return NODE_TYPE_COLORS.actionAap
   }
   if (actualExecutor === ExecutorTypeEnum.AGENTIC) {
@@ -101,6 +105,9 @@ export function getAddNodePanelColor(registryNodeId: string): string | undefined
   if (registryNodeId === RegistryNodeId.APPROVAL) return NODE_TYPE_COLORS.approval
   if (ADD_PANEL_ACTION_IDS.has(registryNodeId)) return NODE_TYPE_COLORS.actionScript
   if (registryNodeId === RegistryNodeId.AGENT) return NODE_TYPE_COLORS.actionAgentic
-  if (registryNodeId === RegistryNodeId.AAP) return NODE_TYPE_COLORS.actionAap
+  // AAP category and all AAP subtypes use the same color
+  if (AAP_NODE_IDS.has(registryNodeId as (typeof RegistryNodeId)[keyof typeof RegistryNodeId])) {
+    return NODE_TYPE_COLORS.actionAap
+  }
   return undefined
 }

@@ -4,7 +4,7 @@ import { FormProvider, useForm } from 'react-hook-form'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import type { AAPFormData } from './aapFormSchema'
+import type { AAPJobTemplateFormData } from './aapJobTemplateSchema'
 import { PromptOnLaunchFields } from './AAPPromptOnLaunchFields'
 
 // Mock ExpandableCodeEditor to use a simple textarea for testing
@@ -32,8 +32,8 @@ vi.mock('../../../components/ExpandableCodeEditor', () => ({
   ),
 }))
 
-function TestWrapper({ children, defaultValues }: { children: React.ReactNode; defaultValues?: Partial<AAPFormData> }) {
-  const methods = useForm<AAPFormData>({
+function TestWrapper({ children, defaultValues }: { children: React.ReactNode; defaultValues?: Partial<AAPJobTemplateFormData> }) {
+  const methods = useForm<AAPJobTemplateFormData>({
     defaultValues: {
       name: '',
       organization_name: '',

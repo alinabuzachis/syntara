@@ -32,6 +32,8 @@ export type NodeSubtypeDefinition<TFormData = unknown> = {
   order?: number
   /** Optional form panel title */
   formTitle?: string
+  /** Optional form component (if different from parent) */
+  formComponent?: ComponentType<BaseNodeFormProps<TFormData> & Record<string, unknown>>
   /** Optional form props for subtype-specific defaults */
   formProps?: Record<string, unknown>
   /** Optional initial form data */
@@ -70,7 +72,12 @@ export type NodeTypeDefinition<TFormData = unknown> = {
   selectionTitle?: string
 
   /** Handler function when form is submitted */
-  onSubmit: (data: TFormData, onSuccess: (newNodeId?: string) => void, onError: (error: string) => void) => void
+  onSubmit: (
+    data: TFormData,
+    onSuccess: (newNodeId?: string) => void,
+    onError: (error: string) => void,
+    subtypeId?: string
+  ) => void
 
   /** Whether this node type is enabled (default: true) */
   enabled?: boolean

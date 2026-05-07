@@ -63,12 +63,16 @@ type ExecutorDisplayMetadata = { icon: ComponentType<{ className?: string }>; la
 /** Same display as API executor `aap_job_template`; shared with internal `aap` from detectTaskNodeType. */
 const aapJobExecutorDisplay: ExecutorDisplayMetadata = { icon: AnsibleIcon, label: 'AAP Job' }
 
+/** Display for API executor `aap_workflow_job_template` */
+const aapWorkflowExecutorDisplay: ExecutorDisplayMetadata = { icon: AnsibleIcon, label: 'AAP Workflow' }
+
 // Task executor metadata - different tasks have different icons
 export const executorMetadata: Record<string, ExecutorDisplayMetadata> = {
   script: { icon: RhUiCodeIcon, label: 'Script' },
   agentic: { icon: RhUiRobotIcon, label: 'Agentic' },
   http_request: { icon: RhUiPlugFillIcon, label: 'REST API' },
   aap_job_template: aapJobExecutorDisplay,
+  aap_workflow_job_template: aapWorkflowExecutorDisplay,
   /** Internal key from detectTaskNodeType (agentic + ansible connector prompt), not an API executor string */
   aap: aapJobExecutorDisplay,
   approval: { icon: RhUiUserCheckIcon, label: 'Approval' }, // Human approval gate

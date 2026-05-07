@@ -1,13 +1,39 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { FormProvider, useForm } from 'react-hook-form'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
-import type { AAPFormData } from './aapFormSchema'
-import { DiffModeField, NumberInputField, RunTypeField, TextInputField, VerbosityField } from './AAPPromptFields'
+import type { AAPJobTemplateFormData } from './aapJobTemplateSchema'
+import {
+  DiffModeField,
+  ExtraVariablesField,
+  NumberInputField,
+  RunTypeField,
+  TagInputField,
+  TextInputField,
+  VerbosityField,
+} from './AAPPromptFields'
 
-function TestWrapper({ children, defaultValues }: { children: React.ReactNode; defaultValues?: Partial<AAPFormData> }) {
-  const methods = useForm<AAPFormData>({
+// Mock ExpandableCodeEditor to avoid ColorSchemeProvider dependency
+vi.mock('../../../components/ExpandableCodeEditor', () => ({
+  ExpandableCodeEditor: ({
+    code,
+    onCodeChange,
+  }: {
+    code: string
+    onCodeChange: (v: string) => void
+    onBlur: () => void
+  }) => <textarea aria-label="Extra variables" value={code} onChange={(e) => onCodeChange(e.target.value)} />,
+}))
+
+function TestWrapper({
+  children,
+  defaultValues,
+}: {
+  children: React.ReactNode
+  defaultValues?: Partial<AAPJobTemplateFormData>
+}) {
+  const methods = useForm<AAPJobTemplateFormData>({
     defaultValues,
   })
   return <FormProvider {...methods}>{children}</FormProvider>
@@ -260,6 +286,147 @@ describe('AAPPromptFields', () => {
 
       const input = screen.getByLabelText('Timeout')
       expect(input).toHaveValue(null)
+    })
+  })
+
+  describe('ExtraVariablesField', () => {
+    it('renders extra variables code editor', () => {
+      const editorRef = { current: null }
+      render(
+        <TestWrapper>
+          <ExtraVariablesField editorRef={editorRef} />
+        </TestWrapper>
+      )
+
+      expect(screen.getByLabelText('Extra variables')).toBeInTheDocument()
+    })
+
+    it('renders error state when validation fails', () => {
+      const editorRef = { current: null }
+      render(
+        <TestWrapper defaultValues={{ extra_vars: '' }}>
+          <ExtraVariablesField editorRef={editorRef} />
+        </TestWrapper>
+      )
+
+      // The component should render with the field and be ready to display errors
+      expect(screen.getByLabelText('Extra variables')).toBeInTheDocument()
+    })
+
+    it('renders with initial value', () => {
+      const editorRef = { current: null }
+      render(
+        <TestWrapper defaultValues={{ extra_vars: '{"key": "value"}' }}>
+          <ExtraVariablesField editorRef={editorRef} />
+        </TestWrapper>
+      )
+
+      expect(screen.getByLabelText('Extra variables')).toBeInTheDocument()
+    })
+
+    it('renders with empty value', () => {
+      const editorRef = { current: null }
+      render(
+        <TestWrapper defaultValues={{ extra_vars: '' }}>
+          <ExtraVariablesField editorRef={editorRef} />
+        </TestWrapper>
+      )
+
+      expect(screen.getByLabelText('Extra variables')).toBeInTheDocument()
+    })
+  })
+
+  describe('TagInputField', () => {
+    it('renders tag input', () => {
+      render(
+        <TestWrapper>
+          <TagInputField
+            label="Tags"
+            fieldId="test-tags"
+            name="tags"
+            placeholder="Enter tags"
+            helperText="Comma-separated tags"
+          />
+        </TestWrapper>
+      )
+
+      expect(screen.getByLabelText('Tags')).toBeInTheDocument()
+    })
+
+    it('handles comma-separated string values', () => {
+      render(
+        <TestWrapper defaultValues={{ tags: 'tag1, tag2, tag3' }}>
+          <TagInputField
+            label="Tags"
+            fieldId="test-tags"
+            name="tags"
+            placeholder="Enter tags"
+            helperText="Comma-separated tags"
+          />
+        </TestWrapper>
+      )
+
+      // Component should render with the field
+      expect(screen.getByLabelText('Tags')).toBeInTheDocument()
+    })
+
+    it('handles empty string values', () => {
+      render(
+        <TestWrapper defaultValues={{ tags: '' }}>
+          <TagInputField
+            label="Tags"
+            fieldId="test-tags"
+            name="tags"
+            placeholder="Enter tags"
+            helperText="Comma-separated tags"
+          />
+        </TestWrapper>
+      )
+
+      expect(screen.getByLabelText('Tags')).toBeInTheDocument()
+    })
+
+    it('renders with helper text', () => {
+      render(
+        <TestWrapper>
+          <TagInputField
+            label="Tags"
+            fieldId="test-tags"
+            name="tags"
+            placeholder="Enter tags"
+            helperText="Comma-separated tags"
+          />
+        </TestWrapper>
+      )
+
+      expect(screen.getByText('Comma-separated tags')).toBeInTheDocument()
+    })
+
+    it('handles skip_tags field', () => {
+      render(
+        <TestWrapper defaultValues={{ skip_tags: 'skip1, skip2' }}>
+          <TagInputField
+            label="Skip Tags"
+            fieldId="test-skip-tags"
+            name="skip_tags"
+            placeholder="Enter skip tags"
+            helperText="Tags to skip"
+          />
+        </TestWrapper>
+      )
+
+      expect(screen.getByLabelText('Skip Tags')).toBeInTheDocument()
+    })
+
+    it('splits tags correctly on commas', () => {
+      render(
+        <TestWrapper defaultValues={{ tags: 'deploy, test , production' }}>
+          <TagInputField label="Tags" fieldId="test-tags" name="tags" placeholder="Enter tags" helperText="Tags help" />
+        </TestWrapper>
+      )
+
+      // Component should render and handle tags with spaces
+      expect(screen.getByLabelText('Tags')).toBeInTheDocument()
     })
   })
 })

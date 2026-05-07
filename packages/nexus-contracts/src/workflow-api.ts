@@ -113,6 +113,11 @@ export interface components {
         current_version?: number
         /** @description Whether workflow is enabled and available for execution */
         is_enabled?: boolean
+        /**
+         * Format: uuid
+         * @description Project this workflow belongs to
+         */
+        project_id?: string | null
       }
     WorkflowWithVersion: components['schemas']['Workflow'] & {
       /** @description Specific version details */
@@ -461,21 +466,31 @@ export interface components {
       type?: 'manual_trigger'
       config?: components['schemas']['configSchema']
     }
+    /**
+     * Format: uuid
+     * @description Nexus credential UUID for authentication. When provided, the credential is resolved at execution time and injected into the node config.
+     */
+    credential_id: string
     /** @description Job template must be specified by ID or name. When both are provided, ID takes precedence. */
     'aap_job_template.schema_configSchema':
       | ({
+          credential_id?: components['schemas']['credential_id']
           /** @description AAP job template ID to launch (takes precedence over name) */
           job_template_id?: number
           /** @description AAP job template name (requires organization_name) */
           job_template_name?: string
           /** @description AAP organization name (required with name-based lookup) */
           organization_name?: string
+          /** @description AAP organization ID (takes precedence over organization_name) */
+          organization_id?: number
           /** @description Override default inventory by ID */
           inventory_id?: number
           /** @description Override default inventory by name (requires organization_name) */
           inventory_name?: string
-          /** @description List of credential IDs to use */
-          credentials?: number[]
+          /** @description List of AAP credential IDs to pass to the job template (overrides template defaults) */
+          job_credentials?: number[]
+          /** @description List of AAP credential names to use (requires organization_name, resolved at launch time) */
+          credential_names?: string[]
           /** @description Extra variables to pass to the job (supports templating) */
           extra_vars?: {
             [key: string]: unknown
@@ -506,10 +521,45 @@ export interface components {
           diff_mode?: boolean
           /** @description Execution environment override (deferred — requires ID resolution) */
           execution_environment?: string
-          /** @description Instance groups override (deferred — requires ID resolution) */
-          instance_groups?: string
-          /** @description Labels (deferred — requires ID resolution) */
-          labels?: string
+          /** @description Override instance group by ID (takes precedence over instance_group_name) */
+          instance_group_id?: number
+          /** @description Override instance group by name (requires organization_name for lookup) */
+          instance_group_name?: string
+          /** @description AAP label names to append to job template's default labels (resolved to IDs at launch time) */
+          labels?: string[]
+        } & (unknown & unknown))
+      | unknown
+      | unknown
+    /** @description Workflow job template must be specified by ID or name. When both are provided, ID takes precedence. */
+    'aap_workflow_job_template.schema_configSchema':
+      | ({
+          credential_id?: components['schemas']['credential_id']
+          /** @description AAP workflow job template ID to launch (takes precedence over name) */
+          workflow_job_template_id?: number
+          /** @description AAP workflow job template name (requires organization_name) */
+          workflow_job_template_name?: string
+          /** @description AAP organization name (required with name-based lookup) */
+          organization_name?: string
+          /** @description AAP organization ID (takes precedence over organization_name) */
+          organization_id?: number
+          /** @description Override default inventory by ID */
+          inventory_id?: number
+          /** @description Override default inventory by name (requires organization_name) */
+          inventory_name?: string
+          /** @description Extra variables to pass to the workflow (supports templating) */
+          extra_vars?: {
+            [key: string]: unknown
+          }
+          /** @description Limit workflow execution to specific hosts */
+          limit?: string
+          /** @description Source control branch override */
+          scm_branch?: string
+          /** @description Ansible tags to run (comma-separated) */
+          tags?: string
+          /** @description Ansible tags to skip (comma-separated) */
+          skip_tags?: string
+          /** @description AAP label names to append to workflow template's default labels (resolved to IDs at launch time) */
+          labels?: string[]
         } & unknown)
       | unknown
       | unknown
@@ -535,6 +585,7 @@ export interface components {
       }
       /** @description Request body (supports templating). Can be object (serialized as JSON), string (sent as-is), array, or null. */
       body?: Record<string, never> | string | unknown[] | null
+      credential_id?: components['schemas']['credential_id']
       /** @description Authentication configuration */
       authentication?: {
         /**
@@ -560,6 +611,7 @@ export interface components {
        * @example gemini-pro
        */
       model?: string
+      credential_id?: components['schemas']['credential_id']
       /**
        * @description Strategy for tool selection: ALL (all enabled tools), NONE (no tools), or SELECTED (specific tools from tool_selections)
        * @default NONE
@@ -609,12 +661,14 @@ export interface components {
       language: 'python' | 'bash'
       /** @description Script code to execute */
       code: string
+      credential_id?: components['schemas']['credential_id']
       /** @description Environment variables to set during script execution */
       environment?: {
         [key: string]: string
       }
     }
     'approval.schema_configSchema': {
+      credential_id?: components['schemas']['credential_id']
       /**
        * @description Time limit in seconds for approver to respond. If the timeout expires, the decision is set to 'expired' and the workflow follows the rejection path. If not set, waits indefinitely until approved, rejected, or workflow is cancelled.
        * @example 604800
@@ -679,6 +733,11 @@ export interface components {
           /** @constant */
           type?: 'aap_job_template'
           config?: components['schemas']['aap_job_template.schema_configSchema']
+        })
+      | (components['schemas']['node_base'] & {
+          /** @constant */
+          type?: 'aap_workflow_job_template'
+          config?: components['schemas']['aap_workflow_job_template.schema_configSchema']
         })
       | (components['schemas']['node_base'] & {
           /** @constant */
@@ -792,6 +851,11 @@ export interface components {
               /** @constant */
               type?: 'aap_job_template'
               config?: components['schemas']['aap_job_template.schema_configSchema']
+            })
+          | (components['schemas']['node_base'] & {
+              /** @constant */
+              type?: 'aap_workflow_job_template'
+              config?: components['schemas']['aap_workflow_job_template.schema_configSchema']
             })
           | (components['schemas']['node_base'] & {
               /** @constant */

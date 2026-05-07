@@ -12,7 +12,7 @@ import {
 } from '@patternfly/react-core'
 
 import { AppPanel } from '../../components/AppPanel'
-import { RegistryNodeId } from '../../constants'
+import { AAP_NODE_IDS, RegistryNodeId } from '../../constants'
 import { renderNodeIcon } from '../workflows/canvas/nodes/renderNodeIcon'
 import { getAddNodePanelColor } from '../workflows/canvas/nodeTypeColors'
 
@@ -30,7 +30,9 @@ export function NodeTypeOptionsList(props: NodeTypeOptionsListProps) {
   return props.nodeTypes.map((nodeType) => {
     const { icon, id } = resolveIconForType({ nodeTypeId: nodeType.id })
     const accentColor = getAddNodePanelColor(nodeType.id)
-    const iconColor = nodeType.id === RegistryNodeId.AAP ? undefined : accentColor
+    // AAP nodes use gray icon (no color tint)
+    const isAAPNode = AAP_NODE_IDS.has(nodeType.id as (typeof RegistryNodeId)[keyof typeof RegistryNodeId])
+    const iconColor = isAAPNode ? undefined : accentColor
     const nodeIcon = renderNodeIcon(icon, id, 'list', iconColor)
 
     return (

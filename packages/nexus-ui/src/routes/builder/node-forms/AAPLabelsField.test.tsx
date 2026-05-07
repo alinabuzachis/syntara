@@ -4,11 +4,11 @@ import { FormProvider, useForm } from 'react-hook-form'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import type { AAPFormData } from './aapFormSchema'
+import type { AAPJobTemplateFormData } from './aapJobTemplateSchema'
 import { AAPLabelsField } from './AAPLabelsField'
 
-function TestWrapper({ children, defaultValues }: { children: React.ReactNode; defaultValues?: Partial<AAPFormData> }) {
-  const methods = useForm<AAPFormData>({
+function TestWrapper({ children, defaultValues }: { children: React.ReactNode; defaultValues?: Partial<AAPJobTemplateFormData> }) {
+  const methods = useForm<AAPJobTemplateFormData>({
     defaultValues: {
       name: '',
       organization_name: '',

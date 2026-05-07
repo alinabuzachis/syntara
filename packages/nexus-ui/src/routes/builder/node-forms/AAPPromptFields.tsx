@@ -19,12 +19,12 @@ import { Controller, useFormContext } from 'react-hook-form'
 import { ExpandableCodeEditor, type ExpandableCodeEditorHandle } from '../../../components/ExpandableCodeEditor'
 import { TagInput } from '../../../components/forms/TagInput'
 
-import type { AAPFormData } from './aapFormSchema'
+import type { AAPJobTemplateFormData } from './aapJobTemplateSchema'
 
 // ── Run Type Field ──────────────────────────────────────────────────────
 
 export function RunTypeField() {
-  const { control } = useFormContext<AAPFormData>()
+  const { control } = useFormContext<AAPJobTemplateFormData>()
 
   return (
     <StackItem>
@@ -53,7 +53,7 @@ export function RunTypeField() {
 // ── Verbosity Field ─────────────────────────────────────────────────────
 
 export function VerbosityField() {
-  const { control } = useFormContext<AAPFormData>()
+  const { control } = useFormContext<AAPJobTemplateFormData>()
 
   return (
     <StackItem>
@@ -86,7 +86,7 @@ export function VerbosityField() {
 // ── Diff Mode Field ─────────────────────────────────────────────────────
 
 export function DiffModeField() {
-  const { control } = useFormContext<AAPFormData>()
+  const { control } = useFormContext<AAPJobTemplateFormData>()
 
   return (
     <StackItem>
@@ -117,7 +117,7 @@ export function ExtraVariablesField({ editorRef }: ExtraVariablesFieldProps) {
   const {
     control,
     formState: { errors },
-  } = useFormContext<AAPFormData>()
+  } = useFormContext<AAPJobTemplateFormData>()
   const extraVarsMessage = errors.extra_vars?.message
 
   return (
@@ -160,11 +160,11 @@ export function ExtraVariablesField({ editorRef }: ExtraVariablesFieldProps) {
 export type TextInputFieldProps = {
   readonly label: string
   readonly fieldId: string
-  readonly name: keyof AAPFormData
+  readonly name: keyof AAPJobTemplateFormData
 }
 
 export function TextInputField({ label, fieldId, name }: TextInputFieldProps) {
-  const { register } = useFormContext<AAPFormData>()
+  const { register } = useFormContext<AAPJobTemplateFormData>()
 
   return (
     <StackItem>
@@ -180,13 +180,13 @@ export function TextInputField({ label, fieldId, name }: TextInputFieldProps) {
 export type NumberInputFieldProps = {
   readonly label: string
   readonly fieldId: string
-  readonly name: keyof AAPFormData
+  readonly name: keyof AAPJobTemplateFormData
   readonly placeholder: string
   readonly min: number
 }
 
 export function NumberInputField({ label, fieldId, name, placeholder, min }: NumberInputFieldProps) {
-  const { register } = useFormContext<AAPFormData>()
+  const { register } = useFormContext<AAPJobTemplateFormData>()
 
   return (
     <StackItem>
@@ -208,13 +208,13 @@ export function NumberInputField({ label, fieldId, name, placeholder, min }: Num
 export type TagInputFieldProps = {
   readonly label: string
   readonly fieldId: string
-  readonly name: keyof AAPFormData
+  readonly name: keyof AAPJobTemplateFormData
   readonly placeholder: string
   readonly helperText: string
 }
 
 export function TagInputField({ label, fieldId, name, placeholder, helperText }: TagInputFieldProps) {
-  const { control } = useFormContext<AAPFormData>()
+  const { control } = useFormContext<AAPJobTemplateFormData>()
 
   return (
     <StackItem>

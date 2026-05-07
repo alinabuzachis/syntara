@@ -20,8 +20,12 @@ export function getTaskIconDescriptor(taskData: TaskActivity): IconDescriptor {
   const executorMeta = executorMetadata[actualExecutor] ?? executorMetadata[taskData.type ?? '']
   let iconId: RegistryNodeIdUnion = RegistryNodeId.ACTION_SCRIPT
 
-  if (detectedExecutorType === DetectedExecutorType.AAP || actualExecutor === ExecutorTypeEnum.AAP_JOB_TEMPLATE) {
-    iconId = RegistryNodeId.AAP
+  if (
+    detectedExecutorType === DetectedExecutorType.AAP ||
+    actualExecutor === ExecutorTypeEnum.AAP_JOB_TEMPLATE ||
+    actualExecutor === ExecutorTypeEnum.AAP_WORKFLOW_JOB_TEMPLATE
+  ) {
+    iconId = RegistryNodeId.AAP_EXECUTION
   } else if (actualExecutor === ExecutorTypeEnum.APPROVAL) {
     iconId = RegistryNodeId.APPROVAL
   } else if (actualExecutor === ExecutorTypeEnum.AGENTIC) {

@@ -4,7 +4,7 @@ import { FormProvider, useForm } from 'react-hook-form'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import type { AAPFormData } from './aapFormSchema'
+import type { AAPJobTemplateFormData } from './aapJobTemplateSchema'
 import { ExpressionTextField } from './ExpressionTextField'
 
 // Test wrapper that provides react-hook-form context
@@ -13,9 +13,9 @@ function TestWrapper({
   defaultValues = {},
 }: {
   children: React.ReactNode
-  defaultValues?: Partial<AAPFormData>
+  defaultValues?: Partial<AAPJobTemplateFormData>
 }) {
-  const methods = useForm<AAPFormData>({
+  const methods = useForm<AAPJobTemplateFormData>({
     defaultValues: {
       name: '',
       organization_name: '',
@@ -335,7 +335,7 @@ describe('ExpressionTextField', () => {
       const handleSubmit = vi.fn()
 
       function FormWithSubmit() {
-        const methods = useForm<AAPFormData>({
+        const methods = useForm<AAPJobTemplateFormData>({
           defaultValues: {
             name: '',
             organization_name: '',
@@ -372,6 +372,66 @@ describe('ExpressionTextField', () => {
         }),
         expect.anything()
       )
+    })
+  })
+
+  describe('Drag and Drop', () => {
+    it('wraps input in DroppableField component', () => {
+      const { container } = render(
+        <TestWrapper>
+          <ExpressionTextField
+            name="organization_name"
+            id="test-field"
+            label="Organization"
+            placeholder="Enter organization name"
+          />
+        </TestWrapper>
+      )
+
+      // The DroppableField wrapper should exist (contains the input)
+      const input = screen.getByLabelText('Organization')
+      expect(input).toBeInTheDocument()
+      expect(input).toHaveAttribute('type', 'text')
+
+      // FormGroup structure should be present
+      // eslint-disable-next-line testing-library/no-container, testing-library/no-node-access -- PatternFly internal structure verification
+      expect(container.querySelector('.pf-v6-c-form__group')).toBeInTheDocument()
+    })
+
+    it('renders helper text about drag and drop support', () => {
+      render(
+        <TestWrapper>
+          <ExpressionTextField
+            name="organization_name"
+            id="test-field"
+            label="Organization"
+            placeholder="Enter organization name"
+          />
+        </TestWrapper>
+      )
+
+      // Helper text should indicate drag and drop is supported
+      expect(screen.getByText('Enter a value or drag an expression from the Input panel')).toBeInTheDocument()
+    })
+
+    it('accepts manual text input for expressions', async () => {
+      const user = userEvent.setup()
+      render(
+        <TestWrapper>
+          <ExpressionTextField
+            name="organization_name"
+            id="test-field"
+            label="Organization"
+            placeholder="Enter organization name"
+          />
+        </TestWrapper>
+      )
+
+      const input = screen.getByLabelText('Organization')
+      await user.click(input)
+      await user.paste('${outputs.step1.organization}')
+
+      expect(input).toHaveValue('${outputs.step1.organization}')
     })
   })
 })

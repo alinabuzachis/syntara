@@ -142,9 +142,11 @@ function activityInputToState(activity: ActivityInput): ActivityState {
   if (!activityId) {
     throw new Error('Activity must have activity_id (ActivityData) or activity_name/id (ActivityExecution)')
   }
+  // Backend validates status is one of the enum values; use 'pending' as default
+  const status = activity.status ?? 'pending'
   return {
     activityId,
-    status: activity.status ?? 'pending',
+    status,
     errorDetails: activity.error_details,
     outputData: (activity as { output_data?: Record<string, unknown> | null }).output_data,
     startedAt: activity.started_at,

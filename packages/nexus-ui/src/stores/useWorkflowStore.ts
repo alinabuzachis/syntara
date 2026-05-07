@@ -644,6 +644,7 @@ export {
   createLoopActivity,
   createConvergeActivity,
   createAAPJobTemplateActivity,
+  createAAPWorkflowTemplateActivity,
   createGenericActivity,
   createApprovalActivity,
 } from './workflowFactories'

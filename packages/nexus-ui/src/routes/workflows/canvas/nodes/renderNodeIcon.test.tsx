@@ -33,7 +33,7 @@ describe('renderNodeIcon', () => {
   })
 
   it('renders custom icon with styling for aap node', () => {
-    const view = buildNodeIconView(MockStyledIcon, RegistryNodeId.AAP)
+    const view = buildNodeIconView(MockStyledIcon, RegistryNodeId.AAP_EXECUTION)
     render(<>{view}</>)
 
     const icon = screen.getByTestId('styled-icon')
@@ -122,7 +122,7 @@ describe('renderNodeIcon', () => {
   })
 
   it('applies different custom icon offset for header variant', () => {
-    const view = buildNodeIconView(MockStyledIcon, RegistryNodeId.AAP, 'header')
+    const view = buildNodeIconView(MockStyledIcon, RegistryNodeId.AAP_EXECUTION, 'header')
     render(<>{view}</>)
 
     const icon = screen.getByTestId('styled-icon')
@@ -131,7 +131,7 @@ describe('renderNodeIcon', () => {
   })
 
   it('applies zero offset for canvas variant custom icon', () => {
-    const view = buildNodeIconView(MockStyledIcon, RegistryNodeId.AAP, 'canvas')
+    const view = buildNodeIconView(MockStyledIcon, RegistryNodeId.AAP_EXECUTION, 'canvas')
     render(<>{view}</>)
 
     const icon = screen.getByTestId('styled-icon')
@@ -140,7 +140,7 @@ describe('renderNodeIcon', () => {
   })
 
   it('applies correct scale for list variant custom icon', () => {
-    const view = buildNodeIconView(MockStyledIcon, RegistryNodeId.AAP, 'list')
+    const view = buildNodeIconView(MockStyledIcon, RegistryNodeId.AAP_EXECUTION, 'list')
     render(<>{view}</>)
 
     const icon = screen.getByTestId('styled-icon')
@@ -149,7 +149,7 @@ describe('renderNodeIcon', () => {
   })
 
   it('applies legend scale for custom icon', () => {
-    const view = buildNodeIconView(MockStyledIcon, RegistryNodeId.AAP, 'legend')
+    const view = buildNodeIconView(MockStyledIcon, RegistryNodeId.AAP_EXECUTION, 'legend')
     render(<>{view}</>)
 
     const icon = screen.getByTestId('styled-icon')

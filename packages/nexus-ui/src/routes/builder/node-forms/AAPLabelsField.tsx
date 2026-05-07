@@ -20,7 +20,7 @@ import { Controller, useFormContext } from 'react-hook-form'
 import { DEBOUNCE_MS } from '../../../constants/timing'
 import type { AAPLabel } from '../../../hooks/useAAPBrowser'
 
-import type { AAPFormData } from './aapFormSchema'
+import type { AAPJobTemplateFormData } from './aapJobTemplateSchema'
 
 type AAPLabelsFieldProps = {
   readonly label: string
@@ -121,7 +121,7 @@ export function AAPLabelsField({
   placeholderText,
   onSearchChange,
 }: AAPLabelsFieldProps) {
-  const { control } = useFormContext<AAPFormData>()
+  const { control } = useFormContext<AAPJobTemplateFormData>()
   const [isOpen, setIsOpen] = useState(false)
   const [filterValue, setFilterValue] = useState('')
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined)

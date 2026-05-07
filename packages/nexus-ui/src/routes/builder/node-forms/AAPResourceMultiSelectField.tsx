@@ -20,7 +20,7 @@ import { Controller, useFormContext } from 'react-hook-form'
 
 import { DEBOUNCE_MS } from '../../../constants/timing'
 
-import type { AAPFormData } from './aapFormSchema'
+import type { AAPJobTemplateFormData } from './aapJobTemplateSchema'
 
 type AAPResourceItem = {
   readonly id: number
@@ -210,7 +210,7 @@ function MultiSelectContent({
 
 function useMultiSelectHandlers(
   nameField: 'job_credentials' | 'labels',
-  setValue: ReturnType<typeof useFormContext<AAPFormData>>['setValue'],
+  setValue: ReturnType<typeof useFormContext<AAPJobTemplateFormData>>['setValue'],
   setIsOpen: React.Dispatch<React.SetStateAction<boolean>>,
   setFilterValue: React.Dispatch<React.SetStateAction<string>>
 ) {
@@ -254,7 +254,7 @@ export function AAPResourceMultiSelectField({
   defaultValues,
   onSearchChange,
 }: AAPResourceMultiSelectFieldProps) {
-  const { control, setValue } = useFormContext<AAPFormData>()
+  const { control, setValue } = useFormContext<AAPJobTemplateFormData>()
   const [isOpen, setIsOpen] = useState(false)
   const [filterValue, setFilterValue] = useState('')
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined)

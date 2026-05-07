@@ -1,10 +1,19 @@
 import { describe, expect, it } from 'vitest'
 
-import type { AAPFormData } from '../node-forms/AAPNodeForm'
+import type { AAPJobTemplateFormData } from '../node-forms/aapJobTemplateSchema'
+import type { AAPWorkflowTemplateFormData } from '../node-forms/aapWorkflowTemplateSchema'
 
-import { buildAAPConfig, buildExpressionModeActivity, validateJobTemplateId } from './aapHelpers'
+import {
+  buildAAPConfig,
+  buildAAPWorkflowTemplateConfig,
+  buildExpressionModeActivity,
+  buildWorkflowExpressionModeActivity,
+  hasExpressionValue,
+  validateJobTemplateId,
+  validateWorkflowTemplateId,
+} from './aapHelpers'
 
-function makeFormData(overrides: Partial<AAPFormData> = {}): AAPFormData {
+function makeFormData(overrides: Partial<AAPJobTemplateFormData> = {}): AAPJobTemplateFormData {
   return {
     name: 'Test step',
     organization_name: '',
@@ -210,5 +219,165 @@ describe('buildExpressionModeActivity', () => {
     expect(activity.config.job_template_name).toBe('${trigger.template}')
     expect(activity.config.organization_name).toBe('${trigger.org}')
     expect(activity.config).not.toHaveProperty('job_template_id')
+  })
+})
+
+describe('hasExpressionValue', () => {
+  it('returns true when any value contains ${', () => {
+    expect(hasExpressionValue('${trigger.value}')).toBe(true)
+    expect(hasExpressionValue('normal', '${expr}')).toBe(true)
+    expect(hasExpressionValue(undefined, '${expr}', 'test')).toBe(true)
+  })
+
+  it('returns false when no values contain ${', () => {
+    expect(hasExpressionValue('normal', 'text')).toBe(false)
+    expect(hasExpressionValue(undefined, undefined)).toBe(false)
+    expect(hasExpressionValue()).toBe(false)
+  })
+
+  it('handles undefined values', () => {
+    expect(hasExpressionValue(undefined, 'text', undefined)).toBe(false)
+  })
+})
+
+describe('validateWorkflowTemplateId', () => {
+  it('returns valid positive integer', () => {
+    expect(validateWorkflowTemplateId(456)).toBe(456)
+  })
+
+  it('throws on undefined', () => {
+    expect(() => validateWorkflowTemplateId(undefined)).toThrow('Workflow Template ID must be a valid positive integer')
+  })
+
+  it('throws on zero', () => {
+    expect(() => validateWorkflowTemplateId(0)).toThrow('Workflow Template ID must be a valid positive integer')
+  })
+
+  it('throws on negative number', () => {
+    expect(() => validateWorkflowTemplateId(-5)).toThrow('Workflow Template ID must be a valid positive integer')
+  })
+
+  it('throws on non-integer (float)', () => {
+    expect(() => validateWorkflowTemplateId(2.7)).toThrow('Workflow Template ID must be a valid positive integer')
+  })
+})
+
+function makeWorkflowFormData(overrides: Partial<AAPWorkflowTemplateFormData> = {}): AAPWorkflowTemplateFormData {
+  return {
+    name: 'Test workflow step',
+    organization_name: '',
+    workflow_job_template_name: '',
+    workflow_job_template_id: undefined,
+    ...overrides,
+  }
+}
+
+describe('buildAAPWorkflowTemplateConfig', () => {
+  it('returns undefined when no fields are set', () => {
+    const result = buildAAPWorkflowTemplateConfig(makeWorkflowFormData())
+    expect(result).toBeUndefined()
+  })
+
+  it('includes organization and workflowJobTemplateName when set', () => {
+    const result = buildAAPWorkflowTemplateConfig(
+      makeWorkflowFormData({ organization_name: 'Default', workflow_job_template_name: 'Deploy Workflow' })
+    )
+    expect(result).toEqual(
+      expect.objectContaining({ organization_name: 'Default', workflow_job_template_name: 'Deploy Workflow' })
+    )
+  })
+
+  it('includes inventoryId and inventoryName when set', () => {
+    const result = buildAAPWorkflowTemplateConfig(makeWorkflowFormData({ inventory_id: 10, inventory_name: 'Staging' }))
+    expect(result?.inventory_id).toBe(10)
+    expect(result?.inventory_name).toBe('Staging')
+  })
+
+  it('includes credentialId when set', () => {
+    const result = buildAAPWorkflowTemplateConfig(makeWorkflowFormData({ credential_id: 'cred-xyz' }))
+    expect(result?.credential_id).toBe('cred-xyz')
+  })
+
+  it('includes labels array when set', () => {
+    const result = buildAAPWorkflowTemplateConfig(makeWorkflowFormData({ labels: ['production', 'deploy'] }))
+    expect(result?.labels).toEqual(['production', 'deploy'])
+  })
+
+  it('excludes empty labels array', () => {
+    const result = buildAAPWorkflowTemplateConfig(makeWorkflowFormData({ labels: [], organization_name: 'Default' }))
+    expect(result?.labels).toBeUndefined()
+  })
+
+  it('parses valid JSON extra vars', () => {
+    const result = buildAAPWorkflowTemplateConfig(makeWorkflowFormData({ extra_vars: '{"env": "prod"}' }))
+    expect(result?.extra_vars).toEqual({ env: 'prod' })
+  })
+
+  it('ignores invalid JSON extra vars', () => {
+    const result = buildAAPWorkflowTemplateConfig(makeWorkflowFormData({ extra_vars: 'invalid json' }))
+    expect(result?.extra_vars).toBeUndefined()
+  })
+
+  it('includes workflow-specific string fields (limit, scm_branch, tags, skip_tags)', () => {
+    const result = buildAAPWorkflowTemplateConfig(
+      makeWorkflowFormData({
+        limit: 'webservers',
+        scm_branch: 'main',
+        tags: 'deploy,config',
+        skip_tags: 'slow',
+      })
+    )
+    expect(result).toEqual(
+      expect.objectContaining({
+        limit: 'webservers',
+        scm_branch: 'main',
+        tags: 'deploy,config',
+        skip_tags: 'slow',
+      })
+    )
+  })
+
+  it('handles organizationId of 0 (falsy but defined)', () => {
+    const result = buildAAPWorkflowTemplateConfig(makeWorkflowFormData({ organization_id: 0 }))
+    expect(result?.organization_id).toBe(0)
+  })
+
+  it('handles inventoryId of 0 (falsy but defined)', () => {
+    const result = buildAAPWorkflowTemplateConfig(
+      makeWorkflowFormData({ inventory_id: 0, organization_name: 'Default' })
+    )
+    expect(result?.inventory_id).toBe(0)
+  })
+})
+
+describe('buildWorkflowExpressionModeActivity', () => {
+  it('creates workflow activity in expression mode with template name', () => {
+    const data = makeWorkflowFormData({
+      organization_name: '${trigger.org}',
+      workflow_job_template_name: '${trigger.workflow}',
+      credential_id: 'cred-123',
+    })
+
+    const activity = buildWorkflowExpressionModeActivity('node-2', 'AAP Workflow', data)
+
+    expect(activity.config.workflow_job_template_name).toBe('${trigger.workflow}')
+    expect(activity.config.organization_name).toBe('${trigger.org}')
+    expect(activity.config.credential_id).toBe('cred-123')
+    expect(activity.config).not.toHaveProperty('workflow_job_template_id')
+  })
+
+  it('preserves workflow-specific fields in expression mode', () => {
+    const data = makeWorkflowFormData({
+      organization_name: '${vars.org}',
+      workflow_job_template_name: '${vars.template}',
+      scm_branch: '${vars.branch}',
+      labels: ['auto-deploy'],
+    })
+
+    const activity = buildWorkflowExpressionModeActivity('node-3', 'Deploy', data)
+
+    // Activity config uses snake_case API field names
+    expect(activity.config.scm_branch).toBe('${vars.branch}')
+    expect(activity.config.labels).toEqual(['auto-deploy'])
   })
 })

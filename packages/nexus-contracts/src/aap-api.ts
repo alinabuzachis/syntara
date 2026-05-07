@@ -24,7 +24,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/aap/job-templates': {
+  '/aap/job_templates': {
     parameters: {
       query?: never
       header?: never
@@ -44,7 +44,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/aap/job-templates/{job_template_id}': {
+  '/aap/job_templates/{job_template_id}': {
     parameters: {
       query?: never
       header?: never
@@ -56,6 +56,46 @@ export interface paths {
      * @description Get AAP job template details including prompt-on-launch capabilities.
      */
     get: operations['get_aap_job_template']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/aap/workflow_job_templates': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List Workflow Job Templates
+     * @description List AAP workflow job templates, optionally filtered by organization.
+     */
+    get: operations['list_aap_workflow_job_templates']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/aap/workflow_job_templates/{workflow_job_template_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get Workflow Job Template
+     * @description Get AAP workflow job template details including prompt-on-launch capabilities.
+     */
+    get: operations['get_aap_workflow_job_template']
     put?: never
     post?: never
     delete?: never
@@ -84,7 +124,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/aap/execution-environments': {
+  '/aap/execution_environments': {
     parameters: {
       query?: never
       header?: never
@@ -124,7 +164,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/aap/instance-groups': {
+  '/aap/instance_groups': {
     parameters: {
       query?: never
       header?: never
@@ -183,6 +223,18 @@ export interface components {
      * @description AAP job template resource.
      */
     AAPJobTemplate: {
+      /** Id */
+      id: number
+      /** Name */
+      name: string
+      /** Description */
+      description?: string | null
+    }
+    /**
+     * AAPWorkflowJobTemplate
+     * @description AAP workflow job template resource.
+     */
+    AAPWorkflowJobTemplate: {
       /** Id */
       id: number
       /** Name */
@@ -376,6 +428,103 @@ export interface components {
       extra_vars?: string | null
     }
     /**
+     * AAPWorkflowJobTemplateDetail
+     * @description AAP workflow job template with prompt-on-launch capabilities and default values.
+     */
+    AAPWorkflowJobTemplateDetail: {
+      /** Id */
+      id: number
+      /** Name */
+      name: string
+      /** Description */
+      description?: string | null
+      /**
+       * Url
+       * @description Link to the workflow template in AAP Controller UI
+       */
+      url?: string | null
+      /**
+       * Ask Inventory On Launch
+       * @default false
+       */
+      ask_inventory_on_launch?: boolean
+      /**
+       * Ask Credential On Launch
+       * @default false
+       */
+      ask_credential_on_launch?: boolean
+      /**
+       * Ask Variables On Launch
+       * @default false
+       */
+      ask_variables_on_launch?: boolean
+      /**
+       * Ask Limit On Launch
+       * @default false
+       */
+      ask_limit_on_launch?: boolean
+      /**
+       * Ask Scm Branch On Launch
+       * @default false
+       */
+      ask_scm_branch_on_launch?: boolean
+      /**
+       * Ask Labels On Launch
+       * @default false
+       */
+      ask_labels_on_launch?: boolean
+      /**
+       * Ask Tags On Launch
+       * @default false
+       */
+      ask_tags_on_launch?: boolean
+      /**
+       * Ask Skip Tags On Launch
+       * @default false
+       */
+      ask_skip_tags_on_launch?: boolean
+      /**
+       * Survey Enabled
+       * @default false
+       */
+      survey_enabled?: boolean
+      /**
+       * Default Inventory
+       * @description Default inventory from workflow template summary_fields
+       */
+      default_inventory?: components['schemas']['AAPSummaryField'] | null
+      /**
+       * Default Labels
+       * @description Default labels from workflow template summary_fields
+       */
+      default_labels?: components['schemas']['AAPSummaryField'][]
+      /**
+       * Limit
+       * @description Default limit pattern
+       */
+      limit?: string | null
+      /**
+       * Scm Branch
+       * @description Default SCM branch
+       */
+      scm_branch?: string | null
+      /**
+       * Job Tags
+       * @description Default job tags
+       */
+      job_tags?: string | null
+      /**
+       * Skip Tags
+       * @description Default skip tags
+       */
+      skip_tags?: string | null
+      /**
+       * Extra Vars
+       * @description Default extra variables (YAML format, max 1MB)
+       */
+      extra_vars?: string | null
+    }
+    /**
      * AAPInventory
      * @description AAP inventory resource.
      */
@@ -447,6 +596,13 @@ export interface components {
       count: number
       /** Results */
       results: components['schemas']['AAPJobTemplate'][]
+    }
+    /** AAPListResponse[AAPWorkflowJobTemplate] */
+    AAPListResponse_AAPWorkflowJobTemplate_: {
+      /** Count */
+      count: number
+      /** Results */
+      results: components['schemas']['AAPWorkflowJobTemplate'][]
     }
     /** AAPListResponse[AAPInventory] */
     AAPListResponse_AAPInventory_: {
@@ -787,6 +943,81 @@ export interface operations {
         }
         content: {
           'application/json': components['schemas']['AAPJobTemplateDetail']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  list_aap_workflow_job_templates: {
+    parameters: {
+      query?: {
+        search?: string | null
+        page_size?: number
+        /**
+         * @description Optional Nexus credential ID for AAP Controller authentication.
+         *     If provided, the credential is decrypted and used instead of environment variables.
+         *     Credential must be of type "Ansible Automation Platform".
+         */
+        credential_id?: string | null
+        organization?: string | null
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['AAPListResponse_AAPWorkflowJobTemplate_']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  get_aap_workflow_job_template: {
+    parameters: {
+      query?: {
+        search?: string | null
+        page_size?: number
+        /**
+         * @description Optional Nexus credential ID for AAP Controller authentication.
+         *     If provided, the credential is decrypted and used instead of environment variables.
+         *     Credential must be of type "Ansible Automation Platform".
+         */
+        credential_id?: string | null
+      }
+      header?: never
+      path: {
+        workflow_job_template_id: number
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['AAPWorkflowJobTemplateDetail']
         }
       }
       400: components['responses']['BadRequestError']

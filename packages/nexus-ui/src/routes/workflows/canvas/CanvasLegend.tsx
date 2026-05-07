@@ -23,7 +23,7 @@ import { type ComponentType, type CSSProperties } from 'react'
 
 import AnsibleIcon from '../../../assets/ansible-automation-platform.svg?react'
 import { AppPanel } from '../../../components/AppPanel'
-import { RegistryNodeId } from '../../../constants'
+import { AAP_NODE_IDS, RegistryNodeId } from '../../../constants'
 
 import { APPROVAL_BRANCH_TOKENS } from './nodes/common/approvalBranchTokens'
 import { renderNodeIcon } from './nodes/renderNodeIcon'
@@ -55,7 +55,7 @@ const LEGEND_GLYPH_COLUMN_STYLE: CSSProperties = {
 }
 
 function legendIconColor(registryNodeId: string): string | undefined {
-  if (registryNodeId === RegistryNodeId.AAP) {
+  if (AAP_NODE_IDS.has(registryNodeId as (typeof RegistryNodeId)[keyof typeof RegistryNodeId])) {
     return undefined
   }
   return getAddNodePanelColor(registryNodeId)
@@ -79,7 +79,7 @@ const LEGEND_ROWS: ReadonlyArray<{
   {
     label: 'AAP execution',
     icon: AnsibleIcon as ComponentType<{ className?: string }>,
-    registryId: RegistryNodeId.AAP,
+    registryId: RegistryNodeId.AAP_EXECUTION,
   },
   {
     label: 'Logic',

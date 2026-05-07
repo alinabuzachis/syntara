@@ -133,9 +133,9 @@ vi.mock('../node-forms/ActionNodeForm', () => ({
   ),
 }))
 
-// Mock AAPNodeForm
-vi.mock('../node-forms/AAPNodeForm', () => ({
-  AAPNodeForm: ({
+// Mock AAPJobTemplateForm
+vi.mock('../node-forms/AAPJobTemplateForm', () => ({
+  AAPJobTemplateForm: ({
     onSubmit,
     onCancel,
     submitButtonText,
@@ -164,6 +164,39 @@ vi.mock('../node-forms/AAPNodeForm', () => ({
         {submitButtonText ?? 'Add step'}
       </button>
       <button onClick={onCancel} data-testid="aap-cancel-button">
+        Cancel
+      </button>
+    </div>
+  ),
+}))
+
+// Mock AAPWorkflowTemplateForm
+vi.mock('../node-forms/AAPWorkflowTemplateForm', () => ({
+  AAPWorkflowTemplateForm: ({
+    onSubmit,
+    onCancel,
+    submitButtonText,
+  }: {
+    onSubmit: (data: Record<string, unknown>) => void
+    onCancel: () => void
+    submitButtonText?: string
+    onHeaderContentChange: (content: ReactNode | null) => void
+  }) => (
+    <div data-testid="aap-workflow-template-form">
+      <button
+        onClick={() =>
+          onSubmit({
+            name: 'Updated Workflow Task',
+            workflow_job_template_id: 789,
+            inventory_name: 'Workflow Inventory',
+            extra_vars: '{"workflow": "data"}',
+          })
+        }
+        data-testid="workflow-submit-button"
+      >
+        {submitButtonText ?? 'Add step'}
+      </button>
+      <button onClick={onCancel} data-testid="workflow-cancel-button">
         Cancel
       </button>
     </div>
@@ -606,5 +639,88 @@ describe('TaskNodeDetails Component', () => {
 
     // updateActivity should NOT be called when headers are invalid
     expect(mockUpdateActivity).not.toHaveBeenCalled()
+  })
+
+  it('renders AAPWorkflowTemplateForm for aap_workflow_job_template task', () => {
+    const taskData = {
+      type: 'aap_workflow_job_template' as const,
+      id: 'task-workflow',
+      name: 'Workflow Task',
+      config: {
+        workflow_job_template_id: 123,
+        inventory_id: 456,
+        extra_vars: { env: 'production' },
+      },
+    }
+
+    renderTaskNodeDetails(taskData, 'task-workflow')
+
+    expect(screen.getByTestId('aap-workflow-template-form')).toBeInTheDocument()
+  })
+
+  it('renders AAPWorkflowTemplateForm for expression mode workflow config', () => {
+    const taskData = {
+      type: 'aap_workflow_job_template' as const,
+      id: 'task-workflow-expr',
+      name: 'Expression Workflow Task',
+      config: {
+        workflow_job_template_name: '${trigger.workflow}',
+        organization_name: '${trigger.org}',
+        credential_id: 'cred-xyz',
+      },
+    }
+
+    renderTaskNodeDetails(taskData, 'task-workflow-expr')
+
+    expect(screen.getByTestId('aap-workflow-template-form')).toBeInTheDocument()
+  })
+
+  it('handles undefined config gracefully', () => {
+    const taskData = {
+      type: 'script' as const,
+      id: 'task-no-config',
+      name: 'Task without config',
+      // config is undefined
+    } as TaskActivity
+
+    renderTaskNodeDetails(taskData, 'task-no-config')
+
+    expect(screen.getByTestId('action-node-form')).toBeInTheDocument()
+  })
+
+  it('handles script task with credential_id in snake_case', () => {
+    const taskData = {
+      type: 'script' as const,
+      id: 'task-script-cred',
+      name: 'Script with Credential',
+      config: {
+        language: 'python' as const,
+        code: 'print("test")',
+        credential_id: 'cred-456',
+      },
+    }
+
+    renderTaskNodeDetails(taskData, 'task-script-cred')
+
+    expect(screen.getByTestId('action-node-form')).toBeInTheDocument()
+  })
+
+  it('handles AAP task with camelCase legacy fields', () => {
+    const taskData = {
+      type: 'aap_job_template' as const,
+      id: 'task-aap-legacy',
+      name: 'Legacy AAP Task',
+      config: {
+        jobTemplateId: 999,
+        organizationId: 111,
+        organization: 'Legacy Org',
+        inventoryName: 'Legacy Inventory',
+        extraVars: { legacy: true },
+      },
+    }
+
+    renderTaskNodeDetails(taskData, 'task-aap-legacy')
+
+    expect(screen.getByTestId('aap-node-form')).toBeInTheDocument()
   })
 })

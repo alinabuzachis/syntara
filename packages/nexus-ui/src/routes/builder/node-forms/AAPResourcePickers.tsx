@@ -1,13 +1,13 @@
-import { Alert, Button, FormGroup, FormHelperText, HelperText, HelperTextItem, StackItem } from '@patternfly/react-core'
+import { FormGroup, FormHelperText, HelperText, HelperTextItem, StackItem } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
 import { Controller, useFormContext } from 'react-hook-form'
 
 import type { useAAPBrowser } from '../../../hooks/useAAPBrowser'
-import { getErrorMessage, isRetryableError } from '../../../utils/apiErrors'
 import { isValidAAPTemplateURL } from '../../../utils/urlValidation'
 
-import type { AAPFormData } from './aapFormSchema'
+import type { AAPJobTemplateFormData } from './aapJobTemplateSchema'
 import { AAPTypeaheadSelect } from './AAPTypeaheadSelect'
+import { AAPErrorAlert } from './shared/AAPErrorAlert'
 
 type AAPResourcePickersProps = {
   readonly browser: ReturnType<typeof useAAPBrowser>
@@ -20,7 +20,7 @@ export function AAPResourcePickers({ browser }: AAPResourcePickersProps) {
     reset,
     getValues,
     formState: { errors },
-  } = useFormContext<AAPFormData>()
+  } = useFormContext<AAPJobTemplateFormData>()
 
   const {
     organizations,
@@ -168,24 +168,7 @@ export function AAPResourcePickers({ browser }: AAPResourcePickersProps) {
         </FormGroup>
       </StackItem>
 
-      {browserError && (
-        <StackItem>
-          <Alert
-            variant="danger"
-            title="Failed to load AAP resources"
-            isInline
-            actionLinks={
-              isRetryableError(browserError) ? (
-                <Button variant="link" onClick={retryAll}>
-                  Retry
-                </Button>
-              ) : undefined
-            }
-          >
-            {getErrorMessage(browserError)}
-          </Alert>
-        </StackItem>
-      )}
+      <AAPErrorAlert error={browserError} onRetry={retryAll} />
     </>
   )
 }

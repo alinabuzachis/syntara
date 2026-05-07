@@ -3,11 +3,11 @@ import userEvent from '@testing-library/user-event'
 import { FormProvider, useForm } from 'react-hook-form'
 import { describe, expect, it, vi } from 'vitest'
 
-import type { AAPFormData } from './aapFormSchema'
+import type { AAPJobTemplateFormData } from './aapJobTemplateSchema'
 import { AAPResourceMultiSelectField } from './AAPResourceMultiSelectField'
 
-function TestWrapper({ children, defaultValues }: { children: React.ReactNode; defaultValues?: Partial<AAPFormData> }) {
-  const methods = useForm<AAPFormData>({
+function TestWrapper({ children, defaultValues }: { children: React.ReactNode; defaultValues?: Partial<AAPJobTemplateFormData> }) {
+  const methods = useForm<AAPJobTemplateFormData>({
     defaultValues: {
       job_credentials: [],
       ...defaultValues,

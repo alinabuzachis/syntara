@@ -1,7 +1,7 @@
 import { FormGroup, FormHelperText, HelperText, HelperTextItem, StackItem } from '@patternfly/react-core'
 import { Controller, useFormContext } from 'react-hook-form'
 
-import type { AAPFormData } from './aapFormSchema'
+import type { AAPJobTemplateFormData } from './aapJobTemplateSchema'
 import { AAPTypeaheadSelect } from './AAPTypeaheadSelect'
 
 type AAPResourceItem = {
@@ -12,8 +12,8 @@ type AAPResourceItem = {
 type AAPResourceSelectFieldProps = {
   readonly label: string
   readonly fieldId: string
-  readonly nameField: keyof AAPFormData
-  readonly idField: keyof AAPFormData
+  readonly nameField: keyof AAPJobTemplateFormData
+  readonly idField: keyof AAPJobTemplateFormData
   readonly items: readonly AAPResourceItem[]
   readonly isLoading: boolean
   readonly helperText: string
@@ -32,7 +32,7 @@ export function AAPResourceSelectField({
   placeholderText,
   onSearchChange,
 }: AAPResourceSelectFieldProps) {
-  const { control, setValue } = useFormContext<AAPFormData>()
+  const { control, setValue } = useFormContext<AAPJobTemplateFormData>()
   const options = items.map((item) => ({ value: String(item.id), label: item.name }))
 
   return (

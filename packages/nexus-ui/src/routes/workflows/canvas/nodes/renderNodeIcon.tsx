@@ -2,7 +2,7 @@ import { Icon } from '@patternfly/react-core'
 import type { IconSize } from '@patternfly/react-core'
 import type { ComponentType, CSSProperties, ReactNode } from 'react'
 
-import { RegistryNodeId } from '../../../../constants'
+import { AAP_NODE_IDS, RegistryNodeId } from '../../../../constants'
 
 export type NodeIconVariant = 'canvas' | 'list' | 'header' | 'legend'
 
@@ -15,7 +15,8 @@ export function renderNodeIcon(
 ): ReactNode | undefined {
   if (!IconComponent) return undefined
 
-  const isCustomIcon = nodeId === RegistryNodeId.AAP
+  // AAP nodes use custom SVG icon (Ansible logo)
+  const isCustomIcon = AAP_NODE_IDS.has(nodeId as (typeof RegistryNodeId)[keyof typeof RegistryNodeId])
   const shouldRotateIcon = nodeId === RegistryNodeId.LOGIC_CONDITION || nodeId === RegistryNodeId.LOGIC_CONVERGE
   const variantConfig: Record<
     NodeIconVariant,

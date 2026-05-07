@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import type { useAAPBrowser } from '../../../hooks/useAAPBrowser'
 
-import type { AAPFormData } from './aapFormSchema'
+import type { AAPJobTemplateFormData } from './aapJobTemplateSchema'
 import { AAPResourcePickers } from './AAPResourcePickers'
 
 // Mock dependencies
@@ -50,8 +50,14 @@ vi.mock('./AAPTypeaheadSelect', () => ({
   ),
 }))
 
-function TestWrapper({ children, defaultValues }: { children: React.ReactNode; defaultValues?: Partial<AAPFormData> }) {
-  const methods = useForm<AAPFormData>({
+function TestWrapper({
+  children,
+  defaultValues,
+}: {
+  children: React.ReactNode
+  defaultValues?: Partial<AAPJobTemplateFormData>
+}) {
+  const methods = useForm<AAPJobTemplateFormData>({
     defaultValues,
   })
   return <FormProvider {...methods}>{children}</FormProvider>
@@ -75,7 +81,7 @@ function createMockBrowser(overrides?: Partial<ReturnType<typeof useAAPBrowser>>
     loadingTemplates: false,
     error: null,
     retryAll: vi.fn(),
-    templateDetail: null,
+    templateDetail: undefined,
     ...overrides,
   } as ReturnType<typeof useAAPBrowser>
 }
@@ -236,5 +242,114 @@ describe('AAPResourcePickers', () => {
     // Both templates should be rendered
     expect(screen.getByText('Template 1')).toBeInTheDocument()
     expect(screen.getByText('Template 2')).toBeInTheDocument()
+  })
+
+  it('clears job template and prompt overrides when organization changes', async () => {
+    const user = userEvent.setup()
+    const selectOrganization = vi.fn()
+    const browser = createMockBrowser({ selectOrganization })
+
+    render(
+      <TestWrapper
+        defaultValues={{
+          organization_name: 'Org 1',
+          job_template_name: 'Template 1',
+          job_template_id: 1,
+          inventory_name: 'Test Inventory',
+        }}
+      >
+        <AAPResourcePickers browser={browser} />
+      </TestWrapper>
+    )
+
+    // Change organization - triggers clearPromptOverrides
+    const orgButton = screen.getByRole('button', { name: 'Org 2' })
+    await user.click(orgButton)
+
+    // Verify selectOrganization was called
+    expect(selectOrganization).toHaveBeenCalledWith('Org 2')
+  })
+
+  it('clears all prompt overrides when job template changes', async () => {
+    const user = userEvent.setup()
+    const selectJobTemplate = vi.fn()
+    const browser = createMockBrowser({ selectJobTemplate })
+
+    render(
+      <TestWrapper
+        defaultValues={{
+          organization_name: 'Org 1',
+          job_template_name: 'Template 1',
+          job_template_id: 1,
+          inventory_name: 'Old Inventory',
+          extra_vars: '{"old": "value"}',
+          limit: 'old-limit',
+        }}
+      >
+        <AAPResourcePickers browser={browser} />
+      </TestWrapper>
+    )
+
+    // Change job template - triggers clearPromptOverrides
+    const templateButton = screen.getByRole('button', { name: 'Template 2' })
+    await user.click(templateButton)
+
+    // Verify selectJobTemplate was called
+    expect(selectJobTemplate).toHaveBeenCalledWith(2)
+  })
+
+  it('handles loading states', () => {
+    const browser = createMockBrowser({ loadingOrgs: true, loadingTemplates: true })
+
+    render(
+      <TestWrapper>
+        <AAPResourcePickers browser={browser} />
+      </TestWrapper>
+    )
+
+    // Component should render even when loading
+    expect(screen.getByLabelText('Organization')).toBeInTheDocument()
+    expect(screen.getByLabelText('Job template')).toBeInTheDocument()
+  })
+
+  it('displays error states in form fields', () => {
+    function FormWithErrors() {
+      const methods = useForm<AAPJobTemplateFormData>({
+        defaultValues: {},
+        errors: {
+          organization_name: { type: 'required', message: 'Organization is required' },
+          job_template_name: { type: 'required', message: 'Job template is required' },
+        },
+      })
+
+      // Set errors after initialization
+      if (!methods.formState.errors.organization_name) {
+        methods.setError('organization_name', { message: 'Organization is required' })
+        methods.setError('job_template_name', { message: 'Job template is required' })
+      }
+
+      return (
+        <FormProvider {...methods}>
+          <AAPResourcePickers browser={createMockBrowser()} />
+        </FormProvider>
+      )
+    }
+
+    render(<FormWithErrors />)
+
+    expect(screen.getByText('Organization is required')).toBeInTheDocument()
+    expect(screen.getByText('Job template is required')).toBeInTheDocument()
+  })
+
+  it('does not render template link when templateDetail is undefined', () => {
+    const browser = createMockBrowser({ templateDetail: undefined })
+
+    render(
+      <TestWrapper defaultValues={{ job_template_name: 'Template 1' }}>
+        <AAPResourcePickers browser={browser} />
+      </TestWrapper>
+    )
+
+    expect(screen.queryByRole('link', { name: /view job template in aap/i })).not.toBeInTheDocument()
   })
 })

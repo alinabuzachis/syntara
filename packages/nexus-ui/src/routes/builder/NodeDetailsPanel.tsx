@@ -58,16 +58,34 @@ function getAddModeFormId(
   nodeTypeId: string | null | undefined,
   nodeSubtypeId: string | null | undefined
 ): string | undefined {
-  if (nodeTypeId === RegistryNodeId.TRIGGER) return 'trigger-node-form'
-  if (nodeTypeId === RegistryNodeId.LOGIC) {
-    if (nodeSubtypeId === RegistryNodeId.LOGIC_CONDITION) return 'condition-node-form'
-    if (nodeSubtypeId === RegistryNodeId.LOGIC_LOOP) return 'loop-node-form'
-    if (nodeSubtypeId === RegistryNodeId.LOGIC_CONVERGE) return 'converge-node-form'
+  // Simple node types without subtypes
+  const simpleFormMap: Record<string, string> = {
+    [RegistryNodeId.TRIGGER]: 'trigger-node-form',
+    [RegistryNodeId.ACTION]: 'action-node-form',
+    [RegistryNodeId.AGENT]: 'ai-agent-node-form',
+    [RegistryNodeId.APPROVAL]: 'approval-node-form',
   }
-  if (nodeTypeId === RegistryNodeId.AAP) return 'aap-node-form'
-  if (nodeTypeId === RegistryNodeId.ACTION) return 'action-node-form'
-  if (nodeTypeId === RegistryNodeId.AGENT) return 'ai-agent-node-form'
-  if (nodeTypeId === RegistryNodeId.APPROVAL) return 'approval-node-form'
+  if (nodeTypeId && nodeTypeId in simpleFormMap) return simpleFormMap[nodeTypeId]
+
+  // Logic node subtypes
+  if (nodeTypeId === RegistryNodeId.LOGIC && nodeSubtypeId) {
+    const logicFormMap: Record<string, string> = {
+      [RegistryNodeId.LOGIC_CONDITION]: 'condition-node-form',
+      [RegistryNodeId.LOGIC_LOOP]: 'loop-node-form',
+      [RegistryNodeId.LOGIC_CONVERGE]: 'converge-node-form',
+    }
+    return logicFormMap[nodeSubtypeId]
+  }
+
+  // AAP Execution node subtypes
+  if (nodeTypeId === RegistryNodeId.AAP_EXECUTION && nodeSubtypeId) {
+    const aapFormMap: Record<string, string> = {
+      [RegistryNodeId.AAP_JOB_TEMPLATE]: 'aap-job-template-form',
+      [RegistryNodeId.AAP_WORKFLOW_TEMPLATE]: 'aap-workflow-template-form',
+    }
+    return aapFormMap[nodeSubtypeId]
+  }
+
   return undefined
 }
 
@@ -75,9 +93,14 @@ function getAddModeFormId(
 function getTaskFormId(taskData: TaskActivity): string {
   const executor = taskData.type
 
-  // Check if it's an AAP task
+  // Check if it's an AAP job template task
   if (executor === ExecutorTypeEnum.AAP_JOB_TEMPLATE) {
-    return 'aap-node-form'
+    return 'aap-job-template-form'
+  }
+
+  // Check if it's an AAP workflow template task
+  if (executor === ExecutorTypeEnum.AAP_WORKFLOW_JOB_TEMPLATE) {
+    return 'aap-workflow-template-form'
   }
 
   // Check if it's an AI Agent task
@@ -90,7 +113,7 @@ function getTaskFormId(taskData: TaskActivity): string {
     return 'action-node-form'
   }
 
-  return 'aap-node-form' // Default fallback
+  return 'action-node-form' // Default fallback
 }
 
 /** Get formId for edit mode based on node type */
@@ -185,7 +208,8 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
         })
       )
 
-      const FormComponent = selectedNode.formComponent
+      // For nodes with subtypes, use the subtype's form component
+      const FormComponent = selectedSubtype?.formComponent ?? selectedNode.formComponent
       const subtypeFormProps = selectedSubtype?.formProps ?? {}
       const submitButtonText = 'Add step'
 
@@ -236,7 +260,8 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
           },
           (error: string) => {
             showError({ title: 'Add step failed', description: error })
-          }
+          },
+          nodeSubtypeId ?? undefined
         )
       }
 

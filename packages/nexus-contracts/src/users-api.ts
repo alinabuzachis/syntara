@@ -198,7 +198,7 @@ export interface paths {
     put?: never
     /**
      * Add Member
-     * @description Add a user to a group.
+     * @description Add a local user to a group.
      */
     post: operations['add_member']
     delete?: never

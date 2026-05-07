@@ -25,6 +25,7 @@ export const ActivityTypeEnum = {
   HTTP_REQUEST: 'http_request',
   AGENTIC: 'agentic',
   AAP_JOB_TEMPLATE: 'aap_job_template',
+  AAP_WORKFLOW_JOB_TEMPLATE: 'aap_workflow_job_template',
   APPROVAL: 'approval',
   CONDITION: 'condition',
   LOOP: 'loop',
@@ -49,6 +50,7 @@ export const ExecutorTypeEnum = {
   HTTP_REQUEST: 'http_request',
   AGENTIC: 'agentic',
   AAP_JOB_TEMPLATE: 'aap_job_template',
+  AAP_WORKFLOW_JOB_TEMPLATE: 'aap_workflow_job_template',
   APPROVAL: 'approval',
 } as const
 
@@ -132,6 +134,9 @@ export type AgenticConfig = WorkflowAPI.components['schemas']['agentic.schema_co
 /** AAP job template node configuration */
 export type AAPJobTemplateConfig = WorkflowAPI.components['schemas']['aap_job_template.schema_configSchema']
 
+/** AAP workflow job template node configuration */
+export type AAPWorkflowJobTemplateConfig = WorkflowAPI.components['schemas']['aap_workflow_job_template.schema_configSchema']
+
 /** Approval node configuration */
 export type ApprovalConfig = WorkflowAPI.components['schemas']['approval.schema_configSchema']
 
@@ -193,6 +198,12 @@ export interface AAPJobTemplateActivity extends ActivityBase {
   config: AAPJobTemplateConfig & { [key: string]: unknown }
 }
 
+/** AAP workflow job template node */
+export interface AAPWorkflowJobTemplateActivity extends ActivityBase {
+  type: 'aap_workflow_job_template'
+  config: AAPWorkflowJobTemplateConfig & { [key: string]: unknown }
+}
+
 /** Approval gate node */
 export interface ApprovalActivity extends ActivityBase {
   type: 'approval'
@@ -250,6 +261,7 @@ export type TypedActivity =
   | HttpRequestActivity
   | AgenticActivity
   | AAPJobTemplateActivity
+  | AAPWorkflowJobTemplateActivity
   | ApprovalActivity
   | ConditionActivity
   | LoopActivity
@@ -283,4 +295,9 @@ export interface Activity {
 // ============================================================================
 
 /** Executor nodes (nodes that perform work) */
-export type TaskActivity = ScriptActivity | HttpRequestActivity | AgenticActivity | AAPJobTemplateActivity
+export type TaskActivity =
+  | ScriptActivity
+  | HttpRequestActivity
+  | AgenticActivity
+  | AAPJobTemplateActivity
+  | AAPWorkflowJobTemplateActivity

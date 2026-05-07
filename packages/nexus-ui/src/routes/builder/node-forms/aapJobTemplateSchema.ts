@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import { hasExpressionValue } from '../utils/aapHelpers'
 
+import { validateExtraVars } from './shared/aapSchemaUtils'
 import { optionalNumber } from './shared/formSchemaUtils'
 
 /**
@@ -11,7 +12,7 @@ import { optionalNumber } from './shared/formSchemaUtils'
  * Required fields: organization_name, job_template_name, job_template_id.
  * All other fields are optional prompt-on-launch / additional overrides.
  */
-export const aapFormSchema = z
+export const aapJobTemplateSchema = z
   .object({
     name: z.string(),
     credential_id: z.string().optional(),
@@ -57,25 +58,7 @@ export const aapFormSchema = z
       })
     }
 
-    const v = data.extra_vars?.trim()
-    if (!v) return
-
-    try {
-      const parsed: unknown = JSON.parse(v)
-      if (parsed === null || Array.isArray(parsed) || typeof parsed !== 'object') {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['extra_vars'],
-          message: 'Extra variables must be a JSON object',
-        })
-      }
-    } catch {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['extra_vars'],
-        message: 'Invalid JSON format',
-      })
-    }
+    validateExtraVars(data.extra_vars, ctx)
   })
 
-export type AAPFormData = z.infer<typeof aapFormSchema>
+export type AAPJobTemplateFormData = z.infer<typeof aapJobTemplateSchema>

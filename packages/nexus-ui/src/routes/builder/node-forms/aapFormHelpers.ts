@@ -1,13 +1,12 @@
 import yaml from 'js-yaml'
 import type { UseFormGetValues, UseFormSetValue } from 'react-hook-form'
 
-import type { useAAPBrowser } from '../../../hooks/useAAPBrowser'
+import type { AAPJobTemplateDetail } from '../../../hooks/useAAPBrowser'
 
-import type { AAPFormData } from './aapFormSchema'
+import type { AAPJobTemplateFormData } from './aapJobTemplateSchema'
 
-type AAPJobTemplateDetail = NonNullable<ReturnType<typeof useAAPBrowser>['templateDetail']>
-type SetValue = UseFormSetValue<AAPFormData>
-type GetValues = UseFormGetValues<AAPFormData>
+type SetValue = UseFormSetValue<AAPJobTemplateFormData>
+type GetValues = UseFormGetValues<AAPJobTemplateFormData>
 
 /** Sanitize array field to handle legacy single-value or invalid data */
 export function sanitizeArrayField(value: unknown): number[] {
@@ -66,7 +65,7 @@ function applyScalarDefaults(
   const scalarFields: Array<{
     askFlag: keyof AAPJobTemplateDetail
     defaultKey: keyof AAPJobTemplateDetail
-    formKey: keyof AAPFormData
+    formKey: keyof AAPJobTemplateFormData
     transform?: (value: unknown) => unknown
   }> = [
     { askFlag: 'ask_job_type_on_launch', defaultKey: 'job_type', formKey: 'job_type' },

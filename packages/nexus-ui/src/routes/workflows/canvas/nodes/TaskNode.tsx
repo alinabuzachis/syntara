@@ -1,8 +1,9 @@
 import { ExecutorTypeEnum, type TaskActivity } from '@ansible/nexus-contracts'
+import { Content } from '@patternfly/react-core'
 import { type Node, type NodeProps } from '@xyflow/react'
 
 import { Details } from '../../../../components/details/Details'
-import { FlowNodeType, RegistryNodeId } from '../../../../constants'
+import { FlowNodeType } from '../../../../constants'
 import type { ActivityStatus } from '../../execution/types'
 import { getNodeTypeColor } from '../nodeTypeColors'
 
@@ -21,6 +22,11 @@ type AAPJobTemplateConfig = {
   job_template_id?: number
   job_template_name?: string
   inventory_id?: number
+  inventory_name?: string
+}
+
+type AAPWorkflowTemplateConfig = {
+  workflow_job_template_name?: string
   inventory_name?: string
 }
 
@@ -90,8 +96,10 @@ export function TaskActivityDetails(
   const taskExecutorLabel = executorMeta?.label ?? 'Task'
   const taskExecutor = actualExecutor || (props.data.type ?? '')
   const config = props.data.config ?? {}
-  const isAap = iconId === RegistryNodeId.AAP
-  const aapConfig = isAap ? (config as AAPJobTemplateConfig) : null
+  const isAapJobTemplate = taskExecutor === ExecutorTypeEnum.AAP_JOB_TEMPLATE
+  const isAapWorkflowTemplate = taskExecutor === ExecutorTypeEnum.AAP_WORKFLOW_JOB_TEMPLATE
+  const aapJobConfig = isAapJobTemplate ? (config as AAPJobTemplateConfig) : null
+  const aapWorkflowConfig = isAapWorkflowTemplate ? (config as AAPWorkflowTemplateConfig) : null
   const agentConfig = taskExecutor === ExecutorTypeEnum.AGENTIC ? (config as AgenticConfig) : undefined
 
   const formatCount = (count: number, singular: string, plural = `${singular}s`) =>
@@ -122,12 +130,9 @@ export function TaskActivityDetails(
               {renderText('URL', (config as { url: string }).url)}
             </>
           )}
-          {aapConfig && (
-            <>
-              {renderText('Job Template ID', aapConfig.job_template_id?.toString())}
-              {renderText('Job Template Name', aapConfig.job_template_name)}
-              {renderText('Inventory ID', aapConfig.inventory_id?.toString())}
-            </>
+          {aapJobConfig?.job_template_name && <Content>{aapJobConfig.job_template_name}</Content>}
+          {aapWorkflowConfig?.workflow_job_template_name && (
+            <Content>{aapWorkflowConfig.workflow_job_template_name}</Content>
           )}
           {/* Render agentic task details */}
           {taskExecutor === ExecutorTypeEnum.AGENTIC && (

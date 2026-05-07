@@ -6,17 +6,26 @@ import {
   detectTaskNodeType,
   DetectedExecutorType,
 } from '../../../routes/workflows/canvas/nodes/common/detectTaskNodeType'
-import { createAAPJobTemplateActivity, useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
+import {
+  createAAPJobTemplateActivity,
+  createAAPWorkflowTemplateActivity,
+  useWorkflowStoreActions,
+} from '../../../stores/useWorkflowStore'
 import type { AAPJobTemplateConfig } from '../../../stores/workflowFactories'
 import type { ActionFormData as RegistryActionFormData } from '../hooks/useNodeCreation'
-import { AAPNodeForm } from '../node-forms/AAPNodeForm'
-import type { AAPFormData } from '../node-forms/AAPNodeForm'
+import { AAPJobTemplateForm } from '../node-forms/AAPJobTemplateForm'
+import type { AAPJobTemplateFormData } from '../node-forms/aapJobTemplateSchema'
+import { AAPWorkflowTemplateForm } from '../node-forms/AAPWorkflowTemplateForm'
+import type { AAPWorkflowTemplateFormData } from '../node-forms/aapWorkflowTemplateSchema'
 import { ActionNodeForm } from '../node-forms/ActionNodeForm'
 import {
   buildAAPConfig,
+  buildAAPWorkflowTemplateConfig,
   buildExpressionModeActivity,
+  buildWorkflowExpressionModeActivity,
   hasExpressionValue,
   validateJobTemplateId,
+  validateWorkflowTemplateId,
 } from '../utils/aapHelpers'
 
 import { AIAgentNodeDetails } from './AIAgentNodeDetails'
@@ -40,7 +49,7 @@ type StoredAAPConfig = AAPJobTemplateConfig & {
   job_slice_count?: number
   diff_mode?: boolean
   execution_environment?: string
-  instance_groups?: string
+  instance_group?: string
   instance_group_name?: string
   instance_group_id?: number
   job_credentials?: number[]
@@ -209,10 +218,10 @@ function buildScriptConfig(data: RegistryActionFormData): { language: string; co
 }
 
 /**
- * Build initial form data from a stored AAP config.
+ * Build initial form data from a stored AAP job template config.
  * Handles both snake_case (API) and camelCase (legacy) field names.
  */
-function buildAAPInitialData(taskName: string, config: Record<string, unknown>): Partial<AAPFormData> {
+function buildAAPInitialData(taskName: string, config: Record<string, unknown>): Partial<AAPJobTemplateFormData> {
   if (!hasJobTemplateConfig(config)) {
     return { name: taskName }
   }
@@ -245,6 +254,34 @@ function buildAAPInitialData(taskName: string, config: Record<string, unknown>):
   }
 }
 
+/**
+ * Build initial form data from a stored AAP workflow template config.
+ */
+function buildAAPWorkflowInitialData(
+  taskName: string,
+  config: Record<string, unknown>
+): Partial<AAPWorkflowTemplateFormData> {
+  const c = config
+  return {
+    name: taskName,
+    credential_id: (c.credential_id ?? c.credentialId) as string | undefined,
+    organization_id: (c.organization_id ?? c.organizationId) as number | undefined,
+    organization_name: getField(c.organization_name, c.organization, '') as string | undefined,
+    workflow_job_template_name: getField(c.workflow_job_template_name, c.workflowJobTemplateName, '') as
+      | string
+      | undefined,
+    workflow_job_template_id: (c.workflow_job_template_id ?? c.workflowJobTemplateId) as number | undefined,
+    inventory_name: getField(c.inventory_name, c.inventoryName, '') as string | undefined,
+    inventory_id: (c.inventory_id ?? c.inventory) as number | undefined,
+    extra_vars: serializeExtraVars((c.extra_vars ?? c.extraVars) as Record<string, unknown> | undefined),
+    limit: (c.limit ?? '') as string,
+    scm_branch: (c.scm_branch ?? c.scmBranch ?? '') as string,
+    tags: (c.tags ?? '') as string,
+    skip_tags: (c.skip_tags ?? c.skipTags ?? '') as string,
+    labels: (c.labels ?? []) as string[],
+  }
+}
+
 type TaskNodeDetailsProps = {
   readonly taskData: Activity
   readonly nodeId: string
@@ -253,6 +290,104 @@ type TaskNodeDetailsProps = {
   readonly projectId?: string
 }
 
+type AAPTaskProps = {
+  readonly actualExecutor: string
+  readonly config: Record<string, unknown>
+  readonly taskName: string
+  readonly nodeId: string
+  readonly onClose: () => void
+  readonly onHeaderContentChange: (content: ReactNode | null) => void
+  readonly projectId?: string
+  readonly showError: (alert: AlertMessage) => void
+  readonly updateActivity: (id: string, activity: Partial<Activity>) => void
+}
+
+/**
+ * Render AAP task details (job template or workflow template).
+ * Extracted to reduce cognitive complexity of TaskNodeDetails.
+ */
+function renderAAPTaskDetails({
+  actualExecutor,
+  config,
+  taskName,
+  nodeId,
+  onClose,
+  onHeaderContentChange,
+  projectId,
+  showError,
+  updateActivity,
+}: AAPTaskProps) {
+  // Branch based on actual executor type
+  if (actualExecutor === ExecutorTypeEnum.AAP_WORKFLOW_JOB_TEMPLATE) {
+    const workflowInitialData = buildAAPWorkflowInitialData(taskName, config)
+
+    const handleWorkflowSubmit = (data: AAPWorkflowTemplateFormData) => {
+      try {
+        if (hasExpressionValue(data.workflow_job_template_name, data.organization_name)) {
+          updateActivity(nodeId, buildWorkflowExpressionModeActivity(nodeId, data.name, data))
+        } else {
+          const workflow_job_template_id = validateWorkflowTemplateId(data.workflow_job_template_id)
+          const workflowConfig = buildAAPWorkflowTemplateConfig(data)
+          updateActivity(
+            nodeId,
+            createAAPWorkflowTemplateActivity(nodeId, data.name, workflow_job_template_id, workflowConfig)
+          )
+        }
+
+        onClose()
+      } catch (error) {
+        showError({
+          title: 'Update failed',
+          description: error instanceof Error ? error.message : 'Failed to update step',
+        })
+      }
+    }
+
+    return (
+      <AAPWorkflowTemplateForm
+        initialData={workflowInitialData}
+        onSubmit={handleWorkflowSubmit}
+        onCancel={onClose}
+        onHeaderContentChange={onHeaderContentChange}
+        projectId={projectId}
+      />
+    )
+  }
+
+  // Default to AAP job template
+  const aapInitialData = buildAAPInitialData(taskName, config)
+
+  const handleAAPSubmit = (data: AAPJobTemplateFormData) => {
+    try {
+      if (hasExpressionValue(data.job_template_name, data.organization_name)) {
+        updateActivity(nodeId, buildExpressionModeActivity(nodeId, data.name, data))
+      } else {
+        const job_template_id = validateJobTemplateId(data.job_template_id)
+        const aapNodeConfig = buildAAPConfig(data)
+        updateActivity(nodeId, createAAPJobTemplateActivity(nodeId, data.name, job_template_id, aapNodeConfig))
+      }
+
+      onClose()
+    } catch (error) {
+      showError({
+        title: 'Update failed',
+        description: error instanceof Error ? error.message : 'Failed to update step',
+      })
+    }
+  }
+
+  return (
+    <AAPJobTemplateForm
+      initialData={aapInitialData}
+      onSubmit={handleAAPSubmit}
+      onCancel={onClose}
+      onHeaderContentChange={onHeaderContentChange}
+      projectId={projectId}
+    />
+  )
+}
+
+// eslint-disable-next-line complexity
 export function TaskNodeDetails({
   taskData,
   nodeId,
@@ -281,38 +416,21 @@ export function TaskNodeDetails({
   // AAP (incl. connector-backed with executor still "agentic") must be checked before the generic
   // agentic branch, or those tasks would incorrectly show AI Agent details.
   const isAAPTask =
-    detectedExecutorType === DetectedExecutorType.AAP || actualExecutor === ExecutorTypeEnum.AAP_JOB_TEMPLATE
+    detectedExecutorType === DetectedExecutorType.AAP ||
+    actualExecutor === ExecutorTypeEnum.AAP_JOB_TEMPLATE ||
+    actualExecutor === ExecutorTypeEnum.AAP_WORKFLOW_JOB_TEMPLATE
   if (isAAPTask) {
-    const aapInitialData = buildAAPInitialData(taskData.name ?? '', config)
-
-    const handleAAPSubmit = (data: AAPFormData) => {
-      try {
-        if (hasExpressionValue(data.job_template_name, data.organization_name)) {
-          updateActivity(nodeId, buildExpressionModeActivity(nodeId, data.name, data))
-        } else {
-          const job_template_id = validateJobTemplateId(data.job_template_id)
-          const aapNodeConfig = buildAAPConfig(data)
-          updateActivity(nodeId, createAAPJobTemplateActivity(nodeId, data.name, job_template_id, aapNodeConfig))
-        }
-
-        onClose()
-      } catch (error) {
-        showError({
-          title: 'Update failed',
-          description: error instanceof Error ? error.message : 'Failed to update step',
-        })
-      }
-    }
-
-    return (
-      <AAPNodeForm
-        initialData={aapInitialData}
-        onSubmit={handleAAPSubmit}
-        onCancel={onClose}
-        onHeaderContentChange={onHeaderContentChange}
-        projectId={projectId}
-      />
-    )
+    return renderAAPTaskDetails({
+      actualExecutor,
+      config,
+      taskName: taskData.name ?? '',
+      nodeId,
+      onClose,
+      onHeaderContentChange,
+      projectId,
+      showError,
+      updateActivity,
+    })
   }
 
   // True agentic tasks (not AAP-in-disguise)

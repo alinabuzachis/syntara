@@ -16,6 +16,7 @@ export function NodeFormContainer({ children, formId, onSubmit }: NodeFormContai
       id={formId}
       data-testid={formId}
       onSubmit={onSubmit}
+      role="form"
       style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}
     >
       {children}

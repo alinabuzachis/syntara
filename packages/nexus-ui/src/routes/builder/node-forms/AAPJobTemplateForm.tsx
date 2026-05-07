@@ -10,7 +10,7 @@ import { useAAPBrowser } from '../../../hooks/useAAPBrowser'
 import { detachPromise } from '../../../utils/detachPromise'
 
 import { applyDefaultValues, isExpression, sanitizeArrayField } from './aapFormHelpers'
-import { aapFormSchema, type AAPFormData } from './aapFormSchema'
+import { aapJobTemplateSchema, type AAPJobTemplateFormData } from './aapJobTemplateSchema'
 import { PromptOnLaunchFields } from './AAPPromptOnLaunchFields'
 import { AAPResourcePickers } from './AAPResourcePickers'
 import { ExpressionTextField } from './ExpressionTextField'
@@ -19,12 +19,12 @@ import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 
-export type { AAPFormData }
+export type { AAPJobTemplateFormData } from './aapJobTemplateSchema'
 
 type AAPNodeFormProps = {
-  onSubmit: (data: AAPFormData) => void
+  onSubmit: (data: AAPJobTemplateFormData) => void
   onCancel?: () => void
-  initialData?: Partial<AAPFormData>
+  initialData?: Partial<AAPJobTemplateFormData>
   onHeaderContentChange?: (content: ReactNode | null) => void
   projectId?: string
 }
@@ -35,14 +35,14 @@ function AAPFormFields({
   initialData,
   selectedCredentialId,
   projectId,
-}: {
+}: Readonly<{
   onHeaderContentChange?: (content: ReactNode | null) => void
   extraVarsEditorRef: React.RefObject<ExpandableCodeEditorHandle | null>
-  initialData?: Partial<AAPFormData>
+  initialData?: Partial<AAPJobTemplateFormData>
   selectedCredentialId: string | undefined
   projectId?: string
-}) {
-  const { register, setValue, getValues, control } = useFormContext<AAPFormData>()
+}>) {
+  const { register, setValue, getValues, control } = useFormContext<AAPJobTemplateFormData>()
 
   // Auto-detect expression mode from initial data
   const hasExpressionInInitialData =
@@ -217,7 +217,7 @@ function AAPFormFields({
   return <NodeFormTabsLayout parametersContent={parametersContent} />
 }
 
-export function AAPNodeForm(props: Readonly<AAPNodeFormProps>) {
+export function AAPJobTemplateForm(props: Readonly<AAPNodeFormProps>) {
   const extraVarsEditorRef = useRef<ExpandableCodeEditorHandle | null>(null)
   const [, setSubmitValidationTick] = useState(0)
 
@@ -232,7 +232,7 @@ export function AAPNodeForm(props: Readonly<AAPNodeFormProps>) {
       }
     : undefined
 
-  const defaultValues: AAPFormData = {
+  const defaultValues: AAPJobTemplateFormData = {
     name: '',
     credential_id: undefined,
     organization_name: '',
@@ -251,8 +251,8 @@ export function AAPNodeForm(props: Readonly<AAPNodeFormProps>) {
     ...sanitizedInitialData,
   }
 
-  const methods = useForm<AAPFormData>({
-    resolver: zodResolver(aapFormSchema, undefined, { mode: 'sync' }),
+  const methods = useForm<AAPJobTemplateFormData>({
+    resolver: zodResolver(aapJobTemplateSchema, undefined, { mode: 'sync' }),
     defaultValues,
     mode: 'onChange',
     reValidateMode: 'onChange',
@@ -264,7 +264,7 @@ export function AAPNodeForm(props: Readonly<AAPNodeFormProps>) {
     name: 'credential_id',
   })
 
-  const handleSubmit = (data: AAPFormData) => {
+  const handleSubmit = (data: AAPJobTemplateFormData) => {
     props.onSubmit(data)
   }
 
@@ -293,7 +293,7 @@ export function AAPNodeForm(props: Readonly<AAPNodeFormProps>) {
 
   return (
     <FormProvider {...methods}>
-      <NodeFormContainer formId="aap-node-form" onSubmit={onSubmitWithFlush}>
+      <NodeFormContainer formId="aap-job-template-form" onSubmit={onSubmitWithFlush}>
         <AAPFormFields
           onHeaderContentChange={props.onHeaderContentChange}
           extraVarsEditorRef={extraVarsEditorRef}

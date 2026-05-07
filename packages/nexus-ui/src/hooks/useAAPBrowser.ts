@@ -1,5 +1,5 @@
 import type { AAPAPI } from '@ansible/nexus-contracts'
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 
 import { aapClient } from '../client'
 import { detachPromise } from '../utils/detachPromise'
@@ -13,6 +13,10 @@ export type AAPExecutionEnvironment = AAPAPI.components['schemas']['AAPExecution
 export type AAPCredential = AAPAPI.components['schemas']['AAPCredential']
 export type AAPInstanceGroup = AAPAPI.components['schemas']['AAPInstanceGroup']
 export type AAPLabel = AAPAPI.components['schemas']['AAPLabel']
+
+// Workflow template types
+export type AAPWorkflowTemplate = AAPAPI.components['schemas']['AAPWorkflowJobTemplate']
+export type AAPWorkflowTemplateDetail = AAPAPI.components['schemas']['AAPWorkflowJobTemplateDetail']
 
 type AAPSearchState = {
   selectedOrg: string
@@ -38,8 +42,12 @@ const INITIAL_STATE: AAPSearchState = {
   labelSearch: '',
 }
 
+export type AAPBrowserTemplateType = 'job' | 'workflow'
+
 export type AAPBrowserInitialState = {
   readonly organization?: string
+  readonly templateId?: number
+  /** @deprecated Use templateId instead */
   readonly jobTemplateId?: number
 }
 
@@ -68,7 +76,12 @@ function buildSearchParams(search: string, credentialId: string | undefined, org
   }
 }
 
-function useAAPQueries(state: AAPSearchState, isActive: boolean, credentialId: string | undefined) {
+function useAAPQueries(
+  state: AAPSearchState,
+  isActive: boolean,
+  credentialId: string | undefined,
+  templateType: AAPBrowserTemplateType
+) {
   const orgsQuery = aapClient.useQuery(
     'get',
     '/aap/organizations',
@@ -76,11 +89,44 @@ function useAAPQueries(state: AAPSearchState, isActive: boolean, credentialId: s
     { enabled: isActive }
   )
 
-  const templatesQuery = aapClient.useQuery(
+  // Job templates query
+  const jobTemplatesQuery = aapClient.useQuery(
     'get',
-    '/aap/job-templates',
+    '/aap/job_templates',
     { params: { query: buildSearchParams(state.templateSearch, credentialId, state.selectedOrg) } },
-    { enabled: isActive }
+    { enabled: isActive && templateType === 'job' }
+  )
+
+  const jobTemplateDetailQuery = aapClient.useQuery(
+    'get',
+    '/aap/job_templates/{job_template_id}',
+    {
+      params: {
+        path: { job_template_id: state.selectedTemplateId ?? 0 },
+        query: { credential_id: credentialId || undefined },
+      },
+    },
+    { enabled: isActive && templateType === 'job' && state.selectedTemplateId != null }
+  )
+
+  // Workflow templates query
+  const workflowTemplatesQuery = aapClient.useQuery(
+    'get',
+    '/aap/workflow_job_templates',
+    { params: { query: buildSearchParams(state.templateSearch, credentialId, state.selectedOrg) } },
+    { enabled: isActive && templateType === 'workflow' }
+  )
+
+  const workflowTemplateDetailQuery = aapClient.useQuery(
+    'get',
+    '/aap/workflow_job_templates/{workflow_job_template_id}',
+    {
+      params: {
+        path: { workflow_job_template_id: state.selectedTemplateId ?? 0 },
+        query: { credential_id: credentialId || undefined },
+      },
+    },
+    { enabled: isActive && templateType === 'workflow' && state.selectedTemplateId != null }
   )
 
   const inventoriesQuery = aapClient.useQuery(
@@ -90,37 +136,25 @@ function useAAPQueries(state: AAPSearchState, isActive: boolean, credentialId: s
     { enabled: isActive }
   )
 
-  const templateDetailQuery = aapClient.useQuery(
-    'get',
-    '/aap/job-templates/{job_template_id}',
-    {
-      params: {
-        path: { job_template_id: state.selectedTemplateId ?? 0 },
-        query: { credential_id: credentialId || undefined },
-      },
-    },
-    { enabled: isActive && state.selectedTemplateId != null }
-  )
-
   const execEnvsQuery = aapClient.useQuery(
     'get',
-    '/aap/execution-environments',
+    '/aap/execution_environments',
     { params: { query: buildSearchParams(state.execEnvSearch, credentialId, state.selectedOrg) } },
-    { enabled: isActive }
+    { enabled: isActive && templateType === 'job' } // Only needed for job templates
   )
 
   const credentialsQuery = aapClient.useQuery(
     'get',
     '/aap/credentials',
     { params: { query: buildSearchParams(state.credentialSearch, credentialId) } },
-    { enabled: isActive }
+    { enabled: isActive && templateType === 'job' } // Only needed for job templates
   )
 
   const instanceGroupsQuery = aapClient.useQuery(
     'get',
-    '/aap/instance-groups',
+    '/aap/instance_groups',
     { params: { query: buildSearchParams(state.instanceGroupSearch, credentialId) } },
-    { enabled: isActive }
+    { enabled: isActive && templateType === 'job' } // Only needed for job templates
   )
 
   const labelsQuery = aapClient.useQuery(
@@ -132,9 +166,11 @@ function useAAPQueries(state: AAPSearchState, isActive: boolean, credentialId: s
 
   return {
     orgsQuery,
-    templatesQuery,
+    jobTemplatesQuery,
+    jobTemplateDetailQuery,
+    workflowTemplatesQuery,
+    workflowTemplateDetailQuery,
     inventoriesQuery,
-    templateDetailQuery,
     execEnvsQuery,
     credentialsQuery,
     instanceGroupsQuery,
@@ -158,22 +194,25 @@ function useAAPActions(setState: React.Dispatch<React.SetStateAction<AAPSearchSt
     [setState]
   )
 
-  const selectJobTemplate = useCallback(
+  const selectTemplate = useCallback(
     (templateId: number | undefined) => {
       setState((prev) => ({ ...prev, selectedTemplateId: templateId }))
     },
     [setState]
   )
 
+  // Keep backward compatibility alias
+  const selectJobTemplate = selectTemplate
+
   const resetAll = useCallback(() => {
     setState(INITIAL_STATE)
   }, [setState])
 
   const searchOrganizations = useCallback((s: string) => setState((prev) => ({ ...prev, orgSearch: s })), [setState])
-  const searchJobTemplates = useCallback(
-    (s: string) => setState((prev) => ({ ...prev, templateSearch: s })),
-    [setState]
-  )
+  const searchTemplates = useCallback((s: string) => setState((prev) => ({ ...prev, templateSearch: s })), [setState])
+  // Keep backward compatibility alias
+  const searchJobTemplates = searchTemplates
+
   const searchInventories = useCallback(
     (s: string) => setState((prev) => ({ ...prev, inventorySearch: s })),
     [setState]
@@ -194,10 +233,12 @@ function useAAPActions(setState: React.Dispatch<React.SetStateAction<AAPSearchSt
 
   return {
     selectOrganization,
-    selectJobTemplate,
+    selectTemplate,
+    selectJobTemplate, // backward compatibility
     resetAll,
     searchOrganizations,
-    searchJobTemplates,
+    searchTemplates,
+    searchJobTemplates, // backward compatibility
     searchInventories,
     searchExecutionEnvironments,
     searchCredentials,
@@ -209,63 +250,102 @@ function useAAPActions(setState: React.Dispatch<React.SetStateAction<AAPSearchSt
 function useAAPBrowserResults(
   queries: ReturnType<typeof useAAPQueries>,
   isActive: boolean,
-  selectedTemplateId: number | undefined
+  selectedTemplateId: number | undefined,
+  templateType: AAPBrowserTemplateType
 ) {
-  return {
-    organizations: resultsOf(queries.orgsQuery),
-    jobTemplates: resultsOf(queries.templatesQuery),
-    inventories: resultsOf(queries.inventoriesQuery),
-    executionEnvironments: resultsOf(queries.execEnvsQuery),
-    credentials: resultsOf(queries.credentialsQuery),
-    instanceGroups: resultsOf(queries.instanceGroupsQuery),
-    labels: resultsOf(queries.labelsQuery),
-    templateDetail: queries.templateDetailQuery.data ?? undefined,
-    loadingOrgs: queries.orgsQuery.isPending && isActive,
-    loadingTemplates: queries.templatesQuery.isPending && isActive,
-    loadingInventories: queries.inventoriesQuery.isPending && isActive,
-    loadingExecutionEnvironments: queries.execEnvsQuery.isPending && isActive,
-    loadingCredentials: queries.credentialsQuery.isPending && isActive,
-    loadingInstanceGroups: queries.instanceGroupsQuery.isPending && isActive,
-    loadingLabels: queries.labelsQuery.isPending && isActive,
-    loadingTemplateDetail: queries.templateDetailQuery.isPending && selectedTemplateId != null,
-    error: getFirstError(
-      queries.orgsQuery.error,
-      queries.templatesQuery.error,
-      queries.inventoriesQuery.error,
-      queries.templateDetailQuery.error,
-      queries.execEnvsQuery.error,
-      queries.credentialsQuery.error,
-      queries.instanceGroupsQuery.error,
-      queries.labelsQuery.error
-    ),
-  }
+  return useMemo(
+    // eslint-disable-next-line complexity, sonarjs/cognitive-complexity
+    () => ({
+      organizations: resultsOf(queries.orgsQuery),
+      jobTemplates: templateType === 'job' ? resultsOf(queries.jobTemplatesQuery) : [],
+      workflowTemplates: templateType === 'workflow' ? resultsOf(queries.workflowTemplatesQuery) : [],
+      templates:
+        templateType === 'job' ? resultsOf(queries.jobTemplatesQuery) : resultsOf(queries.workflowTemplatesQuery),
+      inventories: resultsOf(queries.inventoriesQuery),
+      executionEnvironments: resultsOf(queries.execEnvsQuery),
+      credentials: resultsOf(queries.credentialsQuery),
+      instanceGroups: resultsOf(queries.instanceGroupsQuery),
+      labels: resultsOf(queries.labelsQuery),
+      jobTemplateDetail: templateType === 'job' ? queries.jobTemplateDetailQuery.data : undefined,
+      workflowTemplateDetail: templateType === 'workflow' ? queries.workflowTemplateDetailQuery.data : undefined,
+      templateDetail:
+        templateType === 'job' ? queries.jobTemplateDetailQuery.data : queries.workflowTemplateDetailQuery.data,
+      loadingOrgs: queries.orgsQuery.isPending && isActive,
+      loadingTemplates:
+        templateType === 'job'
+          ? queries.jobTemplatesQuery.isPending && isActive
+          : queries.workflowTemplatesQuery.isPending && isActive,
+      loadingInventories: queries.inventoriesQuery.isPending && isActive,
+      loadingExecutionEnvironments: queries.execEnvsQuery.isPending && isActive,
+      loadingCredentials: queries.credentialsQuery.isPending && isActive,
+      loadingInstanceGroups: queries.instanceGroupsQuery.isPending && isActive,
+      loadingLabels: queries.labelsQuery.isPending && isActive,
+      loadingTemplateDetail:
+        templateType === 'job'
+          ? queries.jobTemplateDetailQuery.isPending && selectedTemplateId != null
+          : queries.workflowTemplateDetailQuery.isPending && selectedTemplateId != null,
+      error: getFirstError(
+        queries.orgsQuery.error,
+        templateType === 'job' ? queries.jobTemplatesQuery.error : queries.workflowTemplatesQuery.error,
+        queries.inventoriesQuery.error,
+        templateType === 'job' ? queries.jobTemplateDetailQuery.error : queries.workflowTemplateDetailQuery.error,
+        queries.execEnvsQuery.error,
+        queries.credentialsQuery.error,
+        queries.instanceGroupsQuery.error,
+        queries.labelsQuery.error
+      ),
+    }),
+    [
+      queries.orgsQuery,
+      queries.jobTemplatesQuery,
+      queries.workflowTemplatesQuery,
+      queries.inventoriesQuery,
+      queries.execEnvsQuery,
+      queries.credentialsQuery,
+      queries.instanceGroupsQuery,
+      queries.labelsQuery,
+      queries.jobTemplateDetailQuery,
+      queries.workflowTemplateDetailQuery,
+      isActive,
+      selectedTemplateId,
+      templateType,
+    ]
+  )
 }
 
 /**
- * Hook to browse AAP resources (organizations, job templates, inventories,
+ * Hook to browse AAP resources (organizations, job/workflow templates, inventories,
  * execution environments, credentials, instance groups) via the Nexus backend proxy.
+ *
+ * @param credentialId - AAP credential ID to use for authentication
+ * @param initialState - Initial organization and template selection
+ * @param templateType - 'job' for job templates (default) or 'workflow' for workflow templates
  *
  * When credentialId is provided, the hook fetches organizations
  * on mount. When an organization is selected, it re-fetches
  * resources filtered by that org.
  */
-export function useAAPBrowser(credentialId: string | undefined, initialState?: AAPBrowserInitialState) {
+export function useAAPBrowser(
+  credentialId: string | undefined,
+  initialState?: AAPBrowserInitialState,
+  templateType: AAPBrowserTemplateType = 'job'
+) {
   const [state, setState] = useState<AAPSearchState>(() => ({
     ...INITIAL_STATE,
     selectedOrg: initialState?.organization ?? '',
-    selectedTemplateId: initialState?.jobTemplateId,
+    selectedTemplateId: initialState?.templateId ?? initialState?.jobTemplateId,
   }))
   const isActive = credentialId !== undefined
 
-  const queries = useAAPQueries(state, isActive, credentialId)
+  const queries = useAAPQueries(state, isActive, credentialId, templateType)
   const actions = useAAPActions(setState)
 
   const retryAll = useCallback(() => {
     const allQueries = [
       queries.orgsQuery,
-      queries.templatesQuery,
+      templateType === 'job' ? queries.jobTemplatesQuery : queries.workflowTemplatesQuery,
       queries.inventoriesQuery,
-      queries.templateDetailQuery,
+      templateType === 'job' ? queries.jobTemplateDetailQuery : queries.workflowTemplateDetailQuery,
       queries.execEnvsQuery,
       queries.credentialsQuery,
       queries.instanceGroupsQuery,
@@ -274,17 +354,20 @@ export function useAAPBrowser(credentialId: string | undefined, initialState?: A
     detachPromise(Promise.all(allQueries.map((q) => q.refetch())))
   }, [
     queries.orgsQuery,
-    queries.templatesQuery,
+    queries.jobTemplatesQuery,
+    queries.workflowTemplatesQuery,
     queries.inventoriesQuery,
-    queries.templateDetailQuery,
+    queries.jobTemplateDetailQuery,
+    queries.workflowTemplateDetailQuery,
     queries.execEnvsQuery,
     queries.credentialsQuery,
     queries.instanceGroupsQuery,
     queries.labelsQuery,
+    templateType,
   ])
 
   return {
-    ...useAAPBrowserResults(queries, isActive, state.selectedTemplateId),
+    ...useAAPBrowserResults(queries, isActive, state.selectedTemplateId, templateType),
     selectedOrg: state.selectedOrg,
     ...actions,
     retryAll,

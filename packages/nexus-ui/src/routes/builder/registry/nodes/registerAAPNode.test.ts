@@ -21,51 +21,76 @@ vi.mock('../../../../stores/useWorkflowStore', () => ({
       config: { job_template_id: templateId, ...config },
     })
   ),
+  createAAPWorkflowTemplateActivity: vi.fn(
+    (id: string, name: string, workflowTemplateId: number, config: Record<string, unknown>) => ({
+      id,
+      name,
+      type: 'aap_workflow_job_template' as const,
+      config: { workflow_job_template_id: workflowTemplateId, ...config },
+    })
+  ),
 }))
 
 describe('registerAAPNode', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     // Unregister AAP node if it exists from previous test
-    NodeRegistry.unregister(RegistryNodeId.AAP)
+    NodeRegistry.unregister(RegistryNodeId.AAP_EXECUTION)
   })
 
-  it('registers AAP node in the NodeRegistry', () => {
+  it('registers AAP Execution category node in the NodeRegistry', () => {
     registerAAPNode()
 
-    const registration = NodeRegistry.get(RegistryNodeId.AAP)
+    const registration = NodeRegistry.get(RegistryNodeId.AAP_EXECUTION)
     expect(registration).toBeDefined()
-    expect(registration?.id).toBe(RegistryNodeId.AAP)
-    expect(registration?.label).toBe('AAP Job Execution')
+    expect(registration?.id).toBe(RegistryNodeId.AAP_EXECUTION)
+    expect(registration?.label).toBe('AAP Execution')
     expect(registration?.category).toBe('action')
-    expect(registration?.description).toBe('Execute Ansible Automation Platform jobs')
+    expect(registration?.description).toBe('Execute Ansible Automation Platform jobs and workflows')
   })
 
   it('registers with correct keywords for searchability', () => {
     registerAAPNode()
 
-    const registration = NodeRegistry.get(RegistryNodeId.AAP)
-    expect(registration?.keywords).toContain('ansible')
-    expect(registration?.keywords).toContain('aap')
-    expect(registration?.keywords).toContain('playbook')
+    const registration = NodeRegistry.get(RegistryNodeId.AAP_EXECUTION)
+    expect(registration?.keywords).toEqual(
+      expect.arrayContaining(['ansible', 'aap', 'workflow', 'playbook', 'job', 'template'])
+    )
   })
 
-  it('includes form component and onSubmit handler', () => {
+  it('includes two subtypes: job template and workflow template', () => {
     registerAAPNode()
 
-    const registration = NodeRegistry.get(RegistryNodeId.AAP)
-    expect(registration?.formComponent).toBeDefined()
+    const registration = NodeRegistry.get(RegistryNodeId.AAP_EXECUTION)
+    expect(registration?.subtypes).toBeDefined()
+    expect(registration?.subtypes).toHaveLength(2)
+
+    const jobTemplateSubtype = registration?.subtypes?.find((s) => s.id === RegistryNodeId.AAP_JOB_TEMPLATE)
+    expect(jobTemplateSubtype).toBeDefined()
+    expect(jobTemplateSubtype?.label).toBe('Launch AAP job template')
+    expect(jobTemplateSubtype?.formComponent).toBeDefined()
+
+    const workflowTemplateSubtype = registration?.subtypes?.find((s) => s.id === RegistryNodeId.AAP_WORKFLOW_TEMPLATE)
+    expect(workflowTemplateSubtype).toBeDefined()
+    expect(workflowTemplateSubtype?.label).toBe('Launch AAP workflow template')
+    expect(workflowTemplateSubtype?.formComponent).toBeDefined()
+  })
+
+  it('includes onSubmit handler', () => {
+    registerAAPNode()
+
+    const registration = NodeRegistry.get(RegistryNodeId.AAP_EXECUTION)
     expect(registration?.onSubmit).toBeDefined()
   })
 
-  it('onSubmit creates activity and calls onSuccess', () => {
+  it('onSubmit creates job template activity and calls onSuccess', () => {
     const mockAddActivity = vi.fn()
     vi.mocked(useWorkflowStore.getState).mockReturnValue({
       addActivity: mockAddActivity,
     } as never)
 
     registerAAPNode()
-    const registration = NodeRegistry.get(RegistryNodeId.AAP)
+    const registration = NodeRegistry.get(RegistryNodeId.AAP_EXECUTION)
     const onSuccess = vi.fn()
     const onError = vi.fn()
 
@@ -78,7 +103,33 @@ describe('registerAAPNode', () => {
       extra_vars: '{"key": "value"}',
     }
 
-    registration?.onSubmit(formData, onSuccess, onError)
+    registration?.onSubmit(formData, onSuccess, onError, RegistryNodeId.AAP_JOB_TEMPLATE)
+
+    expect(onSuccess).toHaveBeenCalledWith(expect.any(String))
+    expect(onError).not.toHaveBeenCalled()
+    expect(mockAddActivity).toHaveBeenCalled()
+  })
+
+  it('onSubmit creates workflow template activity and calls onSuccess', () => {
+    const mockAddActivity = vi.fn()
+    vi.mocked(useWorkflowStore.getState).mockReturnValue({
+      addActivity: mockAddActivity,
+    } as never)
+
+    registerAAPNode()
+    const registration = NodeRegistry.get(RegistryNodeId.AAP_EXECUTION)
+    const onSuccess = vi.fn()
+    const onError = vi.fn()
+
+    const formData = {
+      name: 'Test AAP Workflow',
+      organization_name: 'Default',
+      workflow_job_template_name: 'Deploy Workflow',
+      workflow_job_template_id: 456,
+      extra_vars: '{"key": "value"}',
+    }
+
+    registration?.onSubmit(formData, onSuccess, onError, RegistryNodeId.AAP_WORKFLOW_TEMPLATE)
 
     expect(onSuccess).toHaveBeenCalledWith(expect.any(String))
     expect(onError).not.toHaveBeenCalled()
@@ -87,7 +138,7 @@ describe('registerAAPNode', () => {
 
   it('onSubmit calls onError when job_template_id is invalid', () => {
     registerAAPNode()
-    const registration = NodeRegistry.get(RegistryNodeId.AAP)
+    const registration = NodeRegistry.get(RegistryNodeId.AAP_EXECUTION)
     const onSuccess = vi.fn()
     const onError = vi.fn()
 
@@ -98,9 +149,48 @@ describe('registerAAPNode', () => {
       job_template_id: undefined, // Invalid
     }
 
-    registration?.onSubmit(formData, onSuccess, onError)
+    registration?.onSubmit(formData, onSuccess, onError, RegistryNodeId.AAP_JOB_TEMPLATE)
 
     expect(onError).toHaveBeenCalledWith(expect.any(String))
+    expect(onSuccess).not.toHaveBeenCalled()
+  })
+
+  it('onSubmit calls onError when workflow_job_template_id is invalid', () => {
+    registerAAPNode()
+    const registration = NodeRegistry.get(RegistryNodeId.AAP_EXECUTION)
+    const onSuccess = vi.fn()
+    const onError = vi.fn()
+
+    const formData = {
+      name: 'Test AAP Workflow',
+      organization_name: 'Default',
+      workflow_job_template_name: 'Deploy Workflow',
+      workflow_job_template_id: undefined, // Invalid
+    }
+
+    registration?.onSubmit(formData, onSuccess, onError, RegistryNodeId.AAP_WORKFLOW_TEMPLATE)
+
+    expect(onError).toHaveBeenCalledWith(expect.any(String))
+    expect(onSuccess).not.toHaveBeenCalled()
+  })
+
+  it('onSubmit calls onError when subtypeId is missing', () => {
+    registerAAPNode()
+    const registration = NodeRegistry.get(RegistryNodeId.AAP_EXECUTION)
+    const onSuccess = vi.fn()
+    const onError = vi.fn()
+
+    const formData = {
+      name: 'Test AAP Job',
+      organization_name: 'Default',
+      job_template_name: 'Deploy App',
+      job_template_id: 123,
+    }
+
+    // No subtypeId provided
+    registration?.onSubmit(formData, onSuccess, onError)
+
+    expect(onError).toHaveBeenCalledWith('Invalid AAP execution type')
     expect(onSuccess).not.toHaveBeenCalled()
   })
 
@@ -114,7 +204,7 @@ describe('registerAAPNode', () => {
     } as never)
 
     registerAAPNode()
-    const registration = NodeRegistry.get(RegistryNodeId.AAP)
+    const registration = NodeRegistry.get(RegistryNodeId.AAP_EXECUTION)
     const onSuccess = vi.fn()
     const onError = vi.fn()
 
@@ -125,7 +215,7 @@ describe('registerAAPNode', () => {
       job_template_id: 123,
     }
 
-    registration?.onSubmit(formData, onSuccess, onError)
+    registration?.onSubmit(formData, onSuccess, onError, RegistryNodeId.AAP_JOB_TEMPLATE)
 
     expect(onError).toHaveBeenCalledWith('Store error')
     expect(onSuccess).not.toHaveBeenCalled()

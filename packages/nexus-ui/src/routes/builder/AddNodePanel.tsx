@@ -43,13 +43,13 @@ export function AddNodePanelHeader({
     <StackItem>
       <Flex
         alignItems={{ default: 'alignItemsCenter' }}
-        justifyContent={{ default: 'justifyContentSpaceBetween' }}
+        gap={{ default: 'gapSm' }}
         style={{ padding: 'var(--pf-t--global--spacer--md)' }}
       >
-        <FlexItem>
+        <FlexItem flex={{ default: 'flex_1' }}>
           <Flex gap={{ default: 'gapSm' }} alignItems={{ default: 'alignItemsCenter' }}>
             <FlexItem>{leadingControl}</FlexItem>
-            <FlexItem>
+            <FlexItem flex={{ default: 'flex_1' }}>
               <Title headingLevel="h2" size={TitleSizes.lg}>
                 {panelTitle}
               </Title>
