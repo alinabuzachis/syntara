@@ -23,6 +23,7 @@ from nexus.authz.role_assignment_router import (
     RoleAssignmentListResponse,
     RoleAssignmentRead,
     _parse_contains_filters,
+    _redact_project_names,
 )
 from nexus.authz.schemas import (
     PolicyListParams,
@@ -381,6 +382,9 @@ async def list_project_role_assignments(
         restrict_user_id=restrict_user_id,
         restrict_group_ids=restrict_group_ids,
     )
+
+    _redact_project_names(result["resources"], visibility.readable_project_ids)
+
     return RoleAssignmentListResponse(
         resources=[RoleAssignmentRead.model_validate(r) for r in result["resources"]],
         next=result["next"],

@@ -259,6 +259,7 @@ def _mock_opa(monkeypatch: pytest.MonkeyPatch) -> None:
         return mock_opa
 
     monkeypatch.setattr("nexus.authz.dependencies.get_opa_client", _mock_getter)
+    monkeypatch.setattr("nexus.authz.router.get_opa_client", _mock_getter)
     monkeypatch.setattr("nexus.authz.role_assignment_router.get_opa_client", _mock_getter)
     monkeypatch.setattr("nexus.workflows.executions_router.get_opa_client", _mock_getter)
 

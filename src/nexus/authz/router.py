@@ -19,9 +19,10 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth.dependencies import get_current_user
 from nexus.authz.dependencies import PermissionChecker, get_opa_client
-from nexus.authz.engine import AuthzRequest, authorize
+from nexus.authz.engine import AuthzRequest, authorize, resolve_readable_project_ids
+from nexus.authz.models.project import Project
 from nexus.authz.opa_client import OPAClient
-from nexus.authz.resolver import resolve_effective_policies
+from nexus.authz.resolver import resolve_effective_policies, resolve_user_groups
 from nexus.core.constants import NAME_PATTERN, FieldLimits
 from nexus.core.database.session import get_db
 from nexus.core.models.user import User
@@ -113,6 +114,22 @@ class ResourceActionsResponse(SQLModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(title="Resource Actions Response")  # type: ignore[assignment]
 
     resource_actions: dict[str, list[str]] = Field(description="Map of resource types to their valid actions")
+
+
+# ============================================================================
+# Helpers
+# ============================================================================
+
+
+async def _ids_to_names(db: AsyncSession, project_ids: set[UUID]) -> set[str]:
+    """Map project UUIDs to their names."""
+    projects_result = await db.exec(
+        select(Project.name).where(
+            Project.id.in_(list(project_ids)),  # type: ignore[attr-defined]
+            Project.deleted_at.is_(None),  # type: ignore[union-attr]
+        )
+    )
+    return set(projects_result.all())
 
 
 # ============================================================================
@@ -272,6 +289,7 @@ async def who_can(
     response_description="List of permission entries",
 )
 async def what_can_i(
+    request: Request,
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> WhatCanIResponse:
@@ -281,6 +299,7 @@ async def what_can_i(
     flat list of permission entries. No OPA call needed.
 
     Args:
+        request: The HTTP request.
         current_user: The authenticated user.
         db: Database session.
 
@@ -289,6 +308,21 @@ async def what_can_i(
 
     """
     effective = await resolve_effective_policies(db, current_user.id)
+    groups = await resolve_user_groups(db, current_user.id)
+
+    opa_client = get_opa_client(request)
+    readable_ids = await resolve_readable_project_ids(
+        db,
+        opa_client,
+        current_user.id,
+        effective,
+        groups,
+        current_user.labels,
+        current_user.authz_metadata,
+    )
+    readable_names: set[str] | None = None
+    if readable_ids is not None:
+        readable_names = await _ids_to_names(db, readable_ids) if readable_ids else set()
 
     permissions = [
         PermissionEntry(
@@ -296,7 +330,7 @@ async def what_can_i(
             effect=p.get("effect", ""),
             actions=p.get("actions", []),
             scope=p.get("scope", ""),
-            project=p.get("project", ""),
+            project=p.get("project", "") if readable_names is None or p.get("project", "") in readable_names else "",
         )
         for p in effective
     ]

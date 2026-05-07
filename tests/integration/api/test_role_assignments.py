@@ -10,12 +10,16 @@ Covers:
 """
 
 from collections.abc import Awaitable, Callable
+from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.authz.models.assignments import PrincipalType
+from nexus.api.main import app
+from nexus.auth.dependencies import get_current_user
+from nexus.authz.models.assignments import PrincipalType, RoleAssignment
+from nexus.authz.models.project import Project
 from nexus.core.models import User
 from nexus.core.models.group import Group
 
@@ -334,3 +338,113 @@ async def test_delete_group_role_assignment_idor_protection(
     assert response.status_code == 200
     assignment_ids = [r["id"] for r in response.json()["resources"]]
     assert user_assignment_id in assignment_ids
+
+
+# ============================================================================
+# Project name redaction tests
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_readable_project_names_shown_in_role_assignments(
+    base_client: AsyncClient,
+    test_db_session: AsyncSession,
+    user_factory: Callable[..., Awaitable[User]],
+) -> None:
+    """Project names are shown when the user has project:read via project-user role."""
+    user = await user_factory(username="redact-test", email="redact-test@example.com")
+
+    project = Project(id=uuid4(), name="readable-proj", description="", labels={})
+    test_db_session.add(project)
+    await test_db_session.flush()
+
+    test_db_session.add(
+        RoleAssignment(
+            principal_type=PrincipalType.USER,
+            principal_id=user.id,
+            project_id=project.id,
+            role_name="project-user",
+        )
+    )
+    await test_db_session.commit()
+
+    async def override() -> User:
+        return user
+
+    app.dependency_overrides[get_current_user] = override
+
+    response = await base_client.get(f"{USERS_URL}/{user.id}/role-assignments")
+    assert response.status_code == 200
+    resources = response.json()["resources"]
+
+    project_assignments = [r for r in resources if r["project_id"] == str(project.id)]
+    assert len(project_assignments) == 1
+    assert project_assignments[0]["project_name"] == "readable-proj"
+
+
+@pytest.mark.asyncio
+async def test_admin_sees_all_project_names(
+    admin_client: AsyncClient,
+    test_db_session: AsyncSession,
+    user_factory: Callable[..., Awaitable[User]],
+) -> None:
+    """Admin users see project names for all role assignments."""
+    user = await user_factory(username="admin-redact", email="admin-redact@example.com")
+
+    project = Project(id=uuid4(), name="admin-visible", description="", labels={})
+    test_db_session.add(project)
+    await test_db_session.flush()
+
+    test_db_session.add(
+        RoleAssignment(
+            principal_type=PrincipalType.USER,
+            principal_id=user.id,
+            project_id=project.id,
+            role_name="project-user",
+        )
+    )
+    await test_db_session.commit()
+
+    response = await admin_client.get(f"{USERS_URL}/{user.id}/role-assignments")
+    assert response.status_code == 200
+    resources = response.json()["resources"]
+
+    project_assignments = [r for r in resources if r["project_id"] == str(project.id)]
+    assert len(project_assignments) == 1
+    assert project_assignments[0]["project_name"] == "admin-visible"
+
+
+@pytest.mark.asyncio
+async def test_what_can_i_shows_readable_project_names(
+    base_client: AsyncClient,
+    test_db_session: AsyncSession,
+    user_factory: Callable[..., Awaitable[User]],
+) -> None:
+    """what-can-i shows project names for projects the user can read."""
+    user = await user_factory(username="whatcan-redact", email="whatcan-redact@example.com")
+
+    project = Project(id=uuid4(), name="whatcan-proj", description="", labels={})
+    test_db_session.add(project)
+    await test_db_session.flush()
+
+    test_db_session.add(
+        RoleAssignment(
+            principal_type=PrincipalType.USER,
+            principal_id=user.id,
+            project_id=project.id,
+            role_name="project-user",
+        )
+    )
+    await test_db_session.commit()
+
+    async def override() -> User:
+        return user
+
+    app.dependency_overrides[get_current_user] = override
+
+    response = await base_client.post("/api/v1/authz/what-can-i")
+    assert response.status_code == 200
+    permissions = response.json()["permissions"]
+
+    project_perms = [p for p in permissions if p["scope"] == "project" and p["project"] == "whatcan-proj"]
+    assert len(project_perms) > 0

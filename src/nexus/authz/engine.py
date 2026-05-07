@@ -240,6 +240,7 @@ class VisibilityResult:
     has_self_scope: bool = False
     self_user_id: UUID | None = None
     self_group_ids: list[UUID] = field(default_factory=list)
+    readable_project_ids: set[UUID] | None = None
 
     def to_allowed_projects(self) -> AllowedProjectsResult:
         """Convert to AllowedProjectsResult for project-scoped resources."""
@@ -254,6 +255,38 @@ class VisibilityResult:
         if use_group_ids:
             return list(self.self_group_ids)
         return [self.self_user_id] if self.self_user_id else []
+
+
+async def resolve_readable_project_ids(
+    db: AsyncSession,
+    opa_client: OPAClient,
+    user_id: UUID,
+    effective: list[dict[str, Any]],
+    groups: list[dict[str, Any]],
+    user_labels: dict[str, str] | None = None,
+    user_metadata: dict[str, Any] | None = None,
+) -> set[UUID] | None:
+    """Resolve which projects' names the user may see (project:read).
+
+    Accepts pre-fetched effective policies and groups to avoid redundant
+    DB queries when the caller already has them.
+
+    Returns None when the user can read all projects.
+    """
+    opa_input: dict[str, Any] = {
+        "user": {"id": str(user_id), "metadata": user_metadata or {}, "labels": user_labels or {}},
+        "action": "read",
+        "resource": {"type": "project", "id": "", "project": "", "metadata": {}, "labels": {}},
+        "groups": groups,
+        "effective_policies": effective,
+    }
+    opa_result = await opa_client.evaluate(opa_input)
+    readable_names: list[str] = list(opa_result.get("allowed_projects", []))
+
+    if "*" in readable_names:
+        return None
+
+    return set(await _resolve_project_ids(db, readable_names))
 
 
 async def resolve_visibility(
@@ -277,7 +310,18 @@ async def resolve_visibility(
     )
 
     if "*" in allowed_projects:
-        return VisibilityResult(unrestricted=True)
+        return VisibilityResult(
+            unrestricted=True,
+            readable_project_ids=await resolve_readable_project_ids(
+                db,
+                opa_client,
+                user_id,
+                effective,
+                groups,
+                user_labels,
+                user_metadata,
+            ),
+        )
 
     project_ids = await _resolve_project_ids(db, allowed_projects)
 
@@ -289,6 +333,20 @@ async def resolve_visibility(
     group_ids: list[UUID] = []
     if has_self:
         group_ids = [UUID(g["id"]) for g in groups if g.get("id")]
+
+    readable: set[UUID] | None
+    if resource_type == "project" and action == "read":
+        readable = set(project_ids)
+    else:
+        readable = await resolve_readable_project_ids(
+            db,
+            opa_client,
+            user_id,
+            effective,
+            groups,
+            user_labels,
+            user_metadata,
+        )
 
     logger.debug(
         "Resolved visibility",
@@ -306,6 +364,7 @@ async def resolve_visibility(
         has_self_scope=has_self,
         self_user_id=user_id if has_self else None,
         self_group_ids=group_ids,
+        readable_project_ids=readable,
     )
 
 

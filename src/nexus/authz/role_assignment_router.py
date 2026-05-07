@@ -1,7 +1,7 @@
 """Unified role-assignment API endpoints (global scope)."""
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import Depends, Request, status
@@ -10,9 +10,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth import get_current_user
 from nexus.authz.dependencies import PermissionChecker, VisibilityFilter, get_opa_client
-from nexus.authz.engine import VisibilityResult, resolve_allowed_projects
+from nexus.authz.engine import VisibilityResult, resolve_visibility
 from nexus.authz.models.assignments import PrincipalType, RoleAssignment
-from nexus.authz.resolver import get_user_group_ids
 from nexus.authz.services.role_assignment_service import RoleAssignmentService
 from nexus.core.database.session import get_db
 from nexus.core.exceptions import SafeValueError
@@ -112,6 +111,42 @@ def _parse_contains_filters(request: Request) -> dict[str, str]:
 
 
 # ---------------------------------------------------------------------------
+# Project-name redaction helper (prevents leaking names to unauthorized users)
+# ---------------------------------------------------------------------------
+
+
+def _redact_project_names(
+    resources: list[dict[str, Any]],
+    readable_project_ids: set[UUID] | None,
+) -> None:
+    """Strip project_name for projects the caller cannot read."""
+    if readable_project_ids is None:
+        return
+    for r in resources:
+        pid = r.get("project_id")
+        if pid and pid not in readable_project_ids:
+            r["project_name"] = None
+
+
+async def _resolve_role_assignment_visibility(
+    request: Request,
+    current_user: User,
+    db: AsyncSession,
+) -> "VisibilityResult":
+    """Resolve role-assignment:read visibility for the current user."""
+    opa_client = get_opa_client(request)
+    return await resolve_visibility(
+        db=db,
+        opa_client=opa_client,
+        user_id=current_user.id,
+        resource_type="role-assignment",
+        action="read",
+        user_labels=current_user.labels,
+        user_metadata=current_user.authz_metadata,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Shared helpers for principal sub-resource routers (users, groups)
 # ---------------------------------------------------------------------------
 
@@ -127,24 +162,7 @@ async def list_principal_assignments(
     db: AsyncSession,
 ) -> "RoleAssignmentListResponse":
     """Shared list logic for user/group role assignment sub-resources."""
-    opa_client = get_opa_client(request)
-    allowed = await resolve_allowed_projects(
-        db=db,
-        opa_client=opa_client,
-        user_id=current_user.id,
-        resource_type="role-assignment",
-        action="read",
-        user_labels=current_user.labels,
-        user_metadata=current_user.authz_metadata,
-    )
-
-    restrict_user_id = None
-    restrict_group_ids = None
-    allowed_project_ids = None
-    if not allowed.all_projects:
-        restrict_user_id = current_user.id
-        restrict_group_ids = await get_user_group_ids(db, current_user.id)
-        allowed_project_ids = allowed.project_ids
+    visibility = await _resolve_role_assignment_visibility(request, current_user, db)
 
     result = await service.list(
         limit=params.limit,
@@ -156,10 +174,15 @@ async def list_principal_assignments(
         role_name_contains=_parse_contains_filters(request).get("role_name_contains"),
         project_id=params.project_id,
         include_total=params.include_total,
-        restrict_user_id=restrict_user_id,
-        restrict_group_ids=restrict_group_ids,
-        allowed_project_ids=allowed_project_ids,
+        restrict_user_id=visibility.self_user_id if not visibility.unrestricted else None,
+        restrict_group_ids=(
+            list(visibility.self_group_ids) if visibility.has_self_scope and not visibility.unrestricted else None
+        ),
+        allowed_project_ids=visibility.allowed_project_ids or None,
     )
+
+    _redact_project_names(result["resources"], visibility.readable_project_ids)
+
     return RoleAssignmentListResponse(
         resources=[RoleAssignmentRead.model_validate(r) for r in result["resources"]],
         next=result["next"],
@@ -261,9 +284,14 @@ async def list_role_assignments(
         project_id=params.project_id,
         include_total=params.include_total,
         restrict_user_id=visibility.self_user_id if not visibility.unrestricted else None,
-        restrict_group_ids=list(visibility.self_group_ids) if visibility.has_self_scope else None,
+        restrict_group_ids=(
+            list(visibility.self_group_ids) if visibility.has_self_scope and not visibility.unrestricted else None
+        ),
         allowed_project_ids=visibility.allowed_project_ids or None,
     )
+
+    _redact_project_names(result["resources"], visibility.readable_project_ids)
+
     return RoleAssignmentListResponse(
         resources=[RoleAssignmentRead.model_validate(r) for r in result["resources"]],
         next=result["next"],
@@ -292,30 +320,21 @@ async def get_role_assignment(
     """
     assignment = await service.get(assignment_id)
 
-    opa_client = get_opa_client(request)
-    allowed = await resolve_allowed_projects(
-        db=db,
-        opa_client=opa_client,
+    visibility = await _resolve_role_assignment_visibility(request, current_user, db)
+
+    if not visibility.unrestricted and not service.is_visible(
+        assignment,
+        all_projects=False,
         user_id=current_user.id,
-        resource_type="role-assignment",
-        action="read",
-        user_labels=current_user.labels,
-        user_metadata=current_user.authz_metadata,
-    )
+        group_ids=list(visibility.self_group_ids),
+        allowed_project_ids=visibility.allowed_project_ids,
+    ):
+        from nexus.core.exceptions import SafeValueError  # noqa: PLC0415
 
-    if not allowed.all_projects:
-        group_ids = await get_user_group_ids(db, current_user.id)
-        if not service.is_visible(
-            assignment,
-            all_projects=False,
-            user_id=current_user.id,
-            group_ids=group_ids,
-            allowed_project_ids=allowed.project_ids,
-        ):
-            from nexus.core.exceptions import SafeValueError  # noqa: PLC0415
+        msg = f"Role assignment {assignment_id} not found"
+        raise SafeValueError(msg)
 
-            msg = f"Role assignment {assignment_id} not found"
-            raise SafeValueError(msg)
+    _redact_project_names([assignment], visibility.readable_project_ids)
 
     return RoleAssignmentRead.model_validate(assignment)
 
