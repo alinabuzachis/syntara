@@ -60,6 +60,7 @@ def get_openrouter_llm(
         base_url=selected_base_url,
         temperature=selected_temperature,
         max_completion_tokens=selected_max_tokens,
+        stream_usage=True,
         default_headers={
             "HTTP-Referer": "https://github.com/syntara-orchestration/syntara",
             "X-Title": "Nexus Agent Orchestrator",
