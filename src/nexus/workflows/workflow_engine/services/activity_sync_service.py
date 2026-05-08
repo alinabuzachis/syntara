@@ -22,6 +22,7 @@ from temporalio.api.history.v1 import HistoryEvent
 from temporalio.client import Client, WorkflowHandle
 from temporalio.exceptions import TemporalError
 
+from nexus.audit.context_managers import actor_context
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.core.constants import FieldLimits
 from nexus.core.exceptions import SafeValueError
@@ -29,11 +30,11 @@ from nexus.telemetry.collector import _TERMINAL_STATUSES
 from nexus.telemetry.events.workflow_emitters import (
     _map_execution_status_to_telemetry,
     emit_activities,
-    emit_workflow_error,
     emit_workflow_start,
 )
 from nexus.telemetry.events.workflow_error import RETRY_REASON_MAX_LENGTH, TimedOutComponent
 from nexus.workflows.audit.workflow_completed import WorkflowCompletedEvent
+from nexus.workflows.audit.workflow_execution import WorkflowExecutionErrorEvent
 from nexus.workflows.models.activity_execution import ActivityExecution, ActivityStatus
 from nexus.workflows.models.execution import Execution, ExecutionStatus
 from nexus.workflows.models.workflow_version import WorkflowVersion
@@ -75,6 +76,7 @@ class ExecutionMonitorMetadata:
     activity_definitions_map: dict[str, dict[str, Any]]
     activity_index_map: dict[str, int]
     pending_activity_updates: dict[int, dict[str, Any]]
+    workflow_id: UUID | None = None
     request_id: UUID | None = None
     workflow_run_timeout_seconds: float | None = None
 
@@ -295,6 +297,7 @@ class ActivitySyncService:
                 raise RuntimeError(msg)
 
             # Extract needed fields from execution
+            workflow_id = execution.workflow_id
             workflow_version_id = execution.workflow_version_id
             last_processed_event_id = execution.last_processed_event_id
 
@@ -311,6 +314,7 @@ class ActivitySyncService:
             activity_definitions_map=activity_definitions_map,
             activity_index_map=activity_index_map,
             pending_activity_updates={},
+            workflow_id=workflow_id,
             request_id=request_id,
         )
 
@@ -416,44 +420,49 @@ class ActivitySyncService:
 
             metadata = await self._initialize_monitoring(execution_id, request_id=request_id)
 
-            async for event in handle.fetch_history_events(page_size=1000, wait_new_event=True):
-                if self._shutdown:
-                    logger.info("Shutdown requested, stopping monitoring for execution", execution_id=execution_id)
-                    break
+            with actor_context(
+                execution_id=metadata.execution_id,
+                workflow_id=metadata.workflow_id,
+                request_id=metadata.request_id,
+            ):
+                async for event in handle.fetch_history_events(page_size=1000, wait_new_event=True):
+                    if self._shutdown:
+                        logger.info("Shutdown requested, stopping monitoring for execution", execution_id=execution_id)
+                        break
 
-                if event.event_id <= metadata.last_processed_event_id:
-                    continue
+                    if event.event_id <= metadata.last_processed_event_id:
+                        continue
 
-                # Handle workflow execution started event
-                if event.event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED:
-                    await self._update_execution_to_running(metadata, event)
-                    metadata.last_processed_event_id = event.event_id
-                    continue  # Skip activity processing for workflow events
+                    # Handle workflow execution started event
+                    if event.event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED:
+                        await self._update_execution_to_running(metadata, event)
+                        metadata.last_processed_event_id = event.event_id
+                        continue  # Skip activity processing for workflow events
 
-                # Handle workflow completion events
-                if event.event_type in {
-                    EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED,
-                    EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED,
-                    EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED,
-                    EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT,
-                    EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED,
-                }:
-                    await self._update_execution_status_from_event(metadata, event, handle)
-                    # Final sync of skipped and failed nodes at workflow completion
-                    await self._sync_skipped_nodes(metadata, handle)
-                    await self._sync_failed_nodes(metadata, handle)
-                    metadata.last_processed_event_id = event.event_id
-                    continue  # Skip activity processing, likely last event
+                    # Handle workflow completion events
+                    if event.event_type in {
+                        EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED,
+                        EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED,
+                        EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED,
+                        EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT,
+                        EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED,
+                    }:
+                        await self._update_execution_status_from_event(metadata, event, handle)
+                        # Final sync of skipped and failed nodes at workflow completion
+                        await self._sync_skipped_nodes(metadata, handle)
+                        await self._sync_failed_nodes(metadata, handle)
+                        metadata.last_processed_event_id = event.event_id
+                        continue  # Skip activity processing, likely last event
 
-                # Process activity events
-                self._process_activity_event(event, metadata)
+                    # Process activity events
+                    self._process_activity_event(event, metadata)
 
-                synced_event_id = await self._handle_event_post_processing(event, metadata, handle)
-                if synced_event_id:
-                    metadata.last_processed_event_id = synced_event_id
+                    synced_event_id = await self._handle_event_post_processing(event, metadata, handle)
+                    if synced_event_id:
+                        metadata.last_processed_event_id = synced_event_id
 
-            if metadata.pending_activity_updates and not self._shutdown:
-                await self._sync_activities_to_db(metadata, handle)
+                if metadata.pending_activity_updates and not self._shutdown:
+                    await self._sync_activities_to_db(metadata, handle)
 
             logger.info("Activity monitoring completed for execution", execution_id=execution_id)
 
@@ -882,13 +891,16 @@ class ActivitySyncService:
                 # Emit workflow error telemetry for engine-level workflow timeouts
                 if event.event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT:
                     elapsed_time_ms = int((completed_at - execution.created_at).total_seconds() * 1000)
-                    emit_workflow_error(
-                        execution_id=str(metadata.execution_id),
-                        timed_out_component=TimedOutComponent.WORKFLOW,
-                        configured_timeout_seconds=metadata.workflow_run_timeout_seconds or 0.0,
-                        elapsed_time_ms=elapsed_time_ms,
-                        error_type="WorkflowTimedOut",
-                        request_id=metadata.request_id,
+                    AuditEventDispatcher.dispatch(
+                        WorkflowExecutionErrorEvent(
+                            execution_id=metadata.execution_id,
+                            workflow_id=metadata.workflow_id,
+                            timed_out_component=TimedOutComponent.WORKFLOW,
+                            configured_timeout_seconds=metadata.workflow_run_timeout_seconds or 0.0,
+                            elapsed_time_ms=elapsed_time_ms,
+                            error_type="WorkflowTimedOut",
+                            request_id=metadata.request_id,
+                        )
                     )
 
             except Exception:
@@ -1125,31 +1137,37 @@ class ActivitySyncService:
 
                 # Emit workflow error telemetry for engine-level activity timeouts (post-commit)
                 for activity_id, timeout_info in timed_out_activities:
-                    emit_workflow_error(
-                        execution_id=str(metadata.execution_id),
-                        timed_out_component=TimedOutComponent.ACTIVITY,
-                        configured_timeout_seconds=timeout_info["configured_timeout_seconds"],
-                        elapsed_time_ms=timeout_info["elapsed_time_ms"],
-                        activity_id=activity_id,
-                        retry_count=timeout_info["retry_count"],
-                        error_type="ActivityTimedOut",
-                        request_id=metadata.request_id,
+                    AuditEventDispatcher.dispatch(
+                        WorkflowExecutionErrorEvent(
+                            execution_id=metadata.execution_id,
+                            workflow_id=metadata.workflow_id,
+                            timed_out_component=TimedOutComponent.ACTIVITY,
+                            configured_timeout_seconds=timeout_info["configured_timeout_seconds"],
+                            elapsed_time_ms=timeout_info["elapsed_time_ms"],
+                            activity_id=activity_id,
+                            retry_count=timeout_info["retry_count"],
+                            error_type="ActivityTimedOut",
+                            request_id=metadata.request_id,
+                        )
                     )
 
                 # Emit workflow error telemetry for engine-level activity retries (post-commit)
                 for data in metadata.pending_activity_updates.values():
                     retry_info = data.pop("_retry_info", None)
                     if retry_info:
-                        emit_workflow_error(
-                            execution_id=str(metadata.execution_id),
-                            timed_out_component=TimedOutComponent.ACTIVITY,
-                            configured_timeout_seconds=data.get("configured_timeout_seconds", 0.0) or 0.0,
-                            elapsed_time_ms=0,
-                            activity_id=data["activity_id"],
-                            retry_count=retry_info["retry_count"],
-                            error_type=retry_info["error_type"],
-                            retry_reason=retry_info["retry_reason"],
-                            request_id=metadata.request_id,
+                        AuditEventDispatcher.dispatch(
+                            WorkflowExecutionErrorEvent(
+                                execution_id=metadata.execution_id,
+                                workflow_id=metadata.workflow_id,
+                                timed_out_component=TimedOutComponent.ACTIVITY,
+                                configured_timeout_seconds=data.get("configured_timeout_seconds", 0.0) or 0.0,
+                                elapsed_time_ms=0,
+                                activity_id=data["activity_id"],
+                                retry_count=retry_info["retry_count"],
+                                error_type=retry_info["error_type"],
+                                retry_reason=retry_info["retry_reason"],
+                                request_id=metadata.request_id,
+                            )
                         )
 
             except Exception:
