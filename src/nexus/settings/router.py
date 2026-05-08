@@ -6,8 +6,6 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, Request, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.audit.decorators import audit
-from nexus.audit.models.audit_event import EventCategory
 from nexus.auth import get_current_user
 from nexus.authz.dependencies import PermissionChecker
 from nexus.core.database.session import get_db
@@ -115,11 +113,6 @@ async def get_setting(
     operation_id="update_setting",
     response_description="Setting updated",
 )
-@audit(
-    EventCategory.USER_ACTION,
-    capture_args={"key"},
-    capture_result={"key", "value", "version"},
-)
 async def update_setting(
     key: str,
     body: SettingUpdate,
@@ -140,7 +133,6 @@ async def update_setting(
     operation_id="bulk_update_settings",
     response_description="All settings updated successfully",
 )
-@audit(EventCategory.USER_ACTION, capture_args={"body"})
 async def bulk_update_settings(
     body: SettingBulkUpdateRequest,
     service: Annotated[SettingsService, Depends(get_settings_service)],

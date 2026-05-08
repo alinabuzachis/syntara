@@ -7,6 +7,7 @@ Tests cover:
 - update edge cases: None clears override, 0/False/"" are valid
 - bulk_update: updates multiple settings
 - concurrent update: optimistic locking under asyncio.gather
+- audit event dispatch: SettingChangeEvent / SettingBulkChangeEvent
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
@@ -21,6 +23,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
+from nexus.settings.audit.settings import SettingBulkChangeEvent, SettingChangeEvent
 from nexus.settings.exceptions import OptimisticLockError, SettingNotFoundError, SettingValidationError
 from nexus.settings.models.runtime_setting import RuntimeSetting, SettingCategory, SettingValueType
 from nexus.settings.services.settings_service import SettingsService
@@ -484,3 +487,123 @@ async def test_concurrent_update_only_one_succeeds(test_db_engine: AsyncEngine) 
     assert len(successes) == 1, "Exactly one concurrent update should succeed"
     assert len(lock_errors) == 1, "Exactly one should raise OptimisticLockError"
     assert lock_errors[0].submitted_version == 1
+
+
+# ---------------------------------------------------------------------------
+# Audit event dispatch
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_update_dispatches_setting_change_event(test_db_session: AsyncSession) -> None:
+    """update() dispatches a SettingChangeEvent with correct old/new values."""
+    await _insert_setting(test_db_session, key="test.audit.single", value=42, default_value=100)
+    user = _make_user()
+    service = SettingsService(test_db_session, user)
+
+    with patch("nexus.settings.services.settings_service.AuditEventDispatcher") as mock_dispatcher:
+        await service.update(key="test.audit.single", value=99, expected_version=1)
+
+    mock_dispatcher.dispatch.assert_called_once()
+    event = mock_dispatcher.dispatch.call_args[0][0]
+    assert isinstance(event, SettingChangeEvent)
+    assert event.setting == "test.audit.single"
+    assert event.old_value == "42"
+    assert event.new_value == "99"
+    assert event.category == "context_manager"
+    assert event.value_type == "integer"
+    assert event.version == 2
+
+
+@pytest.mark.asyncio
+async def test_update_uses_effective_value_for_old_value(test_db_session: AsyncSession) -> None:
+    """update() uses effective value (default) as old_value when value is None."""
+    await _insert_setting(test_db_session, key="test.audit.default", value=None, default_value=100)
+    service = SettingsService(test_db_session, _make_user())
+
+    with patch("nexus.settings.services.settings_service.AuditEventDispatcher") as mock_dispatcher:
+        await service.update(key="test.audit.default", value=200, expected_version=1)
+
+    event = mock_dispatcher.dispatch.call_args[0][0]
+    assert isinstance(event, SettingChangeEvent)
+    assert event.old_value == "100", "old_value should fall back to default_value when value is None"
+    assert event.new_value == "200"
+
+
+@pytest.mark.asyncio
+async def test_update_dispatches_failure_event(test_db_session: AsyncSession) -> None:
+    """update() dispatches a SettingChangeEvent with error_type on failure."""
+    await _insert_setting(test_db_session, key="test.audit.fail")
+    service = SettingsService(test_db_session, _make_user())
+
+    with (
+        patch("nexus.settings.services.settings_service.AuditEventDispatcher") as mock_dispatcher,
+        pytest.raises(OptimisticLockError),
+    ):
+        await service.update(key="test.audit.fail", value=999, expected_version=99)
+
+    mock_dispatcher.dispatch.assert_called_once()
+    event = mock_dispatcher.dispatch.call_args[0][0]
+    assert isinstance(event, SettingChangeEvent)
+    assert event.setting == "test.audit.fail"
+    assert event.error_type == "OptimisticLockError"
+    assert event.new_value == "999"
+    assert event.old_value is not None
+
+
+@pytest.mark.asyncio
+async def test_bulk_update_dispatches_change_and_bulk_events(test_db_session: AsyncSession) -> None:
+    """bulk_update() dispatches N SettingChangeEvents + 1 SettingBulkChangeEvent."""
+    from nexus.settings.models.api_models import SettingBulkUpdateItem
+
+    await _insert_setting(test_db_session, key="test.audit.bulk.a", default_value=1)
+    await _insert_setting(test_db_session, key="test.audit.bulk.b", default_value=2)
+    user = _make_user()
+    service = SettingsService(test_db_session, user)
+
+    with patch("nexus.settings.services.settings_service.AuditEventDispatcher") as mock_dispatcher:
+        await service.bulk_update(
+            [
+                SettingBulkUpdateItem(key="test.audit.bulk.a", value=10, expected_version=1),
+                SettingBulkUpdateItem(key="test.audit.bulk.b", value=20, expected_version=1),
+            ]
+        )
+
+    assert mock_dispatcher.dispatch.call_count == 3
+
+    events = [call[0][0] for call in mock_dispatcher.dispatch.call_args_list]
+    change_events = [e for e in events if isinstance(e, SettingChangeEvent)]
+    bulk_events = [e for e in events if isinstance(e, SettingBulkChangeEvent)]
+
+    assert len(change_events) == 2
+    assert len(bulk_events) == 1
+    assert {e.setting for e in change_events} == {"test.audit.bulk.a", "test.audit.bulk.b"}
+    assert bulk_events[0].settings == ["test.audit.bulk.a", "test.audit.bulk.b"]
+    assert bulk_events[0].change_count == 2
+
+
+@pytest.mark.asyncio
+async def test_bulk_update_dispatches_failure_event(test_db_session: AsyncSession) -> None:
+    """bulk_update() dispatches a SettingBulkChangeEvent with error_type on failure."""
+    from nexus.settings.models.api_models import SettingBulkUpdateItem
+
+    await _insert_setting(test_db_session, key="test.audit.bulkfail.a", default_value=1)
+    await _insert_setting(test_db_session, key="test.audit.bulkfail.b", default_value=2)
+    service = SettingsService(test_db_session, _make_user())
+
+    with (
+        patch("nexus.settings.services.settings_service.AuditEventDispatcher") as mock_dispatcher,
+        pytest.raises(OptimisticLockError),
+    ):
+        await service.bulk_update(
+            [
+                SettingBulkUpdateItem(key="test.audit.bulkfail.a", value=10, expected_version=1),
+                SettingBulkUpdateItem(key="test.audit.bulkfail.b", value=20, expected_version=99),
+            ]
+        )
+
+    mock_dispatcher.dispatch.assert_called_once()
+    event = mock_dispatcher.dispatch.call_args[0][0]
+    assert isinstance(event, SettingBulkChangeEvent)
+    assert event.settings == ["test.audit.bulkfail.a", "test.audit.bulkfail.b"]
+    assert event.error_type == "OptimisticLockError"

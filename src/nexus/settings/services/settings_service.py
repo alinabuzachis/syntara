@@ -21,7 +21,9 @@ import structlog
 from sqlalchemy import update as sa_update
 from sqlmodel import select
 
+from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.core.services.base import BaseService
+from nexus.settings.audit.settings import SettingBulkChangeEvent, SettingChangeEvent
 from nexus.settings.cache.settings_cache import get_runtime_settings
 from nexus.settings.exceptions import OptimisticLockError, SettingNotFoundError, SettingValidationError
 from nexus.settings.models.api_models import (
@@ -38,6 +40,17 @@ from nexus.settings.validators import validate_setting_value
 logger = structlog.stdlib.get_logger(__name__)
 
 _MAX_SETTING_VALUE_BYTES = 65536
+_MAX_AUDIT_VALUE_LENGTH = 256
+
+
+def _format_setting_value(value: Any) -> str | None:  # noqa: ANN401
+    """Convert a setting value to a string for audit logging, with truncation."""
+    if value is None:
+        return None
+    str_value = str(value)
+    if len(str_value) > _MAX_AUDIT_VALUE_LENGTH:
+        return str_value[: _MAX_AUDIT_VALUE_LENGTH - 3] + "..."
+    return str_value
 
 
 async def _invalidate_and_publish(key: str) -> None:
@@ -195,12 +208,38 @@ class SettingsService(BaseService):
             OptimisticLockError: If the version does not match.
 
         """
+        snapshot: RuntimeSettingRead | None = None
         try:
-            result = await self._apply_update(key=key, value=value, expected_version=expected_version)
+            current = await self._get_by_key(key)
+            snapshot = setting_to_read(current)
+            result = await self._apply_update(key=key, value=value, expected_version=expected_version, current=current)
             await self.session.commit()
+            AuditEventDispatcher.dispatch(
+                SettingChangeEvent(
+                    setting=key,
+                    old_value=_format_setting_value(snapshot.effective_value),
+                    new_value=_format_setting_value(value),
+                    category=snapshot.category,
+                    value_type=snapshot.value_type.value,
+                    version=result.version,
+                    resource_name=snapshot.name,
+                )
+            )
             await _invalidate_and_publish(key)
-        except Exception:
+        except Exception as exc:
             await self.session.rollback()
+            AuditEventDispatcher.dispatch(
+                SettingChangeEvent(
+                    setting=key,
+                    old_value=_format_setting_value(snapshot.effective_value) if snapshot else None,
+                    new_value=_format_setting_value(value),
+                    category=snapshot.category if snapshot else None,
+                    value_type=snapshot.value_type.value if snapshot else None,
+                    version=snapshot.version if snapshot else 0,
+                    resource_name=snapshot.name if snapshot else None,
+                    error_type=type(exc).__name__,
+                )
+            )
             raise
         return result
 
@@ -225,17 +264,53 @@ class SettingsService(BaseService):
         if not updates:
             return []
         try:
+            fetched: dict[str, RuntimeSetting] = {}
+            snapshots: dict[str, RuntimeSettingRead] = {}
+            for item in updates:
+                current = await self._get_by_key(item.key)
+                fetched[item.key] = current
+                snapshots[item.key] = setting_to_read(current)
+
             results = []
             for item in updates:
                 result = await self._apply_update(
-                    key=item.key, value=item.value, expected_version=item.expected_version
+                    key=item.key,
+                    value=item.value,
+                    expected_version=item.expected_version,
+                    current=fetched[item.key],
                 )
                 results.append(result)
             await self.session.commit()
+            for item, result in zip(updates, results, strict=True):
+                snap = snapshots[item.key]
+                AuditEventDispatcher.dispatch(
+                    SettingChangeEvent(
+                        setting=item.key,
+                        old_value=_format_setting_value(snap.effective_value),
+                        new_value=_format_setting_value(item.value),
+                        category=snap.category,
+                        value_type=snap.value_type.value,
+                        version=result.version,
+                        resource_name=snap.name,
+                    )
+                )
+            AuditEventDispatcher.dispatch(
+                SettingBulkChangeEvent(
+                    settings=[item.key for item in updates],
+                    change_count=len(updates),
+                )
+            )
             for item in updates:
                 await _invalidate_and_publish(item.key)
-        except Exception:
+        except Exception as exc:
             await self.session.rollback()
+            AuditEventDispatcher.dispatch(
+                SettingBulkChangeEvent(
+                    settings=[item.key for item in updates],
+                    change_count=len(updates),
+                    error_type=type(exc).__name__,
+                )
+            )
             raise
         return results
 
@@ -245,6 +320,7 @@ class SettingsService(BaseService):
         key: str,
         value: Any,  # noqa: ANN401
         expected_version: int | None = None,
+        current: RuntimeSetting | None = None,
     ) -> RuntimeSettingRead:
         """Validate and apply a setting update without committing.
 
@@ -255,6 +331,12 @@ class SettingsService(BaseService):
         locking and raises ``OptimisticLockError`` on mismatch.  When
         omitted, the update is applied unconditionally (version is still
         incremented).
+
+        Args:
+            key: Dot-namespaced setting key.
+            value: New value (native Python type).
+            expected_version: Version the caller last read.
+            current: Pre-fetched setting to avoid a redundant query.
 
         """
         if value is None:
@@ -271,7 +353,8 @@ class SettingsService(BaseService):
         except (TypeError, ValueError) as exc:
             raise SettingValidationError(key, f"value is not JSON-serializable: {exc}") from exc
 
-        current = await self._get_by_key(key)
+        if current is None:
+            current = await self._get_by_key(key)
 
         validate_setting_value(
             key=key,

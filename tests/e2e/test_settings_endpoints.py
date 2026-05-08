@@ -82,10 +82,10 @@ def _poll_audit_events(
 
 
 def _find_audit_event_by_key(events: list[Any], key: str) -> Any:  # noqa: ANN401
-    """Return the first audit event whose function_args.key matches *key*."""
+    """Return the first audit event whose setting field matches *key*."""
     for event in events:
-        args = event.structured_data.additional_properties.get("function_args", {})
-        if args.get("key") == key:
+        props = event.structured_data.additional_properties
+        if props.get("setting") == key:
             return event
     return None
 
@@ -93,10 +93,9 @@ def _find_audit_event_by_key(events: list[Any], key: str) -> Any:  # noqa: ANN40
 def _find_bulk_audit_event(events: list[Any], expected_keys: set[str]) -> Any:  # noqa: ANN401
     """Return the first bulk audit event containing all *expected_keys*."""
     for event in events:
-        args = event.structured_data.additional_properties.get("function_args", {})
-        body = args.get("body", {})
-        update_keys = {u["key"] for u in body.get("updates", [])}
-        if expected_keys.issubset(update_keys):
+        props = event.structured_data.additional_properties
+        settings = set(props.get("settings", []))
+        if expected_keys.issubset(settings):
             return event
     return None
 
@@ -641,16 +640,18 @@ class TestSettingsAuditLog:
         try:
             _update_setting(nexus_api, _COMPRESSION_TEMP_KEY, 0.5)
 
-            events = _poll_audit_events(auditor_api, "update_setting")
+            events = _poll_audit_events(auditor_api, "setting_changed")
             event = _find_audit_event_by_key(events, _COMPRESSION_TEMP_KEY)
             assert event is not None, f"No audit event found for key {_COMPRESSION_TEMP_KEY}"
             assert event.actor_id is not None
+            assert event.actor_username == "admin"
             assert event.created_at is not None
-            assert event.event_action == "update_setting"
-            structured = event.structured_data
-            assert structured["function_result"]["key"] == _COMPRESSION_TEMP_KEY
-            assert structured["function_result"]["value"] == 0.5
-            assert "version" in structured["function_result"]
+            assert event.event_action == "setting_changed"
+            assert event.structured_data.data_type == "setting-changed"
+            props = event.structured_data.additional_properties
+            assert props["setting"] == _COMPRESSION_TEMP_KEY
+            assert props["new_value"] == "0.5"
+            assert "version" in props
         finally:
             _restore_setting(nexus_api, _COMPRESSION_TEMP_KEY, original_value)
 
@@ -675,17 +676,51 @@ class TestSettingsAuditLog:
                 )
             )
 
-            events = _poll_audit_events(auditor_api, "bulk_update_settings")
+            events = _poll_audit_events(auditor_api, "setting_bulk_changed")
             event = _find_bulk_audit_event(events, {_MAX_TOKENS_KEY, _TIMEOUT_SECONDS_KEY})
             assert event is not None, "No bulk audit event found containing expected keys"
-            assert event.event_action == "bulk_update_settings"
-            body = event.structured_data["function_args"]["body"]
-            update_keys = [u["key"] for u in body["updates"]]
-            assert _MAX_TOKENS_KEY in update_keys
-            assert _TIMEOUT_SECONDS_KEY in update_keys
+            assert event.event_action == "setting_bulk_changed"
+            props = event.structured_data.additional_properties
+            assert _MAX_TOKENS_KEY in props["settings"]
+            assert _TIMEOUT_SECONDS_KEY in props["settings"]
+            assert props["change_count"] == 2
         finally:
             for k, v in originals.items():
                 _restore_setting(nexus_api, k, v)
+
+    def test_audit_old_and_new_values(
+        self,
+        nexus_api: NexusApiRegistry,
+        auditor_api: NexusApiRegistry,
+    ) -> None:
+        """Audit event captures distinct old_value and new_value for a setting change."""
+        original = _get_setting(nexus_api, _COMPRESSION_TEMP_KEY)
+        original_value = original.effective_value
+
+        try:
+            # Set a known value first so old_value is deterministic
+            first = _update_setting(nexus_api, _COMPRESSION_TEMP_KEY, 0.3)
+            first_version = first.version
+
+            # Update to a different value
+            _update_setting(nexus_api, _COMPRESSION_TEMP_KEY, 0.8)
+
+            events = _poll_audit_events(auditor_api, "setting_changed")
+            # Find the event for the second update (version > first_version)
+            event = None
+            for e in events:
+                props = e.structured_data.additional_properties
+                if props.get("setting") == _COMPRESSION_TEMP_KEY and props.get("version", 0) > first_version:
+                    event = e
+                    break
+
+            assert event is not None, "No audit event found for second update"
+            props = event.structured_data.additional_properties
+            assert props["old_value"] == "0.3", f"old_value should be '0.3', got '{props['old_value']}'"
+            assert props["new_value"] == "0.8", f"new_value should be '0.8', got '{props['new_value']}'"
+            assert props["old_value"] != props["new_value"]
+        finally:
+            _restore_setting(nexus_api, _COMPRESSION_TEMP_KEY, original_value)
 
     def test_audit_reset_to_default(
         self,
@@ -701,11 +736,12 @@ class TestSettingsAuditLog:
             _update_setting(nexus_api, _MAX_TOKENS_KEY, 9999)
             _update_setting(nexus_api, _MAX_TOKENS_KEY, default_value)
 
-            events = _poll_audit_events(auditor_api, "update_setting")
+            events = _poll_audit_events(auditor_api, "setting_changed")
             event = _find_audit_event_by_key(events, _MAX_TOKENS_KEY)
             assert event is not None, f"No audit event found for key {_MAX_TOKENS_KEY}"
-            assert event.event_action == "update_setting"
-            assert event.structured_data["function_result"]["value"] == default_value
+            assert event.event_action == "setting_changed"
+            props = event.structured_data.additional_properties
+            assert props["new_value"] == str(default_value)
         finally:
             _restore_setting(nexus_api, _MAX_TOKENS_KEY, original_value)
 
