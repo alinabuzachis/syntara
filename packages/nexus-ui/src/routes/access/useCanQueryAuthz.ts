@@ -6,11 +6,15 @@ import { accessFetchClient } from './accessClient'
 
 /**
  * Checks whether the current user has permission to query authz
- * (i.e. use the "Who Can" tab). Returns `true` if allowed, `false` otherwise.
- * Defaults to `false` while the check is in flight.
+ * (i.e. use the "Who Can" tab).
+ *
+ * Returns `{ canQuery, isChecking }`:
+ * - `isChecking` is `true` while the API call is in flight
+ * - `canQuery` is the resolved permission (`false` until check completes)
  */
-export function useCanQueryAuthz(): boolean {
-  const [allowed, setAllowed] = useState(false)
+export function useCanQueryAuthz(): { canQuery: boolean; isChecking: boolean } {
+  const [canQuery, setCanQuery] = useState(false)
+  const [isChecking, setIsChecking] = useState(true)
 
   useEffect(() => {
     let cancelled = false
@@ -21,8 +25,14 @@ export function useCanQueryAuthz(): boolean {
           body: { action: 'query', resource_type: 'authz' },
         })
         .then(({ data }) => {
-          if (!cancelled && data?.allowed) {
-            setAllowed(true)
+          if (!cancelled) {
+            setCanQuery(data?.allowed ?? false)
+            setIsChecking(false)
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setIsChecking(false)
           }
         })
     )
@@ -32,5 +42,5 @@ export function useCanQueryAuthz(): boolean {
     }
   }, [])
 
-  return allowed
+  return { canQuery, isChecking }
 }

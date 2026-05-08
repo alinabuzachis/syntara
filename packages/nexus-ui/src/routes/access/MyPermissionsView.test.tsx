@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type React from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
@@ -43,49 +43,72 @@ const samplePermissions = [
   },
 ]
 
+function mockPostSuccess(permissions = samplePermissions) {
+  vi.mocked(accessFetchClient.POST).mockResolvedValueOnce({
+    data: { permissions },
+    error: undefined,
+    response: new Response(),
+  })
+}
+
+function mockPostError() {
+  vi.mocked(accessFetchClient.POST).mockResolvedValueOnce({
+    data: undefined,
+    error: { detail: 'Internal server error' },
+    response: new Response(),
+  })
+}
+
+function mockPostNetworkError() {
+  const err = Object.assign(new Error('Network error'), { status: 500 })
+  vi.mocked(accessFetchClient.POST).mockRejectedValueOnce(err)
+}
+
+async function renderAndWaitForData(permissions = samplePermissions) {
+  mockPostSuccess(permissions)
+  const view = render(<MyPermissionsView />, { wrapper })
+  await waitFor(() => {
+    expect(screen.getByText(permissions[0].policy_name)).toBeInTheDocument()
+  })
+  return view
+}
+
+function generatePermissions(count: number) {
+  return Array.from({ length: count }, (_, i) => ({
+    policy_name: `policy-${String(i).padStart(3, '0')}`,
+    effect: i % 2 === 0 ? 'allow' : 'deny',
+    actions: [`action-${i}`],
+    scope: `scope-${i}`,
+    project: `project-${i}`,
+  }))
+}
+
 describe('MyPermissionsView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     queryClient.clear()
+    vi.mocked(accessFetchClient.POST)
+      .mockReset()
+      .mockResolvedValue({
+        data: { permissions: [] },
+        error: undefined,
+        response: new Response(),
+      })
   })
 
-  it('renders empty state initially', () => {
-    render(<MyPermissionsView />, { wrapper })
-
-    expect(screen.getByText('View all permissions')).toBeInTheDocument()
-    expect(
-      screen.getByText('Click Load Permissions to see everything the current user is allowed to do.')
-    ).toBeInTheDocument()
+  it('auto-loads permissions on mount', async () => {
+    await renderAndWaitForData()
+    expect(accessFetchClient.POST).toHaveBeenCalledWith('/authz/what-can-i')
   })
 
-  it('renders Load Permissions button', () => {
+  it('shows spinner immediately on mount', () => {
+    vi.mocked(accessFetchClient.POST).mockReturnValueOnce(new Promise(() => {}))
     render(<MyPermissionsView />, { wrapper })
-
-    expect(screen.getByRole('button', { name: 'Load Permissions' })).toBeInTheDocument()
+    expect(screen.getByRole('progressbar', { name: 'Loading permissions' })).toBeInTheDocument()
   })
 
-  it('shows "current user" text', () => {
-    render(<MyPermissionsView />, { wrapper })
-
-    expect(screen.getByText('Showing permissions for current user')).toBeInTheDocument()
-  })
-
-  it('loads and displays permissions table', async () => {
-    const user = userEvent.setup()
-
-    vi.mocked(accessFetchClient.POST).mockResolvedValueOnce({
-      data: { permissions: samplePermissions },
-      error: undefined,
-      response: new Response(),
-    })
-
-    render(<MyPermissionsView />, { wrapper })
-
-    await user.click(screen.getByRole('button', { name: 'Load Permissions' }))
-
-    await waitFor(() => {
-      expect(screen.getByText('admin-policy')).toBeInTheDocument()
-    })
+  it('displays permissions table with data', async () => {
+    await renderAndWaitForData()
 
     expect(screen.getByText('deny-delete')).toBeInTheDocument()
     expect(screen.getByText('allow')).toBeInTheDocument()
@@ -93,210 +116,168 @@ describe('MyPermissionsView', () => {
     expect(screen.getByText('workflow:read')).toBeInTheDocument()
     expect(screen.getByText('workflow:write')).toBeInTheDocument()
     expect(screen.getByText('workflow:delete')).toBeInTheDocument()
-    expect(screen.getByText('2 of 2 permissions')).toBeInTheDocument()
   })
 
-  it('changes button text to Refresh after loading', async () => {
-    const user = userEvent.setup()
-
-    vi.mocked(accessFetchClient.POST).mockResolvedValueOnce({
-      data: { permissions: samplePermissions },
-      error: undefined,
-      response: new Response(),
-    })
-
+  it('shows empty state when no permissions exist', async () => {
+    mockPostSuccess([])
     render(<MyPermissionsView />, { wrapper })
-
-    await user.click(screen.getByRole('button', { name: 'Load Permissions' }))
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Refresh' })).toBeInTheDocument()
+      expect(screen.getByText('No permissions')).toBeInTheDocument()
     })
+    expect(screen.getByText('The current user has no permissions assigned.')).toBeInTheDocument()
   })
 
-  it('filters permissions by text', async () => {
-    const user = userEvent.setup()
-
-    vi.mocked(accessFetchClient.POST).mockResolvedValueOnce({
-      data: { permissions: samplePermissions },
-      error: undefined,
-      response: new Response(),
-    })
-
+  it('shows error state on API failure', async () => {
+    mockPostError()
     render(<MyPermissionsView />, { wrapper })
-
-    await user.click(screen.getByRole('button', { name: 'Load Permissions' }))
 
     await waitFor(() => {
-      expect(screen.getByText('2 of 2 permissions')).toBeInTheDocument()
+      expect(screen.getByTestId('error-state')).toBeInTheDocument()
     })
-
-    const filterInput = screen.getByRole('textbox', { name: 'Filter permissions' })
-    await user.type(filterInput, 'deny')
-
-    expect(screen.getByText('1 of 2 permissions')).toBeInTheDocument()
-    expect(screen.getByText('deny-delete')).toBeInTheDocument()
+    expect(screen.getByText('Failed to load permissions')).toBeInTheDocument()
   })
 
-  it('filters by action', async () => {
+  it('retries loading when error retry button is clicked', async () => {
     const user = userEvent.setup()
-
-    vi.mocked(accessFetchClient.POST).mockResolvedValueOnce({
-      data: { permissions: samplePermissions },
-      error: undefined,
-      response: new Response(),
-    })
-
+    mockPostNetworkError()
     render(<MyPermissionsView />, { wrapper })
-
-    await user.click(screen.getByRole('button', { name: 'Load Permissions' }))
 
     await waitFor(() => {
-      expect(screen.getByText('2 of 2 permissions')).toBeInTheDocument()
+      expect(screen.getByTestId('error-state')).toBeInTheDocument()
     })
 
-    const filterInput = screen.getByRole('textbox', { name: 'Filter permissions' })
-    await user.type(filterInput, 'delete')
-
-    expect(screen.getByText('1 of 2 permissions')).toBeInTheDocument()
-  })
-
-  it('filters by project', async () => {
-    const user = userEvent.setup()
-
-    vi.mocked(accessFetchClient.POST).mockResolvedValueOnce({
-      data: { permissions: samplePermissions },
-      error: undefined,
-      response: new Response(),
-    })
-
-    render(<MyPermissionsView />, { wrapper })
-
-    await user.click(screen.getByRole('button', { name: 'Load Permissions' }))
+    mockPostSuccess()
+    await user.click(screen.getByRole('button', { name: 'Retry' }))
 
     await waitFor(() => {
-      expect(screen.getByText('2 of 2 permissions')).toBeInTheDocument()
+      expect(screen.getByText('admin-policy')).toBeInTheDocument()
     })
-
-    const filterInput = screen.getByRole('textbox', { name: 'Filter permissions' })
-    await user.type(filterInput, 'production')
-
-    expect(screen.getByText('1 of 2 permissions')).toBeInTheDocument()
-    expect(screen.getByText('deny-delete')).toBeInTheDocument()
-  })
-
-  it('shows error alert on API failure', async () => {
-    const user = userEvent.setup()
-
-    vi.mocked(accessFetchClient.POST).mockResolvedValueOnce({
-      data: undefined,
-      error: { detail: 'Internal server error' },
-      response: new Response(),
-    })
-
-    render(<MyPermissionsView />, { wrapper })
-
-    await user.click(screen.getByRole('button', { name: 'Load Permissions' }))
-
-    await waitFor(() => {
-      expect(screen.getByText('Failed to load permissions')).toBeInTheDocument()
-    })
-  })
-
-  it('shows spinner while loading', async () => {
-    const user = userEvent.setup()
-
-    vi.mocked(accessFetchClient.POST).mockReturnValueOnce(new Promise(() => {}))
-
-    render(<MyPermissionsView />, { wrapper })
-
-    await user.click(screen.getByRole('button', { name: 'Load Permissions' }))
-
-    expect(screen.getByRole('progressbar', { name: 'Loading permissions' })).toBeInTheDocument()
+    expect(accessFetchClient.POST).toHaveBeenCalledTimes(2)
   })
 
   it('shows dash for empty scope and project', async () => {
-    const user = userEvent.setup()
+    await renderAndWaitForData([
+      { policy_name: 'test', effect: 'allow', actions: ['workflow:read'], scope: '', project: '' },
+    ])
 
-    vi.mocked(accessFetchClient.POST).mockResolvedValueOnce({
-      data: {
-        permissions: [
-          {
-            policy_name: 'test',
-            effect: 'allow',
-            actions: ['workflow:read'],
-            scope: '',
-            project: '',
-          },
-        ],
-      },
-      error: undefined,
-      response: new Response(),
-    })
-
-    render(<MyPermissionsView />, { wrapper })
-
-    await user.click(screen.getByRole('button', { name: 'Load Permissions' }))
-
-    await waitFor(() => {
-      expect(screen.getByText('test')).toBeInTheDocument()
-    })
-
-    // Empty scope/project should show '-'
     const dashes = screen.getAllByText('-')
     expect(dashes.length).toBeGreaterThanOrEqual(2)
   })
 
-  it('shows singular "permission" for single result', async () => {
+  it('renders refresh button and refreshes on click', async () => {
     const user = userEvent.setup()
+    await renderAndWaitForData()
 
-    vi.mocked(accessFetchClient.POST).mockResolvedValueOnce({
-      data: {
-        permissions: [
-          {
-            policy_name: 'single',
-            effect: 'allow',
-            actions: ['workflow:read'],
-            scope: '*',
-            project: 'default',
-          },
-        ],
-      },
-      error: undefined,
-      response: new Response(),
-    })
+    const refreshBtn = screen.getByRole('button', { name: 'Refresh permissions' })
+    expect(refreshBtn).toBeInTheDocument()
 
-    render(<MyPermissionsView />, { wrapper })
+    mockPostSuccess([{ policy_name: 'new-policy', effect: 'allow', actions: ['read'], scope: '*', project: 'default' }])
 
-    await user.click(screen.getByRole('button', { name: 'Load Permissions' }))
+    await user.click(refreshBtn)
 
     await waitFor(() => {
-      expect(screen.getByText('1 of 1 permission')).toBeInTheDocument()
+      expect(screen.getByText('new-policy')).toBeInTheDocument()
+    })
+    expect(accessFetchClient.POST).toHaveBeenCalledTimes(2)
+  })
+
+  it('renders FilterBar with attribute selector', async () => {
+    await renderAndWaitForData()
+    expect(screen.getByRole('search', { name: 'Filters' })).toBeInTheDocument()
+  })
+
+  it('filters permissions by effect using select filter', async () => {
+    const user = userEvent.setup()
+    await renderAndWaitForData()
+
+    const toolbar = screen.getByRole('search', { name: 'Filters' })
+    await user.click(within(toolbar).getByRole('button', { name: /^Policy$/i }))
+    await user.click(await screen.findByRole('option', { name: 'Effect' }))
+    await user.click(within(toolbar).getByRole('button', { name: /filter by effect/i }))
+    await user.click(await screen.findByRole('option', { name: 'Allow' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('admin-policy')).toBeInTheDocument()
+      expect(screen.queryByText('deny-delete')).not.toBeInTheDocument()
     })
   })
 
+  it('renders pagination and navigates pages', async () => {
+    const perms = generatePermissions(25)
+    await renderAndWaitForData(perms)
+
+    const pagination = screen.getByLabelText('Pagination')
+    expect(pagination).toBeInTheDocument()
+
+    expect(screen.getByText('policy-000')).toBeInTheDocument()
+    expect(screen.queryByText('policy-020')).not.toBeInTheDocument()
+
+    const user = userEvent.setup()
+    const nextBtn = within(pagination).getByRole('button', { name: /next/i })
+    await user.click(nextBtn)
+
+    await waitFor(() => {
+      expect(screen.getByText('policy-020')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('policy-000')).not.toBeInTheDocument()
+
+    const prevBtn = within(pagination).getByRole('button', { name: /prev/i })
+    await user.click(prevBtn)
+
+    await waitFor(() => {
+      expect(screen.getByText('policy-000')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('policy-020')).not.toBeInTheDocument()
+  })
+
+  it('shows empty filter state when filters match nothing', async () => {
+    const user = userEvent.setup()
+    await renderAndWaitForData()
+
+    const toolbar = screen.getByRole('search', { name: 'Filters' })
+    await user.type(within(toolbar).getByRole('textbox'), 'nonexistent-policy-xyz')
+    await user.click(screen.getByRole('button', { name: 'Apply filter' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('No results found')).toBeInTheDocument()
+    })
+
+    const clearButtons = screen.getAllByRole('button', { name: 'Clear all filters' })
+    expect(clearButtons.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('sorts by column headers', async () => {
+    const user = userEvent.setup()
+    await renderAndWaitForData()
+
+    const tableContainer = screen.getByLabelText('User permissions')
+    const policyHeader = within(tableContainer).getByRole('button', { name: /policy/i })
+    await user.click(policyHeader)
+
+    const rows = screen.getAllByRole('row')
+    expect(within(rows[1]).getByText('admin-policy')).toBeInTheDocument()
+
+    await user.click(policyHeader)
+
+    const rowsAfterSort = screen.getAllByRole('row')
+    expect(within(rowsAfterSort[1]).getByText('deny-delete')).toBeInTheDocument()
+  })
+
   it('has no accessibility violations', async () => {
+    mockPostSuccess([])
     const { container } = render(<MyPermissionsView />, { wrapper })
+
+    await waitFor(() => {
+      expect(screen.getByText('No permissions')).toBeInTheDocument()
+    })
+
     const results = await axe(container)
     expect(results).toHaveNoViolations()
   })
 
   it('has no accessibility violations with permissions loaded', async () => {
-    const user = userEvent.setup()
-
-    vi.mocked(accessFetchClient.POST).mockResolvedValueOnce({
-      data: { permissions: samplePermissions },
-      error: undefined,
-      response: new Response(),
-    })
-
-    const { container } = render(<MyPermissionsView />, { wrapper })
-
-    await user.click(screen.getByRole('button', { name: 'Load Permissions' }))
-
-    await waitFor(() => {
-      expect(screen.getByText('admin-policy')).toBeInTheDocument()
-    })
+    const { container } = await renderAndWaitForData()
 
     let results: Awaited<ReturnType<typeof axe>>
     await act(async () => {

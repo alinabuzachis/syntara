@@ -18,7 +18,8 @@ export function CanITab() {
   const [mode, goToMode] = useDetailTab<CanIMode>(AppRoute.AccessManagement.CanI, 'check')
 
   const { resourceTypes, actionsByResource, isLoading, error, refetch } = useResourceActions()
-  const canQueryAuthz = useCanQueryAuthz()
+  const { canQuery: canQueryAuthz, isChecking: isCheckingAuthz } = useCanQueryAuthz()
+  const showWhoCanTab = isCheckingAuthz || canQueryAuthz
 
   const resourceActionsQueryState = useQueryState(
     { isPending: isLoading, error },
@@ -39,11 +40,12 @@ export function CanITab() {
             title={<TabTitleText>Check Access</TabTitleText>}
             aria-label="Check if a user can perform an action"
           />
-          {canQueryAuthz && (
+          {showWhoCanTab && (
             <Tab
               eventKey="who-can"
               title={<TabTitleText>Who Can</TabTitleText>}
               aria-label="Find users who can perform an action"
+              isDisabled={isCheckingAuthz}
             />
           )}
           <Tab
@@ -54,7 +56,7 @@ export function CanITab() {
         </Tabs>
       </StackItem>
 
-      <AppPageMain style={{ overflow: 'auto' }}>
+      <AppPageMain style={mode !== 'my-permissions' ? { overflow: 'auto' } : undefined}>
         {mode === 'my-permissions' && <MyPermissionsView />}
         {mode !== 'my-permissions' &&
           (resourceActionsQueryState ?? (

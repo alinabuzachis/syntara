@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type React from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
@@ -38,7 +38,7 @@ vi.mock('./accessClient', () => ({
   },
   accessFetchClient: {
     GET: vi.fn().mockResolvedValue({ data: { resources: [] }, error: null }),
-    POST: vi.fn().mockResolvedValue({ data: { allowed: false }, error: null }),
+    POST: vi.fn().mockResolvedValue({ data: { permissions: [], allowed: false }, error: null }),
   },
 }))
 
@@ -50,7 +50,7 @@ vi.mock('./useAllUsers', () => ({
   }),
 }))
 
-const mockCanQueryAuthz = vi.fn(() => true)
+const mockCanQueryAuthz = vi.fn(() => ({ canQuery: true, isChecking: false }))
 vi.mock('./useCanQueryAuthz', () => ({
   useCanQueryAuthz: () => mockCanQueryAuthz(),
 }))
@@ -72,7 +72,7 @@ describe('CanITab', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     queryClient.clear()
-    mockCanQueryAuthz.mockReturnValue(true)
+    mockCanQueryAuthz.mockReturnValue({ canQuery: true, isChecking: false })
     mockUseQuery.mockImplementation((...args: unknown[]) => {
       const [, path] = args as [string, string]
       if (path === '/authz/resource-actions') {
@@ -122,7 +122,9 @@ describe('CanITab', () => {
 
     await user.click(screen.getByRole('tab', { name: /view all permissions for a user/i }))
 
-    expect(screen.getByText('View all permissions')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('No permissions')).toBeInTheDocument()
+    })
   })
 
   it('renders proper ARIA attributes on tabs', () => {
@@ -144,7 +146,7 @@ describe('CanITab', () => {
   })
 
   it('hides Who Can tab when user lacks authz query permission', () => {
-    mockCanQueryAuthz.mockReturnValue(false)
+    mockCanQueryAuthz.mockReturnValue({ canQuery: false, isChecking: false })
     render(<CanITab />, { wrapper })
 
     const tabs = screen.getAllByRole('tab')
@@ -175,7 +177,9 @@ describe('CanITab', () => {
 
     await user.click(screen.getByRole('tab', { name: /view all permissions for a user/i }))
 
-    expect(screen.getByText('View all permissions')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('No permissions')).toBeInTheDocument()
+    })
     expect(screen.queryByText('Error loading resource actions')).not.toBeInTheDocument()
   })
 })

@@ -20,7 +20,7 @@ describe('useCanQueryAuthz', () => {
     vi.clearAllMocks()
   })
 
-  it('returns true when the user is allowed to query authz', async () => {
+  it('returns canQuery true when the user is allowed to query authz', async () => {
     vi.mocked(accessFetchClient.POST).mockResolvedValue({
       data: { allowed: true },
     })
@@ -28,7 +28,7 @@ describe('useCanQueryAuthz', () => {
     const { result } = renderHook(() => useCanQueryAuthz())
 
     await waitFor(() => {
-      expect(result.current).toBe(true)
+      expect(result.current).toEqual({ canQuery: true, isChecking: false })
     })
 
     expect(accessFetchClient.POST).toHaveBeenCalledWith('/authz/can-i', {
@@ -36,7 +36,7 @@ describe('useCanQueryAuthz', () => {
     })
   })
 
-  it('returns false when the user is not allowed', async () => {
+  it('returns canQuery false when the user is not allowed', async () => {
     vi.mocked(accessFetchClient.POST).mockResolvedValue({
       data: { allowed: false },
     })
@@ -44,13 +44,11 @@ describe('useCanQueryAuthz', () => {
     const { result } = renderHook(() => useCanQueryAuthz())
 
     await waitFor(() => {
-      expect(accessFetchClient.POST).toHaveBeenCalled()
+      expect(result.current).toEqual({ canQuery: false, isChecking: false })
     })
-
-    expect(result.current).toBe(false)
   })
 
-  it('returns false when the response has no data', async () => {
+  it('returns canQuery false when the response has no data', async () => {
     vi.mocked(accessFetchClient.POST).mockResolvedValue({
       data: undefined,
     })
@@ -58,18 +56,26 @@ describe('useCanQueryAuthz', () => {
     const { result } = renderHook(() => useCanQueryAuthz())
 
     await waitFor(() => {
-      expect(accessFetchClient.POST).toHaveBeenCalled()
+      expect(result.current).toEqual({ canQuery: false, isChecking: false })
     })
-
-    expect(result.current).toBe(false)
   })
 
-  it('defaults to false while the request is in flight', () => {
+  it('returns isChecking true while the request is in flight', () => {
     vi.mocked(accessFetchClient.POST).mockReturnValue(new Promise(() => {}))
 
     const { result } = renderHook(() => useCanQueryAuthz())
 
-    expect(result.current).toBe(false)
+    expect(result.current).toEqual({ canQuery: false, isChecking: true })
+  })
+
+  it('sets isChecking false on network error', async () => {
+    vi.mocked(accessFetchClient.POST).mockRejectedValue(new Error('Network error'))
+
+    const { result } = renderHook(() => useCanQueryAuthz())
+
+    await waitFor(() => {
+      expect(result.current).toEqual({ canQuery: false, isChecking: false })
+    })
   })
 
   it('does not update state after unmount', async () => {
@@ -84,14 +90,11 @@ describe('useCanQueryAuthz', () => {
 
     unmount()
 
-    // Resolve after unmount — the cancelled flag prevents setState
     resolve!({ data: { allowed: true } })
-    // Flush microtasks so the .then() runs
     await vi.waitFor(() => {
       expect(accessFetchClient.POST).toHaveBeenCalled()
     })
 
-    // Value should remain false (initial state)
-    expect(result.current).toBe(false)
+    expect(result.current).toEqual({ canQuery: false, isChecking: true })
   })
 })
