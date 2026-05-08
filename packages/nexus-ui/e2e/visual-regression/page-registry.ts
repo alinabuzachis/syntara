@@ -415,7 +415,6 @@ export const pages: PageEntry[] = [
       await expect(page.getByRole('heading', { name: 'Add OIDC provider' })).toBeVisible()
     },
   },
-
   // ══════════════════════════════════════════════════════════════════════════
   // ACCESS MANAGEMENT — Audit Log
   // ══════════════════════════════════════════════════════════════════════════

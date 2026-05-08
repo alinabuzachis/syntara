@@ -28,7 +28,7 @@ import { useState } from 'react'
 import { useParams } from 'wouter'
 import { navigate } from 'wouter/use-browser-location'
 
-import { AppPage } from '../../../../app/AppPage'
+import { AppPage, AppPageMain } from '../../../../app/AppPage'
 import { AppPageHeader } from '../../../../app/AppPageHeader'
 import { AppRoute } from '../../../../app/AppRoute'
 import { identityProvidersClient } from '../../../../client'
@@ -254,10 +254,6 @@ export function IdentityProviderDetail() {
 
   const kebabActions: IAction[] = [
     {
-      title: <IconLabel icon={<RhUiEditIcon />}>Edit provider</IconLabel>,
-      onClick: navigateEdit,
-    },
-    {
       title: <IconLabel icon={<RhUiEditIcon />}>Edit mapping</IconLabel>,
       onClick: () => {
         setActiveTab('group-mapping')
@@ -355,40 +351,43 @@ export function IdentityProviderDetail() {
           onChange={handleToggleEnabled}
           isReversed
         />
+        <Button variant="primary" icon={<RhUiEditIcon />} onClick={navigateEdit}>
+          Edit provider
+        </Button>
         <ActionsColumn items={kebabActions} />
       </AppPageHeader>
-      <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-        <AppPanel isFullHeight isScrollable style={{ padding: 'var(--pf-t--global--spacer--xl)' }}>
-          <Tabs
-            activeKey={activeTab}
-            onSelect={(_event, key) => {
-              const keyStr = String(key)
-              if (isTabKey(keyStr)) setActiveTab(keyStr)
-            }}
-          >
-            <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />
-            <Tab
-              eventKey="group-mapping"
-              title={
-                <TabTitleText>Group mapping {mappingCount > 0 && <Badge isRead>{mappingCount}</Badge>}</TabTitleText>
-              }
-            />
-          </Tabs>
-          <div style={{ paddingTop: 'var(--pf-t--global--spacer--lg)' }}>
-            <TabContent
-              activeTab={activeTab}
-              provider={providerData}
-              providerId={providerId ?? ''}
-              idpType={idpType}
-              autoCreateGroups={autoCreateGroups}
-              providerConfig={config}
-              groupMappingConfig={groupMappingConfig}
-              onSaved={() => detachPromise(refetchProvider())}
-              editMappingTrigger={editMappingTrigger}
-            />
-          </div>
-        </AppPanel>
+      <StackItem style={{ flexShrink: 0 }}>
+        <Tabs
+          activeKey={activeTab}
+          onSelect={(_event, key) => {
+            const keyStr = String(key)
+            if (isTabKey(keyStr)) setActiveTab(keyStr)
+          }}
+        >
+          <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />
+          <Tab
+            eventKey="group-mapping"
+            title={
+              <TabTitleText>Group mapping {mappingCount > 0 && <Badge isRead>{mappingCount}</Badge>}</TabTitleText>
+            }
+          />
+        </Tabs>
       </StackItem>
+      <AppPageMain>
+        <AppPanel isFullHeight>
+          <TabContent
+            activeTab={activeTab}
+            provider={providerData}
+            providerId={providerId ?? ''}
+            idpType={idpType}
+            autoCreateGroups={autoCreateGroups}
+            providerConfig={config}
+            groupMappingConfig={groupMappingConfig}
+            onSaved={() => detachPromise(refetchProvider())}
+            editMappingTrigger={editMappingTrigger}
+          />
+        </AppPanel>
+      </AppPageMain>
       <ConfirmationDialog
         isOpen={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}

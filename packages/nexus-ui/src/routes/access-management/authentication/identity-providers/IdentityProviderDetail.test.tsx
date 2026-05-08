@@ -177,18 +177,13 @@ describe('IdentityProviderDetail', () => {
     expect(screen.getAllByText('Error loading identity provider').length).toBeGreaterThan(0)
   })
 
-  it('navigates to edit page from kebab Edit provider action', async () => {
+  it('navigates to edit page from primary Edit provider button', async () => {
     const user = userEvent.setup()
     vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn())
 
     render(<IdentityProviderDetail />, { wrapper: createWrapper() })
 
-    // Open the kebab menu
-    const kebabButton = screen.getByRole('button', { name: /kebab toggle/i })
-    await user.click(kebabButton)
-
-    // Click "Edit provider" in the kebab menu
-    await user.click(screen.getByText('Edit provider'))
+    await user.click(screen.getByRole('button', { name: /edit provider/i }))
     expect(mockNavigate).toHaveBeenCalled()
   })
 
@@ -257,13 +252,12 @@ describe('IdentityProviderDetail', () => {
       mockQueryReturn({ data: undefined, isPending: false, isError: false, error: null })
     )
 
-    const { container } = render(<IdentityProviderDetail />, { wrapper: createWrapper() })
+    render(<IdentityProviderDetail />, { wrapper: createWrapper() })
 
-    // Should not render provider name or error states
+    // Should not render provider name or error states (detail returns null until data loads)
     expect(screen.queryByText('Azure AD')).not.toBeInTheDocument()
     expect(screen.queryByText('Identity provider not found')).not.toBeInTheDocument()
-    // Container should be essentially empty (just the wrapper elements)
-    expect(container.querySelector('[class*="pf-"]')).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Azure AD' })).not.toBeInTheDocument()
   })
 
   it('renders loading state when query is pending', () => {

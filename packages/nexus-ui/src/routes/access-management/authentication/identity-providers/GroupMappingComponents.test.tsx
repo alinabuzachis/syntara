@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
@@ -207,13 +207,13 @@ describe('MappingTable', () => {
     expect(screen.getByRole('button', { name: 'Remove mapping 2' })).toBeInTheDocument()
   })
 
-  it('calls onRemove with index when remove button is clicked', async () => {
+  it('calls onRemove with entry key when remove button is clicked', async () => {
     const onRemove = vi.fn()
     const user = userEvent.setup()
     render(<MappingTable {...defaultProps} onRemove={onRemove} />)
 
     await user.click(screen.getByRole('button', { name: 'Remove mapping 1' }))
-    expect(onRemove).toHaveBeenCalledWith(0)
+    expect(onRemove).toHaveBeenCalledWith('k1')
   })
 
   it('calls onChange when IdP group value is modified', async () => {
@@ -228,11 +228,13 @@ describe('MappingTable', () => {
     expect(onChange).toHaveBeenCalled()
   })
 
-  it('hides remove buttons and Add mapping in read-only mode', () => {
+  it('hides remove buttons, Add mapping, and form controls in read-only mode', () => {
     render(<MappingTable {...defaultProps} isReadOnly />)
 
     expect(screen.queryByRole('button', { name: 'Remove mapping 1' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /add mapping/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: 'IdP group value 1' })).not.toBeInTheDocument()
+    expect(screen.getByText('idp-admin')).toBeInTheDocument()
   })
 
   it('has no accessibility violations', async () => {
@@ -243,21 +245,97 @@ describe('MappingTable', () => {
 })
 
 describe('ReadOnlyView', () => {
-  it('renders entries in read-only mode', () => {
-    render(<ReadOnlyView entries={mockEntries} nexusGroups={mockNexusGroups} />)
+  const readOnlyDefaults = {
+    entries: mockEntries,
+    nexusGroups: mockNexusGroups,
+    onEditMapping: vi.fn(),
+  }
 
-    expect(screen.getByRole('textbox', { name: 'IdP group value 1' })).toBeDisabled()
+  it('renders Edit mapping button and keyword filter toolbar', () => {
+    render(<ReadOnlyView {...readOnlyDefaults} />)
+
+    expect(screen.getByRole('button', { name: /edit mapping/i })).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Filter by keyword')).toBeInTheDocument()
   })
 
-  it('renders filter input', () => {
-    render(<ReadOnlyView entries={mockEntries} nexusGroups={mockNexusGroups} />)
+  it('renders entries as plain text in table cells', () => {
+    render(<ReadOnlyView {...readOnlyDefaults} />)
 
-    expect(screen.getByRole('textbox', { name: /filter group mappings/i })).toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: 'IdP group value 1' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Remove mapping 1' })).not.toBeInTheDocument()
+    expect(screen.getByText('idp-admin')).toBeInTheDocument()
+    expect(screen.getByText('idp-users')).toBeInTheDocument()
+    expect(screen.getByText('admin')).toBeInTheDocument()
+    expect(screen.getByText('users')).toBeInTheDocument()
   })
 
   it('has no accessibility violations', async () => {
-    const { container } = render(<ReadOnlyView entries={mockEntries} nexusGroups={mockNexusGroups} />)
+    const { container } = render(<ReadOnlyView {...readOnlyDefaults} />)
     const results = await axe(container)
     expect(results).toHaveNoViolations()
+  })
+
+  it('shows EmptyStateNoData when there are no mappings', () => {
+    render(<ReadOnlyView {...readOnlyDefaults} entries={[]} />)
+
+    expect(screen.getByRole('heading', { name: /no group mappings/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /edit mapping/i })).not.toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('Filter by keyword')).not.toBeInTheDocument()
+  })
+
+  it('shows EmptyStateFilter when keyword filter matches no rows', async () => {
+    const user = userEvent.setup()
+    render(<ReadOnlyView {...readOnlyDefaults} />)
+
+    const input = screen.getByPlaceholderText('Filter by keyword')
+    await user.type(input, 'zzz-nonexistent')
+    await user.keyboard('{Enter}')
+
+    await waitFor(() => {
+      expect(screen.getByText('No results found')).toBeInTheDocument()
+    })
+  })
+
+  it('restores the table when Clear all filters is used from EmptyStateFilter', async () => {
+    const user = userEvent.setup()
+    render(<ReadOnlyView {...readOnlyDefaults} />)
+
+    const input = screen.getByPlaceholderText('Filter by keyword')
+    await user.type(input, 'zzz-nonexistent')
+    await user.keyboard('{Enter}')
+
+    await waitFor(() => {
+      expect(screen.getByText('No results found')).toBeInTheDocument()
+    })
+
+    const clearButtons = screen.getAllByRole('button', { name: /clear all filters/i })
+    await user.click(clearButtons[clearButtons.length - 1])
+
+    await waitFor(() => {
+      expect(screen.getByText('idp-admin')).toBeInTheDocument()
+      expect(screen.queryByText('No results found')).not.toBeInTheDocument()
+    })
+  })
+
+  it('paginates client-side when there are more than 20 mappings', async () => {
+    const user = userEvent.setup()
+    const manyEntries: GroupMappingEntry[] = Array.from({ length: 21 }, (_, i) => ({
+      key: `km${i}`,
+      idpGroupValue: `idp-row-${i}`,
+      nexusGroupId: 'g1',
+    }))
+
+    render(<ReadOnlyView {...readOnlyDefaults} entries={manyEntries} />)
+
+    expect(screen.getByText('idp-row-0')).toBeInTheDocument()
+    expect(screen.getByText('idp-row-19')).toBeInTheDocument()
+    expect(screen.queryByText('idp-row-20')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Go to next page' }))
+
+    await waitFor(() => {
+      expect(screen.queryByText('idp-row-0')).not.toBeInTheDocument()
+      expect(screen.getByText('idp-row-20')).toBeInTheDocument()
+    })
   })
 })

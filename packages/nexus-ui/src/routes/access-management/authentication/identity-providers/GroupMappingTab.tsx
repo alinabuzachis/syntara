@@ -48,7 +48,8 @@ function signInAlertTitle(variant: string): string {
  *   prop and reset on cancel. Rows can be added manually or populated via test sign-in.
  * - `expression` — the JMESPath extraction expression, editable in the Advanced section.
  * - `isEditing` — toggles between read-only view and edit mode. The component starts in
- *   read-only if mappings exist, or shows an empty state if none are configured.
+ *   read-only if mappings exist, or shows an empty state if none are configured. From empty
+ *   state, "Add manually" opens edit mode on this tab with one blank row (no separate route).
  * - `signInAlert` / `rawClaims` — feedback from the test-sign-in popup flow. `rawClaims`
  *   is displayed in the Advanced section so admins can inspect the full token.
  * - `showValidation` — deferred validation flag. Validation errors (incomplete rows) are
@@ -137,7 +138,10 @@ export function GroupMappingTab({
       setEntries((prev) => prev.map((e, i) => (i === index ? updated : e))),
     []
   )
-  const handleRemove = useCallback((index: number) => setEntries((prev) => prev.filter((_, i) => i !== index)), [])
+  const handleRemove = useCallback(
+    (entryKey: string) => setEntries((prev) => prev.filter((e) => e.key !== entryKey)),
+    []
+  )
   const handleAdd = useCallback(
     () => setEntries((prev) => [...prev, { key: nextKey(), idpGroupValue: '', nexusGroupId: '' }]),
     []
@@ -210,14 +214,14 @@ export function GroupMappingTab({
         }}
         onAddManually={() => {
           setIsEditing(true)
-          handleAdd()
+          setEntries([{ key: nextKey(), idpGroupValue: '', nexusGroupId: '' }])
         }}
       />
     )
   }
 
   if (!isEditing) {
-    return <ReadOnlyView entries={entries} nexusGroups={nexusGroups} />
+    return <ReadOnlyView entries={entries} nexusGroups={nexusGroups} onEditMapping={() => setIsEditing(true)} />
   }
 
   return (

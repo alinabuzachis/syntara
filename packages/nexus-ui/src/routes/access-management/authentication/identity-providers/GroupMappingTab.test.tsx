@@ -118,15 +118,14 @@ describe('GroupMappingTab', () => {
       expect(screen.getByRole('button', { name: /add manually/i })).toBeInTheDocument()
     })
 
-    it('switches to edit mode when Add manually is clicked', async () => {
+    it('opens edit mode with one blank row when Add manually is clicked', async () => {
       const user = userEvent.setup()
       render(<GroupMappingTab {...defaultProps} />, { wrapper })
 
       await user.click(screen.getByRole('button', { name: /add manually/i }))
 
-      // Should show mapping table with Add mapping and Save buttons
       expect(screen.getByRole('button', { name: /save mapping/i })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /add mapping/i })).toBeInTheDocument()
+      expect(screen.getByRole('textbox', { name: 'IdP group value 1' })).toBeInTheDocument()
     })
   })
 
@@ -142,9 +141,12 @@ describe('GroupMappingTab', () => {
     it('shows read-only view when mappings exist and not editing', () => {
       render(<GroupMappingTab {...defaultProps} groupMapping={existingMapping} />, { wrapper })
 
-      // Read-only view shows a filter input and disabled mapping rows
-      expect(screen.getByRole('textbox', { name: /filter group mappings/i })).toBeInTheDocument()
-      expect(screen.getByRole('textbox', { name: 'IdP group value 1' })).toBeDisabled()
+      // Read-only view uses shared FilterBar + table; keyword filter and Edit mapping are visible
+      expect(screen.getByPlaceholderText('Filter by keyword')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /edit mapping/i })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Remove mapping 1' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('textbox', { name: 'IdP group value 1' })).not.toBeInTheDocument()
+      expect(screen.getByText('idp-admin')).toBeInTheDocument()
     })
 
     it('switches to editing mode when editMappingTrigger is incremented', () => {
@@ -165,11 +167,8 @@ describe('GroupMappingTab', () => {
   })
 
   describe('Edit mode', () => {
-    it('shows Save mapping, Cancel, and Re-discover buttons', async () => {
-      const user = userEvent.setup()
-      render(<GroupMappingTab {...defaultProps} />, { wrapper })
-
-      await user.click(screen.getByRole('button', { name: /add manually/i }))
+    it('shows Save mapping, Cancel, and Re-discover buttons', () => {
+      render(<GroupMappingTab {...defaultProps} editMappingTrigger={1} />, { wrapper })
 
       expect(screen.getByRole('button', { name: /save mapping/i })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
@@ -178,9 +177,8 @@ describe('GroupMappingTab', () => {
 
     it('reverts to initial state when Cancel is clicked', async () => {
       const user = userEvent.setup()
-      render(<GroupMappingTab {...defaultProps} />, { wrapper })
+      render(<GroupMappingTab {...defaultProps} editMappingTrigger={1} />, { wrapper })
 
-      await user.click(screen.getByRole('button', { name: /add manually/i }))
       await user.click(screen.getByRole('button', { name: 'Cancel' }))
 
       // Should go back to empty state
@@ -189,10 +187,9 @@ describe('GroupMappingTab', () => {
 
     it('shows validation when saving with incomplete entries', async () => {
       const user = userEvent.setup()
-      render(<GroupMappingTab {...defaultProps} />, { wrapper })
+      render(<GroupMappingTab {...defaultProps} editMappingTrigger={1} />, { wrapper })
 
-      // Enter edit mode and add an entry
-      await user.click(screen.getByRole('button', { name: /add manually/i }))
+      await user.click(screen.getByRole('button', { name: /add mapping/i }))
 
       // Type only the IdP value, leaving nexus group empty
       const idpInput = screen.getByRole('textbox', { name: 'IdP group value 1' })
@@ -310,11 +307,9 @@ describe('GroupMappingTab', () => {
 
     it('adds a new empty mapping entry', async () => {
       const user = userEvent.setup()
-      render(<GroupMappingTab {...defaultProps} />, { wrapper })
+      render(<GroupMappingTab {...defaultProps} editMappingTrigger={1} />, { wrapper })
 
-      await user.click(screen.getByRole('button', { name: /add manually/i }))
-
-      // First entry was auto-added
+      await user.click(screen.getByRole('button', { name: /add mapping/i }))
       expect(screen.getByRole('textbox', { name: 'IdP group value 1' })).toBeInTheDocument()
 
       // Add another
@@ -346,11 +341,8 @@ describe('GroupMappingTab', () => {
   })
 
   describe('Advanced section', () => {
-    it('renders advanced section in edit mode', async () => {
-      const user = userEvent.setup()
-      render(<GroupMappingTab {...defaultProps} />, { wrapper })
-
-      await user.click(screen.getByRole('button', { name: /add manually/i }))
+    it('renders advanced section in edit mode', () => {
+      render(<GroupMappingTab {...defaultProps} editMappingTrigger={1} />, { wrapper })
 
       expect(screen.getByText('Advanced')).toBeInTheDocument()
     })

@@ -1,6 +1,5 @@
 import {
   Button,
-  Divider,
   EmptyState,
   EmptyStateActions,
   EmptyStateBody,
@@ -14,158 +13,43 @@ import {
   HelperTextItem,
   CodeBlock,
   CodeBlockCode,
-  MenuToggle,
-  SearchInput,
-  Select,
-  SelectList,
-  SelectOption,
+  StackItem,
   TextInput,
-  TextInputGroup,
-  TextInputGroupMain,
-  Popover,
 } from '@patternfly/react-core'
-import { PlusIcon, RhUiQuestionMarkCircleIcon, RhUiTrashIcon } from '@patternfly/react-icons'
-import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
-import { useMemo, useRef, useState } from 'react'
+import { PlusIcon, RhUiEditIcon } from '@patternfly/react-icons'
+import { Table, Tbody } from '@patternfly/react-table'
+import { useCallback, useMemo, useState } from 'react'
 
+import { EmptyStateFilter } from '../../../../components/EmptyStateFilter'
+import { EmptyStateNoData } from '../../../../components/EmptyStateNoData'
+import { FilterBar } from '../../../../components/filters/FilterBar'
+import { PanelContentStack } from '../../../../components/PanelContentStack'
+import { ScrollableTableContainer } from '../../../../components/table/ScrollableTableContainer'
+import type { FilterConfig, FilterFieldDefinition } from '../../../../types/filters'
+import { FilterOperatorEnum, FilterTypeEnum } from '../../../../types/filters'
+
+import { MappingRow } from './groupMappingFields'
+import { GroupMappingTableHead } from './groupMappingTableHead'
 import type { GroupMappingEntry, NexusGroup } from './groupMappingUtils'
 import { IDP_TYPE_PRESETS } from './idpTypePresets'
 
-const helpIconStyle = { marginLeft: 'var(--pf-t--global--spacer--xs)', cursor: 'pointer' } as const
-const CREATE_GROUP_VALUE = '__create__' as const
+const GROUP_MAPPING_KEYWORD_FILTER_FIELDS: FilterFieldDefinition[] = [
+  {
+    key: 'keyword',
+    label: 'Keyword',
+    type: FilterTypeEnum.TEXT,
+    defaultOperator: FilterOperatorEnum.CONTAINS,
+    placeholder: 'Filter by keyword',
+  },
+]
 
-type MappingRowProps = {
-  entry: GroupMappingEntry
-  index: number
-  nexusGroups: NexusGroup[]
-  isReadOnly?: boolean
-  showValidation?: boolean
-  onChange: (index: number, entry: GroupMappingEntry) => void
-  onRemove: (index: number) => void
-  onCreateGroup: (index: number) => void
-}
-
-function MappingRow({
-  entry,
-  index,
-  nexusGroups,
-  isReadOnly,
-  showValidation,
-  onChange,
-  onRemove,
-  onCreateGroup,
-}: Readonly<MappingRowProps>) {
-  const [isOpen, setIsOpen] = useState(false)
-  const [filterValue, setFilterValue] = useState('')
-  const inputRef = useRef<HTMLInputElement>(null)
-  const selectedGroup = nexusGroups.find((g) => g.id === entry.nexusGroupId)
-  const missingGroup = showValidation === true && Boolean(entry.idpGroupValue && !entry.nexusGroupId)
-
-  const filteredGroups = useMemo(() => {
-    if (!filterValue) return nexusGroups
-    const term = filterValue.toLowerCase()
-    return nexusGroups.filter((g) => g.name?.toLowerCase().includes(term))
-  }, [nexusGroups, filterValue])
-
-  return (
-    <Tr>
-      <Td dataLabel="IdP Group Value">
-        <TextInput
-          aria-label={`IdP group value ${index + 1}`}
-          placeholder="IdP group value"
-          value={entry.idpGroupValue}
-          onChange={(_event, value) => onChange(index, { ...entry, idpGroupValue: value })}
-          isDisabled={isReadOnly}
-          validated="default"
-        />
-      </Td>
-      <Td dataLabel="Automation Orchestrator Group">
-        <Select
-          isOpen={isOpen}
-          selected={entry.nexusGroupId || undefined}
-          onSelect={(_event, value) => {
-            const val = String(value)
-            if (val === CREATE_GROUP_VALUE) {
-              onCreateGroup(index)
-              setIsOpen(false)
-              setFilterValue('')
-              return
-            }
-            onChange(index, { ...entry, nexusGroupId: val })
-            setIsOpen(false)
-            setFilterValue('')
-          }}
-          onOpenChange={(open) => {
-            setIsOpen(open)
-            if (!open) setFilterValue('')
-          }}
-          toggle={(toggleRef) => (
-            <MenuToggle
-              ref={toggleRef}
-              variant="typeahead"
-              onClick={() => {
-                if (!isReadOnly) setIsOpen((prev) => !prev)
-              }}
-              isExpanded={isOpen}
-              isFullWidth
-              isDisabled={isReadOnly}
-              status={missingGroup ? 'danger' : undefined}
-            >
-              <TextInputGroup isPlain isDisabled={isReadOnly}>
-                <TextInputGroupMain
-                  value={isOpen ? filterValue : (selectedGroup?.name ?? '')}
-                  onChange={(_e, val) => {
-                    setFilterValue(val)
-                    if (!isOpen) setIsOpen(true)
-                  }}
-                  onClick={() => {
-                    if (!isOpen) setIsOpen(true)
-                  }}
-                  placeholder="Select a group..."
-                  autoComplete="off"
-                  innerRef={inputRef}
-                />
-              </TextInputGroup>
-            </MenuToggle>
-          )}
-        >
-          <SelectList style={{ maxHeight: '200px', overflow: 'auto' }}>
-            {filteredGroups.length === 0 && filterValue ? (
-              <SelectOption isDisabled>No groups match &quot;{filterValue}&quot;</SelectOption>
-            ) : (
-              filteredGroups.map((g) => (
-                <SelectOption
-                  key={g.id}
-                  value={g.id}
-                  description={g.description ?? undefined}
-                  isSelected={entry.nexusGroupId === g.id}
-                >
-                  {g.name}
-                </SelectOption>
-              ))
-            )}
-          </SelectList>
-          <Divider />
-          <SelectList>
-            <SelectOption value={CREATE_GROUP_VALUE} icon={<PlusIcon />}>
-              Create new group
-            </SelectOption>
-          </SelectList>
-        </Select>
-      </Td>
-      {!isReadOnly && (
-        <Td isActionCell>
-          <Button
-            variant="plain"
-            aria-label={`Remove mapping ${index + 1}`}
-            onClick={() => onRemove(index)}
-            icon={<RhUiTrashIcon />}
-          />
-        </Td>
-      )}
-    </Tr>
-  )
-}
+/** Module scope: stable reference for inline styles (avoids a new object each render). */
+const READ_ONLY_EMPTY_FILTER_STATE_STYLE = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 0,
+} as const
 
 export type EmptyMappingStateProps = {
   onTestSignIn: () => void
@@ -286,7 +170,7 @@ export type MappingTableProps = {
   isReadOnly?: boolean
   showValidation?: boolean
   onChange: (index: number, entry: GroupMappingEntry) => void
-  onRemove: (index: number) => void
+  onRemove: (entryKey: string) => void
   onAdd: () => void
   onCreateGroup: (index: number) => void
 }
@@ -301,46 +185,17 @@ export function MappingTable({
   onAdd,
   onCreateGroup,
 }: Readonly<MappingTableProps>) {
+  /**
+   * Align with `MappingRow` action column: `showActionColumn` is true only when `isReadOnly !== true`
+   * (this table does not pass `readOnlyAllowRemove`).
+   */
+  const showActionsColumn = isReadOnly !== true
+  const showWildcardHelp = isReadOnly !== true
+
   return (
     <>
-      <Table aria-label="Group mappings" variant="compact">
-        <Thead>
-          <Tr>
-            <Th width={45}>
-              <span style={{ verticalAlign: 'middle' }}>IdP group value</span>
-              {!isReadOnly && (
-                <Popover
-                  headerContent="Wildcard patterns"
-                  bodyContent={
-                    <>
-                      Use wildcards to match multiple IdP groups to a single Nexus group:
-                      <br />
-                      <br />
-                      <strong>*</strong> — matches everything (e.g. assign all users)
-                      <br />
-                      <strong>admin*</strong> — matches admin-prod, admin-staging, etc.
-                      <br />
-                      <strong>*/engineers</strong> — matches org1/engineers, org2/engineers
-                      <br />
-                      <strong>?</strong> — matches a single character
-                    </>
-                  }
-                >
-                  <Button
-                    variant="plain"
-                    aria-label="Wildcard patterns help"
-                    isInline
-                    style={{ ...helpIconStyle, verticalAlign: 'middle', lineHeight: 1, padding: 0 }}
-                  >
-                    <RhUiQuestionMarkCircleIcon />
-                  </Button>
-                </Popover>
-              )}
-            </Th>
-            <Th width={45}>Automation Orchestrator group</Th>
-            {!isReadOnly && <Th width={10} screenReaderText="Actions" />}
-          </Tr>
-        </Thead>
+      <Table aria-label="Group mappings" variant="compact" style={{ width: '100%' }}>
+        <GroupMappingTableHead showActionsColumn={showActionsColumn} showWildcardHelp={showWildcardHelp} />
         <Tbody>
           {entries.map((entry, index) => (
             <MappingRow
@@ -349,6 +204,7 @@ export function MappingTable({
               index={index}
               nexusGroups={nexusGroups}
               isReadOnly={isReadOnly}
+              readOnlyPlainCells={Boolean(isReadOnly)}
               showValidation={showValidation}
               onChange={onChange}
               onRemove={onRemove}
@@ -371,45 +227,153 @@ export function MappingTable({
   )
 }
 
-const noOp = () => {}
+const noopMappingChange: (index: number, entry: GroupMappingEntry) => void = () => {
+  /* Read-only list view: controls are disabled; handler required by MappingRow */
+}
+const noopCreateGroup: (index: number) => void = () => {
+  /* Read-only list view */
+}
+const noopRemoveMapping: (entryKey: string) => void = () => {
+  /* Read-only list view: remove action intentionally hidden outside edit mode */
+}
 
-export function ReadOnlyView({
-  entries,
-  nexusGroups,
-}: Readonly<{ entries: GroupMappingEntry[]; nexusGroups: NexusGroup[] }>) {
-  const [filterValue, setFilterValue] = useState('')
+type GroupMappingReadOnlyToolbarProps = {
+  filters: FilterConfig[]
+  onFilterChange: (next: FilterConfig[]) => void
+  clearAllFilters: () => void
+  onEditMapping: () => void
+}
+
+function GroupMappingReadOnlyToolbar({
+  filters,
+  onFilterChange,
+  clearAllFilters,
+  onEditMapping,
+}: Readonly<GroupMappingReadOnlyToolbarProps>) {
+  return (
+    <StackItem>
+      <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
+        <FlexItem grow={{ default: 'grow' }}>
+          <FilterBar
+            fieldDefinitions={GROUP_MAPPING_KEYWORD_FILTER_FIELDS}
+            filters={filters}
+            onFilterChange={onFilterChange}
+            isCompact
+            showClearAll
+            clearAllFilters={clearAllFilters}
+          />
+        </FlexItem>
+        <FlexItem>
+          <Button variant="primary" icon={<RhUiEditIcon />} onClick={onEditMapping}>
+            Edit mapping
+          </Button>
+        </FlexItem>
+      </Flex>
+    </StackItem>
+  )
+}
+
+export type ReadOnlyViewProps = {
+  entries: GroupMappingEntry[]
+  nexusGroups: NexusGroup[]
+  onEditMapping: () => void
+}
+
+export function ReadOnlyView({ entries, nexusGroups, onEditMapping }: Readonly<ReadOnlyViewProps>) {
+  const [filters, setFilters] = useState<FilterConfig[]>([])
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(20)
+
+  const clearFiltersAndPage = useCallback(() => {
+    setFilters([])
+    setPage(1)
+  }, [])
+
+  const handleFilterChange = useCallback((next: FilterConfig[]) => {
+    setFilters(next)
+    setPage(1)
+  }, [])
+
+  const handlePerPageChange = useCallback((newPerPage: number) => {
+    setPerPage(newPerPage)
+    setPage(1)
+  }, [])
+
+  const filterTerm = useMemo(() => {
+    const keywordFilter = filters.find((f) => f.key === 'keyword')
+    if (keywordFilter && typeof keywordFilter.value === 'string') {
+      return keywordFilter.value.toLowerCase()
+    }
+    return ''
+  }, [filters])
 
   const filteredEntries = useMemo(() => {
-    if (!filterValue) return entries
-    const term = filterValue.toLowerCase()
+    if (!filterTerm) return entries
     return entries.filter((e) => {
       const groupName = nexusGroups.find((g) => g.id === e.nexusGroupId)?.name ?? ''
-      return e.idpGroupValue.toLowerCase().includes(term) || groupName.toLowerCase().includes(term)
+      return e.idpGroupValue.toLowerCase().includes(filterTerm) || groupName.toLowerCase().includes(filterTerm)
     })
-  }, [entries, filterValue, nexusGroups])
+  }, [entries, filterTerm, nexusGroups])
+
+  const paginatedEntries = useMemo(() => {
+    const start = (page - 1) * perPage
+    return filteredEntries.slice(start, start + perPage)
+  }, [filteredEntries, page, perPage])
+
+  /** Defensive: parent normally switches to empty state before rendering read-only with zero rows */
+  if (entries.length === 0) {
+    return (
+      <EmptyStateNoData
+        title="No group mappings"
+        description="There are no group mappings to display for this identity provider."
+      />
+    )
+  }
 
   return (
-    <Flex direction={{ default: 'column' }} gap={{ default: 'gapMd' }}>
-      <FlexItem>
-        <SearchInput
-          placeholder="Filter mappings"
-          value={filterValue}
-          onChange={(_event, value) => setFilterValue(value)}
-          onClear={() => setFilterValue('')}
-          aria-label="Filter group mappings"
-        />
-      </FlexItem>
-      <FlexItem>
-        <MappingTable
-          entries={filteredEntries}
-          nexusGroups={nexusGroups}
-          isReadOnly
-          onChange={noOp}
-          onRemove={noOp}
-          onAdd={noOp}
-          onCreateGroup={noOp}
-        />
-      </FlexItem>
-    </Flex>
+    <PanelContentStack hasGutter>
+      <GroupMappingReadOnlyToolbar
+        filters={filters}
+        onFilterChange={handleFilterChange}
+        clearAllFilters={clearFiltersAndPage}
+        onEditMapping={onEditMapping}
+      />
+      {filteredEntries.length === 0 ? (
+        <StackItem isFilled style={READ_ONLY_EMPTY_FILTER_STATE_STYLE}>
+          <EmptyStateFilter clearAllFilters={clearFiltersAndPage} />
+        </StackItem>
+      ) : (
+        <ScrollableTableContainer
+          aria-label="Group mappings"
+          footer={{
+            page,
+            perPage,
+            total: filteredEntries.length,
+            hasNext: page * perPage < filteredEntries.length,
+            onPrev: () => setPage((p) => Math.max(1, p - 1)),
+            onNext: () => setPage((p) => p + 1),
+            onPerPageChange: handlePerPageChange,
+          }}
+        >
+          <GroupMappingTableHead showActionsColumn={false} showWildcardHelp={false} />
+          <Tbody>
+            {paginatedEntries.map((entry, index) => (
+              <MappingRow
+                key={entry.key}
+                entry={entry}
+                index={index}
+                nexusGroups={nexusGroups}
+                isReadOnly
+                readOnlyPlainCells
+                showValidation={false}
+                onChange={noopMappingChange}
+                onRemove={noopRemoveMapping}
+                onCreateGroup={noopCreateGroup}
+              />
+            ))}
+          </Tbody>
+        </ScrollableTableContainer>
+      )}
+    </PanelContentStack>
   )
 }
