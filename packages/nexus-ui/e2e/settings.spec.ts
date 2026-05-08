@@ -4,7 +4,7 @@
  * Critical paths covered (UI-1 through UI-17 from Runtime Settings Test Plan):
  * - UI-1:  Page renders with category tabs
  * - UI-2:  Context Manager tab shows grouped section headings
- * - UI-3:  Navigate to settings via Configuration nav
+ * - UI-3:  Navigate to settings via System Administration nav
  * - UI-4:  Auditor read-only view
  * - UI-5:  Viewer cannot access settings
  * - UI-6:  Modify integer setting, save, verify persistence
@@ -286,13 +286,13 @@ test.describe('Settings', () => {
     // No cleanup needed — changes were local only (not saved)
   })
 
-  test('navigate to settings via Configuration nav', async ({ app }) => {
+  test('navigate to settings via System Administration nav', async ({ app }) => {
     // Navigate away first
     await app.goto(toAppUrl('/workflows'))
     await expect(app).toHaveURL(/workflows/)
 
-    // Open Configuration flyout and click Settings
-    await app.getByRole('button', { name: 'Configuration' }).click()
+    // Open System Administration flyout and click Settings
+    await app.getByRole('button', { name: 'System Administration' }).click()
     await app.getByRole('menuitem', { name: 'Settings' }).click()
 
     // Verify navigation

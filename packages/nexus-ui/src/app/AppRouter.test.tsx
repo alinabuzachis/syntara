@@ -6,7 +6,7 @@ import { memoryLocation } from 'wouter/memory-location'
 import { AppRouter } from './AppRouter'
 
 vi.mock('./navigationItems', () => ({
-  navigationItems: [
+  NAV_ITEMS: [
     {
       label: 'Test',
       path: '/test',

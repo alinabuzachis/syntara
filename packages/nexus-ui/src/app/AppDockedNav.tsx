@@ -26,16 +26,10 @@ import type { MenuToggleElement } from '@patternfly/react-core'
 import {
   RedhatIcon,
   RhUiDarkModeIcon,
-  RhUiInfrastructureIcon,
-  RhUiLikeIcon,
   RhUiLightModeIcon,
-  RhUiListIcon,
   RhUiMenuBarsIcon,
-  RhUiPlayCircleIcon,
   RhUiProfileFillIcon,
   RhUiQuestionMarkCircleIcon,
-  RhUiSettingsIcon,
-  RhUiUsersIcon,
 } from '@patternfly/react-icons'
 import { useMemo, useRef, useState } from 'react'
 import { useLocation } from 'wouter'
@@ -48,25 +42,12 @@ import { getErrorMessage } from '../utils/apiErrors'
 import { detachPromise } from '../utils/detachPromise'
 
 import { AppRoute } from './AppRoute'
-import type { INavigationItem } from './navigationItems'
-import { navigationItems } from './navigationItems'
+import type { TNavigationItem } from './navigationItems'
+import { NAV_ITEMS } from './navigationItems'
 import { useFilteredNavigationItems } from './useFilteredNavigationItems'
 import { useUnsavedChanges } from './useUnsavedChanges'
 
-const navIconMap: Record<string, React.ComponentType> = {
-  '/workflow-builder': RhUiInfrastructureIcon,
-  '/workflows': RhUiListIcon,
-  '/executions': RhUiPlayCircleIcon,
-  '/approvals': RhUiLikeIcon,
-  '/access-management': RhUiUsersIcon,
-  '/configuration': RhUiSettingsIcon,
-}
-
-function getNavIcon(path: string) {
-  return navIconMap['/' + path.split('/')[1]]
-}
-
-function findFirstEnabledPath(item: INavigationItem): string {
+function findFirstEnabledPath(item: TNavigationItem): string {
   if (item.children?.length) {
     const firstEnabled = item.children.find((child) => !!child.element)
     return firstEnabled?.path ?? item.path
@@ -75,12 +56,12 @@ function findFirstEnabledPath(item: INavigationItem): string {
 }
 
 /** Items with children that should show a dropdown instead of navigating directly. */
-function hasDropdownChildren(item: INavigationItem): boolean {
+function hasDropdownChildren(item: TNavigationItem): boolean {
   const enabledChildren = item.children?.filter((child) => !!child.element) ?? []
   return enabledChildren.length > 1
 }
 
-function createNavItemRefs(items: INavigationItem[]) {
+function createNavItemRefs(items: TNavigationItem[]) {
   const refs: Record<string, React.RefObject<HTMLAnchorElement | null>> = {}
   items.forEach((item) => {
     refs[item.path] = { current: null }
@@ -90,7 +71,7 @@ function createNavItemRefs(items: INavigationItem[]) {
 
 function navigateToNavItem(
   itemId: string | number,
-  visibleItems: INavigationItem[],
+  visibleItems: TNavigationItem[],
   requestNavigation: (path: string) => void
 ) {
   const item = visibleItems.find((navItem) => navItem.path === itemId)
@@ -98,7 +79,7 @@ function navigateToNavItem(
 }
 
 function navigateToHelp(requestNavigation: (path: string) => void) {
-  const target = navigationItems.find((item) => item.path.startsWith('/support'))
+  const target = NAV_ITEMS.find((item) => item.path.startsWith('/support'))
   if (target) requestNavigation(findFirstEnabledPath(target))
 }
 
@@ -107,17 +88,11 @@ function NavDropdownItem({
   isActive,
   requestNavigation,
 }: Readonly<{
-  item: INavigationItem
+  item: TNavigationItem
   isActive: boolean
   requestNavigation: (path: string) => void
 }>) {
   const enabledChildren = item.children?.filter((child) => !!child.element) ?? []
-  const Icon = useMemo(() => getNavIcon(item.path), [item.path])
-  const iconElement = useMemo(() => {
-    if (!Icon) return undefined
-    // eslint-disable-next-line react-hooks/static-components -- Icon is from navIconMap lookup, not created during render
-    return <Icon />
-  }, [Icon])
 
   const onMenuSelect = (_event: React.MouseEvent | undefined, itemId: string | number | undefined) => {
     const child = enabledChildren.find((c) => c.path === itemId)
@@ -130,7 +105,7 @@ function NavDropdownItem({
     <NavItem
       preventDefault
       isActive={isActive}
-      icon={iconElement}
+      icon={item.icon}
       aria-label={item.label}
       itemId={item.path}
       id={`nav-${item.path.replaceAll('/', '-')}`}
@@ -175,47 +150,45 @@ function UserMenuDropdown() {
     })
   }
 
-  const toggle = (toggleRef: React.Ref<MenuToggleElement>) => (
+  const toggle = (dropdownRef: React.Ref<MenuToggleElement>) => (
     <MenuToggle
-      ref={toggleRef}
-      onClick={() => setIsOpen(!isOpen)}
+      ref={dropdownRef}
       isExpanded={isOpen}
       variant="plain"
       aria-label="User menu"
       style={{ padding: 0 }}
+      onClick={() => setIsOpen(!isOpen)}
+      onMouseEnter={() => setIsOpen(true)}
     >
       <RhUiProfileFillIcon />
     </MenuToggle>
   )
 
   return (
-    <Tooltip aria="none" aria-live="off" content="User menu" position="right">
-      <Dropdown
-        isOpen={isOpen}
-        onOpenChange={setIsOpen}
-        toggle={toggle}
-        popperProps={{ position: 'right', preventOverflow: true }}
-      >
-        <DropdownList>
-          <DropdownItem
-            key="profile"
-            isDisabled={!currentUser?.id}
-            onClick={() => {
-              if (currentUser?.id) {
-                setLocation(AppRoute.AccessManagement.UserDetail.replace(':userId', currentUser.id))
-                setIsOpen(false)
-              }
-            }}
-          >
-            My Profile
-          </DropdownItem>
-          <DropdownItem key="settings">Settings</DropdownItem>
-          <DropdownItem key="logout" onClick={handleLogoutClick}>
-            Logout
-          </DropdownItem>
-        </DropdownList>
-      </Dropdown>
-    </Tooltip>
+    <Dropdown
+      isOpen={isOpen}
+      onOpenChange={setIsOpen}
+      toggle={toggle}
+      popperProps={{ position: 'right', preventOverflow: true }}
+    >
+      <DropdownList>
+        <DropdownItem
+          key="profile"
+          isDisabled={!currentUser?.id}
+          onClick={() => {
+            if (currentUser?.id) {
+              setLocation(AppRoute.AccessManagement.UserDetail.replace(':userId', currentUser.id))
+              setIsOpen(false)
+            }
+          }}
+        >
+          My Profile
+        </DropdownItem>
+        <DropdownItem key="logout" onClick={handleLogoutClick}>
+          Logout
+        </DropdownItem>
+      </DropdownList>
+    </Dropdown>
   )
 }
 
@@ -288,7 +261,6 @@ export function AppDockedNav() {
                         />,
                       ]
                     }
-                    const Icon = getNavIcon(item.path)
                     return [
                       separator,
                       <NavItem
@@ -298,7 +270,7 @@ export function AppDockedNav() {
                         itemId={item.path}
                         href={findFirstEnabledPath(item)}
                         isActive={isActive}
-                        icon={Icon ? <Icon /> : undefined}
+                        icon={item.icon}
                         aria-label={item.label}
                         anchorRef={navItemRefs[item.path]}
                       />,

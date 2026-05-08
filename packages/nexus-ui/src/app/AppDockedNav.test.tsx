@@ -108,14 +108,26 @@ describe('AppDockedNav', () => {
     expect(screen.getByRole('button', { name: 'Toggle menu' })).toBeInTheDocument()
   })
 
-  it('opens user menu when clicked', async () => {
+  it('shows My Profile and Logout in user menu when hovered', async () => {
     const user = userEvent.setup()
     renderDockedNav()
 
-    const userMenuButton = screen.getByRole('button', { name: 'User menu' })
-    await user.click(userMenuButton)
+    await user.hover(screen.getByRole('button', { name: 'User menu' }))
 
-    // Menu should be open - check for dropdown items
+    expect(screen.getByText('My Profile')).toBeInTheDocument()
+    expect(screen.getByText('Logout')).toBeInTheDocument()
+    expect(screen.queryByText('Settings')).not.toBeInTheDocument()
+  })
+
+  it('opens user menu when Enter is pressed while focused', async () => {
+    const user = userEvent.setup()
+    renderDockedNav()
+
+    await user.tab()
+    const userMenuButton = screen.getByRole('button', { name: 'User menu' })
+    userMenuButton.focus()
+    await user.keyboard('{Enter}')
+
     expect(screen.getByText('My Profile')).toBeInTheDocument()
     expect(screen.getByText('Logout')).toBeInTheDocument()
   })
@@ -124,7 +136,7 @@ describe('AppDockedNav', () => {
     const user = userEvent.setup()
     renderDockedNav()
 
-    await user.click(screen.getByRole('button', { name: 'User menu' }))
+    await user.hover(screen.getByRole('button', { name: 'User menu' }))
     await user.click(screen.getByText('My Profile'))
 
     expect(mockNavigate).toHaveBeenCalledWith(`/access-management/users/${MOCK_CURRENT_USER_ID}`)
@@ -135,24 +147,10 @@ describe('AppDockedNav', () => {
     const user = userEvent.setup()
     renderDockedNav()
 
-    await user.click(screen.getByRole('button', { name: 'User menu' }))
+    await user.hover(screen.getByRole('button', { name: 'User menu' }))
     await user.click(screen.getByText('My Profile'))
 
     expect(mockNavigate).not.toHaveBeenCalledWith(expect.stringContaining('/access-management/users/'))
-  })
-
-  it('toggles user menu isExpanded state when clicked', async () => {
-    const user = userEvent.setup()
-    renderDockedNav()
-
-    const userMenuButton = screen.getByRole('button', { name: 'User menu' })
-
-    // First click - opens menu
-    await user.click(userMenuButton)
-    expect(screen.getByText('My Profile')).toBeInTheDocument()
-
-    // Verify menu button has expanded state
-    expect(userMenuButton).toHaveAttribute('aria-expanded', 'true')
   })
 
   it('navigates when help button is clicked', async () => {
@@ -198,7 +196,7 @@ describe('AppDockedNav', () => {
     expect(mockRequestNavigation).toHaveBeenCalledWith('/configuration/integrations')
   })
 
-  it('shows dropdown with Integrations, Credentials, and Settings when Configuration is clicked', async () => {
+  it('shows dropdown with Integrations and Credentials when Configuration is clicked', async () => {
     const user = userEvent.setup()
     renderDockedNav()
 
@@ -208,31 +206,31 @@ describe('AppDockedNav', () => {
     const menu = screen.getByRole('menu')
     const menuItems = within(menu).getAllByRole('menuitem')
 
-    // Configuration has 3 child items: Integrations, Credentials, Settings
-    expect(menuItems.length).toBe(3)
+    // Configuration has 2 child items: Integrations, Credentials (Settings moved to System Administration)
+    expect(menuItems.length).toBe(2)
     expect(menu).toBeInTheDocument()
   })
 
-  it('shows dropdown with Access Management and Identity Providers when Access Management is clicked', async () => {
+  it('shows dropdown with Access Management, Identity Providers, and Settings when System Administration is clicked', async () => {
     const user = userEvent.setup()
     renderDockedNav()
 
-    const navButton = screen.getByRole('button', { name: 'Access Management' })
+    const navButton = screen.getByRole('button', { name: 'System Administration' })
     await user.click(navButton)
 
     const menu = screen.getByRole('menu')
     const menuItems = within(menu).getAllByRole('menuitem')
 
-    // Access Management has 3 child items: Access Management, Identity Providers, Audit Log
-    expect(menuItems.length).toBe(3)
+    // System Administration has 4 child items: Access Management, Identity Providers, Settings, Audit Log
+    expect(menuItems.length).toBe(4)
     expect(menu).toBeInTheDocument()
   })
 
-  it('navigates to Access Management from Access Management dropdown', async () => {
+  it('navigates to Access Management from System Administration dropdown', async () => {
     const user = userEvent.setup()
     renderDockedNav()
 
-    const navButton = screen.getByRole('button', { name: 'Access Management' })
+    const navButton = screen.getByRole('button', { name: 'System Administration' })
     await user.click(navButton)
 
     const menu = screen.getByRole('menu')
@@ -241,11 +239,11 @@ describe('AppDockedNav', () => {
     expect(mockRequestNavigation).toHaveBeenCalledWith('/access-management')
   })
 
-  it('navigates to Authentication from Access Management dropdown', async () => {
+  it('navigates to Identity Providers from System Administration dropdown', async () => {
     const user = userEvent.setup()
     renderDockedNav()
 
-    const navButton = screen.getByRole('button', { name: 'Access Management' })
+    const navButton = screen.getByRole('button', { name: 'System Administration' })
     await user.click(navButton)
 
     await user.click(screen.getByText('Identity Providers'))
@@ -268,7 +266,7 @@ describe('AppDockedNav', () => {
     const user = userEvent.setup()
     renderDockedNav()
 
-    await user.click(screen.getByRole('button', { name: 'User menu' }))
+    await user.hover(screen.getByRole('button', { name: 'User menu' }))
     await user.click(screen.getByText('Logout'))
 
     // Should call logout directly — no modal

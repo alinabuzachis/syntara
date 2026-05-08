@@ -1,9 +1,16 @@
 import {
   RhUiConnectedIcon,
-  RhUiControlsIcon,
   RhUiDocumentIcon,
+  RhUiFolderIcon,
   RhUiKeyIcon,
-  ShieldAltIcon,
+  RhUiLanguageIcon,
+  RhUiLikeIcon,
+  RhUiListIcon,
+  RhUiNetworkIcon,
+  RhUiPlayCircleIcon,
+  RhUiSecuredIcon,
+  RhUiSettingsIcon,
+  RhUiUsersIcon,
 } from '@patternfly/react-icons'
 
 import { AppRoute } from './AppRoute'
@@ -35,38 +42,43 @@ import {
   UserDetail,
 } from './lazyRoutes'
 
-export type INavigationItem = {
+export type TNavigationItem = {
   label: string
   path: string
   element?: React.ReactNode
-  children?: INavigationItem[]
+  children?: TNavigationItem[]
   hidden?: boolean // Hide from navigation but keep for routing
   matchPattern?: string // Optional pattern to match for active state (e.g., "/workflow-builder/:workflowId")
   separatorBefore?: boolean // Render a divider above this item in the nav
   icon?: React.ReactNode // Icon to display next to the label in dropdown menus
 }
 
-export const navigationItems: INavigationItem[] = [
+export const NAV_ITEMS: TNavigationItem[] = [
   {
-    label: 'Builder',
+    label: 'Workflow Builder',
     path: AppRoute.WorkflowBuilder.New,
     element: <BuilderNew />,
+    // UX requirement: rotate the network icon 270° so it reads as a "builder" shape rather than a network diagram
+    icon: <RhUiNetworkIcon style={{ transform: 'rotate(270deg)' }} />,
     matchPattern: '/workflow-builder/:workflowId',
   },
   {
     label: 'Workflows',
     path: AppRoute.Workflows.Root,
     element: <Workflows />,
+    icon: <RhUiListIcon />,
   },
   {
     label: 'Workflow Runs',
     path: AppRoute.Executions.Root,
     element: <Executions />,
+    icon: <RhUiPlayCircleIcon />,
   },
   {
     label: 'Approvals',
     path: AppRoute.Approvals.Root,
     element: <Approvals />,
+    icon: <RhUiLikeIcon />,
   },
   // Hidden route for approval detail page
   {
@@ -75,14 +87,47 @@ export const navigationItems: INavigationItem[] = [
     element: <ApprovalDetail />,
     hidden: true,
   },
+
   {
-    label: 'Access Management',
+    label: 'Configuration',
+    path: AppRoute.Configuration.Integrations.Root,
+    icon: <RhUiFolderIcon />,
+    children: [
+      {
+        label: 'Integrations',
+        path: AppRoute.Configuration.Integrations.Root,
+        icon: <RhUiConnectedIcon />,
+        element: <Integrations />,
+        children: [
+          {
+            label: 'Configure',
+            path: AppRoute.Configuration.Integrations.Configure,
+            element: <IntegrationForm />,
+          },
+          {
+            label: 'IntegrationTools',
+            path: AppRoute.Configuration.Integrations.IntegrationTools,
+            element: <IntegrationTools />,
+          },
+        ],
+      },
+      {
+        label: 'Credentials',
+        path: AppRoute.Configuration.Credentials.Root,
+        icon: <RhUiKeyIcon />,
+        element: <Credentials />,
+      },
+    ],
+  },
+  {
+    label: 'System Administration',
     path: AppRoute.AccessManagement.Root,
+    icon: <RhUiLanguageIcon />,
     children: [
       {
         label: 'Access Management',
         path: AppRoute.AccessManagement.Root,
-        icon: <ShieldAltIcon />,
+        icon: <RhUiUsersIcon />,
         element: <AccessManagement />,
         children: [
           {
@@ -179,7 +224,7 @@ export const navigationItems: INavigationItem[] = [
       {
         label: 'Identity Providers',
         path: AppRoute.AccessManagement.Authentication.Root,
-        icon: <RhUiKeyIcon />,
+        icon: <RhUiSecuredIcon />,
         element: <Authentication />,
         children: [
           {
@@ -200,46 +245,16 @@ export const navigationItems: INavigationItem[] = [
         ],
       },
       {
+        label: 'Settings',
+        path: AppRoute.Configuration.Settings,
+        icon: <RhUiSettingsIcon />,
+        element: <Settings />,
+      },
+      {
         label: 'Audit Log',
         path: AppRoute.AccessManagement.AuditLog,
         icon: <RhUiDocumentIcon />,
         element: <AuditLog />,
-      },
-    ],
-  },
-  {
-    label: 'Configuration',
-    path: AppRoute.Configuration.Integrations.Root,
-    children: [
-      {
-        label: 'Integrations',
-        path: AppRoute.Configuration.Integrations.Root,
-        icon: <RhUiConnectedIcon />,
-        element: <Integrations />,
-        children: [
-          {
-            label: 'Configure',
-            path: AppRoute.Configuration.Integrations.Configure,
-            element: <IntegrationForm />,
-          },
-          {
-            label: 'IntegrationTools',
-            path: AppRoute.Configuration.Integrations.IntegrationTools,
-            element: <IntegrationTools />,
-          },
-        ],
-      },
-      {
-        label: 'Credentials',
-        path: AppRoute.Configuration.Credentials.Root,
-        icon: <RhUiKeyIcon />,
-        element: <Credentials />,
-      },
-      {
-        label: 'Settings',
-        path: AppRoute.Configuration.Settings,
-        icon: <RhUiControlsIcon />,
-        element: <Settings />,
       },
     ],
   },
@@ -281,4 +296,4 @@ export const navigationItems: INavigationItem[] = [
     element: <CredentialDetail />,
     hidden: true,
   },
-]
+] as const

@@ -4,14 +4,14 @@ import { Redirect, Route, Switch } from 'wouter'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 import { LoadingState } from '../components/states/LoadingState'
 
-import { navigationItems } from './navigationItems'
+import { NAV_ITEMS } from './navigationItems'
 
 export function AppRouter() {
   return (
     <ErrorBoundary>
       <Suspense fallback={<LoadingState />}>
         <Switch>
-          {navigationItems.map((item) => (
+          {NAV_ITEMS.map((item) => (
             <Fragment key={item.path}>
               {item.children?.map((child) => (
                 <Fragment key={child.path}>

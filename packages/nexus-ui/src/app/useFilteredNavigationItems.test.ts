@@ -4,7 +4,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { useSettingsPermissions } from '../routes/configuration/settings/useSettingsPermissions'
 
 import { AppRoute } from './AppRoute'
-import { navigationItems } from './navigationItems'
+import { NAV_ITEMS } from './navigationItems'
 import { useFilteredNavigationItems } from './useFilteredNavigationItems'
 
 vi.mock('../routes/configuration/settings/useSettingsPermissions', () => ({
@@ -21,7 +21,7 @@ describe('useFilteredNavigationItems', () => {
 
     const { result } = renderHook(() => useFilteredNavigationItems())
 
-    expect(result.current).toBe(navigationItems)
+    expect(result.current).toBe(NAV_ITEMS)
   })
 
   it('filters out Settings nav item when user cannot read settings', () => {
@@ -51,7 +51,7 @@ describe('useFilteredNavigationItems', () => {
 
     const { result } = renderHook(() => useFilteredNavigationItems())
 
-    const topLevelWithoutChildren = navigationItems.filter((item) => !item.children)
+    const topLevelWithoutChildren = NAV_ITEMS.filter((item) => !item.children)
     const filteredTopLevel = result.current.filter((item) => !item.children)
     expect(filteredTopLevel).toEqual(topLevelWithoutChildren)
   })
