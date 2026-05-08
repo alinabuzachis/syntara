@@ -6,7 +6,7 @@ import { useApiErrorAlert } from './useApiErrorAlert'
 // Mock useAlerts
 const mockShowError = vi.fn()
 const mockShowWarning = vi.fn()
-vi.mock('../components/alerts', () => ({
+vi.mock('../providers/alerts', () => ({
   useAlerts: () => ({
     showError: mockShowError,
     showWarning: mockShowWarning,

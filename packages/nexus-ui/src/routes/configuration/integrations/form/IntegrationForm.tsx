@@ -21,9 +21,9 @@ import { AppPage, AppPageMain } from '../../../../app/AppPage'
 import { AppPageHeader } from '../../../../app/AppPageHeader'
 import { AppRoute } from '../../../../app/AppRoute'
 import { toolManagerClient } from '../../../../client'
-import { useAlerts } from '../../../../components/alerts'
 import { AppPanel } from '../../../../components/AppPanel'
 import { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationErrorHandler'
+import { useAlerts } from '../../../../providers/alerts'
 
 import { integrationFormSchema, type IntegrationFormData } from './integrationFormSchema'
 

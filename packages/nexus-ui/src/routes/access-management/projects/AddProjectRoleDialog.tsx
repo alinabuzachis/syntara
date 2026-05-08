@@ -14,7 +14,7 @@ import {
 } from '@patternfly/react-core'
 import { Controller, useForm } from 'react-hook-form'
 
-import { useAlerts } from '../../../components/alerts'
+import { useAlerts } from '../../../providers/alerts'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { accessClient } from '../../access/accessClient'
 

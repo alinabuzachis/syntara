@@ -1,7 +1,7 @@
 import type { Activity } from '@ansible/nexus-contracts'
 import type { ReactNode } from 'react'
 
-import { useAlerts } from '../../../components/alerts'
+import { useAlerts } from '../../../providers/alerts'
 import { createAgenticActivity, useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
 import { AIAgentNodeForm } from '../node-forms/AIAgentNodeForm'
 import type { AIAgentFormInitialData, AIAgentFormSubmitData } from '../node-forms/AIAgentNodeForm'

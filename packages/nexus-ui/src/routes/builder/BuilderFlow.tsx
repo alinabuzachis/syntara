@@ -14,7 +14,7 @@ import {
 } from '@xyflow/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { useAlerts } from '../../components/alerts'
+import { useAlerts } from '../../providers/alerts'
 import {
   useWorkflowStore,
   useWorkflowStoreActions,

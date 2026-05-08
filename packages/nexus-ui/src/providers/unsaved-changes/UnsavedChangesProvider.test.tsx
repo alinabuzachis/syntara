@@ -1,10 +1,10 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useWorkflowStore } from '../stores/useWorkflowStore'
+import { useUnsavedChanges } from '../../app/useUnsavedChanges'
+import { useWorkflowStore } from '../../stores/useWorkflowStore'
 
 import { UnsavedChangesProvider } from './UnsavedChangesProvider'
-import { useUnsavedChanges } from './useUnsavedChanges'
 
 // Mock wouter - needed to control current location and capture navigation calls
 const mockSetLocation = vi.fn()
@@ -19,7 +19,7 @@ vi.mock('wouter', async (importOriginal) => {
 })
 
 // Mock workflow store - needed to control isDirty state and capture state clearing
-vi.mock('../stores/useWorkflowStore', () => ({
+vi.mock('../../stores/useWorkflowStore', () => ({
   useWorkflowStore: vi.fn(),
 }))
 

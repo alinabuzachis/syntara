@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
 
-import { useAlerts } from '../../components/alerts'
 import { useFilterState } from '../../hooks/useFilterState'
 import { useSortState } from '../../hooks/useSortState'
+import { useAlerts } from '../../providers/alerts'
 import type { FilterConfig } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
 

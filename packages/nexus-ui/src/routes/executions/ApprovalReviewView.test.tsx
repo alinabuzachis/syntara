@@ -28,7 +28,7 @@ vi.mock('../../client', () => ({
   },
 }))
 
-vi.mock('../../components/alerts', () => ({
+vi.mock('../../providers/alerts', () => ({
   useAlerts: () => ({
     showAlert: mockShowAlert,
   }),

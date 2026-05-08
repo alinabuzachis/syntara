@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { ExpandableCodeEditor } from './ExpandableCodeEditor'
 
 // Mock theme hook
-vi.mock('../theme/useColorScheme', () => ({
+vi.mock('../providers/theme/useColorScheme', () => ({
   useColorScheme: vi.fn(() => ({
     colorScheme: 'dark',
     setColorScheme: vi.fn(),

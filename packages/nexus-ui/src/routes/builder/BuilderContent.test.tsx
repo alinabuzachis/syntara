@@ -7,9 +7,9 @@ import type { ComponentProps, ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 
 import { executionsClient, workflowClient } from '../../client'
-import { AlertProvider } from '../../components/alerts'
+import { AlertProvider } from '../../providers/alerts'
+import { ColorSchemeProvider } from '../../providers/theme/ColorSchemeProvider'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
-import { ColorSchemeProvider } from '../../theme/ColorSchemeProvider'
 
 import { BuilderContent } from './BuilderContent'
 

@@ -13,7 +13,7 @@ import {
 import { RhUiErrorIcon } from '@patternfly/react-icons'
 import { useMemo, useState } from 'react'
 
-import { useAlerts } from '../../../components/alerts'
+import { useAlerts } from '../../../providers/alerts'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { accessClient } from '../../access/accessClient'
 import { TypeaheadSelect } from '../../access/TypeaheadSelect'

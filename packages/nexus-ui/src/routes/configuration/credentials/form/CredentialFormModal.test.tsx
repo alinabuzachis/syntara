@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { credentialsClient } from '../../../../client'
-import { AlertProvider } from '../../../../components/alerts'
+import { AlertProvider } from '../../../../providers/alerts'
 
 import { CredentialFormModal } from './CredentialFormModal'
 

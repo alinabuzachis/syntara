@@ -36,7 +36,7 @@ vi.mock('./panels/hooks/useNodeExecutionData', () => ({
     mockUseNodeExecutionData(...args) as { inputData: null; outputData: null; isLoading: boolean },
 }))
 
-vi.mock('../../components/alerts', () => ({
+vi.mock('../../providers/alerts', () => ({
   useAlerts: vi.fn(() => ({ showInfo: vi.fn() })),
 }))
 

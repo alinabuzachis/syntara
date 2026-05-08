@@ -11,8 +11,8 @@ import {
 } from '@patternfly/react-core'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
-import { useAlerts } from '../components/alerts'
 import { LoadingState } from '../components/states/LoadingState'
+import { useAlerts } from '../providers/alerts'
 import { useAuthStore, selectIsAuthenticated, selectIsRefreshing, selectAuthError } from '../stores/useAuthStore'
 
 import { IdentityProviderButtons } from './IdentityProviderButtons'

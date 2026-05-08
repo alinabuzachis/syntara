@@ -4,8 +4,8 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
+import { ColorSchemeProvider } from '../../../providers/theme/ColorSchemeProvider'
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
-import { ColorSchemeProvider } from '../../../theme/ColorSchemeProvider'
 
 import { BuilderDialogs } from './BuilderDialogs'
 

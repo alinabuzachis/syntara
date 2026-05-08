@@ -47,7 +47,7 @@ vi.spyOn(workflowStore, 'createAAPJobTemplateActivity').mockImplementation(mockC
 
 // Mock the alerts hook
 const mockShowError = vi.fn()
-vi.mock('../../../components/alerts', () => ({
+vi.mock('../../../providers/alerts', () => ({
   useAlerts: vi.fn(() => ({
     showSuccess: vi.fn(),
     showError: mockShowError,

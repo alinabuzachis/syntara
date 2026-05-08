@@ -5,7 +5,7 @@ import { useMutationErrorHandler } from './useMutationErrorHandler'
 
 // Mock useAlerts
 const mockShowAlert = vi.fn()
-vi.mock('../components/alerts', () => ({
+vi.mock('../providers/alerts', () => ({
   useAlerts: () => ({
     showAlert: mockShowAlert,
   }),

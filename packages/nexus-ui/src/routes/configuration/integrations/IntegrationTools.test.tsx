@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { toolManagerClient } from '../../../client'
-import { AlertProvider } from '../../../components/alerts'
+import { AlertProvider } from '../../../providers/alerts'
 import { assertUrlParam, assertUrlParamIsNull } from '../../../test/filter-test-helpers'
 
 import IntegrationTools from './IntegrationTools'

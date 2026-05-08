@@ -6,7 +6,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { axe } from 'vitest-axe'
 
 import { credentialsClient } from '../../../client'
-import { AlertProvider } from '../../../components/alerts'
+import { AlertProvider } from '../../../providers/alerts'
 
 import Credentials from './Credentials'
 

@@ -263,15 +263,16 @@ flowchart TB
 
 Within `packages/nexus-ui/src/`:
 
-| Directory                                 | Purpose                                                               |
-| ----------------------------------------- | --------------------------------------------------------------------- |
-| `app/`                                    | App shell, layout, routing                                            |
-| `client.tsx`                              | Typed API clients (OpenAPI → TanStack Query hooks)                    |
-| `routes/`                                 | Feature areas: builder, workflows, executions, configuration          |
-| `stores/`                                 | Client state (Zustand) — workflow store                               |
-| `lib/websocket/`                          | WebSocket infrastructure (store, hooks, types, utils)                 |
-| `components/`                             | App-specific components                                               |
-| `constants/`, `hooks/`, `utils/`, `test/` | Shared utilities (date formatting, error parsing, trigger formatting) |
+| Directory                                 | Purpose                                                                |
+| ----------------------------------------- | ---------------------------------------------------------------------- |
+| `app/`                                    | App shell, layout, routing                                             |
+| `client.tsx`                              | Typed API clients (OpenAPI → TanStack Query hooks)                     |
+| `routes/`                                 | Feature areas: builder, workflows, executions, configuration           |
+| `stores/`                                 | Client state (Zustand) — workflow store                                |
+| `lib/websocket/`                          | WebSocket infrastructure (store, hooks, types, utils)                  |
+| `providers/`                              | Global React context providers — sources of shared app state           |
+| `components/`                             | Global UI elements (layout, shared widgets) — no context or state here |
+| `constants/`, `hooks/`, `utils/`, `test/` | Shared utilities (date formatting, error parsing, trigger formatting)  |
 
 ---
 

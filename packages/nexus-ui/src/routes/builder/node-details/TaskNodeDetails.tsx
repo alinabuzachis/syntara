@@ -1,7 +1,7 @@
 import { ActivityTypeEnum, ExecutorTypeEnum, type Activity, type TaskActivity } from '@ansible/nexus-contracts'
 import type { ReactNode } from 'react'
 
-import { useAlerts, type AlertMessage } from '../../../components/alerts'
+import { useAlerts, type AlertMessage } from '../../../providers/alerts'
 import {
   detectTaskNodeType,
   DetectedExecutorType,

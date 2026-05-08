@@ -18,7 +18,7 @@ import { RhUiAddIcon } from '@patternfly/react-icons'
 import { useMemo } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 
-import { useAlerts } from '../../components/alerts'
+import { useAlerts } from '../../providers/alerts'
 import { getErrorMessage } from '../../utils/apiErrors'
 
 import { accessClient } from './accessClient'

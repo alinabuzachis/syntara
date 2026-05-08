@@ -21,9 +21,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Controller, useForm, type UseFormSetError } from 'react-hook-form'
 
 import { credentialsClient } from '../../../../client'
-import { useAlerts } from '../../../../components/alerts'
 import { FormLabelWithHelp } from '../../../../components/FormLabelWithHelp'
 import { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationErrorHandler'
+import { useAlerts } from '../../../../providers/alerts'
 import type { Credential, CredentialType } from '../credentialConstants'
 import { ENCRYPTED_SENTINEL } from '../credentialConstants'
 

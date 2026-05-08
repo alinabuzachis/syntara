@@ -7,8 +7,8 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { auditClient } from '../../client'
-import { AlertProvider } from '../../components/alerts'
 import { useFilterState } from '../../hooks/useFilterState'
+import { AlertProvider } from '../../providers/alerts'
 
 import AuditLog from './AuditLog'
 

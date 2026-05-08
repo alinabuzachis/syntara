@@ -43,7 +43,7 @@ vi.mock('../../stores/useWorkflowStore', async (importOriginal) => {
   }
 })
 
-vi.mock('../../components/alerts', () => ({
+vi.mock('../../providers/alerts', () => ({
   useAlerts: vi.fn(() => ({
     showError: mockShowError,
   })),

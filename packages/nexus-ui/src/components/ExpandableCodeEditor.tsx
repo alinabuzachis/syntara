@@ -6,8 +6,8 @@ import { forwardRef, useCallback, useImperativeHandle, useState } from 'react'
 
 import { useDropTarget } from '../hooks/useDropTarget'
 import { useMonacoBlur } from '../hooks/useMonacoBlur'
+import { useColorScheme } from '../providers/theme/useColorScheme'
 import { DROP_TARGET_OUTLINE } from '../routes/builder/panels/utils/dragTypes'
-import { useColorScheme } from '../theme/useColorScheme'
 
 /** Supported code languages for syntax highlighting */
 export type CodeLanguage = 'python' | 'bash' | 'json' | 'plaintext'

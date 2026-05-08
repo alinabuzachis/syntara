@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { AlertProvider } from '../../components/alerts'
+import { AlertProvider } from '../../providers/alerts'
 import type { FilterConfig } from '../../types/filters'
 
 import { AssignmentsTab } from './AssignmentsTab'

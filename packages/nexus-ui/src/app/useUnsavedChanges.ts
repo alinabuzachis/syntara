@@ -1,6 +1,6 @@
 import { useContext } from 'react'
 
-import { UnsavedChangesContext } from './unsavedChangesContext'
+import { UnsavedChangesContext } from '../providers/unsaved-changes/unsavedChangesContext'
 
 export function useUnsavedChanges() {
   const context = useContext(UnsavedChangesContext)

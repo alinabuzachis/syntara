@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 
-import { useAlerts } from '../components/alerts'
+import { useAlerts } from '../providers/alerts'
 import { getErrorMessage, getErrorStatus, getErrorTitle, isServiceUnavailableError } from '../utils/apiErrors'
 
 export type UseApiErrorAlertOptions = {

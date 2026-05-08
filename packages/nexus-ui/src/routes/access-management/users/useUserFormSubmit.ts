@@ -1,7 +1,7 @@
 import type { UseFormSetError } from 'react-hook-form'
 
-import { useAlerts } from '../../../components/alerts'
 import { useFormMutationErrorHandler } from '../../../hooks/useFormMutationErrorHandler'
+import { useAlerts } from '../../../providers/alerts'
 import { useAuthStore } from '../../../stores/useAuthStore'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'

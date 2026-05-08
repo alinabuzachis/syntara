@@ -34,7 +34,7 @@ vi.mock('../../utils/jwtUtils', () => ({
   getUserIdFromToken: vi.fn(),
 }))
 
-vi.mock('../../components/alerts', () => ({
+vi.mock('../../providers/alerts', () => ({
   useAlerts: () => ({ showAlert: vi.fn() }),
 }))
 

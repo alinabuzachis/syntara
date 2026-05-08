@@ -1,8 +1,8 @@
 import { useState } from 'react'
 
 import { usersClient } from '../../../client'
-import { useAlerts } from '../../../components/alerts'
 import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
+import { useAlerts } from '../../../providers/alerts'
 
 import type { UserIdentity } from './identityUtils'
 

@@ -18,8 +18,8 @@ import { RhUiAddIcon, RhUiErrorIcon } from '@patternfly/react-icons'
 import { useEffect } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 
-import { useAlerts } from '../../components/alerts'
 import { useFormMutationErrorHandler } from '../../hooks/useFormMutationErrorHandler'
+import { useAlerts } from '../../providers/alerts'
 import { accessClient } from '../access/accessClient'
 
 import { groupFormSchema, type GroupFormData } from './groupFormSchema'

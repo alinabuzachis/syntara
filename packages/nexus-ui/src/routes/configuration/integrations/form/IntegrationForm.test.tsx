@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { navigate } from 'wouter/use-browser-location'
 
 import { toolManagerClient } from '../../../../client'
-import { AlertProvider } from '../../../../components/alerts'
+import { AlertProvider } from '../../../../providers/alerts'
 
 import { IntegrationForm } from './IntegrationForm'
 

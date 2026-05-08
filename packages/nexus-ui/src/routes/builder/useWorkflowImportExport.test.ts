@@ -14,7 +14,7 @@ const mockBuildDefinition = vi.fn<(...args: unknown[]) => Record<string, unknown
 const mockReplaceWorkflowContent = vi.fn()
 const mockGetState = vi.fn<() => Record<string, unknown>>()
 
-vi.mock('../../components/alerts', () => ({
+vi.mock('../../providers/alerts', () => ({
   useAlerts: () => ({ showError: mockShowError }),
 }))
 

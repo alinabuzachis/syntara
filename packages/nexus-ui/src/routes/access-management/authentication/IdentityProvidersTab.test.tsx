@@ -7,7 +7,7 @@ import { axe } from 'vitest-axe'
 import { navigate } from 'wouter/use-browser-location'
 
 import { identityProvidersClient } from '../../../client'
-import { AlertProvider } from '../../../components/alerts'
+import { AlertProvider } from '../../../providers/alerts'
 
 import { IdentityProvidersTab } from './IdentityProvidersTab'
 

@@ -19,7 +19,7 @@ import { useEffect, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 
 import { workflowFetchClient } from '../../client'
-import { useAlerts } from '../../components/alerts'
+import { useAlerts } from '../../providers/alerts'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { detachPromise } from '../../utils/detachPromise'
 import { parseWorkflowFile, validateFileSize } from '../../utils/downloadWorkflowExport'

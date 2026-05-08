@@ -6,7 +6,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { identityProvidersClient } from '../../../../client'
-import { AlertProvider } from '../../../../components/alerts'
+import { AlertProvider } from '../../../../providers/alerts'
 
 import { IdentityProviderForm } from './IdentityProviderForm'
 

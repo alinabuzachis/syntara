@@ -6,7 +6,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { identityProvidersClient, usersClient } from '../../../../client'
-import { AlertProvider } from '../../../../components/alerts'
+import { AlertProvider } from '../../../../providers/alerts'
 import { useAllGroups } from '../../../access/useAllGroups'
 
 import { GroupMappingTab } from './GroupMappingTab'

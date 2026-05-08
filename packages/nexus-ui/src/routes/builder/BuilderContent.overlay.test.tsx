@@ -6,7 +6,7 @@ import * as React from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { executionsClient, workflowClient } from '../../client'
-import { AlertProvider } from '../../components/alerts'
+import { AlertProvider } from '../../providers/alerts'
 
 import { BuilderContent } from './BuilderContent'
 

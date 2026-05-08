@@ -2,7 +2,7 @@ import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import type { Query, QueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
 
-import type { AlertMessage } from '../../../components/alerts'
+import type { AlertMessage } from '../../../providers/alerts'
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import type { WorkflowDefinition } from '../../../stores/workflowStoreTypes'
 import { getErrorMessage } from '../../../utils/apiErrors'

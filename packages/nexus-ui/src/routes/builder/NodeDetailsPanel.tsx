@@ -4,8 +4,8 @@ import type { Node } from '@xyflow/react'
 import type { ReactNode } from 'react'
 import { useState } from 'react'
 
-import { useAlerts } from '../../components/alerts'
 import { FlowNodeType, RegistryNodeId } from '../../constants'
+import { useAlerts } from '../../providers/alerts'
 import {
   useWorkflowStore,
   useWorkflowStoreActions,

@@ -1,7 +1,7 @@
 import type { ReactFlowInstance } from '@xyflow/react'
 import { useCallback, type Dispatch } from 'react'
 
-import type { AlertMessage } from '../../../components/alerts'
+import type { AlertMessage } from '../../../providers/alerts'
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'

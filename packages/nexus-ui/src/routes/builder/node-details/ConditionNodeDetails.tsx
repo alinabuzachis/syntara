@@ -1,7 +1,7 @@
 import type { ConditionActivity } from '@ansible/nexus-contracts'
 import type { ReactNode } from 'react'
 
-import { useAlerts } from '../../../components/alerts'
+import { useAlerts } from '../../../providers/alerts'
 import { useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
 import { ConditionNodeForm } from '../node-forms/ConditionNodeForm'
 

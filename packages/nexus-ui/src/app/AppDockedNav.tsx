@@ -35,9 +35,9 @@ import { useMemo, useRef, useState } from 'react'
 import { useLocation } from 'wouter'
 
 import { authClient } from '../client'
-import { useAlerts } from '../components/alerts'
+import { useAlerts } from '../providers/alerts'
+import { useColorScheme } from '../providers/theme/useColorScheme'
 import { useAuthStore } from '../stores/useAuthStore'
-import { useColorScheme } from '../theme/useColorScheme'
 import { getErrorMessage } from '../utils/apiErrors'
 import { detachPromise } from '../utils/detachPromise'
 

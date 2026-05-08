@@ -3,8 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { COLOR_SCHEME_STORAGE_KEY } from '../theme/colorScheme'
-import { ColorSchemeProvider } from '../theme/ColorSchemeProvider'
+import { COLOR_SCHEME_STORAGE_KEY } from '../providers/theme/colorScheme'
+import { ColorSchemeProvider } from '../providers/theme/ColorSchemeProvider'
 
 import { AppDockedNav } from './AppDockedNav'
 

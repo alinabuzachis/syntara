@@ -5,8 +5,8 @@ import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { AlertProvider } from '../../components/alerts'
 import { useQueryState } from '../../components/states/useQueryState'
+import { AlertProvider } from '../../providers/alerts'
 
 import { accessClient } from './accessClient'
 import { RolesTab } from './RolesTab'

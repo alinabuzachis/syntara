@@ -2,7 +2,7 @@ import { Button, Modal, ModalBody, ModalFooter, ModalHeader } from '@patternfly/
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import { useLocation } from 'wouter'
 
-import { useWorkflowStore } from '../stores/useWorkflowStore'
+import { useWorkflowStore } from '../../stores/useWorkflowStore'
 
 import { UnsavedChangesContext } from './unsavedChangesContext'
 

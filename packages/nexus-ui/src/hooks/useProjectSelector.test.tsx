@@ -14,7 +14,7 @@ import { useProjectSelector } from './useProjectSelector'
 
 const mockShowAlert = vi.fn()
 
-vi.mock('../components/alerts', () => ({
+vi.mock('../providers/alerts', () => ({
   useAlerts: () => ({
     showAlert: mockShowAlert,
     showSuccess: vi.fn(),

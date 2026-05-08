@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react'
 
-import { useAlerts } from '../../components/alerts'
 import { useActiveAdminCount } from '../../hooks/useActiveAdminCount'
 import { useMutationErrorHandler } from '../../hooks/useMutationErrorHandler'
+import { useAlerts } from '../../providers/alerts'
 import { useAuthStore } from '../../stores/useAuthStore'
 import { getUserIdFromToken } from '../../utils/jwtUtils'
 import { accessClient } from '../access/accessClient'

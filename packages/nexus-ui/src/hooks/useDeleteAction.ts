@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
 
-import { useAlerts } from '../components/alerts'
+import { useAlerts } from '../providers/alerts'
 import { getErrorMessage } from '../utils/apiErrors'
 
 type UseDeleteActionOptions<T, P = unknown> = {

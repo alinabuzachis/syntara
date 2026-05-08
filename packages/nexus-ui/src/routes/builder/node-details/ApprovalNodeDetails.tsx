@@ -1,7 +1,7 @@
 import type { Activity } from '@ansible/nexus-contracts'
 import type { ReactNode } from 'react'
 
-import { useAlerts } from '../../../components/alerts'
+import { useAlerts } from '../../../providers/alerts'
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import type { ApprovalFormSubmitData } from '../node-forms/ApprovalNodeForm'
 import { ApprovalNodeForm } from '../node-forms/ApprovalNodeForm'

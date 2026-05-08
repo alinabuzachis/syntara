@@ -9,7 +9,7 @@ const mockShowSuccess = vi.fn()
 const mockShowError = vi.fn()
 const mockPost = vi.fn<(...args: unknown[]) => Promise<{ data?: unknown; error?: unknown }>>()
 
-vi.mock('../../components/alerts', () => ({
+vi.mock('../../providers/alerts', () => ({
   useAlerts: () => ({ showSuccess: mockShowSuccess, showError: mockShowError }),
 }))
 

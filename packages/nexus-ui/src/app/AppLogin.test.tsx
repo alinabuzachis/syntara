@@ -2,7 +2,7 @@ import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { AlertProvider } from '../components/alerts'
+import { AlertProvider } from '../providers/alerts'
 
 import { AppLogin } from './AppLogin'
 import type { AuthProvider } from './useAuthProviders'

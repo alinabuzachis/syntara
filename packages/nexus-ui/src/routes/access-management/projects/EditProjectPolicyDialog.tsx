@@ -16,7 +16,7 @@ import {
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
-import { useAlerts } from '../../../components/alerts'
+import { useAlerts } from '../../../providers/alerts'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { accessClient } from '../../access/accessClient'
 import type { ProjectPolicyRead } from '../../access/types'

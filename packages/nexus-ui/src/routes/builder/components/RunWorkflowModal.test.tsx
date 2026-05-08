@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { ColorSchemeProvider } from '../../../theme/ColorSchemeProvider'
+import { ColorSchemeProvider } from '../../../providers/theme/ColorSchemeProvider'
 
 import { RunWorkflowModal } from './RunWorkflowModal'
 
@@ -33,7 +33,7 @@ vi.mock('../../../components/JsonEditorToolbar', () => ({
 }))
 
 const mockShowError = vi.fn()
-vi.mock('../../../components/alerts', () => ({
+vi.mock('../../../providers/alerts', () => ({
   useAlerts: () => ({ showError: mockShowError, showSuccess: vi.fn() }),
 }))
 

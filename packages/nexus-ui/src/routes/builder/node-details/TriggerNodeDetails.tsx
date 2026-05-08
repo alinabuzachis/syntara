@@ -1,7 +1,7 @@
 import { TriggerTypeEnum } from '@ansible/nexus-contracts'
 import type { ReactNode } from 'react'
 
-import { useAlerts } from '../../../components/alerts'
+import { useAlerts } from '../../../providers/alerts'
 import { useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
 import type { Trigger as StoreTrigger } from '../../../stores/workflowStoreTypes'
 import type { TriggerFormData } from '../node-forms/TriggerNodeForm'
