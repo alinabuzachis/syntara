@@ -12,7 +12,7 @@ Use AI agents (Claude Code, Cursor, or any tool that reads `.claude/skills/`) to
 1. [Quick Start](#quick-start--copy-this-prompt)
 2. [Mental Model](#1-mental-model)
 3. [Bring Your Screenshots (Optional)](#2-bring-your-screenshots-optional)
-4. [Implement a Feature](#3-implement-a-feature-frontend-specialist)
+4. [Implement a Feature](#3-implement-a-feature)
 5. [Review Locally](#4-review-your-changes-locally)
 6. [Code Review](#5-code-review-pr-review)
 7. [E2E Tests](#6-e2e-tests-playwright)
@@ -39,7 +39,7 @@ flowchart TD
     C --> C5[Write E2E tests?]
     C1 & C2 & C3 & C4 & C5 --> D[Plan]
     D --> D1[Find similar existing page]
-    D --> D2[Read frontend-specialist agent]
+    D --> D2[Read coding-standards skill]
     D --> D3[Read patternfly-ux skill]
     D1 & D2 & D3 --> E[Implement]
     E --> E1[Component + types + hooks]
@@ -81,8 +81,9 @@ Before writing code, research the codebase and create an implementation plan.
 Find the most similar existing page as a reference pattern.
 
 Step 2 — IMPLEMENT
-Use the frontend-specialist agent. Include unit tests covering happy path,
-all three empty states, the delete flow, and accessibility (toHaveNoViolations).
+Follow the project skills (coding_standards, testing_guidelines, patternfly-ux-design-system).
+Include unit tests covering happy path, all three empty states, the delete flow,
+and accessibility (toHaveNoViolations).
 
 Step 3 — REVIEW LOCALLY
 Run npm start, open http://localhost:5173, test every state in the browser.
@@ -105,8 +106,8 @@ Use the playwright_e2e skill. Dev server at http://localhost:5173.
 Give the agent a **goal** and a **skill name**. A **screenshot** is optional — without one the agent uses PatternFly conventions to pick the layout. With one, it maps your intent to the exact components and tokens from the mockup.
 
 ```text
-Good: "Use the frontend-specialist agent. Implement a credentials list
-      page matching the attached screenshot."
+Good: "Implement a credentials list page matching the attached screenshot.
+      Follow the coding standards and UX design system skills."
 
 Weak: "Add a page that lists credentials."
 ```
@@ -136,7 +137,7 @@ Takes 1-2 iterations. Describe what you see — the agent finds the right props.
 
 ---
 
-## 3. Implement a Feature (Frontend Specialist)
+## 3. Implement a Feature
 
 Use for: new pages, list views, dialogs, forms, hooks, or refactors.
 
@@ -144,13 +145,11 @@ Use for: new pages, list views, dialogs, forms, hooks, or refactors.
 
 Tell the agent: "Plan this feature before writing any code." It finds a similar existing page, asks clarifying questions, and writes a plan for your approval before generating code.
 
-**The agent must always follow existing codebase patterns and standards.** The coding standards skill (`.claude/skills/coding_standards.md`) and UX design system skill (`.claude/skills/patternfly-ux-design-system.md`) are the authoritative guidelines — the agent should match what already exists in the codebase rather than inventing new patterns.
+**Always follow existing codebase patterns and standards.** The coding standards skill (`.claude/skills/coding_standards.md`) and UX design system skill (`.claude/skills/patternfly-ux-design-system.md`) are the authoritative guidelines — match what already exists in the codebase rather than inventing new patterns.
 
 ### Prompt template
 
 ```text
-Use the frontend-specialist agent.
-
 Goal: [1–2 sentence description]
 
 [PASTE SCREENSHOT — optional, but helps match the mockup]
@@ -359,31 +358,24 @@ Skills are detailed reference guides the agent consults while working. You can a
 | **PR Review**                   | `pr_review.md` (234 lines)                   | Structured review process: identify scope, read every changed file, categorize issues as Blocking/Suggestion/Nitpick, generate PR description                             | Before opening a PR. Type `/review-pr` and the agent runs the full checklist.                                                                |
 | **Playwright E2E**              | `playwright_e2e.md` (772 lines)              | E2E test writing: page objects, selectors, mock API setup, waiting strategies, debugging, CI integration                                                                  | Writing browser-level tests for user flows. Say "use the playwright_e2e skill" to write E2E tests.                                           |
 | **PatternFly UX Design System** | `patternfly-ux-design-system.md` (898 lines) | PF6 component selection rules, table variants, form thresholds, modal sizes, alert casing, spacing tokens, color tokens                                                   | Verifying that your UI matches the design system. Paste a screenshot and say "use the patternfly-ux-design-system skill to check this."      |
-| **Library References**          | `library_references.md` (30 lines)           | `llms.txt` URLs for React, Zod, Zustand, Vitest, Vite, and TanStack Query. Ensures the agent uses current API docs instead of stale training data.                        | Before writing code that uses any of these libraries. The frontend-specialist agent reads this automatically.                                |
-
-### Agents (`.claude/agents/`)
-
-Agents run as sub-agents with their own context. They combine multiple skills into a focused workflow.
-
-| Agent                   | File                                 | What it does                                                                                                                                                                                                                                           | When to use it                                                                                                            |
-| ----------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| **Frontend Specialist** | `frontend-specialist.md` (122 lines) | Implements, reviews, or refactors UI code following React 19, TypeScript, PatternFly 6, and Vitest best practices. Reads coding_standards, testing_guidelines, and library_references skills before writing code. Includes a pre-submission checklist. | Any implementation task. Say "use the frontend-specialist agent" or Claude will delegate to it automatically for UI work. |
+| **Frontend Specialist**         | `frontend_specialist.md`                     | React 19, TypeScript, PatternFly 6, and Vitest implementation standards, pre-submission checklist, quality gates, and implementation workflow                             | Any implementation, review, or refactoring task. Triggered automatically via CLAUDE.md.                                                      |
+| **Library References**          | `library_references.md` (30 lines)           | `llms.txt` URLs for React, Zod, Zustand, Vitest, Vite, and TanStack Query. Ensures current API docs are used instead of stale training data.                              | Before writing code that uses any of these libraries. Triggered automatically via CLAUDE.md.                                                 |
 
 ### Commands (`.claude/commands/`)
 
 Commands are shortcuts you type in the agent chat. They trigger specific workflows.
 
-| Command             | What it does                                                                                       |
-| ------------------- | -------------------------------------------------------------------------------------------------- |
-| `/review-pr`        | Runs the full PR review skill against your current branch                                          |
-| `/specify`          | Creates a feature spec from a natural language description                                         |
-| `/clarify`          | Asks up to 5 clarification questions about an underspecified feature spec                          |
-| `/plan`             | Generates an implementation plan from a feature spec                                               |
-| `/tasks`            | Breaks a plan into dependency-ordered tasks                                                        |
-| `/implement`        | Executes tasks from the plan, one by one                                                           |
-| `/analyze`          | Cross-checks consistency between spec, plan, and tasks                                             |
-| `/constitution`     | Creates or updates project-level principles                                                        |
-| `/build-ui-feature` | Guided wizard: asks 5 questions, then implements using frontend-specialist agent + UX + E2E skills |
+| Command             | What it does                                                                              |
+| ------------------- | ----------------------------------------------------------------------------------------- |
+| `/review-pr`        | Runs the full PR review skill against your current branch                                 |
+| `/specify`          | Creates a feature spec from a natural language description                                |
+| `/clarify`          | Asks up to 5 clarification questions about an underspecified feature spec                 |
+| `/plan`             | Generates an implementation plan from a feature spec                                      |
+| `/tasks`            | Breaks a plan into dependency-ordered tasks                                               |
+| `/implement`        | Executes tasks from the plan, one by one                                                  |
+| `/analyze`          | Cross-checks consistency between spec, plan, and tasks                                    |
+| `/constitution`     | Creates or updates project-level principles                                               |
+| `/build-ui-feature` | Guided wizard: asks 5 questions, then implements using project skills (optionally Playwright E2E) |
 
 ### Typical command flow for a new feature
 
@@ -506,7 +498,7 @@ Claude: Here is my plan...
 
 ### File location
 
-The command lives at `.claude/commands/build-ui-feature.md`. It uses the frontend-specialist agent (which reads coding_standards, testing_guidelines, and library_references), the patternfly-ux-design-system skill, and optionally the playwright_e2e skill.
+The command lives at `.claude/commands/build-ui-feature.md`. It uses the project skills (coding_standards, testing_guidelines, library_references, patternfly-ux-design-system), and optionally the playwright_e2e skill.
 
 ---
 
@@ -519,8 +511,8 @@ The command lives at `.claude/commands/build-ui-feature.md`. It uses the fronten
 | PR review process           | [`.claude/skills/pr_review.md`](../.claude/skills/pr_review.md)                                     |
 | Playwright E2E              | [`.claude/skills/playwright_e2e.md`](../.claude/skills/playwright_e2e.md)                           |
 | PatternFly UX design system | [`.claude/skills/patternfly-ux-design-system.md`](../.claude/skills/patternfly-ux-design-system.md) |
+| Frontend specialist         | [`.claude/skills/frontend_specialist.md`](../.claude/skills/frontend_specialist.md)                 |
 | Library references          | [`.claude/skills/library_references.md`](../.claude/skills/library_references.md)                   |
-| Frontend specialist agent   | [`.claude/agents/frontend-specialist.md`](../.claude/agents/frontend-specialist.md)                 |
 | Architecture overview       | [`architecture.md`](./architecture.md)                                                              |
 | Error handling              | [`error-handling.md`](./error-handling.md)                                                          |
 | Contributing                | [`CONTRIBUTING.md`](../CONTRIBUTING.md)                                                             |

@@ -36,7 +36,7 @@ Before writing any code:
 
 ## Phase 3: Build it
 
-Follow the frontend-specialist agent approach (`.claude/agents/frontend-specialist.md`). **Always match existing codebase patterns** — the coding standards and UX design system skills are the primary guidelines, not general best practices:
+Follow the project skills for implementation. **Always match existing codebase patterns** — the coding standards and UX design system skills are the primary guidelines, not general best practices:
 
 - Use PatternFly 6 components and design tokens for all layout and styling.
 - Use typed API clients from `src/client.tsx`. No raw `fetch()`.

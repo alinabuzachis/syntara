@@ -4,13 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Claude Agent Instructions
 
-Claude, you have access to the following skills. Use them when appropriate:
+Claude, you have access to the following skills. **Do not load them all at once** — read each skill file on-demand when its trigger condition is met. If a loaded skill (e.g., `frontend_specialist.md`) tells you to read another skill you have already loaded in this conversation, skip the re-read:
 
-- See `.claude/skills/coding_standards.md` for detailed coding patterns and examples
-- See `.claude/skills/testing_guidelines.md` for testing standards, coverage, and accessibility testing
-- See `.claude/skills/pr_review.md` for PR review steps
-- See `.claude/skills/playwright_e2e.md` for comprehensive E2E testing with Playwright
-- See `.claude/skills/patternfly-ux-design-system.md` for PatternFly UX design system rules and opinionated component usage
+| Trigger                                                                             | Skill file to read                                                         |
+| ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| **Before implementing, reviewing, or refactoring any frontend code**                | `.claude/skills/frontend_specialist.md`                                    |
+| **Before writing or modifying any component, page, or UI code**                     | `.claude/skills/patternfly-ux-design-system.md`                            |
+| **Before writing or reviewing any test file** (unit, integration, or accessibility) | `.claude/skills/testing_guidelines.md`                                     |
+| **Before writing or reviewing any E2E / Playwright test**                           | `.claude/skills/playwright_e2e.md`                                         |
+| **Before committing code or reporting a task as done**                              | `.claude/skills/pr_review.md` (self-review against PR checklist)           |
+| **Before writing or modifying any component, hook, or pattern**                     | `.claude/skills/coding_standards.md`                                       |
+| **Before writing code using React, Zod, Zustand, Vitest, Vite, or TanStack Query**  | `.claude/skills/library_references.md` (fetch the relevant `llms.txt` URL) |
 
 ### Accessibility review (always)
 

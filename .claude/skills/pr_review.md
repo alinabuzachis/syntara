@@ -1,6 +1,9 @@
-# Claude Skill: Pull Request Review
+# Claude Skill: Pull Request Review & Self-Review
 
-Your goal is to review a pull request with high clarity, consistency, and alignment with the repo's standards.
+Your goal is to review code with high clarity, consistency, and alignment with the repo's standards. This skill serves two purposes:
+
+1. **Self-review before committing** — Run the quality gates and checklist against your own changes before committing or reporting done.
+2. **PR review** — Review a pull request for a teammate or before opening your own.
 
 ---
 
@@ -81,30 +84,30 @@ Check whether the changes follow:
 
 **Run through every item in CLAUDE.md's "Common PR Mistakes — Quick Checklist" (items 1–22).** That checklist is the single source of truth. Below are review-specific verification tips:
 
-| Search for...                                        | Flags violation of checklist item...                         |
-| ---------------------------------------------------- | ------------------------------------------------------------ |
-| `fetch(` in changed files                            | #1 — raw fetch (pre-auth exceptions OK)                      |
-| `useQueryState` with bare string arg                 | #2 — missing `{ title, onRetry }` object form                |
-| `void query.` / `void .*refetch` patterns            | #2 — use `detachPromise(query.refetch())`, not `void`        |
-| `as` casts on API responses                          | #3 — unsafe casts (flag for contract fix, not more casts)    |
-| New component without `toHaveNoViolations()`         | #4 — missing vitest-axe test                                 |
-| `fireEvent` in test files                            | #5 — should use `userEvent.setup()`                          |
-| `getByTestId`, `querySelector` in tests              | #6 — should use `getByRole` / `getByLabelText`               |
+| Search for...                                           | Flags violation of checklist item...                         |
+| ------------------------------------------------------- | ------------------------------------------------------------ |
+| `fetch(` in changed files                               | #1 — raw fetch (pre-auth exceptions OK)                      |
+| `useQueryState` with bare string arg                    | #2 — missing `{ title, onRetry }` object form                |
+| `void query.` / `void .*refetch` patterns               | #2 — use `detachPromise(query.refetch())`, not `void`        |
+| `as` casts on API responses                             | #3 — unsafe casts (flag for contract fix, not more casts)    |
+| New component without `toHaveNoViolations()`            | #4 — missing vitest-axe test                                 |
+| `fireEvent` in test files                               | #5 — should use `userEvent.setup()`                          |
+| `getByTestId`, `querySelector` in tests                 | #6 — should use `getByRole` / `getByLabelText`               |
 | Raw error JSX (`<span>Error`, `<p>Error`, `<div>Error`) | #7 — should use `ErrorState` component                       |
-| Manual `useState` per form field                     | #8 — should use Zod + react-hook-form                        |
-| `useForm` with `defaultValues` in modals             | #9 — verify `reset()` in `useEffect([isOpen, item])`         |
-| Copy-pasted dialogs or action handlers               | #10 — extract to shared component/hook                       |
-| String literals for type discriminators              | #13 — use enum constants from `@ansible/nexus-contracts`     |
-| Display strings in conditionals                      | #14 — compare API values, not translatable labels            |
-| Hardcoded `px` for spacing/colors                    | #15 — use PF6 design tokens `var(--pf-t--global--*)`         |
-| `void` used as operator in `.ts`/`.tsx`              | #16 — use `detachPromise(...)`, not unary `void`             |
-| Native `<button>`, `<p>`, `<h1>`-`<h6>`, `<a>`, etc. | #16 — use PF6 components (see mapping table below)           |
-| New route in `AppRoute.tsx` without registry entry   | #17 — add to `e2e/visual-regression/page-registry.ts`        |
-| `showSuccess('title', 'desc')` positional args       | #19 — use object form: `showSuccess({ title, description })` |
-| Title Case in alert titles                           | #19 — use sentence case: "Workflow created", not "Created"   |
-| Raw `<span>` / `<p>` / `<div>` for text content      | #20 — use PF `Content`, `HelperText`, `Label`, or `Title`    |
-| Derived data without `useMemo` in custom hooks       | #21 — wrap computed maps/arrays in `useMemo`                 |
-| New `use*.ts` hook without `use*.test.ts(x)`         | #22 — every new hook needs a dedicated test file             |
+| Manual `useState` per form field                        | #8 — should use Zod + react-hook-form                        |
+| `useForm` with `defaultValues` in modals                | #9 — verify `reset()` in `useEffect([isOpen, item])`         |
+| Copy-pasted dialogs or action handlers                  | #10 — extract to shared component/hook                       |
+| String literals for type discriminators                 | #13 — use enum constants from `@ansible/nexus-contracts`     |
+| Display strings in conditionals                         | #14 — compare API values, not translatable labels            |
+| Hardcoded `px` for spacing/colors                       | #15 — use PF6 design tokens `var(--pf-t--global--*)`         |
+| `void` used as operator in `.ts`/`.tsx`                 | #16 — use `detachPromise(...)`, not unary `void`             |
+| Native `<button>`, `<p>`, `<h1>`-`<h6>`, `<a>`, etc.    | #20 — use PF components for text/content (see mapping table) |
+| New route in `AppRoute.tsx` without registry entry      | Add to `e2e/visual-regression/page-registry.ts`              |
+| `showSuccess('title', 'desc')` positional args          | #19 — use object form: `showSuccess({ title, description })` |
+| Title Case in alert titles                              | #19 — use sentence case: "Workflow created", not "Created"   |
+| Raw `<span>` / `<p>` / `<div>` for text content         | #20 — use PF `Content`, `HelperText`, `Label`, or `Title`    |
+| Derived data without `useMemo` in custom hooks          | #21 — wrap computed maps/arrays in `useMemo`                 |
+| New `use*.ts` hook without `use*.test.ts(x)`            | #22 — every new hook needs a dedicated test file             |
 
 **Also check these review-specific items:**
 
@@ -223,7 +226,43 @@ Then ask the user to confirm manually:
 
 ---
 
-## 9. Final Deliverables
+## 9. Self-Review Quality Gates (Before Committing)
+
+When reviewing your own implementation before committing, verify these gates pass.
+
+**Also run the full checklist in [Section 3a](#3a-recurring-issues-checklist-mandatory)** — the items below complement, not replace, that checklist.
+
+### Implementation Standards
+
+- **React 19**: Functional components with proper hook patterns; component composition over prop drilling; controlled components for forms using react-hook-form; Single Responsibility Principle
+- **TypeScript**: No `any` types — use `unknown` and narrow with type guards; leverage type inference; discriminated unions for state machines; `as const` for literal narrowing
+- **PatternFly 6**: PF6 components for all UI (no native HTML when a PF component exists); layout components (Stack, Flex, Grid) for spacing; design tokens only — no hardcoded values
+- **Vitest**: AAA pattern; test user behavior not implementation; Testing Library query priority (`getByRole` > `getByLabelText` > `getByText`); `userEvent.setup()` always; `vitest-axe` for every new component
+
+### Implementation Workflow Check
+
+1. **Checked for reusability** — searched `src/components/` and PatternFly docs before creating new components
+2. **Implemented incrementally** — happy path first, then edge cases
+3. **Wrote tests concurrently** — tests alongside implementation, not after
+4. **Verified accessibility** — keyboard navigation, ARIA attributes, axe tests
+5. **Library docs consulted** — fetched `llms.txt` URLs from `.claude/skills/library_references.md` for any library used
+
+### Quality Gates (All Must Pass)
+
+1. Zero TypeScript errors (`npm run tsc`)
+2. All tests pass (`npm test`), new tests written for new features
+3. No ESLint warnings or errors (`npm run lint`)
+4. Prettier formatting applied (`npm run format:check`)
+5. WCAG 2.1 AA accessibility standards met
+6. UI verified in browser for all states (loaded, empty, error, success)
+
+### Independent Review (High-Risk Changes)
+
+For high-risk UI changes (new pages, auth flows, complex state management), run `/review-pr` from a **fresh chat session** before merging. A fresh context provides a second-pass perspective that catches issues the implementation context may overlook.
+
+---
+
+## 10. Final Deliverables
 
 Output should include:
 
