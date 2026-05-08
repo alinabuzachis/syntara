@@ -16,6 +16,8 @@ import React, { useCallback, useMemo, useRef, useState } from 'react'
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { detachPromise } from '../../utils/detachPromise'
 
+export const SEARCH_THRESHOLD = 10
+
 /**
  * Field selector dropdown component
  */
@@ -369,7 +371,7 @@ export function SelectFilterInput({
 
   if (!selectedField.options && !selectedField.asyncOptions) return null
 
-  const showSearch = selectedField.searchable !== false
+  const showSearch = isAsync || (selectedField.searchable !== false && (selectedField.options?.length ?? 0) >= SEARCH_THRESHOLD)
 
   let selectListBody: React.ReactNode
   if (isLoadingOptions) {

@@ -601,6 +601,10 @@ describe('FilterBar', () => {
           { label: 'Workflow Beta', value: 'beta' },
           { label: 'Workflow Gamma', value: 'gamma' },
           { label: 'Another Workflow', value: 'another' },
+          ...Array.from({ length: 7 }, (_, i) => ({
+            label: `Workflow Extra ${i + 1}`,
+            value: `extra-${i + 1}`,
+          })),
         ],
       }
 

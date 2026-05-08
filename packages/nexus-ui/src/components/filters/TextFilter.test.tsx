@@ -6,6 +6,7 @@ import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { FilterTypeEnum } from '../../types/filters'
 
 import { TextFilter } from './TextFilter'
+import { SEARCH_THRESHOLD } from './textFilterSelectControls'
 
 vi.mock('./DateRangeFilter', () => ({
   DateRangeFilter: (props: { fieldKey: string; label: string; onChange: (filters: FilterConfig[]) => void }) => (
@@ -493,11 +494,20 @@ describe('TextFilter', () => {
   describe('select search', () => {
     it('shows no results when client search matches nothing', async () => {
       const user = userEvent.setup()
-      const fieldDefinitions = [selectFieldDefinition]
+      const manyOptionsField: FilterFieldDefinition = {
+        key: 'category',
+        label: 'Category',
+        type: FilterTypeEnum.SELECT,
+        options: Array.from({ length: SEARCH_THRESHOLD }, (_, i) => ({
+          label: `Category ${i + 1}`,
+          value: String(i + 1),
+        })),
+        placeholder: 'Filter by category',
+      }
 
-      render(<TextFilter {...defaultProps} fieldDefinitions={fieldDefinitions} />)
+      render(<TextFilter fieldDefinitions={[manyOptionsField]} filters={[]} onFilterChange={vi.fn()} />)
 
-      await user.click(screen.getByText('Filter by status'))
+      await user.click(screen.getByText('Filter by category'))
       await user.type(screen.getByPlaceholderText('Search...'), 'nomatchzzzz')
 
       expect(await screen.findByText('No results found')).toBeInTheDocument()
@@ -508,6 +518,67 @@ describe('TextFilter', () => {
     it('renders when isCompact is true', () => {
       render(<TextFilter {...defaultProps} isCompact />)
       expect(screen.getByText('Name')).toBeInTheDocument()
+    })
+  })
+
+  describe('select search threshold', () => {
+    it('hides search input when static options are fewer than the threshold', async () => {
+      const user = userEvent.setup()
+      const fewOptionsField: FilterFieldDefinition = {
+        key: 'status',
+        label: 'Status',
+        type: FilterTypeEnum.SELECT,
+        options: [
+          { label: 'Enabled', value: 'true' },
+          { label: 'Disabled', value: 'false' },
+        ],
+        placeholder: 'Filter by status',
+      }
+
+      render(<TextFilter fieldDefinitions={[fewOptionsField]} filters={[]} onFilterChange={vi.fn()} />)
+
+      await user.click(screen.getByText('Filter by status'))
+
+      expect(screen.getByText('Enabled')).toBeInTheDocument()
+      expect(screen.getByText('Disabled')).toBeInTheDocument()
+      expect(screen.queryByPlaceholderText('Search...')).not.toBeInTheDocument()
+    })
+
+    it('shows search input when static options meet the threshold', async () => {
+      const user = userEvent.setup()
+      const manyOptions = Array.from({ length: SEARCH_THRESHOLD }, (_, i) => ({
+        label: `Option ${i + 1}`,
+        value: String(i + 1),
+      }))
+      const manyOptionsField: FilterFieldDefinition = {
+        key: 'category',
+        label: 'Category',
+        type: FilterTypeEnum.SELECT,
+        options: manyOptions,
+        placeholder: 'Filter by category',
+      }
+
+      render(<TextFilter fieldDefinitions={[manyOptionsField]} filters={[]} onFilterChange={vi.fn()} />)
+
+      await user.click(screen.getByText('Filter by category'))
+
+      expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument()
+    })
+
+    it('always shows search input for async options', async () => {
+      const user = userEvent.setup()
+      const asyncField: FilterFieldDefinition = {
+        key: 'workflow_id',
+        label: 'Workflow',
+        type: FilterTypeEnum.SELECT,
+        asyncOptions: () => Promise.resolve([{ label: 'Only one', value: '1' }]),
+      }
+
+      render(<TextFilter fieldDefinitions={[asyncField]} filters={[]} onFilterChange={vi.fn()} />)
+
+      await user.click(screen.getByText('Filter by workflow'))
+
+      expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument()
     })
   })
 })
