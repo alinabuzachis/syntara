@@ -19,6 +19,8 @@ import { type Page, expect } from '@playwright/test'
 
 import { AppRoute } from '../../src/app/AppRoute'
 
+import { builderInteractivePages, detailTabPages, statusVariantPages } from './page-entries-interactive'
+
 export type PageEntry = {
   /** Directory grouping for snapshot organization */
   section: string
@@ -108,6 +110,7 @@ export const pages: PageEntry[] = [
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
   },
+  ...builderInteractivePages,
 
   // ══════════════════════════════════════════════════════════════════════════
   // EXECUTIONS
@@ -521,10 +524,12 @@ export const pages: PageEntry[] = [
       await expect(page.getByText('Credentials', { exact: true }).first()).toBeVisible()
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
-    // TODO: filter placeholder changed — selector needs updating
-    // setup: async (page) => {
-    //   await applyNameFilter(page, 'zzz-no-match-zzz')
-    // },
+    setup: async (page) => {
+      const filterInput = page.getByPlaceholder('Filter by keyword')
+      await filterInput.fill('zzz-no-match-zzz')
+      await filterInput.press('Enter')
+      await expect(page.getByText(/No results found|Adjust your filters/i)).toBeVisible()
+    },
   },
   {
     section: 'configuration/credentials',
@@ -563,6 +568,13 @@ export const pages: PageEntry[] = [
       await expect(page.getByRole('heading', { name: 'Glossary' })).toBeVisible()
     },
   },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // INTERACTIVE STATES — status variants, detail tabs
+  // (entries defined in page-entries-interactive.ts)
+  // ══════════════════════════════════════════════════════════════════════════
+  ...statusVariantPages,
+  ...detailTabPages,
 ]
 
 // ---------------------------------------------------------------------------
@@ -584,9 +596,6 @@ export const excludedDynamic: string[] = [
   AppRoute.AccessManagement.Authentication.EditIdentityProvider,
   AppRoute.AccessManagement.Root,
   AppRoute.AccessManagement.CanIMode,
-  AppRoute.AccessManagement.GroupDetailTab,
-  AppRoute.AccessManagement.ProjectDetailTab,
-  AppRoute.AccessManagement.UserDetailTab,
   AppRoute.Auth.TestSignInCallback,
   AppRoute.Profile, // redirects to user detail — no longer a standalone page
 ]

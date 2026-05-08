@@ -76,7 +76,7 @@ nodes:
       temp: ${inputs.temperature}
 
   - id: summary
-    name: Weather Summary
+    name: "Generate Weather Summary Report (${inputs.temperature})"
     type: script
     config:
       language: bash
