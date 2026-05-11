@@ -25,7 +25,6 @@ import { AppPanel } from '../../../components/AppPanel'
 import { Detail } from '../../../components/details/Detail'
 import { ErrorState } from '../../../components/states/ErrorState'
 import { useQueryState } from '../../../components/states/useQueryState'
-import { UserTimestamp } from '../../../components/UserTimestamp'
 import { useDeleteAction } from '../../../hooks/useDeleteAction'
 import { useAlerts } from '../../../providers/alerts'
 import { getErrorMessage } from '../../../utils/apiErrors'
@@ -39,6 +38,7 @@ import { CredentialFormModal } from './form/CredentialFormModal'
 import type { FieldDefinition } from './form/DynamicFieldRenderer'
 import { useDeleteCredentialState } from './useDeleteCredentialState'
 import { useDisableCredentialState } from './useDisableCredentialState'
+import { UserTimestamp } from './UserTimestamp'
 
 // eslint-disable-next-line max-lines-per-function
 export default function CredentialDetail() {

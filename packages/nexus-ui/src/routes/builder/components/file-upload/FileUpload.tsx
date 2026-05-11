@@ -9,7 +9,7 @@ import {
 import { RhUiUploadIcon } from '@patternfly/react-icons'
 import { useState } from 'react'
 
-import { generateUUID } from '../../utils/generateUUID'
+import { generateUUID } from '../../../../utils/generateUUID'
 
 import { FileUploadItem, type FileUploadItemProps } from './FileUploadItem'
 import {

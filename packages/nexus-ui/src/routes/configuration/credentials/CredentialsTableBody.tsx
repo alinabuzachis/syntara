@@ -5,10 +5,10 @@ import type { IAction } from '@patternfly/react-table'
 
 import { AppRoute } from '../../../app/AppRoute'
 import { LinkCell } from '../../../components/table/LinkCell'
-import { UserTimestamp } from '../../../components/UserTimestamp'
 import type { ProjectRead } from '../../access/types'
 
 import type { Credential, CredentialExtended, CredentialType } from './credentialConstants'
+import { UserTimestamp } from './UserTimestamp'
 
 type CredentialRowProps = {
   credential: CredentialExtended

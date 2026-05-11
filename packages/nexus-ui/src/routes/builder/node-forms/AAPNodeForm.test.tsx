@@ -42,7 +42,7 @@ vi.mock('../../../routes/configuration/credentials/form/CredentialFormModal', ()
 }))
 
 // Mock ExpandableCodeEditor to use a simple textarea for testing
-vi.mock('../../../components/ExpandableCodeEditor', () => ({
+vi.mock('../components/ExpandableCodeEditor', () => ({
   ExpandableCodeEditor: ({
     code,
     onCodeChange,

@@ -21,7 +21,6 @@ import { AppPage, AppPageMain } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { executionsClient } from '../../client'
 import { AppPanel } from '../../components/AppPanel'
-import { ConnectionBanner } from '../../components/ConnectionBanner'
 import { ResizableDivider } from '../../components/ResizableDivider'
 import { ErrorState } from '../../components/states/ErrorState'
 import { LoadingState } from '../../components/states/LoadingState'
@@ -39,6 +38,7 @@ import { useExecutionStore } from '../workflows/stores/useExecutionStore'
 
 import { ApprovalActionButtons } from './ApprovalActionButtons'
 import { ApprovalReviewView } from './ApprovalReviewView'
+import { ConnectionBanner } from './ConnectionBanner'
 import { useExecutionNodeClick } from './hooks/useExecutionNodeClick'
 
 /** Width constraint for the inline failure alert floating over the execution canvas. */

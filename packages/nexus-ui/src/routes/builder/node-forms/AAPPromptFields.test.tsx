@@ -15,7 +15,7 @@ import {
 } from './AAPPromptFields'
 
 // Mock ExpandableCodeEditor to avoid ColorSchemeProvider dependency
-vi.mock('../../../components/ExpandableCodeEditor', () => ({
+vi.mock('../components/ExpandableCodeEditor', () => ({
   ExpandableCodeEditor: ({
     code,
     onCodeChange,

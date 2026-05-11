@@ -35,7 +35,7 @@ vi.mock('../../../hooks/useFileUploadWithProgress', () => ({
 }))
 
 // Mock FileUpload component to expose file selection handler
-vi.mock('../../../components/file-upload', () => ({
+vi.mock('../components/file-upload', () => ({
   FileUpload: ({
     onFilesSelected,
     onFileRemove,
@@ -74,7 +74,7 @@ vi.mock('../../../utils/generateUUID', () => ({
 }))
 
 // Mock ExpandableCodeEditor to use a simple input for testing
-vi.mock('../../../components/ExpandableCodeEditor', () => ({
+vi.mock('../components/ExpandableCodeEditor', () => ({
   ExpandableCodeEditor: ({
     code,
     onCodeChange,

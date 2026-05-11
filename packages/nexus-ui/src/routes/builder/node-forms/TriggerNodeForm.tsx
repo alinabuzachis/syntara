@@ -13,9 +13,9 @@ import type { ReactNode } from 'react'
 import { useEffect, useMemo } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
-import { ExpandableCodeEditor } from '../../../components/ExpandableCodeEditor'
 import { DateRangeCadencePicker } from '../../../components/forms/DateRangeCadencePicker'
-import { JsonEditorControls } from '../../../components/JsonEditorToolbar'
+import { ExpandableCodeEditor } from '../components/ExpandableCodeEditor'
+import { JsonEditorControls } from '../components/JsonEditorToolbar'
 
 import { ActivityNameField } from './shared/ActivityNameField'
 import { zodResolver } from './shared/formSchemaUtils'

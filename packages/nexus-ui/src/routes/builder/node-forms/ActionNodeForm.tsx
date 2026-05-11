@@ -19,17 +19,17 @@ import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
-import { CredentialSelector } from '../../../components/CredentialSelector'
-import { credentialHelpText } from '../../../components/credentialSelectorHelpText'
+import { CredentialSelector } from '../components/CredentialSelector'
 import {
   ExpandableCodeEditor,
   type CodeLanguage,
   type ExpandableCodeEditorHandle,
-} from '../../../components/ExpandableCodeEditor'
+} from '../components/ExpandableCodeEditor'
 import type { ActionFormData as RegistryActionFormData } from '../hooks/useNodeCreation'
 import { DroppableField } from '../panels/fields/DroppableField'
 
 import { actionFormSchema, type ActionFormData, type ActionFormValues } from './actionFormSchema'
+import { credentialHelpText } from './credentialSelectorHelpText'
 import { ActivityNameField } from './shared/ActivityNameField'
 import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'

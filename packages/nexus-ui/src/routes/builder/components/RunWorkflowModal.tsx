@@ -1,9 +1,10 @@
 import { Button, Modal, ModalBody, ModalFooter, ModalHeader } from '@patternfly/react-core'
 import { useCallback, useMemo, useState } from 'react'
 
-import { ExpandableCodeEditor } from '../../../components/ExpandableCodeEditor'
-import { JsonEditorControls } from '../../../components/JsonEditorToolbar'
 import { useAlerts } from '../../../providers/alerts'
+
+import { ExpandableCodeEditor } from './ExpandableCodeEditor'
+import { JsonEditorControls } from './JsonEditorToolbar'
 
 type RunWorkflowModalProps = Readonly<{
   isOpen: boolean

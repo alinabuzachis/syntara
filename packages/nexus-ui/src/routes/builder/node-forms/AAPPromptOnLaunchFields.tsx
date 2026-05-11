@@ -1,6 +1,5 @@
 import { Stack, StackItem, Title } from '@patternfly/react-core'
 
-import type { ExpandableCodeEditorHandle } from '../../../components/ExpandableCodeEditor'
 import type {
   AAPCredential,
   AAPExecutionEnvironment,
@@ -9,6 +8,7 @@ import type {
   AAPJobTemplateDetail,
   AAPLabel,
 } from '../../../hooks/useAAPBrowser'
+import type { ExpandableCodeEditorHandle } from '../components/ExpandableCodeEditor'
 
 import { AAPLabelsField } from './AAPLabelsField'
 import {

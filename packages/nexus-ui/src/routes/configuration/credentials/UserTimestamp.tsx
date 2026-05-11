@@ -1,6 +1,6 @@
 import { Content, ContentVariants } from '@patternfly/react-core'
 
-import { formatDateTime } from '../utils/dateUtils'
+import { formatDateTime } from '../../../utils/dateUtils'
 
 const userStyle = { margin: 0, color: 'var(--pf-t--global--color--brand--default)' } as const
 const timestampStyle = { margin: 0, color: 'var(--pf-t--global--text--color--subtle)' } as const

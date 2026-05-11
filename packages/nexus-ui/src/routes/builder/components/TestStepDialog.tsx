@@ -12,9 +12,10 @@ import {
 import { useState, useCallback, useRef, useEffect } from 'react'
 
 import { workflowFetchClient } from '../../../client'
-import { ExpandableCodeEditor } from '../../../components/ExpandableCodeEditor'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
+
+import { ExpandableCodeEditor } from './ExpandableCodeEditor'
 
 /**
  * Local type definitions for test execution endpoint.

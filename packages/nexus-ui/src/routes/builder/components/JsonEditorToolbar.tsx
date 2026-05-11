@@ -2,7 +2,7 @@ import { CodeEditorControl } from '@patternfly/react-code-editor'
 import { CopyIcon, RhUiDownloadIcon, RhUiFileCodeIcon, RhUiUndoIcon, RhUiUploadIcon } from '@patternfly/react-icons'
 import { memo, useCallback } from 'react'
 
-import { detachPromise } from '../utils/detachPromise'
+import { detachPromise } from '../../../utils/detachPromise'
 
 type JsonEditorControlsProps = Readonly<{
   code: string

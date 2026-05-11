@@ -1,8 +1,8 @@
 import { FormGroup, FormSection, StackItem, TextInput } from '@patternfly/react-core'
 import { useFormContext } from 'react-hook-form'
 
-import type { ExpandableCodeEditorHandle } from '../../../components/ExpandableCodeEditor'
 import type { AAPWorkflowTemplateDetail } from '../../../hooks/useAAPBrowser'
+import type { ExpandableCodeEditorHandle } from '../components/ExpandableCodeEditor'
 
 import { AAPLabelsField } from './AAPLabelsField'
 import { ExtraVariablesField, TagInputField } from './AAPPromptFields'

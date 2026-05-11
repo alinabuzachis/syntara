@@ -4,10 +4,10 @@ import { RhUiExternalLinkIcon } from '@patternfly/react-icons'
 import type { KeyboardEvent } from 'react'
 import { forwardRef, useCallback, useImperativeHandle, useState } from 'react'
 
-import { useDropTarget } from '../hooks/useDropTarget'
-import { useMonacoBlur } from '../hooks/useMonacoBlur'
-import { useColorScheme } from '../providers/theme/useColorScheme'
-import { DROP_TARGET_OUTLINE } from '../routes/builder/panels/utils/dragTypes'
+import { useDropTarget } from '../../../hooks/useDropTarget'
+import { useMonacoBlur } from '../../../hooks/useMonacoBlur'
+import { useColorScheme } from '../../../providers/theme/useColorScheme'
+import { DROP_TARGET_OUTLINE } from '../panels/utils/dragTypes'
 
 /** Supported code languages for syntax highlighting */
 export type CodeLanguage = 'python' | 'bash' | 'json' | 'plaintext'

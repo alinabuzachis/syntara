@@ -5,18 +5,18 @@ import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { credentialsClient } from '../client'
+import { credentialsClient } from '../../../client'
 
 import { CredentialSelector, type CredentialSelectorProps } from './CredentialSelector'
 
-vi.mock('../client', () => ({
+vi.mock('../../../client', () => ({
   credentialsClient: {
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
 }))
 
-vi.mock('../routes/configuration/credentials/form/CredentialFormModal', () => ({
+vi.mock('../../configuration/credentials/form/CredentialFormModal', () => ({
   CredentialFormModal: ({
     isOpen,
     onClose,

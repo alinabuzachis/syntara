@@ -8,7 +8,7 @@ import type { AAPJobTemplateFormData } from './aapJobTemplateSchema'
 import { PromptOnLaunchFields } from './AAPPromptOnLaunchFields'
 
 // Mock ExpandableCodeEditor to use a simple textarea for testing
-vi.mock('../../../components/ExpandableCodeEditor', () => ({
+vi.mock('../components/ExpandableCodeEditor', () => ({
   ExpandableCodeEditor: ({
     code,
     onCodeChange,
@@ -32,7 +32,13 @@ vi.mock('../../../components/ExpandableCodeEditor', () => ({
   ),
 }))
 
-function TestWrapper({ children, defaultValues }: { children: React.ReactNode; defaultValues?: Partial<AAPJobTemplateFormData> }) {
+function TestWrapper({
+  children,
+  defaultValues,
+}: {
+  children: React.ReactNode
+  defaultValues?: Partial<AAPJobTemplateFormData>
+}) {
   const methods = useForm<AAPJobTemplateFormData>({
     defaultValues: {
       name: '',

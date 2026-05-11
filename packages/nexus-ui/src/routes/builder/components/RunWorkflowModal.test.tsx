@@ -12,7 +12,7 @@ import { RunWorkflowModal } from './RunWorkflowModal'
 // and fight with React state on a mocked component).
 let mockSetCode: ((v: string) => void) | undefined
 
-vi.mock('../../../components/ExpandableCodeEditor', () => ({
+vi.mock('./ExpandableCodeEditor', () => ({
   ExpandableCodeEditor: ({
     code,
     onCodeChange,
@@ -28,7 +28,7 @@ vi.mock('../../../components/ExpandableCodeEditor', () => ({
   },
 }))
 
-vi.mock('../../../components/JsonEditorToolbar', () => ({
+vi.mock('./JsonEditorToolbar', () => ({
   JsonEditorControls: () => null,
 }))
 

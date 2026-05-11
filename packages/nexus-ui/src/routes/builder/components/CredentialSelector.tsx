@@ -14,12 +14,12 @@ import {
 import { PlusIcon } from '@patternfly/react-icons'
 import React, { useCallback, useMemo, useState } from 'react'
 
-import { credentialsClient } from '../client'
-import type { Credential, CredentialType } from '../routes/configuration/credentials/credentialConstants'
-import { CredentialFormModal } from '../routes/configuration/credentials/form/CredentialFormModal'
-import { detachPromise } from '../utils/detachPromise'
+import { credentialsClient } from '../../../client'
+import { FormLabelWithHelp } from '../../../components/FormLabelWithHelp'
+import { detachPromise } from '../../../utils/detachPromise'
+import type { Credential, CredentialType } from '../../configuration/credentials/credentialConstants'
+import { CredentialFormModal } from '../../configuration/credentials/form/CredentialFormModal'
 
-import { FormLabelWithHelp } from './FormLabelWithHelp'
 
 export type CredentialSelectorProps = {
   /** Currently selected credential ID */

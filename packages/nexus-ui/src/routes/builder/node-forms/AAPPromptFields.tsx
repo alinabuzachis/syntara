@@ -16,8 +16,8 @@ import {
 import { RhUiErrorIcon } from '@patternfly/react-icons'
 import { Controller, useFormContext } from 'react-hook-form'
 
-import { ExpandableCodeEditor, type ExpandableCodeEditorHandle } from '../../../components/ExpandableCodeEditor'
 import { TagInput } from '../../../components/forms/TagInput'
+import { ExpandableCodeEditor, type ExpandableCodeEditorHandle } from '../components/ExpandableCodeEditor'
 
 import type { AAPJobTemplateFormData } from './aapJobTemplateSchema'
 
