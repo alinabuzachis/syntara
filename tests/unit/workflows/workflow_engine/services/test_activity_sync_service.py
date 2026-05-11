@@ -1,6 +1,7 @@
 """Unit tests for ActivitySyncService."""
 
 import asyncio
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
@@ -15,8 +16,12 @@ from nexus.workflows.models.execution import Execution
 from nexus.workflows.workflow_engine.activities.internal import register_activity_monitoring
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
 from nexus.workflows.workflow_engine.services.activity_sync_service import (
+    _PENDING_ACTIVITY_STATE_STARTED as STARTED_STATE,
+)
+from nexus.workflows.workflow_engine.services.activity_sync_service import (
     ActivitySyncService,
     ExecutionMonitorMetadata,
+    SyntheticActivityStarted,
 )
 
 
@@ -2304,3 +2309,679 @@ class TestInputDataCredentialScrubbing(TestPendingOutputFlag):
         await self.service._sync_activities_to_db(metadata, handle)
 
         assert activity.input_data == {"url": "http://example.com", "method": "GET"}
+
+
+class TestSyntheticActivityStarted:
+    """Test synthetic STARTED event processing from describe() probing."""
+
+    def setup_method(self) -> None:
+        """Set up test fixtures."""
+        self.service = ActivitySyncService(Mock(), Mock())
+        self.execution_id = uuid4()
+
+    @pytest.mark.asyncio
+    async def test_updates_pending_activity_to_running(self) -> None:
+        """Test that a synthetic STARTED event transitions PENDING to RUNNING."""
+        metadata = create_test_metadata(
+            execution_id=self.execution_id,
+            activity_definitions_map={"my-activity": {"type": "script"}},
+            pending_activity_updates={
+                5: {
+                    "activity_id": "my-activity",
+                    "activity_name": "my-activity",
+                    "status": ActivityStatus.PENDING,
+                    "started_at": None,
+                    "completed_at": None,
+                    "error_details": None,
+                    "retry_count": 0,
+                },
+            },
+        )
+
+        event = SyntheticActivityStarted(activity_id="my-activity", scheduled_event_id=5)
+
+        with patch.object(self.service, "_sync_activities_to_db", new_callable=AsyncMock):
+            await self.service._process_synthetic_activity_started(event, metadata, Mock())
+
+        assert metadata.pending_activity_updates[5]["status"] == ActivityStatus.RUNNING
+        assert metadata.pending_activity_updates[5]["started_at"] is not None
+
+    @pytest.mark.asyncio
+    async def test_updates_approval_activity_to_running(self) -> None:
+        """Test that a synthetic STARTED event transitions approval nodes to RUNNING.
+
+        WAITING status is set later when the COMPLETED event arrives via the
+        existing approval special-casing in _process_activity_completed.
+        """
+        metadata = create_test_metadata(
+            execution_id=self.execution_id,
+            activity_definitions_map={"approval-node": {"type": "approval"}},
+            pending_activity_updates={
+                5: {
+                    "activity_id": "approval-node",
+                    "activity_name": "approval-node",
+                    "status": ActivityStatus.PENDING,
+                    "started_at": None,
+                    "completed_at": None,
+                    "error_details": None,
+                    "retry_count": 0,
+                },
+            },
+        )
+
+        event = SyntheticActivityStarted(activity_id="approval-node", scheduled_event_id=5)
+
+        with patch.object(self.service, "_sync_activities_to_db", new_callable=AsyncMock):
+            await self.service._process_synthetic_activity_started(event, metadata, Mock())
+
+        assert metadata.pending_activity_updates[5]["status"] == ActivityStatus.RUNNING
+        assert metadata.pending_activity_updates[5]["started_at"] is not None
+
+    @pytest.mark.asyncio
+    async def test_skips_if_already_running(self) -> None:
+        """Test that synthetic STARTED is a no-op if activity is already RUNNING."""
+        metadata = create_test_metadata(
+            execution_id=self.execution_id,
+            pending_activity_updates={
+                5: {
+                    "activity_id": "my-activity",
+                    "status": ActivityStatus.RUNNING,
+                    "started_at": datetime.now(UTC),
+                },
+            },
+        )
+
+        event = SyntheticActivityStarted(activity_id="my-activity", scheduled_event_id=5)
+
+        with patch.object(self.service, "_sync_activities_to_db", new_callable=AsyncMock) as mock_sync:
+            await self.service._process_synthetic_activity_started(event, metadata, Mock())
+            mock_sync.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_skips_if_already_completed(self) -> None:
+        """Test that synthetic STARTED is a no-op if activity is already COMPLETED."""
+        metadata = create_test_metadata(
+            execution_id=self.execution_id,
+            pending_activity_updates={
+                5: {
+                    "activity_id": "my-activity",
+                    "status": ActivityStatus.COMPLETED,
+                },
+            },
+        )
+
+        event = SyntheticActivityStarted(activity_id="my-activity", scheduled_event_id=5)
+
+        with patch.object(self.service, "_sync_activities_to_db", new_callable=AsyncMock) as mock_sync:
+            await self.service._process_synthetic_activity_started(event, metadata, Mock())
+            mock_sync.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_skips_if_not_in_pending_updates(self) -> None:
+        """Test that synthetic STARTED is a no-op if activity not found in pending updates."""
+        metadata = create_test_metadata(execution_id=self.execution_id)
+        event = SyntheticActivityStarted(activity_id="unknown", scheduled_event_id=99)
+
+        with patch.object(self.service, "_sync_activities_to_db", new_callable=AsyncMock) as mock_sync:
+            await self.service._process_synthetic_activity_started(event, metadata, Mock())
+            mock_sync.assert_not_called()
+
+
+class TestScheduleDescribeProbe:
+    """Test _schedule_describe_probe describe() polling logic."""
+
+    def setup_method(self) -> None:
+        """Set up test fixtures."""
+        self.service = ActivitySyncService(Mock(), Mock())
+
+    @pytest.mark.asyncio
+    async def test_pushes_synthetic_event_when_activity_started(self) -> None:
+        """Test that probe pushes SyntheticActivityStarted when describe reports STARTED."""
+        mock_handle = AsyncMock()
+        pa = Mock()
+        pa.activity_id = "my-activity"
+        pa.state = STARTED_STATE
+        mock_desc = Mock()
+        mock_desc.raw_description.pending_activities = [pa]
+        mock_handle.describe.return_value = mock_desc
+
+        queue: asyncio.Queue[Any] = asyncio.Queue()
+
+        await self.service._schedule_describe_probe(
+            handle=mock_handle,
+            queue=queue,
+            activity_id="my-activity",
+            scheduled_event_id=5,
+        )
+
+        assert not queue.empty()
+        item = await queue.get()
+        assert isinstance(item, SyntheticActivityStarted)
+        assert item.activity_id == "my-activity"
+        assert item.scheduled_event_id == 5
+
+    @pytest.mark.asyncio
+    async def test_stops_when_activity_no_longer_pending(self) -> None:
+        """Test that probe stops when activity disappears from pending list."""
+        mock_handle = AsyncMock()
+        mock_desc = Mock()
+        mock_desc.raw_description.pending_activities = []
+        mock_handle.describe.return_value = mock_desc
+
+        queue: asyncio.Queue[Any] = asyncio.Queue()
+
+        await self.service._schedule_describe_probe(
+            handle=mock_handle,
+            queue=queue,
+            activity_id="my-activity",
+            scheduled_event_id=5,
+        )
+
+        assert queue.empty()
+        mock_handle.describe.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_retries_with_backoff_when_still_scheduled(self) -> None:
+        """Test that probe retries with backoff when activity is still SCHEDULED."""
+        pa_scheduled = Mock()
+        pa_scheduled.activity_id = "my-activity"
+        pa_scheduled.state = 1  # SCHEDULED
+
+        pa_started = Mock()
+        pa_started.activity_id = "my-activity"
+        pa_started.state = STARTED_STATE
+
+        desc_scheduled = Mock()
+        desc_scheduled.raw_description.pending_activities = [pa_scheduled]
+
+        desc_started = Mock()
+        desc_started.raw_description.pending_activities = [pa_started]
+
+        mock_handle = AsyncMock()
+        mock_handle.describe.side_effect = [desc_scheduled, desc_scheduled, desc_started]
+
+        queue: asyncio.Queue[Any] = asyncio.Queue()
+
+        with patch(
+            "nexus.workflows.workflow_engine.services.activity_sync_service.asyncio.sleep", new_callable=AsyncMock
+        ):
+            await self.service._schedule_describe_probe(
+                handle=mock_handle,
+                queue=queue,
+                activity_id="my-activity",
+                scheduled_event_id=5,
+            )
+
+        assert mock_handle.describe.call_count == 3
+        item = await queue.get()
+        assert isinstance(item, SyntheticActivityStarted)
+
+    @pytest.mark.asyncio
+    async def test_retries_on_exception(self) -> None:
+        """Test that probe retries when describe() raises an exception."""
+        pa_started = Mock()
+        pa_started.activity_id = "my-activity"
+        pa_started.state = STARTED_STATE
+        desc_started = Mock()
+        desc_started.raw_description.pending_activities = [pa_started]
+
+        mock_handle = AsyncMock()
+        mock_handle.describe.side_effect = [RuntimeError("connection failed"), desc_started]
+
+        queue: asyncio.Queue[Any] = asyncio.Queue()
+
+        with patch(
+            "nexus.workflows.workflow_engine.services.activity_sync_service.asyncio.sleep", new_callable=AsyncMock
+        ):
+            await self.service._schedule_describe_probe(
+                handle=mock_handle,
+                queue=queue,
+                activity_id="my-activity",
+                scheduled_event_id=5,
+            )
+
+        assert mock_handle.describe.call_count == 2
+        item = await queue.get()
+        assert isinstance(item, SyntheticActivityStarted)
+
+    @pytest.mark.asyncio
+    async def test_stops_on_shutdown(self) -> None:
+        """Test that probe stops when service is shutting down."""
+        self.service._shutdown = True
+
+        mock_handle = AsyncMock()
+        queue: asyncio.Queue[Any] = asyncio.Queue()
+
+        await self.service._schedule_describe_probe(
+            handle=mock_handle,
+            queue=queue,
+            activity_id="my-activity",
+            scheduled_event_id=5,
+        )
+
+        assert queue.empty()
+        mock_handle.describe.assert_not_called()
+
+
+class TestHistoryEventProducer:
+    """Test _history_event_producer streaming into queue."""
+
+    def setup_method(self) -> None:
+        """Set up test fixtures."""
+        self.service = ActivitySyncService(Mock(), Mock())
+
+    @pytest.mark.asyncio
+    async def test_streams_events_into_queue(self) -> None:
+        """Test that history events are pushed into the queue."""
+        event1 = Mock()
+        event2 = Mock()
+
+        mock_handle = AsyncMock()
+
+        async def mock_fetch(**kwargs: int) -> AsyncIterator[Mock]:
+            yield event1
+            yield event2
+
+        mock_handle.fetch_history_events = mock_fetch
+
+        queue: asyncio.Queue[Any] = asyncio.Queue()
+        await self.service._history_event_producer(mock_handle, queue, uuid4())
+
+        items = []
+        while not queue.empty():
+            items.append(await queue.get())
+
+        assert items == [event1, event2, None]
+
+    @pytest.mark.asyncio
+    async def test_pushes_none_sentinel_on_completion(self) -> None:
+        """Test that None sentinel is pushed when history stream ends."""
+        mock_handle = AsyncMock()
+
+        async def mock_fetch(**kwargs: int) -> AsyncIterator[Mock]:
+            return
+            yield
+
+        mock_handle.fetch_history_events = mock_fetch
+
+        queue: asyncio.Queue[Any] = asyncio.Queue()
+        await self.service._history_event_producer(mock_handle, queue, uuid4())
+
+        item = await queue.get()
+        assert item is None
+
+    @pytest.mark.asyncio
+    async def test_pushes_none_sentinel_on_error(self) -> None:
+        """Test that None sentinel is pushed even when producer encounters an error."""
+        mock_handle = AsyncMock()
+
+        async def mock_fetch(**kwargs: int) -> AsyncIterator[Mock]:
+            yield Mock()
+            msg = "connection lost"
+            raise RuntimeError(msg)
+
+        mock_handle.fetch_history_events = mock_fetch
+
+        queue: asyncio.Queue[Any] = asyncio.Queue()
+        await self.service._history_event_producer(mock_handle, queue, uuid4())
+
+        items = []
+        while not queue.empty():
+            items.append(await queue.get())
+
+        assert len(items) == 2
+        assert items[-1] is None
+
+    @pytest.mark.asyncio
+    async def test_stops_on_shutdown(self) -> None:
+        """Test that producer stops streaming when shutdown is requested."""
+        self.service._shutdown = True
+
+        event1 = Mock()
+        mock_handle = AsyncMock()
+
+        async def mock_fetch(**kwargs: int) -> AsyncIterator[Mock]:
+            yield event1
+
+        mock_handle.fetch_history_events = mock_fetch
+
+        queue: asyncio.Queue[Any] = asyncio.Queue()
+        await self.service._history_event_producer(mock_handle, queue, uuid4())
+
+        items = []
+        while not queue.empty():
+            items.append(await queue.get())
+
+        assert items == [None]
+
+
+class TestProcessHistoryEvent:
+    """Test _process_history_event dispatching logic."""
+
+    def setup_method(self) -> None:
+        """Set up test fixtures."""
+        self.service = ActivitySyncService(Mock(), Mock())
+        self.execution_id = uuid4()
+        self.metadata = create_test_metadata(
+            execution_id=self.execution_id,
+            last_processed_event_id=0,
+        )
+        self.mock_handle = AsyncMock()
+        self.queue: asyncio.Queue[Any] = asyncio.Queue()
+        self.probe_tasks: list[asyncio.Task[None]] = []
+
+    def _create_event(self, event_type: int, event_id: int, activity_id: str = "test-activity") -> Mock:
+        """Create a mock Temporal history event."""
+        event = Mock()
+        event.event_type = event_type
+        event.event_id = event_id
+        event.event_time = datetime.now(UTC)
+
+        attrs = Mock()
+        if event_type == EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED:
+            attrs.activity_id = activity_id
+            attrs.start_to_close_timeout = None
+            event.activity_task_scheduled_event_attributes = attrs
+        elif event_type == EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED:
+            attrs.scheduled_event_id = 1
+            attrs.attempt = 1
+            attrs.last_failure = None
+            event.activity_task_started_event_attributes = attrs
+        elif event_type == EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED:
+            attrs.scheduled_event_id = 1
+            attrs.result = None
+            event.activity_task_completed_event_attributes = attrs
+
+        return event
+
+    @pytest.mark.asyncio
+    async def test_skips_already_processed_events(self) -> None:
+        """Test that events with IDs <= last_processed are skipped."""
+        self.metadata.last_processed_event_id = 10
+        event = self._create_event(EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED, event_id=5)
+
+        with patch.object(self.service, "_process_activity_event") as mock_process:
+            result = await self.service._process_history_event(
+                event,
+                self.metadata,
+                self.mock_handle,
+                self.queue,
+                self.probe_tasks,
+            )
+
+        assert result is True
+        mock_process.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_handles_workflow_started_event(self) -> None:
+        """Test that WORKFLOW_EXECUTION_STARTED updates execution to RUNNING."""
+        event = self._create_event(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED, event_id=1)
+
+        with patch.object(self.service, "_update_execution_to_running", new_callable=AsyncMock) as mock_update:
+            result = await self.service._process_history_event(
+                event,
+                self.metadata,
+                self.mock_handle,
+                self.queue,
+                self.probe_tasks,
+            )
+
+        assert result is True
+        mock_update.assert_called_once_with(self.metadata, event)
+        assert self.metadata.last_processed_event_id == 1
+
+    @pytest.mark.asyncio
+    async def test_handles_workflow_completion_event(self) -> None:
+        """Test that workflow completion events trigger final sync."""
+        event = self._create_event(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED, event_id=20)
+
+        with (
+            patch.object(self.service, "_update_execution_status_from_event", new_callable=AsyncMock) as mock_status,
+            patch.object(self.service, "_sync_skipped_nodes", new_callable=AsyncMock) as mock_skipped,
+            patch.object(self.service, "_sync_failed_nodes", new_callable=AsyncMock) as mock_failed,
+        ):
+            result = await self.service._process_history_event(
+                event,
+                self.metadata,
+                self.mock_handle,
+                self.queue,
+                self.probe_tasks,
+            )
+
+        assert result is True
+        mock_status.assert_called_once()
+        mock_skipped.assert_called_once()
+        mock_failed.assert_called_once()
+        assert self.metadata.last_processed_event_id == 20
+
+    @pytest.mark.asyncio
+    async def test_processes_activity_events(self) -> None:
+        """Test that activity events are processed and post-processed."""
+        event = self._create_event(EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED, event_id=5)
+
+        with (
+            patch.object(self.service, "_process_activity_event") as mock_process,
+            patch.object(
+                self.service, "_handle_event_post_processing", new_callable=AsyncMock, return_value=5
+            ) as mock_post,
+        ):
+            result = await self.service._process_history_event(
+                event,
+                self.metadata,
+                self.mock_handle,
+                self.queue,
+                self.probe_tasks,
+            )
+
+        assert result is True
+        mock_process.assert_called_once_with(event, self.metadata)
+        mock_post.assert_called_once()
+        assert self.metadata.last_processed_event_id == 5
+
+    @pytest.mark.asyncio
+    async def test_launches_probe_on_scheduled_event(self) -> None:
+        """Test that SCHEDULED events launch a describe probe task."""
+        event = self._create_event(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
+            event_id=10,
+            activity_id="my-activity",
+        )
+
+        with (
+            patch.object(self.service, "_process_activity_event"),
+            patch.object(self.service, "_handle_event_post_processing", new_callable=AsyncMock, return_value=10),
+            patch.object(self.service, "_schedule_describe_probe", new_callable=AsyncMock) as mock_probe,
+        ):
+            await self.service._process_history_event(
+                event,
+                self.metadata,
+                self.mock_handle,
+                self.queue,
+                self.probe_tasks,
+            )
+
+        assert len(self.probe_tasks) == 1
+        # Wait for the task and verify it called the probe
+        await self.probe_tasks[0]
+        mock_probe.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_skips_probe_for_internal_activities(self) -> None:
+        """Test that __internal__ activities do not launch probes."""
+        event = self._create_event(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
+            event_id=10,
+            activity_id="__internal__monitoring",
+        )
+
+        with (
+            patch.object(self.service, "_process_activity_event"),
+            patch.object(self.service, "_handle_event_post_processing", new_callable=AsyncMock, return_value=10),
+        ):
+            await self.service._process_history_event(
+                event,
+                self.metadata,
+                self.mock_handle,
+                self.queue,
+                self.probe_tasks,
+            )
+
+        assert len(self.probe_tasks) == 0
+
+    @pytest.mark.asyncio
+    async def test_caps_probe_tasks(self) -> None:
+        """Test that probe tasks are capped at _DESCRIBE_PROBE_MAX_TASKS."""
+        from nexus.workflows.workflow_engine.services.activity_sync_service import _DESCRIBE_PROBE_MAX_TASKS
+
+        # Fill probe_tasks with non-done tasks to hit the cap
+        for _ in range(_DESCRIBE_PROBE_MAX_TASKS):
+            self.probe_tasks.append(asyncio.create_task(asyncio.sleep(100)))
+
+        event = self._create_event(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
+            event_id=10,
+            activity_id="my-activity",
+        )
+
+        with (
+            patch.object(self.service, "_process_activity_event"),
+            patch.object(self.service, "_handle_event_post_processing", new_callable=AsyncMock, return_value=10),
+        ):
+            await self.service._process_history_event(
+                event,
+                self.metadata,
+                self.mock_handle,
+                self.queue,
+                self.probe_tasks,
+            )
+
+        # No new task should have been added
+        assert len(self.probe_tasks) == _DESCRIBE_PROBE_MAX_TASKS
+
+        # Cleanup
+        for t in self.probe_tasks:
+            t.cancel()
+        await asyncio.gather(*self.probe_tasks, return_exceptions=True)
+
+    @pytest.mark.asyncio
+    async def test_prunes_done_tasks_before_cap_check(self) -> None:
+        """Test that completed probe tasks are pruned before checking the cap."""
+        from nexus.workflows.workflow_engine.services.activity_sync_service import _DESCRIBE_PROBE_MAX_TASKS
+
+        # Fill with done tasks
+        for _ in range(_DESCRIBE_PROBE_MAX_TASKS):
+            task = asyncio.create_task(asyncio.sleep(0))
+            await task
+            self.probe_tasks.append(task)
+
+        event = self._create_event(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
+            event_id=10,
+            activity_id="my-activity",
+        )
+
+        with (
+            patch.object(self.service, "_process_activity_event"),
+            patch.object(self.service, "_handle_event_post_processing", new_callable=AsyncMock, return_value=10),
+            patch.object(self.service, "_schedule_describe_probe", new_callable=AsyncMock),
+        ):
+            await self.service._process_history_event(
+                event,
+                self.metadata,
+                self.mock_handle,
+                self.queue,
+                self.probe_tasks,
+            )
+
+        # Done tasks pruned, new one added
+        assert len(self.probe_tasks) == 1
+
+
+class TestMonitorExecutionIntegration:
+    """Integration tests for _monitor_execution queue-based consumer."""
+
+    def setup_method(self) -> None:
+        """Set up test fixtures."""
+        self.service = ActivitySyncService(Mock(), Mock())
+        self.execution_id = uuid4()
+
+    @pytest.mark.asyncio
+    async def test_processes_synthetic_started_events(self) -> None:
+        """Test that SyntheticActivityStarted events are processed by the consumer."""
+        metadata = create_test_metadata(
+            execution_id=self.execution_id,
+            activity_definitions_map={"my-activity": {"type": "script"}},
+            pending_activity_updates={
+                5: {
+                    "activity_id": "my-activity",
+                    "activity_name": "my-activity",
+                    "status": ActivityStatus.PENDING,
+                    "started_at": None,
+                    "completed_at": None,
+                    "error_details": None,
+                    "retry_count": 0,
+                },
+            },
+        )
+
+        with (
+            patch.object(self.service, "_initialize_monitoring", new_callable=AsyncMock, return_value=metadata),
+            patch.object(self.service, "_sync_activities_to_db", new_callable=AsyncMock) as mock_sync,
+        ):
+
+            async def mock_producer(handle: Mock, queue: asyncio.Queue[Any], exec_id: UUID) -> None:
+                await queue.put(SyntheticActivityStarted(activity_id="my-activity", scheduled_event_id=5))
+                await queue.put(None)
+
+            with patch.object(self.service, "_history_event_producer", side_effect=mock_producer):
+                await self.service._monitor_execution(
+                    self.execution_id,
+                    "temporal-wf-id",
+                )
+
+            assert metadata.pending_activity_updates[5]["status"] == ActivityStatus.RUNNING
+            assert metadata.pending_activity_updates[5]["started_at"] is not None
+            mock_sync.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_stops_on_shutdown(self) -> None:
+        """Test that the consumer stops when shutdown is requested."""
+        metadata = create_test_metadata(execution_id=self.execution_id)
+        self.service._shutdown = True
+
+        event = Mock()
+        event.event_type = EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED
+        event.event_id = 5
+
+        with patch.object(self.service, "_initialize_monitoring", new_callable=AsyncMock, return_value=metadata):
+
+            async def mock_producer(handle: Mock, queue: asyncio.Queue[Any], exec_id: UUID) -> None:
+                await queue.put(event)
+                await queue.put(None)
+
+            with (
+                patch.object(self.service, "_history_event_producer", side_effect=mock_producer),
+                patch.object(self.service, "_process_history_event", new_callable=AsyncMock) as mock_process,
+            ):
+                await self.service._monitor_execution(
+                    self.execution_id,
+                    "temporal-wf-id",
+                )
+
+            mock_process.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_cleans_up_tasks_on_completion(self) -> None:
+        """Test that producer and probe tasks are cancelled on normal completion."""
+        metadata = create_test_metadata(execution_id=self.execution_id)
+
+        with patch.object(self.service, "_initialize_monitoring", new_callable=AsyncMock, return_value=metadata):
+
+            async def mock_producer(handle: Mock, queue: asyncio.Queue[Any], exec_id: UUID) -> None:
+                await queue.put(None)
+
+            with patch.object(self.service, "_history_event_producer", side_effect=mock_producer):
+                await self.service._monitor_execution(
+                    self.execution_id,
+                    "temporal-wf-id",
+                )

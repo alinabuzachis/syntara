@@ -17,7 +17,7 @@ from jsonpatch import JsonPatch  # type: ignore[import-untyped]
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
-from temporalio.api.enums.v1 import EventType
+from temporalio.api.enums.v1 import EventType, PendingActivityState
 from temporalio.api.history.v1 import HistoryEvent
 from temporalio.client import Client, WorkflowHandle
 from temporalio.exceptions import TemporalError
@@ -52,6 +52,32 @@ logger = structlog.stdlib.get_logger(__name__)
 # Uses exponential backoff: 100ms, 200ms, 400ms, 800ms, 1600ms (total ~3.1s).
 _OUTPUT_QUERY_MAX_RETRIES = 5
 _OUTPUT_QUERY_BASE_DELAY_MS = 100
+
+# Temporal defers ACTIVITY_TASK_STARTED events until the activity completes,
+# so the sync service never sees RUNNING status for in-flight activities.
+# After SCHEDULED, we probe describe() to detect the real state, retrying
+# with exponential backoff if the activity hasn't been picked up yet.
+_DESCRIBE_PROBE_INITIAL_DELAY_S = 1.0
+_DESCRIBE_PROBE_MAX_DELAY_S = 30.0
+_DESCRIBE_PROBE_BACKOFF_FACTOR = 2.0
+_DESCRIBE_PROBE_MAX_TOTAL_S = 600.0  # 10 minutes
+_DESCRIBE_PROBE_MAX_TASKS = 25
+
+_PENDING_ACTIVITY_STATE_STARTED = PendingActivityState.PENDING_ACTIVITY_STATE_STARTED
+
+
+@dataclass
+class SyntheticActivityStarted:
+    """Synthetic STARTED event produced by describe() probing.
+
+    Temporal defers ACTIVITY_TASK_STARTED until the activity completes,
+    so in-flight activities stay PENDING in the DB. When describe() detects
+    an activity is actually running, this event is pushed into the shared
+    queue so the single consumer can update the status.
+    """
+
+    activity_id: str
+    scheduled_event_id: int
 
 
 @dataclass
@@ -392,7 +418,171 @@ class ActivitySyncService:
 
         return None
 
-    async def _monitor_execution(  # noqa: C901
+    async def _history_event_producer(
+        self,
+        handle: WorkflowHandle[Any, Any],
+        queue: asyncio.Queue[HistoryEvent | SyntheticActivityStarted | None],
+        execution_id: UUID,
+    ) -> None:
+        """Stream Temporal history events into the shared queue.
+
+        Pushes ``None`` as a sentinel when the history stream ends.
+        """
+        try:
+            async for event in handle.fetch_history_events(page_size=1000, wait_new_event=True):
+                if self._shutdown:
+                    break
+                await queue.put(event)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("History event producer error", execution_id=execution_id)
+        finally:
+            await queue.put(None)
+
+    async def _schedule_describe_probe(
+        self,
+        handle: WorkflowHandle[Any, Any],
+        queue: asyncio.Queue[HistoryEvent | SyntheticActivityStarted | None],
+        activity_id: str,
+        scheduled_event_id: int,
+    ) -> None:
+        """Probe describe() with backoff until the activity is STARTED.
+
+        Temporal defers ACTIVITY_TASK_STARTED events until the activity completes,
+        so SCHEDULED activities stay PENDING in the DB. This method calls describe()
+        to detect the real state and pushes a SyntheticActivityStarted into the queue
+        when the activity is running.
+        """
+        delay = _DESCRIBE_PROBE_INITIAL_DELAY_S
+        elapsed = 0.0
+
+        # NOSONAR: polling is intentional; history events arrive too late
+        while elapsed < _DESCRIBE_PROBE_MAX_TOTAL_S and not self._shutdown:
+            await asyncio.sleep(delay)
+            elapsed += delay
+
+            try:
+                desc = await handle.describe()
+                pending_map = {pa.activity_id: pa for pa in desc.raw_description.pending_activities}
+                pa = pending_map.get(activity_id)
+
+                if pa is None:
+                    return
+
+                if pa.state == _PENDING_ACTIVITY_STATE_STARTED:
+                    await queue.put(
+                        SyntheticActivityStarted(
+                            activity_id=activity_id,
+                            scheduled_event_id=scheduled_event_id,
+                        )
+                    )
+                    return
+
+                delay = min(delay * _DESCRIBE_PROBE_BACKOFF_FACTOR, _DESCRIBE_PROBE_MAX_DELAY_S)
+
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logger.exception(
+                    "Describe probe failed",
+                    activity_id=activity_id,
+                )
+                delay = min(delay * _DESCRIBE_PROBE_BACKOFF_FACTOR, _DESCRIBE_PROBE_MAX_DELAY_S)
+
+    async def _process_synthetic_activity_started(
+        self,
+        event: SyntheticActivityStarted,
+        metadata: ExecutionMonitorMetadata,
+        handle: WorkflowHandle[Any, Any],
+    ) -> None:
+        """Process a synthetic STARTED event from describe() probing.
+
+        Sets the activity to RUNNING and syncs to the database, mirroring
+        what _process_activity_started does for real Temporal STARTED events.
+        """
+        update = metadata.pending_activity_updates.get(event.scheduled_event_id)
+        if not update or update["status"] != ActivityStatus.PENDING:
+            return
+
+        update["status"] = ActivityStatus.RUNNING
+        update["started_at"] = datetime.now(UTC)
+
+        logger.info(
+            "Describe probe: activity started",
+            activity_id=event.activity_id,
+            execution_id=metadata.execution_id,
+        )
+        await self._sync_activities_to_db(metadata, handle)
+
+    async def _process_history_event(
+        self,
+        event: HistoryEvent,
+        metadata: ExecutionMonitorMetadata,
+        handle: WorkflowHandle[Any, Any],
+        queue: asyncio.Queue[HistoryEvent | SyntheticActivityStarted | None],
+        probe_tasks: list[asyncio.Task[None]],
+    ) -> bool:
+        """Process a single Temporal history event.
+
+        Returns False if the monitor loop should stop (shutdown requested).
+        """
+        if event.event_id <= metadata.last_processed_event_id:
+            return True
+
+        # Handle workflow execution started event
+        if event.event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED:
+            await self._update_execution_to_running(metadata, event)
+            metadata.last_processed_event_id = event.event_id
+            return True
+
+        # Handle workflow completion events
+        if event.event_type in {
+            EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED,
+            EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED,
+            EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED,
+            EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT,
+            EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED,
+        }:
+            await self._update_execution_status_from_event(metadata, event, handle)
+            # Final sync of skipped and failed nodes at workflow completion
+            await self._sync_skipped_nodes(metadata, handle)
+            await self._sync_failed_nodes(metadata, handle)
+            metadata.last_processed_event_id = event.event_id
+            return True
+
+        # Process activity events
+        self._process_activity_event(event, metadata)
+
+        synced_event_id = await self._handle_event_post_processing(event, metadata, handle)
+        if synced_event_id:
+            metadata.last_processed_event_id = synced_event_id
+
+        # Launch describe probe after SCHEDULED events.
+        # Probe tasks complete quickly once the activity starts (single describe() call),
+        # so hitting the cap is unlikely in practice. If the cap is reached, the only
+        # impact is that the activity stays PENDING in the DB until the real STARTED
+        # event arrives with the COMPLETED event — status is reported late, not lost.
+        if event.event_type == EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED:
+            attrs = event.activity_task_scheduled_event_attributes
+            if attrs and not attrs.activity_id.startswith("__internal__"):
+                probe_tasks[:] = [t for t in probe_tasks if not t.done()]
+                if len(probe_tasks) < _DESCRIBE_PROBE_MAX_TASKS:
+                    activity_id = re.sub(r"_iter_\d+$", "", attrs.activity_id)
+                    probe_tasks.append(
+                        asyncio.create_task(
+                            self._schedule_describe_probe(
+                                handle,
+                                queue,
+                                activity_id,
+                                event.event_id,
+                            )
+                        )
+                    )
+
+        return True
+
+    async def _monitor_execution(  # noqa: C901, PLR0912
         self,
         execution_id: UUID,
         temporal_workflow_id: str,
@@ -401,7 +591,9 @@ class ActivitySyncService:
     ) -> None:
         """Monitor a single execution and sync activities to database.
 
-        Runs until workflow completes or service shuts down.
+        Uses a shared asyncio.Queue so that Temporal history events and
+        describe-probe results are processed by a single consumer, avoiding
+        race conditions between the two sources.
 
         Args:
             execution_id: Database execution ID
@@ -420,51 +612,57 @@ class ActivitySyncService:
 
             metadata = await self._initialize_monitoring(execution_id, request_id=request_id)
 
-            with actor_context(
-                execution_id=metadata.execution_id,
-                workflow_id=metadata.workflow_id,
-                request_id=metadata.request_id,
-            ):
-                async for event in handle.fetch_history_events(page_size=1000, wait_new_event=True):
-                    if self._shutdown:
-                        logger.info("Shutdown requested, stopping monitoring for execution", execution_id=execution_id)
-                        break
+            queue: asyncio.Queue[HistoryEvent | SyntheticActivityStarted | None] = asyncio.Queue()
+            probe_tasks: list[asyncio.Task[None]] = []
+            producer_task: asyncio.Task[None] | None = None
 
-                    if event.event_id <= metadata.last_processed_event_id:
-                        continue
+            try:
+                producer_task = asyncio.create_task(self._history_event_producer(handle, queue, execution_id))
 
-                    # Handle workflow execution started event
-                    if event.event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED:
-                        await self._update_execution_to_running(metadata, event)
-                        metadata.last_processed_event_id = event.event_id
-                        continue  # Skip activity processing for workflow events
+                with actor_context(
+                    execution_id=metadata.execution_id,
+                    workflow_id=metadata.workflow_id,
+                    request_id=metadata.request_id,
+                ):
+                    while True:
+                        item = await queue.get()
 
-                    # Handle workflow completion events
-                    if event.event_type in {
-                        EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED,
-                        EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED,
-                        EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED,
-                        EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT,
-                        EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED,
-                    }:
-                        await self._update_execution_status_from_event(metadata, event, handle)
-                        # Final sync of skipped and failed nodes at workflow completion
-                        await self._sync_skipped_nodes(metadata, handle)
-                        await self._sync_failed_nodes(metadata, handle)
-                        metadata.last_processed_event_id = event.event_id
-                        continue  # Skip activity processing, likely last event
+                        if item is None:
+                            break
 
-                    # Process activity events
-                    self._process_activity_event(event, metadata)
+                        if isinstance(item, SyntheticActivityStarted):
+                            await self._process_synthetic_activity_started(item, metadata, handle)
+                            continue
 
-                    synced_event_id = await self._handle_event_post_processing(event, metadata, handle)
-                    if synced_event_id:
-                        metadata.last_processed_event_id = synced_event_id
+                        if self._shutdown:
+                            logger.info(
+                                "Shutdown requested, stopping monitoring for execution",
+                                execution_id=execution_id,
+                            )
+                            break
 
-                if metadata.pending_activity_updates and not self._shutdown:
-                    await self._sync_activities_to_db(metadata, handle)
+                        if not await self._process_history_event(
+                            item,
+                            metadata,
+                            handle,
+                            queue,
+                            probe_tasks,
+                        ):
+                            break
 
-            logger.info("Activity monitoring completed for execution", execution_id=execution_id)
+                    if metadata.pending_activity_updates and not self._shutdown:
+                        await self._sync_activities_to_db(metadata, handle)
+
+                logger.info("Activity monitoring completed for execution", execution_id=execution_id)
+
+            finally:
+                if producer_task is not None:
+                    producer_task.cancel()
+                for t in probe_tasks:
+                    t.cancel()
+                all_tasks = ([producer_task] if producer_task is not None else []) + probe_tasks
+                if all_tasks:
+                    await asyncio.gather(*all_tasks, return_exceptions=True)
 
         except asyncio.CancelledError:
             logger.info("Activity monitoring cancelled for execution", execution_id=execution_id)
