@@ -46,7 +46,7 @@ from nexus.tool_manager.models.tool import Tool, ToolParameter
 from nexus.tool_manager.models.tool_execution import ToolExecution
 from nexus.tool_manager.models.tool_provider import ToolProvider
 from nexus.tool_manager.models.usage_counter import UsageCounter
-from nexus.workflows.models import Workflow, WorkflowVersion
+from nexus.workflows.models import WebhookTrigger, Workflow, WorkflowVersion
 from nexus.workflows.models.activity_execution import ActivityExecution
 from nexus.workflows.models.execution import Execution
 
@@ -85,6 +85,7 @@ _ = (
     Policy,
     RoleAssignment,
     RefreshSession,
+    WebhookTrigger,
 )
 
 # this is the Alembic Config object, which provides

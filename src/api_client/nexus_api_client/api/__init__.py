@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from .tool_manager import ToolManagerApi
     from .tool_metrics import ToolMetricsApi
     from .users import UsersApi
+    from .webhooks import WebhooksApi
     from .workflows import WorkflowsApi
 
 
@@ -169,3 +170,9 @@ class NexusApiRegistry:
         from .workflows import WorkflowsApi
 
         return WorkflowsApi(client=self._client)
+
+    @cached_property
+    def webhooks(self) -> WebhooksApi:
+        from .webhooks import WebhooksApi
+
+        return WebhooksApi(client=self._client)

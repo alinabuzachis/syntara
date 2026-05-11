@@ -140,6 +140,23 @@
               }
             }
           ]
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/node_base"
+            },
+            {
+              "properties": {
+                "type": {
+                  "const": "webhook_trigger"
+                },
+                "config": {
+                  "$ref": "triggers/webhook.schema.json#/configSchema"
+                }
+              }
+            }
+          ]
         }
       ]
     },

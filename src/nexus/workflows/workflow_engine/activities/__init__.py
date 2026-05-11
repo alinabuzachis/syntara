@@ -24,6 +24,7 @@ from .internal import register_activity_monitoring
 from .loop import loop
 from .manual_trigger import manual_trigger
 from .script_activity import execute_script_activity
+from .webhook_trigger import webhook_trigger
 
 _TEMPORAL_ACTIVITIES: list[Callable[..., Any]] = [
     register_activity_monitoring,
@@ -38,6 +39,7 @@ _TEMPORAL_ACTIVITIES: list[Callable[..., Any]] = [
     loop,
     manual_trigger,
     execute_script_activity,
+    webhook_trigger,
 ]
 
 ACTIVITY_REGISTRY: dict[ActivityName, Callable[..., Any]] = {

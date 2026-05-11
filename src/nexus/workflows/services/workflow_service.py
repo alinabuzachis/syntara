@@ -28,6 +28,7 @@ from nexus.workflows.exceptions import (
     WorkflowVersionNotFoundError,
 )
 from nexus.workflows.models import Workflow, WorkflowListResponse, WorkflowRead, WorkflowVersion
+from nexus.workflows.services.webhook_trigger_service import WebhookTriggerService
 from nexus.workflows.validators import workflow_validator
 
 # Running counters for workflow creation success rate (FR-010).
@@ -88,8 +89,11 @@ class WorkflowService(BaseService):
             or "duplicate key" in error_str.lower()
         )
 
-    async def _commit_with_duplicate_check(self, workflow_name: str) -> None:
-        """Commit database transaction with duplicate name error handling.
+    async def _flush_with_duplicate_check(self, workflow_name: str) -> None:
+        """Flush pending changes with duplicate name error handling.
+
+        Flushes (but does not commit) so the caller can batch additional
+        changes into the same transaction before a single atomic commit.
 
         Args:
             workflow_name: Name of workflow being created/updated
@@ -100,7 +104,7 @@ class WorkflowService(BaseService):
 
         """
         try:
-            await self.session.commit()
+            await self.session.flush()
         except IntegrityError as e:
             await self.session.rollback()
             if self._is_duplicate_name_error(e):
@@ -172,9 +176,24 @@ class WorkflowService(BaseService):
         self.session.add(workflow)
         self.session.add(version)
 
-        # Commit changes with duplicate name check
+        # Flush + sync + commit as a single atomic transaction so that a
+        # webhook-path conflict rolls back the workflow too.
         try:
-            await self._commit_with_duplicate_check(name)
+            # Flush workflow + version (validates name uniqueness)
+            await self._flush_with_duplicate_check(name)
+            await self.session.refresh(workflow)
+            await self.session.refresh(version)
+
+            # Sync webhook triggers within the same transaction
+            webhook_service = WebhookTriggerService(self.session, self.user)
+            await webhook_service.sync_webhook_triggers(
+                workflow_id=workflow.id,
+                workflow_definition=workflow_dict,
+                is_enabled=is_enabled,
+            )
+
+            # Single atomic commit
+            await self.session.commit()
         except Exception:
             with _workflow_creation_lock:
                 _workflow_creation_counts[1] += 1
@@ -185,9 +204,8 @@ class WorkflowService(BaseService):
                 component=component,
             )
             raise
-        await self.session.refresh(workflow)
-        await self.session.refresh(version)
 
+        # Record success only after the full transaction commits
         with _workflow_creation_lock:
             _workflow_creation_counts[0] += 1
             _workflow_creation_counts[1] += 1
@@ -469,8 +487,8 @@ class WorkflowService(BaseService):
                 change_description=change_description,
             )
 
-        # Commit changes with duplicate name check (use workflow.name since it may have been updated)
-        await self._commit_with_duplicate_check(workflow.name)
+        # Flush with name uniqueness check (stays within the same transaction)
+        await self._flush_with_duplicate_check(workflow.name)
         await self.session.refresh(workflow)
 
         if new_version:
@@ -479,6 +497,17 @@ class WorkflowService(BaseService):
 
         # Get current version for return
         _, current_version = await self.get_workflow_with_version(workflow_id)
+
+        # Sync webhook triggers within the same transaction
+        webhook_service = WebhookTriggerService(self.session, self.user)
+        await webhook_service.sync_webhook_triggers(
+            workflow_id=workflow.id,
+            workflow_definition=current_version.workflow_definition,
+            is_enabled=workflow.is_enabled,
+        )
+
+        # Single atomic commit (workflow metadata + version + triggers)
+        await self.session.commit()
 
         return workflow, current_version
 
@@ -493,6 +522,10 @@ class WorkflowService(BaseService):
 
         """
         workflow = await self.get_workflow_by_id(workflow_id)
+
+        # Delete associated webhook triggers before soft-deleting the workflow
+        webhook_service = WebhookTriggerService(self.session, self.user)
+        await webhook_service.delete_triggers_for_workflow(workflow_id)
 
         # Soft delete
         workflow.soft_delete(self.user.id)

@@ -26,6 +26,7 @@ from nexus.workflows.workflow_engine.models.responses import (
     WorkflowStatusResponse,
     WorkflowTerminationResponse,
 )
+from nexus.workflows.workflow_engine.models.workflow_definition import NodeType
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -154,10 +155,16 @@ class TemporalExecutionService:
                 msg = "Trigger node must have an 'id' field"
                 raise SafeValueError(msg)  # noqa: TRY301
 
-            # Select trigger node to execute
+            # Use provided trigger_node_id or default to first manual trigger
             if trigger_node_id is None:
-                trigger_node_id = trigger_ids[0]
-            elif trigger_node_id not in trigger_ids:
+                manual_triggers = [t for t in triggers if t.get("type") == NodeType.MANUAL_TRIGGER]
+                if not manual_triggers:
+                    msg = "No manual trigger found in workflow definition"
+                    raise SafeValueError(msg)  # noqa: TRY301
+                trigger_node_id = manual_triggers[0].get("id")
+
+            # Validate trigger_node_id exists in the workflow
+            if trigger_node_id not in trigger_ids:
                 msg = f"Specified trigger_node_id '{trigger_node_id}' not found in workflow triggers: {trigger_ids}"
                 raise SafeValueError(msg)  # noqa: TRY301
 

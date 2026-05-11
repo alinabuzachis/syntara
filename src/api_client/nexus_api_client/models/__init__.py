@@ -257,6 +257,7 @@ __all__ = (
     "UserUpdate",
     "ValidateNameResourceType",
     "ValidateNameResponse",
+    "WebhookResponse",
     "WhatCanIResponse",
     "WhoCanRequest",
     "WhoCanRequestResourceLabels",

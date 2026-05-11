@@ -145,6 +145,13 @@ def main() -> int:
     apply_rfc9457_media_types(spec)
     _inject_permission_metadata(app, spec)
 
+    # Strip auth responses from explicitly unauthenticated endpoints
+    for path_ops in spec.get("paths", {}).values():
+        for op in path_ops.values():
+            if isinstance(op, dict) and op.get("security") == []:
+                op.get("responses", {}).pop("401", None)
+                op.get("responses", {}).pop("403", None)
+
     if args.format == "yaml":
         content = yaml.dump(spec, default_flow_style=False, allow_unicode=True, sort_keys=False)
     else:

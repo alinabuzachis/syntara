@@ -17,7 +17,7 @@ with workflow.unsafe.imports_passed_through():
     from nexus.core.exceptions import SafeValueError
     from nexus.workflows.workflow_engine.activities.credential_resolution_activity import resolve_workflow_credentials
     from nexus.workflows.workflow_engine.constants import DEFAULT_AAP_TIMEOUT_SECONDS
-    from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
+    from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, NodeType
     from nexus.workflows.workflow_engine.signals import WorkflowSignalProcessor
     from nexus.workflows.workflow_engine.utils.credential_scrubber import scrub_credentials
 
@@ -31,6 +31,13 @@ from nexus.workflows.workflow_engine.models.workflow_definition import (
     NodeType,
 )
 from nexus.workflows.workflow_engine.unified_eval import safe_eval_with_namespace
+
+# Trigger types allowed for dynamic dispatch via Temporal activities.
+# Each entry must have a corresponding @activity.defn with a matching name.
+ALLOWED_TRIGGER_TYPES: set[str] = {
+    ActivityName.MANUAL_TRIGGER,
+    ActivityName.WEBHOOK_TRIGGER,
+}
 
 # Temporal start-to-close safety ceiling for activities that don't specify a timeout.
 # Each node type has its own configurable timeout in Settings; this is only the
@@ -177,14 +184,22 @@ class NexusWorkflow:
     ) -> None:
         """Execute the trigger node and schedule its successors."""
         trigger_node = graph.get_node(trigger_node_id)
-        workflow.logger.info(f"Executing trigger node: {trigger_node.id}")
+        workflow.logger.info(f"Executing trigger node: {trigger_node.id} (type={trigger_node.type})")
 
         self._skip_unselected_triggers(trigger_node_id, graph)
 
         self.node_inputs[trigger_node.id] = trigger_inputs
 
+        # Validate trigger type against allowlist to prevent arbitrary activity dispatch
+        if trigger_node.type not in ALLOWED_TRIGGER_TYPES:
+            msg = (
+                f"Invalid trigger type '{trigger_node.type}'. Allowed types: {', '.join(sorted(ALLOWED_TRIGGER_TYPES))}"
+            )
+            raise SafeValueError(msg)
+
+        # Dispatch dynamically by trigger type (activity name matches node type for triggers)
         trigger_result = await workflow.execute_activity(
-            ActivityName.MANUAL_TRIGGER,
+            trigger_node.type,
             args=[trigger_inputs, trigger_node.outputs],
             activity_id=trigger_node.id,
             start_to_close_timeout=timedelta(seconds=DEFAULT_ACTIVITY_TIMEOUT_SECONDS),

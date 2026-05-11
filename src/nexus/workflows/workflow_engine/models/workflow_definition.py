@@ -14,7 +14,9 @@ from urllib.parse import urlparse
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 from pydantic.functional_validators import ModelWrapValidatorHandler
 
+from nexus.core.constants import WebhookLimits
 from nexus.core.exceptions import SafeValueError
+from nexus.workflows.json_schema_validation import validate_json_schema_definition
 from nexus.workflows.workflow_engine import constants
 from nexus.workflows.workflow_engine.models.aap_types import AAPResourceType
 
@@ -558,3 +560,46 @@ class AAPWorkflowJobTemplateExecutorConfig(AAPResourceReferenceMixin, TemplateAw
         )
 
         return self
+
+
+class WebhookTriggerConfig(TemplateAwareBaseModel):
+    """Configuration for webhook trigger nodes.
+
+    Defines the endpoint configuration for a webhook trigger, including the
+    URL path slug and an optional JSON Schema for payload validation.
+
+    Attributes:
+        webhook_path: Unique URL slug identifying this webhook endpoint
+            (e.g., "jira-updates"). Becomes part of the final URL:
+            /api/v1/webhooks/{webhook_path}
+        input_schema: Optional JSON Schema (Draft-07) for validating incoming
+            webhook payloads. If set, requests with non-conforming payloads
+            are rejected with 422 Unprocessable Content.
+
+    """
+
+    webhook_path: str = Field(
+        min_length=WebhookLimits.PATH_MIN_LENGTH,
+        max_length=WebhookLimits.PATH_MAX_LENGTH,
+        pattern=WebhookLimits.PATH_PATTERN,
+        description="Unique URL slug identifying this webhook endpoint",
+    )
+    input_schema: dict[str, Any] | None = Field(
+        default=None,
+        description="Optional JSON Schema (Draft-07) for validating incoming webhook payloads",
+    )
+
+    @field_validator("input_schema")
+    @classmethod
+    def validate_schema(cls, v: dict[str, Any] | None) -> dict[str, Any] | None:
+        """Validate JSON Schema at definition time.
+
+        Rejects structurally invalid schemas, schemas containing ``$ref``
+        references (SSRF risk), and schemas with regex patterns that could
+        cause catastrophic backtracking (ReDoS).
+        """
+        if v is None:
+            return v
+
+        validate_json_schema_definition(v)
+        return v

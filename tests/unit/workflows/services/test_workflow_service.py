@@ -185,14 +185,14 @@ class TestWorkflowServiceDuplicateDetection(TestWorkflowServiceBase):
         assert result is expected
 
 
-class TestWorkflowServiceCommitWithDuplicateCheck(TestWorkflowServiceBase):
-    """Test commit with duplicate check functionality."""
+class TestWorkflowServiceFlushWithDuplicateCheck(TestWorkflowServiceBase):
+    """Test flush with duplicate check functionality."""
 
     @pytest.mark.asyncio
-    async def test_commit_with_duplicate_check_raises_workflow_name_conflict(
+    async def test_flush_with_duplicate_check_raises_workflow_name_conflict(
         self, test_db_session: AsyncSession, test_user: User
     ) -> None:
-        """Test commit raises WorkflowNameConflictError for duplicate name."""
+        """Test flush raises WorkflowNameConflictError for duplicate name."""
         service = WorkflowService(test_db_session, test_user)
 
         # Create a workflow first
@@ -201,13 +201,13 @@ class TestWorkflowServiceCommitWithDuplicateCheck(TestWorkflowServiceBase):
         await test_db_session.commit()
 
         # Now try to create another with the same name using direct SQL to trigger IntegrityError
-        with patch.object(test_db_session, "commit") as mock_commit:
+        with patch.object(test_db_session, "flush") as mock_flush:
             duplicate_error = IntegrityError("duplicate", "SELECT", None)  # type: ignore[arg-type]
             duplicate_error.args = ("ix_workflows_name_unique constraint violated",)
-            mock_commit.side_effect = duplicate_error
+            mock_flush.side_effect = duplicate_error
 
             with pytest.raises(WorkflowNameConflictError) as exc_info:
-                await service._commit_with_duplicate_check("duplicate-name")
+                await service._flush_with_duplicate_check("duplicate-name")
 
             assert str(exc_info.value) == "Workflow with name 'duplicate-name' already exists"
 

@@ -34,6 +34,17 @@
       "since": "2.0.0"
     },
     {
+      "type": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "description": "Workflow entry point triggered by incoming HTTP POST requests from external systems",
+      "labels": {
+        "category": "trigger"
+      },
+      "schema_ref": "../triggers/webhook.schema.json",
+      "deprecated": false,
+      "since": "2.0.0"
+    },
+    {
       "type": "script",
       "name": "Script",
       "description": "Execute Python or Bash scripts with structured output",

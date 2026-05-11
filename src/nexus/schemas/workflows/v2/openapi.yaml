@@ -398,6 +398,52 @@ paths:
   # Note: Approval endpoints are in a separate API
   # See: src/nexus/schemas/approvals/openapi.yaml
 
+  /webhooks/{webhook_path}:
+    post:
+      summary: Receive webhook event
+      description: >-
+        Receive a webhook event from an external system and trigger the matching
+        workflow. Only POST method is supported; other methods receive 405 Method
+        Not Allowed.
+      operationId: receive_webhook
+      tags: [webhooks]
+      security: []
+      x-app-permission:
+        resource: null
+        action: null
+      parameters:
+        - name: webhook_path
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 128
+            pattern: ^[a-z0-9]([a-z0-9\-_]*[a-z0-9])?$
+            title: Webhook Path
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              title: Payload
+      responses:
+        '202':
+          description: Webhook accepted and workflow execution started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookResponse'
+        '400':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
+        '404':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/NotFoundError'
+        '409':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
+        '422':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ValidationError'
+        '500':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
+
 components:
   schemas:
     # Import workflow-specific schemas
@@ -545,6 +591,24 @@ components:
 
     ExecutionRead:
       $ref: ./shared-schemas.yaml#/components/schemas/ExecutionRead
+
+    WebhookResponse:
+      type: object
+      title: WebhookResponse
+      description: Response from webhook reception endpoint.
+      required:
+        - execution_id
+        - message
+      properties:
+        execution_id:
+          type: string
+          format: uuid
+          title: Execution Id
+          description: ID of the triggered workflow execution
+        message:
+          type: string
+          title: Message
+          description: Human-readable status message
 
   securitySchemes:
     bearerAuth:

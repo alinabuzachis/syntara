@@ -5,6 +5,7 @@ This package contains database models (SQLModel tables):
 - WorkflowVersion: WorkflowVersion database model
 - Execution: Execution database model
 - ActivityExecution: ActivityExecution database model
+- WebhookTrigger: WebhookTrigger database model
 
 And API request/response models (Pydantic):
 - ActivitySignalPayload: Signal payload for activity signals
@@ -17,7 +18,7 @@ And WebSocket streaming models (Pydantic):
 - ActivityPatchMessage: Incremental activity update message
 
 Usage:
-    from nexus.workflows.models import Workflow, WorkflowVersion, Execution, ActivityExecution
+    from nexus.workflows.models import Workflow, WorkflowVersion, Execution, ActivityExecution, WebhookTrigger
     from nexus.workflows.models import ActivitySignalPayload, SignalResponse
     from nexus.workflows.models import ActivityData, ExecutionSnapshotMessage, ActivityPatchMessage
 """
@@ -44,6 +45,7 @@ from .visualization import (
     ExecutionSnapshotMessage,
     JsonPatchOperation,
 )
+from .webhook_trigger import WebhookTrigger, WebhookTriggerRead
 from .workflow import (
     Workflow,
     WorkflowCreate,
@@ -73,6 +75,8 @@ __all__ = [
     "ExecutionStreamingQueryParams",
     "JsonPatchOperation",
     "SignalResponse",
+    "WebhookTrigger",
+    "WebhookTriggerRead",
     "Workflow",
     "WorkflowCreate",
     "WorkflowListParams",

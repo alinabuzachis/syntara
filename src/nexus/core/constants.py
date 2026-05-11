@@ -59,6 +59,18 @@ class ValidationMessages:
     CURSOR_INVALID_FORMAT = "Invalid cursor format: {error}"
 
 
+class WebhookLimits:
+    """Webhook trigger validation limits and defaults."""
+
+    # Webhook path constraints
+    PATH_MAX_LENGTH = 128
+    PATH_MIN_LENGTH = 1
+    PATH_PATTERN = r"^[a-z0-9]([a-z0-9\-_]*[a-z0-9])?$"
+
+    # Payload size limit
+    PAYLOAD_MAX_BYTES = 1_048_576  # 1MB
+
+
 # File upload validation constants
 # Minimum file size for reliable MIME type detection (in bytes)
 # python-magic requires sufficient bytes to accurately identify file types

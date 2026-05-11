@@ -16,6 +16,9 @@ if TYPE_CHECKING:
     from nexus.workflows.exceptions import (
         ExecutionNotFoundError,
         TemporalUnavailableError,
+        TriggerValidationError,
+        WebhookTriggerNotFoundError,
+        WebhookTriggerPathConflictError,
         WorkflowDisabledError,
         WorkflowNameConflictError,
         WorkflowNotFoundError,
@@ -127,6 +130,53 @@ def temporal_unavailable_handler(request: Request, exc: "TemporalUnavailableErro
         detail="Temporal workflow service is currently unavailable",
         code="TEMPORAL_UNAVAILABLE",
         retryable=True,
+        instance=str(request.url),
+    )
+
+
+# ============================================================================
+# Trigger Error Handlers
+# ============================================================================
+
+
+def webhook_trigger_not_found_handler(request: Request, exc: "WebhookTriggerNotFoundError") -> JSONResponse:
+    """Handle WebhookTriggerNotFoundError with RFC 9457 format."""
+    logger.warning("Webhook trigger not found", exc_info=exc)
+    return create_problem_details_response(
+        status_code=status.HTTP_404_NOT_FOUND,
+        problem_type=PROBLEM_TYPES["resource_not_found"],
+        title="Webhook Trigger Not Found",
+        detail="No webhook trigger is configured for the requested path",
+        code="WEBHOOK_TRIGGER_NOT_FOUND",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def webhook_trigger_path_conflict_handler(request: Request, exc: "WebhookTriggerPathConflictError") -> JSONResponse:
+    """Handle WebhookTriggerPathConflictError with RFC 9457 format."""
+    logger.warning("Webhook trigger path conflict", exc_info=exc)
+    return create_problem_details_response(
+        status_code=status.HTTP_409_CONFLICT,
+        problem_type=PROBLEM_TYPES["name_conflict"],
+        title="Webhook Path Conflict",
+        detail="The requested webhook path is already in use by another trigger",
+        code="WEBHOOK_TRIGGER_PATH_CONFLICT",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def trigger_validation_handler(request: Request, exc: "TriggerValidationError") -> JSONResponse:
+    """Handle TriggerValidationError with RFC 9457 format."""
+    logger.warning("Trigger payload validation failed", exc_info=exc)
+    return create_problem_details_response(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        problem_type=PROBLEM_TYPES["validation_error"],
+        title="Trigger Payload Validation Failed",
+        detail=exc.message,
+        code="TRIGGER_VALIDATION_ERROR",
+        retryable=False,
         instance=str(request.url),
     )
 
