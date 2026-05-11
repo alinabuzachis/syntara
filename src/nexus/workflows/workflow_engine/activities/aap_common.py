@@ -19,6 +19,7 @@ from temporalio import activity
 from temporalio.exceptions import ApplicationError, CancelledError
 
 from nexus.core.exceptions import SafeValueError
+from nexus.core.lib.url_validation import validate_host_url
 
 from .common import ActivityExecutionError
 
@@ -532,7 +533,15 @@ def get_aap_auth_from_credentials(
     """
     extra_vars = resolved_creds.get("extra_vars", {})
     host = extra_vars.get("aap_host")
-    host_override = host.rstrip("/") if host else None
+    if host:
+        try:
+            host_override: str | None = validate_host_url(host)
+        except ValueError as e:
+            logger.warning("AAP credential host URL rejected")
+            msg = f"AAP credential has an invalid host URL: {e}"
+            raise AAPActivityExecutionError(msg) from None
+    else:
+        host_override = None
 
     # Extract SSL verification override from credential (supports per-AAP-instance SSL settings)
     verify_ssl_override = extra_vars.get("aap_verify_ssl")

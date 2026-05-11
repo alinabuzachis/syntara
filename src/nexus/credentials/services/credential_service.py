@@ -24,6 +24,7 @@ from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
 from nexus.authz.engine import AllowedProjectsResult
 from nexus.core.lib.encryption import ENCRYPTED_SENTINEL, EncryptionError
+from nexus.core.lib.url_validation import validate_host_url
 from nexus.core.models import User
 from nexus.core.services import BaseService
 from nexus.core.services.extensions import ConvertResourceMixin, EnrichQueryMixin
@@ -93,6 +94,16 @@ def _validate_field_value(field_id: str, value: Any, field_def: dict[str, Any]) 
 
     if field_id == "ssh_private_key":
         _validate_ssh_private_key(value)
+
+    if field_id == "host":
+        if not isinstance(value, str):
+            msg = f"Field 'host' must be a string, got {type(value).__name__}"
+            raise CredentialValidationError(msg)
+        try:
+            validate_host_url(value)
+        except ValueError as e:
+            msg = f"Invalid host URL: {e} Provide only scheme and hostname, e.g., https://controller.example.com"
+            raise CredentialValidationError(msg) from None
 
 
 def _validate_inputs(

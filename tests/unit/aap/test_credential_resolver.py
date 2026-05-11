@@ -684,3 +684,46 @@ class TestResolveAAPConnectionFromCredential:
 
         assert isinstance(result, AAPConnection)
         assert result.base_url == "https://aap.example.com"
+
+    @pytest.mark.parametrize(
+        "malicious_host",
+        [
+            "https://evil.com/foo/bar/",
+            "https://evil.com/foo/?",
+            "https://evil.com?x=1",
+        ],
+    )
+    @pytest.mark.asyncio
+    async def test_rejects_ssrf_host_urls(self, monkeypatch: pytest.MonkeyPatch, malicious_host: str) -> None:
+        """Reject host URLs with paths, query strings, or fragments."""
+        credential_id = uuid4()
+        user_id = uuid4()
+        credential = _mock_credential(credential_id=credential_id, created_by=user_id)
+
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = credential
+        mock_session = AsyncMock()
+        mock_session.exec.return_value = mock_result
+
+        decrypted_inputs: dict[str, str | bool | int] = {
+            "host": malicious_host,
+            "oauth_token": "token",
+            "verify_ssl": True,
+        }
+        mock_secret_service = AsyncMock()
+        mock_secret_service.retrieve_secret.return_value = decrypted_inputs
+        mock_create_secret_service = MagicMock(return_value=mock_secret_service)
+        monkeypatch.setattr("nexus.aap.credential_resolver.create_secret_service", mock_create_secret_service)
+
+        mock_resolved = MagicMock()
+        mock_resolved.extra_vars = {
+            "aap_host": malicious_host,
+            "aap_oauth_token": "token",
+            "aap_verify_ssl": True,
+        }
+        mock_injector_resolver = MagicMock()
+        mock_injector_resolver.resolve.return_value = mock_resolved
+        monkeypatch.setattr("nexus.aap.credential_resolver.InjectorResolver", mock_injector_resolver)
+
+        with pytest.raises(AAPAuthenticationError, match="invalid host URL"):
+            await resolve_aap_connection_from_credential(mock_session, credential_id, user_id)

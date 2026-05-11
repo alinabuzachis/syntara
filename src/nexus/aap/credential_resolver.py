@@ -15,6 +15,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.aap.auth import AAPConnection
 from nexus.aap.exceptions import AAPAuthenticationError, AAPNotConfiguredError
 from nexus.core.lib.encryption import EncryptionError
+from nexus.core.lib.url_validation import validate_host_url
 from nexus.core.services.secret_service import SecretService, create_secret_service
 from nexus.credentials.lib.injector_resolver import InjectorResolver
 from nexus.credentials.models.credential import Credential
@@ -288,9 +289,18 @@ async def resolve_aap_connection_from_credential(
     # Security: Log host URL at DEBUG level only (accessible to operators, not end users)
     logger.debug("AAP connection host resolved", host=host)
 
-    # Build AAPConnection with enforced TLS verification
+    try:
+        validated_base_url = validate_host_url(str(host))
+    except ValueError as e:
+        logger.warning(
+            "AAP credential host URL rejected",
+            credential_id=str(validated_credential_id),
+        )
+        msg = f"Credential '{credential.name}' has an invalid host URL: {e}"
+        raise AAPAuthenticationError(msg) from None
+
     return AAPConnection(
-        base_url=str(host).rstrip("/"),
+        base_url=validated_base_url,
         headers=dict(auth_headers),
         basic_auth=basic_auth,
         verify_ssl=verify_ssl_enforced,

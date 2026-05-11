@@ -6,7 +6,11 @@ Full execution requires an AAP instance, so we test the auth setup path only.
 
 from unittest.mock import MagicMock
 
+import pytest
+
 from nexus.workflows.workflow_engine.activities.aap_common import (
+    AAPActivityExecutionError,
+    get_aap_auth_from_credentials,
     get_aap_auth_headers,
     get_aap_basic_auth,
 )
@@ -53,3 +57,46 @@ class TestAAPCredentialInjection:
         assert "aap_oauth_token" in extra_vars
         assert "aap_username" in extra_vars
         assert "aap_password" in extra_vars
+
+    def test_credential_valid_host_accepted(self) -> None:
+        """Valid HTTPS host URL is accepted in credential resolution."""
+        resolved_creds = {
+            "extra_vars": {
+                "aap_host": "https://aap.example.com",
+                "aap_oauth_token": "token",
+            },
+        }
+        result = get_aap_auth_from_credentials(resolved_creds)
+        assert result.host_override == "https://aap.example.com"
+
+    def test_credential_no_host_returns_none(self) -> None:
+        """None host returns None override."""
+        resolved_creds = {
+            "extra_vars": {
+                "aap_oauth_token": "token",
+            },
+        }
+        result = get_aap_auth_from_credentials(resolved_creds)
+        assert result.host_override is None
+
+    def test_credential_host_path_injection_rejected(self) -> None:
+        """Reject host with path (SSRF vector, AAP-74616)."""
+        resolved_creds = {
+            "extra_vars": {
+                "aap_host": "https://evil.com/foo/bar/",
+                "aap_oauth_token": "token",
+            },
+        }
+        with pytest.raises(AAPActivityExecutionError, match="invalid host URL"):
+            get_aap_auth_from_credentials(resolved_creds)
+
+    def test_credential_host_query_suffix_rejected(self) -> None:
+        """Reject the ?-suffix attack from AAP-74616."""
+        resolved_creds = {
+            "extra_vars": {
+                "aap_host": "https://evil.com/foo/?",
+                "aap_oauth_token": "token",
+            },
+        }
+        with pytest.raises(AAPActivityExecutionError, match="invalid host URL"):
+            get_aap_auth_from_credentials(resolved_creds)

@@ -57,6 +57,14 @@ SSH_TYPE_INPUTS = {
     "required": ["username", "ssh_private_key"],
 }
 
+HOST_TYPE_INPUTS = {
+    "fields": [
+        {"id": "host", "label": "Host", "type": "string", "secret": False},
+        {"id": "token", "label": "Token", "type": "string", "secret": True},
+    ],
+    "required": ["host"],
+}
+
 
 @pytest.fixture
 def mock_secret_service() -> MagicMock:
@@ -549,6 +557,50 @@ class TestValidateInputs:
 
     def test_boolean_field_sentinel_skipped(self) -> None:
         _validate_inputs({"verify_ssl": ENCRYPTED_SENTINEL}, BOOLEAN_TYPE_INPUTS, allow_sentinel=True)
+
+    # --- Host URL validation (AAP-74616 SSRF prevention) ---
+
+    @pytest.mark.parametrize(
+        "valid_host",
+        [
+            "https://controller.example.com",
+            "https://controller.example.com:8443",
+            "https://controller.example.com/",
+            "https://192.168.1.1",
+            "https://[::1]",
+        ],
+    )
+    def test_host_valid_urls_accepted(self, valid_host: str) -> None:
+        """Accept valid HTTPS host URLs including IPv4 and IPv6."""
+        _validate_inputs({"host": valid_host}, HOST_TYPE_INPUTS)
+
+    @pytest.mark.parametrize(
+        ("invalid_host", "expected_match"),
+        [
+            ("https://evil.com/foo/bar/", "must not contain a path"),
+            ("https://evil.com/foo/bar/?", "must not contain a path"),
+            ("https://evil.com?x=1", "query string"),
+            ("https://evil.com#frag", "fragment"),
+            ("http://controller.example.com", "scheme must be https"),
+        ],
+    )
+    def test_host_invalid_urls_rejected(self, invalid_host: str, expected_match: str) -> None:
+        """Reject host URLs with paths, query strings, fragments, or wrong scheme."""
+        with pytest.raises(CredentialValidationError, match=expected_match):
+            _validate_inputs({"host": invalid_host}, HOST_TYPE_INPUTS)
+
+    def test_host_sentinel_skipped(self) -> None:
+        """Skip validation for $encrypted$ sentinel on PATCH."""
+        _validate_inputs({"host": ENCRYPTED_SENTINEL}, HOST_TYPE_INPUTS, allow_sentinel=True)
+
+    def test_host_none_skipped_on_patch(self) -> None:
+        """Skip URL validation when host is None on PATCH (required-field check is separate)."""
+        _validate_inputs({"host": None}, HOST_TYPE_INPUTS, allow_sentinel=True)
+
+    def test_host_non_string_rejected(self) -> None:
+        """Reject non-string host value."""
+        with pytest.raises(CredentialValidationError, match="must be a string"):
+            _validate_inputs({"host": 123}, HOST_TYPE_INPUTS)
 
 
 class TestValidateSSHPrivateKey:
