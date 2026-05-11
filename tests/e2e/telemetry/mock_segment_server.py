@@ -79,6 +79,7 @@ async def segment_batch(request: Request) -> JSONResponse:
         for event in batch:
             event["_delivery_method"] = "batch"
             _state.captured_events.append(event)
+            print(f"[batch] {json.dumps(event, default=str)}")  # noqa: T201
     return JSONResponse({"success": True})
 
 
@@ -95,6 +96,7 @@ async def segment_track(request: Request) -> JSONResponse:
     with _state.lock:
         body["_delivery_method"] = "track"
         _state.captured_events.append(body)
+        print(f"[track] {json.dumps(body, default=str)}")  # noqa: T201
     return JSONResponse({"success": True})
 
 
@@ -102,14 +104,17 @@ async def segment_track(request: Request) -> JSONResponse:
 async def get_captured_events(
     event_type: str | None = None,
     request_id: str | None = None,
+    execution_id: str | None = None,
 ) -> JSONResponse:
-    """Return captured events, optionally filtered by event name and/or request_id."""
+    """Return captured events, optionally filtered by event name, request_id, and/or execution_id."""
     with _state.lock:
         events = list(_state.captured_events)
     if event_type:
         events = [e for e in events if e.get("event") == event_type]
     if request_id:
         events = [e for e in events if e.get("properties", {}).get("request_id") == request_id]
+    if execution_id:
+        events = [e for e in events if e.get("properties", {}).get("workflow_execution_id") == execution_id]
     return JSONResponse(events)
 
 

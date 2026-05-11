@@ -54,6 +54,7 @@ def get_captured_events(
     segment_server_url: str,
     event_type: str | None = None,
     request_id: str | None = None,
+    execution_id: str | None = None,
     *,
     wait: bool = True,
     timeout: float = DEFAULT_POLL_TIMEOUT,
@@ -64,6 +65,7 @@ def get_captured_events(
         segment_server_url: Base URL of the Segment server.
         event_type: Optional Segment event name filter (e.g. "api_call").
         request_id: Optional X-Request-Id filter for correlation.
+        execution_id: Optional workflow_execution_id filter.
         wait: If True, poll until events appear or timeout.
         timeout: Maximum seconds to poll when ``wait`` is True.
 
@@ -76,6 +78,8 @@ def get_captured_events(
         params["event_type"] = event_type
     if request_id:
         params["request_id"] = request_id
+    if execution_id:
+        params["execution_id"] = execution_id
     if wait:
         elapsed = 0.0
         while elapsed < timeout:

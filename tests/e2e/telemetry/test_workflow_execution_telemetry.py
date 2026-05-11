@@ -120,12 +120,12 @@ def completed_execution(
     workflow_id: str,
     segment_server_url: str,
 ) -> dict[str, Any]:
-    """Execute the workflow with X-Request-Id and return execution data plus captured events.
+    """Execute the workflow with X-Request-Id and return execution metadata.
 
     Workflow telemetry events (workflow_execution_start/completed) are
-    emitted by the Temporal worker which may not yet propagate the
-    request_id. We collect all events and tag which ones carry the
-    originating request_id for correlation-aware tests.
+    emitted by the Temporal worker which propagates the request_id.
+    Tests fetch events on demand via ``get_captured_events`` with the
+    ``execution_id`` or ``request_id`` filters.
     """
     rid = new_request_id()
 
@@ -144,12 +144,11 @@ def completed_execution(
     execution = _poll_execution(nexus_api, exec_id)
     assert execution.status == "completed", f"Execution failed: {getattr(execution, 'error_details', None)}"
 
-    # Collect all events correlated by request_id (api_call + workflow events).
-    # The request_id is propagated through the interceptor chain to the
-    # workflow emitters, so all event types carry it.
+    # Wait for events to be captured before tests run
     events = get_captured_events(segment_server_url, request_id=rid)
+    assert len(events) >= 2, f"Expected at least 2 events for request {rid}, got {len(events)}"
 
-    return {"execution": execution, "events": events, "execution_id": exec_id, "request_id": rid}
+    return {"execution": execution, "execution_id": exec_id, "request_id": rid}
 
 
 class TestWorkflowStartEvent:
@@ -157,43 +156,63 @@ class TestWorkflowStartEvent:
 
     def test_start_event_emitted(
         self,
+        segment_server_url: str,
         completed_execution: dict[str, Any],
     ) -> None:
         """A workflow_execution_start event must be emitted when a workflow begins."""
-        start_events = [e for e in completed_execution["events"] if e.get("event") == "workflow_execution_start"]
-        assert len(start_events) >= 1, "No workflow_execution_start event captured"
+        events = get_captured_events(
+            segment_server_url,
+            event_type="workflow_execution_start",
+            execution_id=completed_execution["execution_id"],
+        )
+        assert len(events) == 1, f"Expected 1 workflow_execution_start event, got {len(events)}"
 
     def test_start_event_has_execution_id(
         self,
+        segment_server_url: str,
         completed_execution: dict[str, Any],
     ) -> None:
         """The start event must contain a workflow_execution_id."""
-        start_events = [e for e in completed_execution["events"] if e.get("event") == "workflow_execution_start"]
-        assert len(start_events) >= 1
-        props = start_events[0].get("properties", {})
+        events = get_captured_events(
+            segment_server_url,
+            event_type="workflow_execution_start",
+            execution_id=completed_execution["execution_id"],
+        )
+        assert len(events) == 1
+        props = events[0].get("properties", {})
         assert "workflow_execution_id" in props, f"workflow_execution_start missing workflow_execution_id: {props}"
 
     def test_start_event_has_trigger_type(
         self,
+        segment_server_url: str,
         completed_execution: dict[str, Any],
     ) -> None:
         """The start event must contain trigger_type matching the workflow trigger node."""
-        start_events = [e for e in completed_execution["events"] if e.get("event") == "workflow_execution_start"]
-        assert len(start_events) == 1
-        props = start_events[0].get("properties", {})
+        events = get_captured_events(
+            segment_server_url,
+            event_type="workflow_execution_start",
+            execution_id=completed_execution["execution_id"],
+        )
+        assert len(events) == 1
+        props = events[0].get("properties", {})
         assert props.get("trigger_type") == ActivityName.MANUAL_TRIGGER, (
             f"Expected trigger_type={ActivityName.MANUAL_TRIGGER!r}, got {props.get('trigger_type')!r}"
         )
 
     def test_start_event_carries_request_id(
         self,
+        segment_server_url: str,
         completed_execution: dict[str, Any],
     ) -> None:
         """The start event must carry the originating X-Request-Id."""
         rid = completed_execution["request_id"]
-        start_events = [e for e in completed_execution["events"] if e.get("event") == "workflow_execution_start"]
-        assert len(start_events) >= 1
-        props = start_events[0].get("properties", {})
+        events = get_captured_events(
+            segment_server_url,
+            event_type="workflow_execution_start",
+            execution_id=completed_execution["execution_id"],
+        )
+        assert len(events) == 1
+        props = events[0].get("properties", {})
         assert props.get("request_id") == rid, f"Expected request_id={rid}, got {props.get('request_id')}"
 
 
@@ -202,24 +221,33 @@ class TestWorkflowCompletedEvent:
 
     def test_completed_event_emitted(
         self,
+        segment_server_url: str,
         completed_execution: dict[str, Any],
     ) -> None:
         """A workflow_execution_completed event must be emitted after workflow finishes."""
-        completed_events = [
-            e for e in completed_execution["events"] if e.get("event") == "workflow_execution_completed"
-        ]
-        assert len(completed_events) >= 1, "No workflow_execution_completed event captured"
+        events = get_captured_events(
+            segment_server_url,
+            event_type="workflow_execution_completed",
+            execution_id=completed_execution["execution_id"],
+        )
+        assert len(events) == 1, f"Expected 1 workflow_execution_completed event, got {len(events)}"
 
     def test_completed_event_fields(
         self,
+        segment_server_url: str,
         completed_execution: dict[str, Any],
     ) -> None:
         """The completed event must include status, duration, activity count, and error count."""
-        completed_events = [
-            e for e in completed_execution["events"] if e.get("event") == "workflow_execution_completed"
-        ]
-        assert len(completed_events) >= 1
-        props = completed_events[0].get("properties", {})
+        events = get_captured_events(
+            segment_server_url,
+            event_type="workflow_execution_completed",
+            execution_id=completed_execution["execution_id"],
+        )
+        from pprint import pprint
+
+        pprint(events)  # noqa: T203
+        assert len(events) == 1
+        props = events[0].get("properties", {})
 
         assert "workflow_execution_id" in props
         assert "status" in props
@@ -238,11 +266,15 @@ class TestEventCorrelation:
 
     def test_all_events_share_request_id(
         self,
+        segment_server_url: str,
         completed_execution: dict[str, Any],
     ) -> None:
         """All events from one workflow run must share the originating X-Request-Id."""
         rid = completed_execution["request_id"]
-        events = completed_execution["events"]
+        events = get_captured_events(
+            segment_server_url,
+            execution_id=completed_execution["execution_id"],
+        )
         assert len(events) >= 2, f"Expected at least 2 events, got {len(events)}"
 
         for event in events:
@@ -253,22 +285,19 @@ class TestEventCorrelation:
 
     def test_all_events_share_workflow_execution_id(
         self,
+        segment_server_url: str,
         completed_execution: dict[str, Any],
     ) -> None:
         """All events from one workflow run must share the same workflow_execution_id."""
-        telemetry_event_types = {
-            "workflow_execution_start",
-            "workflow_execution_completed",
-            "activity_execution",
-        }
-        workflow_events = [e for e in completed_execution["events"] if e.get("event") in telemetry_event_types]
-        assert len(workflow_events) >= 2, (
-            f"Expected at least 2 workflow telemetry events (start + completed), got {len(workflow_events)}"
+        events = get_captured_events(
+            segment_server_url,
+            execution_id=completed_execution["execution_id"],
         )
+        assert len(events) >= 2, f"Expected at least 2 workflow telemetry events (start + completed), got {len(events)}"
 
         execution_ids = {
             e["properties"]["workflow_execution_id"]
-            for e in workflow_events
+            for e in events
             if "workflow_execution_id" in e.get("properties", {})
         }
         assert len(execution_ids) == 1, f"Expected one workflow_execution_id across all events, got: {execution_ids}"
@@ -279,21 +308,31 @@ class TestNoPII:
 
     def test_no_pii_fields_in_events(
         self,
+        segment_server_url: str,
         completed_execution: dict[str, Any],
     ) -> None:
         """No event properties may contain known PII field names."""
-        for event in completed_execution["events"]:
+        events = get_captured_events(
+            segment_server_url,
+            execution_id=completed_execution["execution_id"],
+        )
+        for event in events:
             props = event.get("properties", {})
             found_pii = PII_FIELDS & set(props.keys())
             assert not found_pii, f"PII fields found in {event.get('event')} event: {found_pii}"
 
     def test_no_raw_workflow_content_in_events(
         self,
+        segment_server_url: str,
         completed_execution: dict[str, Any],
     ) -> None:
         """Workflow definition code must not appear in telemetry event properties."""
         code_snippet = "print('telemetry test')"
-        for event in completed_execution["events"]:
+        events = get_captured_events(
+            segment_server_url,
+            execution_id=completed_execution["execution_id"],
+        )
+        for event in events:
             props_str = str(event.get("properties", {}))
             assert code_snippet not in props_str, f"Raw workflow code found in {event.get('event')} event"
 
@@ -303,10 +342,14 @@ class TestBatchDelivery:
 
     def test_events_delivered_via_batch_endpoint(
         self,
+        segment_server_url: str,
         completed_execution: dict[str, Any],
     ) -> None:
         """Telemetry events must arrive via the /v1/batch endpoint, not /v1/track."""
-        events = completed_execution["events"]
+        events = get_captured_events(
+            segment_server_url,
+            execution_id=completed_execution["execution_id"],
+        )
         assert len(events) >= 1, "No events captured"
 
         batch_events = [e for e in events if e.get("_delivery_method") == "batch"]
