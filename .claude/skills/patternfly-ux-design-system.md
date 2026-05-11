@@ -212,6 +212,8 @@ By default every filter type should be a "Keyword" search which is a `contains` 
 
 Filter bar is visible when data exists or when filters are active; hidden only when the resource type has never had data created.
 
+- **Filter dropdown search threshold** — Filter select dropdowns hide the `SearchInput` when there are fewer than 10 static options (e.g., Enabled/Disabled toggles), reducing visual clutter for small option lists. Async (server-side) filters always show the search bar since it drives the server query. The threshold is defined as `SEARCH_THRESHOLD = 10` in `textFilterSelectControls.tsx`.
+
 | Component           | Purpose                            |
 | ------------------- | ---------------------------------- |
 | Filter dropdown     | Select filter category             |
@@ -240,6 +242,16 @@ Filter bar is visible when data exists or when filters are active; hidden only w
   - **Exception — inline enable/disable**: A `Switch` toggle may appear in a dedicated "State" column (not the actions column) for resources where toggling the enabled state is the most frequent action. The switch patches the resource directly with toast alerts for success/failure.
   - Action order: non-destructive actions first (e.g., "Edit", "Duplicate", "Disable"), then a divider, then destructive actions last (e.g., "Delete", "Remove")
   - On the **details page header**, the same actions appear in a kebab menu. Frequently used actions are promoted to direct buttons in the header based on usage patterns — these become the primary actions for that resource. The remaining actions stay in the kebab.
+- **Text truncation** — All text-heavy columns (names, descriptions, emails, URLs) must use PatternFly's `<Truncate>` component. Long values show ellipsis with the full text in a tooltip on hover.
+  - `ScrollableTableContainer` uses `table-layout: fixed` for equal column distribution — do not opt out with `useFixedLayout={false}`
+  - Wrap cell text in `<Truncate content={value} />` for any column that may contain user-generated or variable-length content
+  - `LinkCell` children support `<Truncate>` — the link button constrains overflow automatically
+- **Expandable rows** — When a table uses expandable rows to show nested detail (e.g., policies under a role, event details in an audit log):
+  - Pass `isExpandable` to `ScrollableTableContainer` for proper PF6 table styling
+  - Include an expand-all / collapse-all toggle in the `<Thead>` using the `expand` prop on the first `<Th>`
+  - Use `ExpandableRowContent` for the expanded row body
+  - Expanded content should use compact gray `Label` components for list-style data (e.g., attached policies)
+  - Column order left to right: expand/collapse chevron → [checkbox if selectable] → data columns → actions
 - **Footer/pagination** — use `PaginationFooter` via the `ScrollableTableContainer` `footer` prop. `PaginationFooter` wraps PatternFly's [Pagination](https://www.patternfly.org/components/pagination) component; supports `page`, `perPage`, `total` (optional), `hasNext`, `onPrev`, `onNext`, and `onPerPageChange`. When `total` is unknown (cursor-based APIs), item count is estimated from `page`, `perPage`, and `hasNext`. Pair with `useCursorPagination` from `src/hooks/useCursorPagination.tsx` for cursor state management
 
 ### Form Component
@@ -253,6 +265,7 @@ Filter bar is visible when data exists or when filters are active; hidden only w
   - Use PatternFly's [Validated component](https://www.patternfly.org/components/forms/form/#validated) for general form validation
   - Use PatternFly's [Number Input component](https://www.patternfly.org/components/number-input/#numberinput) for number input fields
   - Use PatternFly's [popover help text](https://www.patternfly.org/components/popover/design-guidelines) on form field labels
+  - Use PatternFly's [`HelperText`](https://www.patternfly.org/components/forms/helper-text) / `HelperTextItem` below form inputs to provide brief, contextual guidance (e.g., accepted formats, valid ranges, constraints). The help popover icon on the field label is for longer explanatory descriptions. When both are present, inline helper text gives at-a-glance guidance while the popover provides full context. Validation errors (`validated="error"`) take priority — replace the helper text with the error message when the field is invalid.
 - **Validation behavior:**
   - The primary action (Save / Create) is **always clickable** — never disable it because of missing required fields
   - When the user clicks Save with invalid or missing fields, apply `validated="error"` (danger styling) to the invalid fields and show a toast notification explaining what needs attention
@@ -300,6 +313,26 @@ Empty states replace the main content area when there is no data to display.
 | No data exists    | `"No [resources] yet"`         | If applicable: `"Create [resource]"` | No                               |
 | No filter results | `"No results found"`           | `"Clear all filters"`                | Yes, with active filters showing |
 | Service error     | `"Unable to load [resources]"` | `"Retry"`                            | No                               |
+
+### Empty State Icons, Statuses, and Variants
+
+Each empty state scenario maps to a specific icon, optional `status` prop, and size variant. Follow PatternFly's [empty state design guidelines](https://www.patternfly.org/components/empty-state/design-guidelines) for icon and color conventions.
+
+| Scenario               | Icon                    | `status` prop | `variant`       | Notes                                                                |
+| ---------------------- | ----------------------- | ------------- | --------------- | -------------------------------------------------------------------- |
+| No data / creation     | `PlusCircleIcon`        | —             | `lg`            | Resource has never had data created; gray icon by default            |
+| No filter results      | `SearchIcon`            | —             | `sm`            | Inside tables when filters match nothing                             |
+| Service error          | `ExclamationCircleIcon` | `danger`      | `lg`            | Data cannot be loaded; red icon via danger status                    |
+| No access / forbidden  | `LockIcon`              | —             | `lg`            | User role doesn't have permission to view the page                   |
+| Configuration required | `WrenchIcon`            | —             | `lg`            | User must configure or connect something before using a feature      |
+| Success / completion   | `CheckCircleIcon`       | `success`     | default or `xl` | Task or process completed; green icon via success status             |
+| Getting started        | `RocketIcon`            | —             | `xl`            | First-time onboarding; can use a custom app-specific graphic instead |
+
+**General rules:**
+
+- Use the `status` prop (`danger`, `warning`, `success`, `info`) for status-driven empty states — PatternFly applies the correct icon color automatically
+- For non-status empty states (no data, no results, configuration, no access), icons render in **gray by default** — do not manually set a color
+- Variant sizing: `sm` inside tables, modals, or wizards; `lg` for full-page empty states; `xl` for getting started or full-page success
 
 ---
 
@@ -366,7 +399,8 @@ Button alignment differs by context — this is intentional and follows PatternF
 Use consistent action verb pairings across the UI:
 
 - "Create" is paired with "Delete"
-- "Add" is paired with "Remove"
+- "Add" is paired with "Remove" — when the resources being added and removed exist in the Automation Orchestrator
+- "Add" is paired with "Disconnect" — when the resource is coming from an external source
 - "Assign" is paired with "Unassign"
 
 ### Create: Full Page
@@ -649,10 +683,7 @@ All icons **must** come from the [Red Hat Design System](https://ux.redhat.com/)
 
 ## 13. Expand/Collapse Chevrons
 
-- Use PatternFly's [Expandable Table component](https://www.patternfly.org/components/table#expandable) to ensure expand/collapse chevrons are correct:
-  - **Collapsed:** chevron pointed to the right
-  - **Expanded:** chevron pointed down
-- **Exception:** expand and collapse of nodes on the canvas
+- Use PatternFly's [Expandable Table component](https://www.patternfly.org/components/table#expandable) to ensure expand/collapse chevrons are correct
 
 ---
 
@@ -744,11 +775,35 @@ The automation builder experience is based on [React Flow](https://reactflow.dev
 - Clicking `+` on the connector line after a step adds a new connected step
 - Clicking `+` on the connector line between two steps inserts a new step in between
 
+### Run Workflow
+
+- **Single trigger** — Plain "Run" button in the builder toolbar
+- **Multiple triggers** — "Run" button becomes a dropdown, letting the user select which trigger to start from
+- Run flow:
+  1. Confirmation dialog ("Run [workflow name]?") with a "Don't show again" checkbox
+  2. `RunWorkflowModal` — JSON code editor for providing mock trigger output data; validates against the trigger's `input_schema` when defined
+- After run, the execution visualizer panel opens showing real-time results
+
+### Test Step (Run Step)
+
+- Triggered from a node's kebab menu → "Run step"
+- Opens a two-step dialog flow:
+  1. **Choice dialog** — "Run all previous nodes" (future) or "Set mock input data"
+  2. **Mock data editor** — PatternFly `CodeEditor` with JSON syntax highlighting, validate/format/clear toolbar actions
+- All upstream nodes in the graph are mocked and show as "skipped" in execution details
+- After clicking "Run", the execution visualizer panel opens (same as full workflow Run) showing real-time results
+- Test executions are visible in run history
+
 ### Canvas Controls
 
 - Should be anchored to the **bottom-left corner** of the canvas view
 - Canvas overlays (controls, legend, undo/redo) use `AppPanel` with `variant="raised"` for opaque + shadow
 - Workflow step nodes also use `variant="raised"` with a border-radius override to match `Card` / canvas chrome
+
+### Canvas Node Styling
+
+- Node cards have a fixed width (240px) — all dynamic text elements (`Title`, `Content`) must use `overflow-wrap: anywhere` to prevent text overflow from long expressions, template names, or URLs
+- Use `anywhere` instead of `break-word` because it also influences `min-content` intrinsic sizing, preventing overflow in fixed-width flex containers
 
 ### Execution View Panels
 
@@ -952,6 +1007,15 @@ What are you building?
 │   ├── Medium modal with descriptive title
 │   ├── Read-only content with optional ClipboardCopy
 │   └── Single "Close" button (variant="primary")
+│
+├── Log / event viewer (read-only)
+│   ├── Use ScrollableTableContainer with expandable rows (isExpandable)
+│   ├── Add expand-all/collapse-all toggle in header
+│   ├── Add FilterBar with multiple attribute filters (category, date range, status, severity, etc.)
+│   ├── All columns sortable
+│   ├── Expanded row shows full event details (metadata, request/response payloads)
+│   ├── Resource column links to the resource detail page when applicable
+│   └── Handle 2 empty states (no events yet / no filter results)
 │
 ├── Role-based access page
 │   ├── No read → hide from nav, empty screen on direct visit

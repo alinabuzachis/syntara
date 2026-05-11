@@ -77,6 +77,7 @@ Use a docked icon navigation (left sidebar) with PatternFly's flyout panels comp
 - Default filter type: "Keyword" search (`contains` filter on all content)
 - Filter bar is visible when data exists or when filters are active
 - Filter bar is hidden only when the resource type has never had data created
+- Filter select dropdowns hide `SearchInput` when fewer than 10 static options; async filters always show search
 
 ## Table Component
 
@@ -91,6 +92,8 @@ Use a docked icon navigation (left sidebar) with PatternFly's flyout panels comp
 - Columns should be sortable if applicable
 - Clicking resource name navigates to details view
 - "Created"/"Modified" columns: username (linked) + date together
+- Text-heavy columns (names, descriptions, emails, URLs) MUST use `<Truncate>` — ellipsis with tooltip on hover; `table-layout: fixed` for equal column distribution (do not opt out with `useFixedLayout={false}`)
+- Expandable rows: pass `isExpandable` to `ScrollableTableContainer`, add expand-all/collapse-all toggle in `<Thead>` via `expand` prop, use `ExpandableRowContent` for nested detail, compact gray `Label` for list data
 - Footer/pagination: cursor-based via `ScrollableTableContainer`'s `footer` prop (`TableFooterProps`)
   - Left: item count — `"5 workflows (of 100 total)"`
   - Right: Previous / Next buttons using API cursor tokens (`prev`, `next`) — no page numbers or per-page selector
@@ -106,6 +109,7 @@ Use a docked icon navigation (left sidebar) with PatternFly's flyout panels comp
 - Use Validated component for form validation
 - Use Number Input for number fields
 - Use popover help text on form field labels
+- Use `HelperText` / `HelperTextItem` below inputs for brief contextual guidance (formats, ranges, constraints); popover is for longer descriptions; validation errors replace helper text when invalid
 - Use Zod + react-hook-form for validation (project standard)
 
 ## Details Component
@@ -125,7 +129,11 @@ Use PatternFly's Basic Empty State component. Empty states replace the main cont
 | No filter results | `"No results found"` | `"Clear all filters"` | Yes, with active filters |
 | Service error | `"Unable to load [resources]"` | `"Retry"` | No |
 
+Icons per scenario: No data → `PlusCircleIcon` (gray, `lg`), No results → `SearchIcon` (gray, `sm`), Error → `ExclamationCircleIcon` (`status="danger"`, `lg`), No access → `LockIcon` (gray, `lg`), Config required → `WrenchIcon` (gray, `lg`), Success → `CheckCircleIcon` (`status="success"`, default/`xl`), Getting started → `RocketIcon` (gray, `xl`). Use `status` prop for color on status empty states; non-status icons are gray by default. Variant sizing: `sm` in tables/modals, `lg` full-page, `xl` onboarding/success.
+
 ## CRUD Patterns
+
+Action verb pairings: "Create" ↔ "Delete", "Add" ↔ "Remove" (AO-internal resources), "Add" ↔ "Disconnect" (external resources), "Assign" ↔ "Unassign"
 
 ### Create
 - **Full page:** 5+ fields, multi-step wizards
@@ -216,10 +224,7 @@ All icons MUST come from the Red Hat Design System (RHDS) icon set, NOT standard
 
 ## Expand/Collapse Chevrons
 
-- Collapsed: chevron pointed to the right
-- Expanded: chevron pointed down
 - Use PatternFly Expandable Table component
-- Exception: nodes on the canvas
 
 ## Content Rules
 
@@ -235,7 +240,10 @@ All icons MUST come from the Red Hat Design System (RHDS) icon set, NOT standard
 - Double click: open panel view with Input/Output info
 - Right click: same as kebab menu
 - Add step: opens side panel, auto-adjusts canvas
+- Run workflow: single trigger → plain Run button; multiple triggers → dropdown for trigger selection; confirmation dialog with "Don't show again", then `RunWorkflowModal` JSON editor for mock trigger data
+- Test step (Run step): from node kebab menu → choice dialog → mock data editor (CodeEditor with JSON); upstream nodes mocked as "skipped"; results in execution visualizer
 - Canvas controls: anchored to bottom-left corner
+- Canvas node cards: fixed 240px width — use `overflow-wrap: anywhere` on all dynamic text (`Title`, `Content`) to prevent overflow
 - View-only views: Run view, Run history, Version history
 
 ## Accessibility Guidelines
