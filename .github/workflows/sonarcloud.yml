@@ -64,6 +64,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Checkout merge group commit
+        if: github.event.workflow_run.event == 'merge_group'
+        run: git checkout "${{ github.event.workflow_run.head_sha }}"
+
       - name: Prepare SonarCloud args
         if: hashFiles('**/coverage.xml') != ''
         shell: bash
