@@ -77,7 +77,7 @@ async def main() -> None:
     get_runtime_settings().start_watching()
 
     # Register audit/telemetry handlers so domain events dispatched by
-    # activities (e.g. WorkflowCompletedEvent) are handled in the worker.
+    # activities (e.g. WorkflowStartEvent, WorkflowCompletedEvent) are handled in the worker.
     workflows_audit_registry = discover_handlers(nexus.workflows.audit)
     AuditEventDispatcher.register(workflows_audit_registry)
     telemetry_registry = discover_handlers(nexus.telemetry.handlers)

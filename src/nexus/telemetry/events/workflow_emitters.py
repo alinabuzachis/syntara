@@ -12,13 +12,10 @@ from typing import TYPE_CHECKING, Any
 import structlog
 
 from nexus.audit.dispatcher import AuditEventDispatcher
-from nexus.telemetry.client import get_telemetry_registry
-from nexus.telemetry.collector import _TERMINAL_STATUSES, TelemetryCollector
 from nexus.workflows.audit.node_execution import NodeExecutedEvent
-from nexus.workflows.models.activity_execution import ActivityStatus
+from nexus.workflows.models.activity_execution import TERMINAL_ACTIVITY_STATUSES, ActivityStatus
 from nexus.workflows.models.execution import ExecutionStatus
 from nexus.workflows.workflow_engine.models.workflow_definition import (
-    ActivityName,
     ActivityTerminalStatus,
     WorkflowTerminalStatus,
 )
@@ -27,49 +24,8 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from nexus.workflows.models.activity_execution import ActivityExecution
-    from nexus.workflows.models.execution import Execution
 
 logger = structlog.stdlib.get_logger(__name__)
-
-
-def emit_workflow_start(
-    execution: Execution,
-    *,
-    request_id: UUID | None = None,
-    trigger_activity_type: ActivityName | None = None,
-) -> None:
-    """Emit workflow start telemetry event.
-
-    Called when an execution transitions from PENDING to RUNNING.
-
-    Args:
-        execution: The execution record.
-        request_id: Optional X-Request-Id from the originating HTTP request.
-        trigger_activity_type: Type of trigger that started the workflow.
-
-    """
-    try:
-        registry = get_telemetry_registry()
-        if not registry.is_initialized():
-            return
-
-        collector = TelemetryCollector(registry=registry)
-        collector.capture_workflow_start(
-            execution_id=str(execution.id),
-            request_id=request_id,
-            trigger_activity_type=trigger_activity_type,
-        )
-
-        logger.debug(
-            "Emitted workflow start telemetry",
-            execution_id=execution.id,
-        )
-
-    except Exception:
-        logger.exception(
-            "Failed to emit workflow start telemetry (non-fatal)",
-            execution_id=execution.id,
-        )
 
 
 _STATUS_TO_TELEMETRY: dict[ActivityStatus, ActivityTerminalStatus] = {
@@ -102,9 +58,9 @@ def emit_activities(
     """
     for activity, old_values in updated_activities:
         try:
-            if activity.status not in _TERMINAL_STATUSES:
+            if activity.status not in TERMINAL_ACTIVITY_STATUSES:
                 continue
-            if old_values.get("status") in _TERMINAL_STATUSES:
+            if old_values.get("status") in TERMINAL_ACTIVITY_STATUSES:
                 continue
 
             telemetry_status = _STATUS_TO_TELEMETRY.get(activity.status)

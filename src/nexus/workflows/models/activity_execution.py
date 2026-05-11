@@ -36,6 +36,14 @@ class ActivityStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
+TERMINAL_ACTIVITY_STATUSES = {
+    ActivityStatus.COMPLETED,
+    ActivityStatus.FAILED,
+    ActivityStatus.SKIPPED,
+    ActivityStatus.CANCELLED,
+}
+
+
 class ActivityExecution(BaseResource, table=True):
     """Database model for activity executions.
 

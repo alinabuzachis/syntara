@@ -18,8 +18,11 @@ import structlog
 from sqlmodel import select
 
 from nexus.metrics.types import ComponentLabel, MetricType
-from nexus.telemetry.collector import _TERMINAL_STATUSES as TERMINAL_ACTIVITY_STATUSES
-from nexus.workflows.models.activity_execution import ActivityExecution, ActivityStatus
+from nexus.workflows.models.activity_execution import (
+    TERMINAL_ACTIVITY_STATUSES,
+    ActivityExecution,
+    ActivityStatus,
+)
 from nexus.workflows.models.execution import TERMINAL_EXECUTION_STATUSES, ExecutionStatus
 
 if TYPE_CHECKING:

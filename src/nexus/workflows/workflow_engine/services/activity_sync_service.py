@@ -26,16 +26,15 @@ from nexus.audit.context_managers import actor_context
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.core.constants import FieldLimits
 from nexus.core.exceptions import SafeValueError
-from nexus.telemetry.collector import _TERMINAL_STATUSES
 from nexus.telemetry.events.workflow_emitters import (
     _map_execution_status_to_telemetry,
     emit_activities,
-    emit_workflow_start,
 )
 from nexus.telemetry.events.workflow_error import RETRY_REASON_MAX_LENGTH, TimedOutComponent
 from nexus.workflows.audit.workflow_completed import WorkflowCompletedEvent
 from nexus.workflows.audit.workflow_execution import WorkflowExecutionErrorEvent
-from nexus.workflows.models.activity_execution import ActivityExecution, ActivityStatus
+from nexus.workflows.audit.workflow_start import WorkflowStartEvent
+from nexus.workflows.models.activity_execution import TERMINAL_ACTIVITY_STATUSES, ActivityExecution, ActivityStatus
 from nexus.workflows.models.execution import Execution, ExecutionStatus
 from nexus.workflows.models.workflow_version import WorkflowVersion
 from nexus.workflows.services.activity_update_publisher import ActivityUpdatePublisher
@@ -259,12 +258,15 @@ class ActivitySyncService:
                     # Publish snapshot so WebSocket clients see the RUNNING status
                     await self._publish_snapshot_safely(session, metadata.execution_id, "initial_snapshot")
 
-                    # Emit workflow start telemetry
+                    # Dispatch workflow-start domain event through audit framework
                     trigger_activity_type = self._extract_trigger_activity_type(metadata.activity_definitions_map)
-                    emit_workflow_start(
-                        execution,
-                        request_id=metadata.request_id,
-                        trigger_activity_type=trigger_activity_type,
+                    AuditEventDispatcher.dispatch(
+                        WorkflowStartEvent(
+                            execution_id=execution.id,
+                            workflow_id=execution.workflow_id,
+                            trigger_type=trigger_activity_type,
+                            request_id=metadata.request_id,
+                        )
                     )
                 else:
                     logger.debug(
@@ -1067,7 +1069,7 @@ class ActivitySyncService:
                 # Dispatch workflow-completed domain event through audit framework
                 # (activity counts are now accurate after commit)
                 activities = execution.activities or []
-                node_count = sum(1 for a in activities if a.status in _TERMINAL_STATUSES)
+                node_count = sum(1 for a in activities if a.status in TERMINAL_ACTIVITY_STATUSES)
                 error_count = sum(1 for a in activities if a.status == ActivityStatus.FAILED)
                 duration_ms = int((completed_at - execution.created_at).total_seconds() * 1000)
                 telemetry_status = _map_execution_status_to_telemetry(status)

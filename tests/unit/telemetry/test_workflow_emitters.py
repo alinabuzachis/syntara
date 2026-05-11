@@ -9,13 +9,11 @@ import pytest
 from nexus.telemetry.events.workflow_emitters import (
     _map_execution_status_to_telemetry,
     emit_activities,
-    emit_workflow_start,
 )
 from nexus.workflows.audit.node_execution import NodeExecutedEvent
 from nexus.workflows.models.activity_execution import ActivityExecution, ActivityStatus
-from nexus.workflows.models.execution import Execution, ExecutionStatus
+from nexus.workflows.models.execution import ExecutionStatus
 from nexus.workflows.workflow_engine.models.workflow_definition import (
-    ActivityName,
     ActivityTerminalStatus,
     WorkflowTerminalStatus,
 )
@@ -140,74 +138,3 @@ class TestMapExecutionStatusToTelemetry:
     )
     def test_non_terminal_statuses_map_to_cancelled(self, status: ExecutionStatus) -> None:
         assert _map_execution_status_to_telemetry(status) == WorkflowTerminalStatus.CANCELLED
-
-
-class TestEmitWorkflowStart:
-    """Tests for emit_workflow_start."""
-
-    def _make_execution(self) -> MagicMock:
-        execution = MagicMock(spec=Execution)
-        execution.id = uuid4()
-        return execution
-
-    @patch("nexus.telemetry.events.workflow_emitters.TelemetryCollector")
-    @patch("nexus.telemetry.events.workflow_emitters.get_telemetry_registry")
-    def test_emits_start_event(self, mock_get_registry: MagicMock, mock_collector_cls: MagicMock) -> None:
-        registry = MagicMock()
-        registry.is_initialized.return_value = True
-        mock_get_registry.return_value = registry
-
-        collector = MagicMock()
-        mock_collector_cls.return_value = collector
-
-        execution = self._make_execution()
-        request_id = uuid4()
-
-        emit_workflow_start(execution, request_id=request_id, trigger_activity_type=ActivityName.SCRIPT)
-
-        mock_collector_cls.assert_called_once_with(registry=registry)
-        collector.capture_workflow_start.assert_called_once_with(
-            execution_id=str(execution.id),
-            request_id=request_id,
-            trigger_activity_type=ActivityName.SCRIPT,
-        )
-
-    @patch("nexus.telemetry.events.workflow_emitters.get_telemetry_registry")
-    def test_skips_when_registry_not_initialized(self, mock_get_registry: MagicMock) -> None:
-        registry = MagicMock()
-        registry.is_initialized.return_value = False
-        mock_get_registry.return_value = registry
-
-        execution = self._make_execution()
-
-        emit_workflow_start(execution)
-
-        registry.send_event.assert_not_called()
-
-    @patch("nexus.telemetry.events.workflow_emitters.get_telemetry_registry")
-    def test_does_not_raise_on_exception(self, mock_get_registry: MagicMock) -> None:
-        mock_get_registry.side_effect = RuntimeError("registry unavailable")
-
-        execution = self._make_execution()
-
-        emit_workflow_start(execution)
-
-    @patch("nexus.telemetry.events.workflow_emitters.TelemetryCollector")
-    @patch("nexus.telemetry.events.workflow_emitters.get_telemetry_registry")
-    def test_emits_without_optional_params(self, mock_get_registry: MagicMock, mock_collector_cls: MagicMock) -> None:
-        registry = MagicMock()
-        registry.is_initialized.return_value = True
-        mock_get_registry.return_value = registry
-
-        collector = MagicMock()
-        mock_collector_cls.return_value = collector
-
-        execution = self._make_execution()
-
-        emit_workflow_start(execution)
-
-        collector.capture_workflow_start.assert_called_once_with(
-            execution_id=str(execution.id),
-            request_id=None,
-            trigger_activity_type=None,
-        )

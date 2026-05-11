@@ -18,7 +18,7 @@ from nexus.telemetry.events.workflow_error import (
     WorkflowErrorEventBuilder,
 )
 from nexus.telemetry.events.workflow_execution import WorkflowExecutionEventBuilder
-from nexus.workflows.models.activity_execution import ActivityExecution, ActivityStatus
+from nexus.workflows.models.activity_execution import TERMINAL_ACTIVITY_STATUSES, ActivityExecution, ActivityStatus
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, ActivityTerminalStatus
 
 if TYPE_CHECKING:
@@ -34,18 +34,10 @@ if TYPE_CHECKING:
 
 logger = structlog.stdlib.get_logger(__name__)
 
-# Terminal activity statuses that should trigger telemetry emission
-_TERMINAL_STATUSES = {
-    ActivityStatus.COMPLETED,
-    ActivityStatus.FAILED,
-    ActivityStatus.SKIPPED,
-    ActivityStatus.CANCELLED,
-}
-
 
 def _is_terminal_status(status: ActivityStatus | None) -> bool:
     """Check if a status is terminal."""
-    return status in _TERMINAL_STATUSES if status else False
+    return status in TERMINAL_ACTIVITY_STATUSES if status else False
 
 
 def _format_status_value(status: ActivityStatus | str | None) -> str | None:
@@ -314,11 +306,11 @@ class TelemetryCollector:
         Returns the telemetry status string if the activity transitioned to a
         terminal state, None otherwise.
         """
-        if activity.status not in _TERMINAL_STATUSES:
+        if activity.status not in TERMINAL_ACTIVITY_STATUSES:
             return None
 
         old_status = old_values.get("status")
-        if old_status in _TERMINAL_STATUSES:
+        if old_status in TERMINAL_ACTIVITY_STATUSES:
             return None
 
         return _STATUS_TO_TELEMETRY.get(activity.status)
