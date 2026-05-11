@@ -371,7 +371,8 @@ export function SelectFilterInput({
 
   if (!selectedField.options && !selectedField.asyncOptions) return null
 
-  const showSearch = isAsync || (selectedField.searchable !== false && (selectedField.options?.length ?? 0) >= SEARCH_THRESHOLD)
+  const showSearch =
+    isAsync || (selectedField.searchable !== false && (selectedField.options?.length ?? 0) >= SEARCH_THRESHOLD)
 
   let selectListBody: React.ReactNode
   if (isLoadingOptions) {

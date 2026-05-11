@@ -20,7 +20,6 @@ import { detachPromise } from '../../../utils/detachPromise'
 import type { Credential, CredentialType } from '../../configuration/credentials/credentialConstants'
 import { CredentialFormModal } from '../../configuration/credentials/form/CredentialFormModal'
 
-
 export type CredentialSelectorProps = {
   /** Currently selected credential ID */
   value?: string

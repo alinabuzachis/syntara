@@ -365,16 +365,16 @@ Skills are detailed reference guides the agent consults while working. You can a
 
 Commands are shortcuts you type in the agent chat. They trigger specific workflows.
 
-| Command             | What it does                                                                              |
-| ------------------- | ----------------------------------------------------------------------------------------- |
-| `/review-pr`        | Runs the full PR review skill against your current branch                                 |
-| `/specify`          | Creates a feature spec from a natural language description                                |
-| `/clarify`          | Asks up to 5 clarification questions about an underspecified feature spec                 |
-| `/plan`             | Generates an implementation plan from a feature spec                                      |
-| `/tasks`            | Breaks a plan into dependency-ordered tasks                                               |
-| `/implement`        | Executes tasks from the plan, one by one                                                  |
-| `/analyze`          | Cross-checks consistency between spec, plan, and tasks                                    |
-| `/constitution`     | Creates or updates project-level principles                                               |
+| Command             | What it does                                                                                      |
+| ------------------- | ------------------------------------------------------------------------------------------------- |
+| `/review-pr`        | Runs the full PR review skill against your current branch                                         |
+| `/specify`          | Creates a feature spec from a natural language description                                        |
+| `/clarify`          | Asks up to 5 clarification questions about an underspecified feature spec                         |
+| `/plan`             | Generates an implementation plan from a feature spec                                              |
+| `/tasks`            | Breaks a plan into dependency-ordered tasks                                                       |
+| `/implement`        | Executes tasks from the plan, one by one                                                          |
+| `/analyze`          | Cross-checks consistency between spec, plan, and tasks                                            |
+| `/constitution`     | Creates or updates project-level principles                                                       |
 | `/build-ui-feature` | Guided wizard: asks 5 questions, then implements using project skills (optionally Playwright E2E) |
 
 ### Typical command flow for a new feature

@@ -59,9 +59,7 @@ describe('UnassignProjectRoleDialog', () => {
   })
 
   it('renders dialog when assignment is null (handles optional chaining)', () => {
-    render(
-      <UnassignProjectRoleDialog assignment={null} isOpen={true} onClose={vi.fn()} onConfirm={vi.fn()} />
-    )
+    render(<UnassignProjectRoleDialog assignment={null} isOpen={true} onClose={vi.fn()} onConfirm={vi.fn()} />)
 
     expect(screen.getByText('Unassign role?')).toBeInTheDocument()
     expect(screen.getByText(/Related permissions will be revoked/)).toBeInTheDocument()
