@@ -252,14 +252,15 @@ export function AssignmentsTab() {
         confirmVariant="danger"
         titleIconVariant="warning"
       >
-        Remove role <strong>{rowToDelete?.assignmentName}</strong> from <strong>{rowToDelete?.principalName}</strong>
+        This removes role <strong>{rowToDelete?.assignmentName}</strong> from{' '}
+        <strong>{rowToDelete?.principalName}</strong>
         {rowToDelete?.scopeType === 'project' && (
           <>
             {' '}
             in project <strong>{rowToDelete.scopeName}</strong>
           </>
         )}
-        ? This will revoke the associated permissions.
+        . The associated permissions will be revoked.
       </ConfirmationDialog>
 
       {rowToEdit && (

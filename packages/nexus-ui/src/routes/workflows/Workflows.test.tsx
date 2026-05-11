@@ -1003,8 +1003,8 @@ describe('Workflows Component', () => {
 
       // Verify modal is shown
       await waitFor(() => {
-        expect(screen.getByText(/Delete workflow ".*"\?/)).toBeInTheDocument()
-        expect(screen.getByText(/You are about to permanently delete this workflow/)).toBeInTheDocument()
+        expect(screen.getByText('Delete workflow?')).toBeInTheDocument()
+        expect(screen.getByText(/will be deleted. This cannot be undone/)).toBeInTheDocument()
         expect(screen.getByText(/This workflow will stop running immediately/)).toBeInTheDocument()
       })
     })
@@ -1072,7 +1072,7 @@ describe('Workflows Component', () => {
 
       // Confirm deletion
       await waitFor(() => {
-        expect(screen.getByText(/Delete workflow ".*"\?/)).toBeInTheDocument()
+        expect(screen.getByText('Delete workflow?')).toBeInTheDocument()
       })
 
       fireEvent.click(screen.getByRole('checkbox', { name: /I understand this workflow/ }))
@@ -1138,7 +1138,7 @@ describe('Workflows Component', () => {
 
       // Confirm deletion
       await waitFor(() => {
-        expect(screen.getByText(/Delete workflow ".*"\?/)).toBeInTheDocument()
+        expect(screen.getByText('Delete workflow?')).toBeInTheDocument()
       })
 
       fireEvent.click(screen.getByRole('checkbox', { name: /I understand this workflow/ }))
@@ -1173,7 +1173,7 @@ describe('Workflows Component', () => {
 
       // Modal appears
       await waitFor(() => {
-        expect(screen.getByText(/Delete workflow ".*"\?/)).toBeInTheDocument()
+        expect(screen.getByText('Delete workflow?')).toBeInTheDocument()
       })
 
       // Click cancel
@@ -1182,7 +1182,7 @@ describe('Workflows Component', () => {
 
       // Modal closes
       await waitFor(() => {
-        expect(screen.queryByText(/Delete workflow ".*"\?/)).not.toBeInTheDocument()
+        expect(screen.queryByText('Delete workflow?')).not.toBeInTheDocument()
       })
     })
   })
@@ -1374,7 +1374,7 @@ describe('Workflows Component', () => {
       fireEvent.click(deleteItem)
 
       await waitFor(() => {
-        expect(screen.getByText(/Delete workflow ".*"\?/)).toBeInTheDocument()
+        expect(screen.getByText('Delete workflow?')).toBeInTheDocument()
       })
 
       fireEvent.click(screen.getByRole('checkbox', { name: /I understand this workflow/ }))
@@ -1383,7 +1383,7 @@ describe('Workflows Component', () => {
 
       // After onSettled, the delete dialog should be closed
       await waitFor(() => {
-        expect(screen.queryByText(/Delete workflow ".*"\?/)).not.toBeInTheDocument()
+        expect(screen.queryByText('Delete workflow?')).not.toBeInTheDocument()
       })
     })
 
@@ -1437,7 +1437,7 @@ describe('Workflows Component', () => {
       fireEvent.click(deleteItem)
 
       await waitFor(() => {
-        expect(screen.getByText(/Delete workflow ".*"\?/)).toBeInTheDocument()
+        expect(screen.getByText('Delete workflow?')).toBeInTheDocument()
       })
 
       fireEvent.click(screen.getByRole('checkbox', { name: /I understand this workflow/ }))
@@ -1446,7 +1446,7 @@ describe('Workflows Component', () => {
 
       // After onSettled, the delete dialog should be closed even on error
       await waitFor(() => {
-        expect(screen.queryByText(/Delete workflow ".*"\?/)).not.toBeInTheDocument()
+        expect(screen.queryByText('Delete workflow?')).not.toBeInTheDocument()
       })
     })
   })

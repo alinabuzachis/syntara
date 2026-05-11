@@ -535,8 +535,8 @@ describe('RoleAssignmentsPanel', () => {
       await user.click(unassignItem)
 
       await waitFor(() => {
-        expect(screen.getByText('Unassign role')).toBeInTheDocument()
-        expect(screen.getByText(/Are you sure you want to unassign role/)).toBeInTheDocument()
+        expect(screen.getByText('Unassign role?')).toBeInTheDocument()
+        expect(screen.getByText(/This unassigns the role/)).toBeInTheDocument()
         expect(screen.getByRole('button', { name: 'Unassign' })).toBeInTheDocument()
         expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
       })
@@ -553,13 +553,13 @@ describe('RoleAssignmentsPanel', () => {
       await user.click(unassignItem)
 
       await waitFor(() => {
-        expect(screen.getByText('Unassign role')).toBeInTheDocument()
+        expect(screen.getByText('Unassign role?')).toBeInTheDocument()
       })
 
       await user.click(screen.getByRole('button', { name: 'Cancel' }))
 
       await waitFor(() => {
-        expect(screen.queryByText('Unassign role')).not.toBeInTheDocument()
+        expect(screen.queryByText('Unassign role?')).not.toBeInTheDocument()
       })
     })
 
@@ -574,7 +574,7 @@ describe('RoleAssignmentsPanel', () => {
       await user.click(unassignItem)
 
       await waitFor(() => {
-        expect(screen.getByText('Unassign role')).toBeInTheDocument()
+        expect(screen.getByText('Unassign role?')).toBeInTheDocument()
       })
 
       await user.click(screen.getByRole('button', { name: 'Unassign' }))
@@ -619,7 +619,7 @@ describe('RoleAssignmentsPanel', () => {
       await user.click(unassignItem)
 
       await waitFor(() => {
-        expect(screen.getByText('Unassign role')).toBeInTheDocument()
+        expect(screen.getByText('Unassign role?')).toBeInTheDocument()
       })
 
       await user.click(screen.getByRole('button', { name: 'Unassign' }))
@@ -647,7 +647,7 @@ describe('RoleAssignmentsPanel', () => {
       await user.click(unassignItem)
 
       await waitFor(() => {
-        expect(screen.getByText('Unassign role')).toBeInTheDocument()
+        expect(screen.getByText('Unassign role?')).toBeInTheDocument()
       })
 
       await user.click(screen.getByRole('button', { name: 'Unassign' }))
@@ -679,7 +679,7 @@ describe('RoleAssignmentsPanel', () => {
       await user.click(unassignItem)
 
       await waitFor(() => {
-        expect(screen.getByText('Unassign role')).toBeInTheDocument()
+        expect(screen.getByText('Unassign role?')).toBeInTheDocument()
       })
 
       await user.click(screen.getByRole('button', { name: 'Unassign' }))

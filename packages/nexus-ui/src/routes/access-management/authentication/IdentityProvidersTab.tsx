@@ -289,12 +289,19 @@ export function IdentityProvidersTab() {
         isOpen={deleteDialogOpen}
         onClose={() => dispatch({ type: 'CLOSE_DELETE_DIALOG' })}
         onConfirm={() => handleDelete(providerToDelete)}
-        title="Delete identity provider"
+        title="Delete identity provider?"
         confirmLabel="Delete"
         confirmVariant="danger"
+        titleIconVariant="warning"
+        destructiveAcknowledgement={{
+          checkboxId: 'delete-idp-ack',
+          label: 'I understand this identity provider and its linked identities will be permanently deleted.',
+        }}
       >
         <Stack hasGutter>
-          <StackItem>Are you sure you want to delete &quot;{providerToDelete?.name}&quot;?</StackItem>
+          <StackItem>
+            The identity provider <strong>{providerToDelete?.name}</strong> will be deleted. This cannot be undone.
+          </StackItem>
           <StackItem>This will immediately:</StackItem>
           <StackItem>
             <ul style={{ paddingLeft: 'var(--pf-t--global--spacer--lg)', margin: 0 }}>
@@ -302,9 +309,6 @@ export function IdentityProvidersTab() {
               <li>Revoke active sessions authenticated via this provider</li>
               <li>Prevent users from signing in with this provider</li>
             </ul>
-          </StackItem>
-          <StackItem>
-            <strong>This action cannot be undone.</strong>
           </StackItem>
         </Stack>
       </ConfirmationDialog>

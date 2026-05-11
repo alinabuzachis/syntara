@@ -17,11 +17,13 @@ export function UnassignProjectRoleDialog({
       isOpen={isOpen}
       onClose={onClose}
       onConfirm={onConfirm}
-      title="Unassign role"
+      title="Unassign role?"
       confirmLabel="Unassign"
       confirmVariant="danger"
+      titleIconVariant="warning"
     >
-      Are you sure you want to unassign role &quot;{assignment?.role_name}&quot; from {assignment?.principal_name}?
+      This unassigns the role <strong>{assignment?.role_name}</strong> from{' '}
+      <strong>{assignment?.principal_name}</strong>. Related permissions will be revoked.
     </ConfirmationDialog>
   )
 }

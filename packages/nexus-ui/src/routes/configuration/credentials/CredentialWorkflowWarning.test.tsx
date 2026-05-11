@@ -32,7 +32,8 @@ describe('CredentialWorkflowWarning', () => {
       />
     )
 
-    expect(screen.getByText(/2 workflows/)).toBeInTheDocument()
+    expect(screen.getByText('Workflows')).toBeInTheDocument()
+    expect(screen.getByText('2')).toBeInTheDocument()
     expect(screen.getByText(/Deleting it will cause these workflows to fail/)).toBeInTheDocument()
     expect(screen.getByText('Pipeline A')).toBeInTheDocument()
     expect(screen.getByText('Pipeline B')).toBeInTheDocument()
@@ -47,8 +48,8 @@ describe('CredentialWorkflowWarning', () => {
       />
     )
 
-    expect(screen.getByText(/1 workflow/)).toBeInTheDocument()
-    expect(screen.queryByText(/1 workflows/)).not.toBeInTheDocument()
+    expect(screen.getByText('Workflows')).toBeInTheDocument()
+    expect(screen.getByText('1')).toBeInTheDocument()
   })
 
   it('shows both error and workflows when both present', () => {

@@ -519,9 +519,9 @@ describe('UserGroupsPanel', () => {
 
       // Confirmation dialog should appear
       await waitFor(() => {
-        expect(screen.getByText('Remove from group')).toBeInTheDocument()
+        expect(screen.getByText('Remove from group?')).toBeInTheDocument()
         // "platform-admins" appears in both the table and dialog
-        expect(screen.getByText(/remove this user from group/)).toBeInTheDocument()
+        expect(screen.getByText(/removes the user from group/)).toBeInTheDocument()
       })
 
       // Confirm removal
@@ -636,7 +636,7 @@ describe('UserGroupsPanel', () => {
 
       // Dialog should be open
       await waitFor(() => {
-        expect(screen.getByText('Remove from group')).toBeInTheDocument()
+        expect(screen.getByText('Remove from group?')).toBeInTheDocument()
       })
 
       // Click cancel
@@ -644,7 +644,7 @@ describe('UserGroupsPanel', () => {
 
       // Dialog should close
       await waitFor(() => {
-        expect(screen.queryByText('Remove from group')).not.toBeInTheDocument()
+        expect(screen.queryByText('Remove from group?')).not.toBeInTheDocument()
       })
     })
   })

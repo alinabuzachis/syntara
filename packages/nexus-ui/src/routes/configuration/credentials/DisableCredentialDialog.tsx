@@ -1,14 +1,6 @@
-import {
-  Button,
-  Content,
-  ContentVariants,
-  Modal,
-  ModalBody,
-  ModalFooter,
-  ModalHeader,
-  Spinner,
-} from '@patternfly/react-core'
-import { RhUiWarningIcon } from '@patternfly/react-icons'
+import { Content, ContentVariants, Spinner } from '@patternfly/react-core'
+
+import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
 
 import type { Credential, CredentialWorkflowRef } from './credentialConstants'
 import { CredentialWorkflowWarning } from './CredentialWorkflowWarning'
@@ -35,37 +27,34 @@ export function DisableCredentialDialog({
   if (!credential) return null
 
   return (
-    <Modal isOpen onClose={onClose} variant="small">
-      <ModalHeader title="Disable credential?" titleIconVariant={RhUiWarningIcon} />
-      <ModalBody>
-        {isLoadingWorkflows ? (
+    <ConfirmationDialog
+      isOpen
+      onClose={onClose}
+      onConfirm={onConfirm}
+      title="Disable credential?"
+      confirmLabel="Disable"
+      confirmVariant="primary"
+      confirmLoading={isLoadingWorkflows || isLoading}
+    >
+      {isLoadingWorkflows ? (
+        <Content component={ContentVariants.p}>
+          <Spinner size="md" aria-label="Checking workflows" /> Checking for workflows that use this credential…
+        </Content>
+      ) : (
+        <>
           <Content component={ContentVariants.p}>
-            <Spinner size="md" aria-label="Checking workflows" /> Checking for workflows that use this credential…
+            You are about to disable the following credential: <strong>{credential.name}</strong>
           </Content>
-        ) : (
-          <>
-            <Content component={ContentVariants.p}>
-              You are about to disable the following credential: <strong>{credential.name}</strong>
-            </Content>
-            <CredentialWorkflowWarning
-              affectedWorkflows={affectedWorkflows}
-              workflowsFetchError={workflowsFetchError}
-              consequenceText="Disabling it will cause these workflows to fail:"
-            />
-            {!workflowsFetchError && (
-              <Content component={ContentVariants.p}>You can re-enable the credential at any time.</Content>
-            )}
-          </>
-        )}
-      </ModalBody>
-      <ModalFooter>
-        <Button variant="danger" onClick={onConfirm} isDisabled={isLoadingWorkflows || isLoading} isLoading={isLoading}>
-          Disable
-        </Button>
-        <Button variant="link" onClick={onClose} isDisabled={isLoading}>
-          Cancel
-        </Button>
-      </ModalFooter>
-    </Modal>
+          <CredentialWorkflowWarning
+            affectedWorkflows={affectedWorkflows}
+            workflowsFetchError={workflowsFetchError}
+            consequenceText="Disabling it will cause these workflows to fail:"
+          />
+          {!workflowsFetchError && (
+            <Content component={ContentVariants.p}>You can re-enable the credential at any time.</Content>
+          )}
+        </>
+      )}
+    </ConfirmationDialog>
   )
 }

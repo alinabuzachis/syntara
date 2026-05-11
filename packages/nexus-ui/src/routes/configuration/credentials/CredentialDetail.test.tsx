@@ -386,6 +386,7 @@ describe('CredentialDetail', () => {
     expect(screen.getByText('Delete credential?')).toBeInTheDocument()
 
     const dialog = screen.getByRole('dialog')
+    await user.click(within(dialog).getByRole('checkbox'))
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
 
     expect(mockMutate).toHaveBeenCalled()
@@ -410,6 +411,7 @@ describe('CredentialDetail', () => {
     await user.click(deleteItem)
 
     const dialog = screen.getByRole('dialog')
+    await user.click(within(dialog).getByRole('checkbox'))
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
 
     expect(mockMutate).toHaveBeenCalled()

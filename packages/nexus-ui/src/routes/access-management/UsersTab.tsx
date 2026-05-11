@@ -220,19 +220,23 @@ export function UsersTab() {
         isOpen={deleteDialog.isOpen}
         onClose={deleteDialog.close}
         onConfirm={() => handleDelete(deleteDialog.item)}
-        title="Delete user"
+        title="Delete user?"
         confirmLabel="Delete"
         confirmVariant="danger"
+        titleIconVariant="warning"
+        destructiveAcknowledgement={{
+          checkboxId: 'delete-user-ack',
+          label: 'I understand this user will be permanently deleted.',
+        }}
       >
-        Are you sure you want to delete &quot;{deleteDialog.item?.username}&quot;? This action cannot be undone.
+        The user <strong>{deleteDialog.item?.username}</strong> will be deleted. This cannot be undone.
       </ConfirmationDialog>
       <ConfirmationDialog
         isOpen={adminToggle.showConfirm}
         onClose={adminToggle.cancelDisable}
         onConfirm={adminToggle.confirmDisable}
-        title="Disable administrator account"
+        title="Disable administrator account?"
         confirmLabel="Disable and sign out"
-        confirmVariant="danger"
       >
         Disabling the built-in administrator account will immediately end your current session. You will need to sign in
         with another admin account to re-enable it.

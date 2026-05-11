@@ -748,8 +748,16 @@ The `ErrorState` component automatically shows a retry button for retryable erro
 
 ## 12. `ConfirmationDialog` — Never Inline Modal Boilerplate
 
+Use `ConfirmationDialog` for all confirmation prompts. Never use raw `Modal` + `ModalHeader` + `ModalBody` + `ModalFooter`.
+
+There are **two tiers** of destructive modals depending on reversibility:
+
+### Tier 1: Permanent/irreversible actions (delete, reset)
+
+Requires `titleIconVariant="warning"` + `destructiveAcknowledgement` checkbox. The confirm button stays disabled until the user checks the box.
+
 ```typescript
-// ❌ BAD — 15+ lines repeated per dialog
+// ❌ BAD — raw Modal, no warning icon, no acknowledgement
 <Modal isOpen={isOpen} onClose={onClose} variant="small">
   <ModalHeader title="Delete item" />
   <ModalBody>Are you sure?</ModalBody>
@@ -759,18 +767,50 @@ The `ErrorState` component automatically shows a retry button for retryable erro
   </ModalFooter>
 </Modal>
 
-// ✅ GOOD
+// ✅ GOOD — warning icon, acknowledgement checkbox, descriptive body
 <ConfirmationDialog
   isOpen={isOpen}
   onClose={onClose}
   onConfirm={handleDelete}
-  title="Delete item"
+  title="Delete workflow?"
   confirmLabel="Delete"
   confirmVariant="danger"
+  titleIconVariant="warning"
+  destructiveAcknowledgement={{
+    checkboxId: 'delete-workflow-ack',
+    label: 'I understand this workflow will be permanently deleted.',
+  }}
 >
-  Are you sure you want to delete &quot;{item?.name}&quot;?
+  The workflow <strong>{item?.name}</strong> will be deleted. This cannot be undone.
 </ConfirmationDialog>
 ```
+
+### Tier 2: Reversible actions (remove, unassign)
+
+Uses `titleIconVariant="warning"` but **no** `destructiveAcknowledgement` checkbox since the action can be undone.
+
+```typescript
+// ✅ GOOD — warning icon, descriptive body, no checkbox
+<ConfirmationDialog
+  isOpen={!!memberToRemove}
+  onClose={() => setMemberToRemove(null)}
+  onConfirm={handleRemove}
+  title="Remove member?"
+  confirmLabel="Remove"
+  confirmVariant="danger"
+  titleIconVariant="warning"
+>
+  This removes <strong>{memberToRemove?.username}</strong> from the group.
+  They will lose any permissions granted through this group membership.
+</ConfirmationDialog>
+```
+
+### Body text rules
+
+- **Never** start with "Are you sure you want to..." — state what will happen instead
+- Use `<strong>` for entity names (workflow name, credential name, etc.)
+- State the consequence clearly: "This cannot be undone." or "Related permissions will be revoked."
+- Title always ends with `?` (e.g., "Delete workflow?" not "Delete workflow")
 
 ---
 

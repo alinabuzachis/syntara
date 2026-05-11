@@ -224,8 +224,8 @@ describe('GroupMembersPanel', () => {
       await user.click(removeItem)
 
       await waitFor(() => {
-        expect(screen.getByText('Remove member')).toBeInTheDocument()
-        expect(screen.getByText(/remove "alice"/i)).toBeInTheDocument()
+        expect(screen.getByText('Remove member?')).toBeInTheDocument()
+        expect(screen.getByText(/This removes/i)).toBeInTheDocument()
       })
     })
 
@@ -277,7 +277,7 @@ describe('GroupMembersPanel', () => {
       await user.click(screen.getByRole('button', { name: 'Cancel' }))
 
       await waitFor(() => {
-        expect(screen.queryByText('Remove member')).not.toBeInTheDocument()
+        expect(screen.queryByText('Remove member?')).not.toBeInTheDocument()
       })
     })
   })

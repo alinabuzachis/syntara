@@ -546,12 +546,11 @@ describe('IdentityProviderDetail', () => {
     await user.click(screen.getByText('Delete'))
 
     // The confirmation dialog should now be visible
-    expect(screen.getByText('Delete identity provider')).toBeInTheDocument()
-    expect(screen.getByText(/are you sure you want to delete "Azure AD"\?/i)).toBeInTheDocument()
+    expect(screen.getByText('Delete identity provider?')).toBeInTheDocument()
+    expect(screen.getByText(/will be deleted. This cannot be undone/i)).toBeInTheDocument()
     expect(screen.getByText(/remove all user identities linked to this provider/i)).toBeInTheDocument()
     expect(screen.getByText(/revoke active sessions authenticated via this provider/i)).toBeInTheDocument()
     expect(screen.getByText(/prevent users from signing in with this provider/i)).toBeInTheDocument()
-    expect(screen.getByText(/this action cannot be undone/i)).toBeInTheDocument()
   })
 
   it('calls delete mutation when confirming deletion', async () => {
@@ -569,6 +568,9 @@ describe('IdentityProviderDetail', () => {
     const kebabButton = screen.getByRole('button', { name: /kebab toggle/i })
     await user.click(kebabButton)
     await user.click(screen.getByText('Delete'))
+
+    // Check the acknowledgement checkbox before clicking Delete
+    await user.click(screen.getByRole('checkbox'))
 
     // Confirm deletion
     const confirmButton = screen.getByRole('button', { name: /^delete$/i })
@@ -588,7 +590,7 @@ describe('IdentityProviderDetail', () => {
     await user.click(kebabButton)
     await user.click(screen.getByText('Delete'))
 
-    expect(screen.getByText('Delete identity provider')).toBeInTheDocument()
+    expect(screen.getByText('Delete identity provider?')).toBeInTheDocument()
 
     // Click cancel
     const cancelButton = screen.getByRole('button', { name: /cancel/i })

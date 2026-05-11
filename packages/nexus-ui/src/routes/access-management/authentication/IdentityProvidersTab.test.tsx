@@ -280,8 +280,8 @@ describe('IdentityProvidersTab', () => {
       await user.click(screen.getByText('Delete'))
 
       // Delete dialog should appear
-      expect(screen.getByText('Delete identity provider')).toBeInTheDocument()
-      expect(screen.getByText(/Are you sure you want to delete "Azure AD"/)).toBeInTheDocument()
+      expect(screen.getByText('Delete identity provider?')).toBeInTheDocument()
+      expect(screen.getByText(/will be deleted. This cannot be undone/)).toBeInTheDocument()
     })
 
     it('shows delete consequences in confirmation dialog', async () => {
@@ -296,7 +296,7 @@ describe('IdentityProvidersTab', () => {
       expect(screen.getByText(/Remove all user identities linked to this provider/)).toBeInTheDocument()
       expect(screen.getByText(/Revoke active sessions authenticated via this provider/)).toBeInTheDocument()
       expect(screen.getByText(/Prevent users from signing in with this provider/)).toBeInTheDocument()
-      expect(screen.getByText(/This action cannot be undone/)).toBeInTheDocument()
+      expect(screen.getByText(/This cannot be undone/)).toBeInTheDocument()
     })
 
     it('closes delete dialog when cancel is clicked', async () => {
@@ -312,7 +312,7 @@ describe('IdentityProvidersTab', () => {
       // Cancel
       await user.click(screen.getByText('Cancel'))
 
-      expect(screen.queryByText('Delete identity provider')).not.toBeInTheDocument()
+      expect(screen.queryByText('Delete identity provider?')).not.toBeInTheDocument()
     })
 
     it('calls delete mutation when confirmed', async () => {
@@ -341,8 +341,11 @@ describe('IdentityProvidersTab', () => {
       await user.click(actionsButton)
       await user.click(screen.getByText('Delete'))
 
-      // Confirm delete — target the button inside the modal dialog
+      // Check the acknowledgement checkbox before clicking Delete
       const dialog = screen.getByRole('dialog')
+      await user.click(within(dialog).getByRole('checkbox'))
+
+      // Confirm delete — target the button inside the modal dialog
       await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
 
       expect(mockDeleteMutate).toHaveBeenCalledWith(
@@ -384,6 +387,8 @@ describe('IdentityProvidersTab', () => {
       await user.click(actionsButton)
       await user.click(screen.getByText('Delete'))
       const dialog = screen.getByRole('dialog')
+      // Check the acknowledgement checkbox before clicking Delete
+      await user.click(within(dialog).getByRole('checkbox'))
       await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
 
       // Simulate onSuccess and onSettled callbacks from useDeleteAction

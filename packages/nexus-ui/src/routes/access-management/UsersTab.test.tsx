@@ -190,6 +190,45 @@ describe('UsersTab Component', () => {
       expect(adminSwitch).toBeDisabled()
     })
 
+    it('does not render admin card when no builtin user exists', () => {
+      vi.mocked(accessClient.useQuery).mockImplementation((...args: unknown[]) => {
+        const endpoint = args[1] as string
+        if (endpoint === '/groups') {
+          return {
+            data: { resources: [] },
+            isPending: false,
+            isError: false,
+            error: null,
+            isFetching: false,
+            refetch: vi.fn(),
+          } as never
+        }
+        if (endpoint === '/groups/{group_id}/members') {
+          return {
+            data: { resources: [] },
+            isPending: false,
+            isError: false,
+            error: null,
+            isFetching: false,
+            refetch: vi.fn(),
+          } as never
+        }
+        return {
+          data: { resources: [mockUsers[1], mockUsers[2]] },
+          isPending: false,
+          isError: false,
+          error: null,
+          isFetching: false,
+          refetch: vi.fn(),
+        } as never
+      })
+
+      render(<UsersTab />, { wrapper })
+
+      expect(screen.queryByText('Built-in Administrator Account')).not.toBeInTheDocument()
+      expect(screen.getByText('jdoe')).toBeInTheDocument()
+    })
+
     it('renders the admin account switch as unchecked when admin is inactive', () => {
       vi.mocked(accessClient.useQuery).mockReturnValue({
         data: {
@@ -484,8 +523,16 @@ describe('UsersTab Component', () => {
       await user.click(deleteOption)
 
       await waitFor(() => {
-        expect(screen.getByText('Delete user')).toBeInTheDocument()
+        expect(screen.getByText('Delete user?')).toBeInTheDocument()
       })
+
+      // Verify the username renders in the dialog body (covers deleteDialog.item?.username branch)
+      const dialog = screen.getByRole('dialog')
+      expect(within(dialog).getByText('jdoe')).toBeInTheDocument()
+      expect(within(dialog).getByText(/will be deleted/)).toBeInTheDocument()
+      expect(
+        screen.getByRole('checkbox', { name: 'I understand this user will be permanently deleted.' })
+      ).toBeInTheDocument()
     })
   })
 
@@ -516,6 +563,7 @@ describe('UsersTab Component', () => {
       const deleteOption = await screen.findByRole('menuitem', { name: /delete/i })
       await user.click(deleteOption)
 
+      await user.click(screen.getByRole('checkbox'))
       const deleteButton = await screen.findByRole('button', { name: 'Delete' })
       await user.click(deleteButton)
 
@@ -550,6 +598,7 @@ describe('UsersTab Component', () => {
       const deleteOption = await screen.findByRole('menuitem', { name: /delete/i })
       await user.click(deleteOption)
 
+      await user.click(screen.getByRole('checkbox'))
       const deleteButton = await screen.findByRole('button', { name: 'Delete' })
       await user.click(deleteButton)
 
@@ -560,7 +609,7 @@ describe('UsersTab Component', () => {
       })
 
       await waitFor(() => {
-        expect(screen.queryByText('Delete user')).not.toBeInTheDocument()
+        expect(screen.queryByText('Delete user?')).not.toBeInTheDocument()
       })
       expect(mockRefetch).toHaveBeenCalled()
     })
@@ -575,7 +624,7 @@ describe('UsersTab Component', () => {
       await user.click(deleteOption)
 
       await waitFor(() => {
-        expect(screen.getByText('Delete user')).toBeInTheDocument()
+        expect(screen.getByText('Delete user?')).toBeInTheDocument()
       })
 
       const cancelButtons = screen.getAllByRole('button', { name: 'Cancel' })
@@ -614,6 +663,7 @@ describe('UsersTab Component', () => {
       const deleteOption = await screen.findByRole('menuitem', { name: /delete/i })
       await user.click(deleteOption)
 
+      await user.click(screen.getByRole('checkbox'))
       const deleteButton = await screen.findByRole('button', { name: 'Delete' })
       await user.click(deleteButton)
 
@@ -627,7 +677,7 @@ describe('UsersTab Component', () => {
       })
 
       await waitFor(() => {
-        expect(screen.queryByText('Delete user')).not.toBeInTheDocument()
+        expect(screen.queryByText('Delete user?')).not.toBeInTheDocument()
       })
     })
   })

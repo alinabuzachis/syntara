@@ -57,4 +57,37 @@ describe('UnassignProjectRoleDialog', () => {
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(onClose).toHaveBeenCalledOnce()
   })
+
+  it('renders dialog when assignment is null (handles optional chaining)', () => {
+    render(
+      <UnassignProjectRoleDialog assignment={null} isOpen={true} onClose={vi.fn()} onConfirm={vi.fn()} />
+    )
+
+    expect(screen.getByText('Unassign role?')).toBeInTheDocument()
+    expect(screen.getByText(/Related permissions will be revoked/)).toBeInTheDocument()
+  })
+
+  it('does not render dialog content when isOpen is false', () => {
+    render(
+      <UnassignProjectRoleDialog assignment={mockAssignment} isOpen={false} onClose={vi.fn()} onConfirm={vi.fn()} />
+    )
+
+    expect(screen.queryByText('Unassign role?')).not.toBeInTheDocument()
+  })
+
+  it('renders warning icon in the title', () => {
+    render(
+      <UnassignProjectRoleDialog assignment={mockAssignment} isOpen={true} onClose={vi.fn()} onConfirm={vi.fn()} />
+    )
+
+    expect(screen.getByText('Unassign role?')).toBeInTheDocument()
+  })
+
+  it('has no accessibility violations when assignment is null', async () => {
+    const { container } = render(
+      <UnassignProjectRoleDialog assignment={null} isOpen={true} onClose={vi.fn()} onConfirm={vi.fn()} />
+    )
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
 })

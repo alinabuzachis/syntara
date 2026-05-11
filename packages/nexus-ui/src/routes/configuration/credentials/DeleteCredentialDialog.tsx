@@ -1,14 +1,6 @@
-import {
-  Button,
-  Content,
-  ContentVariants,
-  Modal,
-  ModalBody,
-  ModalFooter,
-  ModalHeader,
-  Spinner,
-} from '@patternfly/react-core'
-import { RhUiWarningIcon } from '@patternfly/react-icons'
+import { Content, ContentVariants, Spinner } from '@patternfly/react-core'
+
+import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
 
 import type { Credential, CredentialWorkflowRef } from './credentialConstants'
 import { CredentialWorkflowWarning } from './CredentialWorkflowWarning'
@@ -35,34 +27,36 @@ export function DeleteCredentialDialog({
   if (!credential) return null
 
   return (
-    <Modal isOpen onClose={onClose} variant="small">
-      <ModalHeader title="Delete credential?" titleIconVariant={RhUiWarningIcon} />
-      <ModalBody>
-        {isLoadingWorkflows ? (
+    <ConfirmationDialog
+      isOpen
+      onClose={onClose}
+      onConfirm={onConfirm}
+      title="Delete credential?"
+      confirmLabel="Delete"
+      confirmVariant="danger"
+      titleIconVariant="warning"
+      confirmLoading={isLoading || isLoadingWorkflows}
+      destructiveAcknowledgement={{
+        checkboxId: 'delete-credential-ack',
+        label: 'I understand this credential will be permanently deleted.',
+      }}
+    >
+      {isLoadingWorkflows ? (
+        <Content component={ContentVariants.p}>
+          <Spinner size="md" aria-label="Checking workflows" /> Checking for workflows that use this credential…
+        </Content>
+      ) : (
+        <>
           <Content component={ContentVariants.p}>
-            <Spinner size="md" aria-label="Checking workflows" /> Checking for workflows that use this credential…
+            The credential <strong>{credential.name}</strong> will be deleted. This cannot be undone.
           </Content>
-        ) : (
-          <>
-            <Content component={ContentVariants.p}>
-              Are you sure you want to delete &quot;{credential.name}&quot;? This action cannot be undone.
-            </Content>
-            <CredentialWorkflowWarning
-              affectedWorkflows={affectedWorkflows}
-              workflowsFetchError={workflowsFetchError}
-              consequenceText="Deleting it will cause these workflows to fail:"
-            />
-          </>
-        )}
-      </ModalBody>
-      <ModalFooter>
-        <Button variant="danger" onClick={onConfirm} isDisabled={isLoadingWorkflows || isLoading} isLoading={isLoading}>
-          Delete
-        </Button>
-        <Button variant="link" onClick={onClose} isDisabled={isLoading}>
-          Cancel
-        </Button>
-      </ModalFooter>
-    </Modal>
+          <CredentialWorkflowWarning
+            affectedWorkflows={affectedWorkflows}
+            workflowsFetchError={workflowsFetchError}
+            consequenceText="Deleting it will cause these workflows to fail:"
+          />
+        </>
+      )}
+    </ConfirmationDialog>
   )
 }

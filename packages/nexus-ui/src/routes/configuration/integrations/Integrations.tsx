@@ -336,11 +336,16 @@ export default function Integrations() {
         isOpen={deleteDialog.isOpen}
         onClose={deleteDialog.close}
         onConfirm={handleDelete}
-        title="Delete integration"
+        title="Delete integration?"
         confirmLabel="Delete"
         confirmVariant="danger"
+        titleIconVariant="warning"
+        destructiveAcknowledgement={{
+          checkboxId: 'delete-integration-ack',
+          label: 'I understand this integration will be permanently deleted.',
+        }}
       >
-        Are you sure you want to delete &quot;{deleteDialog.item?.name}&quot;? This action cannot be undone.
+        The integration <strong>{deleteDialog.item?.name}</strong> will be deleted. This cannot be undone.
       </ConfirmationDialog>
     </AppPage>
   )

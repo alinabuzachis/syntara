@@ -251,12 +251,13 @@ export function GroupMembersPanel({ groupId, onMembershipChange }: Readonly<Grou
         isOpen={!!memberToRemove}
         onClose={() => setMemberToRemove(null)}
         onConfirm={handleRemove}
-        title="Remove member"
+        title="Remove member?"
         confirmLabel="Remove"
         confirmVariant="danger"
         titleIconVariant="warning"
       >
-        Are you sure you want to remove &quot;{memberToRemove?.username}&quot; from this group?
+        This removes <strong>{memberToRemove?.username}</strong> from the group. They will lose any permissions granted
+        through this group membership.
       </ConfirmationDialog>
     </>
   )

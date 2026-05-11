@@ -200,10 +200,8 @@ describe('UserIdentitiesPanel', () => {
       const disconnectButtons = screen.getAllByRole('button', { name: 'Disconnect' })
       await user.click(disconnectButtons[0])
 
-      expect(screen.getByText('Disconnect identity')).toBeInTheDocument()
-      expect(
-        screen.getByText('Are you sure? You will no longer be able to sign in with this identity.')
-      ).toBeInTheDocument()
+      expect(screen.getByText('Disconnect identity?')).toBeInTheDocument()
+      expect(screen.getByText(/Disconnecting will remove sign-in access for this identity/)).toBeInTheDocument()
       expect(screen.getAllByText('https://login.example.com').length).toBeGreaterThanOrEqual(1)
       expect(screen.getAllByText('sub-abc').length).toBeGreaterThanOrEqual(1)
     })
@@ -237,13 +235,13 @@ describe('UserIdentitiesPanel', () => {
       const disconnectButtons = screen.getAllByRole('button', { name: 'Disconnect' })
       await user.click(disconnectButtons[0])
 
-      expect(screen.getByText('Disconnect identity')).toBeInTheDocument()
+      expect(screen.getByText('Disconnect identity?')).toBeInTheDocument()
 
       const cancelButton = screen.getByRole('button', { name: 'Cancel' })
       await user.click(cancelButton)
 
       await waitFor(() => {
-        expect(screen.queryByText('Disconnect identity')).not.toBeInTheDocument()
+        expect(screen.queryByText('Disconnect identity?')).not.toBeInTheDocument()
       })
     })
 
@@ -281,7 +279,7 @@ describe('UserIdentitiesPanel', () => {
       })
 
       await waitFor(() => {
-        expect(screen.queryByText('Disconnect identity')).not.toBeInTheDocument()
+        expect(screen.queryByText('Disconnect identity?')).not.toBeInTheDocument()
       })
       expect(mockRefetch).toHaveBeenCalled()
     })
@@ -307,7 +305,7 @@ describe('UserIdentitiesPanel', () => {
       })
 
       await waitFor(() => {
-        expect(screen.queryByText('Disconnect identity')).not.toBeInTheDocument()
+        expect(screen.queryByText('Disconnect identity?')).not.toBeInTheDocument()
       })
     })
   })
@@ -408,7 +406,7 @@ describe('UserIdentitiesPanel', () => {
       // PF6 Tooltip wraps the button; the button itself is aria-disabled
       expect(disconnectButton).toHaveAttribute('aria-disabled', 'true')
       // The button should not be clickable (no onClick fires the modal)
-      expect(screen.queryByText('Disconnect identity')).not.toBeInTheDocument()
+      expect(screen.queryByText('Disconnect identity?')).not.toBeInTheDocument()
     })
 
     it('shows empty state for builtin users with no identities', () => {
@@ -737,7 +735,7 @@ describe('UserIdentitiesPanel', () => {
       await user.click(disconnectButtons[1])
 
       // Modal should show Okta identity details
-      expect(screen.getByText('Disconnect identity')).toBeInTheDocument()
+      expect(screen.getByText('Disconnect identity?')).toBeInTheDocument()
       expect(screen.getAllByText('https://auth.other.com').length).toBeGreaterThanOrEqual(1)
       expect(screen.getAllByText('sub-xyz').length).toBeGreaterThanOrEqual(1)
     })

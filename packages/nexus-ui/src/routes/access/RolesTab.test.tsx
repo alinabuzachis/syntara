@@ -108,7 +108,7 @@ const mockRoles: RoleRead[] = [
     id: 'role-3',
     name: 'viewer',
     description: null,
-    policies: ['read-only'],
+    policies: null as unknown as string[],
     is_builtin: false,
     is_system_scoped: false,
     project_id: null,
@@ -345,14 +345,15 @@ describe('RolesTab', () => {
     it('shows role name in delete confirmation body', async () => {
       await openDeleteDialog()
 
-      // The modal body contains the role name in a <strong> element
-      const modalBody = screen.getByText(/permanently delete role/i)
-      expect(within(modalBody).getByText('custom-editor')).toBeInTheDocument()
+      const dialog = screen.getByRole('dialog')
+      expect(within(dialog).getByText(/will be deleted/i)).toBeInTheDocument()
+      expect(within(dialog).getByText('custom-editor')).toBeInTheDocument()
     })
 
     it('calls delete mutation when Delete button is clicked', async () => {
       const user = await openDeleteDialog()
 
+      await user.click(screen.getByRole('checkbox'))
       await user.click(screen.getByRole('button', { name: 'Delete' }))
 
       expect(mockDeleteMutate).toHaveBeenCalled()
@@ -363,6 +364,7 @@ describe('RolesTab', () => {
     it('refetches roles and closes dialog on successful delete', async () => {
       const user = await openDeleteDialog()
 
+      await user.click(screen.getByRole('checkbox'))
       await user.click(screen.getByRole('button', { name: 'Delete' }))
 
       const callbacks = mockDeleteMutate.mock.calls[0][1] as {
@@ -383,6 +385,7 @@ describe('RolesTab', () => {
     it('closes dialog on failed delete', async () => {
       const user = await openDeleteDialog()
 
+      await user.click(screen.getByRole('checkbox'))
       await user.click(screen.getByRole('button', { name: 'Delete' }))
 
       const callbacks = mockDeleteMutate.mock.calls[0][1] as {
@@ -561,13 +564,11 @@ describe('RolesTab', () => {
 
       expect(screen.getByText('admin-policy')).toBeVisible()
       expect(screen.getByText('workflow-edit')).toBeVisible()
-      expect(screen.getByText('read-only')).toBeVisible()
 
       await user.click(screen.getByRole('button', { name: /expand all/i }))
 
       expect(screen.queryByText('admin-policy')).not.toBeVisible()
       expect(screen.queryByText('workflow-edit')).not.toBeVisible()
-      expect(screen.queryByText('read-only')).not.toBeVisible()
     })
 
     it('toggling a single row does not affect other rows', async () => {
@@ -579,6 +580,50 @@ describe('RolesTab', () => {
 
       expect(screen.getByText('admin-policy')).toBeVisible()
       expect(screen.queryByText('workflow-edit')).not.toBeVisible()
+    })
+  })
+
+  describe('Delete dialog acknowledgement checkbox', () => {
+    async function openDeleteDialog() {
+      const user = userEvent.setup()
+      render(<RolesTab />, { wrapper })
+
+      const kebabs = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      await user.click(kebabs[0])
+
+      const deleteOption = await screen.findByRole('menuitem', { name: /delete role/i })
+      await user.click(deleteOption)
+
+      await waitFor(() => {
+        expect(screen.getByText('Delete role?')).toBeInTheDocument()
+      })
+      return user
+    }
+
+    it('renders acknowledgement checkbox and role name in the delete dialog', async () => {
+      await openDeleteDialog()
+
+      const dialog = screen.getByRole('dialog')
+      const checkbox = within(dialog).getByRole('checkbox', {
+        name: 'I understand this role will be permanently deleted.',
+      })
+      expect(checkbox).toBeInTheDocument()
+      expect(checkbox).not.toBeChecked()
+      expect(within(dialog).getByText(/will be deleted/)).toBeInTheDocument()
+    })
+
+    it('disables Delete button until acknowledgement checkbox is checked', async () => {
+      const user = await openDeleteDialog()
+
+      expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled()
+
+      await user.click(
+        screen.getByRole('checkbox', {
+          name: 'I understand this role will be permanently deleted.',
+        })
+      )
+
+      expect(screen.getByRole('button', { name: 'Delete' })).toBeEnabled()
     })
   })
 

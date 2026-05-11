@@ -7,10 +7,6 @@ import {
   DescriptionListTerm,
   List,
   ListItem,
-  Modal,
-  ModalBody,
-  ModalFooter,
-  ModalHeader,
 } from '@patternfly/react-core'
 import { PluggedIcon } from '@patternfly/react-icons'
 
@@ -31,40 +27,34 @@ function DetachConfirmModal({
   onCancel: () => void
 }>) {
   return (
-    <Modal isOpen={!!identity} onClose={onCancel} variant="small">
-      <ModalHeader
-        title="Disconnect identity"
-        description="Are you sure? You will no longer be able to sign in with this identity."
-      />
-      <ModalBody>
-        <DescriptionList isHorizontal isCompact>
-          <DescriptionListGroup>
-            <DescriptionListTerm>Provider</DescriptionListTerm>
-            <DescriptionListDescription>{identity?.provider_name}</DescriptionListDescription>
-          </DescriptionListGroup>
-          <DescriptionListGroup>
-            <DescriptionListTerm>Issuer</DescriptionListTerm>
-            <DescriptionListDescription style={{ wordBreak: 'break-all' }}>
-              {identity?.issuer}
-            </DescriptionListDescription>
-          </DescriptionListGroup>
-          <DescriptionListGroup>
-            <DescriptionListTerm>Subject</DescriptionListTerm>
-            <DescriptionListDescription style={{ wordBreak: 'break-all' }}>
-              {identity?.subject}
-            </DescriptionListDescription>
-          </DescriptionListGroup>
-        </DescriptionList>
-      </ModalBody>
-      <ModalFooter>
-        <Button variant="danger" onClick={onConfirm} isLoading={isDetaching} isDisabled={isDetaching}>
-          Disconnect
-        </Button>
-        <Button variant="link" onClick={onCancel}>
-          Cancel
-        </Button>
-      </ModalFooter>
-    </Modal>
+    <ConfirmationDialog
+      isOpen={!!identity}
+      onClose={onCancel}
+      onConfirm={onConfirm}
+      title="Disconnect identity?"
+      confirmLabel="Disconnect"
+      confirmVariant="danger"
+      titleIconVariant="warning"
+      confirmLoading={isDetaching}
+    >
+      Disconnecting will remove sign-in access for this identity. You will no longer be able to sign in with it.
+      <DescriptionList isHorizontal isCompact style={{ marginTop: 'var(--pf-t--global--spacer--md)' }}>
+        <DescriptionListGroup>
+          <DescriptionListTerm>Provider</DescriptionListTerm>
+          <DescriptionListDescription>{identity?.provider_name}</DescriptionListDescription>
+        </DescriptionListGroup>
+        <DescriptionListGroup>
+          <DescriptionListTerm>Issuer</DescriptionListTerm>
+          <DescriptionListDescription style={{ wordBreak: 'break-all' }}>{identity?.issuer}</DescriptionListDescription>
+        </DescriptionListGroup>
+        <DescriptionListGroup>
+          <DescriptionListTerm>Subject</DescriptionListTerm>
+          <DescriptionListDescription style={{ wordBreak: 'break-all' }}>
+            {identity?.subject}
+          </DescriptionListDescription>
+        </DescriptionListGroup>
+      </DescriptionList>
+    </ConfirmationDialog>
   )
 }
 

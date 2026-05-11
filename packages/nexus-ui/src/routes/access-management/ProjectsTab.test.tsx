@@ -311,8 +311,33 @@ describe('ProjectsTab', () => {
       await user.click(deleteOption)
 
       await waitFor(() => {
-        expect(screen.getByText('Delete project')).toBeInTheDocument()
+        expect(screen.getByText('Delete project?')).toBeInTheDocument()
       })
+
+      // Verify the project name renders in the dialog body (covers project?.name branch)
+      const dialog = screen.getByRole('dialog')
+      expect(within(dialog).getByText('Alpha')).toBeInTheDocument()
+      expect(within(dialog).getByText(/will be deleted/)).toBeInTheDocument()
+      expect(
+        within(dialog).getByRole('checkbox', { name: 'I understand this project will be permanently deleted.' })
+      ).toBeInTheDocument()
+    })
+  })
+
+  describe('Delete Dialog Content', () => {
+    it('renders project name in dialog body when project is selected for deletion', async () => {
+      const user = userEvent.setup()
+      render(<ProjectsTab />, { wrapper })
+
+      // Open delete dialog for the second project (Beta)
+      const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      await user.click(actionButtons[1])
+      const deleteOption = await screen.findByRole('menuitem', { name: /delete/i })
+      await user.click(deleteOption)
+
+      const dialog = await screen.findByRole('dialog')
+      expect(within(dialog).getByText('Beta')).toBeInTheDocument()
+      expect(within(dialog).getByText(/will be deleted/)).toBeInTheDocument()
     })
   })
 
@@ -342,10 +367,16 @@ describe('ProjectsTab', () => {
       const deleteOption = await screen.findByRole('menuitem', { name: /delete/i })
       await user.click(deleteOption)
 
-      // Click Delete in dialog
+      // Delete button should be disabled until acknowledgement checkbox is checked
       const deleteButton = await screen.findByRole('button', { name: 'Delete' })
-      await user.click(deleteButton)
+      expect(deleteButton).toBeDisabled()
 
+      // Check acknowledgement checkbox
+      const ackCheckbox = screen.getByRole('checkbox')
+      await user.click(ackCheckbox)
+      expect(deleteButton).toBeEnabled()
+
+      await user.click(deleteButton)
       expect(mockDeleteMutate).toHaveBeenCalled()
     })
 
@@ -374,7 +405,8 @@ describe('ProjectsTab', () => {
       const deleteOption = await screen.findByRole('menuitem', { name: /delete/i })
       await user.click(deleteOption)
 
-      // Click Delete
+      // Check acknowledgement and click Delete
+      await user.click(screen.getByRole('checkbox'))
       const deleteButton = await screen.findByRole('button', { name: 'Delete' })
       await user.click(deleteButton)
 
@@ -386,7 +418,7 @@ describe('ProjectsTab', () => {
       })
 
       await waitFor(() => {
-        expect(screen.queryByText('Delete project')).not.toBeInTheDocument()
+        expect(screen.queryByText('Delete project?')).not.toBeInTheDocument()
       })
       expect(mockRefetch).toHaveBeenCalled()
     })
@@ -408,7 +440,8 @@ describe('ProjectsTab', () => {
       const deleteOption = await screen.findByRole('menuitem', { name: /delete/i })
       await user.click(deleteOption)
 
-      // Click Delete
+      // Check acknowledgement and click Delete
+      await user.click(screen.getByRole('checkbox'))
       const deleteButton = await screen.findByRole('button', { name: 'Delete' })
       await user.click(deleteButton)
 
@@ -423,7 +456,7 @@ describe('ProjectsTab', () => {
       })
 
       await waitFor(() => {
-        expect(screen.queryByText('Delete project')).not.toBeInTheDocument()
+        expect(screen.queryByText('Delete project?')).not.toBeInTheDocument()
       })
     })
 
@@ -438,7 +471,7 @@ describe('ProjectsTab', () => {
       await user.click(deleteOption)
 
       await waitFor(() => {
-        expect(screen.getByText('Delete project')).toBeInTheDocument()
+        expect(screen.getByText('Delete project?')).toBeInTheDocument()
       })
 
       // Click Cancel
@@ -446,7 +479,7 @@ describe('ProjectsTab', () => {
       await user.click(cancelButtons[cancelButtons.length - 1])
 
       await waitFor(() => {
-        expect(screen.queryByText(/This action cannot be undone/)).not.toBeInTheDocument()
+        expect(screen.queryByText(/will be deleted/)).not.toBeInTheDocument()
       })
     })
   })

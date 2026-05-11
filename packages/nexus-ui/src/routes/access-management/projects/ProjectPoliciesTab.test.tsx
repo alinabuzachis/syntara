@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -65,7 +65,7 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 
 const mockPolicies = [
   { id: 'p1', name: 'read-policy', description: 'Read access', is_builtin: true, project_id: null },
-  { id: 'p2', name: 'custom-policy', description: 'Custom policy', is_builtin: false, project_id: 'proj-1' },
+  { id: 'p2', name: 'custom-policy', description: null, is_builtin: false, project_id: 'proj-1' },
 ]
 
 describe('ProjectPoliciesTab', () => {
@@ -109,7 +109,7 @@ describe('ProjectPoliciesTab', () => {
     expect(screen.getByText('read-policy')).toBeInTheDocument()
     expect(screen.getByText('custom-policy')).toBeInTheDocument()
     expect(screen.getByText('Read access')).toBeInTheDocument()
-    expect(screen.getByText('Custom policy')).toBeInTheDocument()
+    expect(screen.getByText('-')).toBeInTheDocument()
   })
 
   it('shows Built-in label for built-in policies', () => {
@@ -159,6 +159,29 @@ describe('ProjectPoliciesTab', () => {
     expect(screen.getByRole('progressbar', { name: 'Loading' })).toBeInTheDocument()
   })
 
+  it('shows policy name and acknowledgement in delete dialog', async () => {
+    const user = userEvent.setup()
+    render(<ProjectPoliciesTab projectId="proj-1" />, { wrapper })
+
+    const kebabButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
+    await user.click(kebabButtons[0])
+
+    const deleteItem = await screen.findByText('Delete policy')
+    await user.click(deleteItem)
+
+    await waitFor(() => {
+      expect(screen.getByText('Delete policy?')).toBeInTheDocument()
+    })
+
+    // Verify the policy name renders in the dialog body (covers deleteDialog.item?.name branch)
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByText('custom-policy')).toBeInTheDocument()
+    expect(within(dialog).getByText(/will be deleted/)).toBeInTheDocument()
+    expect(
+      within(dialog).getByRole('checkbox', { name: 'I understand this policy will be permanently deleted.' })
+    ).toBeInTheDocument()
+  })
+
   it('calls showSuccess on successful delete', async () => {
     const user = userEvent.setup()
     render(<ProjectPoliciesTab projectId="proj-1" />, { wrapper })
@@ -168,6 +191,9 @@ describe('ProjectPoliciesTab', () => {
 
     const deleteItem = await screen.findByText('Delete policy')
     await user.click(deleteItem)
+
+    // Check the acknowledgement checkbox before clicking Delete
+    await user.click(screen.getByRole('checkbox'))
 
     const confirmButton = await screen.findByRole('button', { name: 'Delete' })
     await user.click(confirmButton)
@@ -194,6 +220,9 @@ describe('ProjectPoliciesTab', () => {
 
     const deleteItem = await screen.findByText('Delete policy')
     await user.click(deleteItem)
+
+    // Check the acknowledgement checkbox before clicking Delete
+    await user.click(screen.getByRole('checkbox'))
 
     const confirmButton = await screen.findByRole('button', { name: 'Delete' })
     await user.click(confirmButton)

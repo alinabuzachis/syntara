@@ -282,7 +282,10 @@ test.describe('Kebab Menu Delete Action', () => {
 
       const deleteBtn = dialog.getByRole('button', { name: 'Delete' })
       await expect(deleteBtn).toBeVisible()
+      await expect(deleteBtn).toBeDisabled()
 
+      await dialog.getByRole('checkbox').click()
+      await expect(deleteBtn).toBeEnabled()
       await deleteBtn.click()
 
       await expect(app.getByText('Credential deleted')).toBeVisible()

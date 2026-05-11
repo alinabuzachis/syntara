@@ -484,11 +484,13 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
         isOpen={!!rowToUnassign}
         onClose={() => setRowToUnassign(null)}
         onConfirm={handleUnassign}
-        title="Unassign role"
+        title="Unassign role?"
         confirmLabel="Unassign"
         confirmVariant="danger"
+        titleIconVariant="warning"
       >
-        Are you sure you want to unassign role &quot;{rowToUnassign?.roleName}&quot;?
+        This unassigns the role <strong>{rowToUnassign?.roleName}</strong> from this principal. Related permissions will
+        be revoked.
       </ConfirmationDialog>
     </>
   )

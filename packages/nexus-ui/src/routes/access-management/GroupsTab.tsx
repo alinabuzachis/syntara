@@ -205,11 +205,16 @@ export function GroupsTab() {
         isOpen={deleteDialog.isOpen}
         onClose={deleteDialog.close}
         onConfirm={() => handleDelete(deleteDialog.item)}
-        title="Delete group"
+        title="Delete group?"
         confirmLabel="Delete"
         confirmVariant="danger"
+        titleIconVariant="warning"
+        destructiveAcknowledgement={{
+          checkboxId: 'delete-group-ack',
+          label: 'I understand this group will be permanently deleted.',
+        }}
       >
-        Are you sure you want to delete &quot;{deleteDialog.item?.name}&quot;? This action cannot be undone.
+        The group <strong>{deleteDialog.item?.name}</strong> will be deleted. This cannot be undone.
       </ConfirmationDialog>
     </>
   )

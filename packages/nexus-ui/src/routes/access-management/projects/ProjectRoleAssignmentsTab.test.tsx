@@ -357,7 +357,7 @@ describe('ProjectRoleAssignmentsTab', () => {
     await user.click(actionButtons[0])
 
     // The unassign dialog should appear with the role info
-    expect(screen.getByRole('heading', { name: 'Unassign role' })).toBeInTheDocument()
+    expect(screen.getByText('Unassign role?')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Unassign' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
   })
@@ -369,12 +369,12 @@ describe('ProjectRoleAssignmentsTab', () => {
     // Open the dialog
     const actionButtons = screen.getAllByRole('button', { name: 'Open actions' })
     await user.click(actionButtons[0])
-    expect(screen.getByRole('heading', { name: 'Unassign role' })).toBeInTheDocument()
+    expect(screen.getByText('Unassign role?')).toBeInTheDocument()
 
     // Cancel
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
 
-    expect(screen.queryByRole('heading', { name: 'Unassign role' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Unassign role?')).not.toBeInTheDocument()
   })
 
   it('calls deleteUserAssignment when unassigning a user role', async () => {
@@ -541,7 +541,7 @@ describe('ProjectRoleAssignmentsTab', () => {
     render(<ProjectRoleAssignmentsTab projectId="proj-1" />, { wrapper })
 
     // No unassign dialog should be visible initially
-    expect(screen.queryByRole('heading', { name: 'Unassign role' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Unassign role?')).not.toBeInTheDocument()
   })
 
   it('clears filters via EmptyStateFilter clear button', async () => {

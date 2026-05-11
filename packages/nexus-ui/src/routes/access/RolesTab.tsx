@@ -1,22 +1,11 @@
-import {
-  Button,
-  Label,
-  LabelGroup,
-  Modal,
-  ModalBody,
-  ModalFooter,
-  ModalHeader,
-  Flex,
-  FlexItem,
-  StackItem,
-  Truncate,
-} from '@patternfly/react-core'
+import { Button, Label, LabelGroup, Flex, FlexItem, StackItem, Truncate } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiEditFillIcon, RhUiLockIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, ExpandableRowContent, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
 import { useCallback, useMemo, useState } from 'react'
 
 import { AppPageMain } from '../../app/AppPage'
+import { ConfirmationDialog } from '../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
@@ -369,21 +358,22 @@ export function RolesTab() {
         <EditRoleDialog role={roleToEdit} onClose={() => setRoleToEdit(null)} onSuccess={handleRolesChanged} />
       )}
 
-      <Modal isOpen={!!roleToDelete} onClose={() => setRoleToDelete(null)} variant="small">
-        <ModalHeader title="Delete role?" titleIconVariant="warning" />
-        <ModalBody>
-          Permanently delete role <strong>{roleToDelete?.name}</strong>? Any assignments using this role will lose
-          access.
-        </ModalBody>
-        <ModalFooter>
-          <Button variant="secondary" onClick={() => setRoleToDelete(null)}>
-            Cancel
-          </Button>
-          <Button variant="danger" onClick={handleDelete}>
-            Delete
-          </Button>
-        </ModalFooter>
-      </Modal>
+      <ConfirmationDialog
+        isOpen={!!roleToDelete}
+        onClose={() => setRoleToDelete(null)}
+        onConfirm={handleDelete}
+        title="Delete role?"
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        titleIconVariant="warning"
+        destructiveAcknowledgement={{
+          checkboxId: 'delete-role-ack',
+          label: 'I understand this role will be permanently deleted.',
+        }}
+      >
+        The role <strong>{roleToDelete?.name}</strong> will be deleted. Assignments that use this role will lose access.
+        This cannot be undone.
+      </ConfirmationDialog>
     </>
   )
 }

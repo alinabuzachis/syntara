@@ -338,10 +338,17 @@ describe('Integrations Component', () => {
       const uninstallOption = await screen.findByRole('menuitem', { name: /uninstall/i })
       await user.click(uninstallOption)
 
-      // Delete dialog should open
+      // Delete dialog should open with integration name in body
       await waitFor(() => {
         expect(screen.getByText(/delete integration/i)).toBeInTheDocument()
       })
+      const dialog = screen.getByRole('dialog')
+      expect(within(dialog).getByText(/will be deleted/)).toBeInTheDocument()
+      expect(
+        within(dialog).getByRole('checkbox', {
+          name: 'I understand this integration will be permanently deleted.',
+        })
+      ).toBeInTheDocument()
     })
   })
 
@@ -1079,6 +1086,9 @@ describe('Integrations Component', () => {
       const uninstallOption = await screen.findByRole('menuitem', { name: /uninstall/i })
       await user.click(uninstallOption)
 
+      // Check the acknowledgement checkbox before clicking Delete
+      await user.click(screen.getByRole('checkbox'))
+
       // Click Delete button in dialog
       const deleteButton = await screen.findByRole('button', { name: 'Delete' })
       await user.click(deleteButton)
@@ -1117,6 +1127,9 @@ describe('Integrations Component', () => {
       const uninstallOption = await screen.findByRole('menuitem', { name: /uninstall/i })
       await user.click(uninstallOption)
 
+      // Check the acknowledgement checkbox before clicking Delete
+      await user.click(screen.getByRole('checkbox'))
+
       // Click Delete
       const deleteButton = await screen.findByRole('button', { name: 'Delete' })
       await user.click(deleteButton)
@@ -1153,6 +1166,9 @@ describe('Integrations Component', () => {
       await user.click(actionButtons[0])
       const uninstallOption = await screen.findByRole('menuitem', { name: /uninstall/i })
       await user.click(uninstallOption)
+
+      // Check the acknowledgement checkbox before clicking Delete
+      await user.click(screen.getByRole('checkbox'))
 
       // Click Delete
       const deleteButton = await screen.findByRole('button', { name: 'Delete' })

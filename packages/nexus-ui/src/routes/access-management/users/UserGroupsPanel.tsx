@@ -198,6 +198,43 @@ function getGroupActions(group: Group, onRemove: (g: GroupInfo) => void): IActio
   ]
 }
 
+function removeMemberFromGroup(opts: {
+  groupToRemove: GroupInfo | null
+  userId: string
+  removeMember: (
+    params: { params: { path: { group_id: string; user_id: string } } },
+    callbacks: Record<string, unknown>
+  ) => void
+  showAlert: (alert: { title: string; description: string; variant: 'success' | 'error'; autoDismiss: boolean }) => void
+  refetch: () => Promise<unknown>
+  setGroupToRemove: (g: GroupInfo | null) => void
+}) {
+  if (!opts.groupToRemove) return
+  opts.removeMember(
+    { params: { path: { group_id: opts.groupToRemove.id, user_id: opts.userId } } },
+    {
+      onSuccess: () => {
+        opts.showAlert({
+          title: 'Removed from group',
+          description: `User has been removed from group "${opts.groupToRemove!.name}".`,
+          variant: 'success',
+          autoDismiss: true,
+        })
+        detachPromise(opts.refetch())
+      },
+      onError: (err: unknown) => {
+        opts.showAlert({
+          title: 'Failed to remove from group',
+          description: getErrorMessage(err),
+          variant: 'error',
+          autoDismiss: true,
+        })
+      },
+      onSettled: () => opts.setGroupToRemove(null),
+    }
+  )
+}
+
 export function UserGroupsPanel({ userId }: Readonly<UserGroupsPanelProps>) {
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [groupToRemove, setGroupToRemove] = useState<GroupInfo | null>(null)
@@ -210,12 +247,10 @@ export function UserGroupsPanel({ userId }: Readonly<UserGroupsPanelProps>) {
     setAllFilters(newFilters)
     setPage(1)
   }
-
   const handlePerPageChange = (newPerPage: number) => {
     setPerPage(newPerPage)
     setPage(1)
   }
-
   const query = accessClient.useQuery('get', '/users/{user_id}/groups', {
     params: { path: { user_id: userId } },
   })
@@ -240,33 +275,15 @@ export function UserGroupsPanel({ userId }: Readonly<UserGroupsPanelProps>) {
   }, [filteredGroups, page, perPage])
 
   const { mutate: removeMember } = accessClient.useMutation('delete', '/groups/{group_id}/members/{user_id}')
-
-  const handleRemove = () => {
-    if (!groupToRemove) return
-    removeMember(
-      { params: { path: { group_id: groupToRemove.id, user_id: userId } } },
-      {
-        onSuccess: () => {
-          showAlert({
-            title: 'Removed from group',
-            description: `User has been removed from group "${groupToRemove.name}".`,
-            variant: 'success',
-            autoDismiss: true,
-          })
-          detachPromise(query.refetch())
-        },
-        onError: (err: unknown) => {
-          showAlert({
-            title: 'Failed to remove from group',
-            description: getErrorMessage(err),
-            variant: 'error',
-            autoDismiss: true,
-          })
-        },
-        onSettled: () => setGroupToRemove(null),
-      }
-    )
-  }
+  const handleRemove = () =>
+    removeMemberFromGroup({
+      groupToRemove,
+      userId,
+      removeMember,
+      showAlert,
+      refetch: query.refetch,
+      setGroupToRemove,
+    })
 
   const queryState = useQueryState(query, {
     title: 'Error loading groups',
@@ -393,12 +410,13 @@ export function UserGroupsPanel({ userId }: Readonly<UserGroupsPanelProps>) {
         isOpen={!!groupToRemove}
         onClose={() => setGroupToRemove(null)}
         onConfirm={handleRemove}
-        title="Remove from group"
+        title="Remove from group?"
         confirmLabel="Remove"
         confirmVariant="danger"
         titleIconVariant="warning"
       >
-        Are you sure you want to remove this user from group &quot;{groupToRemove?.name}&quot;?
+        This removes the user from group <strong>{groupToRemove?.name}</strong>. They will lose any permissions granted
+        through this group membership.
       </ConfirmationDialog>
     </>
   )

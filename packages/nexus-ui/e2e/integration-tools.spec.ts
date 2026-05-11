@@ -61,7 +61,8 @@ async function deleteIntegration(app: Page, integrationName: string) {
     await expect(kebabButton).toBeVisible()
     await kebabButton.click()
     await app.getByRole('menuitem', { name: /Uninstall|Delete/i }).click()
-    await app.getByRole('button', { name: 'Delete' }).click()
+    await app.getByRole('dialog').getByRole('checkbox').click()
+    await app.getByRole('dialog').getByRole('button', { name: 'Delete' }).click()
     await expect(row).toHaveCount(0)
   }
 }

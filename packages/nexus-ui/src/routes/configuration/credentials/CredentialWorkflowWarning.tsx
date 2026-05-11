@@ -1,4 +1,4 @@
-import { Alert, Content, ContentVariants, List, ListItem } from '@patternfly/react-core'
+import { Alert, Badge, Content, ContentVariants, List, ListItem } from '@patternfly/react-core'
 
 import type { CredentialWorkflowRef } from './credentialConstants'
 
@@ -25,12 +25,9 @@ export function CredentialWorkflowWarning({
       {hasWorkflows && (
         <>
           <Content component={ContentVariants.p}>
-            {'This credential is currently used by '}
-            <strong>
-              {affectedWorkflows.length} workflow{affectedWorkflows.length === 1 ? '' : 's'}
-            </strong>
-            {`. ${consequenceText}`}
+            Workflows <Badge isRead>{affectedWorkflows.length}</Badge>
           </Content>
+          <Content component={ContentVariants.p}>{consequenceText}</Content>
           <List>
             {affectedWorkflows.map((wf) => (
               <ListItem key={wf.id}>{wf.name}</ListItem>

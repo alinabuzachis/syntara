@@ -218,9 +218,13 @@ export function ProjectPoliciesTab({ projectId }: Readonly<{ projectId: string }
         confirmLabel="Delete"
         confirmVariant="danger"
         titleIconVariant="warning"
+        destructiveAcknowledgement={{
+          checkboxId: 'delete-policy-ack',
+          label: 'I understand this policy will be permanently deleted.',
+        }}
       >
-        Permanently delete policy <strong>{deleteDialog.item?.name}</strong>? Any roles using this policy will lose its
-        permissions.
+        The policy <strong>{deleteDialog.item?.name}</strong> will be deleted. Any roles using this policy will lose its
+        permissions. This cannot be undone.
       </ConfirmationDialog>
     </>
   )

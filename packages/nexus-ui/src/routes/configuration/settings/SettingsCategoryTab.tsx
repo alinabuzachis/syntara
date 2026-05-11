@@ -119,7 +119,7 @@ export function SettingsCategoryTab({
         isOpen={resetDialog.isOpen}
         onClose={resetDialog.close}
         onConfirm={handleResetAll}
-        title="Reset settings"
+        title="Reset settings?"
         titleIconVariant="warning"
         confirmLabel="Reset all"
         confirmVariant="danger"

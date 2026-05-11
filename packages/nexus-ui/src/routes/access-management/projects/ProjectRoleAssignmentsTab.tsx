@@ -389,12 +389,13 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAss
         isOpen={!!rowToUnassign}
         onClose={() => setRowToUnassign(null)}
         onConfirm={handleUnassign}
-        title="Unassign role"
+        title="Unassign role?"
         confirmLabel="Unassign"
         confirmVariant="danger"
+        titleIconVariant="warning"
       >
-        Are you sure you want to unassign role &quot;{rowToUnassign?.roleName}&quot; from {rowToUnassign?.principalName}
-        ?
+        This unassigns the role <strong>{rowToUnassign?.roleName}</strong> from{' '}
+        <strong>{rowToUnassign?.principalName}</strong>. Related permissions will be revoked.
       </ConfirmationDialog>
     </>
   )

@@ -342,7 +342,9 @@ describe('Credentials', () => {
     await user.click(switches[0])
 
     await screen.findByText('My Workflow')
-    expect(screen.getByText(/1 workflow/)).toBeInTheDocument()
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByText('Workflows')).toBeInTheDocument()
+    expect(within(dialog).getByText('1')).toBeInTheDocument()
   })
 
   it('enables credential directly without dialog', async () => {
@@ -438,9 +440,11 @@ describe('Credentials', () => {
     await user.click(deleteItem)
 
     expect(screen.getByText('Delete credential?')).toBeInTheDocument()
-    expect(screen.getByText(/This action cannot be undone/)).toBeInTheDocument()
+    expect(screen.getByText(/This cannot be undone/)).toBeInTheDocument()
 
     const dialog = screen.getByRole('dialog')
+    // Check the acknowledgement checkbox before clicking Delete
+    await user.click(within(dialog).getByRole('checkbox'))
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
     expect(mockMutate).toHaveBeenCalled()
   })
@@ -465,6 +469,8 @@ describe('Credentials', () => {
     await user.click(deleteItem)
 
     const dialog = screen.getByRole('dialog')
+    // Check the acknowledgement checkbox before clicking Delete
+    await user.click(within(dialog).getByRole('checkbox'))
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
     expect(mockMutate).toHaveBeenCalled()
   })

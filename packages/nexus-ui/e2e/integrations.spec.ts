@@ -35,7 +35,8 @@ test('user configures an integration and verifies it appears', async ({ app }) =
         .first()
         .click({ force: true })
       await app.getByRole('menuitem', { name: /Uninstall/i }).click()
-      await app.getByRole('button', { name: 'Delete' }).click()
+      await app.getByRole('dialog').getByRole('checkbox').click()
+      await app.getByRole('dialog').getByRole('button', { name: 'Delete' }).click()
     }
   }
 })

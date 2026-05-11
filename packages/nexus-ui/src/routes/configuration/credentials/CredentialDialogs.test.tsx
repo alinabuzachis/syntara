@@ -69,13 +69,14 @@ describe('DisableCredentialDialog', () => {
       />
     )
 
-    expect(screen.getByText(/2 workflows/)).toBeInTheDocument()
+    expect(screen.getByText('Workflows')).toBeInTheDocument()
+    expect(screen.getByText('2')).toBeInTheDocument()
     expect(screen.getByText('Workflow One')).toBeInTheDocument()
     expect(screen.getByText('Workflow Two')).toBeInTheDocument()
     expect(screen.getByText(/You can re-enable/)).toBeInTheDocument()
   })
 
-  it('shows singular workflow text when only one workflow affected', () => {
+  it('shows badge count when only one workflow affected', () => {
     render(
       <DisableCredentialDialog
         credential={mockCredential}
@@ -87,8 +88,8 @@ describe('DisableCredentialDialog', () => {
       />
     )
 
-    expect(screen.getByText(/1 workflow/)).toBeInTheDocument()
-    expect(screen.queryByText(/1 workflows/)).not.toBeInTheDocument()
+    expect(screen.getByText('Workflows')).toBeInTheDocument()
+    expect(screen.getByText('1')).toBeInTheDocument()
   })
 
   it('shows warning when workflowsFetchError is true', () => {
@@ -184,7 +185,7 @@ describe('DisableCredentialDialog', () => {
       />
     )
 
-    expect(screen.queryByText(/currently used by/)).not.toBeInTheDocument()
+    expect(screen.queryByText('Workflows')).not.toBeInTheDocument()
     expect(screen.queryByRole('list')).not.toBeInTheDocument()
   })
 
@@ -286,7 +287,39 @@ describe('DisableCredentialDialog', () => {
     )
 
     expect(screen.getByText(/Checking for workflows/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Disable' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /Disable/i })).toBeDisabled()
+  })
+
+  it('disables Disable button when both isLoading and isLoadingWorkflows are true', () => {
+    render(
+      <DisableCredentialDialog
+        credential={mockCredential}
+        affectedWorkflows={[]}
+        workflowsFetchError={false}
+        isLoadingWorkflows={true}
+        isLoading={true}
+        onConfirm={vi.fn()}
+        onClose={vi.fn()}
+      />
+    )
+
+    expect(screen.getByRole('button', { name: /Disable/i })).toBeDisabled()
+  })
+
+  it('enables Disable button when isLoading is explicitly false and not loading workflows', () => {
+    render(
+      <DisableCredentialDialog
+        credential={mockCredential}
+        affectedWorkflows={[]}
+        workflowsFetchError={false}
+        isLoadingWorkflows={false}
+        isLoading={false}
+        onConfirm={vi.fn()}
+        onClose={vi.fn()}
+      />
+    )
+
+    expect(screen.getByRole('button', { name: 'Disable' })).toBeEnabled()
   })
 })
 
@@ -309,10 +342,11 @@ describe('DeleteCredentialDialog', () => {
 
     expect(screen.getByText('Delete credential?')).toBeInTheDocument()
     expect(screen.getByText(/Test Credential/)).toBeInTheDocument()
-    expect(screen.getByText(/This action cannot be undone/)).toBeInTheDocument()
+    expect(screen.getByText(/This cannot be undone/)).toBeInTheDocument()
   })
 
-  it('warns but allows deletion when workflows reference the credential', () => {
+  it('warns but allows deletion when workflows reference the credential', async () => {
+    const user = userEvent.setup()
     const workflows = [
       { id: 'wf-1', name: 'Deploy Pipeline' },
       { id: 'wf-2', name: 'Health Check' },
@@ -322,6 +356,9 @@ describe('DeleteCredentialDialog', () => {
     expect(screen.getByText(/will cause these workflows to fail/)).toBeInTheDocument()
     expect(screen.getByText('Deploy Pipeline')).toBeInTheDocument()
     expect(screen.getByText('Health Check')).toBeInTheDocument()
+    // Delete button is disabled until checkbox is checked
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled()
+    await user.click(screen.getByRole('checkbox'))
     expect(screen.getByRole('button', { name: 'Delete' })).toBeEnabled()
   })
 
@@ -331,6 +368,7 @@ describe('DeleteCredentialDialog', () => {
 
     render(<DeleteCredentialDialog credential={mockCredential} {...defaultDeleteProps} onConfirm={mockOnConfirm} />)
 
+    await user.click(screen.getByRole('checkbox'))
     await user.click(screen.getByRole('button', { name: 'Delete' }))
     expect(mockOnConfirm).toHaveBeenCalledTimes(1)
   })
@@ -349,7 +387,20 @@ describe('DeleteCredentialDialog', () => {
     render(<DeleteCredentialDialog credential={mockCredential} {...defaultDeleteProps} isLoadingWorkflows={true} />)
 
     expect(screen.getByText(/Checking for workflows/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /Delete/ })).toBeDisabled()
+  })
+
+  it('disables Delete button when isLoading is true and isLoadingWorkflows is false', () => {
+    render(
+      <DeleteCredentialDialog
+        credential={mockCredential}
+        {...defaultDeleteProps}
+        isLoading={true}
+        isLoadingWorkflows={false}
+      />
+    )
+
+    expect(screen.getByRole('button', { name: /Delete/ })).toBeDisabled()
   })
 
   it('shows warning when workflowsFetchError is true', () => {
@@ -358,7 +409,7 @@ describe('DeleteCredentialDialog', () => {
     expect(screen.getByText(/Unable to check which workflows/)).toBeInTheDocument()
   })
 
-  it('shows singular workflow text when only one workflow affected', () => {
+  it('shows badge count when only one workflow affected', () => {
     render(
       <DeleteCredentialDialog
         credential={mockCredential}
@@ -367,13 +418,19 @@ describe('DeleteCredentialDialog', () => {
       />
     )
 
-    expect(screen.getByText(/1 workflow/)).toBeInTheDocument()
-    expect(screen.queryByText(/1 workflows/)).not.toBeInTheDocument()
+    expect(screen.getByText('Workflows')).toBeInTheDocument()
+    expect(screen.getByText('1')).toBeInTheDocument()
   })
 
-  it('enables buttons when neither loading workflows nor deleting', () => {
+  it('enables buttons when neither loading workflows nor deleting', async () => {
+    const user = userEvent.setup()
     render(<DeleteCredentialDialog credential={mockCredential} {...defaultDeleteProps} />)
 
+    // Delete button is disabled until checkbox is checked
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeEnabled()
+
+    await user.click(screen.getByRole('checkbox'))
     expect(screen.getByRole('button', { name: 'Delete' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeEnabled()
   })
@@ -427,5 +484,58 @@ describe('DeleteCredentialDialog', () => {
 
     const results = await axe(container)
     expect(results).toHaveNoViolations()
+  })
+
+  it('disables Delete button when isLoading is true but isLoadingWorkflows is false', () => {
+    render(
+      <DeleteCredentialDialog
+        credential={mockCredential}
+        {...defaultDeleteProps}
+        isLoading={true}
+        isLoadingWorkflows={false}
+      />
+    )
+
+    expect(screen.getByRole('button', { name: /Delete/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled()
+  })
+
+  it('disables Delete button when both isLoading and isLoadingWorkflows are true', () => {
+    render(
+      <DeleteCredentialDialog
+        credential={mockCredential}
+        {...defaultDeleteProps}
+        isLoading={true}
+        isLoadingWorkflows={true}
+      />
+    )
+
+    expect(screen.getByRole('button', { name: /Delete/ })).toBeDisabled()
+  })
+
+  it('shows acknowledgement checkbox text', () => {
+    render(<DeleteCredentialDialog credential={mockCredential} {...defaultDeleteProps} />)
+
+    expect(
+      screen.getByRole('checkbox', { name: 'I understand this credential will be permanently deleted.' })
+    ).toBeInTheDocument()
+  })
+
+  it('enables Delete button (after checkbox) when both isLoading and isLoadingWorkflows are explicitly false', async () => {
+    const user = userEvent.setup()
+    render(
+      <DeleteCredentialDialog
+        credential={mockCredential}
+        {...defaultDeleteProps}
+        isLoading={false}
+        isLoadingWorkflows={false}
+      />
+    )
+
+    // Delete button is disabled until checkbox is checked
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled()
+    await user.click(screen.getByRole('checkbox'))
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeEnabled()
   })
 })

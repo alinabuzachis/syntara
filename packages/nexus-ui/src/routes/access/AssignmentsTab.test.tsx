@@ -384,7 +384,7 @@ describe('AssignmentsTab', () => {
       await user.click(deleteOption)
 
       await waitFor(() => {
-        expect(screen.getByText(/This will revoke the associated permissions/)).toBeInTheDocument()
+        expect(screen.getByText(/The associated permissions will be revoked/)).toBeInTheDocument()
       })
     })
 

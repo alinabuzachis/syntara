@@ -392,12 +392,19 @@ export function IdentityProviderDetail() {
         isOpen={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
         onConfirm={() => handleDelete(providerData)}
-        title="Delete identity provider"
+        title="Delete identity provider?"
         confirmLabel="Delete"
         confirmVariant="danger"
+        titleIconVariant="warning"
+        destructiveAcknowledgement={{
+          checkboxId: 'delete-idp-detail-ack',
+          label: 'I understand this identity provider and its linked identities will be permanently deleted.',
+        }}
       >
         <Stack hasGutter>
-          <StackItem>Are you sure you want to delete &quot;{providerData.name}&quot;?</StackItem>
+          <StackItem>
+            The identity provider <strong>{providerData.name}</strong> will be deleted. This cannot be undone.
+          </StackItem>
           <StackItem>This will immediately:</StackItem>
           <StackItem>
             <ul style={{ paddingLeft: 'var(--pf-t--global--spacer--lg)', margin: 0 }}>
@@ -405,9 +412,6 @@ export function IdentityProviderDetail() {
               <li>Revoke active sessions authenticated via this provider</li>
               <li>Prevent users from signing in with this provider</li>
             </ul>
-          </StackItem>
-          <StackItem>
-            <strong>This action cannot be undone.</strong>
           </StackItem>
         </Stack>
       </ConfirmationDialog>

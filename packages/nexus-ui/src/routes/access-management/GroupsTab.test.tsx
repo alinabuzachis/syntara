@@ -509,7 +509,7 @@ describe('GroupsTab Component', () => {
       await user.click(deleteOption)
 
       await waitFor(() => {
-        expect(screen.getByText('Delete group')).toBeInTheDocument()
+        expect(screen.getByText('Delete group?')).toBeInTheDocument()
       })
     })
   })
@@ -541,6 +541,9 @@ describe('GroupsTab Component', () => {
       await user.click(actionButtons[0])
       const deleteOption = await screen.findByRole('menuitem', { name: /delete/i })
       await user.click(deleteOption)
+
+      // Check the acknowledgement checkbox before clicking Delete
+      await user.click(screen.getByRole('checkbox'))
 
       // Click Delete button in dialog
       const deleteButton = await screen.findByRole('button', { name: 'Delete' })
@@ -579,6 +582,9 @@ describe('GroupsTab Component', () => {
       const deleteOption = await screen.findByRole('menuitem', { name: /delete/i })
       await user.click(deleteOption)
 
+      // Check the acknowledgement checkbox before clicking Delete
+      await user.click(screen.getByRole('checkbox'))
+
       // Click Delete
       const deleteButton = await screen.findByRole('button', { name: 'Delete' })
       await user.click(deleteButton)
@@ -592,7 +598,7 @@ describe('GroupsTab Component', () => {
 
       // Dialog should close
       await waitFor(() => {
-        expect(screen.queryByText('Delete group')).not.toBeInTheDocument()
+        expect(screen.queryByText('Delete group?')).not.toBeInTheDocument()
       })
       expect(mockRefetch).toHaveBeenCalled()
     })
@@ -614,6 +620,9 @@ describe('GroupsTab Component', () => {
       const deleteOption = await screen.findByRole('menuitem', { name: /delete/i })
       await user.click(deleteOption)
 
+      // Check the acknowledgement checkbox before clicking Delete
+      await user.click(screen.getByRole('checkbox'))
+
       // Click Delete
       const deleteButton = await screen.findByRole('button', { name: 'Delete' })
       await user.click(deleteButton)
@@ -630,7 +639,7 @@ describe('GroupsTab Component', () => {
 
       // Dialog should close
       await waitFor(() => {
-        expect(screen.queryByText('Delete group')).not.toBeInTheDocument()
+        expect(screen.queryByText('Delete group?')).not.toBeInTheDocument()
       })
     })
 
@@ -646,7 +655,7 @@ describe('GroupsTab Component', () => {
 
       // Verify dialog is open
       await waitFor(() => {
-        expect(screen.getByText('Delete group')).toBeInTheDocument()
+        expect(screen.getByText('Delete group?')).toBeInTheDocument()
       })
 
       // Click Cancel

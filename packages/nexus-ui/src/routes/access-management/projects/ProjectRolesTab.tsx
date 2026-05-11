@@ -268,9 +268,13 @@ export function ProjectRolesTab({ projectId }: Readonly<{ projectId: string }>) 
         confirmLabel="Delete"
         confirmVariant="danger"
         titleIconVariant="warning"
+        destructiveAcknowledgement={{
+          checkboxId: 'delete-role-ack',
+          label: 'I understand this role will be permanently deleted.',
+        }}
       >
-        Permanently delete role <strong>{deleteDialog.item?.name}</strong>? Any assignments using this role will lose
-        access.
+        The role <strong>{deleteDialog.item?.name}</strong> will be deleted. Assignments that use this role will lose
+        access. This cannot be undone.
       </ConfirmationDialog>
     </>
   )

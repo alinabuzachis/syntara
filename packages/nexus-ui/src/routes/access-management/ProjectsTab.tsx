@@ -1,14 +1,4 @@
-import {
-  Button,
-  Flex,
-  FlexItem,
-  Modal,
-  ModalBody,
-  ModalFooter,
-  ModalHeader,
-  StackItem,
-  Truncate,
-} from '@patternfly/react-core'
+import { Button, Flex, FlexItem, StackItem, Truncate } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
@@ -17,6 +7,7 @@ import { navigate } from 'wouter/use-browser-location'
 
 import { AppPageMain } from '../../app/AppPage'
 import { AppRoute } from '../../app/AppRoute'
+import { ConfirmationDialog } from '../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters/FilterBar'
@@ -138,18 +129,21 @@ function DeleteProjectDialog({
   onDelete: () => void
 }>) {
   return (
-    <Modal isOpen={isOpen} onClose={onClose} variant="small">
-      <ModalHeader title="Delete project" />
-      <ModalBody>Are you sure you want to delete &quot;{project?.name}&quot;? This action cannot be undone.</ModalBody>
-      <ModalFooter>
-        <Button variant="danger" onClick={onDelete}>
-          Delete
-        </Button>
-        <Button variant="link" onClick={onClose}>
-          Cancel
-        </Button>
-      </ModalFooter>
-    </Modal>
+    <ConfirmationDialog
+      isOpen={isOpen}
+      onClose={onClose}
+      onConfirm={onDelete}
+      title="Delete project?"
+      confirmLabel="Delete"
+      confirmVariant="danger"
+      titleIconVariant="warning"
+      destructiveAcknowledgement={{
+        checkboxId: 'delete-project-ack',
+        label: 'I understand this project will be permanently deleted.',
+      }}
+    >
+      The project <strong>{project?.name}</strong> will be deleted. This cannot be undone.
+    </ConfirmationDialog>
   )
 }
 

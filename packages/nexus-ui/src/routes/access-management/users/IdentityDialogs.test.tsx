@@ -112,13 +112,13 @@ describe('IdentityDialogs', () => {
     it('does not render when identityToDetach is null', () => {
       renderDialogs({ identityToDetach: null })
 
-      expect(screen.queryByText('Disconnect identity')).not.toBeInTheDocument()
+      expect(screen.queryByText('Disconnect identity?')).not.toBeInTheDocument()
     })
 
     it('renders identity details when identityToDetach is set', () => {
       renderDialogs({ identityToDetach: mockIdentity })
 
-      expect(screen.getByText('Disconnect identity')).toBeInTheDocument()
+      expect(screen.getByText('Disconnect identity?')).toBeInTheDocument()
       expect(screen.getByText('Azure')).toBeInTheDocument()
       expect(screen.getByText('https://login.example.com')).toBeInTheDocument()
       expect(screen.getByText('sub-abc')).toBeInTheDocument()

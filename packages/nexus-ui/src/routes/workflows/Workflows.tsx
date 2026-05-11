@@ -352,7 +352,7 @@ export default function Workflows() {
         isOpen={deleteDialog.isOpen}
         onClose={deleteDialog.close}
         onConfirm={handleDeleteWorkflow}
-        title={`Delete workflow "${deleteDialog.item?.name ?? ''}"?`}
+        title="Delete workflow?"
         confirmLabel="Delete"
         confirmVariant="danger"
         titleIconVariant="warning"
@@ -364,8 +364,7 @@ export default function Workflows() {
       >
         <Stack hasGutter>
           <StackItem>
-            You are about to permanently delete this workflow. This action cannot be reversed. After deletion, the
-            following will occur:
+            The workflow <strong>{deleteDialog.item?.name}</strong> will be deleted. This cannot be undone.
           </StackItem>
           <StackItem>
             <List>
