@@ -17,25 +17,30 @@ from nexus.audit.emitter import (
 from nexus.audit.events.audit_context import AuditContextEvent
 from nexus.audit.models.audit_event import ActorType, EventCategory, EventSeverity
 from nexus.audit.models.structured_data import AuditContextData
-from nexus.audit.utils import escalate_severity
+from nexus.audit.utils import escalate_actor_type, escalate_severity
+from nexus.core.config.base import get_settings
 from nexus.core.models.user import User
 
 _RESERVED_AUDIT_FIELDS = frozenset(AuditContextData.model_fields.keys())
+
+settings = get_settings()
 
 
 def _build_actor_context(actor: User | None) -> AuditActorContext:
     """Build an AuditActorContext from a User or fall back to SYSTEM.
 
     When *actor* is a ``User``, fields are extracted atomically to guarantee
-    integrity (prevents mismatched id/username pairs).  When *actor* is
-    ``None``, the actor type is set to ``ActorType.SYSTEM`` with no actor
-    identity.
+    integrity (prevents mismatched id/username pairs). The actor type is
+    determined by comparing the user ID against the system user ID from settings.
+    When *actor* is ``None``, the actor type is set to ``ActorType.SYSTEM`` with
+    no actor identity.
     """
     if actor is not None:
+        actor_type = escalate_actor_type(actor.id)
         return AuditActorContext(
             actor_id=actor.id,
             actor_username=actor.username,
-            actor_type=ActorType.USER,
+            actor_type=actor_type,
         )
     return AuditActorContext(
         actor_id=None,

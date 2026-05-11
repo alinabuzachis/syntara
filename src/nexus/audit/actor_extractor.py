@@ -6,10 +6,13 @@ from typing import Any
 import structlog
 
 from nexus.audit.emitter import AuditActorContext, actor_context_var
-from nexus.audit.models.audit_event import ActorType
+from nexus.audit.utils import escalate_actor_type
+from nexus.core.config.base import get_settings
 from nexus.core.models.user import User
 
 logger = structlog.stdlib.get_logger(__name__)
+
+settings = get_settings()
 
 
 def _try_fastapi_dependency_extraction(kwargs: dict[str, Any]) -> Any:  # noqa: ANN401
@@ -112,29 +115,32 @@ def extract_actor(
     # Strategy 2: FastAPI dependency injection
     fastapi_value = _try_fastapi_dependency_extraction(kwargs)
     if isinstance(fastapi_value, User):
+        actor_type = escalate_actor_type(fastapi_value.id)
         return AuditActorContext(
             actor_id=fastapi_value.id,
             actor_username=fastapi_value.username,
-            actor_type=ActorType.USER,
+            actor_type=actor_type,
         )
 
     # Strategy 3: Explicit parameter specification
     if actor_param is not None:
         actor_value = _extract_from_param(signature, args, kwargs, actor_param)
         if isinstance(actor_value, User):
+            actor_type = escalate_actor_type(actor_value.id)
             return AuditActorContext(
                 actor_id=actor_value.id,
                 actor_username=actor_value.username,
-                actor_type=ActorType.USER,
+                actor_type=actor_type,
             )
 
     # Strategy 4: Auto-detect common parameter patterns
     auto_detected_value = _auto_detect_actor_params(signature, args, kwargs)
     if isinstance(auto_detected_value, User):
+        actor_type = escalate_actor_type(auto_detected_value.id)
         return AuditActorContext(
             actor_id=auto_detected_value.id,
             actor_username=auto_detected_value.username,
-            actor_type=ActorType.USER,
+            actor_type=actor_type,
         )
 
     # Return empty context if no actor found

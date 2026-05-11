@@ -531,6 +531,86 @@ class TestAuditMiddlewareUserContext:
         assert events[0].actor_type == "system"
         assert events[0].actor_username is None
 
+    @pytest.mark.asyncio
+    async def test_service_token_classified_as_system_actor(self) -> None:
+        """JWT with amr=['service'] is classified as SYSTEM actor type."""
+        app = _make_app(status_code=200)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
+
+        # Create JWT token with service authentication method reference
+        import jwt
+
+        user_id = "550e8400-e29b-41d4-a716-446655440000"
+        claims = {
+            "sub": user_id,
+            "preferred_username": "service-account",
+            "amr": ["service"],
+        }
+        auth_token = jwt.encode(claims, key="", algorithm="none")
+        scope = _make_scope(path="/api/v1/workflows", auth_token=auth_token)
+
+        with patch(_EMIT_PATCH) as mock_emit:
+            await middleware(scope, AsyncMock(), AsyncMock())
+
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert len(events) == 1
+        assert str(events[0].actor_id) == user_id
+        assert events[0].actor_type == "system"
+        assert events[0].actor_username == "service-account"
+
+    @pytest.mark.asyncio
+    async def test_user_token_with_amr_pwd_classified_as_user_actor(self) -> None:
+        """JWT with amr=['pwd'] is classified as USER actor type."""
+        app = _make_app(status_code=200)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
+
+        # Create JWT token with password authentication method reference
+        import jwt
+
+        user_id = "550e8400-e29b-41d4-a716-446655440001"
+        claims = {
+            "sub": user_id,
+            "preferred_username": "regular-user",
+            "amr": ["pwd"],
+        }
+        auth_token = jwt.encode(claims, key="", algorithm="none")
+        scope = _make_scope(path="/api/v1/workflows", auth_token=auth_token)
+
+        with patch(_EMIT_PATCH) as mock_emit:
+            await middleware(scope, AsyncMock(), AsyncMock())
+
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert len(events) == 1
+        assert str(events[0].actor_id) == user_id
+        assert events[0].actor_type == "user"
+        assert events[0].actor_username == "regular-user"
+
+    @pytest.mark.asyncio
+    async def test_token_without_amr_defaults_to_user_actor(self) -> None:
+        """JWT without amr claim defaults to USER actor type."""
+        app = _make_app(status_code=200)
+        middleware = AuditMiddleware(app, _make_fastapi_app())
+
+        # Create JWT token without amr claim
+        import jwt
+
+        user_id = "550e8400-e29b-41d4-a716-446655440002"
+        claims = {
+            "sub": user_id,
+            "preferred_username": "no-amr-user",
+        }
+        auth_token = jwt.encode(claims, key="", algorithm="none")
+        scope = _make_scope(path="/api/v1/workflows", auth_token=auth_token)
+
+        with patch(_EMIT_PATCH) as mock_emit:
+            await middleware(scope, AsyncMock(), AsyncMock())
+
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert len(events) == 1
+        assert str(events[0].actor_id) == user_id
+        assert events[0].actor_type == "user"
+        assert events[0].actor_username == "no-amr-user"
+
 
 # =============================================================================
 # AuditMiddleware - response logging

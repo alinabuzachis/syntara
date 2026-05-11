@@ -16,11 +16,13 @@ class ActorClaims:
     Attributes:
         actor_id: User UUID from 'sub' claim
         actor_username: Username from 'preferred_username' (with 'sub' fallback)
+        amr: Authentication methods reference (e.g., ["service"], ["pwd"])
 
     """
 
     actor_id: UUID | None
     actor_username: str | None
+    amr: list[str] | None
 
 
 def extract_actor_claims(claims: dict[str, Any]) -> ActorClaims:
@@ -29,6 +31,7 @@ def extract_actor_claims(claims: dict[str, Any]) -> ActorClaims:
     Canonical claim extraction strategy:
     - actor_id: 'sub' claim (converted to UUID)
     - actor_username: 'preferred_username' claim, fallback to 'sub'
+    - amr: 'amr' claim (authentication methods reference)
 
     Args:
         claims: Decoded JWT claims dictionary (verified or unverified)
@@ -43,7 +46,9 @@ def extract_actor_claims(claims: dict[str, Any]) -> ActorClaims:
 
         actor_username = claims.get("preferred_username") or claims.get("sub")
 
-        return ActorClaims(actor_id=actor_id, actor_username=actor_username)
+        amr = claims.get("amr") if isinstance(claims.get("amr"), list) else None
+
+        return ActorClaims(actor_id=actor_id, actor_username=actor_username, amr=amr)
     except (ValueError, TypeError):
         # Invalid UUID or malformed claims
-        return ActorClaims(actor_id=None, actor_username=None)
+        return ActorClaims(actor_id=None, actor_username=None, amr=None)

@@ -35,7 +35,7 @@ from nexus.audit.emitter import (
     workflow_id_context_var,
 )
 from nexus.audit.events.http_request import HTTPRequestEvent
-from nexus.audit.models.audit_event import ActorType
+from nexus.audit.utils import escalate_actor_type_from_jwt
 from nexus.core.auth.jwt_utils import extract_actor_claims
 
 logger = structlog.stdlib.get_logger(__name__)
@@ -212,10 +212,13 @@ class AuditMiddleware:
             actor_claims = extract_actor_claims(claims)
 
             if actor_claims.actor_id or actor_claims.actor_username:
+                # Determine actor type based on authentication method reference
+                # Service tokens (amr=["service"]) are SYSTEM, all others are USER
+                actor_type = escalate_actor_type_from_jwt(actor_claims)
                 return AuditActorContext(
                     actor_id=actor_claims.actor_id,
                     actor_username=actor_claims.actor_username,
-                    actor_type=ActorType.USER,
+                    actor_type=actor_type,
                 )
 
         except (jwt.DecodeError, ValueError, KeyError):

@@ -195,6 +195,115 @@ class TestActorContext:
         assert actor_context_var.get() is None
 
 
+class TestActorContextSystemUserClassification:
+    """Test system user classification in actor_context context manager."""
+
+    async def test_system_user_classified_as_system_actor(self, user_factory: Callable[..., Awaitable["User"]]) -> None:
+        """Test that user with id == settings.system_user_id is classified as SYSTEM in actor_context."""
+        from nexus.core.config.base import get_settings
+
+        settings = get_settings()
+        system_user = await user_factory(
+            username="system_user",
+            email="system@example.com",
+            id=settings.system_user_id,
+        )
+
+        with actor_context(actor=system_user):
+            _actor_context = actor_context_var.get()
+            assert _actor_context is not None
+            assert _actor_context.actor_id == settings.system_user_id
+            assert _actor_context.actor_username == "system_user"
+            assert _actor_context.actor_type == ActorType.SYSTEM
+
+        assert actor_context_var.get() is None
+
+    async def test_regular_user_classified_as_user_actor(self, test_user: User) -> None:
+        """Test that user with id != settings.system_user_id is classified as USER in actor_context."""
+        from nexus.core.config.base import get_settings
+
+        settings = get_settings()
+        # Verify test user is NOT the system user
+        assert test_user.id != settings.system_user_id
+
+        with actor_context(actor=test_user):
+            _actor_context = actor_context_var.get()
+            assert _actor_context is not None
+            assert _actor_context.actor_id == test_user.id
+            assert _actor_context.actor_username == test_user.username
+            assert _actor_context.actor_type == ActorType.USER
+
+        assert actor_context_var.get() is None
+
+
+class TestAuditContextSystemUserClassification:
+    """Test system user classification in audit_context context manager."""
+
+    def setup_method(self) -> None:
+        AuditEventDispatcher.reset()
+        AuditEventDispatcher.register({AuditContextEvent: AuditContextHandler()})
+
+    def teardown_method(self) -> None:
+        AuditEventDispatcher.reset()
+
+    @patch("nexus.audit.emitter._do_emit_audit_event")
+    async def test_system_user_classified_as_system_actor(
+        self, mock_emit: Mock, user_factory: Callable[..., Awaitable["User"]]
+    ) -> None:
+        """Test that user with id == settings.system_user_id is classified as SYSTEM in audit_context."""
+        from nexus.core.config.base import get_settings
+
+        settings = get_settings()
+        system_user = await user_factory(
+            username="system_user",
+            email="system@example.com",
+            id=settings.system_user_id,
+        )
+
+        with audit_context(
+            event_category=EventCategory.USER_ACTION,
+            event_action="test_action",
+            source_component="test.component",
+            actor=system_user,
+        ):
+            pass
+
+        mock_emit.assert_called_once()
+        emitted_event = mock_emit.call_args[0][0]
+
+        assert isinstance(emitted_event, AuditEvent)
+        assert emitted_event.actor_id == settings.system_user_id
+        assert emitted_event.actor_username == "system_user"
+        assert emitted_event.actor_type == ActorType.SYSTEM
+        assert emitted_event.event_status == EventStatus.SUCCESS
+
+    @patch("nexus.audit.emitter._do_emit_audit_event")
+    async def test_regular_user_classified_as_user_actor(self, mock_emit: Mock, test_user: User) -> None:
+        """Test that user with id != settings.system_user_id is classified as USER in audit_context."""
+        from nexus.core.config.base import get_settings
+
+        settings = get_settings()
+        # Verify test user is NOT the system user
+        assert test_user.id != settings.system_user_id
+
+        with audit_context(
+            event_category=EventCategory.USER_ACTION,
+            event_action="test_action",
+            source_component="test.component",
+            actor=test_user,
+        ):
+            pass
+
+        mock_emit.assert_called_once()
+        emitted_event = mock_emit.call_args[0][0]
+
+        assert isinstance(emitted_event, AuditEvent)
+        assert emitted_event.actor_id == test_user.id
+        assert emitted_event.actor_username == test_user.username
+        assert emitted_event.actor_type == ActorType.USER
+        assert emitted_event.event_status == EventStatus.SUCCESS
+
+
 class TestAuditContext:
     """Test the audit_context context manager."""
 
