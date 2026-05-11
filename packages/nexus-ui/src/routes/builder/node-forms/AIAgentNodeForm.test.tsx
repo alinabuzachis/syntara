@@ -22,6 +22,11 @@ vi.mock('../../../client', () => ({
       isPending: false,
     }),
   },
+  authMiddleware: { onRequest: vi.fn(({ request }: { request: unknown }) => request) },
+}))
+
+vi.mock('../../access/useAllProjects', () => ({
+  useAllProjects: () => ({ projects: [], isLoading: false, error: null, refetch: vi.fn() }),
 }))
 
 // Mock file upload hook

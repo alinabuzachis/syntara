@@ -540,7 +540,7 @@ export const pages: PageEntry[] = [
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {
-      // "Create credential" is disabled when "All projects" is selected — pick a project first
+      // Pick a project so the modal's Project dropdown is pre-populated
       await page.getByRole('textbox', { name: 'Project' }).click()
       await page.getByRole('option', { name: 'default' }).click()
       await page.getByRole('button', { name: /create credential/i }).click()

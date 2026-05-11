@@ -244,7 +244,7 @@ export default function Credentials() {
   return (
     <AppPage>
       <AppPageHeader title={<PageTitleWithProject title="Credentials" projectSelector={ProjectSelector} />}>
-        <Button variant="secondary" onClick={() => setCreateModalOpen(true)} isDisabled={!selectedProject}>
+        <Button variant="secondary" onClick={() => setCreateModalOpen(true)}>
           Create credential
         </Button>
       </AppPageHeader>

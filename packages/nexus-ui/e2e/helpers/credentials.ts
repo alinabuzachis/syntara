@@ -28,10 +28,8 @@ export async function goToCredentialsList(app: Page, options?: { ensureCreateEna
   const createBtn = app.getByRole('button', { name: 'Create credential' }).first()
   await createBtn.waitFor({ state: 'visible', timeout: 10_000 })
 
-  if (await createBtn.isDisabled()) {
-    await selectFirstProject(app)
-    await expect(createBtn).toBeEnabled({ timeout: 15_000 })
-  }
+  // Select a project so the Create Credential modal's Project field is pre-populated
+  await selectFirstProject(app)
 }
 
 /**

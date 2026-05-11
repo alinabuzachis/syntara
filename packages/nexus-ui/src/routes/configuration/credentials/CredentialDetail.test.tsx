@@ -19,11 +19,25 @@ vi.mock('../../../client', () => ({
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
+
+  authMiddleware: { onRequest: vi.fn(({ request }: { request: unknown }) => request) },
 }))
 
 vi.mock('wouter', () => ({
   useLocation: () => ['/configuration/credentials/1', mockNavigate],
   useParams: () => ({ credentialId: '1' }),
+}))
+
+vi.mock('../../access/useAllProjects', () => ({
+  useAllProjects: () => ({
+    projects: [
+      { id: 'proj-1', name: 'Project Alpha' },
+      { id: 'proj-2', name: 'Project Beta' },
+    ],
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
 }))
 
 vi.mock('./useDisableCredentialState', () => ({

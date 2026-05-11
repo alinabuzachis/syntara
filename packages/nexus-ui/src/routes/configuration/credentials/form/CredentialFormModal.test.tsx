@@ -3,9 +3,11 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { axe } from 'vitest-axe'
 
 import { credentialsClient } from '../../../../client'
 import { AlertProvider } from '../../../../providers/alerts'
+import { useAllProjects } from '../../../access/useAllProjects'
 
 import { CredentialFormModal } from './CredentialFormModal'
 
@@ -14,6 +16,10 @@ vi.mock('../../../../client', () => ({
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
+}))
+
+vi.mock('../../../access/useAllProjects', () => ({
+  useAllProjects: vi.fn(),
 }))
 
 const queryClient = new QueryClient({
@@ -54,6 +60,12 @@ const mockTypes = [
   },
 ]
 
+const mockProjects = [
+  { id: 'proj-1', name: 'Project Alpha' },
+  { id: 'proj-2', name: 'Project Beta' },
+  { id: 'proj-3', name: 'Project Gamma' },
+]
+
 const mockCredential = {
   id: 'cred-1',
   name: 'My Token',
@@ -83,6 +95,21 @@ describe('CredentialFormModal', () => {
     } as any)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(credentialsClient.useMutation).mockReturnValue({ mutate: mockMutate, isPending: false } as any)
+    const projectsMock = { projects: mockProjects, isLoading: false, error: null, refetch: vi.fn() }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
+    vi.mocked(useAllProjects).mockReturnValue(projectsMock as any)
+  })
+
+  it('has no accessibility violations in create mode', async () => {
+    const { container } = render(<CredentialFormModal isOpen onClose={vi.fn()} />, { wrapper })
+    expect(await axe(container)).toHaveNoViolations()
+  })
+
+  it('has no accessibility violations in edit mode', async () => {
+    const { container } = render(<CredentialFormModal isOpen onClose={vi.fn()} credentialToEdit={mockCredential} />, {
+      wrapper,
+    })
+    expect(await axe(container)).toHaveNoViolations()
   })
 
   it('renders create modal title when no credential provided', () => {
@@ -209,7 +236,7 @@ describe('CredentialFormModal', () => {
 
   it('calls create mutation with correct data', async () => {
     const user = userEvent.setup()
-    render(<CredentialFormModal isOpen onClose={vi.fn()} />, { wrapper })
+    render(<CredentialFormModal isOpen onClose={vi.fn()} defaultProjectId="proj-1" />, { wrapper })
 
     await user.type(screen.getByLabelText('Credential name'), 'New Token')
     await user.selectOptions(screen.getByLabelText('Credential type'), 'type-1')
@@ -221,6 +248,7 @@ describe('CredentialFormModal', () => {
     const callArgs = mockMutate.mock.calls[0][0]
     expect(callArgs).toHaveProperty('body.name', 'New Token')
     expect(callArgs).toHaveProperty('body.credential_type_id', 'type-1')
+    expect(callArgs).toHaveProperty('body.project_id', 'proj-1')
   })
 
   it('does not render when isOpen is false', () => {
@@ -249,7 +277,9 @@ describe('CredentialFormModal', () => {
     })
 
     const user = userEvent.setup()
-    render(<CredentialFormModal isOpen onClose={onClose} onSuccess={onSuccess} />, { wrapper })
+    render(<CredentialFormModal isOpen onClose={onClose} onSuccess={onSuccess} defaultProjectId="proj-1" />, {
+      wrapper,
+    })
 
     await user.type(screen.getByLabelText('Credential name'), 'New Token')
     await user.selectOptions(screen.getByLabelText('Credential type'), 'type-1')
@@ -302,7 +332,42 @@ describe('CredentialFormModal', () => {
     expect(screen.getByLabelText('Token', { selector: 'input' })).toBeInTheDocument()
   })
 
-  it('includes project_id in create payload when defaultProjectId is provided', async () => {
+  it('renders project dropdown in create mode', () => {
+    render(<CredentialFormModal isOpen onClose={vi.fn()} />, { wrapper })
+
+    const projectSelect = screen.getByLabelText('Credential project')
+    expect(projectSelect).toBeInTheDocument()
+    expect(within(projectSelect).getByRole('option', { name: 'Project Alpha' })).toBeInTheDocument()
+    expect(within(projectSelect).getByRole('option', { name: 'Project Beta' })).toBeInTheDocument()
+    expect(within(projectSelect).getByRole('option', { name: 'Project Gamma' })).toBeInTheDocument()
+  })
+
+  it('pre-selects project when defaultProjectId is provided', () => {
+    render(<CredentialFormModal isOpen onClose={vi.fn()} defaultProjectId="proj-1" />, { wrapper })
+
+    expect(screen.getByLabelText('Credential project')).toHaveValue('proj-1')
+  })
+
+  it('shows placeholder when no defaultProjectId is provided', () => {
+    render(<CredentialFormModal isOpen onClose={vi.fn()} />, { wrapper })
+
+    expect(screen.getByLabelText('Credential project')).toHaveValue('')
+    expect(screen.getByText('Select a project')).toBeInTheDocument()
+  })
+
+  it('validates project field is required in create mode', async () => {
+    const user = userEvent.setup()
+    render(<CredentialFormModal isOpen onClose={vi.fn()} />, { wrapper })
+
+    await user.type(screen.getByLabelText('Credential name'), 'New Token')
+    await user.selectOptions(screen.getByLabelText('Credential type'), 'type-1')
+    await user.type(screen.getByLabelText('Token', { selector: 'input' }), 'my-secret-token')
+    await user.click(screen.getByRole('button', { name: 'Create credential' }))
+
+    expect(screen.getByText('Project is required')).toBeInTheDocument()
+  })
+
+  it('includes project_id from form in create payload', async () => {
     const user = userEvent.setup()
     render(<CredentialFormModal isOpen onClose={vi.fn()} defaultProjectId="proj-1" />, { wrapper })
 
@@ -317,19 +382,53 @@ describe('CredentialFormModal', () => {
     expect(callArgs).toHaveProperty('body.project_id', 'proj-1')
   })
 
-  it('includes project_id as undefined when defaultProjectId is not provided', async () => {
+  it('allows user to change project in create mode', async () => {
     const user = userEvent.setup()
-    render(<CredentialFormModal isOpen onClose={vi.fn()} />, { wrapper })
+    render(<CredentialFormModal isOpen onClose={vi.fn()} defaultProjectId="proj-1" />, { wrapper })
 
+    await user.selectOptions(screen.getByLabelText('Credential project'), 'proj-2')
     await user.type(screen.getByLabelText('Credential name'), 'New Token')
     await user.selectOptions(screen.getByLabelText('Credential type'), 'type-1')
     await user.type(screen.getByLabelText('Token', { selector: 'input' }), 'my-secret-token')
     await user.click(screen.getByRole('button', { name: 'Create credential' }))
 
     await waitFor(() => expect(mockMutate).toHaveBeenCalled())
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const callArgs = mockMutate.mock.calls[0][0]
+    expect(callArgs).toHaveProperty('body.project_id', 'proj-2')
+  })
 
-    const callArgs = mockMutate.mock.calls[0][0] as { body: Record<string, unknown> }
-    expect(callArgs.body).toHaveProperty('project_id')
+  it('disables project dropdown in edit mode', () => {
+    render(<CredentialFormModal isOpen onClose={vi.fn()} credentialToEdit={mockCredential} />, { wrapper })
+
+    expect(screen.getByLabelText('Credential project')).toBeDisabled()
+  })
+
+  it('shows credential project in edit mode', () => {
+    render(<CredentialFormModal isOpen onClose={vi.fn()} credentialToEdit={mockCredential} />, { wrapper })
+
+    expect(screen.getByLabelText('Credential project')).toHaveValue('proj-1')
+  })
+
+  it('shows loading state for projects', () => {
+    const loadingMock = { projects: [], isLoading: true, error: null, refetch: vi.fn() }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
+    vi.mocked(useAllProjects).mockReturnValue(loadingMock as any)
+
+    render(<CredentialFormModal isOpen onClose={vi.fn()} />, { wrapper })
+
+    expect(screen.getByText('Loading projects...')).toBeInTheDocument()
+    expect(screen.getByLabelText('Credential project')).toBeDisabled()
+  })
+
+  it('shows error when projects fail to load', () => {
+    const errorMock = { projects: [], isLoading: false, error: new Error('Network error'), refetch: vi.fn() }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
+    vi.mocked(useAllProjects).mockReturnValue(errorMock as any)
+
+    render(<CredentialFormModal isOpen onClose={vi.fn()} />, { wrapper })
+
+    expect(screen.getByText('Failed to load projects')).toBeInTheDocument()
   })
 
   it('calls onCreated with the new credential ID on successful create', async () => {
@@ -340,7 +439,9 @@ describe('CredentialFormModal', () => {
     })
 
     const user = userEvent.setup()
-    render(<CredentialFormModal isOpen onClose={onClose} onCreated={onCreated} />, { wrapper })
+    render(<CredentialFormModal isOpen onClose={onClose} onCreated={onCreated} defaultProjectId="proj-1" />, {
+      wrapper,
+    })
 
     await user.type(screen.getByLabelText('Credential name'), 'New Token')
     await user.selectOptions(screen.getByLabelText('Credential type'), 'type-1')

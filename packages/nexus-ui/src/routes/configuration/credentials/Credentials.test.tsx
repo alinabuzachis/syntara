@@ -24,12 +24,23 @@ vi.mock('../../../client', () => ({
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
+
+  authMiddleware: { onRequest: vi.fn(({ request }: { request: unknown }) => request) },
 }))
 
 const mockProjects = [
   { id: 'proj-1', name: 'Project Alpha' },
   { id: 'proj-2', name: 'Project Beta' },
 ]
+
+vi.mock('../../access/useAllProjects', () => ({
+  useAllProjects: () => ({
+    projects: mockProjects,
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
+}))
 
 vi.mock('../../../hooks/useProjectSelector', () => ({
   useProjectSelector: () => ({
@@ -509,10 +520,10 @@ describe('Credentials', () => {
     expect(screen.getByText('Mock Project Selector')).toBeInTheDocument()
   })
 
-  it('disables create credential button when no project is selected', () => {
+  it('enables create credential button even when no project is selected', () => {
     mockSelectedProject.current = null
     render(<Credentials />, { wrapper })
-    expect(screen.getByRole('button', { name: 'Create credential' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Create credential' })).toBeEnabled()
   })
 
   it('enables create credential button when a project is selected', () => {

@@ -24,6 +24,7 @@ import { credentialsClient } from '../../../../client'
 import { FormLabelWithHelp } from '../../../../components/FormLabelWithHelp'
 import { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../../../providers/alerts'
+import { useAllProjects } from '../../../access/useAllProjects'
 import type { Credential, CredentialType } from '../credentialConstants'
 import { ENCRYPTED_SENTINEL } from '../credentialConstants'
 
@@ -40,7 +41,7 @@ type CredentialFormModalProps = {
   preSelectedTypeId?: string
   /** Called with the new credential's ID on successful creation */
   onCreated?: (credentialId: string) => void
-  /** When provided, includes `project_id` in the create payload */
+  /** When provided, pre-selects the project in the Project dropdown */
   defaultProjectId?: string
 }
 
@@ -116,6 +117,7 @@ export function CredentialFormModal({
 }: Readonly<CredentialFormModalProps>) {
   const isEditMode = !!credentialToEdit
   const { showAlert } = useAlerts()
+  const { projects, isLoading: isLoadingProjects, error: projectsError } = useAllProjects()
 
   // Track which secret fields have been touched by the user (for edit mode)
   const [touchedSecrets, setTouchedSecrets] = useState<Set<string>>(new Set())
@@ -134,6 +136,7 @@ export function CredentialFormModal({
     defaultValues: {
       name: '',
       description: '',
+      project_id: '',
       credential_type_id: '',
       inputs: {},
     },
@@ -166,6 +169,7 @@ export function CredentialFormModal({
       reset({
         name: credentialToEdit.name,
         description: credentialToEdit.description ?? '',
+        project_id: credentialToEdit.project_id ?? '',
         credential_type_id: credentialToEdit.credential_type_id,
         inputs: credentialToEdit.inputs as Record<string, unknown>,
       })
@@ -173,6 +177,7 @@ export function CredentialFormModal({
       reset({
         name: '',
         description: '',
+        project_id: defaultProjectId ?? '',
         credential_type_id: preSelectedTypeId ?? '',
         inputs: {},
       })
@@ -284,7 +289,7 @@ export function CredentialFormModal({
             description: formData.description || null,
             credential_type_id: formData.credential_type_id,
             inputs: formData.inputs,
-            project_id: defaultProjectId!,
+            project_id: formData.project_id,
           },
         },
         {
@@ -366,6 +371,62 @@ export function CredentialFormModal({
                   placeholder="Enter description (optional)"
                   aria-label="Credential description"
                 />
+              )}
+            />
+          </FormGroup>
+
+          {/* Project */}
+          <FormGroup
+            label={
+              <FormLabelWithHelp
+                label="Project"
+                helpText="The project this credential belongs to. Credentials are scoped to a single project and can only be used by workflows within that project."
+              />
+            }
+            fieldId="credential-project"
+            isRequired={!isEditMode}
+          >
+            <Controller
+              name="project_id"
+              control={control}
+              render={({ field: { onChange, value }, fieldState: { error } }) => (
+                <>
+                  <FormSelect
+                    id="credential-project"
+                    value={value}
+                    onChange={(_event, val) => onChange(val)}
+                    isDisabled={isEditMode || isLoadingProjects}
+                    validated={error ? 'error' : 'default'}
+                    aria-label="Credential project"
+                    aria-required={!isEditMode}
+                  >
+                    {isLoadingProjects && <FormSelectOption value="" label="Loading projects..." isPlaceholder />}
+                    {!isLoadingProjects && !isEditMode && (
+                      <FormSelectOption value="" label="Select a project" isPlaceholder />
+                    )}
+                    {projects.map((p) => (
+                      <FormSelectOption key={p.id} value={p.id} label={p.name} />
+                    ))}
+                  </FormSelect>
+                  {projectsError && (
+                    <FormHelperText>
+                      <HelperText>
+                        <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+                          Failed to load projects
+                        </HelperTextItem>
+                      </HelperText>
+                    </FormHelperText>
+                  )}
+                  {error?.message && (
+                    <FormHelperText>
+                      <HelperText>
+                        <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+                          {error.message}
+                        </HelperTextItem>
+                      </HelperText>
+                    </FormHelperText>
+                  )}
+                </>
               )}
             />
           </FormGroup>

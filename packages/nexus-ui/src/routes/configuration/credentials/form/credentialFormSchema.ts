@@ -10,6 +10,7 @@ import { z } from 'zod'
 export const credentialFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   description: z.string().optional().nullable(),
+  project_id: z.string().min(1, 'Project is required'),
   credential_type_id: z.string().min(1, 'Credential type is required'),
   inputs: z.record(z.string(), z.any()),
 })
