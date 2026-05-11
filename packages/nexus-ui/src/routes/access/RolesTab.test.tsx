@@ -213,18 +213,11 @@ describe('RolesTab', () => {
       render(<RolesTab />, { wrapper })
 
       const table = screen.getByRole('grid', { name: 'Roles' })
-      const rows = within(table).getAllByRole('row')
-      // viewer is row index 3 (header + 3 data rows, viewer is last)
-      const descriptionCell = within(rows[3]).getAllByRole('cell')[1]
+      const viewerRow = within(table)
+        .getAllByRole('row')
+        .find((row) => within(row).queryByText('viewer'))!
+      const descriptionCell = within(viewerRow).getAllByRole('cell')[2]
       expect(descriptionCell).toHaveTextContent('-')
-    })
-
-    it('renders policies as labels', () => {
-      render(<RolesTab />, { wrapper })
-
-      expect(screen.getByText('admin-policy')).toBeInTheDocument()
-      expect(screen.getByText('read-all')).toBeInTheDocument()
-      expect(screen.getByText('workflow-edit')).toBeInTheDocument()
     })
 
     it('renders Built-in label for builtin roles', () => {
@@ -249,9 +242,9 @@ describe('RolesTab', () => {
     it('renders table column headers', () => {
       render(<RolesTab />, { wrapper })
 
+      expect(screen.getByRole('columnheader', { name: /Row expansion/i })).toBeInTheDocument()
       expect(screen.getByRole('columnheader', { name: /Name/i })).toBeInTheDocument()
       expect(screen.getByRole('columnheader', { name: /Description/i })).toBeInTheDocument()
-      expect(screen.getByRole('columnheader', { name: /Policies/i })).toBeInTheDocument()
       expect(screen.getByRole('columnheader', { name: /Type/i })).toBeInTheDocument()
     })
   })
@@ -542,6 +535,50 @@ describe('RolesTab', () => {
         expect(screen.getByRole('option', { name: 'Scope' })).toBeInTheDocument()
       })
       expect(screen.queryByRole('option', { name: /^Description$/ })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('Expandable rows', () => {
+    it('policies are hidden by default and shown when row is expanded', async () => {
+      const user = userEvent.setup()
+      render(<RolesTab />, { wrapper })
+
+      expect(screen.queryByText('admin-policy')).not.toBeVisible()
+
+      const expandButtons = screen.getAllByRole('button', { name: /details/i })
+      await user.click(expandButtons[0])
+
+      expect(screen.getByText('admin-policy')).toBeVisible()
+      expect(screen.getByText('read-all')).toBeVisible()
+    })
+
+    it('expand-all button expands all rows, clicking again collapses them', async () => {
+      const user = userEvent.setup()
+      render(<RolesTab />, { wrapper })
+
+      const expandAllButton = screen.getByRole('button', { name: /expand all/i })
+      await user.click(expandAllButton)
+
+      expect(screen.getByText('admin-policy')).toBeVisible()
+      expect(screen.getByText('workflow-edit')).toBeVisible()
+      expect(screen.getByText('read-only')).toBeVisible()
+
+      await user.click(screen.getByRole('button', { name: /expand all/i }))
+
+      expect(screen.queryByText('admin-policy')).not.toBeVisible()
+      expect(screen.queryByText('workflow-edit')).not.toBeVisible()
+      expect(screen.queryByText('read-only')).not.toBeVisible()
+    })
+
+    it('toggling a single row does not affect other rows', async () => {
+      const user = userEvent.setup()
+      render(<RolesTab />, { wrapper })
+
+      const expandButtons = screen.getAllByRole('button', { name: /details/i })
+      await user.click(expandButtons[0])
+
+      expect(screen.getByText('admin-policy')).toBeVisible()
+      expect(screen.queryByText('workflow-edit')).not.toBeVisible()
     })
   })
 

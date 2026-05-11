@@ -12,9 +12,9 @@ import {
   Truncate,
 } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiEditFillIcon, RhUiLockIcon, RhUiTrashIcon } from '@patternfly/react-icons'
-import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import { ActionsColumn, ExpandableRowContent, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 
 import { AppPageMain } from '../../app/AppPage'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
@@ -73,28 +73,16 @@ const BASE_FILTER_FIELD_DEFS = [
   },
 ]
 
-// Column index → API sort field
+// Column index → API sort field (offset by 1 for the expand chevron column)
 const sortFieldByColumn: Record<number, string> = {
-  0: 'name',
+  1: 'name',
   3: 'scope',
   4: 'project_id',
   5: 'is_builtin',
 }
 
-function RolesTable({
-  roles,
-  projectNameMap,
-  getSortParams,
-  onEdit,
-  onDelete,
-}: Readonly<{
-  roles: RoleRead[]
-  projectNameMap: Map<string, string>
-  getSortParams: (columnIndex: number) => ThProps['sort']
-  onEdit: (role: RoleRead) => void
-  onDelete: (role: RoleRead) => void
-}>) {
-  const getRoleActions = (role: RoleRead): IAction[] => [
+function getRoleActions(role: RoleRead, onEdit: (r: RoleRead) => void, onDelete: (r: RoleRead) => void): IAction[] {
+  return [
     {
       title: <IconLabel icon={<RhUiEditFillIcon />}>Edit role</IconLabel>,
       onClick: () => onEdit(role),
@@ -105,14 +93,45 @@ function RolesTable({
       onClick: () => onDelete(role),
     },
   ]
+}
 
+const EXPANDABLE_COLUMN_COUNT = 7
+
+function RolesTable({
+  roles,
+  projectNameMap,
+  expandedRows,
+  allRowsExpanded,
+  onToggleRow,
+  onCollapseAll,
+  getSortParams,
+  onEdit,
+  onDelete,
+}: Readonly<{
+  roles: RoleRead[]
+  projectNameMap: Map<string, string>
+  expandedRows: Set<string>
+  allRowsExpanded: boolean
+  onToggleRow: (roleId: string) => void
+  onCollapseAll: () => void
+  getSortParams: (columnIndex: number) => ThProps['sort']
+  onEdit: (role: RoleRead) => void
+  onDelete: (role: RoleRead) => void
+}>) {
   return (
     <>
       <Thead>
         <Tr>
-          <Th sort={getSortParams(0)}>Name</Th>
+          <Th
+            expand={{
+              areAllExpanded: !allRowsExpanded,
+              collapseAllAriaLabel: allRowsExpanded ? 'Collapse all' : 'Expand all',
+              onToggle: onCollapseAll,
+            }}
+            aria-label="Row expansion"
+          />
+          <Th sort={getSortParams(1)}>Name</Th>
           <Th>Description</Th>
-          <Th>Policies</Th>
           <Th sort={getSortParams(3)} modifier="nowrap">
             Scope
           </Th>
@@ -125,45 +144,61 @@ function RolesTable({
           <Th screenReaderText="Actions" />
         </Tr>
       </Thead>
-      <Tbody>
-        {roles.map((role) => (
-          <Tr key={role.id}>
-            <Td dataLabel="Name">
-              <Truncate content={role.name} />
-            </Td>
-            <Td dataLabel="Description">
-              <Truncate content={role.description ?? '-'} />
-            </Td>
-            <Td dataLabel="Policies">
-              <LabelGroup isCompact numLabels={5}>
-                {(role.policies ?? []).map((policy) => (
-                  <Label key={policy} color="grey" isCompact>
-                    {policy}
+      {roles.map((role, rowIndex) => {
+        const isExpanded = expandedRows.has(role.id)
+        return (
+          <Tbody key={role.id} isExpanded={isExpanded}>
+            <Tr isContentExpanded={isExpanded}>
+              <Td
+                expand={{
+                  rowIndex,
+                  isExpanded,
+                  onToggle: () => onToggleRow(role.id),
+                }}
+              />
+              <Td dataLabel="Name">
+                <Truncate content={role.name} />
+              </Td>
+              <Td dataLabel="Description">
+                <Truncate content={role.description ?? '-'} />
+              </Td>
+              <Td dataLabel="Scope">
+                <ScopeLabel scope={role.scope} />
+              </Td>
+              <Td dataLabel="Project">
+                <ProjectLabel projectId={role.project_id} projectNameMap={projectNameMap} />
+              </Td>
+              <Td dataLabel="Type">
+                {role.is_builtin ? (
+                  <Label color="grey" icon={<RhUiLockIcon />} isCompact>
+                    Built-in
                   </Label>
-                ))}
-              </LabelGroup>
-            </Td>
-            <Td dataLabel="Scope">
-              <ScopeLabel scope={role.scope} />
-            </Td>
-            <Td dataLabel="Project">
-              <ProjectLabel projectId={role.project_id} projectNameMap={projectNameMap} />
-            </Td>
-            <Td dataLabel="Type">
-              {role.is_builtin ? (
-                <Label color="grey" icon={<RhUiLockIcon />} isCompact>
-                  Built-in
-                </Label>
-              ) : (
-                <Label color="blue" isCompact>
-                  Custom
-                </Label>
-              )}
-            </Td>
-            <Td isActionCell>{!role.is_builtin && <ActionsColumn items={getRoleActions(role)} />}</Td>
-          </Tr>
-        ))}
-      </Tbody>
+                ) : (
+                  <Label color="blue" isCompact>
+                    Custom
+                  </Label>
+                )}
+              </Td>
+              <Td isActionCell>
+                {!role.is_builtin && <ActionsColumn items={getRoleActions(role, onEdit, onDelete)} />}
+              </Td>
+            </Tr>
+            <Tr isExpanded={isExpanded}>
+              <Td colSpan={EXPANDABLE_COLUMN_COUNT}>
+                <ExpandableRowContent>
+                  <LabelGroup isCompact numLabels={Infinity}>
+                    {(role.policies ?? []).map((policy) => (
+                      <Label key={policy} color="grey" isCompact>
+                        {policy}
+                      </Label>
+                    ))}
+                  </LabelGroup>
+                </ExpandableRowContent>
+              </Td>
+            </Tr>
+          </Tbody>
+        )
+      })}
     </>
   )
 }
@@ -185,6 +220,7 @@ export function RolesTab() {
   const [roleToEdit, setRoleToEdit] = useState<RoleRead | null>(null)
   const [roleToDelete, setRoleToDelete] = useState<RoleRead | null>(null)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const { showSuccess, showError } = useAlerts()
 
   // Fetch projects to resolve project names in the scope column/filter.
@@ -201,7 +237,29 @@ export function RolesTab() {
     params: { query: queryParams },
   })
 
-  const roles = rolesQuery.data?.resources ?? []
+  const roles = useMemo(() => rolesQuery.data?.resources ?? [], [rolesQuery.data?.resources])
+
+  const allRowsExpanded = roles.length > 0 && roles.every((r) => expandedRows.has(r.id))
+
+  const handleToggleRow = useCallback((roleId: string) => {
+    setExpandedRows((prev) => {
+      const next = new Set(prev)
+      if (next.has(roleId)) {
+        next.delete(roleId)
+      } else {
+        next.add(roleId)
+      }
+      return next
+    })
+  }, [])
+
+  const handleCollapseAll = useCallback(() => {
+    if (allRowsExpanded) {
+      setExpandedRows(new Set())
+    } else {
+      setExpandedRows(new Set(roles.map((r) => r.id)))
+    }
+  }, [allRowsExpanded, roles])
 
   const { mutate: deleteRole } = accessClient.useMutation('delete', '/roles/{role_id}')
 
@@ -279,6 +337,7 @@ export function RolesTab() {
         ) : (
           <ScrollableTableContainer
             aria-label="Roles"
+            isExpandable
             footer={{
               page,
               perPage,
@@ -292,6 +351,10 @@ export function RolesTab() {
             <RolesTable
               roles={roles}
               projectNameMap={projectNameMap}
+              expandedRows={expandedRows}
+              allRowsExpanded={allRowsExpanded}
+              onToggleRow={handleToggleRow}
+              onCollapseAll={handleCollapseAll}
               getSortParams={getSortParams}
               onEdit={setRoleToEdit}
               onDelete={setRoleToDelete}
