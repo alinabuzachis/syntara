@@ -62,6 +62,7 @@ function makeSetting(
     id: crypto.randomUUID(),
     description: null,
     helper_text: null,
+    depends_on: null,
     group: null,
     value: null,
     effective_value: overrides.default_value,
@@ -155,6 +156,7 @@ export const settings: RuntimeSetting[] = [
     description:
       'Defines the ordering of context sections in the assembled prompt. Sections listed first receive priority when the total token budget is exceeded. LLMs often pay the most attention to the beginning and end of a prompt, so the order can influence response quality. Only applies when hierarchical ordering is enabled.',
     helper_text: 'JSON array, for example ["system", "context", "user"]',
+    depends_on: 'context_manager.enforce_hierarchy',
     category: 'context_manager',
     group: 'Context assembly',
     value_type: 'json',
@@ -243,6 +245,7 @@ export const settings: RuntimeSetting[] = [
     description:
       'Relative weight given to lexical (keyword-based) search results when hybrid search is enabled. Increase this weight if users frequently search for specific IDs, error codes, or technical terms. The semantic and lexical weights should typically sum to 1.0.',
     helper_text: 'Range 0.0-1.0. Only applies when hybrid search is enabled.',
+    depends_on: 'context_manager.enable_hybrid_search',
     category: 'context_manager',
     group: 'Retrieval',
     value_type: 'float',
@@ -255,6 +258,7 @@ export const settings: RuntimeSetting[] = [
     description:
       "Relative weight given to semantic (embedding-based) search results when hybrid search is enabled. Increase this weight if users primarily ask conceptual 'why' or 'how' questions. The semantic and lexical weights should typically sum to 1.0.",
     helper_text: 'Range 0.0-1.0. Only applies when hybrid search is enabled.',
+    depends_on: 'context_manager.enable_hybrid_search',
     category: 'context_manager',
     group: 'Retrieval',
     value_type: 'float',

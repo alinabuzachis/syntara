@@ -14,6 +14,7 @@ const baseSetting: RuntimeSetting = {
   name: 'Test setting',
   description: 'A test setting',
   helper_text: null,
+  depends_on: null,
   category: 'test',
   group: 'General',
   value: null,

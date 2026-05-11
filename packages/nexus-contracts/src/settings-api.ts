@@ -95,6 +95,8 @@ export interface components {
       description: string | null
       /** Helper Text */
       helper_text: string | null
+      /** Depends On */
+      depends_on: string | null
       /** Category */
       category: string
       /** Group */

@@ -14,6 +14,7 @@ const makeSetting = (overrides: Partial<RuntimeSetting> = {}): RuntimeSetting =>
   name: 'Max total tokens',
   description: 'Maximum total tokens',
   helper_text: 'Minimum 1 token',
+  depends_on: null,
   category: 'context_manager',
   group: 'Token limits',
   value: null,
@@ -147,5 +148,152 @@ describe('SettingsCategoryTab', () => {
     render(<SettingsCategoryTab settings={settings} {...defaultProps} readOnly />)
 
     expect(screen.queryByLabelText('Actions for Max total tokens')).not.toBeInTheDocument()
+  })
+
+  it('hides setting when depends_on target is false', () => {
+    const settings = [
+      makeSetting({
+        key: 'ctx.toggle',
+        name: 'Toggle',
+        group: 'G',
+        value_type: 'boolean',
+        default_value: false,
+        effective_value: false,
+      }),
+      makeSetting({
+        key: 'ctx.child',
+        name: 'Child',
+        group: 'G',
+        value_type: 'integer',
+        default_value: 10,
+        effective_value: 10,
+        depends_on: 'ctx.toggle',
+      }),
+    ]
+    render(<SettingsCategoryTab settings={settings} {...defaultProps} />)
+
+    expect(screen.getByText('Toggle')).toBeInTheDocument()
+    expect(screen.queryByText('Child')).not.toBeInTheDocument()
+  })
+
+  it('shows setting when depends_on target is true', () => {
+    const settings = [
+      makeSetting({
+        key: 'ctx.toggle',
+        name: 'Toggle',
+        group: 'G',
+        value_type: 'boolean',
+        default_value: true,
+        effective_value: true,
+      }),
+      makeSetting({
+        key: 'ctx.child',
+        name: 'Child',
+        group: 'G',
+        value_type: 'integer',
+        default_value: 10,
+        effective_value: 10,
+        depends_on: 'ctx.toggle',
+      }),
+    ]
+    render(<SettingsCategoryTab settings={settings} {...defaultProps} />)
+
+    expect(screen.getByText('Toggle')).toBeInTheDocument()
+    expect(screen.getByText('Child')).toBeInTheDocument()
+  })
+
+  it('always shows settings without depends_on even when booleans are false', () => {
+    const settings = [
+      makeSetting({
+        key: 'ctx.toggle',
+        name: 'Toggle',
+        group: 'G',
+        value_type: 'boolean',
+        default_value: false,
+        effective_value: false,
+      }),
+      makeSetting({
+        key: 'ctx.independent',
+        name: 'Independent',
+        group: 'G',
+        value_type: 'integer',
+        default_value: 5,
+        effective_value: 5,
+        depends_on: null,
+      }),
+    ]
+    render(<SettingsCategoryTab settings={settings} {...defaultProps} />)
+
+    expect(screen.getByText('Independent')).toBeInTheDocument()
+  })
+
+  it('hides setting when depends_on targets a boolean in a different group', () => {
+    const settings = [
+      makeSetting({
+        key: 'ctx.toggle',
+        name: 'Toggle',
+        group: 'Group A',
+        value_type: 'boolean',
+        default_value: false,
+        effective_value: false,
+      }),
+      makeSetting({
+        key: 'ctx.child',
+        name: 'Child',
+        group: 'Group B',
+        value_type: 'integer',
+        default_value: 10,
+        effective_value: 10,
+        depends_on: 'ctx.toggle',
+      }),
+    ]
+    render(<SettingsCategoryTab settings={settings} {...defaultProps} />)
+
+    expect(screen.getByText('Toggle')).toBeInTheDocument()
+    expect(screen.queryByText('Child')).not.toBeInTheDocument()
+  })
+
+  it('shows setting when depends_on references a nonexistent key', () => {
+    const settings = [
+      makeSetting({
+        key: 'ctx.child',
+        name: 'Orphan',
+        group: 'G',
+        value_type: 'integer',
+        default_value: 10,
+        effective_value: 10,
+        depends_on: 'ctx.nonexistent',
+      }),
+    ]
+    render(<SettingsCategoryTab settings={settings} {...defaultProps} />)
+
+    expect(screen.getByText('Orphan')).toBeInTheDocument()
+  })
+
+  it('local edit toggling parent shows/hides dependent settings', () => {
+    const settings = [
+      makeSetting({
+        key: 'ctx.toggle',
+        name: 'Toggle',
+        group: 'G',
+        value_type: 'boolean',
+        default_value: true,
+        effective_value: true,
+      }),
+      makeSetting({
+        key: 'ctx.child',
+        name: 'Child',
+        group: 'G',
+        value_type: 'integer',
+        default_value: 10,
+        effective_value: 10,
+        depends_on: 'ctx.toggle',
+      }),
+    ]
+
+    const edits = new Map<string, unknown>([['ctx.toggle', false]])
+    render(<SettingsCategoryTab settings={settings} {...defaultProps} edits={edits} />)
+
+    expect(screen.queryByText('Child')).not.toBeInTheDocument()
   })
 })

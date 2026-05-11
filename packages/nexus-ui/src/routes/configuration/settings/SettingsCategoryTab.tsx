@@ -10,6 +10,25 @@ import { valuesEqual } from './valuesEqual'
 
 type RuntimeSetting = SettingsAPI.components['schemas']['RuntimeSettingRead']
 
+function orderByDependency(items: RuntimeSetting[]): RuntimeSetting[] {
+  const independent = items.filter((s) => !s.depends_on)
+  const byTarget = new Map<string, RuntimeSetting[]>()
+  for (const s of items) {
+    if (!s.depends_on) continue
+    if (!byTarget.has(s.depends_on)) byTarget.set(s.depends_on, [])
+    byTarget.get(s.depends_on)!.push(s)
+  }
+  const parentKeys = new Set(independent.map((s) => s.key))
+  const ordered: RuntimeSetting[] = []
+  for (const s of independent) {
+    ordered.push(s, ...(byTarget.get(s.key) ?? []))
+  }
+  for (const [key, deps] of byTarget) {
+    if (!parentKeys.has(key)) ordered.push(...deps)
+  }
+  return ordered
+}
+
 type SettingsCategoryTabProps = {
   readonly settings: RuntimeSetting[]
   readonly edits: Map<string, unknown>
@@ -36,18 +55,13 @@ export function SettingsCategoryTab({
       if (!grouped.has(group)) grouped.set(group, [])
       grouped.get(group)!.push(setting)
     }
-    // Order each group: toggle (first boolean) → non-booleans → other booleans
-    for (const groupSettings of grouped.values()) {
-      const toggle = groupSettings.find((s) => s.value_type === 'boolean')
-      if (!toggle) continue
-      const rest = groupSettings.filter((s) => s !== toggle)
-      const nonBooleans = rest.filter((s) => s.value_type !== 'boolean')
-      const otherBooleans = rest.filter((s) => s.value_type === 'boolean')
-      groupSettings.length = 0
-      groupSettings.push(toggle, ...nonBooleans, ...otherBooleans)
+    for (const [key, groupSettings] of grouped) {
+      grouped.set(key, orderByDependency(groupSettings))
     }
     return grouped
   }, [settings])
+
+  const settingsByKey = useMemo(() => new Map(settings.map((s) => [s.key, s])), [settings])
 
   const getDisplayValue = (setting: RuntimeSetting) => {
     if (edits.has(setting.key)) return edits.get(setting.key)
@@ -69,13 +83,13 @@ export function SettingsCategoryTab({
   return (
     <Form>
       {Array.from(groups.entries()).map(([groupName, groupSettings]) => {
-        const toggleSetting = groupSettings.find((s) => s.value_type === 'boolean')
-        const isGroupEnabled = !toggleSetting || Boolean(getDisplayValue(toggleSetting))
-
         return (
           <FormSection key={groupName} title={groupName || undefined}>
             {groupSettings.map((setting) => {
-              if (setting.value_type !== 'boolean' && !isGroupEnabled) return null
+              if (setting.depends_on) {
+                const target = settingsByKey.get(setting.depends_on)
+                if (target && !getDisplayValue(target)) return null
+              }
 
               return (
                 <SettingField

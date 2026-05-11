@@ -16,6 +16,7 @@ const baseSetting: RuntimeSetting = {
   name: 'Max total tokens',
   description: 'Maximum total tokens in context package',
   helper_text: 'Minimum 1 token',
+  depends_on: null,
   category: 'context_manager',
   group: 'Token limits',
   value: null,
