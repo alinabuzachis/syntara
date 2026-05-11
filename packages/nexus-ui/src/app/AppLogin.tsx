@@ -6,22 +6,32 @@ import {
   Divider,
   HelperText,
   HelperTextItem,
+  Icon,
   LoginForm,
   LoginPage,
 } from '@patternfly/react-core'
+import { ExclamationCircleIcon } from '@patternfly/react-icons'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { LoadingState } from '../components/states/LoadingState'
-import { useAlerts } from '../providers/alerts'
-import { useAuthStore, selectIsAuthenticated, selectIsRefreshing, selectAuthError } from '../stores/useAuthStore'
+import { useAuthStore, selectIsAuthenticated, selectIsRefreshing } from '../stores/useAuthStore'
 
 import { IdentityProviderButtons } from './IdentityProviderButtons'
 import { useAuthProviders } from './useAuthProviders'
+
+const LoginErrorField = {
+  Username: 'username',
+  Password: 'password',
+  Credentials: 'credentials',
+} as const
+
+type LoginErrorField = (typeof LoginErrorField)[keyof typeof LoginErrorField]
 
 type LocalLoginFormProps = {
   username: string
   password: string
   loginError: string | null
+  loginErrorField: LoginErrorField | null
   isLoggingIn: boolean
   loginButtonLabel: string
   onChangeUsername: (value: string) => void
@@ -34,6 +44,7 @@ function LocalLoginForm({
   username,
   password,
   loginError,
+  loginErrorField,
   isLoggingIn,
   loginButtonLabel,
   onChangeUsername,
@@ -49,17 +60,24 @@ function LocalLoginForm({
         onChangeUsername(val)
         onClearError()
       }}
+      isValidUsername={loginErrorField !== LoginErrorField.Username && loginErrorField !== LoginErrorField.Credentials}
       passwordLabel="Password"
       passwordValue={password}
       onChangePassword={(_e, val) => {
         onChangePassword(val)
         onClearError()
       }}
+      isValidPassword={loginErrorField !== LoginErrorField.Password && loginErrorField !== LoginErrorField.Credentials}
       showHelperText={loginError !== null}
       helperText={loginError}
+      helperTextIcon={
+        <Icon status="danger">
+          <ExclamationCircleIcon />
+        </Icon>
+      }
       isShowPasswordEnabled
       loginButtonLabel={loginButtonLabel}
-      isLoginButtonDisabled={!username || !password || isLoggingIn}
+      isLoginButtonDisabled={isLoggingIn}
       onLoginButtonClick={onLogin}
     />
   )
@@ -80,10 +98,8 @@ export function AppLogin(props: { children?: ReactNode }) {
 
 function AppLoginForm() {
   const isRefreshing = useAuthStore(selectIsRefreshing)
-  const error = useAuthStore(selectAuthError)
   const login = useAuthStore((s) => s.login)
   const refresh = useAuthStore((s) => s.refresh)
-  const { showError } = useAlerts()
   const [bootstrapDone, setBootstrapDone] = useState(false)
   const [isLoggingIn, setIsLoggingIn] = useState(false)
   const [username, setUsername] = useState('')
@@ -99,6 +115,9 @@ function AppLoginForm() {
     }
     return authError
   })
+  const [loginErrorField, setLoginErrorField] = useState<LoginErrorField | null>(() =>
+    new URLSearchParams(globalThis.location.search).get('auth_error') ? LoginErrorField.Credentials : null
+  )
   const [showLocalLogin, setShowLocalLogin] = useState(false)
   const bootstrapAttempted = useRef(false)
 
@@ -137,32 +156,42 @@ function AppLoginForm() {
     }
   }, [refresh])
 
-  useEffect(() => {
-    if (error && bootstrapDone) {
-      showError({ title: 'Authentication failed', description: error })
-    }
-  }, [error, bootstrapDone, showError])
-
   const handleLogin = useCallback(
     (e: React.MouseEvent<HTMLButtonElement>) => {
       e.preventDefault()
-      if (!username || !password) return
+      if (!username) {
+        setLoginError('Enter your username')
+        setLoginErrorField(LoginErrorField.Username)
+        return
+      }
+      if (!password) {
+        setLoginError('Enter your password')
+        setLoginErrorField(LoginErrorField.Password)
+        return
+      }
       setLoginError(null)
+      setLoginErrorField(null)
       setIsLoggingIn(true)
       login({ username, password }).catch((err: unknown) => {
         setIsLoggingIn(false)
-        setLoginError(err instanceof Error ? err.message : 'Invalid username or password')
+        setPassword('')
+        setLoginError(err instanceof Error ? err.message : 'Incorrect login credentials')
+        setLoginErrorField(LoginErrorField.Credentials)
       })
     },
     [username, password, login]
   )
 
-  const clearError = useCallback(() => setLoginError(null), [])
+  const clearError = useCallback(() => {
+    setLoginError(null)
+    setLoginErrorField(null)
+  }, [])
 
   const localFormProps: LocalLoginFormProps = {
     username,
     password,
     loginError,
+    loginErrorField,
     isLoggingIn,
     loginButtonLabel: hasProviders ? 'Log in as administrator' : 'Log in',
     onChangeUsername: setUsername,
@@ -200,7 +229,7 @@ function AppLoginForm() {
       loginSubtitle="Choose your identity provider"
       textContent="Select your identity provider to access Automation Orchestrator. Contact your administrator if you need assistance."
     >
-      {loginError && (
+      {loginError && loginErrorField === LoginErrorField.Credentials && (
         <Alert
           variant="danger"
           title={

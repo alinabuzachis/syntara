@@ -1,6 +1,7 @@
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../providers/alerts'
 
@@ -26,7 +27,6 @@ vi.mock('../stores/useAuthStore', () => ({
   }),
   selectIsAuthenticated: (state: typeof mockState) => state.isAuthenticated,
   selectIsRefreshing: (state: typeof mockState) => state.isRefreshing,
-  selectAuthError: (state: typeof mockState) => state.error,
 }))
 
 // Mock useAuthProviders
@@ -492,6 +492,237 @@ describe('AppLogin', () => {
       // Assert
       await waitFor(() => {
         expect(screen.getByRole('textbox', { name: /username/i })).toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('error handling', () => {
+    it('shows inline error when submitting with empty username', async () => {
+      const user = userEvent.setup()
+
+      renderWithAlerts(
+        <AppLogin>
+          <div>Content</div>
+        </AppLogin>
+      )
+
+      await screen.findByRole('button', { name: 'Log in' })
+      await user.click(screen.getByRole('button', { name: 'Log in' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Enter your username')).toBeInTheDocument()
+      })
+      expect(mockLogin).not.toHaveBeenCalled()
+    })
+
+    it('shows inline error when submitting with empty password', async () => {
+      const user = userEvent.setup()
+
+      renderWithAlerts(
+        <AppLogin>
+          <div>Content</div>
+        </AppLogin>
+      )
+
+      await screen.findByRole('button', { name: 'Log in' })
+      await user.type(screen.getByRole('textbox', { name: /username/i }), 'demo')
+      await user.click(screen.getByRole('button', { name: 'Log in' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Enter your password')).toBeInTheDocument()
+      })
+      expect(mockLogin).not.toHaveBeenCalled()
+    })
+
+    it('clears password field on login failure', async () => {
+      const user = userEvent.setup()
+      mockLogin.mockRejectedValueOnce(new Error('Authentication required'))
+
+      renderWithAlerts(
+        <AppLogin>
+          <div>Content</div>
+        </AppLogin>
+      )
+
+      await screen.findByRole('button', { name: 'Log in' })
+      await user.type(screen.getByRole('textbox', { name: /username/i }), 'demo')
+      const passwordInput = screen.getByLabelText(/^Password/, { selector: 'input' })
+      await user.type(passwordInput, 'wrongpassword')
+      await user.click(screen.getByRole('button', { name: 'Log in' }))
+
+      await waitFor(() => {
+        expect(passwordInput).toHaveValue('')
+      })
+    })
+
+    it('shows error message on login failure', async () => {
+      const user = userEvent.setup()
+      mockLogin.mockRejectedValueOnce(new Error('Authentication required'))
+
+      renderWithAlerts(
+        <AppLogin>
+          <div>Content</div>
+        </AppLogin>
+      )
+
+      await screen.findByRole('button', { name: 'Log in' })
+      await user.type(screen.getByRole('textbox', { name: /username/i }), 'demo')
+      await user.type(screen.getByLabelText(/^Password/, { selector: 'input' }), 'wrong')
+      await user.click(screen.getByRole('button', { name: 'Log in' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Authentication required')).toBeInTheDocument()
+      })
+    })
+
+    it('uses fallback error message for non-Error rejections', async () => {
+      const user = userEvent.setup()
+      mockLogin.mockRejectedValueOnce('network failure')
+
+      renderWithAlerts(
+        <AppLogin>
+          <div>Content</div>
+        </AppLogin>
+      )
+
+      await screen.findByRole('button', { name: 'Log in' })
+      await user.type(screen.getByRole('textbox', { name: /username/i }), 'demo')
+      await user.type(screen.getByLabelText(/^Password/, { selector: 'input' }), 'wrong')
+      await user.click(screen.getByRole('button', { name: 'Log in' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Incorrect login credentials')).toBeInTheDocument()
+      })
+    })
+
+    it('clears error when user types in username field', async () => {
+      const user = userEvent.setup()
+
+      renderWithAlerts(
+        <AppLogin>
+          <div>Content</div>
+        </AppLogin>
+      )
+
+      await screen.findByRole('button', { name: 'Log in' })
+
+      // Trigger empty username error
+      await user.click(screen.getByRole('button', { name: 'Log in' }))
+      await waitFor(() => {
+        expect(screen.getByText('Enter your username')).toBeInTheDocument()
+      })
+
+      // Type in username — error should clear
+      await user.type(screen.getByRole('textbox', { name: /username/i }), 'd')
+      await waitFor(() => {
+        expect(screen.queryByText('Enter your username')).not.toBeInTheDocument()
+      })
+    })
+
+    it('clears error when user types in password field', async () => {
+      const user = userEvent.setup()
+
+      renderWithAlerts(
+        <AppLogin>
+          <div>Content</div>
+        </AppLogin>
+      )
+
+      await screen.findByRole('button', { name: 'Log in' })
+
+      // Fill username, trigger empty password error
+      await user.type(screen.getByRole('textbox', { name: /username/i }), 'demo')
+      await user.click(screen.getByRole('button', { name: 'Log in' }))
+      await waitFor(() => {
+        expect(screen.getByText('Enter your password')).toBeInTheDocument()
+      })
+
+      // Type in password — error should clear
+      await user.type(screen.getByLabelText(/^Password/, { selector: 'input' }), 'p')
+      await waitFor(() => {
+        expect(screen.queryByText('Enter your password')).not.toBeInTheDocument()
+      })
+    })
+
+    it('login button is always clickable (not disabled for empty fields)', async () => {
+      renderWithAlerts(
+        <AppLogin>
+          <div>Content</div>
+        </AppLogin>
+      )
+
+      const loginButton = await screen.findByRole('button', { name: 'Log in' })
+      expect(loginButton).not.toBeDisabled()
+    })
+
+    it('has no accessibility violations in error state', async () => {
+      const user = userEvent.setup()
+
+      const { container } = renderWithAlerts(
+        <AppLogin>
+          <div>Content</div>
+        </AppLogin>
+      )
+
+      await screen.findByRole('button', { name: 'Log in' })
+
+      // Trigger validation error
+      await user.click(screen.getByRole('button', { name: 'Log in' }))
+      await waitFor(() => {
+        expect(screen.getByText('Enter your username')).toBeInTheDocument()
+      })
+
+      const results = await axe(container)
+      expect(results).toHaveNoViolations()
+    })
+
+    describe('with identity providers', () => {
+      beforeEach(() => {
+        mockProviders = [{ id: 'okta-1', name: 'Okta', provider_type: 'oidc' }]
+      })
+
+      it('does not show page-level alert for local login field validation errors', async () => {
+        const user = userEvent.setup()
+
+        renderWithAlerts(
+          <AppLogin>
+            <div>Content</div>
+          </AppLogin>
+        )
+
+        const toggleButton = await screen.findByRole('button', { name: 'Sign in using local account' })
+        await user.click(toggleButton)
+
+        // Submit empty form — should show inline error, not the page-level Alert
+        await user.click(screen.getByRole('button', { name: /log in as administrator/i }))
+
+        await waitFor(() => {
+          expect(screen.getByText('Enter your username')).toBeInTheDocument()
+        })
+        expect(screen.queryByText('Authentication failed')).not.toBeInTheDocument()
+      })
+
+      it('shows page-level alert for local login auth failure in provider mode', async () => {
+        const user = userEvent.setup()
+        mockLogin.mockRejectedValueOnce(new Error('Authentication required'))
+
+        renderWithAlerts(
+          <AppLogin>
+            <div>Content</div>
+          </AppLogin>
+        )
+
+        const toggleButton = await screen.findByRole('button', { name: 'Sign in using local account' })
+        await user.click(toggleButton)
+
+        await user.type(screen.getByRole('textbox', { name: /username/i }), 'admin')
+        await user.type(screen.getByLabelText(/^Password/, { selector: 'input' }), 'wrong')
+        await user.click(screen.getByRole('button', { name: /log in as administrator/i }))
+
+        // The page-level Alert title should render for credentials errors in provider mode
+        await waitFor(() => {
+          expect(screen.getByText('Authentication failed')).toBeInTheDocument()
+        })
       })
     })
   })

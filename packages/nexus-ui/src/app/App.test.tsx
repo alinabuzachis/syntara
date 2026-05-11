@@ -19,7 +19,6 @@ vi.mock('../stores/useAuthStore', () => ({
   ),
   selectIsAuthenticated: (state: { isAuthenticated: boolean }) => state.isAuthenticated,
   selectIsRefreshing: (state: { isRefreshing: boolean }) => state.isRefreshing,
-  selectAuthError: (state: { error: string | null }) => state.error,
 }))
 
 // Mock useAuthProviders to prevent async fetch + state updates
