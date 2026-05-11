@@ -1,15 +1,18 @@
-"""Unit tests for TelemetryCollector.emit_activity_telemetry."""
+"""Unit tests for node execution telemetry via emit_activities + Audit dispatcher."""
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
-from nexus.telemetry.collector import TelemetryCollector
+from nexus.audit.dispatcher import AuditEventDispatcher
+from nexus.telemetry.events.workflow_emitters import emit_activities
+from nexus.telemetry.handlers.node_execution import NodeExecutedTelemetryHandler
+from nexus.workflows.audit.node_execution import NodeExecutedEvent
 from nexus.workflows.models.activity_execution import ActivityExecution, ActivityStatus
 
 EXECUTION_ID = uuid4()
-NODE_DEF = {"id": "script-1", "type": "script", "name": "Test Script"}
-NODE_DEFINITIONS_MAP = {"script-1": NODE_DEF}
+NODE_DEF: dict[str, object] = {"id": "script-1", "type": "script", "name": "Test Script"}
+NODE_DEFINITIONS_MAP: dict[str, dict[str, object]] = {"script-1": NODE_DEF}
 
 
 def _make_activity(
@@ -28,144 +31,150 @@ def _make_activity(
     )
 
 
-def _make_collector(mock_registry: MagicMock) -> TelemetryCollector:
-    """Create a TelemetryCollector with a mocked registry."""
-    from nexus.telemetry.collector import TelemetryCollector
-
-    return TelemetryCollector(registry=mock_registry)
-
-
 class TestEmitActivityTelemetry:
-    """Tests for TelemetryCollector.emit_activity_telemetry."""
+    """Tests for node execution telemetry emitted via emit_activities."""
 
-    def test_emits_for_completed_activity(self):
-        mock_registry = MagicMock()
-        mock_registry.is_initialized.return_value = True
-        mock_registry.entitlement_id = ""
-        collector = _make_collector(mock_registry)
+    def setup_method(self) -> None:
+        AuditEventDispatcher.reset()
+        AuditEventDispatcher.register({NodeExecutedEvent: NodeExecutedTelemetryHandler()})
+
+    def teardown_method(self) -> None:
+        AuditEventDispatcher.reset()
+
+    @patch("nexus.telemetry.handlers.node_execution.get_telemetry_registry")
+    def test_emits_for_completed_activity(self, mock_get_registry: MagicMock) -> None:
+        registry = MagicMock()
+        registry.is_initialized.return_value = True
+        registry.entitlement_id = ""
+        mock_get_registry.return_value = registry
 
         activity = _make_activity("script-1", ActivityStatus.COMPLETED)
-        old_values = {"status": ActivityStatus.PENDING}
+        old_values: dict[str, object] = {"status": ActivityStatus.PENDING}
 
-        collector.emit_activity_telemetry(
+        emit_activities(
             execution_id=EXECUTION_ID,
             activity_definitions_map=NODE_DEFINITIONS_MAP,
             updated_activities=[(activity, old_values)],
         )
 
-        mock_registry.send_event.assert_called_once()
-        event = mock_registry.send_event.call_args[0][0]
+        registry.send_event.assert_called_once()
+        event = registry.send_event.call_args[0][0]
         assert event.workflow_execution_id == str(EXECUTION_ID)
         assert event.node_type == "script"
         assert event.status == "completed"
         assert event.duration_ms is None
         assert event.error_type is None
 
-    def test_computes_duration_from_timestamps(self):
-        mock_registry = MagicMock()
-        mock_registry.is_initialized.return_value = True
-        mock_registry.entitlement_id = ""
-        collector = _make_collector(mock_registry)
+    @patch("nexus.telemetry.handlers.node_execution.get_telemetry_registry")
+    def test_computes_duration_from_timestamps(self, mock_get_registry: MagicMock) -> None:
+        registry = MagicMock()
+        registry.is_initialized.return_value = True
+        registry.entitlement_id = ""
+        mock_get_registry.return_value = registry
 
         start = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
         end = start + timedelta(seconds=5, milliseconds=500)
         activity = _make_activity("script-1", ActivityStatus.COMPLETED, started_at=start, completed_at=end)
-        old_values = {"status": ActivityStatus.RUNNING}
+        old_values: dict[str, object] = {"status": ActivityStatus.RUNNING}
 
-        collector.emit_activity_telemetry(
+        emit_activities(
             execution_id=EXECUTION_ID,
             activity_definitions_map=NODE_DEFINITIONS_MAP,
             updated_activities=[(activity, old_values)],
         )
 
-        event = mock_registry.send_event.call_args[0][0]
+        event = registry.send_event.call_args[0][0]
         assert event.duration_ms == 5500
 
-    def test_emits_for_failed_activity_with_error_type(self):
-        mock_registry = MagicMock()
-        mock_registry.is_initialized.return_value = True
-        mock_registry.entitlement_id = ""
-        collector = _make_collector(mock_registry)
+    @patch("nexus.telemetry.handlers.node_execution.get_telemetry_registry")
+    def test_emits_for_failed_activity_with_error_type(self, mock_get_registry: MagicMock) -> None:
+        registry = MagicMock()
+        registry.is_initialized.return_value = True
+        registry.entitlement_id = ""
+        mock_get_registry.return_value = registry
 
         activity = _make_activity("script-1", ActivityStatus.FAILED)
-        old_values = {"status": ActivityStatus.RUNNING}
+        old_values: dict[str, object] = {"status": ActivityStatus.RUNNING}
 
-        collector.emit_activity_telemetry(
+        emit_activities(
             execution_id=EXECUTION_ID,
             activity_definitions_map=NODE_DEFINITIONS_MAP,
             updated_activities=[(activity, old_values)],
         )
 
-        event = mock_registry.send_event.call_args[0][0]
+        event = registry.send_event.call_args[0][0]
         assert event.status == "failed"
         assert event.error_type == "ActivityExecutionError"
 
-    def test_emits_for_skipped_activity(self):
-        mock_registry = MagicMock()
-        mock_registry.is_initialized.return_value = True
-        mock_registry.entitlement_id = ""
-        collector = _make_collector(mock_registry)
+    @patch("nexus.telemetry.handlers.node_execution.get_telemetry_registry")
+    def test_emits_for_skipped_activity(self, mock_get_registry: MagicMock) -> None:
+        registry = MagicMock()
+        registry.is_initialized.return_value = True
+        registry.entitlement_id = ""
+        mock_get_registry.return_value = registry
 
         activity = _make_activity("script-1", ActivityStatus.SKIPPED)
-        old_values = {"status": ActivityStatus.PENDING}
+        old_values: dict[str, object] = {"status": ActivityStatus.PENDING}
 
-        collector.emit_activity_telemetry(
+        emit_activities(
             execution_id=EXECUTION_ID,
             activity_definitions_map=NODE_DEFINITIONS_MAP,
             updated_activities=[(activity, old_values)],
         )
 
-        event = mock_registry.send_event.call_args[0][0]
+        event = registry.send_event.call_args[0][0]
         assert event.status == "skipped"
 
-    def test_skips_non_terminal_status(self):
-        mock_registry = MagicMock()
-        mock_registry.is_initialized.return_value = True
-        mock_registry.entitlement_id = ""
-        collector = _make_collector(mock_registry)
+    @patch("nexus.telemetry.handlers.node_execution.get_telemetry_registry")
+    def test_skips_non_terminal_status(self, mock_get_registry: MagicMock) -> None:
+        registry = MagicMock()
+        registry.is_initialized.return_value = True
+        registry.entitlement_id = ""
+        mock_get_registry.return_value = registry
 
         activity = _make_activity("script-1", ActivityStatus.RUNNING)
-        old_values = {"status": ActivityStatus.PENDING}
+        old_values: dict[str, object] = {"status": ActivityStatus.PENDING}
 
-        collector.emit_activity_telemetry(
+        emit_activities(
             execution_id=EXECUTION_ID,
             activity_definitions_map=NODE_DEFINITIONS_MAP,
             updated_activities=[(activity, old_values)],
         )
 
-        mock_registry.send_event.assert_not_called()
+        registry.send_event.assert_not_called()
 
-    def test_skips_already_terminal_old_status(self):
+    @patch("nexus.telemetry.handlers.node_execution.get_telemetry_registry")
+    def test_skips_already_terminal_old_status(self, mock_get_registry: MagicMock) -> None:
         """Avoid duplicate telemetry when re-syncing an already-terminal activity."""
-        mock_registry = MagicMock()
-        mock_registry.is_initialized.return_value = True
-        mock_registry.entitlement_id = ""
-        collector = _make_collector(mock_registry)
+        registry = MagicMock()
+        registry.is_initialized.return_value = True
+        registry.entitlement_id = ""
+        mock_get_registry.return_value = registry
 
         activity = _make_activity("script-1", ActivityStatus.COMPLETED)
-        old_values = {"status": ActivityStatus.COMPLETED}
+        old_values: dict[str, object] = {"status": ActivityStatus.COMPLETED}
 
-        collector.emit_activity_telemetry(
+        emit_activities(
             execution_id=EXECUTION_ID,
             activity_definitions_map=NODE_DEFINITIONS_MAP,
             updated_activities=[(activity, old_values)],
         )
 
-        mock_registry.send_event.assert_not_called()
+        registry.send_event.assert_not_called()
 
-    def test_fire_and_forget_on_error(self):
+    @patch("nexus.telemetry.handlers.node_execution.get_telemetry_registry")
+    def test_fire_and_forget_on_error(self, mock_get_registry: MagicMock) -> None:
         """Telemetry errors should not propagate."""
-        mock_registry = MagicMock()
-        mock_registry.is_initialized.return_value = True
-        mock_registry.entitlement_id = ""
-        mock_registry.send_event.side_effect = RuntimeError("Segment down")
-        collector = _make_collector(mock_registry)
+        registry = MagicMock()
+        registry.is_initialized.return_value = True
+        registry.entitlement_id = ""
+        registry.send_event.side_effect = RuntimeError("Segment down")
+        mock_get_registry.return_value = registry
 
         activity = _make_activity("script-1", ActivityStatus.COMPLETED)
-        old_values = {"status": ActivityStatus.PENDING}
+        old_values: dict[str, object] = {"status": ActivityStatus.PENDING}
 
-        # Should not raise
-        collector.emit_activity_telemetry(
+        emit_activities(
             execution_id=EXECUTION_ID,
             activity_definitions_map=NODE_DEFINITIONS_MAP,
             updated_activities=[(activity, old_values)],

@@ -6,10 +6,13 @@ work together to capture and emit workflow and activity telemetry events.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
+from uuid import uuid4
 
 from nexus.telemetry.client import TelemetryClientRegistry
 from nexus.telemetry.collector import TelemetryCollector
+from nexus.telemetry.handlers.node_execution import NodeExecutedTelemetryHandler
+from nexus.workflows.audit.node_execution import NodeExecutedEvent
 from nexus.workflows.workflow_engine.models.workflow_definition import (
     ActivityTerminalStatus,
     NodeType,
@@ -65,30 +68,33 @@ class TestEndToEndWorkflowTelemetry:
         assert complete_call.kwargs["properties"]["node_count"] == 3
         assert complete_call.kwargs["properties"]["error_count"] == 0
 
-    def test_node_event_sent_with_execution_id(self) -> None:
-        """Verify that node execution events include the parent workflow_execution_id."""
+    @patch("nexus.telemetry.handlers.node_execution.get_telemetry_registry")
+    def test_node_event_sent_via_audit_handler(self, mock_get_registry: MagicMock) -> None:
+        """Verify that NodeExecutedTelemetryHandler emits node_execution to Segment."""
         registry = TelemetryClientRegistry()
         mock_client = MagicMock()
         registry._client = mock_client
         registry._entitlement_id = "test-install-001"
         registry._anonymous_id = "anon-test-id"
+        mock_get_registry.return_value = registry
 
-        collector = TelemetryCollector(registry=registry)
-
-        execution_id = "parent-workflow-correlation"
+        execution_id = uuid4()
         node_def: dict[str, object] = {"id": "http-1", "type": "http_request"}
 
-        collector.capture_node_executed(
-            execution_id=execution_id,
-            node_type=NodeType.HTTP_REQUEST,
-            node_def=node_def,
-            status=ActivityTerminalStatus.COMPLETED,
+        handler = NodeExecutedTelemetryHandler()
+        handler.handle(
+            NodeExecutedEvent(
+                execution_id=execution_id,
+                node_type=NodeType.HTTP_REQUEST,
+                node_def=node_def,
+                status=ActivityTerminalStatus.COMPLETED,
+            )
         )
 
         assert mock_client.track.call_count == 1
         call = mock_client.track.call_args
         assert call.kwargs["event"] == "node_execution"
-        assert call.kwargs["properties"]["workflow_execution_id"] == execution_id
+        assert call.kwargs["properties"]["workflow_execution_id"] == str(execution_id)
         assert call.kwargs["properties"]["node_type"] == "http_request"
         assert call.kwargs["properties"]["status"] == "completed"
 

@@ -25,8 +25,11 @@ import uuid
 
 import pytest
 
+from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.telemetry.client import TelemetryClientRegistry
 from nexus.telemetry.collector import TelemetryCollector
+from nexus.telemetry.handlers.node_execution import NodeExecutedTelemetryHandler
+from nexus.workflows.audit.node_execution import NodeExecutedEvent
 from nexus.workflows.workflow_engine.activities.script_activity import execute_script_activity
 from nexus.workflows.workflow_engine.models.workflow_definition import (
     ActivityTerminalStatus,
@@ -88,23 +91,25 @@ async def _run_with_telemetry(collector: TelemetryCollector, iterations: int) ->
     """Run workflow activities with telemetry event emission."""
     latencies: list[float] = []
     for _ in range(iterations):
-        wf_id = str(uuid.uuid4())
+        wf_id = uuid.uuid4()
 
         start = time.perf_counter()
 
-        collector.capture_workflow_start(execution_id=wf_id)
+        collector.capture_workflow_start(execution_id=str(wf_id))
         await _run_workflow_activities()
 
         for i in range(_ACTIVITIES_PER_WORKFLOW):
-            collector.capture_node_executed(
-                execution_id=wf_id,
-                node_type=NodeType.SCRIPT,
-                node_def=_ACTIVITY_DEFS[i],
-                status=ActivityTerminalStatus.COMPLETED,
-                duration_ms=10,
+            AuditEventDispatcher.dispatch(
+                NodeExecutedEvent(
+                    execution_id=wf_id,
+                    node_type=NodeType.SCRIPT,
+                    node_def=_ACTIVITY_DEFS[i],
+                    status=ActivityTerminalStatus.COMPLETED,
+                    duration_ms=10,
+                )
             )
         collector.capture_workflow_completed(
-            execution_id=wf_id,
+            execution_id=str(wf_id),
             status=WorkflowTerminalStatus.COMPLETED,
             duration_ms=50,
             node_count=_ACTIVITIES_PER_WORKFLOW,
@@ -140,6 +145,8 @@ class TestTelemetryOverhead:
             consumer.retries = 0
         collector = TelemetryCollector(registry=registry)
 
+        AuditEventDispatcher.register({NodeExecutedEvent: NodeExecutedTelemetryHandler()})
+
         try:
             # Warmup
             await _run_baseline(5)
@@ -163,4 +170,5 @@ class TestTelemetryOverhead:
             assert overhead_pct < 5.0, f"Telemetry overhead {overhead_pct:.2f}% exceeds 5% threshold"
             logger.info("  PASS: telemetry overhead is within 5%% budget")
         finally:
+            AuditEventDispatcher.reset()
             registry.get_client().shutdown()
