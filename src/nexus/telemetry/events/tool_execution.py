@@ -5,6 +5,7 @@ Defines the event emitted for each tool execution reaching a terminal state.
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from uuid import UUID  # noqa: TC003
 
 from sqlmodel import Field
@@ -56,3 +57,13 @@ class ToolExecutionEventBuilder:
             workflow_execution_id=execution_id,
             entitlement_id=entitlement_id,
         )
+
+
+@dataclass
+class ToolExecutedEvent:
+    """Domain event fired when a tool execution reaches a terminal state."""
+
+    namespaced_name: str
+    status: ToolExecutionStatus
+    duration_ms: int
+    execution_id: UUID | None = field(default=None)

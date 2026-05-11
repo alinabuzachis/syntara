@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 from uuid import UUID
 
 from nexus.telemetry.collector import TelemetryCollector
+from nexus.telemetry.events.node_execution import NodeExecutionEvent
 from nexus.telemetry.events.tool_execution import ToolExecutionEvent
 from nexus.telemetry.events.workflow_execution import (
     WorkflowExecutionCompletedEvent,
@@ -12,11 +13,16 @@ from nexus.telemetry.events.workflow_execution import (
 from nexus.tool_manager.models.tool_execution import ToolExecutionStatus
 from nexus.workflows.workflow_engine.models.workflow_definition import (
     ActivityName,
+    ActivityTerminalStatus,
+    NodeType,
     WorkflowTerminalStatus,
 )
 
 # Import shared test data from conftest
-from tests.unit.telemetry.conftest import VALID_WORKFLOW_EXECUTION_ID
+from tests.unit.telemetry.conftest import (
+    SAMPLE_NODE_DEF,
+    VALID_WORKFLOW_EXECUTION_ID,
+)
 
 
 class TestTelemetryCollector:
@@ -86,6 +92,33 @@ class TestTelemetryCollector:
         assert sent_event.status == "failed"
         assert sent_event.error_type == "ActivityExecutionError"
 
+    def test_capture_node_executed_success(self):
+        collector, mock_registry = self._create_collector()
+        collector.capture_node_executed(
+            execution_id=VALID_WORKFLOW_EXECUTION_ID,
+            node_type=NodeType.SCRIPT,
+            node_def=SAMPLE_NODE_DEF,
+            status=ActivityTerminalStatus.COMPLETED,
+        )
+        mock_registry.send_event.assert_called_once()
+        sent_event = mock_registry.send_event.call_args[0][0]
+        assert isinstance(sent_event, NodeExecutionEvent)
+        assert sent_event.node_type == "script"
+
+    def test_capture_node_executed_failed(self):
+        collector, mock_registry = self._create_collector()
+        collector.capture_node_executed(
+            execution_id=VALID_WORKFLOW_EXECUTION_ID,
+            node_type=NodeType.SCRIPT,
+            node_def=SAMPLE_NODE_DEF,
+            status=ActivityTerminalStatus.FAILED,
+            error_type="ActivityExecutionError",
+        )
+        mock_registry.send_event.assert_called_once()
+        sent_event = mock_registry.send_event.call_args[0][0]
+        assert sent_event.status == "failed"
+        assert sent_event.error_type == "ActivityExecutionError"
+
     @patch("nexus.telemetry.collector.logger")
     def test_capture_workflow_start_fire_and_forget(self, mock_logger):
         """Verify fire-and-forget: errors are logged but not raised."""
@@ -119,6 +152,23 @@ class TestTelemetryCollector:
         )
         mock_logger.exception.assert_called_once()
 
+    @patch("nexus.telemetry.collector.logger")
+    def test_capture_node_fire_and_forget(self, mock_logger):
+        """Verify fire-and-forget: errors are logged but not raised."""
+        mock_registry = MagicMock()
+        mock_registry.entitlement_id = ""
+        mock_registry.send_event.side_effect = RuntimeError("Send failed")
+        collector = TelemetryCollector(
+            registry=mock_registry,
+        )
+        collector.capture_node_executed(
+            execution_id=VALID_WORKFLOW_EXECUTION_ID,
+            node_type=NodeType.SCRIPT,
+            node_def=SAMPLE_NODE_DEF,
+            status=ActivityTerminalStatus.COMPLETED,
+        )
+        mock_logger.exception.assert_called_once()
+
     def test_workflow_start_event_includes_entitlement_id(self):
         """entitlement_id from registry must appear on the start event."""
         collector, mock_registry = self._create_collector(entitlement_id="ent-abc")
@@ -137,6 +187,18 @@ class TestTelemetryCollector:
             duration_ms=100,
             node_count=1,
             error_count=0,
+        )
+        sent_event = mock_registry.send_event.call_args[0][0]
+        assert sent_event.entitlement_id == "ent-abc"
+
+    def test_node_event_includes_entitlement_id(self):
+        """entitlement_id from registry must appear on the node event."""
+        collector, mock_registry = self._create_collector(entitlement_id="ent-abc")
+        collector.capture_node_executed(
+            execution_id=VALID_WORKFLOW_EXECUTION_ID,
+            node_type=NodeType.SCRIPT,
+            node_def=SAMPLE_NODE_DEF,
+            status=ActivityTerminalStatus.COMPLETED,
         )
         sent_event = mock_registry.send_event.call_args[0][0]
         assert sent_event.entitlement_id == "ent-abc"

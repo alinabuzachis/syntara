@@ -18,11 +18,13 @@ from langgraph.types import Command
 
 from nexus.agent_orchestrator.tool_manager.tool_manager_client import ToolManagerClient
 from nexus.agent_orchestrator.utils import retry_with_backoff
+from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.core.config.base import get_settings
 from nexus.core.database.session import AsyncSessionLocal
 from nexus.core.models import User
 from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.types import MetricType
+from nexus.telemetry.events.tool_execution import ToolExecutedEvent
 from nexus.tool_manager.models.tool import ToolStatus
 from nexus.tool_manager.models.tool_execution import ToolExecutionStatus
 from nexus.tool_manager.services.tool_metrics_service import ToolMetricsService
@@ -136,50 +138,6 @@ def _emit_tool_metrics(
         recorder.record(MetricType.TOOL_EXECUTION_STATUS, 1.0, labels=labels)
     except Exception:  # noqa: BLE001
         logger.warning("Failed to emit tool execution metrics", exc_info=True)
-
-
-def _emit_tool_telemetry_event(
-    namespaced_name: str,
-    status: ToolExecutionStatus,
-    duration_ms: float,
-    execution_id: UUID | None = None,
-) -> None:
-    """Emit a tool execution telemetry event to Segment (best-effort, fire-and-forget).
-
-    Telemetry failures are intentionally caught broadly so they never
-    interrupt the tool execution pipeline.
-
-    Args:
-        namespaced_name: Tool namespaced name (e.g. "mcp::get_greeting").
-        status: Resolved execution status.
-        duration_ms: Execution duration in milliseconds.
-        execution_id: Optional parent workflow execution ID for correlation.
-
-    """
-    try:
-        from nexus.telemetry.client import get_telemetry_registry  # noqa: PLC0415
-        from nexus.telemetry.collector import TelemetryCollector  # noqa: PLC0415
-
-        registry = get_telemetry_registry()
-        if registry.is_initialized():
-            logger.debug(
-                "Emitting tool_execution_telemetry event",
-                namespaced_name=namespaced_name,
-                status=status.value,
-                duration_ms=int(duration_ms),
-                execution_id=str(execution_id) if execution_id else None,
-            )
-            TelemetryCollector(registry=registry).capture_tool_executed(
-                namespaced_name=namespaced_name,
-                status=status,
-                duration_ms=int(duration_ms),
-                execution_id=execution_id,
-            )
-        else:
-            logger.debug("Telemetry not initialized, skipping tool_execution_telemetry event")
-    except Exception:  # noqa: BLE001
-        # Broad catch: telemetry must never break the tool execution pipeline
-        logger.warning("Failed to emit tool telemetry event", exc_info=True)
 
 
 async def _persist_tool_execution_to_db(
@@ -310,11 +268,13 @@ def create_tool_awrapper(
                 status,
                 error_message=str(caught_error) if caught_error else None,
             )
-            _emit_tool_telemetry_event(
-                namespaced_name=namespaced_name,
-                status=status,
-                duration_ms=duration_ms,
-                execution_id=execution_id,
+            AuditEventDispatcher.dispatch(
+                ToolExecutedEvent(
+                    namespaced_name=namespaced_name,
+                    status=status,
+                    duration_ms=int(duration_ms),
+                    execution_id=execution_id,
+                )
             )
 
     return tool_awrapper
@@ -424,11 +384,13 @@ def create_tool_wrapper(
                 loop,
                 "tool execution DB persistence",
             )
-            _emit_tool_telemetry_event(
-                namespaced_name=namespaced_name,
-                status=status,
-                duration_ms=duration_ms,
-                execution_id=execution_id,
+            AuditEventDispatcher.dispatch(
+                ToolExecutedEvent(
+                    namespaced_name=namespaced_name,
+                    status=status,
+                    duration_ms=int(duration_ms),
+                    execution_id=execution_id,
+                )
             )
 
     return tool_wrapper
