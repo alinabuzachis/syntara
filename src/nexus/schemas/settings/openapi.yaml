@@ -273,6 +273,7 @@ components:
             - name
             - description
             - helper_text
+            - depends_on
             - category
             - group
             - value
@@ -300,6 +301,11 @@ components:
                 - type: string
                 - type: "null"
               title: Helper Text
+            depends_on:
+              anyOf:
+                - type: string
+                - type: "null"
+              title: Depends On
             category:
               type: string
               title: Category

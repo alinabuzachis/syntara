@@ -114,6 +114,8 @@ class SettingDefinition:
         value_type: Expected Python type for UI rendering and validation.
         default_value: Factory default as a native Python type.
         description: Optional longer description shown in the UI.
+        depends_on: Dot-namespaced key of a boolean setting that controls
+            this setting's visibility. ``None`` means always visible.
         requires_restart: Whether a change takes effect without restart.
         cache_ttl_seconds: Per-setting TTL override; ``None`` uses 60s default.
         validation_schema: Optional constraints dict (min, max,
@@ -128,6 +130,7 @@ class SettingDefinition:
     default_value: int | float | bool | str | list[str] | None
     description: str | None = None
     helper_text: str | None = None
+    depends_on: str | None = None
     group: str | None = None
     requires_restart: bool = False
     cache_ttl_seconds: int | None = None
@@ -339,6 +342,7 @@ SETTINGS_CATALOG: list[SettingDefinition] = [
             "semantic and lexical weights should typically sum to 1.0."
         ),
         helper_text="Range 0.0-1.0. Only applies when hybrid search is enabled.",
+        depends_on="context_manager.enable_hybrid_search",
         group=ContextManagerGroup.RETRIEVAL,
         validation_schema={"min": 0.0, "max": 1.0},
     ),
@@ -356,6 +360,7 @@ SETTINGS_CATALOG: list[SettingDefinition] = [
             "to 1.0."
         ),
         helper_text="Range 0.0-1.0. Only applies when hybrid search is enabled.",
+        depends_on="context_manager.enable_hybrid_search",
         group=ContextManagerGroup.RETRIEVAL,
         validation_schema={"min": 0.0, "max": 1.0},
     ),
@@ -440,6 +445,7 @@ SETTINGS_CATALOG: list[SettingDefinition] = [
             "enabled."
         ),
         helper_text='JSON array, for example ["system", "context", "user"]',
+        depends_on="context_manager.enforce_hierarchy",
         group=ContextManagerGroup.CONTEXT_ASSEMBLY,
     ),
     SettingDefinition(

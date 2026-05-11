@@ -109,6 +109,7 @@ class TestGetSetting:
         assert "version" in data
         assert "value_type" in data
         assert "helper_text" in data
+        assert "depends_on" in data
 
     @pytest.mark.asyncio
     async def test_get_setting_not_found(self, admin_settings_client: AsyncClient) -> None:

@@ -71,6 +71,21 @@ class TestSettingToRead:
 
         assert read.group == "Token limits"
 
+    def test_depends_on_field_included(self) -> None:
+        """depends_on field is included in the read schema."""
+        setting = _make_setting()
+        setting.depends_on = "context_manager.enable_hybrid_search"
+        read = setting_to_read(setting)
+
+        assert read.depends_on == "context_manager.enable_hybrid_search"
+
+    def test_depends_on_none_when_not_set(self) -> None:
+        """depends_on is None when not set on the setting."""
+        setting = _make_setting()
+        read = setting_to_read(setting)
+
+        assert read.depends_on is None
+
     def test_category_serialized_as_string(self) -> None:
         """Category enum is serialized as its string value."""
         setting = _make_setting()

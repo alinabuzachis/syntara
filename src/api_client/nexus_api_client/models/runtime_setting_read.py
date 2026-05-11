@@ -28,6 +28,7 @@ class RuntimeSettingRead:
         name (str):
         description (None | str):
         helper_text (None | str):
+        depends_on (None | str):
         category (str):
         group (None | str):
         value (Any):
@@ -49,6 +50,7 @@ class RuntimeSettingRead:
     name: str
     description: None | str
     helper_text: None | str
+    depends_on: None | str
     category: str
     group: None | str
     value: Any
@@ -76,6 +78,9 @@ class RuntimeSettingRead:
 
         helper_text: None | str
         helper_text = self.helper_text
+
+        depends_on: None | str
+        depends_on = self.depends_on
 
         category = self.category
 
@@ -127,6 +132,7 @@ class RuntimeSettingRead:
                 "name": name,
                 "description": description,
                 "helper_text": helper_text,
+                "depends_on": depends_on,
                 "category": category,
                 "group": group,
                 "value": value,
@@ -173,6 +179,13 @@ class RuntimeSettingRead:
             return cast(None | str, data)
 
         helper_text = _parse_helper_text(d.pop("helper_text"))
+
+        def _parse_depends_on(data: object) -> None | str:
+            if data is None:
+                return data
+            return cast(None | str, data)
+
+        depends_on = _parse_depends_on(d.pop("depends_on"))
 
         category = d.pop("category")
 
@@ -250,6 +263,7 @@ class RuntimeSettingRead:
             name=name,
             description=description,
             helper_text=helper_text,
+            depends_on=depends_on,
             category=category,
             group=group,
             value=value,

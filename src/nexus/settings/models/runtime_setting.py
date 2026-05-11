@@ -163,6 +163,13 @@ class RuntimeSetting(NamedResource, table=True):
         description="Short inline guidance shown below the setting field in the UI",
     )
 
+    depends_on: str | None = Field(
+        default=None,
+        max_length=_KEY_MAX_LENGTH,
+        sa_type=String(_KEY_MAX_LENGTH),  # type: ignore[call-overload]
+        description="Dot-namespaced key of a boolean setting that controls this setting's visibility",
+    )
+
     group: str | None = Field(
         default=None,
         max_length=FieldLimits.NAME_MAX_LENGTH,

@@ -27,12 +27,14 @@ import structlog
 from sqlalchemy.dialects.postgresql import insert
 
 from nexus.settings.catalog import CATEGORY_CATALOG, SETTINGS_CATALOG
-from nexus.settings.models.runtime_setting import RuntimeSetting
+from nexus.settings.models.runtime_setting import RuntimeSetting, SettingValueType
 from nexus.settings.models.setting_category import SettingCategoryModel
 from nexus.settings.validators import check_schema_compatibility, validate_setting_value
 
 if TYPE_CHECKING:
     from sqlmodel.ext.asyncio.session import AsyncSession
+
+    from nexus.settings.catalog import SettingDefinition
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -40,6 +42,7 @@ _UPSERT_UPDATE_FIELDS = (
     "name",
     "description",
     "helper_text",
+    "depends_on",
     "default_value",
     "value_type",
     "category",
@@ -112,9 +115,24 @@ async def _upsert_categories(session: AsyncSession) -> tuple[int, int]:
     return await _upsert(session, SettingCategoryModel, rows, ["slug"], _CATEGORY_UPSERT_FIELDS)
 
 
+def _check_depends_on_cycles(catalog_by_key: dict[str, SettingDefinition]) -> None:
+    """Raise if any depends_on chain forms a cycle."""
+    for defn in catalog_by_key.values():
+        visited: set[str] = set()
+        key: str | None = defn.key
+        while key is not None:
+            if key in visited:
+                msg = f"Circular depends_on chain detected: {' -> '.join(visited)} -> {key}"
+                raise ValueError(msg)
+            visited.add(key)
+            key = catalog_by_key[key].depends_on if key in catalog_by_key else None
+
+
 def _validate_catalog() -> None:
     """Validate SETTINGS_CATALOG entries against categories and schemas."""
     valid_category_slugs = {cat.slug for cat in CATEGORY_CATALOG}
+    catalog_by_key = {defn.key: defn for defn in SETTINGS_CATALOG}
+
     for defn in SETTINGS_CATALOG:
         cat_slug = defn.category.value if hasattr(defn.category, "value") else str(defn.category)
         if cat_slug not in valid_category_slugs:
@@ -128,6 +146,22 @@ def _validate_catalog() -> None:
             value_type=defn.value_type,
             validation_schema=defn.validation_schema,
         )
+        if defn.depends_on is not None:
+            if defn.depends_on == defn.key:
+                msg = f"Setting '{defn.key}' cannot depend on itself"
+                raise ValueError(msg)
+            target = catalog_by_key.get(defn.depends_on)
+            if target is None:
+                msg = f"Setting '{defn.key}' depends_on unknown key '{defn.depends_on}'"
+                raise ValueError(msg)
+            if target.value_type != SettingValueType.BOOLEAN:
+                msg = (
+                    f"Setting '{defn.key}' depends_on '{defn.depends_on}' "
+                    f"which is {target.value_type.value}, not boolean"
+                )
+                raise ValueError(msg)
+
+    _check_depends_on_cycles(catalog_by_key)
 
 
 async def _upsert_settings(session: AsyncSession) -> tuple[int, int]:
@@ -144,6 +178,7 @@ async def _upsert_settings(session: AsyncSession) -> tuple[int, int]:
             "name": defn.name,
             "description": defn.description,
             "helper_text": defn.helper_text,
+            "depends_on": defn.depends_on,
             "key": defn.key,
             "category": defn.category,
             "value_type": defn.value_type,

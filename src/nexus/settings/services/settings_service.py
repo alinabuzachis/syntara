@@ -72,6 +72,7 @@ def setting_to_read(setting: RuntimeSetting) -> RuntimeSettingRead:
         name=setting.name,
         description=setting.description,
         helper_text=setting.helper_text,
+        depends_on=setting.depends_on,
         category=setting.category,
         group=setting.group,
         value=setting.value,
