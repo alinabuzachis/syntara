@@ -19,6 +19,7 @@ import { useLocation, useParams } from 'wouter'
 import { AppPage, AppPageMain } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { AppRoute } from '../../app/AppRoute'
+import { breadcrumbsApprovalDetail, breadcrumbsApprovalsPage } from '../../app/breadcrumbBuilders'
 import { approvalsClient } from '../../client'
 import { AppPanel } from '../../components/AppPanel'
 import { CodeBlock } from '../../components/details/CodeBlock'
@@ -75,7 +76,7 @@ export default function ApprovalDetail() {
   if (!approvalId) {
     return (
       <AppPage>
-        <AppPageHeader title="Error" />
+        <AppPageHeader title="Error" breadcrumbs={breadcrumbsApprovalsPage('Error')} />
         <AppPageMain>
           <AppPanel isFullHeight>
             <ErrorState title="Invalid approval" message="No approval ID provided" />
@@ -214,7 +215,7 @@ export default function ApprovalDetail() {
   }
   return (
     <AppPage>
-      <AppPageHeader title={approvalName}>
+      <AppPageHeader title={approvalName} breadcrumbs={breadcrumbsApprovalDetail(approvalName)}>
         <Button variant="secondary" onClick={() => setLocation(AppRoute.Approvals.Root)}>
           {isPending ? 'Cancel' : 'Back to Approvals'}
         </Button>

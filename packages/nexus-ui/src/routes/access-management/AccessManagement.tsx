@@ -1,9 +1,11 @@
 import { StackItem, Tab, Tabs } from '@patternfly/react-core'
+import { useLayoutEffect } from 'react'
 import { useLocation } from 'wouter'
 
 import { AppPage, AppPageMain } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { AppRoute } from '../../app/AppRoute'
+import { breadcrumbsAccessManagementHub } from '../../app/breadcrumbBuilders'
 import { AppPanel } from '../../components/AppPanel'
 import { AssignmentsTab } from '../access/AssignmentsTab'
 import { CanITab } from '../access/CanITab'
@@ -27,9 +29,19 @@ const tabs = [
 export function AccessManagement() {
   const [location, navigate] = useLocation()
 
+  useLayoutEffect(() => {
+    if (location === AppRoute.AccessManagement.Root) {
+      navigate(AppRoute.AccessManagement.Users, { replace: true })
+    }
+  }, [location, navigate])
+
   const activeTabIndex = tabs.findIndex((tab) => location.startsWith(tab.path))
   const resolvedIndex = activeTabIndex === -1 ? 0 : activeTabIndex
   const ActiveTabComponent = tabs[resolvedIndex].component
+  const activeTab = tabs[resolvedIndex]
+  // Default hub tab: same view as `/access-management` (canonical `/access-management/users`); title + tabs suffice.
+  const hubBreadcrumbs =
+    activeTab.path === AppRoute.AccessManagement.Users ? undefined : breadcrumbsAccessManagementHub(activeTab.label)
 
   const handleTabSelect = (_event: React.MouseEvent, tabIndex: string | number) => {
     const tab = tabs[Number(tabIndex)]
@@ -40,7 +52,7 @@ export function AccessManagement() {
 
   return (
     <AppPage>
-      <AppPageHeader title="Access Management" />
+      <AppPageHeader title="Access Management" breadcrumbs={hubBreadcrumbs} />
       <StackItem style={{ flexShrink: 0 }}>
         <Tabs activeKey={resolvedIndex} onSelect={handleTabSelect}>
           {tabs.map((tab, index) => (

@@ -135,7 +135,8 @@ export type AgenticConfig = WorkflowAPI.components['schemas']['agentic.schema_co
 export type AAPJobTemplateConfig = WorkflowAPI.components['schemas']['aap_job_template.schema_configSchema']
 
 /** AAP workflow job template node configuration */
-export type AAPWorkflowJobTemplateConfig = WorkflowAPI.components['schemas']['aap_workflow_job_template.schema_configSchema']
+export type AAPWorkflowJobTemplateConfig =
+  WorkflowAPI.components['schemas']['aap_workflow_job_template.schema_configSchema']
 
 /** Approval node configuration */
 export type ApprovalConfig = WorkflowAPI.components['schemas']['approval.schema_configSchema']

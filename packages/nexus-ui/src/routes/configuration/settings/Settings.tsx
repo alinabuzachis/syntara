@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react'
 
 import { AppPage, AppPageMain } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
+import { breadcrumbsSettingsCategory, breadcrumbsSettingsPage } from '../../../app/breadcrumbBuilders'
 import { settingsClient } from '../../../client'
 import { AppPanel } from '../../../components/AppPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
@@ -47,6 +48,16 @@ export default function Settings() {
   )
 
   const categories = categoriesQuery.data?.results ?? []
+
+  const settingsBreadcrumbs = useMemo(() => {
+    const categoryList = categoriesQuery.data?.results
+    const category = categoryList?.[activeTab]
+    // First tab is the default view for `/configuration/settings`; title + tabs match the page — omit trailing category crumb.
+    if (category && activeTab > 0) {
+      return breadcrumbsSettingsCategory(category.name)
+    }
+    return breadcrumbsSettingsPage()
+  }, [categoriesQuery.data, activeTab])
 
   const settingsByCategory = useMemo(() => {
     const grouped = new Map<string, (typeof allSettings)[number][]>()
@@ -127,7 +138,7 @@ export default function Settings() {
   if (!canRead) {
     return (
       <AppPage>
-        <AppPageHeader title="Settings" />
+        <AppPageHeader title="Settings" breadcrumbs={breadcrumbsSettingsPage()} />
         <StackItem isFilled>
           <AppPanel isFullHeight>
             <EmptyState headingLevel="h2" titleText="Access denied" icon={RhUiLockIcon} isFullHeight>
@@ -145,7 +156,7 @@ export default function Settings() {
   if (categoriesState) {
     return (
       <AppPage>
-        <AppPageHeader title="Settings" />
+        <AppPageHeader title="Settings" breadcrumbs={breadcrumbsSettingsPage()} />
         <AppPageMain>
           <AppPanel isFullHeight>{categoriesState}</AppPanel>
         </AppPageMain>
@@ -156,7 +167,7 @@ export default function Settings() {
   if (settingsState) {
     return (
       <AppPage>
-        <AppPageHeader title="Settings" />
+        <AppPageHeader title="Settings" breadcrumbs={breadcrumbsSettingsPage()} />
         <AppPageMain>
           <AppPanel isFullHeight>{settingsState}</AppPanel>
         </AppPageMain>
@@ -166,7 +177,7 @@ export default function Settings() {
 
   return (
     <AppPage>
-      <AppPageHeader title="Settings">
+      <AppPageHeader title="Settings" breadcrumbs={settingsBreadcrumbs}>
         {canWrite && (
           <Button
             variant="primary"

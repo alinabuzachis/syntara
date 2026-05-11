@@ -7,7 +7,13 @@ import { axe } from 'vitest-axe'
 import type { AAPJobTemplateFormData } from './aapJobTemplateSchema'
 import { AAPLabelsField } from './AAPLabelsField'
 
-function TestWrapper({ children, defaultValues }: { children: React.ReactNode; defaultValues?: Partial<AAPJobTemplateFormData> }) {
+function TestWrapper({
+  children,
+  defaultValues,
+}: {
+  children: React.ReactNode
+  defaultValues?: Partial<AAPJobTemplateFormData>
+}) {
   const methods = useForm<AAPJobTemplateFormData>({
     defaultValues: {
       name: '',

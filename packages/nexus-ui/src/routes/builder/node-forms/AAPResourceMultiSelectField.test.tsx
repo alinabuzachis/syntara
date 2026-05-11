@@ -6,7 +6,13 @@ import { describe, expect, it, vi } from 'vitest'
 import type { AAPJobTemplateFormData } from './aapJobTemplateSchema'
 import { AAPResourceMultiSelectField } from './AAPResourceMultiSelectField'
 
-function TestWrapper({ children, defaultValues }: { children: React.ReactNode; defaultValues?: Partial<AAPJobTemplateFormData> }) {
+function TestWrapper({
+  children,
+  defaultValues,
+}: {
+  children: React.ReactNode
+  defaultValues?: Partial<AAPJobTemplateFormData>
+}) {
   const methods = useForm<AAPJobTemplateFormData>({
     defaultValues: {
       job_credentials: [],

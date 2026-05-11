@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
+import { AppRoute } from '../../app/AppRoute'
 import { AlertProvider } from '../../providers/alerts'
 
 import { AccessManagement } from './AccessManagement'
@@ -20,8 +21,10 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 )
 
 const mockNavigate = vi.fn()
+const wouterLocation = { path: AppRoute.AccessManagement.Users }
+
 vi.mock('wouter', () => ({
-  useLocation: () => ['/access-management/users', mockNavigate],
+  useLocation: () => [wouterLocation.path, mockNavigate],
   useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }))
 
@@ -68,6 +71,11 @@ vi.mock('../access/accessClient', () => ({
 }))
 
 describe('AccessManagement', () => {
+  beforeEach(() => {
+    wouterLocation.path = AppRoute.AccessManagement.Users
+    mockNavigate.mockClear()
+  })
+
   it('renders the page header', () => {
     render(<AccessManagement />, { wrapper })
 
@@ -99,13 +107,34 @@ describe('AccessManagement', () => {
     expect(screen.getByText('No users')).toBeInTheDocument()
   })
 
+  it('replaces bare /access-management with the Users tab URL', () => {
+    wouterLocation.path = AppRoute.AccessManagement.Root
+    render(<AccessManagement />, { wrapper })
+
+    expect(mockNavigate).toHaveBeenCalledWith(AppRoute.AccessManagement.Users, { replace: true })
+  })
+
+  it('does not render breadcrumbs on the Users hub tab', () => {
+    render(<AccessManagement />, { wrapper })
+
+    expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).not.toBeInTheDocument()
+  })
+
+  it('renders breadcrumbs on non-default hub tabs', () => {
+    wouterLocation.path = AppRoute.AccessManagement.Groups
+    render(<AccessManagement />, { wrapper })
+
+    expect(screen.getByRole('navigation', { name: 'Breadcrumb' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Access management' })).toBeInTheDocument()
+  })
+
   it('navigates to Groups tab when clicked', async () => {
     const user = userEvent.setup()
     render(<AccessManagement />, { wrapper })
 
     await user.click(screen.getByRole('tab', { name: 'Groups' }))
 
-    expect(mockNavigate).toHaveBeenCalledWith('/access-management/groups')
+    expect(mockNavigate).toHaveBeenCalledWith(AppRoute.AccessManagement.Groups)
   })
 
   it('has no accessibility violations', async () => {

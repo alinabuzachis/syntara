@@ -16,6 +16,7 @@ import { useLocation, useParams } from 'wouter'
 import { AppPage, AppPageMain } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute.tsx'
+import { breadcrumbsIntegrationTools } from '../../../app/breadcrumbBuilders'
 import noToolsImage from '../../../assets/collage-circle-sparkles-window-server-dark-RH.png'
 import { toolManagerClient } from '../../../client'
 import { AppPanel } from '../../../components/AppPanel'
@@ -105,7 +106,7 @@ function IntegrationToolsLoadedView({
 }: IntegrationToolsLoadedViewProps) {
   return (
     <AppPage>
-      <AppPageHeader title={`${providerName} tools`}>
+      <AppPageHeader title={`${providerName} tools`} breadcrumbs={breadcrumbsIntegrationTools(providerName)}>
         <Button variant="secondary" onClick={() => setRefreshDialogOpen(true)}>
           Refresh tools
         </Button>
@@ -362,9 +363,11 @@ export default function IntegrationTools() {
   }
 
   if (integrationQueryStatus) {
+    const toolsTitle = provider?.name ? `${provider.name} tools` : 'Tools'
+    const toolsBreadcrumbs = provider?.name ? breadcrumbsIntegrationTools(provider.name) : undefined
     return (
       <AppPage>
-        <AppPageHeader title={provider?.name ? `${provider.name} tools` : 'Tools'} />
+        <AppPageHeader title={toolsTitle} breadcrumbs={toolsBreadcrumbs} />
         <AppPageMain>
           <AppPanel isFullHeight>{integrationQueryStatus}</AppPanel>
         </AppPageMain>

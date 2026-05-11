@@ -19,6 +19,7 @@ import { navigate } from 'wouter/use-browser-location'
 import { AppPage, AppPageMain } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
+import { breadcrumbsProjectDetail, breadcrumbsProjectDetailEarlyShell } from '../../../app/breadcrumbBuilders'
 import { AppPanel } from '../../../components/AppPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { useDetailTab } from '../../../hooks/useDetailTab'
@@ -108,7 +109,7 @@ export function ProjectDetail() {
 
   if (projectQuery.error) {
     return (
-      <DetailPageShell title="Project Details">
+      <DetailPageShell title="Project Details" breadcrumbs={breadcrumbsProjectDetailEarlyShell()}>
         <ProjectNotFoundState
           onBack={navigateBack}
           onRetry={() => {
@@ -120,14 +121,20 @@ export function ProjectDetail() {
   }
 
   if (queryState) {
-    return <DetailPageShell title="Project Details">{queryState}</DetailPageShell>
+    return (
+      <DetailPageShell title="Project Details" breadcrumbs={breadcrumbsProjectDetailEarlyShell()}>
+        {queryState}
+      </DetailPageShell>
+    )
   }
 
   if (!projectData) return null
 
+  const projectCrumbs = breadcrumbsProjectDetail(projectData.name, basePath, activeTab)
+
   return (
     <AppPage>
-      <AppPageHeader title={<Title headingLevel="h1">{projectData.name}</Title>} />
+      <AppPageHeader title={<Title headingLevel="h1">{projectData.name}</Title>} breadcrumbs={projectCrumbs} />
       <StackItem style={{ flexShrink: 0 }}>
         <Tabs activeKey={activeTab} onSelect={(_event, key) => goToTab(key as ProjectTab)}>
           <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />

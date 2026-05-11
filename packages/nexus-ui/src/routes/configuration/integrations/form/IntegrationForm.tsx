@@ -20,6 +20,7 @@ import { navigate } from 'wouter/use-browser-location'
 import { AppPage, AppPageMain } from '../../../../app/AppPage'
 import { AppPageHeader } from '../../../../app/AppPageHeader'
 import { AppRoute } from '../../../../app/AppRoute'
+import { breadcrumbsIntegrationConfigure } from '../../../../app/breadcrumbBuilders'
 import { toolManagerClient } from '../../../../client'
 import { AppPanel } from '../../../../components/AppPanel'
 import { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationErrorHandler'
@@ -90,7 +91,7 @@ export function IntegrationForm() {
 
   return (
     <AppPage>
-      <AppPageHeader title="Configure integration">
+      <AppPageHeader title="Configure integration" breadcrumbs={breadcrumbsIntegrationConfigure()}>
         <FlexItem grow={{ default: 'grow' }} />
         <Button type="submit" form="integration-form">
           Add integration

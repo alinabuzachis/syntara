@@ -279,11 +279,7 @@ export function MyPermissionsView() {
 
       {!isLoading && error != null && (
         <StackItem isFilled>
-          <ErrorState
-            title="Failed to load permissions"
-            message={error}
-            onRetry={() => detachPromise(handleFetch())}
-          />
+          <ErrorState title="Failed to load permissions" message={error} onRetry={() => detachPromise(handleFetch())} />
         </StackItem>
       )}
 

@@ -101,8 +101,8 @@ Check whether the changes follow:
 | Display strings in conditionals                         | #14 — compare API values, not translatable labels            |
 | Hardcoded `px` for spacing/colors                       | #15 — use PF6 design tokens `var(--pf-t--global--*)`         |
 | `void` used as operator in `.ts`/`.tsx`                 | #16 — use `detachPromise(...)`, not unary `void`             |
-| Native `<button>`, `<p>`, `<h1>`-`<h6>`, `<a>`, etc.    | #20 — use PF components for text/content (see mapping table) |
-| New route in `AppRoute.tsx` without registry entry      | Add to `e2e/visual-regression/page-registry.ts`              |
+| Native `<button>`, `<p>`, `<h1>`-`<h6>`, `<a>`, etc.    | #20 — use PF6 components (see HTML → PF6 mapping below)      |
+| New route in `AppRoute.tsx` without registry entry      | Add to `e2e/visual-regression/page-registry.ts` (see `VISUAL_REGRESSION.md`) |
 | `showSuccess('title', 'desc')` positional args          | #19 — use object form: `showSuccess({ title, description })` |
 | Title Case in alert titles                              | #19 — use sentence case: "Workflow created", not "Created"   |
 | Raw `<span>` / `<p>` / `<div>` for text content         | #20 — use PF `Content`, `HelperText`, `Label`, or `Title`    |

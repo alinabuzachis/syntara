@@ -9,6 +9,8 @@ import { navigate } from 'wouter/use-browser-location'
 import { AppPage, AppPageMain } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
+import { breadcrumbsCreateUser, breadcrumbsEditUser, breadcrumbsUserFormLoading } from '../../../app/breadcrumbBuilders'
+import type { AppBreadcrumbItem } from '../../../app/breadcrumbs/appBreadcrumbItem'
 import { AppPanel } from '../../../components/AppPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { detachPromise } from '../../../utils/detachPromise'
@@ -64,6 +66,23 @@ function UserFormWarningAlerts({
       {showPasswordWarning ? <PasswordWarningAlert isSelf={isSelf} /> : null}
     </>
   )
+}
+
+function userFormBreadcrumbTrail(
+  isEdit: boolean,
+  pageTitle: string,
+  userId: string | undefined,
+  user: { full_name: string | null; username: string } | undefined
+): AppBreadcrumbItem[] {
+  if (!isEdit) {
+    return breadcrumbsCreateUser()
+  }
+  const userBasePath = userId ? AppRoute.AccessManagement.UserDetail.replace(':userId', userId) : undefined
+  const displayName = user ? (user.full_name ?? user.username) : undefined
+  if (displayName && userBasePath) {
+    return breadcrumbsEditUser(displayName, userBasePath)
+  }
+  return breadcrumbsUserFormLoading(pageTitle)
 }
 
 function UserFormHeaderActions({
@@ -142,7 +161,7 @@ function UserFormMainPanel({
 function UserFormEditNotFoundPage({ onBack, onRetry }: Readonly<{ onBack: () => void; onRetry: () => void }>) {
   return (
     <AppPage>
-      <AppPageHeader title="Edit User" />
+      <AppPageHeader title="Edit User" breadcrumbs={breadcrumbsUserFormLoading('Edit user')} />
       <AppPageMain>
         <AppPanel isFullHeight>
           <UserNotFoundState onBack={onBack} onRetry={onRetry} />
@@ -155,7 +174,7 @@ function UserFormEditNotFoundPage({ onBack, onRetry }: Readonly<{ onBack: () => 
 function UserFormEditBusyPage({ pageTitle, children }: Readonly<{ pageTitle: string; children: ReactNode }>) {
   return (
     <AppPage>
-      <AppPageHeader title={pageTitle} />
+      <AppPageHeader title={pageTitle} breadcrumbs={breadcrumbsUserFormLoading(pageTitle)} />
       <AppPageMain>
         <AppPanel isFullHeight>{children}</AppPanel>
       </AppPageMain>
@@ -225,9 +244,11 @@ export function UserForm({ mode }: Readonly<UserFormProps>) {
     return <UserFormEditBusyPage pageTitle={pageTitle}>{queryState}</UserFormEditBusyPage>
   }
 
+  const formBreadcrumbs = userFormBreadcrumbTrail(isEdit, pageTitle, userId, userQuery.data)
+
   return (
     <AppPage>
-      <AppPageHeader title={pageTitle}>
+      <AppPageHeader title={pageTitle} breadcrumbs={formBreadcrumbs}>
         <UserFormHeaderActions isEdit={isEdit} isSaving={isSaving} submitLabel={submitLabel} onCancel={navigateBack} />
       </AppPageHeader>
       <AppPageMain>

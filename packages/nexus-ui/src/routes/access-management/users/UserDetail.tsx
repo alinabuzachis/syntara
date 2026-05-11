@@ -23,6 +23,7 @@ import { navigate } from 'wouter/use-browser-location'
 import { AppPage, AppPageMain } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
+import { breadcrumbsUserDetail, breadcrumbsUserDetailEarlyShell } from '../../../app/breadcrumbBuilders'
 import { authClient } from '../../../client'
 import { AppPanel } from '../../../components/AppPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
@@ -213,7 +214,7 @@ export function UserDetail() {
 
   if (userQuery.error) {
     return (
-      <DetailPageShell title="User Details">
+      <DetailPageShell title="User Details" breadcrumbs={breadcrumbsUserDetailEarlyShell()}>
         <UserNotFoundState
           onBack={navigateBack}
           onRetry={() => {
@@ -225,14 +226,24 @@ export function UserDetail() {
   }
 
   if (queryState) {
-    return <DetailPageShell title="User Details">{queryState}</DetailPageShell>
+    return (
+      <DetailPageShell title="User Details" breadcrumbs={breadcrumbsUserDetailEarlyShell()}>
+        {queryState}
+      </DetailPageShell>
+    )
   }
 
   if (!userData) return null
 
+  const userDisplayName = userData.full_name ?? userData.username
+  const userBreadcrumbs = breadcrumbsUserDetail(userDisplayName, basePath, activeTab)
+
   return (
     <AppPage>
-      <AppPageHeader title={<UserDetailHeaderTitle userData={userData} onBack={navigateBack} />}>
+      <AppPageHeader
+        title={<UserDetailHeaderTitle userData={userData} onBack={navigateBack} />}
+        breadcrumbs={userBreadcrumbs}
+      >
         <FlexItem grow={{ default: 'grow' }} />
         <Button variant="secondary" icon={<RhUiEditIcon />} onClick={navigateEdit}>
           Edit user

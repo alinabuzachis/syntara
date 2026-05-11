@@ -24,13 +24,17 @@ import {
 import { RhUiArrowLeftIcon, RhUiEditIcon, RhUiSearchIcon, RhUiSyncIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useParams } from 'wouter'
 import { navigate } from 'wouter/use-browser-location'
 
 import { AppPage, AppPageMain } from '../../../../app/AppPage'
 import { AppPageHeader } from '../../../../app/AppPageHeader'
 import { AppRoute } from '../../../../app/AppRoute'
+import {
+  breadcrumbsIdentityProviderDetail,
+  breadcrumbsIdentityProviderDetailEarlyShell,
+} from '../../../../app/breadcrumbBuilders'
 import { identityProvidersClient } from '../../../../client'
 import { AppPanel } from '../../../../components/AppPanel'
 import { ConfirmationDialog } from '../../../../components/ConfirmationDialog'
@@ -176,7 +180,91 @@ function isTabKey(value: string | undefined): value is TabKey {
   return value === 'details' || value === 'group-mapping'
 }
 
-// eslint-disable-next-line max-lines-per-function
+function identityProviderDetailBreadcrumbTrail(provider: ProviderData, idpDetailBasePath: string, activeTab: TabKey) {
+  return breadcrumbsIdentityProviderDetail(provider.name ?? 'Identity provider', idpDetailBasePath, activeTab)
+}
+
+function IdentityProviderDetailEarlyLayout({ children }: Readonly<{ children: ReactNode }>) {
+  return (
+    <AppPage>
+      <AppPageHeader title="Identity Provider Details" breadcrumbs={breadcrumbsIdentityProviderDetailEarlyShell()} />
+      <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <AppPanel isFullHeight>{children}</AppPanel>
+      </StackItem>
+    </AppPage>
+  )
+}
+
+function IdentityProviderDetailTabStrip({
+  activeTab,
+  mappingCount,
+  onSelectTab,
+}: Readonly<{
+  activeTab: TabKey
+  mappingCount: number
+  onSelectTab: (key: TabKey) => void
+}>) {
+  return (
+    <StackItem style={{ flexShrink: 0 }}>
+      <Tabs
+        activeKey={activeTab}
+        onSelect={(_event, key) => {
+          const keyStr = String(key)
+          if (isTabKey(keyStr)) onSelectTab(keyStr)
+        }}
+      >
+        <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />
+        <Tab
+          eventKey="group-mapping"
+          title={<TabTitleText>Group mapping {mappingCount > 0 && <Badge isRead>{mappingCount}</Badge>}</TabTitleText>}
+        />
+      </Tabs>
+    </StackItem>
+  )
+}
+
+function IdentityProviderDeleteDialog({
+  isOpen,
+  providerName,
+  onClose,
+  onConfirm,
+}: Readonly<{
+  isOpen: boolean
+  providerName: string
+  onClose: () => void
+  onConfirm: () => void
+}>) {
+  return (
+    <ConfirmationDialog
+      isOpen={isOpen}
+      onClose={onClose}
+      onConfirm={onConfirm}
+      title="Delete identity provider?"
+      confirmLabel="Delete"
+      confirmVariant="danger"
+      titleIconVariant="warning"
+      destructiveAcknowledgement={{
+        checkboxId: 'delete-idp-detail-ack',
+        label: 'I understand this identity provider and its linked identities will be permanently deleted.',
+      }}
+    >
+      <Stack hasGutter>
+        <StackItem>
+          The identity provider <strong>{providerName}</strong> will be deleted. This cannot be undone.
+        </StackItem>
+        <StackItem>This will immediately:</StackItem>
+        <StackItem>
+          <ul style={{ paddingLeft: 'var(--pf-t--global--spacer--lg)', margin: 0 }}>
+            <li>Remove all user identities linked to this provider</li>
+            <li>Revoke active sessions authenticated via this provider</li>
+            <li>Prevent users from signing in with this provider</li>
+          </ul>
+        </StackItem>
+      </Stack>
+    </ConfirmationDialog>
+  )
+}
+
 export function IdentityProviderDetail() {
   const { providerId, tab } = useParams<{ providerId: string; tab?: string }>()
   const isValidId = !!providerId && isValidUUID(providerId)
@@ -184,12 +272,13 @@ export function IdentityProviderDetail() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [editMappingTrigger, setEditMappingTrigger] = useState(0)
 
+  const idpDetailBasePath = AppRoute.AccessManagement.Authentication.IdentityProviderDetail.replace(
+    ':providerId',
+    providerId ?? ''
+  ).replace('/:tab?', '')
+
   const setActiveTab = (key: TabKey) => {
-    const basePath = AppRoute.AccessManagement.Authentication.IdentityProviderDetail.replace(
-      ':providerId',
-      providerId ?? ''
-    ).replace('/:tab?', '')
-    navigate(key === 'details' ? basePath : `${basePath}/${key}`, { replace: true })
+    navigate(key === 'details' ? idpDetailBasePath : `${idpDetailBasePath}/${key}`, { replace: true })
   }
 
   const providerQuery = identityProvidersClient.useQuery(
@@ -273,43 +362,33 @@ export function IdentityProviderDetail() {
 
   if (is404) {
     return (
-      <AppPage>
-        <AppPageHeader title="Identity Provider Details" />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <AppPanel isFullHeight>
-            <EmptyState headingLevel="h2" titleText="Identity provider not found" icon={RhUiSearchIcon} isFullHeight>
-              <EmptyStateBody>
-                The identity provider you are looking for does not exist or may have been deleted.
-              </EmptyStateBody>
-              <EmptyStateFooter>
-                <EmptyStateActions>
-                  <Button variant="primary" icon={<RhUiArrowLeftIcon />} onClick={navigateBack}>
-                    Back to identity providers
-                  </Button>
-                  <Button variant="link" icon={<RhUiSyncIcon />} onClick={() => detachPromise(refetchProvider())}>
-                    Retry
-                  </Button>
-                </EmptyStateActions>
-              </EmptyStateFooter>
-            </EmptyState>
-          </AppPanel>
-        </StackItem>
-      </AppPage>
+      <IdentityProviderDetailEarlyLayout>
+        <EmptyState headingLevel="h2" titleText="Identity provider not found" icon={RhUiSearchIcon} isFullHeight>
+          <EmptyStateBody>
+            The identity provider you are looking for does not exist or may have been deleted.
+          </EmptyStateBody>
+          <EmptyStateFooter>
+            <EmptyStateActions>
+              <Button variant="primary" icon={<RhUiArrowLeftIcon />} onClick={navigateBack}>
+                Back to identity providers
+              </Button>
+              <Button variant="link" icon={<RhUiSyncIcon />} onClick={() => detachPromise(refetchProvider())}>
+                Retry
+              </Button>
+            </EmptyStateActions>
+          </EmptyStateFooter>
+        </EmptyState>
+      </IdentityProviderDetailEarlyLayout>
     )
   }
 
   if (queryState) {
-    return (
-      <AppPage>
-        <AppPageHeader title="Identity Provider Details" />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <AppPanel isFullHeight>{queryState}</AppPanel>
-        </StackItem>
-      </AppPage>
-    )
+    return <IdentityProviderDetailEarlyLayout>{queryState}</IdentityProviderDetailEarlyLayout>
   }
 
   if (!providerData) return null
+
+  const idpDetailCrumbs = identityProviderDetailBreadcrumbTrail(providerData, idpDetailBasePath, activeTab)
 
   const config = providerData.configuration
   const idpType = config?.idp_type
@@ -342,7 +421,7 @@ export function IdentityProviderDetail() {
 
   return (
     <AppPage>
-      <AppPageHeader title={headerTitle}>
+      <AppPageHeader title={headerTitle} breadcrumbs={idpDetailCrumbs}>
         <FlexItem grow={{ default: 'grow' }} />
         <Switch
           id="provider-detail-toggle"
@@ -356,23 +435,7 @@ export function IdentityProviderDetail() {
         </Button>
         <ActionsColumn items={kebabActions} />
       </AppPageHeader>
-      <StackItem style={{ flexShrink: 0 }}>
-        <Tabs
-          activeKey={activeTab}
-          onSelect={(_event, key) => {
-            const keyStr = String(key)
-            if (isTabKey(keyStr)) setActiveTab(keyStr)
-          }}
-        >
-          <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />
-          <Tab
-            eventKey="group-mapping"
-            title={
-              <TabTitleText>Group mapping {mappingCount > 0 && <Badge isRead>{mappingCount}</Badge>}</TabTitleText>
-            }
-          />
-        </Tabs>
-      </StackItem>
+      <IdentityProviderDetailTabStrip activeTab={activeTab} mappingCount={mappingCount} onSelectTab={setActiveTab} />
       <AppPageMain>
         <AppPanel isFullHeight>
           <TabContent
@@ -388,33 +451,12 @@ export function IdentityProviderDetail() {
           />
         </AppPanel>
       </AppPageMain>
-      <ConfirmationDialog
+      <IdentityProviderDeleteDialog
         isOpen={deleteDialogOpen}
+        providerName={providerData.name ?? ''}
         onClose={() => setDeleteDialogOpen(false)}
         onConfirm={() => handleDelete(providerData)}
-        title="Delete identity provider?"
-        confirmLabel="Delete"
-        confirmVariant="danger"
-        titleIconVariant="warning"
-        destructiveAcknowledgement={{
-          checkboxId: 'delete-idp-detail-ack',
-          label: 'I understand this identity provider and its linked identities will be permanently deleted.',
-        }}
-      >
-        <Stack hasGutter>
-          <StackItem>
-            The identity provider <strong>{providerData.name}</strong> will be deleted. This cannot be undone.
-          </StackItem>
-          <StackItem>This will immediately:</StackItem>
-          <StackItem>
-            <ul style={{ paddingLeft: 'var(--pf-t--global--spacer--lg)', margin: 0 }}>
-              <li>Remove all user identities linked to this provider</li>
-              <li>Revoke active sessions authenticated via this provider</li>
-              <li>Prevent users from signing in with this provider</li>
-            </ul>
-          </StackItem>
-        </Stack>
-      </ConfirmationDialog>
+      />
     </AppPage>
   )
 }

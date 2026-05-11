@@ -154,7 +154,7 @@ describe('IntegrationTools Component', () => {
       render(<IntegrationTools />, { wrapper })
 
       // Check page header with provider name
-      expect(screen.getByText('Test Provider tools')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Test Provider tools' })).toBeInTheDocument()
 
       // Check filter input (FilterBar name filter)
       const filterInput = screen.getByRole('textbox', { name: /name filter/i })

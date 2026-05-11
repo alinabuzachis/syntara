@@ -97,7 +97,7 @@ describe('ApprovalDetail Component', () => {
 
     render(<ApprovalDetail />)
 
-    expect(screen.getByText('Test Approval')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Test Approval' })).toBeInTheDocument()
     expect(screen.getByText('Approval type')).toBeInTheDocument()
     expect(screen.getByText('Workflow')).toBeInTheDocument()
     expect(screen.getByText('Approval initiated')).toBeInTheDocument()
@@ -108,8 +108,7 @@ describe('ApprovalDetail Component', () => {
 
     render(<ApprovalDetail />)
 
-    // The approval name should be in the page header
-    expect(screen.getByText('Test Approval')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Test Approval' })).toBeInTheDocument()
   })
 
   it('displays approval JSON data', () => {
@@ -182,8 +181,7 @@ describe('ApprovalDetail Component', () => {
 
     render(<ApprovalDetail />)
 
-    // Should fall back to approval ID
-    expect(screen.getByText('550e8400-e29b-41d4-a716-446655440002')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '550e8400-e29b-41d4-a716-446655440002' })).toBeInTheDocument()
   })
 
   it('shows approve/reject actions for pending approvals', () => {

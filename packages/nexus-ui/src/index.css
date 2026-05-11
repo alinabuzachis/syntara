@@ -107,6 +107,21 @@ body {
   padding: var(--nexus-compass-inner-shadow-inset);
 }
 
+/*
+ * Breadcrumb links: PF defaults map underline color to `--pf-t--global--text-decoration--color--*`
+ * (neutral borders), so underlines are not blue even when link text uses link tokens — unlike
+ * patternfly.org examples where decoration matches link blue. Align link + underline colors; keep
+ * solid decoration where global tokens use dotted style.
+ */
+.pf-v6-c-breadcrumb {
+  --pf-v6-c-breadcrumb__link--Color: var(--pf-t--global--text--color--link--default);
+  --pf-v6-c-breadcrumb__link--hover--Color: var(--pf-t--global--text--color--link--hover);
+  --pf-v6-c-breadcrumb__link--TextDecorationColor: var(--pf-t--global--text--color--link--default);
+  --pf-v6-c-breadcrumb__link--hover--TextDecorationColor: var(--pf-t--global--text--color--link--hover);
+  --pf-v6-c-breadcrumb__link--TextDecorationStyle: solid;
+  --pf-v6-c-breadcrumb__link--hover--TextDecorationStyle: solid;
+}
+
 /* Prevent horizontal scrollbar from PF portaled menus (Select/Dropdown) that
    extend past the viewport edge. The app requires ≥1200px viewport anyway. */
 html {

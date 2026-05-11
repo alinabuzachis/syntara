@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -210,8 +210,9 @@ describe('GroupDetail', () => {
       render(<GroupDetail />, { wrapper })
 
       expect(screen.getByText('Name')).toBeInTheDocument()
-      // Group name appears in both heading and description list, verify both exist
-      expect(screen.getAllByText('developers')).toHaveLength(2)
+      const breadcrumbNav = screen.getByRole('navigation', { name: 'Breadcrumb' })
+      expect(within(breadcrumbNav).getByText('developers')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'developers' })).toBeInTheDocument()
       expect(screen.getByText('Description')).toBeInTheDocument()
       expect(screen.getByText('Developer group')).toBeInTheDocument()
       expect(screen.getByText('Created')).toBeInTheDocument()

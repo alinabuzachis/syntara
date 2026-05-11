@@ -83,11 +83,11 @@ See existing entries in `page-registry.ts` for examples.
 
 ## CI vs Local
 
-| | CI (GitHub Actions) | Local development |
-|---|---|---|
-| **App server** | `vite build` + `vite preview` | `vite` (dev server) |
-| **Why** | Production build reads source files fresh — no transform caching | Dev server is faster for iteration |
-| **Controlled by** | `process.env.CI` in `playwright.config.ts` | Absence of `CI` env var |
+|                   | CI (GitHub Actions)                                              | Local development                  |
+| ----------------- | ---------------------------------------------------------------- | ---------------------------------- |
+| **App server**    | `vite build` + `vite preview`                                    | `vite` (dev server)                |
+| **Why**           | Production build reads source files fresh — no transform caching | Dev server is faster for iteration |
+| **Controlled by** | `process.env.CI` in `playwright.config.ts`                       | Absence of `CI` env var            |
 
 The `playwright.config.ts` webServer command switches automatically: when `CI` is set (all GitHub Actions runners), it runs a full production build then serves the static output. Locally, it uses the Vite dev server. The mock API server is the same in both cases.
 

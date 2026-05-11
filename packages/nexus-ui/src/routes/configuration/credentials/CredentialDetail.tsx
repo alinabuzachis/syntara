@@ -20,6 +20,7 @@ import { useLocation, useParams } from 'wouter'
 import { AppPage, AppPageMain } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
+import { breadcrumbsCredentialDetail, breadcrumbsCredentialEarlyShell } from '../../../app/breadcrumbBuilders'
 import { credentialsClient } from '../../../client'
 import { AppPanel } from '../../../components/AppPanel'
 import { Detail } from '../../../components/details/Detail'
@@ -127,8 +128,9 @@ export default function CredentialDetail() {
     if (credential.enabled) {
       openDisableDialog(credential)
     } else {
+      if (!credential.id) return
       patchCredential(
-        { params: { path: { credential_id: credential.id! } }, body: { enabled: true } },
+        { params: { path: { credential_id: credential.id } }, body: { enabled: true } },
         {
           onSuccess: () => {
             showAlert({ title: 'Credential enabled', variant: 'success', autoDismiss: true })
@@ -194,7 +196,7 @@ export default function CredentialDetail() {
   if (!credentialId) {
     return (
       <AppPage>
-        <AppPageHeader title="Error" />
+        <AppPageHeader title="Error" breadcrumbs={breadcrumbsCredentialEarlyShell('Error')} />
         <AppPageMain>
           <AppPanel isFullHeight>
             <ErrorState title="Invalid credential" message="No credential ID provided" />
@@ -207,7 +209,7 @@ export default function CredentialDetail() {
   if (queryState) {
     return (
       <AppPage>
-        <AppPageHeader title="Credential" />
+        <AppPageHeader title="Credential" breadcrumbs={breadcrumbsCredentialEarlyShell('Credential')} />
         <AppPageMain>
           <AppPanel isFullHeight>{queryState}</AppPanel>
         </AppPageMain>
@@ -216,12 +218,19 @@ export default function CredentialDetail() {
   }
 
   if (!credential) return null
+  if (!credential.id) return null
 
-  const credInputs = credential.inputs as Record<string, unknown>
+  const credInputs = credential.inputs ?? {}
+  const credentialCrumbs = breadcrumbsCredentialDetail(
+    credential.id,
+    credential.name,
+    activeTab === 0 ? 'details' : 'workflows'
+  )
 
   return (
     <AppPage>
       <AppPageHeader
+        breadcrumbs={credentialCrumbs}
         title={
           <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
             <FlexItem>
@@ -324,7 +333,7 @@ export default function CredentialDetail() {
                 </>
               }
             >
-              <CredentialWorkflowsTab credentialId={credential.id!} />
+              <CredentialWorkflowsTab credentialId={credential.id} />
             </Tab>
           </Tabs>
         </AppPanel>

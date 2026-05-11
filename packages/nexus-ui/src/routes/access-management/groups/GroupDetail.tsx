@@ -23,6 +23,7 @@ import { navigate } from 'wouter/use-browser-location'
 import { AppPage, AppPageMain } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
+import { breadcrumbsGroupDetail, breadcrumbsGroupDetailEarlyShell } from '../../../app/breadcrumbBuilders'
 import { AppPanel } from '../../../components/AppPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { useDetailTab } from '../../../hooks/useDetailTab'
@@ -156,7 +157,7 @@ export function GroupDetail() {
 
   if (groupQuery.error) {
     return (
-      <DetailPageShell title="Group Details">
+      <DetailPageShell title="Group Details" breadcrumbs={breadcrumbsGroupDetailEarlyShell()}>
         <GroupNotFoundState
           onBack={navigateBack}
           onRetry={() => {
@@ -168,14 +169,20 @@ export function GroupDetail() {
   }
 
   if (queryState) {
-    return <DetailPageShell title="Group Details">{queryState}</DetailPageShell>
+    return (
+      <DetailPageShell title="Group Details" breadcrumbs={breadcrumbsGroupDetailEarlyShell()}>
+        {queryState}
+      </DetailPageShell>
+    )
   }
 
   if (!groupData) return null
 
+  const groupCrumbs = breadcrumbsGroupDetail(groupData.name, basePath, activeTab)
+
   return (
     <AppPage>
-      <AppPageHeader title={<Title headingLevel="h1">{groupData.name}</Title>}>
+      <AppPageHeader title={<Title headingLevel="h1">{groupData.name}</Title>} breadcrumbs={groupCrumbs}>
         <FlexItem grow={{ default: 'grow' }} />
         {!groupData.is_builtin && (
           <Button variant="secondary" icon={<RhUiEditIcon />} onClick={() => setEditModalOpen(true)}>

@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
@@ -163,6 +163,23 @@ describe('Settings', () => {
 
     expect(screen.getByRole('tab', { name: 'Context Manager' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Application' })).toBeInTheDocument()
+  })
+
+  it('shows breadcrumbs without the default category tab; adds category when another tab is selected', async () => {
+    const user = userEvent.setup()
+    mockQueries()
+    render(<Settings />)
+
+    const breadcrumbNav = screen.getByRole('navigation', { name: 'Breadcrumb' })
+    expect(screen.getByRole('link', { name: 'Configuration' })).toBeInTheDocument()
+    expect(within(breadcrumbNav).getByText('Settings')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument()
+    expect(within(breadcrumbNav).queryByText('Context Manager')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('tab', { name: 'Application' }))
+    const breadcrumbNavAfterTab = screen.getByRole('navigation', { name: 'Breadcrumb' })
+    expect(screen.getByRole('link', { name: 'Settings' })).toBeInTheDocument()
+    expect(within(breadcrumbNavAfterTab).getByText('Application')).toBeInTheDocument()
   })
 
   it('shows first category tab content by default', () => {

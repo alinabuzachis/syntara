@@ -13,7 +13,13 @@ const mockItems = [
   { id: 103, name: 'Staging Inventory' },
 ] as const
 
-function TestWrapper({ children, defaultValues }: { children: React.ReactNode; defaultValues?: Partial<AAPJobTemplateFormData> }) {
+function TestWrapper({
+  children,
+  defaultValues,
+}: {
+  children: React.ReactNode
+  defaultValues?: Partial<AAPJobTemplateFormData>
+}) {
   const methods = useForm<AAPJobTemplateFormData>({
     defaultValues: {
       name: '',

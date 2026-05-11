@@ -18,6 +18,12 @@ import { navigate } from 'wouter/use-browser-location'
 import { AppPage, AppPageMain } from '../../../../app/AppPage'
 import { AppPageHeader } from '../../../../app/AppPageHeader'
 import { AppRoute } from '../../../../app/AppRoute'
+import {
+  breadcrumbsIdentityProviderAdd,
+  breadcrumbsIdentityProviderEdit,
+  breadcrumbsIdentityProviderFormLoading,
+} from '../../../../app/breadcrumbBuilders'
+import type { AppBreadcrumbItem } from '../../../../app/breadcrumbs/appBreadcrumbItem'
 import { identityProvidersClient, OIDC_REDIRECT_URI } from '../../../../client'
 import { AppPanel } from '../../../../components/AppPanel'
 import { useQueryState } from '../../../../components/states/useQueryState'
@@ -203,10 +209,34 @@ function mapTestConnectionResult(data: {
   }
 }
 
+function identityProviderFormBreadcrumbTrail(
+  isEdit: boolean,
+  pageTitle: string,
+  providerId: string | undefined,
+  providerName: string | undefined
+): AppBreadcrumbItem[] {
+  if (!isEdit) {
+    return breadcrumbsIdentityProviderAdd()
+  }
+  const idpDetailPath = providerId
+    ? AppRoute.AccessManagement.Authentication.IdentityProviderDetail.replace(':providerId', providerId).replace(
+        '/:tab?',
+        ''
+      )
+    : ''
+  if (providerName && idpDetailPath) {
+    return breadcrumbsIdentityProviderEdit(providerName, idpDetailPath)
+  }
+  return breadcrumbsIdentityProviderFormLoading(pageTitle)
+}
+
 function ProviderNotFound({ onBack, onRetry }: Readonly<{ onBack: () => void; onRetry: () => void }>) {
   return (
     <AppPage>
-      <AppPageHeader title="Edit OIDC provider" />
+      <AppPageHeader
+        title="Edit OIDC provider"
+        breadcrumbs={breadcrumbsIdentityProviderFormLoading('Edit OIDC provider')}
+      />
       <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
         <AppPanel isFullHeight>
           <EmptyState headingLevel="h2" titleText="Identity provider not found" icon={RhUiSearchIcon} isFullHeight>
@@ -383,7 +413,7 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
   if (isEdit && queryState) {
     return (
       <AppPage>
-        <AppPageHeader title={pageTitle} />
+        <AppPageHeader title={pageTitle} breadcrumbs={breadcrumbsIdentityProviderFormLoading(pageTitle)} />
         <AppPageMain>
           <AppPanel isFullHeight>{queryState}</AppPanel>
         </AppPageMain>
@@ -391,9 +421,11 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
     )
   }
 
+  const idpFormCrumbs = identityProviderFormBreadcrumbTrail(isEdit, pageTitle, providerId, providerData?.name)
+
   return (
     <AppPage>
-      <AppPageHeader title={pageTitle}>
+      <AppPageHeader title={pageTitle} breadcrumbs={idpFormCrumbs}>
         <FlexItem grow={{ default: 'grow' }} />
         <Button type="submit" form="identity-provider-form" isLoading={isSaving} isDisabled={isSaving}>
           {submitLabel}

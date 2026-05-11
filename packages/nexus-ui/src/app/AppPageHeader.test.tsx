@@ -1,7 +1,25 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
+import { axe } from 'vitest-axe'
 
 import { AppPageHeader } from './AppPageHeader'
+
+beforeEach(() => {
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn((query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }))
+  )
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 describe('AppPageHeader', () => {
   it('renders title as string', () => {
@@ -11,16 +29,15 @@ describe('AppPageHeader', () => {
   })
 
   it('renders title as ReactNode', () => {
-    render(<AppPageHeader title={<span data-testid="custom-title">Custom Title</span>} />)
+    render(<AppPageHeader title={<span>Custom Title</span>} />)
 
-    expect(screen.getByTestId('custom-title')).toBeInTheDocument()
     expect(screen.getByText('Custom Title')).toBeInTheDocument()
   })
 
   it('renders without toolbar when no children', () => {
-    const { container } = render(<AppPageHeader title="No Toolbar" />)
+    render(<AppPageHeader title="No Toolbar" />)
 
-    expect(container.querySelector('.pf-v6-c-toolbar')).not.toBeInTheDocument()
+    expect(screen.queryByRole('toolbar')).not.toBeInTheDocument()
   })
 
   it('renders children in toolbar', () => {
@@ -40,5 +57,44 @@ describe('AppPageHeader', () => {
 
     const heading = screen.getByRole('heading', { level: 1 })
     expect(heading).toHaveTextContent('Main Heading')
+  })
+
+  it('does not render breadcrumbs when fewer than two items', () => {
+    render(<AppPageHeader title="Page" breadcrumbs={[{ label: 'Only' }]} />)
+
+    expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Page' })).toBeInTheDocument()
+  })
+
+  it('renders breadcrumbs above the title when two or more items', () => {
+    render(
+      <AppPageHeader
+        title="Create user"
+        breadcrumbs={[
+          { label: 'Access management', href: '/access-management' },
+          { label: 'Users', href: '/access-management/users' },
+          { label: 'Create user' },
+        ]}
+      />
+    )
+
+    expect(screen.getByRole('navigation', { name: 'Breadcrumb' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Users' })).toHaveAttribute('href', '/access-management/users')
+    expect(screen.getByRole('heading', { name: 'Create user' })).toBeInTheDocument()
+  })
+
+  it('has no accessibility violations with breadcrumbs', async () => {
+    const { container } = render(
+      <AppPageHeader
+        title="Settings"
+        breadcrumbs={[
+          { label: 'Configuration', href: '/configuration/integrations' },
+          { label: 'Settings', href: '/configuration/settings' },
+          { label: 'System' },
+        ]}
+      />
+    )
+
+    expect(await axe(container)).toHaveNoViolations()
   })
 })
