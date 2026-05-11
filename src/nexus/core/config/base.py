@@ -397,6 +397,42 @@ class AuditDatabaseSettings(BaseSettings):
 
 
 # =============================================================================
+# Audit Writer Configuration
+# =============================================================================
+
+
+class AuditWriterSettings(BaseSettings):
+    """Audit event writer configuration settings.
+
+    Configures the fire-and-forget audit writer's concurrency limits and retry
+    behavior for resilient audit event persistence.
+
+    Note: This class should not be instantiated directly. Use Settings via get_settings().
+    """
+
+    audit_writer_max_concurrent_writes: int = Field(
+        default=100,
+        description="Maximum number of concurrent audit database writes",
+        ge=1,
+        le=1000,
+    )
+
+    audit_writer_max_retries: int = Field(
+        default=3,
+        description="Maximum retry attempts for transient database errors",
+        ge=0,
+        le=10,
+    )
+
+    audit_writer_base_delay_seconds: float = Field(
+        default=0.1,
+        description="Base delay in seconds for exponential backoff (e.g., 0.1s, 0.2s, 0.4s)",
+        gt=0,
+        le=5.0,
+    )
+
+
+# =============================================================================
 # Server Configuration
 # =============================================================================
 
@@ -1365,6 +1401,7 @@ class Settings(
     CacheSettings,
     DatabaseSettings,
     AuditDatabaseSettings,
+    AuditWriterSettings,
     ServerSettings,
     RetrieverServiceSettings,
     AdapterRetrySettings,

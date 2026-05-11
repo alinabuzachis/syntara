@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
+from sqlalchemy.exc import DatabaseError, IntegrityError, OperationalError
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -235,3 +236,177 @@ class TestAuditEventWriterDrain:
 
             # Should not raise despite task failure (return_exceptions=True)
             await writer.drain()
+
+
+# ------------------------------------------------------------------ #
+# Retry Logic
+# ------------------------------------------------------------------ #
+
+
+class TestAuditEventWriterRetry:
+    """Test AuditEventWriter retry logic for transient database errors."""
+
+    @pytest.mark.asyncio
+    async def test_retry_succeeds_after_transient_error(self) -> None:
+        """Test that write retries and succeeds after transient OperationalError."""
+        mock_session = AsyncMock()
+        mock_session.add = MagicMock()
+
+        # Fail twice with OperationalError, then succeed
+        call_count = 0
+
+        async def commit_side_effect() -> None:
+            nonlocal call_count
+            call_count += 1
+            if call_count <= 2:
+                msg = "connection lost"
+                raise OperationalError(msg, None, Exception(msg))
+
+        mock_session.commit = AsyncMock(side_effect=commit_side_effect)
+        mock_session_factory = MagicMock()
+        mock_session_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+
+        writer = AuditEventWriter(mock_session_factory)
+        event = _make_event()
+
+        with patch("nexus.audit.services.writer.logger") as mock_logger:
+            await writer._write(event)
+
+            # Should log retry warnings
+            assert mock_logger.warning.call_count == 2
+            # First retry call
+            mock_logger.warning.assert_any_call(
+                "audit_event_write_retry",
+                event_id=str(event.event_id),
+                actor_id=None,
+                event_category="system_operation",
+                event_action="test_action",
+                source_component="test",
+                attempt=1,
+                max_retries=3,
+                delay=0.1,
+                exc_type="OperationalError",
+            )
+
+        # Should have made 3 commit attempts (2 failures + 1 success)
+        assert call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_retry_fails_after_max_attempts(self) -> None:
+        """Test that write logs failure after exhausting all retries."""
+        mock_session = AsyncMock()
+        mock_session.add = MagicMock()
+        mock_session.commit.side_effect = DatabaseError("database unavailable", None, Exception("db error"))
+        mock_session_factory = MagicMock()
+        mock_session_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+
+        writer = AuditEventWriter(mock_session_factory)
+        event = _make_event()
+
+        with patch("nexus.audit.services.writer.logger") as mock_logger:
+            await writer._write(event)
+
+            # Should log 3 retry warnings (attempts 1, 2, 3)
+            assert mock_logger.warning.call_count == 3
+
+            # Should log final failure
+            mock_logger.exception.assert_called_once_with(
+                "audit_event_write_failed_all_retries",
+                event_id=str(event.event_id),
+                actor_id=None,
+                event_category="system_operation",
+                event_action="test_action",
+                source_component="test",
+                attempts=4,  # max_retries + 1
+                exc_type="DatabaseError",
+            )
+
+    @pytest.mark.asyncio
+    async def test_non_retryable_error_fails_immediately(self) -> None:
+        """Test that non-retryable errors (IntegrityError) don't retry."""
+        mock_session = AsyncMock()
+        mock_session.add = MagicMock()
+        mock_session.commit.side_effect = IntegrityError("constraint violation", None, Exception("constraint"))
+        mock_session_factory = MagicMock()
+        mock_session_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+
+        writer = AuditEventWriter(mock_session_factory)
+        event = _make_event()
+
+        with patch("nexus.audit.services.writer.logger") as mock_logger:
+            await writer._write(event)
+
+            # Should not log retry warnings (no retries)
+            assert mock_logger.warning.call_count == 0
+
+            # Should log immediate failure
+            mock_logger.exception.assert_called_once_with(
+                "audit_event_write_failed",
+                event_id=str(event.event_id),
+                actor_id=None,
+                event_category="system_operation",
+                event_action="test_action",
+                source_component="test",
+                exc_type="IntegrityError",
+            )
+
+        # Should have only attempted once
+        assert mock_session.commit.call_count == 1
+
+
+# ------------------------------------------------------------------ #
+# Semaphore
+# ------------------------------------------------------------------ #
+
+
+class TestAuditEventWriterSemaphore:
+    """Test AuditEventWriter semaphore for limiting concurrent writes."""
+
+    @pytest.mark.asyncio
+    async def test_semaphore_limits_concurrent_writes(self, test_db_engine: AsyncEngine, override_settings) -> None:
+        """Test that semaphore limits concurrent database operations."""
+        factory = _session_factory(test_db_engine)
+
+        with override_settings(audit_writer_max_concurrent_writes=2):
+            writer = AuditEventWriter(factory)
+
+            # Track concurrent execution
+            concurrent_count = 0
+            max_concurrent = 0
+            lock = asyncio.Lock()
+
+            original_write = writer._write
+
+            async def tracked_write(event: AuditEvent) -> None:
+                nonlocal concurrent_count, max_concurrent
+                async with lock:
+                    concurrent_count += 1
+                    max_concurrent = max(max_concurrent, concurrent_count)
+
+                # Simulate slow write
+                await asyncio.sleep(0.05)
+
+                await original_write(event)
+
+                async with lock:
+                    concurrent_count -= 1
+
+            with patch.object(writer, "_write", side_effect=tracked_write):
+                # Enqueue more events than semaphore limit
+                for _ in range(5):
+                    writer.enqueue(_make_event())
+
+                await writer.drain()
+
+            # Max concurrent should not exceed semaphore limit
+            assert max_concurrent <= 2
+
+    @pytest.mark.asyncio
+    async def test_custom_semaphore_limit(self, override_settings) -> None:
+        """Test that settings control the semaphore limit."""
+        with override_settings(audit_writer_max_concurrent_writes=50):
+            writer = AuditEventWriter(MagicMock())
+            assert writer._semaphore._value == 50
