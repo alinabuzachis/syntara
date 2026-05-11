@@ -17,7 +17,7 @@ import {
 } from '@patternfly/react-core'
 import { CheckCircleIcon, ExclamationTriangleIcon, TimesCircleIcon } from '@patternfly/react-icons'
 import { useEffect, useMemo } from 'react'
-import { Controller, useForm } from 'react-hook-form'
+import { Controller, useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
@@ -115,12 +115,12 @@ function AccessResult({
 export function CheckAccessView({ resourceTypes, actionsByResource }: Readonly<ResourceActionMap>) {
   const { projects } = useAllProjects()
 
-  const { control, handleSubmit, watch, setValue, getValues } = useForm<CheckAccessFormData>({
+  const { control, handleSubmit, setValue, getValues } = useForm<CheckAccessFormData>({
     resolver: zodResolver(checkAccessSchema, undefined, { mode: 'sync' }),
     defaultValues: { resourceType: '', action: '', resourceId: '', project: '' },
   })
 
-  const resourceType = watch('resourceType')
+  const resourceType = useWatch({ control, name: 'resourceType', defaultValue: '' })
 
   const availableActions = useMemo(
     () => (resourceType ? (actionsByResource.get(resourceType) ?? []) : []),
@@ -152,7 +152,7 @@ export function CheckAccessView({ resourceTypes, actionsByResource }: Readonly<R
     })
   })
 
-  const action = watch('action')
+  const action = useWatch({ control, name: 'action', defaultValue: '' })
 
   return (
     <Flex direction={{ default: 'row' }} gap={{ default: 'gapXl' }} alignItems={{ default: 'alignItemsFlexStart' }}>

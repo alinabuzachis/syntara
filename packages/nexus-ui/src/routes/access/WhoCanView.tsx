@@ -16,8 +16,8 @@ import {
 } from '@patternfly/react-core'
 import { RhUiCaretLeftIcon, RhUiCaretRightIcon } from '@patternfly/react-icons'
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Controller, useForm } from 'react-hook-form'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Controller, useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
@@ -137,14 +137,14 @@ function WhoCanResults({
 export function WhoCanView({ resourceTypes, actionsByResource }: Readonly<ResourceActionMap>) {
   const { projects } = useAllProjects()
 
-  const { control, handleSubmit, watch, setValue, getValues } = useForm<WhoCanFormData>({
+  const { control, handleSubmit, setValue, getValues } = useForm<WhoCanFormData>({
     resolver: zodResolver(whoCanSchema, undefined, { mode: 'sync' }),
     defaultValues: { resourceType: '', action: '', resourceId: '', project: '' },
   })
 
-  const resourceType = watch('resourceType')
-  const action = watch('action')
-  const project = watch('project')
+  const resourceType = useWatch({ control, name: 'resourceType', defaultValue: '' })
+  const action = useWatch({ control, name: 'action', defaultValue: '' })
+  const project = useWatch({ control, name: 'project', defaultValue: '' })
 
   const availableActions = useMemo(
     () => (resourceType ? (actionsByResource.get(resourceType) ?? []) : []),
@@ -166,13 +166,12 @@ export function WhoCanView({ resourceTypes, actionsByResource }: Readonly<Resour
   // Pagination state: track cursor history for previous page navigation
   const [cursorHistory, setCursorHistory] = useState<string[]>([])
   const [currentCursor, setCurrentCursor] = useState<string | undefined>(undefined)
-  const lastFormData = useRef<WhoCanFormData | null>(null)
+  const [lastSubmittedFormData, setLastSubmittedFormData] = useState<WhoCanFormData | null>(null)
 
   const whoCanMutation = accessClient.useMutation('post', '/authz/who-can')
 
   const submitWithCursor = useCallback(
     (formData: WhoCanFormData, cursor?: string) => {
-      lastFormData.current = formData
       whoCanMutation.mutate({
         body: {
           action: formData.action.trim(),
@@ -187,6 +186,7 @@ export function WhoCanView({ resourceTypes, actionsByResource }: Readonly<Resour
   )
 
   const onSubmit = handleSubmit((formData) => {
+    setLastSubmittedFormData(formData)
     setCursorHistory([])
     setCurrentCursor(undefined)
     submitWithCursor(formData)
@@ -196,20 +196,20 @@ export function WhoCanView({ resourceTypes, actionsByResource }: Readonly<Resour
   const result: WhoCanUser[] | null = whoCanMutation.data?.users ?? null
 
   const handleNextPage = useCallback(() => {
-    if (!nextCursor || !lastFormData.current) return
+    if (!nextCursor || !lastSubmittedFormData) return
     setCursorHistory((prev) => [...prev, currentCursor ?? ''])
     setCurrentCursor(nextCursor)
-    submitWithCursor(lastFormData.current, nextCursor)
-  }, [nextCursor, currentCursor, submitWithCursor])
+    submitWithCursor(lastSubmittedFormData, nextCursor)
+  }, [nextCursor, currentCursor, submitWithCursor, lastSubmittedFormData])
 
   const handlePrevPage = useCallback(() => {
-    if (cursorHistory.length === 0 || !lastFormData.current) return
+    if (cursorHistory.length === 0 || !lastSubmittedFormData) return
     const prev = [...cursorHistory]
     const prevCursor = prev.pop()
     setCursorHistory(prev)
     setCurrentCursor(prevCursor === '' ? undefined : prevCursor)
-    submitWithCursor(lastFormData.current, prevCursor === '' ? undefined : prevCursor)
-  }, [cursorHistory, submitWithCursor])
+    submitWithCursor(lastSubmittedFormData, prevCursor === '' ? undefined : prevCursor)
+  }, [cursorHistory, submitWithCursor, lastSubmittedFormData])
 
   return (
     <Flex direction={{ default: 'row' }} gap={{ default: 'gapXl' }} alignItems={{ default: 'alignItemsFlexStart' }}>
