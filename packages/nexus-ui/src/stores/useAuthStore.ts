@@ -66,6 +66,20 @@ const INITIAL_STATE: AuthState = {
 }
 
 // ============================================================================
+// AuthError — preserves RFC 9457 error code from backend responses
+// ============================================================================
+
+export class AuthError extends Error {
+  readonly code: string
+
+  constructor(message: string, code: string) {
+    super(message)
+    this.name = 'AuthError'
+    this.code = code
+  }
+}
+
+// ============================================================================
 // Helpers
 // ============================================================================
 
@@ -151,14 +165,16 @@ async function postAuth(url: string, body?: object): Promise<LoginResponse> {
   if (!response.ok) {
     const text = await response.text()
     let detail = text
+    let code: string | undefined
     try {
       const parsed: Record<string, unknown> = JSON.parse(text) as Record<string, unknown>
       const msg = parsed.detail ?? parsed.message
       if (typeof msg === 'string') detail = msg
+      if (typeof parsed.code === 'string') code = parsed.code
     } catch {
       // use raw text
     }
-    throw new Error(detail)
+    throw code ? new AuthError(detail, code) : new Error(detail)
   }
 
   return (await response.json()) as LoginResponse

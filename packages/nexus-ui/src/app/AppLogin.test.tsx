@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../providers/alerts'
+import { AuthError } from '../stores/useAuthStore'
 
 import { AppLogin } from './AppLogin'
 import type { AuthProvider } from './useAuthProviders'
@@ -20,14 +21,18 @@ let mockState = {
   refresh: mockRefresh,
 }
 
-vi.mock('../stores/useAuthStore', () => ({
-  useAuthStore: Object.assign((selector: (state: typeof mockState) => unknown) => selector(mockState), {
-    setState: vi.fn(),
-    getState: () => mockState,
-  }),
-  selectIsAuthenticated: (state: typeof mockState) => state.isAuthenticated,
-  selectIsRefreshing: (state: typeof mockState) => state.isRefreshing,
-}))
+vi.mock('../stores/useAuthStore', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../stores/useAuthStore')>()
+  return {
+    AuthError: actual.AuthError,
+    useAuthStore: Object.assign((selector: (state: typeof mockState) => unknown) => selector(mockState), {
+      setState: vi.fn(),
+      getState: () => mockState,
+    }),
+    selectIsAuthenticated: (state: typeof mockState) => state.isAuthenticated,
+    selectIsRefreshing: (state: typeof mockState) => state.isRefreshing,
+  }
+})
 
 // Mock useAuthProviders
 let mockProviders: AuthProvider[] = []
@@ -536,7 +541,7 @@ describe('AppLogin', () => {
 
     it('clears password field on login failure', async () => {
       const user = userEvent.setup()
-      mockLogin.mockRejectedValueOnce(new Error('Authentication required'))
+      mockLogin.mockRejectedValueOnce(new AuthError('Authentication required', 'AUTHENTICATION_REQUIRED'))
 
       renderWithAlerts(
         <AppLogin>
@@ -555,9 +560,9 @@ describe('AppLogin', () => {
       })
     })
 
-    it('shows error message on login failure', async () => {
+    it('maps AUTHENTICATION_REQUIRED to PF6 recommended message', async () => {
       const user = userEvent.setup()
-      mockLogin.mockRejectedValueOnce(new Error('Authentication required'))
+      mockLogin.mockRejectedValueOnce(new AuthError('Authentication required', 'AUTHENTICATION_REQUIRED'))
 
       renderWithAlerts(
         <AppLogin>
@@ -571,7 +576,27 @@ describe('AppLogin', () => {
       await user.click(screen.getByRole('button', { name: 'Log in' }))
 
       await waitFor(() => {
-        expect(screen.getByText('Authentication required')).toBeInTheDocument()
+        expect(screen.getByText('Incorrect login credentials')).toBeInTheDocument()
+      })
+    })
+
+    it('shows original message for non-auth errors', async () => {
+      const user = userEvent.setup()
+      mockLogin.mockRejectedValueOnce(new AuthError('Account locked', 'ACCOUNT_LOCKED'))
+
+      renderWithAlerts(
+        <AppLogin>
+          <div>Content</div>
+        </AppLogin>
+      )
+
+      await screen.findByRole('button', { name: 'Log in' })
+      await user.type(screen.getByRole('textbox', { name: /username/i }), 'demo')
+      await user.type(screen.getByLabelText(/^Password/, { selector: 'input' }), 'wrong')
+      await user.click(screen.getByRole('button', { name: 'Log in' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Account locked')).toBeInTheDocument()
       })
     })
 
@@ -704,7 +729,7 @@ describe('AppLogin', () => {
 
       it('shows page-level alert for local login auth failure in provider mode', async () => {
         const user = userEvent.setup()
-        mockLogin.mockRejectedValueOnce(new Error('Authentication required'))
+        mockLogin.mockRejectedValueOnce(new AuthError('Authentication required', 'AUTHENTICATION_REQUIRED'))
 
         renderWithAlerts(
           <AppLogin>

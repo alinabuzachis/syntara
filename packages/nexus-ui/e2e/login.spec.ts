@@ -87,7 +87,7 @@ test.describe('Login form error handling', () => {
     await page.getByRole('textbox', { name: 'Password' }).fill('wrongpassword')
     await page.getByRole('button', { name: 'Log in' }).click()
 
-    await expect(page.getByText('Authentication required')).toBeVisible()
+    await expect(page.getByText('Incorrect login credentials')).toBeVisible()
     await expect(page.getByRole('textbox', { name: 'Password' })).toHaveValue('')
   })
 
@@ -136,7 +136,7 @@ test.describe('Login form error handling', () => {
     await page.getByLabel('Username').fill('demo')
     await page.getByRole('textbox', { name: 'Password' }).fill('wrong')
     await page.getByRole('button', { name: 'Log in' }).click()
-    await expect(page.getByText('Authentication required')).toBeVisible()
+    await expect(page.getByText('Incorrect login credentials')).toBeVisible()
 
     // Second attempt — correct password → should navigate to app
     await page.getByLabel('Username').fill('demo')

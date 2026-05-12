@@ -42,6 +42,9 @@ export type ApiErrorCode =
   | 'SETTING_NOT_FOUND'
   | 'SETTING_VERSION_CONFLICT'
   | 'SETTING_VALIDATION_ERROR'
+  // Auth errors
+  | 'AUTHENTICATION_REQUIRED'
+  | 'REQUEST_VALIDATION_ERROR'
   // System errors
   | 'LLM_CONFIGURATION_ERROR'
   | 'TEMPORAL_UNAVAILABLE'
@@ -502,6 +505,9 @@ const ERROR_TITLES: Record<string, string> = {
   SETTING_NOT_FOUND: 'Setting Not Found',
   SETTING_VERSION_CONFLICT: 'Version Conflict',
   SETTING_VALIDATION_ERROR: 'Setting Validation Error',
+  // Auth errors
+  AUTHENTICATION_REQUIRED: 'Authentication Required',
+  REQUEST_VALIDATION_ERROR: 'Request Validation Error',
   // System errors
   LLM_CONFIGURATION_ERROR: 'Configuration Error',
   TEMPORAL_UNAVAILABLE: 'Workflow Engine Unavailable',

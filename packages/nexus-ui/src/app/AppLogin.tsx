@@ -14,10 +14,20 @@ import { ExclamationCircleIcon } from '@patternfly/react-icons'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { LoadingState } from '../components/states/LoadingState'
-import { useAuthStore, selectIsAuthenticated, selectIsRefreshing } from '../stores/useAuthStore'
+import { AuthError, useAuthStore, selectIsAuthenticated, selectIsRefreshing } from '../stores/useAuthStore'
 
 import { IdentityProviderButtons } from './IdentityProviderButtons'
 import { useAuthProviders } from './useAuthProviders'
+
+const INCORRECT_CREDENTIALS_MESSAGE = 'Incorrect login credentials'
+
+function mapLoginError(err: unknown): string {
+  if (err instanceof AuthError && err.code === 'AUTHENTICATION_REQUIRED') {
+    return INCORRECT_CREDENTIALS_MESSAGE
+  }
+  if (err instanceof Error) return err.message || INCORRECT_CREDENTIALS_MESSAGE
+  return INCORRECT_CREDENTIALS_MESSAGE
+}
 
 const LoginErrorField = {
   Username: 'username',
@@ -175,7 +185,7 @@ function AppLoginForm() {
       login({ username, password }).catch((err: unknown) => {
         setIsLoggingIn(false)
         setPassword('')
-        setLoginError(err instanceof Error ? err.message : 'Incorrect login credentials')
+        setLoginError(mapLoginError(err))
         setLoginErrorField(LoginErrorField.Credentials)
       })
     },
