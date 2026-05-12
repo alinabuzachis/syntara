@@ -82,6 +82,10 @@ class BaseServer(ABC):
         # Wait for ASGI app to be fully ready
         await self._wait_for_server_ready()
 
+        # Add grace period for streamable-http session manager to fully initialize
+        # This prevents "ASGI callable returned without completing response" race conditions
+        await asyncio.sleep(0.2)
+
         logger.info("Test MCP server started at %s, MCP endpoint at %s", self.server_url, self.base_url)
 
     async def _wait_for_socket_bound(self, *, max_timeout: float = 10.0) -> None:
@@ -118,11 +122,14 @@ class BaseServer(ABC):
         async with httpx.AsyncClient() as client:
             while (asyncio.get_event_loop().time() - start_time) < max_timeout:
                 try:
-                    # Make a real HTTP request so we know the ASGI app is ready.
-                    # Any HTTP response (even 4xx/5xx) means the server is up.
-                    response = await client.get(f"http://{self.host}:{self.port}/", timeout=2.0)
-                    logger.debug("Server HTTP check returned status %s", response.status_code)
-                    return
+                    # Check the /health endpoint to ensure FastMCP app is fully initialized.
+                    # Accept 200 (success) or 403 (ForbiddenMCPServer) as proof of readiness.
+                    # Any HTTP response (not connection error) means ASGI is processing requests.
+                    response = await client.get(f"http://{self.host}:{self.port}/health", timeout=2.0)
+                    if response.status_code in (200, 403):
+                        logger.debug("Server health check succeeded with status %s", response.status_code)
+                        return
+                    logger.debug("Server health check returned status %s, retrying", response.status_code)
                 except (httpx.ConnectError, httpx.ReadError, httpx.RemoteProtocolError):
                     pass
 
@@ -242,7 +249,7 @@ class ExampleMCPServer(BaseServer):
             }
 
         @self.mcp_app.custom_route("/health", methods=["GET"])
-        async def health_check(request: Request) -> PlainTextResponse:
+        async def health_check(_request: Request) -> PlainTextResponse:
             """Health check endpoint.
 
             Returns:
