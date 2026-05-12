@@ -145,20 +145,6 @@ describe('CredentialDetail', () => {
     expect(nameElements.length).toBeGreaterThan(0)
   })
 
-  it('renders back to credentials button', () => {
-    render(<CredentialDetail />, { wrapper })
-    expect(screen.getByRole('button', { name: 'Back to credentials' })).toBeInTheDocument()
-  })
-
-  it('navigates back when back button is clicked', async () => {
-    const user = userEvent.setup()
-    render(<CredentialDetail />, { wrapper })
-
-    await user.click(screen.getByRole('button', { name: 'Back to credentials' }))
-
-    expect(mockNavigate).toHaveBeenCalledWith('/configuration/credentials')
-  })
-
   it('renders Details tab with credential fields', () => {
     render(<CredentialDetail />, { wrapper })
 

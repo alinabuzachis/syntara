@@ -11,7 +11,7 @@ import {
   Tab,
   Tabs,
 } from '@patternfly/react-core'
-import { RhUiBackwardsIcon, RhUiKeyIcon } from '@patternfly/react-icons'
+import { RhUiKeyIcon } from '@patternfly/react-icons'
 import { ActionsColumn } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useMemo, useState, type ReactNode } from 'react'
@@ -233,14 +233,6 @@ export default function CredentialDetail() {
         breadcrumbs={credentialCrumbs}
         title={
           <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
-            <FlexItem>
-              <Button
-                variant="plain"
-                icon={<RhUiBackwardsIcon />}
-                onClick={() => navigate(AppRoute.Configuration.Credentials.Root)}
-                aria-label="Back to credentials"
-              />
-            </FlexItem>
             <FlexItem>
               <RhUiKeyIcon />
             </FlexItem>

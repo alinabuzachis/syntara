@@ -16,7 +16,7 @@ import {
   Tabs,
   Title,
 } from '@patternfly/react-core'
-import { RhUiArrowLeftIcon, RhUiEditIcon } from '@patternfly/react-icons'
+import { RhUiEditIcon } from '@patternfly/react-icons'
 import { useParams } from 'wouter'
 import { navigate } from 'wouter/use-browser-location'
 
@@ -172,14 +172,9 @@ function UserDetailsTab({
   )
 }
 
-function UserDetailHeaderTitle({ userData, onBack }: Readonly<{ userData: User; onBack: () => void }>) {
+function UserDetailHeaderTitle({ userData }: Readonly<{ userData: User }>) {
   return (
     <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
-      <FlexItem>
-        <Button variant="plain" aria-label="Back to users" onClick={onBack}>
-          <RhUiArrowLeftIcon />
-        </Button>
-      </FlexItem>
       <FlexItem>
         <Title headingLevel="h1">{userData.full_name ?? userData.username}</Title>
       </FlexItem>
@@ -240,10 +235,7 @@ export function UserDetail() {
 
   return (
     <AppPage>
-      <AppPageHeader
-        title={<UserDetailHeaderTitle userData={userData} onBack={navigateBack} />}
-        breadcrumbs={userBreadcrumbs}
-      >
+      <AppPageHeader title={<UserDetailHeaderTitle userData={userData} />} breadcrumbs={userBreadcrumbs}>
         <FlexItem grow={{ default: 'grow' }} />
         <Button variant="secondary" icon={<RhUiEditIcon />} onClick={navigateEdit}>
           Edit user

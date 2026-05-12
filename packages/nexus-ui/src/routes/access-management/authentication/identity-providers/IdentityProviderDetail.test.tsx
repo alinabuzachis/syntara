@@ -434,17 +434,6 @@ describe('IdentityProviderDetail', () => {
     expect(screen.getByText('Client ID')).toBeInTheDocument()
   })
 
-  it('navigates back from the header back button', async () => {
-    const user = userEvent.setup()
-    vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn())
-
-    render(<IdentityProviderDetail />, { wrapper: createWrapper() })
-
-    const backButton = screen.getByRole('button', { name: /back to identity providers/i })
-    await user.click(backButton)
-    expect(mockNavigate).toHaveBeenCalled()
-  })
-
   it('calls patchProvider to toggle enabled state', async () => {
     const user = userEvent.setup()
     const mockPatch = vi.fn()

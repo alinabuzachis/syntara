@@ -398,11 +398,6 @@ export function IdentityProviderDetail() {
   const mappingCount = autoCreateGroups ? 0 : (groupMappingConfig?.group_mapping_entries?.length ?? 0)
   const headerTitle = (
     <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
-      <FlexItem>
-        <Button variant="plain" aria-label="Back to identity providers" onClick={navigateBack}>
-          <RhUiArrowLeftIcon />
-        </Button>
-      </FlexItem>
       <FlexItem style={{ display: 'flex', alignItems: 'center' }}>
         <ProviderIcon
           name={providerData.name ?? ''}
