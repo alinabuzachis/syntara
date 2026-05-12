@@ -8,6 +8,36 @@ import type { TriggerFormData } from '../node-forms/TriggerNodeForm'
 import { TriggerNodeForm } from '../node-forms/TriggerNodeForm'
 
 /**
+ * Deep equality check for triggers to prevent marking workflow dirty when no changes are made.
+ */
+function triggersEqual(a: Trigger, b: Trigger): boolean {
+  if (a.id !== b.id) return false
+  if (a.type !== b.type) return false
+  if (a.name !== b.name) return false
+
+  // Deep compare config objects
+  const aConfig = a.config ?? {}
+  const bConfig = b.config ?? {}
+  const aKeys = Object.keys(aConfig).sort((a, b) => a.localeCompare(b))
+  const bKeys = Object.keys(bConfig).sort((a, b) => a.localeCompare(b))
+
+  if (aKeys.length !== bKeys.length) return false
+  if (!aKeys.every((key, i) => key === bKeys[i])) return false
+
+  // Compare config values - handle nested objects (like input_schema)
+  return aKeys.every((key) => {
+    const aVal = aConfig[key]
+    const bVal = bConfig[key]
+    if (aVal === bVal) return true
+    if (typeof aVal !== typeof bVal) return false
+    if (typeof aVal === 'object' && aVal !== null && bVal !== null) {
+      return JSON.stringify(aVal) === JSON.stringify(bVal)
+    }
+    return false
+  })
+}
+
+/**
  * In v2, triggers are { id, type, name, config } nodes.
  * Manual trigger type is 'manual_trigger'.
  */
@@ -192,7 +222,10 @@ export function TriggerNodeDetails({ trigger, triggerIndex, onClose, onHeaderCon
         throw new Error('Invalid trigger type')
       }
 
-      updateTrigger(triggerIndex, updatedTrigger as unknown as StoreTrigger)
+      // Only update if the trigger actually changed
+      if (!triggersEqual(trigger, updatedTrigger)) {
+        updateTrigger(triggerIndex, updatedTrigger as unknown as StoreTrigger)
+      }
       onClose()
     } catch (error) {
       showError({

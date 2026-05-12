@@ -1,6 +1,6 @@
 import type { Approval } from '@ansible/nexus-contracts'
 import { Checkbox, Content, Stack, StackItem } from '@patternfly/react-core'
-import { useState, type Dispatch } from 'react'
+import { useEffect, useRef, useState, type Dispatch } from 'react'
 
 import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
 import type { DialogState } from '../../../hooks/useDialogState'
@@ -49,7 +49,23 @@ type BuilderDialogsProps = Readonly<{
   onTestExecutionCreated?: (executionId: string) => void
 }>
 
-function useRunConfirmState(confirmDialogOpen: boolean, isDirty: boolean, dispatch: Dispatch<BuilderAction>) {
+type UseRunConfirmStateParams = {
+  confirmDialogOpen: boolean
+  isDirty: boolean
+  hasInputSchema: boolean
+  dispatch: Dispatch<BuilderAction>
+  handleRunWorkflow: (inputData?: Record<string, unknown>, triggerNodeId?: string) => void
+  triggerNodeId?: string
+}
+
+function useRunConfirmState({
+  confirmDialogOpen,
+  isDirty,
+  hasInputSchema,
+  dispatch,
+  handleRunWorkflow,
+  triggerNodeId,
+}: UseRunConfirmStateParams) {
   const [confirmedRun, setConfirmedRun] = useState(false)
   const [doNotShowAgain, setDoNotShowAgain] = useState(false)
   const [prevOpen, setPrevOpen] = useState(confirmDialogOpen)
@@ -65,9 +81,25 @@ function useRunConfirmState(confirmDialogOpen: boolean, isDirty: boolean, dispat
 
   const skipConfirm = confirmDialogOpen && !isDirty && getRunConfirmDismissed()
 
+  // Auto-run when confirmation is skipped and there's no input schema
+  // Use a ref to track if we've already auto-run to prevent infinite loops
+  const autoRanRef = useRef(false)
+  useEffect(() => {
+    if (skipConfirm && !hasInputSchema && confirmDialogOpen && !autoRanRef.current) {
+      autoRanRef.current = true
+      handleRunWorkflow(undefined, triggerNodeId)
+      dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
+    }
+    // Reset flag when dialog closes
+    if (!confirmDialogOpen) {
+      autoRanRef.current = false
+    }
+  }, [skipConfirm, hasInputSchema, confirmDialogOpen, handleRunWorkflow, dispatch, triggerNodeId])
+
   return {
     showConfirmStep: confirmDialogOpen && !skipConfirm && !confirmedRun,
-    showInputStep: confirmDialogOpen && (skipConfirm || confirmedRun),
+    // Only show input step if there's an input schema
+    showInputStep: hasInputSchema && confirmDialogOpen && (skipConfirm || confirmedRun),
     doNotShowAgain,
     setDoNotShowAgain,
     closeAll: () => {
@@ -77,7 +109,13 @@ function useRunConfirmState(confirmDialogOpen: boolean, isDirty: boolean, dispat
     },
     handleConfirmRun: () => {
       if (doNotShowAgain) setRunConfirmDismissed()
-      setConfirmedRun(true)
+      // If there's an input schema, show the input step; otherwise run immediately
+      if (hasInputSchema) {
+        setConfirmedRun(true)
+      } else {
+        handleRunWorkflow(undefined, triggerNodeId)
+        dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
+      }
     },
   }
 }
@@ -101,8 +139,13 @@ export function BuilderDialogs({
   onTestExecutionCreated,
 }: BuilderDialogsProps) {
   const isDirty = useWorkflowStore((state) => state.isDirty)
+  // Only show input step if trigger has a non-empty input schema with properties or type defined
+  const hasInputSchema = Boolean(
+    triggerInputSchema &&
+    (triggerInputSchema.properties || triggerInputSchema.type || Object.keys(triggerInputSchema).length > 0)
+  )
   const { showConfirmStep, showInputStep, doNotShowAgain, setDoNotShowAgain, closeAll, handleConfirmRun } =
-    useRunConfirmState(confirmDialogOpen, isDirty, dispatch)
+    useRunConfirmState({ confirmDialogOpen, isDirty, hasInputSchema, dispatch, handleRunWorkflow, triggerNodeId })
   return (
     <>
       <ConfirmationDialog

@@ -128,6 +128,44 @@ describe('BuilderContent', () => {
     },
   } as unknown as WorkflowWithVersion
 
+  // Helper to create a workflow with a manual trigger that has an input schema
+  const createWorkflowWithInputSchema = (): WorkflowWithVersion =>
+    ({
+      ...mockWorkflow,
+      version: {
+        workflow_definition: {
+          ...mockWorkflow.version!.workflow_definition,
+          triggers: [
+            {
+              id: 'manual_trigger',
+              type: 'manual_trigger',
+              name: 'Manual Trigger',
+              config: {
+                input_schema: {
+                  type: 'object',
+                  properties: { name: { type: 'string' } },
+                },
+              },
+            },
+          ],
+          nodes: [
+            {
+              type: 'script' as const,
+              id: 'task-1',
+              name: 'Task 1',
+              config: { language: 'python', code: 'print("hello")' },
+            },
+          ],
+          edges: [
+            {
+              from: 'manual_trigger',
+              to: 'task-1',
+            },
+          ],
+        },
+      },
+    }) as unknown as WorkflowWithVersion
+
   const createMockMutation = (mutate = vi.fn()) => ({
     mutate,
     mutateAsync: vi.fn(),
@@ -591,6 +629,7 @@ describe('BuilderContent', () => {
     })
 
     it('executes workflow when confirmed', async () => {
+      const user = userEvent.setup()
       const mockExecuteMutate = vi.fn((params: unknown, callbacks?: MutationCallbacks) => {
         if (callbacks?.onSuccess) {
           callbacks.onSuccess({ id: 'exec-123' }, params, undefined)
@@ -604,16 +643,16 @@ describe('BuilderContent', () => {
         return createMockMutation()
       })
 
-      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+      await renderBuilder({ workflow: createWorkflowWithInputSchema(), isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
 
-      fireEvent.click(screen.getByRole('button', { name: 'Run' }))
+      await user.click(screen.getByRole('button', { name: 'Run' }))
       await screen.findByText(/Run Test Workflow\?/)
-      fireEvent.click(screen.getByRole('button', { name: 'Run now' }))
+      await user.click(screen.getByRole('button', { name: 'Run now' }))
       await screen.findByText(/Set mock output data for/)
-      fireEvent.click(screen.getByRole('button', { name: 'Run' }))
+      await user.click(screen.getByRole('button', { name: 'Run' }))
 
       await waitFor(() => {
         expect(mockExecuteMutate).toHaveBeenCalled()
@@ -622,6 +661,7 @@ describe('BuilderContent', () => {
     })
 
     it('shows error when execution fails', async () => {
+      const user = userEvent.setup()
       const mockExecuteMutate = vi.fn((params: unknown, callbacks?: MutationCallbacks) => {
         if (callbacks?.onError) {
           callbacks.onError({ message: 'Execution failed' }, params, undefined)
@@ -635,16 +675,16 @@ describe('BuilderContent', () => {
         return createMockMutation()
       })
 
-      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+      await renderBuilder({ workflow: createWorkflowWithInputSchema(), isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
 
-      fireEvent.click(screen.getByRole('button', { name: 'Run' }))
+      await user.click(screen.getByRole('button', { name: 'Run' }))
       await screen.findByText(/Run Test Workflow\?/)
-      fireEvent.click(screen.getByRole('button', { name: 'Run now' }))
+      await user.click(screen.getByRole('button', { name: 'Run now' }))
       await screen.findByText(/Set mock output data for/)
-      fireEvent.click(screen.getByRole('button', { name: 'Run' }))
+      await user.click(screen.getByRole('button', { name: 'Run' }))
 
       await waitFor(() => {
         expect(screen.getByText('Workflow failed')).toBeInTheDocument()
@@ -668,18 +708,20 @@ describe('BuilderContent', () => {
     })
 
     it('closes run modal via X button', async () => {
-      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+      const user = userEvent.setup()
+
+      await renderBuilder({ workflow: createWorkflowWithInputSchema(), isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
 
-      fireEvent.click(screen.getByRole('button', { name: 'Run' }))
+      await user.click(screen.getByRole('button', { name: 'Run' }))
       await screen.findByText(/Run Test Workflow\?/)
-      fireEvent.click(screen.getByRole('button', { name: 'Run now' }))
+      await user.click(screen.getByRole('button', { name: 'Run now' }))
       await screen.findByText(/Set mock output data for/)
 
       const modal = screen.getByRole('dialog')
-      fireEvent.click(within(modal).getByRole('button', { name: 'Close' }))
+      await user.click(within(modal).getByRole('button', { name: 'Close' }))
 
       await waitFor(() => {
         expect(screen.queryByText(/Set mock output data for/)).not.toBeInTheDocument()
@@ -1621,11 +1663,26 @@ describe('BuilderContent', () => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
 
-      const saveButton = screen.getByRole('button', { name: /save/i })
-      fireEvent.click(saveButton)
+      // Wait for workflow to load into store
+      await waitFor(() => {
+        const currentWorkflow = useWorkflowStore.getState().currentWorkflow
+        expect(currentWorkflow).not.toBeNull()
+      })
+
+      // Validation now happens on Run (after confirmation dialog)
+      const user = userEvent.setup()
+      const runButton = screen.getByRole('button', { name: 'Run' })
+      await user.click(runButton)
+
+      // Should show confirmation dialog
+      await screen.findByText(/Run Test Workflow\?/)
+
+      // Click "Run now" to trigger validation
+      await user.click(screen.getByRole('button', { name: 'Run now' }))
 
       await waitFor(() => {
-        expect(screen.getByText('Validation failed')).toBeInTheDocument()
+        // The validation error should show in an alert
+        expect(screen.getByText(/Workflow must have at least one trigger to run/)).toBeInTheDocument()
       })
     })
 
@@ -2074,6 +2131,7 @@ describe('BuilderContent', () => {
     })
 
     it('run workflow success without data id', async () => {
+      const user = userEvent.setup()
       const mockExecuteMutate = vi.fn((params: unknown, callbacks?: MutationCallbacks) => {
         if (callbacks?.onSuccess) {
           // Return data without id field
@@ -2088,16 +2146,16 @@ describe('BuilderContent', () => {
         return createMockMutation()
       })
 
-      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+      await renderBuilder({ workflow: createWorkflowWithInputSchema(), isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
 
-      fireEvent.click(screen.getByRole('button', { name: 'Run' }))
+      await user.click(screen.getByRole('button', { name: 'Run' }))
       await screen.findByText(/Run Test Workflow\?/)
-      fireEvent.click(screen.getByRole('button', { name: 'Run now' }))
+      await user.click(screen.getByRole('button', { name: 'Run now' }))
       await screen.findByText(/Set mock output data for/)
-      fireEvent.click(screen.getByRole('button', { name: 'Run' }))
+      await user.click(screen.getByRole('button', { name: 'Run' }))
 
       await waitFor(() => {
         expect(mockExecuteMutate).toHaveBeenCalled()
@@ -2217,7 +2275,7 @@ describe('BuilderContent', () => {
 
       await waitFor(() => {
         expect(screen.getByText('No workflow to save')).toBeInTheDocument()
-        expect(screen.getByText('Validation failed')).toBeInTheDocument()
+        expect(screen.getByText('Save failed')).toBeInTheDocument()
       })
     })
   })
@@ -2358,6 +2416,7 @@ describe('BuilderContent', () => {
 
   describe('Run Workflow Flow', () => {
     it('completes full run flow with success', async () => {
+      const user = userEvent.setup()
       const mockExecuteMutate = vi.fn((params: unknown, callbacks?: MutationCallbacks) => {
         if (callbacks?.onSuccess) {
           callbacks.onSuccess({ id: 'execution-123' }, params, undefined)
@@ -2371,17 +2430,17 @@ describe('BuilderContent', () => {
         return createMockMutation()
       })
 
-      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+      await renderBuilder({ workflow: createWorkflowWithInputSchema(), isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
 
       // Click Run → confirmation dialog → input modal → confirm
-      fireEvent.click(screen.getByRole('button', { name: 'Run' }))
+      await user.click(screen.getByRole('button', { name: 'Run' }))
       await screen.findByText(/Run Test Workflow\?/)
-      fireEvent.click(screen.getByRole('button', { name: 'Run now' }))
+      await user.click(screen.getByRole('button', { name: 'Run now' }))
       await screen.findByText(/Set mock output data for/)
-      fireEvent.click(screen.getByRole('button', { name: 'Run' }))
+      await user.click(screen.getByRole('button', { name: 'Run' }))
 
       await waitFor(() => {
         expect(mockExecuteMutate).toHaveBeenCalled()

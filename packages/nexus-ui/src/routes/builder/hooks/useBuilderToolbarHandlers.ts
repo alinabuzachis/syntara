@@ -3,9 +3,12 @@ import { useCallback, type Dispatch } from 'react'
 
 import type { AlertMessage } from '../../../providers/alerts'
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
+import type { WorkflowDefinition } from '../../../stores/workflowStoreTypes'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 import type { BuilderAction } from '../builderReducer'
+import { validateWorkflow } from '../utils/validation'
+import { validateMinimumWorkflow } from '../utils/validation/rules/validateMinimumWorkflow'
 
 type ShowAlert = (options: AlertMessage) => void
 
@@ -39,6 +42,7 @@ export type UseBuilderToolbarHandlersOptions = {
   showError: ShowAlert
   setLocation: (to: string) => void
   handleSaveWorkflow: () => Promise<boolean>
+  currentWorkflow: WorkflowDefinition | null
 }
 
 /**
@@ -58,23 +62,56 @@ export function useBuilderToolbarHandlers({
   showError,
   setLocation,
   handleSaveWorkflow,
+  currentWorkflow,
 }: UseBuilderToolbarHandlersOptions) {
   const handleRunWorkflow = useCallback(
     async (inputData?: Record<string, unknown>, triggerNodeId?: string) => {
       if (!workflow?.id) return
 
+      // Save workflow first if there are unsaved changes (always save, even if validation fails)
       const isDirty = useWorkflowStore.getState().isDirty
       if (isDirty) {
         try {
           const saved = await handleSaveWorkflow()
           if (!saved) {
+            // Save failed, close dialog and don't proceed with run
             dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
             return
           }
         } catch {
+          // Save threw an error, close dialog and abort run
           dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
           return
         }
+      }
+
+      // Validate workflow has minimum requirements to run (after save)
+      if (!currentWorkflow) {
+        showError({ title: 'Cannot run workflow', description: 'No workflow data available' })
+        dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
+        return
+      }
+
+      const edges = useWorkflowStore.getState().edges
+      const activities = currentWorkflow.workflow.activities
+      const triggers = currentWorkflow.triggers
+
+      // Check minimum workflow requirements (trigger + node + connection)
+      const minimumValidation = validateMinimumWorkflow(activities, edges, triggers)
+      if (minimumValidation.length > 0) {
+        const errorMessages = minimumValidation.map((error) => error.message).join('\n• ')
+        showError({ title: 'Cannot run workflow', description: `${errorMessages}` })
+        dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
+        return
+      }
+
+      // Check all other validation rules (dangling nodes, invalid connections, etc.)
+      const validationResult = validateWorkflow(activities, edges)
+      if (!validationResult.valid) {
+        const errorMessages = validationResult.errors.map((error) => error.message).join('\n• ')
+        showError({ title: 'Cannot run workflow', description: `Workflow validation failed:\n• ${errorMessages}` })
+        dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
+        return
       }
 
       executeWorkflow(
@@ -103,7 +140,7 @@ export function useBuilderToolbarHandlers({
         }
       )
     },
-    [workflow, workflowName, executeWorkflow, handleSaveWorkflow, showSuccess, showError, dispatch]
+    [workflow, workflowName, executeWorkflow, handleSaveWorkflow, showSuccess, showError, dispatch, currentWorkflow]
   )
 
   const handleDeleteWorkflow = useCallback(() => {

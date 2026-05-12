@@ -78,13 +78,30 @@ describe('BuilderDialogs', () => {
     expect(screen.getByRole('button', { name: 'Run now' })).toBeInTheDocument()
   })
 
-  it('shows the run workflow modal after confirming the run dialog', async () => {
+  it('shows the run workflow modal after confirming the run dialog when trigger has input schema', async () => {
     const user = userEvent.setup()
-    renderDialogs({ confirmDialogOpen: true })
+    renderDialogs({
+      confirmDialogOpen: true,
+      triggerInputSchema: { type: 'object', properties: { name: { type: 'string' } } },
+    })
 
     await user.click(screen.getByRole('button', { name: 'Run now' }))
 
     expect(screen.getByText('Set mock output data for Manual Trigger')).toBeInTheDocument()
+  })
+
+  it('runs workflow immediately after confirming when trigger has no input schema', async () => {
+    const user = userEvent.setup()
+    const handleRunWorkflow = vi.fn()
+    const dispatch = vi.fn()
+    renderDialogs({ confirmDialogOpen: true, handleRunWorkflow, dispatch })
+
+    await user.click(screen.getByRole('button', { name: 'Run now' }))
+
+    // Should run immediately without showing the mock data modal
+    expect(handleRunWorkflow).toHaveBeenCalledTimes(1)
+    expect(dispatch).toHaveBeenCalledWith({ type: 'SET_CONFIRM_DIALOG', payload: false })
+    expect(screen.queryByText('Set mock output data for Manual Trigger')).not.toBeInTheDocument()
   })
 
   it('shows trigger name in confirmation dialog body when workflow is clean', () => {
@@ -110,10 +127,14 @@ describe('BuilderDialogs', () => {
     expect(screen.getByText(/will be deleted/)).toBeInTheDocument()
   })
 
-  it('calls handleRunWorkflow when run modal is confirmed', async () => {
+  it('calls handleRunWorkflow when run modal is confirmed (with input schema)', async () => {
     const user = userEvent.setup()
     const handleRunWorkflow = vi.fn()
-    renderDialogs({ confirmDialogOpen: true, handleRunWorkflow })
+    renderDialogs({
+      confirmDialogOpen: true,
+      handleRunWorkflow,
+      triggerInputSchema: { type: 'object', properties: { name: { type: 'string' } } },
+    })
 
     await user.click(screen.getByRole('button', { name: 'Run now' }))
     await user.click(screen.getByRole('button', { name: 'Run' }))
@@ -136,6 +157,7 @@ describe('BuilderDialogs', () => {
       activityNameMap: new Map(),
       handleApprovalClose: vi.fn(),
       triggerName: 'Manual Trigger',
+      triggerInputSchema: { type: 'object', properties: { name: { type: 'string' } } },
       testStepDialog: {
         isOpen: false,
         item: null,
@@ -179,7 +201,11 @@ describe('BuilderDialogs', () => {
   it('closes run modal when onClose is called from RunWorkflowModal', async () => {
     const user = userEvent.setup()
     const dispatch = vi.fn()
-    renderDialogs({ confirmDialogOpen: true, dispatch })
+    renderDialogs({
+      confirmDialogOpen: true,
+      dispatch,
+      triggerInputSchema: { type: 'object', properties: { name: { type: 'string' } } },
+    })
 
     // Advance to run modal
     await user.click(screen.getByRole('button', { name: 'Run now' }))
@@ -194,9 +220,12 @@ describe('BuilderDialogs', () => {
     expect(dispatch).toHaveBeenCalledWith({ type: 'SET_CONFIRM_DIALOG', payload: false })
   })
 
-  it('checking "Don\'t show again" and confirming run stores the preference', async () => {
+  it('checking "Don\'t show again" and confirming run stores the preference and shows input modal', async () => {
     const user = userEvent.setup()
-    renderDialogs({ confirmDialogOpen: true })
+    renderDialogs({
+      confirmDialogOpen: true,
+      triggerInputSchema: { type: 'object', properties: { name: { type: 'string' } } },
+    })
 
     const checkbox = screen.getByRole('checkbox', { name: "Don't show again" })
     await user.click(checkbox)
@@ -205,6 +234,31 @@ describe('BuilderDialogs', () => {
     await user.click(screen.getByRole('button', { name: 'Run now' }))
     // Run modal is now shown — confirmedRun is true, preference was recorded
     expect(screen.getByText('Set mock output data for Manual Trigger')).toBeInTheDocument()
+  })
+
+  it('stores "Don\'t show again" preference when running workflow with no input schema', async () => {
+    const user = userEvent.setup()
+    const handleRunWorkflow = vi.fn()
+    const dispatch = vi.fn()
+    // Clear localStorage to ensure clean state
+    localStorage.clear()
+    renderDialogs({ confirmDialogOpen: true, handleRunWorkflow, dispatch })
+
+    // Check the "Don't show again" checkbox
+    const checkbox = screen.getByRole('checkbox', { name: "Don't show again" })
+    await user.click(checkbox)
+    expect(checkbox).toBeChecked()
+
+    // Click "Run now" - should run immediately and close dialog
+    await user.click(screen.getByRole('button', { name: 'Run now' }))
+
+    // Should run immediately without showing the mock data modal
+    expect(handleRunWorkflow).toHaveBeenCalledTimes(1)
+    expect(dispatch).toHaveBeenCalledWith({ type: 'SET_CONFIRM_DIALOG', payload: false })
+    expect(screen.queryByText('Set mock output data for Manual Trigger')).not.toBeInTheDocument()
+
+    // Verify the preference was stored
+    expect(localStorage.getItem('nexus-run-workflow-confirm-dismissed')).toBe('true')
   })
 
   describe('accessibility', () => {

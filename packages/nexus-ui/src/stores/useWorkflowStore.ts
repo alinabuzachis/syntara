@@ -226,6 +226,10 @@ export const useWorkflowStore: UseWorkflowStoreBound = create<WorkflowStore>()(
         set((state) => {
           if (!state.currentWorkflow?.triggers) return state
 
+          const oldTrigger = state.currentWorkflow.triggers[index]
+          // Only mark dirty if the trigger actually changed
+          if (oldTrigger === trigger) return state
+
           const triggers = [...state.currentWorkflow.triggers]
           triggers[index] = trigger
           return {

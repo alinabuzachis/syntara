@@ -1,7 +1,9 @@
+import type { Activity } from '@ansible/nexus-contracts'
 import { renderHook } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach, type MockedFunction } from 'vitest'
 
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
+import type { WorkflowDefinition } from '../../../stores/workflowStoreTypes'
 
 import type { UseBuilderToolbarHandlersOptions } from './useBuilderToolbarHandlers'
 import { useBuilderToolbarHandlers } from './useBuilderToolbarHandlers'
@@ -24,6 +26,21 @@ function createMockReactFlowInstance(overrides: { setNodes?: ReturnType<typeof v
   } as unknown as ReactFlowInstanceParam
 }
 
+function minimalWorkflow(overrides: Partial<WorkflowDefinition> = {}): WorkflowDefinition {
+  return {
+    schema_version: '2.0.0',
+    name: 'test-wf',
+    description: 'd',
+    workflow: {
+      activities: [
+        { type: 'script', id: 'task-1', name: 'Task 1', config: { language: 'python', code: 'print("hello")' } },
+      ] as Activity[],
+    },
+    triggers: [{ type: 'manual', id: 'trigger-1', config: {} }],
+    ...overrides,
+  }
+}
+
 function buildOptions(overrides: Partial<UseBuilderToolbarHandlersOptions> = {}): UseBuilderToolbarHandlersOptions {
   return {
     workflow: { id: 'wf-1' },
@@ -39,6 +56,7 @@ function buildOptions(overrides: Partial<UseBuilderToolbarHandlersOptions> = {})
     showError: vi.fn(),
     setLocation: vi.fn(),
     handleSaveWorkflow: vi.fn().mockResolvedValue(true),
+    currentWorkflow: minimalWorkflow(),
     ...overrides,
   }
 }
@@ -46,9 +64,19 @@ function buildOptions(overrides: Partial<UseBuilderToolbarHandlersOptions> = {})
 describe('useBuilderToolbarHandlers', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(useWorkflowStore.getState).mockReturnValue({ isDirty: false } as ReturnType<
-      typeof useWorkflowStore.getState
-    >)
+    // Default to clean state with edges for validation
+    vi.mocked(useWorkflowStore.getState).mockReturnValue({
+      isDirty: false,
+      edges: [
+        {
+          id: 'trigger-1-task-1',
+          source: 'trigger-1',
+          target: 'task-1',
+          sourceHandle: 'source',
+          targetHandle: 'target',
+        },
+      ],
+    } as ReturnType<typeof useWorkflowStore.getState>)
   })
 
   it('handleRunWorkflow does not call executeWorkflow when workflow is missing', async () => {
@@ -59,6 +87,118 @@ describe('useBuilderToolbarHandlers', () => {
 
     await result.current.handleRunWorkflow()
 
+    expect(executeWorkflow).not.toHaveBeenCalled()
+  })
+
+  it('handleRunWorkflow saves workflow but shows error when workflow has no triggers', async () => {
+    const executeWorkflow = vi.fn()
+    const showError = vi.fn()
+    const dispatch = vi.fn()
+    const handleSaveWorkflow = vi.fn().mockResolvedValue(true)
+    const currentWorkflow = minimalWorkflow({ triggers: undefined })
+
+    // Mock dirty state so save is called
+    vi.mocked(useWorkflowStore.getState).mockReturnValue({
+      isDirty: true,
+      edges: [
+        {
+          id: 'trigger-1-task-1',
+          source: 'trigger-1',
+          target: 'task-1',
+          sourceHandle: 'source',
+          targetHandle: 'target',
+        },
+      ],
+    } as ReturnType<typeof useWorkflowStore.getState>)
+
+    const { result } = renderHook(() =>
+      useBuilderToolbarHandlers(
+        buildOptions({ executeWorkflow, showError, dispatch, currentWorkflow, handleSaveWorkflow })
+      )
+    )
+
+    await result.current.handleRunWorkflow()
+
+    // Save should be called first
+    expect(handleSaveWorkflow).toHaveBeenCalled()
+    // Then validation error shown
+    expect(showError).toHaveBeenCalledWith({
+      title: 'Cannot run workflow',
+      description: expect.stringContaining('at least one trigger') as unknown as string,
+    })
+    expect(dispatch).toHaveBeenCalledWith({ type: 'SET_CONFIRM_DIALOG', payload: false })
+    // But execution should not happen
+    expect(executeWorkflow).not.toHaveBeenCalled()
+  })
+
+  it('handleRunWorkflow saves workflow but shows error when workflow has no activities', async () => {
+    const executeWorkflow = vi.fn()
+    const showError = vi.fn()
+    const dispatch = vi.fn()
+    const handleSaveWorkflow = vi.fn().mockResolvedValue(true)
+    const currentWorkflow = minimalWorkflow({ workflow: { activities: [] } })
+
+    // Mock dirty state so save is called
+    vi.mocked(useWorkflowStore.getState).mockReturnValue({
+      isDirty: true,
+      edges: [
+        {
+          id: 'trigger-1-task-1',
+          source: 'trigger-1',
+          target: 'task-1',
+          sourceHandle: 'source',
+          targetHandle: 'target',
+        },
+      ],
+    } as ReturnType<typeof useWorkflowStore.getState>)
+
+    const { result } = renderHook(() =>
+      useBuilderToolbarHandlers(
+        buildOptions({ executeWorkflow, showError, dispatch, currentWorkflow, handleSaveWorkflow })
+      )
+    )
+
+    await result.current.handleRunWorkflow()
+
+    // Save should be called first
+    expect(handleSaveWorkflow).toHaveBeenCalled()
+    // Then validation error shown
+    expect(showError).toHaveBeenCalledWith({
+      title: 'Cannot run workflow',
+      description: expect.stringContaining('at least one step') as unknown as string,
+    })
+    expect(dispatch).toHaveBeenCalledWith({ type: 'SET_CONFIRM_DIALOG', payload: false })
+    // But execution should not happen
+    expect(executeWorkflow).not.toHaveBeenCalled()
+  })
+
+  it('handleRunWorkflow saves workflow but shows error when workflow has no connections', async () => {
+    const executeWorkflow = vi.fn()
+    const showError = vi.fn()
+    const dispatch = vi.fn()
+    const handleSaveWorkflow = vi.fn().mockResolvedValue(true)
+
+    // Mock dirty state with no edges
+    vi.mocked(useWorkflowStore.getState).mockReturnValue({
+      isDirty: true,
+      edges: [],
+    } as unknown as ReturnType<typeof useWorkflowStore.getState>)
+
+    const { result } = renderHook(() =>
+      useBuilderToolbarHandlers(buildOptions({ executeWorkflow, showError, dispatch, handleSaveWorkflow }))
+    )
+
+    await result.current.handleRunWorkflow()
+
+    // Save should be called first
+    expect(handleSaveWorkflow).toHaveBeenCalled()
+    // Then validation error shown
+    expect(showError).toHaveBeenCalledWith({
+      title: 'Cannot run workflow',
+      description: expect.stringContaining('at least one connection') as unknown as string,
+    })
+    expect(dispatch).toHaveBeenCalledWith({ type: 'SET_CONFIRM_DIALOG', payload: false })
+    // But execution should not happen
     expect(executeWorkflow).not.toHaveBeenCalled()
   })
 
@@ -112,9 +252,18 @@ describe('useBuilderToolbarHandlers', () => {
       args[1]?.onSuccess?.({ id: 'exec-1' })
     }) as MockedFunction<ExecuteWorkflow>
     const dispatch = vi.fn()
-    vi.mocked(useWorkflowStore.getState).mockReturnValue({ isDirty: true } as ReturnType<
-      typeof useWorkflowStore.getState
-    >)
+    vi.mocked(useWorkflowStore.getState).mockReturnValue({
+      isDirty: true,
+      edges: [
+        {
+          id: 'trigger-1-task-1',
+          source: 'trigger-1',
+          target: 'task-1',
+          sourceHandle: 'source',
+          targetHandle: 'target',
+        },
+      ],
+    } as ReturnType<typeof useWorkflowStore.getState>)
 
     const { result } = renderHook(() =>
       useBuilderToolbarHandlers(buildOptions({ handleSaveWorkflow, executeWorkflow, dispatch }))
@@ -130,9 +279,18 @@ describe('useBuilderToolbarHandlers', () => {
   it('handleRunWorkflow does not execute when save fails and isDirty', async () => {
     const handleSaveWorkflow = vi.fn().mockResolvedValue(false)
     const executeWorkflow = vi.fn()
-    vi.mocked(useWorkflowStore.getState).mockReturnValue({ isDirty: true } as ReturnType<
-      typeof useWorkflowStore.getState
-    >)
+    vi.mocked(useWorkflowStore.getState).mockReturnValue({
+      isDirty: true,
+      edges: [
+        {
+          id: 'trigger-1-task-1',
+          source: 'trigger-1',
+          target: 'task-1',
+          sourceHandle: 'source',
+          targetHandle: 'target',
+        },
+      ],
+    } as ReturnType<typeof useWorkflowStore.getState>)
 
     const { result } = renderHook(() =>
       useBuilderToolbarHandlers(buildOptions({ handleSaveWorkflow, executeWorkflow }))
@@ -251,9 +409,20 @@ describe('useBuilderToolbarHandlers', () => {
     const handleSaveWorkflow = vi.fn().mockRejectedValue(new Error('network'))
     const executeWorkflow = vi.fn() as MockedFunction<ExecuteWorkflow>
     const dispatch = vi.fn()
-    vi.mocked(useWorkflowStore.getState).mockReturnValue({ isDirty: true } as ReturnType<
-      typeof useWorkflowStore.getState
-    >)
+
+    // Mock isDirty state with edges for validation
+    vi.mocked(useWorkflowStore.getState).mockReturnValue({
+      isDirty: true,
+      edges: [
+        {
+          id: 'trigger-1-task-1',
+          source: 'trigger-1',
+          target: 'task-1',
+          sourceHandle: 'source',
+          targetHandle: 'target',
+        },
+      ],
+    } as ReturnType<typeof useWorkflowStore.getState>)
 
     const { result } = renderHook(() =>
       useBuilderToolbarHandlers(buildOptions({ handleSaveWorkflow, executeWorkflow, dispatch }))
@@ -264,13 +433,64 @@ describe('useBuilderToolbarHandlers', () => {
     expect(executeWorkflow).not.toHaveBeenCalled()
   })
 
+  it('handleRunWorkflow saves and executes when isDirty', async () => {
+    const handleSaveWorkflow = vi.fn().mockResolvedValue(true)
+    const executeWorkflow = vi.fn((...args: Parameters<ExecuteWorkflow>) => {
+      args[1]?.onSuccess?.({ id: 'exec-1' })
+    }) as MockedFunction<ExecuteWorkflow>
+
+    // Mock isDirty state with edges for validation
+    vi.mocked(useWorkflowStore.getState).mockReturnValue({
+      isDirty: true,
+      edges: [
+        {
+          id: 'trigger-1-task-1',
+          source: 'trigger-1',
+          target: 'task-1',
+          sourceHandle: 'source',
+          targetHandle: 'target',
+        },
+      ],
+    } as ReturnType<typeof useWorkflowStore.getState>)
+
+    const { result } = renderHook(() =>
+      useBuilderToolbarHandlers(buildOptions({ handleSaveWorkflow, executeWorkflow }))
+    )
+
+    await result.current.handleRunWorkflow()
+
+    // Verify save was called before execute
+    expect(handleSaveWorkflow).toHaveBeenCalledTimes(1)
+    expect(executeWorkflow).toHaveBeenCalledTimes(1)
+
+    // Verify order: handleSaveWorkflow should be called before executeWorkflow
+    const saveCallOrder = handleSaveWorkflow.mock.invocationCallOrder[0]
+    const executeCallOrder = executeWorkflow.mock.invocationCallOrder[0]
+    expect(saveCallOrder).toBeLessThan(executeCallOrder)
+  })
+
   it('handleRunWorkflow handles onSuccess without data.id', async () => {
     const executeWorkflow = vi.fn((...args: Parameters<ExecuteWorkflow>) => {
       args[1]?.onSuccess?.({})
     }) as MockedFunction<ExecuteWorkflow>
     const dispatch = vi.fn()
 
+    // Clean state already set in beforeEach with edges
+    vi.mocked(useWorkflowStore.getState).mockReturnValue({
+      isDirty: false,
+      edges: [
+        {
+          id: 'trigger-1-task-1',
+          source: 'trigger-1',
+          target: 'task-1',
+          sourceHandle: 'source',
+          targetHandle: 'target',
+        },
+      ],
+    } as ReturnType<typeof useWorkflowStore.getState>)
+
     const { result } = renderHook(() => useBuilderToolbarHandlers(buildOptions({ executeWorkflow, dispatch })))
+
     await result.current.handleRunWorkflow()
 
     expect(dispatch).toHaveBeenCalledWith({ type: 'SET_CONFIRM_DIALOG', payload: false })

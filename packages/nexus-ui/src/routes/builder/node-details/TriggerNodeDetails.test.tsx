@@ -714,5 +714,127 @@ describe('TriggerNodeDetails Component', () => {
         })
       )
     })
+
+    it('does not call updateTrigger when submitting without changes (manual trigger)', async () => {
+      const user = userEvent.setup()
+      const trigger: Trigger = {
+        id: 'manual_trigger',
+        type: 'manual_trigger',
+        name: 'My Trigger',
+        config: { input_schema: { type: 'object', properties: { name: { type: 'string' } } } },
+      }
+
+      const formSpy = vi.spyOn(TriggerNodeFormModule, 'TriggerNodeForm')
+      formSpy.mockImplementation(({ onSubmit }) => (
+        <button
+          data-testid="submit-unchanged"
+          onClick={() => {
+            // Submit with the same data as the initial trigger
+            onSubmit({
+              name: 'My Trigger',
+              triggerType: TriggerTypeEnum.MANUAL_TRIGGER,
+              inputSchema: JSON.stringify({ type: 'object', properties: { name: { type: 'string' } } }),
+            })
+          }}
+          type="button"
+        >
+          Submit
+        </button>
+      ))
+
+      render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
+
+      const submitButton = screen.getByTestId('submit-unchanged')
+      await user.click(submitButton)
+
+      // updateTrigger should NOT be called because nothing changed
+      expect(mockUpdateTrigger).not.toHaveBeenCalled()
+      expect(mockOnClose).toHaveBeenCalled()
+
+      formSpy.mockRestore()
+    })
+
+    it('does not call updateTrigger when submitting without changes (scheduled trigger)', async () => {
+      const user = userEvent.setup()
+      const trigger: Trigger = {
+        id: 'scheduled_trigger',
+        type: 'scheduled',
+        name: 'Scheduled Task',
+        config: { schedule_type: 'interval', interval: 'PT1H' },
+      }
+
+      const formSpy = vi.spyOn(TriggerNodeFormModule, 'TriggerNodeForm')
+      formSpy.mockImplementation(({ onSubmit }) => (
+        <button
+          data-testid="submit-unchanged-scheduled"
+          onClick={() => {
+            // Submit with the same data as the initial trigger
+            onSubmit({
+              name: 'Scheduled Task',
+              triggerType: TriggerTypeEnum.SCHEDULED,
+              scheduleType: 'interval',
+              interval: 'PT1H',
+            })
+          }}
+          type="button"
+        >
+          Submit
+        </button>
+      ))
+
+      render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
+
+      const submitButton = screen.getByTestId('submit-unchanged-scheduled')
+      await user.click(submitButton)
+
+      // updateTrigger should NOT be called because nothing changed
+      expect(mockUpdateTrigger).not.toHaveBeenCalled()
+      expect(mockOnClose).toHaveBeenCalled()
+
+      formSpy.mockRestore()
+    })
+
+    it('calls updateTrigger when trigger data actually changes', async () => {
+      const user = userEvent.setup()
+      const trigger: Trigger = {
+        id: 'manual_trigger',
+        type: 'manual_trigger',
+        name: 'Old Name',
+        config: {},
+      }
+
+      const formSpy = vi.spyOn(TriggerNodeFormModule, 'TriggerNodeForm')
+      formSpy.mockImplementation(({ onSubmit }) => (
+        <button
+          data-testid="submit-changed"
+          onClick={() => {
+            // Submit with different data
+            onSubmit({
+              name: 'New Name',
+              triggerType: TriggerTypeEnum.MANUAL_TRIGGER,
+            })
+          }}
+          type="button"
+        >
+          Submit
+        </button>
+      ))
+
+      render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
+
+      const submitButton = screen.getByTestId('submit-changed')
+      await user.click(submitButton)
+
+      // updateTrigger SHOULD be called because the name changed
+      expect(mockUpdateTrigger).toHaveBeenCalledWith(0, {
+        id: 'manual_trigger',
+        type: 'manual_trigger',
+        name: 'New Name',
+        config: {},
+      })
+      expect(mockOnClose).toHaveBeenCalled()
+
+      formSpy.mockRestore()
+    })
   })
 })

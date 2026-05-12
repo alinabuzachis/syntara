@@ -10,24 +10,6 @@ import { useBuilderSaveWorkflow } from './useBuilderSaveWorkflow'
 type CreateWorkflow = UseBuilderSaveWorkflowParams['createWorkflow']
 type UpdateWorkflow = UseBuilderSaveWorkflowParams['updateWorkflow']
 
-const validateWorkflowMock = vi.hoisted(() =>
-  vi.fn(() => ({
-    valid: true,
-    errors: [] as { message: string }[],
-    warnings: [] as { message: string }[],
-  }))
-)
-
-vi.mock('../utils/validation', () => ({
-  validateWorkflow: validateWorkflowMock,
-}))
-
-const getStateMock = vi.hoisted(() => vi.fn(() => ({ edges: [] })))
-
-vi.mock('../../../stores/useWorkflowStore', () => ({
-  useWorkflowStore: { getState: getStateMock },
-}))
-
 function minimalWorkflow(overrides: Partial<WorkflowDefinition> = {}): WorkflowDefinition {
   return {
     schema_version: '2.0.0',
@@ -66,7 +48,6 @@ function buildParams(overrides: Partial<UseBuilderSaveWorkflowParams> = {}): Use
 describe('useBuilderSaveWorkflow', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    validateWorkflowMock.mockReturnValue({ valid: true, errors: [], warnings: [] })
   })
 
   it('returns false and shows error when there is no current workflow', async () => {
@@ -74,7 +55,7 @@ describe('useBuilderSaveWorkflow', () => {
     const { result } = renderHook(() => useBuilderSaveWorkflow(buildParams({ currentWorkflow: null, showError })))
 
     await expect(result.current()).resolves.toBe(false)
-    expect(showError).toHaveBeenCalledWith({ title: 'Validation failed', description: 'No workflow to save' })
+    expect(showError).toHaveBeenCalledWith({ title: 'Save failed', description: 'No workflow to save' })
   })
 
   it('returns false and shows danger toast when create path has no project', async () => {
@@ -101,23 +82,6 @@ describe('useBuilderSaveWorkflow', () => {
     })
     expect(onMissingProjectForCreate).toHaveBeenCalledOnce()
     expect(createWorkflow).not.toHaveBeenCalled()
-    expect(validateWorkflowMock).not.toHaveBeenCalled()
-  })
-
-  it('returns false and shows error when validation fails', async () => {
-    validateWorkflowMock.mockReturnValueOnce({
-      valid: false,
-      errors: [{ message: 'bad' }],
-      warnings: [],
-    })
-    const showError = vi.fn()
-    const { result } = renderHook(() => useBuilderSaveWorkflow(buildParams({ showError })))
-
-    await expect(result.current()).resolves.toBe(false)
-    expect(showError).toHaveBeenCalledWith({
-      title: 'Validation failed',
-      description: expect.stringContaining('bad') as unknown as string,
-    })
   })
 
   it('updates existing workflow with patch payload', async () => {

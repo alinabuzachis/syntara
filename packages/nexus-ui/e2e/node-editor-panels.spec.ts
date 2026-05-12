@@ -406,12 +406,11 @@ test.describe('Node editor panels', () => {
       }
     })
 
-    // Click Run → confirmation dialog → Run now → mock data modal → Run
+    // Click Run → confirmation dialog → Run now
+    // Since this trigger has no input schema, it runs immediately (no mock data modal)
     await app.getByRole('button', { name: 'Run', exact: true }).click()
     await expect(app.getByRole('button', { name: 'Run now' })).toBeVisible()
     await app.getByRole('button', { name: 'Run now' }).click()
-    await expect(app.getByRole('button', { name: 'Run', exact: true })).toBeVisible()
-    await app.getByRole('button', { name: 'Run', exact: true }).click()
 
     // After run, user stays in editor — wait for the success toast confirming execution started
     await expect(app.getByText('Workflow started')).toBeVisible({ timeout: 10_000 })

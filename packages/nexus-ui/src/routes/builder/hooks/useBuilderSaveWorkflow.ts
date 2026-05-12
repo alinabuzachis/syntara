@@ -7,7 +7,6 @@ import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import type { WorkflowDefinition } from '../../../stores/workflowStoreTypes'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
-import { validateWorkflow } from '../utils/validation'
 import { buildWorkflowDefinition } from '../utils/workflowDefinitionBuilder'
 import { DEFAULT_WORKFLOW_NAME, getNextDefaultWorkflowName } from '../utils/workflowNaming'
 
@@ -119,7 +118,7 @@ export function useBuilderSaveWorkflow(
     (overrideIsEnabled?: boolean): Promise<boolean> => {
       return new Promise((resolve) => {
         if (!currentWorkflow) {
-          showError({ title: 'Validation failed', description: 'No workflow to save' })
+          showError({ title: 'Save failed', description: 'No workflow to save' })
           resolve(false)
           return
         }
@@ -129,17 +128,6 @@ export function useBuilderSaveWorkflow(
         if (!willPatchExisting && !selectedProject?.id) {
           showError({ title: 'Project required', description: 'Select a project to save this workflow.' })
           onMissingProjectForCreate?.()
-          resolve(false)
-          return
-        }
-
-        const edges = useWorkflowStore.getState().edges
-
-        const validationResult = validateWorkflow(currentWorkflow.workflow.activities, edges)
-
-        if (!validationResult.valid) {
-          const errorMessages = validationResult.errors.map((error) => error.message).join('\n• ')
-          showError({ title: 'Validation failed', description: `Workflow validation failed:\n• ${errorMessages}` })
           resolve(false)
           return
         }

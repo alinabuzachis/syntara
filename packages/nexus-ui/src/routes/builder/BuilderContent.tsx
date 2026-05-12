@@ -194,6 +194,7 @@ export function BuilderContent(props: BuilderContentProps) {
       showError,
       setLocation,
       handleSaveWorkflow,
+      currentWorkflow,
     })
 
   const openTestStepDialog = testStepDialog.open
