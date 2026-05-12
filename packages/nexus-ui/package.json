@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "clean": "rm -rf dist node_modules",
-    "start": "vite --open",
+    "start": "concurrently -n app,sb 'vite --open' 'storybook dev -p 5174 --disable-telemetry' -c auto",
     "build": "vite build",
     "preview": "vite preview",
     "test": "concurrently npm:lint npm:tsc npm:vitest",
@@ -16,11 +16,13 @@
     "e2e": "playwright test --reporter=line",
     "e2e:ui": "playwright test --ui",
     "vitest": "vitest run",
-    "tsc": "tsc --noEmit -p tsconfig.app.json",
+    "tsc": "concurrently -n app,node,storybook,e2e \"tsc --noEmit -p tsconfig.app.json\" \"tsc --noEmit -p tsconfig.node.json\" \"tsc --noEmit -p tsconfig.storybook.json\" \"tsc --noEmit -p tsconfig.e2e.json\"",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "knip": "knip",
-    "knip:exports": "knip --include files,exports,duplicates,enumMembers,namespaceMembers"
+    "knip:exports": "knip --include files,exports,duplicates,enumMembers,namespaceMembers",
+    "storybook": "storybook dev -p 5174 --disable-telemetry",
+    "storybook:build": "storybook build --disable-telemetry"
   },
   "dependencies": {
     "@ansible/nexus-contracts": "file:../nexus-contracts",
@@ -49,6 +51,9 @@
     "@axe-core/playwright": "^4.11.1",
     "@eslint/js": "^9.39.4",
     "@playwright/test": "^1.59.1",
+    "@storybook/addon-a11y": "10.3.6",
+    "@storybook/addon-mcp": "^0.6.0",
+    "@storybook/react-vite": "10.3.6",
     "@tanstack/eslint-plugin-query": "^5.97.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -77,6 +82,7 @@
     "knip": "^6.4.1",
     "nyc": "^18.0.0",
     "prettier": "^3.8.2",
+    "storybook": "10.3.6",
     "tsx": "^4.21.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.58.1",

@@ -1,8 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
-import type * as Monaco from 'monaco-editor'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { useMonacoBlur } from './useMonacoBlur'
+import { type MonacoEditor, useMonacoBlur } from './useMonacoBlur'
 
 type MockEditor = {
   focus: ReturnType<typeof vi.fn>
@@ -17,10 +16,6 @@ describe('useMonacoBlur', () => {
       focus: vi.fn(),
       onDidBlurEditorText: vi.fn(() => ({ dispose: mockDispose })),
     }
-  }
-
-  function asMonacoEditor(editor: MockEditor): Monaco.editor.IStandaloneCodeEditor {
-    return editor as unknown as Monaco.editor.IStandaloneCodeEditor
   }
 
   afterEach(() => {
@@ -53,7 +48,7 @@ describe('useMonacoBlur', () => {
     const { result } = renderHook(() => useMonacoBlur(''))
     const editor = createMockEditor()
     act(() => {
-      result.current.handleEditorDidMount(asMonacoEditor(editor))
+      result.current.handleEditorDidMount(editor as unknown as MonacoEditor)
     })
     act(() => {
       result.current.focus()
@@ -71,7 +66,7 @@ describe('useMonacoBlur', () => {
     const { result } = renderHook(() => useMonacoBlur('hello', onBlur))
     const editor = createMockEditor()
     act(() => {
-      result.current.handleEditorDidMount(asMonacoEditor(editor))
+      result.current.handleEditorDidMount(editor as unknown as MonacoEditor)
     })
     expect(editor.onDidBlurEditorText).toHaveBeenCalled()
     const calls = editor.onDidBlurEditorText.mock.calls as unknown[][]
@@ -88,7 +83,7 @@ describe('useMonacoBlur', () => {
     const { result } = renderHook(() => useMonacoBlur(''))
     const editor = createMockEditor()
     act(() => {
-      result.current.handleEditorDidMount(asMonacoEditor(editor))
+      result.current.handleEditorDidMount(editor as unknown as MonacoEditor)
     })
     expect(editor.onDidBlurEditorText).not.toHaveBeenCalled()
   })
@@ -98,7 +93,7 @@ describe('useMonacoBlur', () => {
     const { result, unmount } = renderHook(() => useMonacoBlur('', onBlur))
     const editor = createMockEditor()
     act(() => {
-      result.current.handleEditorDidMount(asMonacoEditor(editor))
+      result.current.handleEditorDidMount(editor as unknown as MonacoEditor)
     })
     unmount()
     expect(mockDispose).toHaveBeenCalled()
@@ -112,7 +107,7 @@ describe('useMonacoBlur', () => {
     })
     const editor = createMockEditor()
     act(() => {
-      result.current.handleEditorDidMount(asMonacoEditor(editor))
+      result.current.handleEditorDidMount(editor as unknown as MonacoEditor)
     })
     rerender({ onBlur } as Props)
     const calls = editor.onDidBlurEditorText.mock.calls as unknown[][]

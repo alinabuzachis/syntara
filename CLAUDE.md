@@ -229,6 +229,7 @@ Use for UI display only, not in logic (per i18n guidelines). Trigger-specific in
 
 - UI: <http://localhost:5173>
 - Mock API: <http://localhost:3000>
+- Storybook (+ MCP server): <http://localhost:5174>
 - WebSocket: derived from page origin (real backend only; override with `VITE_WS_URL` if needed)
 
 E2E tests use different ports (UI: 4173, mock API: 3300) to avoid conflicts with a running dev server.

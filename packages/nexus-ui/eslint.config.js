@@ -46,7 +46,7 @@ export default tseslint.config(
       ecmaVersion: 2020,
       globals: globals.browser,
       parserOptions: {
-        project: ['./tsconfig.app.json', './tsconfig.node.json', './tsconfig.e2e.json'],
+        project: ['./tsconfig.app.json', './tsconfig.node.json', './tsconfig.e2e.json', './tsconfig.storybook.json'],
         tsconfigRootDir: __dirname,
       },
     },
@@ -137,6 +137,15 @@ export default tseslint.config(
     files: ['**/index.tsx', '**/main.tsx', '**/vite.config.ts', '**/vitest.config.ts', '**/vitest.browser.config.ts'],
     rules: {
       'no-console': 'off',
+      'no-restricted-exports': 'off',
+      'react-refresh/only-export-components': 'off',
+    },
+  },
+  {
+    // Storybook CSF requires `export default meta`; Storybook config files require a default export —
+    // exempt both from the default-export ban
+    files: ['**/*.stories.{ts,tsx}', '**/.storybook/**/*.{ts,tsx}'],
+    rules: {
       'no-restricted-exports': 'off',
       'react-refresh/only-export-components': 'off',
     },

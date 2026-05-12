@@ -1,5 +1,23 @@
-import type * as Monaco from 'monaco-editor'
 import { useEffect, useRef } from 'react'
+
+export type MonacoDisposable = {
+  dispose(): void
+}
+
+type MonacoRange = {
+  startLineNumber: number
+  startColumn: number
+  endLineNumber: number
+  endColumn: number
+}
+
+export type MonacoEditor = {
+  focus(): void
+  getValue(): string
+  getSelection(): MonacoRange | null
+  executeEdits(source: string, edits: Array<{ range: MonacoRange; text: string; forceMoveMarkers?: boolean }>): void
+  onDidBlurEditorText(listener: () => void): MonacoDisposable
+}
 
 /**
  * Manages Monaco editor ref, latest value ref, and blur listener for code editors.
@@ -8,8 +26,8 @@ import { useEffect, useRef } from 'react'
  */
 export function useMonacoBlur(code: string, onBlur?: (value: string) => void) {
   const latestValueRef = useRef(code)
-  const editorInstanceRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null)
-  const blurDisposableRef = useRef<Monaco.IDisposable | null>(null)
+  const editorInstanceRef = useRef<MonacoEditor | null>(null)
+  const blurDisposableRef = useRef<MonacoDisposable | null>(null)
 
   const getValue = () => latestValueRef.current
   const focus = () => editorInstanceRef.current?.focus()
@@ -39,7 +57,7 @@ export function useMonacoBlur(code: string, onBlur?: (value: string) => void) {
     latestValueRef.current = code
   }, [code])
 
-  const handleEditorDidMount = (editor: Monaco.editor.IStandaloneCodeEditor) => {
+  const handleEditorDidMount = (editor: MonacoEditor) => {
     editorInstanceRef.current = editor
     if (onBlur) {
       blurDisposableRef.current?.dispose()

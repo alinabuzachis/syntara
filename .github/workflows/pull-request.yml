@@ -11,6 +11,10 @@ concurrency:
   group: ${{ github.ref }}
   cancel-in-progress: true
 
+# Scoped to this file only — other workflows pin their own.
+env:
+  NODE_VERSION: '22.13.0'
+
 jobs:
   checks:
     name: Checks
@@ -20,7 +24,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: '22.13.0'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
       - run: npm ci
@@ -35,6 +39,8 @@ jobs:
       - name: ESLint
         run: npm run lint
         working-directory: packages/nexus-ui
+        env:
+          NODE_OPTIONS: '--max-old-space-size=8192'
 
       - name: Check for dead code with knip
         run: npm run knip -- --reporter compact
@@ -52,7 +58,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: '22.13.0'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
       - run: npm ci
@@ -83,7 +89,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: '22.13.0'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
       - run: npm ci
@@ -131,7 +137,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: '22.13.0'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
       - run: npm ci
@@ -465,6 +471,23 @@ jobs:
               });
             }
 
+  storybook-build:
+    name: Storybook Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Build Storybook
+        run: npm run storybook:build
+        working-directory: packages/nexus-ui
+
   test-build:
     name: Test Container Build
     runs-on: ubuntu-latest
@@ -543,6 +566,7 @@ jobs:
       - checks
       - unit-tests
       - coverage-report
+      - storybook-build
       - test-build
       - e2e-gate
     steps:
@@ -551,12 +575,14 @@ jobs:
           if [[ "${{ needs.checks.result }}" != "success" ]] || \
              [[ "${{ needs.unit-tests.result }}" != "success" ]] || \
              [[ "${{ needs.coverage-report.result }}" != "success" ]] || \
+             [[ "${{ needs.storybook-build.result }}" != "success" ]] || \
              [[ "${{ needs.test-build.result }}" != "success" ]] || \
              [[ "${{ needs.e2e-gate.result }}" != "success" ]]; then
             echo "Required jobs failed:"
             echo "  checks: ${{ needs.checks.result }}"
             echo "  unit-tests: ${{ needs.unit-tests.result }}"
             echo "  coverage-report: ${{ needs.coverage-report.result }}"
+            echo "  storybook-build: ${{ needs.storybook-build.result }}"
             echo "  test-build: ${{ needs.test-build.result }}"
             echo "  e2e-gate: ${{ needs.e2e-gate.result }}"
             exit 1

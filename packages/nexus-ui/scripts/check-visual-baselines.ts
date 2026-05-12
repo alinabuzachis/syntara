@@ -100,7 +100,10 @@ for (const concretePath of coveredConcretePaths) {
 // ---------------------------------------------------------------------------
 const snapshotDir = resolve(pkgRoot, 'e2e/visual-regression/page-screenshots.spec.ts-snapshots')
 
-const registryEntries = pages.map((p: { section: string; name: string }) => ({ section: p.section, name: p.name }))
+const registryEntries: Array<{ section: string; name: string }> = pages.map((p: { section: string; name: string }) => ({
+  section: p.section,
+  name: p.name,
+}))
 
 const missingBaselines: { entry: string; expectedPath: string }[] = []
 

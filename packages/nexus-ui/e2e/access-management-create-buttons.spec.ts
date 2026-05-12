@@ -26,8 +26,21 @@ import { test, expect, toAppUrl } from './fixtures'
 
 const ACCESS_URL = '/access-management'
 
+type ModalTabCase = {
+  /** Regex matched against the tab's accessible name to click it. */
+  tab: RegExp
+  /** URL path segment appended to ACCESS_URL after the tab is active. */
+  urlPath: string
+  /** Accessible name of the primary action button on the tab. */
+  label: string
+  /** Expected modal/dialog heading after the button is clicked. */
+  heading: string
+  /** When true, the test is skipped if the button is not visible (requires pre-existing data). */
+  requiresSeedData?: boolean
+}
+
 /** Modal-based tabs share the same open → assert → cancel flow. */
-const MODAL_TAB_CASES = [
+const MODAL_TAB_CASES: ModalTabCase[] = [
   { tab: /Groups/i, urlPath: 'groups', label: 'Create group', heading: 'Create group' },
   { tab: /Projects/i, urlPath: 'projects', label: 'Create project', heading: 'Create project' },
   {
@@ -43,7 +56,7 @@ const MODAL_TAB_CASES = [
     label: 'Add assignment',
     heading: 'Add Assignment',
   },
-] as const
+]
 
 test.describe('Access Management — Create button labels', () => {
   test.beforeEach(async ({ app }) => {

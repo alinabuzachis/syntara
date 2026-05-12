@@ -63,7 +63,7 @@ test.describe('Credential Types Management', () => {
 
   test('shows credentials using this type', async ({ app }) => {
     // Create a credential so we have at least one for this type
-    const name = await createTestCredential(app, { prefix: 'e2e-type-creds' })
+    const { name } = await createTestCredential(app, { prefix: 'e2e-type-creds' })
     try {
       await navigateToTypeDetail(app, 'HTTP Bearer Token')
       await app.getByRole('tab', { name: /Credentials/ }).click()
@@ -85,7 +85,7 @@ test.describe('Credential Types Management', () => {
   })
 
   test('navigates to credential from type detail', async ({ app }) => {
-    const name = await createTestCredential(app, { prefix: 'e2e-type-nav' })
+    const { name } = await createTestCredential(app, { prefix: 'e2e-type-nav' })
     try {
       await navigateToTypeDetail(app, 'HTTP Bearer Token')
       await app.getByRole('tab', { name: /Credentials/ }).click()

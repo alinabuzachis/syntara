@@ -17,6 +17,10 @@
       "command": "npx",
       "args": ["-y", "@patternfly/patternfly-mcp@latest"],
       "env": {}
+    },
+    "storybook": {
+      "type": "http",
+      "url": "http://localhost:5174/mcp"
     }
   }
 }

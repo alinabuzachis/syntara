@@ -55,6 +55,7 @@ npm start
 
 - UI: <http://localhost:5173>
 - Mock API: <http://localhost:3000>
+- Storybook (+ MCP server): <http://localhost:5174>
 
 ## Architecture
 

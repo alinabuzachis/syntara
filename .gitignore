@@ -40,3 +40,7 @@ dist-ssr
 
 # macOS visual regression snapshots (Linux baselines are the CI source of truth)
 **/page-screenshots.spec.ts-snapshots/**/*-darwin.png
+
+storybook-static/
+
+.eslintcache
