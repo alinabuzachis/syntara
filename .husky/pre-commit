@@ -1,1 +1,9 @@
+set -e
+
+# Run TypeScript type checking when TS/TSX files are staged
+if git diff --cached --name-only --diff-filter=ACMR | grep -qE '\.(ts|tsx)$'; then
+  echo "Running TypeScript type check..."
+  (cd packages/nexus-ui && npm run tsc)
+fi
+
 npx lint-staged
