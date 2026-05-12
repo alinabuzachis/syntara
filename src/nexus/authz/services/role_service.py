@@ -80,6 +80,11 @@ class RoleService(BaseService):
         project_id: UUID | None = None,
     ) -> Role:
         """Create a custom role. Validates that all referenced policy names exist."""
+        if project_id is not None:
+            from nexus.core.queries.project_queries import assert_project_alive  # noqa: PLC0415
+
+            await assert_project_alive(self.session, project_id)
+
         if is_builtin_role(name):
             msg = f"Role name '{name}' is reserved for a built-in role"
             raise RoleNameConflictError(msg)

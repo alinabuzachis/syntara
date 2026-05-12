@@ -293,6 +293,10 @@ class CredentialService(BaseService):
 
     async def create_credential(self, data: CredentialCreate) -> CredentialRead:
         """Create a new credential with encrypted inputs via SecretService."""
+        from nexus.core.queries.project_queries import assert_project_alive  # noqa: PLC0415
+
+        await assert_project_alive(self.session, data.project_id)
+
         credential_type = await self._get_credential_type(data.credential_type_id)
 
         # Validate inputs against type schema (always validate — empty dict may miss required fields)

@@ -178,9 +178,10 @@ class TestCreateCredential:
         bearer_type: CredentialType,
     ) -> None:
         mock_session.get.return_value = bearer_type
+        project_id = uuid4()
         mock_result = MagicMock()
         mock_result.one_or_none.return_value = None
-        mock_result.first.return_value = None
+        mock_result.first.side_effect = [project_id, None]
         mock_session.exec.return_value = mock_result
 
         service = CredentialService(mock_session, mock_user, mock_secret_service)
@@ -189,7 +190,7 @@ class TestCreateCredential:
             name="My Token",
             credential_type_id=bearer_type.id,
             inputs={"token": "sk-abc-123"},
-            project_id=uuid4(),
+            project_id=project_id,
         )
         result = await service.create_credential(data)
 
@@ -212,9 +213,10 @@ class TestCreateCredential:
             managed=False,
         )
         mock_session.get.return_value = optional_type
+        project_id = uuid4()
         mock_result = MagicMock()
         mock_result.one_or_none.return_value = None
-        mock_result.first.return_value = None
+        mock_result.first.side_effect = [project_id, None]
         mock_session.exec.return_value = mock_result
 
         service = CredentialService(mock_session, mock_user, mock_secret_service)
@@ -222,7 +224,7 @@ class TestCreateCredential:
         data = CredentialCreate(
             name="Empty Cred",
             credential_type_id=optional_type.id,
-            project_id=uuid4(),
+            project_id=project_id,
         )
         result = await service.create_credential(data)
 
@@ -239,9 +241,10 @@ class TestCreateCredential:
     ) -> None:
         mock_session.get.return_value = bearer_type
         existing_cred = MagicMock()
+        project_id = uuid4()
         mock_result = MagicMock()
         mock_result.one_or_none.return_value = None
-        mock_result.first.return_value = existing_cred
+        mock_result.first.side_effect = [project_id, existing_cred]
         mock_session.exec.return_value = mock_result
 
         service = CredentialService(mock_session, mock_user, mock_secret_service)
@@ -250,7 +253,7 @@ class TestCreateCredential:
             name="Duplicate",
             credential_type_id=bearer_type.id,
             inputs={"token": "abc"},
-            project_id=uuid4(),
+            project_id=project_id,
         )
         with pytest.raises(CredentialNameConflictError):
             await service.create_credential(data)
@@ -688,9 +691,10 @@ class TestAuditEventDispatch:
         bearer_type: CredentialType,
     ) -> None:
         mock_session.get.return_value = bearer_type
+        project_id = uuid4()
         mock_result = MagicMock()
         mock_result.one_or_none.return_value = None
-        mock_result.first.return_value = None
+        mock_result.first.side_effect = [project_id, None]
         mock_session.exec.return_value = mock_result
 
         service = CredentialService(mock_session, mock_user, mock_secret_service)
@@ -698,7 +702,7 @@ class TestAuditEventDispatch:
             name="test-cred",
             credential_type_id=bearer_type.id,
             inputs={"token": "sk-abc"},
-            project_id=uuid4(),
+            project_id=project_id,
         )
 
         with patch("nexus.credentials.services.credential_service.AuditEventDispatcher") as mock_dispatcher:

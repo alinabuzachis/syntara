@@ -146,7 +146,12 @@ class PermissionChecker:
             project_id = request.path_params.get(self.project_param, "")
             if project_id:
                 resource_project = await self._resolve_project_name(db, project_id)
-                if resource_project and self.resource_type == "project":
+                if not resource_project:
+                    from nexus.authz.exceptions import ProjectNotFoundError  # noqa: PLC0415
+
+                    msg = f"Project {project_id} not found"
+                    raise ProjectNotFoundError(msg)
+                if self.resource_type == "project":
                     resource_id = str(project_id)
 
         # Option 2: look up project from the resource itself
@@ -159,6 +164,11 @@ class PermissionChecker:
             body_project_id = body.get(self.body_project_field)
             if body_project_id:
                 resource_project = await self._resolve_project_name(db, body_project_id)
+                if not resource_project:
+                    from nexus.authz.exceptions import ProjectNotFoundError  # noqa: PLC0415
+
+                    msg = f"Project {body_project_id} not found"
+                    raise ProjectNotFoundError(msg)
 
         return str(resource_id) if resource_id else "", resource_project
 

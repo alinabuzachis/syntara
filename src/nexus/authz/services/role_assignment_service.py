@@ -57,6 +57,11 @@ class RoleAssignmentService:
             SafeValueError: If principal not found, role unknown, or already assigned.
 
         """
+        if project_id is not None:
+            from nexus.core.queries.project_queries import assert_project_alive  # noqa: PLC0415
+
+            await assert_project_alive(self.session, project_id)
+
         principal_name = await self._validate_principal(principal_type, principal_id)
         await self._validate_role(role_name, project_id)
 

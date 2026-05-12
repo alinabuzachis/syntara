@@ -84,6 +84,11 @@ class PolicyService(BaseService):
         project_id: UUID | None = None,
     ) -> Policy:
         """Create a custom policy."""
+        if project_id is not None:
+            from nexus.core.queries.project_queries import assert_project_alive  # noqa: PLC0415
+
+            await assert_project_alive(self.session, project_id)
+
         self._validate_resource_actions(statements)
         if project_id is not None:
             self._validate_project_statements(statements)

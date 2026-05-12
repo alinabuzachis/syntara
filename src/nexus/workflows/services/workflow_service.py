@@ -147,6 +147,11 @@ class WorkflowService(BaseService):
         ):
             workflow_validator.validate_workflow_definition(workflow_definition)
 
+        if project_id is not None:
+            from nexus.core.queries.project_queries import assert_project_alive  # noqa: PLC0415
+
+            await assert_project_alive(self.session, project_id)
+
         schema_version = workflow_definition.get("schema_version")
         workflow_dict = workflow_definition
 
