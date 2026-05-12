@@ -19,7 +19,7 @@ export interface paths {
     put?: never
     /**
      * Create execution
-     * @description Start a new workflow execution
+     * @description Start a new workflow execution.
      */
     post: operations['create_execution']
     delete?: never
@@ -38,14 +38,6 @@ export interface paths {
     /**
      * Get execution
      * @description Retrieve details of a specific execution with optional includes.
-     *
-     *     **Include Parameters**:
-     *     - `workflow_definition`: Include the v2 workflow definition from the executed version (for building visualization graph)
-     *     - `activities`: Include the list of activities with their current status (for completed executions or fallback)
-     *
-     *     **Usage**:
-     *     - Normal request: `GET /executions/{id}` - returns execution without optional fields
-     *     - Visualization: `GET /executions/{id}?include=workflow_definition&include=activities` - for building graph and checking execution status
      */
     get: operations['get_execution']
     put?: never
@@ -53,11 +45,7 @@ export interface paths {
     delete?: never
     options?: never
     head?: never
-    /**
-     * Control execution
-     * @description Pause, resume, or cancel a workflow execution
-     */
-    patch: operations['control_execution']
+    patch?: never
     trace?: never
   }
   '/executions/{execution_id}/activities': {
@@ -69,7 +57,7 @@ export interface paths {
     }
     /**
      * List activity executions
-     * @description Retrieve activity executions for a workflow execution with cursor-based pagination.
+     * @description Retrieve activity executions for a workflow execution.
      */
     get: operations['list_execution_activities']
     put?: never
@@ -92,14 +80,6 @@ export interface paths {
     /**
      * Send signal to activity in workflow
      * @description Send a signal to a specific activity within a running workflow execution.
-     *
-     *     This endpoint allows external systems to send arbitrary signals to
-     *     activities that are waiting for external events. Used by:
-     *     - Agent Orchestrator to deliver agentic activity results
-     *     - Approval service to deliver approval decisions
-     *
-     *     The signal is durable - if the workflow is temporarily unavailable,
-     *     the signal will be delivered when it becomes available again.
      */
     post: operations['signal_activity']
     delete?: never
@@ -113,6 +93,439 @@ export type webhooks = Record<string, never>
 export interface components {
   schemas: {
     /**
+     * ExecutionRead
+     * @description Schema for execution response (GET /executions/{id}).
+     *
+     *     Includes all fields from the database table model.
+     */
+    ExecutionRead: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /**
+       * Workflow Id
+       * Format: uuid
+       */
+      workflow_id: string
+      /**
+       * Workflow Version Id
+       * Format: uuid
+       */
+      workflow_version_id: string
+      /** Project Id */
+      project_id?: string | null
+      /** Temporal Workflow Id */
+      temporal_workflow_id: string
+      status: components['schemas']['ExecutionStatus']
+      /**
+       * Created By
+       * Format: uuid
+       */
+      created_by: string
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string
+      /** Completed At */
+      completed_at: string | null
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string
+      /** Updated By */
+      updated_by: string | null
+      /** Input Data */
+      input_data: {
+        [key: string]: unknown
+      }
+      /** Trigger Node Id */
+      trigger_node_id?: string | null
+      /** Error Details */
+      error_details: string | null
+      /** @default standard */
+      mode?: components['schemas']['ExecutionMode']
+      /** Execution Metadata */
+      execution_metadata?: {
+        [key: string]: unknown
+      } | null
+      /** Labels */
+      labels?: {
+        [key: string]: unknown
+      }
+      /**
+       * Current Activities
+       * @description Currently executing activities
+       */
+      current_activities?: components['schemas']['CurrentActivity'][]
+      /** Deleted At */
+      deleted_at?: string | null
+      /** Deleted By */
+      deleted_by?: string | null
+      /**
+       * Workflow Definition
+       * @description Workflow definition from the executed version. Only included when requested via ?include=workflow_definition query parameter.
+       */
+      workflow_definition?: {
+        [key: string]: unknown
+      } | null
+      /**
+       * Activities
+       * @description List of activities with their current status. Only included when requested via ?include=activities query parameter.
+       */
+      activities?: components['schemas']['ActivityData'][] | null
+    }
+    ActivityExecution: components['schemas']['BaseResource'] & {
+      /**
+       * Execution Id
+       * Format: uuid
+       * @description Parent execution ID
+       */
+      execution_id: string
+      /**
+       * Activity Name
+       * @description Activity ID from workflow definition
+       */
+      activity_name: string
+      /**
+       * Activity Definition
+       * @description Snapshot of activity configuration from workflow definition
+       */
+      activity_definition?: {
+        [key: string]: unknown
+      } | null
+      /**
+       * Temporal Activity Id
+       * @description Temporal activity execution ID
+       */
+      temporal_activity_id: string
+      /** @description Current activity status */
+      status: components['schemas']['ActivityStatus']
+      /**
+       * Started At
+       * @description When activity started execution
+       */
+      started_at?: string | null
+      /**
+       * Completed At
+       * @description When activity completed/failed
+       */
+      completed_at?: string | null
+      /**
+       * Input Data
+       * @description Runtime input parameters
+       */
+      input_data?: {
+        [key: string]: unknown
+      }
+      /**
+       * Output Data
+       * @description Activity results (if completed)
+       */
+      output_data?: {
+        [key: string]: unknown
+      } | null
+      /**
+       * Error Details
+       * @description Error information if failed
+       */
+      error_details?: string | null
+      /**
+       * Retry Count
+       * @description Number of retry attempts
+       * @default 0
+       */
+      retry_count?: number
+      /**
+       * Iteration
+       * @description Iteration number if activity is within a loop (0-indexed)
+       */
+      iteration?: number | null
+    }
+    /**
+     * ActivityData
+     * @description Activity data for execution response.
+     */
+    ActivityData: {
+      /** Activity Id */
+      activity_id: string
+      /** Status */
+      status: string
+      /** Error Details */
+      error_details?: string | null
+      /** Output Data */
+      output_data?: {
+        [key: string]: unknown
+      } | null
+      /** Started At */
+      started_at?: string | null
+      /** Completed At */
+      completed_at?: string | null
+    }
+    /**
+     * ActivityStatus
+     * @description Activity execution status enumeration.
+     * @enum {string}
+     */
+    ActivityStatus: 'pending' | 'running' | 'waiting' | 'completed' | 'failed' | 'retrying' | 'skipped' | 'cancelled'
+    /**
+     * CurrentActivity
+     * @description Currently executing activity information.
+     */
+    CurrentActivity: {
+      /**
+       * Activity Name
+       * @description Name of the activity
+       */
+      activity_name: string
+      /**
+       * Temporal Activity Id
+       * @description Temporal activity ID
+       */
+      temporal_activity_id: string
+      /**
+       * Iteration
+       * @description Iteration number for loops
+       */
+      iteration?: number | null
+    }
+    /**
+     * ExecutionListResponse
+     * @description Paginated list response for executions.
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
+     */
+    ExecutionListResponse: {
+      /**
+       * Next
+       * @description Cursor for next page of results
+       */
+      next?: string | null
+      /**
+       * Prev
+       * @description Cursor for previous page of results
+       */
+      prev?: string | null
+      /**
+       * Total
+       * @description Total count of resources (only when include_total=true)
+       */
+      total?: number | null
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources: components['schemas']['ExecutionRead'][]
+    }
+    /**
+     * ActivityExecutionListResponse
+     * @description Paginated list response for activity executions.
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
+     */
+    ActivityExecutionListResponse: {
+      /**
+       * Next
+       * @description Cursor for next page of results
+       */
+      next?: string | null
+      /**
+       * Prev
+       * @description Cursor for previous page of results
+       */
+      prev?: string | null
+      /**
+       * Total
+       * @description Total count of resources (only when include_total=true)
+       */
+      total?: number | null
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources: components['schemas']['ActivityExecution'][]
+    }
+    /**
+     * ExecutionStatus
+     * @description Current state of a workflow execution lifecycle.
+     * @enum {string}
+     */
+    ExecutionStatus: 'pending' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled'
+    /**
+     * ExecutionCreate
+     * @description Schema for creating a new execution (POST /executions).
+     *
+     *     Excludes auto-generated fields: id, created_at, created_by (set by backend).
+     */
+    ExecutionCreate: {
+      /**
+       * Workflow Id
+       * Format: uuid
+       * @description Workflow ID to execute
+       */
+      workflow_id: string
+      /**
+       * Input Data
+       * @description Input data for workflow execution
+       */
+      input_data?: {
+        [key: string]: unknown
+      }
+      /**
+       * Trigger Node Id
+       * @description Trigger node ID to start from (defaults to first trigger)
+       */
+      trigger_node_id?: string | null
+    }
+    /**
+     * TestExecutionCreate
+     * @description Request body for POST /workflows/{workflow_id}/test.
+     */
+    TestExecutionCreate: {
+      /**
+       * Target Node Id
+       * @description The node to execute for real
+       */
+      target_node_id: string
+      /**
+       * Pre Resolved Nodes
+       * @description Mock outputs for predecessor nodes. Keys are node IDs.
+       */
+      pre_resolved_nodes?: {
+        [key: string]: components['schemas']['PreResolvedNodeOutput']
+      }
+      /**
+       * Trigger Inputs
+       * @description Input data for the trigger node
+       */
+      trigger_inputs?: {
+        [key: string]: unknown
+      }
+    }
+    /**
+     * ExecutionMode
+     * @description Execution mode for workflow runs.
+     * @enum {string}
+     */
+    ExecutionMode: 'standard' | 'test' | 'debug'
+    /**
+     * Signal Response
+     * @description Response confirming a signal was sent to a workflow
+     */
+    SignalResponse: {
+      /**
+       * Status
+       * @description Confirmation that the signal was successfully sent
+       */
+      status: string
+      /**
+       * Message
+       * @description Human-readable confirmation message
+       */
+      message?: string | null
+    }
+    /**
+     * Activity Signal Payload
+     * @description Generic signal payload for sending arbitrary data to a specific activity within a running workflow execution.
+     */
+    ActivitySignalPayload: {
+      /**
+       * Signal Data
+       * @description Arbitrary JSON data to send to the activity. The structure depends on what the activity expects to receive.
+       * @example {
+       *       "action": "resume",
+       *       "result": {
+       *         "value": 42
+       *       },
+       *       "status": "completed"
+       *     }
+       */
+      signal_data: {
+        [key: string]: unknown
+      }
+    }
+    /**
+     * ErrorData
+     * @description RFC 9457 Problem Details format for error event data.
+     *     This model is used for streaming error events and follows the RFC 9457 Problem Details specification. It provides machine-readable and human-readable error information with consistent structure.
+     *     Attributes:
+     *         type: URI reference identifying the problem type
+     *         title: Short, human-readable summary of the problem
+     *         detail: Human-readable explanation specific to this occurrence
+     *         code: Machine-readable error code for programmatic handling
+     *         retryable: Whether this error can be retried by creating a new invocation
+     *         instance: Optional URI reference identifying the specific occurrence
+     * @example {
+     *       "type": "https://api.nexus.com/errors/llm-error",
+     *       "title": "LLM Rate Limit Exceeded",
+     *       "detail": "OpenRouter API rate limit exceeded. Please try again in a few moments.",
+     *       "code": "RATE_LIMIT_EXCEEDED",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
+     * @example {
+     *       "type": "https://api.nexus.com/errors/timeout-error",
+     *       "title": "Streaming Timeout",
+     *       "detail": "LLM streaming timed out after 30 seconds",
+     *       "code": "STREAM_TIMEOUT",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
+     */
+    ErrorData: {
+      /**
+       * Type
+       * @description URI reference identifying the problem type
+       * @example https://api.nexus.com/errors/llm-error
+       */
+      type: string
+      /**
+       * Title
+       * @description Short, human-readable summary of the problem
+       * @example LLM Service Unavailable
+       */
+      title: string
+      /**
+       * Detail
+       * @description Human-readable explanation specific to this occurrence
+       * @example OpenRouter API returned error: rate limit exceeded. Please try again in a few moments.
+       */
+      detail: string
+      /**
+       * Code
+       * @description Machine-readable error code for programmatic handling
+       * @example RATE_LIMIT_EXCEEDED
+       */
+      code: string
+      /**
+       * Retryable
+       * @description Whether this error can be retried by creating a new invocation
+       * @example true
+       */
+      retryable: boolean
+      /**
+       * Instance
+       * @description Optional URI reference identifying the specific occurrence
+       * @example /invocations/550e8400-e29b-41d4-a716-446655440000
+       */
+      instance?: string | null
+    }
+    /**
      * Base Resource
      * @description Foundational schema for all API resources with system-managed metadata
      */
@@ -123,21 +536,21 @@ export interface components {
        * @description Unique identifier for the resource
        * @example 550e8400-e29b-41d4-a716-446655440000
        */
-      readonly id: string
+      readonly id?: string
       /**
        * Created At
        * Format: date-time
        * @description Timestamp when resource was created
        * @example 2025-10-09T12:00:00Z
        */
-      readonly created_at: string
+      readonly created_at?: string
       /**
        * Updated At
        * Format: date-time
        * @description Timestamp when resource was last updated
        * @example 2025-10-09T12:30:00Z
        */
-      readonly updated_at: string
+      readonly updated_at?: string
       /**
        * Labels
        * @description Key-value pairs for resource labeling and filtering
@@ -152,380 +565,166 @@ export interface components {
         [key: string]: string
       }
     }
-    Execution: components['schemas']['BaseResource'] & {
-      /**
-       * Format: uuid
-       * @description ID of the workflow being executed
-       */
-      workflow_id?: string
-      /**
-       * Format: uuid
-       * @description ID of the workflow version being executed
-       */
-      workflow_version_id?: string
-      /** @description Temporal workflow execution ID */
-      temporal_workflow_id?: string
-      status?: components['schemas']['ExecutionStatus']
-      /**
-       * Format: uuid
-       * @description User who started the execution
-       */
-      started_by?: string
-      /**
-       * Format: date-time
-       * @description When execution transitioned from pending to running status (null if still pending)
-       */
-      started_at?: string | null
-      /**
-       * Format: date-time
-       * @description When execution reached terminal state (completed, failed, or cancelled)
-       */
-      completed_at?: string | null
-      /** @description Input parameters for the execution */
-      input_data?: Record<string, unknown>
-      /** @description Trigger node ID used to start this execution (null = first trigger) */
-      trigger_node_id?: string | null
-      /** @description Error information if execution failed */
-      error_details?: string | null
-      /** @description Currently executing activities */
-      current_activities?: {
-        activity_name?: string
-        temporal_activity_id?: string
-        iteration?: number | null
-      }[]
-      /**
-       * @description Workflow definition from the executed version.
-       *     Only included when requested via ?include=workflow_definition query parameter.
-       *     Used for building visualization graph.
-       */
-      workflow_definition?: Record<string, never> | null
-      /**
-       * @description List of activities with their current status.
-       *     Only included when requested via ?include=activities query parameter.
-       *     Used for visualization of completed executions or as fallback.
-       */
-      activities?: components['schemas']['ActivityData'][] | null
-    }
-    ActivityExecution: components['schemas']['BaseResource'] & {
-      /**
-       * Format: uuid
-       * @description Parent execution ID
-       */
-      execution_id?: string
-      /** @description Node ID from workflow definition */
-      activity_name?: string
-      /** @description Snapshot of the node definition from workflow at execution time, including type, config, retry policy, timeout, output mapping */
-      activity_definition?: Record<string, never>
-      /** @description Temporal activity execution ID */
-      temporal_activity_id?: string
-      status?: components['schemas']['ActivityStatus']
-      /**
-       * Format: date-time
-       * @description When activity transitioned from pending to running status (null if still pending)
-       */
-      started_at?: string | null
-      /**
-       * Format: date-time
-       * @description When activity reached terminal state (completed, failed)
-       */
-      completed_at?: string | null
-      /** @description Resolved config values passed to the activity at runtime */
-      input_data?: Record<string, unknown>
-      /** @description Activity results (after output mapping applied) */
-      output_data?: Record<string, unknown> | null
-      /** @description Error information if failed */
-      error_details?: string | null
-      /** @description Number of retry attempts */
-      retry_count?: number
-      /** @description Iteration number if activity is within a loop (0-indexed) */
-      iteration?: number | null
-    }
     /**
-     * ExecutionStatus
-     * @description Current state of a workflow execution lifecycle
-     * @enum {string}
+     * PreResolvedNodeOutput
+     * @description Typed structure for a single pre-resolved node's mock output.
      */
-    ExecutionStatus: 'pending' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled'
-    /**
-     * Create Execution Request
-     * @description Request payload for starting a new workflow execution with optional input parameters
-     */
-    CreateExecutionRequest: {
+    PreResolvedNodeOutput: {
       /**
-       * Format: uuid
-       * @description ID of the workflow to execute
+       * Output
+       * @description Mock output data for the node
        */
-      workflow_id: string
-      /** @description Input parameters for the workflow execution (validated against trigger's input_schema if defined) */
-      input_data?: Record<string, unknown>
-      /**
-       * Trigger Node Id
-       * @description Trigger node ID to start from (defaults to first trigger)
-       */
-      trigger_node_id?: string | null
-    }
-    /**
-     * Execution Control Request
-     * @description Request payload for controlling workflow execution state (pause, resume, cancel)
-     */
-    ExecutionControlRequest: {
-      /** @enum {string} */
-      action: 'pause' | 'resume' | 'cancel'
-    }
-    /**
-     * Signal Response
-     * @description Response confirming a signal was sent to a workflow
-     */
-    SignalResponse: {
-      /**
-       * @description Confirmation that the signal was successfully sent
-       * @enum {string}
-       */
-      status: 'signal_sent'
-      /** @description Human-readable confirmation message */
-      message?: string
-    }
-    /**
-     * Activity Signal Payload
-     * @description Signal payload for delivering results to an async activity.
-     *
-     *     For agentic activities, the signal_data should conform to the agentic
-     *     resultSchema (status, output, tool_calls, etc.).
-     *
-     *     For approval activities, the signal_data should conform to the approval
-     *     resultSchema (status, approver, decision, timestamp, etc.).
-     *
-     *     See the individual node type schemas in the v2 schema directory for
-     *     the expected signal_data structure per node type.
-     */
-    ActivitySignalPayload: {
-      /**
-       * @description Result data to deliver to the activity. Structure must conform to
-       *     the resultSchema of the target node type.
-       * @example {
-       *       "status": "completed",
-       *       "output": "Analysis complete. Found 3 issues.",
-       *       "tool_calls": [
-       *         {
-       *           "tool_id": "550e8400-e29b-41d4-a716-446655440000",
-       *           "tool_name": "code_scanner",
-       *           "duration_ms": 1500,
-       *           "status": "success"
-       *         }
-       *       ]
-       *     }
-       */
-      signal_data: {
+      output?: {
         [key: string]: unknown
       }
-    }
-    /**
-     * Paginated Response Base
-     * @description Pagination metadata structure for list responses
-     */
-    ResourcesResponseBase: {
       /**
-       * Next Page Cursor
-       * @description Cursor for next page of results
-       * @example eyJpZCI6InV1aWQifQ
+       * Control
+       * @description Control data for condition/loop routing (e.g., next_port)
        */
-      next?: string | null
-      /**
-       * Previous Page Cursor
-       * @description Cursor for previous page of results
-       * @example eyJpZCI6InV1aWQifQ
-       */
-      prev?: string | null
-      /**
-       * Total Count
-       * @description Total count of resources (only when include_total=true)
-       * @example 150
-       */
-      total?: number | null
-    }
-    /**
-     * Activity Status
-     * @description Current state of an individual activity execution
-     * @enum {string}
-     */
-    ActivityStatus: 'pending' | 'running' | 'waiting' | 'completed' | 'failed' | 'retrying' | 'skipped' | 'cancelled'
-    /**
-     * Activity Data
-     * @description Activity data for execution response when include=activities is requested
-     */
-    ActivityData: {
-      /**
-       * @description Node ID from workflow definition
-       * @example patch_servers
-       */
-      activity_id: string
-      status: components['schemas']['ActivityStatus']
-      /**
-       * @description Error message if status is failed
-       * @example Connection timeout to external service
-       */
-      error_details?: string | null
-      /** @description Activity output data (response body, status code, etc.) */
-      output_data?: Record<string, unknown> | null
-      /**
-       * Format: date-time
-       * @description When activity started execution
-       * @example 2025-12-10T15:00:10Z
-       */
-      started_at?: string | null
-      /**
-       * Format: date-time
-       * @description When activity completed
-       * @example 2025-12-10T15:00:15Z
-       */
-      completed_at?: string | null
-    }
-    /**
-     * RFC 9457 Problem Details
-     * @description RFC 9457 Problem Details format for error responses.
-     *     This format provides machine-readable and human-readable error information
-     *     with consistent structure for all API error responses.
-     */
-    ErrorData: {
-      /**
-       * Problem Type URI
-       * @description URI reference identifying the problem type
-       * @example https://api.nexus.com/errors/validation-error
-       */
-      type: string
-      /**
-       * Problem Title
-       * @description Short, human-readable summary of the problem
-       * @example Validation Error
-       */
-      title: string
-      /**
-       * Problem Detail
-       * @description Human-readable explanation specific to this occurrence
-       * @example Field 'name' must be between 1 and 255 characters
-       */
-      detail: string
-      /**
-       * Error Code
-       * @description Machine-readable error code for programmatic handling
-       * @example VALIDATION_ERROR
-       */
-      code: string
-      /**
-       * Retryable Flag
-       * @description Whether this error can be retried
-       * @example false
-       */
-      retryable: boolean
-      /**
-       * Problem Instance
-       * @description URI reference identifying the specific occurrence
-       * @example /api/v1/workflows
-       */
-      instance?: string | null
+      control?: {
+        [key: string]: unknown
+      } | null
     }
   }
-  responses: never
+  responses: {
+    /** @description Bad Request */
+    BadRequestError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/bad-request",
+         *       "title": "Bad Request",
+         *       "detail": "The request was malformed or contained invalid parameters",
+         *       "code": "BAD_REQUEST",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Unauthorized */
+    UnauthorizedError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/unauthorized",
+         *       "title": "Unauthorized",
+         *       "detail": "Authentication is required to access this resource",
+         *       "code": "UNAUTHORIZED",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Forbidden */
+    ForbiddenError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/forbidden",
+         *       "title": "Forbidden",
+         *       "detail": "You do not have permission to access this resource",
+         *       "code": "FORBIDDEN",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Not Found */
+    NotFoundError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/not-found",
+         *       "title": "Resource Not Found",
+         *       "detail": "No resource exists with the provided identifier",
+         *       "code": "NOT_FOUND",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Conflict */
+    ConflictError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/conflict",
+         *       "title": "Conflict",
+         *       "detail": "The request conflicts with the current state of the resource",
+         *       "code": "CONFLICT",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Validation Error */
+    ValidationError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/validation-error",
+         *       "title": "Validation Error",
+         *       "detail": "Field 'name' must be between 1 and 255 characters",
+         *       "code": "VALIDATION_ERROR",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Internal Server Error */
+    InternalServerError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/internal-error",
+         *       "title": "Internal Server Error",
+         *       "detail": "An unexpected error occurred",
+         *       "code": "INTERNAL_ERROR",
+         *       "retryable": true
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+  }
   parameters: {
-    /**
-     * @description Number of resources to return per page
-     * @example 20
-     */
+    /** @description Maximum number of results per page */
     limitParam: number
-    /**
-     * @description Opaque cursor for pagination (from previous response)
-     * @example eyJpZCI6InV1aWQifQ
-     */
-    cursorParam: string
-    /**
-     * @description Whether to include total count in response (may impact performance)
-     * @example true
-     */
+    /** @description Pagination cursor from previous response */
+    cursorParam: string | null
+    /** @description Sort parameter (e.g., 'name', '-created_at') */
+    sortParam: string | null
+    /** @description Include total count in response (expensive) */
     includeTotalParam: boolean
-    /**
-     * @description Sort order for resources.
-     *     - Ascending: `field` (e.g., `name`)
-     *     - Descending: `-field` (e.g., `-created_at`)
-     * @example -created_at
-     */
-    sortParam: string
-    createdAtFilterParam: string & {
-      /**
-       * Equals
-       * Format: date-time
-       * @description Exact match of creation timestamp. ?created_at[eq]=<timestamp>
-       */
-      eq?: string
-      /**
-       * Greater Than
-       * Format: date-time
-       * @description Greater than comparison. ?created_at[gt]=<timestamp>
-       */
-      gt?: string
-      /**
-       * Greater Than Or Equal
-       * Format: date-time
-       * @description Greater than or equal comparison. ?created_at[gte]=<timestamp>
-       */
-      gte?: string
-      /**
-       * Less Than
-       * Format: date-time
-       * @description Less than comparison. ?created_at[lt]=<timestamp>
-       */
-      lt?: string
-      /**
-       * Less Than Or Equal
-       * Format: date-time
-       * @description Less than or equal comparison. ?created_at[lte]=<timestamp>
-       */
-      lte?: string
-    }
-    updatedAtFilterParam: string & {
-      /**
-       * Equals
-       * Format: date-time
-       * @description Exact match of last update timestamp. ?updated_at[eq]=<timestamp>
-       */
-      eq?: string
-      /**
-       * Greater Than
-       * Format: date-time
-       * @description Greater than comparison. ?updated_at[gt]=<timestamp>
-       */
-      gt?: string
-      /**
-       * Greater Than Or Equal
-       * Format: date-time
-       * @description Greater than or equal comparison. ?updated_at[gte]=<timestamp>
-       */
-      gte?: string
-      /**
-       * Less Than
-       * Format: date-time
-       * @description Less than comparison. ?updated_at[lt]=<timestamp>
-       */
-      lt?: string
-      /**
-       * Less Than Or Equal
-       * Format: date-time
-       * @description Less than or equal comparison. ?updated_at[lte]=<timestamp>
-       */
-      lte?: string
-    }
-    /**
-     * @description Filter resources by label key-value pairs.
-     *     - Single label: `labels[environment]=production`
-     *     - Multiple labels: `labels[environment]=production&labels[region]=us-east-1`
-     *     All specified labels must match (AND logic).
-     * @example {
-     *       "environment": "production",
-     *       "region": "us-east-1"
-     *     }
-     */
-    labelsFilterParam: {
-      [key: string]: string
-    }
   }
   requestBodies: never
   headers: never
@@ -536,54 +735,14 @@ export interface operations {
   list_executions: {
     parameters: {
       query?: {
-        /** @description Filter by workflow ID */
-        workflow_id?: string
-        /** @description Filter by user who created the execution */
-        created_by?: string
-        /**
-         * @description Filter executions by status.
-         *     - Exact match: `status=running`
-         *     - Multiple values: `status[in]=running,pending`
-         */
-        status?: components['schemas']['ExecutionStatus'] & {
-          /** @description Match any of the comma-separated values. ?status[in]=<val1,val2> */
-          in?: string
-        }
-        /**
-         * @description Number of resources to return per page
-         * @example 20
-         */
+        /** @description Maximum number of results per page */
         limit?: components['parameters']['limitParam']
-        /**
-         * @description Opaque cursor for pagination (from previous response)
-         * @example eyJpZCI6InV1aWQifQ
-         */
+        /** @description Pagination cursor from previous response */
         cursor?: components['parameters']['cursorParam']
-        /**
-         * @description Whether to include total count in response (may impact performance)
-         * @example true
-         */
-        include_total?: components['parameters']['includeTotalParam']
-        /**
-         * @description Sort order for resources.
-         *     - Ascending: `field` (e.g., `name`)
-         *     - Descending: `-field` (e.g., `-created_at`)
-         * @example -created_at
-         */
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
         sort?: components['parameters']['sortParam']
-        created_at?: components['parameters']['createdAtFilterParam']
-        updated_at?: components['parameters']['updatedAtFilterParam']
-        /**
-         * @description Filter resources by label key-value pairs.
-         *     - Single label: `labels[environment]=production`
-         *     - Multiple labels: `labels[environment]=production&labels[region]=us-east-1`
-         *     All specified labels must match (AND logic).
-         * @example {
-         *       "environment": "production",
-         *       "region": "us-east-1"
-         *     }
-         */
-        labels?: components['parameters']['labelsFilterParam']
+        /** @description Include total count in response (expensive) */
+        include_total?: components['parameters']['includeTotalParam']
       }
       header?: never
       path?: never
@@ -591,17 +750,22 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description List of executions */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['ResourcesResponseBase'] & {
-            resources: components['schemas']['Execution'][]
-          }
+          'application/json': components['schemas']['ExecutionListResponse']
         }
       }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   create_execution: {
@@ -613,68 +777,32 @@ export interface operations {
     }
     requestBody: {
       content: {
-        'application/json': components['schemas']['CreateExecutionRequest']
+        'application/json': components['schemas']['ExecutionCreate']
       }
     }
     responses: {
-      /** @description Execution started */
+      /** @description Successful Response */
       201: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Execution']
+          'application/json': components['schemas']['ExecutionRead']
         }
       }
-      /** @description Workflow is disabled */
-      400: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          /**
-           * @example {
-           *       "type": "https://api.nexus.com/errors/workflow-disabled",
-           *       "title": "Workflow Disabled",
-           *       "detail": "Cannot execute a disabled workflow",
-           *       "code": "WORKFLOW_DISABLED",
-           *       "retryable": false,
-           *       "instance": "/api/v1/executions"
-           *     }
-           */
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Workflow not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          /**
-           * @example {
-           *       "type": "https://api.nexus.com/errors/not-found",
-           *       "title": "Workflow Not Found",
-           *       "detail": "No workflow exists with the provided identifier",
-           *       "code": "WORKFLOW_NOT_FOUND",
-           *       "retryable": false,
-           *       "instance": "/api/v1/executions"
-           *     }
-           */
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   get_execution: {
     parameters: {
       query?: {
-        /**
-         * @description Comma-separated list of related data to include in the response.
-         *     Valid values: workflow_definition, activities
-         * @example workflow_definition,activities
-         */
-        include?: string
+        include?: string | null
       }
       header?: never
       path: {
@@ -684,87 +812,35 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Execution details with optional includes */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Execution']
+          'application/json': components['schemas']['ExecutionRead']
         }
       }
-      /** @description Execution not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-    }
-  }
-  control_execution: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        execution_id: string
-      }
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['ExecutionControlRequest']
-      }
-    }
-    responses: {
-      /** @description Execution control applied */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['Execution']
-        }
-      }
-      /** @description Execution not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   list_execution_activities: {
     parameters: {
       query?: {
-        /**
-         * @description Number of resources to return per page
-         * @example 20
-         */
+        /** @description Maximum number of results per page */
         limit?: components['parameters']['limitParam']
-        /**
-         * @description Opaque cursor for pagination (from previous response)
-         * @example eyJpZCI6InV1aWQifQ
-         */
+        /** @description Pagination cursor from previous response */
         cursor?: components['parameters']['cursorParam']
-        /**
-         * @description Whether to include total count in response (may impact performance)
-         * @example true
-         */
-        include_total?: components['parameters']['includeTotalParam']
-        /**
-         * @description Sort order for resources.
-         *     - Ascending: `field` (e.g., `name`)
-         *     - Descending: `-field` (e.g., `-created_at`)
-         * @example -created_at
-         */
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
         sort?: components['parameters']['sortParam']
-        created_at?: components['parameters']['createdAtFilterParam']
+        /** @description Include total count in response (expensive) */
+        include_total?: components['parameters']['includeTotalParam']
       }
       header?: never
       path: {
@@ -774,26 +850,22 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description List of activity executions */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['ResourcesResponseBase'] & {
-            resources: components['schemas']['ActivityExecution'][]
-          }
+          'application/json': components['schemas']['ActivityExecutionListResponse']
         }
       }
-      /** @description Execution not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   signal_activity: {
@@ -801,9 +873,7 @@ export interface operations {
       query?: never
       header?: never
       path: {
-        /** @description Execution ID of the running workflow */
         execution_id: string
-        /** @description Node ID from the workflow definition */
         activity_id: string
       }
       cookie?: never
@@ -814,7 +884,7 @@ export interface operations {
       }
     }
     responses: {
-      /** @description Signal sent successfully */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
@@ -823,33 +893,13 @@ export interface operations {
           'application/json': components['schemas']['SignalResponse']
         }
       }
-      /** @description Execution not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Failed to send signal */
-      500: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Temporal workflow engine unavailable */
-      503: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
 }

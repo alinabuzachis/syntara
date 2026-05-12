@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { WorkflowHistoryCard, ExecutionHistoryRow } from './WorkflowHistoryCard'
 
-type Execution = ExecutionsAPI.components['schemas']['Execution']
+type Execution = ExecutionsAPI.components['schemas']['ExecutionRead']
 
 vi.mock('./ExecutionStatus', () => ({
   StatusLabel: ({ status }: { status: string }) => <span data-testid="status-label">{status}</span>,
@@ -29,9 +29,15 @@ const baseExecution: Execution = {
   id: '12345678-abcd-ef01-2345-678901234567',
   workflow_id: 'wf-1',
   workflow_version_id: 'wfv-1',
+  temporal_workflow_id: 'temporal-wf-1',
   status: 'running',
   created_at: '2024-01-15T10:00:00Z',
   updated_at: '2024-01-15T10:00:00Z',
+  created_by: 'user-1',
+  updated_by: null,
+  completed_at: null,
+  input_data: {},
+  error_details: null,
 }
 
 describe('WorkflowHistoryCard', () => {
@@ -90,10 +96,10 @@ describe('WorkflowHistoryCard', () => {
     expect(screen.getByText('Run ID: 12345678')).toBeInTheDocument()
   })
 
-  it('renders elapsed time when started_at and completed_at are present', () => {
+  it('renders elapsed time when created_at and completed_at are present', () => {
     const execution: Execution = {
       ...baseExecution,
-      started_at: '2024-01-15T10:00:00Z',
+      created_at: '2024-01-15T10:00:00Z',
       completed_at: '2024-01-15T10:01:30Z',
     }
     render(<WorkflowHistoryCard {...defaultProps} executions={[execution]} />)
@@ -216,10 +222,10 @@ describe('ExecutionHistoryRow', () => {
     expect(screen.queryByText(/2024/)).not.toBeInTheDocument()
   })
 
-  it('renders elapsed time label when started_at and completed_at are present', () => {
+  it('renders elapsed time label when created_at and completed_at are present', () => {
     const execution: Execution = {
       ...baseExecution,
-      started_at: '2024-01-15T10:00:00Z',
+      created_at: '2024-01-15T10:00:00Z',
       completed_at: '2024-01-15T10:01:30Z',
     }
     renderRow(execution)

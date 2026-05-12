@@ -23,7 +23,7 @@ nodes:
     config:
       method: GET
       url: http://test-api.example.com/api/data
-      queryParams:
+      query_params:
         filter: ${input.filter}
         limit: ${input.limit}
         sort: name

@@ -230,6 +230,4 @@ task:
 
 ## Related Documentation
 
-- [Workflow Engine Spec](../../../../../specs/003-workflow-engine/)
-- [Agent Orchestrator Spec](../../../../../specs/002-agent-orchestrator/)
 - [Agentic Activity Implementation](../../../../../src/nexus/workflows/activities/agentic_activity.py)

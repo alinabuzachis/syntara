@@ -12,10 +12,10 @@ import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 // ============================================================================
 
 /** Execution schema from REST API */
-export type Execution = ExecutionsAPI.components['schemas']['Execution']
+export type Execution = ExecutionsAPI.components['schemas']['ExecutionRead']
 
 /** Activity data from REST API */
-export type ActivityData = ExecutionsAPI.components['schemas']['ActivityData']
+export type ActivityData = ExecutionsAPI.components['schemas']['ActivityExecution']
 
 /** Activity status from API */
 export type ActivityStatus = ExecutionsAPI.components['schemas']['ActivityStatus']

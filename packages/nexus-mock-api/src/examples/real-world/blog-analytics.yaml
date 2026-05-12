@@ -47,7 +47,7 @@ nodes:
       url: https://jsonplaceholder.typicode.com/posts
       headers:
         Accept: application/json
-      queryParams:
+      query_params:
         userId: ${input.user_id}
     outputs:
       posts: $.body
@@ -61,7 +61,7 @@ nodes:
       url: https://jsonplaceholder.typicode.com/todos
       headers:
         Accept: application/json
-      queryParams:
+      query_params:
         userId: ${input.user_id}
     outputs:
       todos: $.body
@@ -110,8 +110,8 @@ nodes:
     inputs:
       posts: ${fetch_posts.output.posts}
     outputs:
-      postAnalysis: $.output
-      totalPosts: $.output.total_posts
+      post_analysis: $.output
+      total_posts: $.output.total_posts
     timeout: 60
 
   - id: analyze_todos
@@ -142,8 +142,8 @@ nodes:
     inputs:
       todos: ${fetch_todos.output.todos}
     outputs:
-      todoAnalysis: $.output
-      completionRate: $.output.completion_rate
+      todo_analysis: $.output
+      completion_rate: $.output.completion_rate
     timeout: 60
 
   - id: generate_report
@@ -198,12 +198,12 @@ nodes:
       username: ${fetch_user.output.username}
       email: ${fetch_user.output.email}
       company: ${fetch_user.output.company}
-      post_analysis: ${analyze_posts.output.postAnalysis}
-      todo_analysis: ${analyze_todos.output.todoAnalysis}
+      post_analysis: ${analyze_posts.output.post_analysis}
+      todo_analysis: ${analyze_todos.output.todo_analysis}
     outputs:
       report: $.output
       summary: $.output.summary
-      activityLevel: $.output.activity_level
+      activity_level: $.output.activity_level
     timeout: 60
 edges:
   - source: fetch_user

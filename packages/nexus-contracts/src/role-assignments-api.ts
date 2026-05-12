@@ -13,11 +13,11 @@ export interface paths {
     }
     /**
      * List Role Assignments
-     * @description List role assignments with project-aware visibility.
+     * @description List role assignments with policy-driven visibility.
      *
-     *     Admins/auditors see all. Project-admins see their own plus all
-     *     assignments in projects they administer. Other users see only their
-     *     own (direct and via groups).
+     *     Users with ``role-assignment:read:any`` see all.
+     *     Users with ``role-assignment:read:project`` see assignments in their projects.
+     *     Users with ``role-assignment:read:self`` see their own (direct and via groups).
      */
     get: operations['list_role_assignments']
     put?: never
@@ -67,47 +67,37 @@ export type webhooks = Record<string, never>
 export interface components {
   schemas: {
     /**
+     * PrincipalType
+     * @description Type of principal receiving a role assignment.
+     * @enum {string}
+     */
+    PrincipalType: 'user' | 'group'
+    /**
      * RoleAssignmentCreate
      * @description Request body for creating a role assignment.
      */
     RoleAssignmentCreate: {
-      /**
-       * Principal Type
-       * @description Type of principal receiving the role
-       * @enum {string}
-       */
-      principal_type: 'user' | 'group'
+      principal_type: components['schemas']['PrincipalType']
       /**
        * Principal Id
        * Format: uuid
-       * @description UUID of the user or group
        */
       principal_id: string
-      /**
-       * Role Name
-       * @description Name of the role to assign
-       */
+      /** Role Name */
       role_name: string
-      /**
-       * Project Id
-       * @description Project scope (null for global assignment)
-       */
+      /** Project Id */
       project_id?: string | null
     }
     /**
      * SubResourceRoleAssignmentCreate
-     * @description Request body for creating a role assignment from a sub-resource endpoint (principal comes from URL).
+     * @description Request body for creating a role assignment from a sub-resource endpoint.
+     *
+     *     principal_type and principal_id come from the URL path.
      */
     SubResourceRoleAssignmentCreate: {
-      /**
-       * Role Name
-       * @description Name of the role to assign
-       */
+      /** Role Name */
       role_name: string
-      /**
-       * Project Id
-       * @description Project scope (null for global assignment)
-       */
+      /** Project Id */
       project_id?: string | null
     }
     /**
@@ -127,21 +117,15 @@ export interface components {
        * Format: uuid
        */
       principal_id: string
-      /**
-       * Principal Name
-       * @description Resolved username or group name
-       */
+      /** Principal Name */
       principal_name: string
       /** Role Name */
       role_name: string
-      /**
-       * Role Description
-       * @description Human-readable description of the role
-       */
+      /** Role Description */
       role_description?: string | null
       /**
        * Role Policies
-       * @description Policy names included in this role
+       * @default []
        */
       role_policies?: string[]
       /** Project Id */
@@ -155,8 +139,8 @@ export interface components {
      * RoleAssignmentListResponse
      * @description Paginated response for role assignments.
      */
-    RoleAssignmentListResponse: components['schemas']['ResourcesResponseBase'] & {
-      resources?: components['schemas']['RoleAssignmentRead'][]
+    RoleAssignmentListResponse: WithRequired<components['schemas']['ResourcesResponseBase'], 'resources'> & {
+      resources: components['schemas']['RoleAssignmentRead'][]
     }
     /**
      * Paginated Response Base
@@ -416,19 +400,10 @@ export interface operations {
         sort?: components['parameters']['sortParam']
         /** @description Include total count in response (expensive) */
         include_total?: components['parameters']['includeTotalParam']
-        /** @description Filter by principal type (user or group) */
         principal_type?: string | null
-        /** @description Filter by principal ID (user or group UUID) */
         principal_id?: string | null
-        /** @description Filter by principal name (exact match) */
         principal_name?: string | null
-        /** @description Filter by principal name (substring, case-insensitive) */
-        'principal_name[contains]'?: string | null
-        /** @description Filter by role name (exact match) */
         role_name?: string | null
-        /** @description Filter by role name (substring, case-insensitive) */
-        'role_name[contains]'?: string | null
-        /** @description Filter by project ID */
         project_id?: string | null
       }
       header?: never
@@ -542,4 +517,7 @@ export interface operations {
       500: components['responses']['InternalServerError']
     }
   }
+}
+type WithRequired<T, K extends keyof T> = T & {
+  [P in K]-?: T[P]
 }

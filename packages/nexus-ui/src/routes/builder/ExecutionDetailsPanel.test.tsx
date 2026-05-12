@@ -41,8 +41,16 @@ const EXECUTION = {
   data: {
     id: 'exec-123',
     workflow_id: 'wf-123',
+    workflow_version_id: 'wfv-123',
+    temporal_workflow_id: 'temporal-123',
     status: 'running',
-    started_at: '2024-01-01T00:00:00Z',
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z',
+    created_by: 'user-1',
+    updated_by: null,
+    completed_at: null,
+    input_data: {},
+    error_details: null,
     activities: [
       {
         activity_id: 'task-1',
@@ -50,7 +58,7 @@ const EXECUTION = {
         started_at: '2024-01-01T00:00:00Z',
         completed_at: '2024-01-01T00:01:00Z',
       },
-      { activity_id: 'task-2', status: 'running', started_at: '2024-01-01T00:01:00Z' },
+      { activity_id: 'task-2', status: 'running', started_at: '2024-01-01T00:01:00Z', completed_at: null },
     ],
   },
   isLoading: false,

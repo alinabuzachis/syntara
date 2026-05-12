@@ -9,7 +9,7 @@ type WithId<T> = T & { readonly id: string }
 export type Group = WithId<UsersAPI.components['schemas']['GroupRead']>
 export type User = WithId<UsersAPI.components['schemas']['UserRead']>
 
-export type Execution = WithId<ExecutionsAPI.components['schemas']['Execution']>
+export type Execution = WithId<ExecutionsAPI.components['schemas']['ExecutionRead']>
 export type ActivityExecution = ExecutionsAPI.components['schemas']['ActivityExecution']
 export type Approval = WithId<ApprovalsAPI.components['schemas']['ApprovalRequestRead']>
 export type ExecutionStatus = ExecutionsAPI.components['schemas']['ExecutionStatus']
@@ -108,7 +108,7 @@ export type Tool = WithId<ToolManagerAPI.components['schemas']['ToolWithParamete
 export type ToolProvider = WithId<ToolManagerAPI.components['schemas']['ToolProviderWithConfiguration']>
 export type ToolProviderCreate = ToolManagerAPI.components['schemas']['ToolProviderCreate']
 export type ToolProvidersResponse =
-  ToolManagerAPI.paths['/tool_providers']['get']['responses']['200']['content']['application/json']
+  ToolManagerAPI.paths['/tool_manager/tool_providers']['get']['responses']['200']['content']['application/json']
 
 // V2 node types — generated from v2 OpenAPI spec
 export type V2Node = WorkflowAPI.components['schemas']['node']

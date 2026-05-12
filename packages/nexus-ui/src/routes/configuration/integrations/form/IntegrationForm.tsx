@@ -23,22 +23,13 @@ import { AppPage, AppPageMain } from '../../../../app/AppPage'
 import { AppPageHeader } from '../../../../app/AppPageHeader'
 import { AppRoute } from '../../../../app/AppRoute'
 import { breadcrumbsIntegrationConfigure } from '../../../../app/breadcrumbBuilders'
-import { toolManagerClient } from '../../../../client'
 import { AppPanel } from '../../../../components/AppPanel'
 import { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationErrorHandler'
-import { useAlerts } from '../../../../providers/alerts'
 
 import { integrationFormSchema, type IntegrationFormData } from './integrationFormSchema'
+import { useCreateIntegration } from './useCreateIntegration'
 
 export function IntegrationForm() {
-  const { mutate: createIntegration } = toolManagerClient.useMutation('post', '/tool_providers')
-  const { mutate: validateIntegration } = toolManagerClient.useMutation(
-    'post',
-    '/tool_providers/{provider_id}/validate'
-  )
-  const { mutate: refreshTools } = toolManagerClient.useMutation('post', '/tool_providers/{provider_id}/refresh_tools')
-
-  const { showAlert } = useAlerts()
   const { control, handleSubmit, setError } = useForm<IntegrationFormData>({
     resolver: zodResolver(integrationFormSchema, undefined, { mode: 'sync' }),
     defaultValues: {
@@ -48,47 +39,10 @@ export function IntegrationForm() {
     },
   })
   const handleError = useFormMutationErrorHandler<IntegrationFormData>(setError)
+  const createIntegration = useCreateIntegration({ handleError })
 
   const onSubmit = (formData: IntegrationFormData) => {
-    const context = formData.name ? `Integration "${formData.name}"` : undefined
-    const navigateToList = () => navigate(AppRoute.Configuration.Integrations.Root)
-    createIntegration(
-      { body: formData as ToolProviderCreate },
-      {
-        onSuccess: (data) => {
-          const providerId = data.id
-          validateIntegration(
-            { params: { path: { provider_id: providerId } } },
-            {
-              onError: (error) => {
-                handleError({ title: 'Integration created, but validation failed', context })(error)
-                navigateToList()
-              },
-              onSuccess: (validationResult) => {
-                if (validationResult.valid) {
-                  refreshTools(
-                    { params: { path: { provider_id: providerId } } },
-                    {
-                      onError: handleError({ title: 'Integration created, but refreshing tools failed', context }),
-                      onSettled: navigateToList,
-                    }
-                  )
-                  return
-                }
-                showAlert({
-                  title: 'Integration created, but validation failed',
-                  description: validationResult.error ?? `Provider "${formData.name}" could not be validated.`,
-                  variant: 'error',
-                  autoDismiss: true,
-                })
-                navigateToList()
-              },
-            }
-          )
-        },
-        onError: handleError({ title: 'Failed to add integration', context }),
-      }
-    )
+    createIntegration(formData as ToolProviderCreate & { name: string })
   }
 
   return (

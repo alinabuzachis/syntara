@@ -14,7 +14,13 @@
 import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import { create } from 'zustand'
 
-import type { Execution, ExecutionVisualization, JsonPatchOperation, ActivityState } from '../execution/types'
+import type {
+  Execution,
+  ExecutionVisualization,
+  JsonPatchOperation,
+  ActivityState,
+  ActivityStatus,
+} from '../execution/types'
 import { applyJsonPatch, buildActivityStateMap, extractActivityMaps } from '../execution/utils/activityState'
 
 // ============================================================================
@@ -145,6 +151,28 @@ type ExecutionStore = ExecutionStoreState & ExecutionStoreActions
 // ============================================================================
 
 /**
+ * Runtime validator for activity status values.
+ * Validates against the explicit ActivityStatus union and returns a safe status.
+ * Falls back to 'pending' for invalid/unknown values.
+ */
+function normalizeActivityStatus(status: unknown): ActivityStatus {
+  const validStatuses: ActivityStatus[] = [
+    'pending',
+    'running',
+    'waiting',
+    'completed',
+    'failed',
+    'retrying',
+    'skipped',
+    'cancelled',
+  ]
+  if (typeof status === 'string' && validStatuses.includes(status as ActivityStatus)) {
+    return status as ActivityStatus
+  }
+  return 'pending'
+}
+
+/**
  * Get activity ID from ActivityData or ActivityExecution
  * ActivityData uses activity_id; ActivityExecution uses activity_name or id
  */
@@ -164,11 +192,9 @@ function activityInputToState(activity: ActivityInput): ActivityState {
   if (!activityId) {
     throw new Error('Activity must have activity_id (ActivityData) or activity_name/id (ActivityExecution)')
   }
-  // Backend validates status is one of the enum values; use 'pending' as default
-  const status = activity.status ?? 'pending'
   return {
     activityId,
-    status,
+    status: normalizeActivityStatus(activity.status),
     errorDetails: activity.error_details,
     outputData: (activity as { output_data?: Record<string, unknown> | null }).output_data,
     startedAt: activity.started_at,
@@ -254,7 +280,14 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
 
   setExecution: (execution: Execution) => {
     // Build activity state map from execution data
-    const activities = execution.activities ?? []
+    const activities = (execution.activities ?? []).map((activity) => ({
+      activity_id: activity.activity_id,
+      status: normalizeActivityStatus(activity.status),
+      error_details: activity.error_details,
+      output_data: activity.output_data,
+      started_at: activity.started_at,
+      completed_at: activity.completed_at,
+    }))
     const activityStateMap = buildActivityStateMap(activities)
 
     // Extract error map for fast lookups (activityStates will be the full map)
@@ -268,7 +301,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       workflowDefinition: execution.workflow_definition,
       activities: activityStateMap,
       createdAt: execution.created_at,
-      startedAt: execution.started_at,
+      startedAt: execution.created_at,
       completedAt: execution.completed_at,
     }
 

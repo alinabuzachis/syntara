@@ -119,10 +119,11 @@ export interface paths {
     }
     /**
      * List Project Role Assignments
-     * @description List role assignments for a project.
+     * @description List role assignments for a project with policy-driven visibility.
      *
-     *     Admin/auditor/project-admin see all assignments in the project;
-     *     other users see only their own.
+     *     Users with ``role-assignment:read:any`` see all assignments in the project.
+     *     Users with ``role-assignment:read:project`` for this project see all.
+     *     Users with ``role-assignment:read:self`` see only their own (direct and via groups).
      */
     get: operations['list_project_role_assignments']
     put?: never
@@ -561,7 +562,22 @@ export interface components {
      *       "prev": "eyJpZCI6InByZXYifQ"
      *     }
      */
-    WorkflowListResponse: components['schemas']['ResourcesResponseBase'] & {
+    WorkflowListResponse: {
+      /**
+       * Next
+       * @description Cursor for next page of results
+       */
+      next?: string | null
+      /**
+       * Prev
+       * @description Cursor for previous page of results
+       */
+      prev?: string | null
+      /**
+       * Total
+       * @description Total count of resources (only when include_total=true)
+       */
+      total?: number | null
       /**
        * Resources
        * @description Array of resources in current page
@@ -811,14 +827,10 @@ export interface components {
      * @description Schema for workflow response (GET /workflows/{id}).
      *
      *     Includes all fields from the database table model.
+     *
      *     Note: deleted_at and deleted_by are None since soft-deleted workflows are excluded from queries.
      */
     WorkflowRead: {
-      /**
-       * Id
-       * Format: uuid
-       */
-      id: string
       /**
        * Name
        * @description Workflow name
@@ -836,6 +848,11 @@ export interface components {
       labels?: {
         [key: string]: unknown
       }
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
       /** Current Version */
       current_version: number
       /** Is Enabled */
@@ -861,6 +878,94 @@ export interface components {
       deleted_at?: string | null
       /** Deleted By */
       deleted_by?: string | null
+    }
+    /**
+     * ActivitySummary
+     * @description Activity summary for workflow context.
+     *
+     *     Passed through from the workflow engine as-is. Contains at minimum
+     *     ``id``, ``name``, ``type``, and usually ``config`` with the full
+     *     activity parameters so approvers can see what the step will do.
+     */
+    ActivitySummary: {
+      /**
+       * Id
+       * @description Activity ID from workflow definition
+       */
+      id: string
+      /**
+       * Name
+       * @description Human-readable activity name
+       */
+      name: string
+      /**
+       * Type
+       * @description Activity type (script, approval, agentic, etc.)
+       */
+      type: string
+    } & {
+      [key: string]: unknown
+    }
+    /**
+     * PreviousStepContext
+     * @description Previous Step Context for workflow execution.
+     *
+     *     The activity that immediately preceded this approval node, including its output.
+     *     Null if the approval node is the first activity in the workflow.
+     */
+    PreviousStepContext: {
+      /**
+       * Id
+       * @description Activity ID from workflow definition
+       */
+      id: string
+      /**
+       * Name
+       * @description Human-readable activity name
+       */
+      name: string
+      /**
+       * Type
+       * @description Activity type (task, approval, parallel, etc.)
+       */
+      type: string
+      /**
+       * Output
+       * @description Output from the activity (structure varies per activity type)
+       */
+      output?: {
+        [key: string]: unknown
+      } | null
+    }
+    /**
+     * WorkflowContext
+     * @description Workflow Context for approvers.
+     *
+     *     Essential context for approvers to make a decision.
+     *     Contains workflow identification, inputs, and the output from the immediately
+     *     preceding activity.
+     */
+    WorkflowContext: {
+      /**
+       * Workflow Version Id
+       * Format: uuid
+       * @description ID of the workflow version being executed
+       */
+      workflow_version_id: string
+      /**
+       * Workflow Name
+       * @description Name of the workflow
+       */
+      workflow_name: string
+      /**
+       * Inputs
+       * @description Original workflow input parameters (structure varies per workflow)
+       */
+      inputs: {
+        [key: string]: unknown
+      }
+      /** @description Previous step context and output */
+      previous_step?: components['schemas']['PreviousStepContext'] | null
     }
     /**
      * UserReference
@@ -915,27 +1020,12 @@ export interface components {
        * @description When this request expires
        */
       timeout_at?: string | null
-      /**
-       * Next Step Approved
-       * @description First activity that executes if approved
-       */
-      next_step_approved: {
-        [key: string]: unknown
-      }
-      /**
-       * Next Step Rejected
-       * @description First activity that executes if rejected
-       */
-      next_step_rejected?: {
-        [key: string]: unknown
-      } | null
-      /**
-       * Workflow Context
-       * @description Workflow inputs and previous step output
-       */
-      workflow_context?: {
-        [key: string]: unknown
-      }
+      /** @description First activity that executes if approved */
+      next_step_approved: components['schemas']['ActivitySummary']
+      /** @description First activity that executes if rejected */
+      next_step_rejected?: components['schemas']['ActivitySummary'] | null
+      /** @description Workflow inputs and previous step output */
+      workflow_context: components['schemas']['WorkflowContext']
       /** @description User who made the decision */
       decided_by?: components['schemas']['UserReference'] | null
       /**

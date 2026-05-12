@@ -617,7 +617,12 @@ export interface operations {
           'application/json': components['schemas']['ResourceActionsResponse']
         }
       }
+      400: components['responses']['BadRequestError']
       401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
       500: components['responses']['InternalServerError']
     }
   }

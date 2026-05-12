@@ -139,20 +139,11 @@ export interface components {
        * @description When this request expires
        */
       timeout_at?: string | null
-      /**
-       * Next Step Approved
-       * @description First activity that executes if approved
-       */
+      /** @description First activity that executes if approved */
       next_step_approved: components['schemas']['ActivitySummary']
-      /**
-       * Next Step Rejected
-       * @description First activity that executes if rejected
-       */
+      /** @description First activity that executes if rejected */
       next_step_rejected?: components['schemas']['ActivitySummary'] | null
-      /**
-       * Workflow Context
-       * @description Workflow inputs and previous step output
-       */
+      /** @description Workflow inputs and previous step output */
       workflow_context: components['schemas']['WorkflowContext']
       /** @description User who made the decision */
       decided_by?: components['schemas']['UserReference'] | null
@@ -175,11 +166,11 @@ export interface components {
     ApprovalRequestStatus: 'pending' | 'approved' | 'rejected' | 'expired' | 'cancelled'
     /**
      * ActivitySummary
-     * @description Activity Summary for workflow context.
+     * @description Activity summary for workflow context.
      *
-     *     Summary of a workflow activity for display in approval context.
-     *     Provides enough information for UI rendering without exposing
-     *     full activity configuration details.
+     *     Passed through from the workflow engine as-is. Contains at minimum
+     *     ``id``, ``name``, ``type``, and usually ``config`` with the full
+     *     activity parameters so approvers can see what the step will do.
      */
     ActivitySummary: {
       /**
@@ -194,9 +185,11 @@ export interface components {
       name: string
       /**
        * Type
-       * @description Activity type (task, approval, parallel, etc.)
+       * @description Activity type (script, approval, agentic, etc.)
        */
       type: string
+    } & {
+      [key: string]: unknown
     }
     /**
      * ApprovalCreateRequest
@@ -232,7 +225,7 @@ export interface components {
        */
       timeout_at?: string | null
       /** @description First activity that executes if approved */
-      next_step_approved?: components['schemas']['ActivitySummary'] | null
+      next_step_approved: components['schemas']['ActivitySummary']
       /** @description First activity that executes if rejected */
       next_step_rejected?: components['schemas']['ActivitySummary'] | null
       /** @description Workflow execution context */

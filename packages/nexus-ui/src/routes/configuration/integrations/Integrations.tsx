@@ -109,7 +109,7 @@ export default function Integrations() {
   )
 
   // Query tool providers with server-side filtering
-  const query = toolManagerClient.useQuery('get', '/tool_providers', {
+  const query = toolManagerClient.useQuery('get', '/tool_manager/tool_providers', {
     params: {
       query: queryParams,
     },
@@ -144,8 +144,14 @@ export default function Integrations() {
     }
   })
 
-  const { mutate: validateProvider } = toolManagerClient.useMutation('post', '/tool_providers/{provider_id}/validate')
-  const { mutate: deleteProvider } = toolManagerClient.useMutation('delete', '/tool_providers/{provider_id}')
+  const { mutate: validateProvider } = toolManagerClient.useMutation(
+    'post',
+    '/tool_manager/tool_providers/{provider_id}/validate'
+  )
+  const { mutate: deleteProvider } = toolManagerClient.useMutation(
+    'delete',
+    '/tool_manager/tool_providers/{provider_id}'
+  )
 
   const handleValidate = () => {
     const provider = validateDialog.item

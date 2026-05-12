@@ -44,7 +44,7 @@ import { useExecutionNodeClick } from './hooks/useExecutionNodeClick'
 /** Width constraint for the inline failure alert floating over the execution canvas. */
 const INLINE_ALERT_WIDTH = 'clamp(15rem, 20vw, 22rem)'
 
-type Execution = ExecutionsAPI.components['schemas']['Execution']
+type Execution = ExecutionsAPI.components['schemas']['ExecutionRead']
 type ActivityData = ExecutionsAPI.components['schemas']['ActivityData']
 type ActivityExecution = ExecutionsAPI.components['schemas']['ActivityExecution']
 
@@ -276,8 +276,9 @@ function useSyncActivityStore(execution: Execution | undefined, activities: (Act
           id: activity.id,
           created_at: '',
           updated_at: '',
+          execution_id: execution.id,
           activity_name: activity.name ?? activity.id,
-          activity_id: activity.id,
+          temporal_activity_id: '',
           status: 'pending' as const,
           error_details: null,
           started_at: null,
@@ -288,7 +289,7 @@ function useSyncActivityStore(execution: Execution | undefined, activities: (Act
     } else {
       setActivityExecutions([])
     }
-  }, [activities, execution?.status, execution?.workflow_definition, setActivityExecutions])
+  }, [activities, execution?.id, execution?.status, execution?.workflow_definition, setActivityExecutions])
 }
 
 function ExecutionPageTitle({ execution, executionId }: { execution: Execution | undefined; executionId: string }) {

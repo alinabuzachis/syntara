@@ -33,6 +33,15 @@ export const NODE_OUTPUT_SCHEMAS: Record<string, OutputFieldDef[]> = {
     { name: 'finished', type: 'string', description: 'Job finish timestamp (ISO 8601)' },
     { name: 'artifacts', type: 'object', description: 'Job artifacts/facts' },
   ],
+  aap_workflow_job_template: [
+    { name: 'status', type: 'string', description: 'Execution succeeded' },
+    { name: 'workflow_job_id', type: 'number', description: 'AAP workflow job ID' },
+    { name: 'created', type: 'string', description: 'Workflow job creation timestamp (ISO 8601)' },
+    { name: 'started', type: 'string', description: 'Workflow job start timestamp (ISO 8601)' },
+    { name: 'finished', type: 'string', description: 'Workflow job finish timestamp (ISO 8601)' },
+    { name: 'workflow_job_status', type: 'string', description: 'Workflow job status (successful, failed, etc.)' },
+    { name: 'artifacts', type: 'object', description: 'Workflow job artifacts' },
+  ],
   http_request: [
     { name: 'status', type: 'string', description: 'Execution succeeded' },
     { name: 'status_code', type: 'number', description: 'HTTP status code' },

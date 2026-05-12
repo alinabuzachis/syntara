@@ -44,7 +44,7 @@ export interface paths {
     post?: never
     /**
      * Delete Credential
-     * @description Soft-delete a Credential.
+     * @description Delete a Credential.
      */
     delete: operations['delete_credential']
     options?: never
@@ -67,7 +67,7 @@ export interface paths {
      * Get Credential Workflows
      * @description Get workflows that reference this credential.
      *
-     *     Returns empty list until Epic 3 adds credentialId to executor configs.
+     *     Returns workflows with nodes that have credential_id in their executor configs.
      */
     get: operations['get_credential_workflows']
     put?: never
@@ -89,7 +89,7 @@ export interface paths {
      * List Credential Types
      * @description List all Credential Types including preseeded managed types.
      *
-     *     Each type includes a credential_count of non-deleted credentials using it.
+     *     Each type includes a credential_count of credentials using it.
      */
     get: operations['list_credential_types']
     put?: never
@@ -209,43 +209,44 @@ export interface components {
       name?: string | null
     }
     /** @description Schema for credential API responses. Secret fields masked as $encrypted$. */
-    CredentialRead: components['schemas']['Resource'] & {
-      /**
-       * Created By
-       * @description Username or UUID of the credential creator
-       */
-      created_by?: string | null
-      /**
-       * Updated By
-       * @description Username or UUID of the last modifier
-       */
-      updated_by?: string | null
-      /**
-       * Credential Type Id
-       * Format: uuid
-       */
-      credential_type_id: string
-      /**
-       * Enabled
-       * @default true
-       */
-      enabled?: boolean
-      /** Inputs */
-      inputs?: {
-        [key: string]: unknown
+    CredentialRead: components['schemas']['UserOwnedResource'] &
+      components['schemas']['NamedResource'] & {
+        /**
+         * Created By
+         * @description Username or UUID of the credential creator
+         */
+        created_by?: string | null
+        /**
+         * Updated By
+         * @description Username or UUID of the last modifier
+         */
+        updated_by?: string | null
+        /**
+         * Credential Type Id
+         * Format: uuid
+         */
+        credential_type_id: string
+        /**
+         * Enabled
+         * @default true
+         */
+        enabled?: boolean
+        /** Inputs */
+        inputs?: {
+          [key: string]: unknown
+        }
+        /**
+         * Project Id
+         * Format: uuid
+         */
+        project_id: string
+        /**
+         * Workflow Count
+         * @description Number of workflows referencing this credential
+         * @default 0
+         */
+        workflow_count?: number
       }
-      /**
-       * Project Id
-       * Format: uuid
-       */
-      project_id: string
-      /**
-       * Workflow Count
-       * @description Number of workflows referencing this credential
-       * @default 0
-       */
-      workflow_count?: number
-    }
     /** @description Read schema for credential type API responses. */
     CredentialTypeRead: components['schemas']['BaseResource'] & {
       /** Name */
@@ -254,7 +255,7 @@ export interface components {
       description?: string | null
       /**
        * Credential Count
-       * @description Number of non-deleted credentials using this type
+       * @description Number of credentials using this type
        * @default 0
        */
       credential_count?: number
@@ -396,20 +397,6 @@ export interface components {
        */
       readonly updated_by?: string | null
     }
-    SoftDeletableResource: components['schemas']['BaseResource'] & {
-      /**
-       * Deleted At
-       * @description Timestamp when resource was soft deleted
-       * @example 2025-10-09T14:00:00Z
-       */
-      readonly deleted_at?: string | null
-      /**
-       * Deleted By
-       * @description User who performed the soft delete
-       * @example 660e8400-e29b-41d4-a716-446655440000
-       */
-      readonly deleted_by?: string | null
-    }
     NamedResource: components['schemas']['BaseResource'] & {
       /**
        * Name
@@ -424,13 +411,6 @@ export interface components {
        */
       description?: string | null
     }
-    /**
-     * Resource
-     * @description Composite resource combining named, soft-deletable, and user-owned capabilities
-     */
-    Resource: components['schemas']['UserOwnedResource'] &
-      components['schemas']['SoftDeletableResource'] &
-      components['schemas']['NamedResource']
     /**
      * ErrorData
      * @description RFC 9457 Problem Details format for error event data.

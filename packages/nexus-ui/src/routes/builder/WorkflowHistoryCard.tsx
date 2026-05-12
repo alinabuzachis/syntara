@@ -32,7 +32,7 @@ import type { ExecutionMetadata } from '../workflows/stores/useExecutionStore'
 import { StatusLabel } from './ExecutionStatus'
 import { formatHistoryDateTime, getDateGroupLabel } from './historyDateUtils'
 
-type Execution = ExecutionsAPI.components['schemas']['Execution']
+type Execution = ExecutionsAPI.components['schemas']['ExecutionRead']
 
 const TRUNCATED_ID_LENGTH = 8 // First 8 chars of UUID provide sufficient uniqueness
 
@@ -59,7 +59,7 @@ type ExecutionHistoryRowProps = {
 
 export function ExecutionHistoryRow({ execution, onSelect, isSelected }: ExecutionHistoryRowProps) {
   const isRunning = execution.status === 'running'
-  const startedAtValue = execution.started_at ?? execution.created_at ?? null
+  const startedAtValue = execution.created_at ?? null
   const { elapsedMs } = useElapsedTime(startedAtValue, execution.completed_at, isRunning)
   const elapsedLabel = elapsedMs !== undefined ? `Elapsed time: ${formatElapsedTime(elapsedMs)}` : 'Elapsed time: -'
   const truncatedId = execution.id ? execution.id.slice(0, TRUNCATED_ID_LENGTH) : null

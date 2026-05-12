@@ -14,17 +14,8 @@ export interface paths {
     get?: never
     put?: never
     /**
-     * Upload Files
-     * @description Upload files independently of invocations for later use in agent execution.
-     *
-     *     Returns file_ids that can be stored in workflow configuration and passed to invocations
-     *     via context_data.file_ids. Files are validated, stored, and queued for document conversion.
-     *
-     *     **Supported Formats:** PDF, DOC, DOCX, TXT, MD
-     *     **Max File Size:** 10 MB per file (configurable via file_upload_max_size_mb)
-     *     **Max File Count:** 10 files per request (configurable via file_upload_max_files)
-     *
-     *     **Security Note:** Internal file paths are never exposed in API responses.
+     * Upload Files (Design Time)
+     * @description Upload files independently of invocations for later use in agent execution. Returns file_ids that can be stored in workflow configuration and passed to invocations. Files are validated, stored, and queued for document conversion.
      */
     post: operations['upload_files']
     delete?: never
@@ -38,8 +29,19 @@ export type webhooks = Record<string, never>
 export interface components {
   schemas: {
     /**
+     * UploadFilesBody
+     * @description Request body for POST /files endpoint.
+     */
+    UploadFilesBody: {
+      /**
+       * Files
+       * @description Files to upload (1-10 files, max 10MB each)
+       */
+      files: string[]
+    }
+    /**
      * FileUploadResponse
-     * @description Response from POST /files endpoint
+     * @description Response model for POST /api/v1/files endpoint.
      */
     FileUploadResponse: {
       /**
@@ -58,7 +60,11 @@ export interface components {
     }
     /**
      * FileUploadInfo
-     * @description Metadata for an uploaded file (excludes internal file_path for security)
+     * @description Response model for individual file upload information.
+     *
+     *     Security Note:
+     *         file_path is intentionally excluded from this model to prevent
+     *         exposing internal filesystem paths in API responses.
      */
     FileUploadInfo: {
       /**
@@ -86,81 +92,218 @@ export interface components {
        * @example application/pdf
        */
       mime_type: string
-      status: components['schemas']['FileProcessingStatus']
+      /** @description Processing status (pending_conversion) */
+      status: components['schemas']['FileStatus']
     }
     /**
-     * File Processing Status
-     * @description Current status of file processing/conversion
-     * @example pending_conversion
+     * FileStatus
+     * @description Status enum for file conversion lifecycle.
+     *
+     *     States:
+     *         PENDING_CONVERSION: File uploaded, waiting for conversion
+     *         CONVERTING: Conversion in progress
+     *         CONVERTED: Successfully converted to text/markdown
+     *         CONVERSION_FAILED: Conversion failed with error
      * @enum {string}
      */
-    FileProcessingStatus: 'pending_conversion' | 'converting' | 'converted' | 'conversion_failed'
+    FileStatus: 'pending_conversion' | 'converting' | 'converted' | 'conversion_failed'
     /**
-     * File Metadata
-     * @description Internal file metadata including storage path (used in context_data)
-     */
-    FileMetadata: {
-      /**
-       * Format: uuid
-       * @description Unique file identifier (UUID)
-       */
-      id: string
-      /** @description Original filename */
-      filename: string
-      /** @description File size in bytes */
-      size_bytes: number
-      /** @description MIME type (e.g., application/pdf) */
-      mime_type: string
-      /** @description Path to file in storage directory */
-      file_path: string
-      status: components['schemas']['FileProcessingStatus']
-    }
-    /**
-     * RFC 9457 Problem Details
-     * @description RFC 9457 Problem Details format for error responses.
-     *     This format provides machine-readable and human-readable error information
-     *     with consistent structure for all API error responses.
+     * ErrorData
+     * @description RFC 9457 Problem Details format for error event data.
+     *     This model is used for streaming error events and follows the RFC 9457 Problem Details specification. It provides machine-readable and human-readable error information with consistent structure.
+     *     Attributes:
+     *         type: URI reference identifying the problem type
+     *         title: Short, human-readable summary of the problem
+     *         detail: Human-readable explanation specific to this occurrence
+     *         code: Machine-readable error code for programmatic handling
+     *         retryable: Whether this error can be retried by creating a new invocation
+     *         instance: Optional URI reference identifying the specific occurrence
+     * @example {
+     *       "type": "https://api.nexus.com/errors/llm-error",
+     *       "title": "LLM Rate Limit Exceeded",
+     *       "detail": "OpenRouter API rate limit exceeded. Please try again in a few moments.",
+     *       "code": "RATE_LIMIT_EXCEEDED",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
+     * @example {
+     *       "type": "https://api.nexus.com/errors/timeout-error",
+     *       "title": "Streaming Timeout",
+     *       "detail": "LLM streaming timed out after 30 seconds",
+     *       "code": "STREAM_TIMEOUT",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
      */
     ErrorData: {
       /**
-       * Problem Type URI
+       * Type
        * @description URI reference identifying the problem type
-       * @example https://api.nexus.com/errors/validation-error
+       * @example https://api.nexus.com/errors/llm-error
        */
       type: string
       /**
-       * Problem Title
+       * Title
        * @description Short, human-readable summary of the problem
-       * @example Validation Error
+       * @example LLM Service Unavailable
        */
       title: string
       /**
-       * Problem Detail
+       * Detail
        * @description Human-readable explanation specific to this occurrence
-       * @example Field 'name' must be between 1 and 255 characters
+       * @example OpenRouter API returned error: rate limit exceeded. Please try again in a few moments.
        */
       detail: string
       /**
-       * Error Code
+       * Code
        * @description Machine-readable error code for programmatic handling
-       * @example VALIDATION_ERROR
+       * @example RATE_LIMIT_EXCEEDED
        */
       code: string
       /**
-       * Retryable Flag
-       * @description Whether this error can be retried
-       * @example false
+       * Retryable
+       * @description Whether this error can be retried by creating a new invocation
+       * @example true
        */
       retryable: boolean
       /**
-       * Problem Instance
-       * @description URI reference identifying the specific occurrence
-       * @example /api/v1/workflows
+       * Instance
+       * @description Optional URI reference identifying the specific occurrence
+       * @example /invocations/550e8400-e29b-41d4-a716-446655440000
        */
       instance?: string | null
     }
   }
-  responses: never
+  responses: {
+    /** @description Bad Request */
+    BadRequestError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/bad-request",
+         *       "title": "Bad Request",
+         *       "detail": "The request was malformed or contained invalid parameters",
+         *       "code": "BAD_REQUEST",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Unauthorized */
+    UnauthorizedError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/unauthorized",
+         *       "title": "Unauthorized",
+         *       "detail": "Authentication is required to access this resource",
+         *       "code": "UNAUTHORIZED",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Forbidden */
+    ForbiddenError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/forbidden",
+         *       "title": "Forbidden",
+         *       "detail": "You do not have permission to access this resource",
+         *       "code": "FORBIDDEN",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Not Found */
+    NotFoundError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/not-found",
+         *       "title": "Resource Not Found",
+         *       "detail": "No resource exists with the provided identifier",
+         *       "code": "NOT_FOUND",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Conflict */
+    ConflictError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/conflict",
+         *       "title": "Conflict",
+         *       "detail": "The request conflicts with the current state of the resource",
+         *       "code": "CONFLICT",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Validation Error */
+    ValidationError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/validation-error",
+         *       "title": "Validation Error",
+         *       "detail": "Field 'name' must be between 1 and 255 characters",
+         *       "code": "VALIDATION_ERROR",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Internal Server Error */
+    InternalServerError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/internal-error",
+         *       "title": "Internal Server Error",
+         *       "detail": "An unexpected error occurred",
+         *       "code": "INTERNAL_ERROR",
+         *       "retryable": true
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+  }
   parameters: never
   requestBodies: never
   headers: never
@@ -177,10 +320,7 @@ export interface operations {
     }
     requestBody: {
       content: {
-        'multipart/form-data': {
-          /** @description Files to upload (1-10 files, max 10MB each) */
-          files: string[]
-        }
+        'multipart/form-data': components['schemas']['UploadFilesBody']
       }
     }
     responses: {
@@ -193,33 +333,13 @@ export interface operations {
           'application/json': components['schemas']['FileUploadResponse']
         }
       }
-      /** @description Bad Request - Validation error */
-      400: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Unauthorized */
-      401: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Internal Server Error - Storage failure */
-      500: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
 }

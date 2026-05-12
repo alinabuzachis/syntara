@@ -42,43 +42,48 @@ vi.mock('wouter', async (importOriginal) => {
 })
 
 describe('Executions Component', () => {
-  const mockExecutions: ExecutionsAPI.components['schemas']['Execution'][] = [
+  const mockExecutions: ExecutionsAPI.components['schemas']['ExecutionRead'][] = [
     {
       id: '123e4567-e89b-12d3-a456-426614174000',
       workflow_id: 'workflow-1',
+      workflow_version_id: 'wfv-1',
       temporal_workflow_id: 'temporal-1',
       status: 'completed',
-      started_by: 'user-1',
-      started_at: '2025-01-01T10:00:00Z',
+      created_by: 'user-1',
+      updated_by: 'user-1',
       completed_at: '2025-01-01T10:30:00Z',
       created_at: '2025-01-01T09:55:00Z',
       updated_at: '2025-01-01T10:30:00Z',
-      labels: {},
+      input_data: {},
+      error_details: null,
     },
     {
       id: '223e4567-e89b-12d3-a456-426614174001',
       workflow_id: 'workflow-2',
+      workflow_version_id: 'wfv-2',
       temporal_workflow_id: 'temporal-2',
       status: 'running',
-      started_by: 'user-2',
-      started_at: '2025-01-01T11:00:00Z',
+      created_by: 'user-2',
+      updated_by: null,
       completed_at: null,
       created_at: '2025-01-01T10:55:00Z',
       updated_at: '2025-01-01T11:00:00Z',
-      labels: {},
+      input_data: {},
+      error_details: null,
     },
     {
       id: '323e4567-e89b-12d3-a456-426614174002',
       workflow_id: 'workflow-3',
+      workflow_version_id: 'wfv-3',
       temporal_workflow_id: 'temporal-3',
       status: 'failed',
-      started_by: 'user-3',
-      started_at: '2025-01-01T12:00:00Z',
+      created_by: 'user-3',
+      updated_by: 'user-3',
       completed_at: '2025-01-01T12:05:00Z',
       created_at: '2025-01-01T11:55:00Z',
       updated_at: '2025-01-01T12:05:00Z',
+      input_data: {},
       error_details: 'Task failed',
-      labels: {},
     },
   ]
 
@@ -111,7 +116,7 @@ describe('Executions Component', () => {
   ]
 
   const mockExecutionsQuery = (
-    data: ExecutionsAPI.components['schemas']['Execution'][],
+    data: ExecutionsAPI.components['schemas']['ExecutionRead'][],
     isPending = false,
     error: unknown = null
   ) => {
@@ -222,14 +227,16 @@ describe('Executions Component', () => {
       {
         id: 'pending-exec',
         workflow_id: 'workflow-pending',
+        workflow_version_id: 'wfv-pending',
         temporal_workflow_id: 'temporal-pending',
         status: 'pending',
-        started_by: 'user-1',
-        started_at: null,
+        created_by: 'user-1',
+        updated_by: null,
         completed_at: null,
         created_at: '2025-01-01T09:00:00Z',
         updated_at: '2025-01-01T09:00:00Z',
-        labels: {},
+        input_data: {},
+        error_details: null,
       },
     ])
 

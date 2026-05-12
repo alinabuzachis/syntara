@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-  '/tools': {
+  '/tool_manager/tools': {
     parameters: {
       query?: never
       header?: never
@@ -12,8 +12,26 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List all tools
-     * @description Retrieve list of tools from all Tool Providers with filtering
+     * Get Tools
+     * @description List tools with filtering, sorting, and pagination.
+     *
+     *     Supports filtering using query parameters with standard operators:
+     *     - name: Filter by tool name (name=tool_name, name[contains]=text)
+     *     - enabled: Filter by enabled status (enabled=true|false)
+     *     - status: Filter by tool status (status=available|missing|error)
+     *     - provider_id: Filter by provider ID (provider_id=uuid)
+     *     - namespaced_name: Filter by namespaced name (namespaced_name[contains]=text)
+     *     - labels: Filter by labels using bracket notation (labels[environment]=production)
+     *
+     *     Uses cursor-based pagination for scalability and consistency.
+     *
+     *     Args:
+     *         request: FastAPI request object containing query parameters
+     *         service: Tool service
+     *         params: Query parameters for pagination and filtering
+     *
+     *     Returns:
+     *         ToolListResponse with tools, pagination metadata, and optional total
      */
     get: operations['get_tools']
     put?: never
@@ -24,7 +42,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/tools/{tool_id}': {
+  '/tool_manager/tools/{tool_id}': {
     parameters: {
       query?: never
       header?: never
@@ -32,8 +50,21 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get tool details
-     * @description Retrieve detailed information about specific tool
+     * Get Tool
+     * @description Get tool details by ID.
+     *
+     *     Returns detailed information about a specific tool including
+     *     parameters, status, and metadata.
+     *
+     *     Args:
+     *         tool_id: UUID of the tool to retrieve
+     *         service: Tool service
+     *
+     *     Returns:
+     *         ToolWithParameters instance with full details
+     *
+     *     Raises:
+     *         HTTPException: 404 if tool not found, 403 for auth, 400 for invalid UUID
      */
     get: operations['get_tool']
     put?: never
@@ -42,13 +73,27 @@ export interface paths {
     options?: never
     head?: never
     /**
-     * Update tool configuration
-     * @description Update tool enablement status and configuration
+     * Patch Tool
+     * @description Update tool status (enable/disable).
+     *
+     *     Updates the tool's status to enable or disable it for use.
+     *     Only admin-controllable status changes are allowed (available/disabled).
+     *
+     *     Args:
+     *         tool_id: UUID of the tool to update
+     *         tool_update: Tool update data with status
+     *         service: Tool service
+     *
+     *     Returns:
+     *         Updated Tool instance
+     *
+     *     Raises:
+     *         HTTPException: 400 for validation errors, 404 if not found, 403 for auth
      */
     patch: operations['patch_tool']
     trace?: never
   }
-  '/tools/bulk_update': {
+  '/tool_manager/tools/bulk_update': {
     parameters: {
       query?: never
       header?: never
@@ -62,13 +107,26 @@ export interface paths {
     options?: never
     head?: never
     /**
-     * Bulk update tool enablement
-     * @description Enable or disable multiple tools at once
+     * Bulk Update Tools
+     * @description Bulk update tool status (enable/disable multiple tools).
+     *
+     *     Updates the status of multiple tools in a single operation.
+     *     Only admin-controllable status changes are allowed (available/disabled).
+     *
+     *     Args:
+     *         bulk_update: Bulk update request with tool IDs and status
+     *         service: Tool service
+     *
+     *     Returns:
+     *         Dictionary with update statistics and timestamp
+     *
+     *     Raises:
+     *         HTTPException: 400 for validation errors, 403 for auth
      */
     patch: operations['bulk_update_tools']
     trace?: never
   }
-  '/tool_providers': {
+  '/tool_manager/tool_providers': {
     parameters: {
       query?: never
       header?: never
@@ -76,14 +134,44 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List all registered Tool Providers
-     * @description Retrieve list of all Tool Providers with optional filtering
+     * Get Tool Providers
+     * @description List tool providers with filtering, sorting, and pagination.
+     *
+     *     Supports filtering using query parameters with standard operators:
+     *     - name: Filter by provider name (name=provider_name, name[contains]=text)
+     *     - status: Filter by provider status (status=validating|available|error)
+     *     - enabled: Filter by enabled status (enabled=true|false)
+     *     - provider_type: Filter by provider type (provider_type=openapi)
+     *     - labels: Filter by labels using bracket notation (labels[environment]=production)
+     *
+     *     Uses cursor-based pagination for scalability and consistency.
+     *
+     *     Args:
+     *         request: FastAPI request object containing query parameters
+     *         service: Tool provider service
+     *         params: Query parameters for pagination and filtering
+     *
+     *     Returns:
+     *         ToolProviderListResponse with providers, pagination metadata, and optional total
      */
     get: operations['get_tool_providers']
     put?: never
     /**
-     * Register new Tool Provider
-     * @description Register a new external Tool Provider
+     * Register Tool Provider
+     * @description Register a new Tool Provider.
+     *
+     *     Creates a new tool provider with the specified configuration.
+     *     The provider starts in 'validating' status.
+     *
+     *     Args:
+     *         provider_create: Provider configuration and metadata
+     *         service: Tool provider service
+     *
+     *     Returns:
+     *         Created ToolProvider instance
+     *
+     *     Raises:
+     *         HTTPException: 400 for validation errors, 409 for name conflicts, 403 for auth
      */
     post: operations['register_tool_provider']
     delete?: never
@@ -92,7 +180,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/tool_providers/{provider_id}': {
+  '/tool_manager/tool_providers/{provider_id}': {
     parameters: {
       query?: never
       header?: never
@@ -100,31 +188,82 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get Tool Provider details
-     * @description Retrieve detailed information about specific Tool Provider
+     * Get Tool Provider
+     * @description Get Tool Provider details by ID.
+     *
+     *     Returns detailed information about a specific Tool Provider including
+     *     configuration, status, and metadata.
+     *
+     *     Args:
+     *         provider_id: UUID of the provider to retrieve
+     *         service: Tool provider service
+     *
+     *     Returns:
+     *         ToolProvider instance with full details
+     *
+     *     Raises:
+     *         HTTPException: 404 if provider not found, 403 for auth, 400 for invalid UUID
      */
     get: operations['get_tool_provider']
     /**
-     * Update Tool Provider configuration
-     * @description Update configuration of existing Tool Provider
+     * Update Tool Provider
+     * @description Update Tool Provider configuration (complete replacement).
+     *
+     *     Performs a complete replacement of the provider configuration.
+     *     All fields in the request body will replace existing values.
+     *
+     *     Args:
+     *         provider_id: UUID of the provider to update
+     *         provider_update: New provider configuration
+     *         service: Tool provider service
+     *
+     *     Returns:
+     *         Updated ToolProvider instance
+     *
+     *     Raises:
+     *         HTTPException: 400 for validation errors, 404 if not found, 409 for conflicts, 403 for auth
      */
     put: operations['update_tool_provider']
     post?: never
     /**
-     * Remove Tool Provider
-     * @description Remove Tool Provider and all associated tools
+     * Delete Tool Provider
+     * @description Remove Tool Provider and all associated tools.
+     *
+     *     Performs a soft delete of the provider and cascades to associated tools.
+     *     The provider will no longer be accessible but remains in the database.
+     *
+     *     Args:
+     *         provider_id: UUID of the provider to delete
+     *         service: Tool provider service
+     *
+     *     Raises:
+     *         HTTPException: 404 if provider not found, 403 for auth
      */
     delete: operations['delete_tool_provider']
     options?: never
     head?: never
     /**
-     * Partially update Tool Provider configuration
-     * @description Partially update configuration of existing Tool Provider
+     * Patch Tool Provider
+     * @description Patch Tool Provider.
+     *
+     *     Performs a partial update of the provider configuration.
+     *     Only provided fields are updated, configuration objects are replaced.
+     *
+     *     Args:
+     *         provider_id: UUID of the provider to patch
+     *         provider_patch: Partial update data
+     *         service: Tool provider service
+     *
+     *     Returns:
+     *         Updated ToolProvider instance
+     *
+     *     Raises:
+     *         HTTPException: 400 for validation errors, 404 if not found, 409 for conflicts, 403 for auth
      */
     patch: operations['patch_tool_provider']
     trace?: never
   }
-  '/tool_providers/{provider_id}/validate': {
+  '/tool_manager/tool_providers/{provider_id}/validate': {
     parameters: {
       query?: never
       header?: never
@@ -134,8 +273,21 @@ export interface paths {
     get?: never
     put?: never
     /**
-     * Validate Tool Provider connection
-     * @description Test connection and validate Tool Provider compatibility
+     * Validate Tool Provider
+     * @description Validate Tool Provider connection and capabilities.
+     *
+     *     Tests the connection to the tool provider and validates compatibility.
+     *     Updates the provider status based on validation results.
+     *
+     *     Args:
+     *         provider_id: UUID of the provider to validate
+     *         service: Tool provider service
+     *
+     *     Returns:
+     *         Validation result with status and capability details (always 200)
+     *
+     *     Raises:
+     *         HTTPException: 404 if not found, 403 for auth, 500 for unexpected errors
      */
     post: operations['validate_tool_provider']
     delete?: never
@@ -144,7 +296,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/tool_providers/{provider_id}/refresh_tools': {
+  '/tool_manager/tool_providers/{provider_id}/refresh_tools': {
     parameters: {
       query?: never
       header?: never
@@ -154,8 +306,21 @@ export interface paths {
     get?: never
     put?: never
     /**
-     * Refresh tools from Tool Provider
-     * @description Connect to Tool Provider and refresh available tools
+     * Refresh Tool Provider
+     * @description Refresh tools from Tool Provider.
+     *
+     *     Connects to the tool provider and refreshes the list of available tools.
+     *     Creates new tools, updates existing ones, and disables missing tools.
+     *
+     *     Args:
+     *         provider_id: UUID of the provider to refresh
+     *         service: Tool provider service
+     *
+     *     Returns:
+     *         Refresh statistics including counts and timestamp
+     *
+     *     Raises:
+     *         HTTPException: 400 for refresh failure, 404 if not found, 403 for auth
      */
     post: operations['refresh_tool_provider']
     delete?: never
@@ -164,7 +329,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/tool_providers/test': {
+  '/tool_manager/tool_providers/test': {
     parameters: {
       query?: never
       header?: never
@@ -174,9 +339,21 @@ export interface paths {
     get?: never
     put?: never
     /**
-     * Test Tool Provider definition
-     * @description Test a Tool Provider definition without saving it to the database.
-     *     Validates the configuration and tests connectivity using the appropriate adapter.
+     * Test Tool Provider
+     * @description Test Tool Provider definition without saving to database.
+     *
+     *     Validates the provider configuration and tests connectivity using the appropriate adapter.
+     *     This endpoint allows testing provider definitions before registering them.
+     *
+     *     Args:
+     *         provider_create: Provider configuration to test
+     *         service: Tool provider service
+     *
+     *     Returns:
+     *         ToolProviderValidationResult with test results (always 200)
+     *
+     *     Raises:
+     *         HTTPException: 403 for auth, 500 for unexpected errors
      */
     post: operations['test_tool_provider']
     delete?: never
@@ -189,96 +366,209 @@ export interface paths {
 export type webhooks = Record<string, never>
 export interface components {
   schemas: {
-    ToolWithParameters: components['schemas']['NamedResource'] &
-      components['schemas']['SoftDeletableResource'] &
-      components['schemas']['UserOwnedResource'] & {
-        /**
-         * Format: uuid
-         * @description UUID of the associated tool provider
-         */
-        provider_id: string
-        /** @description Unique namespaced name for the tool */
-        namespaced_name: string
-        /**
-         * @description Whether the tool is enabled
-         * @default true
-         */
-        enabled: boolean
-        /**
-         * @description Current status of the tool
-         * @default available
-         * @enum {string}
-         */
-        status: 'available' | 'missing' | 'error'
-        /**
-         * Format: date-time
-         * @description Timestamp of last execution
-         */
-        last_executed_at?: string | null
-        /**
-         * Format: date-time
-         * @description Timestamp of last refresh from provider
-         */
-        last_refreshed_at?: string | null
-        /** @description Error message from last refresh attempt */
-        refresh_error?: string | null
-        /** @description Tool parameters */
-        parameters: components['schemas']['ToolParameter'][]
-      }
-    ToolParameter: {
-      /** Format: uuid */
-      id: string
-      name: string
-      /** @enum {string} */
-      type: 'string' | 'number' | 'boolean' | 'object' | 'array'
-      description: string
-      required: boolean
-      default_value?: Record<string, never>
-      example_value?: Record<string, never>
+    /**
+     * ToolListResponse
+     * @description Paginated list response for tools.
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
+     */
+    ToolListResponse: components['schemas']['ResourcesResponseBase'] & {
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources: components['schemas']['ToolWithParameters'][]
     }
-    ToolUpdate: {
+    /**
+     * ProviderStatus
+     * @description Status of a tool provider.
+     * @enum {string}
+     */
+    ProviderStatus: 'available' | 'error' | 'validating'
+    /**
+     * ToolStatus
+     * @description Status of a tool.
+     * @enum {string}
+     */
+    ToolStatus: 'available' | 'missing' | 'error'
+    /**
+     * ToolParameterType
+     * @description Parameter types for tools.
+     * @enum {string}
+     */
+    ToolParameterType: 'string' | 'number' | 'boolean' | 'object' | 'array'
+    /**
+     * ToolProviderListResponse
+     * @description Paginated list response for tool providers.
+     */
+    ToolProviderListResponse: components['schemas']['ResourcesResponseBase'] & {
+      resources: components['schemas']['ToolProviderWithConfiguration'][]
+    }
+    ToolWithParameters: components['schemas']['Resource'] & {
+      /**
+       * Provider Id
+       * Format: uuid
+       * @description UUID of the associated tool provider
+       */
+      provider_id: string
+      /**
+       * Namespaced Name
+       * @description Unique namespaced name for the tool
+       */
+      namespaced_name: string
+      /**
+       * Enabled
+       * @description Whether the tool is enabled
+       * @default true
+       */
       enabled?: boolean
       /**
        * @description Current status of the tool
-       * @enum {string}
+       * @default available
        */
-      status?: 'available' | 'missing' | 'error'
-      /** @description Error message from last refresh attempt */
+      status?: components['schemas']['ToolStatus']
+      /**
+       * Last Executed At
+       * @description Timestamp of last execution
+       */
+      last_executed_at?: string | null
+      /**
+       * Last Refreshed At
+       * @description Timestamp of last refresh from provider
+       */
+      last_refreshed_at?: string | null
+      /**
+       * Refresh Error
+       * @description Error message from last refresh attempt
+       */
+      refresh_error?: string | null
+      /**
+       * Parameters
+       * @description Tool parameters
+       */
+      parameters: components['schemas']['ToolParameter'][]
+    }
+    ToolParameter: components['schemas']['BaseResource'] & {
+      /**
+       * Tool Id
+       * Format: uuid
+       */
+      tool_id: string
+      /**
+       * Name
+       * @description Parameter name
+       */
+      name: string
+      /** @description Parameter type */
+      type: components['schemas']['ToolParameterType']
+      /**
+       * Description
+       * @description Parameter description
+       */
+      description: string
+      /**
+       * Required
+       * @description Whether this parameter is required
+       */
+      required: boolean
+      /**
+       * Default Value
+       * @description Default value for the parameter
+       */
+      default_value?: {
+        [key: string]: unknown
+      } | null
+      /**
+       * Example Value
+       * @description Example value for the parameter
+       */
+      example_value?: {
+        [key: string]: unknown
+      } | null
+    }
+    /**
+     * ToolUpdate
+     * @description Model for updating tool configuration.
+     */
+    ToolUpdate: {
+      /**
+       * Enabled
+       * @description Whether the tool is enabled
+       */
+      enabled?: boolean | null
+      /** @description Current status of the tool */
+      status?: components['schemas']['ToolStatus'] | null
+      /**
+       * Refresh Error
+       * @description Error message from last refresh attempt
+       */
       refresh_error?: string | null
     }
+    /**
+     * ToolBulkUpdate
+     * @description Request model for bulk updating tool status.
+     *
+     *     Attributes:
+     *         tool_ids: List of tool UUIDs to update (max 50)
+     *         enabled: Enable or disable the Tool.
+     */
     ToolBulkUpdate: {
-      /** @description List of tool UUIDs to update (max 50) */
+      /**
+       * Tool Ids
+       * @description List of tool UUIDs to update (max 50)
+       */
       tool_ids: string[]
-      /** @description Enable/disable the tools */
+      /**
+       * Enabled
+       * @description Enable/disable the Tool
+       */
       enabled: boolean
     }
-    ToolBulkUpdateResponse: {
-      /** @description Number of tools successfully updated */
-      updated_count: number
-      /** @description Number of tools skipped (already in target state) */
-      skipped_count: number
+    ToolProviderWithConfiguration: components['schemas']['Resource'] & {
+      /** @description Human-readable provider name */
+      name?: unknown
       /**
-       * Format: date-time
-       * @description Timestamp when bulk update completed
+       * Enabled
+       * @description Enable/disable the provider
+       * @default true
        */
-      updated_at: string
+      enabled?: boolean
+      /**
+       * @description Current status of the provider
+       * @default validating
+       */
+      status?: components['schemas']['ProviderStatus']
+      /**
+       * Last Validated At
+       * @description Timestamp of last validation
+       */
+      last_validated_at?: string | null
+      /**
+       * Validation Error
+       * @description Error message from last validation attempt
+       */
+      validation_error?: string | null
+      /** @description ToolProvider configuration */
+      configuration: components['schemas']['MCPConfiguration']
     }
-    ToolProviderWithConfiguration: components['schemas']['NamedResource'] &
-      components['schemas']['SoftDeletableResource'] &
-      components['schemas']['UserOwnedResource'] & {
-        /** @description Provider-specific configuration */
-        configuration: components['schemas']['MCPConfiguration']
-        /** @default true */
-        enabled?: boolean
-        /**
-         * @default validating
-         * @enum {string}
-         */
-        status?: 'available' | 'error' | 'validating'
-        /** Format: date-time */
-        last_validated_at?: string | null
-        validation_error?: string | null
-      }
+    /**
+     * ToolProviderCreate
+     * @description ToolProviderCreate model for creating new tool providers.
+     *
+     *     Contains only the fields needed to create a new tool provider.
+     *     This model is used for API requests when creating new tool providers.
+     *
+     *     Attributes:
+     *         name: Human-readable name (required, 1-255 chars)
+     *         description: Optional detailed description (max 2000 chars)
+     *         configuration: Provider configuration (required)
+     */
     ToolProviderCreate: {
       /**
        * Name
@@ -290,81 +580,163 @@ export interface components {
        * @description Detailed description of the provider
        */
       description?: string | null
-      /** @description Provider-specific configuration */
+      /**
+       * Configuration
+       * @description Provider configuration
+       */
       configuration: components['schemas']['MCPConfiguration']
     }
     /**
-     * @description Schema for partially updating a Tool Provider.
-     *     All fields are optional - only include fields you want to update.
-     *     If updating the configuration a provider_type must still be provided.
+     * ToolProviderPatch
+     * @description ToolProviderPatch model for partially updating tool providers.
+     *
+     *     All fields are optional to support.
+     *     This model is used for API PATCH requests when updating existing tool providers.
+     *
+     *     Attributes:
+     *         name: Optional human-readable name (1-255 chars)
+     *         description: Optional detailed description (max 2000 chars)
+     *         configuration: Optional provider-specific configuration
+     *         enabled: Optional enable/disable flag
+     *         status: Optional provider status
+     *         validation_error: Optional error message from validation attempts
      */
     ToolProviderPatch: {
-      /** @description Human-readable name for the provider */
-      name?: string
-      /** @description Detailed description of the provider */
-      description?: string | null
-      /** @description Provider-specific configuration */
-      configuration?: components['schemas']['MCPConfiguration']
-      /** @description Enable/disable the provider */
-      enabled?: boolean | null
       /**
-       * @description Current status of the provider
-       * @enum {string|null}
+       * Name
+       * @description Human-readable name for the provider
        */
-      status?: 'available' | 'error' | 'validating' | null
-      /** @description Error message from last validation attempt */
+      name?: string | null
+      /**
+       * Description
+       * @description Detailed description of the provider
+       */
+      description?: string | null
+      /**
+       * Configuration
+       * @description Provider-specific configuration
+       */
+      configuration?: components['schemas']['MCPConfiguration'] | null
+      /**
+       * Enabled
+       * @description Enable/disable the provider
+       */
+      enabled?: boolean | null
+      /** @description Current status of the provider */
+      status?: components['schemas']['ProviderStatus'] | null
+      /**
+       * Validation Error
+       * @description Error message from last validation attempt
+       */
       validation_error?: string | null
     }
+    /**
+     * MCPConfiguration
+     * @description Configuration for MCP (Model Context Protocol) providers.
+     */
     MCPConfiguration: {
-      /** @constant */
-      provider_type: 'mcp'
-      /** Format: uri */
-      base_url: string
-      api_key?: string | null
-    } & {
       /**
        * @description discriminator enum property added by openapi-typescript
        * @enum {string}
        */
-      provider_type: 'MCPConfiguration'
+      provider_type: 'mcp'
+      /**
+       * Base Url
+       * Format: uri
+       * @description Base URL for the MCP provider
+       */
+      base_url: string
+      /**
+       * Api Key
+       * @description API key for authentication (optional)
+       */
+      api_key?: string | null
     }
+    /**
+     * ToolProviderValidationResult
+     * @description Result of validating a connection to a tool provider.
+     *
+     *     Attributes:
+     *         valid: Whether the connection validation was successful
+     *         provider_type: The type of provider that was validated
+     *         validated_at: Timestamp when validation was performed
+     *         error: Optional error message if validation failed
+     *         timeout: Whether the validation failed due to a timeout
+     */
     ToolProviderValidationResult: {
+      /** Valid */
       valid: boolean
+      /** Provider Type */
       provider_type: string
-      /** Format: date-time */
+      /**
+       * Validated At
+       * Format: date-time
+       */
       validated_at: string
+      /** Error */
       error?: string | null
+      /**
+       * Timeout
+       * @default false
+       */
+      timeout?: boolean
     }
+    /**
+     * ToolProviderRefreshResult
+     * @description Result of refreshing tools from a tool provider.
+     *
+     *     Attributes:
+     *         refreshed_count: Number of new tools discovered and added
+     *         updated_count: Number of existing tools that were updated
+     *         disabled_count: Number of tools that were disabled (not found in provider)
+     *         refreshed_at: Timestamp when refresh operation was performed
+     */
     ToolProviderRefreshResult: {
+      /** Refreshed Count */
       refreshed_count: number
+      /** Updated Count */
       updated_count: number
+      /** Disabled Count */
       disabled_count: number
-      /** Format: date-time */
+      /**
+       * Refreshed At
+       * Format: date-time
+       */
       refreshed_at: string
     }
     /**
      * Paginated Response Base
      * @description Pagination metadata structure for list responses
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
      */
     ResourcesResponseBase: {
       /**
-       * Next Page Cursor
+       * Next
        * @description Cursor for next page of results
-       * @example eyJpZCI6InV1aWQifQ
        */
       next?: string | null
       /**
-       * Previous Page Cursor
+       * Prev
        * @description Cursor for previous page of results
-       * @example eyJpZCI6InV1aWQifQ
        */
       prev?: string | null
       /**
-       * Total Count
+       * Total
        * @description Total count of resources (only when include_total=true)
-       * @example 150
        */
       total?: number | null
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources?: unknown[]
     }
     /**
      * Base Resource
@@ -377,21 +749,21 @@ export interface components {
        * @description Unique identifier for the resource
        * @example 550e8400-e29b-41d4-a716-446655440000
        */
-      readonly id: string
+      readonly id?: string
       /**
        * Created At
        * Format: date-time
        * @description Timestamp when resource was created
        * @example 2025-10-09T12:00:00Z
        */
-      readonly created_at: string
+      readonly created_at?: string
       /**
        * Updated At
        * Format: date-time
        * @description Timestamp when resource was last updated
        * @example 2025-10-09T12:30:00Z
        */
-      readonly updated_at: string
+      readonly updated_at?: string
       /**
        * Labels
        * @description Key-value pairs for resource labeling and filtering
@@ -405,6 +777,35 @@ export interface components {
       labels?: {
         [key: string]: string
       }
+    }
+    UserOwnedResource: components['schemas']['BaseResource'] & {
+      /**
+       * Created By
+       * Format: uuid
+       * @description User who created the resource
+       * @example 770e8400-e29b-41d4-a716-446655440000
+       */
+      readonly created_by: string
+      /**
+       * Updated By
+       * @description User who last updated the resource
+       * @example 880e8400-e29b-41d4-a716-446655440000
+       */
+      readonly updated_by?: string | null
+    }
+    SoftDeletableResource: components['schemas']['BaseResource'] & {
+      /**
+       * Deleted At
+       * @description Timestamp when resource was soft deleted
+       * @example 2025-10-09T14:00:00Z
+       */
+      readonly deleted_at?: string | null
+      /**
+       * Deleted By
+       * @description User who performed the soft delete
+       * @example 660e8400-e29b-41d4-a716-446655440000
+       */
+      readonly deleted_by?: string | null
     }
     NamedResource: components['schemas']['BaseResource'] & {
       /**
@@ -420,220 +821,217 @@ export interface components {
        */
       description?: string | null
     }
-    SoftDeletableResource: components['schemas']['BaseResource'] & {
-      /**
-       * Deleted At
-       * Format: date-time
-       * @description Timestamp when resource was soft deleted
-       * @example 2025-10-09T14:00:00Z
-       */
-      readonly deleted_at?: string | null
-      /**
-       * Deleted By
-       * Format: uuid
-       * @description User who performed the soft delete
-       * @example 660e8400-e29b-41d4-a716-446655440000
-       */
-      readonly deleted_by?: string | null
-    }
-    UserOwnedResource: components['schemas']['BaseResource'] & {
-      /**
-       * Created By
-       * Format: uuid
-       * @description User who created the resource
-       * @example 770e8400-e29b-41d4-a716-446655440000
-       */
-      readonly created_by: string
-      /**
-       * Updated By
-       * Format: uuid
-       * @description User who last updated the resource
-       * @example 880e8400-e29b-41d4-a716-446655440000
-       */
-      readonly updated_by?: string | null
-    }
     /**
-     * RFC 9457 Problem Details
-     * @description RFC 9457 Problem Details format for error responses.
-     *     This format provides machine-readable and human-readable error information
-     *     with consistent structure for all API error responses.
+     * Resource
+     * @description Composite resource combining named, soft-deletable, and user-owned capabilities
+     */
+    Resource: components['schemas']['UserOwnedResource'] &
+      components['schemas']['SoftDeletableResource'] &
+      components['schemas']['NamedResource']
+    /**
+     * ErrorData
+     * @description RFC 9457 Problem Details format for error event data.
+     *     This model is used for streaming error events and follows the RFC 9457 Problem Details specification. It provides machine-readable and human-readable error information with consistent structure.
+     *     Attributes:
+     *         type: URI reference identifying the problem type
+     *         title: Short, human-readable summary of the problem
+     *         detail: Human-readable explanation specific to this occurrence
+     *         code: Machine-readable error code for programmatic handling
+     *         retryable: Whether this error can be retried by creating a new invocation
+     *         instance: Optional URI reference identifying the specific occurrence
+     * @example {
+     *       "type": "https://api.nexus.com/errors/llm-error",
+     *       "title": "LLM Rate Limit Exceeded",
+     *       "detail": "OpenRouter API rate limit exceeded. Please try again in a few moments.",
+     *       "code": "RATE_LIMIT_EXCEEDED",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
+     * @example {
+     *       "type": "https://api.nexus.com/errors/timeout-error",
+     *       "title": "Streaming Timeout",
+     *       "detail": "LLM streaming timed out after 30 seconds",
+     *       "code": "STREAM_TIMEOUT",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
      */
     ErrorData: {
       /**
-       * Problem Type URI
+       * Type
        * @description URI reference identifying the problem type
-       * @example https://api.nexus.com/errors/validation-error
+       * @example https://api.nexus.com/errors/llm-error
        */
       type: string
       /**
-       * Problem Title
+       * Title
        * @description Short, human-readable summary of the problem
-       * @example Validation Error
+       * @example LLM Service Unavailable
        */
       title: string
       /**
-       * Problem Detail
+       * Detail
        * @description Human-readable explanation specific to this occurrence
-       * @example Field 'name' must be between 1 and 255 characters
+       * @example OpenRouter API returned error: rate limit exceeded. Please try again in a few moments.
        */
       detail: string
       /**
-       * Error Code
+       * Code
        * @description Machine-readable error code for programmatic handling
-       * @example VALIDATION_ERROR
+       * @example RATE_LIMIT_EXCEEDED
        */
       code: string
       /**
-       * Retryable Flag
-       * @description Whether this error can be retried
-       * @example false
+       * Retryable
+       * @description Whether this error can be retried by creating a new invocation
+       * @example true
        */
       retryable: boolean
       /**
-       * Problem Instance
-       * @description URI reference identifying the specific occurrence
-       * @example /api/v1/workflows
+       * Instance
+       * @description Optional URI reference identifying the specific occurrence
+       * @example /invocations/550e8400-e29b-41d4-a716-446655440000
        */
       instance?: string | null
     }
   }
-  responses: never
+  responses: {
+    /** @description Bad Request */
+    BadRequestError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/bad-request",
+         *       "title": "Bad Request",
+         *       "detail": "The request was malformed or contained invalid parameters",
+         *       "code": "BAD_REQUEST",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Unauthorized */
+    UnauthorizedError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/unauthorized",
+         *       "title": "Unauthorized",
+         *       "detail": "Authentication is required to access this resource",
+         *       "code": "UNAUTHORIZED",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Forbidden */
+    ForbiddenError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/forbidden",
+         *       "title": "Forbidden",
+         *       "detail": "You do not have permission to access this resource",
+         *       "code": "FORBIDDEN",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Not Found */
+    NotFoundError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/not-found",
+         *       "title": "Resource Not Found",
+         *       "detail": "No resource exists with the provided identifier",
+         *       "code": "NOT_FOUND",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Conflict */
+    ConflictError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/conflict",
+         *       "title": "Conflict",
+         *       "detail": "The request conflicts with the current state of the resource",
+         *       "code": "CONFLICT",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Validation Error */
+    ValidationError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/validation-error",
+         *       "title": "Validation Error",
+         *       "detail": "Field 'name' must be between 1 and 255 characters",
+         *       "code": "VALIDATION_ERROR",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Internal Server Error */
+    InternalServerError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/internal-error",
+         *       "title": "Internal Server Error",
+         *       "detail": "An unexpected error occurred",
+         *       "code": "INTERNAL_ERROR",
+         *       "retryable": true
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+  }
   parameters: {
-    /**
-     * @description Number of resources to return per page
-     * @example 20
-     */
-    limitParam: number
-    /**
-     * @description Opaque cursor for pagination (from previous response)
-     * @example eyJpZCI6InV1aWQifQ
-     */
-    cursorParam: string
-    /**
-     * @description Whether to include total count in response (may impact performance)
-     * @example true
-     */
+    /** @description Pagination cursor from previous response */
+    cursorParam: string | null
+    /** @description Sort parameter (e.g., 'name', '-created_at') */
+    sortParam: string | null
+    /** @description Include total count in response (expensive) */
     includeTotalParam: boolean
-    /**
-     * @description Filter resources by name.
-     *     - Exact match: `name=value`
-     *     - Contains: `name[contains]=value`
-     * @example auth
-     */
-    nameFilterParam: string & {
-      /**
-       * Contains
-       * @description Substring to match within the name (case-insensitive). ?name[contains]=<substring>
-       */
-      contains?: string
-      /**
-       * Starts With
-       * @description Prefix to match at the start of the name (case-insensitive). ?name[starts_with]=<prefix>
-       */
-      starts_with?: string
-      /**
-       * Equals
-       * @description Exact match of the name (case-insensitive). ?name[eq]=<name>
-       */
-      eq?: string
-      /**
-       * Greater Than
-       * @description Greater than comparison (lexicographical). ?name[gt]=<name>
-       */
-      gt?: string
-      /**
-       * Greater Than Or Equal
-       * @description Greater than or equal comparison (lexicographical). ?name[gte]=<name>
-       */
-      gte?: string
-      /**
-       * Less Than
-       * @description Less than comparison (lexicographical). ?name[lt]=<name>
-       */
-      lt?: string
-      /**
-       * Less Than Or Equal
-       * @description Less than or equal comparison (lexicographical). ?name[lte]=<name>
-       */
-      lte?: string
-    }
-    createdAtFilterParam: string & {
-      /**
-       * Equals
-       * Format: date-time
-       * @description Exact match of creation timestamp. ?created_at[eq]=<timestamp>
-       */
-      eq?: string
-      /**
-       * Greater Than
-       * Format: date-time
-       * @description Greater than comparison. ?created_at[gt]=<timestamp>
-       */
-      gt?: string
-      /**
-       * Greater Than Or Equal
-       * Format: date-time
-       * @description Greater than or equal comparison. ?created_at[gte]=<timestamp>
-       */
-      gte?: string
-      /**
-       * Less Than
-       * Format: date-time
-       * @description Less than comparison. ?created_at[lt]=<timestamp>
-       */
-      lt?: string
-      /**
-       * Less Than Or Equal
-       * Format: date-time
-       * @description Less than or equal comparison. ?created_at[lte]=<timestamp>
-       */
-      lte?: string
-    }
-    updatedAtFilterParam: string & {
-      /**
-       * Equals
-       * Format: date-time
-       * @description Exact match of last update timestamp. ?updated_at[eq]=<timestamp>
-       */
-      eq?: string
-      /**
-       * Greater Than
-       * Format: date-time
-       * @description Greater than comparison. ?updated_at[gt]=<timestamp>
-       */
-      gt?: string
-      /**
-       * Greater Than Or Equal
-       * Format: date-time
-       * @description Greater than or equal comparison. ?updated_at[gte]=<timestamp>
-       */
-      gte?: string
-      /**
-       * Less Than
-       * Format: date-time
-       * @description Less than comparison. ?updated_at[lt]=<timestamp>
-       */
-      lt?: string
-      /**
-       * Less Than Or Equal
-       * Format: date-time
-       * @description Less than or equal comparison. ?updated_at[lte]=<timestamp>
-       */
-      lte?: string
-    }
-    /**
-     * @description Filter resources by label key-value pairs.
-     *     - Single label: `labels[environment]=production`
-     *     - Multiple labels: `labels[environment]=production&labels[region]=us-east-1`
-     *     All specified labels must match (AND logic).
-     * @example {
-     *       "environment": "production",
-     *       "region": "us-east-1"
-     *     }
-     */
-    labelsFilterParam: {
-      [key: string]: string
-    }
   }
   requestBodies: never
   headers: never
@@ -644,57 +1042,14 @@ export interface operations {
   get_tools: {
     parameters: {
       query?: {
-        /**
-         * @description Filter tools by status.
-         *     - Exact match: `status=available`
-         */
-        status?: string & {
-          /** @description Exact match of the status. ?status[eq]=<status> */
-          eq?: string
-        }
-        /** @description Filter tools by enabled status */
-        enabled?: boolean
-        /** @description Filter tools by provider ID */
-        provider_id?: string
-        /** @description Sort field and direction (e.g., 'name', '-created_at') */
-        sort?: string
-        /** @description Filter tools by namespaced name with text matching */
-        namespaced_name?: string
-        /**
-         * @description Number of resources to return per page
-         * @example 20
-         */
-        limit?: components['parameters']['limitParam']
-        /**
-         * @description Opaque cursor for pagination (from previous response)
-         * @example eyJpZCI6InV1aWQifQ
-         */
+        /** @description Maximum number of results per page */
+        limit?: number
+        /** @description Pagination cursor from previous response */
         cursor?: components['parameters']['cursorParam']
-        /**
-         * @description Whether to include total count in response (may impact performance)
-         * @example true
-         */
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
+        sort?: components['parameters']['sortParam']
+        /** @description Include total count in response (expensive) */
         include_total?: components['parameters']['includeTotalParam']
-        /**
-         * @description Filter resources by name.
-         *     - Exact match: `name=value`
-         *     - Contains: `name[contains]=value`
-         * @example auth
-         */
-        name?: components['parameters']['nameFilterParam']
-        created_at?: components['parameters']['createdAtFilterParam']
-        updated_at?: components['parameters']['updatedAtFilterParam']
-        /**
-         * @description Filter resources by label key-value pairs.
-         *     - Single label: `labels[environment]=production`
-         *     - Multiple labels: `labels[environment]=production&labels[region]=us-east-1`
-         *     All specified labels must match (AND logic).
-         * @example {
-         *       "environment": "production",
-         *       "region": "us-east-1"
-         *     }
-         */
-        labels?: components['parameters']['labelsFilterParam']
       }
       header?: never
       path?: never
@@ -702,26 +1057,22 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description List of tools */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['ResourcesResponseBase'] & {
-            resources: components['schemas']['ToolWithParameters'][]
-          }
+          'application/json': components['schemas']['ToolListResponse']
         }
       }
-      /** @description Admin access required */
-      403: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   get_tool: {
@@ -735,7 +1086,7 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Tool details */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
@@ -744,24 +1095,13 @@ export interface operations {
           'application/json': components['schemas']['ToolWithParameters']
         }
       }
-      /** @description Admin access required */
-      403: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Tool not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   patch_tool: {
@@ -775,11 +1115,11 @@ export interface operations {
     }
     requestBody: {
       content: {
-        'application/merge-patch+json': components['schemas']['ToolUpdate']
+        'application/json': components['schemas']['ToolUpdate']
       }
     }
     responses: {
-      /** @description Tool updated successfully */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
@@ -788,33 +1128,13 @@ export interface operations {
           'application/json': components['schemas']['ToolWithParameters']
         }
       }
-      /** @description Invalid tool configuration */
-      400: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Admin access required */
-      403: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Tool not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   bulk_update_tools: {
@@ -830,93 +1150,37 @@ export interface operations {
       }
     }
     responses: {
-      /** @description Tools updated successfully */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['ToolBulkUpdateResponse']
+          'application/json': {
+            [key: string]: unknown
+          }
         }
       }
-      /** @description Invalid request */
-      400: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Admin access required */
-      403: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   get_tool_providers: {
     parameters: {
       query?: {
-        /**
-         * @description Filter providers by status.
-         *     - Exact match: `status=available`
-         */
-        status?: string & {
-          /** @description Exact match of the status. ?status[eq]=<status> */
-          eq?: string
-        }
-        /**
-         * @description Filter providers by provider type.
-         *     - Exact match: `provider_type=mcp`
-         */
-        provider_type?: string & {
-          /** @description Exact match of the provider type. ?provider_type[eq]=<type> */
-          eq?: string
-        }
-        /** @description Filter by enabled status */
-        enabled?: boolean
-        /** @description Sort field and direction (e.g., 'name', '-created_at') */
-        sort?: string
-        /**
-         * @description Number of resources to return per page
-         * @example 20
-         */
-        limit?: components['parameters']['limitParam']
-        /**
-         * @description Opaque cursor for pagination (from previous response)
-         * @example eyJpZCI6InV1aWQifQ
-         */
+        /** @description Maximum number of results per page */
+        limit?: number
+        /** @description Pagination cursor from previous response */
         cursor?: components['parameters']['cursorParam']
-        /**
-         * @description Whether to include total count in response (may impact performance)
-         * @example true
-         */
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
+        sort?: components['parameters']['sortParam']
+        /** @description Include total count in response (expensive) */
         include_total?: components['parameters']['includeTotalParam']
-        /**
-         * @description Filter resources by name.
-         *     - Exact match: `name=value`
-         *     - Contains: `name[contains]=value`
-         * @example auth
-         */
-        name?: components['parameters']['nameFilterParam']
-        created_at?: components['parameters']['createdAtFilterParam']
-        updated_at?: components['parameters']['updatedAtFilterParam']
-        /**
-         * @description Filter resources by label key-value pairs.
-         *     - Single label: `labels[environment]=production`
-         *     - Multiple labels: `labels[environment]=production&labels[region]=us-east-1`
-         *     All specified labels must match (AND logic).
-         * @example {
-         *       "environment": "production",
-         *       "region": "us-east-1"
-         *     }
-         */
-        labels?: components['parameters']['labelsFilterParam']
       }
       header?: never
       path?: never
@@ -924,26 +1188,22 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description List of Tool Providers */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['ResourcesResponseBase'] & {
-            resources: components['schemas']['ToolProviderWithConfiguration'][]
-          }
+          'application/json': components['schemas']['ToolProviderListResponse']
         }
       }
-      /** @description Admin access required */
-      403: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   register_tool_provider: {
@@ -959,7 +1219,7 @@ export interface operations {
       }
     }
     responses: {
-      /** @description Provider registered successfully */
+      /** @description Successful Response */
       201: {
         headers: {
           [name: string]: unknown
@@ -968,33 +1228,13 @@ export interface operations {
           'application/json': components['schemas']['ToolProviderWithConfiguration']
         }
       }
-      /** @description Invalid provider configuration */
-      400: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Admin access required */
-      403: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Provider name already exists */
-      409: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   get_tool_provider: {
@@ -1008,7 +1248,7 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Provider details */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
@@ -1017,24 +1257,13 @@ export interface operations {
           'application/json': components['schemas']['ToolProviderWithConfiguration']
         }
       }
-      /** @description Admin access required */
-      403: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Provider not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   update_tool_provider: {
@@ -1052,7 +1281,7 @@ export interface operations {
       }
     }
     responses: {
-      /** @description Provider updated successfully */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
@@ -1061,33 +1290,13 @@ export interface operations {
           'application/json': components['schemas']['ToolProviderWithConfiguration']
         }
       }
-      /** @description Invalid provider configuration */
-      400: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Admin access required */
-      403: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Provider not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   delete_tool_provider: {
@@ -1101,31 +1310,20 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Provider removed successfully */
+      /** @description Successful Response */
       204: {
         headers: {
           [name: string]: unknown
         }
         content?: never
       }
-      /** @description Admin access required */
-      403: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Provider not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   patch_tool_provider: {
@@ -1139,11 +1337,11 @@ export interface operations {
     }
     requestBody: {
       content: {
-        'application/merge-patch+json': components['schemas']['ToolProviderPatch']
+        'application/json': components['schemas']['ToolProviderPatch']
       }
     }
     responses: {
-      /** @description Provider updated successfully */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
@@ -1152,33 +1350,13 @@ export interface operations {
           'application/json': components['schemas']['ToolProviderWithConfiguration']
         }
       }
-      /** @description Invalid provider configuration */
-      400: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Admin access required */
-      403: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Provider not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   validate_tool_provider: {
@@ -1192,7 +1370,7 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Provider validation completed (check 'valid' field for success/failure) */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
@@ -1201,24 +1379,13 @@ export interface operations {
           'application/json': components['schemas']['ToolProviderValidationResult']
         }
       }
-      /** @description Admin access required */
-      403: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Provider not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   refresh_tool_provider: {
@@ -1232,7 +1399,7 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Tool refresh completed */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
@@ -1241,33 +1408,13 @@ export interface operations {
           'application/json': components['schemas']['ToolProviderRefreshResult']
         }
       }
-      /** @description Tool refresh failed */
-      400: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Admin access required */
-      403: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Provider not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   test_tool_provider: {
@@ -1283,7 +1430,7 @@ export interface operations {
       }
     }
     responses: {
-      /** @description Provider definition test completed (check 'valid' field for success/failure) */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
@@ -1292,15 +1439,13 @@ export interface operations {
           'application/json': components['schemas']['ToolProviderValidationResult']
         }
       }
-      /** @description Admin access required */
-      403: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
 }

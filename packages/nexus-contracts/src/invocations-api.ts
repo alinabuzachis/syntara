@@ -13,38 +13,35 @@ export interface paths {
     }
     /**
      * List Invocations
-     * @description List invocations with cursor-based pagination and filtering.
-     *
-     *     **Filtering Options:**
-     *     - `status`: Filter by invocation status (running, paused, cancelled, completed, failed)
-     *     - `prompt`: Filter by prompt text with operators (contains, starts_with)
-     *     - `created_by`: Filter by creator UUID with operators (eq)
-     *     - `session_id`: Filter by session ID with operators (eq, contains, starts_with)
-     *     - `labels`: Filter by label key-value pairs (e.g., labels[environment]=production)
-     *     - `created_at`: Filter by creation timestamp with operators (eq, gt, gte, lt, lte)
-     *     - `updated_at`: Filter by last update timestamp with operators (eq, gt, gte, lt, lte)
-     *
-     *     **Sorting:**
-     *     - Sort by timestamp fields only: `created_at`, `updated_at`, `started_at`, `completed_at`
-     *     - Ascending: `sort=field` (e.g., `sort=created_at`)
-     *     - Descending: `sort=-field` (e.g., `sort=-created_at`)
-     *
-     *     **Pagination:**
-     *     - Cursor-based pagination with `cursor` and `limit` parameters
-     *     - Optionally includes total count with `include_total=true`
+     * @description List invocations with cursor-based pagination and filtering
      */
     get: operations['list_invocations']
     put?: never
     /**
-     * Create Invocation (Async) with Optional File Attachments
+     * Create Invocation (Async)
      * @description Accept async agent invocation request and return invocation ID immediately.
-     *
-     *     Supports optional file attachments (PDF, DOC, DOCX, TXT, MD). Max 10MB per file (configurable).
-     *     Max 10 files per invocation (configurable). File metadata is included in the invocation context.
-     *
-     *     Connect to WS /ws/invocations/{id} to monitor progress and receive results via WebSocket.
      */
     post: operations['create_invocation']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/invocations/chat': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Create Invocation with File Uploads (Async)
+     * @description Accept async agent invocation request with optional file uploads via multipart/form-data.
+     */
+    post: operations['create_invocation_chat']
     delete?: never
     options?: never
     head?: never
@@ -60,22 +57,7 @@ export interface paths {
     }
     /**
      * Get Invocation Details (Testing/Debug)
-     * @description Retrieve full invocation details including the result.
-     *
-     *     **NOTE: This endpoint is primarily for TESTING and DEBUGGING purposes.**
-     *
-     *     Production systems should use WebSockets (see `/ws/invocations/{invocationId}`)
-     *     for real-time result streaming instead of polling this endpoint.
-     *
-     *     **Use Cases:**
-     *     - View the actual LLM responses from GenericAgent during development
-     *     - Inspect workflow execution results for debugging
-     *     - Debug routing decisions and agent behavior
-     *     - Manual testing of agent integrations
-     *
-     *     **Production Alternative:**
-     *     Use the WebSocket endpoint at `/ws/invocations/{invocation_id}` for real-time
-     *     progress updates and results.
+     * @description Retrieve full invocation details including the result. NOTE: This endpoint is for testing and debugging. Production systems should use WebSockets for real-time results.
      */
     get: operations['get_invocation']
     put?: never
@@ -98,9 +80,6 @@ export interface paths {
     /**
      * Cancel Invocation
      * @description Cancel a running or pending invocation. Only the invocation owner can cancel it.
-     *
-     *     Cancellation is irreversible - invocation cannot be resumed after cancellation.
-     *     Agent performs cleanup and transitions to cancelled state with optional reason tracking.
      */
     post: operations['cancel_invocation']
     delete?: never
@@ -114,430 +93,210 @@ export type webhooks = Record<string, never>
 export interface components {
   schemas: {
     /**
-     * @description Current invocation status
-     * @example running
+     * InvocationStatus
+     * @description Status enum for invocation lifecycle.
      * @enum {string}
      */
-    InvocationStatus: 'running' | 'paused' | 'cancelled' | 'completed' | 'failed'
+    InvocationStatus: 'created' | 'running' | 'paused' | 'cancelled' | 'completed' | 'failed'
+    /**
+     * Invocation
+     * @description SQLModel for async workflow invocations.
+     *
+     *     Attributes:
+     *         id: Primary key UUID (inherited from BaseResource)
+     *         created_at: Timestamp when invocation was created
+     *             (inherited from BaseResource)
+     *         updated_at: Timestamp of last update (inherited from BaseResource)
+     *         created_by: UUID of user who created the invocation
+     *             (inherited from UserOwnedResource)
+     *         updated_by: UUID of user who last updated the invocation
+     *             (inherited from UserOwnedResource)
+     *         labels: Optional key-value metadata (inherited from BaseResource)
+     *         prompt: Natural language user request
+     *         session_id: Session identifier for multi-tenant isolation
+     *         status: Current invocation status (running, paused, cancelled, completed, failed)
+     *         started_at: Timestamp when workflow execution started
+     *         completed_at: Timestamp when workflow completed
+     *         context_data: Additional context for the request
+     *         result: Workflow result data
+     *         error_message: Error message if invocation failed
+     *         checkpoint_data: Checkpoint data for pause/resume
+     */
     Invocation: components['schemas']['UserOwnedResource'] & {
       /**
        * Prompt
-       * @description Natural language request describing desired automation task
-       * @example Deploy customer service app to production
+       * @description Natural language user request
        */
       prompt: string
       /**
-       * Session ID
-       * @description Session identifier for grouping related invocations
-       * @example session-001
+       * Session Id
+       * @description Session identifier for multi-tenant isolation
        */
       session_id: string
-      status: components['schemas']['InvocationStatus']
+      /**
+       * @description Current invocation status
+       * @default created
+       */
+      status?: components['schemas']['InvocationStatus']
+      /**
+       * Model Name
+       * @description LLM model name used for the invocation
+       */
+      model_name?: string | null
       /**
        * Started At
-       * Format: date-time
-       * @description When agent started processing
-       * @example 2025-10-21T10:30:01Z
+       * @description Timestamp when workflow execution started
        */
-      readonly started_at?: string | null
+      started_at?: string | null
       /**
        * Completed At
-       * Format: date-time
-       * @description When agent completed or failed
-       * @example 2025-10-21T10:35:00Z
+       * @description Timestamp when workflow completed
        */
-      readonly completed_at?: string | null
+      completed_at?: string | null
       /**
        * Context Data
-       * @description Additional context for the invocation.
-       *     When files are uploaded, includes file_ids array (list of UUID strings referencing FileMetadata table).
-       * @default {}
-       * @example {
-       *       "environment": "production",
-       *       "app_id": "customer-svc",
-       *       "file_ids": [
-       *         "550e8400-e29b-41d4-a716-446655440000",
-       *         "660e8400-e29b-41d4-a716-446655440001"
-       *       ]
-       *     }
+       * @description Additional context for the request, including file_ids array if files uploaded
        */
       context_data?: {
-        /** @description File IDs referencing FileMetadata records (populated when files are attached) */
-        file_ids?: string[]
-      } & {
         [key: string]: unknown
       }
       /**
        * Result
-       * @description Invocation result data (populated on completion).
-       *
-       *     For context-enhanced invocations, includes additional metadata:
-       *     - correlation_id: ID for distributed tracing and correlation
-       *     - grounding_score: Relevance score (0.0-1.0) indicating context quality
-       *     - context_enhancement: Additional context enhancement information including citations
-       * @example {
-       *       "type": "answer",
-       *       "content": "The deployment tools available include Docker, Kubernetes, and Terraform...",
-       *       "response_metadata": {
-       *         "model": "anthropic/claude-3.5-sonnet"
-       *       },
-       *       "correlation_id": "workflow-correlation-123",
-       *       "grounding_score": 0.85,
-       *       "context_enhancement": {
-       *         "turn_id": "660e8400-e29b-41d4-a716-446655440001",
-       *         "citations": [
-       *           {
-       *             "source": "deployment-tools.md",
-       *             "relevance": 0.9
-       *           }
-       *         ],
-       *         "context_applied": true
-       *       }
-       *     }
+       * @description Workflow result data
        */
-      result?:
-        | ({
-            /**
-             * @description Type of response (typically "answer")
-             * @example answer
-             */
-            type?: string
-            /**
-             * @description Main response content from the AI agent
-             * @example The deployment tools available include...
-             */
-            content?: string
-            /** @description Metadata from the AI model response */
-            response_metadata?: {
-              [key: string]: unknown
-            }
-            /**
-             * @description Correlation ID for distributed tracing and debugging (optional)
-             * @example workflow-correlation-123
-             */
-            correlation_id?: string
-            /**
-             * Format: float
-             * @description Relevance score indicating context quality: 0.0 (no context) to 1.0 (high-quality context) (optional)
-             * @example 0.85
-             */
-            grounding_score?: number
-            /** @description Additional context enhancement information when context enhancement is applied (optional) */
-            context_enhancement?: {
-              /**
-               * Format: uuid
-               * @description Context package identifier for correlation
-               * @example 660e8400-e29b-41d4-a716-446655440001
-               */
-              turn_id?: string
-              /**
-               * @description Source citations for context information
-               * @example [
-               *       {
-               *         "source": "api-docs.md",
-               *         "relevance": 0.9
-               *       },
-               *       {
-               *         "source": "deployment-guide.yaml",
-               *         "relevance": 0.8
-               *       }
-               *     ]
-               */
-              citations?: {
-                [key: string]: unknown
-              }[]
-              /**
-               * @description Whether context enhancement was successfully applied
-               * @example true
-               */
-              context_applied?: boolean
-            } & {
-              [key: string]: unknown
-            }
-          } & {
-            [key: string]: unknown
-          })
-        | null
+      result?: {
+        [key: string]: unknown
+      } | null
       /**
        * Error Message
        * @description Error message if invocation failed
-       * @example Tool execution timeout
        */
       error_message?: string | null
       /**
        * Checkpoint Data
-       * @description Checkpoint state for paused invocations
-       * @example {
-       *       "phase": "complete",
-       *       "step": 5
-       *     }
+       * @description Checkpoint data for pause/resume
        */
       checkpoint_data?: {
         [key: string]: unknown
       } | null
     }
     /**
-     * Invocation Request
-     * @description Request body for creating a new invocation
+     * InvocationRequestWithFile
+     * @description Multipart form body for POST /invocations/chat (file upload path).
      */
-    InvocationRequest: {
-      /**
-       * Prompt
-       * @description Natural language request describing desired automation task
-       * @example Create a workflow to deploy customer service app
-       */
-      prompt: string
-      /**
-       * Created By
-       * Format: uuid
-       * @description User identifier for authentication and policy evaluation
-       * @example 550e8400-e29b-41d4-a716-446655440000
-       */
-      created_by: string
-      /**
-       * Session ID
-       * @description Session identifier for grouping related invocations
-       * @example session-001
-       */
-      session_id: string
-      /**
-       * Context Data
-       * @description Optional additional context for the request
-       * @default {}
-       * @example {
-       *       "environment": "production",
-       *       "app_id": "customer-svc"
-       *     }
-       */
-      context_data?: {
-        [key: string]: unknown
-      }
+    InvocationRequestWithFile: {
+      /** Prompt */
+      prompt?: string | null
+      /** Session Id */
+      session_id?: string | null
+      /** Context Data */
+      context_data?: string | null
+      /** Files */
+      files?: string[] | null
     }
-    InvocationRequestWithFile: components['schemas']['InvocationRequest'] & {
-      /** @description Optional file attachments (PDF, DOC, DOCX, TXT, MD). Max 10MB per file by default (configurable via file_upload_max_size_mb). Max 10 files per invocation by default (configurable via file_upload_max_files). */
-      files?: string[]
-    }
+    /**
+     * InvocationListResponse
+     * @description Paginated list response for invocations.
+     */
     InvocationListResponse: components['schemas']['ResourcesResponseBase'] & {
-      /**
-       * Invocations
-       * @description Array of invocations in current page
-       */
       resources: components['schemas']['Invocation'][]
     }
     /**
-     * Message Request
-     * @description Request to send message to running agent
+     * InvocationCreateRequest
+     * @description Request schema for creating a new invocation.
+     *
+     *     Supports multiple field name formats:
+     *     - snake_case (API contract): session_id, context_data
+     *     - camelCase (backward compatibility): sessionId, contextData
+     *
+     *     Note: created_by is automatically set from authenticated user context.
      */
-    MessageRequest: {
+    InvocationCreateRequest: {
       /**
-       * Message
-       * @description User message to inject into agent conversation
-       * @example Use blue-green deployment strategy instead
+       * Prompt
+       * @description Natural language request describing desired automation task
        */
-      message: string
+      prompt: string
       /**
-       * Context
-       * @description Additional context for the message
-       * @example {
-       *       "deploymentStrategy": "blue-green"
-       *     }
+       * Sessionid
+       * @description Session identifier for grouping related invocations
        */
-      context?: {
+      sessionId: string
+      /**
+       * Contextdata
+       * @description Optional additional context for the request. Use 'file_ids' (array of UUID strings) to reference uploaded files.
+       */
+      contextData?: {
         [key: string]: unknown
       }
-    }
-    /**
-     * Message Response
-     * @description Response after sending message to agent
-     */
-    MessageResponse: {
-      /**
-       * Invocation ID
-       * Format: uuid
-       * @description Invocation ID that received the message
-       * @example 550e8400-e29b-41d4-a716-446655440000
-       */
-      invocation_id: string
-      /**
-       * Message ID
-       * Format: uuid
-       * @description Unique identifier for this message
-       * @example 770e8400-e29b-41d4-a716-446655440002
-       */
-      message_id: string
-      /**
-       * Status
-       * @description Whether message was accepted for processing
-       * @example accepted
-       * @enum {string}
-       */
-      status: 'accepted' | 'rejected'
-      /**
-       * Acknowledged At
-       * Format: date-time
-       * @description When message was acknowledged
-       * @example 2025-10-21T10:35:00Z
-       */
-      acknowledged_at: string
-      /**
-       * Error
-       * @description Error message (if status=rejected)
-       * @example null
-       */
-      error?: string | null
-    }
-    /**
-     * Progress Event
-     * @description WebSocket progress event from agent
-     */
-    ProgressEvent: {
-      /**
-       * Event Type
-       * @description Type of progress event
-       * @example progress
-       * @enum {string}
-       */
-      event_type: 'progress' | 'log' | 'status_change' | 'message' | 'completion' | 'error'
-      /**
-       * Invocation ID
-       * Format: uuid
-       * @description Invocation ID this event belongs to
-       * @example 550e8400-e29b-41d4-a716-446655440000
-       */
-      invocation_id: string
-      /**
-       * Timestamp
-       * Format: date-time
-       * @description When this event occurred
-       * @example 2025-10-21T10:30:01Z
-       */
-      timestamp: string
-      /**
-       * Data
-       * @description Event-specific data (structure varies by eventType)
-       * @example {
-       *       "phase": "tool_assessment",
-       *       "message": "Evaluating deployment tools",
-       *       "progressPercentage": 45
-       *     }
-       */
-      data: {
-        [key: string]: unknown
-      }
-      /**
-       * Sequence Number
-       * @description Sequence number for event ordering
-       * @example 5
-       */
-      sequence_number?: number
-    }
-    /**
-     * Control Response
-     * @description Response after sending control signal to agent
-     */
-    ControlResponse: {
-      /**
-       * Invocation ID
-       * Format: uuid
-       * @description Invocation ID that received control signal
-       * @example 550e8400-e29b-41d4-a716-446655440000
-       */
-      invocation_id: string
-      /**
-       * Action
-       * @description Control action requested
-       * @example pause
-       * @enum {string}
-       */
-      action: 'pause' | 'cancel' | 'resume'
-      /**
-       * Status
-       * @description Control signal processing status
-       * @example acknowledged
-       * @enum {string}
-       */
-      status: 'acknowledged' | 'completed' | 'rejected'
-      /**
-       * Current State
-       * @description Current invocation state after control signal
-       * @example paused
-       * @enum {string}
-       */
-      current_state: 'running' | 'paused' | 'cancelled' | 'completed'
-      /**
-       * Acknowledged At
-       * Format: date-time
-       * @description When control signal was acknowledged
-       * @example 2025-10-21T10:35:00Z
-       */
-      acknowledged_at: string
-      /**
-       * Message
-       * @description Human-readable message about control signal processing
-       * @example Agent paused successfully
-       */
-      message?: string | null
-      /**
-       * Error
-       * @description Error message (if status=rejected)
-       * @example null
-       */
-      error?: string | null
     }
     /**
      * InvocationCancelRequest
-     * @description Request body for cancelling an invocation
+     * @description Request schema for cancelling an invocation.
+     *
+     *     Supports multiple field name formats:
+     *     - camelCase (API contract): reason
+     *     - snake_case (internal): reason
      */
     InvocationCancelRequest: {
       /**
        * Reason
        * @description Optional reason for cancellation
        * @default User cancelled
-       * @example Request taking too long
        */
       reason?: string
     }
     /**
      * InvocationCancelResponse
-     * @description Response after attempting to cancel an invocation
+     * @description Response schema for invocation cancellation.
+     *
+     *     Indicates whether the cancellation was successful or failed.
      */
     InvocationCancelResponse: {
       /**
        * Success
        * @description True if cancellation was successful, False otherwise
-       * @example true
        */
       success: boolean
       /**
        * Message
        * @description Human-readable message describing the cancellation result
-       * @example Invocation 550e8400-e29b-41d4-a716-446655440000 cancelled successfully
        */
       message: string
     }
     /**
      * Paginated Response Base
      * @description Pagination metadata structure for list responses
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
      */
     ResourcesResponseBase: {
       /**
-       * Next Page Cursor
+       * Next
        * @description Cursor for next page of results
-       * @example eyJpZCI6InV1aWQifQ
        */
       next?: string | null
       /**
-       * Previous Page Cursor
+       * Prev
        * @description Cursor for previous page of results
-       * @example eyJpZCI6InV1aWQifQ
        */
       prev?: string | null
       /**
-       * Total Count
+       * Total
        * @description Total count of resources (only when include_total=true)
-       * @example 150
        */
       total?: number | null
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources?: unknown[]
     }
     /**
      * Base Resource
@@ -550,21 +309,21 @@ export interface components {
        * @description Unique identifier for the resource
        * @example 550e8400-e29b-41d4-a716-446655440000
        */
-      readonly id: string
+      readonly id?: string
       /**
        * Created At
        * Format: date-time
        * @description Timestamp when resource was created
        * @example 2025-10-09T12:00:00Z
        */
-      readonly created_at: string
+      readonly created_at?: string
       /**
        * Updated At
        * Format: date-time
        * @description Timestamp when resource was last updated
        * @example 2025-10-09T12:30:00Z
        */
-      readonly updated_at: string
+      readonly updated_at?: string
       /**
        * Labels
        * @description Key-value pairs for resource labeling and filtering
@@ -589,59 +348,171 @@ export interface components {
       readonly created_by: string
       /**
        * Updated By
-       * Format: uuid
        * @description User who last updated the resource
        * @example 880e8400-e29b-41d4-a716-446655440000
        */
       readonly updated_by?: string | null
     }
     /**
-     * RFC 9457 Problem Details
-     * @description RFC 9457 Problem Details format for error responses.
-     *     This format provides machine-readable and human-readable error information
-     *     with consistent structure for all API error responses.
+     * ErrorData
+     * @description RFC 9457 Problem Details format for error event data.
+     *     This model is used for streaming error events and follows the RFC 9457 Problem Details specification. It provides machine-readable and human-readable error information with consistent structure.
+     *     Attributes:
+     *         type: URI reference identifying the problem type
+     *         title: Short, human-readable summary of the problem
+     *         detail: Human-readable explanation specific to this occurrence
+     *         code: Machine-readable error code for programmatic handling
+     *         retryable: Whether this error can be retried by creating a new invocation
+     *         instance: Optional URI reference identifying the specific occurrence
+     * @example {
+     *       "type": "https://api.nexus.com/errors/llm-error",
+     *       "title": "LLM Rate Limit Exceeded",
+     *       "detail": "OpenRouter API rate limit exceeded. Please try again in a few moments.",
+     *       "code": "RATE_LIMIT_EXCEEDED",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
+     * @example {
+     *       "type": "https://api.nexus.com/errors/timeout-error",
+     *       "title": "Streaming Timeout",
+     *       "detail": "LLM streaming timed out after 30 seconds",
+     *       "code": "STREAM_TIMEOUT",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
      */
     ErrorData: {
       /**
-       * Problem Type URI
+       * Type
        * @description URI reference identifying the problem type
-       * @example https://api.nexus.com/errors/validation-error
+       * @example https://api.nexus.com/errors/llm-error
        */
       type: string
       /**
-       * Problem Title
+       * Title
        * @description Short, human-readable summary of the problem
-       * @example Validation Error
+       * @example LLM Service Unavailable
        */
       title: string
       /**
-       * Problem Detail
+       * Detail
        * @description Human-readable explanation specific to this occurrence
-       * @example Field 'name' must be between 1 and 255 characters
+       * @example OpenRouter API returned error: rate limit exceeded. Please try again in a few moments.
        */
       detail: string
       /**
-       * Error Code
+       * Code
        * @description Machine-readable error code for programmatic handling
-       * @example VALIDATION_ERROR
+       * @example RATE_LIMIT_EXCEEDED
        */
       code: string
       /**
-       * Retryable Flag
-       * @description Whether this error can be retried
-       * @example false
+       * Retryable
+       * @description Whether this error can be retried by creating a new invocation
+       * @example true
        */
       retryable: boolean
       /**
-       * Problem Instance
-       * @description URI reference identifying the specific occurrence
-       * @example /api/v1/workflows
+       * Instance
+       * @description Optional URI reference identifying the specific occurrence
+       * @example /invocations/550e8400-e29b-41d4-a716-446655440000
        */
       instance?: string | null
     }
   }
   responses: {
-    /** @description Validation error response */
+    /** @description Bad Request */
+    BadRequestError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/bad-request",
+         *       "title": "Bad Request",
+         *       "detail": "The request was malformed or contained invalid parameters",
+         *       "code": "BAD_REQUEST",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Unauthorized */
+    UnauthorizedError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/unauthorized",
+         *       "title": "Unauthorized",
+         *       "detail": "Authentication is required to access this resource",
+         *       "code": "UNAUTHORIZED",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Forbidden */
+    ForbiddenError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/forbidden",
+         *       "title": "Forbidden",
+         *       "detail": "You do not have permission to access this resource",
+         *       "code": "FORBIDDEN",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Not Found */
+    NotFoundError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/not-found",
+         *       "title": "Resource Not Found",
+         *       "detail": "No resource exists with the provided identifier",
+         *       "code": "NOT_FOUND",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Conflict */
+    ConflictError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/conflict",
+         *       "title": "Conflict",
+         *       "detail": "The request conflicts with the current state of the resource",
+         *       "code": "CONFLICT",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Validation Error */
     ValidationError: {
       headers: {
         [name: string]: unknown
@@ -660,7 +531,7 @@ export interface components {
         'application/problem+json': components['schemas']['ErrorData']
       }
     }
-    /** @description Internal server error */
+    /** @description Internal Server Error */
     InternalServerError: {
       headers: {
         [name: string]: unknown
@@ -680,104 +551,13 @@ export interface components {
     }
   }
   parameters: {
-    /**
-     * @description Opaque cursor for pagination (from previous response)
-     * @example eyJpZCI6InV1aWQifQ
-     */
-    cursorParam: string
-    /**
-     * @description Number of resources to return per page
-     * @example 20
-     */
+    /** @description Maximum number of results per page */
     limitParam: number
-    /**
-     * @description Sort order for resources.
-     *     - Ascending: `field` (e.g., `name`)
-     *     - Descending: `-field` (e.g., `-created_at`)
-     * @example -created_at
-     */
-    sortParam: string
-    /**
-     * @description Filter resources by label key-value pairs.
-     *     - Single label: `labels[environment]=production`
-     *     - Multiple labels: `labels[environment]=production&labels[region]=us-east-1`
-     *     All specified labels must match (AND logic).
-     * @example {
-     *       "environment": "production",
-     *       "region": "us-east-1"
-     *     }
-     */
-    labelsFilterParam: {
-      [key: string]: string
-    }
-    createdAtFilterParam: string & {
-      /**
-       * Equals
-       * Format: date-time
-       * @description Exact match of creation timestamp. ?created_at[eq]=<timestamp>
-       */
-      eq?: string
-      /**
-       * Greater Than
-       * Format: date-time
-       * @description Greater than comparison. ?created_at[gt]=<timestamp>
-       */
-      gt?: string
-      /**
-       * Greater Than Or Equal
-       * Format: date-time
-       * @description Greater than or equal comparison. ?created_at[gte]=<timestamp>
-       */
-      gte?: string
-      /**
-       * Less Than
-       * Format: date-time
-       * @description Less than comparison. ?created_at[lt]=<timestamp>
-       */
-      lt?: string
-      /**
-       * Less Than Or Equal
-       * Format: date-time
-       * @description Less than or equal comparison. ?created_at[lte]=<timestamp>
-       */
-      lte?: string
-    }
-    updatedAtFilterParam: string & {
-      /**
-       * Equals
-       * Format: date-time
-       * @description Exact match of last update timestamp. ?updated_at[eq]=<timestamp>
-       */
-      eq?: string
-      /**
-       * Greater Than
-       * Format: date-time
-       * @description Greater than comparison. ?updated_at[gt]=<timestamp>
-       */
-      gt?: string
-      /**
-       * Greater Than Or Equal
-       * Format: date-time
-       * @description Greater than or equal comparison. ?updated_at[gte]=<timestamp>
-       */
-      gte?: string
-      /**
-       * Less Than
-       * Format: date-time
-       * @description Less than comparison. ?updated_at[lt]=<timestamp>
-       */
-      lt?: string
-      /**
-       * Less Than Or Equal
-       * Format: date-time
-       * @description Less than or equal comparison. ?updated_at[lte]=<timestamp>
-       */
-      lte?: string
-    }
-    /**
-     * @description Whether to include total count in response (may impact performance)
-     * @example true
-     */
+    /** @description Pagination cursor from previous response */
+    cursorParam: string | null
+    /** @description Sort parameter (e.g., 'name', '-created_at') */
+    sortParam: string | null
+    /** @description Include total count in response (expensive) */
     includeTotalParam: boolean
   }
   requestBodies: never
@@ -789,49 +569,22 @@ export interface operations {
   list_invocations: {
     parameters: {
       query?: {
-        /**
-         * @description Opaque cursor for pagination (from previous response)
-         * @example eyJpZCI6InV1aWQifQ
-         */
-        cursor?: components['parameters']['cursorParam']
-        /**
-         * @description Number of resources to return per page
-         * @example 20
-         */
+        /** @description Maximum number of results per page */
         limit?: components['parameters']['limitParam']
-        /**
-         * @description Sort order for resources.
-         *     - Ascending: `field` (e.g., `name`)
-         *     - Descending: `-field` (e.g., `-created_at`)
-         * @example -created_at
-         */
+        /** @description Pagination cursor from previous response */
+        cursor?: components['parameters']['cursorParam']
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
         sort?: components['parameters']['sortParam']
-        /** @description Filter invocations by status (running, paused, cancelled, completed, failed) */
-        status?: components['schemas']['InvocationStatus']
-        /** @description Filter by prompt text (substring match) */
-        prompt?: string
-        /** @description Filter by creator UUID */
-        created_by?: string
-        /** @description Filter by session ID */
-        session_id?: string
-        /**
-         * @description Filter resources by label key-value pairs.
-         *     - Single label: `labels[environment]=production`
-         *     - Multiple labels: `labels[environment]=production&labels[region]=us-east-1`
-         *     All specified labels must match (AND logic).
-         * @example {
-         *       "environment": "production",
-         *       "region": "us-east-1"
-         *     }
-         */
-        labels?: components['parameters']['labelsFilterParam']
-        created_at?: components['parameters']['createdAtFilterParam']
-        updated_at?: components['parameters']['updatedAtFilterParam']
-        /**
-         * @description Whether to include total count in response (may impact performance)
-         * @example true
-         */
+        /** @description Include total count in response (expensive) */
         include_total?: components['parameters']['includeTotalParam']
+        /** @description Filter invocations by status (running, paused, cancelled, completed, failed) */
+        status?: components['schemas']['InvocationStatus'] | null
+        /** @description Filter by creator UUID */
+        created_by?: string | null
+        /** @description Filter by session ID */
+        session_id?: string | null
+        /** @description Filter by prompt text (substring match) */
+        prompt?: string | null
       }
       header?: never
       path?: never
@@ -839,7 +592,7 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Successful response with paginated invocations */
+      /** @description List of invocations */
       200: {
         headers: {
           [name: string]: unknown
@@ -848,7 +601,12 @@ export interface operations {
           'application/json': components['schemas']['InvocationListResponse']
         }
       }
-      400: components['responses']['ValidationError']
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
       500: components['responses']['InternalServerError']
     }
   }
@@ -861,7 +619,37 @@ export interface operations {
     }
     requestBody: {
       content: {
-        'application/json': components['schemas']['InvocationRequest']
+        'application/json': components['schemas']['InvocationCreateRequest']
+      }
+    }
+    responses: {
+      /** @description Invocation accepted */
+      202: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Invocation']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  create_invocation_chat: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
         'multipart/form-data': components['schemas']['InvocationRequestWithFile']
       }
     }
@@ -875,34 +663,13 @@ export interface operations {
           'application/json': components['schemas']['Invocation']
         }
       }
-      /** @description Bad Request - Validation or file processing error */
-      400: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Unauthorized */
-      401: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
       500: components['responses']['InternalServerError']
-      /** @description Service Unavailable - LLM provider not configured */
-      503: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
     }
   }
   get_invocation: {
@@ -910,17 +677,14 @@ export interface operations {
       query?: never
       header?: never
       path: {
-        /**
-         * @description UUID of the invocation to retrieve
-         * @example 550e8400-e29b-41d4-a716-446655440000
-         */
+        /** @description UUID of the invocation to retrieve */
         invocation_id: string
       }
       cookie?: never
     }
     requestBody?: never
     responses: {
-      /** @description Successful response with full invocation details */
+      /** @description Invocation details */
       200: {
         headers: {
           [name: string]: unknown
@@ -929,36 +693,12 @@ export interface operations {
           'application/json': components['schemas']['Invocation']
         }
       }
-      /** @description Invocation not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          /**
-           * @example {
-           *       "error": "Not Found",
-           *       "detail": "Invocation 550e8400-e29b-41d4-a716-446655440000 not found"
-           *     }
-           */
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Invalid UUID format or validation error */
-      422: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          /**
-           * @example {
-           *       "error": "Validation Error",
-           *       "detail": "Invalid UUID provided (not-a-uuid)"
-           *     }
-           */
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
       500: components['responses']['InternalServerError']
     }
   }
@@ -967,10 +707,7 @@ export interface operations {
       query?: never
       header?: never
       path: {
-        /**
-         * @description UUID of the invocation to cancel
-         * @example 550e8400-e29b-41d4-a716-446655440000
-         */
+        /** @description UUID of the invocation to cancel */
         invocation_id: string
       }
       cookie?: never
@@ -981,7 +718,7 @@ export interface operations {
       }
     }
     responses: {
-      /** @description Cancellation successful */
+      /** @description Cancellation result */
       200: {
         headers: {
           [name: string]: unknown
@@ -990,42 +727,13 @@ export interface operations {
           'application/json': components['schemas']['InvocationCancelResponse']
         }
       }
-      /** @description Invocation not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Invocation cannot be cancelled (wrong state) */
-      409: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Invalid UUID format or validation error */
-      422: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Internal server error */
-      500: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
 }

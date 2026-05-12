@@ -101,14 +101,14 @@ describe('IntegrationTools Component', () => {
     mockMutate.mockClear()
     mockSetSearchParams.mockClear()
     vi.mocked(toolManagerClient.useQuery).mockImplementation((_method, path: string) => {
-      if (path === '/tool_providers/{provider_id}') {
+      if (path === '/tool_manager/tool_providers/{provider_id}') {
         return { ...baseQueryResult, data: mockProvider } as never
       }
       return { ...baseQueryResult, data: { resources: mockTools } } as never
     })
 
     vi.mocked(toolManagerClient.useMutation).mockImplementation((_method, path: string) => {
-      if (path === '/tools/bulk_update') {
+      if (path === '/tool_manager/tools/bulk_update') {
         return {
           mutate: mockMutate,
           isPending: false,
@@ -221,7 +221,7 @@ describe('IntegrationTools Component', () => {
     it('unchecks a tool when a new API payload marks it disabled', async () => {
       const toolsRef = { list: mockTools.map((t) => ({ ...t })) }
       vi.mocked(toolManagerClient.useQuery).mockImplementation((_method, path: string) => {
-        if (path === '/tool_providers/{provider_id}') {
+        if (path === '/tool_manager/tool_providers/{provider_id}') {
           return { ...baseQueryResult, data: mockProvider } as never
         }
         return { ...baseQueryResult, data: { resources: toolsRef.list } } as never

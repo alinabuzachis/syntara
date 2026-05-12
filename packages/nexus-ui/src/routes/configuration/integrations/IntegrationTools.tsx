@@ -240,7 +240,7 @@ export default function IntegrationTools() {
   // Define filter field definitions for FilterBar
   const filterFieldDefinitions = useMemo<FilterFieldDefinition[]>(() => [getIntegrationNameFilterDefinition()], [])
 
-  const integrationQuery = toolManagerClient.useQuery('get', '/tool_providers/{provider_id}', {
+  const integrationQuery = toolManagerClient.useQuery('get', '/tool_manager/tool_providers/{provider_id}', {
     params: { path: { provider_id } },
   })
   const provider = integrationQuery.data!
@@ -248,13 +248,16 @@ export default function IntegrationTools() {
     title: 'Error loading tools',
     onRetry: () => detachPromise(integrationQuery.refetch()),
   })
-  const query = toolManagerClient.useQuery('get', '/tools', {
+  const query = toolManagerClient.useQuery('get', '/tool_manager/tools', {
     params: {
       query: queryParams,
     },
   })
-  const { mutateAsync: updateTools } = toolManagerClient.useMutation('patch', '/tools/bulk_update')
-  const { mutate: refreshTools } = toolManagerClient.useMutation('post', '/tool_providers/{provider_id}/refresh_tools')
+  const { mutateAsync: updateTools } = toolManagerClient.useMutation('patch', '/tool_manager/tools/bulk_update')
+  const { mutate: refreshTools } = toolManagerClient.useMutation(
+    'post',
+    '/tool_manager/tool_providers/{provider_id}/refresh_tools'
+  )
 
   const handleRefreshTools = () => {
     refreshTools(
@@ -298,7 +301,7 @@ export default function IntegrationTools() {
 
     if (updates.length > 0) {
       await Promise.all(updates)
-      await queryClient.invalidateQueries({ queryKey: ['get', '/tools'] })
+      await queryClient.invalidateQueries({ queryKey: ['get', '/tool_manager/tools'] })
     }
 
     navigate(AppRoute.Configuration.Integrations.Root)

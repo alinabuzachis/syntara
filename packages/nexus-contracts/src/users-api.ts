@@ -13,9 +13,10 @@ export interface paths {
     }
     /**
      * List Users
-     * @description List users with filtering, sorting, and pagination.
+     * @description List users with visibility filtering and pagination.
      *
-     *     Uses cursor-based pagination for scalability and consistency.
+     *     Users with ``user:read:any`` see all users.
+     *     Users with ``user:read:self`` see only themselves.
      */
     get: operations['list_users']
     put?: never
@@ -140,7 +141,10 @@ export interface paths {
     }
     /**
      * List Groups
-     * @description Retrieve list of groups with filtering and pagination.
+     * @description Retrieve list of groups with visibility filtering.
+     *
+     *     Users with ``group:read:any`` see all groups.
+     *     Users with ``group:read:self`` see only their own groups.
      */
     get: operations['list_groups']
     put?: never
@@ -198,7 +202,7 @@ export interface paths {
     put?: never
     /**
      * Add Member
-     * @description Add a local user to a group.
+     * @description Add a user to a group.
      */
     post: operations['add_member']
     delete?: never
