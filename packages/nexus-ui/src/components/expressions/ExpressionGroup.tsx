@@ -192,7 +192,12 @@ export function ExpressionGroup(props: ExpressionGroupProps) {
                 <FlexItem>
                   <Flex spaceItems={{ default: 'spaceItemsXs' }} alignItems={{ default: 'alignItemsCenter' }}>
                     <FlexItem>
-                      <span style={{ fontWeight: 'var(--pf-t--global--font--weight--bold)' }}>Group</span>
+                      <Content
+                        component={ContentVariants.p}
+                        style={{ fontWeight: 'var(--pf-t--global--font--weight--bold)', margin: 0 }}
+                      >
+                        Group
+                      </Content>
                     </FlexItem>
                     <FlexItem>
                       <GroupHelp />

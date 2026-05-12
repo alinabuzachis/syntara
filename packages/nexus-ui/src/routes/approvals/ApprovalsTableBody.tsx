@@ -11,6 +11,7 @@ import { RhUiCaretDownIcon, RhUiCaretRightIcon } from '@patternfly/react-icons'
 import { Tbody, Td, Tr, ExpandableRowContent } from '@patternfly/react-table'
 import { Fragment } from 'react'
 
+import groupedTableStyles from '../../components/groupedTable.module.css'
 import { DateCell } from '../../components/table/DateCell'
 import { LinkCell } from '../../components/table/LinkCell'
 import type { ProjectRead } from '../access/types'
@@ -126,10 +127,7 @@ export function GroupedApprovalsTableBody({
     <>
       {[...groupedApprovals.entries()].map(([projectId, { project, approvals }]) => (
         <Tbody key={projectId}>
-          <Tr
-            style={{ backgroundColor: 'rgba(196, 181, 253, 0.05)', cursor: 'pointer' }}
-            onClick={() => onToggleProject(projectId)}
-          >
+          <Tr className={groupedTableStyles.groupHeader} onClick={() => onToggleProject(projectId)}>
             <Td colSpan={6}>
               <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
                 <FlexItem>{collapsedProjects.has(projectId) ? <RhUiCaretRightIcon /> : <RhUiCaretDownIcon />}</FlexItem>

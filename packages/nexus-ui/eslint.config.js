@@ -13,6 +13,7 @@ import vitest from '@vitest/eslint-plugin'
 import pluginQuery from '@tanstack/eslint-plugin-query'
 import tseslint from 'typescript-eslint'
 import eslintConfigPrettier from 'eslint-config-prettier'
+import nexusPlugin from './eslint-plugin-nexus/index.js'
 import { fileURLToPath } from 'node:url'
 import { dirname } from 'node:path'
 
@@ -20,7 +21,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 export default tseslint.config(
-  { ignores: ['dist', 'coverage/**', 'playwright.config.ts', 'test-results/**', 'playwright-report/**', 'scripts/**'] },
+  { ignores: ['dist', 'coverage/**', 'playwright.config.ts', 'test-results/**', 'playwright-report/**', 'scripts/**', 'eslint-plugin-nexus/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
   ...pluginQuery.configs['flat/recommended'],
@@ -36,6 +37,32 @@ export default tseslint.config(
             'CallExpression[callee.type="MemberExpression"][callee.object.name="Math"][callee.property.name="random"]',
           message:
             'Do not use Math.random() — it is not cryptographically secure. Use crypto.getRandomValues(), crypto.randomUUID(), node:crypto.randomInt/randomBytes, or the uuid package. If the value is strictly non-security (e.g. visual jitter), add an eslint-disable-next-line with a short justification.',
+        },
+        {
+          selector:
+            'JSXOpeningElement[name.name="Switch"] JSXAttribute[name.name="isReversed"]',
+          message:
+            'Do not use isReversed on PatternFly <Switch>. The default layout (toggle left, label right) is the UX standard.',
+        },
+        {
+          selector:
+            'CallExpression[callee.name="showSuccess"][arguments.0.type="Literal"], CallExpression[callee.name="showSuccess"][arguments.0.type="TemplateLiteral"], CallExpression[callee.name="showError"][arguments.0.type="Literal"], CallExpression[callee.name="showError"][arguments.0.type="TemplateLiteral"], CallExpression[callee.name="showWarning"][arguments.0.type="Literal"], CallExpression[callee.name="showWarning"][arguments.0.type="TemplateLiteral"], CallExpression[callee.name="showInfo"][arguments.0.type="Literal"], CallExpression[callee.name="showInfo"][arguments.0.type="TemplateLiteral"]',
+          message:
+            'Pass an object { title, description? } to showSuccess/showError/showWarning/showInfo() instead of a positional string argument.',
+        },
+        {
+          selector:
+            'CallExpression[callee.name="useQueryState"][arguments.1.type="Literal"], CallExpression[callee.name="useQueryState"][arguments.1.type="TemplateLiteral"]',
+          message:
+            'Pass an object { title, onRetry } to useQueryState instead of a plain string. The object form enables retry buttons in error states.',
+        },
+      ],
+      'no-restricted-globals': [
+        'error',
+        {
+          name: 'fetch',
+          message:
+            'Use a typed API client (workflowClient, credentialsClient, etc.) instead of raw fetch(). If this is a pre-auth call, add an eslint-disable-next-line with a short justification.',
         },
       ],
     },
@@ -59,6 +86,7 @@ export default tseslint.config(
       'no-only-tests': noOnlyTests,
       sonarjs,
       unicorn,
+      nexus: nexusPlugin,
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
@@ -131,6 +159,12 @@ export default tseslint.config(
       'import-x/no-cycle': ['error', { maxDepth: 2 }],
       'import-x/no-self-import': 'error',
       '@typescript-eslint/consistent-type-definitions': ['error', 'type'],
+      // -- nexus custom rules (PR checklist + UX design system enforcement) --
+      // no-switch-is-reversed, require-alert-object-param, and require-query-state-object
+      // are enforced via no-restricted-syntax AST selectors above (no custom plugin needed).
+      'nexus/prefer-pf-text-components': 'error',
+      'nexus/use-design-tokens-not-hardcoded': 'error',
+      'nexus/prefer-confirmation-dialog': 'warn',
     },
   },
   {
@@ -158,6 +192,9 @@ export default tseslint.config(
       'max-nested-callbacks': 'off',
       complexity: 'off',
       'sonarjs/cognitive-complexity': 'off',
+      'nexus/prefer-pf-text-components': 'off',
+      'nexus/use-design-tokens-not-hardcoded': 'off',
+      'nexus/prefer-confirmation-dialog': 'off',
     },
   },
   {
@@ -167,6 +204,8 @@ export default tseslint.config(
     rules: {
       ...testingLibrary.configs['flat/react'].rules,
       'testing-library/no-debugging-utils': 'error',
+      // Prefer userEvent over fireEvent for realistic user interaction simulation
+      'testing-library/prefer-user-event': 'warn',
       // Many existing tests use container queries / DOM traversal; warn until migrated
       'testing-library/no-container': 'warn',
       'testing-library/no-node-access': 'warn',

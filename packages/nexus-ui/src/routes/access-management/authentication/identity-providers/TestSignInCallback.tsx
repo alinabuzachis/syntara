@@ -1,3 +1,4 @@
+import { Content, ContentVariants } from '@patternfly/react-core'
 import { useEffect } from 'react'
 
 import { NONCE_STORAGE_KEY, RESULT_STORAGE_KEY } from './useTestSignIn'
@@ -35,5 +36,5 @@ export function TestSignInCallback() {
     globalThis.close()
   }, [])
 
-  return <p>Sign-in complete. This window should close automatically.</p>
+  return <Content component={ContentVariants.p}>Sign-in complete. This window should close automatically.</Content>
 }

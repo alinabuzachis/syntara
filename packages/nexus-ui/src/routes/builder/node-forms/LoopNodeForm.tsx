@@ -80,9 +80,9 @@ function LoopFormFields({
       <StackItem>
         <FormGroup
           label={
-            <span>
+            <>
               Type <LoopTypeHelp />
-            </span>
+            </>
           }
           fieldId="loop-type"
         >
@@ -161,9 +161,9 @@ function LoopFormFields({
           <StackItem>
             <FormGroup
               label={
-                <span>
+                <>
                   Max iterations <MaxIterationsHelp />
-                </span>
+                </>
               }
               fieldId="loop-maxIterations"
             >
@@ -192,9 +192,9 @@ function LoopFormFields({
           <StackItem>
             <FormGroup
               label={
-                <span>
+                <>
                   Behaviour when max iteration is reached <BehaviorHelp />
-                </span>
+                </>
               }
               fieldId="loop-maxIterations-behavior"
             >
@@ -219,9 +219,9 @@ function LoopFormFields({
           <StackItem>
             <FormGroup
               label={
-                <span>
+                <>
                   Conditional expression <ConditionalExpressionHelp />
-                </span>
+                </>
               }
               isRequired
               fieldId="loop-condition-while"

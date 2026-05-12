@@ -1,4 +1,4 @@
-import { Button, Flex, FlexItem, Progress, ProgressSize } from '@patternfly/react-core'
+import { Button, Content, ContentVariants, Flex, FlexItem, Progress, ProgressSize } from '@patternfly/react-core'
 import { RhUiDocumentFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 
 export type FileUploadItemProps = {
@@ -79,15 +79,10 @@ export function FileUploadItem({
           >
             {displayName}
           </div>
-          <div
-            style={{
-              fontSize: 'var(--pf-t--global--font--size--body--sm)',
-              color: 'var(--pf-t--global--text--color--subtle)',
-            }}
-          >
+          <Content component={ContentVariants.small} style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>
             {fileExtension} | {formatFileSize(file.size)}
             {isError && errorMessage && ` - ${errorMessage}`}
-          </div>
+          </Content>
         </FlexItem>
         <FlexItem>
           <Button variant="plain" aria-label={removeButtonAriaLabel} onClick={onRemove} size="sm">

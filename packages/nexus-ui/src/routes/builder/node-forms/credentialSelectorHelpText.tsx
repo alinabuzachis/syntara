@@ -7,7 +7,7 @@ export function credentialHelpText(introText: string) {
   return (
     <>
       {introText}
-      <List isPlain style={{ marginTop: '0.5rem' }}>
+      <List isPlain style={{ marginTop: 'var(--pf-t--global--spacer--sm)' }}>
         <ListItem>Credentials are encrypted and never exposed in logs or workflow definitions</ListItem>
         <ListItem>You can create a new credential directly from this dropdown</ListItem>
         <ListItem>Manage credentials in Configuration &rarr; Credentials</ListItem>

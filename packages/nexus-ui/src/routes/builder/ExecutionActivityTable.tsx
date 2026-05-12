@@ -1,3 +1,4 @@
+import { Content, ContentVariants } from '@patternfly/react-core'
 import { Table, Thead, Th, Tbody, Td, Tr } from '@patternfly/react-table'
 import type React from 'react'
 import { Fragment } from 'react'
@@ -25,12 +26,20 @@ type ExecutionActivityTableProps = {
   selectedNodeId?: string | null
 }
 
-const DASH = <span style={{ color: 'var(--pf-t--global--color--text--secondary)' }}>—</span>
+const DASH = (
+  <Content
+    component={ContentVariants.small}
+    style={{ color: 'var(--pf-t--global--color--text--secondary)', margin: 0 }}
+  >
+    —
+  </Content>
+)
 
 const ERROR_STYLE: React.CSSProperties = {
   color: 'var(--pf-t--global--color--status--danger--default)',
   fontSize: 'var(--pf-t--global--font--size--sm)',
   padding: 'var(--pf-t--global--spacer--xs) 0',
+  margin: 0,
 }
 
 function computeRowElapsedMs(state: ActivityState, now: number): number | undefined {
@@ -92,7 +101,9 @@ function ActivityRow({
       {state?.errorDetails && state.errorDetails !== executionError && (
         <Tr>
           <Td colSpan={5} style={{ paddingTop: 0 }}>
-            <div style={ERROR_STYLE}>{state.errorDetails}</div>
+            <Content component={ContentVariants.small} style={ERROR_STYLE}>
+              {state.errorDetails}
+            </Content>
           </Td>
         </Tr>
       )}

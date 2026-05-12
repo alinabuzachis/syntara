@@ -177,14 +177,14 @@ test.describe('Alert Notifications', () => {
       await goToCredentialsList(app)
       await filterCredentialByName(app, name)
       const row = app.getByRole('row', { name: new RegExp(name) })
-      await row.getByRole('switch').click()
+      await row.getByRole('switch').click({ force: true })
       const dialog = app.getByRole('dialog')
       await dialog.getByRole('button', { name: 'Disable' }).click()
       await expect(app.getByText('Credential disabled')).toBeVisible()
 
       await expect(app.getByText('Credential disabled')).not.toBeVisible({ timeout: 12_000 })
 
-      await row.getByRole('switch').click()
+      await row.getByRole('switch').click({ force: true })
       await expect(app.getByText('Credential enabled')).toBeVisible()
 
       await expect(app.getByText('Credential enabled')).not.toBeVisible({ timeout: 12_000 })

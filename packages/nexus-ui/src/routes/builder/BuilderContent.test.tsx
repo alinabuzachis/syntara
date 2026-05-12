@@ -347,7 +347,7 @@ describe('BuilderContent', () => {
       const addNodeButton = screen.getByRole('button', { name: /add step/i })
       fireEvent.click(addNodeButton)
       await waitFor(() => {
-        expect(screen.getByText('Add step')).toBeInTheDocument()
+        expect(screen.getByRole('region', { name: 'Add step' })).toBeInTheDocument()
       })
     })
 
@@ -379,7 +379,7 @@ describe('BuilderContent', () => {
       // Open panel
       fireEvent.click(screen.getByRole('button', { name: /add step/i }))
       await waitFor(() => {
-        expect(screen.getByText('Add step')).toBeInTheDocument()
+        expect(screen.getByRole('region', { name: 'Add step' })).toBeInTheDocument()
       })
 
       // Find close button by aria-label "Close" in the panel
@@ -389,7 +389,7 @@ describe('BuilderContent', () => {
 
       // Panel should close (tests CLOSE_ADD_NODE_PANEL reducer)
       await waitFor(() => {
-        expect(screen.queryByText('Add step')).not.toBeInTheDocument()
+        expect(screen.queryByRole('region', { name: 'Add step' })).not.toBeInTheDocument()
       })
     })
 
@@ -402,7 +402,7 @@ describe('BuilderContent', () => {
       // Open add step panel
       fireEvent.click(screen.getByRole('button', { name: /add step/i }))
       await waitFor(() => {
-        expect(screen.getByText('Add step')).toBeInTheDocument()
+        expect(screen.getByRole('region', { name: 'Add step' })).toBeInTheDocument()
       })
 
       // Find and click a step type option (tests onSelectNode callback - line 1125)
@@ -1512,14 +1512,14 @@ describe('BuilderContent', () => {
       // First open add step panel
       fireEvent.click(screen.getByRole('button', { name: /add step/i }))
       await waitFor(() => {
-        expect(screen.getByText('Add step')).toBeInTheDocument()
+        expect(screen.getByRole('region', { name: 'Add step' })).toBeInTheDocument()
       })
 
       // Now toggle details - should close add step panel
       fireEvent.click(screen.getByLabelText('Workflow details'))
 
       await waitFor(() => {
-        expect(screen.queryByText('Add step')).not.toBeInTheDocument()
+        expect(screen.queryByRole('region', { name: 'Add step' })).not.toBeInTheDocument()
       })
     })
 
@@ -1529,14 +1529,14 @@ describe('BuilderContent', () => {
       // First open add step panel
       fireEvent.click(screen.getByRole('button', { name: /add step/i }))
       await waitFor(() => {
-        expect(screen.getByText('Add step')).toBeInTheDocument()
+        expect(screen.getByRole('region', { name: 'Add step' })).toBeInTheDocument()
       })
 
       // Now toggle history - should close add step panel
       fireEvent.click(screen.getByLabelText('Run history'))
 
       await waitFor(() => {
-        expect(screen.queryByText('Add step')).not.toBeInTheDocument()
+        expect(screen.queryByRole('region', { name: 'Add step' })).not.toBeInTheDocument()
       })
     })
 
@@ -1751,7 +1751,7 @@ describe('BuilderContent', () => {
       fireEvent.click(screen.getByRole('button', { name: /add step/i }))
 
       await waitFor(() => {
-        expect(screen.getByText('Add step')).toBeInTheDocument()
+        expect(screen.getByRole('region', { name: 'Add step' })).toBeInTheDocument()
       })
     })
 
@@ -1768,7 +1768,7 @@ describe('BuilderContent', () => {
       fireEvent.click(screen.getByRole('button', { name: /add step/i }))
 
       await waitFor(() => {
-        expect(screen.getByText('Add step')).toBeInTheDocument()
+        expect(screen.getByRole('region', { name: 'Add step' })).toBeInTheDocument()
         expect(screen.queryByText('Run History')).not.toBeInTheDocument()
       })
     })
@@ -2262,7 +2262,7 @@ describe('BuilderContent', () => {
       fireEvent.click(addNodeButton)
 
       await waitFor(() => {
-        expect(screen.getByText('Add step')).toBeInTheDocument()
+        expect(screen.getByRole('region', { name: 'Add step' })).toBeInTheDocument()
       })
     })
 

@@ -30,6 +30,7 @@ function buildReadOnlyTreeData(data: Record<string, unknown>, parentPath: string
     return {
       id: JSON.stringify(currentPath),
       name: (
+        // eslint-disable-next-line nexus/prefer-pf-text-components -- span provides aria-label for tree node accessibility; PF6 has no inline text component
         <span aria-label={`${key}: ${formatLeafValue(value)}, type ${typeLabel}`}>
           <Label isCompact color="grey">
             {typeLabel}

@@ -35,6 +35,7 @@ export function useAuthProviders(): UseAuthProvidersResult {
 
     const loadProviders = async () => {
       try {
+        // eslint-disable-next-line no-restricted-globals -- pre-auth: fetching providers before token middleware is available
         const response = await fetch('/api/v1/auth/providers', { signal: controller.signal })
         if (response.ok) {
           const data: unknown = await response.json()

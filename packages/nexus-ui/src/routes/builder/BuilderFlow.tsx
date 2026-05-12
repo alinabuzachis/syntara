@@ -589,8 +589,8 @@ export function BuilderFlow(props: BuilderFlowProps) {
         <div
           style={{
             position: 'absolute',
-            top: '16px',
-            left: '16px',
+            top: 'var(--pf-t--global--spacer--md)',
+            left: 'var(--pf-t--global--spacer--md)',
             zIndex: 1000,
           }}
         >

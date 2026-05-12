@@ -322,9 +322,7 @@ function SinglePanelLayout({
         {execution.status === 'failed' && execution.error_details && (
           <StackItem style={{ flexShrink: 0, paddingBottom: 'var(--pf-t--global--spacer--sm)' }}>
             <Alert variant="danger" isInline isPlain title="Execution failed">
-              <span style={{ color: 'var(--pf-t--global--color--status--danger--default)' }}>
-                {execution.error_details}
-              </span>
+              {execution.error_details}
             </Alert>
           </StackItem>
         )}

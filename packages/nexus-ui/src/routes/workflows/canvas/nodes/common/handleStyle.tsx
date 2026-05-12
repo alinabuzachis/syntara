@@ -15,7 +15,6 @@ export const targetHandleStyle: CSSProperties = {
   borderRadius: 0,
   background: handleFill,
   border: 'none',
-  outline: 'none',
   cursor: 'crosshair',
 }
 
@@ -26,7 +25,6 @@ export const sourceHandleStyle: CSSProperties = {
   borderRadius: '50%',
   background: handleFill,
   border: 'none',
-  outline: 'none',
   boxSizing: 'border-box',
   cursor: 'crosshair',
 }

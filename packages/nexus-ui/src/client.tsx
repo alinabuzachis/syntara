@@ -77,6 +77,7 @@ const authMiddleware: Middleware = {
       headers: new Headers(request.headers),
     })
     retryRequest.headers.set('Authorization', `Bearer ${accessToken}`)
+    // eslint-disable-next-line no-restricted-globals -- auth middleware retry with refreshed token
     return fetch(retryRequest)
   },
 }

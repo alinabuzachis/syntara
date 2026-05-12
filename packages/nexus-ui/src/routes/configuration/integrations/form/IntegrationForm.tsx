@@ -2,6 +2,8 @@ import type { ToolProviderCreate } from '@ansible/nexus-contracts'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
   Button,
+  Content,
+  ContentVariants,
   Flex,
   FlexItem,
   Form,
@@ -114,7 +116,9 @@ export function IntegrationForm() {
                         text={
                           <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
                             <RhUiServerFillIcon />
-                            <span>MCP Server</span>
+                            <Content component={ContentVariants.p} style={{ margin: 0 }}>
+                              MCP Server
+                            </Content>
                           </Flex>
                         }
                         buttonId="mcp"

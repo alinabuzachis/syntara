@@ -28,7 +28,7 @@ vi.mock('wouter/use-browser-location', () => ({
   },
 }))
 
-vi.mock('./UserIdentitiesPanel.css', () => ({}))
+vi.mock('./UserIdentitiesPanel.module.css', () => ({ default: {} }))
 
 // ---------------------------------------------------------------------------
 // Test data

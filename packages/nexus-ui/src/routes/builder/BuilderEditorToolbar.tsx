@@ -128,7 +128,7 @@ export function BuilderEditorToolbar({
         }
         iconPosition="start"
       >
-        Add Step
+        Add step
       </Button>
 
       {!isNew && workflow?.id && (

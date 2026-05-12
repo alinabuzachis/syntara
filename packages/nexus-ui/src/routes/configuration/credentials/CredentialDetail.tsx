@@ -245,7 +245,6 @@ export default function CredentialDetail() {
           label="Enabled"
           isChecked={credential.enabled}
           onChange={handleToggleEnabled}
-          isReversed
         />
         <Button variant="secondary" onClick={() => setEditModalOpen(true)}>
           Edit credential

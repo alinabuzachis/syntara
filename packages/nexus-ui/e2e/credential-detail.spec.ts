@@ -76,7 +76,7 @@ test.describe('Credential Detail Page & Workflows Tab', () => {
       await navigateToCredentialDetail(app, name)
 
       // Act - Click the toggle to disable
-      await app.getByRole('switch', { name: /enabled/i }).click()
+      await app.getByRole('switch', { name: /enabled/i }).click({ force: true })
 
       // Assert - Confirmation dialog appears
       const dialog = app.getByRole('dialog')

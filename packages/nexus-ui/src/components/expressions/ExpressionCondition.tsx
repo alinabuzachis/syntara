@@ -111,7 +111,7 @@ export function ExpressionCondition(props: ExpressionConditionProps) {
   }
 
   return (
-    <Card style={{ borderRadius: '16px' }}>
+    <Card style={{ borderRadius: 'var(--pf-t--global--border-radius--pill)' }}>
       <CardBody style={{ position: 'relative' }}>
         {/* Remove button - positioned at top right */}
         {onRemove && (

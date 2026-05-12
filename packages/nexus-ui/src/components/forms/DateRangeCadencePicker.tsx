@@ -1,4 +1,6 @@
 import {
+  Content,
+  ContentVariants,
   Flex,
   FlexItem,
   FormGroup,
@@ -391,7 +393,12 @@ function TriggerTimeField({
             />
           </FlexItem>
           <FlexItem>
-            <span style={{ color: 'var(--pf-t--global--color--text--secondary)' }}>:</span>
+            <Content
+              component={ContentVariants.small}
+              style={{ color: 'var(--pf-t--global--color--text--secondary)', margin: 0 }}
+            >
+              :
+            </Content>
           </FlexItem>
           <FlexItem>
             <TextInput

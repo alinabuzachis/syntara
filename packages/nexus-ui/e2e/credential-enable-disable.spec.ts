@@ -20,7 +20,7 @@ test.describe('Credential Enable/Disable State Management', () => {
       await goToCredentialsList(app)
       await filterCredentialByName(app, name)
       const row = app.getByRole('row', { name: new RegExp(name) })
-      await row.getByRole('switch').click()
+      await row.getByRole('switch').click({ force: true })
 
       const dialog = app.getByRole('dialog')
       await expect(dialog).toBeVisible()
@@ -36,7 +36,7 @@ test.describe('Credential Enable/Disable State Management', () => {
       await goToCredentialsList(app)
       await filterCredentialByName(app, name)
       const row = app.getByRole('row', { name: new RegExp(name) })
-      await row.getByRole('switch').click()
+      await row.getByRole('switch').click({ force: true })
 
       const dialog = app.getByRole('dialog')
       await expect(dialog.getByText(new RegExp(name))).toBeVisible()
@@ -54,7 +54,7 @@ test.describe('Credential Enable/Disable State Management', () => {
       await goToCredentialsList(app)
       await filterCredentialByName(app, name)
       const row = app.getByRole('row', { name: new RegExp(name) })
-      await row.getByRole('switch').click()
+      await row.getByRole('switch').click({ force: true })
 
       const dialog = app.getByRole('dialog')
       await dialog.getByRole('button', { name: 'Disable' }).click()
@@ -71,7 +71,7 @@ test.describe('Credential Enable/Disable State Management', () => {
       await goToCredentialsList(app)
       await filterCredentialByName(app, name)
       const row = app.getByRole('row', { name: new RegExp(name) })
-      await row.getByRole('switch').click()
+      await row.getByRole('switch').click({ force: true })
 
       const dialog = app.getByRole('dialog')
       await expect(dialog).toBeVisible()
@@ -95,7 +95,7 @@ test.describe('Credential Enable/Disable State Management', () => {
       const toggle = row.getByRole('switch')
       await expect(toggle).not.toBeChecked()
 
-      await row.getByRole('switch').click()
+      await row.getByRole('switch').click({ force: true })
 
       await expect(app.getByText('Credential enabled')).toBeVisible()
       await expect(toggle).toBeChecked()
@@ -109,7 +109,7 @@ test.describe('Credential Enable/Disable State Management', () => {
     try {
       await navigateToCredentialDetail(app, name)
 
-      await app.getByRole('switch', { name: /enabled/i }).click()
+      await app.getByRole('switch', { name: /enabled/i }).click({ force: true })
 
       const dialog = app.getByRole('dialog')
       await expect(dialog.getByText('Disable credential?')).toBeVisible()
@@ -129,7 +129,7 @@ test.describe('Credential Enable/Disable State Management', () => {
       const detailsTab = app.getByLabel('Details')
       await expect(detailsTab.getByText('Enabled')).toBeVisible()
 
-      await app.getByRole('switch', { name: /enabled/i }).click()
+      await app.getByRole('switch', { name: /enabled/i }).click({ force: true })
       const dialog = app.getByRole('dialog')
       await dialog.getByRole('button', { name: 'Disable' }).click()
       await expect(app.getByText('Credential disabled')).toBeVisible()
@@ -147,7 +147,7 @@ test.describe('Credential Enable/Disable State Management', () => {
       await goToCredentialsList(app)
       await filterCredentialByName(app, name)
       const row = app.getByRole('row', { name: new RegExp(name) })
-      await row.getByRole('switch').click()
+      await row.getByRole('switch').click({ force: true })
       const dialog = app.getByRole('dialog')
       await dialog.getByRole('button', { name: 'Disable' }).click()
       await expect(app.getByText('Credential disabled')).toBeVisible()

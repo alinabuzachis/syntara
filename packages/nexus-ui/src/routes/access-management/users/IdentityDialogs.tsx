@@ -1,6 +1,7 @@
 import {
   Button,
   Content,
+  ContentVariants,
   DescriptionList,
   DescriptionListDescription,
   DescriptionListGroup,
@@ -139,7 +140,11 @@ export function ConnectAction({
   onConvert: (provider: ConvertProviderInfo) => void
 }>) {
   if (!isSelf) {
-    return <span style={{ color: 'var(--pf-t--global--color--200)' }}>—</span>
+    return (
+      <Content component={ContentVariants.p} style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>
+        —
+      </Content>
+    )
   }
 
   if (isLocalUser) {

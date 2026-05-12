@@ -1,5 +1,6 @@
 import {
   Button,
+  Content,
   DescriptionList,
   DescriptionListDescription,
   DescriptionListGroup,
@@ -187,6 +188,39 @@ function useIdentityPagination() {
   return { identitiesFilter, page, setPage, perPage, handlePerPageChange, handleFilterChange }
 }
 
+function renderIdentityDialogs(props: {
+  isAttachOpen: boolean
+  onCloseAttach: () => void
+  userId: string
+  query: { refetch: () => Promise<unknown> }
+  identityToDetach: UserIdentity | null
+  isDetaching: boolean
+  confirmDetach: () => void
+  onCancelDetach: () => void
+  convertProvider: ConvertProviderInfo | null
+  onCloseConvert: () => void
+}) {
+  return (
+    <IdentityDialogs
+      isAttachOpen={props.isAttachOpen}
+      onCloseAttach={props.onCloseAttach}
+      currentUserId={props.userId}
+      onAttached={() => detachPromise(props.query.refetch())}
+      identityToDetach={props.identityToDetach}
+      isDetaching={props.isDetaching}
+      onConfirmDetach={props.confirmDetach}
+      onCancelDetach={props.onCancelDetach}
+      convertProvider={props.convertProvider}
+      onCloseConvert={props.onCloseConvert}
+      onConfirmConvert={() => {
+        if (props.convertProvider) {
+          globalThis.location.href = props.convertProvider.authorizeUrl
+        }
+      }}
+    />
+  )
+}
+
 type UserIdentitiesPanelProps = {
   userId: string
   currentUserId?: string
@@ -270,25 +304,18 @@ export function UserIdentitiesPanel({
 
   const hasActiveFilters = identitiesFilter.filters.length > 0
 
-  const dialogs = (
-    <IdentityDialogs
-      isAttachOpen={isAttachOpen}
-      onCloseAttach={() => setIsAttachOpen(false)}
-      currentUserId={userId}
-      onAttached={() => detachPromise(query.refetch())}
-      identityToDetach={identityToDetach}
-      isDetaching={isDetaching}
-      onConfirmDetach={confirmDetach}
-      onCancelDetach={() => setIdentityToDetach(null)}
-      convertProvider={convertProvider}
-      onCloseConvert={() => setConvertProvider(null)}
-      onConfirmConvert={() => {
-        if (convertProvider) {
-          globalThis.location.href = convertProvider.authorizeUrl
-        }
-      }}
-    />
-  )
+  const dialogs = renderIdentityDialogs({
+    isAttachOpen,
+    onCloseAttach: () => setIsAttachOpen(false),
+    userId,
+    query,
+    identityToDetach,
+    isDetaching,
+    confirmDetach,
+    onCancelDetach: () => setIdentityToDetach(null),
+    convertProvider,
+    onCloseConvert: () => setConvertProvider(null),
+  })
 
   const showTable = identities.length > 0 || (!isBuiltinUser && unlinkedProviders.length > 0) || hasActiveFilters
 
@@ -397,7 +424,12 @@ export function UserIdentitiesPanel({
                       <ProviderLink name={provider.name} providerId={provider.id} />
                     </Td>
                     <Td dataLabel="Linked" colSpan={2}>
-                      <span style={{ color: 'var(--pf-t--global--color--200)' }}>Not connected</span>
+                      <Content
+                        component="small"
+                        style={{ color: 'var(--pf-t--global--text--color--subtle)', margin: 0 }}
+                      >
+                        Not connected
+                      </Content>
                     </Td>
                     <Td isActionCell>
                       <ConnectAction

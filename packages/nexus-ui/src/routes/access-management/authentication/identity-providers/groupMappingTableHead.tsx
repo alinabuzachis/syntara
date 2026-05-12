@@ -12,7 +12,7 @@ export function GroupMappingTableHead({
     <Thead>
       <Tr>
         <Th width={45}>
-          <span style={{ verticalAlign: 'middle' }}>IdP group value</span>
+          IdP group value
           {showWildcardHelp && (
             <Popover
               headerContent="Wildcard patterns"

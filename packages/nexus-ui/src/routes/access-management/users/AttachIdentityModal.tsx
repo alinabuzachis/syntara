@@ -17,7 +17,6 @@ import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import { useCallback, useMemo, useState } from 'react'
 import { navigate } from 'wouter/use-browser-location'
 
-import './UserIdentitiesPanel.css'
 import { AppRoute } from '../../../app/AppRoute'
 import { flexCenteredBothAxes } from '../../../app/flexCenteredBothAxes'
 import { usersClient } from '../../../client'
@@ -37,6 +36,7 @@ import { getUserDetailPath } from '../accessManagementPaths'
 
 import type { UserIdentity, UserSummary } from './identityUtils'
 import { applyLocalFilters, useLocalFilterState } from './identityUtils'
+import styles from './UserIdentitiesPanel.module.css'
 
 const userFilterDefs: FilterFieldDefinition[] = [
   {
@@ -216,7 +216,6 @@ function IdentitiesStep({
       )}
       {identities.length > 0 && (
         <div
-          className="identities-modal-table"
           style={{
             flex: '0 1 auto',
             maxHeight: '100%',
@@ -250,8 +249,7 @@ function IdentitiesStep({
                   <Tr
                     key={identity.id}
                     isClickable
-                    className={isSelected ? 'pf-m-selected' : undefined}
-                    aria-selected={isSelected}
+                    isRowSelected={isSelected}
                     onRowClick={() => onSelect(isSelected ? null : identity.id)}
                   >
                     <Td dataLabel="Provider">
@@ -421,7 +419,7 @@ export function AttachIdentityModal({
         title="Attach Identity"
         description={!selectedUser ? 'Step 1: Select a user' : 'Step 2: Select an identity'}
       />
-      <ModalBody className="attach-identity-modal-body">
+      <ModalBody className={styles.modalBody}>
         {!selectedUser ? (
           <UsersStep
             users={sortedUsers}
@@ -446,7 +444,7 @@ export function AttachIdentityModal({
         )}
       </ModalBody>
       {selectedUser && selectedIdentityId && (
-        <div className="attach-identity-modal-warning">
+        <div className={styles.modalWarning}>
           <Alert variant="warning" isInline title="This will move the identity to the current user.">
             <strong>{selectedUser.full_name ?? selectedUser.username}</strong> will be logged out of any pre-existing
             sessions.

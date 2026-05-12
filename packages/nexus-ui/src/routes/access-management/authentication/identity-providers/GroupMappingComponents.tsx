@@ -107,14 +107,7 @@ export function AdvancedSection({
     <ExpandableSection toggleText="Advanced">
       <Flex direction={{ default: 'column' }} gap={{ default: 'gapMd' }}>
         <FlexItem>
-          <FormGroup
-            label={
-              <span style={{ fontWeight: 'var(--pf-t--global--font--weight--body--bold)' }}>
-                Group extraction expression
-              </span>
-            }
-            fieldId="jmespath-expression-tab"
-          >
+          <FormGroup label="Group extraction expression" fieldId="jmespath-expression-tab">
             <TextInput
               id="jmespath-expression-tab"
               placeholder="groups[*]"
@@ -142,12 +135,7 @@ export function AdvancedSection({
         </FlexItem>
         {rawClaims && (
           <FlexItem>
-            <FormGroup
-              label={
-                <span style={{ fontWeight: 'var(--pf-t--global--font--weight--body--bold)' }}>Raw token claims</span>
-              }
-              fieldId="raw-claims"
-            >
+            <FormGroup label="Raw token claims" fieldId="raw-claims">
               <CodeBlock>
                 <CodeBlockCode id="raw-claims">{rawClaims}</CodeBlockCode>
               </CodeBlock>
@@ -194,7 +182,7 @@ export function MappingTable({
 
   return (
     <>
-      <Table aria-label="Group mappings" variant="compact" style={{ width: '100%' }}>
+      <Table aria-label="Group mappings" variant="compact">
         <GroupMappingTableHead showActionsColumn={showActionsColumn} showWildcardHelp={showWildcardHelp} />
         <Tbody>
           {entries.map((entry, index) => (

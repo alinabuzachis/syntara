@@ -27,9 +27,8 @@ describe('handleStyle', () => {
       expect(targetHandleStyle.background).toBe(DEFAULT_NEUTRAL_EDGE_STROKE)
     })
 
-    it('has no border or outline chrome', () => {
+    it('has no border chrome', () => {
       expect(targetHandleStyle.border).toBe('none')
-      expect(targetHandleStyle.outline).toBe('none')
     })
 
     it('has crosshair cursor for connection interaction', () => {
@@ -56,9 +55,8 @@ describe('handleStyle', () => {
       expect(sourceHandleStyle.background).toBe(DEFAULT_NEUTRAL_EDGE_STROKE)
     })
 
-    it('has no border or outline chrome', () => {
+    it('has no border chrome', () => {
       expect(sourceHandleStyle.border).toBe('none')
-      expect(sourceHandleStyle.outline).toBe('none')
     })
 
     it('uses border-box for consistent sizing', () => {

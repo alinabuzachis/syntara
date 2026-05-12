@@ -90,6 +90,7 @@ async function revokeServerSession(accessToken: string | null): Promise<LogoutRe
     const logoutUrl = new URL(AUTH_LOGOUT_URL, window.location.origin)
     logoutUrl.searchParams.set('post_logout_redirect_uri', `${window.location.origin}/`)
 
+    // eslint-disable-next-line no-restricted-globals -- auth: logout before token middleware teardown
     const response = await fetch(logoutUrl.toString(), {
       method: 'POST',
       headers: {
@@ -139,6 +140,7 @@ function isTokenExpired(expiresAt: number | null): boolean {
 }
 
 async function postAuth(url: string, body?: object): Promise<LoginResponse> {
+  // eslint-disable-next-line no-restricted-globals -- auth: login/token exchange before client is initialized
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

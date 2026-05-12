@@ -1,6 +1,8 @@
 import {
   Alert,
   Button,
+  Content,
+  ContentVariants,
   ExpandableSection,
   Form,
   FormGroup,
@@ -181,8 +183,12 @@ export function GroupMappingStep({ control, setValue, providerId }: Readonly<Gro
         </FormHelperText>
         {fields.length > 0 && (
           <div style={headerRowStyle}>
-            <div style={columnHeaderStyle}>IdP group value</div>
-            <div style={columnHeaderStyle}>Nexus group</div>
+            <Content component={ContentVariants.small} style={{ ...columnHeaderStyle, margin: 0 }}>
+              IdP group value
+            </Content>
+            <Content component={ContentVariants.small} style={{ ...columnHeaderStyle, margin: 0 }}>
+              Nexus group
+            </Content>
             <div style={actionColumnStyle} />
           </div>
         )}

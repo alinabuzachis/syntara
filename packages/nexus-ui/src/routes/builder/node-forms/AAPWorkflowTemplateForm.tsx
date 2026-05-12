@@ -85,7 +85,6 @@ function AAPFormFields({
             label="Use expressions"
             isChecked={expressionMode}
             onChange={(_e, checked) => setExpressionMode(checked)}
-            isReversed
           />
         </div>
       </StackItem>

@@ -423,7 +423,6 @@ export function IdentityProviderDetail() {
           label="Enabled"
           isChecked={providerData.enabled}
           onChange={handleToggleEnabled}
-          isReversed
         />
         <Button variant="primary" icon={<RhUiEditIcon />} onClick={navigateEdit}>
           Edit provider

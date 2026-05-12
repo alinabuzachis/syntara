@@ -4,6 +4,7 @@ import { ActionsColumn, Tbody, Td, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 
 import { AppRoute } from '../../../app/AppRoute'
+import groupedTableStyles from '../../../components/groupedTable.module.css'
 import { LinkCell } from '../../../components/table/LinkCell'
 import type { ProjectRead } from '../../access/types'
 
@@ -57,7 +58,6 @@ function CredentialRow({ credential, credType, getRowActions, onToggleEnabled }:
           label="Enabled"
           isChecked={credential.enabled}
           onChange={() => onToggleEnabled(credential)}
-          isReversed
         />
       </Td>
       <Td isActionCell onClick={(e) => e.stopPropagation()}>
@@ -93,10 +93,7 @@ export function GroupedCredentialsTableBody({
     <>
       {[...groupedCredentials.entries()].map(([projectId, { project, credentials }]) => (
         <Tbody key={projectId}>
-          <Tr
-            style={{ backgroundColor: 'rgba(196, 181, 253, 0.05)', cursor: 'pointer' }}
-            onClick={() => onToggleProject(projectId)}
-          >
+          <Tr className={groupedTableStyles.groupHeader} onClick={() => onToggleProject(projectId)}>
             <Td colSpan={7}>
               <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
                 <FlexItem>{collapsedProjects.has(projectId) ? <RhUiCaretRightIcon /> : <RhUiCaretDownIcon />}</FlexItem>

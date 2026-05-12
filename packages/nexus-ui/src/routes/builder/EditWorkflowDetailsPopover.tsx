@@ -8,6 +8,8 @@
 
 import {
   Button,
+  Content,
+  ContentVariants,
   Flex,
   FormGroup,
   FormHelperText,
@@ -144,7 +146,9 @@ export function EditWorkflowDetailsPopover({ name, description, tags, onApply }:
           <Icon isInline>
             <RhUiEditIcon />
           </Icon>
-          <span>Edit workflow details</span>
+          <Content component={ContentVariants.p} style={{ margin: 0 }}>
+            Edit workflow details
+          </Content>
         </Flex>
       }
       bodyContent={bodyContent}

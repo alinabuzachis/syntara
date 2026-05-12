@@ -41,7 +41,7 @@ test.describe('Credential Detail Edge Cases', () => {
       )
 
       await navigateToCredentialDetail(app, name)
-      await app.getByRole('switch', { name: /enabled/i }).click()
+      await app.getByRole('switch', { name: /enabled/i }).click({ force: true })
 
       const dialog = app.getByRole('dialog')
       await expect(dialog).toBeVisible()

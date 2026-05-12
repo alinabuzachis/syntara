@@ -4,6 +4,7 @@ import { RhUiCaretDownIcon, RhUiCaretRightIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 
+import groupedTableStyles from '../../components/groupedTable.module.css'
 import { BadgesCell } from '../../components/table/BadgesCell'
 import { DateCell } from '../../components/table/DateCell'
 import { LinkCell } from '../../components/table/LinkCell'
@@ -75,10 +76,7 @@ export function GroupedWorkflowsTableBody({
     <>
       {[...groupedWorkflows.entries()].map(([projectId, { project, workflows }]) => (
         <Tbody key={projectId}>
-          <Tr
-            style={{ backgroundColor: 'rgba(196, 181, 253, 0.05)', cursor: 'pointer' }}
-            onClick={() => onToggleProject(projectId)}
-          >
+          <Tr className={groupedTableStyles.groupHeader} onClick={() => onToggleProject(projectId)}>
             <Td colSpan={6}>
               <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
                 <FlexItem>{collapsedProjects.has(projectId) ? <RhUiCaretRightIcon /> : <RhUiCaretDownIcon />}</FlexItem>

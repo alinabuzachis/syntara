@@ -1,8 +1,9 @@
 import type { ExecutionsAPI } from '@ansible/nexus-contracts'
-import { Flex, FlexItem, Label, Truncate } from '@patternfly/react-core'
+import { Content, ContentVariants, Flex, FlexItem, Label, Truncate } from '@patternfly/react-core'
 import { RhUiCaretDownIcon, RhUiCaretRightIcon } from '@patternfly/react-icons'
 import { Tbody, Td, Tr } from '@patternfly/react-table'
 
+import groupedTableStyles from '../../components/groupedTable.module.css'
 import { DateCell } from '../../components/table/DateCell'
 import { LinkCell } from '../../components/table/LinkCell'
 import { WorkflowName } from '../../components/WorkflowName'
@@ -38,7 +39,7 @@ function ExecutionRow({ execution }: Readonly<ExecutionRowProps>) {
       </Td>
       <Td dataLabel="Run ID">
         <LinkCell href={`/executions/${execution.id}`}>
-          <code style={{ fontSize: 'var(--pf-t--global--font-size--sm)' }}>
+          <code>
             <Truncate content={execution.id} />
           </code>
         </LinkCell>
@@ -51,7 +52,12 @@ function ExecutionRow({ execution }: Readonly<ExecutionRowProps>) {
         {execution.completed_at ? (
           <DateCell dateString={execution.completed_at} />
         ) : (
-          <span style={{ color: 'var(--pf-t--global--color--text--secondary)' }}>—</span>
+          <Content
+            component={ContentVariants.small}
+            style={{ color: 'var(--pf-t--global--color--text--secondary)', margin: 0 }}
+          >
+            —
+          </Content>
         )}
       </Td>
     </Tr>
@@ -78,10 +84,7 @@ export function GroupedExecutionsTableBody({
     <>
       {[...groupedExecutions.entries()].map(([projectId, { project, executions }]) => (
         <Tbody key={projectId}>
-          <Tr
-            style={{ backgroundColor: 'rgba(196, 181, 253, 0.05)', cursor: 'pointer' }}
-            onClick={() => onToggleProject(projectId)}
-          >
+          <Tr className={groupedTableStyles.groupHeader} onClick={() => onToggleProject(projectId)}>
             <Td colSpan={5}>
               <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
                 <FlexItem>{collapsedProjects.has(projectId) ? <RhUiCaretRightIcon /> : <RhUiCaretDownIcon />}</FlexItem>

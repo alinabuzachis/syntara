@@ -46,15 +46,9 @@ function ConditionFormFields({
       <StackItem>
         <FormGroup
           label={
-            <span
-              style={{
-                marginLeft: 'var(--pf-t--global--spacer--sm)',
-                marginRight: 'var(--pf-t--global--spacer--sm)',
-                display: 'inline-block',
-              }}
-            >
+            <>
               Conditional expression <ConditionalExpressionHelp />
-            </span>
+            </>
           }
           isRequired
           fieldId="condition-expression"
