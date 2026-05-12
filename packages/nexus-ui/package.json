@@ -16,7 +16,7 @@
     "e2e": "playwright test --reporter=line",
     "e2e:ui": "playwright test --ui",
     "vitest": "vitest run",
-    "tsc": "concurrently -n app,node,storybook,e2e \"tsc --noEmit -p tsconfig.app.json\" \"tsc --noEmit -p tsconfig.node.json\" \"tsc --noEmit -p tsconfig.storybook.json\" \"tsc --noEmit -p tsconfig.e2e.json\"",
+    "tsc": "concurrently --raw -n app,node,storybook,e2e \"tsc --noEmit -p tsconfig.app.json\" \"tsc --noEmit -p tsconfig.node.json\" \"tsc --noEmit -p tsconfig.storybook.json\" \"tsc --noEmit -p tsconfig.e2e.json\"",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "knip": "knip",
