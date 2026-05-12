@@ -24,7 +24,7 @@
  */
 import { test, expect, toAppUrl } from './fixtures'
 
-const ACCESS_URL = '/access-management'
+const ACCESS_URL = '/system-administration/access-management'
 
 type ModalTabCase = {
   /** Regex matched against the tab's accessible name to click it. */

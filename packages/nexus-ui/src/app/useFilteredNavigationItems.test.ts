@@ -29,21 +29,19 @@ describe('useFilteredNavigationItems', () => {
 
     const { result } = renderHook(() => useFilteredNavigationItems())
 
-    const configGroup = result.current.find((item) =>
-      item.children?.some((child) => child.path === AppRoute.Configuration.Settings)
-    )
-    expect(configGroup).toBeUndefined()
+    const sysAdminGroup = result.current.find((item) => item.label === 'System Administration')
+    expect(sysAdminGroup?.children?.some((child) => child.path === AppRoute.SystemAdministration.Settings)).toBe(false)
   })
 
-  it('preserves other Configuration children when Settings is filtered', () => {
+  it('preserves other System Administration children when Settings is filtered', () => {
     vi.mocked(useSettingsPermissions).mockReturnValue({ canRead: false, canWrite: false })
 
     const { result } = renderHook(() => useFilteredNavigationItems())
 
-    const configGroup = result.current.find((item) => item.label === 'Configuration')
-    expect(configGroup?.children).toBeDefined()
-    expect(configGroup!.children!.length).toBeGreaterThan(0)
-    expect(configGroup!.children!.every((child) => child.path !== AppRoute.Configuration.Settings)).toBe(true)
+    const sysAdminGroup = result.current.find((item) => item.label === 'System Administration')
+    expect(sysAdminGroup?.children).toBeDefined()
+    expect(sysAdminGroup!.children!.length).toBeGreaterThan(0)
+    expect(sysAdminGroup!.children!.every((child) => child.path !== AppRoute.SystemAdministration.Settings)).toBe(true)
   })
 
   it('does not modify items without children', () => {

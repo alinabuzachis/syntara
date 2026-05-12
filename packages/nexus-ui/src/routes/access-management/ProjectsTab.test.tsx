@@ -33,7 +33,7 @@ vi.mock('wouter/use-browser-location', () => ({
 vi.mock('wouter', async () => {
   const React = await import('react')
   return {
-    useLocation: () => ['/access-management/projects', vi.fn()],
+    useLocation: () => ['/system-administration/access-management/projects', vi.fn()],
     useSearch: () => '',
     useSearchParams: () => React.useState(new URLSearchParams()),
   }

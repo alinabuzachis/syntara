@@ -33,7 +33,7 @@ test.describe('Accessibility', () => {
   })
 
   test('audit log page has no accessibility violations', async ({ app }) => {
-    await app.goto(toAppUrl('/access-management/audit-log'))
+    await app.goto(toAppUrl('/system-administration/audit-log'))
     await expect(app.getByText('Audit Log', { exact: true }).first()).toBeVisible()
 
     await expectNoA11yViolations(app)

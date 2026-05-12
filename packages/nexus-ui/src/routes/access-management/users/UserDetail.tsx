@@ -146,7 +146,7 @@ function UserDetailsTab({
                     isCompact
                     onClick={() =>
                       navigate(
-                        AppRoute.AccessManagement.Authentication.IdentityProviderDetail.replace(
+                        AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(
                           ':providerId',
                           id
                         ).replace('/:tab?', '')

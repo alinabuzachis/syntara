@@ -30,7 +30,7 @@ vi.mock('../../../../client', () => ({
 
 const mockUseParams = vi.fn(() => ({}))
 vi.mock('wouter', () => ({
-  useLocation: () => ['/access-management/authentication/identity-providers/add', vi.fn()],
+  useLocation: () => ['/system-administration/authentication/identity-providers/add', vi.fn()],
   useParams: () => mockUseParams(),
   useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }))

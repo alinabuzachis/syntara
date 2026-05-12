@@ -354,7 +354,7 @@ flowchart LR
   subgraph URL["Browser URL"]
     U["/workflows"]
     U2["/workflow-builder/:workflowId"]
-    U3["/configuration/settings"]
+    U3["/system-administration/settings"]
   end
 
   AR --> NI
@@ -393,8 +393,8 @@ const { workflowId } = useParams()
 - Trails are built with helpers in [`breadcrumbBuilders.ts`](packages/nexus-ui/src/app/breadcrumbBuilders.ts); links use `href` values from [`AppRoute.tsx`](packages/nexus-ui/src/app/AppRoute.tsx).
 - **Visibility**: nothing is rendered unless there are **at least two** items. The **last** item omits `href` and represents the current page (including tab-specific labels on detail views).
 - **Default tab**: On entity detail routes where the URL without a trailing segment is the same as the default tab (e.g. `…/projects/:id` and `…/projects/:id/details` both mean “Details”), the trail ends at the **entity name** so the parent link is not redundant with the current page.
-- **Access management hub**: Visiting `/access-management` triggers a client-side `replace` navigation to `/access-management/users` (the default tab). Breadcrumbs are omitted on that Users hub view because the page title and tab bar already convey the location; other hub tabs still show `Access management > …`.
-- **Settings (`/configuration/settings`)**: The first category tab is the default view. Breadcrumbs are `Configuration > Settings` (current); selecting another tab appends the category name (`Configuration > Settings > …`) with **Settings** as a link so you can return to the default tab from the trail.
+- **Access management hub**: Visiting `/system-administration/access-management` triggers a client-side `replace` navigation to `/system-administration/access-management/users` (the default tab). Breadcrumbs are omitted on that Users hub view because the page title and tab bar already convey the location; other hub tabs still show `Access management > …`.
+- **Settings (`/system-administration/settings`)**: The first category tab is the default view. Breadcrumbs are omitted (single-item trail). Selecting another tab shows `Settings > [category]` with **Settings** as a link so you can return to the default tab from the trail.
 - **Link style**: [`index.css`](packages/nexus-ui/src/index.css) sets breadcrumb link **color**, **`TextDecorationColor`** (underline), and **hover** variants from `--pf-t--global--text--color--link--*` — PF’s default maps underline color to neutral decoration tokens; **`TextDecorationStyle`** is **solid** where globals use dotted — so links match [PatternFly breadcrumb](https://www.patternfly.org/components/breadcrumb/) styling.
 - On **narrow viewports** (`max-width: 768px`), when there are two or more _middle_ segments, those segments collapse behind a dropdown toggle (badge count) per PatternFly’s breadcrumb dropdown pattern.
 

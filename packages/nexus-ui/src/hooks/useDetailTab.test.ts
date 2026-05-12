@@ -17,8 +17,8 @@ describe('useDetailTab', () => {
   })
 
   it('should return default tab when URL has no trailing segment', () => {
-    mockLocation = '/access-management/users/123'
-    const { result } = renderHook(() => useDetailTab('/access-management/users/123'))
+    mockLocation = '/system-administration/access-management/users/123'
+    const { result } = renderHook(() => useDetailTab('/system-administration/access-management/users/123'))
 
     expect(result.current[0]).toBe('details')
   })
@@ -31,33 +31,33 @@ describe('useDetailTab', () => {
   })
 
   it('should parse tab slug from URL path', () => {
-    mockLocation = '/access-management/users/123/groups'
-    const { result } = renderHook(() => useDetailTab('/access-management/users/123'))
+    mockLocation = '/system-administration/access-management/users/123/groups'
+    const { result } = renderHook(() => useDetailTab('/system-administration/access-management/users/123'))
 
     expect(result.current[0]).toBe('groups')
   })
 
   it('should parse tab slug with trailing slash', () => {
-    mockLocation = '/access-management/users/123/roles/'
-    const { result } = renderHook(() => useDetailTab('/access-management/users/123'))
+    mockLocation = '/system-administration/access-management/users/123/roles/'
+    const { result } = renderHook(() => useDetailTab('/system-administration/access-management/users/123'))
 
     expect(result.current[0]).toBe('roles')
   })
 
   it('should call setLocation with correct path when goToTab is called', () => {
-    mockLocation = '/access-management/users/123/details'
-    const { result } = renderHook(() => useDetailTab('/access-management/users/123'))
+    mockLocation = '/system-administration/access-management/users/123/details'
+    const { result } = renderHook(() => useDetailTab('/system-administration/access-management/users/123'))
 
     act(() => {
       result.current[1]('groups')
     })
 
-    expect(mockSetLocation).toHaveBeenCalledWith('/access-management/users/123/groups')
+    expect(mockSetLocation).toHaveBeenCalledWith('/system-administration/access-management/users/123/groups')
   })
 
   it('should return default tab when location does not start with basePath', () => {
     mockLocation = '/other/path'
-    const { result } = renderHook(() => useDetailTab('/access-management/users/123'))
+    const { result } = renderHook(() => useDetailTab('/system-administration/access-management/users/123'))
 
     expect(result.current[0]).toBe('details')
   })

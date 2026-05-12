@@ -165,21 +165,23 @@ describe('Settings', () => {
     expect(screen.getByRole('tab', { name: 'Application' })).toBeInTheDocument()
   })
 
-  it('shows breadcrumbs without the default category tab; adds category when another tab is selected', async () => {
+  it('does not show a Configuration parent breadcrumb', () => {
+    mockQueries()
+    render(<Settings />)
+
+    expect(screen.queryByRole('link', { name: 'Configuration' })).not.toBeInTheDocument()
+  })
+
+  it('shows breadcrumb with category name after switching to a non-default tab', async () => {
     const user = userEvent.setup()
     mockQueries()
     render(<Settings />)
 
-    const breadcrumbNav = screen.getByRole('navigation', { name: 'Breadcrumb' })
-    expect(screen.getByRole('link', { name: 'Configuration' })).toBeInTheDocument()
-    expect(within(breadcrumbNav).getByText('Settings')).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument()
-    expect(within(breadcrumbNav).queryByText('Context Manager')).not.toBeInTheDocument()
-
     await user.click(screen.getByRole('tab', { name: 'Application' }))
-    const breadcrumbNavAfterTab = screen.getByRole('navigation', { name: 'Breadcrumb' })
-    expect(screen.getByRole('link', { name: 'Settings' })).toBeInTheDocument()
-    expect(within(breadcrumbNavAfterTab).getByText('Application')).toBeInTheDocument()
+
+    const breadcrumbNav = screen.getByRole('navigation', { name: 'Breadcrumb' })
+    expect(within(breadcrumbNav).getByRole('link', { name: 'Settings' })).toBeInTheDocument()
+    expect(within(breadcrumbNav).getByText('Application')).toBeInTheDocument()
   })
 
   it('shows first category tab content by default', () => {

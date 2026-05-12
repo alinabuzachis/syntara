@@ -259,7 +259,7 @@ function IdentitiesStep({
                         onClick={(e) => {
                           e.stopPropagation()
                           navigate(
-                            AppRoute.AccessManagement.Authentication.IdentityProviderDetail.replace(
+                            AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(
                               ':providerId',
                               identity.identity_provider_id
                             ).replace('/:tab?', '')

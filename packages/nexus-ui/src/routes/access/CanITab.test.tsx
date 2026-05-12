@@ -58,7 +58,7 @@ vi.mock('./useCanQueryAuthz', () => ({
 vi.mock('wouter', async () => {
   const React = await import('react')
   return {
-    useLocation: () => React.useState('/access-management/can-i'),
+    useLocation: () => React.useState('/system-administration/access-management/can-i'),
     useSearchParams: () => React.useState(new URLSearchParams()),
   }
 })

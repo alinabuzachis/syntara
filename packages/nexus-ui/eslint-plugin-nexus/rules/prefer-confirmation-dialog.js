@@ -17,8 +17,7 @@ export default {
     const modalImportNames = new Set()
     let hasConfirmationDialogImport = false
 
-    const DESTRUCTIVE_KEYWORDS =
-      /\b(delete|remove|cancel|stop|revoke|unassign|detach|disconnect)\b/i
+    const DESTRUCTIVE_KEYWORDS = /\b(delete|remove|cancel|stop|revoke|unassign|detach|disconnect)\b/i
 
     /**
      * Recursively walk JSX children depth-first, invoking `callback` on every
@@ -93,8 +92,7 @@ export default {
 
         // Track ConfirmationDialog imports from any source
         for (const specifier of node.specifiers) {
-          const importedName =
-            specifier.type === 'ImportSpecifier' ? specifier.imported.name : specifier.local.name
+          const importedName = specifier.type === 'ImportSpecifier' ? specifier.imported.name : specifier.local.name
           if (importedName === 'ConfirmationDialog') {
             hasConfirmationDialogImport = true
           }

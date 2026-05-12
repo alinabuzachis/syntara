@@ -150,7 +150,9 @@ describe('AppPageBreadcrumbs', () => {
     const longLabel = `Project ${'x'.repeat(400)}`
 
     render(
-      <AppPageBreadcrumbs items={[{ label: 'Access management', href: '/access-management' }, { label: longLabel }]} />
+      <AppPageBreadcrumbs
+        items={[{ label: 'Access management', href: '/system-administration/access-management' }, { label: longLabel }]}
+      />
     )
 
     expect(screen.getByText(longLabel)).toBeInTheDocument()

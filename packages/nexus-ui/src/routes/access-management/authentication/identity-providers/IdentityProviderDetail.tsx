@@ -272,7 +272,7 @@ export function IdentityProviderDetail() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [editMappingTrigger, setEditMappingTrigger] = useState(0)
 
-  const idpDetailBasePath = AppRoute.AccessManagement.Authentication.IdentityProviderDetail.replace(
+  const idpDetailBasePath = AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(
     ':providerId',
     providerId ?? ''
   ).replace('/:tab?', '')
@@ -295,9 +295,9 @@ export function IdentityProviderDetail() {
     '/identity_providers/{provider_id}'
   )
 
-  const navigateBack = () => navigate(AppRoute.AccessManagement.Authentication.Root)
+  const navigateBack = () => navigate(AppRoute.SystemAdministration.Authentication.Root)
   const navigateEdit = () =>
-    navigate(AppRoute.AccessManagement.Authentication.EditIdentityProvider.replace(':providerId', providerId ?? ''))
+    navigate(AppRoute.SystemAdministration.Authentication.EditIdentityProvider.replace(':providerId', providerId ?? ''))
 
   const providerData = providerQuery.data
   const refetchProvider = providerQuery.refetch

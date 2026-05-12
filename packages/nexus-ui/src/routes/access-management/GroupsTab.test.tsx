@@ -24,7 +24,7 @@ const mockSetSearchParams = vi.fn()
 let mockSearchParams = new URLSearchParams()
 
 vi.mock('wouter', () => ({
-  useLocation: () => ['/access-management/groups', vi.fn()],
+  useLocation: () => ['/system-administration/access-management/groups', vi.fn()],
   useSearchParams: () => [mockSearchParams, mockSetSearchParams],
 }))
 

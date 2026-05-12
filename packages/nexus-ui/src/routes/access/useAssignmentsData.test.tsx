@@ -28,7 +28,7 @@ vi.mock('./useAllProjects', () => ({
 
 // Reactive wouter mock: useLocation and useSearch share state so that
 // navigate() updates both the path and the search string.
-const mockUrl = { current: '/access-management/assignments', listeners: new Set<() => void>() }
+const mockUrl = { current: '/system-administration/access-management/assignments', listeners: new Set<() => void>() }
 function setMockUrl(url: string) {
   mockUrl.current = url
   mockUrl.listeners.forEach((l) => l())
@@ -193,7 +193,7 @@ describe('useAssignmentsData', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     queryClient.clear()
-    mockUrl.current = '/access-management/assignments'
+    mockUrl.current = '/system-administration/access-management/assignments'
     vi.mocked(useAllProjects).mockReturnValue({
       projects: [],
       isLoading: false,

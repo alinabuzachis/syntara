@@ -35,7 +35,7 @@ const VALID_PROVIDER_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
 
 const mockUseParams = vi.fn((): { providerId: string; tab?: string } => ({ providerId: VALID_PROVIDER_ID }))
 vi.mock('wouter', () => ({
-  useLocation: () => [`/access-management/authentication/identity-providers/${VALID_PROVIDER_ID}`, vi.fn()],
+  useLocation: () => [`/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}`, vi.fn()],
   useParams: () => mockUseParams(),
   useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }))

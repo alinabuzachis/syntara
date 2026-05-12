@@ -71,15 +71,18 @@ describe('AppPageHeader', () => {
       <AppPageHeader
         title="Create user"
         breadcrumbs={[
-          { label: 'Access management', href: '/access-management' },
-          { label: 'Users', href: '/access-management/users' },
+          { label: 'Access management', href: '/system-administration/access-management' },
+          { label: 'Users', href: '/system-administration/access-management/users' },
           { label: 'Create user' },
         ]}
       />
     )
 
     expect(screen.getByRole('navigation', { name: 'Breadcrumb' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Users' })).toHaveAttribute('href', '/access-management/users')
+    expect(screen.getByRole('link', { name: 'Users' })).toHaveAttribute(
+      'href',
+      '/system-administration/access-management/users'
+    )
     expect(screen.getByRole('heading', { name: 'Create user' })).toBeInTheDocument()
   })
 
@@ -89,7 +92,7 @@ describe('AppPageHeader', () => {
         title="Settings"
         breadcrumbs={[
           { label: 'Configuration', href: '/configuration/integrations' },
-          { label: 'Settings', href: '/configuration/settings' },
+          { label: 'Settings', href: '/system-administration/settings' },
           { label: 'System' },
         ]}
       />

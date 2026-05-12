@@ -20,17 +20,21 @@ describe('parseResourceUrn', () => {
 
   it('parses a user URN', () => {
     const result = parseResourceUrn('urn:nexus:user:id=u-1')
-    expect(result).toEqual({ type: 'user', id: 'u-1', href: '/access-management/users/u-1' })
+    expect(result).toEqual({ type: 'user', id: 'u-1', href: '/system-administration/access-management/users/u-1' })
   })
 
   it('parses a group URN', () => {
     const result = parseResourceUrn('urn:nexus:group:id=g-1')
-    expect(result).toEqual({ type: 'group', id: 'g-1', href: '/access-management/groups/g-1' })
+    expect(result).toEqual({ type: 'group', id: 'g-1', href: '/system-administration/access-management/groups/g-1' })
   })
 
   it('parses a project URN', () => {
     const result = parseResourceUrn('urn:nexus:project:id=p-1')
-    expect(result).toEqual({ type: 'project', id: 'p-1', href: '/access-management/projects/p-1' })
+    expect(result).toEqual({
+      type: 'project',
+      id: 'p-1',
+      href: '/system-administration/access-management/projects/p-1',
+    })
   })
 
   it('returns null href for unknown resource type', () => {

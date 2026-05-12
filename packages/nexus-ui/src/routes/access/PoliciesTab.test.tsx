@@ -39,7 +39,7 @@ vi.mock('../../components/details/CodeBlock', () => ({
 vi.mock('wouter', async () => {
   const React = await import('react')
   return {
-    useLocation: () => ['/access-management/policies', vi.fn()],
+    useLocation: () => ['/system-administration/access-management/policies', vi.fn()],
     useSearch: () => '',
     useSearchParams: () => React.useState(new URLSearchParams()),
   }

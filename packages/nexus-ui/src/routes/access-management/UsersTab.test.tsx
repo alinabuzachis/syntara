@@ -47,7 +47,7 @@ const mockSetSearchParams = vi.fn((params: URLSearchParams | ((prev: URLSearchPa
 })
 
 vi.mock('wouter', () => ({
-  useLocation: () => ['/access-management/users', vi.fn()],
+  useLocation: () => ['/system-administration/access-management/users', vi.fn()],
   useSearchParams: () => [currentSearchParams, mockSetSearchParams],
 }))
 
@@ -472,7 +472,7 @@ describe('UsersTab Component', () => {
 
       await user.click(screen.getByRole('button', { name: /create user/i }))
 
-      expect(mockNavigate).toHaveBeenCalledWith('/access-management/users/create')
+      expect(mockNavigate).toHaveBeenCalledWith('/system-administration/access-management/users/create')
     })
 
     it('navigates to edit user page when edit action is clicked', async () => {
@@ -485,7 +485,7 @@ describe('UsersTab Component', () => {
       const editOption = await screen.findByRole('menuitem', { name: /edit/i })
       await user.click(editOption)
 
-      expect(mockNavigate).toHaveBeenCalledWith('/access-management/users/u2/edit')
+      expect(mockNavigate).toHaveBeenCalledWith('/system-administration/access-management/users/u2/edit')
     })
 
     it('navigates to user detail page when username is clicked', async () => {
@@ -494,7 +494,7 @@ describe('UsersTab Component', () => {
 
       await user.click(screen.getByRole('button', { name: 'admin' }))
 
-      expect(mockNavigate).toHaveBeenCalledWith('/access-management/users/u1')
+      expect(mockNavigate).toHaveBeenCalledWith('/system-administration/access-management/users/u1')
     })
   })
 

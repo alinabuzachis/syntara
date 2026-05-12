@@ -33,7 +33,7 @@ vi.mock('../../access/accessClient', () => ({
 
 const VALID_USER_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
 
-let mockLocationValue = `/access-management/users/${VALID_USER_ID}`
+let mockLocationValue = `/system-administration/access-management/users/${VALID_USER_ID}`
 const mockSetLocation = vi.fn()
 const mockUseParams = vi.fn(() => ({ userId: VALID_USER_ID }))
 vi.mock('wouter', async () => {
@@ -141,7 +141,7 @@ describe('UserDetail', () => {
     queryClient.clear()
     mockNavigate.mockClear()
     mockSetLocation.mockClear()
-    mockLocationValue = `/access-management/users/${VALID_USER_ID}`
+    mockLocationValue = `/system-administration/access-management/users/${VALID_USER_ID}`
     mockUseParams.mockReturnValue({ userId: VALID_USER_ID })
     mockSuccessQueries()
   })
@@ -420,7 +420,7 @@ describe('UserDetail', () => {
 
       await user.click(screen.getByRole('button', { name: 'Edit user' }))
 
-      expect(mockNavigate).toHaveBeenCalledWith(`/access-management/users/${VALID_USER_ID}/edit`)
+      expect(mockNavigate).toHaveBeenCalledWith(`/system-administration/access-management/users/${VALID_USER_ID}/edit`)
     })
 
     it('navigates back to users list when Back to users button in error state is clicked', async () => {
@@ -450,7 +450,7 @@ describe('UserDetail', () => {
 
       await user.click(screen.getByRole('button', { name: 'Back to users' }))
 
-      expect(mockNavigate).toHaveBeenCalledWith('/access-management/users')
+      expect(mockNavigate).toHaveBeenCalledWith('/system-administration/access-management/users')
     })
   })
 
@@ -478,11 +478,13 @@ describe('UserDetail', () => {
 
       await user.click(screen.getByRole('tab', { name: /Groups/i }))
 
-      expect(mockSetLocation).toHaveBeenCalledWith(`/access-management/users/${VALID_USER_ID}/groups`)
+      expect(mockSetLocation).toHaveBeenCalledWith(
+        `/system-administration/access-management/users/${VALID_USER_ID}/groups`
+      )
     })
 
     it('renders Groups tab content when URL is /groups', () => {
-      mockLocationValue = `/access-management/users/${VALID_USER_ID}/groups`
+      mockLocationValue = `/system-administration/access-management/users/${VALID_USER_ID}/groups`
       render(<UserDetail />, { wrapper })
 
       expect(screen.queryByText('Username')).not.toBeInTheDocument()

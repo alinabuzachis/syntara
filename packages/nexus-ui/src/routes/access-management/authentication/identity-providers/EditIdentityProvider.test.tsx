@@ -18,7 +18,7 @@ vi.mock('../../../../client', () => ({
 }))
 
 vi.mock('wouter', () => ({
-  useLocation: () => ['/access-management/authentication/identity-providers/provider-1', vi.fn()],
+  useLocation: () => ['/system-administration/authentication/identity-providers/provider-1', vi.fn()],
   useParams: () => ({ providerId: 'provider-1' }),
   useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }))

@@ -47,10 +47,7 @@ export default {
     function isInsideTableCell(node) {
       let current = node.parent
       while (current) {
-        if (
-          current.type === 'JSXElement' &&
-          current.openingElement.name.type === 'JSXIdentifier'
-        ) {
+        if (current.type === 'JSXElement' && current.openingElement.name.type === 'JSXIdentifier') {
           const parentTag = current.openingElement.name.name
           if (parentTag === 'Th' || parentTag === 'Td') {
             return true
@@ -65,9 +62,7 @@ export default {
      * Check whether a JSXOpeningElement has a `style` attribute.
      */
     function hasStyleProp(openingElement) {
-      return openingElement.attributes.some(
-        (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'style',
-      )
+      return openingElement.attributes.some((attr) => attr.type === 'JSXAttribute' && attr.name.name === 'style')
     }
 
     return {

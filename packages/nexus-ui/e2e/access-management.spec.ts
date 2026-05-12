@@ -16,7 +16,7 @@
  */
 import { test, expect, toAppUrl } from './fixtures'
 
-const ACCESS_URL = '/access-management'
+const ACCESS_URL = '/system-administration/access-management'
 
 test.describe('Access Management — Tab Navigation', () => {
   test.beforeEach(async ({ app }) => {

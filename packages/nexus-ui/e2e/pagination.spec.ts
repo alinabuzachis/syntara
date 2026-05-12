@@ -29,7 +29,7 @@ function isGlobalWorkflowsListUrl(url: string): boolean {
 
 test.describe('Pagination Footer — Users Tab', () => {
   test.beforeEach(async ({ app }) => {
-    await app.goto(toAppUrl('/access-management/users'))
+    await app.goto(toAppUrl('/system-administration/access-management/users'))
     await expect(app.getByRole('tab', { name: /Users/i })).toHaveAttribute('aria-selected', 'true')
     const table = app.getByRole('grid', { name: 'Users' })
     const hasTable = await table
@@ -60,7 +60,7 @@ test.describe('Pagination Footer — Users Tab', () => {
 
 test.describe('Pagination Footer — Groups Tab', () => {
   test('pagination footer is visible on groups tab', async ({ app }) => {
-    await app.goto(toAppUrl('/access-management/groups'))
+    await app.goto(toAppUrl('/system-administration/access-management/groups'))
     await expect(app.getByRole('tab', { name: /Groups/i })).toHaveAttribute('aria-selected', 'true')
 
     const table = app.getByRole('grid', { name: 'Groups table' })
@@ -292,7 +292,7 @@ test.describe('Pagination Footer — Integrations', () => {
 
 test.describe('Pagination Footer — Identity Providers', () => {
   test('pagination footer is visible on identity providers tab', async ({ app }) => {
-    await app.goto(toAppUrl('/access-management/authentication'))
+    await app.goto(toAppUrl('/system-administration/authentication'))
 
     const table = app.getByRole('grid', { name: 'Identity providers table' })
     const hasTable = await table

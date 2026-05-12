@@ -403,17 +403,17 @@ export const pages: PageEntry[] = [
   // ACCESS MANAGEMENT — Authentication
   // ══════════════════════════════════════════════════════════════════════════
   {
-    section: 'access-management/authentication',
+    section: 'authentication',
     name: 'authentication',
-    path: AppRoute.AccessManagement.Authentication.Root,
+    path: AppRoute.SystemAdministration.Authentication.Root,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1, name: 'Identity Providers' })).toBeVisible()
     },
   },
   {
-    section: 'access-management/authentication',
+    section: 'authentication',
     name: 'identity-provider-add',
-    path: AppRoute.AccessManagement.Authentication.AddIdentityProvider,
+    path: AppRoute.SystemAdministration.Authentication.AddIdentityProvider,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { name: 'Add OIDC provider' })).toBeVisible()
     },
@@ -422,18 +422,18 @@ export const pages: PageEntry[] = [
   // ACCESS MANAGEMENT — Audit Log
   // ══════════════════════════════════════════════════════════════════════════
   {
-    section: 'access-management/audit-log',
+    section: 'audit-log',
     name: 'audit-log-list',
-    path: AppRoute.AccessManagement.AuditLog,
+    path: AppRoute.SystemAdministration.AuditLog,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { name: 'Audit Log' })).toBeVisible()
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
   },
   {
-    section: 'access-management/audit-log',
+    section: 'audit-log',
     name: 'audit-log-expanded-row',
-    path: AppRoute.AccessManagement.AuditLog,
+    path: AppRoute.SystemAdministration.AuditLog,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { name: 'Audit Log' })).toBeVisible()
       await expect(page.locator('table tbody tr').first()).toBeVisible()
@@ -451,9 +451,9 @@ export const pages: PageEntry[] = [
   // CONFIGURATION — Settings
   // ══════════════════════════════════════════════════════════════════════════
   {
-    section: 'configuration/settings',
+    section: 'settings',
     name: 'settings',
-    path: AppRoute.Configuration.Settings,
+    path: AppRoute.SystemAdministration.Settings,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible()
       await expect(page.getByRole('tab').first()).toBeVisible()
@@ -592,8 +592,9 @@ export const excludedUnimplemented: string[] = [
 /** Routes excluded because they need dynamic setup or have no seeded mock data */
 export const excludedDynamic: string[] = [
   AppRoute.WorkflowBuilder.New,
-  AppRoute.AccessManagement.Authentication.IdentityProviderDetail,
-  AppRoute.AccessManagement.Authentication.EditIdentityProvider,
+  AppRoute.SystemAdministration.Root,
+  AppRoute.SystemAdministration.Authentication.IdentityProviderDetail,
+  AppRoute.SystemAdministration.Authentication.EditIdentityProvider,
   AppRoute.AccessManagement.Root,
   AppRoute.AccessManagement.CanIMode,
   AppRoute.Auth.TestSignInCallback,

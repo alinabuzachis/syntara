@@ -27,7 +27,7 @@
 
 import { test, expect, toAppUrl } from './fixtures'
 
-const AUDIT_LOG_URL = '/access-management/audit-log'
+const AUDIT_LOG_URL = '/system-administration/audit-log'
 
 async function seedAuditEvents(app: import('@playwright/test').Page) {
   const endpoints = ['/api/v1/workflows', '/api/v1/credentials', '/api/v1/integrations']
@@ -87,7 +87,7 @@ test.describe('Audit Log', () => {
     test.skip(!hasUserLink, 'No audit events with a linked user in current data')
 
     await userButtons.first().click()
-    await expect(app).toHaveURL(/\/access-management\/users\//)
+    await expect(app).toHaveURL(/\/system-administration\/access-management\/users\//)
   })
 
   test('resource column displays resource name and links to detail page', async ({ app }) => {

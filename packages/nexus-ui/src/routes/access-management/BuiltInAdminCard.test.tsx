@@ -64,7 +64,7 @@ describe('BuiltInAdminCard', () => {
 
     await user.click(screen.getByRole('button', { name: 'Built-in Administrator Account' }))
 
-    expect(mockNavigate).toHaveBeenCalledWith('/access-management/users/user-123')
+    expect(mockNavigate).toHaveBeenCalledWith('/system-administration/access-management/users/user-123')
   })
 
   it('shows tooltip when canToggle=false', async () => {

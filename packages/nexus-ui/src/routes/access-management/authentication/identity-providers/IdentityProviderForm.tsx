@@ -219,7 +219,7 @@ function identityProviderFormBreadcrumbTrail(
     return breadcrumbsIdentityProviderAdd()
   }
   const idpDetailPath = providerId
-    ? AppRoute.AccessManagement.Authentication.IdentityProviderDetail.replace(':providerId', providerId).replace(
+    ? AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(':providerId', providerId).replace(
         '/:tab?',
         ''
       )
@@ -320,7 +320,7 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
   })
   const handleError = useFormMutationErrorHandler<IdentityProviderFormData>(setError)
 
-  const navigateBack = () => navigate(AppRoute.AccessManagement.Authentication.Root)
+  const navigateBack = () => navigate(AppRoute.SystemAdministration.Authentication.Root)
 
   const onSubmit = (formData: IdentityProviderFormData) => {
     const context = formData.name ? `Identity provider "${formData.name}"` : undefined

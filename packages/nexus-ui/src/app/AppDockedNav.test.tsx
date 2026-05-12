@@ -139,7 +139,7 @@ describe('AppDockedNav', () => {
     await user.hover(screen.getByRole('button', { name: 'User menu' }))
     await user.click(screen.getByText('My Profile'))
 
-    expect(mockNavigate).toHaveBeenCalledWith(`/access-management/users/${MOCK_CURRENT_USER_ID}`)
+    expect(mockNavigate).toHaveBeenCalledWith(`/system-administration/access-management/users/${MOCK_CURRENT_USER_ID}`)
   })
 
   it('does not navigate when My Profile is clicked and user has not loaded', async () => {
@@ -150,7 +150,9 @@ describe('AppDockedNav', () => {
     await user.hover(screen.getByRole('button', { name: 'User menu' }))
     await user.click(screen.getByText('My Profile'))
 
-    expect(mockNavigate).not.toHaveBeenCalledWith(expect.stringContaining('/access-management/users/'))
+    expect(mockNavigate).not.toHaveBeenCalledWith(
+      expect.stringContaining('/system-administration/access-management/users/')
+    )
   })
 
   it('navigates when help button is clicked', async () => {
@@ -236,7 +238,7 @@ describe('AppDockedNav', () => {
     const menu = screen.getByRole('menu')
     const menuItems = within(menu).getAllByRole('menuitem')
     await user.click(menuItems[0])
-    expect(mockRequestNavigation).toHaveBeenCalledWith('/access-management')
+    expect(mockRequestNavigation).toHaveBeenCalledWith('/system-administration/access-management')
   })
 
   it('navigates to Identity Providers from System Administration dropdown', async () => {
@@ -247,7 +249,7 @@ describe('AppDockedNav', () => {
     await user.click(navButton)
 
     await user.click(screen.getByText('Identity Providers'))
-    expect(mockRequestNavigation).toHaveBeenCalledWith('/access-management/authentication')
+    expect(mockRequestNavigation).toHaveBeenCalledWith('/system-administration/authentication')
   })
 
   it('has no accessibility violations', async () => {

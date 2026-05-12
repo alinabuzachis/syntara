@@ -21,7 +21,17 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 export default tseslint.config(
-  { ignores: ['dist', 'coverage/**', 'playwright.config.ts', 'test-results/**', 'playwright-report/**', 'scripts/**', 'eslint-plugin-nexus/**'] },
+  {
+    ignores: [
+      'dist',
+      'coverage/**',
+      'playwright.config.ts',
+      'test-results/**',
+      'playwright-report/**',
+      'scripts/**',
+      'eslint-plugin-nexus/**',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
   ...pluginQuery.configs['flat/recommended'],
@@ -39,8 +49,7 @@ export default tseslint.config(
             'Do not use Math.random() — it is not cryptographically secure. Use crypto.getRandomValues(), crypto.randomUUID(), node:crypto.randomInt/randomBytes, or the uuid package. If the value is strictly non-security (e.g. visual jitter), add an eslint-disable-next-line with a short justification.',
         },
         {
-          selector:
-            'JSXOpeningElement[name.name="Switch"] JSXAttribute[name.name="isReversed"]',
+          selector: 'JSXOpeningElement[name.name="Switch"] JSXAttribute[name.name="isReversed"]',
           message:
             'Do not use isReversed on PatternFly <Switch>. The default layout (toggle left, label right) is the UX standard.',
         },

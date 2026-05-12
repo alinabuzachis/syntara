@@ -12,9 +12,7 @@ const ruleTester = new RuleTester({
   },
 })
 
-const noRestrictedSyntax = (await import('eslint/use-at-your-own-risk')).builtinRules.get(
-  'no-restricted-syntax',
-)
+const noRestrictedSyntax = (await import('eslint/use-at-your-own-risk')).builtinRules.get('no-restricted-syntax')
 
 describe('no-restricted-syntax: isReversed on Switch', () => {
   ruleTester.run('no-restricted-syntax (isReversed)', noRestrictedSyntax, {
@@ -23,8 +21,7 @@ describe('no-restricted-syntax: isReversed on Switch', () => {
         code: `const App = () => <Switch label="Enable" />;`,
         options: [
           {
-            selector:
-              'JSXOpeningElement[name.name="Switch"] JSXAttribute[name.name="isReversed"]',
+            selector: 'JSXOpeningElement[name.name="Switch"] JSXAttribute[name.name="isReversed"]',
             message: 'Do not use isReversed on PatternFly <Switch>.',
           },
         ],
@@ -33,8 +30,7 @@ describe('no-restricted-syntax: isReversed on Switch', () => {
         code: `const App = () => <Toggle isReversed />;`,
         options: [
           {
-            selector:
-              'JSXOpeningElement[name.name="Switch"] JSXAttribute[name.name="isReversed"]',
+            selector: 'JSXOpeningElement[name.name="Switch"] JSXAttribute[name.name="isReversed"]',
             message: 'Do not use isReversed on PatternFly <Switch>.',
           },
         ],
@@ -45,8 +41,7 @@ describe('no-restricted-syntax: isReversed on Switch', () => {
         code: `const App = () => <Switch isReversed label="Enable" />;`,
         options: [
           {
-            selector:
-              'JSXOpeningElement[name.name="Switch"] JSXAttribute[name.name="isReversed"]',
+            selector: 'JSXOpeningElement[name.name="Switch"] JSXAttribute[name.name="isReversed"]',
             message: 'Do not use isReversed on PatternFly <Switch>.',
           },
         ],
@@ -56,8 +51,7 @@ describe('no-restricted-syntax: isReversed on Switch', () => {
         code: `const App = () => <Switch isReversed={true} onChange={fn} />;`,
         options: [
           {
-            selector:
-              'JSXOpeningElement[name.name="Switch"] JSXAttribute[name.name="isReversed"]',
+            selector: 'JSXOpeningElement[name.name="Switch"] JSXAttribute[name.name="isReversed"]',
             message: 'Do not use isReversed on PatternFly <Switch>.',
           },
         ],

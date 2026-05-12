@@ -30,14 +30,18 @@ import {
 
 describe('breadcrumbBuilders', () => {
   it('omits the default details tab segment for project detail', () => {
-    const items = breadcrumbsProjectDetail('My project', '/access-management/projects/uuid-1', 'details')
+    const items = breadcrumbsProjectDetail(
+      'My project',
+      '/system-administration/access-management/projects/uuid-1',
+      'details'
+    )
     expect(items).toHaveLength(3)
     expect(items[2]).toEqual({ label: 'My project' })
     expect(items[2]).not.toHaveProperty('href')
   })
 
   it('includes a tab segment when not on the default details tab', () => {
-    const base = '/access-management/projects/uuid-1'
+    const base = '/system-administration/access-management/projects/uuid-1'
     const items = breadcrumbsProjectDetail('My project', base, 'policies')
     expect(items).toHaveLength(4)
     expect(items[2]).toEqual({ label: 'My project', href: base })
@@ -45,21 +49,24 @@ describe('breadcrumbBuilders', () => {
   })
 
   it('omits default details tab for user, group, and identity provider detail', () => {
-    expect(breadcrumbsUserDetail('alice', '/access-management/users/u1', 'details')).toEqual([
+    expect(breadcrumbsUserDetail('alice', '/system-administration/access-management/users/u1', 'details')).toEqual([
       { label: 'Access management', href: AppRoute.AccessManagement.Root },
       { label: 'Users', href: AppRoute.AccessManagement.Users },
       { label: 'alice' },
     ])
-    expect(breadcrumbsGroupDetail('g1', '/access-management/groups/g1', 'details')).toEqual([
+    expect(breadcrumbsGroupDetail('g1', '/system-administration/access-management/groups/g1', 'details')).toEqual([
       { label: 'Access management', href: AppRoute.AccessManagement.Root },
       { label: 'Groups', href: AppRoute.AccessManagement.Groups },
       { label: 'g1' },
     ])
     expect(
-      breadcrumbsIdentityProviderDetail('Okta', '/access-management/authentication/identity-providers/p1', 'details')
+      breadcrumbsIdentityProviderDetail(
+        'Okta',
+        '/system-administration/authentication/identity-providers/p1',
+        'details'
+      )
     ).toEqual([
-      { label: 'Access management', href: AppRoute.AccessManagement.Root },
-      { label: 'Identity providers', href: AppRoute.AccessManagement.Authentication.Root },
+      { label: 'Identity providers', href: AppRoute.SystemAdministration.Authentication.Root },
       { label: 'Okta' },
     ])
   })
@@ -85,21 +92,15 @@ describe('breadcrumbBuilders', () => {
       { label: 'Access management', href: AppRoute.AccessManagement.Root },
       { label: 'Policies' },
     ])
-    expect(breadcrumbsIdentityProvidersPage()).toEqual([
-      { label: 'Access management', href: AppRoute.AccessManagement.Root },
-      { label: 'Identity providers' },
-    ])
+    expect(breadcrumbsIdentityProvidersPage()).toEqual([{ label: 'Identity providers' }])
     expect(breadcrumbsCreateUser()).toHaveLength(3)
-    expect(breadcrumbsEditUser('Jane', '/access-management/users/u1')).toHaveLength(4)
+    expect(breadcrumbsEditUser('Jane', '/system-administration/access-management/users/u1')).toHaveLength(4)
 
-    expect(breadcrumbsIdentityProviderAdd()).toHaveLength(3)
-    expect(breadcrumbsIdentityProviderEdit('Auth0', '/path')).toHaveLength(4)
+    expect(breadcrumbsIdentityProviderAdd()).toHaveLength(2)
+    expect(breadcrumbsIdentityProviderEdit('Auth0', '/path')).toHaveLength(3)
 
-    expect(breadcrumbsSettingsPage()).toEqual([
-      { label: 'Configuration', href: AppRoute.Configuration.Integrations.Root },
-      { label: 'Settings' },
-    ])
-    expect(breadcrumbsSettingsCategory('AI / LLM')).toHaveLength(3)
+    expect(breadcrumbsSettingsPage()).toEqual([{ label: 'Settings' }])
+    expect(breadcrumbsSettingsCategory('AI / LLM')).toHaveLength(2)
 
     expect(breadcrumbsApprovalDetail('REQ-1')).toEqual([
       { label: 'Approvals', href: AppRoute.Approvals.Root },
@@ -117,20 +118,26 @@ describe('breadcrumbBuilders', () => {
     expect(breadcrumbsUserDetailEarlyShell()).toHaveLength(3)
     expect(breadcrumbsGroupDetailEarlyShell()).toHaveLength(3)
     expect(breadcrumbsProjectDetailEarlyShell()).toHaveLength(3)
-    expect(breadcrumbsIdentityProviderFormLoading('…')).toHaveLength(3)
-    expect(breadcrumbsIdentityProviderDetailEarlyShell()).toHaveLength(3)
+    expect(breadcrumbsIdentityProviderFormLoading('…')).toHaveLength(2)
+    expect(breadcrumbsIdentityProviderDetailEarlyShell()).toHaveLength(2)
   })
 
   it('includes non-default tab segments for entity detail builders', () => {
-    expect(breadcrumbsUserDetail('u', '/access-management/users/u1', 'groups').at(-1)).toEqual({ label: 'Groups' })
-    expect(breadcrumbsGroupDetail('g', '/access-management/groups/g1', 'members').at(-1)).toEqual({ label: 'Members' })
-    expect(breadcrumbsProjectDetail('p', '/access-management/projects/p1', 'policies').at(-1)).toEqual({
+    expect(breadcrumbsUserDetail('u', '/system-administration/access-management/users/u1', 'groups').at(-1)).toEqual({
+      label: 'Groups',
+    })
+    expect(breadcrumbsGroupDetail('g', '/system-administration/access-management/groups/g1', 'members').at(-1)).toEqual(
+      { label: 'Members' }
+    )
+    expect(
+      breadcrumbsProjectDetail('p', '/system-administration/access-management/projects/p1', 'policies').at(-1)
+    ).toEqual({
       label: 'Policies',
     })
     expect(
       breadcrumbsIdentityProviderDetail(
         'Idp',
-        '/access-management/authentication/identity-providers/p1',
+        '/system-administration/authentication/identity-providers/p1',
         'group-mapping'
       ).at(-1)
     ).toEqual({ label: 'Group mapping' })

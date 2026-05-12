@@ -15,7 +15,7 @@ export function useFilteredNavigationItems(): TNavigationItem[] {
     return NAV_ITEMS.map((item) => {
       if (!item.children) return item
 
-      const filteredChildren = item.children.filter((child) => child.path !== AppRoute.Configuration.Settings)
+      const filteredChildren = item.children.filter((child) => child.path !== AppRoute.SystemAdministration.Settings)
 
       if (filteredChildren.length === item.children.length) return item
 

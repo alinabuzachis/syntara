@@ -338,7 +338,7 @@ describe('AttachIdentityModal', () => {
     // Click the username link (not the row) to trigger navigate
     await user.click(screen.getByRole('button', { name: 'bob' }))
 
-    expect(mockNavigate).toHaveBeenCalledWith('/access-management/users/user-2')
+    expect(mockNavigate).toHaveBeenCalledWith('/system-administration/access-management/users/user-2')
     expect(defaultProps.onClose).toHaveBeenCalled()
   })
 
@@ -353,7 +353,7 @@ describe('AttachIdentityModal', () => {
     // Click the provider link
     await user.click(screen.getByRole('button', { name: 'Azure' }))
 
-    expect(mockNavigate).toHaveBeenCalledWith('/access-management/authentication/identity-providers/p-1')
+    expect(mockNavigate).toHaveBeenCalledWith('/system-administration/authentication/identity-providers/p-1')
     expect(defaultProps.onClose).toHaveBeenCalled()
   })
 

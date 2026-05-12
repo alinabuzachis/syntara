@@ -107,7 +107,7 @@ describe('AccessManagement', () => {
     expect(screen.getByText('No users')).toBeInTheDocument()
   })
 
-  it('replaces bare /access-management with the Users tab URL', () => {
+  it('replaces bare /system-administration/access-management with the Users tab URL', () => {
     wouterLocation.path = AppRoute.AccessManagement.Root
     render(<AccessManagement />, { wrapper })
 

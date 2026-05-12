@@ -121,7 +121,7 @@ export const NAV_ITEMS: TNavigationItem[] = [
   },
   {
     label: 'System Administration',
-    path: AppRoute.AccessManagement.Root,
+    path: AppRoute.SystemAdministration.Root,
     icon: <RhUiLanguageIcon />,
     children: [
       {
@@ -223,36 +223,36 @@ export const NAV_ITEMS: TNavigationItem[] = [
       },
       {
         label: 'Identity Providers',
-        path: AppRoute.AccessManagement.Authentication.Root,
+        path: AppRoute.SystemAdministration.Authentication.Root,
         icon: <RhUiSecuredIcon />,
         element: <Authentication />,
         children: [
           {
             label: 'Add Identity Provider',
-            path: AppRoute.AccessManagement.Authentication.AddIdentityProvider,
+            path: AppRoute.SystemAdministration.Authentication.AddIdentityProvider,
             element: <AddIdentityProvider />,
           },
           {
             label: 'Edit Identity Provider',
-            path: AppRoute.AccessManagement.Authentication.EditIdentityProvider,
+            path: AppRoute.SystemAdministration.Authentication.EditIdentityProvider,
             element: <EditIdentityProvider />,
           },
           {
             label: 'Identity Provider Details',
-            path: AppRoute.AccessManagement.Authentication.IdentityProviderDetail,
+            path: AppRoute.SystemAdministration.Authentication.IdentityProviderDetail,
             element: <IdentityProviderDetail />,
           },
         ],
       },
       {
         label: 'Settings',
-        path: AppRoute.Configuration.Settings,
+        path: AppRoute.SystemAdministration.Settings,
         icon: <RhUiSettingsIcon />,
         element: <Settings />,
       },
       {
         label: 'Audit Log',
-        path: AppRoute.AccessManagement.AuditLog,
+        path: AppRoute.SystemAdministration.AuditLog,
         icon: <RhUiDocumentIcon />,
         element: <AuditLog />,
       },

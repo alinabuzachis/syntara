@@ -142,7 +142,7 @@ describe('UserForm', () => {
 
       await user.click(cancelButton)
 
-      expect(mockNavigate).toHaveBeenCalledWith('/access-management/users')
+      expect(mockNavigate).toHaveBeenCalledWith('/system-administration/access-management/users')
     })
 
     it('calls createUser mutation with form data on submit', async () => {
@@ -197,7 +197,7 @@ describe('UserForm', () => {
         callbacks.onSuccess()
       })
 
-      expect(mockNavigate).toHaveBeenCalledWith('/access-management/users')
+      expect(mockNavigate).toHaveBeenCalledWith('/system-administration/access-management/users')
     })
 
     it('calls onError handler on create failure', async () => {
@@ -333,7 +333,7 @@ describe('UserForm', () => {
         callbacks.onSuccess()
       })
 
-      expect(mockNavigate).toHaveBeenCalledWith('/access-management/users')
+      expect(mockNavigate).toHaveBeenCalledWith('/system-administration/access-management/users')
     })
 
     it('calls onError handler on update failure', async () => {
@@ -412,7 +412,7 @@ describe('UserForm', () => {
 
       await user.click(screen.getByRole('button', { name: /Back to users/ }))
 
-      expect(mockNavigate).toHaveBeenCalledWith('/access-management/users')
+      expect(mockNavigate).toHaveBeenCalledWith('/system-administration/access-management/users')
     })
 
     it('calls refetch when Retry button is clicked in error state', async () => {

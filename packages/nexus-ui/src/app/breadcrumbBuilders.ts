@@ -23,7 +23,7 @@ function crumbProjectsList(): AppBreadcrumbItem {
 }
 
 function crumbIdentityProvidersList(): AppBreadcrumbItem {
-  return { label: LABEL_IDENTITY_PROVIDERS, href: AppRoute.AccessManagement.Authentication.Root }
+  return { label: LABEL_IDENTITY_PROVIDERS, href: AppRoute.SystemAdministration.Authentication.Root }
 }
 
 function crumbConfiguration(): AppBreadcrumbItem {
@@ -39,7 +39,7 @@ function crumbCredentials(): AppBreadcrumbItem {
 }
 
 function crumbSettings(): AppBreadcrumbItem {
-  return { label: 'Settings', href: AppRoute.Configuration.Settings }
+  return { label: 'Settings', href: AppRoute.SystemAdministration.Settings }
 }
 
 function crumbApprovals(): AppBreadcrumbItem {
@@ -79,7 +79,7 @@ export function breadcrumbsAccessManagementHub(activeTabLabel: string): AppBread
 }
 
 export function breadcrumbsIdentityProvidersPage(): AppBreadcrumbItem[] {
-  return [crumbAccessManagement(), { label: LABEL_IDENTITY_PROVIDERS }]
+  return [{ label: LABEL_IDENTITY_PROVIDERS }]
 }
 
 export function breadcrumbsCreateUser(): AppBreadcrumbItem[] {
@@ -122,16 +122,11 @@ export function breadcrumbsProjectDetail(
 }
 
 export function breadcrumbsIdentityProviderAdd(): AppBreadcrumbItem[] {
-  return [crumbAccessManagement(), crumbIdentityProvidersList(), { label: 'Add OIDC provider' }]
+  return [crumbIdentityProvidersList(), { label: 'Add OIDC provider' }]
 }
 
 export function breadcrumbsIdentityProviderEdit(providerName: string, detailBasePath: string): AppBreadcrumbItem[] {
-  return [
-    crumbAccessManagement(),
-    crumbIdentityProvidersList(),
-    { label: providerName, href: detailBasePath },
-    { label: 'Edit OIDC provider' },
-  ]
+  return [crumbIdentityProvidersList(), { label: providerName, href: detailBasePath }, { label: 'Edit OIDC provider' }]
 }
 
 export function breadcrumbsIdentityProviderDetail(
@@ -139,7 +134,7 @@ export function breadcrumbsIdentityProviderDetail(
   detailBasePath: string,
   tab: string
 ): AppBreadcrumbItem[] {
-  const prefix = [crumbAccessManagement(), crumbIdentityProvidersList()]
+  const prefix = [crumbIdentityProvidersList()]
   if (tab === DEFAULT_ENTITY_TAB) {
     return [...prefix, { label: providerName }]
   }
@@ -147,12 +142,12 @@ export function breadcrumbsIdentityProviderDetail(
 }
 
 export function breadcrumbsSettingsCategory(categoryName: string): AppBreadcrumbItem[] {
-  return [crumbConfiguration(), crumbSettings(), { label: categoryName }]
+  return [crumbSettings(), { label: categoryName }]
 }
 
 /** Settings page before a category is selected or when only the page title applies. */
 export function breadcrumbsSettingsPage(): AppBreadcrumbItem[] {
-  return [crumbConfiguration(), { label: 'Settings' }]
+  return [{ label: 'Settings' }]
 }
 
 export function breadcrumbsApprovalDetail(approvalLabel: string): AppBreadcrumbItem[] {
@@ -209,9 +204,9 @@ export function breadcrumbsProjectDetailEarlyShell(): AppBreadcrumbItem[] {
 }
 
 export function breadcrumbsIdentityProviderFormLoading(currentLabel: string): AppBreadcrumbItem[] {
-  return [crumbAccessManagement(), crumbIdentityProvidersList(), { label: currentLabel }]
+  return [crumbIdentityProvidersList(), { label: currentLabel }]
 }
 
 export function breadcrumbsIdentityProviderDetailEarlyShell(): AppBreadcrumbItem[] {
-  return [crumbAccessManagement(), crumbIdentityProvidersList(), { label: 'Identity provider details' }]
+  return [crumbIdentityProvidersList(), { label: 'Identity provider details' }]
 }

@@ -67,7 +67,7 @@ function getRowActions(provider: IdentityProvider, onDelete: (provider: Identity
       isDisabled: !provider.id,
       onClick: () => {
         if (!provider.id) return
-        navigate(AppRoute.AccessManagement.Authentication.EditIdentityProvider.replace(':providerId', provider.id))
+        navigate(AppRoute.SystemAdministration.Authentication.EditIdentityProvider.replace(':providerId', provider.id))
       },
     },
     {
@@ -95,7 +95,7 @@ function AddProviderButton() {
     <Button
       variant="primary"
       icon={<PlusIcon />}
-      onClick={() => navigate(AppRoute.AccessManagement.Authentication.AddIdentityProvider)}
+      onClick={() => navigate(AppRoute.SystemAdministration.Authentication.AddIdentityProvider)}
     >
       Add OIDC provider
     </Button>
@@ -103,7 +103,7 @@ function AddProviderButton() {
 }
 
 function providerDetailPath(providerId: string): string {
-  return AppRoute.AccessManagement.Authentication.IdentityProviderDetail.replace(':providerId', providerId).replace(
+  return AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(':providerId', providerId).replace(
     '/:tab?',
     ''
   )

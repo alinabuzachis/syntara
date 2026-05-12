@@ -14,7 +14,7 @@ test.describe('Access Management — Dropdown Pagination', () => {
   test.skip(!!process.env.NEXUS_E2E_SKIP_WEB_SERVER, 'Requires mock API seed data')
 
   test('Assign Role modal shows roles in the multi-select dropdown', async ({ app }) => {
-    await app.goto(toAppUrl('/access-management/users'))
+    await app.goto(toAppUrl('/system-administration/access-management/users'))
     await expect(app.getByRole('heading', { level: 1, name: 'Access Management' })).toBeVisible()
 
     const usersTable = app.getByRole('grid', { name: 'Users table' })
@@ -27,7 +27,7 @@ test.describe('Access Management — Dropdown Pagination', () => {
 
     await firstUserButton.click()
 
-    await expect(app).toHaveURL(/access-management\/users\//)
+    await expect(app).toHaveURL(/system-administration\/access-management\/users\//)
 
     const rolesTab = app.getByRole('tab', { name: /roles/i })
     await expect(rolesTab).toBeVisible()
@@ -56,7 +56,7 @@ test.describe('Access Management — Dropdown Pagination', () => {
   })
 
   test('Add Member modal shows users in the typeahead dropdown', async ({ app }) => {
-    await app.goto(toAppUrl('/access-management/groups'))
+    await app.goto(toAppUrl('/system-administration/access-management/groups'))
     await expect(app.getByRole('heading', { level: 1, name: 'Access Management' })).toBeVisible()
 
     const groupsTable = app.getByRole('grid', { name: 'Groups table' })
@@ -69,7 +69,7 @@ test.describe('Access Management — Dropdown Pagination', () => {
 
     await firstGroupButton.click()
 
-    await expect(app).toHaveURL(/access-management\/groups\//)
+    await expect(app).toHaveURL(/system-administration\/access-management\/groups\//)
 
     const membersTab = app.getByRole('tab', { name: /members/i })
     const hasMembersTab = await membersTab

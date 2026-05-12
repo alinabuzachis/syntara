@@ -38,15 +38,7 @@ export default {
     ])
 
     /** Layout-constraint properties that are intentionally skipped. */
-    const LAYOUT_PROPERTIES = new Set([
-      'width',
-      'height',
-      'maxWidth',
-      'maxHeight',
-      'minWidth',
-      'minHeight',
-      'flex',
-    ])
+    const LAYOUT_PROPERTIES = new Set(['width', 'height', 'maxWidth', 'maxHeight', 'minWidth', 'minHeight', 'flex'])
 
     const HARDCODED_SPACING_RE = /\d+\.?\d*px|\d+\.?\d*rem/
     const RELATIVE_UNIT_RE = /(?:ch|vh|vw|%|em)/

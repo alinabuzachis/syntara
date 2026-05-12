@@ -32,7 +32,7 @@ vi.mock('wouter', async (importOriginal) => {
   const actual: Record<string, unknown> = await importOriginal()
   return {
     ...actual,
-    useLocation: () => ['/access-management/audit-log', vi.fn()],
+    useLocation: () => ['/system-administration/audit-log', vi.fn()],
     useSearchParams: () => [new URLSearchParams(), mockSetSearchParams],
   }
 })

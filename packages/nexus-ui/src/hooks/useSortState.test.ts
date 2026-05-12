@@ -6,7 +6,7 @@ import { useSortState } from './useSortState'
 
 const mockNavigate = vi.fn()
 let mockSearch = ''
-let mockLocation = '/access-management/roles'
+let mockLocation = '/system-administration/access-management/roles'
 
 vi.mock('wouter', () => ({
   useSearch: () => mockSearch,
@@ -22,7 +22,7 @@ const sortFieldByColumn: Record<number, string> = {
 describe('useSortState', () => {
   beforeEach(() => {
     mockSearch = ''
-    mockLocation = '/access-management/roles'
+    mockLocation = '/system-administration/access-management/roles'
     mockNavigate.mockClear()
     // Sync window.location.search for live-read in onSort
     Object.defineProperty(window, 'location', {

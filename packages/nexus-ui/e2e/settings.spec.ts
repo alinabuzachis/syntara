@@ -31,7 +31,7 @@ import { apiRequest } from './utils/api'
 
 /** Navigate to settings and click the Context Manager tab. */
 async function goToContextManager(app: import('@playwright/test').Page) {
-  await app.goto(toAppUrl('/configuration/settings'))
+  await app.goto(toAppUrl('/system-administration/settings'))
   const cmTab = app.getByRole('tab', { name: /Context Manager/i })
   await cmTab.click()
   await expect(app.locator('.pf-v6-c-form__section-title', { hasText: 'Compression' })).toBeVisible({ timeout: 5000 })
@@ -39,7 +39,7 @@ async function goToContextManager(app: import('@playwright/test').Page) {
 
 /** Navigate to settings and click the System tab. */
 async function goToSystem(app: import('@playwright/test').Page) {
-  await app.goto(toAppUrl('/configuration/settings'))
+  await app.goto(toAppUrl('/system-administration/settings'))
   const sysTab = app.getByRole('tab', { name: 'System', exact: true })
   await sysTab.click()
   await expect(app.locator('[id="logging.log_level"]')).toBeVisible({ timeout: 5000 })
@@ -47,7 +47,7 @@ async function goToSystem(app: import('@playwright/test').Page) {
 
 /** Navigate to settings and click the AI / LLM tab. */
 async function goToAiLlm(app: import('@playwright/test').Page) {
-  await app.goto(toAppUrl('/configuration/settings'))
+  await app.goto(toAppUrl('/system-administration/settings'))
   const aiTab = app.getByRole('tab', { name: /AI \/ LLM/i })
   await aiTab.click()
   await expect(app.locator('[id="retriever.llm_model"]')).toBeVisible({ timeout: 5000 })
@@ -94,7 +94,7 @@ test.describe('Settings', () => {
   test.beforeEach(async ({ app }) => {
     test.skip(settingsTabsUnavailable, 'Settings page has no tabs; backend may not have settings configured')
 
-    await app.goto(toAppUrl('/configuration/settings'))
+    await app.goto(toAppUrl('/system-administration/settings'))
     const heading = app.getByRole('heading', { level: 1, name: 'Settings' })
     const hasPage = await heading
       .waitFor({ state: 'visible', timeout: 10_000 })
@@ -175,7 +175,7 @@ test.describe('Settings', () => {
       await expect(saveButton).toBeDisabled({ timeout: 5000 })
 
       // Reload and verify value persisted
-      await app.goto(toAppUrl('/configuration/settings'))
+      await app.goto(toAppUrl('/system-administration/settings'))
       await cmTab.click()
       const reloadedInput = app.locator('[id="context_manager.compression_loop"]').locator('..').locator('input')
       const newValue = await reloadedInput.inputValue()
@@ -296,12 +296,12 @@ test.describe('Settings', () => {
     await app.getByRole('menuitem', { name: 'Settings' }).click()
 
     // Verify navigation
-    await expect(app).toHaveURL(/configuration\/settings/)
+    await expect(app).toHaveURL(/system-administration\/settings/)
     await expect(app.getByRole('tab', { name: /Context Manager/i })).toBeVisible()
   })
 
   test('auditor read-only view', async ({ auditorApp }) => {
-    await auditorApp.goto(toAppUrl('/configuration/settings'))
+    await auditorApp.goto(toAppUrl('/system-administration/settings'))
     const heading = auditorApp.getByRole('heading', { level: 1, name: 'Settings' })
     await expect(heading).toBeVisible({ timeout: 10_000 })
 
@@ -343,7 +343,7 @@ test.describe('Settings', () => {
   })
 
   test('viewer cannot access settings', async ({ viewerApp }) => {
-    await viewerApp.goto(toAppUrl('/configuration/settings'))
+    await viewerApp.goto(toAppUrl('/system-administration/settings'))
     const heading = viewerApp.getByRole('heading', { level: 1, name: 'Settings' })
     await expect(heading).toBeVisible({ timeout: 10_000 })
 

@@ -84,7 +84,7 @@ function ProviderLink({ name, providerId }: { name: string; providerId: string }
           isInline
           onClick={() =>
             navigate(
-              AppRoute.AccessManagement.Authentication.IdentityProviderDetail.replace(
+              AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(
                 ':providerId',
                 providerId
               ).replace('/:tab?', '')

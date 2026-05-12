@@ -27,7 +27,7 @@ vi.mock('../../access/accessClient', () => ({
 
 const VALID_GROUP_ID = 'g-1234-5678-abcd'
 
-let mockLocationValue = `/access-management/groups/${VALID_GROUP_ID}`
+let mockLocationValue = `/system-administration/access-management/groups/${VALID_GROUP_ID}`
 const mockSetLocation = vi.fn()
 const mockUseParams = vi.fn(() => ({ groupId: VALID_GROUP_ID }))
 
@@ -192,7 +192,7 @@ describe('GroupDetail', () => {
     queryClient.clear()
     mockNavigate.mockClear()
     mockSetLocation.mockClear()
-    mockLocationValue = `/access-management/groups/${VALID_GROUP_ID}`
+    mockLocationValue = `/system-administration/access-management/groups/${VALID_GROUP_ID}`
     mockUseParams.mockReturnValue({ groupId: VALID_GROUP_ID })
     mockSuccessQueries()
   })
@@ -346,7 +346,7 @@ describe('GroupDetail', () => {
 
       await user.click(screen.getByRole('button', { name: 'Back to groups' }))
 
-      expect(mockNavigate).toHaveBeenCalledWith('/access-management/groups')
+      expect(mockNavigate).toHaveBeenCalledWith('/system-administration/access-management/groups')
     })
 
     it('calls refetch when Retry is clicked in error state', async () => {
@@ -428,7 +428,9 @@ describe('GroupDetail', () => {
 
       await user.click(screen.getByRole('tab', { name: /Members/i }))
 
-      expect(mockSetLocation).toHaveBeenCalledWith(`/access-management/groups/${VALID_GROUP_ID}/members`)
+      expect(mockSetLocation).toHaveBeenCalledWith(
+        `/system-administration/access-management/groups/${VALID_GROUP_ID}/members`
+      )
     })
 
     it('navigates to roles URL when Role Assignments tab is clicked', async () => {
@@ -437,11 +439,13 @@ describe('GroupDetail', () => {
 
       await user.click(screen.getByRole('tab', { name: /Role Assignments/i }))
 
-      expect(mockSetLocation).toHaveBeenCalledWith(`/access-management/groups/${VALID_GROUP_ID}/roles`)
+      expect(mockSetLocation).toHaveBeenCalledWith(
+        `/system-administration/access-management/groups/${VALID_GROUP_ID}/roles`
+      )
     })
 
     it('renders Members panel when URL is /members', () => {
-      mockLocationValue = `/access-management/groups/${VALID_GROUP_ID}/members`
+      mockLocationValue = `/system-administration/access-management/groups/${VALID_GROUP_ID}/members`
       render(<GroupDetail />, { wrapper })
 
       expect(screen.getByTestId('group-members-panel')).toBeInTheDocument()
@@ -450,7 +454,7 @@ describe('GroupDetail', () => {
     })
 
     it('renders Roles panel when URL is /roles', () => {
-      mockLocationValue = `/access-management/groups/${VALID_GROUP_ID}/roles`
+      mockLocationValue = `/system-administration/access-management/groups/${VALID_GROUP_ID}/roles`
       render(<GroupDetail />, { wrapper })
 
       expect(screen.getByTestId('role-assignments-panel')).toBeInTheDocument()
@@ -458,7 +462,7 @@ describe('GroupDetail', () => {
     })
 
     it('does not render Members panel for authenticated group even on /members URL', () => {
-      mockLocationValue = `/access-management/groups/${VALID_GROUP_ID}/members`
+      mockLocationValue = `/system-administration/access-management/groups/${VALID_GROUP_ID}/members`
       mockSuccessQueries(mockAuthenticatedGroup)
       render(<GroupDetail />, { wrapper })
 
@@ -507,7 +511,7 @@ describe('GroupDetail', () => {
     })
 
     it('renders roles tab for authenticated group', () => {
-      mockLocationValue = `/access-management/groups/${VALID_GROUP_ID}/roles`
+      mockLocationValue = `/system-administration/access-management/groups/${VALID_GROUP_ID}/roles`
       mockSuccessQueries(mockAuthenticatedGroup)
       render(<GroupDetail />, { wrapper })
 
@@ -516,7 +520,7 @@ describe('GroupDetail', () => {
     })
 
     it('renders no tab content for unrecognized tab slug', () => {
-      mockLocationValue = `/access-management/groups/${VALID_GROUP_ID}/unknown`
+      mockLocationValue = `/system-administration/access-management/groups/${VALID_GROUP_ID}/unknown`
       render(<GroupDetail />, { wrapper })
 
       // Neither details, members, nor roles content should show
@@ -526,7 +530,7 @@ describe('GroupDetail', () => {
     })
 
     it('does not show members panel on members URL for authenticated group', () => {
-      mockLocationValue = `/access-management/groups/${VALID_GROUP_ID}/members`
+      mockLocationValue = `/system-administration/access-management/groups/${VALID_GROUP_ID}/members`
       mockSuccessQueries(mockAuthenticatedGroup)
       render(<GroupDetail />, { wrapper })
 
@@ -569,7 +573,7 @@ describe('GroupDetail', () => {
       })
 
       // Navigate to members tab where GroupMembersPanel calls onMembersChange
-      mockLocationValue = `/access-management/groups/${VALID_GROUP_ID}/members`
+      mockLocationValue = `/system-administration/access-management/groups/${VALID_GROUP_ID}/members`
       render(<GroupDetail />, { wrapper })
 
       // Trigger the onMembersChange callback via the mock button

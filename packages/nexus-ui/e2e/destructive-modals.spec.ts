@@ -132,7 +132,7 @@ test.describe('destructive modal UX compliance (AAP-72897)', () => {
   })
 
   test('unassign role modal has Tier 2 pattern: warning icon, no checkbox', async ({ app }) => {
-    await app.goto(toAppUrl('/access-management/users'))
+    await app.goto(toAppUrl('/system-administration/access-management/users'))
 
     const table = app.getByRole('grid', { name: 'Users table' })
     const hasTable = await table

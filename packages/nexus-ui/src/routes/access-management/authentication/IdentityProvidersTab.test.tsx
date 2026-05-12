@@ -31,7 +31,7 @@ vi.mock('../../../client', () => ({
 let currentSearchParams = new URLSearchParams()
 
 vi.mock('wouter', () => ({
-  useLocation: () => ['/access-management/authentication', vi.fn()],
+  useLocation: () => ['/system-administration/authentication', vi.fn()],
   useSearchParams: () => [currentSearchParams, vi.fn()],
 }))
 
@@ -172,7 +172,7 @@ describe('IdentityProvidersTab', () => {
 
       await user.click(screen.getByRole('button', { name: /Add OIDC provider/ }))
 
-      expect(navigate).toHaveBeenCalledWith('/access-management/authentication/identity-providers/add')
+      expect(navigate).toHaveBeenCalledWith('/system-administration/authentication/identity-providers/add')
     })
 
     it('has no accessibility violations in empty state', async () => {
@@ -264,7 +264,7 @@ describe('IdentityProvidersTab', () => {
 
       await user.click(screen.getByRole('button', { name: 'Azure AD' }))
 
-      expect(navigate).toHaveBeenCalledWith('/access-management/authentication/identity-providers/provider-1')
+      expect(navigate).toHaveBeenCalledWith('/system-administration/authentication/identity-providers/provider-1')
     })
 
     it('opens delete confirmation dialog when delete action is clicked', async () => {
@@ -409,7 +409,7 @@ describe('IdentityProvidersTab', () => {
       await user.click(actionsButton)
       await user.click(screen.getByText('Edit provider'))
 
-      expect(navigate).toHaveBeenCalledWith('/access-management/authentication/identity-providers/provider-1/edit')
+      expect(navigate).toHaveBeenCalledWith('/system-administration/authentication/identity-providers/provider-1/edit')
     })
 
     it('navigates to group mapping page when edit mapping action is clicked', async () => {
@@ -422,7 +422,7 @@ describe('IdentityProvidersTab', () => {
       await user.click(screen.getByText('Edit mapping'))
 
       expect(navigate).toHaveBeenCalledWith(
-        '/access-management/authentication/identity-providers/provider-1/group-mapping'
+        '/system-administration/authentication/identity-providers/provider-1/group-mapping'
       )
     })
   })

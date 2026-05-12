@@ -13,7 +13,7 @@ import { test, expect, toAppUrl } from './fixtures'
 
 test.describe('Group Detail — Navigation & Tabs', () => {
   test.beforeEach(async ({ app }) => {
-    await app.goto(toAppUrl('/access-management/groups'))
+    await app.goto(toAppUrl('/system-administration/access-management/groups'))
     await expect(app.getByRole('heading', { level: 1, name: /access management/i })).toBeVisible()
     // Skip if "admins" group doesn't exist (real backend may not have seeded groups)
     const table = app.getByRole('grid', { name: 'Groups table' })
@@ -30,7 +30,7 @@ test.describe('Group Detail — Navigation & Tabs', () => {
     await table.getByRole('button', { name: 'admins', exact: true }).click()
 
     // Should navigate to group detail page
-    await expect(app).toHaveURL(/access-management\/groups\//)
+    await expect(app).toHaveURL(/system-administration\/access-management\/groups\//)
     await expect(app.getByRole('heading', { level: 1, name: 'admins', exact: true })).toBeVisible()
 
     // Should show tabs
@@ -70,7 +70,7 @@ test.describe('Group Detail — Navigation & Tabs', () => {
     await expect(app.getByRole('heading', { level: 1, name: 'admins', exact: true })).toBeVisible()
 
     // Navigate back via URL (GroupDetail has no back button — use sidebar nav)
-    await app.goto(toAppUrl('/access-management/groups'))
+    await app.goto(toAppUrl('/system-administration/access-management/groups'))
 
     await expect(app.getByRole('heading', { level: 1, name: /access management/i })).toBeVisible()
     await expect(table.getByRole('button', { name: 'admins', exact: true })).toBeVisible()
@@ -151,7 +151,7 @@ test.describe('Group Detail — Navigation & Tabs', () => {
     await expect(app.getByRole('heading', { level: 1, name: 'admins', exact: true })).toBeVisible()
 
     // Go back to groups list
-    await app.goto(toAppUrl('/access-management/groups'))
+    await app.goto(toAppUrl('/system-administration/access-management/groups'))
     await expect(app.getByRole('heading', { level: 1, name: /access management/i })).toBeVisible()
 
     // Navigate to authenticated group
@@ -176,7 +176,7 @@ test.describe('User Detail — Group Membership', () => {
   // This test passes locally against mock API but on CI the User detail page
   // never finishes loading — the "Edit user" button never appears within 30s.
   test.skip('add to group button is available on user groups tab', async ({ app }) => {
-    await app.goto(toAppUrl('/access-management/users'))
+    await app.goto(toAppUrl('/system-administration/access-management/users'))
     await expect(app.getByRole('heading', { level: 1, name: /access management/i })).toBeVisible()
 
     // Click on a user
@@ -188,7 +188,7 @@ test.describe('User Detail — Group Membership', () => {
     test.skip(!hasUser, 'No admin user in mock data')
 
     await userLink.click()
-    await expect(app).toHaveURL(/\/access-management\/users\/[^/]+$/, { timeout: 30_000 })
+    await expect(app).toHaveURL(/\/system-administration\/access-management\/users\/[^/]+$/, { timeout: 30_000 })
     // User detail loaded — do not wait on `role="tab"` "Details": PF horizontal overflow can move
     // every sub-tab (including Details) behind overflow/scroll so no tab is a visible `tab`.
     await expect(app.getByRole('button', { name: 'Edit user' })).toBeVisible({ timeout: 30_000 })
@@ -196,7 +196,9 @@ test.describe('User Detail — Group Membership', () => {
     // Open the Groups panel via URL (matches useDetailTab); avoids relying on any sub-tab click.
     const userPath = new URL(app.url()).pathname
     await app.goto(toAppUrl(`${userPath}/groups`))
-    await expect(app).toHaveURL(/\/access-management\/users\/[^/]+\/groups$/, { timeout: 30_000 })
+    await expect(app).toHaveURL(/\/system-administration\/access-management\/users\/[^/]+\/groups$/, {
+      timeout: 30_000,
+    })
 
     // Should see add to group button (panel content — do not require clicking the Groups tab:
     // PF horizontal overflow can move "Groups" into an overflow menu where it is not role="tab".)
