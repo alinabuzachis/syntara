@@ -13,7 +13,12 @@ import pytest
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.authz.exceptions import BuiltinProtectionError, PolicyNameConflictError, PolicyNotFoundError
+from nexus.authz.exceptions import (
+    BuiltinProtectionError,
+    InvalidResourceActionError,
+    PolicyNameConflictError,
+    PolicyNotFoundError,
+)
 from nexus.authz.models.policy import Policy
 from nexus.authz.models.role import Role
 from nexus.authz.services.policy_service import PolicyService
@@ -244,7 +249,7 @@ async def test_name_conflict_scoped_to_project(test_db_session: AsyncSession, te
     svc = PolicyService(test_db_session, test_user)
     await svc.create_policy(
         name="scoped-policy",
-        statements=[{"effect": "allow", "actions": ["workflow:read"], "scope": "any"}],
+        statements=[{"effect": "allow", "actions": ["workflow:read"], "scope": "project"}],
         project_id=project.id,
     )
     # Same name but global scope -- should succeed
@@ -254,3 +259,156 @@ async def test_name_conflict_scoped_to_project(test_db_session: AsyncSession, te
     )
     assert global_policy.name == "scoped-policy"
     assert global_policy.project_id is None
+
+
+# ============================================================================
+# Project Policy Validation (AAP-74594)
+# ============================================================================
+
+
+@pytest.fixture(autouse=True, scope="module")
+def _ensure_project_eligible() -> None:
+    """Ensure the project-eligible registry includes types used in these tests.
+
+    The unit conftest builds the registry from discovered routes, but import
+    ordering in CI can leave _project_eligible under-populated.  Patch it
+    once for the module so project-validation tests are deterministic.
+    """
+    import nexus.authz.resource_actions as ra
+
+    needed = {"workflow", "execution", "project"}
+    if not needed.issubset(ra._project_eligible):
+        ra._project_eligible = ra._project_eligible | frozenset(needed)
+
+
+@pytest.mark.asyncio
+async def test_create_project_policy_rejects_scope_any(test_db_session: AsyncSession, test_user: User) -> None:
+    """scope=any is invalid at project scope — must be 'project'."""
+    from nexus.authz.models.project import Project
+
+    project = Project(name="val-proj-1", labels={})
+    test_db_session.add(project)
+    await test_db_session.commit()
+    await test_db_session.refresh(project)
+
+    svc = PolicyService(test_db_session, test_user)
+    with pytest.raises(InvalidResourceActionError, match=r"scope='project'.*got scope='any'"):
+        await svc.create_policy(
+            name="bad-scope-any",
+            statements=[{"effect": "allow", "actions": ["workflow:read"], "scope": "any"}],
+            project_id=project.id,
+        )
+
+
+@pytest.mark.asyncio
+async def test_create_project_policy_rejects_scope_self(test_db_session: AsyncSession, test_user: User) -> None:
+    """scope=self for non-user resources is invalid at project scope."""
+    from nexus.authz.models.project import Project
+
+    project = Project(name="val-proj-2", labels={})
+    test_db_session.add(project)
+    await test_db_session.commit()
+    await test_db_session.refresh(project)
+
+    svc = PolicyService(test_db_session, test_user)
+    with pytest.raises(InvalidResourceActionError, match=r"scope='project'.*got scope='self'"):
+        await svc.create_policy(
+            name="bad-scope-self",
+            statements=[{"effect": "allow", "actions": ["workflow:read"], "scope": "self"}],
+            project_id=project.id,
+        )
+
+
+@pytest.mark.asyncio
+async def test_create_project_policy_rejects_system_resource(test_db_session: AsyncSession, test_user: User) -> None:
+    """System-only resource types (user, setting, group) are invalid at project scope."""
+    from nexus.authz.models.project import Project
+
+    project = Project(name="val-proj-3", labels={})
+    test_db_session.add(project)
+    await test_db_session.commit()
+    await test_db_session.refresh(project)
+
+    svc = PolicyService(test_db_session, test_user)
+    for action in ["user:read", "setting:write", "group:create", "user:*"]:
+        with pytest.raises(InvalidResourceActionError, match="not valid at project scope"):
+            await svc.create_policy(
+                name=f"bad-{action.replace(':', '-').replace('*', 'wild')}",
+                statements=[{"effect": "allow", "actions": [action], "scope": "project"}],
+                project_id=project.id,
+            )
+
+
+@pytest.mark.asyncio
+async def test_create_project_policy_accepts_valid(test_db_session: AsyncSession, test_user: User) -> None:
+    """Valid project policy with scope=project and eligible resource types succeeds."""
+    from nexus.authz.models.project import Project
+
+    project = Project(name="val-proj-4", labels={})
+    test_db_session.add(project)
+    await test_db_session.commit()
+    await test_db_session.refresh(project)
+
+    svc = PolicyService(test_db_session, test_user)
+    policy = await svc.create_policy(
+        name="valid-project-policy",
+        statements=[
+            {"effect": "allow", "actions": ["workflow:read", "execution:run"], "scope": "project"},
+        ],
+        project_id=project.id,
+    )
+    assert policy.project_id == project.id
+    assert policy.scope == "project"
+
+
+@pytest.mark.asyncio
+async def test_update_project_policy_rejects_invalid_scope(test_db_session: AsyncSession, test_user: User) -> None:
+    """Updating a project policy with scope=any is rejected."""
+    from nexus.authz.models.project import Project
+
+    project = Project(name="val-proj-5", labels={})
+    test_db_session.add(project)
+    await test_db_session.commit()
+    await test_db_session.refresh(project)
+
+    svc = PolicyService(test_db_session, test_user)
+    policy = await svc.create_policy(
+        name="update-target",
+        statements=[{"effect": "allow", "actions": ["workflow:read"], "scope": "project"}],
+        project_id=project.id,
+    )
+
+    with pytest.raises(InvalidResourceActionError, match=r"scope='project'.*got scope='any'"):
+        await svc.update_policy(
+            policy_id=policy.id,
+            statements=[{"effect": "allow", "actions": ["workflow:read"], "scope": "any"}],
+        )
+
+
+@pytest.mark.asyncio
+async def test_create_project_policy_wildcard_eligible(test_db_session: AsyncSession, test_user: User) -> None:
+    """Wildcard actions like workflow:* are validated against eligible resource types."""
+    from nexus.authz.models.project import Project
+
+    project = Project(name="val-proj-6", labels={})
+    test_db_session.add(project)
+    await test_db_session.commit()
+    await test_db_session.refresh(project)
+
+    svc = PolicyService(test_db_session, test_user)
+
+    # workflow:* should succeed — workflow is project-eligible
+    policy = await svc.create_policy(
+        name="wildcard-eligible",
+        statements=[{"effect": "allow", "actions": ["workflow:*"], "scope": "project"}],
+        project_id=project.id,
+    )
+    assert policy.project_id == project.id
+
+    # user:* should fail — user is not project-eligible
+    with pytest.raises(InvalidResourceActionError, match="not valid at project scope"):
+        await svc.create_policy(
+            name="wildcard-ineligible",
+            statements=[{"effect": "allow", "actions": ["user:*"], "scope": "project"}],
+            project_id=project.id,
+        )

@@ -26,11 +26,11 @@ class PolicyRead:
     Attributes:
         id (UUID):
         name (str):
+        is_project_eligible (bool): True when the policy belongs to a project or is a project-scoped builtin.
         is_system_scoped (bool): True when the policy is not scoped to a specific project.
         description (None | str | Unset):
         statements (list[PolicyReadStatementsItem] | Unset):
         is_builtin (bool | Unset):  Default: False.
-        is_project_eligible (bool | Unset):  Default: False.
         project_id (None | Unset | UUID):
         scope (str | Unset):  Default: 'any'.
         labels (PolicyReadLabels | Unset):
@@ -40,11 +40,11 @@ class PolicyRead:
 
     id: UUID
     name: str
+    is_project_eligible: bool
     is_system_scoped: bool
     description: None | str | Unset = UNSET
     statements: list[PolicyReadStatementsItem] | Unset = UNSET
     is_builtin: bool | Unset = False
-    is_project_eligible: bool | Unset = False
     project_id: None | Unset | UUID = UNSET
     scope: str | Unset = "any"
     labels: PolicyReadLabels | Unset = UNSET
@@ -56,6 +56,8 @@ class PolicyRead:
         id = str(self.id)
 
         name = self.name
+
+        is_project_eligible = self.is_project_eligible
 
         is_system_scoped = self.is_system_scoped
 
@@ -73,8 +75,6 @@ class PolicyRead:
                 statements.append(statements_item)
 
         is_builtin = self.is_builtin
-
-        is_project_eligible = self.is_project_eligible
 
         project_id: None | str | Unset
         if isinstance(self.project_id, Unset):
@@ -112,6 +112,7 @@ class PolicyRead:
             {
                 "id": id,
                 "name": name,
+                "is_project_eligible": is_project_eligible,
                 "is_system_scoped": is_system_scoped,
             }
         )
@@ -121,8 +122,6 @@ class PolicyRead:
             field_dict["statements"] = statements
         if is_builtin is not UNSET:
             field_dict["is_builtin"] = is_builtin
-        if is_project_eligible is not UNSET:
-            field_dict["is_project_eligible"] = is_project_eligible
         if project_id is not UNSET:
             field_dict["project_id"] = project_id
         if scope is not UNSET:
@@ -146,6 +145,8 @@ class PolicyRead:
 
         name = d.pop("name")
 
+        is_project_eligible = d.pop("is_project_eligible")
+
         is_system_scoped = d.pop("is_system_scoped")
 
         def _parse_description(data: object) -> None | str | Unset:
@@ -167,8 +168,6 @@ class PolicyRead:
                 statements.append(statements_item)
 
         is_builtin = d.pop("is_builtin", UNSET)
-
-        is_project_eligible = d.pop("is_project_eligible", UNSET)
 
         def _parse_project_id(data: object) -> None | Unset | UUID:
             if data is None:
@@ -233,11 +232,11 @@ class PolicyRead:
         policy_read = cls(
             id=id,
             name=name,
+            is_project_eligible=is_project_eligible,
             is_system_scoped=is_system_scoped,
             description=description,
             statements=statements,
             is_builtin=is_builtin,
-            is_project_eligible=is_project_eligible,
             project_id=project_id,
             scope=scope,
             labels=labels,

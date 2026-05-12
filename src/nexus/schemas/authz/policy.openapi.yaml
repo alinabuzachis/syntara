@@ -430,6 +430,7 @@ components:
         - id
         - name
         - is_system_scoped
+        - is_project_eligible
       properties:
         id:
           type: string
@@ -456,7 +457,8 @@ components:
           title: Is Builtin
         is_project_eligible:
           type: boolean
-          default: false
+          readOnly: true
+          description: True when the policy belongs to a project or is a project-scoped builtin.
           title: Is Project Eligible
         is_system_scoped:
           type: boolean

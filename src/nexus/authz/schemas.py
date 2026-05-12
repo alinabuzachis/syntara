@@ -69,7 +69,6 @@ class PolicyRead(SQLModel):
     description: str | None = None
     statements: list[dict[str, Any]] = []
     is_builtin: bool = False
-    is_project_eligible: bool = False
     project_id: UUID | None = None
     scope: str = "any"
     labels: dict[str, Any] = {}
@@ -81,6 +80,12 @@ class PolicyRead(SQLModel):
     def is_system_scoped(self) -> bool:
         """True when the policy is not scoped to a specific project."""
         return self.project_id is None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def is_project_eligible(self) -> bool:
+        """True when the policy belongs to a project or is a project-scoped builtin."""
+        return self.project_id is not None or self.scope == "project"
 
 
 class PolicyListResponse(ResourcesResponse[PolicyRead]):

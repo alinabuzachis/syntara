@@ -26,13 +26,19 @@ logger = structlog.stdlib.get_logger(__name__)
 
 _registry: dict[str, list[str]] | None = None
 _all_pairs: frozenset[str] = frozenset()
+_project_eligible: frozenset[str] = frozenset()
 
 
-def _set_registry(resource_actions: dict[str, list[str]]) -> None:
+def _set_registry(
+    resource_actions: dict[str, list[str]],
+    project_eligible: frozenset[str] | None = None,
+) -> None:
     """Install the dynamic registry (called once at startup)."""
-    global _registry, _all_pairs  # noqa: PLW0603
+    global _registry, _all_pairs, _project_eligible  # noqa: PLW0603
     _registry = resource_actions
     _all_pairs = frozenset(f"{rt}:{action}" for rt, actions in resource_actions.items() for action in actions)
+    if project_eligible is not None:
+        _project_eligible = project_eligible
 
 
 def get_resource_actions() -> dict[str, list[str]]:
@@ -78,6 +84,54 @@ def validate_statements(statements: list[dict[str, Any]]) -> list[str]:
             elif action_str not in pairs:
                 invalid.append(action_str)
     return invalid
+
+
+def get_project_eligible_resource_types() -> frozenset[str]:
+    """Return resource types that are valid at project scope.
+
+    Derived at startup from route introspection: a resource type is
+    project-eligible when its ``PermissionChecker`` references a model
+    with a ``project_id`` field, or uses ``project_param`` /
+    ``body_project_field``.
+
+    Raises:
+        RuntimeError: If called before ``build_resource_actions`` has run.
+
+    """
+    if _registry is None:
+        msg = "Resource-actions registry not initialized. Call build_resource_actions(app) during startup."
+        raise RuntimeError(msg)
+    return _project_eligible
+
+
+def validate_project_statements(statements: list[dict[str, Any]]) -> str | None:
+    """Validate that statements are appropriate for project-scoped policies.
+
+    Enforces two invariants:
+    1. Scope must be ``"project"`` (future: attribute-based selectors
+       within project scope).
+    2. Actions must reference project-eligible resource types only.
+
+    Returns a descriptive error string, or ``None`` if valid.
+    """
+    eligible = get_project_eligible_resource_types()
+
+    for stmt in statements:
+        scope = stmt.get("scope", "any")
+        if scope != "project":
+            return f"Project policies only accept scope='project', got scope='{scope}'"
+
+        for action_str in stmt.get("actions", []):
+            if ":" not in action_str:
+                continue
+            resource_type = action_str.split(":", 1)[0]
+            if resource_type not in eligible:
+                return (
+                    f"Resource type '{resource_type}' is not valid at project scope. "
+                    f"Allowed: {', '.join(sorted(eligible))}"
+                )
+
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -127,6 +181,7 @@ def build_resource_actions(app: FastAPI) -> dict[str, list[str]]:
     from nexus.authz.role_conventions import BUILTIN_POLICIES  # noqa: PLC0415
 
     pairs: set[tuple[str, str]] = set()
+    project_eligible: set[str] = {"project"}
 
     for route in app.routes:
         if not isinstance(route, APIRoute):
@@ -135,6 +190,12 @@ def build_resource_actions(app: FastAPI) -> dict[str, list[str]]:
             inner = _get_dep_instance(dep)
             if isinstance(inner, (PermissionChecker, ProjectScopeFilter, VisibilityFilter)):
                 pairs.add((inner.resource_type, inner.action))
+            if isinstance(inner, PermissionChecker) and (
+                inner.project_param
+                or inner.body_project_field
+                or (inner.resource_model and hasattr(inner.resource_model, "project_id"))
+            ):
+                project_eligible.add(inner.resource_type)
 
     for policy in BUILTIN_POLICIES:
         pairs.add((policy.resource, policy.action))
@@ -145,10 +206,11 @@ def build_resource_actions(app: FastAPI) -> dict[str, list[str]]:
 
     result = {rt: sorted(actions) for rt, actions in sorted(grouped.items())}
 
-    _set_registry(result)
+    _set_registry(result, frozenset(project_eligible))
     logger.info(
         "Resource-actions registry built",
         resource_types=len(result),
         total_pairs=sum(len(a) for a in result.values()),
+        project_eligible=sorted(project_eligible),
     )
     return result

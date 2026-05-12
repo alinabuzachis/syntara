@@ -66,6 +66,15 @@ class PolicyService(BaseService):
             msg = f"Unregistered resource:action pairs: {', '.join(invalid)}"
             raise InvalidResourceActionError(msg)
 
+    @staticmethod
+    def _validate_project_statements(statements: list[dict[str, Any]]) -> None:
+        """Reject statements invalid for project-scoped policies."""
+        from nexus.authz.resource_actions import validate_project_statements  # noqa: PLC0415
+
+        error = validate_project_statements(statements)
+        if error:
+            raise InvalidResourceActionError(error)
+
     async def create_policy(
         self,
         name: str,
@@ -76,6 +85,8 @@ class PolicyService(BaseService):
     ) -> Policy:
         """Create a custom policy."""
         self._validate_resource_actions(statements)
+        if project_id is not None:
+            self._validate_project_statements(statements)
         if is_builtin_policy(name):
             msg = f"Policy name '{name}' is reserved for a built-in policy"
             raise PolicyNameConflictError(msg)
@@ -395,6 +406,8 @@ class PolicyService(BaseService):
             policy.description = description
         if statements is not None:
             self._validate_resource_actions(statements)
+            if policy.project_id is not None:
+                self._validate_project_statements(statements)
             policy.statements = statements
         if labels is not None:
             policy.labels = labels
