@@ -1,16 +1,27 @@
 name: Update Visual Baselines
 
-# Triggered by a PR comment: /update-screenshots
+# Dispatched by update-screenshots-listener.yml after validating a
+# /update-screenshots PR comment. Using workflow_dispatch instead of
+# issue_comment prevents bot report comments (which contain the literal
+# text "/update-screenshots") from creating ghost "skipped" runs.
 on:
-  issue_comment:
-    types: [created]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Pull request number'
+        required: true
+        type: string
+      pr_ref:
+        description: 'PR head branch ref'
+        required: true
+        type: string
 
 permissions:
   contents: write
   pull-requests: write
 
 concurrency:
-  group: update-screenshots-${{ github.event.issue.number }}
+  group: update-screenshots-${{ inputs.pr_number }}
   cancel-in-progress: true
 
 jobs:
@@ -20,34 +31,11 @@ jobs:
     # NEXUS_E2E_SKIP_WEB_SERVER for real-backend E2E (would skip all snapshot tests).
     env:
       NEXUS_E2E_SKIP_WEB_SERVER: ''
-    if: >-
-      github.event.issue.pull_request
-      && contains(github.event.comment.body, '/update-screenshots')
-      && contains(fromJson('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
     runs-on: ubuntu-24.04
     steps:
-      - name: Get PR branch
-        id: pr
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const pr = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.issue.number,
-            });
-            const baseRepo = `${context.repo.owner}/${context.repo.repo}`;
-            const sameRepo = pr.data.head.repo.full_name === baseRepo;
-            if (!sameRepo) {
-              core.setFailed('Refusing to run /update-screenshots on fork PRs.');
-              return;
-            }
-            core.setOutput('ref', pr.data.head.ref);
-            core.setOutput('sha', pr.data.head.sha);
-
       - uses: actions/checkout@v6
         with:
-          ref: ${{ steps.pr.outputs.ref }}
+          ref: ${{ inputs.pr_ref }}
           fetch-depth: 0
 
       - uses: actions/setup-node@v6
@@ -82,7 +70,7 @@ jobs:
         continue-on-error: true
         working-directory: packages/nexus-ui
         env:
-          PR_REF: ${{ steps.pr.outputs.ref }}
+          PR_REF: ${{ inputs.pr_ref }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -101,7 +89,7 @@ jobs:
           fi
 
       - name: Post result comment
-        if: ${{ !cancelled() && steps.pr.outcome == 'success' }}
+        if: ${{ !cancelled() }}
         uses: actions/github-script@v9
         env:
           COMMITTED: ${{ steps.commit.outputs.committed }}
@@ -111,6 +99,7 @@ jobs:
           COMMIT_FAILED: ${{ steps.commit.outcome == 'failure' }}
           COMMIT_OUTCOME: ${{ steps.commit.outcome }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          PR_NUMBER: ${{ inputs.pr_number }}
         with:
           script: |
             const committed = process.env.COMMITTED === 'true';
@@ -186,7 +175,7 @@ jobs:
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.issue.number,
+              issue_number: Number(process.env.PR_NUMBER),
               body,
             });
 
