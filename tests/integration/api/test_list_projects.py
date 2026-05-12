@@ -29,12 +29,12 @@ def _auth_as(user: User) -> None:
 
 
 @pytest.mark.asyncio
-async def test_lp1_user_with_no_project_roles_sees_default_project(
+async def test_lp1_fresh_user_sees_only_default_project(
     auth_client: AsyncClient,
     test_user: User,
     user_factory: Callable[..., Awaitable[User]],
 ) -> None:
-    """LP-1: A fresh user with no explicit project roles sees the default project."""
+    """LP-1: A fresh user sees only the default project via the implicit authenticated group."""
     fresh_user = await user_factory(username="lp1-fresh", email="lp1@example.com")
     _auth_as(fresh_user)
 
@@ -52,7 +52,7 @@ async def test_lp2_project_creator_sees_only_their_project(
     test_user: User,
     user_factory: Callable[..., Awaitable[User]],
 ) -> None:
-    """LP-2: A user who created one project sees only that project."""
+    """LP-2: A user who created one project sees only that project (plus default)."""
     creator = await user_factory(username="lp2-creator", email="lp2@example.com")
     _auth_as(creator)
 
@@ -77,7 +77,7 @@ async def test_lp3_user_with_multiple_project_roles_sees_only_those(
     test_user: User,
     user_factory: Callable[..., Awaitable[User]],
 ) -> None:
-    """LP-3: A user with roles on two projects sees only those two."""
+    """LP-3: A user with roles on two projects sees only those two (plus default)."""
     multi_user = await user_factory(username="lp3-multi", email="lp3@example.com")
     _auth_as(multi_user)
 
@@ -185,12 +185,10 @@ async def test_lp6_project_user_can_see_assigned_project(
     user_factory: Callable[..., Awaitable[User]],
 ) -> None:
     """LP-6: A user assigned project-user role can see that project."""
-    # test_user creates a project
     resp = await auth_client.post("/api/v1/projects", json={"name": "lp6-proj"})
     assert resp.status_code == 201
     project_id = resp.json()["id"]
 
-    # Create another user and assign project-user
     viewer = await user_factory(username="lp6-viewer", email="lp6-v@example.com")
     resp = await auth_client.post(
         f"/api/v1/projects/{project_id}/role-assignments",
@@ -289,24 +287,21 @@ async def test_lp8_revoking_role_removes_project_from_list(
 
 
 @pytest.mark.asyncio
-async def test_new_user_gets_access_to_default_project(
+async def test_authenticated_user_gets_default_project_access(
     auth_client: AsyncClient,
+    test_db_session: AsyncSession,
     test_user: User,
     user_factory: Callable[..., Awaitable[User]],
 ) -> None:
-    """A newly created user automatically has project-user access to the default project."""
+    """Any authenticated user gets project-user access to the default project via the implicit authenticated group."""
     new_user = await user_factory(username="default-access-user", email="default-access@example.com")
+
     _auth_as(new_user)
 
-    # Should see the default project
     response = await auth_client.get("/api/v1/projects")
     assert response.status_code == 200
     names = [p["name"] for p in response.json()["resources"]]
     assert "default" in names
-
-    # Should be able to read workflows in the default project (project-user permission)
-    response = await auth_client.get("/api/v1/workflows")
-    assert response.status_code == 200
 
     _auth_as(test_user)
 

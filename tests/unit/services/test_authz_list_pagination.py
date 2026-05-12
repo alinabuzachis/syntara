@@ -146,17 +146,15 @@ async def test_list_roles_filter_is_builtin_true(test_db_session: AsyncSession, 
 
 
 @pytest.mark.asyncio
-async def test_list_roles_default_role_with_is_builtin_false_filter(
-    test_db_session: AsyncSession, test_user: User
-) -> None:
-    """The 'default' role (is_builtin=False) should appear for is_builtin=false."""
+async def test_list_roles_authenticated_role_is_builtin(test_db_session: AsyncSession, test_user: User) -> None:
+    """The 'authenticated' role (is_builtin=True) should appear for is_builtin=true."""
     svc = RoleService(test_db_session, test_user)
     result = await svc.list_roles(
         limit=100,
-        query_params_items=[("is_builtin", "false")],
+        query_params_items=[("is_builtin", "true")],
     )
     names = _all_names(result)
-    assert "default" in names, "The 'default' role (is_builtin=False) should appear when filtering is_builtin=false"
+    assert "authenticated" in names
 
 
 # ============================================================================

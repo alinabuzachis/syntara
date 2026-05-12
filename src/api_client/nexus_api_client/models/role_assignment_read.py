@@ -28,6 +28,7 @@ class RoleAssignmentRead:
         role_policies (list[str] | Unset):
         project_id (None | Unset | UUID):
         project_name (None | str | Unset):
+        is_builtin (bool | Unset):  Default: False.
         created_at (datetime.datetime | None | Unset):
     """
 
@@ -40,6 +41,7 @@ class RoleAssignmentRead:
     role_policies: list[str] | Unset = UNSET
     project_id: None | Unset | UUID = UNSET
     project_name: None | str | Unset = UNSET
+    is_builtin: bool | Unset = False
     created_at: datetime.datetime | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
@@ -78,6 +80,8 @@ class RoleAssignmentRead:
         else:
             project_name = self.project_name
 
+        is_builtin = self.is_builtin
+
         created_at: None | str | Unset
         if isinstance(self.created_at, Unset):
             created_at = UNSET
@@ -105,6 +109,8 @@ class RoleAssignmentRead:
             field_dict["project_id"] = project_id
         if project_name is not UNSET:
             field_dict["project_name"] = project_name
+        if is_builtin is not UNSET:
+            field_dict["is_builtin"] = is_builtin
         if created_at is not UNSET:
             field_dict["created_at"] = created_at
 
@@ -160,6 +166,8 @@ class RoleAssignmentRead:
 
         project_name = _parse_project_name(d.pop("project_name", UNSET))
 
+        is_builtin = d.pop("is_builtin", UNSET)
+
         def _parse_created_at(data: object) -> datetime.datetime | None | Unset:
             if data is None:
                 return data
@@ -187,6 +195,7 @@ class RoleAssignmentRead:
             role_policies=role_policies,
             project_id=project_id,
             project_name=project_name,
+            is_builtin=is_builtin,
             created_at=created_at,
         )
 

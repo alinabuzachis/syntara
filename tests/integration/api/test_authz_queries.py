@@ -206,7 +206,7 @@ async def test_can_i_self_scope(
     auth_client: AsyncClient,
     test_user: User,
 ) -> None:
-    """CI-5: user:read:any is granted to all authenticated users via default role."""
+    """CI-5: user:read:any is granted to all authenticated users via authenticated role."""
     # Should be allowed when resource_id matches user's own ID
     response = await auth_client.post(
         "/api/v1/authz/can-i",
@@ -220,7 +220,7 @@ async def test_can_i_self_scope(
     data = response.json()
     assert data["allowed"] is True
 
-    # Should also be allowed for other users (user:read:any granted to default role)
+    # Should also be allowed for other users (user:read:any granted to authenticated role)
     response = await auth_client.post(
         "/api/v1/authz/can-i",
         json={

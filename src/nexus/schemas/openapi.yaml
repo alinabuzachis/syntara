@@ -22136,6 +22136,10 @@ components:
             - type: string
             - type: 'null'
           title: Project Name
+        is_builtin:
+          type: boolean
+          default: false
+          title: Is Builtin
         created_at:
           anyOf:
             - type: string

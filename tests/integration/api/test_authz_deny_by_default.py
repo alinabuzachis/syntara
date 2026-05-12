@@ -28,7 +28,7 @@ async def test_new_user_project_isolation(
     fresh = await user_factory(username="fresh-dd", email="fresh-dd@test.com")
     await make_admin(test_db_session, alice)
 
-    # Fresh user creates own project (project:create:any is in the default role)
+    # Fresh user creates own project (project:create:any is in the authenticated role)
     auth_as(fresh)
     resp = await auth_client.post("/api/v1/projects", json={"name": "dd-own"})
     assert resp.status_code == 201

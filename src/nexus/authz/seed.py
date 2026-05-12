@@ -31,9 +31,9 @@ async def seed_groups_project_admin(session: AsyncSession) -> None:
     Role assignments reference roles by name — no role rows need to
     exist in the database.
     """
-    auth_group, admin_group, auditors_group, users_group, default_project = await _seed_groups_and_project(session)
+    auth_group, admin_group, auditors_group, default_project = await _seed_groups_and_project(session)
     await session.flush()
-    await _seed_assignments_and_admin(session, auth_group, admin_group, auditors_group, users_group, default_project)
+    await _seed_assignments_and_admin(session, auth_group, admin_group, auditors_group, default_project)
     await session.commit()
 
 
@@ -42,18 +42,18 @@ async def seed_authz_data(session: AsyncSession) -> None:
 
     This is the entry point used by tests after table truncation.
     """
-    auth_group, admin_group, auditors_group, users_group, default_project = await _seed_groups_and_project(session)
+    auth_group, admin_group, auditors_group, default_project = await _seed_groups_and_project(session)
     await session.flush()
-    await _seed_assignments_and_admin(session, auth_group, admin_group, auditors_group, users_group, default_project)
+    await _seed_assignments_and_admin(session, auth_group, admin_group, auditors_group, default_project)
     await session.commit()
 
 
 async def _seed_groups_and_project(
     session: AsyncSession,
-) -> tuple[Group, Group, Group, Group, Project]:
+) -> tuple[Group, Group, Group, Project]:
     """Seed default project and all built-in groups.
 
-    Returns (auth_group, admin_group, auditors_group, users_group, default_project).
+    Returns (auth_group, admin_group, auditors_group, default_project).
     """
     existing_proj = await session.exec(
         select(Project).where(
@@ -102,19 +102,7 @@ async def _seed_groups_and_project(
         )
         session.add(auditors_group)
 
-    existing_users = await session.exec(select(Group).where(Group.name == "users"))
-    users_group = existing_users.one_or_none()
-    if not users_group:
-        users_group = Group(
-            id=uuid4(),
-            name="users",
-            description="Standard users with access to create and manage own resources.",
-            is_builtin=True,
-            labels={},
-        )
-        session.add(users_group)
-
-    return auth_group, admin_group, auditors_group, users_group, default_project
+    return auth_group, admin_group, auditors_group, default_project
 
 
 async def _seed_assignments_and_admin(
@@ -122,16 +110,15 @@ async def _seed_assignments_and_admin(
     auth_group: Group,
     admin_group: Group,
     auditors_group: Group,
-    users_group: Group,
     default_project: Project,
 ) -> None:
     """Seed group-role assignments and bootstrap admin user."""
-    # Assign "default" role to the "authenticated" group (global)
+    # Assign "authenticated" role to the "authenticated" group (global)
     existing_auth_assignment = await session.exec(
         select(RoleAssignment).where(
             RoleAssignment.principal_type == PrincipalType.GROUP,
             RoleAssignment.principal_id == auth_group.id,
-            RoleAssignment.role_name == "default",
+            RoleAssignment.role_name == "authenticated",
             RoleAssignment.project_id.is_(None),  # type: ignore[union-attr]
         )
     )
@@ -141,67 +128,8 @@ async def _seed_assignments_and_admin(
                 id=uuid4(),
                 principal_type=PrincipalType.GROUP,
                 principal_id=auth_group.id,
-                role_name="default",
-                labels={},
-            )
-        )
-
-    # Assign "admin" role to the "admins" group (global)
-    existing_admin_assignment = await session.exec(
-        select(RoleAssignment).where(
-            RoleAssignment.principal_type == PrincipalType.GROUP,
-            RoleAssignment.principal_id == admin_group.id,
-            RoleAssignment.role_name == "admin",
-            RoleAssignment.project_id.is_(None),  # type: ignore[union-attr]
-        )
-    )
-    if not existing_admin_assignment.one_or_none():
-        session.add(
-            RoleAssignment(
-                id=uuid4(),
-                principal_type=PrincipalType.GROUP,
-                principal_id=admin_group.id,
-                role_name="admin",
-                labels={},
-            )
-        )
-
-    # Assign "auditor" role to the "auditors" group (global)
-    existing_auditor_assignment = await session.exec(
-        select(RoleAssignment).where(
-            RoleAssignment.principal_type == PrincipalType.GROUP,
-            RoleAssignment.principal_id == auditors_group.id,
-            RoleAssignment.role_name == "auditor",
-            RoleAssignment.project_id.is_(None),  # type: ignore[union-attr]
-        )
-    )
-    if not existing_auditor_assignment.one_or_none():
-        session.add(
-            RoleAssignment(
-                id=uuid4(),
-                principal_type=PrincipalType.GROUP,
-                principal_id=auditors_group.id,
-                role_name="auditor",
-                labels={},
-            )
-        )
-
-    # Assign "user" role to the "users" group (global)
-    existing_user_assignment = await session.exec(
-        select(RoleAssignment).where(
-            RoleAssignment.principal_type == PrincipalType.GROUP,
-            RoleAssignment.principal_id == users_group.id,
-            RoleAssignment.role_name == "user",
-            RoleAssignment.project_id.is_(None),  # type: ignore[union-attr]
-        )
-    )
-    if not existing_user_assignment.one_or_none():
-        session.add(
-            RoleAssignment(
-                id=uuid4(),
-                principal_type=PrincipalType.GROUP,
-                principal_id=users_group.id,
-                role_name="user",
+                role_name="authenticated",
+                is_builtin=True,
                 labels={},
             )
         )
@@ -223,6 +151,49 @@ async def _seed_assignments_and_admin(
                 principal_id=auth_group.id,
                 project_id=default_project.id,
                 role_name="project-user",
+                is_builtin=True,
+                labels={},
+            )
+        )
+
+    # Assign "admin" role to the "admins" group (global)
+    existing_admin_assignment = await session.exec(
+        select(RoleAssignment).where(
+            RoleAssignment.principal_type == PrincipalType.GROUP,
+            RoleAssignment.principal_id == admin_group.id,
+            RoleAssignment.role_name == "admin",
+            RoleAssignment.project_id.is_(None),  # type: ignore[union-attr]
+        )
+    )
+    if not existing_admin_assignment.one_or_none():
+        session.add(
+            RoleAssignment(
+                id=uuid4(),
+                principal_type=PrincipalType.GROUP,
+                principal_id=admin_group.id,
+                role_name="admin",
+                is_builtin=True,
+                labels={},
+            )
+        )
+
+    # Assign "auditor" role to the "auditors" group (global)
+    existing_auditor_assignment = await session.exec(
+        select(RoleAssignment).where(
+            RoleAssignment.principal_type == PrincipalType.GROUP,
+            RoleAssignment.principal_id == auditors_group.id,
+            RoleAssignment.role_name == "auditor",
+            RoleAssignment.project_id.is_(None),  # type: ignore[union-attr]
+        )
+    )
+    if not existing_auditor_assignment.one_or_none():
+        session.add(
+            RoleAssignment(
+                id=uuid4(),
+                principal_type=PrincipalType.GROUP,
+                principal_id=auditors_group.id,
+                role_name="auditor",
+                is_builtin=True,
                 labels={},
             )
         )

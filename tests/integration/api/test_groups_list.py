@@ -25,8 +25,8 @@ class TestGroupsListContract:
         data = response.json()
         assert "resources" in data
         assert isinstance(data["resources"], list)
-        # 6 from fixture + 4 builtin + 1 test-users + 1 admin-grp
-        assert len(data["resources"]) == 12
+        # 6 from fixture + 3 builtin + 1 test-users + 1 admin-grp
+        assert len(data["resources"]) == 11
 
     @pytest.mark.asyncio
     async def test_list_groups_only_builtin(self, admin_client: AsyncClient) -> None:
@@ -38,8 +38,8 @@ class TestGroupsListContract:
         data = response.json()
         assert "resources" in data
         assert isinstance(data["resources"], list)
-        # 4 builtin groups (authenticated, admins, auditors, users) + 1 test-users + 1 admin-grp
-        assert len(data["resources"]) == 6
+        # 3 builtin groups (authenticated, admins, auditors) + 1 test-users + 1 admin-grp
+        assert len(data["resources"]) == 5
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("multiple_test_groups")
@@ -162,8 +162,8 @@ class TestGroupsListContract:
         data = response.json()
         assert "total" in data
         assert isinstance(data["total"], int)
-        # 6 from fixture + 4 builtin + 1 test-users + 1 admin-grp
-        assert data["total"] == 12
+        # 6 from fixture + 3 builtin + 1 test-users + 1 admin-grp
+        assert data["total"] == 11
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("multiple_test_groups")
@@ -174,8 +174,8 @@ class TestGroupsListContract:
         assert response.status_code == 200
 
         data = response.json()
-        # 6 from fixture + 4 builtin + 1 test-users + 1 admin-grp
-        assert data["total"] == 12
+        # 6 from fixture + 3 builtin + 1 test-users + 1 admin-grp
+        assert data["total"] == 11
         assert len(data["resources"]) == 2
 
     @pytest.mark.asyncio

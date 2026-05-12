@@ -85,8 +85,8 @@ class RoleInfo:
 
 BUILTIN_POLICIES: list[PolicyInfo] = [
     # -- self-scoped --
-    PolicyInfo("user", "read", scope="self", roles=("admin", "user", "default")),
-    PolicyInfo("user", "update", scope="self", roles=("admin", "user", "default")),
+    PolicyInfo("user", "read", scope="self", roles=("admin", "user", "authenticated")),
+    PolicyInfo("user", "update", scope="self", roles=("admin", "user", "authenticated")),
     # -- system-scoped (any) --
     # credentials
     PolicyInfo("credential", "read", roles=("admin", "auditor", "user")),
@@ -107,11 +107,11 @@ BUILTIN_POLICIES: list[PolicyInfo] = [
     PolicyInfo("approval", "create", roles=("admin",)),
     # projects
     PolicyInfo("project", "read", roles=("admin", "auditor", "user")),
-    PolicyInfo("project", "create", roles=("admin", "user", "default")),
+    PolicyInfo("project", "create", roles=("admin", "user", "authenticated")),
     PolicyInfo("project", "update", roles=("admin",)),
     PolicyInfo("project", "delete", roles=("admin",)),
     # role assignments
-    PolicyInfo("role-assignment", "read", scope="self", roles=("admin", "auditor", "default")),
+    PolicyInfo("role-assignment", "read", scope="self", roles=("admin", "auditor", "authenticated")),
     PolicyInfo("role-assignment", "read", roles=("admin", "auditor")),
     PolicyInfo("role-assignment", "assign", roles=("admin",)),
     PolicyInfo("role-assignment", "revoke", roles=("admin",)),
@@ -126,19 +126,19 @@ BUILTIN_POLICIES: list[PolicyInfo] = [
     PolicyInfo("policy", "delete", roles=("admin",)),
     # users & groups
     PolicyInfo("user", "create", roles=("admin",)),
-    PolicyInfo("user", "read", roles=("admin", "auditor", "default")),
+    PolicyInfo("user", "read", roles=("admin", "auditor", "user", "authenticated")),
     PolicyInfo("user", "update", roles=("admin",)),
     PolicyInfo("user", "delete", roles=("admin",)),
     PolicyInfo("group", "create", roles=("admin",)),
-    PolicyInfo("group", "read", roles=("admin", "auditor", "user", "default")),
+    PolicyInfo("group", "read", roles=("admin", "auditor", "user", "authenticated")),
     PolicyInfo("group", "update", roles=("admin",)),
     PolicyInfo("group", "delete", roles=("admin",)),
     PolicyInfo("group", "manage-members", roles=("admin",)),
     # user identities (federated identity links)
-    PolicyInfo("user_identity", "read", scope="self", roles=("admin", "default")),
+    PolicyInfo("user_identity", "read", scope="self", roles=("admin", "authenticated")),
     PolicyInfo("user_identity", "read", roles=("admin",)),
     PolicyInfo("user_identity", "attach", roles=("admin",)),
-    PolicyInfo("user_identity", "detach", scope="self", roles=("admin", "default")),
+    PolicyInfo("user_identity", "detach", scope="self", roles=("admin", "authenticated")),
     PolicyInfo("user_identity", "detach", roles=("admin",)),
     # identity providers
     PolicyInfo("identity-provider", "create", roles=("admin",)),
@@ -198,9 +198,8 @@ BUILTIN_ROLES: list[RoleInfo] = [
     ),
     RoleInfo("project-auditor", "Read-only access within a project", scope="project"),
     RoleInfo(
-        "default",
-        "Default permissions granted to all authenticated users via the 'authenticated' group",
-        is_builtin=False,
+        "authenticated",
+        "Default permissions granted to all authenticated users",
     ),
 ]
 

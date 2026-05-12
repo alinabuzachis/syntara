@@ -128,17 +128,17 @@ class TestPrivilegeEscalation:
             assert resp.json()["allowed"] is False, f"Auditor should not be allowed {resource_type}:{action}"
 
     @pytest.mark.asyncio
-    async def test_default_role_can_read_other_users(
+    async def test_authenticated_role_can_read_other_users(
         self,
         auth_client: AsyncClient,
         user_factory: Callable[..., Awaitable[User]],
         auth_as: Callable[[User], None],
     ) -> None:
-        """SEC-005: Default role user can read any user (user:read:any granted to default role)."""
+        """SEC-005: Authenticated role grants user:read:any to all authenticated users."""
         user_a = await user_factory(username="usera-sec5", email="usera-sec5@test.com")
         user_b = await user_factory(username="userb-sec5", email="userb-sec5@test.com")
 
-        # user_a has only the default/authenticated group policies
+        # user_a has only the authenticated role policies
         auth_as(user_a)
 
         # Can read self
@@ -149,7 +149,7 @@ class TestPrivilegeEscalation:
         assert resp.status_code == 200
         assert resp.json()["allowed"] is True
 
-        # Can also read other users
+        # Can also read other users (user:read:any granted to authenticated role)
         resp = await auth_client.post(
             "/api/v1/authz/can-i",
             json={"action": "read", "resource_type": "user", "resource_id": str(user_b.id)},
@@ -215,12 +215,18 @@ class TestRoleBoundaries:
 
         # Filter to auditor-role-specific policies:
         # - scope=any (exclude project-scoped policies from authenticated group)
-        # - Exclude default/authenticated group policies (user:read:self, etc.)
-        default_policy_names = {"project:create:any", "user:read:self", "user:update:self"}
+        # - Exclude authenticated role policies (user:read:self, project:create, etc.)
+        authenticated_policy_names = {
+            "project:create:any",
+            "user:read:self",
+            "user:update:self",
+            "user:read:any",
+            "group:read:any",
+        }
         auditor_allows = [
             p
             for p in permissions
-            if p["effect"] == "allow" and p["scope"] == "any" and p["policy_name"] not in default_policy_names
+            if p["effect"] == "allow" and p["scope"] == "any" and p["policy_name"] not in authenticated_policy_names
         ]
         auditor_actions: set[str] = set()
         for p in auditor_allows:
@@ -355,7 +361,7 @@ class TestGroupMembershipEdgeCases:
         assert resp.status_code == 200
         permissions = resp.json()["permissions"]
 
-        # Should have at least the authenticated group policies
+        # Should have at least the authenticated role policies
         policy_names = {p["policy_name"] for p in permissions}
         assert "user:read:self" in policy_names
         assert "project:create:any" in policy_names

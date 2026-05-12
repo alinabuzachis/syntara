@@ -116,8 +116,8 @@ class TestRolePolicyMapping:  # noqa: D101
         project_policies = [n for n in names if ":project" in n]
         assert len(project_policies) > 0
 
-    def test_default_role_has_limited_policies(self) -> None:
-        names = builtin_role_policy_names("default")
+    def test_authenticated_role_has_default_policies(self) -> None:
+        names = builtin_role_policy_names("authenticated")
         assert len(names) > 0
         assert "user:read:self" in names
         assert "project:create:any" in names

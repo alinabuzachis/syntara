@@ -99,7 +99,7 @@ class TestGroupsDeleteContract:
         assert data["name"] == original_name
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("group_name", ["auditors", "users", "admins", "authenticated"])
+    @pytest.mark.parametrize("group_name", ["auditors", "admins", "authenticated"])
     async def test_delete_builtin_group_forbidden(
         self,
         admin_client: AsyncClient,

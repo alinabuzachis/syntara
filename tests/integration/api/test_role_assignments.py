@@ -14,6 +14,7 @@ from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.api.main import app
@@ -448,3 +449,32 @@ async def test_what_can_i_shows_readable_project_names(
 
     project_perms = [p for p in permissions if p["scope"] == "project" and p["project"] == "whatcan-proj"]
     assert len(project_perms) > 0
+
+
+# ============================================================================
+# Builtin assignment protection tests
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_revoke_builtin_group_assignment_forbidden(
+    admin_client: AsyncClient,
+    test_db_session: AsyncSession,
+) -> None:
+    """DELETE on a seed-level builtin assignment returns 403."""
+    result = await test_db_session.exec(
+        select(RoleAssignment).where(
+            RoleAssignment.is_builtin.is_(True),  # type: ignore[attr-defined]
+        )
+    )
+    builtin_assignment = result.first()
+    assert builtin_assignment is not None
+
+    group = await test_db_session.get(Group, builtin_assignment.principal_id)
+    assert group is not None
+
+    response = await admin_client.delete(
+        f"{GROUPS_URL}/{group.id}/role-assignments/{builtin_assignment.id}",
+    )
+    assert response.status_code == 403
+    assert response.json()["code"] == "BUILTIN_PROTECTED"

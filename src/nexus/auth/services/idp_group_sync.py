@@ -159,9 +159,9 @@ async def _resolve_aap_role_groups(
 
     Validates that the token's ``iss`` claim matches the configured
     ``issuer_url`` before trusting AAP-specific claims.  Returns ``None``
-    on issuer mismatch to signal that login should be denied.  Falls back
-    to the ``users`` group for ``normal_user`` or any unrecognised /
-    missing value.
+    on issuer mismatch to signal that login should be denied.  Normal
+    users get no explicit group assignment — they already have the
+    ``user`` role via the implicit ``authenticated`` group.
     """
     token_issuer = raw_merged_claims.get("iss")
     if not isinstance(token_issuer, str) or token_issuer.rstrip("/") != config.issuer_url.rstrip("/"):
@@ -178,7 +178,15 @@ async def _resolve_aap_role_groups(
         "system_auditor": "auditors",
     }
     system_role = raw_merged_claims.get("aap_system_role")
-    target_name = role_to_group.get(system_role, "users") if isinstance(system_role, str) else "users"
+    target_name = role_to_group.get(system_role) if isinstance(system_role, str) else None
+
+    if not target_name:
+        logger.debug(
+            "AAP role mapping: normal user, no explicit group needed",
+            user_id=str(user_id),
+            aap_system_role=system_role,
+        )
+        return set()
 
     result = await db.execute(
         select(Group).filter(
@@ -194,7 +202,7 @@ async def _resolve_aap_role_groups(
             group_name=target_name,
             user_id=str(user_id),
         )
-        return set()
+        return None
 
     logger.debug(
         "AAP role mapping resolved group",
@@ -285,13 +293,15 @@ async def sync_idp_groups(
         if result is not None:
             desired_group_ids = result
 
+    aap_validated = False
     if aap_role_mapping:
         aap_group_ids = await _resolve_aap_role_groups(db, raw_merged_claims, user.id, config)
         if aap_group_ids is None:
             return False
         desired_group_ids = desired_group_ids | aap_group_ids
+        aap_validated = True
 
-    has_matched = len(desired_group_ids) > 0
+    has_matched = len(desired_group_ids) > 0 or aap_validated
 
     await _apply_group_membership_diff(db, user.id, provider_id, desired_group_ids)
 

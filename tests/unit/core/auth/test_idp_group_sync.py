@@ -573,13 +573,13 @@ class TestAapRoleMapping:
         assert result is True
 
     @pytest.mark.asyncio
-    async def test_normal_user_maps_to_users_group(self):
+    async def test_normal_user_gets_no_explicit_group(self):
+        """Normal users get no explicit group — they have the user role via the implicit authenticated group."""
         user = _make_user()
         provider_id = uuid4()
         identity = _make_identity(user, provider_id)
-        users_group = _make_builtin_group("users")
         config = _make_config(aap_role_mapping_enabled=True, idp_type="aap")
-        db = _make_mock_db_for_aap(builtin_group=users_group)
+        db = _make_mock_db_for_aap()
 
         result = await sync_idp_groups(
             db, user, identity, {"iss": "https://idp.example.com", "aap_system_role": "normal_user"}, config
@@ -587,13 +587,13 @@ class TestAapRoleMapping:
         assert result is True
 
     @pytest.mark.asyncio
-    async def test_missing_claim_maps_to_users_group(self):
+    async def test_missing_claim_gets_no_explicit_group(self):
+        """Missing aap_system_role claim means normal user — validated by AAP mapping, no explicit group needed."""
         user = _make_user()
         provider_id = uuid4()
         identity = _make_identity(user, provider_id)
-        users_group = _make_builtin_group("users")
         config = _make_config(aap_role_mapping_enabled=True, idp_type="aap")
-        db = _make_mock_db_for_aap(builtin_group=users_group)
+        db = _make_mock_db_for_aap()
 
         result = await sync_idp_groups(
             db, user, identity, {"iss": "https://idp.example.com", "sub": "user-123"}, config
@@ -601,13 +601,13 @@ class TestAapRoleMapping:
         assert result is True
 
     @pytest.mark.asyncio
-    async def test_unrecognised_role_maps_to_users_group(self):
+    async def test_unrecognised_role_gets_no_explicit_group(self):
+        """Unrecognised aap_system_role means normal user — validated by AAP mapping, no explicit group needed."""
         user = _make_user()
         provider_id = uuid4()
         identity = _make_identity(user, provider_id)
-        users_group = _make_builtin_group("users")
         config = _make_config(aap_role_mapping_enabled=True, idp_type="aap")
-        db = _make_mock_db_for_aap(builtin_group=users_group)
+        db = _make_mock_db_for_aap()
 
         result = await sync_idp_groups(
             db, user, identity, {"iss": "https://idp.example.com", "aap_system_role": "some_future_role"}, config
@@ -615,14 +615,13 @@ class TestAapRoleMapping:
         assert result is True
 
     @pytest.mark.asyncio
-    async def test_non_string_role_maps_to_users_group(self):
-        """Non-string aap_system_role (e.g. integer) should fall back to users group."""
+    async def test_non_string_role_gets_no_explicit_group(self):
+        """Non-string aap_system_role (e.g. integer) means normal user, no group."""
         user = _make_user()
         provider_id = uuid4()
         identity = _make_identity(user, provider_id)
-        users_group = _make_builtin_group("users")
         config = _make_config(aap_role_mapping_enabled=True, idp_type="aap")
-        db = _make_mock_db_for_aap(builtin_group=users_group)
+        db = _make_mock_db_for_aap()
 
         result = await sync_idp_groups(
             db, user, identity, {"iss": "https://idp.example.com", "aap_system_role": 42}, config

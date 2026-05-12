@@ -46,6 +46,7 @@ class RoleAssignmentRead(SQLModel):
     role_policies: list[str] = []
     project_id: UUID | None = None
     project_name: str | None = None
+    is_builtin: bool = False
     created_at: datetime | None = None
 
 

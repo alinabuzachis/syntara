@@ -11,6 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.authz.exceptions import BuiltinProtectionError
 from nexus.authz.models.assignments import PrincipalType, RoleAssignment
 from nexus.authz.models.project import Project
 from nexus.authz.role_conventions import (
@@ -265,6 +266,10 @@ class RoleAssignmentService:
         if not assignment:
             msg = f"Role assignment {assignment_id} not found"
             raise SafeValueError(msg)
+
+        if assignment.is_builtin:
+            msg = "Cannot revoke built-in role assignment"
+            raise BuiltinProtectionError(msg)
 
         await self.session.delete(assignment)
         await self.session.commit()

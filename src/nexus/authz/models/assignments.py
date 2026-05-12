@@ -60,6 +60,12 @@ class RoleAssignment(BaseResource, table=True):
         index=True,
     )
 
+    is_builtin: bool = Field(
+        default=False,
+        description="Whether this is a seed-level assignment that cannot be revoked",
+        index=True,
+    )
+
     __table_args__ = (
         Index(
             "ix_ra_principal_role_global",

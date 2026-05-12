@@ -152,8 +152,8 @@ class TestAuditorRole:
 class TestRoleBoundaries:
     """Cross-role boundary checks."""
 
-    def test_user_cannot_read_other_users(self, opa_evaluate):
-        """User role has user:read with self scope, so reading another user is denied."""
+    def test_user_can_read_other_users(self, opa_evaluate):
+        """User role has user:read:any, so reading another user is allowed."""
         result = opa_evaluate(
             build_opa_input(
                 action="read",
@@ -163,11 +163,11 @@ class TestRoleBoundaries:
                 effective_policies=policies_for_role("user"),
             )
         )
-        assert result["allow"] is False
+        assert result["allow"] is True
 
 
-class TestDefaultRole:
-    """Default role (authenticated group) grants minimal permissions."""
+class TestAuthenticatedRole:
+    """Authenticated role grants default permissions to all authenticated users."""
 
     @pytest.mark.parametrize(
         ("action", "resource_type", "expected"),
@@ -184,7 +184,7 @@ class TestDefaultRole:
             "policy:create-denied",
         ],
     )
-    def test_default_role_permissions(
+    def test_authenticated_role_permissions(
         self,
         opa_evaluate,
         action: str,
@@ -195,13 +195,13 @@ class TestDefaultRole:
             build_opa_input(
                 action=action,
                 resource_type=resource_type,
-                effective_policies=policies_for_role("default"),
+                effective_policies=policies_for_role("authenticated"),
             )
         )
         assert result["allow"] is expected
 
-    def test_default_role_self_read(self, opa_evaluate):
-        """Default role allows user:read when resource_id matches user_id (self scope)."""
+    def test_authenticated_role_self_read(self, opa_evaluate):
+        """Authenticated role allows user:read when resource_id matches user_id (self scope)."""
         user_id = "self-user-uuid"
         result = opa_evaluate(
             build_opa_input(
@@ -209,13 +209,13 @@ class TestDefaultRole:
                 resource_type="user",
                 resource_id=user_id,
                 user_id=user_id,
-                effective_policies=policies_for_role("default"),
+                effective_policies=policies_for_role("authenticated"),
             )
         )
         assert result["allow"] is True
 
-    def test_default_role_self_update(self, opa_evaluate):
-        """Default role allows user:update when resource_id matches user_id (self scope)."""
+    def test_authenticated_role_self_update(self, opa_evaluate):
+        """Authenticated role allows user:update when resource_id matches user_id (self scope)."""
         user_id = "self-user-uuid"
         result = opa_evaluate(
             build_opa_input(
@@ -223,7 +223,7 @@ class TestDefaultRole:
                 resource_type="user",
                 resource_id=user_id,
                 user_id=user_id,
-                effective_policies=policies_for_role("default"),
+                effective_policies=policies_for_role("authenticated"),
             )
         )
         assert result["allow"] is True
