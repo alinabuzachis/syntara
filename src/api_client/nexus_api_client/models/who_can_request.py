@@ -27,7 +27,7 @@ class WhoCanRequest:
         resource_id (str | Unset):  Default: ''.
         resource_labels (WhoCanRequestResourceLabels | Unset):
         resource_metadata (WhoCanRequestResourceMetadata | Unset):
-        resource_project (str | Unset):  Default: ''.
+        resource_project (str | Unset): Project scope of the resource (project name or UUID) Default: ''.
         limit (int | Unset): Maximum number of results per page Default: 20.
         cursor (None | Unset | UUID):
     """

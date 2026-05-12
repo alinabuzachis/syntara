@@ -264,7 +264,7 @@ components:
           type: string
           title: Resource Project
           default: ""
-          description: Project scope of the resource
+          description: Project scope of the resource (project name or UUID)
 
     CanIResponse:
       type: object
@@ -331,6 +331,7 @@ components:
           type: string
           default: ""
           title: Resource Project
+          description: Project scope of the resource (project name or UUID)
         limit:
           type: integer
           default: 20

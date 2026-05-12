@@ -26,7 +26,7 @@ class CanIRequest:
         resource_id (str | Unset): Optional specific resource ID Default: ''.
         resource_labels (CanIRequestResourceLabels | Unset): Labels on the target resource
         resource_metadata (CanIRequestResourceMetadata | Unset): Additional metadata about the target resource
-        resource_project (str | Unset): Project scope of the resource Default: ''.
+        resource_project (str | Unset): Project scope of the resource (project name or UUID) Default: ''.
     """
 
     action: str

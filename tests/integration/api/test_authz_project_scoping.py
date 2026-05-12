@@ -196,3 +196,56 @@ async def test_cross_project_group_role(
     )
     assert resp.status_code == 200
     assert resp.json()["allowed"] is False
+
+
+@pytest.mark.asyncio
+async def test_can_i_accepts_project_uuid(
+    auth_client: AsyncClient,
+    test_db_session: AsyncSession,
+    user_factory: Callable[..., Awaitable[User]],
+    auth_as: Callable[[User], None],
+) -> None:
+    """can-i resolves project UUID to name for project-scoped checks."""
+    alice = await user_factory(username="alice-uuid", email="alice-uuid@test.com")
+    bob = await user_factory(username="bob-uuid", email="bob-uuid@test.com")
+    await make_admin(test_db_session, alice)
+
+    auth_as(alice)
+    resp = await auth_client.post("/api/v1/projects", json={"name": "uuid-proj"})
+    assert resp.status_code == 201
+    project_uuid = resp.json()["id"]
+    project_name = resp.json()["name"]
+
+    project = (await test_db_session.exec(select(Project).where(Project.name == project_name))).first()
+    assert project is not None
+    await make_project_user(test_db_session, bob, project)
+
+    auth_as(bob)
+
+    # UUID should resolve to name and return allowed
+    resp = await auth_client.post(
+        "/api/v1/authz/can-i",
+        json={"action": "read", "resource_type": "workflow", "resource_project": project_uuid},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["allowed"] is True
+
+    # Name should still work (regression check)
+    resp = await auth_client.post(
+        "/api/v1/authz/can-i",
+        json={"action": "read", "resource_type": "workflow", "resource_project": project_name},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["allowed"] is True
+
+    # UUID for a non-existent project should still return denied
+    resp = await auth_client.post(
+        "/api/v1/authz/can-i",
+        json={
+            "action": "read",
+            "resource_type": "workflow",
+            "resource_project": "00000000-0000-0000-0000-000000000000",
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.json()["allowed"] is False

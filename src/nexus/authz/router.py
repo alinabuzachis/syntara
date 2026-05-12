@@ -50,7 +50,9 @@ class CanIRequest(SQLModel):
     resource_metadata: Annotated[
         dict[str, Any], Field(description="Additional metadata about the target resource")
     ] = {}
-    resource_project: str = Field(default="", title=None, description="Project scope of the resource")
+    resource_project: str = Field(
+        default="", title=None, description="Project scope of the resource (project name or UUID)"
+    )
 
 
 class CanIResponse(SQLModel):
@@ -73,7 +75,7 @@ class WhoCanRequest(SQLModel):
     resource_id: str = ""
     resource_labels: dict[str, str] = {}
     resource_metadata: dict[str, Any] = {}
-    resource_project: str = ""
+    resource_project: str = Field(default="", description="Project scope of the resource (project name or UUID)")
     limit: int = Field(default=20, gt=0, le=100, description="Maximum number of results per page")
     cursor: UUID | None = None
 
@@ -119,6 +121,23 @@ class ResourceActionsResponse(SQLModel):
 # ============================================================================
 # Helpers
 # ============================================================================
+
+
+async def _resolve_project_input(db: AsyncSession, resource_project: str) -> str:
+    """Resolve resource_project: if it's a valid UUID, look up the project name."""
+    if not resource_project:
+        return ""
+    try:
+        project_id = UUID(resource_project)
+    except ValueError:
+        return resource_project
+    result = await db.exec(
+        select(Project.name).where(
+            Project.id == project_id,
+            Project.deleted_at.is_(None),  # type: ignore[union-attr]
+        )
+    )
+    return result.first() or resource_project
 
 
 async def _ids_to_names(db: AsyncSession, project_ids: set[UUID]) -> set[str]:
@@ -171,6 +190,8 @@ async def can_i(
         Authorization decision.
 
     """
+    resource_project = await _resolve_project_input(db, body.resource_project)
+
     result = await authorize(
         db,
         opa_client,
@@ -181,7 +202,7 @@ async def can_i(
             resource_id=body.resource_id,
             resource_labels=body.resource_labels,
             resource_metadata=body.resource_metadata,
-            resource_project=body.resource_project,
+            resource_project=resource_project,
             user_labels=current_user.labels,
             user_metadata=current_user.authz_metadata,
         ),
@@ -227,6 +248,8 @@ async def who_can(
         Paginated list of authorized users with next_cursor.
 
     """
+    resource_project = await _resolve_project_input(db, body.resource_project)
+
     limit = body.limit
     db_batch_size = 200
 
@@ -262,7 +285,7 @@ async def who_can(
                     resource_id=body.resource_id,
                     resource_labels=body.resource_labels,
                     resource_metadata=body.resource_metadata,
-                    resource_project=body.resource_project,
+                    resource_project=resource_project,
                     user_labels=user.labels,
                     user_metadata=user.authz_metadata,
                 ),
