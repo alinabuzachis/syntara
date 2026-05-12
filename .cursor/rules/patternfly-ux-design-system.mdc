@@ -148,21 +148,43 @@ Action verb pairings: "Create" ↔ "Delete", "Add" ↔ "Remove" (AO-internal res
 - **Modal:** 2–4 fields, or if create is a modal
 - **Inline:** Single-field edits, toggles (use PatternFly Switch Checked with Label), renames
 
-### Delete/Remove/Cancel/Stop (Destructive)
-- ALWAYS use destructive confirmation modal
-- Modal variant: Small (PatternFly Small Variant Modal)
-- Title: `"[Delete/Remove/Cancel/Stop] [resource type]?"` with warning icon (PatternFly Title Icon Modal)
+### Delete (Destructive) — Three Variants
+
+ALWAYS use `ConfirmationDialog` from `src/components/ConfirmationDialog.tsx`. Never use raw `Modal` + `ModalHeader` + `ModalBody` + `ModalFooter` for delete actions.
+
+All delete variants share: Small modal, warning icon title, `confirmVariant="danger"`, `confirmLabel="Delete"`, cancel `variant="link"`, checkbox via `destructiveAcknowledgement` (Delete button disabled until checked).
+
+**Simple Delete** — no downstream effects (role, policy, group, user, identity provider)
+- Body: `"The [resource] [name in bold] will be deleted. This cannot be undone."`
+- Checkbox: `"I understand this [resource] will be permanently deleted."`
+
+**Cascade Delete** — other records get permanently deleted too (workflow → executions, tool provider → tools)
+- Body: `"The [resource] [name in bold] will be deleted. This cannot be undone."`
+- Body 2: `"Resources that will be deleted"` as a header, then one row per resource type with its own Badge count — e.g., "Executions [12]", "Tools [3]"
+- Checkbox: `"I understand this [resource] and the resources shown above will be permanently deleted."`
+
+**Ripple Effect Delete** — other resources break/become invalid but are not deleted (credential → referencing workflows fail, project → orphaned resources, workflow → parent workflows become invalid)
+- Body: `"The [resource] [name in bold] will be deleted. This cannot be undone."`
+- Body 2: `"Resources that will be affected"` as a header, then one row per resource type with its own Badge count — e.g., "Workflows [2]", "Credentials [5]"
+- Checkbox: `"I understand this [resource] and the resources shown above will be affected by this deletion."`
+
+> A resource can combine variants (e.g., workflow delete = cascade for executions + ripple for parent workflows). Show both Body 2 sections in that case.
+
+- Post-delete: stay on list (from table), navigate back (from detail), show toast alert
+
+### Remove/Unassign/Cancel/Stop (Destructive, Reversible)
+- Modal variant: Small with warning icon
+- Title: `"[Remove/Unassign/Cancel/Stop] [resource type]?"`
 - Body: resource name and consequence
 - Action button: `variant="danger"`
 - Cancel button: `variant="link"`
-- Post-delete: stay on list (from table), navigate back (from detail), show toast alert
 - Post-cancel/stop: stay on list (from table), stay on details (from detail), show toast alert
 
 ### Disable (Non-Destructive)
 - Use standard confirmation modal (no warning icon, no danger button)
 - Modal variant: Small (PatternFly Small Variant Modal)
 - Title: `"Disable [resource type]?"`
-- Body: resource name and consequence
+- Body: `"You are about to disable the [resource type] [name in bold]. You can re-enable the [resource type] at any time."`
 - Confirm button: `variant="primary"`
 - Cancel button: `variant="link"`
 - Post-disable: stay on list (from table), stay on details (from detail), show toast alert

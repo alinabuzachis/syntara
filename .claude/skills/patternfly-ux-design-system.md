@@ -470,17 +470,53 @@ Use when users need to inspect structured data (JSON, policy definitions, config
 
 **Always** use `ConfirmationDialog` from `src/components/ConfirmationDialog.tsx` for delete actions. Never build modals from raw `Modal` + `ModalHeader` + `ModalBody` + `ModalFooter`.
 
-| Element                           | Specification                                                                                                                                                           |
-| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Component                         | `ConfirmationDialog` with `destructiveAcknowledgement` prop                                                                                                             |
-| Modal variant                     | Small (default)                                                                                                                                                         |
-| Title                             | `"Delete [resource type]?"` with `titleIconVariant="warning"`                                                                                                           |
-| Body                              | `"The [resource] <strong>[name]</strong> will be deleted. This cannot be undone."` — add context if relevant (e.g., "Assignments that use this role will lose access.") |
-| Body 2 (optional)                 | When the delete has interdependencies: `"Resources that will be deleted"` followed by a badge showing the count of affected resources                                   |
-| Checkbox                          | Standard: `"I understand this [resource] will be permanently deleted."` — Delete button stays disabled until checked                                                    |
-| Checkbox (with interdependencies) | `"I understand this [resource] and the resources shown above will be permanently deleted."`                                                                             |
-| Action button                     | `confirmVariant="danger"`, `confirmLabel="Delete"`                                                                                                                      |
-| Cancel button                     | `variant="link"` (handled by ConfirmationDialog)                                                                                                                        |
+There are three delete variants depending on what happens downstream when the resource is deleted.
+
+#### Simple Delete
+
+Use when deleting a standalone resource with no downstream effects (e.g., role, policy, group, user, identity provider).
+
+| Element       | Specification                                                                                                                                                           |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Component     | `ConfirmationDialog` with `destructiveAcknowledgement` prop                                                                                                             |
+| Modal variant | Small (default)                                                                                                                                                         |
+| Title         | `"Delete [resource type]?"` with `titleIconVariant="warning"`                                                                                                           |
+| Body          | `"The [resource] <strong>[name]</strong> will be deleted. This cannot be undone."` — add context if relevant (e.g., "Assignments that use this role will lose access.") |
+| Checkbox      | `"I understand this [resource] will be permanently deleted."` — Delete button stays disabled until checked                                                              |
+| Action button | `confirmVariant="danger"`, `confirmLabel="Delete"`                                                                                                                      |
+| Cancel button | `variant="link"` (handled by ConfirmationDialog)                                                                                                                        |
+
+#### Cascade Delete
+
+Use when deleting the resource also permanently deletes other records (e.g., workflow → executions, tool provider → tools).
+
+| Element       | Specification                                                                                                                                                                                            |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Component     | `ConfirmationDialog` with `destructiveAcknowledgement` prop                                                                                                                                              |
+| Modal variant | Small (default)                                                                                                                                                                                          |
+| Title         | `"Delete [resource type]?"` with `titleIconVariant="warning"`                                                                                                                                            |
+| Body          | `"The [resource] <strong>[name]</strong> will be deleted. This cannot be undone."`                                                                                                                       |
+| Body 2        | `"Resources that will be deleted"` as a header, then one row per resource type each with its own [Badge](https://www.patternfly.org/components/badge/#read) count — e.g., "Executions [12]", "Tools [3]" |
+| Checkbox      | `"I understand this [resource] and the resources shown above will be permanently deleted."` — Delete button stays disabled until checked                                                                 |
+| Action button | `confirmVariant="danger"`, `confirmLabel="Delete"`                                                                                                                                                       |
+| Cancel button | `variant="link"` (handled by ConfirmationDialog)                                                                                                                                                         |
+
+#### Ripple Effect Delete
+
+Use when deleting the resource leaves other resources in a broken or invalid state without deleting them (e.g., credential → referencing workflows fail, project → credentials/workflows orphaned, workflow → parent workflows become invalid).
+
+| Element       | Specification                                                                                                                                                                                                 |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Component     | `ConfirmationDialog` with `destructiveAcknowledgement` prop                                                                                                                                                   |
+| Modal variant | Small (default)                                                                                                                                                                                               |
+| Title         | `"Delete [resource type]?"` with `titleIconVariant="warning"`                                                                                                                                                 |
+| Body          | `"The [resource] <strong>[name]</strong> will be deleted. This cannot be undone."`                                                                                                                            |
+| Body 2        | `"Resources that will be affected"` as a header, then one row per resource type each with its own [Badge](https://www.patternfly.org/components/badge/#read) count — e.g., "Workflows [2]", "Credentials [5]" |
+| Checkbox      | `"I understand this [resource] and the resources shown above will be affected by this deletion."` — Delete button stays disabled until checked                                                                |
+| Action button | `confirmVariant="danger"`, `confirmLabel="Delete"`                                                                                                                                                            |
+| Cancel button | `variant="link"` (handled by ConfirmationDialog)                                                                                                                                                              |
+
+> **Note:** A resource can combine both cascade and ripple effects. For example, deleting a workflow both cascade-deletes its executions and ripple-affects parent workflows that reference it as a step. In this case, show both Body 2 sections.
 
 ```tsx
 <ConfirmationDialog
@@ -534,13 +570,13 @@ These are reversible actions. Use `ConfirmationDialog` with warning icon but no 
 
 Disable is **not** a destructive action — use a standard confirmation modal (no warning icon, no danger button).
 
-| Element        | Specification                                                                                       |
-| -------------- | --------------------------------------------------------------------------------------------------- |
-| Modal variant  | Small — PatternFly's [Small Variant Modal](https://www.patternfly.org/components/modal#modal-sizes) |
-| Title          | `"Disable [resource type]?"`                                                                        |
-| Body           | `[Name of resource]` and consequence                                                                |
-| Confirm button | `variant="primary"`                                                                                 |
-| Cancel button  | `variant="link"`                                                                                    |
+| Element        | Specification                                                                                                                |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Modal variant  | Small — PatternFly's [Small Variant Modal](https://www.patternfly.org/components/modal#modal-sizes)                          |
+| Title          | `"Disable [resource type]?"`                                                                                                 |
+| Body           | `"You are about to disable the [resource type] <strong>[name]</strong>. You can re-enable the [resource type] at any time."` |
+| Confirm button | `variant="primary"`                                                                                                          |
+| Cancel button  | `variant="link"`                                                                                                             |
 
 **Post-disable behavior:**
 
