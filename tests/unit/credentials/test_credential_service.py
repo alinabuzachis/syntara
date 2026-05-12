@@ -674,3 +674,175 @@ class TestValidateSSHPrivateKey:
             SSH_TYPE_INPUTS,
             allow_sentinel=True,
         )
+
+
+class TestAuditEventDispatch:
+    """Tests that CredentialService dispatches audit events correctly."""
+
+    @pytest.mark.asyncio
+    async def test_create_dispatches_lifecycle_event(
+        self,
+        mock_session: MagicMock,
+        mock_user: MagicMock,
+        mock_secret_service: MagicMock,
+        bearer_type: CredentialType,
+    ) -> None:
+        mock_session.get.return_value = bearer_type
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = None
+        mock_result.first.return_value = None
+        mock_session.exec.return_value = mock_result
+
+        service = CredentialService(mock_session, mock_user, mock_secret_service)
+        data = CredentialCreate(
+            name="test-cred",
+            credential_type_id=bearer_type.id,
+            inputs={"token": "sk-abc"},
+            project_id=uuid4(),
+        )
+
+        with patch("nexus.credentials.services.credential_service.AuditEventDispatcher") as mock_dispatcher:
+            await service.create_credential(data)
+
+            mock_dispatcher.dispatch.assert_called_once()
+            event = mock_dispatcher.dispatch.call_args[0][0]
+            assert type(event).__name__ == "CredentialLifecycleEvent"
+            assert event.action == "created"
+            assert event.credential_name == "test-cred"
+
+    @pytest.mark.asyncio
+    async def test_update_dispatches_lifecycle_event(
+        self,
+        mock_session: MagicMock,
+        mock_user: MagicMock,
+        mock_secret_service: MagicMock,
+        bearer_type: CredentialType,
+    ) -> None:
+        existing = Credential(
+            id=uuid4(),
+            name="old-name",
+            credential_type_id=bearer_type.id,
+            secret_id=uuid4(),
+            project_id=uuid4(),
+            enabled=True,
+        )
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = existing
+        mock_result.first.return_value = None
+        mock_session.exec.return_value = mock_result
+        mock_session.get.return_value = bearer_type
+        mock_secret_service.retrieve_secret.return_value = {"token": "sk-old"}
+
+        service = CredentialService(mock_session, mock_user, mock_secret_service)
+        data = CredentialPatch(name="new-name")
+
+        with patch("nexus.credentials.services.credential_service.AuditEventDispatcher") as mock_dispatcher:
+            await service.update_credential(existing.id, data)
+
+            mock_dispatcher.dispatch.assert_called_once()
+            event = mock_dispatcher.dispatch.call_args[0][0]
+            assert type(event).__name__ == "CredentialLifecycleEvent"
+            assert event.action == "updated"
+            assert event.enabled_changed is False
+
+    @pytest.mark.asyncio
+    async def test_update_detects_enabled_changed(
+        self,
+        mock_session: MagicMock,
+        mock_user: MagicMock,
+        mock_secret_service: MagicMock,
+        bearer_type: CredentialType,
+    ) -> None:
+        existing = Credential(
+            id=uuid4(),
+            name="my-cred",
+            credential_type_id=bearer_type.id,
+            secret_id=uuid4(),
+            project_id=uuid4(),
+            enabled=True,
+        )
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = existing
+        mock_session.exec.return_value = mock_result
+        mock_session.get.return_value = bearer_type
+        mock_secret_service.retrieve_secret.return_value = {"token": "sk-val"}
+
+        service = CredentialService(mock_session, mock_user, mock_secret_service)
+        data = CredentialPatch(enabled=False)
+
+        with patch("nexus.credentials.services.credential_service.AuditEventDispatcher") as mock_dispatcher:
+            await service.update_credential(existing.id, data)
+
+            event = mock_dispatcher.dispatch.call_args[0][0]
+            assert event.enabled_changed is True
+
+    @pytest.mark.asyncio
+    async def test_delete_dispatches_lifecycle_event_with_ref_count(
+        self,
+        mock_session: MagicMock,
+        mock_user: MagicMock,
+        mock_secret_service: MagicMock,
+    ) -> None:
+        cred_id = uuid4()
+        existing = Credential(
+            id=cred_id,
+            name="doomed-cred",
+            credential_type_id=uuid4(),
+            secret_id=uuid4(),
+            project_id=uuid4(),
+        )
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = existing
+        mock_session.exec.return_value = mock_result
+
+        service = CredentialService(mock_session, mock_user, mock_secret_service)
+
+        with (
+            patch.object(service, "get_workflow_counts", new_callable=AsyncMock, return_value={cred_id: 2}),
+            patch("nexus.credentials.services.credential_service.AuditEventDispatcher") as mock_dispatcher,
+        ):
+            await service.delete_credential(cred_id)
+
+            event = mock_dispatcher.dispatch.call_args[0][0]
+            assert type(event).__name__ == "CredentialLifecycleEvent"
+            assert event.action == "deleted"
+            assert event.affected_workflow_count == 2
+            assert event.credential_name == "doomed-cred"
+
+    @pytest.mark.asyncio
+    async def test_get_dispatches_encryption_failure_event(
+        self,
+        mock_session: MagicMock,
+        mock_user: MagicMock,
+        mock_secret_service: MagicMock,
+        bearer_type: CredentialType,
+    ) -> None:
+        from nexus.credentials.exceptions import CredentialDecryptionError
+
+        existing = Credential(
+            id=uuid4(),
+            name="broken-cred",
+            credential_type_id=bearer_type.id,
+            secret_id=uuid4(),
+            project_id=uuid4(),
+        )
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = existing
+        mock_session.exec.return_value = mock_result
+        mock_session.get.return_value = bearer_type
+
+        service = CredentialService(mock_session, mock_user, mock_secret_service)
+
+        with (
+            patch.object(
+                service, "_retrieve_or_empty", new_callable=AsyncMock, side_effect=CredentialDecryptionError("fail")
+            ),
+            patch("nexus.credentials.services.credential_service.AuditEventDispatcher") as mock_dispatcher,
+        ):
+            with pytest.raises(CredentialDecryptionError):
+                await service.get_credential(existing.id)
+
+            event = mock_dispatcher.dispatch.call_args[0][0]
+            assert type(event).__name__ == "CredentialEncryptionFailureEvent"
+            assert event.credential_name == "broken-cred"
+            assert event.operation == "decrypt"

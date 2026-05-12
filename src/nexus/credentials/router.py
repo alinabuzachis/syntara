@@ -9,6 +9,8 @@ from sqlalchemy import func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.audit.decorators import audit
+from nexus.audit.models.audit_event import EventCategory
 from nexus.auth import get_current_user
 from nexus.authz.dependencies import PermissionChecker, VisibilityFilter
 from nexus.authz.engine import VisibilityResult
@@ -88,6 +90,7 @@ def get_credential_service(
     dependencies=[Depends(_cred_perm_create)],
     operation_id="create_credential",
 )
+@audit(EventCategory.USER_ACTION, event_action="credential_create")
 async def create_credential(
     data: CredentialCreate,
     service: Annotated[CredentialService, Depends(get_credential_service)],
@@ -126,6 +129,7 @@ async def get_credential(
 @router.patch(
     "/credentials/{credential_id}", dependencies=[Depends(_cred_perm_update)], operation_id="update_credential"
 )
+@audit(EventCategory.USER_ACTION, event_action="credential_update", capture_args={"credential_id"})
 async def update_credential(
     credential_id: UUID,
     data: CredentialPatch,
@@ -141,6 +145,7 @@ async def update_credential(
     dependencies=[Depends(_cred_perm_delete)],
     operation_id="delete_credential",
 )
+@audit(EventCategory.USER_ACTION, event_action="credential_delete", capture_args={"credential_id"})
 async def delete_credential(
     credential_id: UUID,
     service: Annotated[CredentialService, Depends(get_credential_service)],

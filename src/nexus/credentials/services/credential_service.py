@@ -22,6 +22,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
+from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.authz.engine import AllowedProjectsResult
 from nexus.core.lib.encryption import ENCRYPTED_SENTINEL, EncryptionError
 from nexus.core.lib.url_validation import validate_host_url
@@ -29,6 +30,7 @@ from nexus.core.models import User
 from nexus.core.services import BaseService
 from nexus.core.services.extensions import ConvertResourceMixin, EnrichQueryMixin
 from nexus.core.services.secret_service import SecretService
+from nexus.credentials.audit.credential import CredentialEncryptionFailureEvent, CredentialLifecycleEvent
 from nexus.credentials.exceptions import (
     CredentialDecryptionError,
     CredentialNameConflictError,
@@ -320,18 +322,42 @@ class CredentialService(BaseService):
         await self.session.refresh(credential)
 
         logger.info("Credential created", credential_id=str(credential.id), name=credential.name)
+        AuditEventDispatcher.dispatch(
+            CredentialLifecycleEvent(
+                credential_id=credential.id,
+                credential_name=credential.name,
+                credential_type_id=credential.credential_type_id,
+                action="created",
+                project_id=credential.project_id,
+            ),
+        )
 
         decrypted_inputs = data.inputs or {}
         read = self._build_masked_response(credential, credential_type, decrypted_inputs)
         await self._resolve_user_fields([read])
         return read
 
+    @staticmethod
+    def _emit_decryption_failure(credential: Credential) -> None:
+        AuditEventDispatcher.dispatch(
+            CredentialEncryptionFailureEvent(
+                credential_id=credential.id,
+                credential_name=credential.name,
+                operation="decrypt",
+                error_type="CredentialDecryptionError",
+            ),
+        )
+
     async def get_credential(self, credential_id: UUID) -> CredentialRead:
         """Get a credential with secret fields masked, non-secret fields decrypted."""
         credential = await self._get_or_raise(credential_id)
         credential_type = await self._get_credential_type(credential.credential_type_id)
 
-        decrypted_inputs = await self._retrieve_or_empty(credential.secret_id)
+        try:
+            decrypted_inputs = await self._retrieve_or_empty(credential.secret_id)
+        except CredentialDecryptionError:
+            self._emit_decryption_failure(credential)
+            raise
         read = self._build_masked_response(credential, credential_type, decrypted_inputs)
 
         counts = await self.get_workflow_counts([credential_id])
@@ -377,6 +403,8 @@ class CredentialService(BaseService):
         credential = await self._get_or_raise(credential_id)
         credential_type = await self._get_credential_type(credential.credential_type_id)
 
+        enabled_changed = data.enabled is not None and data.enabled != credential.enabled
+
         if data.name is not None and data.name != credential.name:
             existing = await self._find_by_name(data.name)
             if existing and existing.id != credential.id:
@@ -396,10 +424,14 @@ class CredentialService(BaseService):
 
         # Handle inputs update with $encrypted$ preservation via SecretService
         decrypted_inputs: dict[str, Any] = {}
-        if data.inputs is not None:
-            credential.secret_id, decrypted_inputs = await self._merge_and_store_inputs(credential, data.inputs)
-        else:
-            decrypted_inputs = await self._retrieve_or_empty(credential.secret_id)
+        try:
+            if data.inputs is not None:
+                credential.secret_id, decrypted_inputs = await self._merge_and_store_inputs(credential, data.inputs)
+            else:
+                decrypted_inputs = await self._retrieve_or_empty(credential.secret_id)
+        except CredentialDecryptionError:
+            self._emit_decryption_failure(credential)
+            raise
 
         credential.updated_by = self.user.id
         self.session.add(credential)
@@ -407,6 +439,16 @@ class CredentialService(BaseService):
         await self.session.refresh(credential)
 
         logger.info("Credential updated", credential_id=str(credential.id))
+        AuditEventDispatcher.dispatch(
+            CredentialLifecycleEvent(
+                credential_id=credential.id,
+                credential_name=credential.name,
+                credential_type_id=credential.credential_type_id,
+                action="updated",
+                project_id=credential.project_id,
+                enabled_changed=enabled_changed,
+            ),
+        )
         read = self._build_masked_response(credential, credential_type, decrypted_inputs)
 
         counts = await self.get_workflow_counts([credential_id])
@@ -430,6 +472,9 @@ class CredentialService(BaseService):
                 affected_workflow_count=ref_count,
             )
 
+        cred_name = credential.name
+        cred_type_id = credential.credential_type_id
+        cred_project_id = credential.project_id
         secret_id = credential.secret_id
 
         # Atomic delete: all changes happen in SQLAlchemy's implicit transaction.
@@ -448,6 +493,16 @@ class CredentialService(BaseService):
         await self.session.delete(credential)
         await self.session.commit()
         logger.info("Credential deleted", credential_id=str(credential_id))
+        AuditEventDispatcher.dispatch(
+            CredentialLifecycleEvent(
+                credential_id=credential_id,
+                credential_name=cred_name,
+                credential_type_id=cred_type_id,
+                action="deleted",
+                project_id=cred_project_id,
+                affected_workflow_count=ref_count,
+            ),
+        )
 
     async def get_credential_workflows(self, credential_id: UUID) -> list[CredentialWorkflowRef]:
         """Find workflows that reference a given credential in their definitions.
