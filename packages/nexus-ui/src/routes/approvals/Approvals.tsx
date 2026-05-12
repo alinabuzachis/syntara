@@ -81,12 +81,10 @@ function approvalsReducer(state: { expandedRows: Set<string> }, action: Approval
 }
 
 export default function Approvals() {
-  const { selectedProject, isAllProjects, projects, ProjectSelector } = useProjectSelector()
+  const { selectedProjectId, stableProjectId, isAllProjects, projects, ProjectSelector } = useProjectSelector()
   const [{ expandedRows }, dispatch] = useReducer(approvalsReducer, {
     expandedRows: new Set<string>(),
   })
-
-  const selectedProjectId = selectedProject?.id ?? null
   const projectExtraParams = useMemo(
     () => (selectedProjectId ? { project_id: selectedProjectId } : undefined),
     [selectedProjectId]
@@ -117,9 +115,7 @@ export default function Approvals() {
   const sortColumn = SORT_COLUMNS[activeSortIndex]
 
   // Query approvals — use project-scoped endpoint when a project is selected.
-  // When a project ID is stored but projects haven't loaded yet, wait before querying.
-  const projectId = selectedProject?.id
-  const projectSelectorReady = isAllProjects || !!projectId
+  const projectSelectorReady = isAllProjects || !!stableProjectId
 
   const allApprovalsQuery = approvalsClient.useQuery(
     'get',
@@ -137,12 +133,12 @@ export default function Approvals() {
     '/projects/{project_id}/approvals',
     {
       params: {
-        path: { project_id: projectId ?? '' },
+        path: { project_id: stableProjectId ?? '' },
         query: queryParams,
       },
     },
     {
-      enabled: !!projectId && !isAllProjects,
+      enabled: !!stableProjectId && !isAllProjects,
     }
   )
 

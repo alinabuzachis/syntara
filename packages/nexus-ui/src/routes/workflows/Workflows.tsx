@@ -49,9 +49,7 @@ const transformIsEnabledFilter = (filters: FilterConfig[]): FilterConfig[] =>
 export default function Workflows() {
   const { showSuccess, showError } = useAlerts()
   const [, setLocation] = useLocation()
-  const { selectedProject, isAllProjects, projects, ProjectSelector } = useProjectSelector()
-
-  const selectedProjectId = selectedProject?.id ?? null
+  const { selectedProjectId, stableProjectId, isAllProjects, projects, ProjectSelector } = useProjectSelector()
   const projectExtraParams = useMemo(
     () => (selectedProjectId ? { project_id: selectedProjectId } : undefined),
     [selectedProjectId]
@@ -98,9 +96,7 @@ export default function Workflows() {
   )
 
   // Query workflows — use project-scoped endpoint when a project is selected.
-  // When a project ID is stored but projects haven't loaded yet, wait before querying.
-  const projectId = selectedProject?.id
-  const projectSelectorReady = isAllProjects || !!projectId
+  const projectSelectorReady = isAllProjects || !!stableProjectId
 
   const allWorkflowsQuery = workflowClient.useQuery(
     'get',
@@ -118,12 +114,12 @@ export default function Workflows() {
     '/projects/{project_id}/workflows',
     {
       params: {
-        path: { project_id: projectId ?? '' },
+        path: { project_id: stableProjectId ?? '' },
         query: queryParams,
       },
     },
     {
-      enabled: !!projectId && !isAllProjects,
+      enabled: !!stableProjectId && !isAllProjects,
     }
   )
 

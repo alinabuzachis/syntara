@@ -268,7 +268,7 @@ describe('ProjectFormModal', () => {
     it('does not render content when isOpen is false', () => {
       render(<ProjectFormModal isOpen={false} onClose={mockOnClose} onSuccess={mockOnSuccess} />, { wrapper })
 
-      expect(screen.queryByText('Create project')).not.toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: 'Create project' })).not.toBeInTheDocument()
     })
 
     it('calls onClose when Cancel button is clicked', async () => {

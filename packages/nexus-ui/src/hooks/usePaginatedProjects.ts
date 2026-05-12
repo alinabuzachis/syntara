@@ -1,3 +1,4 @@
+import { keepPreviousData } from '@tanstack/react-query'
 import { useCallback, useMemo, useState } from 'react'
 
 import { accessClient } from '../routes/access/accessClient'
@@ -31,15 +32,26 @@ export function usePaginatedProjects() {
     setFilterValue('')
   }, [])
 
-  const query = accessClient.useQuery('get', '/projects', {
-    params: {
-      query: {
-        limit: PAGE_SIZE,
-        ...(debouncedFilter ? { 'name[contains]': debouncedFilter } : {}),
-        ...(cursor ? { cursor } : {}),
+  const query = accessClient.useQuery(
+    'get',
+    '/projects',
+    {
+      params: {
+        query: {
+          limit: PAGE_SIZE,
+          ...(debouncedFilter ? { name: debouncedFilter } : {}),
+          ...(cursor ? { cursor } : {}),
+        },
       },
     },
-  })
+    {
+      // Keep the previous page's data visible while a new filter/cursor query is in flight.
+      // Without this, `query.data` briefly becomes undefined on each keystroke, which
+      // causes `selectedProject` to become null and makes the workflow page flash a
+      // loading/error state while the user is typing in the project selector.
+      placeholderData: keepPreviousData,
+    }
+  )
 
   const firstPageProjects = useMemo(() => query.data?.resources ?? [], [query.data])
 

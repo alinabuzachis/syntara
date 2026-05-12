@@ -2,7 +2,7 @@ import { Button, Flex, FlexItem, StackItem, Truncate } from '@patternfly/react-c
 import { RhUiAddIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { navigate } from 'wouter/use-browser-location'
 
 import { AppPageMain } from '../../app/AppPage'
@@ -15,6 +15,7 @@ import { IconLabel } from '../../components/IconLabel'
 import { PanelContentStack } from '../../components/PanelContentStack'
 import { useQueryState } from '../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
+import { useDialogState } from '../../hooks/useDialogState'
 import { useFilterState } from '../../hooks/useFilterState'
 import { useSortState } from '../../hooks/useSortState'
 import { useAlerts } from '../../providers/alerts'
@@ -147,6 +148,7 @@ function DeleteProjectDialog({
   )
 }
 
+
 const projectSortFieldByColumn: Record<number, string> = {
   0: 'name',
   2: 'created_at',
@@ -162,9 +164,8 @@ export function ProjectsTab() {
     setPerPage(newPerPage)
     setPage(1)
   }, [])
-  const [projectToDelete, setProjectToDelete] = useState<ProjectRead | null>(null)
-  const [projectToEdit, setProjectToEdit] = useState<ProjectRead | null>(null)
-  const [formModalOpen, setFormModalOpen] = useState(false)
+  const deleteDialog = useDialogState<ProjectRead>()
+  const formDialog = useDialogState<ProjectRead | null>()
   const { showAlert } = useAlerts()
   const hasActiveFilters = filters.length > 0
 
@@ -175,56 +176,61 @@ export function ProjectsTab() {
 
   const { projects: allProjects, isLoading, error, refetch } = useAllProjects()
 
-  // Client-side filtering
-  const filteredProjects = allProjects.filter((project) =>
-    filters.every((filter) => {
-      const value = project[filter.key as keyof ProjectRead]
-      if (typeof value !== 'string') return true
-      return value.toLowerCase().includes(String(filter.value).toLowerCase())
+  const { sortedProjects, paginatedProjects, hasNext } = useMemo(() => {
+    const filtered = allProjects.filter((project) =>
+      filters.every((filter) => {
+        const value = project[filter.key as keyof ProjectRead]
+        if (typeof value !== 'string') return true
+        return value.toLowerCase().includes(String(filter.value).toLowerCase())
+      })
+    )
+
+    const sorted = [...filtered].sort((a, b) => {
+      if (activeSortIndex === undefined) return 0
+      const field = projectSortFieldByColumn[activeSortIndex] as 'name' | 'created_at' | 'updated_at' | undefined
+      if (!field) return 0
+      const aVal = a[field] ?? ''
+      const bVal = b[field] ?? ''
+      const cmp = aVal.localeCompare(bVal)
+      return sortDirection === 'desc' ? -cmp : cmp
     })
-  )
 
-  // Client-side sorting
-  const sortedProjects = [...filteredProjects].sort((a, b) => {
-    if (activeSortIndex === undefined) return 0
-    const field = projectSortFieldByColumn[activeSortIndex] as 'name' | 'created_at' | 'updated_at' | undefined
-    if (!field) return 0
-    const aVal = a[field] ?? ''
-    const bVal = b[field] ?? ''
-    const cmp = aVal.localeCompare(bVal)
-    return sortDirection === 'desc' ? -cmp : cmp
-  })
-
-  // Client-side pagination
-  const startIndex = (page - 1) * perPage
-  const paginatedProjects = sortedProjects.slice(startIndex, startIndex + perPage)
-  const hasNext = startIndex + perPage < sortedProjects.length
+    const startIndex = (page - 1) * perPage
+    return {
+      sortedProjects: sorted,
+      paginatedProjects: sorted.slice(startIndex, startIndex + perPage),
+      hasNext: startIndex + perPage < sorted.length,
+    }
+  }, [allProjects, filters, activeSortIndex, sortDirection, page, perPage])
 
   const { mutate: deleteProject } = accessClient.useMutation('delete', '/projects/{project_id}')
 
   const handleDelete = () => {
-    if (!projectToDelete) return
+    const project = deleteDialog.item
+    if (!project) return
     deleteProject(
-      { params: { path: { project_id: projectToDelete.id ?? '' } } },
+      { params: { path: { project_id: project.id ?? '' } } },
       {
         onSuccess: () => {
           showAlert({
             title: 'Project deleted',
-            description: `Project "${projectToDelete.name}" has been deleted successfully.`,
+            description: `Project "${project.name}" has been deleted successfully.`,
             variant: 'success',
             autoDismiss: true,
           })
-          refetch().catch(() => {})
+          detachPromise(refetch())
         },
         onError: (error: unknown) => {
           showAlert({
             title: 'Delete failed',
-            description: `Failed to delete project "${projectToDelete.name}": ${getErrorMessage(error)}`,
+            description: `Failed to delete project "${project.name}": ${getErrorMessage(error)}`,
             variant: 'error',
             autoDismiss: true,
           })
         },
-        onSettled: () => setProjectToDelete(null),
+        onSettled: () => {
+          deleteDialog.close()
+        },
       }
     )
   }
@@ -245,16 +251,16 @@ export function ProjectsTab() {
           title="No projects yet"
           description="Create a project to organize workflows and manage access."
           buttonText="Create project"
-          addData={() => setFormModalOpen(true)}
+          addData={() => {
+            formDialog.open(null)
+          }}
         />
         <ProjectFormModal
           project={null}
-          isOpen={formModalOpen}
-          onClose={() => {
-            setFormModalOpen(false)
-          }}
+          isOpen={formDialog.isOpen}
+          onClose={formDialog.close}
           onSuccess={() => {
-            refetch().catch(() => {})
+            detachPromise(refetch())
           }}
         />
       </>
@@ -279,7 +285,13 @@ export function ProjectsTab() {
               />
             </FlexItem>
             <FlexItem>
-              <Button variant="primary" icon={<RhUiAddIcon />} onClick={() => setFormModalOpen(true)}>
+              <Button
+                variant="primary"
+                icon={<RhUiAddIcon />}
+                onClick={() => {
+                  formDialog.open(null)
+                }}
+              >
                 Create project
               </Button>
             </FlexItem>
@@ -311,31 +323,29 @@ export function ProjectsTab() {
               projects={paginatedProjects}
               getSortParams={getSortParams}
               onEdit={(p) => {
-                setProjectToEdit(p)
-                setFormModalOpen(true)
+                formDialog.open(p)
               }}
-              onDelete={setProjectToDelete}
+              onDelete={(p) => {
+                deleteDialog.open(p)
+              }}
             />
           </ScrollableTableContainer>
         )}
       </PanelContentStack>
 
       <ProjectFormModal
-        project={projectToEdit}
-        isOpen={formModalOpen}
-        onClose={() => {
-          setFormModalOpen(false)
-          setProjectToEdit(null)
-        }}
+        project={formDialog.item}
+        isOpen={formDialog.isOpen}
+        onClose={formDialog.close}
         onSuccess={() => {
-          refetch().catch(() => {})
+          detachPromise(refetch())
         }}
       />
 
       <DeleteProjectDialog
-        project={projectToDelete}
-        isOpen={!!projectToDelete}
-        onClose={() => setProjectToDelete(null)}
+        project={deleteDialog.item}
+        isOpen={deleteDialog.isOpen}
+        onClose={deleteDialog.close}
         onDelete={handleDelete}
       />
     </>

@@ -23,7 +23,7 @@ describe('useDebouncedValue', () => {
     })
 
     rerender({ value: 'b' })
-    await act(() => vi.advanceTimersByTime(299))
+    await act(() => vi.advanceTimersByTime(199))
 
     expect(result.current).toBe('a')
   })
@@ -34,7 +34,7 @@ describe('useDebouncedValue', () => {
     })
 
     rerender({ value: 'b' })
-    await act(() => vi.advanceTimersByTime(300))
+    await act(() => vi.advanceTimersByTime(200))
 
     expect(result.current).toBe('b')
   })
@@ -58,14 +58,14 @@ describe('useDebouncedValue', () => {
     })
 
     rerender({ value: 'b' })
-    await act(() => vi.advanceTimersByTime(200))
+    await act(() => vi.advanceTimersByTime(150))
 
     rerender({ value: 'c' })
-    await act(() => vi.advanceTimersByTime(200))
+    await act(() => vi.advanceTimersByTime(150))
 
     expect(result.current).toBe('a')
 
-    await act(() => vi.advanceTimersByTime(100))
+    await act(() => vi.advanceTimersByTime(50))
     expect(result.current).toBe('c')
   })
 })

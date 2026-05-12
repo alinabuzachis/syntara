@@ -47,6 +47,10 @@ test.describe('Page screenshots', { tag: '@local-only' }, () => {
       // Freeze clock for deterministic timestamps (e.g. "3 days ago" renders identically)
       await page.clock.setFixedTime(new Date('2025-06-15T10:00:00Z'))
 
+      // Clear persisted project-selector state so every screenshot starts from
+      // the same "All projects" baseline regardless of test ordering.
+      await page.evaluate(() => localStorage.removeItem('nexus-selected-project'))
+
       // Navigate to the target page
       await page.goto(toAppUrl(entry.path))
 

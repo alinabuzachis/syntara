@@ -26,17 +26,29 @@ vi.mock('../providers/alerts', () => ({
   }),
 }))
 
+const mockToggleFavoriteProjectId = vi.fn()
 let mockSelectedProjectId: string | null = null
+let mockSelectedProjectName: string | null = null
+let mockFavoriteProjectIds: string[] = []
 
 /** Keeps `mockSelectedProjectId` in sync so UI reflects selection (toggle label / filter reset). */
-const mockSetSelectedProjectId = vi.fn((id: string | null) => {
+const mockSetSelectedProjectId = vi.fn((id: string | null, name?: string | null) => {
   mockSelectedProjectId = id
+  mockSelectedProjectName = name ?? null
+})
+
+const mockSetSelectedProjectName = vi.fn((name: string | null) => {
+  mockSelectedProjectName = name
 })
 
 vi.mock('../stores/useProjectStore', () => ({
   useProjectStore: () => ({
     selectedProjectId: mockSelectedProjectId,
+    selectedProjectName: mockSelectedProjectName,
     setSelectedProjectId: mockSetSelectedProjectId,
+    setSelectedProjectName: mockSetSelectedProjectName,
+    favoriteProjectIds: mockFavoriteProjectIds,
+    toggleFavoriteProjectId: mockToggleFavoriteProjectId,
   }),
 }))
 
@@ -118,6 +130,8 @@ describe('useProjectSelector', () => {
     vi.clearAllMocks()
     queryClient.clear()
     mockSelectedProjectId = null
+    mockSelectedProjectName = null
+    mockFavoriteProjectIds = []
     mockQueryResponse = {
       data: makePaginatedData(sampleProjects),
       isPending: false,
@@ -197,7 +211,7 @@ describe('useProjectSelector', () => {
       await user.click(screen.getByDisplayValue('Alpha'))
       await user.click(screen.getByRole('option', { name: /Beta/i }))
 
-      expect(mockSetSelectedProjectId).toHaveBeenCalledWith('proj-2')
+      expect(mockSetSelectedProjectId).toHaveBeenCalledWith('proj-2', 'Beta')
     })
 
     it('does not clear initialProjectId via stale-guard', async () => {
@@ -256,6 +270,107 @@ describe('useProjectSelector', () => {
 
       expect(mockSetSelectedProjectId).not.toHaveBeenCalled()
     })
+
+    it('does not clear a newly created project ID while the refetch is in flight', () => {
+      // Simulates the race condition: onCreated sets the new ID immediately, but the
+      // background refetch hasn't returned yet so the new project isn't in `projects` yet.
+      mockSelectedProjectId = 'brand-new-project-id'
+      mockQueryResponse = {
+        data: makePaginatedData(sampleProjects), // old list — new project not here yet
+        isPending: false,
+        isFetching: true, // refetch is in progress
+      }
+      Object.assign(mockQueryResponse, { refetch: mockRefetch, error: null })
+
+      renderHook(() => useProjectSelector(), { wrapper })
+
+      expect(mockSetSelectedProjectId).not.toHaveBeenCalled()
+    })
+  })
+
+  // ── selectedProjectId stable during typeahead filter ──────────────────
+
+  describe('selectedProjectId', () => {
+    it('always returns the raw Zustand project ID, even when filtered out of results', () => {
+      // The project is NOT in the filtered results list.
+      mockSelectedProjectId = 'proj-1'
+      mockQueryResponse = {
+        data: makePaginatedData([sampleProjects[1]]), // only Beta
+        isPending: false,
+        isFetching: false,
+      }
+      Object.assign(mockQueryResponse, { refetch: mockRefetch, error: null })
+
+      const { result } = renderHook(() => useProjectSelector(), { wrapper })
+
+      // selectedProject (resolved from list) is null — Beta-only filtered list
+      expect(result.current.selectedProject).toBeNull()
+      // selectedProjectId is stable — consumers can use it as a fallback for queries
+      expect(result.current.selectedProjectId).toBe('proj-1')
+    })
+
+    it('returns null for selectedProjectId when no project is selected', () => {
+      mockSelectedProjectId = null
+      mockQueryResponse = {
+        data: makePaginatedData(sampleProjects),
+        isPending: false,
+        isFetching: false,
+      }
+      Object.assign(mockQueryResponse, { refetch: mockRefetch, error: null })
+
+      const { result } = renderHook(() => useProjectSelector(), { wrapper })
+
+      expect(result.current.selectedProjectId).toBeNull()
+      expect(result.current.selectedProject).toBeNull()
+    })
+  })
+
+  // ── stableProjectId ────────────────────────────────────────────────────
+
+  describe('stableProjectId', () => {
+    it('returns the selected project id when project is visible in results', () => {
+      mockSelectedProjectId = 'proj-1'
+      mockQueryResponse = {
+        data: makePaginatedData(sampleProjects),
+        isPending: false,
+        isFetching: false,
+      }
+      Object.assign(mockQueryResponse, { refetch: mockRefetch, error: null })
+
+      const { result } = renderHook(() => useProjectSelector(), { wrapper })
+
+      expect(result.current.stableProjectId).toBe('proj-1')
+    })
+
+    it('falls back to raw Zustand id when project is filtered out of visible results', () => {
+      mockSelectedProjectId = 'proj-1'
+      mockQueryResponse = {
+        data: makePaginatedData([sampleProjects[1]]), // only Beta visible
+        isPending: false,
+        isFetching: false,
+      }
+      Object.assign(mockQueryResponse, { refetch: mockRefetch, error: null })
+
+      const { result } = renderHook(() => useProjectSelector(), { wrapper })
+
+      // selectedProject is null (not in filtered list), but stableProjectId is still 'proj-1'
+      expect(result.current.selectedProject).toBeNull()
+      expect(result.current.stableProjectId).toBe('proj-1')
+    })
+
+    it('returns undefined when "All projects" is selected', () => {
+      mockSelectedProjectId = null
+      mockQueryResponse = {
+        data: makePaginatedData(sampleProjects),
+        isPending: false,
+        isFetching: false,
+      }
+      Object.assign(mockQueryResponse, { refetch: mockRefetch, error: null })
+
+      const { result } = renderHook(() => useProjectSelector(), { wrapper })
+
+      expect(result.current.stableProjectId).toBeUndefined()
+    })
   })
 
   // ── ProjectSelector UI ─────────────────────────────────────────────────
@@ -313,6 +428,54 @@ describe('useProjectSelector', () => {
       expect(container.querySelector('[aria-invalid="true"]')).toBeInTheDocument()
     })
 
+    it('renders Projects group (no Favorites group until something is starred) and a star on each project row', async () => {
+      const user = userEvent.setup()
+      renderSelector()
+
+      await user.click(screen.getByDisplayValue('All projects'))
+
+      expect(screen.queryByText('Favorites')).not.toBeInTheDocument()
+      expect(screen.getByText('Projects')).toBeInTheDocument()
+      expect(screen.getAllByRole('menuitem', { name: /not starred|starred/i })).toHaveLength(2)
+    })
+
+    it('calls toggleFavoriteProjectId when the favorite action is activated', async () => {
+      const user = userEvent.setup()
+      renderSelector()
+
+      await user.click(screen.getByDisplayValue('All projects'))
+      const allFavoriteButtons = screen.getAllByRole('menuitem', { name: /not starred|starred/i })
+      // Beta is the 2nd project in the test data (proj-2); its star is index 1
+      await user.click(allFavoriteButtons[1])
+
+      expect(mockToggleFavoriteProjectId).toHaveBeenCalledWith('proj-2')
+      expect(mockSetSelectedProjectId).not.toHaveBeenCalled()
+    })
+
+    it('shows Favorites group before Projects; Projects lists every project again including favorites', async () => {
+      mockFavoriteProjectIds = ['proj-2']
+      const user = userEvent.setup()
+      renderSelector()
+
+      await user.click(screen.getByDisplayValue('All projects'))
+
+      expect(screen.getByText('Favorites')).toBeInTheDocument()
+      expect(screen.getByText('Projects')).toBeInTheDocument()
+      expect(screen.getAllByRole('option', { name: /Beta/i })).toHaveLength(2)
+
+      const headings = screen.getAllByRole('heading', { level: 2 })
+      const favHeading = headings.find((h) => h.textContent === 'Favorites')
+      const projHeading = headings.find((h) => h.textContent === 'Projects')
+      expect(favHeading).toBeDefined()
+      expect(projHeading).toBeDefined()
+      expect(favHeading!.compareDocumentPosition(projHeading!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
+      const options = screen.getAllByRole('option')
+      const idxBeta = options.findIndex((el) => el.textContent?.includes('Beta'))
+      const idxAlpha = options.findIndex((el) => el.textContent?.includes('Alpha'))
+      expect(idxBeta).toBeLessThan(idxAlpha)
+    })
+
     it('selects a project when option is clicked', async () => {
       const user = userEvent.setup()
       renderSelector()
@@ -320,7 +483,7 @@ describe('useProjectSelector', () => {
       await user.click(screen.getByDisplayValue('All projects'))
       await user.click(screen.getByRole('option', { name: /Beta/i }))
 
-      expect(mockSetSelectedProjectId).toHaveBeenCalledWith('proj-2')
+      expect(mockSetSelectedProjectId).toHaveBeenCalledWith('proj-2', 'Beta')
     })
 
     it('selects "All projects" to clear selection', async () => {
@@ -374,6 +537,21 @@ describe('useProjectSelector', () => {
       await user.click(screen.getByRole('option', { name: /Beta/i }))
 
       await user.click(screen.getByDisplayValue('Beta'))
+      expect(typeaheadInput()).toHaveValue('')
+    })
+
+    it('clears typeahead text when dropdown is closed without a selection', async () => {
+      const user = userEvent.setup()
+      renderSelector()
+
+      await user.click(screen.getByDisplayValue('All projects'))
+      await user.type(typeaheadInput(), 'notfound')
+
+      // Close by pressing Escape (equivalent to clicking outside)
+      await user.keyboard('{Escape}')
+
+      // Reopen — filter should be gone
+      await user.click(screen.getByDisplayValue('All projects'))
       expect(typeaheadInput()).toHaveValue('')
     })
 
@@ -500,6 +678,45 @@ describe('useProjectSelector', () => {
       } finally {
         useQuerySpy.mockImplementation(() => mockQueryResponse)
       }
+    })
+  })
+
+  // ── Clear filter button ────────────────────────────────────────────────
+
+  describe('clear filter button', () => {
+    it('shows a clear button while the dropdown is open and filter text is present', async () => {
+      const user = userEvent.setup()
+      renderSelector()
+
+      await user.click(screen.getByDisplayValue('All projects'))
+      await user.type(screen.getByPlaceholderText('All projects'), 'beta')
+
+      expect(screen.getByRole('button', { name: 'Clear filter' })).toBeInTheDocument()
+    })
+
+    it('does not show the clear button when no filter text is entered', async () => {
+      const user = userEvent.setup()
+      renderSelector()
+
+      await user.click(screen.getByDisplayValue('All projects'))
+
+      expect(screen.queryByRole('button', { name: 'Clear filter' })).not.toBeInTheDocument()
+    })
+
+    it('clears the filter text when the clear button is clicked, without changing the selection', async () => {
+      const user = userEvent.setup()
+      renderSelector()
+
+      await user.click(screen.getByDisplayValue('All projects'))
+      await user.type(screen.getByPlaceholderText('All projects'), 'beta')
+      expect(screen.getByRole('button', { name: 'Clear filter' })).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: 'Clear filter' }))
+
+      // Filter button disappears once the text is gone
+      expect(screen.queryByRole('button', { name: 'Clear filter' })).not.toBeInTheDocument()
+      // Selection has not changed — setSelectedProjectId was never called
+      expect(mockSetSelectedProjectId).not.toHaveBeenCalled()
     })
   })
 

@@ -1,47 +1,44 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { renderHook, act } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 import type React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { accessClient } from '../routes/access/accessClient'
 import type { ProjectRead } from '../routes/access/types'
 
 import { usePaginatedProjects } from './usePaginatedProjects'
 
-// ── Mocks ─────────────────────────────────────────────────────────────────
-
-type PaginatedResponse = {
-  resources: ProjectRead[]
-  next: string | null
-  prev: string | null
-  total: number | null
-}
-
-let mockQueryData: PaginatedResponse | undefined
-let mockIsFetching = false
-
 vi.mock('../routes/access/accessClient', () => ({
   accessClient: {
-    useQuery: vi.fn().mockImplementation(() => ({
-      data: mockQueryData,
-      isPending: false,
-      isFetching: mockIsFetching,
-      error: null,
-      refetch: vi.fn(),
-    })),
+    useQuery: vi.fn(),
   },
 }))
 
-// ── Helpers ───────────────────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────────────
 
-const page1: ProjectRead[] = [
-  { id: 'p1', name: 'Alpha', description: null, labels: {}, is_default: false, created_at: '', updated_at: '' },
-  { id: 'p2', name: 'Beta', description: null, labels: {}, is_default: false, created_at: '', updated_at: '' },
-]
+function makeProject(id: string, name: string): ProjectRead {
+  return {
+    id,
+    name,
+    description: null,
+    labels: {},
+    is_default: false,
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z',
+  }
+}
 
-const page2: ProjectRead[] = [
-  { id: 'p3', name: 'Gamma', description: null, labels: {}, is_default: false, created_at: '', updated_at: '' },
-  { id: 'p4', name: 'Delta', description: null, labels: {}, is_default: false, created_at: '', updated_at: '' },
-]
+const page1 = [makeProject('p1', 'Alpha'), makeProject('p2', 'Beta')]
+const page2 = [makeProject('p3', 'Gamma'), makeProject('p4', 'Delta')]
+
+function makeQueryData(resources: ProjectRead[], next: string | null = null, isFetching = false) {
+  return {
+    data: { resources, next, prev: null, total: resources.length },
+    isPending: false,
+    isFetching,
+    refetch: vi.fn(),
+  }
+}
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 
@@ -49,81 +46,139 @@ function wrapper({ children }: { children: React.ReactNode }) {
   return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────
+// ── Tests ──────────────────────────────────────────────────────────────────
 
 describe('usePaginatedProjects', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     queryClient.clear()
-    mockQueryData = { resources: page1, next: 'cursor-2', prev: null, total: 4 }
-    mockIsFetching = false
+    vi.mocked(accessClient.useQuery).mockReturnValue(makeQueryData(page1) as never)
   })
 
-  it('returns first page projects from query', () => {
-    const { result } = renderHook(() => usePaginatedProjects(), { wrapper })
-
-    expect(result.current.projects).toEqual(page1)
-    expect(result.current.hasMore).toBe(true)
-    expect(result.current.isLoadingMore).toBe(false)
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
-  it('returns empty projects when data is undefined', () => {
-    mockQueryData = undefined
-    const { result } = renderHook(() => usePaginatedProjects(), { wrapper })
+  // ── Initial state ────────────────────────────────────────────────────────
 
-    expect(result.current.projects).toEqual([])
-    expect(result.current.hasMore).toBe(false)
+  describe('initial state', () => {
+    it('returns projects from query data', () => {
+      const { result } = renderHook(() => usePaginatedProjects(), { wrapper })
+
+      expect(result.current.projects).toEqual(page1)
+      expect(result.current.filterValue).toBe('')
+      expect(result.current.debouncedFilter).toBe('')
+      expect(result.current.hasMore).toBe(false)
+      expect(result.current.isInitialPage).toBe(true)
+      expect(result.current.isLoadingMore).toBe(false)
+    })
+
+    it('returns empty array when query data is undefined', () => {
+      vi.mocked(accessClient.useQuery).mockReturnValue({
+        data: undefined,
+        isPending: true,
+        isFetching: false,
+        refetch: vi.fn(),
+      } as never)
+
+      const { result } = renderHook(() => usePaginatedProjects(), { wrapper })
+
+      expect(result.current.projects).toEqual([])
+    })
   })
 
-  it('returns hasMore false when next is null', () => {
-    mockQueryData = { resources: page1, next: null, prev: null, total: 2 }
-    const { result } = renderHook(() => usePaginatedProjects(), { wrapper })
-
-    expect(result.current.hasMore).toBe(false)
-  })
+  // ── updateFilter ─────────────────────────────────────────────────────────
 
   describe('updateFilter', () => {
-    it('updates filterValue', () => {
+    it('sets filterValue immediately', () => {
       const { result } = renderHook(() => usePaginatedProjects(), { wrapper })
 
-      act(() => result.current.updateFilter('test'))
+      act(() => {
+        result.current.updateFilter('alpha')
+      })
 
-      expect(result.current.filterValue).toBe('test')
+      expect(result.current.filterValue).toBe('alpha')
     })
 
-    it('resets cursor and extra pages when filter changes', () => {
+    it('updates debouncedFilter after 200ms debounce delay', () => {
+      vi.useFakeTimers()
       const { result } = renderHook(() => usePaginatedProjects(), { wrapper })
 
-      // First load more to set cursor/extraPages
-      act(() => result.current.loadMore())
+      act(() => {
+        result.current.updateFilter('beta')
+      })
+      expect(result.current.debouncedFilter).toBe('')
 
-      // Then update filter — should reset
-      act(() => result.current.updateFilter('search'))
+      act(() => {
+        vi.advanceTimersByTime(199)
+      })
+      expect(result.current.debouncedFilter).toBe('')
 
-      expect(result.current.filterValue).toBe('search')
-      // Projects should be back to first page only (no accumulated extras)
-      expect(result.current.projects).toEqual(page1)
+      act(() => {
+        vi.advanceTimersByTime(1)
+      })
+      expect(result.current.debouncedFilter).toBe('beta')
+    })
+
+    it('sets isInitialPage to false once debouncedFilter is set', () => {
+      vi.useFakeTimers()
+      const { result } = renderHook(() => usePaginatedProjects(), { wrapper })
+
+      act(() => {
+        result.current.updateFilter('gamma')
+      })
+      act(() => {
+        vi.advanceTimersByTime(200)
+      })
+
+      expect(result.current.isInitialPage).toBe(false)
     })
   })
 
+  // ── resetPagination ───────────────────────────────────────────────────────
+
   describe('resetPagination', () => {
-    it('clears filter, cursor, and extra pages', () => {
+    it('clears filterValue', () => {
       const { result } = renderHook(() => usePaginatedProjects(), { wrapper })
 
-      act(() => result.current.updateFilter('test'))
-      act(() => result.current.resetPagination())
+      act(() => {
+        result.current.updateFilter('alpha')
+      })
+      act(() => {
+        result.current.resetPagination()
+      })
 
       expect(result.current.filterValue).toBe('')
-      expect(result.current.projects).toEqual(page1)
+    })
+
+    it('restores isInitialPage after reset', () => {
+      vi.useFakeTimers()
+      const { result } = renderHook(() => usePaginatedProjects(), { wrapper })
+
+      act(() => {
+        result.current.updateFilter('test')
+      })
+      act(() => {
+        vi.advanceTimersByTime(200)
+      })
+      act(() => {
+        result.current.resetPagination()
+      })
+      act(() => {
+        vi.advanceTimersByTime(200)
+      })
+
+      expect(result.current.isInitialPage).toBe(true)
     })
   })
 
   describe('clearTypeaheadOnly', () => {
     it('clears filter text without collapsing merged pages', () => {
+      vi.mocked(accessClient.useQuery).mockReturnValue(makeQueryData(page1, 'cursor-2') as never)
       const { result, rerender } = renderHook(() => usePaginatedProjects(), { wrapper })
 
       act(() => result.current.loadMore())
-      mockQueryData = { resources: page2, next: null, prev: 'cursor-1', total: 4 }
+      vi.mocked(accessClient.useQuery).mockReturnValue(makeQueryData(page2) as never)
       rerender()
 
       expect(result.current.projects).toHaveLength(4)
@@ -135,49 +190,83 @@ describe('usePaginatedProjects', () => {
     })
   })
 
-  describe('loadMore', () => {
-    it('accumulates projects from previous pages', () => {
+  // ── hasMore / loadMore ────────────────────────────────────────────────────
+
+  describe('hasMore and loadMore', () => {
+    it('hasMore is true when query returns a next cursor', () => {
+      vi.mocked(accessClient.useQuery).mockReturnValue(makeQueryData(page1, 'cursor-2') as never)
+      const { result } = renderHook(() => usePaginatedProjects(), { wrapper })
+
+      expect(result.current.hasMore).toBe(true)
+    })
+
+    it('does not update cursor when no next page exists', () => {
+      const { result } = renderHook(() => usePaginatedProjects(), { wrapper })
+
+      act(() => {
+        result.current.loadMore()
+      })
+
+      // Cursor remains null → still on initial page
+      expect(result.current.isInitialPage).toBe(true)
+    })
+
+    it('accumulates page 2 projects after loadMore', () => {
+      vi.mocked(accessClient.useQuery).mockReturnValue(makeQueryData(page1, 'cursor-2') as never)
       const { result, rerender } = renderHook(() => usePaginatedProjects(), { wrapper })
 
-      act(() => result.current.loadMore())
+      act(() => {
+        result.current.loadMore()
+      })
 
-      mockQueryData = { resources: page2, next: null, prev: 'cursor-1', total: 4 }
+      // Simulate the query returning page 2 after the cursor is set
+      vi.mocked(accessClient.useQuery).mockReturnValue(makeQueryData(page2) as never)
       rerender()
 
-      expect(result.current.projects).toHaveLength(4)
-      expect(result.current.hasMore).toBe(false)
+      expect(result.current.projects).toEqual([...page1, ...page2])
     })
 
-    it('does nothing when next cursor is null', () => {
-      mockQueryData = { resources: page1, next: null, prev: null, total: 2 }
-      const { result } = renderHook(() => usePaginatedProjects(), { wrapper })
+    it('deduplicates projects that appear in both extraPages and the new page', () => {
+      vi.mocked(accessClient.useQuery).mockReturnValue(makeQueryData(page1, 'cursor-2') as never)
+      const { result, rerender } = renderHook(() => usePaginatedProjects(), { wrapper })
 
-      const projectsBefore = result.current.projects
-      act(() => result.current.loadMore())
+      act(() => {
+        result.current.loadMore()
+      })
 
-      expect(result.current.projects).toEqual(projectsBefore)
-    })
+      // page 2 overlaps: p1 is a duplicate
+      const overlapPage = [page1[0], ...page2]
+      vi.mocked(accessClient.useQuery).mockReturnValue(makeQueryData(overlapPage) as never)
+      rerender()
 
-    it('reports isLoadingMore when cursor is set and query is fetching', () => {
-      mockIsFetching = true
-      const { result } = renderHook(() => usePaginatedProjects(), { wrapper })
-
-      act(() => result.current.loadMore())
-
-      expect(result.current.isLoadingMore).toBe(true)
+      const ids = result.current.projects.map((p) => p.id)
+      expect(new Set(ids).size).toBe(ids.length) // no duplicates
+      expect(ids).toContain('p1') // p1 appears exactly once
     })
   })
 
-  describe('project merging', () => {
-    it('deduplicates projects when extraPages overlap with firstPage', () => {
+  // ── isLoadingMore ─────────────────────────────────────────────────────────
+
+  describe('isLoadingMore', () => {
+    it('is true when a cursor is set and the query is still fetching', () => {
+      vi.mocked(accessClient.useQuery).mockReturnValue(makeQueryData(page1, 'cursor-2') as never)
+      const { result, rerender } = renderHook(() => usePaginatedProjects(), { wrapper })
+
+      act(() => {
+        result.current.loadMore()
+      })
+
+      // Simulate in-flight refetch with the cursor
+      vi.mocked(accessClient.useQuery).mockReturnValue(makeQueryData(page1, 'cursor-2', true) as never)
+      rerender()
+
+      expect(result.current.isLoadingMore).toBe(true)
+    })
+
+    it('is false when no cursor is set', () => {
       const { result } = renderHook(() => usePaginatedProjects(), { wrapper })
 
-      // loadMore sets extraPages = current projects (page1)
-      act(() => result.current.loadMore())
-
-      // Now simulate query still returning page1 data (e.g. same cursor)
-      // The projects memo should deduplicate
-      expect(result.current.projects.length).toBeLessThanOrEqual(page1.length + page2.length)
+      expect(result.current.isLoadingMore).toBe(false)
     })
   })
 })
