@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor, act } from '@testing-library/react'
+import { render, screen, waitFor, act, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
@@ -204,9 +204,8 @@ describe('AddRoleDialog', () => {
       // Select a policy by opening the dropdown and clicking
       const policyInput = screen.getByPlaceholderText('Select policies...')
       await user.click(policyInput)
-      const menuitem = screen.getByRole('menuitem', { name: /workflow-admin/i })
-      const itemText = menuitem.querySelector('.pf-v6-c-menu__item-text') ?? menuitem
-      await user.click(itemText)
+      const menuitem1 = screen.getByRole('menuitem', { name: /workflow-admin/i })
+      await user.click(within(menuitem1).getByText('workflow-admin'))
 
       // Submit the form
       await user.click(screen.getByRole('button', { name: 'Create role' }))
@@ -235,9 +234,8 @@ describe('AddRoleDialog', () => {
       // Select a policy
       const policyInput = screen.getByPlaceholderText('Select policies...')
       await user.click(policyInput)
-      const menuitem = screen.getByRole('menuitem', { name: /workflow-admin/i })
-      const itemText = menuitem.querySelector('.pf-v6-c-menu__item-text') ?? menuitem
-      await user.click(itemText)
+      const menuitem2 = screen.getByRole('menuitem', { name: /workflow-admin/i })
+      await user.click(within(menuitem2).getByText('workflow-admin'))
 
       await user.click(screen.getByRole('button', { name: 'Create role' }))
 
@@ -263,9 +261,8 @@ describe('AddRoleDialog', () => {
 
       const policyInput = screen.getByPlaceholderText('Select policies...')
       await user.click(policyInput)
-      const menuitem = screen.getByRole('menuitem', { name: /workflow-admin/i })
-      const itemText = menuitem.querySelector('.pf-v6-c-menu__item-text') ?? menuitem
-      await user.click(itemText)
+      const menuitem3 = screen.getByRole('menuitem', { name: /workflow-admin/i })
+      await user.click(within(menuitem3).getByText('workflow-admin'))
 
       await user.click(screen.getByRole('button', { name: 'Create role' }))
 
@@ -292,9 +289,8 @@ describe('AddRoleDialog', () => {
 
       const policyInput = screen.getByPlaceholderText('Select policies...')
       await user.click(policyInput)
-      const menuitem = screen.getByRole('menuitem', { name: /workflow-admin/i })
-      const itemText = menuitem.querySelector('.pf-v6-c-menu__item-text') ?? menuitem
-      await user.click(itemText)
+      const menuitem4 = screen.getByRole('menuitem', { name: /workflow-admin/i })
+      await user.click(within(menuitem4).getByText('workflow-admin'))
 
       await user.click(screen.getByRole('button', { name: 'Create role' }))
 

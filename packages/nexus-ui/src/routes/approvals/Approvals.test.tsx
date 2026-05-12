@@ -576,10 +576,9 @@ describe('Approvals Component', () => {
 
       render(<Approvals />)
 
-      const paginationNav = screen.getByRole('navigation', { name: /pagination/i })
-      expect(paginationNav).toBeInTheDocument()
-      // PF Pagination renders "1 - {count} of {total}" in the page menu (sibling of nav)
-      expect(paginationNav.parentElement).toHaveTextContent('1 - 3 of 3')
+      expect(screen.getByRole('navigation', { name: /pagination/i })).toBeInTheDocument()
+      // PF renders the count as aria-hidden and splits it across <b> tags; match via textContent
+      expect(screen.queryAllByText((_, el) => (el?.textContent ?? '').includes('1 - 3 of 3'))).not.toHaveLength(0)
     })
 
     it('displays singular approval text for one approval', () => {
@@ -587,9 +586,8 @@ describe('Approvals Component', () => {
 
       render(<Approvals />)
 
-      const paginationNav = screen.getByRole('navigation', { name: /pagination/i })
-      expect(paginationNav).toBeInTheDocument()
-      expect(paginationNav.parentElement).toHaveTextContent('1 - 1 of 1')
+      expect(screen.getByRole('navigation', { name: /pagination/i })).toBeInTheDocument()
+      expect(screen.queryAllByText((_, el) => (el?.textContent ?? '').includes('1 - 1 of 1'))).not.toHaveLength(0)
     })
 
     it('displays total count when more approvals exist', () => {
@@ -606,9 +604,8 @@ describe('Approvals Component', () => {
 
       render(<Approvals />)
 
-      const paginationNav = screen.getByRole('navigation', { name: /pagination/i })
-      expect(paginationNav).toBeInTheDocument()
-      expect(paginationNav.parentElement).toHaveTextContent('1 - 20 of 50')
+      expect(screen.getByRole('navigation', { name: /pagination/i })).toBeInTheDocument()
+      expect(screen.queryAllByText((_, el) => (el?.textContent ?? '').includes('1 - 20 of 50'))).not.toHaveLength(0)
     })
 
     it('handles next page navigation', () => {
@@ -839,8 +836,7 @@ describe('Approvals Component', () => {
       const workflowText = screen.getByText('Test Workflow')
       expect(workflowText).toBeInTheDocument()
 
-      expect(workflowText.closest('button')).toBeNull()
-      expect(workflowText.closest('a')).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Test Workflow' })).toBeNull()
       expect(screen.queryByRole('link', { name: 'Test Workflow' })).toBeNull()
     })
 

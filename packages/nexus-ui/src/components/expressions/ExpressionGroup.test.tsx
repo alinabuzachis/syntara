@@ -537,17 +537,15 @@ describe('ExpressionGroup', () => {
   })
 
   it('applies level 0 background color styling', () => {
-    const { container } = render(<ExpressionGroup {...defaultProps} level={0} />)
+    render(<ExpressionGroup {...defaultProps} level={0} />)
 
-    const groupDiv = container.firstChild
-    expect(groupDiv).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add condition' })).toBeInTheDocument()
   })
 
   it('applies nested level border styling', () => {
-    const { container } = render(<ExpressionGroup {...defaultProps} level={1} />)
+    render(<ExpressionGroup {...defaultProps} level={1} />)
 
-    const groupDiv = container.firstChild
-    expect(groupDiv).toBeInTheDocument()
+    expect(screen.getByText('Group')).toBeInTheDocument()
   })
 
   it('renders condition with NOT checkbox and no remove button when only child', () => {

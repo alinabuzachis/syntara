@@ -679,9 +679,7 @@ describe('BuilderContent', () => {
       await screen.findByText(/Set mock output data for/)
 
       const modal = screen.getByRole('dialog')
-      const closeButton = modal.querySelector('button[aria-label="Close"]')
-      expect(closeButton).not.toBeNull()
-      fireEvent.click(closeButton!)
+      fireEvent.click(within(modal).getByRole('button', { name: 'Close' }))
 
       await waitFor(() => {
         expect(screen.queryByText(/Set mock output data for/)).not.toBeInTheDocument()
@@ -876,12 +874,8 @@ describe('BuilderContent', () => {
         expect(screen.getByText('Enabled')).toBeInTheDocument()
       })
 
-      // Find the switch container and click it
-      const enabledText = screen.getByText('Enabled')
-
-      const switchContainer = enabledText.closest('.pf-v6-c-switch')
-      expect(switchContainer).not.toBeNull()
-      fireEvent.click(switchContainer!)
+      // Toggle the workflow enabled switch
+      fireEvent.click(screen.getByRole('switch'))
       // Tests SET_IS_ENABLED reducer action
       await waitFor(() => {
         expect(screen.getByText('Disabled')).toBeInTheDocument()
@@ -1041,11 +1035,9 @@ describe('BuilderContent', () => {
         expect(screen.getByText('Run History')).toBeInTheDocument()
       })
 
-      const statusText = screen.getByText('Completed')
-      expect(statusText).toBeInTheDocument()
-      const row = statusText.closest('button')
-      expect(row).not.toBeNull()
-      fireEvent.click(row!)
+      const row = screen.getByRole('button', { name: /Completed/i })
+      expect(row).toBeInTheDocument()
+      fireEvent.click(row)
       await waitFor(() => {
         expect(mockRequestNavigation).toHaveBeenCalledWith('/executions/exec-1')
       })
@@ -1198,12 +1190,9 @@ describe('BuilderContent', () => {
       // Wait for delete modal to open
       await screen.findByText('Delete workflow?')
 
-      // Find the modal's X close button (tests onClose callback - line 1206)
+      // Find the modal's X close button (tests onClose callback)
       const modal = screen.getByRole('dialog')
-
-      const closeButton = modal.querySelector('button[aria-label="Close"]')
-      expect(closeButton).not.toBeNull()
-      fireEvent.click(closeButton!)
+      fireEvent.click(within(modal).getByRole('button', { name: 'Close' }))
 
       // Modal should close
       await waitFor(() => {
@@ -2145,15 +2134,10 @@ describe('BuilderContent', () => {
       })
 
       // Click to enable
-      const disabledText = screen.getByText('Disabled')
-
-      const switchContainer = disabledText.closest('.pf-v6-c-switch')
-      if (switchContainer) {
-        fireEvent.click(switchContainer)
-        await waitFor(() => {
-          expect(screen.getByText('Enabled')).toBeInTheDocument()
-        })
-      }
+      fireEvent.click(screen.getByRole('switch'))
+      await waitFor(() => {
+        expect(screen.getByText('Enabled')).toBeInTheDocument()
+      })
     })
   })
 
