@@ -41,6 +41,68 @@ function getScopesHelperText(hasError: unknown, isPresetTemplate: boolean): stri
   return 'Type a scope and press Enter or comma to add'
 }
 
+type IdpTypeSelectDeps = Readonly<{
+  onTypeChange: (value: string) => void
+  onBlur: () => void
+  setIsOpen: (open: boolean) => void
+}>
+
+function idpTypeOnSelect(deps: IdpTypeSelectDeps, _event: unknown, value: unknown): void {
+  const val = String(value)
+  deps.onTypeChange(val)
+  deps.onBlur()
+  deps.setIsOpen(false)
+}
+
+function toggleIdpTypeMenuExpanded(setIsOpen: React.Dispatch<React.SetStateAction<boolean>>): void {
+  setIsOpen((prev) => !prev)
+}
+
+type IdpTypeMenuToggleProps = Readonly<{
+  toggleRef: React.Ref<HTMLButtonElement>
+  isOpen: boolean
+  setIsOpen: React.Dispatch<React.SetStateAction<boolean>>
+  fieldValue: string | undefined
+  selectedLabel: string | undefined
+  hasError: boolean
+}>
+
+function IdpTypeMenuToggle({
+  toggleRef,
+  isOpen,
+  setIsOpen,
+  fieldValue,
+  selectedLabel,
+  hasError,
+}: IdpTypeMenuToggleProps) {
+  function handleToggleClick(): void {
+    toggleIdpTypeMenuExpanded(setIsOpen)
+  }
+
+  return (
+    <MenuToggle
+      ref={toggleRef}
+      onClick={handleToggleClick}
+      isExpanded={isOpen}
+      isFullWidth
+      status={hasError ? 'danger' : undefined}
+    >
+      {fieldValue ? (
+        <>
+          <ProviderIcon
+            name={selectedLabel ?? ''}
+            idpType={fieldValue}
+            style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}
+          />
+          {selectedLabel}
+        </>
+      ) : (
+        'Select a provider template...'
+      )}
+    </MenuToggle>
+  )
+}
+
 // Fields validated before advancing from step 1 to step 2 in the wizard.
 // Boolean toggles (enabled, autoDiscovery, enableRpInitiatedLogout,
 // autoCreateGroups) are intentionally excluded — they have no validation
@@ -106,40 +168,29 @@ function IdpTypeField({
       control={control}
       render={({ field, fieldState }) => {
         const selectedLabel = IDP_TYPE_OPTIONS.find((o) => o.value === field.value)?.label
+        const selectDeps: IdpTypeSelectDeps = {
+          onTypeChange,
+          onBlur: field.onBlur,
+          setIsOpen,
+        }
+
         return (
           <FormGroup label="Provider template" fieldId="idp-type" isRequired>
             <Select
               id="idp-type"
               isOpen={isOpen}
               selected={field.value || undefined}
-              onSelect={(_event, value) => {
-                const val = String(value)
-                onTypeChange(val)
-                field.onBlur()
-                setIsOpen(false)
-              }}
+              onSelect={(event, value) => idpTypeOnSelect(selectDeps, event, value)}
               onOpenChange={setIsOpen}
               toggle={(toggleRef) => (
-                <MenuToggle
-                  ref={toggleRef}
-                  onClick={() => setIsOpen((prev) => !prev)}
-                  isExpanded={isOpen}
-                  isFullWidth
-                  status={fieldState.error ? 'danger' : undefined}
-                >
-                  {field.value ? (
-                    <>
-                      <ProviderIcon
-                        name={selectedLabel ?? ''}
-                        idpType={field.value}
-                        style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}
-                      />
-                      {selectedLabel}
-                    </>
-                  ) : (
-                    'Select a provider template...'
-                  )}
-                </MenuToggle>
+                <IdpTypeMenuToggle
+                  toggleRef={toggleRef}
+                  isOpen={isOpen}
+                  setIsOpen={setIsOpen}
+                  fieldValue={field.value}
+                  selectedLabel={selectedLabel}
+                  hasError={Boolean(fieldState.error)}
+                />
               )}
             >
               <SelectList>
