@@ -52,7 +52,6 @@ def _make_workflow(
     wf.loop_state = {}
     wf.loop_body_map = {}
     wf.loop_iteration_results = {}
-    wf._activity_signals = {}
     wf._timeout_tasks = {}
     wf._timed_out_converge_nodes = set()
     wf.pre_resolved_outputs = {}
@@ -160,43 +159,6 @@ class TestIsUnreachable:
         wf.resolver.set_namespace("node_a", {"status": "failed", "error": "Error"})
 
         assert wf._is_unreachable("node_b", graph) is True
-
-
-class TestActivitySignal:
-    """Test signal storage for async callbacks."""
-
-    @pytest.mark.asyncio
-    async def test_signal_stores_data_for_activity(self) -> None:
-        """Signal data should be appended to the activity's signal list."""
-        wf = _make_workflow()
-        await wf.activity_signal("node_x", {"status": "completed", "result": {"answer": 42}})
-
-        assert "node_x" in wf._activity_signals
-        assert len(wf._activity_signals["node_x"]) == 1
-        assert wf._activity_signals["node_x"][0]["result"] == {"answer": 42}
-
-    @pytest.mark.asyncio
-    async def test_multiple_signals_for_same_activity(self) -> None:
-        """Multiple signals to the same activity should accumulate."""
-        wf = _make_workflow()
-        await wf.activity_signal("node_x", {"status": "pending"})
-        await wf.activity_signal("node_x", {"status": "completed", "result": "done"})
-
-        assert len(wf._activity_signals["node_x"]) == 2
-        assert wf._activity_signals["node_x"][0]["status"] == "pending"
-        assert wf._activity_signals["node_x"][1]["status"] == "completed"
-
-    @pytest.mark.asyncio
-    async def test_signals_for_different_activities_are_independent(self) -> None:
-        """Signals for different activities should not interfere."""
-        wf = _make_workflow()
-        await wf.activity_signal("node_x", {"status": "done"})
-        await wf.activity_signal("node_y", {"status": "error"})
-
-        assert len(wf._activity_signals["node_x"]) == 1
-        assert len(wf._activity_signals["node_y"]) == 1
-        assert wf._activity_signals["node_x"][0]["status"] == "done"
-        assert wf._activity_signals["node_y"][0]["status"] == "error"
 
 
 class TestExecuteExecutorNodeUnknownType:

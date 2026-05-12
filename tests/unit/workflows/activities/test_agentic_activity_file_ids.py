@@ -16,6 +16,7 @@ import pytest
 from nexus.workflows.workflow_engine.activities.agentic_activity import (
     execute_agentic_activity,
 )
+from tests.helpers.temporal import CompleteAsyncError
 
 
 def generate_valid_uuid() -> str:
@@ -51,18 +52,21 @@ class TestAgenticActivityFileIds:
             "file_ids": file_ids,
         }
 
-        with patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls:
+        with (
+            patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
+                return_value="mock_token",
+            ),
+            pytest.raises(CompleteAsyncError),
+        ):
             mock_cls.return_value = mock_agent_client
-
             await execute_agentic_activity(input_config, None)
 
-            # Verify invoke_agent_async was called
-            mock_agent_client.invoke_agent_async.assert_called_once()
-
-            # Verify file_ids were passed as a parameter
-            call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
-            assert "file_ids" in call_kwargs
-            assert call_kwargs["file_ids"] == file_ids
+        mock_agent_client.invoke_agent_async.assert_called_once()
+        call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
+        assert "file_ids" in call_kwargs
+        assert call_kwargs["file_ids"] == file_ids
 
     @pytest.mark.asyncio
     async def test_file_ids_empty_when_not_specified(self, mock_agent_client: AsyncMock) -> None:
@@ -71,15 +75,21 @@ class TestAgenticActivityFileIds:
             "prompt": "Process without files",
         }
 
-        with patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls:
+        with (
+            patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
+                return_value="mock_token",
+            ),
+            pytest.raises(CompleteAsyncError),
+        ):
             mock_cls.return_value = mock_agent_client
-
             await execute_agentic_activity(input_config, None)
 
-            # Verify file_ids was passed as empty list parameter
-            call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
-            assert "file_ids" in call_kwargs
-            assert call_kwargs["file_ids"] == []
+        # Verify file_ids was passed as empty list parameter
+        call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
+        assert "file_ids" in call_kwargs
+        assert call_kwargs["file_ids"] == []
 
     @pytest.mark.asyncio
     async def test_file_ids_passed_as_separate_parameter(self, mock_agent_client: AsyncMock) -> None:
@@ -90,15 +100,21 @@ class TestAgenticActivityFileIds:
             "file_ids": file_ids,
         }
 
-        with patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls:
+        with (
+            patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
+                return_value="mock_token",
+            ),
+            pytest.raises(CompleteAsyncError),
+        ):
             mock_cls.return_value = mock_agent_client
-
             await execute_agentic_activity(input_config, None)
 
-            # Verify file_ids passed as separate parameter
-            call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
-            assert "file_ids" in call_kwargs
-            assert call_kwargs["file_ids"] == file_ids
+        # Verify file_ids passed as separate parameter
+        call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
+        assert "file_ids" in call_kwargs
+        assert call_kwargs["file_ids"] == file_ids
 
     @pytest.mark.asyncio
     async def test_file_ids_max_count_accepted(self, mock_agent_client: AsyncMock) -> None:
@@ -109,14 +125,20 @@ class TestAgenticActivityFileIds:
             "file_ids": file_ids,
         }
 
-        with patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls:
+        with (
+            patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
+                return_value="mock_token",
+            ),
+            pytest.raises(CompleteAsyncError),
+        ):
             mock_cls.return_value = mock_agent_client
-
             await execute_agentic_activity(input_config, None)
 
-            call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
-            assert "file_ids" in call_kwargs
-            assert len(call_kwargs["file_ids"]) == 10
+        call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
+        assert "file_ids" in call_kwargs
+        assert len(call_kwargs["file_ids"]) == 10
 
     @pytest.mark.asyncio
     async def test_file_ids_invalid_rejected_during_config_validation(self) -> None:
@@ -152,18 +174,24 @@ class TestAgenticActivityFileIds:
             "file_ids": file_ids,
         }
 
-        with patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls:
+        with (
+            patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
+                return_value="mock_token",
+            ),
+            patch("nexus.workflows.workflow_engine.activities.agentic_activity.logger") as mock_logger,
+            pytest.raises(CompleteAsyncError),
+        ):
             mock_cls.return_value = mock_agent_client
+            await execute_agentic_activity(input_config, None)
 
-            with patch("nexus.workflows.workflow_engine.activities.agentic_activity.logger") as mock_logger:
-                await execute_agentic_activity(input_config, None)
-
-                # Verify logging includes file_count as a keyword argument
-                info_calls = mock_logger.info.call_args_list
-                found_file_count_log = False
-                for call in info_calls:
-                    kwargs = call[1]  # Keyword arguments
-                    if kwargs.get("file_count") == 5:
-                        found_file_count_log = True
-                        break
-                assert found_file_count_log, f"Expected file_count=5 in log calls: {info_calls}"
+        # Verify logging includes file_count as a keyword argument
+        info_calls = mock_logger.info.call_args_list
+        found_file_count_log = False
+        for call in info_calls:
+            kwargs = call[1]  # Keyword arguments
+            if kwargs.get("file_count") == 5:
+                found_file_count_log = True
+                break
+        assert found_file_count_log, f"Expected file_count=5 in log calls: {info_calls}"

@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from nexus.workflows.workflow_engine.activities.agentic_activity import execute_agentic_activity
+from tests.helpers.temporal import CompleteAsyncError
 
 
 def create_mock_client_response(**kwargs: object) -> dict[str, Any]:
@@ -36,10 +37,26 @@ def create_mock_client_response(**kwargs: object) -> dict[str, Any]:
     }
 
 
+async def _fake_inject_runtime_settings(input_config: dict[str, Any]) -> None:
+    """Inject default timeout like the real function does."""
+    if "timeout" not in input_config:
+        input_config["timeout"] = 300
+
+
 @pytest.fixture(autouse=True)
 def mock_agent_client() -> Generator[AsyncMock, None, None]:
     """Auto-mock Agent Orchestrator client for all tests."""
-    with patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls:
+    with (
+        patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
+        patch(
+            "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
+            return_value="mock_token",
+        ),
+        patch(
+            "nexus.workflows.workflow_engine.activities.agentic_activity._inject_runtime_settings",
+            side_effect=_fake_inject_runtime_settings,
+        ),
+    ):
         # Create mock instance
         mock_instance = AsyncMock()
         # New async pattern: invoke_agent_async returns invocation_id immediately
@@ -65,14 +82,11 @@ class TestAgenticActivityExecution:
             "model": "claude-3-5-sonnet-20241022",
         }
 
-        result = await execute_agentic_activity(input_config, None)
+        with pytest.raises(CompleteAsyncError):
+            await execute_agentic_activity(input_config, None)
 
         # Verify Agent Orchestrator was called asynchronously
         mock_agent_client.invoke_agent_async.assert_called_once()
-
-        # V2 returns {"output": {...}} with status "completed"
-        assert result["output"]["status"] == "completed"
-        assert result["output"]["invocation_id"] == "inv_123456"
 
     @pytest.mark.asyncio
     async def test_parameter_mapping_to_agent_orchestrator(self, mock_agent_client) -> None:
@@ -83,7 +97,8 @@ class TestAgenticActivityExecution:
             "model": "claude-3-5-sonnet-20241022",
         }
 
-        await execute_agentic_activity(input_config, None)
+        with pytest.raises(CompleteAsyncError):
+            await execute_agentic_activity(input_config, None)
 
         # Verify invoke_agent_async was called with correct parameters
         call_args = mock_agent_client.invoke_agent_async.call_args
@@ -106,14 +121,11 @@ class TestAgenticActivityExecution:
             "model": "claude-3-5-sonnet-20241022",
         }
 
-        result = await execute_agentic_activity(input_config, None)
+        with pytest.raises(CompleteAsyncError):
+            await execute_agentic_activity(input_config, None)
 
         # Verify invoke_agent_async was called
         mock_agent_client.invoke_agent_async.assert_called()
-
-        # V2 returns completed status with invocation_id
-        assert result["output"]["status"] == "completed"
-        assert result["output"]["invocation_id"] == "inv_123456"
 
 
 class TestAgenticActivityErrorHandling:
@@ -167,11 +179,11 @@ class TestAgenticActivityErrorHandling:
             "model": "claude-3-5-sonnet-20241022",
         }
 
-        result = await execute_agentic_activity(input_config, None)
+        with pytest.raises(CompleteAsyncError):
+            await execute_agentic_activity(input_config, None)
 
-        # Activity returns completed status with invocation_id
-        assert result["output"]["status"] == "completed"
-        assert result["output"]["invocation_id"] == "inv_error"
+        # Activity invoked agent successfully (raise_complete_async was called)
+        mock_agent_client.invoke_agent_async.assert_called_once()
 
 
 class TestAgenticActivityEdgeCases:
@@ -213,10 +225,10 @@ class TestAgenticActivityTimeoutConfiguration:
             "model": "claude-3-5-sonnet-20241022",
         }
 
-        result = await execute_agentic_activity(input_config, None)
+        with pytest.raises(CompleteAsyncError):
+            await execute_agentic_activity(input_config, None)
 
         mock_agent_client.invoke_agent_async.assert_called_once()
-        assert result["output"]["status"] == "completed"
 
     @pytest.mark.asyncio
     async def test_uses_custom_timeout_when_specified(self, mock_agent_client) -> None:
@@ -227,10 +239,10 @@ class TestAgenticActivityTimeoutConfiguration:
             "timeout": 600,
         }
 
-        result = await execute_agentic_activity(input_config, None)
+        with pytest.raises(CompleteAsyncError):
+            await execute_agentic_activity(input_config, None)
 
         mock_agent_client.invoke_agent_async.assert_called_once()
-        assert result["output"]["status"] == "completed"
 
     @pytest.mark.asyncio
     async def test_rejects_timeout_below_minimum(self) -> None:
@@ -270,8 +282,8 @@ class TestAgenticActivityInputEdgeCases:
             "model": "claude-3-5-sonnet-20241022",
         }
 
-        result = await execute_agentic_activity(input_config, None)
-        assert result["output"]["status"] == "completed"
+        with pytest.raises(CompleteAsyncError):
+            await execute_agentic_activity(input_config, None)
 
     @pytest.mark.asyncio
     async def test_concurrent_invocations_use_separate_clients(self) -> None:
@@ -281,11 +293,13 @@ class TestAgenticActivityInputEdgeCases:
             "model": "claude-3-5-sonnet-20241022",
         }
 
+        # All three invocations raise CompleteAsyncError on success
         results = await asyncio.gather(
             execute_agentic_activity(input_config, None),
             execute_agentic_activity(input_config, None),
             execute_agentic_activity(input_config, None),
+            return_exceptions=True,
         )
 
         assert len(results) == 3
-        assert all(r["output"]["status"] == "completed" for r in results)
+        assert all(isinstance(r, CompleteAsyncError) for r in results)

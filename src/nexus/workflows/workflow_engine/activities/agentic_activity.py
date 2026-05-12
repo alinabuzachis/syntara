@@ -75,17 +75,17 @@ async def execute_agentic_activity(
     execution_id: str = "",
     request_id: str | None = None,
 ) -> dict[str, Any]:
-    """V2 agentic activity with normalized signature.
+    """V2 agentic activity with async completion.
+
+    On successful dispatch, calls raise_complete_async() so the activity stays
+    STARTED in Temporal until the agent orchestrator calls back with results.
+    Pre-dispatch failures return synchronously to avoid retry-induced duplicates.
 
     Args:
         input_config: Activity configuration containing prompt, agent, model, etc.
         output_config: Output mapping configuration
         execution_id: Workflow execution ID for callback URL generation
         request_id: Optional X-Request-Id (UUID) from the originating HTTP request
-
-    Returns:
-        dict with keys:
-            - output: Mapped output containing invocation metadata
 
     """
     logger.info("Starting agentic activity (v2)")
@@ -176,16 +176,7 @@ async def execute_agentic_activity(
                 invocation_id=invocation_id,
             )
 
-            # Return metadata
-            full_result = {
-                "status": "completed",
-                "activity_id": activity_id,
-                "invocation_id": invocation_id,
-                "callback_url": callback_url,
-            }
-
-            mapped_output = apply_output_mapping(full_result, output_config)
-            return {"output": mapped_output}
+            activity.raise_complete_async()
 
     # NOTE: All exceptions return a success-shaped response intentionally.
     # This is a fire-and-forget pattern: the activity creates an async invocation

@@ -496,8 +496,8 @@ class TestActivityEventProcessing:
         if expected_error:
             assert self.metadata.pending_activity_updates[1]["error_details"] == expected_error
 
-    def test_process_activity_completed_sets_waiting_for_approval_nodes(self) -> None:
-        """Test that approval activities get WAITING status instead of COMPLETED."""
+    def test_process_activity_completed_sets_completed_for_approval_nodes(self) -> None:
+        """Test that approval activities get COMPLETED status on ACTIVITY_TASK_COMPLETED."""
         self.metadata.activity_definitions_map = {
             "approval-node": {"id": "approval-node", "type": "approval", "config": {}},
         }
@@ -516,9 +516,8 @@ class TestActivityEventProcessing:
 
         self.service._process_activity_completed(event, self.metadata)
 
-        assert self.metadata.pending_activity_updates[1]["status"] == ActivityStatus.WAITING
-        # completed_at should NOT be set for WAITING activities
-        assert self.metadata.pending_activity_updates[1]["completed_at"] is None
+        assert self.metadata.pending_activity_updates[1]["status"] == ActivityStatus.COMPLETED
+        assert self.metadata.pending_activity_updates[1]["completed_at"] is not None
 
     def test_process_activity_completed_sets_completed_for_non_approval_nodes(self) -> None:
         """Test that non-approval activities still get COMPLETED status."""
@@ -561,94 +560,6 @@ class TestActivityEventProcessing:
             with patch.object(self.service, handler_name) as mock_handler:
                 self.service._process_activity_event(event, metadata)
                 mock_handler.assert_called_once_with(event, metadata)
-
-
-class TestAgenticActivityCompletionDeferral:
-    """Test that agentic activities stay RUNNING on ActivityTaskCompleted.
-
-    Agentic activities return immediately (dispatching the LLM invocation).
-    The actual result arrives via signal, so the sync service must NOT mark
-    them COMPLETED until the workflow itself reaches a terminal state.
-    """
-
-    def setup_method(self) -> None:
-        """Set up test fixtures."""
-        self.service = ActivitySyncService(Mock(), Mock())
-
-    def _create_completed_event(self, scheduled_event_id: int = 1) -> Mock:
-        event = Mock()
-        event.event_type = EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED
-        event.event_id = 3
-        event.event_time = datetime.now(UTC)
-        attrs = Mock()
-        attrs.scheduled_event_id = scheduled_event_id
-        event.activity_task_completed_event_attributes = attrs
-        return event
-
-    def test_agentic_activity_stays_in_progress_on_completed_event(self) -> None:
-        """Agentic activity should remain RUNNING on ActivityTaskCompleted.
-
-        ActivityTaskCompleted for agentic activities means the HTTP dispatch
-        succeeded, not that the agent finished. The activity stays in progress
-        until the invocation signals back with the result.
-        """
-        metadata = create_test_metadata(
-            activity_definitions_map={
-                "agent-activity": {"type": "agentic"},
-            },
-            pending_activity_updates={
-                1: {
-                    "activity_id": "agent-activity",
-                    "status": ActivityStatus.RUNNING,
-                    "completed_at": None,
-                    "error_details": None,
-                },
-            },
-        )
-
-        self.service._process_activity_completed(self._create_completed_event(), metadata)
-
-        assert metadata.pending_activity_updates[1]["status"] == ActivityStatus.RUNNING
-
-    def test_non_agentic_activity_completes_normally(self) -> None:
-        """Non-agentic activity should still be marked COMPLETED on ActivityTaskCompleted."""
-        metadata = create_test_metadata(
-            activity_definitions_map={
-                "script-activity": {"type": "script"},
-            },
-            pending_activity_updates={
-                1: {
-                    "activity_id": "script-activity",
-                    "status": ActivityStatus.RUNNING,
-                    "completed_at": None,
-                    "error_details": None,
-                },
-            },
-        )
-
-        self.service._process_activity_completed(self._create_completed_event(), metadata)
-
-        assert metadata.pending_activity_updates[1]["status"] == ActivityStatus.COMPLETED
-        assert metadata.pending_activity_updates[1]["completed_at"] is not None
-
-    def test_unknown_activity_definition_completes_normally(self) -> None:
-        """Activity with no definition in map should be treated as non-agentic."""
-        metadata = create_test_metadata(
-            activity_definitions_map={},
-            pending_activity_updates={
-                1: {
-                    "activity_id": "unknown-activity",
-                    "status": ActivityStatus.RUNNING,
-                    "completed_at": None,
-                    "error_details": None,
-                },
-            },
-        )
-
-        self.service._process_activity_completed(self._create_completed_event(), metadata)
-
-        assert metadata.pending_activity_updates[1]["status"] == ActivityStatus.COMPLETED
-        assert metadata.pending_activity_updates[1]["completed_at"] is not None
 
 
 class TestHandleEventPostProcessing:
@@ -1074,7 +985,7 @@ class TestExecutionStatusUpdates:
         metadata = create_test_metadata(execution_id=self.execution_id)
 
         # Execute
-        await self.service._update_execution_status_from_event(metadata, event, AsyncMock())
+        await self.service._update_execution_status_from_event(metadata, event)
 
         # Verify status changed to COMPLETED
         assert execution.status == ExecutionStatus.COMPLETED
@@ -1112,7 +1023,7 @@ class TestExecutionStatusUpdates:
         metadata = create_test_metadata(execution_id=self.execution_id)
 
         # Execute
-        await self.service._update_execution_status_from_event(metadata, event, AsyncMock())
+        await self.service._update_execution_status_from_event(metadata, event)
 
         # Verify status changed to FAILED with error
         assert execution.status == ExecutionStatus.FAILED
@@ -1148,7 +1059,7 @@ class TestExecutionStatusUpdates:
         metadata = create_test_metadata(execution_id=self.execution_id)
 
         # Execute
-        await self.service._update_execution_status_from_event(metadata, event, AsyncMock())
+        await self.service._update_execution_status_from_event(metadata, event)
 
         # Verify execution not modified (idempotent)
         assert execution.status == original_status
@@ -1184,7 +1095,7 @@ class TestExecutionStatusUpdates:
         metadata = create_test_metadata(execution_id=self.execution_id)
 
         # Execute
-        await self.service._update_execution_status_from_event(metadata, event, AsyncMock())
+        await self.service._update_execution_status_from_event(metadata, event)
 
         # Verify completed_at was adjusted to be after created_at
         assert execution.status == ExecutionStatus.COMPLETED
@@ -1267,85 +1178,6 @@ class TestAgenticActivityFinalizationOnWorkflowCompletion:
         handle = AsyncMock()
         handle.query = AsyncMock(return_value=output_data)
         return handle
-
-    @pytest.mark.asyncio
-    async def test_running_agentic_promoted_to_completed_on_workflow_success(self) -> None:
-        """RUNNING agentic activity should become COMPLETED when workflow succeeds."""
-        activity = self._create_mock_activity(ActivityStatus.RUNNING, executor="agentic")
-        execution = self._create_mock_execution(activities=[activity])
-        self._mock_session(execution)
-        handle = self._mock_handle(output_data={"status": "completed", "result": "ok"})
-
-        event = self._create_workflow_event(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED)
-        metadata = create_test_metadata(execution_id=self.execution_id)
-
-        await self.service._update_execution_status_from_event(metadata, event, handle)
-
-        assert activity.status == ActivityStatus.COMPLETED
-        assert activity.output_data == {"status": "completed", "result": "ok"}
-
-    @pytest.mark.asyncio
-    async def test_running_agentic_marked_failed_on_workflow_failure(self) -> None:
-        """RUNNING agentic activity should become FAILED when workflow fails."""
-        activity = self._create_mock_activity(ActivityStatus.RUNNING, executor="agentic")
-        execution = self._create_mock_execution(activities=[activity])
-        self._mock_session(execution)
-        handle = self._mock_handle()
-
-        event = self._create_workflow_event(
-            EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED,
-            failure_message="LLM error: invalid model ID",
-        )
-        metadata = create_test_metadata(execution_id=self.execution_id)
-
-        await self.service._update_execution_status_from_event(metadata, event, handle)
-
-        assert activity.status == ActivityStatus.FAILED
-        assert activity.error_details == "LLM error: invalid model ID"
-
-    @pytest.mark.asyncio
-    async def test_non_agentic_running_activity_not_changed_on_workflow_failure(self) -> None:
-        """Non-agentic RUNNING activity should NOT be finalized on workflow failure."""
-        activity = self._create_mock_activity(ActivityStatus.RUNNING, executor="script")
-        execution = self._create_mock_execution(activities=[activity])
-        self._mock_session(execution)
-        handle = self._mock_handle()
-
-        event = self._create_workflow_event(
-            EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED,
-            failure_message="Some error",
-        )
-        metadata = create_test_metadata(execution_id=self.execution_id)
-
-        await self.service._update_execution_status_from_event(metadata, event, handle)
-
-        # Non-agentic activity should not be touched
-        assert activity.status == ActivityStatus.RUNNING
-
-    @pytest.mark.asyncio
-    async def test_completed_agentic_marked_failed_on_workflow_failure(self) -> None:
-        """Agentic activity already COMPLETED should be changed to FAILED when workflow fails.
-
-        This handles the case where the signal reported failure after the sync service
-        already marked the activity as COMPLETED.
-        """
-        activity = self._create_mock_activity(ActivityStatus.COMPLETED, executor="agentic")
-        activity.completed_at = datetime(2025, 1, 20, 12, 0, 0, tzinfo=UTC)
-        execution = self._create_mock_execution(activities=[activity])
-        self._mock_session(execution)
-        handle = self._mock_handle()
-
-        event = self._create_workflow_event(
-            EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED,
-            failure_message="Some error",
-        )
-        metadata = create_test_metadata(execution_id=self.execution_id)
-
-        await self.service._update_execution_status_from_event(metadata, event, handle)
-
-        # COMPLETED agentic nodes should be re-finalized to FAILED when workflow fails
-        assert activity.status == ActivityStatus.FAILED
-        assert activity.error_details == "Some error"
 
 
 class TestParseErrorFromOutput:
@@ -1445,13 +1277,8 @@ class TestExtractTriggerActivityType:
         assert ActivitySyncService._extract_trigger_activity_type(activity_definitions_map) == expected
 
 
-class TestPendingOutputFlag:
-    """Test _pending_output flag logic in _sync_activities_to_db.
-
-    Signal-based nodes (agentic, approval) complete before their signal arrives,
-    so output_data is null initially. The _pending_output flag keeps them in
-    pending_activity_updates so they get re-queried on the next sync pass.
-    """
+class TestActivitySyncTerminalCleanup:
+    """Test terminal activity cleanup logic in _sync_activities_to_db."""
 
     def setup_method(self) -> None:
         """Set up test fixtures."""
@@ -1522,111 +1349,8 @@ class TestPendingOutputFlag:
         return handle
 
     @pytest.mark.asyncio
-    async def test_completed_activity_with_null_output_gets_pending_output_flag(self) -> None:
-        """Completed signal-based activity with null output_data gets tagged with _pending_output = True."""
-        activity = self._create_mock_activity_execution(activity_name="approval-node")
-        self._mock_session_with_activities([activity])
-
-        # Handle returns None for output (signal hasn't arrived yet)
-        handle = self._create_mock_handle(output_data=None)
-
-        metadata = create_test_metadata(
-            execution_id=self.execution_id,
-            activity_index_map={"approval-node": 0},
-            pending_activity_updates={
-                10: {
-                    "activity_id": "approval-node",
-                    "activity_name": "approval-node",
-                    "status": ActivityStatus.COMPLETED,
-                    "started_at": datetime.now(UTC),
-                    "completed_at": datetime.now(UTC),
-                    "error_details": None,
-                    "retry_count": 0,
-                },
-            },
-        )
-
-        await self.service._sync_activities_to_db(metadata, handle)
-
-        # The activity should be tagged with _pending_output
-        assert metadata.pending_activity_updates[10].get("_pending_output") is True
-
-    @pytest.mark.asyncio
-    async def test_tagged_activity_remains_in_pending_for_next_sync(self) -> None:
-        """Activities tagged with _pending_output remain in pending_activity_updates after sync."""
-        activity = self._create_mock_activity_execution(activity_name="approval-node")
-        self._mock_session_with_activities([activity])
-
-        # Handle returns None for output
-        handle = self._create_mock_handle(output_data=None)
-
-        metadata = create_test_metadata(
-            execution_id=self.execution_id,
-            activity_index_map={"approval-node": 0},
-            pending_activity_updates={
-                10: {
-                    "activity_id": "approval-node",
-                    "activity_name": "approval-node",
-                    "status": ActivityStatus.COMPLETED,
-                    "started_at": datetime.now(UTC),
-                    "completed_at": datetime.now(UTC),
-                    "error_details": None,
-                    "retry_count": 0,
-                },
-            },
-        )
-
-        await self.service._sync_activities_to_db(metadata, handle)
-
-        # The activity must still be in pending_activity_updates (not cleared)
-        # because _pending_output prevents terminal-status cleanup
-        assert 10 in metadata.pending_activity_updates
-        assert metadata.pending_activity_updates[10]["_pending_output"] is True
-
-    @pytest.mark.asyncio
-    async def test_output_available_on_requery_clears_pending_output_flag(self) -> None:
-        """When output_data becomes available on re-query, _pending_output is cleared and activity is finalized."""
-        activity = self._create_mock_activity_execution(activity_name="approval-node")
-
-        # First sync: output is None -> _pending_output = True
-        self._mock_session_with_activities([activity])
-        handle_no_output = self._create_mock_handle(output_data=None)
-
-        metadata = create_test_metadata(
-            execution_id=self.execution_id,
-            activity_index_map={"approval-node": 0},
-            pending_activity_updates={
-                10: {
-                    "activity_id": "approval-node",
-                    "activity_name": "approval-node",
-                    "status": ActivityStatus.COMPLETED,
-                    "started_at": datetime.now(UTC),
-                    "completed_at": datetime.now(UTC),
-                    "error_details": None,
-                    "retry_count": 0,
-                },
-            },
-        )
-
-        await self.service._sync_activities_to_db(metadata, handle_no_output)
-        assert metadata.pending_activity_updates[10].get("_pending_output") is True
-
-        # Second sync: output is now available
-        self._mock_session_with_activities([activity])
-        handle_with_output = self._create_mock_handle(output_data={"status": "approved", "approved_by": "user-1"})
-
-        await self.service._sync_activities_to_db(metadata, handle_with_output)
-
-        # _pending_output should be cleared
-        assert "_pending_output" not in metadata.pending_activity_updates.get(10, {})
-        # Activity should have been removed from pending (terminal + no _pending_output)
-        assert 10 not in metadata.pending_activity_updates
-        # Output should be persisted on the activity record
-        assert activity.output_data == {"status": "approved", "approved_by": "user-1"}
-
-    @pytest.mark.asyncio
-    async def test_completed_activity_with_output_does_not_get_pending_flag(self) -> None:
-        """A completed activity that already has output_data does NOT get _pending_output."""
+    async def test_completed_activity_cleared_from_pending(self) -> None:
+        """A completed activity with output_data is cleared from pending_activity_updates."""
         activity = self._create_mock_activity_execution(activity_name="script-node")
         self._mock_session_with_activities([activity])
 
@@ -1654,72 +1378,8 @@ class TestPendingOutputFlag:
         assert 10 not in metadata.pending_activity_updates
 
     @pytest.mark.asyncio
-    async def test_workflow_completes_before_output_available_activity_finalized(self) -> None:
-        """Edge case: if workflow completes before output is available, activity is finalized properly.
-
-        When the workflow reaches a terminal state, _update_execution_status_from_event
-        finalizes agentic activities. This test verifies that a RUNNING agentic activity
-        with null output gets finalized to the correct terminal status.
-        """
-        from nexus.workflows.models.execution import Execution, ExecutionStatus
-
-        # Create a RUNNING agentic activity with no output yet
-        agentic_activity = Mock()
-        agentic_activity.id = uuid4()
-        agentic_activity.activity_name = "agent-node"
-        agentic_activity.temporal_activity_id = "agent-node"
-        agentic_activity.status = ActivityStatus.RUNNING
-        agentic_activity.completed_at = None
-        agentic_activity.error_details = None
-        agentic_activity.output_data = None
-        agentic_activity.activity_definition = {"type": "agentic"}
-
-        execution = Mock(spec=Execution)
-        execution.id = self.execution_id
-        execution.status = ExecutionStatus.RUNNING
-        execution.temporal_workflow_id = f"exec-{self.execution_id}"
-        execution.created_at = datetime(2025, 1, 20, 10, 0, 0, tzinfo=UTC)
-        execution.updated_at = execution.created_at
-        execution.completed_at = None
-        execution.error_details = None
-        execution.activities = [agentic_activity]
-
-        mock_result = Mock()
-        mock_result.one_or_none.return_value = execution
-        mock_session = Mock()
-        mock_session.exec = AsyncMock(return_value=mock_result)
-        mock_session.commit = AsyncMock()
-        mock_session.rollback = AsyncMock()
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
-        self.mock_session_factory.return_value = mock_session
-
-        # Workflow completed but output query still returns None
-        handle = AsyncMock()
-        handle.query = AsyncMock(return_value=None)
-
-        event = Mock()
-        event.event_type = EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED
-        event.event_id = 100
-        event.event_time = datetime(2025, 1, 20, 12, 30, 0, tzinfo=UTC)
-        attrs = Mock()
-        attrs.result = Mock(payloads=[])
-        event.workflow_execution_completed_event_attributes = attrs
-
-        metadata = create_test_metadata(execution_id=self.execution_id)
-
-        await self.service._update_execution_status_from_event(metadata, event, handle)
-
-        # Activity should be finalized to COMPLETED (matching workflow terminal status)
-        assert agentic_activity.status == ActivityStatus.COMPLETED
-        assert agentic_activity.completed_at is not None
-        # output_data should be None since the query returned None
-        assert agentic_activity.output_data is None
-        assert agentic_activity.error_details is None
-
-    @pytest.mark.asyncio
-    async def test_non_completed_activity_does_not_get_pending_flag(self) -> None:
-        """Activities in non-COMPLETED states (RUNNING, FAILED) should not get _pending_output flag."""
+    async def test_non_completed_activity_stays_in_pending(self) -> None:
+        """Activities in non-terminal states (RUNNING, FAILED) remain in pending_activity_updates."""
         activity = self._create_mock_activity_execution(activity_name="running-node")
         self._mock_session_with_activities([activity])
 
@@ -1743,43 +1403,8 @@ class TestPendingOutputFlag:
 
         await self.service._sync_activities_to_db(metadata, handle)
 
-        # RUNNING activity should NOT get _pending_output (it's not completed yet)
-        assert "_pending_output" not in metadata.pending_activity_updates.get(10, {})
-
-    @pytest.mark.asyncio
-    async def test_waiting_approval_transitions_to_completed_when_output_available(self) -> None:
-        """WAITING approval activity transitions to COMPLETED when output_data arrives."""
-        activity = self._create_mock_activity_execution(
-            activity_name="approval-node",
-            status=ActivityStatus.WAITING,
-        )
-        self._mock_session_with_activities([activity])
-
-        handle = self._create_mock_handle(
-            output_data={"status": "approved", "decided_by": "user123"},
-        )
-
-        metadata = create_test_metadata(
-            execution_id=self.execution_id,
-            activity_index_map={"approval-node": 0},
-            pending_activity_updates={
-                10: {
-                    "activity_id": "approval-node",
-                    "activity_name": "approval-node",
-                    "status": ActivityStatus.WAITING,
-                    "started_at": datetime.now(UTC),
-                    "completed_at": None,
-                    "error_details": None,
-                    "retry_count": 0,
-                },
-            },
-        )
-
-        await self.service._sync_activities_to_db(metadata, handle)
-
-        assert activity.status == ActivityStatus.COMPLETED
-        assert activity.completed_at is not None
-        assert activity.output_data == {"status": "approved", "decided_by": "user123"}
+        # RUNNING activity should remain in pending (not terminal)
+        assert 10 in metadata.pending_activity_updates
 
     @pytest.mark.asyncio
     async def test_waiting_approval_stays_waiting_when_no_output(self) -> None:
@@ -1812,44 +1437,6 @@ class TestPendingOutputFlag:
 
         assert activity.status == ActivityStatus.WAITING
         assert activity.completed_at is None
-
-    @pytest.mark.asyncio
-    async def test_running_agentic_transitions_to_completed_when_output_available(self) -> None:
-        """RUNNING agentic activity transitions to COMPLETED when output_data arrives."""
-        activity = self._create_mock_activity_execution(
-            activity_name="agent-node",
-            status=ActivityStatus.RUNNING,
-        )
-        self._mock_session_with_activities([activity])
-
-        handle = self._create_mock_handle(
-            output_data={"result": "analysis complete"},
-        )
-
-        metadata = create_test_metadata(
-            execution_id=self.execution_id,
-            activity_index_map={"agent-node": 0},
-            activity_definitions_map={
-                "agent-node": {"type": "agentic"},
-            },
-            pending_activity_updates={
-                10: {
-                    "activity_id": "agent-node",
-                    "activity_name": "agent-node",
-                    "status": ActivityStatus.RUNNING,
-                    "started_at": datetime.now(UTC),
-                    "completed_at": None,
-                    "error_details": None,
-                    "retry_count": 0,
-                },
-            },
-        )
-
-        await self.service._sync_activities_to_db(metadata, handle)
-
-        assert activity.status == ActivityStatus.COMPLETED
-        assert activity.completed_at is not None
-        assert activity.output_data == {"result": "analysis complete"}
 
     @pytest.mark.asyncio
     async def test_running_agentic_stays_running_when_no_output(self) -> None:
@@ -2242,7 +1829,7 @@ class TestSyncNodesToTerminalStatus:
 # ---------------------------------------------------------------------------
 
 
-class TestInputDataCredentialScrubbing(TestPendingOutputFlag):
+class TestInputDataCredentialScrubbing(TestActivitySyncTerminalCleanup):
     """Verify input_data is scrubbed before writing to ActivityExecution (AAP-74431)."""
 
     @pytest.mark.asyncio
@@ -2347,12 +1934,8 @@ class TestSyntheticActivityStarted:
         assert metadata.pending_activity_updates[5]["started_at"] is not None
 
     @pytest.mark.asyncio
-    async def test_updates_approval_activity_to_running(self) -> None:
-        """Test that a synthetic STARTED event transitions approval nodes to RUNNING.
-
-        WAITING status is set later when the COMPLETED event arrives via the
-        existing approval special-casing in _process_activity_completed.
-        """
+    async def test_updates_approval_activity_to_waiting(self) -> None:
+        """Test that a synthetic STARTED event transitions approval nodes to WAITING."""
         metadata = create_test_metadata(
             execution_id=self.execution_id,
             activity_definitions_map={"approval-node": {"type": "approval"}},
@@ -2374,7 +1957,7 @@ class TestSyntheticActivityStarted:
         with patch.object(self.service, "_sync_activities_to_db", new_callable=AsyncMock):
             await self.service._process_synthetic_activity_started(event, metadata, Mock())
 
-        assert metadata.pending_activity_updates[5]["status"] == ActivityStatus.RUNNING
+        assert metadata.pending_activity_updates[5]["status"] == ActivityStatus.WAITING
         assert metadata.pending_activity_updates[5]["started_at"] is not None
 
     @pytest.mark.asyncio

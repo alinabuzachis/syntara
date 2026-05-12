@@ -396,14 +396,10 @@ class ActivitySyncService:
                 activity_def = metadata.activity_definitions_map.get(activity_id, {})
                 activity_type = activity_def.get("type")
 
-                # Sync skipped nodes after condition completes (V2 workflows)
-                # Note: Only condition nodes trigger skipped-node sync here:
-                #   - Condition: Returns next_port ("true"/"false"), marks non-taken branch as skipped
-                #   - Loop: "iterate" and "complete" ports both execute at different times (no skipping)
-                #   - Converge: Waits for all predecessors (no skipping)
-                #   - Approval: Skipped-node sync is triggered in _sync_activities_to_db
-                #     when the WAITING→COMPLETED transition occurs (after signal received)
-                if activity_type == NodeType.CONDITION:
+                if (
+                    activity_type in (NodeType.CONDITION, NodeType.APPROVAL)
+                    or activity_type in self._TRIGGER_ACTIVITY_TYPES
+                ):
                     await self._sync_skipped_nodes(metadata, handle)
 
         if event.event_type in {
@@ -500,20 +496,25 @@ class ActivitySyncService:
     ) -> None:
         """Process a synthetic STARTED event from describe() probing.
 
-        Sets the activity to RUNNING and syncs to the database, mirroring
-        what _process_activity_started does for real Temporal STARTED events.
+        Sets the activity to RUNNING (or WAITING for approval nodes) and
+        syncs to the database.
         """
         update = metadata.pending_activity_updates.get(event.scheduled_event_id)
         if not update or update["status"] != ActivityStatus.PENDING:
             return
 
-        update["status"] = ActivityStatus.RUNNING
+        activity_def = metadata.activity_definitions_map.get(event.activity_id, {})
+        activity_type = activity_def.get("type")
+        new_status = ActivityStatus.WAITING if activity_type == NodeType.APPROVAL else ActivityStatus.RUNNING
+
+        update["status"] = new_status
         update["started_at"] = datetime.now(UTC)
 
         logger.info(
             "Describe probe: activity started",
             activity_id=event.activity_id,
             execution_id=metadata.execution_id,
+            status=new_status.value,
         )
         await self._sync_activities_to_db(metadata, handle)
 
@@ -546,7 +547,7 @@ class ActivitySyncService:
             EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT,
             EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED,
         }:
-            await self._update_execution_status_from_event(metadata, event, handle)
+            await self._update_execution_status_from_event(metadata, event)
             # Final sync of skipped and failed nodes at workflow completion
             await self._sync_skipped_nodes(metadata, handle)
             await self._sync_failed_nodes(metadata, handle)
@@ -707,10 +708,17 @@ class ActivitySyncService:
         attrs = event.activity_task_started_event_attributes
         scheduled_id = attrs.scheduled_event_id
         if scheduled_id in metadata.pending_activity_updates:
-            # Set status based on attempt number: RUNNING for first attempt, RETRYING for subsequent attempts
             attempt = attrs.attempt or 1
             update = metadata.pending_activity_updates[scheduled_id]
-            update["status"] = ActivityStatus.RETRYING if attempt > 1 else ActivityStatus.RUNNING
+            if attempt > 1:
+                update["status"] = ActivityStatus.RETRYING
+            else:
+                activity_id = update["activity_id"]
+                activity_def = metadata.activity_definitions_map.get(activity_id, {})
+                activity_type = activity_def.get("type")
+                update["status"] = (
+                    ActivityStatus.WAITING if activity_type == NodeType.APPROVAL else ActivityStatus.RUNNING
+                )
             update["started_at"] = ensure_timezone_aware(event.event_time)
             update["retry_count"] = attempt - 1
 
@@ -786,49 +794,30 @@ class ActivitySyncService:
     def _process_activity_completed(self, event: HistoryEvent, metadata: ExecutionMonitorMetadata) -> None:
         """Process ACTIVITY_TASK_COMPLETED event.
 
-        For agentic activities, ``ActivityTaskCompleted`` means the HTTP
-        invocation was dispatched — the actual agent result arrives later via
-        signal.  These entries are removed from pending updates so the workflow
-        completion handler can set the correct terminal status.
+        With async completion, ACTIVITY_TASK_COMPLETED means the activity is
+        genuinely complete for all node types (including approval and agentic).
         """
         attrs = event.activity_task_completed_event_attributes
         scheduled_id = attrs.scheduled_event_id
         if scheduled_id in metadata.pending_activity_updates:
-            activity_id = metadata.pending_activity_updates[scheduled_id]["activity_id"]
-            activity_def = metadata.activity_definitions_map.get(activity_id, {})
-            activity_type = activity_def.get("type")
+            status = ActivityStatus.COMPLETED
+            error_details = None
+            if attrs.result and attrs.result.payloads:
+                try:
+                    result_data = json.loads(attrs.result.payloads[0].data)
+                    if isinstance(result_data, dict):
+                        output = result_data.get("output", result_data)
+                        error_msg = self._parse_error_from_output(output)
+                        if error_msg is not None:
+                            status = ActivityStatus.FAILED
+                            error_details = error_msg
+                except Exception:  # noqa: BLE001
+                    logger.debug("Failed to parse activity result for v2 error detection", exc_info=True)
 
-            if activity_type == NodeType.APPROVAL:
-                # Approval nodes wait for a human signal after the activity completes.
-                # Mark as WAITING (not COMPLETED) until the signal is received.
-                metadata.pending_activity_updates[scheduled_id]["status"] = ActivityStatus.WAITING
-            elif self._is_agentic_activity(activity_def):
-                # Agentic activities: ActivityTaskCompleted means the HTTP dispatch
-                # succeeded, not that the agent finished. Keep as RUNNING until
-                # the invocation signals back with the result.
-                metadata.pending_activity_updates[scheduled_id]["status"] = ActivityStatus.RUNNING
-            else:
-                # Check if the activity returned a v2 error (status: "failed" in output)
-                status = ActivityStatus.COMPLETED
-                error_details = None
-                if attrs.result and attrs.result.payloads:
-                    try:
-                        result_data = json.loads(attrs.result.payloads[0].data)
-                        if isinstance(result_data, dict):
-                            output = result_data.get("output", result_data)
-                            error_msg = self._parse_error_from_output(output)
-                            if error_msg is not None:
-                                status = ActivityStatus.FAILED
-                                error_details = error_msg
-                    except Exception:  # noqa: BLE001
-                        logger.debug("Failed to parse activity result for v2 error detection", exc_info=True)
-
-                metadata.pending_activity_updates[scheduled_id]["status"] = status
-                metadata.pending_activity_updates[scheduled_id]["completed_at"] = ensure_timezone_aware(
-                    event.event_time
-                )
-                if error_details:
-                    metadata.pending_activity_updates[scheduled_id]["error_details"] = error_details
+            metadata.pending_activity_updates[scheduled_id]["status"] = status
+            metadata.pending_activity_updates[scheduled_id]["completed_at"] = ensure_timezone_aware(event.event_time)
+            if error_details:
+                metadata.pending_activity_updates[scheduled_id]["error_details"] = error_details
 
     def _process_activity_failed(self, event: HistoryEvent, metadata: ExecutionMonitorMetadata) -> None:
         """Process ACTIVITY_TASK_FAILED event."""
@@ -938,18 +927,16 @@ class ActivitySyncService:
             return "; ".join(errors)
         return "One or more workflow activities failed"
 
-    async def _update_execution_status_from_event(  # noqa: C901, PLR0912, PLR0915
+    async def _update_execution_status_from_event(
         self,
         metadata: ExecutionMonitorMetadata,
         event: HistoryEvent,
-        handle: WorkflowHandle[Any, Any],
     ) -> None:
         """Update execution status to terminal state when workflow completes.
 
         Args:
             metadata: Monitoring metadata containing execution and related data
             event: Temporal workflow completion event
-            handle: Temporal workflow handle for querying activity data
 
         """
         async with self.session_factory() as session:
@@ -998,54 +985,6 @@ class ActivitySyncService:
                 if error_details:
                     execution.error_details = error_details
                 execution.updated_at = datetime.now(UTC)
-
-                # Finalize agentic activities at workflow completion.
-                # Agentic activities skip normal status tracking because the actual
-                # result arrives via signal after the Temporal activity returns.
-                # At workflow completion, we set the correct terminal status and
-                # query output data that wasn't available during event processing.
-                if execution.activities:
-                    # When workflow failed: fix agentic nodes that are RUNNING or
-                    # incorrectly COMPLETED (signal reported failure after sync)
-                    # When workflow completed: finalize any still-RUNNING agentic nodes
-                    agentic_statuses_to_fix = (
-                        {ActivityStatus.RUNNING, ActivityStatus.COMPLETED}
-                        if status in {ExecutionStatus.FAILED, ExecutionStatus.CANCELLED}
-                        else {ActivityStatus.RUNNING}
-                    )
-                    agentic_to_finalize = [
-                        act
-                        for act in execution.activities
-                        if act.status in agentic_statuses_to_fix
-                        and self._is_agentic_activity(act.activity_definition or {})
-                    ]
-
-                    if agentic_to_finalize:
-                        if status == ExecutionStatus.COMPLETED:
-                            final_status: ActivityStatus | None = ActivityStatus.COMPLETED
-                            final_error = None
-                        elif status in {ExecutionStatus.FAILED, ExecutionStatus.CANCELLED}:
-                            final_status = ActivityStatus.FAILED
-                            final_error = error_details
-                        else:
-                            final_status = None
-
-                        if final_status is not None:
-                            for act in agentic_to_finalize:
-                                act.status = final_status
-                                act.completed_at = completed_at
-                                act.error_details = final_error
-                                # Query output data from workflow namespace
-                                activity_id = act.activity_name or act.temporal_activity_id
-                                if activity_id:
-                                    try:
-                                        output_data = await handle.query("get_activity_output", activity_id)
-                                        act.output_data = output_data if isinstance(output_data, dict) else None
-                                    except Exception:  # noqa: BLE001
-                                        logger.debug(
-                                            "Could not retrieve agentic activity output",
-                                            activity_id=activity_id,
-                                        )
 
                 await session.commit()
 
@@ -1161,7 +1100,6 @@ class ActivitySyncService:
 
                 # Track which activities were updated for patch generation
                 updated_activities: list[tuple[ActivityExecution, dict[str, Any]]] = []
-                approval_resolved = False
 
                 # Update activities from events
                 for activity_data in metadata.pending_activity_updates.values():
@@ -1229,24 +1167,6 @@ class ActivitySyncService:
                     except (TemporalError, ValueError) as e:
                         logger.debug("Could not query activity data", activity_id=activity_id, error=str(e))
 
-                    # Transition WAITING approval nodes to COMPLETED once the
-                    # workflow has received the human signal and stored output.
-                    if activity_data["status"] == ActivityStatus.WAITING and output_data is not None:
-                        activity_data["status"] = ActivityStatus.COMPLETED
-                        activity_data["completed_at"] = datetime.now(UTC)
-                        approval_resolved = True
-
-                    # Transition RUNNING agentic nodes to COMPLETED once the
-                    # invocation signal has arrived and output is available.
-                    activity_def = metadata.activity_definitions_map.get(activity_id, {})
-                    if (
-                        activity_data["status"] == ActivityStatus.RUNNING
-                        and self._is_agentic_activity(activity_def)
-                        and output_data is not None
-                    ):
-                        activity_data["status"] = ActivityStatus.COMPLETED
-                        activity_data["completed_at"] = datetime.now(UTC)
-
                     # Store old values before updating
                     old_values = {
                         "status": existing.status,
@@ -1274,14 +1194,6 @@ class ActivitySyncService:
                         if output_data is not None
                         else None
                     )
-                    # Tag activities that completed with null output for re-query on next sync pass.
-                    # Signal-based nodes (agentic, approval) complete before their signal arrives,
-                    # so output_data is null initially. Keeping them in pending_activity_updates
-                    # ensures they get re-queried when downstream events trigger the next sync.
-                    if output_data is None and activity_data["status"] == ActivityStatus.COMPLETED:
-                        activity_data["_pending_output"] = True
-                    else:
-                        activity_data.pop("_pending_output", None)
                     existing.error_details = activity_data["error_details"]
                     existing.retry_count = activity_data["retry_count"]
                     existing.updated_at = datetime.now(UTC)
@@ -1301,7 +1213,7 @@ class ActivitySyncService:
                 terminal_scheduled_ids = [
                     scheduled_id
                     for scheduled_id, data in metadata.pending_activity_updates.items()
-                    if data.get("status") in terminal_statuses and not data.get("_pending_output")
+                    if data.get("status") in terminal_statuses
                 ]
                 for scheduled_id in terminal_scheduled_ids:
                     data = metadata.pending_activity_updates[scheduled_id]
@@ -1321,11 +1233,6 @@ class ActivitySyncService:
                 # Publish activity patches after commit
                 if updated_activities:
                     await self._publish_activity_patches(metadata, updated_activities)
-
-                # Sync skipped nodes when an approval resolves (the workflow
-                # will have marked the non-taken branch as skipped by now).
-                if approval_resolved:
-                    await self._sync_skipped_nodes(metadata, handle)
 
                 # Emit telemetry for activities that reached terminal states
                 emit_activities(

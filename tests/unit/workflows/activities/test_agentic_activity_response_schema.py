@@ -16,6 +16,7 @@ import pytest
 from nexus.workflows.workflow_engine.activities.agentic_activity import (
     execute_agentic_activity,
 )
+from tests.helpers.temporal import CompleteAsyncError
 
 
 @pytest.fixture
@@ -54,19 +55,19 @@ class TestAgenticActivityResponseSchema:
                 "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
                 return_value="mock_token",
             ),
+            pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-
             await execute_agentic_activity(input_config, None)
 
-            # Verify invoke_agent_async was called
-            mock_agent_client.invoke_agent_async.assert_called_once()
+        # Verify invoke_agent_async was called
+        mock_agent_client.invoke_agent_async.assert_called_once()
 
-            # Verify response_schema was passed in metadata
-            call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
-            assert "metadata" in call_kwargs
-            assert "response_schema" in call_kwargs["metadata"]
-            assert call_kwargs["metadata"]["response_schema"] == schema
+        # Verify response_schema was passed in metadata
+        call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
+        assert "metadata" in call_kwargs
+        assert "response_schema" in call_kwargs["metadata"]
+        assert call_kwargs["metadata"]["response_schema"] == schema
 
     @pytest.mark.asyncio
     async def test_response_schema_not_in_metadata_when_none(self, mock_agent_client: AsyncMock) -> None:
@@ -81,15 +82,15 @@ class TestAgenticActivityResponseSchema:
                 "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
                 return_value="mock_token",
             ),
+            pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-
             await execute_agentic_activity(input_config, None)
 
-            # Verify response_schema is NOT in metadata when None
-            call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
-            assert "metadata" in call_kwargs
-            assert "response_schema" not in call_kwargs["metadata"]
+        # Verify response_schema is NOT in metadata when None
+        call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
+        assert "metadata" in call_kwargs
+        assert "response_schema" not in call_kwargs["metadata"]
 
     @pytest.mark.asyncio
     async def test_response_schema_simple_type(self, mock_agent_client: AsyncMock) -> None:
@@ -106,13 +107,13 @@ class TestAgenticActivityResponseSchema:
                 "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
                 return_value="mock_token",
             ),
+            pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-
             await execute_agentic_activity(input_config, None)
 
-            call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
-            assert call_kwargs["metadata"]["response_schema"] == schema
+        call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
+        assert call_kwargs["metadata"]["response_schema"] == schema
 
     @pytest.mark.asyncio
     async def test_response_schema_array_type(self, mock_agent_client: AsyncMock) -> None:
@@ -132,13 +133,13 @@ class TestAgenticActivityResponseSchema:
                 "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
                 return_value="mock_token",
             ),
+            pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-
             await execute_agentic_activity(input_config, None)
 
-            call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
-            assert call_kwargs["metadata"]["response_schema"] == schema
+        call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
+        assert call_kwargs["metadata"]["response_schema"] == schema
 
     @pytest.mark.asyncio
     async def test_response_schema_complex_nested(self, mock_agent_client: AsyncMock) -> None:
@@ -172,13 +173,13 @@ class TestAgenticActivityResponseSchema:
                 "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
                 return_value="mock_token",
             ),
+            pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-
             await execute_agentic_activity(input_config, None)
 
-            call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
-            assert call_kwargs["metadata"]["response_schema"] == schema
+        call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
+        assert call_kwargs["metadata"]["response_schema"] == schema
 
     @pytest.mark.asyncio
     async def test_response_schema_with_other_fields(self, mock_agent_client: AsyncMock) -> None:
@@ -198,16 +199,16 @@ class TestAgenticActivityResponseSchema:
                 "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
                 return_value="mock_token",
             ),
+            pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-
             await execute_agentic_activity(input_config, None)
 
-            call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
-            assert call_kwargs["prompt"] == "Analyze data"
-            assert call_kwargs["agent"] == "analyzer"
-            assert call_kwargs["model"] == "gpt-4"
-            assert call_kwargs["metadata"]["response_schema"] == schema
+        call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
+        assert call_kwargs["prompt"] == "Analyze data"
+        assert call_kwargs["agent"] == "analyzer"
+        assert call_kwargs["model"] == "gpt-4"
+        assert call_kwargs["metadata"]["response_schema"] == schema
 
     @pytest.mark.asyncio
     async def test_response_schema_invalid_rejected(self) -> None:
@@ -237,14 +238,14 @@ class TestAgenticActivityResponseSchema:
                 "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
                 return_value="mock_token",
             ),
+            pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-
             await execute_agentic_activity(input_config, None)
 
-            # Template expressions are passed through to metadata
-            call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
-            assert call_kwargs["metadata"]["response_schema"] == template
+        # Template expressions are passed through to metadata
+        call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
+        assert call_kwargs["metadata"]["response_schema"] == template
 
     @pytest.mark.asyncio
     async def test_response_schema_metadata_order(self, mock_agent_client: AsyncMock) -> None:
@@ -268,15 +269,15 @@ class TestAgenticActivityResponseSchema:
                 "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
                 return_value="mock_token",
             ),
+            pytest.raises(CompleteAsyncError),
         ):
             mock_cls.return_value = mock_agent_client
-
             await execute_agentic_activity(input_config, None)
 
-            # Verify both credential and response_schema are in metadata
-            call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
-            metadata = call_kwargs["metadata"]
-            assert "credential_id" in metadata
-            assert "llm_provider" in metadata
-            assert "response_schema" in metadata
-            assert metadata["response_schema"] == schema
+        # Verify both credential and response_schema are in metadata
+        call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
+        metadata = call_kwargs["metadata"]
+        assert "credential_id" in metadata
+        assert "llm_provider" in metadata
+        assert "response_schema" in metadata
+        assert metadata["response_schema"] == schema

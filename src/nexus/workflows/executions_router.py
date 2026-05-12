@@ -345,7 +345,7 @@ async def signal_activity(
         execution_id=execution_id,
     )
 
-    await service.send_activity_signal(
+    await service.handle_activity_callback(
         execution_id=execution_id,
         activity_id=activity_id,
         signal_data=payload.signal_data,

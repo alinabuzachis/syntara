@@ -4,7 +4,7 @@ This module provides functionality to create approval requests within workflows
 via the Approvals API client.
 """
 
-from typing import Any
+from typing import Any, NoReturn
 
 import structlog
 from temporalio import activity, workflow
@@ -36,12 +36,12 @@ async def create_approval_request_activity(
     workflow_context: dict[str, Any],
     timeout_at: str | None = None,
     next_step_rejected: dict[str, Any] | None = None,
-) -> dict[str, Any]:
+) -> NoReturn:
     """Create an approval request via the Approvals API.
 
-    Called as a Temporal activity. Creates the approval request in the database
-    so approvers can see it in the UI. The workflow then waits for a signal
-    with the approval decision.
+    Called as a Temporal activity with async completion. Creates the approval
+    request in the database, then calls raise_complete_async() so the activity
+    stays STARTED in Temporal until externally completed via the callback endpoint.
 
     Args:
         execution_id: Parent workflow execution ID (UUID string).
@@ -51,9 +51,6 @@ async def create_approval_request_activity(
         workflow_context: Context dict (workflow_version_id, workflow_name, inputs, previous_step).
         timeout_at: ISO datetime string when the request expires, or None.
         next_step_rejected: First activity if rejected (id, name, type), or None.
-
-    Returns:
-        Created approval request as dict (id, status, etc.).
 
     Raises:
         ApprovalActivityError: If approval request creation fails.
@@ -82,7 +79,7 @@ async def create_approval_request_activity(
             base_url=constants.APPROVALS_API_BASE_URL,
             auth_token=create_service_token(),
         ) as client:
-            result = await client.create_approval(request_data)
+            await client.create_approval(request_data)
     except ApprovalsApiClientError as e:
         logger.exception(
             "Approval request creation failed",
@@ -96,4 +93,4 @@ async def create_approval_request_activity(
         logger.exception(msg, execution_id=execution_id, approval_node_id=approval_node_id)
         raise ApprovalActivityError(msg) from e
 
-    return {"output": result}
+    activity.raise_complete_async()

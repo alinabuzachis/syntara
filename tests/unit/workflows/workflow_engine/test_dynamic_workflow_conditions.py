@@ -43,7 +43,6 @@ def _make_workflow(
     wf.loop_state = {}
     wf.loop_body_map = {}
     wf.loop_iteration_results = {}
-    wf._activity_signals = {}
     wf._timeout_tasks = {}
     wf._timed_out_converge_nodes = set()
     wf.pre_resolved_outputs = {}

@@ -1081,3 +1081,126 @@ class TestListExecutionActivities(TestExecutionServiceBase):
         assert result.resources[2].retry_count == 0
         assert result.resources[2].started_at is None
         assert result.resources[2].completed_at is None
+
+
+class TestHandleActivityCallback(TestExecutionServiceBase):
+    """Tests for handle_activity_callback method."""
+
+    def _make_service(self) -> tuple[ExecutionService, AsyncMock]:
+        """Create an ExecutionService with mocked temporal_service."""
+        mock_session = AsyncMock(spec=AsyncSession)
+        mock_user = Mock(spec=User)
+        mock_user.id = uuid4()
+        mock_temporal = AsyncMock()
+        service = ExecutionService(mock_session, mock_user, temporal_service=mock_temporal)
+        return service, mock_temporal
+
+    @staticmethod
+    def _mock_execution(temporal_workflow_id: str = "wf-123") -> Mock:
+        """Create a mock execution with temporal_workflow_id."""
+        mock_execution = Mock()
+        mock_execution.temporal_workflow_id = temporal_workflow_id
+        return mock_execution
+
+    @pytest.mark.asyncio
+    async def test_completes_activity_on_success_status(self) -> None:
+        """Test that non-failed status calls complete_async_activity."""
+        service, mock_temporal = self._make_service()
+        service.get_execution = AsyncMock(return_value=self._mock_execution())  # type: ignore[method-assign]
+        await service.handle_activity_callback(
+            uuid4(),
+            "node-1",
+            {"status": "completed", "result": "ok"},
+        )
+
+        mock_temporal.complete_async_activity.assert_called_once()
+        call_kwargs = mock_temporal.complete_async_activity.call_args.kwargs
+        assert call_kwargs["result"] == {"output": {"status": "completed", "result": "ok"}}
+
+    @pytest.mark.asyncio
+    async def test_completes_activity_on_approved_status(self) -> None:
+        """Test that approved status completes (not fails) the activity."""
+        service, mock_temporal = self._make_service()
+        service.get_execution = AsyncMock(return_value=self._mock_execution())  # type: ignore[method-assign]
+        await service.handle_activity_callback(
+            uuid4(),
+            "approval-1",
+            {"status": "approved", "approval_id": "apr-1"},
+        )
+
+        mock_temporal.complete_async_activity.assert_called_once()
+        mock_temporal.fail_async_activity.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_completes_activity_on_rejected_status(self) -> None:
+        """Test that rejected status completes (not fails) the activity."""
+        service, mock_temporal = self._make_service()
+        service.get_execution = AsyncMock(return_value=self._mock_execution())  # type: ignore[method-assign]
+        await service.handle_activity_callback(
+            uuid4(),
+            "approval-1",
+            {"status": "rejected"},
+        )
+
+        mock_temporal.complete_async_activity.assert_called_once()
+        mock_temporal.fail_async_activity.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_fails_activity_on_failed_status(self) -> None:
+        """Test that failed status calls fail_async_activity."""
+        service, mock_temporal = self._make_service()
+        service.get_execution = AsyncMock(return_value=self._mock_execution())  # type: ignore[method-assign]
+        await service.handle_activity_callback(
+            uuid4(),
+            "node-1",
+            {"status": "failed", "error": {"message": "LLM error", "error_type": "AgentError"}},
+        )
+
+        mock_temporal.fail_async_activity.assert_called_once()
+        mock_temporal.complete_async_activity.assert_not_called()
+        error = mock_temporal.fail_async_activity.call_args.kwargs["error"]
+        assert "AgentError: LLM error" in str(error)
+
+    @pytest.mark.asyncio
+    async def test_truncates_long_error_messages(self) -> None:
+        """Test that error messages are truncated to 500 characters."""
+        service, mock_temporal = self._make_service()
+        service.get_execution = AsyncMock(return_value=self._mock_execution())  # type: ignore[method-assign]
+        long_msg = "x" * 1000
+        await service.handle_activity_callback(
+            uuid4(),
+            "node-1",
+            {"status": "failed", "error": {"message": long_msg}},
+        )
+
+        error = mock_temporal.fail_async_activity.call_args.kwargs["error"]
+        assert len(str(error)) <= 600  # type + ": " + 500 chars
+
+    @pytest.mark.asyncio
+    async def test_handles_non_dict_error_info(self) -> None:
+        """Test that string error info is handled gracefully."""
+        service, mock_temporal = self._make_service()
+        service.get_execution = AsyncMock(return_value=self._mock_execution())  # type: ignore[method-assign]
+        await service.handle_activity_callback(
+            uuid4(),
+            "node-1",
+            {"status": "failed", "error": "plain string error"},
+        )
+
+        mock_temporal.fail_async_activity.assert_called_once()
+        error = mock_temporal.fail_async_activity.call_args.kwargs["error"]
+        assert "plain string error" in str(error)
+
+    @pytest.mark.asyncio
+    async def test_raises_temporal_unavailable_when_no_service(self) -> None:
+        """Test that TemporalUnavailableError is raised when temporal_service is None."""
+        from nexus.workflows.exceptions import TemporalUnavailableError
+
+        mock_session = AsyncMock(spec=AsyncSession)
+        mock_user = Mock(spec=User)
+        mock_user.id = uuid4()
+        service = ExecutionService(mock_session, mock_user, temporal_service=None)
+
+        service.get_execution = AsyncMock(return_value=Mock())  # type: ignore[method-assign]
+        with pytest.raises(TemporalUnavailableError):
+            await service.handle_activity_callback(uuid4(), "node-1", {"status": "completed"})

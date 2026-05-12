@@ -17,8 +17,7 @@ with workflow.unsafe.imports_passed_through():
     from nexus.core.exceptions import SafeValueError
     from nexus.workflows.workflow_engine.activities.credential_resolution_activity import resolve_workflow_credentials
     from nexus.workflows.workflow_engine.constants import DEFAULT_AAP_TIMEOUT_SECONDS
-    from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, NodeType
-    from nexus.workflows.workflow_engine.signals import WorkflowSignalProcessor
+    from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
     from nexus.workflows.workflow_engine.utils.credential_scrubber import scrub_credentials
 
 from nexus.workflows.utils.namespace_resolver import NamespaceResolver
@@ -44,6 +43,11 @@ ALLOWED_TRIGGER_TYPES: set[str] = {
 # Temporal-level fallback to prevent activities from running indefinitely.
 DEFAULT_ACTIVITY_TIMEOUT_SECONDS = 30
 
+# Fallback for agentic activities. The runtime setting
+# workflow_engine.agentic_timeout_seconds overrides this via
+# resolved_config["timeout"] when present.
+DEFAULT_AGENTIC_TIMEOUT_SECONDS = 300
+
 # Marker value for pre-resolved node inputs in test executions
 PRE_RESOLVED_MARKER = "__pre_resolved"
 
@@ -61,37 +65,6 @@ def _parse_items(items: Any) -> Any:  # noqa: ANN401
 @workflow.defn(name="nexus_workflow")
 class NexusWorkflow:
     """Temporal workflow for executing v2 graph-based workflows."""
-
-    def __init__(self) -> None:
-        """Initialize workflow with signal storage."""
-        self._activity_signals: dict[str, list[dict[str, Any]]] = {}
-
-    @workflow.signal
-    async def activity_signal(
-        self,
-        activity_id: str,
-        signal_data: dict[str, Any],
-    ) -> None:
-        """Handle activity signals for async callbacks (agentic, approval).
-
-        Receives signals sent to specific activities and stores them for
-        activities to process via wait_condition.
-
-        Args:
-            activity_id: Activity node ID from workflow definition
-            signal_data: Signal payload data (status, result, error_message, etc.)
-
-        """
-        if activity_id not in self._activity_signals:
-            self._activity_signals[activity_id] = []
-
-        self._activity_signals[activity_id].append(signal_data)
-
-        workflow.logger.info(
-            f"Signal stored for activity {activity_id}: "
-            f"status={signal_data.get('status')}, "
-            f"total_signals={len(self._activity_signals[activity_id])}"
-        )
 
     @workflow.run
     async def run(
@@ -787,14 +760,15 @@ class NexusWorkflow:
 
         workflow.logger.info(f"Cleared {len(loop_body_nodes)} loop body nodes from tracking for loop {loop_id}")
 
-    # Mapping from node type to Temporal activity name for simple executor nodes
-    # Note: agentic and approval are NOT in this map as they require signal handling
-    _EXECUTOR_ACTIVITY_MAP: ClassVar[dict[str, str]] = {
-        NodeType.AAP_JOB_TEMPLATE: ActivityName.AAP_JOB_TEMPLATE,
-        NodeType.AAP_WORKFLOW_JOB_TEMPLATE: ActivityName.AAP_WORKFLOW_JOB_TEMPLATE,
-        NodeType.HTTP_REQUEST: ActivityName.HTTP_REQUEST,
-        NodeType.SCRIPT: ActivityName.SCRIPT,
-        NodeType.CONDITION: ActivityName.CONDITION,
+    # Mapping from node type to (activity_name, default_timeout_seconds).
+    # Approval is NOT in this map — it needs custom args and routing logic.
+    _EXECUTOR_ACTIVITY_MAP: ClassVar[dict[str, tuple[str, int]]] = {
+        NodeType.AAP_JOB_TEMPLATE: (ActivityName.AAP_JOB_TEMPLATE, DEFAULT_AAP_TIMEOUT_SECONDS),
+        NodeType.AAP_WORKFLOW_JOB_TEMPLATE: (ActivityName.AAP_WORKFLOW_JOB_TEMPLATE, DEFAULT_AAP_TIMEOUT_SECONDS),
+        NodeType.HTTP_REQUEST: (ActivityName.HTTP_REQUEST, DEFAULT_ACTIVITY_TIMEOUT_SECONDS),
+        NodeType.SCRIPT: (ActivityName.SCRIPT, DEFAULT_ACTIVITY_TIMEOUT_SECONDS),
+        NodeType.CONDITION: (ActivityName.CONDITION, DEFAULT_ACTIVITY_TIMEOUT_SECONDS),
+        NodeType.AGENTIC: (ActivityName.AGENTIC, DEFAULT_AGENTIC_TIMEOUT_SECONDS),
     }
 
     async def _execute_executor_node(
@@ -804,10 +778,9 @@ class NexusWorkflow:
         resolved_config: dict[str, Any],
         outputs: dict[str, str] | None,
         timeout_seconds: int = DEFAULT_ACTIVITY_TIMEOUT_SECONDS,
+        extra_args: list[Any] | None = None,
     ) -> dict[str, Any]:
-        """Execute a simple executor node (aap, http_request, script, condition).
-
-        Note: agentic and approval are NOT handled here as they require signal waiting.
+        """Execute an executor node via the activity map.
 
         Args:
             node_id: Node ID
@@ -815,20 +788,26 @@ class NexusWorkflow:
             resolved_config: Resolved configuration
             outputs: Output mapping configuration
             timeout_seconds: Activity timeout in seconds (default: DEFAULT_ACTIVITY_TIMEOUT_SECONDS)
+            extra_args: Additional positional args appended after [resolved_config, outputs]
 
         Returns:
             Activity result with output and optional control data
 
         """
-        activity_name = self._EXECUTOR_ACTIVITY_MAP.get(node_type)
-        if not activity_name:
+        entry = self._EXECUTOR_ACTIVITY_MAP.get(node_type)
+        if not entry:
             return {"output": {"status": "skipped", "reason": f"Unknown executor type: {node_type}"}}
+
+        activity_name, _ = entry
+        args: list[Any] = [resolved_config, outputs]
+        if extra_args:
+            args.extend(extra_args)
 
         return cast(
             "dict[str, Any]",
             await workflow.execute_activity(
                 activity_name,
-                args=[resolved_config, outputs],
+                args=args,
                 activity_id=node_id,
                 start_to_close_timeout=timedelta(seconds=timeout_seconds),
             ),
@@ -946,80 +925,6 @@ class NexusWorkflow:
             timeout_at,
             next_step_rejected,
         ]
-
-    async def _execute_signal_node(
-        self,
-        node_id: str,
-        activity_name: str,
-        resolved_config: dict[str, Any],
-        outputs: dict[str, str] | None,
-        signal_timeout: timedelta,
-        timeout_seconds: int = DEFAULT_ACTIVITY_TIMEOUT_SECONDS,
-        activity_args: list[Any] | None = None,
-    ) -> dict[str, Any]:
-        """Execute a node that starts an activity then waits for a signal callback.
-
-        Used by both agentic and approval nodes, which share the same lifecycle:
-        start activity -> wait for external signal -> process signal result.
-
-        Args:
-            node_id: Node ID
-            activity_name: Temporal activity name to execute
-            resolved_config: Resolved configuration
-            outputs: Output mapping configuration
-            signal_timeout: How long to wait for the signal
-            timeout_seconds: Activity start timeout in seconds
-            activity_args: Custom args for the activity. If None, uses
-                [resolved_config, outputs, self.execution_id, self.request_id].
-
-        Returns:
-            Activity result with output from signal
-
-        """
-        args = (
-            activity_args
-            if activity_args is not None
-            else [resolved_config, outputs, self.execution_id, self.request_id]
-        )
-        activity_result = await workflow.execute_activity(
-            activity_name,
-            args=args,
-            activity_id=node_id,
-            start_to_close_timeout=timedelta(seconds=timeout_seconds),
-        )
-
-        # If the activity already failed (e.g. 401, config error), return immediately
-        # instead of waiting for a callback signal that will never arrive.
-        output = activity_result.get("output", {})
-        if isinstance(output, dict) and output.get("status") == "failed":
-            workflow.logger.warning(
-                f"Signal activity {node_id} ({activity_name}) failed before signal: "
-                f"{output.get('error', 'unknown error')}"
-            )
-            return cast("dict[str, Any]", activity_result)
-
-        workflow.logger.info(
-            f"Signal activity {node_id} ({activity_name}) started, waiting for signal (output={output})"
-        )
-
-        await workflow.wait_condition(
-            lambda: node_id in self._activity_signals,
-            timeout=signal_timeout,
-        )
-
-        signal_results = self._activity_signals[node_id]
-        if not signal_results:
-            msg = f"No signal received for activity {node_id}"
-            raise SafeValueError(msg)
-
-        signal_data = signal_results[-1]
-        workflow.logger.info(f"Received signal for {node_id} (signal_count={len(signal_results)})")
-
-        processed_data = WorkflowSignalProcessor.process_signal(
-            signal_data, node_id, workflow.info().workflow_id, retry_policy_config=None
-        )
-
-        return {"output": processed_data}
 
     async def _execute_converge_node(
         self,
@@ -1185,13 +1090,7 @@ class NexusWorkflow:
             # For all other nodes: standard resolution (Tier 1)
             resolved_config = self._resolve_node_config(node)
 
-        default_timeout = (
-            DEFAULT_AAP_TIMEOUT_SECONDS
-            if node_type in (NodeType.AAP_JOB_TEMPLATE, NodeType.AAP_WORKFLOW_JOB_TEMPLATE)
-            else DEFAULT_ACTIVITY_TIMEOUT_SECONDS
-        )
-        # AAP nodes always have "timeout" via AAPJobTemplateExecutorConfig's model default;
-        # the fallback here is only effective for non-AAP node types.
+        _, default_timeout = self._EXECUTOR_ACTIVITY_MAP.get(node_type, (None, DEFAULT_ACTIVITY_TIMEOUT_SECONDS))
         timeout_seconds = cast("int", resolved_config.get("timeout", default_timeout))
         self.node_inputs[node.id] = copy.deepcopy(resolved_config)
 
@@ -1284,37 +1183,34 @@ class NexusWorkflow:
         node_type = node.type
 
         if node_type in self._EXECUTOR_ACTIVITY_MAP:
+            extra_args = None
+            if node_type == NodeType.AGENTIC:
+                extra_args = [self.execution_id, self.request_id]
             return await self._execute_executor_node(
-                node_id, node_type, resolved_config, node.outputs, timeout_seconds=timeout_seconds
-            )
-        if node_type == NodeType.AGENTIC:
-            return await self._execute_signal_node(
                 node_id,
-                ActivityName.AGENTIC,
+                node_type,
                 resolved_config,
                 node.outputs,
-                signal_timeout=timedelta(minutes=5),
                 timeout_seconds=timeout_seconds,
+                extra_args=extra_args,
             )
         if node_type == NodeType.APPROVAL:
             approval_args = self._prepare_approval_args(node, graph, resolved_config)
-            result = await self._execute_signal_node(
-                node_id,
-                ActivityName.APPROVAL,
-                resolved_config,
-                node.outputs,
-                # TODO(AAP-71386): Derive signal timeout from approver_timeout config  # noqa: TD003
-                signal_timeout=timedelta(hours=24),
-                timeout_seconds=timeout_seconds,
-                activity_args=approval_args,
+            result = cast(
+                "dict[str, Any]",
+                await workflow.execute_activity(
+                    ActivityName.APPROVAL,
+                    args=approval_args,
+                    activity_id=node_id,
+                    # TODO(AAP-71386): Derive timeout from approver_timeout config  # noqa: TD003
+                    start_to_close_timeout=timedelta(hours=24),
+                ),
             )
-            # Route to the taken branch based on approval decision
             output = result.get("output", {})
             approval_status = output.get("status") if isinstance(output, dict) else None
             if approval_status in ("approved", "rejected"):
                 result["control"] = {"next_port": approval_status}
             else:
-                # Defensive: route unexpected statuses to rejected branch
                 result["control"] = {"next_port": "rejected"}
                 workflow.logger.warning(
                     "Approval node %s received unexpected status %s, routing to rejected",

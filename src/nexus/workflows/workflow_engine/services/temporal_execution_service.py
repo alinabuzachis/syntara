@@ -12,6 +12,7 @@ import structlog
 from temporalio.api.enums.v1 import EventType
 from temporalio.client import Client, WorkflowHandle, WorkflowHistoryEventFilterType
 from temporalio.exceptions import TemporalError
+from temporalio.service import RPCError
 
 from nexus.core.config.base import get_settings
 from nexus.core.exceptions import SafeValueError
@@ -389,50 +390,87 @@ class TemporalExecutionService:
             logger.exception("Failed to terminate workflow", temporal_workflow_id=temporal_workflow_id)
             raise
 
-    async def send_activity_signal(
+    async def complete_async_activity(
         self,
         temporal_workflow_id: str,
         activity_id: str,
-        signal_data: dict[str, Any],
+        result: Any,  # noqa: ANN401
     ) -> None:
-        """Send a signal to a specific activity in a workflow.
-
-        This method sends a signal to the workflow's activity_signal handler,
-        which stores the signal data for the specified activity to process.
+        """Complete an async activity that called raise_complete_async().
 
         Args:
             temporal_workflow_id: Temporal workflow ID
             activity_id: Activity ID from workflow definition
-            signal_data: Signal payload data (arbitrary JSON structure)
-
-        Raises:
-            Exception: If signal fails to send
+            result: Result value to return to the workflow
 
         """
         try:
-            handle = self.temporal_client.get_workflow_handle(temporal_workflow_id)
+            handle = self.temporal_client.get_async_activity_handle(
+                workflow_id=temporal_workflow_id,
+                run_id=None,
+                activity_id=activity_id,
+            )
+            await handle.complete(result)
 
             logger.info(
-                "Sending signal to activity in workflow",
+                "Async activity completed",
                 activity_id=activity_id,
                 temporal_workflow_id=temporal_workflow_id,
             )
 
-            # Send signal to the workflow's activity_signal handler
-            await handle.signal(
-                "activity_signal",
-                args=[activity_id, signal_data],
-            )
-
-            logger.info(
-                "Signal sent successfully to activity in workflow",
-                activity_id=activity_id,
-                temporal_workflow_id=temporal_workflow_id,
-            )
-
-        except Exception:
+        except RPCError as e:
+            if "not found" in str(e).lower():
+                logger.warning(
+                    "Async activity already completed or timed out (idempotent no-op)",
+                    activity_id=activity_id,
+                    temporal_workflow_id=temporal_workflow_id,
+                )
+                return
             logger.exception(
-                "Failed to send signal to activity in workflow",
+                "Failed to complete async activity",
+                activity_id=activity_id,
+                temporal_workflow_id=temporal_workflow_id,
+            )
+            raise
+
+    async def fail_async_activity(
+        self,
+        temporal_workflow_id: str,
+        activity_id: str,
+        error: Exception,
+    ) -> None:
+        """Fail an async activity that called raise_complete_async().
+
+        Args:
+            temporal_workflow_id: Temporal workflow ID
+            activity_id: Activity ID from workflow definition
+            error: Error to report as the activity failure
+
+        """
+        try:
+            handle = self.temporal_client.get_async_activity_handle(
+                workflow_id=temporal_workflow_id,
+                run_id=None,
+                activity_id=activity_id,
+            )
+            await handle.fail(error)
+
+            logger.info(
+                "Async activity failed",
+                activity_id=activity_id,
+                temporal_workflow_id=temporal_workflow_id,
+            )
+
+        except RPCError as e:
+            if "not found" in str(e).lower():
+                logger.warning(
+                    "Async activity already completed or timed out (idempotent no-op)",
+                    activity_id=activity_id,
+                    temporal_workflow_id=temporal_workflow_id,
+                )
+                return
+            logger.exception(
+                "Failed to fail async activity",
                 activity_id=activity_id,
                 temporal_workflow_id=temporal_workflow_id,
             )

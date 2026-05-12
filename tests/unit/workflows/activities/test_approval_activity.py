@@ -14,6 +14,7 @@ from nexus.workflows.workflow_engine.activities.approval_activity import (
     ApprovalActivityError,
     create_approval_request_activity,
 )
+from tests.helpers.temporal import CompleteAsyncError
 
 
 @pytest.fixture
@@ -90,22 +91,24 @@ async def test_create_approval_request_success(
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
 
-    with patch(
-        "nexus.workflows.workflow_engine.activities.approval_activity.ApprovalsApiClient",
-        return_value=mock_client,
+    with (
+        patch(
+            "nexus.workflows.workflow_engine.activities.approval_activity.ApprovalsApiClient",
+            return_value=mock_client,
+        ),
+        patch(
+            "nexus.workflows.workflow_engine.activities.approval_activity.create_service_token",
+            return_value="mock_token",
+        ),
+        pytest.raises(CompleteAsyncError),
     ):
-        result = await create_approval_request_activity(
+        await create_approval_request_activity(
             execution_id=execution_id,
             approval_node_id=approval_node_id,
             name="Approve deployment",
             next_step_approved=next_step_approved,
             workflow_context=workflow_context,
         )
-
-    output = result["output"]
-    assert output["id"] is not None
-    assert output["status"] == "pending"
-    assert output["approval_node_id"] == "review_deployment"
 
     # Verify the request payload passed to the client
     mock_client.create_approval.assert_called_once()
@@ -133,11 +136,18 @@ async def test_create_approval_request_with_timeout(
 
     timeout_at = "2026-04-10T12:00:00+00:00"
 
-    with patch(
-        "nexus.workflows.workflow_engine.activities.approval_activity.ApprovalsApiClient",
-        return_value=mock_client,
+    with (
+        patch(
+            "nexus.workflows.workflow_engine.activities.approval_activity.ApprovalsApiClient",
+            return_value=mock_client,
+        ),
+        patch(
+            "nexus.workflows.workflow_engine.activities.approval_activity.create_service_token",
+            return_value="mock_token",
+        ),
+        pytest.raises(CompleteAsyncError),
     ):
-        result = await create_approval_request_activity(
+        await create_approval_request_activity(
             execution_id=execution_id,
             approval_node_id=approval_node_id,
             name="Approve deployment",
@@ -146,7 +156,6 @@ async def test_create_approval_request_with_timeout(
             timeout_at=timeout_at,
         )
 
-    assert result["output"]["id"] is not None
     request_data = mock_client.create_approval.call_args[0][0]
     assert request_data["timeout_at"] == timeout_at
 
@@ -167,11 +176,18 @@ async def test_create_approval_request_with_rejected_path(
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
 
-    with patch(
-        "nexus.workflows.workflow_engine.activities.approval_activity.ApprovalsApiClient",
-        return_value=mock_client,
+    with (
+        patch(
+            "nexus.workflows.workflow_engine.activities.approval_activity.ApprovalsApiClient",
+            return_value=mock_client,
+        ),
+        patch(
+            "nexus.workflows.workflow_engine.activities.approval_activity.create_service_token",
+            return_value="mock_token",
+        ),
+        pytest.raises(CompleteAsyncError),
     ):
-        result = await create_approval_request_activity(
+        await create_approval_request_activity(
             execution_id=execution_id,
             approval_node_id=approval_node_id,
             name="Approve deployment",
@@ -180,7 +196,6 @@ async def test_create_approval_request_with_rejected_path(
             next_step_rejected=next_step_rejected,
         )
 
-    assert result["output"]["id"] is not None
     request_data = mock_client.create_approval.call_args[0][0]
     assert request_data["next_step_rejected"] is not None
     assert request_data["next_step_rejected"]["id"] == "rollback"
@@ -203,6 +218,10 @@ async def test_create_approval_request_api_error(
         patch(
             "nexus.workflows.workflow_engine.activities.approval_activity.ApprovalsApiClient",
             return_value=mock_client,
+        ),
+        patch(
+            "nexus.workflows.workflow_engine.activities.approval_activity.create_service_token",
+            return_value="mock_token",
         ),
         pytest.raises(ApprovalActivityError, match="Connection refused"),
     ):
@@ -232,6 +251,10 @@ async def test_create_approval_request_unexpected_error(
         patch(
             "nexus.workflows.workflow_engine.activities.approval_activity.ApprovalsApiClient",
             return_value=mock_client,
+        ),
+        patch(
+            "nexus.workflows.workflow_engine.activities.approval_activity.create_service_token",
+            return_value="mock_token",
         ),
         pytest.raises(ApprovalActivityError, match="Unexpected error creating approval request"),
     ):

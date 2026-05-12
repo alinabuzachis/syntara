@@ -12,6 +12,7 @@ import structlog
 from sqlalchemy.orm import selectinload
 from sqlmodel import and_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
+from temporalio.exceptions import ApplicationError
 
 from nexus.authz.engine import AllowedProjectsResult
 from nexus.core.models import User
@@ -42,6 +43,8 @@ from nexus.workflows.models.workflow_version import WorkflowVersion
 from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
 
 logger = structlog.stdlib.get_logger(__name__)
+
+MAX_CALLBACK_ERROR_MSG_LENGTH = 500
 
 
 class ExecutionsConvertResourceMixin(ConvertResourceMixin):
@@ -620,50 +623,76 @@ class ExecutionService(BaseService):
         recorder = get_metrics_recorder()
         await emit_completion_metrics(self.session, execution, recorder)
 
-    async def send_activity_signal(
+    async def handle_activity_callback(
         self,
         execution_id: UUID,
         activity_id: str,
         signal_data: dict[str, Any],
     ) -> None:
-        """Send a signal to a specific activity in a workflow execution.
+        """Handle an external callback for an async-completion activity.
 
-        Retrieves the execution from the database to get the temporal_workflow_id,
-        then sends the signal via the Temporal execution service.
+        Routes the callback to either complete or fail the Temporal activity
+        based on the signal_data status field.
 
         Args:
             execution_id: Execution ID
             activity_id: Activity ID from workflow definition
-            signal_data: Arbitrary signal data to send to the activity
+            signal_data: Callback payload (must contain "status" field)
 
         Raises:
             ExecutionNotFoundError: If execution not found
-            Exception: If Temporal service unavailable or signal fails
+            TemporalUnavailableError: If Temporal service unavailable
 
         """
-        # Get execution to retrieve temporal_workflow_id
         execution = await self.get_execution(execution_id)
 
         if self.temporal_service is None:
-            operation = "signal sending"
+            operation = "activity callback"
             raise TemporalUnavailableError(operation)
 
         logger.info(
-            "Sending signal to activity in execution",
+            "Handling activity callback",
             activity_id=activity_id,
             execution_id=execution_id,
             temporal_workflow_id=execution.temporal_workflow_id,
+            status=signal_data.get("status"),
         )
 
-        # Send signal via Temporal service
-        await self.temporal_service.send_activity_signal(
-            temporal_workflow_id=execution.temporal_workflow_id,
-            activity_id=activity_id,
-            signal_data=signal_data,
-        )
+        status = signal_data.get("status")
+        if status == "failed":
+            error_info = signal_data.get("error", {})
+            if isinstance(error_info, dict):
+                error_msg = str(error_info.get("message", "Activity execution failed"))[:MAX_CALLBACK_ERROR_MSG_LENGTH]
+                error_type = str(error_info.get("error_type", "UnknownError"))
+            else:
+                error_msg = (str(error_info) if error_info else "Activity execution failed")[
+                    :MAX_CALLBACK_ERROR_MSG_LENGTH
+                ]
+                error_type = "UnknownError"
+
+            error = ApplicationError(
+                f"{error_type}: {error_msg}",
+                type=error_type,
+                non_retryable=True,
+            )
+            await self.temporal_service.fail_async_activity(
+                temporal_workflow_id=execution.temporal_workflow_id,
+                activity_id=activity_id,
+                error=error,
+            )
+        else:
+            # Fail-open: any non-"failed" status (including "approved", "rejected",
+            # "completed") completes the activity. The workflow routes based on the
+            # output data (e.g., approval decision), not the Temporal activity state.
+            await self.temporal_service.complete_async_activity(
+                temporal_workflow_id=execution.temporal_workflow_id,
+                activity_id=activity_id,
+                result={"output": signal_data},
+            )
 
         logger.info(
-            "Signal sent successfully to activity in execution",
+            "Activity callback handled",
             activity_id=activity_id,
             execution_id=execution_id,
+            status=status,
         )
