@@ -18,7 +18,7 @@ import { accessClient } from './accessClient'
 import { PolicyJsonModal } from './PolicyJsonModal'
 import { toPolicyRead } from './policyUtils'
 import { buildAccessApiQueryParams, buildProjectFilterDefs, POLICY_SCOPE_OPTIONS } from './scopeFilterUtils'
-import { PolicyTypeLabel, ProjectLabel, ScopeLabel } from './ScopeLabel'
+import { PolicyTypeLabel, ProjectLabel, ScopeLabel, StatementsCell } from './ScopeLabel'
 import type { PolicyRead } from './types'
 import { useBuiltinListState } from './useBuiltinListState'
 import { useProjectNameMap } from './useProjectNameMap'
@@ -67,11 +67,12 @@ const BASE_FILTER_FIELD_DEFS = [
 ]
 
 // Column index → API sort field (actions column is last and not sortable)
+// 0: Name, 1: Description, 2: Scope, 3: Statements (not sortable), 4: Project, 5: Type
 const sortFieldByColumn: Record<number, string> = {
   0: 'name',
   2: 'scope',
-  3: 'project_id',
-  4: 'is_builtin',
+  4: 'project_id',
+  5: 'is_builtin',
 }
 
 function getPolicyRowActions(policy: PolicyRead, onViewPolicyJson: (p: PolicyRead) => void): IAction[] {
@@ -100,15 +101,10 @@ function PoliciesTableBody({
         <Tr>
           <Th sort={getSortParams(0)}>Name</Th>
           <Th>Description</Th>
-          <Th sort={getSortParams(2)} modifier="nowrap">
-            Scope
-          </Th>
-          <Th sort={getSortParams(3)} modifier="nowrap">
-            Project
-          </Th>
-          <Th sort={getSortParams(4)} modifier="nowrap">
-            Type
-          </Th>
+          <Th sort={getSortParams(2)}>Scope</Th>
+          <Th>Statements</Th>
+          <Th sort={getSortParams(4)}>Project</Th>
+          <Th sort={getSortParams(5)}>Type</Th>
           <Th screenReaderText="Actions" />
         </Tr>
       </Thead>
@@ -125,6 +121,9 @@ function PoliciesTableBody({
             </Td>
             <Td dataLabel="Scope">
               <ScopeLabel scope={policy.scope} />
+            </Td>
+            <Td dataLabel="Statements">
+              <StatementsCell statements={policy.statements} />
             </Td>
             <Td dataLabel="Project">
               <ProjectLabel projectId={policy.project_id} projectNameMap={projectNameMap} />

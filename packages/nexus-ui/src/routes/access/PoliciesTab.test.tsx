@@ -248,9 +248,43 @@ describe('PoliciesTab', () => {
 
     expect(screen.getByRole('columnheader', { name: /name/i })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /description/i })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /statements/i })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /scope/i })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /project/i })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /type/i })).toBeInTheDocument()
+  })
+
+  it('renders statement effect, scope, and actions in the Statements column', () => {
+    setupPoliciesQuery(samplePolicies)
+
+    render(<PoliciesTab />, { wrapper })
+
+    expect(screen.getAllByText('Allow').length).toBeGreaterThan(0)
+    expect(screen.getByText('scope: any')).toBeInTheDocument()
+    expect(screen.getByText('workflow:write')).toBeInTheDocument()
+  })
+
+  it('renders — for policies with no statements', () => {
+    setupPoliciesQuery([{ ...samplePolicies[0], statements: [] }])
+
+    render(<PoliciesTab />, { wrapper })
+
+    expect(screen.getByText('—')).toBeInTheDocument()
+  })
+
+  it('renders overflow button for statements with more than 2 actions', () => {
+    setupPoliciesQuery([
+      {
+        ...samplePolicies[0],
+        statements: [{ scope: 'any', effect: 'allow', actions: ['a:read', 'a:write', 'a:delete'] }],
+      },
+    ])
+
+    render(<PoliciesTab />, { wrapper })
+
+    expect(screen.getByRole('button', { name: '1 more' })).toBeInTheDocument()
+    expect(screen.getByText('a:read')).toBeInTheDocument()
+    expect(screen.getByText('a:write')).toBeInTheDocument()
   })
 
   it('calls sort when column header is clicked', async () => {

@@ -278,3 +278,65 @@ test.describe('Access Management — User Detail Tabs', () => {
     }
   })
 })
+
+test.describe('Access Management — Policies Tab Columns', () => {
+  test.beforeEach(async ({ app }) => {
+    await app.goto(toAppUrl(`${ACCESS_URL}/policies`))
+    await expect(app.getByRole('tab', { name: /Policies/i })).toHaveAttribute('aria-selected', 'true')
+
+    const table = app.getByRole('grid', { name: 'Policies' })
+    const hasTable = await table
+      .waitFor({ state: 'visible', timeout: 5000 })
+      .then(() => true)
+      .catch(() => false)
+    test.skip(!hasTable, 'No policies data available; seed data required')
+  })
+
+  test('Statements, Scope, Description and Project columns are visible', async ({ app }) => {
+    await expect(app.getByRole('columnheader', { name: 'Description' })).toBeVisible()
+    await expect(app.getByRole('columnheader', { name: 'Scope' })).toBeVisible()
+    await expect(app.getByRole('columnheader', { name: 'Statements' })).toBeVisible()
+    await expect(app.getByRole('columnheader', { name: 'Project' })).toBeVisible()
+    await expect(app.getByRole('columnheader', { name: 'Type' })).toBeVisible()
+  })
+
+  test('Statements column shows Allow/Deny labels and action chips', async ({ app }) => {
+    const table = app.getByRole('grid', { name: 'Policies' })
+
+    // At least one Allow or Deny label should be visible in the statements column
+    const hasAllowLabel = await table
+      .getByText('Allow')
+      .first()
+      .waitFor({ state: 'visible', timeout: 5000 })
+      .then(() => true)
+      .catch(() => false)
+
+    const hasDenyLabel = await table
+      .getByText('Deny')
+      .first()
+      .waitFor({ state: 'visible', timeout: 5000 })
+      .then(() => true)
+      .catch(() => false)
+
+    test.skip(!hasAllowLabel && !hasDenyLabel, 'No statement effect labels rendered; statements data required')
+
+    // At least one scope label should be visible (e.g. "scope: any")
+    const scopeLabel = table.getByText(/^scope:/)
+    await expect(scopeLabel.first()).toBeVisible()
+  })
+
+  test('project-scoped policies show a clickable project link', async ({ app }) => {
+    const table = app.getByRole('grid', { name: 'Policies' })
+
+    // Scope into Project column cells via data-label, then look for the link button rendered by ProjectLabel
+    const projectLink = table.locator('td[data-label="Project"]').getByRole('button').first()
+    const hasProjectLink = await projectLink
+      .waitFor({ state: 'visible', timeout: 5000 })
+      .then(() => true)
+      .catch(() => false)
+
+    test.skip(!hasProjectLink, 'No project-scoped policies on this page; seed data required')
+
+    await expect(projectLink).toBeVisible()
+  })
+})

@@ -67,6 +67,12 @@ export const mockProjects: MockProject[] = [
 
 // ── Policies ─────────────────────────────────────────────────────────────
 
+export interface MockPolicyStatement {
+  effect: 'allow' | 'deny'
+  scope: string
+  actions: string[]
+}
+
 export interface MockPolicy {
   id: string
   name: string
@@ -75,11 +81,41 @@ export interface MockPolicy {
   /** Policy scope for list filtering (`any` | `self` | `project`), aligned with PolicyRead.scope */
   scope: 'any' | 'self' | 'project'
   project_id: string | null
+  statements: MockPolicyStatement[]
   created_at: string
   updated_at: string
 }
 
 export const mockPolicies: MockPolicy[] = [
+  // Project-scoped custom policies (shown first so they appear on page 1)
+  {
+    id: 'pol-013',
+    name: 'deployment:approve:any',
+    description: 'Approve deployment requests',
+    is_builtin: false,
+    scope: 'project',
+    project_id: 'p-002',
+    statements: [{ effect: 'allow', scope: 'project', actions: ['deployment:approve'] }],
+    created_at: '2024-02-10T00:00:00.000Z',
+    updated_at: '2024-02-10T00:00:00.000Z',
+  },
+  {
+    id: 'pol-015',
+    name: 'inventory:manage:any',
+    description: 'Manage inventory resources',
+    is_builtin: false,
+    scope: 'project',
+    project_id: 'p-001',
+    statements: [
+      {
+        effect: 'allow',
+        scope: 'project',
+        actions: ['inventory:read', 'inventory:create', 'inventory:update', 'inventory:delete'],
+      },
+    ],
+    created_at: '2024-01-20T00:00:00.000Z',
+    updated_at: '2024-01-20T00:00:00.000Z',
+  },
   // Global builtin policies
   {
     id: 'pol-001',
@@ -88,6 +124,24 @@ export const mockPolicies: MockPolicy[] = [
     is_builtin: true,
     scope: 'any',
     project_id: null,
+    statements: [
+      {
+        effect: 'allow',
+        scope: 'any',
+        actions: [
+          'workflow:create',
+          'workflow:read',
+          'workflow:update',
+          'workflow:delete',
+          'execution:read',
+          'execution:run',
+          'audit:read',
+          'project:create',
+          'user:read',
+          'user:update',
+        ],
+      },
+    ],
     created_at: '2024-01-01T00:00:00.000Z',
     updated_at: '2024-01-01T00:00:00.000Z',
   },
@@ -98,6 +152,7 @@ export const mockPolicies: MockPolicy[] = [
     is_builtin: true,
     scope: 'any',
     project_id: null,
+    statements: [{ effect: 'allow', scope: 'any', actions: ['workflow:create'] }],
     created_at: '2024-01-01T00:00:00.000Z',
     updated_at: '2024-01-01T00:00:00.000Z',
   },
@@ -108,6 +163,7 @@ export const mockPolicies: MockPolicy[] = [
     is_builtin: true,
     scope: 'any',
     project_id: null,
+    statements: [{ effect: 'allow', scope: 'any', actions: ['workflow:read'] }],
     created_at: '2024-01-01T00:00:00.000Z',
     updated_at: '2024-01-01T00:00:00.000Z',
   },
@@ -118,6 +174,7 @@ export const mockPolicies: MockPolicy[] = [
     is_builtin: true,
     scope: 'any',
     project_id: null,
+    statements: [{ effect: 'allow', scope: 'any', actions: ['workflow:update'] }],
     created_at: '2024-01-01T00:00:00.000Z',
     updated_at: '2024-01-01T00:00:00.000Z',
   },
@@ -128,6 +185,7 @@ export const mockPolicies: MockPolicy[] = [
     is_builtin: true,
     scope: 'any',
     project_id: null,
+    statements: [{ effect: 'allow', scope: 'any', actions: ['workflow:delete'] }],
     created_at: '2024-01-01T00:00:00.000Z',
     updated_at: '2024-01-01T00:00:00.000Z',
   },
@@ -138,6 +196,7 @@ export const mockPolicies: MockPolicy[] = [
     is_builtin: true,
     scope: 'any',
     project_id: null,
+    statements: [{ effect: 'allow', scope: 'any', actions: ['execution:read'] }],
     created_at: '2024-01-01T00:00:00.000Z',
     updated_at: '2024-01-01T00:00:00.000Z',
   },
@@ -148,6 +207,7 @@ export const mockPolicies: MockPolicy[] = [
     is_builtin: true,
     scope: 'any',
     project_id: null,
+    statements: [{ effect: 'allow', scope: 'any', actions: ['execution:run'] }],
     created_at: '2024-01-01T00:00:00.000Z',
     updated_at: '2024-01-01T00:00:00.000Z',
   },
@@ -158,6 +218,7 @@ export const mockPolicies: MockPolicy[] = [
     is_builtin: true,
     scope: 'any',
     project_id: null,
+    statements: [{ effect: 'allow', scope: 'any', actions: ['audit:read'] }],
     created_at: '2024-01-01T00:00:00.000Z',
     updated_at: '2024-01-01T00:00:00.000Z',
   },
@@ -168,6 +229,7 @@ export const mockPolicies: MockPolicy[] = [
     is_builtin: true,
     scope: 'any',
     project_id: null,
+    statements: [{ effect: 'allow', scope: 'any', actions: ['project-role:assign'] }],
     created_at: '2024-01-01T00:00:00.000Z',
     updated_at: '2024-01-01T00:00:00.000Z',
   },
@@ -178,6 +240,7 @@ export const mockPolicies: MockPolicy[] = [
     is_builtin: true,
     scope: 'self',
     project_id: null,
+    statements: [{ effect: 'allow', scope: 'self', actions: ['user:read'] }],
     created_at: '2024-01-01T00:00:00.000Z',
     updated_at: '2024-01-01T00:00:00.000Z',
   },
@@ -188,6 +251,7 @@ export const mockPolicies: MockPolicy[] = [
     is_builtin: true,
     scope: 'self',
     project_id: null,
+    statements: [{ effect: 'allow', scope: 'self', actions: ['user:update'] }],
     created_at: '2024-01-01T00:00:00.000Z',
     updated_at: '2024-01-01T00:00:00.000Z',
   },
@@ -198,20 +262,11 @@ export const mockPolicies: MockPolicy[] = [
     is_builtin: true,
     scope: 'any',
     project_id: null,
+    statements: [{ effect: 'allow', scope: 'any', actions: ['project:create'] }],
     created_at: '2024-01-01T00:00:00.000Z',
     updated_at: '2024-01-01T00:00:00.000Z',
   },
-  // Project-scoped policies (alice-sandbox)
-  {
-    id: 'pol-013',
-    name: 'deployment:approve:any',
-    description: 'Approve deployment requests',
-    is_builtin: false,
-    scope: 'project',
-    project_id: 'p-002',
-    created_at: '2024-02-10T00:00:00.000Z',
-    updated_at: '2024-02-10T00:00:00.000Z',
-  },
+  // Project-scoped policy (alice-sandbox, secret access)
   {
     id: 'pol-014',
     name: 'secret:read:any',
@@ -219,19 +274,9 @@ export const mockPolicies: MockPolicy[] = [
     is_builtin: false,
     scope: 'project',
     project_id: 'p-002',
+    statements: [{ effect: 'allow', scope: 'project', actions: ['secret:read'] }],
     created_at: '2024-02-10T00:00:00.000Z',
     updated_at: '2024-02-10T00:00:00.000Z',
-  },
-  // Project-scoped policy (default)
-  {
-    id: 'pol-015',
-    name: 'inventory:manage:any',
-    description: 'Manage inventory resources',
-    is_builtin: false,
-    scope: 'project',
-    project_id: 'p-001',
-    created_at: '2024-01-20T00:00:00.000Z',
-    updated_at: '2024-01-20T00:00:00.000Z',
   },
 ]
 
