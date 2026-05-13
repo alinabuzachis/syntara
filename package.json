@@ -21,8 +21,6 @@
     "lint": "npm run lint --workspaces --if-present",
     "lint:fix": "npm run lint:fix --workspaces --if-present",
     "lint:mermaid": "node scripts/lint-mermaid.js",
-    "sync-cursor-commands": "python3 tools/install_cursor_commands.py",
-    "check-specs": "python3 tools/ci/check_path_sequence.py specs/ --strict",
     "create-workflow": "python3 tools/workflow-creator/create_workflow.py",
     "storybook": "npm run storybook --prefix packages/nexus-ui",
     "storybook:build": "npm run storybook:build --prefix packages/nexus-ui",
