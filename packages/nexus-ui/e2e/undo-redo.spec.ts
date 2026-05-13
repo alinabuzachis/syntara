@@ -128,8 +128,9 @@ test('selecting execution from history navigates to execution page', async ({ ap
     // Navigate back to the builder
     await openWorkflowInBuilder(app, workflowName)
 
-    // Open run history — the execution we just created should appear
-    await app.getByRole('button', { name: 'Run history' }).click()
+    // Open run history via kebab menu — the execution we just created should appear
+    await app.getByLabel('Workflow actions').click()
+    await app.getByRole('menuitem', { name: 'Run history' }).click()
     await expect(app.getByRole('heading', { name: 'Run History' })).toBeVisible()
 
     // Click the execution to navigate to the execution page

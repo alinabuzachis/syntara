@@ -307,7 +307,6 @@ export function BuilderContent(props: BuilderContentProps) {
                 workflowTags={workflowTags}
                 isNew={isNew}
                 workflow={workflow?.id ? { id: workflow.id } : undefined}
-                historyCardOpen={historyCardOpen}
                 isPending={isPending}
                 isEnabled={isEnabled}
                 isKebabOpen={isKebabOpen}

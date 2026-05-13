@@ -29,6 +29,15 @@ async function renderBuilder(props: BuilderContentProps) {
   return view
 }
 
+async function clickKebabItem(name: RegExp | string) {
+  const user = userEvent.setup()
+  await user.click(screen.getByLabelText('Workflow actions'))
+  const menuItem = await screen.findByRole('menuitem', {
+    name: typeof name === 'string' ? new RegExp(name, 'i') : name,
+  })
+  await user.click(menuItem)
+}
+
 // Mock dependencies
 vi.mock('../../client', () => ({
   workflowClient: {
@@ -305,9 +314,13 @@ describe('BuilderContent', () => {
       expect(screen.queryByText('Run')).not.toBeInTheDocument()
     })
 
-    it('does not show History button for new workflows', async () => {
+    it('does not show Run history in kebab for new workflows', async () => {
+      const user = userEvent.setup()
       await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
-      expect(screen.queryByLabelText('Run history')).not.toBeInTheDocument()
+      await user.click(screen.getByLabelText('Workflow actions'))
+      await waitFor(() => {
+        expect(screen.queryByRole('menuitem', { name: /Run history/i })).not.toBeInTheDocument()
+      })
     })
 
     it('does not show Enabled switch for new workflows', async () => {
@@ -331,9 +344,13 @@ describe('BuilderContent', () => {
       expect(screen.getByText('Run')).toBeInTheDocument()
     })
 
-    it('shows History button for existing workflows', async () => {
+    it('shows Run history in kebab for existing workflows', async () => {
+      const user = userEvent.setup()
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
-      expect(screen.getByLabelText('Run history')).toBeInTheDocument()
+      await user.click(screen.getByLabelText('Workflow actions'))
+      await waitFor(() => {
+        expect(screen.getByRole('menuitem', { name: /Run history/i })).toBeInTheDocument()
+      })
     })
 
     it('shows Enabled switch for existing workflows', async () => {
@@ -462,16 +479,18 @@ describe('BuilderContent', () => {
   // ============================================================================
 
   describe('Workflow Details Panel', () => {
-    it('has details button visible', async () => {
+    it('has details menu item in kebab', async () => {
+      const user = userEvent.setup()
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
-      const detailsButton = screen.getByLabelText('Workflow details')
-      expect(detailsButton).toBeInTheDocument()
+      await user.click(screen.getByLabelText('Workflow actions'))
+      await waitFor(() => {
+        expect(screen.getByRole('menuitem', { name: /Workflow details/i })).toBeInTheDocument()
+      })
     })
 
     it('toggles details panel open', async () => {
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
-      const detailsButton = screen.getByLabelText('Workflow details')
-      fireEvent.click(detailsButton)
+      await clickKebabItem('Workflow details')
       await waitFor(() => {
         expect(screen.getByText('Workflow details')).toBeInTheDocument()
       })
@@ -479,15 +498,14 @@ describe('BuilderContent', () => {
 
     it('toggles details panel closed', async () => {
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
-      const detailsButton = screen.getByLabelText('Workflow details')
 
       // Open
-      fireEvent.click(detailsButton)
+      await clickKebabItem('Workflow details')
       await waitFor(() => {
         expect(screen.getByText('Workflow details')).toBeInTheDocument()
       })
       // Close
-      fireEvent.click(detailsButton)
+      await clickKebabItem('Workflow details')
       await waitFor(() => {
         expect(screen.queryByLabelText('Description')).not.toBeInTheDocument()
       })
@@ -500,7 +518,7 @@ describe('BuilderContent', () => {
       })
 
       // Open details panel
-      fireEvent.click(screen.getByLabelText('Workflow details'))
+      await clickKebabItem('Workflow details')
 
       // Wait for sidepanel to render
       await waitFor(() => {
@@ -522,7 +540,7 @@ describe('BuilderContent', () => {
       })
 
       // Open details panel
-      fireEvent.click(screen.getByLabelText('Workflow details'))
+      await clickKebabItem('Workflow details')
 
       // Wait for sidepanel to render
       await waitFor(() => {
@@ -572,7 +590,7 @@ describe('BuilderContent', () => {
       })
 
       // Open details panel
-      fireEvent.click(screen.getByLabelText('Workflow details'))
+      await clickKebabItem('Workflow details')
 
       // Wait for sidepanel to render with the title
       await waitFor(() => {
@@ -953,8 +971,7 @@ describe('BuilderContent', () => {
 
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
-      const historyButton = screen.getByLabelText('Run history')
-      fireEvent.click(historyButton)
+      await clickKebabItem('Run history')
 
       await waitFor(
         () => {
@@ -987,16 +1004,14 @@ describe('BuilderContent', () => {
 
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
-      const historyButton = screen.getByLabelText('Run history')
-
       // Open
-      fireEvent.click(historyButton)
+      await clickKebabItem('Run history')
       await waitFor(() => {
         expect(mockRefetch).toHaveBeenCalledTimes(1)
       })
 
       // Toggle closed (tests TOGGLE_HISTORY reducer)
-      fireEvent.click(historyButton)
+      await clickKebabItem('Run history')
     })
 
     it('shows history card with close button', async () => {
@@ -1021,8 +1036,7 @@ describe('BuilderContent', () => {
 
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
-      const historyButton = screen.getByLabelText('Run history')
-      fireEvent.click(historyButton)
+      await clickKebabItem('Run history')
 
       // Wait for history card to render
       await waitFor(() => {
@@ -1070,8 +1084,7 @@ describe('BuilderContent', () => {
 
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
-      const historyButton = screen.getByLabelText('Run history')
-      fireEvent.click(historyButton)
+      await clickKebabItem('Run history')
 
       await waitFor(() => {
         expect(screen.getByText('Run History')).toBeInTheDocument()
@@ -1558,7 +1571,7 @@ describe('BuilderContent', () => {
       })
 
       // Now toggle details - should close add step panel
-      fireEvent.click(screen.getByLabelText('Workflow details'))
+      await clickKebabItem('Workflow details')
 
       await waitFor(() => {
         expect(screen.queryByRole('region', { name: 'Add step' })).not.toBeInTheDocument()
@@ -1575,7 +1588,7 @@ describe('BuilderContent', () => {
       })
 
       // Now toggle history - should close add step panel
-      fireEvent.click(screen.getByLabelText('Run history'))
+      await clickKebabItem('Run history')
 
       await waitFor(() => {
         expect(screen.queryByRole('region', { name: 'Add step' })).not.toBeInTheDocument()
@@ -1586,7 +1599,7 @@ describe('BuilderContent', () => {
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       // Open details panel
-      fireEvent.click(screen.getByLabelText('Workflow details'))
+      await clickKebabItem('Workflow details')
 
       await waitFor(() => {
         // Details panel should be open
@@ -1598,7 +1611,7 @@ describe('BuilderContent', () => {
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       // Open details panel to access description
-      fireEvent.click(screen.getByLabelText('Workflow details'))
+      await clickKebabItem('Workflow details')
 
       await waitFor(() => {
         expect(screen.getByLabelText('Description')).toBeInTheDocument()
@@ -1784,8 +1797,7 @@ describe('BuilderContent', () => {
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       // Click details to trigger the reactFlowInstance.setNodes path
-      const detailsButton = screen.getByLabelText('Workflow details')
-      fireEvent.click(detailsButton)
+      await clickKebabItem('Workflow details')
 
       await waitFor(() => {
         expect(screen.getByText('Workflow details')).toBeInTheDocument()
@@ -1802,7 +1814,7 @@ describe('BuilderContent', () => {
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       // Open details first
-      fireEvent.click(screen.getByLabelText('Workflow details'))
+      await clickKebabItem('Workflow details')
 
       // Then open add step panel - should close details
       fireEvent.click(screen.getByRole('button', { name: /add step/i }))
@@ -1816,7 +1828,7 @@ describe('BuilderContent', () => {
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       // Open history first
-      fireEvent.click(screen.getByLabelText('Run history'))
+      await clickKebabItem('Run history')
       await waitFor(() => {
         expect(screen.getByText('Run History')).toBeInTheDocument()
       })
@@ -1834,10 +1846,10 @@ describe('BuilderContent', () => {
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       // Open details first
-      fireEvent.click(screen.getByLabelText('Workflow details'))
+      await clickKebabItem('Workflow details')
 
       // Then open history - should close details
-      fireEvent.click(screen.getByLabelText('Run history'))
+      await clickKebabItem('Run history')
 
       await waitFor(() => {
         expect(screen.getByText('Run History')).toBeInTheDocument()
@@ -2328,13 +2340,13 @@ describe('BuilderContent', () => {
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       // Open history panel
-      fireEvent.click(screen.getByLabelText('Run history'))
+      await clickKebabItem('Run history')
       await waitFor(() => {
         expect(screen.getByText('Run History')).toBeInTheDocument()
       })
 
       // Toggle details - should close history
-      fireEvent.click(screen.getByLabelText('Workflow details'))
+      await clickKebabItem('Workflow details')
 
       // History should be closed
       await waitFor(() => {
@@ -2779,8 +2791,7 @@ describe('BuilderContent', () => {
     it('marks dirty when only name changes', async () => {
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
-      const detailsButton = screen.getByLabelText('Workflow details')
-      fireEvent.click(detailsButton)
+      await clickKebabItem('Workflow details')
 
       await waitFor(() => {
         expect(screen.getByText('Workflow details')).toBeInTheDocument()
@@ -2800,8 +2811,7 @@ describe('BuilderContent', () => {
     it('marks dirty when only description changes', async () => {
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
-      const detailsButton = screen.getByLabelText('Workflow details')
-      fireEvent.click(detailsButton)
+      await clickKebabItem('Workflow details')
 
       await waitFor(() => {
         expect(screen.getByText('Workflow details')).toBeInTheDocument()
@@ -2821,8 +2831,7 @@ describe('BuilderContent', () => {
     it('marks dirty when both name and description change', async () => {
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
-      const detailsButton = screen.getByLabelText('Workflow details')
-      fireEvent.click(detailsButton)
+      await clickKebabItem('Workflow details')
 
       await waitFor(() => {
         expect(screen.getByText('Workflow details')).toBeInTheDocument()

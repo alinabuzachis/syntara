@@ -22,7 +22,6 @@ describe('BuilderWorkflowAppPageHeader', () => {
     workflowTags: [] as string[],
     isNew: true,
     workflow: undefined as { id: string } | undefined,
-    historyCardOpen: false,
     isPending: false,
     isEnabled: true,
     isKebabOpen: false,

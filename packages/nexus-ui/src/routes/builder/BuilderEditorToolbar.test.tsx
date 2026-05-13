@@ -12,7 +12,6 @@ describe('BuilderEditorToolbar', () => {
     isPending: false,
     isEnabled: false,
     isKebabOpen: false,
-    historyCardOpen: false,
     isSavingToggle: false,
     dispatch: vi.fn(),
     markDirty: vi.fn(),
@@ -69,38 +68,56 @@ describe('BuilderEditorToolbar', () => {
     expect(dispatch).toHaveBeenCalledWith({ type: 'SET_CONFIRM_DIALOG', payload: true })
   })
 
-  it('renders workflow details button', () => {
-    render(<BuilderEditorToolbar {...defaultProps} />)
+  it('renders workflow details in kebab menu', () => {
+    render(<BuilderEditorToolbar {...defaultProps} isKebabOpen={true} />)
 
-    expect(screen.getByRole('button', { name: /Workflow details/i })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: /Workflow details/i })).toBeInTheDocument()
   })
 
-  it('toggles workflow details when details button is clicked', async () => {
+  it('toggles workflow details when kebab menu item is clicked', async () => {
     const user = userEvent.setup()
     const handleToggleDetails = vi.fn()
+    const dispatch = vi.fn()
 
-    render(<BuilderEditorToolbar {...defaultProps} handleToggleDetails={handleToggleDetails} />)
+    render(
+      <BuilderEditorToolbar
+        {...defaultProps}
+        isKebabOpen={true}
+        handleToggleDetails={handleToggleDetails}
+        dispatch={dispatch}
+      />
+    )
 
-    await user.click(screen.getByRole('button', { name: /Workflow details/i }))
+    await user.click(screen.getByRole('menuitem', { name: /Workflow details/i }))
 
     expect(handleToggleDetails).toHaveBeenCalledTimes(1)
+    expect(dispatch).toHaveBeenCalledWith({ type: 'SET_KEBAB_OPEN', payload: false })
   })
 
-  it('renders run history button for existing workflows', () => {
-    render(<BuilderEditorToolbar {...defaultProps} />)
+  it('renders run history in kebab menu for existing workflows', () => {
+    render(<BuilderEditorToolbar {...defaultProps} isKebabOpen={true} />)
 
-    expect(screen.getByRole('button', { name: /Run history/i })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: /Run history/i })).toBeInTheDocument()
   })
 
-  it('toggles run history when history button is clicked', async () => {
+  it('toggles run history when kebab menu item is clicked', async () => {
     const user = userEvent.setup()
     const handleToggleHistory = vi.fn()
+    const dispatch = vi.fn()
 
-    render(<BuilderEditorToolbar {...defaultProps} handleToggleHistory={handleToggleHistory} />)
+    render(
+      <BuilderEditorToolbar
+        {...defaultProps}
+        isKebabOpen={true}
+        handleToggleHistory={handleToggleHistory}
+        dispatch={dispatch}
+      />
+    )
 
-    await user.click(screen.getByRole('button', { name: /Run history/i }))
+    await user.click(screen.getByRole('menuitem', { name: /Run history/i }))
 
     expect(handleToggleHistory).toHaveBeenCalledTimes(1)
+    expect(dispatch).toHaveBeenCalledWith({ type: 'SET_KEBAB_OPEN', payload: false })
   })
 
   it('renders Save button', () => {
@@ -178,7 +195,7 @@ describe('BuilderEditorToolbar', () => {
     expect(screen.getByRole('button', { name: /Workflow actions/i })).toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: /Delete workflow/i })).not.toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: /Export workflow/i })).toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: /Import workflow definition/i })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: /Import workflow/i })).toBeInTheDocument()
   })
 
   it('has no accessibility violations', async () => {

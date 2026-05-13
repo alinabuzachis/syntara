@@ -11,7 +11,6 @@ import { EnableWorkflowConfirmDialog } from './EnableWorkflowConfirmDialog'
 
 type BuilderToolbarContentProps = Readonly<{
   isLiveRunActive?: boolean
-  historyCardOpen: boolean
   hasApprovalPending?: boolean
   isApprovalLoading?: boolean
   onBackToEditor?: () => void
@@ -38,7 +37,6 @@ type BuilderToolbarContentProps = Readonly<{
  */
 function BuilderToolbarContent({
   isLiveRunActive,
-  historyCardOpen,
   hasApprovalPending,
   isApprovalLoading,
   onBackToEditor,
@@ -79,7 +77,6 @@ function BuilderToolbarContent({
       isPending={isPending}
       isEnabled={isEnabled}
       isKebabOpen={isKebabOpen}
-      historyCardOpen={historyCardOpen}
       isSavingToggle={isSavingToggle}
       dispatch={dispatch}
       markDirty={markDirty}
@@ -103,7 +100,6 @@ export type BuilderWorkflowAppPageHeaderProps = Readonly<{
   workflowTags: string[]
   isNew: boolean
   workflow: { id: string } | undefined
-  historyCardOpen: boolean
   isPending: boolean
   isEnabled: boolean
   isKebabOpen: boolean
@@ -130,7 +126,6 @@ export function BuilderWorkflowAppPageHeader({
   workflowTags,
   isNew,
   workflow,
-  historyCardOpen,
   isPending,
   isEnabled,
   isKebabOpen,
@@ -199,7 +194,6 @@ export function BuilderWorkflowAppPageHeader({
                 placeholder="Workflow name"
               />
             </FlexItem>
-            <FlexItem style={{ flexShrink: 0 }}>{ProjectSelector}</FlexItem>
             <FlexItem style={{ flexShrink: 0 }}>
               <EditWorkflowDetailsPopover
                 name={workflowName}
@@ -216,12 +210,12 @@ export function BuilderWorkflowAppPageHeader({
                 }}
               />
             </FlexItem>
+            <FlexItem style={{ flexShrink: 0 }}>{ProjectSelector}</FlexItem>
           </Flex>
         }
       >
         <BuilderToolbarContent
           isLiveRunActive={isLiveRunActive}
-          historyCardOpen={historyCardOpen}
           hasApprovalPending={hasApprovalPending}
           isApprovalLoading={isApprovalLoading}
           onBackToEditor={onBackToEditor}

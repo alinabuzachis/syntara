@@ -2,17 +2,18 @@ import {
   Button,
   Divider,
   Dropdown,
+  DropdownGroup,
   DropdownItem,
   DropdownList,
   Icon,
   MenuToggle,
   type MenuToggleElement,
-  Tooltip,
 } from '@patternfly/react-core'
 import {
   RhUiPlayIcon,
   RhUiCodeIcon,
   RhUiExportIcon,
+  RhUiHistoryIcon,
   RhUiImportIcon,
   RhUiSaveFillIcon,
   RhUiTrashIcon,
@@ -23,7 +24,6 @@ import { useCallback, useState, type Dispatch, type Ref } from 'react'
 
 import type { BuilderAction } from './builderReducer'
 import { EnabledWorkflowSwitch } from './EnabledWorkflowSwitch'
-import { RunHistoryToggleButton } from './RunHistoryToggleButton'
 import { useWorkflowImportExport } from './useWorkflowImportExport'
 
 type WorkflowKebabToggleProps = Readonly<{
@@ -46,13 +46,118 @@ function WorkflowKebabToggle({ toggleRef, isKebabOpen, dispatch }: WorkflowKebab
   )
 }
 
+type WorkflowKebabMenuProps = Readonly<{
+  isNew: boolean
+  workflow: { id: string } | undefined
+  isKebabOpen: boolean
+  dispatch: Dispatch<BuilderAction>
+  markDirty: () => void
+  handleToggleHistory: () => void
+  handleToggleDetails: () => void
+}>
+
+function WorkflowKebabMenu({
+  isNew,
+  workflow,
+  isKebabOpen,
+  dispatch,
+  markDirty,
+  handleToggleHistory,
+  handleToggleDetails,
+}: WorkflowKebabMenuProps) {
+  const { importFileRef, handleImportFile, handleExport } = useWorkflowImportExport({ dispatch, markDirty })
+
+  const renderKebabMenuToggle = useCallback(
+    (toggleRef: Ref<MenuToggleElement>) => (
+      <WorkflowKebabToggle toggleRef={toggleRef} isKebabOpen={isKebabOpen} dispatch={dispatch} />
+    ),
+    [dispatch, isKebabOpen]
+  )
+
+  return (
+    <>
+      <Dropdown
+        isOpen={isKebabOpen}
+        onOpenChange={(isOpen) => dispatch({ type: 'SET_KEBAB_OPEN', payload: isOpen })}
+        popperProps={{ position: 'right' }}
+        toggle={renderKebabMenuToggle}
+      >
+        <DropdownGroup label="Views">
+          <DropdownList>
+            {!isNew && workflow?.id && (
+              <DropdownItem
+                onClick={() => {
+                  handleToggleHistory()
+                  dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
+                }}
+              >
+                <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
+                  <RhUiHistoryIcon />
+                </Icon>
+                Run history
+              </DropdownItem>
+            )}
+            <DropdownItem
+              onClick={() => {
+                handleToggleDetails()
+                dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
+              }}
+            >
+              <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
+                <RhUiCodeIcon />
+              </Icon>
+              Workflow details
+            </DropdownItem>
+          </DropdownList>
+        </DropdownGroup>
+        <Divider />
+        <DropdownGroup label="Actions">
+          <DropdownList>
+            <DropdownItem onClick={handleExport}>
+              <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
+                <RhUiExportIcon />
+              </Icon>
+              Export workflow
+            </DropdownItem>
+            <DropdownItem
+              onClick={() => {
+                importFileRef.current?.click()
+                dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
+              }}
+            >
+              <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
+                <RhUiImportIcon />
+              </Icon>
+              Import workflow
+            </DropdownItem>
+            {!isNew && workflow?.id && (
+              <DropdownItem
+                onClick={() => {
+                  dispatch({ type: 'SET_DELETE_DIALOG', payload: true })
+                  dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
+                }}
+                isDanger
+              >
+                <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
+                  <RhUiTrashIcon />
+                </Icon>
+                Delete workflow
+              </DropdownItem>
+            )}
+          </DropdownList>
+        </DropdownGroup>
+      </Dropdown>
+      <input ref={importFileRef} type="file" accept=".json" onChange={handleImportFile} style={{ display: 'none' }} />
+    </>
+  )
+}
+
 type BuilderEditorToolbarProps = Readonly<{
   isNew: boolean
   workflow: { id: string } | undefined
   isPending: boolean
   isEnabled: boolean
   isKebabOpen: boolean
-  historyCardOpen: boolean
   isSavingToggle: boolean
   dispatch: Dispatch<BuilderAction>
   markDirty: () => void
@@ -72,7 +177,6 @@ export function BuilderEditorToolbar({
   isPending,
   isEnabled,
   isKebabOpen,
-  historyCardOpen,
   isSavingToggle,
   dispatch,
   markDirty,
@@ -101,14 +205,6 @@ export function BuilderEditorToolbar({
       </MenuToggle>
     ),
     [isRunDropdownOpen]
-  )
-  const { importFileRef, handleImportFile, handleExport } = useWorkflowImportExport({ dispatch, markDirty })
-
-  const renderKebabMenuToggle = useCallback(
-    (toggleRef: Ref<MenuToggleElement>) => (
-      <WorkflowKebabToggle toggleRef={toggleRef} isKebabOpen={isKebabOpen} dispatch={dispatch} />
-    ),
-    [dispatch, isKebabOpen]
   )
 
   return (
@@ -175,23 +271,6 @@ export function BuilderEditorToolbar({
 
       <Divider orientation={{ default: 'vertical' }} />
 
-      <Tooltip content="Workflow details">
-        <Button
-          variant="plain"
-          onClick={handleToggleDetails}
-          icon={
-            <Icon isInline>
-              <RhUiCodeIcon />
-            </Icon>
-          }
-          aria-label="Workflow details"
-        />
-      </Tooltip>
-
-      {!isNew && workflow?.id && <RunHistoryToggleButton onClick={handleToggleHistory} isActive={historyCardOpen} />}
-
-      <Divider orientation={{ default: 'vertical' }} />
-
       <Button
         variant="plain"
         onClick={() => handleSaveWorkflow()}
@@ -215,50 +294,15 @@ export function BuilderEditorToolbar({
       )}
 
       <Divider orientation={{ default: 'vertical' }} />
-      <Dropdown
-        isOpen={isKebabOpen}
-        onOpenChange={(isOpen) => dispatch({ type: 'SET_KEBAB_OPEN', payload: isOpen })}
-        popperProps={{ position: 'right' }}
-        toggle={renderKebabMenuToggle}
-      >
-        <DropdownList>
-          <DropdownItem onClick={handleExport}>
-            <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
-              <RhUiExportIcon />
-            </Icon>
-            Export workflow
-          </DropdownItem>
-          <DropdownItem
-            onClick={() => {
-              importFileRef.current?.click()
-              dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
-            }}
-          >
-            <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
-              <RhUiImportIcon />
-            </Icon>
-            Import workflow definition
-          </DropdownItem>
-          {!isNew && workflow?.id && (
-            <>
-              <Divider />
-              <DropdownItem
-                onClick={() => {
-                  dispatch({ type: 'SET_DELETE_DIALOG', payload: true })
-                  dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
-                }}
-                isDanger
-              >
-                <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
-                  <RhUiTrashIcon />
-                </Icon>
-                Delete workflow
-              </DropdownItem>
-            </>
-          )}
-        </DropdownList>
-      </Dropdown>
-      <input ref={importFileRef} type="file" accept=".json" onChange={handleImportFile} style={{ display: 'none' }} />
+      <WorkflowKebabMenu
+        isNew={isNew}
+        workflow={workflow}
+        isKebabOpen={isKebabOpen}
+        dispatch={dispatch}
+        markDirty={markDirty}
+        handleToggleHistory={handleToggleHistory}
+        handleToggleDetails={handleToggleDetails}
+      />
     </>
   )
 }

@@ -43,7 +43,8 @@ test.describe('Execution URL unification', () => {
 
       await openWorkflowInBuilder(app, workflowName)
 
-      await app.getByRole('button', { name: 'Run history' }).click()
+      await app.getByLabel('Workflow actions').click()
+      await app.getByRole('menuitem', { name: 'Run history' }).click()
       await expect(app.getByRole('heading', { name: 'Run History' })).toBeVisible()
 
       const executionButton = app.locator('button[class*="simpleList"]').first()
@@ -152,8 +153,9 @@ test.describe('Execution URL unification', () => {
       // Make the workflow dirty by adding a node
       await addScriptNode(app, 'Dirty node')
 
-      // Open run history
-      await app.getByRole('button', { name: 'Run history' }).click()
+      // Open run history via kebab menu
+      await app.getByLabel('Workflow actions').click()
+      await app.getByRole('menuitem', { name: 'Run history' }).click()
       await expect(app.getByRole('heading', { name: 'Run History' })).toBeVisible()
 
       // Click an execution — should trigger unsaved changes prompt
