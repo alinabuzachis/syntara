@@ -5,6 +5,11 @@ from nexus.agent_orchestrator.models.agent_response import (
     GenericAgentResponse,
 )
 from nexus.agent_orchestrator.models.agent_state import AgentState
+from nexus.agent_orchestrator.models.context_data import (
+    InvocationContextData,
+    InvocationMetadata,
+    OpaqueResponseSchema,
+)
 from nexus.agent_orchestrator.models.invocation import (
     Invocation,
     InvocationListResponse,
@@ -26,10 +31,13 @@ __all__ = [
     "Invocation",
     "InvocationCancelRequest",
     "InvocationCancelResponse",
+    "InvocationContextData",
     "InvocationCreateRequest",
     "InvocationListParams",
     "InvocationListResponse",
+    "InvocationMetadata",
     "InvocationRequestWithFile",
     "InvocationStatus",
     "LLMCredentialConfig",
+    "OpaqueResponseSchema",
 ]

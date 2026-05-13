@@ -42,7 +42,7 @@ def get_openrouter_llm(
         raise LLMConfigurationError(error_msg)
 
     settings = get_settings()
-    selected_base_url = base_url or str(settings.openrouter_base_url)
+    selected_base_url = str(base_url or settings.openrouter_base_url)
     selected_model = model or settings.openrouter_model
     selected_temperature = temperature if temperature is not None else settings.openrouter_temperature
     selected_max_tokens = max_tokens if max_tokens is not None else settings.openrouter_max_tokens

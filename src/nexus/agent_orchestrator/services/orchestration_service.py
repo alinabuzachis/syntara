@@ -27,6 +27,7 @@ from nexus.agent_orchestrator.constants import AgentRoutes
 from nexus.agent_orchestrator.context_manager.planner import ContextManagerPlanner
 from nexus.agent_orchestrator.models.agent_response import GenericAgentResponse
 from nexus.agent_orchestrator.models.agent_state import AgentState, AgentStateFactory
+from nexus.agent_orchestrator.models.context_data import InvocationContextData
 from nexus.agent_orchestrator.models.streaming_events import (
     CompletionEventData,
     DeltaEventData,
@@ -138,7 +139,7 @@ class OrchestrationService:
         prompt: str,
         session_id: str,
         invocation_id: UUID,
-        metadata: dict[str, Any] | None = None,
+        ctx: InvocationContextData | None = None,
         user_id: UUID | None = None,
         execution_id: UUID | None = None,
         response_schema: dict[str, Any] | None = None,
@@ -152,7 +153,7 @@ class OrchestrationService:
             prompt: User's prompt to process
             session_id: Session identifier for multi-turn tracking
             invocation_id: Invocation UUID
-            metadata: Optional metadata from invocation context_data (e.g., callback_url)
+            ctx: Optional typed context_data from the invocation
             user_id: Optional UUID of the user who initiated the invocation
             execution_id: Optional workflow execution ID for telemetry correlation
             response_schema: Optional JSON Schema for structured output
@@ -168,12 +169,13 @@ class OrchestrationService:
 
         stream_id = get_invocation_stream_id(invocation_id)
 
-        # Create initial state
+        # Create initial state — AgentState is a LangGraph TypedDict,
+        # so we pass a plain dict with secrets revealed.
         initial_state = AgentStateFactory.create_initial_state(
             prompt=prompt,
             session_id=session_id,
             invocation_id=invocation_id,
-            metadata=metadata,
+            metadata=ctx.to_state_dict() if ctx else None,
             user_id=user_id,
             execution_id=execution_id,
             response_schema=response_schema,
@@ -193,7 +195,7 @@ class OrchestrationService:
                 await self._publish_completion_event(invocation_id, stream_id, client)
 
                 # Handle completion callback
-                await self._handle_completion_callback(final_state, invocation_id, metadata)
+                await self._handle_completion_callback(final_state, invocation_id, ctx)
 
                 logger.info("Streaming orchestration completed", invocation_id=invocation_id)
 
@@ -210,8 +212,8 @@ class OrchestrationService:
                 await self._handle_streaming_error(e, invocation_id, stream_id, client)
 
                 # Send failure signal to workflow if callback_url is present
-                callback_url = metadata.get("callback_url") if metadata else None
-                await WorkflowSignalClient.send_failure_signal(callback_url, invocation_id, e)
+                cb_url = ctx.callback_url.get_secret_value() if ctx and ctx.callback_url else None
+                await WorkflowSignalClient.send_failure_signal(cb_url, invocation_id, e)
 
                 raise
 
@@ -280,14 +282,14 @@ class OrchestrationService:
         self,
         final_state: AgentState | None,
         invocation_id: UUID,
-        original_metadata: dict[str, Any] | None = None,
+        ctx: InvocationContextData | None = None,
     ) -> None:
         """Handle completion callback with error handling.
 
         Args:
             final_state: Final agent state with callback metadata
             invocation_id: Invocation UUID for logging
-            original_metadata: Original invocation metadata (fallback when final_state
+            ctx: Original typed context_data (fallback when final_state
                 doesn't preserve metadata, e.g. some LangGraph configurations)
 
         """
@@ -302,7 +304,7 @@ class OrchestrationService:
             return
 
         try:
-            await self._send_completion_callback(final_state, invocation_id, original_metadata)
+            await self._send_completion_callback(final_state, invocation_id, ctx)
         except (httpx.RequestError, httpx.HTTPStatusError, httpx.TimeoutException):
             logger.exception("Activity signal failed for invocation", invocation_id=invocation_id)
             # Continue without failing - notification is not critical
@@ -583,20 +585,20 @@ class OrchestrationService:
         self,
         final_state: AgentState,
         invocation_id: UUID,
-        original_metadata: dict[str, Any] | None = None,
+        ctx: InvocationContextData | None = None,
     ) -> None:
         """Send completion callback to workflow after agent execution.
 
         Sends HTTP callback to workflow when agent completes, replicating the functionality
         previously handled by NotificationNode.
 
-        Falls back to ``original_metadata`` (from invocation context_data) when LangGraph's
+        Falls back to ``ctx`` (typed invocation context_data) when LangGraph's
         final state doesn't preserve ``metadata`` or ``result``.
 
         Args:
             final_state: Final state containing agent result and metadata
             invocation_id: Invocation UUID for logging
-            original_metadata: Original invocation metadata (fallback for callback_url)
+            ctx: Original typed context_data (fallback for callback_url)
 
         """
         logger.info(
@@ -605,11 +607,11 @@ class OrchestrationService:
             final_state_keys=list(final_state.keys()) if final_state else None,
         )
 
-        # Extract callback URL from final_state metadata, falling back to original metadata
+        # Extract callback URL from final_state metadata, falling back to typed context_data
         state_metadata = final_state.get("metadata") or {}
         callback_url = state_metadata.get("callback_url")
-        if not callback_url and original_metadata:
-            callback_url = original_metadata.get("callback_url")
+        if not callback_url and ctx and ctx.callback_url:
+            callback_url = ctx.callback_url.get_secret_value()
 
         logger.info(
             "CALLBACK CHECK: callback details",

@@ -3,8 +3,10 @@
 from uuid import UUID, uuid4
 
 import pytest
+from pydantic import ValidationError
 
 from nexus.agent_orchestrator.executor.invocation_executor import _extract_request_id
+from nexus.agent_orchestrator.models.context_data import InvocationContextData
 
 
 class TestExtractRequestId:
@@ -12,26 +14,33 @@ class TestExtractRequestId:
 
     def test_valid_uuid_in_metadata(self) -> None:
         uid = uuid4()
-        context_data: dict[str, object] = {"metadata": {"request_id": str(uid)}}
-        assert _extract_request_id(context_data) == uid
+        ctx = InvocationContextData.model_validate({"metadata": {"request_id": str(uid)}})
+        assert _extract_request_id(ctx) == uid
 
     def test_missing_metadata_key(self) -> None:
-        assert _extract_request_id({}) is None
+        assert _extract_request_id(InvocationContextData()) is None
 
     def test_metadata_not_a_dict(self) -> None:
-        assert _extract_request_id({"metadata": "not-a-dict"}) is None
+        # When metadata is not a dict, model_validate raises ValidationError
+        with pytest.raises(ValidationError, match="metadata must be a dict"):
+            InvocationContextData.model_validate({"metadata": "not-a-dict"})
 
     def test_missing_request_id_in_metadata(self) -> None:
-        assert _extract_request_id({"metadata": {}}) is None
+        ctx = InvocationContextData.model_validate({"metadata": {}})
+        assert _extract_request_id(ctx) is None
 
     def test_empty_string_request_id(self) -> None:
-        assert _extract_request_id({"metadata": {"request_id": ""}}) is None
+        ctx = InvocationContextData.model_validate({"metadata": {"request_id": ""}})
+        assert _extract_request_id(ctx) is None
 
     def test_invalid_uuid_string(self) -> None:
-        assert _extract_request_id({"metadata": {"request_id": "not-a-uuid"}}) is None
+        ctx = InvocationContextData.model_validate({"metadata": {"request_id": "not-a-uuid"}})
+        assert _extract_request_id(ctx) is None
 
     def test_non_string_request_id(self) -> None:
-        assert _extract_request_id({"metadata": {"request_id": 12345}}) is None
+        # Non-string request_id is rejected by Pydantic (str field, no coercion)
+        with pytest.raises(ValidationError, match="Input should be a valid string"):
+            InvocationContextData.model_validate({"metadata": {"request_id": 12345}})
 
     @pytest.mark.parametrize(
         "rid",
@@ -42,5 +51,6 @@ class TestExtractRequestId:
         ids=["hyphenated", "compact"],
     )
     def test_uuid_formats(self, rid: str) -> None:
-        result = _extract_request_id({"metadata": {"request_id": rid}})
+        ctx = InvocationContextData.model_validate({"metadata": {"request_id": rid}})
+        result = _extract_request_id(ctx)
         assert isinstance(result, UUID)

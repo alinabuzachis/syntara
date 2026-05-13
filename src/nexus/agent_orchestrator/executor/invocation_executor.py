@@ -5,7 +5,7 @@ import os
 import time
 from collections.abc import AsyncGenerator, Callable
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import structlog
@@ -17,14 +17,13 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.agent_orchestrator import ContextManagerPlanner
 from nexus.agent_orchestrator.clients.openrouter_config import get_openrouter_llm
 from nexus.agent_orchestrator.exceptions import InvocationCancelledError, LLMConfigurationError
-from nexus.agent_orchestrator.models import Invocation, InvocationStatus, LLMCredentialConfig
+from nexus.agent_orchestrator.models import Invocation, InvocationContextData, InvocationStatus, LLMCredentialConfig
 from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
 from nexus.agent_orchestrator.token_manager.models import UsageDetails, UsageDetailsResult
 from nexus.agent_orchestrator.token_manager.repository import TokenUsageRepository
 from nexus.agent_orchestrator.utils.workflow_signal_client import WorkflowSignalClient
 from nexus.audit.emitter import request_id_context_var
 from nexus.core.config.base import get_settings
-from nexus.core.constants import CONTEXT_KEY_FILE_IDS
 from nexus.core.database.session import get_db
 from nexus.core.services.secret_service import create_secret_service
 from nexus.credentials.lib.injector_resolver import InjectorResolver
@@ -37,18 +36,12 @@ from nexus.metrics.types import MetricType
 
 logger = structlog.stdlib.get_logger(__name__)
 
-# Type alias for optional string used in cast() calls
-type _OptionalStr = str | None
 
-
-def _extract_request_id(context_data: dict[str, object]) -> UUID | None:
+def _extract_request_id(ctx: InvocationContextData) -> UUID | None:
     """Extract request_id UUID from invocation context_data metadata."""
-    meta = context_data.get("metadata")
-    if isinstance(meta, dict):
-        rid = meta.get("request_id")
-        if isinstance(rid, str) and rid:
-            with contextlib.suppress(ValueError):
-                return UUID(rid)
+    if ctx.metadata and ctx.metadata.request_id:
+        with contextlib.suppress(ValueError):
+            return UUID(ctx.metadata.request_id)
     return None
 
 
@@ -139,11 +132,14 @@ class InvocationExecutor:
                 invocation_id=invocation.id,
             )
 
+            # Parse context_data into typed model once, reused throughout execution
+            ctx = InvocationContextData.model_validate(invocation.context_data or {})
+
             # Log conversion failures but allow execution to proceed (FR-020)
-            await self._log_conversion_failures(invocation, session)
+            await self._log_conversion_failures(invocation, ctx, session)
 
             # Initialize OrchestrationService - fail immediately if LLM not configured
-            orchestration_service = await self._init_orchestration(invocation, session)
+            orchestration_service = await self._init_orchestration(invocation, ctx, session)
             if orchestration_service is None:
                 return
 
@@ -165,23 +161,19 @@ class InvocationExecutor:
                     prompt=invocation.prompt,
                 )
 
-                # Extract execution_id from context_data for telemetry correlation
-                raw_execution_id = invocation.context_data.get("execution_id")
-                execution_id = UUID(str(raw_execution_id)) if isinstance(raw_execution_id, str) else None
-                request_id_context_var.set(_extract_request_id(invocation.context_data))
+                request_id_context_var.set(_extract_request_id(ctx))
 
                 # Extract response_schema for structured output support
-                raw_meta = invocation.context_data.get("metadata") if invocation.context_data else None
-                metadata_dict = raw_meta if isinstance(raw_meta, dict) else {}
-                response_schema = metadata_dict.get("response_schema")
+                opaque = ctx.metadata.response_schema if ctx.metadata else None
+                response_schema = opaque.get_data() if opaque else None
 
                 result_dict = await orchestration_service.execute(
                     prompt=invocation.prompt,
                     session_id=invocation.session_id,
                     invocation_id=exec_invocation_id,
-                    metadata=invocation.context_data,
+                    ctx=ctx,
                     user_id=invocation.created_by,
-                    execution_id=execution_id,
+                    execution_id=None,
                     response_schema=response_schema,
                 )
 
@@ -230,10 +222,8 @@ class InvocationExecutor:
                 await self._handle_execution_error(e, exec_invocation_id, session)
 
                 # Send failure signal to workflow
-                callback_url = cast(
-                    "_OptionalStr", invocation.context_data.get("callback_url") if invocation.context_data else None
-                )
-                await WorkflowSignalClient.send_failure_signal(callback_url, exec_invocation_id, e)
+                cb_url = ctx.callback_url.get_secret_value() if ctx.callback_url else None
+                await WorkflowSignalClient.send_failure_signal(cb_url, exec_invocation_id, e)
 
     async def _update_token_usage(
         self,
@@ -289,7 +279,9 @@ class InvocationExecutor:
                 exc_info=True,
             )
 
-    async def _init_orchestration(self, invocation: Invocation, session: AsyncSession) -> "OrchestrationService | None":
+    async def _init_orchestration(
+        self, invocation: Invocation, ctx: InvocationContextData, session: AsyncSession
+    ) -> "OrchestrationService | None":
         """Initialise LLM and OrchestrationService, handling configuration failures.
 
         Extracts LLM credentials from invocation context_data (injected by the
@@ -300,20 +292,17 @@ class InvocationExecutor:
         try:
             logger.info("Initializing LLM for invocation", invocation_id=invocation.id)
 
-            # Extract LLM config from context_data.metadata
-            context: dict[str, Any] = dict(invocation.context_data or {})
-            raw_meta = context.get("metadata")
-            metadata: dict[str, Any] = raw_meta if isinstance(raw_meta, dict) else {}
-            credential_base_url: str | None = str(metadata["llm_base_url"]) if metadata.get("llm_base_url") else None
-            invocation_model: str | None = str(context["model"]) if context.get("model") else None
+            meta = ctx.metadata
+            credential_base_url = str(meta.llm_base_url) if meta and meta.llm_base_url else None
+            invocation_model = ctx.model
 
             # Resolve API key via deferred credential resolution (no plaintext in DB).
             # Falls back to settings.openrouter_api_key only when
             # E2E_LLM_CREDENTIAL_CONFIGURED is set (e2e testing without stored credentials).
-            credential_id = metadata.get("credential_id")
+            raw_credential_id = meta.credential_id.get_secret_value() if meta and meta.credential_id else None
             credential_api_key: str | None = None
-            if credential_id:
-                credential_api_key = await self._resolve_llm_api_key(str(credential_id), session)
+            if raw_credential_id:
+                credential_api_key = await self._resolve_llm_api_key(raw_credential_id, session)
             elif os.environ.get("E2E_LLM_CREDENTIAL_CONFIGURED"):
                 _settings = get_settings()
                 if _settings.openrouter_api_key:
@@ -356,10 +345,8 @@ class InvocationExecutor:
             await session.commit()
             logger.exception("Invocation failed", invocation_id=invocation.id, error_message=str(e))
 
-            callback_url = cast(
-                "str | None", invocation.context_data.get("callback_url") if invocation.context_data else None
-            )
-            await WorkflowSignalClient.send_failure_signal(callback_url, invocation.id, e)
+            cb_url = ctx.callback_url.get_secret_value() if ctx.callback_url else None
+            await WorkflowSignalClient.send_failure_signal(cb_url, invocation.id, e)
             return None
 
     @staticmethod
@@ -419,7 +406,9 @@ class InvocationExecutor:
             fresh_invocation.completed_at = now
             await session.commit()
 
-    async def _log_conversion_failures(self, invocation: Invocation, session: AsyncSession) -> None:
+    async def _log_conversion_failures(
+        self, invocation: Invocation, ctx: InvocationContextData, session: AsyncSession
+    ) -> None:
         """Log conversion failures but allow execution to proceed (FR-020).
 
         Queries FileMetadata records by file_ids via FileManager and logs any
@@ -428,18 +417,15 @@ class InvocationExecutor:
 
         Args:
             invocation: The invocation to check for conversion failures
+            ctx: Parsed context_data model
             session: Database session for querying FileMetadata
 
         """
-        if not invocation.context_data:
-            return
-
-        file_id_strs = invocation.context_data.get(CONTEXT_KEY_FILE_IDS, [])
-        if not file_id_strs or not isinstance(file_id_strs, list):
+        if not ctx.file_ids:
             return
 
         # Convert strings to UUIDs at the boundary
-        file_ids = [UUID(fid) for fid in file_id_strs]
+        file_ids = [UUID(fid) for fid in ctx.file_ids]
 
         # Query FileMetadata records via FileManager
         file_metadata_records = await self.file_manager.get_files_metadata(file_ids, session)

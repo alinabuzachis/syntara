@@ -1,7 +1,7 @@
 """Unit tests for OrchestrationService._send_completion_callback.
 
 Validates that callback_url is extracted from final_state metadata with
-fallback to original invocation metadata, preventing duplicate signals.
+fallback to typed InvocationContextData, preventing duplicate signals.
 """
 
 from typing import Any, cast
@@ -11,6 +11,7 @@ from uuid import uuid4
 import pytest
 
 from nexus.agent_orchestrator.models.agent_state import AgentState
+from nexus.agent_orchestrator.models.context_data import InvocationContextData
 from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
 
 
@@ -66,23 +67,21 @@ class TestSendCompletionCallback:
             mock_signal.assert_awaited_once_with(callback_url, invocation_id, {"content": "done"})
 
     @pytest.mark.asyncio
-    async def test_callback_url_falls_back_to_original_metadata(
-        self, orchestration_service: OrchestrationService
-    ) -> None:
-        """When final_state has no metadata, fall back to original_metadata."""
+    async def test_callback_url_falls_back_to_ctx(self, orchestration_service: OrchestrationService) -> None:
+        """When final_state has no metadata, fall back to typed ctx."""
         callback_url = "http://nexus/signal/activity/456"
         invocation_id = uuid4()
         final_state = _make_final_state(
             metadata=None,
             result={"content": "done"},
         )
-        original_metadata = {"callback_url": callback_url}
+        ctx = InvocationContextData.model_validate({"callback_url": callback_url})
 
         with patch(
             "nexus.agent_orchestrator.services.orchestration_service.WorkflowSignalClient.send_success_signal",
             new_callable=AsyncMock,
         ) as mock_signal:
-            await orchestration_service._send_completion_callback(final_state, invocation_id, original_metadata)
+            await orchestration_service._send_completion_callback(final_state, invocation_id, ctx)
             mock_signal.assert_awaited_once_with(callback_url, invocation_id, {"content": "done"})
 
     @pytest.mark.asyncio
@@ -93,13 +92,13 @@ class TestSendCompletionCallback:
             metadata={"callback_url": "http://from-state"},
             result={"content": "done"},
         )
-        original_metadata = {"callback_url": "http://from-original"}
+        ctx = InvocationContextData.model_validate({"callback_url": "http://from-original"})
 
         with patch(
             "nexus.agent_orchestrator.services.orchestration_service.WorkflowSignalClient.send_success_signal",
             new_callable=AsyncMock,
         ) as mock_signal:
-            await orchestration_service._send_completion_callback(final_state, invocation_id, original_metadata)
+            await orchestration_service._send_completion_callback(final_state, invocation_id, ctx)
             mock_signal.assert_awaited_once_with("http://from-state", invocation_id, {"content": "done"})
 
     @pytest.mark.asyncio
@@ -140,11 +139,11 @@ class TestSendCompletionCallback:
             metadata={},
             result={"content": "done"},
         )
-        original_metadata = {"callback_url": callback_url}
+        ctx = InvocationContextData.model_validate({"callback_url": callback_url})
 
         with patch(
             "nexus.agent_orchestrator.services.orchestration_service.WorkflowSignalClient.send_success_signal",
             new_callable=AsyncMock,
         ) as mock_signal:
-            await orchestration_service._send_completion_callback(final_state, invocation_id, original_metadata)
+            await orchestration_service._send_completion_callback(final_state, invocation_id, ctx)
             mock_signal.assert_awaited_once_with(callback_url, invocation_id, {"content": "done"})

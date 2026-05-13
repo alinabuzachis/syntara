@@ -1,0 +1,172 @@
+"""Typed models for invocation context_data.
+
+These models provide type-safe access to the context_data JSONB field on
+Invocation records.  The DB column stays ``dict[str, object]`` (JSONB) for
+backward compatibility; these models are used at the application layer for
+validation, typed attribute access, and audit-safe serialization.
+
+Usage::
+
+    ctx = InvocationContextData.model_validate(invocation.context_data)
+    ctx.metadata.credential_id   # typed access
+    ctx.metadata.audit_safe_dump()  # excludes sensitive fields
+"""
+
+from typing import Any, get_args
+
+from pydantic import BaseModel, ConfigDict, Field, GetCoreSchemaHandler, HttpUrl, SecretStr, field_validator
+from pydantic_core import CoreSchema, core_schema
+
+
+class OpaqueResponseSchema:
+    """Wrapper that hides a response schema dict from repr / logs.
+
+    Similar to ``SecretStr`` but for JSON Schema dicts.  The data is only
+    returned when explicitly requested via :meth:`get_data`.
+
+    Validates that the value is a dict containing a ``'type'`` key (same
+    rule as ``validate_response_schema_structure``).
+
+    ``repr()`` / ``str()`` always return ``'OpaqueResponseSchema(**)'`` so
+    the payload never leaks into audit logs, telemetry, or error messages.
+    """
+
+    __slots__ = ("_data",)
+
+    def __init__(self, data: dict[str, Any]) -> None:
+        """Wrap a response schema dict."""
+        self._data = data
+
+    def get_data(self) -> dict[str, Any]:
+        """Return the wrapped schema dict."""
+        return self._data
+
+    def __repr__(self) -> str:  # noqa: D105
+        return "OpaqueResponseSchema(**)"
+
+    def __str__(self) -> str:  # noqa: D105
+        return "OpaqueResponseSchema(**)"
+
+    def __eq__(self, other: object) -> bool:  # noqa: D105
+        if isinstance(other, OpaqueResponseSchema):
+            return self._data == other._data
+        return NotImplemented
+
+    __hash__ = None  # type: ignore[assignment]  # mutable wrapper — unhashable
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls,
+        _source_type: Any,  # noqa: ANN401
+        _handler: GetCoreSchemaHandler,
+    ) -> CoreSchema:
+        """Accept a dict with a 'type' key and wrap it in OpaqueResponseSchema."""
+        return core_schema.no_info_plain_validator_function(
+            cls._validate,
+            serialization=core_schema.plain_serializer_function_ser_schema(
+                cls._serialize,
+                info_arg=False,
+            ),
+        )
+
+    @classmethod
+    def _validate(cls, v: object) -> "OpaqueResponseSchema":
+        if isinstance(v, cls):
+            return v
+        if not isinstance(v, dict):
+            msg = f"response_schema must be a dict; got {type(v).__name__}"
+            raise ValueError(msg)  # noqa: TRY004 — Pydantic requires ValueError
+        if "type" not in v:
+            msg = "response_schema must include a 'type' field"
+            raise ValueError(msg)
+        return cls(v)
+
+    @staticmethod
+    def _serialize(v: "OpaqueResponseSchema") -> dict[str, Any]:
+        return v.get_data()
+
+
+_HIDDEN_TYPES = (SecretStr, OpaqueResponseSchema)
+
+
+def _hidden_field_names(model: type[BaseModel]) -> set[str]:
+    """Return the names of all fields whose type includes a hidden type."""
+    hidden = set()
+    for name, info in model.model_fields.items():
+        types_to_check = get_args(info.annotation) or (info.annotation,)
+        if any(t in _HIDDEN_TYPES for t in types_to_check):
+            hidden.add(name)
+    return hidden
+
+
+class InvocationMetadata(BaseModel):
+    """Nested metadata within invocation context_data.
+
+    Fields typed as ``SecretStr`` or ``OpaqueResponseSchema`` are
+    automatically excluded from :meth:`audit_safe_dump` so they never
+    appear in audit logs or telemetry.
+    """
+
+    # Sensitive — excluded from audit logs and masked in repr
+    credential_id: SecretStr | None = None
+    response_schema: OpaqueResponseSchema | None = None
+
+    # Non-sensitive
+    request_id: str | None = None
+    llm_base_url: HttpUrl | None = None
+    llm_provider: str | None = None
+    activity_name: str | None = None
+    workflow_id: str | None = None
+
+    def audit_safe_dump(self) -> dict[str, Any]:
+        """Return metadata dict with sensitive/opaque fields excluded."""
+        return self.model_dump(
+            exclude=_hidden_field_names(type(self)),
+            exclude_none=True,
+        )
+
+
+class InvocationContextData(BaseModel):
+    """Typed representation of ``Invocation.context_data``.
+
+    The DB column remains ``dict[str, object]`` (JSONB).  Construct via::
+
+        ctx = InvocationContextData.model_validate(raw_dict)
+
+    Unknown keys are preserved thanks to ``extra="allow"``.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    file_ids: list[str] = Field(default_factory=list)
+    agent: str | None = None
+    model: str | None = None
+    callback_url: SecretStr | None = None
+    input_data: dict[str, Any] | None = None
+    metadata: InvocationMetadata | None = None
+
+    @field_validator("metadata", mode="before")
+    @classmethod
+    def _validate_metadata(cls, v: object) -> object:
+        """Accept only dicts/InvocationMetadata for metadata; reject anything else."""
+        if v is None or isinstance(v, (dict, InvocationMetadata)):
+            return v
+        msg = f"metadata must be a dict, InvocationMetadata, or None; got {type(v).__name__}"
+        raise ValueError(msg)
+
+    def to_state_dict(self) -> dict[str, Any]:
+        """Serialize to a plain dict with secrets revealed.
+
+        Used when passing context_data into ``AgentState.metadata``
+        (a LangGraph TypedDict that requires JSON-serializable values).
+        """
+        d = self.model_dump()
+        if self.callback_url:
+            d["callback_url"] = self.callback_url.get_secret_value()
+        return d
+
+    def audit_safe_metadata(self) -> dict[str, Any]:
+        """Return metadata dict with SecretStr fields excluded, for audit logging."""
+        if self.metadata is None:
+            return {}
+        return self.metadata.audit_safe_dump()

@@ -26,7 +26,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 if TYPE_CHECKING:
     from nexus.agent_orchestrator.executor import InvocationExecutor
 
-from nexus.agent_orchestrator.models import Invocation, InvocationListResponse, InvocationStatus
+from nexus.agent_orchestrator.models import Invocation, InvocationContextData, InvocationListResponse, InvocationStatus
 from nexus.agent_orchestrator.models.request import CancellationResult
 from nexus.core.constants import CONTEXT_KEY_FILE_IDS
 from nexus.core.database.session import get_db
@@ -382,21 +382,13 @@ class InvocationService(BaseService):
             file deletion fails. Errors are logged for debugging.
 
         """
-        if not invocation.context_data:
-            logger.debug("No context_data for invocation", invocation_id=invocation.id)
-            return
-
-        file_id_strs = invocation.context_data.get(CONTEXT_KEY_FILE_IDS, [])
-        if not file_id_strs:
+        ctx = InvocationContextData.model_validate(invocation.context_data or {})
+        if not ctx.file_ids:
             logger.debug("No files to clean up for invocation", invocation_id=invocation.id)
             return
 
-        if not isinstance(file_id_strs, list):
-            logger.warning("file_ids is not a list for invocation", invocation_id=invocation.id)
-            return
-
         # Convert strings to UUIDs at the boundary
-        file_ids = [UUID(fid) for fid in file_id_strs]
+        file_ids = [UUID(fid) for fid in ctx.file_ids]
 
         # Get file metadata from database via FileManager
         file_metadata_records = await self.file_manager.get_files_metadata(file_ids, self.session)
