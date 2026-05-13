@@ -108,6 +108,8 @@ Check whether the changes follow:
 | Raw `<span>` / `<p>` / `<div>` for text content         | #20 — use PF `Content`, `HelperText`, `Label`, or `Title`                    |
 | Derived data without `useMemo` in custom hooks          | #21 — wrap computed maps/arrays in `useMemo`                                 |
 | New `use*.ts` hook without `use*.test.ts(x)`            | #22 — every new hook needs a dedicated test file                             |
+| `useEffect` + `setState` for derived/computed values    | #23 — compute during render or use `useMemo`                                 |
+| `useEffect` + `setValue` watching form fields            | #24 — move cascading resets to field's `onChange` handler                     |
 
 **Also check these review-specific items:**
 

@@ -11,7 +11,7 @@ import {
   ModalHeader,
 } from '@patternfly/react-core'
 import { RhUiAddIcon } from '@patternfly/react-icons'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
@@ -30,6 +30,7 @@ const PAGE_SIZE = 20
 
 type AssignRoleFormBodyProps = {
   control: ReturnType<typeof useForm<AssignRoleFormData>>['control']
+  setValue: ReturnType<typeof useForm<AssignRoleFormData>>['setValue']
   errors: ReturnType<typeof useForm<AssignRoleFormData>>['formState']['errors']
   principalType: string
   isProjectScoped: boolean
@@ -52,6 +53,7 @@ type AssignRoleFormBodyProps = {
 
 function AssignRoleFormBody({
   control,
+  setValue,
   errors,
   principalType,
   isProjectScoped,
@@ -82,7 +84,11 @@ function AssignRoleFormBody({
               id="principal-type"
               aria-label="Principal type"
               value={field.value}
-              onChange={(_event, value) => field.onChange(value)}
+              onChange={(_event, value) => {
+                field.onChange(value)
+                setValue('userId', '')
+                setValue('groupId', '')
+              }}
             >
               <FormSelectOption value="user" label="User" />
               <FormSelectOption value="group" label="Group" />
@@ -100,7 +106,10 @@ function AssignRoleFormBody({
               id="scope"
               aria-label="Scope"
               value={field.value}
-              onChange={(_event, value) => field.onChange(value)}
+              onChange={(_event, value) => {
+                field.onChange(value)
+                setValue('roleName', '')
+              }}
             >
               <FormSelectOption value="system" label="System" />
               <FormSelectOption value="project" label="Project" />
@@ -120,7 +129,10 @@ function AssignRoleFormBody({
                 ariaLabel="Project"
                 options={projectOptions}
                 selected={field.value ?? ''}
-                onChange={field.onChange}
+                onChange={(value) => {
+                  field.onChange(value)
+                  setValue('roleName', '')
+                }}
                 placeholder="Select a project..."
                 hasError={!!errors.projectId}
                 isLoading={isProjectsLoading}
@@ -233,21 +245,6 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
   const selectedProjectId = useWatch({ control, name: 'projectId' })
   const isProjectScoped = scope === 'project'
 
-  useEffect(() => {
-    setValue('roleName', '')
-  }, [scope, setValue])
-
-  useEffect(() => {
-    if (isProjectScoped) {
-      setValue('roleName', '')
-    }
-  }, [selectedProjectId, isProjectScoped, setValue])
-
-  useEffect(() => {
-    setValue('userId', '')
-    setValue('groupId', '')
-  }, [principalType, setValue])
-
   const { projects: allProjects, isLoading: isProjectsLoading } = useAllProjects()
   const projectOptions = useMemo(
     () =>
@@ -349,6 +346,7 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
         <Form id="assign-role-form" onSubmit={handleSubmit(onSubmit)}>
           <AssignRoleFormBody
             control={control}
+            setValue={setValue}
             errors={errors}
             principalType={principalType}
             isProjectScoped={isProjectScoped}

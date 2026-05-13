@@ -16,7 +16,7 @@ import {
 } from '@patternfly/react-core'
 import { RhUiCaretLeftIcon, RhUiCaretRightIcon } from '@patternfly/react-icons'
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 
@@ -151,9 +151,8 @@ export function WhoCanView({ resourceTypes, actionsByResource }: Readonly<Resour
     [resourceType, actionsByResource]
   )
 
-  // Cascade: when resourceType changes, reset dependent fields
-  useEffect(() => {
-    const actions = actionsByResource.get(resourceType) ?? []
+  const resetDependentFields = (newResourceType: string) => {
+    const actions = actionsByResource.get(newResourceType) ?? []
     const currentAction = getValues('action')
     if (actions.length === 1) {
       setValue('action', actions[0])
@@ -161,7 +160,7 @@ export function WhoCanView({ resourceTypes, actionsByResource }: Readonly<Resour
       setValue('action', '')
     }
     setValue('resourceId', '')
-  }, [resourceType, actionsByResource, setValue, getValues])
+  }
 
   // Pagination state: track cursor history for previous page navigation
   const [cursorHistory, setCursorHistory] = useState<string[]>([])
@@ -225,7 +224,10 @@ export function WhoCanView({ resourceTypes, actionsByResource }: Readonly<Resour
                   ariaLabel="Resource type"
                   options={resourceTypes.map((rt) => ({ value: rt, label: rt }))}
                   selected={field.value}
-                  onChange={field.onChange}
+                  onChange={(value) => {
+                    field.onChange(value)
+                    resetDependentFields(value)
+                  }}
                   placeholder="Select a resource type"
                 />
               )}

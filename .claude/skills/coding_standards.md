@@ -1051,3 +1051,101 @@ accessClient.useQuery('get', '/projects', { params: { query: { limit: 100 } } })
 // ✅ GOOD — shared hook, all pages merged, React Query dedupes across consumers
 const { projects } = useAllProjects()
 ```
+
+---
+
+## 23. Prefer Event Handlers and Derived State Over `useEffect`
+
+`useEffect` is for **synchronizing with external systems** (DOM subscriptions, timers, WebSockets, fetching on mount). It is **not** for transforming data, handling user events, or cascading form state changes. Misuse causes extra render cycles, stale state bugs, and harder-to-follow data flow.
+
+**Reference**: [You Might Not Need an Effect — React docs](https://react.dev/learn/you-might-not-need-an-effect)
+
+**ESLint enforcement**: `eslint-plugin-react-you-might-not-need-an-effect` is configured as `warn` for all 8 rules in `eslint.config.js`.
+
+### When `useEffect` IS correct
+
+- **Subscriptions with cleanup**: event listeners, ResizeObserver, WebSocket connections
+- **Timers**: intervals, debounce timeouts (with cleanup)
+- **Fetching data on mount** (prefer React Query's `useQuery` when available)
+- **Syncing with external libraries**: Monaco editor, ReactFlow, third-party widgets
+- **Modal form reset** (§6): `reset()` in `useEffect` keyed on `[isOpen, item]` for always-mounted modals
+
+### Anti-patterns to avoid
+
+#### A. Derived state — compute during render
+
+```typescript
+// ❌ BAD — extra render cycle
+const [fullName, setFullName] = useState('')
+useEffect(() => {
+  setFullName(`${firstName} ${lastName}`)
+}, [firstName, lastName])
+
+// ✅ GOOD — calculate during render
+const fullName = `${firstName} ${lastName}`
+
+// ✅ GOOD — expensive computation
+const filtered = useMemo(() => items.filter(expensivePredicate), [items])
+```
+
+#### B. Cascading form field resets — use `onChange` handlers
+
+```typescript
+// ❌ BAD — useEffect watches field, triggers another setState
+const scope = useWatch({ control, name: 'scope' })
+useEffect(() => {
+  setValue('roleName', '')
+}, [scope, setValue])
+
+// ✅ GOOD — reset in the same event that caused the change
+<FormSelect
+  onChange={(_event, value) => {
+    field.onChange(value)
+    setValue('roleName', '')
+  }}
+>
+```
+
+#### C. Notifying parent about state changes — update in handler
+
+```typescript
+// ❌ BAD — parent updates after child renders
+useEffect(() => {
+  onChange(isOn)
+}, [isOn, onChange])
+
+// ✅ GOOD — update both in the same handler
+function handleToggle() {
+  const next = !isOn
+  setIsOn(next)
+  onChange(next)
+}
+```
+
+#### D. Resetting state on prop change — use `key` or conditional reset
+
+```typescript
+// ❌ BAD — extra render with stale state
+useEffect(() => {
+  setComment('')
+}, [userId])
+
+// ✅ GOOD — key forces remount, state resets automatically
+<Profile userId={userId} key={userId} />
+
+// ✅ GOOD — conditional reset during render (no effect needed)
+if (!isOpen && destructiveAcknowledged) {
+  setDestructiveAcknowledged(false)
+}
+```
+
+#### E. Mirroring props in state — use the prop directly
+
+```typescript
+// ❌ BAD — local state mirrors prop
+const [isChecked, setIsChecked] = useState(checked)
+useEffect(() => { setIsChecked(checked) }, [checked])
+
+// ✅ GOOD — use prop directly, let parent control state
+<Switch isChecked={checked} onChange={(_e, v) => handleChange?.(v)} />
+```

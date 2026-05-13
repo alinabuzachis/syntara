@@ -115,10 +115,6 @@ export function AssignRoleModal({
   const scope = useWatch({ control, name: 'scope' })
 
   useEffect(() => {
-    setValue('roleIds', [])
-  }, [scope, setValue])
-
-  useEffect(() => {
     if (isOpen) {
       reset({ scope: 'system', projectId: '', roleIds: [] })
     }
@@ -231,7 +227,10 @@ export function AssignRoleModal({
                   id="scope-select"
                   ariaLabel="Scope"
                   value={field.value}
-                  onChange={field.onChange}
+                  onChange={(value) => {
+                    field.onChange(value)
+                    setValue('roleIds', [], { shouldValidate: true })
+                  }}
                   options={[
                     { value: 'system', label: 'System' },
                     { value: 'project', label: 'Project' },

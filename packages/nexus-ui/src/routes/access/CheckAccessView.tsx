@@ -16,7 +16,7 @@ import {
   StackItem,
 } from '@patternfly/react-core'
 import { CheckCircleIcon, ExclamationTriangleIcon, TimesCircleIcon } from '@patternfly/react-icons'
-import { useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 
@@ -127,9 +127,8 @@ export function CheckAccessView({ resourceTypes, actionsByResource }: Readonly<R
     [resourceType, actionsByResource]
   )
 
-  // Cascade: when resourceType changes, reset dependent fields
-  useEffect(() => {
-    const actions = actionsByResource.get(resourceType) ?? []
+  const resetDependentFields = (newResourceType: string) => {
+    const actions = actionsByResource.get(newResourceType) ?? []
     const currentAction = getValues('action')
     if (actions.length === 1) {
       setValue('action', actions[0])
@@ -137,7 +136,7 @@ export function CheckAccessView({ resourceTypes, actionsByResource }: Readonly<R
       setValue('action', '')
     }
     setValue('resourceId', '')
-  }, [resourceType, actionsByResource, setValue, getValues])
+  }
 
   const canIMutation = accessClient.useMutation('post', '/authz/can-i')
 
@@ -168,7 +167,10 @@ export function CheckAccessView({ resourceTypes, actionsByResource }: Readonly<R
                   ariaLabel="Resource type"
                   options={resourceTypes.map((rt) => ({ value: rt, label: rt }))}
                   selected={field.value}
-                  onChange={field.onChange}
+                  onChange={(value) => {
+                    field.onChange(value)
+                    resetDependentFields(value)
+                  }}
                   placeholder="Select a resource type"
                 />
               )}

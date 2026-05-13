@@ -270,6 +270,7 @@ Filter bar is visible when data exists or when filters are active; hidden only w
   - The primary action (Save / Create) is **always clickable** — never disable it because of missing required fields
   - When the user clicks Save with invalid or missing fields, apply `validated="error"` (danger styling) to the invalid fields and show a toast notification explaining what needs attention
   - Selecting/filling the required field clears the danger styling immediately
+- **Cascading field resets:** When one field change should clear or reset dependent fields (e.g., changing "Resource type" resets "Action"), put the reset logic in the field's `onChange` handler — not in a `useEffect` watching the field value. See [coding_standards.md §23](../../.claude/skills/coding_standards.md) and [React docs](https://react.dev/learn/you-might-not-need-an-effect).
 
 ### Typeahead Selector Patterns
 

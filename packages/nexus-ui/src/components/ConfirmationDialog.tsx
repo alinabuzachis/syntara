@@ -1,5 +1,5 @@
 import { Button, Checkbox, Modal, ModalBody, ModalFooter, ModalHeader, Stack, StackItem } from '@patternfly/react-core'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 
 type ConfirmVariant = 'primary' | 'danger'
 
@@ -90,12 +90,10 @@ export function ConfirmationDialog({
 }: Readonly<ConfirmationDialogProps>) {
   const [destructiveAcknowledged, setDestructiveAcknowledged] = useState(false)
 
-  useEffect(() => {
-    if (!isOpen) return
-    queueMicrotask(() => {
-      setDestructiveAcknowledged(false)
-    })
-  }, [isOpen])
+  // Reset acknowledgement state when the dialog is not visible, so reopening starts clean.
+  if (!isOpen && destructiveAcknowledged) {
+    setDestructiveAcknowledged(false)
+  }
 
   const confirmDisabled = Boolean(destructiveAcknowledgement) && !destructiveAcknowledged
 

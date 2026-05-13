@@ -265,6 +265,10 @@ it('returns debounced value after delay', async () => {
 
 This ensures the 80% coverage threshold is met on the hook file independently, and prevents regressions when the consuming component changes.
 
+### 5. Unnecessary `useEffect` in Hooks
+
+The ESLint plugin `eslint-plugin-react-you-might-not-need-an-effect` (configured at `warn` level) catches most unnecessary `useEffect` patterns automatically. See [coding_standards.md §23](coding_standards.md) for details.
+
 ---
 
 ## Quick Reference

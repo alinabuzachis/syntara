@@ -1,5 +1,4 @@
 import { Switch } from '@patternfly/react-core'
-import { useState, useEffect } from 'react'
 
 export function SwitchCell(props: {
   checked?: boolean
@@ -16,26 +15,17 @@ export function SwitchCell(props: {
     disabledLabel = 'Disabled',
     handleChange,
   } = props
-  const [isChecked, setIsChecked] = useState(checked)
-
-  // Update local state when prop changes
-  useEffect(() => {
-    setIsChecked(checked)
-  }, [checked])
 
   let label: string | undefined
   if (showLabels) {
-    label = isChecked ? enabledLabel : disabledLabel
+    label = checked ? enabledLabel : disabledLabel
   }
 
   return (
     <Switch
-      isChecked={isChecked}
+      isChecked={checked}
       label={label}
       onChange={(_event, newChecked) => {
-        // Update local state for visual toggle
-        setIsChecked(newChecked)
-        // Call handleChange (even if empty, allows toggle without API calls)
         handleChange?.(newChecked)
       }}
     />

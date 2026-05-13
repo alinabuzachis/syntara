@@ -11,6 +11,7 @@ import sonarjs from 'eslint-plugin-sonarjs'
 import unicorn from 'eslint-plugin-unicorn'
 import vitest from '@vitest/eslint-plugin'
 import pluginQuery from '@tanstack/eslint-plugin-query'
+import reactUseEffect from 'eslint-plugin-react-you-might-not-need-an-effect'
 import tseslint from 'typescript-eslint'
 import eslintConfigPrettier from 'eslint-config-prettier'
 import nexusPlugin from './eslint-plugin-nexus/index.js'
@@ -96,6 +97,7 @@ export default tseslint.config(
       sonarjs,
       unicorn,
       nexus: nexusPlugin,
+      reactYouMightNotNeedAnEffect: reactUseEffect,
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
@@ -174,6 +176,15 @@ export default tseslint.config(
       'nexus/prefer-pf-text-components': 'error',
       'nexus/use-design-tokens-not-hardcoded': 'error',
       'nexus/prefer-confirmation-dialog': 'warn',
+      // Catch unnecessary useEffect patterns. Aligns with https://react.dev/learn/you-might-not-need-an-effect
+      'reactYouMightNotNeedAnEffect/no-derived-state': 'warn',
+      'reactYouMightNotNeedAnEffect/no-chain-state-updates': 'warn',
+      'reactYouMightNotNeedAnEffect/no-event-handler': 'warn',
+      'reactYouMightNotNeedAnEffect/no-adjust-state-on-prop-change': 'warn',
+      'reactYouMightNotNeedAnEffect/no-reset-all-state-on-prop-change': 'warn',
+      'reactYouMightNotNeedAnEffect/no-pass-live-state-to-parent': 'warn',
+      'reactYouMightNotNeedAnEffect/no-pass-data-to-parent': 'warn',
+      'reactYouMightNotNeedAnEffect/no-initialize-state': 'warn',
     },
   },
   {
@@ -204,6 +215,14 @@ export default tseslint.config(
       'nexus/prefer-pf-text-components': 'off',
       'nexus/use-design-tokens-not-hardcoded': 'off',
       'nexus/prefer-confirmation-dialog': 'off',
+      'reactYouMightNotNeedAnEffect/no-derived-state': 'off',
+      'reactYouMightNotNeedAnEffect/no-chain-state-updates': 'off',
+      'reactYouMightNotNeedAnEffect/no-event-handler': 'off',
+      'reactYouMightNotNeedAnEffect/no-adjust-state-on-prop-change': 'off',
+      'reactYouMightNotNeedAnEffect/no-reset-all-state-on-prop-change': 'off',
+      'reactYouMightNotNeedAnEffect/no-pass-live-state-to-parent': 'off',
+      'reactYouMightNotNeedAnEffect/no-pass-data-to-parent': 'off',
+      'reactYouMightNotNeedAnEffect/no-initialize-state': 'off',
     },
   },
   {
