@@ -1,10 +1,13 @@
 """Authorization engine: combines policy resolution and OPA evaluation."""
 
+import hashlib
+import json
 from dataclasses import dataclass, field
 from typing import Any
 from uuid import UUID
 
 import structlog
+from cachetools import TTLCache
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -19,6 +22,74 @@ logger = structlog.stdlib.get_logger(__name__)
 PROJECT_ADMIN_ROLE_NAME = "project-admin"
 PROJECT_USER_ROLE_NAME = "project-user"
 AUTHENTICATED_GROUP_NAME = "authenticated"
+
+# ---------------------------------------------------------------------------
+# In-process TTL cache for OPA evaluation results
+# ---------------------------------------------------------------------------
+# Keyed by SHA-256 of the canonical OPA input.  Because the key includes
+# effective_policies and groups (resolved fresh from the DB on every
+# request), a permission change produces a different hash and automatically
+# misses the cache — no explicit invalidation is needed.
+
+_opa_cache: TTLCache[str, dict[str, Any]] | None = None
+
+
+def init_opa_cache(*, enabled: bool = True, ttl_seconds: int = 300, maxsize: int = 2048) -> None:
+    """Initialize the OPA result cache.  Called once at app startup."""
+    global _opa_cache  # noqa: PLW0603
+    if enabled:
+        _opa_cache = TTLCache(maxsize=maxsize, ttl=ttl_seconds)
+        logger.info("OPA result cache initialized", ttl_seconds=ttl_seconds, maxsize=maxsize)
+    else:
+        _opa_cache = None
+        logger.info("OPA result cache disabled")
+
+
+def clear_opa_cache() -> None:
+    """Clear the OPA result cache."""
+    if _opa_cache is not None:
+        _opa_cache.clear()
+
+
+def _hash_opa_input(opa_input: dict[str, Any]) -> str:
+    """Produce a stable hash key for an OPA input dict.
+
+    Lists inside the input (e.g. effective_policies, groups) are sorted
+    before serialisation so that key stability does not depend on DB query
+    ordering.
+    """
+    stabilised = _sort_lists(opa_input)
+    canonical = json.dumps(stabilised, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode()).hexdigest()
+
+
+def _sort_lists(obj: object) -> object:
+    """Recursively sort lists so JSON serialisation is order-independent."""
+    if isinstance(obj, dict):
+        return {k: _sort_lists(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        sorted_items = [_sort_lists(i) for i in obj]
+        try:
+            return sorted(sorted_items, key=lambda x: json.dumps(x, sort_keys=True))
+        except TypeError:
+            return sorted_items
+    return obj
+
+
+async def _evaluate_opa(
+    opa_client: OPAClient,
+    opa_input: dict[str, Any],
+) -> dict[str, Any]:
+    """Evaluate OPA input, using the cache when available."""
+    if _opa_cache is not None:
+        key = _hash_opa_input(opa_input)
+        cached = _opa_cache.get(key)
+        if cached is not None:
+            return dict(cached)
+        result = await opa_client.evaluate(opa_input)
+        _opa_cache[key] = result
+        return result
+    return await opa_client.evaluate(opa_input)
 
 
 @dataclass
@@ -93,7 +164,7 @@ async def authorize(
         "effective_policies": effective,
     }
 
-    opa_result = await opa_client.evaluate(opa_input)
+    opa_result = await _evaluate_opa(opa_client, opa_input)
 
     result = AuthzResult(
         allowed=opa_result.get("allow", False),
@@ -161,7 +232,7 @@ async def _evaluate_list_scope(
         "effective_policies": effective,
     }
 
-    opa_result = await opa_client.evaluate(opa_input)
+    opa_result = await _evaluate_opa(opa_client, opa_input)
     allowed_projects: list[str] = list(opa_result.get("allowed_projects", []))
     return effective, groups, allowed_projects
 
@@ -280,7 +351,7 @@ async def resolve_readable_project_ids(
         "groups": groups,
         "effective_policies": effective,
     }
-    opa_result = await opa_client.evaluate(opa_input)
+    opa_result = await _evaluate_opa(opa_client, opa_input)
     readable_names: list[str] = list(opa_result.get("allowed_projects", []))
 
     if "*" in readable_names:

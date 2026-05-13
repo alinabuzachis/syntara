@@ -1380,6 +1380,23 @@ class AuthzSettings(BaseSettings):
         description="Default project name for resources without a project",
     )
 
+    opa_cache_enabled: bool = Field(
+        default=True,
+        description="Enable in-process TTL cache for OPA evaluation results",
+    )
+
+    opa_cache_ttl_seconds: int = Field(
+        default=300,
+        ge=1,
+        description="TTL in seconds for the OPA result cache",
+    )
+
+    opa_cache_maxsize: int = Field(
+        default=2048,
+        ge=1,
+        description="Maximum number of entries in the OPA result cache (LRU eviction)",
+    )
+
 
 # =============================================================================
 # Main Settings

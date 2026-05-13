@@ -214,6 +214,14 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
         raise RuntimeError(msg)
     app.state.opa_client = opa_client
 
+    from nexus.authz.engine import init_opa_cache  # noqa: PLC0415
+
+    init_opa_cache(
+        enabled=settings.opa_cache_enabled,
+        ttl_seconds=settings.opa_cache_ttl_seconds,
+        maxsize=settings.opa_cache_maxsize,
+    )
+
     _discover_and_register_audit_handlers()
 
     # Initialize telemetry (reads installation ID from database)

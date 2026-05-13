@@ -9,7 +9,7 @@ isolation) because integration tests often create data that must be visible
 across multiple database connections (e.g. API clients, concurrent sessions).
 """
 
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Generator
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -18,6 +18,8 @@ import pytest_asyncio
 import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
+
+from nexus.authz.engine import clear_opa_cache, init_opa_cache
 
 
 async def _truncate_all_tables(engine: AsyncEngine) -> None:
@@ -75,6 +77,14 @@ async def test_db_session(test_db_engine: AsyncEngine) -> AsyncGenerator[AsyncSe
         raise
     finally:
         await session.close()
+
+
+@pytest.fixture(autouse=True)
+def _reset_opa_cache() -> Generator[None, None, None]:
+    """Reset OPA cache between integration tests."""
+    init_opa_cache(enabled=True, ttl_seconds=300)
+    yield
+    clear_opa_cache()
 
 
 @pytest.fixture(autouse=True)
