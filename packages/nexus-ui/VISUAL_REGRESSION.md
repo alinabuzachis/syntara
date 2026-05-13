@@ -14,15 +14,43 @@ Automated screenshot testing for every page in the application.
 - **`fullPage: true`** captures the entire scrollable page, including content below the fold.
 - **Pinned runner** -- CI uses `ubuntu-24.04` (not `ubuntu-latest`) to guarantee consistent font rendering and system libraries across runs.
 
-## Advisory, Not Blocking
+## Workflow Overview
 
-Visual regression is a **review aid**, not a merge gate. The CI job always reports success regardless of whether screenshots match. Instead of blocking the PR, it posts a comment on the PR showing pass/fail status and links to diff artifacts.
+```mermaid
+flowchart TD
+    A[Push PR / Force-push] --> B[CI takes screenshots]
+    B --> C{Screenshots match baselines?}
+    C -- Yes --> D[Visual Regression PASSES]
+    D --> E[PR can merge]
+    C -- No --> F[Visual Regression FAILS — PR blocked]
+    F --> G{Are the changes intentional?}
+    G -- Yes --> H["Comment /update-screenshots on the PR"]
+    H --> I[Bot regenerates baselines & commits to branch]
+    I --> J[CI re-runs automatically]
+    J --> C
+    G -- No --> K[Fix the code and push again]
+    K --> B
 
-- **On every PR**: CI takes screenshots and compares them to committed baselines. Results are posted as a PR comment.
-- **If screenshots changed**: Reviewers should inspect the comment and diff artifacts to decide whether the changes are intentional.
-  - If intentional, comment `/update-screenshots` on the PR to regenerate baselines.
-  - If unintentional, fix the code and push again.
-- **Merging is not blocked**: The visual regression check does not prevent merging. It is the reviewer's responsibility to check the PR comment before approving.
+    style D fill:#2da44e,color:#fff
+    style F fill:#cf222e,color:#fff
+    style H fill:#0969da,color:#fff
+```
+
+**Key points:**
+
+- Every PR gets screenshots compared to committed baselines
+- If they differ, CI **blocks merge** until you either fix the code or update baselines
+- Comment `/update-screenshots` to accept intentional visual changes — the bot commits new baselines and CI re-runs
+- After a force-push, always run `/update-screenshots` again (force-push drops bot commits)
+
+## Merge-Blocking Check
+
+Visual regression is a **required merge gate**. The CI job must pass for the PR to merge.
+
+- **On every PR**: CI takes screenshots and compares them to committed baselines. If any screenshot differs or the baseline coverage check fails, the job fails and blocks merge. For same-repo PRs, results are posted as a PR comment with diff artifacts. Forked PRs do not receive the automated comment but still get the blocking check and downloadable artifacts.
+- **If screenshots changed intentionally**: Comment `/update-screenshots` on the PR to regenerate baselines. CI re-runs and passes once baselines match.
+- **If screenshots changed unintentionally**: Fix the code and push again.
+- **Force-push warning**: If you rebase and force-push after `/update-screenshots` has committed baseline updates, those bot commits will be lost. Always run `/update-screenshots` again after any force-push to ensure baselines are current.
 
 ## Three Flows
 
@@ -41,10 +69,10 @@ Visual regression is a **review aid**, not a merge gate. The CI job always repor
    },
    ```
 3. Push your PR
-4. CI posts a comment indicating missing baselines (the job still passes)
+4. CI fails with missing baselines -- the PR comment shows which pages need screenshots
 5. Comment `/update-screenshots` on the PR
 6. The workflow generates Linux baselines and commits them to your branch
-7. CI re-runs and the comment shows all screenshots matching
+7. CI re-runs, baselines match, and the job passes
 
 If the route is intentionally unimplemented, add it to `excludedUnimplemented` in `page-registry.ts` instead.
 
@@ -52,11 +80,11 @@ If the route is intentionally unimplemented, add it to `excludedUnimplemented` i
 
 1. Make your UI changes
 2. Push your PR
-3. CI posts a comment showing screenshot diffs (the job still passes)
-4. Review the diff artifacts in the CI run to confirm changes are intentional
+3. CI fails because screenshots differ from baselines -- the PR comment shows diffs
+4. Review the diff artifacts to confirm changes are intentional
 5. Comment `/update-screenshots` on the PR
 6. Baselines are regenerated and committed
-7. CI re-runs and the comment shows all screenshots matching
+7. CI re-runs, baselines match, and the job passes
 
 **If you remove committed `*-linux.png` files** (for example to force a full regen when diffs stay under `maxDiffPixelRatio`), **run `/update-screenshots` or commit fresh Linux baselines before merge**. Otherwise CI diffs are misleading and other branches lack up-to-date references.
 

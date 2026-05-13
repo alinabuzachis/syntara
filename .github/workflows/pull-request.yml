@@ -471,6 +471,24 @@ jobs:
               });
             }
 
+      - name: Fail job if visual regression detected issues
+        if: always()
+        run: |
+          if [[ "${{ steps.screenshots.outcome }}" == "failure" ]] || \
+             [[ "${{ steps.baselines.outcome }}" == "failure" ]]; then
+            echo "::error::Visual regression failed — screenshots differ from baselines."
+            echo ""
+            echo "This check catches unintentional UI drift. If your PR changes the UI intentionally,"
+            echo "comment /update-screenshots on the PR to regenerate baselines."
+            echo "If the diff is unexpected, fix the code and push again."
+            echo ""
+            echo "  screenshots: ${{ steps.screenshots.outcome }}"
+            echo "  baselines:   ${{ steps.baselines.outcome }}"
+            echo ""
+            echo "See the PR comment for diff images. Docs: packages/nexus-ui/VISUAL_REGRESSION.md"
+            exit 1
+          fi
+
   storybook-build:
     name: Storybook Build
     runs-on: ubuntu-latest
@@ -569,6 +587,7 @@ jobs:
       - storybook-build
       - test-build
       - e2e-gate
+      - visual-regression
     steps:
       - name: Check required jobs passed
         run: |
@@ -577,7 +596,8 @@ jobs:
              [[ "${{ needs.coverage-report.result }}" != "success" ]] || \
              [[ "${{ needs.storybook-build.result }}" != "success" ]] || \
              [[ "${{ needs.test-build.result }}" != "success" ]] || \
-             [[ "${{ needs.e2e-gate.result }}" != "success" ]]; then
+             [[ "${{ needs.e2e-gate.result }}" != "success" ]] || \
+             [[ "${{ needs.visual-regression.result }}" != "success" ]]; then
             echo "Required jobs failed:"
             echo "  checks: ${{ needs.checks.result }}"
             echo "  unit-tests: ${{ needs.unit-tests.result }}"
@@ -585,6 +605,7 @@ jobs:
             echo "  storybook-build: ${{ needs.storybook-build.result }}"
             echo "  test-build: ${{ needs.test-build.result }}"
             echo "  e2e-gate: ${{ needs.e2e-gate.result }}"
+            echo "  visual-regression: ${{ needs.visual-regression.result }}"
             exit 1
           fi
           echo "All required checks passed"

@@ -3339,4 +3339,49 @@ export const handlers = [
       denied_by: '',
     })
   }),
+
+  http.post('/api/v1/authz/who-can', async ({ request }) => {
+    const body = (await request.json()) as { resource_type?: string; action?: string } | null
+    const resourceType = body?.resource_type ?? 'workflow'
+    const action = body?.action ?? 'read'
+
+    const mockUsers = [
+      { id: 'a1b2c3d4-0000-0000-0000-000000000001', username: 'demo' },
+      { id: 'a1b2c3d4-0000-0000-0000-000000000002', username: 'admin' },
+      { id: 'a1b2c3d4-0000-0000-0000-000000000003', username: 'operator' },
+    ]
+
+    const users =
+      action === 'delete'
+        ? mockUsers.filter((u) => u.username === 'admin')
+        : resourceType === 'setting'
+          ? mockUsers.filter((u) => u.username !== 'operator')
+          : mockUsers
+
+    return HttpResponse.json({ users, next_cursor: null })
+  }),
+
+  http.post('/api/v1/authz/what-can-i', () => {
+    return HttpResponse.json({
+      permissions: [
+        {
+          policy_name: 'admin-policy',
+          effect: 'allow',
+          actions: ['create', 'read', 'update', 'delete'],
+          scope: 'system',
+          project: '',
+        },
+        { policy_name: 'admin-policy', effect: 'allow', actions: ['read', 'run'], scope: 'system', project: '' },
+        {
+          policy_name: 'project-editor',
+          effect: 'allow',
+          actions: ['create', 'read', 'update'],
+          scope: 'project',
+          project: 'default',
+        },
+        { policy_name: 'project-viewer', effect: 'allow', actions: ['read'], scope: 'project', project: 'production' },
+        { policy_name: 'audit-reader', effect: 'allow', actions: ['read'], scope: 'system', project: '' },
+      ],
+    })
+  }),
 ]

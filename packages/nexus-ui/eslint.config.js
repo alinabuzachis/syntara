@@ -194,7 +194,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
+    files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}', 'e2e/visual-regression/**/*.ts'],
     rules: {
       'max-lines': 'off',
       'max-lines-per-function': 'off',
