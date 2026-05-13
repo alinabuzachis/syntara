@@ -1,6 +1,6 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
+import { render, screen, waitFor, act, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ReactFlowProvider } from '@xyflow/react'
 import type { ComponentProps, ReactNode } from 'react'
@@ -375,19 +375,23 @@ describe('BuilderContent', () => {
 
   describe('Workflow Name Input', () => {
     it('updates name when typing', async () => {
+      const user = userEvent.setup()
       await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
       const nameInput = screen.getByPlaceholderText('Workflow name')
-      fireEvent.change(nameInput, { target: { value: 'My New Workflow' } })
+      await user.clear(nameInput)
+      await user.type(nameInput, 'My New Workflow')
       expect(nameInput).toHaveValue('My New Workflow')
     })
 
     it('marks workflow dirty when name changes', async () => {
+      const user = userEvent.setup()
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
       const nameInput = screen.getByPlaceholderText('Workflow name')
-      fireEvent.change(nameInput, { target: { value: 'Changed Name' } })
+      await user.clear(nameInput)
+      await user.type(nameInput, 'Changed Name')
       // This tests SET_WORKFLOW_NAME reducer action and markDirty()
     })
   })
@@ -398,9 +402,10 @@ describe('BuilderContent', () => {
 
   describe('Add step panel', () => {
     it('opens Add step panel when Add Step button is clicked', async () => {
+      const user = userEvent.setup()
       await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
       const addNodeButton = screen.getByRole('button', { name: /add step/i })
-      fireEvent.click(addNodeButton)
+      await user.click(addNodeButton)
       await waitFor(() => {
         expect(screen.getByRole('region', { name: 'Add step' })).toBeInTheDocument()
       })
@@ -432,7 +437,8 @@ describe('BuilderContent', () => {
       await renderBuilder({ workflow: workflowWithNodes, isNew: false, workflowId: 'workflow-1' })
 
       // Open panel
-      fireEvent.click(screen.getByRole('button', { name: /add step/i }))
+      const user = userEvent.setup()
+      await user.click(screen.getByRole('button', { name: /add step/i }))
       await waitFor(() => {
         expect(screen.getByRole('region', { name: 'Add step' })).toBeInTheDocument()
       })
@@ -440,7 +446,7 @@ describe('BuilderContent', () => {
       // Find close button by aria-label "Close" in the panel
       const closeButtons = screen.getAllByLabelText('Close')
       // Click the first close button (panel close)
-      fireEvent.click(closeButtons[0])
+      await user.click(closeButtons[0])
 
       // Panel should close (tests CLOSE_ADD_NODE_PANEL reducer)
       await waitFor(() => {
@@ -449,13 +455,14 @@ describe('BuilderContent', () => {
     })
 
     it('opens step editor when selecting a step type from add step panel', async () => {
+      const user = userEvent.setup()
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
 
       // Open add step panel
-      fireEvent.click(screen.getByRole('button', { name: /add step/i }))
+      await user.click(screen.getByRole('button', { name: /add step/i }))
       await waitFor(() => {
         expect(screen.getByRole('region', { name: 'Add step' })).toBeInTheDocument()
       })
@@ -466,7 +473,7 @@ describe('BuilderContent', () => {
       for (const nodeName of nodeOptions) {
         const option = screen.queryByText(nodeName)
         if (option) {
-          fireEvent.click(option)
+          await user.click(option)
           // This should trigger OPEN_NODE_EDITOR_ADD action or show subtypes
           break
         }
@@ -512,6 +519,7 @@ describe('BuilderContent', () => {
     })
 
     it('updates workflow name via sidepanel input', async () => {
+      const user = userEvent.setup()
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
@@ -527,13 +535,15 @@ describe('BuilderContent', () => {
 
       // Find the sidepanel name input (distinct from header "Workflow name")
       const sidepanelNameInput = screen.getByLabelText('Workflow name in workflow details')
-      fireEvent.change(sidepanelNameInput, { target: { value: 'Updated Via Sidepanel' } })
+      await user.clear(sidepanelNameInput)
+      await user.type(sidepanelNameInput, 'Updated Via Sidepanel')
 
       // Verify the name was updated
       expect(sidepanelNameInput).toHaveValue('Updated Via Sidepanel')
     })
 
     it('updates workflow description via sidepanel textarea', async () => {
+      const user = userEvent.setup()
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
@@ -549,7 +559,8 @@ describe('BuilderContent', () => {
 
       // Find the sidepanel description textarea and change it (tests onDescriptionChange callback - lines 1159-1162)
       const descriptionTextarea = screen.getByLabelText('Description')
-      fireEvent.change(descriptionTextarea, { target: { value: 'New Description' } })
+      await user.clear(descriptionTextarea)
+      await user.type(descriptionTextarea, 'New Description')
 
       // Verify the description was updated
       expect(descriptionTextarea).toHaveValue('New Description')
@@ -584,6 +595,7 @@ describe('BuilderContent', () => {
     })
 
     it('closes sidepanel via its close button', async () => {
+      const user = userEvent.setup()
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
@@ -602,7 +614,7 @@ describe('BuilderContent', () => {
       const closeButtons = screen.getAllByLabelText('Close')
       // Click the first close button which belongs to the sidepanel (not a modal)
       expect(closeButtons.length).toBeGreaterThan(0)
-      fireEvent.click(closeButtons[0])
+      await user.click(closeButtons[0])
 
       // Sidepanel should close - the title should no longer be visible
       await waitFor(() => {
@@ -617,12 +629,13 @@ describe('BuilderContent', () => {
 
   describe('Run Workflow', () => {
     it('opens run confirmation dialog when Run button is clicked', async () => {
+      const user = userEvent.setup()
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
 
-      fireEvent.click(screen.getByRole('button', { name: 'Run' }))
+      await user.click(screen.getByRole('button', { name: 'Run' }))
 
       await waitFor(() => {
         expect(screen.getByText(/Run Test Workflow\?/)).toBeInTheDocument()
@@ -631,15 +644,16 @@ describe('BuilderContent', () => {
     })
 
     it('can cancel run dialog', async () => {
+      const user = userEvent.setup()
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
 
-      fireEvent.click(screen.getByRole('button', { name: 'Run' }))
+      await user.click(screen.getByRole('button', { name: 'Run' }))
       await screen.findByText(/Run Test Workflow\?/)
 
-      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+      await user.click(screen.getByRole('button', { name: 'Cancel' }))
 
       await waitFor(() => {
         expect(screen.queryByText(/Run Test Workflow\?/)).not.toBeInTheDocument()
@@ -710,15 +724,16 @@ describe('BuilderContent', () => {
     })
 
     it('closes run modal via modal onClose', async () => {
+      const user = userEvent.setup()
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
 
-      fireEvent.click(screen.getByRole('button', { name: 'Run' }))
+      await user.click(screen.getByRole('button', { name: 'Run' }))
       await screen.findByText(/Run Test Workflow\?/)
 
-      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+      await user.click(screen.getByRole('button', { name: 'Cancel' }))
 
       await waitFor(() => {
         expect(screen.queryByText(/Run Test Workflow\?/)).not.toBeInTheDocument()
@@ -780,9 +795,10 @@ describe('BuilderContent', () => {
       // New workflow with no activities - component initializes default workflow
       await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
 
+      const user = userEvent.setup()
       const saveButton = screen.getByRole('button', { name: /save/i })
       expect(saveButton).toBeInTheDocument()
-      fireEvent.click(saveButton)
+      await user.click(saveButton)
 
       // Tests handleSaveWorkflow path for new workflow
       // Empty workflows pass validation, so create mutation should be called
@@ -810,8 +826,9 @@ describe('BuilderContent', () => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
 
+      const user = userEvent.setup()
       const saveButton = screen.getByRole('button', { name: /save/i })
-      fireEvent.click(saveButton)
+      await user.click(saveButton)
 
       await waitFor(() => {
         expect(mockUpdateMutate).toHaveBeenCalled()
@@ -834,8 +851,9 @@ describe('BuilderContent', () => {
 
       await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
 
+      const user = userEvent.setup()
       const saveButton = screen.getByRole('button', { name: /save/i })
-      fireEvent.click(saveButton)
+      await user.click(saveButton)
 
       await waitFor(() => {
         expect(mockCreateMutate).toHaveBeenCalled()
@@ -861,8 +879,9 @@ describe('BuilderContent', () => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
 
+      const user = userEvent.setup()
       const saveButton = screen.getByRole('button', { name: /save/i })
-      fireEvent.click(saveButton)
+      await user.click(saveButton)
 
       await waitFor(() => {
         expect(screen.getByText('Failed to update workflow: Server error')).toBeInTheDocument()
@@ -885,8 +904,9 @@ describe('BuilderContent', () => {
 
       await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
 
+      const user = userEvent.setup()
       const saveButton = screen.getByRole('button', { name: /save/i })
-      fireEvent.click(saveButton)
+      await user.click(saveButton)
 
       await waitFor(() => {
         expect(screen.getByText('Failed to create workflow: Create failed')).toBeInTheDocument()
@@ -934,8 +954,9 @@ describe('BuilderContent', () => {
         expect(screen.getByText('Enabled')).toBeInTheDocument()
       })
 
+      const user = userEvent.setup()
       // Toggle the workflow enabled switch
-      fireEvent.click(screen.getByRole('switch'))
+      await user.click(screen.getByRole('switch'))
       // Tests SET_IS_ENABLED reducer action
       await waitFor(() => {
         expect(screen.getByText('Disabled')).toBeInTheDocument()
@@ -1044,8 +1065,9 @@ describe('BuilderContent', () => {
       })
 
       // Find and click close button (tests onClose callback - line 1156)
+      const user = userEvent.setup()
       const closeButton = screen.getByLabelText('Close')
-      fireEvent.click(closeButton)
+      await user.click(closeButton)
 
       // Panel should close
       await waitFor(() => {
@@ -1090,9 +1112,10 @@ describe('BuilderContent', () => {
         expect(screen.getByText('Run History')).toBeInTheDocument()
       })
 
+      const user = userEvent.setup()
       const row = screen.getByRole('button', { name: /Completed/i })
       expect(row).toBeInTheDocument()
-      fireEvent.click(row)
+      await user.click(row)
       await waitFor(() => {
         expect(mockRequestNavigation).toHaveBeenCalledWith('/executions/exec-1')
       })
@@ -1107,8 +1130,9 @@ describe('BuilderContent', () => {
     it('opens kebab menu when clicked', async () => {
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
+      const user = userEvent.setup()
       const kebabButton = screen.getByLabelText('Workflow actions')
-      fireEvent.click(kebabButton)
+      await user.click(kebabButton)
 
       await waitFor(() => {
         expect(screen.getByText('Delete workflow')).toBeInTheDocument()
@@ -1118,30 +1142,32 @@ describe('BuilderContent', () => {
     it('closes kebab menu when item is selected', async () => {
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
+      const user = userEvent.setup()
       const kebabButton = screen.getByLabelText('Workflow actions')
-      fireEvent.click(kebabButton)
+      await user.click(kebabButton)
 
       await waitFor(() => {
         expect(screen.getByText('Delete workflow')).toBeInTheDocument()
       })
 
       // Tests SET_KEBAB_OPEN reducer action via onSelect
-      fireEvent.click(screen.getByText('Delete workflow'))
+      await user.click(screen.getByText('Delete workflow'))
     })
 
     it('closes kebab menu when clicking toggle again', async () => {
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
+      const user = userEvent.setup()
       const kebabButton = screen.getByLabelText('Workflow actions')
 
       // Open
-      fireEvent.click(kebabButton)
+      await user.click(kebabButton)
       await waitFor(() => {
         expect(screen.getByText('Delete workflow')).toBeInTheDocument()
       })
 
       // Close
-      fireEvent.click(kebabButton)
+      await user.click(kebabButton)
     })
   })
 
@@ -1151,12 +1177,13 @@ describe('BuilderContent', () => {
 
   describe('Delete Modal', () => {
     it('opens delete modal when delete option is clicked', async () => {
+      const user = userEvent.setup()
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       const kebabButton = screen.getByLabelText('Workflow actions')
-      fireEvent.click(kebabButton)
+      await user.click(kebabButton)
 
-      fireEvent.click(await screen.findByText('Delete workflow'))
+      await user.click(await screen.findByText('Delete workflow'))
 
       await waitFor(() => {
         expect(screen.getByText('Delete workflow?')).toBeInTheDocument()
@@ -1164,14 +1191,15 @@ describe('BuilderContent', () => {
     })
 
     it('closes delete modal when cancel is clicked', async () => {
+      const user = userEvent.setup()
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
-      fireEvent.click(screen.getByLabelText('Workflow actions'))
-      fireEvent.click(await screen.findByText('Delete workflow'))
+      await user.click(screen.getByLabelText('Workflow actions'))
+      await user.click(await screen.findByText('Delete workflow'))
 
       await screen.findByText('Delete workflow?')
 
-      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+      await user.click(screen.getByRole('button', { name: 'Cancel' }))
 
       await waitFor(() => {
         expect(screen.queryByText('Delete workflow?')).not.toBeInTheDocument()
@@ -1192,14 +1220,15 @@ describe('BuilderContent', () => {
         return createMockMutation()
       })
 
+      const user = userEvent.setup()
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
-      fireEvent.click(screen.getByLabelText('Workflow actions'))
-      fireEvent.click(await screen.findByText('Delete workflow'))
+      await user.click(screen.getByLabelText('Workflow actions'))
+      await user.click(await screen.findByText('Delete workflow'))
 
       await screen.findByText('Delete workflow?')
-      fireEvent.click(screen.getByRole('checkbox', { name: /I understand this workflow will be permanently deleted/ }))
-      fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+      await user.click(screen.getByRole('checkbox', { name: /I understand this workflow will be permanently deleted/ }))
+      await user.click(screen.getByRole('button', { name: 'Delete' }))
 
       await waitFor(() => {
         expect(mockDeleteMutate).toHaveBeenCalled()
@@ -1221,14 +1250,15 @@ describe('BuilderContent', () => {
         return createMockMutation()
       })
 
+      const user = userEvent.setup()
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
-      fireEvent.click(screen.getByLabelText('Workflow actions'))
-      fireEvent.click(await screen.findByText('Delete workflow'))
+      await user.click(screen.getByLabelText('Workflow actions'))
+      await user.click(await screen.findByText('Delete workflow'))
 
       await screen.findByText('Delete workflow?')
-      fireEvent.click(screen.getByRole('checkbox', { name: /I understand this workflow will be permanently deleted/ }))
-      fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+      await user.click(screen.getByRole('checkbox', { name: /I understand this workflow will be permanently deleted/ }))
+      await user.click(screen.getByRole('button', { name: 'Delete' }))
 
       await waitFor(() => {
         expect(mockDeleteMutate).toHaveBeenCalled()
@@ -1236,18 +1266,19 @@ describe('BuilderContent', () => {
     })
 
     it('closes delete modal via X button', async () => {
+      const user = userEvent.setup()
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       // Open kebab menu and click delete
-      fireEvent.click(screen.getByLabelText('Workflow actions'))
-      fireEvent.click(await screen.findByText('Delete workflow'))
+      await user.click(screen.getByLabelText('Workflow actions'))
+      await user.click(await screen.findByText('Delete workflow'))
 
       // Wait for delete modal to open
       await screen.findByText('Delete workflow?')
 
       // Find the modal's X close button (tests onClose callback)
       const modal = screen.getByRole('dialog')
-      fireEvent.click(within(modal).getByRole('button', { name: 'Close' }))
+      await user.click(within(modal).getByRole('button', { name: 'Close' }))
 
       // Modal should close
       await waitFor(() => {
@@ -1562,10 +1593,11 @@ describe('BuilderContent', () => {
     } as unknown as WorkflowWithVersion
 
     it('TOGGLE_DETAILS closes add step panel when opening details', async () => {
+      const user = userEvent.setup()
       await renderBuilder({ workflow: workflowWithNodes, isNew: false, workflowId: 'workflow-1' })
 
       // First open add step panel
-      fireEvent.click(screen.getByRole('button', { name: /add step/i }))
+      await user.click(screen.getByRole('button', { name: /add step/i }))
       await waitFor(() => {
         expect(screen.getByRole('region', { name: 'Add step' })).toBeInTheDocument()
       })
@@ -1579,10 +1611,11 @@ describe('BuilderContent', () => {
     })
 
     it('TOGGLE_HISTORY closes add step panel when opening history', async () => {
+      const user = userEvent.setup()
       await renderBuilder({ workflow: workflowWithNodes, isNew: false, workflowId: 'workflow-1' })
 
       // First open add step panel
-      fireEvent.click(screen.getByRole('button', { name: /add step/i }))
+      await user.click(screen.getByRole('button', { name: /add step/i }))
       await waitFor(() => {
         expect(screen.getByRole('region', { name: 'Add step' })).toBeInTheDocument()
       })
@@ -1616,8 +1649,10 @@ describe('BuilderContent', () => {
       await waitFor(() => {
         expect(screen.getByLabelText('Description')).toBeInTheDocument()
       })
+      const user = userEvent.setup()
       const descriptionTextarea = screen.getByLabelText('Description')
-      fireEvent.change(descriptionTextarea, { target: { value: 'Updated via reducer test' } })
+      await user.clear(descriptionTextarea)
+      await user.type(descriptionTextarea, 'Updated via reducer test')
       expect(descriptionTextarea).toHaveValue('Updated via reducer test')
     })
 
@@ -1718,8 +1753,9 @@ describe('BuilderContent', () => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
 
+      const user = userEvent.setup()
       const saveButton = screen.getByRole('button', { name: /save/i })
-      fireEvent.click(saveButton)
+      await user.click(saveButton)
 
       await waitFor(() => {
         expect(mockUpdateMutate).toHaveBeenCalled()
@@ -1743,12 +1779,14 @@ describe('BuilderContent', () => {
       await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
 
       // Change name to trigger the workflow definition getter
+      const user = userEvent.setup()
       const nameInput = screen.getByPlaceholderText('Workflow name')
-      fireEvent.change(nameInput, { target: { value: 'Empty Workflow' } })
+      await user.clear(nameInput)
+      await user.type(nameInput, 'Empty Workflow')
 
       // Save triggers getWorkflowDefinition
       const saveButton = screen.getByRole('button', { name: /save/i })
-      fireEvent.click(saveButton)
+      await user.click(saveButton)
 
       await waitFor(() => {
         expect(mockCreateMutate).toHaveBeenCalled()
@@ -1770,10 +1808,11 @@ describe('BuilderContent', () => {
       // Verify component renders without crashing
       expect(container).toBeInTheDocument()
 
+      const user = userEvent.setup()
       // Run button may not be visible without id - tests guard clause
       const runButton = screen.queryByRole('button', { name: 'Run' })
       if (runButton) {
-        fireEvent.click(runButton)
+        await user.click(runButton)
       }
     })
 
@@ -1786,10 +1825,11 @@ describe('BuilderContent', () => {
       // Verify component renders without crashing
       expect(container).toBeInTheDocument()
 
+      const user = userEvent.setup()
       // Try to access kebab menu - if present, clicking should not throw
       const kebabButton = screen.queryByLabelText('Workflow actions')
       if (kebabButton) {
-        fireEvent.click(kebabButton)
+        await user.click(kebabButton)
       }
     })
 
@@ -1817,7 +1857,8 @@ describe('BuilderContent', () => {
       await clickKebabItem('Workflow details')
 
       // Then open add step panel - should close details
-      fireEvent.click(screen.getByRole('button', { name: /add step/i }))
+      const user = userEvent.setup()
+      await user.click(screen.getByRole('button', { name: /add step/i }))
 
       await waitFor(() => {
         expect(screen.getByRole('region', { name: 'Add step' })).toBeInTheDocument()
@@ -1834,7 +1875,8 @@ describe('BuilderContent', () => {
       })
 
       // Then open add step panel - should close history
-      fireEvent.click(screen.getByRole('button', { name: /add step/i }))
+      const user = userEvent.setup()
+      await user.click(screen.getByRole('button', { name: /add step/i }))
 
       await waitFor(() => {
         expect(screen.getByRole('region', { name: 'Add step' })).toBeInTheDocument()
@@ -1901,7 +1943,10 @@ describe('BuilderContent', () => {
       })
 
       // Change name without changing ID
-      fireEvent.change(screen.getByPlaceholderText('Workflow name'), { target: { value: 'Modified Name' } })
+      const user = userEvent.setup()
+      const nameInput = screen.getByPlaceholderText('Workflow name')
+      await user.clear(nameInput)
+      await user.type(nameInput, 'Modified Name')
 
       // Verify the name was changed
       expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Modified Name')
@@ -1944,7 +1989,8 @@ describe('BuilderContent', () => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
 
-      fireEvent.click(screen.getByRole('button', { name: /save/i }))
+      const user = userEvent.setup()
+      await user.click(screen.getByRole('button', { name: /save/i }))
 
       await waitFor(() => {
         expect(mockUpdateMutate).toHaveBeenCalled()
@@ -1963,7 +2009,8 @@ describe('BuilderContent', () => {
 
       await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
 
-      fireEvent.click(screen.getByRole('button', { name: /save/i }))
+      const user = userEvent.setup()
+      await user.click(screen.getByRole('button', { name: /save/i }))
 
       await waitFor(() => {
         expect(mockCreateMutate).toHaveBeenCalled()
@@ -1977,16 +2024,17 @@ describe('BuilderContent', () => {
 
   describe('Dropdown Callbacks', () => {
     it('closes kebab dropdown via external click', async () => {
+      const user = userEvent.setup()
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       // Open kebab
-      fireEvent.click(screen.getByLabelText('Workflow actions'))
+      await user.click(screen.getByLabelText('Workflow actions'))
       await waitFor(() => {
         expect(screen.getByText('Delete workflow')).toBeInTheDocument()
       })
 
       // Click outside to trigger onOpenChange(false) - line 900
-      fireEvent.mouseDown(document.body)
+      await user.click(document.body)
     })
   })
 
@@ -2109,7 +2157,8 @@ describe('BuilderContent', () => {
 
       await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
 
-      fireEvent.click(screen.getByRole('button', { name: /save/i }))
+      const user = userEvent.setup()
+      await user.click(screen.getByRole('button', { name: /save/i }))
 
       await waitFor(() => {
         expect(mockCreateMutate).toHaveBeenCalled()
@@ -2135,7 +2184,8 @@ describe('BuilderContent', () => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
 
-      fireEvent.click(screen.getByRole('button', { name: /save/i }))
+      const user = userEvent.setup()
+      await user.click(screen.getByRole('button', { name: /save/i }))
 
       await waitFor(() => {
         expect(mockUpdateMutate).toHaveBeenCalled()
@@ -2203,8 +2253,9 @@ describe('BuilderContent', () => {
         expect(screen.getByText('Disabled')).toBeInTheDocument()
       })
 
+      const user = userEvent.setup()
       // Click to enable
-      fireEvent.click(screen.getByRole('switch'))
+      await user.click(screen.getByRole('switch'))
       await waitFor(() => {
         expect(screen.getByText('Enabled')).toBeInTheDocument()
       })
@@ -2283,7 +2334,8 @@ describe('BuilderContent', () => {
         useWorkflowStore.setState({ currentWorkflow: null })
       })
 
-      fireEvent.click(screen.getByRole('button', { name: /save/i }))
+      const user = userEvent.setup()
+      await user.click(screen.getByRole('button', { name: /save/i }))
 
       await waitFor(() => {
         expect(screen.getByText('No workflow to save')).toBeInTheDocument()
@@ -2327,9 +2379,10 @@ describe('BuilderContent', () => {
     it('opens add step panel with source step context', async () => {
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
+      const user = userEvent.setup()
       // Open add step panel
       const addNodeButton = screen.getByRole('button', { name: /add step/i })
-      fireEvent.click(addNodeButton)
+      await user.click(addNodeButton)
 
       await waitFor(() => {
         expect(screen.getByRole('region', { name: 'Add step' })).toBeInTheDocument()
@@ -2379,14 +2432,16 @@ describe('BuilderContent', () => {
     it('handles getWorkflowDefinition when currentWorkflow is null', async () => {
       await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
 
+      const user = userEvent.setup()
       // Modify workflow name
       const nameInput = screen.getByPlaceholderText('Workflow name')
-      fireEvent.change(nameInput, { target: { value: 'Empty Test' } })
+      await user.clear(nameInput)
+      await user.type(nameInput, 'Empty Test')
 
       expect(nameInput).toHaveValue('Empty Test')
 
       // Try to save - this will call getWorkflowDefinition
-      fireEvent.click(screen.getByRole('button', { name: /save/i }))
+      await user.click(screen.getByRole('button', { name: /save/i }))
 
       // Component should handle the empty case gracefully
     })
@@ -2409,16 +2464,17 @@ describe('BuilderContent', () => {
 
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
+      const user = userEvent.setup()
       // Open kebab menu
-      fireEvent.click(screen.getByLabelText('Workflow actions'))
+      await user.click(screen.getByLabelText('Workflow actions'))
 
       // Click delete
-      fireEvent.click(await screen.findByText('Delete workflow'))
+      await user.click(await screen.findByText('Delete workflow'))
       await screen.findByText('Delete workflow?')
 
       // Acknowledge and confirm delete
-      fireEvent.click(screen.getByRole('checkbox', { name: /I understand this workflow will be permanently deleted/ }))
-      fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+      await user.click(screen.getByRole('checkbox', { name: /I understand this workflow will be permanently deleted/ }))
+      await user.click(screen.getByRole('button', { name: 'Delete' }))
 
       await waitFor(() => {
         expect(mockDeleteMutate).toHaveBeenCalled()
@@ -2760,8 +2816,9 @@ describe('BuilderContent', () => {
       })
 
       // User keeps the auto-resolved name and saves
+      const user = userEvent.setup()
       const saveButton = screen.getByRole('button', { name: /save/i })
-      fireEvent.click(saveButton)
+      await user.click(saveButton)
 
       await waitFor(() => {
         expect(mockCreateMutate).toHaveBeenCalled()
@@ -2776,9 +2833,11 @@ describe('BuilderContent', () => {
     it('verifies workflow dirty state can be set', async () => {
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
+      const user = userEvent.setup()
       // Make workflow dirty by changing the name
       const nameInput = screen.getByPlaceholderText('Workflow name')
-      fireEvent.change(nameInput, { target: { value: 'Modified Workflow' } })
+      await user.clear(nameInput)
+      await user.type(nameInput, 'Modified Workflow')
 
       // Verify workflow is dirty
       expect(useWorkflowStore.getState().isDirty).toBe(true)
@@ -2797,8 +2856,10 @@ describe('BuilderContent', () => {
         expect(screen.getByText('Workflow details')).toBeInTheDocument()
       })
 
+      const user = userEvent.setup()
       const nameInput = screen.getByLabelText('Workflow name in workflow details')
-      fireEvent.change(nameInput, { target: { value: 'Name Changed' } })
+      await user.clear(nameInput)
+      await user.type(nameInput, 'Name Changed')
 
       // Verify workflow store is marked dirty
       await waitFor(() => {
@@ -2817,8 +2878,10 @@ describe('BuilderContent', () => {
         expect(screen.getByText('Workflow details')).toBeInTheDocument()
       })
 
+      const user = userEvent.setup()
       const descriptionTextarea = screen.getByLabelText('Description')
-      fireEvent.change(descriptionTextarea, { target: { value: 'Description Changed' } })
+      await user.clear(descriptionTextarea)
+      await user.type(descriptionTextarea, 'Description Changed')
 
       // Verify workflow store is marked dirty
       await waitFor(() => {
@@ -2838,11 +2901,14 @@ describe('BuilderContent', () => {
       })
 
       // Change both name and description
+      const user = userEvent.setup()
       const nameInput = screen.getByLabelText('Workflow name in workflow details')
       const descriptionTextarea = screen.getByLabelText('Description')
 
-      fireEvent.change(nameInput, { target: { value: 'Name Changed' } })
-      fireEvent.change(descriptionTextarea, { target: { value: 'Description Changed' } })
+      await user.clear(nameInput)
+      await user.type(nameInput, 'Name Changed')
+      await user.clear(descriptionTextarea)
+      await user.type(descriptionTextarea, 'Description Changed')
 
       // Verify workflow store is marked dirty
       await waitFor(() => {
