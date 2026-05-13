@@ -6,17 +6,15 @@ from typing import Any
 from uuid import UUID
 
 import structlog
-from sqlalchemy import Select, delete, update
+from sqlalchemy import delete, update
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
 from nexus.authz.engine import AllowedProjectsResult, assign_authenticated_group_project_user, assign_project_admin
 from nexus.authz.models.assignments import RoleAssignment
 from nexus.authz.models.project import Project
 from nexus.core.models import User
 from nexus.core.services import BaseService
-from nexus.core.services.types import TModel
 from nexus.projects.schemas import ProjectListResponse
 
 logger = structlog.stdlib.get_logger(__name__)
@@ -27,8 +25,7 @@ class ProjectService(BaseService):
 
     def __init__(self, session: AsyncSession, user: User) -> None:
         """Initialize with database session and current user."""
-        super().__init__(session, user, enrich_query_mixin=self)
-        self._allowed_project_ids: list[UUID] | None = None
+        super().__init__(session, user)
 
     async def create_project(
         self,
@@ -143,34 +140,24 @@ class ProjectService(BaseService):
             ProjectListResponse with projects, pagination metadata, and optional total
 
         """
+        # For projects, allowed_projects maps directly to id_restriction since
+        # the allowed project IDs ARE the resource IDs being listed.
+        id_restriction: list[UUID] | None = None
         if allowed_projects is not None and not allowed_projects.all_projects:
             if not allowed_projects.project_ids:
                 return ProjectListResponse(resources=[], next=None, prev=None, total=0 if include_total else None)
-            self._allowed_project_ids = allowed_projects.project_ids
-        else:
-            self._allowed_project_ids = None
+            id_restriction = allowed_projects.project_ids
 
-        try:
-            return await self.list_resources(
-                model=Project,
-                response_type=ProjectListResponse,
-                limit=limit,
-                cursor=cursor,
-                sort=sort or "-created_at",
-                query_params_items=query_params_items,
-                include_total=include_total,
-            )
-        finally:
-            self._allowed_project_ids = None
-
-    def enrich(
-        self,
-        query: Select[tuple[TModel]] | SelectOfScalar[tuple[TModel]],
-    ) -> Select[tuple[TModel]] | SelectOfScalar[tuple[TModel]]:
-        """Apply project ID filter when listing projects with authorization."""
-        if self._allowed_project_ids is not None:
-            query = query.filter(Project.id.in_(self._allowed_project_ids))  # type: ignore[attr-defined]
-        return query
+        return await self.list_resources(
+            model=Project,
+            response_type=ProjectListResponse,
+            limit=limit,
+            cursor=cursor,
+            sort=sort or "-created_at",
+            query_params_items=query_params_items,
+            include_total=include_total,
+            id_restriction=id_restriction,
+        )
 
     async def update_project(
         self,

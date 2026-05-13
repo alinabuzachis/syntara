@@ -477,6 +477,7 @@ class BaseService:
         special_field_handlers: dict[str, Any] | None = None,
         label_filters: dict[str, str] | None = None,
         allowed_projects: AllowedProjectsResult | None = None,
+        id_restriction: list[UUID] | None = None,
     ) -> int:
         """Get total count of resources matching filters.
 
@@ -486,6 +487,7 @@ class BaseService:
             special_field_handlers: Dict mapping field names to custom handler functions
             label_filters: Dict of label filters to apply
             allowed_projects: Optional project scope filter result
+            id_restriction: Optional list of allowed resource IDs
 
         Returns:
             Total count of matching resources
@@ -503,6 +505,12 @@ class BaseService:
             count_query = count_query.filter(
                 model.project_id.in_(allowed_projects.project_ids)  # type: ignore[attr-defined]
             )
+
+        # Apply ID restriction filter
+        if id_restriction is not None:
+            if not id_restriction:
+                return 0
+            count_query = count_query.filter(model.id.in_(id_restriction))  # type: ignore[attr-defined]
 
         # Apply regular filters
         regular_filters = [f for f in filters if not special_field_handlers or f.field not in special_field_handlers]
@@ -751,6 +759,7 @@ class BaseService:
             is_backward=is_backward,
             special_field_handlers=special_field_handlers,
             allowed_projects=allowed_projects,
+            id_restriction=id_restriction,
         )
 
         if post_query_callback:
@@ -863,6 +872,7 @@ class BaseService:
         is_backward: bool,
         special_field_handlers: dict[str, Any] | None,
         allowed_projects: AllowedProjectsResult | None,
+        id_restriction: list[UUID] | None = None,
     ) -> tuple[list[TModel], PaginationResult]:
         """Execute query, apply N+1 pagination, and return trimmed resources with metadata."""
         result = await self.session.exec(query)  # type: ignore[arg-type]
@@ -879,6 +889,7 @@ class BaseService:
                 special_field_handlers,
                 label_filters,
                 allowed_projects,
+                id_restriction=id_restriction,
             )
 
         is_first_page = False

@@ -147,6 +147,83 @@ async def test_list_projects_with_allowed_empty(seeded_db: AsyncSession, test_us
     assert projects == []
 
 
+# ============================================================================
+# Cursor Listing with include_total
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_list_projects_cursor_include_total_no_filter(seeded_db: AsyncSession, test_user: User) -> None:
+    """include_total returns correct count when no authorization filter is applied."""
+    svc = ProjectService(seeded_db, test_user)
+    for i in range(5):
+        await svc.create_project(name=f"total-p{i}")
+
+    result = await svc.list_projects_cursor(limit=3, include_total=True)
+    # 5 created + 1 seeded default project
+    assert result.total == 6
+    assert len(result.resources) == 3
+
+
+@pytest.mark.asyncio
+async def test_list_projects_cursor_include_total_with_allowed_specific(
+    seeded_db: AsyncSession, test_user: User
+) -> None:
+    """include_total reflects only projects the user is authorized to see."""
+    svc = ProjectService(seeded_db, test_user)
+    p1 = await svc.create_project(name="visible-p1")
+    p2 = await svc.create_project(name="visible-p2")
+    await svc.create_project(name="hidden-p3")
+
+    allowed = AllowedProjectsResult(all_projects=False, project_ids=[p1.id, p2.id])
+    result = await svc.list_projects_cursor(limit=10, include_total=True, allowed_projects=allowed)
+    assert result.total == 2
+    names = [r.name for r in result.resources]
+    assert "visible-p1" in names
+    assert "visible-p2" in names
+    assert "hidden-p3" not in names
+
+
+@pytest.mark.asyncio
+async def test_list_projects_cursor_include_total_with_allowed_empty(seeded_db: AsyncSession, test_user: User) -> None:
+    """include_total returns 0 when user has no project access."""
+    svc = ProjectService(seeded_db, test_user)
+    await svc.create_project(name="no-access-p1")
+
+    allowed = AllowedProjectsResult(all_projects=False, project_ids=[])
+    result = await svc.list_projects_cursor(limit=10, include_total=True, allowed_projects=allowed)
+    assert result.total == 0
+    assert result.resources == []
+
+
+@pytest.mark.asyncio
+async def test_list_projects_cursor_include_total_with_all_projects(seeded_db: AsyncSession, test_user: User) -> None:
+    """include_total returns full count when all_projects is True."""
+    svc = ProjectService(seeded_db, test_user)
+    for i in range(4):
+        await svc.create_project(name=f"all-access-p{i}")
+
+    allowed = AllowedProjectsResult(all_projects=True, project_ids=[])
+    result = await svc.list_projects_cursor(limit=10, include_total=True, allowed_projects=allowed)
+    # 4 created + 1 seeded default project
+    assert result.total == 5
+
+
+@pytest.mark.asyncio
+async def test_list_projects_cursor_without_include_total(seeded_db: AsyncSession, test_user: User) -> None:
+    """Total is None when include_total is False."""
+    svc = ProjectService(seeded_db, test_user)
+    await svc.create_project(name="no-total-p1")
+
+    result = await svc.list_projects_cursor(limit=10, include_total=False)
+    assert result.total is None
+
+
+# ============================================================================
+# Project Updates
+# ============================================================================
+
+
 @pytest.mark.asyncio
 async def test_update_project(seeded_db: AsyncSession, test_user: User) -> None:
     """Update project name, description, and labels."""
