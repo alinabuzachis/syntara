@@ -119,6 +119,16 @@
           "type": "integer",
           "description": "Node execution timeout in seconds. If not specified, the platform default for the node's executor type is used.",
           "minimum": 1
+        },
+        "position": {
+          "type": "object",
+          "description": "Optional UI position hint for this node. Ignored by the workflow engine.",
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" }
+          },
+          "required": ["x", "y"],
+          "additionalProperties": false
         }
       }
     },
