@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { navigate } from 'wouter/use-browser-location'
@@ -168,39 +169,38 @@ describe('IntegrationForm Component', () => {
 
   describe('Form Interactions', () => {
     it('does not submit when required fields are empty', async () => {
+      const user = userEvent.setup()
       render(<IntegrationForm />, { wrapper })
 
-      fireEvent.click(screen.getByText('Add integration'))
+      await user.click(screen.getByText('Add integration'))
       await waitFor(() => {
         expect(mockCreateMutate).not.toHaveBeenCalled()
       })
     })
 
     it('does not submit when API URL is invalid', async () => {
+      const user = userEvent.setup()
       render(<IntegrationForm />, { wrapper })
 
-      fireEvent.change(screen.getByPlaceholderText('Enter server name / ID'), {
-        target: { value: 'My Server' },
-      })
-      fireEvent.change(screen.getByPlaceholderText('Enter API URL'), {
-        target: { value: 'not-a-url' },
-      })
-      fireEvent.click(screen.getByText('Add integration'))
+      await user.type(screen.getByPlaceholderText('Enter server name / ID'), 'My Server')
+      await user.type(screen.getByPlaceholderText('Enter API URL'), 'not-a-url')
+      await user.click(screen.getByText('Add integration'))
       await waitFor(() => {
         expect(mockCreateMutate).not.toHaveBeenCalled()
       })
     })
 
-    it('allows users to fill out all form fields', () => {
+    it('allows users to fill out all form fields', async () => {
+      const user = userEvent.setup()
       render(<IntegrationForm />, { wrapper })
 
       const serverNameInput = screen.getByPlaceholderText('Enter server name / ID')
       const descriptionInput = screen.getByPlaceholderText('Enter description')
       const apiUrlInput = screen.getByPlaceholderText('Enter API URL')
 
-      fireEvent.change(serverNameInput, { target: { value: 'Test Server' } })
-      fireEvent.change(descriptionInput, { target: { value: 'Test Description' } })
-      fireEvent.change(apiUrlInput, { target: { value: 'https://test.example.com' } })
+      await user.type(serverNameInput, 'Test Server')
+      await user.type(descriptionInput, 'Test Description')
+      await user.type(apiUrlInput, 'https://test.example.com')
 
       expect((serverNameInput as HTMLInputElement).value).toBe('Test Server')
       expect((descriptionInput as HTMLInputElement).value).toBe('Test Description')
@@ -208,20 +208,15 @@ describe('IntegrationForm Component', () => {
     })
 
     it('submits form data when Add integration button is clicked', async () => {
+      const user = userEvent.setup()
       render(<IntegrationForm />, { wrapper })
 
-      fireEvent.change(screen.getByPlaceholderText('Enter server name / ID'), {
-        target: { value: 'Production Server' },
-      })
-      fireEvent.change(screen.getByPlaceholderText('Enter description'), {
-        target: { value: 'Main production integration' },
-      })
-      fireEvent.change(screen.getByPlaceholderText('Enter API URL'), {
-        target: { value: 'https://prod.example.com/api' },
-      })
+      await user.type(screen.getByPlaceholderText('Enter server name / ID'), 'Production Server')
+      await user.type(screen.getByPlaceholderText('Enter description'), 'Main production integration')
+      await user.type(screen.getByPlaceholderText('Enter API URL'), 'https://prod.example.com/api')
 
       const submitButton = screen.getByText('Add integration')
-      fireEvent.click(submitButton)
+      await user.click(submitButton)
 
       await waitFor(() => {
         expect(mockCreateMutate).toHaveBeenCalled()
@@ -279,17 +274,14 @@ describe('IntegrationForm Component', () => {
         }
       )
 
+      const user = userEvent.setup()
       render(<IntegrationForm />, { wrapper })
 
-      fireEvent.change(screen.getByPlaceholderText('Enter server name / ID'), {
-        target: { value: 'Test Server' },
-      })
-      fireEvent.change(screen.getByPlaceholderText('Enter API URL'), {
-        target: { value: 'https://test.example.com' },
-      })
+      await user.type(screen.getByPlaceholderText('Enter server name / ID'), 'Test Server')
+      await user.type(screen.getByPlaceholderText('Enter API URL'), 'https://test.example.com')
 
       const submitButton = screen.getByText('Add integration')
-      fireEvent.click(submitButton)
+      await user.click(submitButton)
 
       await waitFor(() => {
         // Verify create was called
@@ -349,17 +341,14 @@ describe('IntegrationForm Component', () => {
         }
       )
 
+      const user = userEvent.setup()
       render(<IntegrationForm />, { wrapper })
 
-      fireEvent.change(screen.getByPlaceholderText('Enter server name / ID'), {
-        target: { value: 'Bad Server' },
-      })
-      fireEvent.change(screen.getByPlaceholderText('Enter API URL'), {
-        target: { value: 'https://bad-url.example.com' },
-      })
+      await user.type(screen.getByPlaceholderText('Enter server name / ID'), 'Bad Server')
+      await user.type(screen.getByPlaceholderText('Enter API URL'), 'https://bad-url.example.com')
 
       const submitButton = screen.getByText('Add integration')
-      fireEvent.click(submitButton)
+      await user.click(submitButton)
 
       await waitFor(() => {
         // Verify create and validate were called
@@ -429,17 +418,14 @@ describe('IntegrationForm Component', () => {
         }
       )
 
+      const user = userEvent.setup()
       render(<IntegrationForm />, { wrapper })
 
-      fireEvent.change(screen.getByPlaceholderText('Enter server name / ID'), {
-        target: { value: 'Test Server' },
-      })
-      fireEvent.change(screen.getByPlaceholderText('Enter API URL'), {
-        target: { value: 'https://test.example.com' },
-      })
+      await user.type(screen.getByPlaceholderText('Enter server name / ID'), 'Test Server')
+      await user.type(screen.getByPlaceholderText('Enter API URL'), 'https://test.example.com')
 
       const submitButton = screen.getByText('Add integration')
-      fireEvent.click(submitButton)
+      await user.click(submitButton)
 
       await waitFor(() => {
         expect(mockNav).toHaveBeenCalledWith('/configuration/integrations')
@@ -454,8 +440,9 @@ describe('IntegrationForm Component', () => {
 
       render(<IntegrationForm />, { wrapper })
 
+      const user = userEvent.setup()
       const cancelButton = screen.getByText('Cancel')
-      fireEvent.click(cancelButton)
+      await user.click(cancelButton)
 
       expect(mockNav).toHaveBeenCalledWith('/configuration/integrations')
     })

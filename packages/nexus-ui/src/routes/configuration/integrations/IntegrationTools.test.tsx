@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
@@ -242,7 +242,8 @@ describe('IntegrationTools Component', () => {
       })
     })
 
-    it('updates selection count when tools are selected', () => {
+    it('updates selection count when tools are selected', async () => {
+      const user = userEvent.setup()
       render(<IntegrationTools />, { wrapper })
 
       const checkboxes = screen.getAllByRole('checkbox')
@@ -251,14 +252,15 @@ describe('IntegrationTools Component', () => {
       const tool2Checkbox = checkboxes[3]
 
       // Click to select tool_two
-      fireEvent.click(tool2Checkbox)
+      await user.click(tool2Checkbox)
 
       // All tool checkboxes should now be checked
       const toolCheckboxes = screen.getAllByRole('checkbox').slice(1) // skip header
       expect(toolCheckboxes.every((cb) => (cb as HTMLInputElement).checked)).toBe(true)
     })
 
-    it('allows toggling individual tool selection', () => {
+    it('allows toggling individual tool selection', async () => {
+      const user = userEvent.setup()
       render(<IntegrationTools />, { wrapper })
 
       const checkboxes = screen.getAllByRole('checkbox')
@@ -266,36 +268,38 @@ describe('IntegrationTools Component', () => {
       const toolOneCheckbox = checkboxes[1] // tool_one (currently checked)
 
       // Click to deselect tool_one
-      fireEvent.click(toolOneCheckbox)
+      await user.click(toolOneCheckbox)
 
       // tool_one should now be unchecked
       expect(toolOneCheckbox).not.toBeChecked()
     })
 
-    it('supports select all functionality', () => {
+    it('supports select all functionality', async () => {
+      const user = userEvent.setup()
       render(<IntegrationTools />, { wrapper })
 
       const checkboxes = screen.getAllByRole('checkbox')
       const selectAllCheckbox = checkboxes[0]
 
       // Click select all
-      fireEvent.click(selectAllCheckbox)
+      await user.click(selectAllCheckbox)
 
       // All tool checkboxes should now be checked
       const toolCheckboxes = screen.getAllByRole('checkbox').slice(1) // skip header
       expect(toolCheckboxes.every((cb) => (cb as HTMLInputElement).checked)).toBe(true)
     })
 
-    it('supports deselect all functionality', () => {
+    it('supports deselect all functionality', async () => {
+      const user = userEvent.setup()
       render(<IntegrationTools />, { wrapper })
 
       const checkboxes = screen.getAllByRole('checkbox')
       const selectAllCheckbox = checkboxes[0]
 
       // Click select all first
-      fireEvent.click(selectAllCheckbox)
+      await user.click(selectAllCheckbox)
       // Click again to deselect all
-      fireEvent.click(selectAllCheckbox)
+      await user.click(selectAllCheckbox)
 
       // All tool checkboxes should now be unchecked
       const toolCheckboxes = screen.getAllByRole('checkbox').slice(1) // skip header
@@ -370,12 +374,13 @@ describe('IntegrationTools Component', () => {
 
   describe('Form Submission', () => {
     it('calls update mutation when Save is clicked with enabled tools', async () => {
+      const user = userEvent.setup()
       render(<IntegrationTools />, { wrapper })
 
       const saveButton = screen.getByText('Save')
 
       // Click save (tools 1 and 3 are already enabled)
-      fireEvent.click(saveButton)
+      await user.click(saveButton)
 
       // The mutate function should be called
       await waitFor(() => {
@@ -384,6 +389,7 @@ describe('IntegrationTools Component', () => {
     })
 
     it('enables tools when user selects them and clicks Save', async () => {
+      const user = userEvent.setup()
       render(<IntegrationTools />, { wrapper })
 
       const checkboxes = screen.getAllByRole('checkbox')
@@ -391,10 +397,10 @@ describe('IntegrationTools Component', () => {
       const toolTwoCheckbox = checkboxes[3] // tool_two (currently unchecked)
 
       // Select tool_two
-      fireEvent.click(toolTwoCheckbox)
+      await user.click(toolTwoCheckbox)
 
       const saveButton = screen.getByText('Save')
-      fireEvent.click(saveButton)
+      await user.click(saveButton)
 
       // The mutate function should be called with enabled tools
       await waitFor(() => {
@@ -403,6 +409,7 @@ describe('IntegrationTools Component', () => {
     })
 
     it('disables tools when user deselects them and clicks Save', async () => {
+      const user = userEvent.setup()
       render(<IntegrationTools />, { wrapper })
 
       const checkboxes = screen.getAllByRole('checkbox')
@@ -410,10 +417,10 @@ describe('IntegrationTools Component', () => {
       const toolOneCheckbox = checkboxes[1] // tool_one (currently checked)
 
       // Deselect tool_one
-      fireEvent.click(toolOneCheckbox)
+      await user.click(toolOneCheckbox)
 
       const saveButton = screen.getByText('Save')
-      fireEvent.click(saveButton)
+      await user.click(saveButton)
 
       // The mutate function should be called
       await waitFor(() => {
@@ -518,7 +525,8 @@ describe('IntegrationTools Component', () => {
   })
 
   describe('Selection Callback', () => {
-    it('calls onSelectionChange when tools are selected', () => {
+    it('calls onSelectionChange when tools are selected', async () => {
+      const user = userEvent.setup()
       render(<IntegrationTools />, { wrapper })
 
       const checkboxes = screen.getAllByRole('checkbox')
@@ -527,7 +535,7 @@ describe('IntegrationTools Component', () => {
       const tool2Checkbox = checkboxes[3]
 
       // Select tool_two
-      fireEvent.click(tool2Checkbox)
+      await user.click(tool2Checkbox)
 
       // Verify enabledTools state was updated
       expect(tool2Checkbox).toBeChecked()
@@ -664,13 +672,14 @@ describe('IntegrationTools Component', () => {
   })
 
   describe('Refresh Tools Functionality', () => {
-    it('opens confirmation dialog when header Refresh tools button is clicked', () => {
+    it('opens confirmation dialog when header Refresh tools button is clicked', async () => {
+      const user = userEvent.setup()
       render(<IntegrationTools />, { wrapper })
 
       const refreshButtons = screen.getAllByText('Refresh tools')
       const headerRefreshButton = refreshButtons[0] // First button is in the header
 
-      fireEvent.click(headerRefreshButton)
+      await user.click(headerRefreshButton)
 
       // Check that confirmation dialog is displayed
       expect(screen.getByText(/Are you sure you want to refresh tools/i)).toBeInTheDocument()
@@ -700,22 +709,24 @@ describe('IntegrationTools Component', () => {
         context: undefined,
       })
 
+      const user = userEvent.setup()
       render(<IntegrationTools />, { wrapper })
 
       const refreshButtons = screen.getAllByText('Refresh tools')
       const headerRefreshButton = refreshButtons[0]
 
-      fireEvent.click(headerRefreshButton)
+      await user.click(headerRefreshButton)
 
       const confirmButton = screen.getByRole('button', { name: 'Refresh' })
-      fireEvent.click(confirmButton)
+      await user.click(confirmButton)
 
       await waitFor(() => {
         expect(mockRefreshMutate).toHaveBeenCalled()
       })
     })
 
-    it('does not call refresh mutation when confirmation dialog is cancelled', () => {
+    it('does not call refresh mutation when confirmation dialog is cancelled', async () => {
+      const user = userEvent.setup()
       const mockRefreshMutate = vi.fn()
       vi.mocked(toolManagerClient.useMutation).mockReturnValue({
         mutate: mockRefreshMutate,
@@ -741,10 +752,10 @@ describe('IntegrationTools Component', () => {
       const refreshButtons = screen.getAllByText('Refresh tools')
       const headerRefreshButton = refreshButtons[0]
 
-      fireEvent.click(headerRefreshButton)
+      await user.click(headerRefreshButton)
 
       const cancelButton = screen.getByRole('button', { name: 'Cancel' })
-      fireEvent.click(cancelButton)
+      await user.click(cancelButton)
 
       expect(mockRefreshMutate).not.toHaveBeenCalled()
     })
@@ -779,12 +790,13 @@ describe('IntegrationTools Component', () => {
         refetch: vi.fn(),
       })
 
+      const user = userEvent.setup()
       render(<IntegrationTools />, { wrapper })
 
       const refreshButtons = screen.getAllByText('Refresh tools')
       const emptyStateRefreshButton = refreshButtons[1] // Second button is in empty state
 
-      fireEvent.click(emptyStateRefreshButton)
+      await user.click(emptyStateRefreshButton)
 
       // Should call refresh directly without showing confirmation dialog
       await waitFor(() => {
@@ -818,13 +830,14 @@ describe('IntegrationTools Component', () => {
       expect(within(rows[2]).getByText('test.tool_two')).toBeInTheDocument()
     })
 
-    it('sorts tools in descending order when clicking Name column header', () => {
+    it('sorts tools in descending order when clicking Name column header', async () => {
+      const user = userEvent.setup()
       render(<IntegrationTools />, { wrapper })
 
       // Click Name header to toggle to descending
       const nameHeader = screen.getByRole('columnheader', { name: /Name/i })
       const sortButton = within(nameHeader).getByRole('button')
-      fireEvent.click(sortButton)
+      await user.click(sortButton)
 
       // Get all table rows (excluding header)
       const rows = screen.getAllByRole('row').slice(1)
@@ -835,15 +848,16 @@ describe('IntegrationTools Component', () => {
       expect(within(rows[2]).getByText('test.tool_one')).toBeInTheDocument()
     })
 
-    it('toggles back to ascending order on second click', () => {
+    it('toggles back to ascending order on second click', async () => {
+      const user = userEvent.setup()
       render(<IntegrationTools />, { wrapper })
 
       const nameHeader = screen.getByRole('columnheader', { name: /Name/i })
       const sortButton = within(nameHeader).getByRole('button')
 
       // Click twice to go: asc -> desc -> asc
-      fireEvent.click(sortButton)
-      fireEvent.click(sortButton)
+      await user.click(sortButton)
+      await user.click(sortButton)
 
       // Get all table rows (excluding header)
       const rows = screen.getAllByRole('row').slice(1)

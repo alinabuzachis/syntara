@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import { highlightText, highlightTextLines } from './highlightText'
@@ -19,9 +19,9 @@ describe('highlightText', () => {
     const { container } = render(<>{result}</>)
 
     expect(container.textContent).toBe('Hello World')
-    const mark = container.querySelector('mark')
+    const mark = screen.getByText('Wor', { selector: 'mark' })
     expect(mark).toBeInTheDocument()
-    expect(mark?.textContent).toBe('Wor')
+    expect(mark).toHaveTextContent('Wor')
   })
 
   it('highlights multiple matches', () => {
@@ -29,10 +29,10 @@ describe('highlightText', () => {
     const { container } = render(<>{result}</>)
 
     expect(container.textContent).toBe('foo bar foo baz')
-    const marks = container.querySelectorAll('mark')
+    const marks = screen.getAllByText('foo', { selector: 'mark' })
     expect(marks).toHaveLength(2)
-    expect(marks[0]?.textContent).toBe('foo')
-    expect(marks[1]?.textContent).toBe('foo')
+    expect(marks[0]).toHaveTextContent('foo')
+    expect(marks[1]).toHaveTextContent('foo')
   })
 
   it('escapes regex special characters in search term', () => {
@@ -40,8 +40,8 @@ describe('highlightText', () => {
     const { container } = render(<>{result}</>)
 
     expect(container.textContent).toBe('Price: $100.00')
-    const mark = container.querySelector('mark')
-    expect(mark?.textContent).toBe('$100')
+    const mark = screen.getByText('$100', { selector: 'mark' })
+    expect(mark).toHaveTextContent('$100')
   })
 
   it('preserves text when no matches found', () => {
@@ -51,12 +51,12 @@ describe('highlightText', () => {
 
   it('applies orange background and inherits text color', () => {
     const result = highlightText('Hello World', 'World')
-    const { container } = render(<>{result}</>)
+    render(<>{result}</>)
 
-    const mark = container.querySelector('mark')
+    const mark = screen.getByText('World', { selector: 'mark' })
     expect(mark).toHaveStyle({ backgroundColor: 'var(--pf-t--global--color--nonstatus--orange--300)' })
     // Verify color: inherit is in the inline style (not the computed style)
-    expect(mark?.getAttribute('style')).toContain('color: inherit')
+    expect(mark.getAttribute('style')).toContain('color: inherit')
   })
 })
 
@@ -73,10 +73,10 @@ describe('highlightTextLines', () => {
     const { container } = render(<>{result}</>)
 
     expect(container.textContent).toBe('apple\nbanana\napple pie')
-    const marks = container.querySelectorAll('mark')
+    const marks = screen.getAllByText('apple', { selector: 'mark' })
     expect(marks).toHaveLength(2)
-    expect(marks[0]?.textContent).toBe('apple')
-    expect(marks[1]?.textContent).toBe('apple')
+    expect(marks[0]).toHaveTextContent('apple')
+    expect(marks[1]).toHaveTextContent('apple')
   })
 
   it('preserves lines without matches', () => {
@@ -85,9 +85,9 @@ describe('highlightTextLines', () => {
     const { container } = render(<>{result}</>)
 
     expect(container.textContent).toBe('apple\nbanana\ncherry')
-    const marks = container.querySelectorAll('mark')
+    const marks = screen.getAllByText('banana', { selector: 'mark' })
     expect(marks).toHaveLength(1)
-    expect(marks[0]?.textContent).toBe('banana')
+    expect(marks[0]).toHaveTextContent('banana')
   })
 
   it('works with JSON formatted text', () => {
@@ -96,8 +96,8 @@ describe('highlightTextLines', () => {
     const { container } = render(<>{result}</>)
 
     expect(container.textContent).toBe(json)
-    const mark = container.querySelector('mark')
-    expect(mark?.textContent).toBe('name')
+    const mark = screen.getByText('name', { selector: 'mark' })
+    expect(mark).toHaveTextContent('name')
   })
 
   it('preserves newline characters when highlighting', () => {
@@ -107,7 +107,7 @@ describe('highlightTextLines', () => {
 
     // When rendering in DOM, newlines are preserved in textContent
     expect(container.textContent).toBe(text)
-    const marks = container.querySelectorAll('mark')
+    const marks = screen.getAllByText('line', { selector: 'mark' })
     expect(marks).toHaveLength(3)
   })
 })

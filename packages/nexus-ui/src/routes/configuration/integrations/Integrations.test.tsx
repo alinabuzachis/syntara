@@ -1,6 +1,6 @@
 import { ProviderStatusEnum } from '@ansible/nexus-contracts'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, fireEvent, within, act, waitFor } from '@testing-library/react'
+import { render, screen, within, act, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
@@ -442,7 +442,8 @@ describe('Integrations Component', () => {
       expect(screen.queryByRole('button', { name: 'Previous page' })).not.toBeInTheDocument()
     })
 
-    it('calls onNext when Next page button is clicked', () => {
+    it('calls onNext when Next page button is clicked', async () => {
+      const user = userEvent.setup()
       vi.mocked(toolManagerClient.useQuery).mockReturnValue({
         data: {
           resources: mockIntegrations,
@@ -460,13 +461,14 @@ describe('Integrations Component', () => {
 
       const paginationNav = screen.getByRole('navigation', { name: /pagination/i })
       const nextButton = within(paginationNav).getByRole('button', { name: 'Go to next page' })
-      fireEvent.click(nextButton)
+      await user.click(nextButton)
 
       // The button click should trigger the onNext callback
       expect(nextButton).toBeInTheDocument()
     })
 
-    it('calls onPrev when Previous page button is clicked', () => {
+    it('calls onPrev when Previous page button is clicked', async () => {
+      const user = userEvent.setup()
       vi.mocked(toolManagerClient.useQuery).mockReturnValue({
         data: {
           resources: mockIntegrations,
@@ -484,7 +486,7 @@ describe('Integrations Component', () => {
 
       const paginationNav = screen.getByRole('navigation', { name: /pagination/i })
       const prevButton = within(paginationNav).getByRole('button', { name: 'Go to previous page' })
-      fireEvent.click(prevButton)
+      await user.click(prevButton)
 
       // The button click should trigger the onPrev callback
       expect(prevButton).toBeInTheDocument()
@@ -516,8 +518,9 @@ describe('Integrations Component', () => {
       const nextButton = within(paginationNav).getByRole('button', { name: 'Go to next page' })
       expect(nextButton).toBeInTheDocument()
 
+      const user = userEvent.setup()
       // Click Next to set internal cursor state
-      fireEvent.click(nextButton)
+      await user.click(nextButton)
 
       // Verify cursor was set after clicking Next
       await waitFor(() => {
@@ -604,10 +607,11 @@ describe('Integrations Component', () => {
 
       const { rerender } = render(<Integrations />, { wrapper })
 
+      const user = userEvent.setup()
       // Click Next to set internal cursor state
       const paginationNav = screen.getByRole('navigation', { name: /pagination/i })
       const nextButton = within(paginationNav).getByRole('button', { name: 'Go to next page' })
-      fireEvent.click(nextButton)
+      await user.click(nextButton)
 
       // Wait for cursor to be set and verify it's present
       await waitFor(() => {
@@ -733,7 +737,7 @@ describe('Integrations Component', () => {
       // Click next page to set internal cursor state
       const paginationNav = screen.getByRole('navigation', { name: /pagination/i })
       const nextButton = within(paginationNav).getByRole('button', { name: 'Go to next page' })
-      fireEvent.click(nextButton)
+      await user.click(nextButton)
 
       // Apply a filter after navigating to page 2
       const textInput = screen.getByRole('textbox', { name: /name filter/i })
@@ -763,13 +767,14 @@ describe('Integrations Component', () => {
       expect(within(toolsHeader).getByRole('button')).toBeInTheDocument()
     })
 
-    it('changes sort when clicking column headers', () => {
+    it('changes sort when clicking column headers', async () => {
+      const user = userEvent.setup()
       render(<Integrations />, { wrapper })
 
       // Click Name header to sort by name
       const nameHeader = screen.getByRole('columnheader', { name: /^Name$/i })
       const sortButton = within(nameHeader).getByRole('button')
-      fireEvent.click(sortButton)
+      await user.click(sortButton)
 
       // All integrations should still be visible
       expect(screen.getByText('Primary MCP Server')).toBeInTheDocument()
@@ -777,15 +782,16 @@ describe('Integrations Component', () => {
       expect(screen.getByText('Development Server')).toBeInTheDocument()
     })
 
-    it('can toggle sort direction by clicking the same column header', () => {
+    it('can toggle sort direction by clicking the same column header', async () => {
+      const user = userEvent.setup()
       render(<Integrations />, { wrapper })
 
       const nameHeader = screen.getByRole('columnheader', { name: /^Name$/i })
       const sortButton = within(nameHeader).getByRole('button')
 
       // Click twice to toggle direction
-      fireEvent.click(sortButton)
-      fireEvent.click(sortButton)
+      await user.click(sortButton)
+      await user.click(sortButton)
 
       // All integrations should still be visible after sorting
       expect(screen.getByText('Primary MCP Server')).toBeInTheDocument()
@@ -793,13 +799,14 @@ describe('Integrations Component', () => {
       expect(screen.getByText('Development Server')).toBeInTheDocument()
     })
 
-    it('can sort by different columns', () => {
+    it('can sort by different columns', async () => {
+      const user = userEvent.setup()
       render(<Integrations />, { wrapper })
 
       // Click Tools header
       const toolsHeader = screen.getByRole('columnheader', { name: /Tools/i })
       const sortButton = within(toolsHeader).getByRole('button')
-      fireEvent.click(sortButton)
+      await user.click(sortButton)
 
       // All integrations should still be visible
       expect(screen.getByText('Primary MCP Server')).toBeInTheDocument()
@@ -807,13 +814,14 @@ describe('Integrations Component', () => {
       expect(screen.getByText('Development Server')).toBeInTheDocument()
     })
 
-    it('can sort by Status column', () => {
+    it('can sort by Status column', async () => {
+      const user = userEvent.setup()
       render(<Integrations />, { wrapper })
 
       // Click Status header to sort by status
       const statusHeader = screen.getByRole('columnheader', { name: /Status/i })
       const sortButton = within(statusHeader).getByRole('button')
-      fireEvent.click(sortButton)
+      await user.click(sortButton)
 
       // All integrations should still be visible
       expect(screen.getByText('Primary MCP Server')).toBeInTheDocument()
@@ -821,13 +829,14 @@ describe('Integrations Component', () => {
       expect(screen.getByText('Development Server')).toBeInTheDocument()
     })
 
-    it('can sort by Integration type column', () => {
+    it('can sort by Integration type column', async () => {
+      const user = userEvent.setup()
       render(<Integrations />, { wrapper })
 
       // Click Integration type header
       const typeHeader = screen.getByRole('columnheader', { name: /Integration type/i })
       const sortButton = within(typeHeader).getByRole('button')
-      fireEvent.click(sortButton)
+      await user.click(sortButton)
 
       // All integrations should still be visible
       expect(screen.getByText('Primary MCP Server')).toBeInTheDocument()
@@ -835,13 +844,14 @@ describe('Integrations Component', () => {
       expect(screen.getByText('Development Server')).toBeInTheDocument()
     })
 
-    it('can sort by API URL column', () => {
+    it('can sort by API URL column', async () => {
+      const user = userEvent.setup()
       render(<Integrations />, { wrapper })
 
       // Click API URL header
       const urlHeader = screen.getByRole('columnheader', { name: /^API URL$/i })
       const sortButton = within(urlHeader).getByRole('button')
-      fireEvent.click(sortButton)
+      await user.click(sortButton)
 
       // All integrations should still be visible
       expect(screen.getByText('Primary MCP Server')).toBeInTheDocument()

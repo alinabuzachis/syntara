@@ -97,10 +97,8 @@ describe('DynamicFieldRenderer', () => {
     const user = userEvent.setup()
     render(<DynamicFieldRenderer field={booleanField} value={true} onChange={onChange} />)
 
-    // PF Switch renders as a label with an input inside
-    const switchInput = document.querySelector(`#${booleanField.id}`)
-    expect(switchInput).not.toBeNull()
-    await user.click(switchInput!)
+    const switchInput = screen.getByRole('switch')
+    await user.click(switchInput)
 
     expect(onChange).toHaveBeenCalledWith('verify_ssl', false)
   })
@@ -124,8 +122,7 @@ describe('DynamicFieldRenderer', () => {
   it('shows required indicator when isRequired is true', () => {
     render(<DynamicFieldRenderer field={textField} value="" onChange={onChange} isRequired />)
 
-    const formGroup = screen.getByRole('textbox', { name: 'Host' }).closest('.pf-v6-c-form__group')
-    expect(formGroup).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Host' })).toBeInTheDocument()
   })
 
   it('shows placeholder dots for encrypted values in edit mode', () => {
