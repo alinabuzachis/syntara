@@ -54,6 +54,7 @@ class TestHttpExceptionHandler:
             (401, "unauthorized", "Unauthorized"),
             (403, "forbidden", "Forbidden"),
             (404, "resource_not_found", "Not Found"),
+            (405, "method_not_allowed", "Method Not Allowed"),
             (409, "name_conflict", "Conflict"),
             (422, "validation_error", "Unprocessable Entity"),
             (500, "internal_error", "Internal Server Error"),
@@ -98,6 +99,7 @@ class TestHttpExceptionHandler:
             (401, False),  # Unauthorized - not retryable
             (403, False),  # Forbidden - not retryable
             (404, False),  # Not Found - not retryable
+            (405, False),  # Method Not Allowed - not retryable
             (409, False),  # Conflict - not retryable
             (422, False),  # Unprocessable Entity - not retryable
             (501, False),  # Not Implemented - not retryable (5xx but not in retryable list)
