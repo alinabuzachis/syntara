@@ -14,51 +14,9 @@ const { mockNavigate } = vi.hoisted(() => ({
   mockNavigate: vi.fn(),
 }))
 
-vi.mock('../../../client', () => ({
-  credentialsClient: {
-    useQuery: vi.fn(),
-    useMutation: vi.fn(),
-  },
-
-  authMiddleware: { onRequest: vi.fn(({ request }: { request: unknown }) => request) },
+const wouterMock = vi.hoisted(() => ({
+  credentialId: '1' as string | undefined,
 }))
-
-vi.mock('wouter', () => ({
-  useLocation: () => ['/configuration/credentials/1', mockNavigate],
-  useParams: () => ({ credentialId: '1' }),
-}))
-
-vi.mock('../../access/useAllProjects', () => ({
-  useAllProjects: () => ({
-    projects: [
-      { id: 'proj-1', name: 'Project Alpha' },
-      { id: 'proj-2', name: 'Project Beta' },
-    ],
-    isLoading: false,
-    error: null,
-    refetch: vi.fn(),
-  }),
-}))
-
-vi.mock('./useDisableCredentialState', () => ({
-  useDisableCredentialState: () => ({
-    credentialToDisable: null,
-    affectedWorkflows: [],
-    workflowsFetchError: false,
-    openDisableDialog: vi.fn(),
-    closeDisableDialog: vi.fn(),
-  }),
-}))
-
-const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: false } },
-})
-
-const wrapper = ({ children }: { children: ReactNode }) => (
-  <QueryClientProvider client={queryClient}>
-    <AlertProvider>{children}</AlertProvider>
-  </QueryClientProvider>
-)
 
 const mockCredential = {
   id: '1',
@@ -87,9 +45,88 @@ const mockCredentialType = {
   managed: true,
 }
 
+/** Credential payload as returned by the API (description may be absent). */
+type MockCredentialRecord = Omit<typeof mockCredential, 'description'> & { description?: string }
+
+vi.mock('../../../client', () => ({
+  credentialsClient: {
+    useQuery: vi.fn(),
+    useMutation: vi.fn(),
+  },
+
+  authMiddleware: { onRequest: vi.fn(({ request }: { request: unknown }) => request) },
+}))
+
+vi.mock('wouter', () => ({
+  useLocation: () => [`/configuration/credentials/${wouterMock.credentialId ?? ''}`, mockNavigate],
+  useParams: () => ({ credentialId: wouterMock.credentialId }),
+}))
+
+vi.mock('../../access/useAllProjects', () => ({
+  useAllProjects: () => ({
+    projects: [
+      { id: 'proj-1', name: 'Project Alpha' },
+      { id: 'proj-2', name: 'Project Beta' },
+    ],
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
+}))
+
+const disableCredentialHookMock = vi.hoisted(() => {
+  const state = {
+    credentialToDisable: null as typeof mockCredential | null,
+    affectedWorkflows: [] as { id: string; name: string }[],
+    workflowsFetchError: false,
+    isLoadingWorkflows: false,
+  }
+  const openDisableDialog = vi.fn((cred: typeof mockCredential) => {
+    state.credentialToDisable = cred
+  })
+  const closeDisableDialog = vi.fn(() => {
+    state.credentialToDisable = null
+  })
+  return {
+    state,
+    openDisableDialog,
+    closeDisableDialog,
+    reset() {
+      state.credentialToDisable = null
+      state.affectedWorkflows = []
+      state.workflowsFetchError = false
+      state.isLoadingWorkflows = false
+      openDisableDialog.mockClear()
+      closeDisableDialog.mockClear()
+    },
+  }
+})
+
+vi.mock('./useDisableCredentialState', () => ({
+  useDisableCredentialState: () => ({
+    credentialToDisable: disableCredentialHookMock.state.credentialToDisable,
+    affectedWorkflows: disableCredentialHookMock.state.affectedWorkflows,
+    workflowsFetchError: disableCredentialHookMock.state.workflowsFetchError,
+    isLoadingWorkflows: disableCredentialHookMock.state.isLoadingWorkflows,
+    openDisableDialog: disableCredentialHookMock.openDisableDialog,
+    closeDisableDialog: disableCredentialHookMock.closeDisableDialog,
+  }),
+}))
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false } },
+})
+
+const wrapper = ({ children }: { children: ReactNode }) => (
+  <QueryClientProvider client={queryClient}>
+    <AlertProvider>{children}</AlertProvider>
+  </QueryClientProvider>
+)
+
 function mockQuery(
-  credential: typeof mockCredential | null = mockCredential,
-  credentialType: typeof mockCredentialType | null = mockCredentialType
+  credential: MockCredentialRecord | null = mockCredential,
+  credentialType: typeof mockCredentialType | null = mockCredentialType,
+  options?: { credentialTypeQueryError?: boolean }
 ) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (_method: string, path: string): any => {
@@ -102,6 +139,15 @@ function mockQuery(
       }
     }
     if (path === '/credential_types/{credential_type_id}') {
+      if (options?.credentialTypeQueryError) {
+        return {
+          data: undefined,
+          isLoading: false,
+          isError: true,
+          error: new Error('Credential type request failed'),
+          refetch: vi.fn(),
+        }
+      }
       return {
         data: credentialType,
         isLoading: false,
@@ -125,6 +171,8 @@ describe('CredentialDetail', () => {
   let mockMutate: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
+    wouterMock.credentialId = '1'
+    disableCredentialHookMock.reset()
     vi.clearAllMocks()
     mockMutate = vi.fn()
 
@@ -139,10 +187,9 @@ describe('CredentialDetail', () => {
     expect(results).toHaveNoViolations()
   })
 
-  it('renders credential name in header', () => {
+  it('renders credential name in page header as primary title', () => {
     render(<CredentialDetail />, { wrapper })
-    const nameElements = screen.getAllByText('GitHub API Token')
-    expect(nameElements.length).toBeGreaterThan(0)
+    expect(screen.getByRole('heading', { level: 1, name: 'GitHub API Token' })).toBeInTheDocument()
   })
 
   it('renders Details tab with credential fields', () => {
@@ -154,6 +201,24 @@ describe('CredentialDetail', () => {
     expect(nameElements.length).toBeGreaterThan(0)
     expect(screen.getByText('Description')).toBeInTheDocument()
     expect(screen.getByText('Token for GitHub API access')).toBeInTheDocument()
+  })
+
+  it('omits Description row when credential has no description', () => {
+    const credWithoutDescription = { ...mockCredential, description: undefined }
+    vi.mocked(credentialsClient.useQuery).mockImplementation(mockQuery(credWithoutDescription))
+
+    render(<CredentialDetail />, { wrapper })
+
+    expect(screen.queryByText('Description')).not.toBeInTheDocument()
+  })
+
+  it('omits Description row when description is whitespace only', () => {
+    const credBlankDescription = { ...mockCredential, description: '   \n\t' }
+    vi.mocked(credentialsClient.useQuery).mockImplementation(mockQuery(credBlankDescription))
+
+    render(<CredentialDetail />, { wrapper })
+
+    expect(screen.queryByText('Description')).not.toBeInTheDocument()
   })
 
   it('shows Encrypted label for secret fields', () => {
@@ -171,7 +236,7 @@ describe('CredentialDetail', () => {
     expect(screen.getByText('octocat')).toBeInTheDocument()
   })
 
-  it('renders credential type badge', () => {
+  it('renders credential type as plain text', () => {
     render(<CredentialDetail />, { wrapper })
 
     expect(screen.getByText('HTTP Bearer Token')).toBeInTheDocument()
@@ -418,7 +483,169 @@ describe('CredentialDetail', () => {
     expect(mockNavigate).not.toHaveBeenCalled()
   })
 
-  // Note: Testing missing credentialId requires restructuring the mock setup
-  // The wouter mock is set at the module level and cannot be changed per-test
-  // This scenario is better tested at the E2E level or with a separate test file
+  it('renders invalid credential shell when route has no credential id', () => {
+    wouterMock.credentialId = undefined
+
+    render(<CredentialDetail />, { wrapper })
+
+    expect(screen.getByText('Invalid credential')).toBeInTheDocument()
+    expect(screen.getByText('No credential ID provided')).toBeInTheDocument()
+  })
+
+  it('shows em dash for type while credential type is still loading', () => {
+    vi.mocked(credentialsClient.useQuery).mockImplementation((_method: string, path: string) => {
+      if (path === '/credentials/{credential_id}') {
+        return {
+          data: mockCredential,
+          isLoading: false,
+          error: null,
+          refetch: vi.fn(),
+        }
+      }
+      if (path === '/credential_types/{credential_type_id}') {
+        return {
+          data: undefined,
+          isPending: true,
+          isLoading: true,
+          isError: false,
+          error: null,
+          refetch: vi.fn(),
+        }
+      }
+      if (path === '/credentials/{credential_id}/workflows') {
+        return {
+          data: [],
+          isLoading: false,
+          error: null,
+          refetch: vi.fn(),
+        }
+      }
+      return { data: null, isLoading: false, error: null, refetch: vi.fn() }
+    })
+
+    render(<CredentialDetail />, { wrapper })
+
+    expect(screen.getByRole('tab', { name: 'Details' })).toBeInTheDocument()
+    expect(screen.getAllByText('\u2014').length).toBeGreaterThan(0)
+  })
+
+  it('calls openDisableDialog when disabling an enabled credential', async () => {
+    const user = userEvent.setup()
+    render(<CredentialDetail />, { wrapper })
+
+    await user.click(screen.getByRole('switch', { name: 'Enabled' }))
+
+    expect(disableCredentialHookMock.openDisableDialog).toHaveBeenCalledWith(
+      expect.objectContaining({ id: '1', name: 'GitHub API Token', enabled: true })
+    )
+  })
+
+  it('submits disable from confirmation dialog', async () => {
+    disableCredentialHookMock.state.credentialToDisable = mockCredential
+    const user = userEvent.setup()
+    render(<CredentialDetail />, { wrapper })
+
+    expect(screen.getByText('Disable credential?')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Disable' }))
+
+    expect(mockMutate).toHaveBeenCalledWith(
+      { params: { path: { credential_id: '1' } }, body: { enabled: false } },
+      expect.any(Object)
+    )
+  })
+
+  it('handles disable mutation success', async () => {
+    mockMutate.mockImplementation((_args: unknown, callbacks: { onSuccess?: () => void; onSettled?: () => void }) => {
+      callbacks.onSuccess?.()
+      callbacks.onSettled?.()
+    })
+    disableCredentialHookMock.state.credentialToDisable = mockCredential
+
+    const user = userEvent.setup()
+    render(<CredentialDetail />, { wrapper })
+
+    await user.click(screen.getByRole('button', { name: 'Disable' }))
+    expect(mockMutate).toHaveBeenCalled()
+  })
+
+  it('handles disable mutation error', async () => {
+    mockMutate.mockImplementation(
+      (_args: unknown, callbacks: { onError?: (e: unknown) => void; onSettled?: () => void }) => {
+        callbacks.onError?.(new Error('Failed to disable'))
+        callbacks.onSettled?.()
+      }
+    )
+    disableCredentialHookMock.state.credentialToDisable = mockCredential
+
+    const user = userEvent.setup()
+    render(<CredentialDetail />, { wrapper })
+
+    await user.click(screen.getByRole('button', { name: 'Disable' }))
+    expect(mockMutate).toHaveBeenCalled()
+  })
+
+  it('shows Failed to load type when credential type query fails', () => {
+    vi.mocked(credentialsClient.useQuery).mockImplementation(
+      mockQuery(mockCredential, mockCredentialType, { credentialTypeQueryError: true })
+    )
+
+    render(<CredentialDetail />, { wrapper })
+
+    expect(screen.getByText('Failed to load type')).toBeInTheDocument()
+  })
+
+  it('renders workflow count in details when greater than zero', () => {
+    const credWithWorkflows = { ...mockCredential, workflow_count: 4 }
+    vi.mocked(credentialsClient.useQuery).mockImplementation(mockQuery(credWithWorkflows))
+
+    render(<CredentialDetail />, { wrapper })
+
+    expect(screen.getByRole('tab', { name: /Workflows/ })).toHaveTextContent('4')
+    expect(screen.getByRole('tab', { name: 'Details' })).toBeInTheDocument()
+    const countCells = screen.getAllByText('4')
+    expect(countCells.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('refetches when retry is clicked on retryable credential error', async () => {
+    const refetch = vi.fn()
+    const retryableError = { retryable: true, message: 'Temporary failure' }
+    vi.mocked(credentialsClient.useQuery).mockImplementation((_method: string, path: string) => {
+      if (path === '/credentials/{credential_id}') {
+        return {
+          data: undefined,
+          isLoading: false,
+          isError: true,
+          error: retryableError,
+          refetch,
+        }
+      }
+      return { data: null, isLoading: false, error: null, refetch: vi.fn() }
+    })
+
+    const user = userEvent.setup()
+    render(<CredentialDetail />, { wrapper })
+
+    await user.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(refetch).toHaveBeenCalled()
+  })
+
+  it('renders nothing when credential has no id', () => {
+    const credMissingId = { ...mockCredential, id: '' }
+    vi.mocked(credentialsClient.useQuery).mockImplementation(mockQuery(credMissingId))
+
+    render(<CredentialDetail />, { wrapper })
+    expect(screen.queryByRole('switch', { name: 'Enabled' })).not.toBeInTheDocument()
+  })
+
+  it('renders type fields when credential type has no fields array', () => {
+    const typeWithoutFields = { ...mockCredentialType, inputs: {} as (typeof mockCredentialType)['inputs'] }
+    vi.mocked(credentialsClient.useQuery).mockImplementation(mockQuery(mockCredential, typeWithoutFields))
+
+    render(<CredentialDetail />, { wrapper })
+
+    expect(screen.getByRole('tab', { name: 'Details' })).toBeInTheDocument()
+    expect(screen.queryByText('octocat')).not.toBeInTheDocument()
+  })
+
+  // Note: useParams is mocked via wouterMock for the missing credentialId case above.
 })

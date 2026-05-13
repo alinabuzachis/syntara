@@ -1,20 +1,7 @@
-import {
-  Badge,
-  Button,
-  DescriptionList,
-  Flex,
-  FlexItem,
-  Label,
-  Stack,
-  StackItem,
-  Switch,
-  Tab,
-  Tabs,
-} from '@patternfly/react-core'
-import { RhUiKeyIcon } from '@patternfly/react-icons'
+import { Badge, Button, DescriptionList, Label, Stack, StackItem, Switch, Tab, Tabs } from '@patternfly/react-core'
 import { ActionsColumn } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState } from 'react'
 import { useLocation, useParams } from 'wouter'
 
 import { AppPage, AppPageMain } from '../../../app/AppPage'
@@ -94,24 +81,6 @@ export default function CredentialDetail() {
     const inputs = credType.inputs as Record<string, unknown>
     return (inputs?.fields as FieldDefinition[]) ?? []
   }, [credType])
-
-  const credentialTypeDetail: ReactNode = useMemo(() => {
-    if (credType) {
-      return (
-        <Label variant="outline" isCompact icon={<RhUiKeyIcon />}>
-          {credType.name}
-        </Label>
-      )
-    }
-    if (typeLoadError) {
-      return (
-        <Label variant="outline" isCompact color="red">
-          Failed to load type
-        </Label>
-      )
-    }
-    return '\u2014'
-  }, [credType, typeLoadError])
 
   // Mutations
   const { mutate: patchCredential, isPending: isPatchPending } = credentialsClient.useMutation(
@@ -221,6 +190,15 @@ export default function CredentialDetail() {
   if (!credential.id) return null
 
   const credInputs = credential.inputs ?? {}
+  let credentialTypeDisplayText = '\u2014'
+  if (credType) {
+    credentialTypeDisplayText = credType.name
+  } else if (typeLoadError) {
+    credentialTypeDisplayText = 'Failed to load type'
+  }
+
+  const hasDescription = credential.description != null && credential.description.trim().length > 0
+
   const credentialCrumbs = breadcrumbsCredentialDetail(
     credential.id,
     credential.name,
@@ -229,17 +207,7 @@ export default function CredentialDetail() {
 
   return (
     <AppPage>
-      <AppPageHeader
-        breadcrumbs={credentialCrumbs}
-        title={
-          <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
-            <FlexItem>
-              <RhUiKeyIcon />
-            </FlexItem>
-            <FlexItem>{credential.name}</FlexItem>
-          </Flex>
-        }
-      >
+      <AppPageHeader breadcrumbs={credentialCrumbs} title={credential.name}>
         <Switch
           id="credential-detail-toggle"
           label="Enabled"
@@ -261,8 +229,8 @@ export default function CredentialDetail() {
                 <StackItem>
                   <DescriptionList isHorizontal>
                     <Detail label="Name">{credential.name}</Detail>
-                    <Detail label="Description">{credential.description ?? '\u2014'}</Detail>
-                    <Detail label="Type">{credentialTypeDetail}</Detail>
+                    {hasDescription ? <Detail label="Description">{credential.description}</Detail> : null}
+                    <Detail label="Type">{credentialTypeDisplayText}</Detail>
                     <Detail label="Workflows">
                       {credential.workflow_count != null && credential.workflow_count > 0
                         ? credential.workflow_count
