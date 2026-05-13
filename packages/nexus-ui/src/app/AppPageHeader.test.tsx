@@ -22,30 +22,29 @@ afterEach(() => {
 })
 
 describe('AppPageHeader', () => {
-  it('renders title as string', () => {
+  it('renders string title as heading', () => {
     render(<AppPageHeader title="Test Title" />)
 
     expect(screen.getByRole('heading', { name: 'Test Title' })).toBeInTheDocument()
   })
 
-  it('renders title as ReactNode', () => {
-    render(<AppPageHeader title={<span>Custom Title</span>} />)
-
-    expect(screen.getByText('Custom Title')).toBeInTheDocument()
-  })
-
-  it('renders without toolbar when no children', () => {
+  it('renders without toolbar when toolbar is omitted', () => {
     render(<AppPageHeader title="No Toolbar" />)
 
     expect(screen.queryByRole('toolbar')).not.toBeInTheDocument()
   })
 
-  it('renders children in toolbar', () => {
+  it('renders toolbar actions', () => {
     render(
-      <AppPageHeader title="With Actions">
-        <button>Action 1</button>
-        <button>Action 2</button>
-      </AppPageHeader>
+      <AppPageHeader
+        title="With Actions"
+        toolbar={
+          <>
+            <button type="button">Action 1</button>
+            <button type="button">Action 2</button>
+          </>
+        }
+      />
     )
 
     expect(screen.getByRole('button', { name: 'Action 1' })).toBeInTheDocument()

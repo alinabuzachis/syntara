@@ -9,7 +9,6 @@ import { AppPanel } from '../../components/AppPanel'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters/FilterBar'
-import { PageTitleWithProject } from '../../components/PageTitleWithProject'
 import { PanelContentStack } from '../../components/PanelContentStack'
 import { useQueryState } from '../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
@@ -218,7 +217,7 @@ export default function Approvals() {
   if (queryState) {
     return (
       <AppPage>
-        <AppPageHeader title={<PageTitleWithProject title="Approvals" projectSelector={ProjectSelector} />} />
+        <AppPageHeader title="Approvals" projectSelector={ProjectSelector} />
         <AppPageMain>
           <AppPanel isFullHeight>{queryState}</AppPanel>
         </AppPageMain>
@@ -241,7 +240,7 @@ export default function Approvals() {
 
   return (
     <AppPage>
-      <AppPageHeader title={<PageTitleWithProject title="Approvals" projectSelector={ProjectSelector} />} />
+      <AppPageHeader title="Approvals" projectSelector={ProjectSelector} />
 
       <AppPageMain>
         <AppPanel isFullHeight>

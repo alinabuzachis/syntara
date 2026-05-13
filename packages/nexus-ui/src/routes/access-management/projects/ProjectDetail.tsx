@@ -10,7 +10,6 @@ import {
   StackItem,
   Tab,
   TabTitleText,
-  Title,
 } from '@patternfly/react-core'
 import { useParams } from 'wouter'
 import { navigate } from 'wouter/use-browser-location'
@@ -136,7 +135,7 @@ export function ProjectDetail() {
 
   return (
     <AppPage>
-      <AppPageHeader title={<Title headingLevel="h1">{projectData.name}</Title>} breadcrumbs={projectCrumbs} />
+      <AppPageHeader title={projectData.name} breadcrumbs={projectCrumbs} />
       <StackItem style={{ flexShrink: 0 }}>
         <UrlTabs basePath={basePath} defaultTab="details" validTabs={PROJECT_TABS} aria-label="Project details">
           <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />

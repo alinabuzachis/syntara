@@ -28,15 +28,18 @@ export default function Glossary() {
 
   return (
     <AppPage>
-      <AppPageHeader title="Glossary">
-        <SearchInput
-          placeholder="Search glossary..."
-          value={search}
-          onChange={(_event, value) => setSearch(value)}
-          onClear={() => setSearch('')}
-          style={{ width: '16rem' }}
-        />
-      </AppPageHeader>
+      <AppPageHeader
+        title="Glossary"
+        toolbar={
+          <SearchInput
+            placeholder="Search glossary..."
+            value={search}
+            onChange={(_event, value) => setSearch(value)}
+            onClear={() => setSearch('')}
+            style={{ width: '16rem' }}
+          />
+        }
+      />
       {results.length === 0 ? (
         <AppPageMain>
           <AppPanel isFullHeight>

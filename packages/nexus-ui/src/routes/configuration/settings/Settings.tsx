@@ -177,18 +177,22 @@ export default function Settings() {
 
   return (
     <AppPage>
-      <AppPageHeader title="Settings" breadcrumbs={settingsBreadcrumbs}>
-        {canWrite && (
-          <Button
-            variant="primary"
-            onClick={handleSave}
-            isDisabled={!hasChanges || isSaving || hasValidationErrors}
-            isLoading={isSaving}
-          >
-            Save changes
-          </Button>
-        )}
-      </AppPageHeader>
+      <AppPageHeader
+        title="Settings"
+        breadcrumbs={settingsBreadcrumbs}
+        toolbar={
+          canWrite ? (
+            <Button
+              variant="primary"
+              onClick={handleSave}
+              isDisabled={!hasChanges || isSaving || hasValidationErrors}
+              isLoading={isSaving}
+            >
+              Save changes
+            </Button>
+          ) : undefined
+        }
+      />
       <AppPageMain>
         <AppPanel isFullHeight>
           <Stack hasGutter style={{ flex: 1, minHeight: 0, height: '100%' }}>

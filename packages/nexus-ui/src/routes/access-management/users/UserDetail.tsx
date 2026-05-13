@@ -6,14 +6,12 @@ import {
   DescriptionListDescription,
   DescriptionListGroup,
   DescriptionListTerm,
-  Flex,
   FlexItem,
   Label,
   LabelGroup,
   StackItem,
   Tab,
   TabTitleText,
-  Title,
 } from '@patternfly/react-core'
 import { RhUiEditIcon } from '@patternfly/react-icons'
 import { useParams } from 'wouter'
@@ -179,21 +177,6 @@ function UserDetailsTab({
   )
 }
 
-function UserDetailHeaderTitle({ userData }: Readonly<{ userData: User }>) {
-  return (
-    <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
-      <FlexItem>
-        <Title headingLevel="h1">{userData.full_name ?? userData.username}</Title>
-      </FlexItem>
-      {!userData.is_enabled && (
-        <FlexItem>
-          <DisabledBadge />
-        </FlexItem>
-      )}
-    </Flex>
-  )
-}
-
 type UserTab = 'details' | 'groups' | 'identities' | 'roles'
 const USER_TABS: UserTab[] = ['details', 'groups', 'identities', 'roles']
 
@@ -244,12 +227,22 @@ export function UserDetail() {
 
   return (
     <AppPage>
-      <AppPageHeader title={<UserDetailHeaderTitle userData={userData} />} breadcrumbs={userBreadcrumbs}>
-        <FlexItem grow={{ default: 'grow' }} />
-        <Button variant="secondary" icon={<RhUiEditIcon />} onClick={navigateEdit}>
-          Edit user
-        </Button>
-      </AppPageHeader>
+      <AppPageHeader
+        title={userDisplayName}
+        breadcrumbs={userBreadcrumbs}
+        titleAddons={
+          !userData.is_enabled ? (
+            <FlexItem>
+              <DisabledBadge />
+            </FlexItem>
+          ) : undefined
+        }
+        toolbar={
+          <Button variant="secondary" icon={<RhUiEditIcon />} onClick={navigateEdit}>
+            Edit user
+          </Button>
+        }
+      />
       <StackItem style={{ flexShrink: 0 }}>
         <UrlTabs basePath={basePath} defaultTab="details" validTabs={USER_TABS} aria-label="User details">
           <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />

@@ -6,7 +6,6 @@ import {
   EmptyStateActions,
   EmptyStateBody,
   EmptyStateFooter,
-  FlexItem,
   StackItem,
 } from '@patternfly/react-core'
 import { RhUiArrowLeftIcon, RhUiSearchIcon, RhUiSyncIcon } from '@patternfly/react-icons'
@@ -425,15 +424,20 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
 
   return (
     <AppPage>
-      <AppPageHeader title={pageTitle} breadcrumbs={idpFormCrumbs}>
-        <FlexItem grow={{ default: 'grow' }} />
-        <Button type="submit" form="identity-provider-form" isLoading={isSaving} isDisabled={isSaving}>
-          {submitLabel}
-        </Button>
-        <Button variant="link" onClick={navigateBack}>
-          Cancel
-        </Button>
-      </AppPageHeader>
+      <AppPageHeader
+        title={pageTitle}
+        breadcrumbs={idpFormCrumbs}
+        toolbar={
+          <>
+            <Button type="submit" form="identity-provider-form" isLoading={isSaving} isDisabled={isSaving}>
+              {submitLabel}
+            </Button>
+            <Button variant="link" onClick={navigateBack}>
+              Cancel
+            </Button>
+          </>
+        }
+      />
       <AppPageMain>
         <AppPanel
           isFullHeight

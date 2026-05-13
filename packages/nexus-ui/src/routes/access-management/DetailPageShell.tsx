@@ -6,7 +6,7 @@ import type { AppBreadcrumbItem } from '../../app/breadcrumbs/appBreadcrumbItem'
 import { AppPanel } from '../../components/AppPanel'
 
 type DetailPageShellProps = {
-  title: ReactNode
+  title: string
   children: ReactNode
   breadcrumbs?: readonly AppBreadcrumbItem[]
 }

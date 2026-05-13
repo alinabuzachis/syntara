@@ -15,7 +15,6 @@ import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
 import { IconLabel } from '../../components/IconLabel'
-import { PageTitleWithProject } from '../../components/PageTitleWithProject'
 import { PanelContentStack } from '../../components/PanelContentStack'
 import { useQueryState } from '../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
@@ -266,14 +265,20 @@ export default function Workflows() {
 
   return (
     <AppPage>
-      <AppPageHeader title={<PageTitleWithProject title="Workflows" projectSelector={ProjectSelector} />}>
-        <Button variant="secondary" onClick={() => setImportDialogOpen(true)}>
-          Import workflow
-        </Button>
-        <Button variant="primary" onClick={() => setLocation('/workflow-builder/new')}>
-          Create workflow
-        </Button>
-      </AppPageHeader>
+      <AppPageHeader
+        title="Workflows"
+        projectSelector={ProjectSelector}
+        toolbar={
+          <>
+            <Button variant="secondary" onClick={() => setImportDialogOpen(true)}>
+              Import workflow
+            </Button>
+            <Button variant="primary" onClick={() => setLocation('/workflow-builder/new')}>
+              Create workflow
+            </Button>
+          </>
+        }
+      />
 
       <AppPageMain>
         <AppPanel isFullHeight>

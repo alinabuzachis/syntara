@@ -11,9 +11,6 @@
  *   - Empty state (no data / filters returning nothing)
  *   - Modals and dialogs (create, edit, delete confirmations)
  *   - Detail pages with tabs
- *
- * Note: Pages that use `PageTitleWithProject` (Workflows, Executions,
- * Approvals) render titles in a `<span>` — use `getByText()` not `getByRole('heading')`.
  */
 import { type Page, expect } from '@playwright/test'
 
@@ -533,8 +530,7 @@ export const pages: PageEntry[] = [
     name: 'credentials-list',
     path: AppRoute.Configuration.Credentials.Root,
     waitFor: async (page) => {
-      // Credentials uses PageTitleWithProject — renders title in a <span>, not a heading
-      await expect(page.getByText('Credentials', { exact: true }).first()).toBeVisible()
+      await expect(page.getByRole('heading', { level: 1, name: 'Credentials' })).toBeVisible()
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
   },
@@ -543,7 +539,7 @@ export const pages: PageEntry[] = [
     name: 'credentials-list-empty-filter',
     path: AppRoute.Configuration.Credentials.Root,
     waitFor: async (page) => {
-      await expect(page.getByText('Credentials', { exact: true }).first()).toBeVisible()
+      await expect(page.getByRole('heading', { level: 1, name: 'Credentials' })).toBeVisible()
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {
@@ -558,7 +554,7 @@ export const pages: PageEntry[] = [
     name: 'credentials-create-modal',
     path: AppRoute.Configuration.Credentials.Root,
     waitFor: async (page) => {
-      await expect(page.getByText('Credentials', { exact: true }).first()).toBeVisible()
+      await expect(page.getByRole('heading', { level: 1, name: 'Credentials' })).toBeVisible()
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {

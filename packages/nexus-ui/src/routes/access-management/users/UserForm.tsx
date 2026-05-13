@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Alert, Button, FlexItem, Form, Stack, StackItem } from '@patternfly/react-core'
+import { Alert, Button, Form, Stack, StackItem } from '@patternfly/react-core'
 import { RhUiAddIcon } from '@patternfly/react-icons'
 import type { BaseSyntheticEvent, ReactNode } from 'react'
 import type { Control } from 'react-hook-form'
@@ -93,7 +93,6 @@ function UserFormHeaderActions({
 }: Readonly<{ isEdit: boolean; isSaving: boolean; submitLabel: string; onCancel: () => void }>) {
   return (
     <>
-      <FlexItem grow={{ default: 'grow' }} />
       <Button variant="link" onClick={onCancel}>
         Cancel
       </Button>
@@ -248,9 +247,18 @@ export function UserForm({ mode }: Readonly<UserFormProps>) {
 
   return (
     <AppPage>
-      <AppPageHeader title={pageTitle} breadcrumbs={formBreadcrumbs}>
-        <UserFormHeaderActions isEdit={isEdit} isSaving={isSaving} submitLabel={submitLabel} onCancel={navigateBack} />
-      </AppPageHeader>
+      <AppPageHeader
+        title={pageTitle}
+        breadcrumbs={formBreadcrumbs}
+        toolbar={
+          <UserFormHeaderActions
+            isEdit={isEdit}
+            isSaving={isSaving}
+            submitLabel={submitLabel}
+            onCancel={navigateBack}
+          />
+        }
+      />
       <AppPageMain>
         <UserFormMainPanel
           control={control}

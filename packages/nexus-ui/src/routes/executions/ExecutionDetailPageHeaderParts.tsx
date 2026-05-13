@@ -1,0 +1,58 @@
+import type { ExecutionsAPI } from '@ansible/nexus-contracts'
+import { Button, FlexItem, Label } from '@patternfly/react-core'
+
+import { StatusLabel } from '../builder/ExecutionStatus'
+import { formatHistoryDateTime } from '../builder/historyDateUtils'
+import { RunHistoryToggleButton } from '../builder/RunHistoryToggleButton'
+
+import { ApprovalActionButtons } from './ApprovalActionButtons'
+
+type Execution = ExecutionsAPI.components['schemas']['ExecutionRead']
+
+export function ExecutionDetailTitleRowAddons({ execution }: Readonly<{ execution: Execution | undefined }>) {
+  if (!execution?.status && !execution?.created_at) {
+    return null
+  }
+  return (
+    <>
+      {execution.status ? (
+        <FlexItem>
+          <StatusLabel status={execution.status} />
+        </FlexItem>
+      ) : null}
+      {execution.created_at ? (
+        <FlexItem>
+          <Label>{`Viewing run: ${formatHistoryDateTime(execution.created_at)}`}</Label>
+        </FlexItem>
+      ) : null}
+    </>
+  )
+}
+
+export type ExecutionDetailHeaderToolbarProps = Readonly<{
+  showApprovalActionStrip: boolean
+  isApprovalLoading: boolean
+  onReviewClick: () => void
+  historyCardOpen: boolean
+  onToggleHistory: () => void
+  onBackToEditor: () => void
+}>
+
+export function ExecutionDetailHeaderToolbar({
+  showApprovalActionStrip,
+  isApprovalLoading,
+  onReviewClick,
+  historyCardOpen,
+  onToggleHistory,
+  onBackToEditor,
+}: ExecutionDetailHeaderToolbarProps) {
+  return (
+    <>
+      {showApprovalActionStrip && <ApprovalActionButtons isLoading={isApprovalLoading} onReviewClick={onReviewClick} />}
+      <RunHistoryToggleButton onClick={onToggleHistory} isActive={historyCardOpen} />
+      <Button variant="secondary" onClick={onBackToEditor}>
+        Back to editor
+      </Button>
+    </>
+  )
+}

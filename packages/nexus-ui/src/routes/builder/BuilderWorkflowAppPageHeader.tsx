@@ -175,7 +175,8 @@ export function BuilderWorkflowAppPageHeader({
   return (
     <>
       <AppPageHeader
-        title={
+        title={workflowName}
+        titleSlot={
           <Flex
             gap={{ default: 'gapMd' }}
             alignItems={{ default: 'alignItemsCenter' }}
@@ -213,28 +214,29 @@ export function BuilderWorkflowAppPageHeader({
             <FlexItem style={{ flexShrink: 0 }}>{ProjectSelector}</FlexItem>
           </Flex>
         }
-      >
-        <BuilderToolbarContent
-          isLiveRunActive={isLiveRunActive}
-          hasApprovalPending={hasApprovalPending}
-          isApprovalLoading={isApprovalLoading}
-          onBackToEditor={onBackToEditor}
-          onReviewApproval={onReviewApproval}
-          dispatch={dispatch}
-          markDirty={markDirty}
-          handleToggleHistory={handleToggleHistory}
-          isNew={isNew}
-          workflow={workflow}
-          isPending={isPending}
-          isEnabled={isEnabled}
-          isKebabOpen={isKebabOpen}
-          isSavingToggle={isSavingToggle}
-          handleToggleDetails={handleToggleDetails}
-          handleSaveWorkflow={handleSaveWorkflow}
-          handleToggleEnable={handleToggleEnable}
-          triggers={triggers}
-        />
-      </AppPageHeader>
+        toolbar={
+          <BuilderToolbarContent
+            isLiveRunActive={isLiveRunActive}
+            hasApprovalPending={hasApprovalPending}
+            isApprovalLoading={isApprovalLoading}
+            onBackToEditor={onBackToEditor}
+            onReviewApproval={onReviewApproval}
+            dispatch={dispatch}
+            markDirty={markDirty}
+            handleToggleHistory={handleToggleHistory}
+            isNew={isNew}
+            workflow={workflow}
+            isPending={isPending}
+            isEnabled={isEnabled}
+            isKebabOpen={isKebabOpen}
+            isSavingToggle={isSavingToggle}
+            handleToggleDetails={handleToggleDetails}
+            handleSaveWorkflow={handleSaveWorkflow}
+            handleToggleEnable={handleToggleEnable}
+            triggers={triggers}
+          />
+        }
+      />
 
       <EnableWorkflowConfirmDialog
         isOpen={enableConfirmOpen}

@@ -5,7 +5,6 @@ import {
   Content,
   ContentVariants,
   Flex,
-  FlexItem,
   Form,
   FormGroup,
   FormHelperText,
@@ -100,15 +99,20 @@ export function IntegrationForm() {
 
   return (
     <AppPage>
-      <AppPageHeader title="Configure integration" breadcrumbs={breadcrumbsIntegrationConfigure()}>
-        <FlexItem grow={{ default: 'grow' }} />
-        <Button type="submit" form="integration-form">
-          Add integration
-        </Button>
-        <Button variant="secondary" onClick={() => navigate(AppRoute.Configuration.Integrations.Root)}>
-          Cancel
-        </Button>
-      </AppPageHeader>
+      <AppPageHeader
+        title="Configure integration"
+        breadcrumbs={breadcrumbsIntegrationConfigure()}
+        toolbar={
+          <>
+            <Button type="submit" form="integration-form">
+              Add integration
+            </Button>
+            <Button variant="secondary" onClick={() => navigate(AppRoute.Configuration.Integrations.Root)}>
+              Cancel
+            </Button>
+          </>
+        }
+      />
       <AppPageMain>
         <AppPanel isFullHeight panelMainBodyProps={{ style: { padding: 'var(--pf-t--global--spacer--xl)' } }}>
           <div style={{ maxWidth: '600px' }}>

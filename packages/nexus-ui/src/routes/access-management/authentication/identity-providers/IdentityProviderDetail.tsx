@@ -18,7 +18,6 @@ import {
   Switch,
   Tab,
   TabTitleText,
-  Title,
 } from '@patternfly/react-core'
 import { RhUiArrowLeftIcon, RhUiEditIcon, RhUiSearchIcon, RhUiSyncIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn } from '@patternfly/react-table'
@@ -62,6 +61,20 @@ function buildGroupMappingConfig(config: ProviderConfig | undefined): GroupMappi
     group_jmespath_expression: config.group_jmespath_expression,
     group_mapping_entries: config.group_mapping_entries,
   }
+}
+
+function identityProviderTypeDisplayLabel(idpType: string | null | undefined): string {
+  return idpType ? (IDP_TYPE_PRESETS[idpType]?.label ?? idpType) : 'OIDC'
+}
+
+function identityProviderDetailMappingCount(
+  groupMappingConfig: GroupMappingConfig | null,
+  autoCreateGroups: boolean
+): number {
+  if (autoCreateGroups) {
+    return 0
+  }
+  return groupMappingConfig?.group_mapping_entries?.length ?? 0
 }
 
 function DetailField({
@@ -387,43 +400,43 @@ export function IdentityProviderDetail() {
 
   const config = providerData.configuration
   const idpType = config?.idp_type
-  const idpTypeLabel = idpType ? (IDP_TYPE_PRESETS[idpType]?.label ?? idpType) : 'OIDC'
+  const idpTypeLabel = identityProviderTypeDisplayLabel(idpType)
   const groupMappingConfig = buildGroupMappingConfig(config)
   const autoCreateGroups = config?.auto_create_groups === true
-  const mappingCount = autoCreateGroups ? 0 : (groupMappingConfig?.group_mapping_entries?.length ?? 0)
-  const headerTitle = (
-    <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
-      <FlexItem style={{ display: 'flex', alignItems: 'center' }}>
-        <ProviderIcon
-          name={providerData.name ?? ''}
-          idpType={idpType}
-          style={{ fontSize: 'var(--pf-t--global--icon--size--xl)', verticalAlign: 'middle' }}
-        />
-      </FlexItem>
-      <FlexItem>
-        <Title headingLevel="h1">{providerData.name}</Title>
-      </FlexItem>
-      <FlexItem>
-        <Label variant="outline">{idpTypeLabel}</Label>
-      </FlexItem>
-    </Flex>
-  )
+  const mappingCount = identityProviderDetailMappingCount(groupMappingConfig, autoCreateGroups)
 
   return (
     <AppPage>
-      <AppPageHeader title={headerTitle} breadcrumbs={idpDetailCrumbs}>
-        <FlexItem grow={{ default: 'grow' }} />
-        <Switch
-          id="provider-detail-toggle"
-          label="Enabled"
-          isChecked={providerData.enabled}
-          onChange={handleToggleEnabled}
-        />
-        <Button variant="primary" icon={<RhUiEditIcon />} onClick={navigateEdit}>
-          Edit provider
-        </Button>
-        <ActionsColumn items={kebabActions} />
-      </AppPageHeader>
+      <AppPageHeader
+        title={providerData.name ?? ''}
+        breadcrumbs={idpDetailCrumbs}
+        titleLeading={
+          <ProviderIcon
+            name={providerData.name ?? ''}
+            idpType={idpType}
+            style={{ fontSize: 'var(--pf-t--global--icon--size--xl)', verticalAlign: 'middle' }}
+          />
+        }
+        titleAddons={
+          <FlexItem>
+            <Label variant="outline">{idpTypeLabel}</Label>
+          </FlexItem>
+        }
+        toolbar={
+          <>
+            <Switch
+              id="provider-detail-toggle"
+              label="Enabled"
+              isChecked={providerData.enabled}
+              onChange={handleToggleEnabled}
+            />
+            <Button variant="primary" icon={<RhUiEditIcon />} onClick={navigateEdit}>
+              Edit provider
+            </Button>
+            <ActionsColumn items={kebabActions} />
+          </>
+        }
+      />
       <IdentityProviderDetailTabStrip basePath={idpDetailBasePath} mappingCount={mappingCount} />
       <AppPageMain>
         <AppPanel isFullHeight>

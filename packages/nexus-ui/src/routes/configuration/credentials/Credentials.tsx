@@ -11,7 +11,6 @@ import { AppPanel } from '../../../components/AppPanel'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { FilterBar } from '../../../components/filters/FilterBar'
 import { IconLabel } from '../../../components/IconLabel'
-import { PageTitleWithProject } from '../../../components/PageTitleWithProject'
 import { PanelContentStack } from '../../../components/PanelContentStack'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
@@ -233,7 +232,7 @@ export default function Credentials() {
   if (queryState) {
     return (
       <AppPage>
-        <AppPageHeader title={<PageTitleWithProject title="Credentials" projectSelector={ProjectSelector} />} />
+        <AppPageHeader title="Credentials" projectSelector={ProjectSelector} />
         <AppPageMain>
           <AppPanel isFullHeight>{queryState}</AppPanel>
         </AppPageMain>
@@ -243,11 +242,15 @@ export default function Credentials() {
 
   return (
     <AppPage>
-      <AppPageHeader title={<PageTitleWithProject title="Credentials" projectSelector={ProjectSelector} />}>
-        <Button variant="secondary" onClick={() => setCreateModalOpen(true)}>
-          Create credential
-        </Button>
-      </AppPageHeader>
+      <AppPageHeader
+        title="Credentials"
+        projectSelector={ProjectSelector}
+        toolbar={
+          <Button variant="secondary" onClick={() => setCreateModalOpen(true)}>
+            Create credential
+          </Button>
+        }
+      />
 
       {results.length === 0 && !hasActiveFilters ? (
         <AppPageMain>

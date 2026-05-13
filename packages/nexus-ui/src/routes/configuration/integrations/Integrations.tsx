@@ -258,11 +258,14 @@ export default function Integrations() {
 
   return (
     <AppPage>
-      <AppPageHeader title="Integrations">
-        <Button variant="primary" onClick={() => navigate(AppRoute.Configuration.Integrations.Configure)}>
-          Add integration
-        </Button>
-      </AppPageHeader>
+      <AppPageHeader
+        title="Integrations"
+        toolbar={
+          <Button variant="primary" onClick={() => navigate(AppRoute.Configuration.Integrations.Configure)}>
+            Add integration
+          </Button>
+        }
+      />
 
       {results.length === 0 && !hasActiveFilters ? (
         <AppPageMain>

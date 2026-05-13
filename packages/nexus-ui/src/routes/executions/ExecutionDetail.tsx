@@ -2,13 +2,10 @@ import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import {
   Alert,
   AlertActionCloseButton,
-  Button,
   Content,
   ContentVariants,
   Flex,
   FlexItem,
-  Label,
-  Title,
   TitleSizes,
 } from '@patternfly/react-core'
 import { useQueryClient } from '@tanstack/react-query'
@@ -28,17 +25,15 @@ import type { FilterConfig } from '../../types/filters'
 import { detachPromise } from '../../utils/detachPromise'
 import { buildFilterParams } from '../../utils/filterUtils'
 import { ExecutionDetailsPanel, type WorkflowDefShape } from '../builder/ExecutionDetailsPanel'
-import { StatusLabel } from '../builder/ExecutionStatus'
 import { ExecutionViewContent } from '../builder/ExecutionViewContent'
-import { formatHistoryDateTime } from '../builder/historyDateUtils'
-import { RunHistoryToggleButton } from '../builder/RunHistoryToggleButton'
 import { WorkflowHistoryCard } from '../builder/WorkflowHistoryCard'
 import { useExecutionWebSocket } from '../workflows/hooks/useExecutionWebSocket'
 import { useExecutionStore } from '../workflows/stores/useExecutionStore'
 
-import { ApprovalActionButtons } from './ApprovalActionButtons'
 import { ApprovalReviewView } from './ApprovalReviewView'
 import { ConnectionBanner } from './ConnectionBanner'
+import { ExecutionDetailHeaderToolbar, ExecutionDetailTitleRowAddons } from './ExecutionDetailPageHeaderParts'
+import { executionDetailHasTitleRowExtras, executionDetailPageHeading } from './executionDetailPageHeaderTitle'
 import { useExecutionNodeClick } from './hooks/useExecutionNodeClick'
 
 /** Width constraint for the inline failure alert floating over the execution canvas. */
@@ -292,29 +287,6 @@ function useSyncActivityStore(execution: Execution | undefined, activities: (Act
   }, [activities, execution?.id, execution?.status, execution?.workflow_definition, setActivityExecutions])
 }
 
-function ExecutionPageTitle({ execution, executionId }: { execution: Execution | undefined; executionId: string }) {
-  const wfDefMeta = (execution?.workflow_definition as unknown as WorkflowDefinitionLike | undefined)?.metadata
-  return (
-    <Flex gap={{ default: 'gapMd' }} alignItems={{ default: 'alignItemsCenter' }}>
-      <FlexItem>
-        <Title headingLevel="h1" size={TitleSizes['2xl']}>
-          {wfDefMeta?.name ?? `Execution ${executionId.slice(0, 8)}...`}
-        </Title>
-      </FlexItem>
-      {execution?.status && (
-        <FlexItem>
-          <StatusLabel status={execution.status} />
-        </FlexItem>
-      )}
-      {execution?.created_at && (
-        <FlexItem>
-          <Label>{`Viewing run: ${formatHistoryDateTime(execution.created_at)}`}</Label>
-        </FlexItem>
-      )}
-    </Flex>
-  )
-}
-
 export default function ExecutionDetail() {
   const params = useParams<{ executionId: string }>()
   const executionId = params.executionId
@@ -475,23 +447,31 @@ export default function ExecutionDetail() {
 
   return (
     <AppPage>
-      <AppPageHeader title={<ExecutionPageTitle execution={execution} executionId={executionId} />}>
-        {(pendingApproval ?? isApprovalLoading) && (
-          <ApprovalActionButtons
-            isLoading={isApprovalLoading}
+      <AppPageHeader
+        title={executionDetailPageHeading(execution, executionId)}
+        titleProps={{ size: TitleSizes['2xl'] }}
+        titleAddons={
+          executionDetailHasTitleRowExtras(execution) ? (
+            <ExecutionDetailTitleRowAddons execution={execution} />
+          ) : undefined
+        }
+        toolbar={
+          <ExecutionDetailHeaderToolbar
+            showApprovalActionStrip={Boolean(pendingApproval ?? isApprovalLoading)}
+            isApprovalLoading={isApprovalLoading}
             onReviewClick={() => {
               setApprovalViewOpen(true)
             }}
+            historyCardOpen={historyCardOpen}
+            onToggleHistory={toggleHistoryCard}
+            onBackToEditor={() => {
+              if (execution?.workflow_id) {
+                setLocation(`/workflow-builder/${execution.workflow_id}`)
+              }
+            }}
           />
-        )}
-        <RunHistoryToggleButton onClick={toggleHistoryCard} isActive={historyCardOpen} />
-        <Button
-          variant="secondary"
-          onClick={() => execution?.workflow_id && setLocation(`/workflow-builder/${execution.workflow_id}`)}
-        >
-          Back to editor
-        </Button>
-      </AppPageHeader>
+        }
+      />
       <AppPageMain>
         {approvalViewOpen && pendingApproval ? (
           <ApprovalReviewView

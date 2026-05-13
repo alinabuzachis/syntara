@@ -12,7 +12,6 @@ import {
   StackItem,
   Tab,
   TabTitleText,
-  Title,
 } from '@patternfly/react-core'
 import { RhUiEditIcon } from '@patternfly/react-icons'
 import { useMemo, useState } from 'react'
@@ -208,14 +207,17 @@ export function GroupDetail() {
 
   return (
     <AppPage>
-      <AppPageHeader title={<Title headingLevel="h1">{groupData.name}</Title>} breadcrumbs={groupCrumbs}>
-        <FlexItem grow={{ default: 'grow' }} />
-        {!groupData.is_builtin && (
-          <Button variant="secondary" icon={<RhUiEditIcon />} onClick={() => setEditModalOpen(true)}>
-            Edit group
-          </Button>
-        )}
-      </AppPageHeader>
+      <AppPageHeader
+        title={groupData.name}
+        breadcrumbs={groupCrumbs}
+        toolbar={
+          !groupData.is_builtin ? (
+            <Button variant="secondary" icon={<RhUiEditIcon />} onClick={() => setEditModalOpen(true)}>
+              Edit group
+            </Button>
+          ) : undefined
+        }
+      />
       <StackItem style={{ flexShrink: 0 }}>
         <GroupTabBar
           basePath={basePath}

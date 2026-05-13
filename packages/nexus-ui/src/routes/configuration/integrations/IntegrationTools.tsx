@@ -106,25 +106,31 @@ function IntegrationToolsLoadedView({
 }: IntegrationToolsLoadedViewProps) {
   return (
     <AppPage>
-      <AppPageHeader title={`${providerName} tools`} breadcrumbs={breadcrumbsIntegrationTools(providerName)}>
-        <Button variant="secondary" onClick={() => setRefreshDialogOpen(true)}>
-          Refresh tools
-        </Button>
-        <Button
-          onClick={async () => {
-            try {
-              await handleSubmit()
-            } catch (error: unknown) {
-              handleMutationError({ title: 'Failed to save tools' })(error)
-            }
-          }}
-        >
-          Save
-        </Button>
-        <Button variant="secondary" onClick={() => navigate(AppRoute.Configuration.Integrations.Root)}>
-          Cancel
-        </Button>
-      </AppPageHeader>
+      <AppPageHeader
+        title={`${providerName} tools`}
+        breadcrumbs={breadcrumbsIntegrationTools(providerName)}
+        toolbar={
+          <>
+            <Button variant="secondary" onClick={() => setRefreshDialogOpen(true)}>
+              Refresh tools
+            </Button>
+            <Button
+              onClick={async () => {
+                try {
+                  await handleSubmit()
+                } catch (error: unknown) {
+                  handleMutationError({ title: 'Failed to save tools' })(error)
+                }
+              }}
+            >
+              Save
+            </Button>
+            <Button variant="secondary" onClick={() => navigate(AppRoute.Configuration.Integrations.Root)}>
+              Cancel
+            </Button>
+          </>
+        }
+      />
       {results.length === 0 && !hasActiveFilters ? (
         <AppPageMain>
           <AppPanel isFullHeight>

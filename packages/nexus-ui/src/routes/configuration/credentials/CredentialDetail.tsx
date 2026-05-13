@@ -207,18 +207,24 @@ export default function CredentialDetail() {
 
   return (
     <AppPage>
-      <AppPageHeader breadcrumbs={credentialCrumbs} title={credential.name}>
-        <Switch
-          id="credential-detail-toggle"
-          label="Enabled"
-          isChecked={credential.enabled}
-          onChange={handleToggleEnabled}
-        />
-        <Button variant="secondary" onClick={() => setEditModalOpen(true)}>
-          Edit credential
-        </Button>
-        <ActionsColumn items={kebabActions} />
-      </AppPageHeader>
+      <AppPageHeader
+        breadcrumbs={credentialCrumbs}
+        title={credential.name}
+        toolbar={
+          <>
+            <Switch
+              id="credential-detail-toggle"
+              label="Enabled"
+              isChecked={credential.enabled}
+              onChange={handleToggleEnabled}
+            />
+            <Button variant="secondary" onClick={() => setEditModalOpen(true)}>
+              Edit credential
+            </Button>
+            <ActionsColumn items={kebabActions} />
+          </>
+        }
+      />
 
       <AppPageMain>
         <AppPanel isFullHeight>

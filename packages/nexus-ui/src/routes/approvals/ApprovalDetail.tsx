@@ -215,16 +215,22 @@ export default function ApprovalDetail() {
   }
   return (
     <AppPage>
-      <AppPageHeader title={approvalName} breadcrumbs={breadcrumbsApprovalDetail(approvalName)}>
-        <Button variant="secondary" onClick={() => setLocation(AppRoute.Approvals.Root)}>
-          {isPending ? 'Cancel' : 'Back to Approvals'}
-        </Button>
-        {isPending && (
-          <Button isDisabled={!canSubmit} isLoading={isSubmitting} onClick={handleSubmit}>
-            Submit
-          </Button>
-        )}
-      </AppPageHeader>
+      <AppPageHeader
+        title={approvalName}
+        breadcrumbs={breadcrumbsApprovalDetail(approvalName)}
+        toolbar={
+          <>
+            <Button variant="secondary" onClick={() => setLocation(AppRoute.Approvals.Root)}>
+              {isPending ? 'Cancel' : 'Back to Approvals'}
+            </Button>
+            {isPending && (
+              <Button isDisabled={!canSubmit} isLoading={isSubmitting} onClick={handleSubmit}>
+                Submit
+              </Button>
+            )}
+          </>
+        }
+      />
       <AppPageMain>
         <AppPanel isFullHeight>
           <Stack hasGutter>
