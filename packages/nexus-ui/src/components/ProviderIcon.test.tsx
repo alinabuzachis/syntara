@@ -11,18 +11,18 @@ describe('ProviderIcon', () => {
   })
 
   it('renders globe icon fallback when no idpType is provided', () => {
-    const { container } = render(<ProviderIcon name="Okta SSO" />)
-    expect(container.querySelector('svg')).toBeInTheDocument()
+    render(<ProviderIcon name="Okta SSO" />)
+    expect(screen.getByTestId('globe-icon')).toBeInTheDocument()
   })
 
   it('renders globe icon fallback for custom idpType', () => {
-    const { container } = render(<ProviderIcon name="Unknown" idpType="custom" />)
-    expect(container.querySelector('svg')).toBeInTheDocument()
+    render(<ProviderIcon name="Unknown" idpType="custom" />)
+    expect(screen.getByTestId('globe-icon')).toBeInTheDocument()
   })
 
   it('renders globe icon for unknown provider', () => {
-    const { container } = render(<ProviderIcon name="custom-idp" />)
-    expect(container.querySelector('svg')).toBeInTheDocument()
+    render(<ProviderIcon name="custom-idp" />)
+    expect(screen.getByTestId('globe-icon')).toBeInTheDocument()
   })
 
   it('has no accessibility violations with icon', async () => {

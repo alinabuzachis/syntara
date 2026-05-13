@@ -58,4 +58,35 @@ describe('Details', () => {
     expect(screen.getByTestId('child-2')).toBeInTheDocument()
     expect(screen.getByTestId('child-3')).toBeInTheDocument()
   })
+
+  it('forwards data-testid to the description list', () => {
+    render(
+      <Details data-testid="my-details">
+        <div>Content</div>
+      </Details>
+    )
+
+    expect(screen.getByTestId('my-details')).toBeInTheDocument()
+  })
+
+  it('renders correctly on re-render with unchanged props', () => {
+    // Stable reference for children ensures React Compiler's memoization cache hits
+    // on the second render, exercising the cache-check branch conditions.
+    const child = <div>Stable content</div>
+    const { rerender } = render(<Details data-testid="stable">{child}</Details>)
+
+    rerender(<Details data-testid="stable">{child}</Details>)
+
+    expect(screen.getByTestId('stable')).toBeInTheDocument()
+  })
+
+  it('applies horizontal layout when isHorizontal is true', () => {
+    render(
+      <Details isHorizontal data-testid="horizontal-details">
+        <div>Content</div>
+      </Details>
+    )
+
+    expect(screen.getByTestId('horizontal-details')).toHaveClass('pf-m-horizontal')
+  })
 })

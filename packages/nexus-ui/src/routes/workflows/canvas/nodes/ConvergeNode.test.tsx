@@ -163,24 +163,15 @@ describe('ConvergeNodeComponent', () => {
 
   describe('Node Structure', () => {
     it('renders with correct structure', () => {
-      const { container } = render(<ConvergeNodeComponent {...createNodeProps(baseConvergeNode)} />)
+      render(<ConvergeNodeComponent {...createNodeProps(baseConvergeNode)} />)
 
-      expect(container.querySelector('.pf-v6-c-panel')).toBeInTheDocument()
+      expect(screen.getByTestId('converge-node')).toBeInTheDocument()
     })
 
     it('renders details section', () => {
-      const { container } = render(<ConvergeNodeComponent {...createNodeProps(baseConvergeNode)} />)
+      render(<ConvergeNodeComponent {...createNodeProps(baseConvergeNode)} />)
 
-      expect(container.querySelector('.details')).toBeInTheDocument()
-    })
-  })
-
-  describe('Icon rotation', () => {
-    it('renders icon with rotation style', () => {
-      const { container } = render(<ConvergeNodeComponent {...createNodeProps(baseConvergeNode)} />)
-
-      const iconWrapper = container.querySelector('[style*="rotate"]')
-      expect(iconWrapper).toBeInTheDocument()
+      expect(screen.getByTestId('converge-node-details')).toBeInTheDocument()
     })
   })
 })

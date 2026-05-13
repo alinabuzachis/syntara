@@ -64,9 +64,13 @@ function buildGroupMappingConfig(config: ProviderConfig | undefined): GroupMappi
   }
 }
 
-function DetailField({ label, children }: Readonly<{ label: string; children: React.ReactNode }>) {
+function DetailField({
+  label,
+  children,
+  'data-testid': testId,
+}: Readonly<{ label: string; children: React.ReactNode; 'data-testid'?: string }>) {
   return (
-    <DescriptionListGroup>
+    <DescriptionListGroup data-testid={testId}>
       <DescriptionListTerm>{label}</DescriptionListTerm>
       <DescriptionListDescription>{children}</DescriptionListDescription>
     </DescriptionListGroup>
@@ -77,7 +81,7 @@ function AapRoleMappingField({ config }: Readonly<{ config: ProviderConfig }>) {
   if (config.idp_type !== IdpTypeKey.AAP) return null
   const enabled = config.aap_role_mapping_enabled ?? false
   return (
-    <DetailField label="AAP role mapping">
+    <DetailField label="AAP role mapping" data-testid="aap-role-mapping-field">
       <Label color={enabled ? 'blue' : 'grey'} isCompact>
         {enabled ? 'Enabled' : 'Disabled'}
       </Label>

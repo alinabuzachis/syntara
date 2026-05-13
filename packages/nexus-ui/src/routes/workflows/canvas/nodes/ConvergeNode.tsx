@@ -46,6 +46,7 @@ export function ConvergeNodeComponent(props: NodeProps<ConvergeNode>) {
       nodeProps={props}
       executionState={executionState}
       topBarColor={getNodeTypeColor('converge')}
+      rootTestId="converge-node"
       semanticZoomSummary={{
         title: semanticZoomActivityTitle(props.data.name, `Untitled ${metadata.label}`),
         typeLabel: metadata.label,
@@ -54,7 +55,7 @@ export function ConvergeNodeComponent(props: NodeProps<ConvergeNode>) {
       <StandardNodeHeader icon={iconNode} title={props.data.name} subtitle={metadata.label} expandable />
       <Flex justifyContent={{ default: 'justifyContentFlexStart' }} style={{ overflow: 'hidden' }}>
         <NodeBody>
-          <Details>
+          <Details data-testid="converge-node-details">
             <Detail label="Type">{strategyLabel}</Detail>
           </Details>
         </NodeBody>

@@ -302,7 +302,7 @@ describe('IdentityProviderDetail', () => {
 
     render(<IdentityProviderDetail />, { wrapper: createWrapper() })
 
-    const roleMappingGroup = screen.getByText('AAP role mapping').parentElement!.parentElement!
+    const roleMappingGroup = screen.getByTestId('aap-role-mapping-field')
     expect(within(roleMappingGroup).getByText('Enabled')).toBeInTheDocument()
   })
 
@@ -320,7 +320,24 @@ describe('IdentityProviderDetail', () => {
 
     render(<IdentityProviderDetail />, { wrapper: createWrapper() })
 
-    const roleMappingGroup = screen.getByText('AAP role mapping').parentElement!.parentElement!
+    const roleMappingGroup = screen.getByTestId('aap-role-mapping-field')
+    expect(within(roleMappingGroup).getByText('Disabled')).toBeInTheDocument()
+  })
+
+  it('shows AAP role mapping as Disabled when aap_role_mapping_enabled is not set', () => {
+    const aapProvider = {
+      ...mockProvider,
+      configuration: {
+        ...mockProvider.configuration,
+        idp_type: IdpTypeKey.AAP,
+      },
+    }
+
+    vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn({ data: aapProvider }))
+
+    render(<IdentityProviderDetail />, { wrapper: createWrapper() })
+
+    const roleMappingGroup = screen.getByTestId('aap-role-mapping-field')
     expect(within(roleMappingGroup).getByText('Disabled')).toBeInTheDocument()
   })
 

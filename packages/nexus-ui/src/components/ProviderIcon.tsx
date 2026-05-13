@@ -31,6 +31,6 @@ export function ProviderIcon({ name, idpType, style }: Readonly<ProviderIconProp
     case 'ansible':
       return <AnsibleTowerIcon style={iconStyle} />
     case null:
-      return <GlobeIcon style={iconStyle} />
+      return <GlobeIcon data-testid="globe-icon" aria-hidden="true" style={iconStyle} />
   }
 }
