@@ -218,4 +218,132 @@ describe('useEdgeExecutionStatus', () => {
       expect(result[0]).toBe(edge)
     })
   })
+
+  describe('active → terminal transitions', () => {
+    it('clears edge statuses when transitioning from running to completed', () => {
+      const setEdges = vi.fn()
+      const edgeWithStatus = makeEdge('e1', 'running')
+
+      const { rerender } = renderHook(
+        ({ status }: { status: string | null }) =>
+          useEdgeExecutionStatus({
+            effectiveExecutionStatus: status,
+            isInitialized: true,
+            currentWorkflow: emptyWorkflow,
+            activityStates: defaultActivity,
+            setEdges,
+          }),
+        { initialProps: { status: 'running' as string | null } }
+      )
+
+      setEdges.mockClear()
+      rerender({ status: 'completed' })
+
+      expect(setEdges).toHaveBeenCalledTimes(1)
+      const updater = setEdges.mock.calls[0][0] as (edges: TestEdge[]) => TestEdge[]
+      const result = updater([edgeWithStatus])
+      expect(result[0].data.executionStatus).toBeUndefined()
+    })
+
+    it('clears edge statuses when transitioning from running to failed', () => {
+      const setEdges = vi.fn()
+      const edgeWithStatus = makeEdge('e1', 'running')
+
+      const { rerender } = renderHook(
+        ({ status }: { status: string | null }) =>
+          useEdgeExecutionStatus({
+            effectiveExecutionStatus: status,
+            isInitialized: true,
+            currentWorkflow: emptyWorkflow,
+            activityStates: defaultActivity,
+            setEdges,
+          }),
+        { initialProps: { status: 'running' as string | null } }
+      )
+
+      setEdges.mockClear()
+      rerender({ status: 'failed' })
+
+      expect(setEdges).toHaveBeenCalledTimes(1)
+      const updater = setEdges.mock.calls[0][0] as (edges: TestEdge[]) => TestEdge[]
+      const result = updater([edgeWithStatus])
+      expect(result[0].data.executionStatus).toBeUndefined()
+    })
+
+    it('clears edge statuses when transitioning from running to cancelled', () => {
+      const setEdges = vi.fn()
+      const edgeWithStatus = makeEdge('e1', 'running')
+
+      const { rerender } = renderHook(
+        ({ status }: { status: string | null }) =>
+          useEdgeExecutionStatus({
+            effectiveExecutionStatus: status,
+            isInitialized: true,
+            currentWorkflow: emptyWorkflow,
+            activityStates: defaultActivity,
+            setEdges,
+          }),
+        { initialProps: { status: 'running' as string | null } }
+      )
+
+      setEdges.mockClear()
+      rerender({ status: 'cancelled' })
+
+      expect(setEdges).toHaveBeenCalledTimes(1)
+      const updater = setEdges.mock.calls[0][0] as (edges: TestEdge[]) => TestEdge[]
+      const result = updater([edgeWithStatus])
+      expect(result[0].data.executionStatus).toBeUndefined()
+    })
+
+    it('does not clear edge statuses during active → active transitions (running → paused)', () => {
+      mockDetermineEdgeStatus.mockReturnValue('running')
+      const setEdges = vi.fn()
+      const edgeWithStatus = makeEdge('e1', 'running')
+
+      const { rerender } = renderHook(
+        ({ status }: { status: string | null }) =>
+          useEdgeExecutionStatus({
+            effectiveExecutionStatus: status,
+            isInitialized: true,
+            currentWorkflow: emptyWorkflow,
+            activityStates: defaultActivity,
+            setEdges,
+          }),
+        { initialProps: { status: 'running' as string | null } }
+      )
+
+      setEdges.mockClear()
+      rerender({ status: 'paused' })
+
+      // Should call setEdges for enrichment, not cleanup
+      expect(setEdges).toHaveBeenCalledTimes(1)
+      const updater = setEdges.mock.calls[0][0] as (edges: TestEdge[]) => TestEdge[]
+      const result = updater([edgeWithStatus])
+
+      // Edge should still have executionStatus (enrichment, not cleanup)
+      expect(result[0].data.executionStatus).toBe('running')
+    })
+
+    it('does not clear edge statuses during terminal → terminal transitions (completed → failed)', () => {
+      const setEdges = vi.fn()
+
+      const { rerender } = renderHook(
+        ({ status }: { status: string | null }) =>
+          useEdgeExecutionStatus({
+            effectiveExecutionStatus: status,
+            isInitialized: true,
+            currentWorkflow: emptyWorkflow,
+            activityStates: defaultActivity,
+            setEdges,
+          }),
+        { initialProps: { status: 'completed' as string | null } }
+      )
+
+      setEdges.mockClear()
+      rerender({ status: 'failed' })
+
+      // Should not call setEdges (neither cleanup nor enrichment for terminal states)
+      expect(setEdges).not.toHaveBeenCalled()
+    })
+  })
 })

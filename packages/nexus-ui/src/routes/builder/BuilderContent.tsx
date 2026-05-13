@@ -281,6 +281,7 @@ export function BuilderContent(props: BuilderContentProps) {
     showMostRecentRunPanelInEditor,
     currentWorkflow,
     handleNodeClick,
+    isLiveRunActive,
   })
 
   const triggers = currentWorkflow?.triggers ?? []

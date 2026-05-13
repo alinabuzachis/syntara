@@ -16,6 +16,7 @@ type UseBuilderApprovalParams = {
   showMostRecentRunPanelInEditor: boolean
   currentWorkflow: WorkflowDefinition | null
   handleNodeClick: (event: React.MouseEvent, node: Node<NodeType['data']>) => void
+  isLiveRunActive: boolean
 }
 
 type UseBuilderApprovalResult = {
@@ -33,6 +34,7 @@ export function useBuilderApproval({
   showMostRecentRunPanelInEditor,
   currentWorkflow,
   handleNodeClick,
+  isLiveRunActive,
 }: UseBuilderApprovalParams): UseBuilderApprovalResult {
   const {
     pendingApproval,
@@ -73,9 +75,13 @@ export function useBuilderApproval({
           return
         }
       }
-      handleNodeClick(event, node)
+      // During live run, only approval clicks are allowed (handled above)
+      // Other clicks are blocked to prevent opening node editor
+      if (!isLiveRunActive) {
+        handleNodeClick(event, node)
+      }
     },
-    [showMostRecentRunPanelInEditor, handleApprovalNodeClick, handleNodeClick]
+    [showMostRecentRunPanelInEditor, handleApprovalNodeClick, handleNodeClick, isLiveRunActive]
   )
 
   return {

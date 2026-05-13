@@ -287,6 +287,20 @@ export function useButtonEdgeMaintenance({
     }
   }, [isInitialized])
 
+  // Track execution status to reset signature when exiting execution mode
+  const prevExecutionStatusRef = useRef(executionStatus)
+  useEffect(() => {
+    const wasInExecution = prevExecutionStatusRef.current !== null
+    const isNowInEditMode = executionStatus === null
+    prevExecutionStatusRef.current = executionStatus
+
+    // Reset signature when transitioning from execution mode back to edit mode
+    // so button edges are recreated even if the signature matches pre-execution state
+    if (wasInExecution && isNowInEditMode) {
+      lastProcessedSignatureRef.current = ''
+    }
+  }, [executionStatus])
+
   // Remove button edges and placeholder nodes when entering execution mode
   useEffect(() => {
     if (!isInitialized || !executionStatus) return

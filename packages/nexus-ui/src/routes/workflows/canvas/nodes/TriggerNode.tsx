@@ -5,6 +5,7 @@ import type { CSSProperties } from 'react'
 
 import { FlowNodeType } from '../../../../constants'
 import { parseTriggerIndex } from '../../../../utils/triggerNodeIds'
+import { useIsActiveExecution } from '../../../builder/ActiveExecutionContext'
 import { useIsExecutionView } from '../../../builder/ExecutionViewContext'
 import type { ActivityStatus } from '../../execution/types'
 import { getNodeTypeColor } from '../nodeTypeColors'
@@ -106,6 +107,7 @@ function TriggerNodeDetails(
   }>
 ) {
   const isExecutionView = useIsExecutionView()
+  const isActiveExecution = useIsActiveExecution()
   const isManualTrigger = props.triggerKind === TriggerTypeEnum.MANUAL_TRIGGER
   const isScheduledTrigger = props.triggerKind === TriggerTypeEnum.SCHEDULED
   const normalizedDetails = props.triggerDetails ?? null
@@ -114,7 +116,7 @@ function TriggerNodeDetails(
       <NodeHeader>
         <FlexItem>{props.icon}</FlexItem>
         <FlexItem grow={{ default: 'grow' }} />
-        {props.menuActions && props.menuActions.length > 0 && !isExecutionView && (
+        {props.menuActions && props.menuActions.length > 0 && !isExecutionView && !isActiveExecution && (
           <FlexItem>
             <NodeMenu menuActions={props.menuActions} />
           </FlexItem>

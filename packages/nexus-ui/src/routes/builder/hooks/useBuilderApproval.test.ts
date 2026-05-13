@@ -50,6 +50,7 @@ function defaultParams(overrides: Partial<HookParams> = {}): HookParams {
     showMostRecentRunPanelInEditor: false,
     currentWorkflow: null,
     handleNodeClick: vi.fn(),
+    isLiveRunActive: false,
     ...overrides,
   }
 }

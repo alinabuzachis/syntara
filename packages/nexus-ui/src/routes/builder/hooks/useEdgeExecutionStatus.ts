@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react'
 import type { WorkflowDefinition } from '../../../stores/workflowStoreTypes'
 import { buildTriggerNodeId } from '../../../utils/triggerNodeIds'
 import type { ActivityState } from '../../workflows/execution/types'
+import { isTerminalState } from '../utils/executionState/executionHelpers'
 import type { EdgeType } from '../utils/workflowToGraph'
 
 import { executionStateEnricher } from './useBuilderFlowGraph'
@@ -29,8 +30,12 @@ export function useEdgeExecutionStatus({
     const prev = prevExecutionStatusRef.current
     prevExecutionStatusRef.current = effectiveExecutionStatus
 
-    // Cleanup: clear edge statuses when execution ends (truthy → null transition).
-    if (prev && !effectiveExecutionStatus && isInitialized) {
+    const wasActive = prev !== null && !isTerminalState(prev)
+    const isActive = effectiveExecutionStatus !== null && !isTerminalState(effectiveExecutionStatus)
+
+    // Cleanup: clear edge statuses when execution becomes inactive (active → terminal/null transition).
+    // This includes: running → completed, running → failed, running → null, etc.
+    if (wasActive && !isActive && isInitialized) {
       setEdges((edges) => {
         if (!edges.some((e) => e.data?.executionStatus != null)) return edges
         return edges.map((e) =>
@@ -41,7 +46,7 @@ export function useEdgeExecutionStatus({
     }
 
     // Enrichment: set edge statuses during active execution.
-    if (!effectiveExecutionStatus || !isInitialized) return
+    if (!isActive || !isInitialized) return
 
     const activities = currentWorkflow?.workflow.activities ?? []
     const triggers = currentWorkflow?.triggers ?? []

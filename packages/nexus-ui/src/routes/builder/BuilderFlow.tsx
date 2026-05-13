@@ -1,5 +1,6 @@
 // TODO: Refactor into smaller hooks to reduce file size (AAP-74113)
 // Suggested hooks: useWorkflowGraphInit, useExecutionStateEnrichment, useCanvasInteractions
+/* eslint-disable max-lines */
 import { Spinner } from '@patternfly/react-core'
 import {
   applyEdgeChanges,
@@ -33,6 +34,7 @@ import { type NodeType } from '../workflows/canvas/nodes/NodeType'
 import { UndoRedoControls } from '../workflows/canvas/UndoRedoControls'
 import { useExecutionStore } from '../workflows/stores/useExecutionStore'
 
+import { ActiveExecutionContext } from './ActiveExecutionContext'
 import { builderEdgeTypes, builderNodeTypes, resolveExecutionStatus } from './builderFlowConfig'
 import { BUTTON_EDGE_DEFAULT_STROKE } from './edges/buttonEdgeStrokeColor'
 import { EdgeMarkers } from './edges/edgeMarkers'
@@ -577,58 +579,65 @@ export function BuilderFlow(props: BuilderFlowProps) {
   )
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        width: '100%',
-        height: '100%',
-        position: 'relative',
-      }}
-    >
-      {effectiveExecutionStatus === 'running' && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 'var(--pf-t--global--spacer--md)',
-            left: 'var(--pf-t--global--spacer--md)',
-            zIndex: 1000,
-          }}
-        >
-          <Spinner size="xl" style={{ '--pf-v6-c-spinner--Color': '#ff006e' } as React.CSSProperties} />
-        </div>
-      )}
-      <ReactFlow<NodeType, EdgeType>
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={builderNodeTypes}
-        edgeTypes={builderEdgeTypes}
-        onNodesChange={onNodesChange}
-        onNodeDragStop={isReadOnly ? undefined : onNodeDragStop}
-        onEdgesChange={onEdgesChange}
-        onNodesDelete={isReadOnly ? undefined : onNodesDelete}
-        onNodeClick={onNodeClick}
-        onConnect={isReadOnly ? undefined : onConnect}
-        onConnectStart={isReadOnly ? undefined : onConnectStart}
-        onConnectEnd={isReadOnly ? undefined : onConnectEnd}
-        connectOnClick={false}
-        connectionRadius={200}
-        connectionLineStyle={{ stroke: BUTTON_EDGE_DEFAULT_STROKE, strokeWidth: 2 }}
-        defaultEdgeOptions={{ markerEnd }}
-        isValidConnection={isValidConnection}
-        proOptions={{ hideAttribution: true }}
-        deleteKeyCode={isReadOnly || disableDeleteKey ? null : ['Delete', 'Backspace']}
-        panActivationKeyCode={disableSpacePanning ? null : 'Space'}
-        fitView
-        minZoom={0.1}
-        maxZoom={1}
-        nodesDraggable={!isReadOnly}
-        nodesConnectable={!isReadOnly}
+    <ActiveExecutionContext.Provider value={isActiveExecution}>
+      <div
+        ref={containerRef}
+        style={{
+          width: '100%',
+          height: '100%',
+          position: 'relative',
+        }}
       >
-        <EdgeMarkers />
-        {!isReadOnly && <Background variant={BackgroundVariant.Dots} gap={20} size={1} />}
-        <CanvasControls onLayout={onLayout} hideLayout={isReadOnly} />
-        {!isReadOnly && <UndoRedoControls />}
-      </ReactFlow>
-    </div>
+        {effectiveExecutionStatus === 'running' && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 'var(--pf-t--global--spacer--md)',
+              left: 'var(--pf-t--global--spacer--md)',
+              zIndex: 1000,
+            }}
+          >
+            <Spinner
+              size="xl"
+              style={
+                { '--pf-v6-c-spinner--Color': 'var(--pf-t--global--color--brand--default)' } as React.CSSProperties
+              }
+            />
+          </div>
+        )}
+        <ReactFlow<NodeType, EdgeType>
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={builderNodeTypes}
+          edgeTypes={builderEdgeTypes}
+          onNodesChange={onNodesChange}
+          onNodeDragStop={isReadOnly ? undefined : onNodeDragStop}
+          onEdgesChange={onEdgesChange}
+          onNodesDelete={isReadOnly ? undefined : onNodesDelete}
+          onNodeClick={onNodeClick}
+          onConnect={isReadOnly ? undefined : onConnect}
+          onConnectStart={isReadOnly ? undefined : onConnectStart}
+          onConnectEnd={isReadOnly ? undefined : onConnectEnd}
+          connectOnClick={false}
+          connectionRadius={200}
+          connectionLineStyle={{ stroke: BUTTON_EDGE_DEFAULT_STROKE, strokeWidth: 2 }}
+          defaultEdgeOptions={{ markerEnd }}
+          isValidConnection={isValidConnection}
+          proOptions={{ hideAttribution: true }}
+          deleteKeyCode={isReadOnly || disableDeleteKey ? null : ['Delete', 'Backspace']}
+          panActivationKeyCode={disableSpacePanning ? null : 'Space'}
+          fitView
+          minZoom={0.1}
+          maxZoom={1}
+          nodesDraggable={!isReadOnly}
+          nodesConnectable={!isReadOnly}
+        >
+          <EdgeMarkers />
+          {!isReadOnly && <Background variant={BackgroundVariant.Dots} gap={20} size={1} />}
+          <CanvasControls onLayout={onLayout} hideLayout={isReadOnly} />
+          {!isReadOnly && <UndoRedoControls />}
+        </ReactFlow>
+      </div>
+    </ActiveExecutionContext.Provider>
   )
 }

@@ -971,4 +971,43 @@ describe('useButtonEdgeMaintenance', () => {
     expect(approvedEdge).toBeDefined()
     expect(rejectedEdge).toBeDefined()
   })
+
+  it('resets signature when transitioning from execution to edit mode', () => {
+    const nodes = [{ id: 'node-1', type: 'task', position: { x: 100, y: 100 } }] as never[]
+    const edges = [] as never[]
+
+    // Start in execution mode
+    const { rerender } = renderHook(
+      ({ executionStatus }: { executionStatus: string | null }) =>
+        useButtonEdgeMaintenance({
+          ...defaultOptions,
+          nodes,
+          edges,
+          executionStatus,
+        }),
+      { initialProps: { executionStatus: 'running' as string | null } }
+    )
+
+    // In execution mode, no button edges should be created
+    act(() => {
+      vi.advanceTimersByTime(100)
+    })
+
+    // Clear mock calls from execution mode
+    mockSetEdges.mockClear()
+    mockSetNodes.mockClear()
+
+    // Transition to null (edit mode)
+    rerender({ executionStatus: null })
+
+    // Advance timers to trigger the effect
+    act(() => {
+      vi.advanceTimersByTime(100)
+    })
+
+    // Verify button edges are recreated in edit mode
+    // This validates that the signature was reset, forcing recreation
+    expect(mockSetEdges).toHaveBeenCalled()
+    expect(mockSetNodes).toHaveBeenCalled()
+  })
 })
