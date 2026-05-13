@@ -160,17 +160,39 @@ class PermissionChecker:
 
         # Option 3: extract project_id from request body
         if not resource_project and self.body_project_field:
-            body = await request.json()
-            body_project_id = body.get(self.body_project_field)
-            if body_project_id:
-                resource_project = await self._resolve_project_name(db, body_project_id)
-                if not resource_project:
-                    from nexus.authz.exceptions import ProjectNotFoundError  # noqa: PLC0415
-
-                    msg = f"Project {body_project_id} not found"
-                    raise ProjectNotFoundError(msg)
+            resource_project = await self._resolve_project_from_body(request, db)
 
         return str(resource_id) if resource_id else "", resource_project
+
+    async def _resolve_project_from_body(self, request: Request, db: AsyncSession) -> str:
+        """Extract and resolve project from the request body.
+
+        Returns:
+            The project name, or empty string if not found.
+
+        """
+        body = await request.json()
+        if not isinstance(body, dict):
+            raise RequestValidationError(
+                [
+                    {
+                        "type": "value_error",
+                        "loc": ("body",),
+                        "msg": "Request body must be a JSON object",
+                        "input": body,
+                    }
+                ]
+            )
+        body_project_id = body.get(self.body_project_field)
+        if body_project_id:
+            project_name = await self._resolve_project_name(db, body_project_id)
+            if not project_name:
+                from nexus.authz.exceptions import ProjectNotFoundError  # noqa: PLC0415
+
+                msg = f"Project {body_project_id} not found"
+                raise ProjectNotFoundError(msg)
+            return project_name
+        return ""
 
     async def __call__(
         self,
