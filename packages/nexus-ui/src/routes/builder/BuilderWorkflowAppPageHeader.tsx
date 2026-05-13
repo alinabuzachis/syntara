@@ -181,8 +181,12 @@ export function BuilderWorkflowAppPageHeader({
     <>
       <AppPageHeader
         title={
-          <Flex gap={{ default: 'gapMd' }} alignItems={{ default: 'alignItemsCenter' }}>
-            <FlexItem>
+          <Flex
+            gap={{ default: 'gapMd' }}
+            alignItems={{ default: 'alignItemsCenter' }}
+            flexWrap={{ default: 'nowrap' }}
+          >
+            <FlexItem style={{ flexShrink: 1, minWidth: 0 }}>
               <TextInput
                 id="workflow-name-input"
                 type="text"
@@ -195,8 +199,8 @@ export function BuilderWorkflowAppPageHeader({
                 placeholder="Workflow name"
               />
             </FlexItem>
-            <FlexItem>{ProjectSelector}</FlexItem>
-            <FlexItem>
+            <FlexItem style={{ flexShrink: 0 }}>{ProjectSelector}</FlexItem>
+            <FlexItem style={{ flexShrink: 0 }}>
               <EditWorkflowDetailsPopover
                 name={workflowName}
                 description={workflowDescription}

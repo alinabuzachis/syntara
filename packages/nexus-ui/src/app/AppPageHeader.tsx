@@ -32,7 +32,11 @@ export function AppPageHeader(props: AppPageHeaderProps) {
       title={titleSlot}
       toolbar={
         props.children ? (
-          <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
+          <Flex
+            alignItems={{ default: 'alignItemsCenter' }}
+            gap={{ default: 'gapMd' }}
+            flexWrap={{ default: 'nowrap' }}
+          >
             {props.children}
           </Flex>
         ) : undefined
