@@ -41,10 +41,12 @@ Both systems follow the fire-and-forget principle: observability code MUST NEVER
 **Location:** `src/nexus/telemetry/`
 
 **Components:**
-- `TelemetryCollector` - Service class for event capture and dispatch
+- `AuditEventDispatcher` - Routes domain events to registered handlers (shared with audit system)
+- `AuditEventHandler[T]` - Base class for telemetry handlers (side-effect-only, return `None`)
 - `TelemetryClientRegistry` - Singleton registry managing Segment client lifecycle
-- Event builders - Builder pattern for constructing typed events
 - `TelemetryMiddleware` - ASGI middleware for API call telemetry
+- Domain events - Lightweight dataclasses dispatched from business logic
+- Telemetry handlers - Located in `src/nexus/telemetry/handlers/`, auto-discovered at startup
 
 **Events collected:**
 - Workflow execution (start, completion with status/duration/error)
@@ -72,19 +74,7 @@ Both systems follow the fire-and-forget principle: observability code MUST NEVER
 
 ## Fire-and-Forget Principle
 
-Observability code MUST follow the fire-and-forget pattern:
-
-```python
-def capture_workflow_start(self, workflow_execution_id: str) -> None:
-    try:
-        event = self._workflow_builder.build_start_event(
-            workflow_execution_id=workflow_execution_id,
-            entitlement_id=self._registry.entitlement_id,
-        )
-        self._registry.send_event(event)
-    except Exception:
-        logger.exception("Failed to capture workflow start event (fire-and-forget)")
-```
+Observability code MUST follow the fire-and-forget pattern. The audit framework enforces this automatically — `AuditEventDispatcher.dispatch()` never raises, and handler exceptions are caught and logged separately. For any custom observability code outside the audit framework, apply the same principle manually:
 
 **Requirements:**
 - Exceptions MUST be caught and logged, NEVER propagated
@@ -165,78 +155,131 @@ async for event in graph.astream_events(...):
 
 ## Adding Telemetry Events
 
-### 1. Define Event Model
+Telemetry events are emitted through the **Audit Framework**. Business logic dispatches a lightweight domain event, and the framework routes it to one or more handlers — an audit handler that produces a structured log entry and/or a telemetry handler that sends an event to Segment.
 
-Create SQLModel class in `src/nexus/telemetry/events/`:
+### 1. Define the Domain Event
+
+Create a dataclass in the appropriate `audit/` package (e.g., `src/nexus/workflows/audit/`):
 
 ```python
-from sqlmodel import Field
-from nexus.telemetry.events.base import BaseTelemetryEvent
+from dataclasses import dataclass, field
+from uuid import UUID
 
-class MyFeatureEvent(BaseTelemetryEvent):
-    """Telemetry event for my feature.
+@dataclass
+class MyFeatureEvent:
+    """Domain event fired when my feature is used."""
 
-    Attributes:
-        feature_id: Unique feature identifier.
-        action: Action performed (e.g., "created", "updated").
-        duration_ms: Optional duration in milliseconds.
-    """
-
-    feature_id: str = Field(description="Unique feature identifier")
-    action: str = Field(description="Action performed")
-    duration_ms: int | None = Field(default=None, description="Duration in milliseconds")
+    feature_id: UUID
+    action: str
+    duration_ms: int | None = field(default=None)
+    request_id: UUID | None = field(default=None)
 ```
 
-### 2. Create Event Builder
+Domain events are plain dataclasses — no base class needed. They carry only the raw data describing what happened.
+
+### 2. Create an Audit Handler (optional — only if you need audit log entries)
+
+This step is only required if you want to produce structured audit log entries (persisted to the database). Skip this step if you only need telemetry (Segment events). See [Audit Framework](/docs/audit.md) for full details.
+
+Create a handler in the same `audit/` package. It maps the domain event to a normalized `AuditEvent`:
 
 ```python
-class MyFeatureEventBuilder:
-    """Builder for constructing my feature telemetry events."""
+from nexus.audit.handler import AuditEventHandler
+from nexus.audit.models.audit_event import AuditEvent, EventCategory, EventSeverity, EventStatus
+from nexus.audit.models.structured_data import AuditContextData
 
-    def build_event(
-        self,
-        feature_id: str,
-        action: str,
-        entitlement_id: str,
-        duration_ms: int | None = None,
-    ) -> MyFeatureEvent:
-        return MyFeatureEvent(
-            feature_id=feature_id,
-            action=action,
-            duration_ms=duration_ms,
-            entitlement_id=entitlement_id,
+class MyFeatureHandler(AuditEventHandler[MyFeatureEvent]):
+    """Maps MyFeatureEvent to an AuditEvent for the audit log."""
+
+    def handle(self, event: MyFeatureEvent) -> AuditEvent:
+        data = AuditContextData(
+            data_type="my-feature-used",
+            action=event.action,
+            duration_ms=event.duration_ms,
+        )
+        return AuditEvent(
+            event_category=EventCategory.USER_ACTION,
+            event_severity=EventSeverity.INFO,
+            event_status=EventStatus.SUCCESS,
+            event_action="my_feature_used",
+            event_message=f"Feature used: {event.action}",
+            source_component="nexus.my_feature",
+            structured_data=data,
+            resource_urn=f"urn:nexus:feature:{event.feature_id}",
         )
 ```
 
-### 3. Capture and Send
+### 3. Create a Telemetry Handler (for Segment events)
 
-Add method to `TelemetryCollector` or create a dedicated collector:
+Create a handler in `src/nexus/telemetry/handlers/`. Telemetry handlers are side-effect-only — they return `None`:
 
 ```python
-def capture_my_feature_event(
-    self,
-    feature_id: str,
-    action: str,
-    duration_ms: int | None = None,
-) -> None:
-    """Capture a feature event (fire-and-forget).
+import structlog
+from nexus.audit.handler import AuditEventHandler
+from nexus.audit.models.audit_event import AuditEvent
+from nexus.telemetry.client import get_telemetry_registry
 
-    Args:
-        feature_id: Unique feature identifier.
-        action: Action performed.
-        duration_ms: Optional duration in milliseconds.
-    """
-    try:
-        event = self._my_feature_builder.build_event(
-            feature_id=feature_id,
-            action=action,
-            entitlement_id=self._registry.entitlement_id,
-            duration_ms=duration_ms,
-        )
-        self._registry.send_event(event)
-    except Exception:
-        logger.exception("Failed to capture feature event (fire-and-forget)")
+logger = structlog.stdlib.get_logger(__name__)
+
+class MyFeatureTelemetryHandler(AuditEventHandler[MyFeatureEvent]):
+    """Emits a Segment telemetry event (side-effect only)."""
+
+    def handle(self, event: MyFeatureEvent) -> AuditEvent | None:
+        try:
+            registry = get_telemetry_registry()
+            if not registry.is_initialized():
+                return None
+
+            registry.send_event(
+                MyFeatureTelemetryEvent(
+                    feature_id=str(event.feature_id),
+                    action=event.action,
+                    duration_ms=event.duration_ms,
+                    entitlement_id=registry.entitlement_id,
+                    request_id=event.request_id,
+                )
+            )
+        except Exception:
+            logger.warning("Failed to emit my_feature telemetry (non-fatal)", exc_info=True)
+
+        return None  # Side-effect only, no audit log entry
 ```
+
+### 4. Dispatch the Event
+
+From business logic, dispatch the domain event. The framework routes it to all registered handlers:
+
+```python
+from nexus.audit.dispatcher import AuditEventDispatcher
+
+AuditEventDispatcher.dispatch(
+    MyFeatureEvent(
+        feature_id=feature_id,
+        action="created",
+        duration_ms=elapsed_ms,
+        request_id=request_id,
+    )
+)
+```
+
+### Handler Discovery and Registration
+
+Handlers are discovered automatically at startup. Ensure the handler's package is imported and passed to `discover_handlers()` in the application entrypoint (e.g., `worker.py` or `main.py`):
+
+```python
+import nexus.telemetry.handlers  # Package scanned by discover_handlers()
+from nexus.audit.discovery import discover_handlers
+from nexus.audit.dispatcher import AuditEventDispatcher
+
+registry = discover_handlers(nexus.telemetry.handlers)
+AuditEventDispatcher.register(registry)
+```
+
+**Requirements for handler discovery:**
+- Handlers MUST be zero-arg constructable (no constructor parameters)
+- Handlers that need collaborators should resolve them lazily inside `handle()`
+- Each handler class must be a concrete subclass of `AuditEventHandler[T]`
+- Multiple handlers can handle the same event type (e.g., one for audit log, one for telemetry)
 
 ## What to Instrument
 
@@ -318,27 +361,31 @@ app.add_middleware(MetricsMiddleware, recorder=metrics_recorder)
 
 ### Custom Middleware
 
-For component-specific telemetry, follow the same pattern:
+For component-specific telemetry, dispatch domain events through the audit framework:
 
 ```python
+from nexus.audit.dispatcher import AuditEventDispatcher
+
 class MyFeatureMiddleware:
-    def __init__(self, app: ASGIApp, collector: TelemetryCollector) -> None:
+    def __init__(self, app: ASGIApp) -> None:
         self.app = app
-        self._collector = collector
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
 
-        # Extract feature-specific context
         feature_id = extract_feature_id(scope)
 
         try:
             await self.app(scope, receive, send)
-            self._collector.capture_my_feature_event(feature_id, "completed")
+            AuditEventDispatcher.dispatch(
+                MyFeatureEvent(feature_id=feature_id, action="completed")
+            )
         except Exception:
-            self._collector.capture_my_feature_event(feature_id, "failed")
+            AuditEventDispatcher.dispatch(
+                MyFeatureEvent(feature_id=feature_id, action="failed")
+            )
             raise
 ```
 
@@ -371,25 +418,46 @@ def test_my_metric_recording(recorder):
     assert records[0].value == 42.0
 ```
 
-### Unit Testing Telemetry
+### Unit Testing Telemetry Handlers
 
-Mock the registry:
+Test handlers directly by calling `handle()` and verifying the side effects:
 
 ```python
-from unittest.mock import MagicMock
-from nexus.telemetry.collector import TelemetryCollector
+from unittest.mock import MagicMock, patch
+from uuid import uuid4
 
-def test_my_telemetry_event():
-    mock_registry = MagicMock()
-    mock_registry.entitlement_id = "test-entitlement"
-    collector = TelemetryCollector(registry=mock_registry)
+def test_my_feature_telemetry_handler():
+    event = MyFeatureEvent(feature_id=uuid4(), action="created")
 
-    collector.capture_my_feature_event(feature_id="test-123", action="created")
+    with patch("nexus.telemetry.handlers.my_feature.get_telemetry_registry") as mock_get:
+        registry = MagicMock()
+        registry.is_initialized.return_value = True
+        registry.entitlement_id = "test-entitlement"
+        mock_get.return_value = registry
 
-    mock_registry.send_event.assert_called_once()
-    sent_event = mock_registry.send_event.call_args[0][0]
-    assert sent_event.feature_id == "test-123"
-    assert sent_event.action == "created"
+        handler = MyFeatureTelemetryHandler()
+        result = handler.handle(event)
+
+        assert result is None  # Side-effect only
+        registry.send_event.assert_called_once()
+        sent = registry.send_event.call_args[0][0]
+        assert sent.action == "created"
+```
+
+### Unit Testing Audit Handlers
+
+Test that audit handlers produce the correct `AuditEvent`:
+
+```python
+def test_my_feature_audit_handler():
+    event = MyFeatureEvent(feature_id=uuid4(), action="created", duration_ms=150)
+
+    handler = MyFeatureHandler()
+    audit_event = handler.handle(event)
+
+    assert audit_event is not None
+    assert audit_event.event_action == "my_feature_used"
+    assert audit_event.structured_data.duration_ms == 150
 ```
 
 ### Integration Testing
@@ -464,6 +532,8 @@ When adding a new component:
 
 - `MetricsMiddleware` automatically instruments all HTTP endpoints (except `/metrics`, `/health`)
 - `TelemetryMiddleware` automatically captures API call telemetry
+- `AuditEventDispatcher` enforces fire-and-forget (never raises, logs failures)
+- `discover_handlers()` auto-discovers and registers handlers at startup
 - Prometheus client validates metric names and label combinations at registration time
 - Pydantic validates telemetry event models
 
@@ -484,8 +554,12 @@ When adding a new component:
 | `src/nexus/metrics/types.py` | `MetricType` enum, `COMPONENT_LABELS` |
 | `src/nexus/metrics/middleware.py` | `MetricsMiddleware` ASGI middleware |
 | `src/nexus/metrics/instrumentation.py` | `record_llm_call`, `LLMStreamTracker` |
-| `src/nexus/telemetry/collector.py` | `TelemetryCollector` service class |
-| `src/nexus/telemetry/events/` | Telemetry event models |
+| `src/nexus/audit/dispatcher.py` | `AuditEventDispatcher` event routing |
+| `src/nexus/audit/handler.py` | `AuditEventHandler[T]` base class |
+| `src/nexus/audit/discovery.py` | Auto-discovery of handler classes |
+| `src/nexus/telemetry/handlers/` | Telemetry handlers (side-effect-only) |
+| `src/nexus/telemetry/events/` | Telemetry event models (Segment payloads) |
+| `src/nexus/telemetry/collector.py` | `TelemetryCollector` (legacy, being migrated) |
 | `tests/unit/metrics/` | Metrics test suite |
 | `tests/unit/telemetry/` | Telemetry test suite |
 
