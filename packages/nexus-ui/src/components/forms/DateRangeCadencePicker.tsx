@@ -317,6 +317,7 @@ function StartDateField({
           value={startDate}
           onChange={(_event, value) => dispatch({ type: 'SET_START_DATE', payload: value })}
           aria-label="Start date"
+          aria-required={required || undefined}
           aria-invalid={error}
           validated={error ? 'error' : 'default'}
         />
@@ -351,6 +352,7 @@ function CadenceSelectField({
           value={cadence}
           onChange={(_event, value) => dispatch({ type: 'SET_CADENCE', payload: value as CadenceValue })}
           aria-label="Cadence"
+          aria-required={required || undefined}
         >
           {cadenceOptions.map((option) => (
             <FormSelectOption key={option.value} value={option.value} label={option.label} />
@@ -390,6 +392,7 @@ function TriggerTimeField({
               max={12}
               style={{ width: '5ch', textAlign: 'center' }}
               aria-label="Hour"
+              aria-required={required || undefined}
             />
           </FlexItem>
           <FlexItem>
@@ -470,7 +473,7 @@ export function DateRangeCadencePicker(props: DateRangeCadencePickerProps) {
   const { startDate, cadence, triggerHour, triggerMinute, triggerPeriod, endDate } = state
 
   return (
-    <Stack hasGutter className={className}>
+    <Stack hasGutter className={className} data-testid="date-range-cadence-picker">
       <StartDateField
         startDate={startDate}
         dispatch={dispatch}

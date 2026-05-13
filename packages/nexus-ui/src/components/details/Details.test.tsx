@@ -16,36 +16,33 @@ describe('Details', () => {
   })
 
   it('renders as a PatternFly DescriptionList', () => {
-    const { container } = render(
+    render(
       <Details>
         <div>Content</div>
       </Details>
     )
 
-    const descriptionList = container.querySelector('.pf-v6-c-description-list')
-    expect(descriptionList).toBeInTheDocument()
+    expect(screen.getByTestId('description-list')).toBeInTheDocument()
   })
 
   it('applies compact modifier', () => {
-    const { container } = render(
+    render(
       <Details>
         <div>Content</div>
       </Details>
     )
 
-    const descriptionList = container.querySelector('.pf-v6-c-description-list')
-    expect(descriptionList).toHaveClass('pf-m-compact')
+    expect(screen.getByTestId('description-list')).toHaveClass('pf-m-compact')
   })
 
   it('applies details class', () => {
-    const { container } = render(
+    render(
       <Details>
         <div>Content</div>
       </Details>
     )
 
-    const descriptionList = container.querySelector('.pf-v6-c-description-list')
-    expect(descriptionList).toHaveClass('details')
+    expect(screen.getByTestId('description-list')).toHaveClass('details')
   })
 
   it('renders multiple children', () => {

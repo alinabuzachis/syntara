@@ -54,24 +54,24 @@ describe('DateRangeCadencePicker', () => {
     })
 
     it('passes required prop to form groups', () => {
-      const { container } = render(<DateRangeCadencePicker required />)
+      render(<DateRangeCadencePicker required />)
 
-      const requiredIndicators = container.querySelectorAll('.pf-v6-c-form__label-required')
-      expect(requiredIndicators).toHaveLength(3)
+      expect(screen.getByLabelText('Start date')).toHaveAttribute('aria-required', 'true')
+      expect(screen.getByLabelText('Cadence')).toHaveAttribute('aria-required', 'true')
+      expect(screen.getByLabelText('Hour')).toHaveAttribute('aria-required', 'true')
     })
 
     it('does not mark form groups as required when required is false', () => {
-      const { container } = render(<DateRangeCadencePicker />)
+      render(<DateRangeCadencePicker />)
 
-      const requiredIndicators = container.querySelectorAll('.pf-v6-c-form__label-required')
-      expect(requiredIndicators).toHaveLength(0)
+      expect(screen.getByLabelText('Start date')).not.toHaveAttribute('aria-required', 'true')
+      expect(screen.getByLabelText('Cadence')).not.toHaveAttribute('aria-required', 'true')
     })
 
     it('applies custom className', () => {
-      const { container } = render(<DateRangeCadencePicker className="custom-class" />)
+      render(<DateRangeCadencePicker className="custom-class" />)
 
-      const stack = container.querySelector('.pf-v6-l-stack')
-      expect(stack).toHaveClass('custom-class')
+      expect(screen.getByTestId('date-range-cadence-picker')).toHaveClass('custom-class')
     })
 
     it('applies error state to start date field only when error prop is true', () => {

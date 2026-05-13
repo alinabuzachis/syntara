@@ -115,7 +115,7 @@ describe('IntegrationForm Component', () => {
 
   describe('Rendering', () => {
     it('renders the component with all required elements', () => {
-      const { container } = render(<IntegrationForm />, { wrapper })
+      render(<IntegrationForm />, { wrapper })
 
       // Page header
       expect(screen.getByRole('heading', { name: 'Configure integration' })).toBeInTheDocument()
@@ -124,7 +124,7 @@ describe('IntegrationForm Component', () => {
       expect(screen.getByText('Add integration')).toBeInTheDocument()
       expect(screen.getByText('Cancel')).toBeInTheDocument()
 
-      expect(container.querySelector('#integration-form')).toBeInstanceOf(HTMLFormElement)
+      expect(screen.getByRole('form', { name: 'Configure integration' })).toBeInTheDocument()
     })
   })
 
@@ -143,13 +143,11 @@ describe('IntegrationForm Component', () => {
     })
 
     it('renders server name field as required', () => {
-      const { container } = render(<IntegrationForm />, { wrapper })
+      render(<IntegrationForm />, { wrapper })
 
       const serverNameInput = screen.getByPlaceholderText('Enter server name / ID')
       expect(serverNameInput).toBeInTheDocument()
-
-      const requiredIndicator = container.querySelector('label[for="name"] .pf-v6-c-form__label-required')
-      expect(requiredIndicator).toBeInTheDocument()
+      expect(serverNameInput).toHaveAttribute('aria-required', 'true')
     })
 
     it('renders description field', () => {
@@ -160,13 +158,11 @@ describe('IntegrationForm Component', () => {
     })
 
     it('renders API URL field as required', () => {
-      const { container } = render(<IntegrationForm />, { wrapper })
+      render(<IntegrationForm />, { wrapper })
 
       const apiUrlInput = screen.getByPlaceholderText('Enter API URL')
       expect(apiUrlInput).toBeInTheDocument()
-
-      const requiredIndicator = container.querySelector('label[for="base-url"] .pf-v6-c-form__label-required')
-      expect(requiredIndicator).toBeInTheDocument()
+      expect(apiUrlInput).toHaveAttribute('aria-required', 'true')
     })
   })
 

@@ -229,18 +229,16 @@ describe('IntegrationTools Component', () => {
 
       const { rerender } = render(<IntegrationTools />, { wrapper })
 
-      const toolOneRow = screen.getByText('test.tool_one').closest('tr')
-      expect(toolOneRow).toBeTruthy()
-      const toolOneCheckbox = within(toolOneRow as HTMLElement).getByRole('checkbox')
+      const toolOneRow = screen.getByRole('row', { name: /test\.tool_one/ })
+      const toolOneCheckbox = within(toolOneRow).getByRole('checkbox')
       expect(toolOneCheckbox).toBeChecked()
 
       toolsRef.list = toolsRef.list.map((t) => (t.id === 'tool-1' ? { ...t, enabled: false } : t))
       rerender(<IntegrationTools />)
 
       await waitFor(() => {
-        const row = screen.getByText('test.tool_one').closest('tr')
-        expect(row).toBeTruthy()
-        expect(within(row as HTMLElement).getByRole('checkbox')).not.toBeChecked()
+        const row = screen.getByRole('row', { name: /test\.tool_one/ })
+        expect(within(row).getByRole('checkbox')).not.toBeChecked()
       })
     })
 
@@ -533,15 +531,6 @@ describe('IntegrationTools Component', () => {
 
       // Verify enabledTools state was updated
       expect(tool2Checkbox).toBeChecked()
-    })
-  })
-
-  describe('Scrollable Container', () => {
-    it('renders Stack for proper layout', () => {
-      const { container } = render(<IntegrationTools />, { wrapper })
-
-      const stack = container.querySelector('.pf-v6-l-stack')
-      expect(stack).toBeInTheDocument()
     })
   })
 

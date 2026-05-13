@@ -16,7 +16,7 @@ import {
   ToggleGroupItem,
 } from '@patternfly/react-core'
 import { RhUiErrorIcon, RhUiServerFillIcon } from '@patternfly/react-icons'
-import { Controller, useForm } from 'react-hook-form'
+import { Controller, type Control, useForm } from 'react-hook-form'
 import { navigate } from 'wouter/use-browser-location'
 
 import { AppPage, AppPageMain } from '../../../../app/AppPage'
@@ -28,6 +28,59 @@ import { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationEr
 
 import { integrationFormSchema, type IntegrationFormData } from './integrationFormSchema'
 import { useCreateIntegration } from './useCreateIntegration'
+
+type TextFieldName = 'name' | 'description' | 'configuration.base_url' | 'configuration.api_key'
+
+type ControlledTextFieldProps = {
+  control: Control<IntegrationFormData>
+  name: TextFieldName
+  label: string
+  fieldId: string
+  placeholder: string
+  isRequired?: boolean
+  type?: 'text' | 'password'
+}
+
+function ControlledTextField({
+  control,
+  name,
+  label,
+  fieldId,
+  placeholder,
+  isRequired,
+  type,
+}: ControlledTextFieldProps) {
+  return (
+    <Controller
+      name={name}
+      control={control}
+      render={({ field, fieldState }) => (
+        <FormGroup label={label} fieldId={fieldId} isRequired={isRequired}>
+          <TextInput
+            id={fieldId}
+            placeholder={placeholder}
+            aria-required={isRequired || undefined}
+            type={type}
+            validated={fieldState.error ? 'error' : 'default'}
+            value={field.value ?? ''}
+            onChange={field.onChange}
+            onBlur={field.onBlur}
+            name={field.name}
+          />
+          {fieldState.error && (
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+                  {fieldState.error.message}
+                </HelperTextItem>
+              </HelperText>
+            </FormHelperText>
+          )}
+        </FormGroup>
+      )}
+    />
+  )
+}
 
 export function IntegrationForm() {
   const { control, handleSubmit, setError } = useForm<IntegrationFormData>({
@@ -59,7 +112,7 @@ export function IntegrationForm() {
       <AppPageMain>
         <AppPanel isFullHeight panelMainBodyProps={{ style: { padding: 'var(--pf-t--global--spacer--xl)' } }}>
           <div style={{ maxWidth: '600px' }}>
-            <Form id="integration-form" onSubmit={handleSubmit(onSubmit)}>
+            <Form id="integration-form" aria-label="Configure integration" onSubmit={handleSubmit(onSubmit)}>
               <FormGroup label="Integration type" fieldId="provider-type" isRequired>
                 <Controller
                   name="configuration.provider_type"
@@ -83,100 +136,36 @@ export function IntegrationForm() {
                   )}
                 />
               </FormGroup>
-              <Controller
+              <ControlledTextField
+                control={control}
                 name="name"
-                control={control}
-                render={({ field, fieldState }) => (
-                  <FormGroup label="Server name / ID" fieldId="name" isRequired>
-                    <TextInput
-                      id="name"
-                      placeholder="Enter server name / ID"
-                      validated={fieldState.error ? 'error' : 'default'}
-                      value={field.value ?? ''}
-                      onChange={field.onChange}
-                      onBlur={field.onBlur}
-                      name={field.name}
-                    />
-                    {fieldState.error && (
-                      <FormHelperText>
-                        <HelperText>
-                          <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
-                            {fieldState.error.message}
-                          </HelperTextItem>
-                        </HelperText>
-                      </FormHelperText>
-                    )}
-                  </FormGroup>
-                )}
+                label="Server name / ID"
+                fieldId="name"
+                placeholder="Enter server name / ID"
+                isRequired
               />
-              <Controller
+              <ControlledTextField
+                control={control}
                 name="description"
-                control={control}
-                render={({ field }) => (
-                  <FormGroup label="Description" fieldId="description">
-                    <TextInput
-                      id="description"
-                      placeholder="Enter description"
-                      value={field.value ?? ''}
-                      onChange={field.onChange}
-                      onBlur={field.onBlur}
-                      name={field.name}
-                    />
-                  </FormGroup>
-                )}
+                label="Description"
+                fieldId="description"
+                placeholder="Enter description"
               />
-              <Controller
+              <ControlledTextField
+                control={control}
                 name="configuration.base_url"
-                control={control}
-                render={({ field, fieldState }) => (
-                  <FormGroup label="API URL" fieldId="base-url" isRequired>
-                    <TextInput
-                      id="base-url"
-                      placeholder="Enter API URL"
-                      validated={fieldState.error ? 'error' : 'default'}
-                      value={field.value ?? ''}
-                      onChange={field.onChange}
-                      onBlur={field.onBlur}
-                      name={field.name}
-                    />
-                    {fieldState.error && (
-                      <FormHelperText>
-                        <HelperText>
-                          <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
-                            {fieldState.error.message}
-                          </HelperTextItem>
-                        </HelperText>
-                      </FormHelperText>
-                    )}
-                  </FormGroup>
-                )}
+                label="API URL"
+                fieldId="base-url"
+                placeholder="Enter API URL"
+                isRequired
               />
-              <Controller
-                name="configuration.api_key"
+              <ControlledTextField
                 control={control}
-                render={({ field, fieldState }) => (
-                  <FormGroup label="API key" fieldId="api-key">
-                    <TextInput
-                      id="api-key"
-                      placeholder="Enter API key"
-                      type="password"
-                      validated={fieldState.error ? 'error' : 'default'}
-                      value={field.value ?? ''}
-                      onChange={field.onChange}
-                      onBlur={field.onBlur}
-                      name={field.name}
-                    />
-                    {fieldState.error && (
-                      <FormHelperText>
-                        <HelperText>
-                          <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
-                            {fieldState.error.message}
-                          </HelperTextItem>
-                        </HelperText>
-                      </FormHelperText>
-                    )}
-                  </FormGroup>
-                )}
+                name="configuration.api_key"
+                label="API key"
+                fieldId="api-key"
+                placeholder="Enter API key"
+                type="password"
               />
             </Form>
           </div>

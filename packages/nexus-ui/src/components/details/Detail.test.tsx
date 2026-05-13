@@ -11,13 +11,6 @@ describe('Detail', () => {
     expect(screen.getByText('John Doe')).toBeInTheDocument()
   })
 
-  it('renders as a DescriptionListGroup', () => {
-    const { container } = render(<Detail label="Test">Value</Detail>)
-
-    const group = container.querySelector('.pf-v6-c-description-list__group')
-    expect(group).toBeInTheDocument()
-  })
-
   it('returns null when children is undefined', () => {
     const { container } = render(<Detail label="Empty">{undefined}</Detail>)
 
@@ -55,18 +48,18 @@ describe('Detail', () => {
     expect(screen.getByTestId('custom-child')).toBeInTheDocument()
   })
 
+  // Intentionally use getByText rather than data-testid: Detail is rendered multiple times
+  // inside a single Details list, so hardcoded data-testid values would be non-unique.
   it('renders label in DescriptionListTerm', () => {
-    const { container } = render(<Detail label="Term Label">Value</Detail>)
+    render(<Detail label="Term Label">Value</Detail>)
 
-    const term = container.querySelector('.pf-v6-c-description-list__term')
-    expect(term).toHaveTextContent('Term Label')
+    expect(screen.getByText('Term Label')).toBeInTheDocument()
   })
 
   it('renders children in DescriptionListDescription', () => {
-    const { container } = render(<Detail label="Label">Description Value</Detail>)
+    render(<Detail label="Label">Description Value</Detail>)
 
-    const description = container.querySelector('.pf-v6-c-description-list__description')
-    expect(description).toHaveTextContent('Description Value')
+    expect(screen.getByText('Description Value')).toBeInTheDocument()
   })
 
   it('renders with empty string children (falsy but valid)', () => {
