@@ -418,7 +418,7 @@ export interface MockProjectGroupRoleAssignment {
 export const mockProjectGroupRoleAssignments: MockProjectGroupRoleAssignment[] = [
   {
     id: 'pgra-001',
-    group_id: 'g-001',
+    group_id: 'g0-builtin-authenticated',
     group_name: 'authenticated',
     project_id: 'p-001',
     role_id: 'r-005',
@@ -441,7 +441,7 @@ export interface MockGroupRoleAssignment {
 export const mockGroupRoleAssignments: MockGroupRoleAssignment[] = [
   {
     id: 'gra-001',
-    group_id: 'g-001',
+    group_id: 'g0-builtin-authenticated',
     group_name: 'authenticated',
     role_id: 'r-007',
     role_name: 'default',
@@ -449,7 +449,7 @@ export const mockGroupRoleAssignments: MockGroupRoleAssignment[] = [
   },
   {
     id: 'gra-002',
-    group_id: 'g-002',
+    group_id: 'g0-builtin-admins',
     group_name: 'admins',
     role_id: 'r-001',
     role_name: 'admin',

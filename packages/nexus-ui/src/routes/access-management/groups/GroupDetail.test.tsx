@@ -128,6 +128,15 @@ const mockMembersData = {
   total: 2,
 }
 
+const mockRoleAssignmentsData = {
+  resources: [
+    { id: 'ra1', role: 'admin', scope: 'global' },
+    { id: 'ra2', role: 'viewer', scope: 'global' },
+    { id: 'ra3', role: 'editor', scope: 'project-1' },
+  ],
+  total: 3,
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -171,10 +180,11 @@ function mockQueryByPath(pathResults: Record<string, Parameters<typeof buildQuer
   })
 }
 
-function mockSuccessQueries(group = mockGroup, members = mockMembersData) {
+function mockSuccessQueries(group = mockGroup, members = mockMembersData, roleAssignments = mockRoleAssignmentsData) {
   mockQueryByPath({
     '/groups/{group_id}': { data: group },
     '/groups/{group_id}/members': { data: members },
+    '/groups/{group_id}/role-assignments': { data: roleAssignments },
   })
 
   vi.mocked(accessClient.useMutation).mockReturnValue({
@@ -408,6 +418,50 @@ describe('GroupDetail', () => {
 
       const membersTab = screen.getByRole('tab', { name: /Members/i })
       expect(membersTab).toHaveTextContent('1')
+    })
+
+    it('displays role assignment count badge on Role Assignments tab', () => {
+      render(<GroupDetail />, { wrapper })
+
+      const rolesTab = screen.getByRole('tab', { name: /Role Assignments/i })
+      expect(rolesTab).toHaveTextContent('3')
+    })
+
+    it('uses total for role assignment count when both total and resources are present', () => {
+      mockSuccessQueries(mockGroup, mockMembersData, {
+        resources: [{ id: 'ra1', role: 'admin', scope: 'global' }],
+        total: 10,
+      })
+      render(<GroupDetail />, { wrapper })
+
+      const rolesTab = screen.getByRole('tab', { name: /Role Assignments/i })
+      expect(rolesTab).toHaveTextContent('10')
+    })
+
+    it('falls back to resources.length for role assignment count when total is undefined', () => {
+      mockSuccessQueries(mockGroup, mockMembersData, {
+        resources: [
+          { id: 'ra1', role: 'admin', scope: 'global' },
+          { id: 'ra2', role: 'viewer', scope: 'global' },
+        ],
+      } as typeof mockRoleAssignmentsData)
+      render(<GroupDetail />, { wrapper })
+
+      const rolesTab = screen.getByRole('tab', { name: /Role Assignments/i })
+      expect(rolesTab).toHaveTextContent('2')
+    })
+
+    it('shows zero role assignment count when no data is available', () => {
+      mockQueryByPath({
+        '/groups/{group_id}': { data: mockGroup },
+        '/groups/{group_id}/members': { data: mockMembersData },
+        '/groups/{group_id}/role-assignments': { data: undefined },
+      })
+
+      render(<GroupDetail />, { wrapper })
+
+      const rolesTab = screen.getByRole('tab', { name: /Role Assignments/i })
+      expect(rolesTab).toHaveTextContent('0')
     })
 
     it('shows zero member count when no members data is available', () => {

@@ -28,6 +28,7 @@ import { AppPanel } from '../../../components/AppPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { useDetailTab } from '../../../hooks/useDetailTab'
 import { formatDateTime } from '../../../utils/dateUtils'
+import { detachPromise } from '../../../utils/detachPromise'
 import { accessClient } from '../../access/accessClient'
 import { BUILTIN_AUTHENTICATED_GROUP_NAME } from '../adminConstants'
 import { DetailPageShell } from '../DetailPageShell'
@@ -70,11 +71,13 @@ function GroupTabBar({
   onSelect,
   isAuthenticated,
   memberCount,
+  roleAssignmentCount,
 }: Readonly<{
   activeTab: string
   onSelect: (_event: React.MouseEvent | React.KeyboardEvent, key: string | number) => void
   isAuthenticated: boolean
   memberCount: number
+  roleAssignmentCount: number
 }>) {
   return (
     <Tabs activeKey={activeTab} onSelect={onSelect}>
@@ -89,7 +92,14 @@ function GroupTabBar({
           }
         />
       )}
-      <Tab eventKey="roles" title={<TabTitleText>Role Assignments</TabTitleText>} />
+      <Tab
+        eventKey="roles"
+        title={
+          <TabTitleText>
+            Role Assignments <Badge isRead>{roleAssignmentCount}</Badge>
+          </TabTitleText>
+        }
+      />
     </Tabs>
   )
 }
@@ -118,13 +128,7 @@ function GroupTabContent({
   )
 }
 
-export function GroupDetail() {
-  const { groupId } = useParams<{ groupId: string }>()
-  const basePath = AppRoute.AccessManagement.GroupDetail.replace(':groupId', groupId ?? '')
-  type GroupTab = 'details' | 'members' | 'roles'
-  const [activeTab, goToTab] = useDetailTab<GroupTab>(basePath)
-  const [editModalOpen, setEditModalOpen] = useState(false)
-
+function useGroupQueries(groupId: string | undefined) {
   const groupQuery = accessClient.useQuery(
     'get',
     '/groups/{group_id}',
@@ -141,8 +145,28 @@ export function GroupDetail() {
     { enabled: !!groupId && !isAuthenticated }
   )
 
+  const roleAssignmentsQuery = accessClient.useQuery(
+    'get',
+    '/groups/{group_id}/role-assignments',
+    { params: { path: { group_id: groupId ?? '' } } },
+    { enabled: !!groupId }
+  )
+
   const membersData = membersQuery.data
   const memberCount = membersData?.total ?? membersData?.resources?.length ?? 0
+  const roleAssignmentCount = roleAssignmentsQuery.data?.total ?? roleAssignmentsQuery.data?.resources?.length ?? 0
+
+  return { groupQuery, membersQuery, isAuthenticated, memberCount, roleAssignmentCount }
+}
+
+export function GroupDetail() {
+  const { groupId } = useParams<{ groupId: string }>()
+  const basePath = AppRoute.AccessManagement.GroupDetail.replace(':groupId', groupId ?? '')
+  type GroupTab = 'details' | 'members' | 'roles'
+  const [activeTab, goToTab] = useDetailTab<GroupTab>(basePath)
+  const [editModalOpen, setEditModalOpen] = useState(false)
+
+  const { groupQuery, membersQuery, isAuthenticated, memberCount, roleAssignmentCount } = useGroupQueries(groupId)
 
   const navigateBack = () => navigate(AppRoute.AccessManagement.Groups)
 
@@ -151,7 +175,7 @@ export function GroupDetail() {
   const queryState = useQueryState(groupQuery, {
     title: 'Error loading group',
     onRetry: () => {
-      refetchGroup().catch(() => {})
+      detachPromise(refetchGroup())
     },
   })
 
@@ -161,7 +185,7 @@ export function GroupDetail() {
         <GroupNotFoundState
           onBack={navigateBack}
           onRetry={() => {
-            refetchGroup().catch(() => {})
+            detachPromise(refetchGroup())
           }}
         />
       </DetailPageShell>
@@ -196,6 +220,7 @@ export function GroupDetail() {
           onSelect={(_event, key) => goToTab(key as GroupTab)}
           isAuthenticated={isAuthenticated}
           memberCount={memberCount}
+          roleAssignmentCount={roleAssignmentCount}
         />
       </StackItem>
       <AppPageMain>
@@ -206,7 +231,7 @@ export function GroupDetail() {
             activeTab={activeTab}
             isAuthenticated={isAuthenticated}
             onMembersChange={() => {
-              membersQuery.refetch().catch(() => {})
+              detachPromise(membersQuery.refetch())
             }}
           />
         </AppPanel>
@@ -217,7 +242,7 @@ export function GroupDetail() {
         isOpen={editModalOpen}
         onClose={() => setEditModalOpen(false)}
         onSuccess={() => {
-          groupQuery.refetch().catch(() => {})
+          detachPromise(groupQuery.refetch())
         }}
       />
     </AppPage>

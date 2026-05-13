@@ -1797,6 +1797,64 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 })
   }),
 
+  // ── Group Role Assignments (nested under /groups/:groupId) ──────────────
+  http.get('/api/v1/groups/:groupId/role-assignments', ({ params }) => {
+    const groupId = params.groupId as string
+    const group = groups.find((g) => g.id === groupId)
+    if (!group) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/group-not-found',
+          title: 'Group Not Found',
+          detail: `Group with id '${groupId}' not found`,
+          code: 'GROUP_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/groups/${groupId}/role-assignments`,
+        },
+        { status: 404 }
+      )
+    }
+
+    const systemAssignments = mockGroupRoleAssignments
+      .filter((a) => a.group_id === groupId)
+      .map((a) => {
+        const role = mockRoles.find((r) => r.id === a.role_id)
+        return {
+          id: a.id,
+          principal_type: 'group',
+          principal_id: a.group_id,
+          principal_name: a.group_name,
+          role_name: a.role_name,
+          role_description: role?.description ?? null,
+          role_policies: role?.policies ?? [],
+          project_id: null,
+          project_name: null,
+          created_at: a.created_at,
+        }
+      })
+
+    const projectAssignments = mockProjectGroupRoleAssignments
+      .filter((a) => a.group_id === groupId)
+      .map((a) => {
+        const role = mockRoles.find((r) => r.id === a.role_id)
+        return {
+          id: a.id,
+          principal_type: 'group',
+          principal_id: a.group_id,
+          principal_name: a.group_name,
+          role_name: a.role_name,
+          role_description: role?.description ?? null,
+          role_policies: role?.policies ?? [],
+          project_id: a.project_id,
+          project_name: mockProjects.find((p) => p.id === a.project_id)?.name ?? null,
+          created_at: a.created_at,
+        }
+      })
+
+    const all = [...systemAssignments, ...projectAssignments]
+    return HttpResponse.json({ resources: all, total: all.length, next: null, prev: null })
+  }),
+
   // Credential handlers
   http.get('/api/v1/credentials', ({ request }) => {
     const url = new URL(request.url)
