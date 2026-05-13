@@ -656,6 +656,7 @@ export {
   createManualTrigger,
   createScheduledTrigger,
   createEventTrigger,
+  createWebhookTrigger,
   createScriptActivity,
   createApiActivity,
   createAgenticActivity,

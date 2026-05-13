@@ -1,4 +1,5 @@
 import {
+  RhUiLanguageIcon,
   RhUiRobotIcon,
   RhUiMergeNodesIcon,
   RhUiCodeIcon,
@@ -32,6 +33,12 @@ export const nodeMetadata: Record<string, NodeMetadata> = {
   },
   scheduledTrigger: {
     icon: RhUiCalendarIcon,
+    label: 'Trigger',
+    disableTarget: true,
+    expandable: false,
+  },
+  webhookTrigger: {
+    icon: RhUiLanguageIcon,
     label: 'Trigger',
     disableTarget: true,
     expandable: false,

@@ -1,9 +1,11 @@
 import { TriggerTypeEnum } from '@ansible/nexus-contracts'
-import type { ReactNode } from 'react'
+import { useMemo, type ReactNode } from 'react'
 
 import { useAlerts } from '../../../providers/alerts'
 import { useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
-import type { Trigger as StoreTrigger } from '../../../stores/workflowStoreTypes'
+import type { Trigger } from '../../../stores/workflowStoreTypes'
+import { parseJsonSchema } from '../../../utils/jsonSafeParse'
+import { isValidWebhookPath, normalizeWebhookPath } from '../../../utils/webhookPath'
 import type { TriggerFormData } from '../node-forms/TriggerNodeForm'
 import { TriggerNodeForm } from '../node-forms/TriggerNodeForm'
 
@@ -35,17 +37,6 @@ function triggersEqual(a: Trigger, b: Trigger): boolean {
     }
     return false
   })
-}
-
-/**
- * In v2, triggers are { id, type, name, config } nodes.
- * Manual trigger type is 'manual_trigger'.
- */
-type Trigger = {
-  id?: string
-  type: string
-  name?: string
-  config?: Record<string, unknown>
 }
 
 /**
@@ -114,21 +105,73 @@ function validateISO8601Interval(interval: string): boolean {
   return true
 }
 
-function parseInputSchemaConfig(inputSchema: string | undefined): Record<string, unknown> {
-  const config: Record<string, unknown> = {}
-  if (!inputSchema?.trim()) return config
-  try {
-    config.input_schema = JSON.parse(inputSchema.trim()) as Record<string, unknown>
-  } catch {
-    throw new Error('Input schema must be valid JSON')
-  }
-  return config
-}
-
 function serializeInputSchema(rawSchema: unknown): string | undefined {
   if (typeof rawSchema === 'string') return rawSchema
   if (rawSchema && typeof rawSchema === 'object') return JSON.stringify(rawSchema, null, 2)
   return undefined
+}
+
+function buildScheduledTrigger(data: TriggerFormData, triggerId: string, name: string): Trigger {
+  const scheduleType = (data.scheduleType ?? 'interval') as 'cron' | 'interval' | 'continuous'
+  const config: Record<string, string> = {}
+  if (scheduleType === 'interval' && data.interval) {
+    if (!validateISO8601Interval(data.interval)) {
+      throw new Error(
+        `Invalid interval format: "${data.interval}". Expected ISO 8601 duration (e.g., PT1H, P1DT12H, PT1H30M) or recurring interval (e.g., R/2024-01-01T10:00:00Z/P1D).`
+      )
+    }
+    config.interval = data.interval
+  }
+  return {
+    id: triggerId,
+    type: TriggerTypeEnum.SCHEDULED,
+    name: name ?? 'Scheduled Trigger',
+    config: {
+      schedule_type: scheduleType,
+      ...(config.interval && { interval: config.interval }),
+    },
+  }
+}
+
+function buildWebhookTrigger(data: TriggerFormData, triggerId: string, name: string): Trigger {
+  const webhookPath = normalizeWebhookPath(data.webhookPath ?? '')
+  if (!webhookPath || !isValidWebhookPath(webhookPath)) {
+    throw new Error('Webhook path is required and must be a valid slug')
+  }
+  const inputSchema = parseJsonSchema(data.inputSchema)
+  if (data.inputSchema?.trim() && !inputSchema) {
+    throw new Error('Invalid JSON schema — check syntax')
+  }
+  return {
+    id: triggerId,
+    type: TriggerTypeEnum.WEBHOOK_TRIGGER,
+    name: name ?? 'Webhook Trigger',
+    config: {
+      webhook_path: webhookPath,
+      ...(inputSchema && { input_schema: inputSchema }),
+    },
+  }
+}
+
+function buildUpdatedTrigger(data: TriggerFormData, trigger: Trigger, name: string | undefined): Trigger {
+  if (data.triggerType === TriggerTypeEnum.MANUAL_TRIGGER) {
+    const inputSchema = parseJsonSchema(data.inputSchema)
+    return {
+      id: trigger.id ?? 'manual_trigger',
+      type: TriggerTypeEnum.MANUAL_TRIGGER,
+      name: name ?? 'Manual Trigger',
+      config: {
+        ...(inputSchema && { input_schema: inputSchema }),
+      },
+    }
+  }
+  if (data.triggerType === TriggerTypeEnum.SCHEDULED) {
+    return buildScheduledTrigger(data, trigger.id ?? 'scheduled_trigger', name ?? 'Scheduled Trigger')
+  }
+  if (data.triggerType === TriggerTypeEnum.WEBHOOK_TRIGGER) {
+    return buildWebhookTrigger(data, trigger.id ?? 'webhook_trigger', name ?? 'Webhook Trigger')
+  }
+  throw new Error('Invalid trigger type')
 }
 
 type TriggerNodeDetailsProps = {
@@ -143,8 +186,8 @@ export function TriggerNodeDetails({ trigger, triggerIndex, onClose, onHeaderCon
   // Use action accessor - component won't re-render when store state changes
   const { updateTrigger } = useWorkflowStoreActions()
 
-  // Extract initial data from trigger
-  const getInitialData = (): TriggerFormData => {
+  // Extract initial data from trigger — memoized to avoid new object refs on re-render
+  const initialData = useMemo((): TriggerFormData => {
     if (trigger.type === TriggerTypeEnum.MANUAL_TRIGGER) {
       return {
         name: trigger.name,
@@ -173,58 +216,30 @@ export function TriggerNodeDetails({ trigger, triggerIndex, onClose, onHeaderCon
       }
     }
 
+    if (trigger.type === TriggerTypeEnum.WEBHOOK_TRIGGER) {
+      return {
+        name: trigger.name,
+        triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER,
+        webhookPath: (trigger.config?.webhook_path as string) ?? '',
+        inputSchema: serializeInputSchema(trigger.config?.input_schema),
+      }
+    }
+
     // Default fallback
     return {
       name: trigger.name,
       triggerType: TriggerTypeEnum.MANUAL_TRIGGER,
     }
-  }
+  }, [trigger])
 
   const handleSubmit = (data: TriggerFormData) => {
     try {
-      let updatedTrigger: Trigger
-
-      // When editing, use the form data name if provided, otherwise keep the original name
       const name = data.name?.trim() || trigger.name
-
-      if (data.triggerType === TriggerTypeEnum.MANUAL_TRIGGER) {
-        const triggerId = trigger.id ?? 'manual_trigger'
-        updatedTrigger = {
-          id: triggerId,
-          type: 'manual_trigger',
-          name: name ?? 'Manual Trigger',
-          config: parseInputSchemaConfig(data.inputSchema),
-        } as unknown as Trigger
-      } else if (data.triggerType === TriggerTypeEnum.SCHEDULED) {
-        const triggerId = trigger.id ?? 'scheduled_trigger'
-        const scheduleType = (data.scheduleType ?? 'interval') as 'cron' | 'interval' | 'continuous'
-        const config: { cron?: string; timezone?: string; interval?: string } = {}
-        if (scheduleType === 'interval' && data.interval) {
-          // SECURITY: Validate ISO 8601 duration/recurring interval format before using interval
-          if (!validateISO8601Interval(data.interval)) {
-            throw new Error(
-              `Invalid interval format: "${data.interval}". Expected ISO 8601 duration (e.g., PT1H, P1DT12H, PT1H30M) or recurring interval (e.g., R/2024-01-01T10:00:00Z/P1D).`
-            )
-          }
-          config.interval = data.interval
-        }
-        // Create trigger with explicit parameters to avoid any potential argument shifting issues
-        updatedTrigger = {
-          id: triggerId,
-          type: 'scheduled',
-          name: name ?? 'Scheduled Trigger',
-          config: {
-            schedule_type: scheduleType,
-            ...(config.interval && { interval: config.interval }),
-          },
-        } as unknown as Trigger
-      } else {
-        throw new Error('Invalid trigger type')
-      }
+      const updatedTrigger = buildUpdatedTrigger(data, trigger, name)
 
       // Only update if the trigger actually changed
       if (!triggersEqual(trigger, updatedTrigger)) {
-        updateTrigger(triggerIndex, updatedTrigger as unknown as StoreTrigger)
+        updateTrigger(triggerIndex, updatedTrigger)
       }
       onClose()
     } catch (error) {
@@ -236,10 +251,6 @@ export function TriggerNodeDetails({ trigger, triggerIndex, onClose, onHeaderCon
   }
 
   return (
-    <TriggerNodeForm
-      initialData={getInitialData()}
-      onSubmit={handleSubmit}
-      onHeaderContentChange={onHeaderContentChange}
-    />
+    <TriggerNodeForm initialData={initialData} onSubmit={handleSubmit} onHeaderContentChange={onHeaderContentChange} />
   )
 }

@@ -2,7 +2,7 @@
  * Helper functions for adding each v2 workflow node type via the builder UI.
  *
  * V2 node types:
- *   Trigger:      manual
+ *   Trigger:      manual, webhook
  *   Executors:    script, http_request, agentic, aap_job_template, approval
  *   Control flow: condition, loop, converge
  *
@@ -72,6 +72,21 @@ export async function addManualTrigger(page: Page, name = 'Manual trigger') {
   await expect(page.getByRole('heading', { name: /select a trigger step/i })).toBeVisible({ timeout: 10000 })
   await page.getByRole('button', { name: 'Manual trigger' }).click()
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
+  await page.getByRole('button', { name: 'Save and close' }).click()
+
+  // Panel auto-closes after adding trigger - no manual close needed
+}
+
+/** Add a webhook (API) trigger. Must be called on a fresh /workflow-builder/new page. */
+export async function addWebhookTrigger(page: Page, name: string, webhookPath: string) {
+  // Wait for page to finish loading
+  await expect(page.getByRole('progressbar', { name: 'Loading' })).not.toBeVisible({ timeout: 15000 })
+
+  // Wait for trigger selection panel with correct heading text
+  await expect(page.getByRole('heading', { name: /select a trigger step/i })).toBeVisible({ timeout: 10000 })
+  await page.getByRole('button', { name: 'Webhook trigger', exact: true }).click()
+  await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
+  await page.getByRole('textbox', { name: 'Webhook path' }).fill(webhookPath)
   await page.getByRole('button', { name: 'Save and close' }).click()
 
   // Panel auto-closes after adding trigger - no manual close needed

@@ -29,9 +29,19 @@ export type TriggerNode = { type: 'trigger' } & Node<{
 export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
   const triggerName = props.data.name
   const triggerDetails = props.data.details
-  const isScheduled = props.data.triggerType === TriggerTypeEnum.SCHEDULED
-  const metadata = isScheduled ? nodeMetadata.scheduledTrigger : nodeMetadata.trigger
-  const iconId = isScheduled ? 'trigger-scheduled' : 'trigger-manual'
+  const triggerType = props.data.triggerType
+  const isScheduled = triggerType === TriggerTypeEnum.SCHEDULED
+  const isWebhook = triggerType === TriggerTypeEnum.WEBHOOK_TRIGGER
+
+  let metadata = nodeMetadata.trigger
+  let iconId = 'trigger-manual'
+  if (isScheduled) {
+    metadata = nodeMetadata.scheduledTrigger
+    iconId = 'trigger-scheduled'
+  } else if (isWebhook) {
+    metadata = nodeMetadata.webhookTrigger
+    iconId = 'trigger-webhook'
+  }
   const iconNode = renderNodeIcon(metadata.icon, iconId)
   // 75px border-radius is a layout constraint (pill shape), not a spacing value — no semantic token applies
   const triggerStyle: CSSProperties = {
@@ -63,7 +73,12 @@ export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
     ((props.data as Record<string, unknown>).metadata as { __showExecutionBadge?: boolean } | undefined)
       ?.__showExecutionBadge === true
 
-  const triggerTypeLabel = props.data.triggerType === TriggerTypeEnum.SCHEDULED ? 'Scheduled trigger' : 'Manual trigger'
+  let triggerTypeLabel = 'Manual trigger'
+  if (isScheduled) {
+    triggerTypeLabel = 'Scheduled trigger'
+  } else if (isWebhook) {
+    triggerTypeLabel = 'Webhook trigger'
+  }
 
   return (
     <NodeComponent
@@ -110,6 +125,7 @@ function TriggerNodeDetails(
   const isActiveExecution = useIsActiveExecution()
   const isManualTrigger = props.triggerKind === TriggerTypeEnum.MANUAL_TRIGGER
   const isScheduledTrigger = props.triggerKind === TriggerTypeEnum.SCHEDULED
+  const isWebhookTrigger = props.triggerKind === TriggerTypeEnum.WEBHOOK_TRIGGER
   const normalizedDetails = props.triggerDetails ?? null
   return (
     <>
@@ -128,7 +144,10 @@ function TriggerNodeDetails(
             {props.triggerName}
           </Title>
           {isScheduledTrigger && normalizedDetails && (
-            <Content component={ContentVariants.small}>Schedule trigger</Content>
+            <Content component={ContentVariants.small}>Scheduled trigger</Content>
+          )}
+          {isWebhookTrigger && !normalizedDetails && (
+            <Content component={ContentVariants.small}>Webhook trigger</Content>
           )}
           {normalizedDetails && (
             <Content component={ContentVariants.small} style={{ whiteSpace: 'pre-line', overflowWrap: 'anywhere' }}>

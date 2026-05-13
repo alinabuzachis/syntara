@@ -1,16 +1,9 @@
-import { ActivityTypeEnum, type Activity } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, TriggerTypeEnum, type Activity } from '@ansible/nexus-contracts'
+
+import { safeJSONReviver } from '../utils/jsonSafeParse'
+import { isValidWebhookPath } from '../utils/webhookPath'
 
 import type { ActivityWithMetadata } from './workflowStoreTypes'
-
-/**
- * SECURITY: JSON.parse reviver that strips prototype pollution keys during parsing.
- */
-function safeJSONReviver(key: string, value: unknown): unknown {
-  if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
-    return undefined
-  }
-  return value
-}
 
 // ============================================================================
 // V2 Workflow Entity Factory Functions
@@ -42,7 +35,7 @@ export function createManualTrigger(
 ): Activity {
   return {
     id,
-    type: 'manual_trigger',
+    type: TriggerTypeEnum.MANUAL_TRIGGER,
     name: name ?? 'Manual Trigger',
     config: {
       ...(inputSchema && { input_schema: inputSchema }),
@@ -63,10 +56,10 @@ export function createScheduledTrigger(
     interval?: string
   },
   name?: string
-) {
+): Activity {
   return {
     id,
-    type: 'scheduled',
+    type: TriggerTypeEnum.SCHEDULED,
     name: name ?? 'Scheduled Trigger',
     config: {
       schedule_type: scheduleType,
@@ -87,15 +80,39 @@ export function createEventTrigger(
   eventType: string,
   filter?: Record<string, unknown>,
   name?: string
-) {
+): Activity {
   return {
     id,
-    type: 'event',
+    type: TriggerTypeEnum.EVENT,
     name: name ?? 'Event Trigger',
     config: {
       source,
       event_type: eventType,
       ...(filter && { filter }),
+    },
+  }
+}
+
+/**
+ * Create a webhook trigger (v2).
+ * Config uses snake_case to match the backend WebhookTriggerConfig model.
+ */
+export function createWebhookTrigger(
+  id: string,
+  webhookPath: string,
+  inputSchema?: Record<string, unknown>,
+  name?: string
+): Activity {
+  if (!isValidWebhookPath(webhookPath)) {
+    throw new Error('Invalid webhook path format')
+  }
+  return {
+    id,
+    type: TriggerTypeEnum.WEBHOOK_TRIGGER,
+    name: name ?? 'Webhook Trigger',
+    config: {
+      webhook_path: webhookPath,
+      ...(inputSchema && { input_schema: inputSchema }),
     },
   }
 }

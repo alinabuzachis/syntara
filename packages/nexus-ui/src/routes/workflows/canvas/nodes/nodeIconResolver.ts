@@ -1,4 +1,4 @@
-import { ExecutorTypeEnum, type TaskActivity } from '@ansible/nexus-contracts'
+import { ExecutorTypeEnum, TriggerTypeEnum, type TaskActivity } from '@ansible/nexus-contracts'
 import type { Node } from '@xyflow/react'
 import type { ComponentType } from 'react'
 
@@ -44,8 +44,11 @@ export function getCanvasNodeIconDescriptor(
     const triggerIndex = parseTriggerIndex(node.id) ?? 0
     const triggerType =
       currentWorkflow?.triggers?.[triggerIndex]?.type ?? (node.data as { triggerType?: string }).triggerType
-    if (triggerType === 'scheduled') {
+    if (triggerType === TriggerTypeEnum.SCHEDULED) {
       return { icon: nodeMetadata.scheduledTrigger.icon, id: RegistryNodeId.TRIGGER_SCHEDULED }
+    }
+    if (triggerType === TriggerTypeEnum.WEBHOOK_TRIGGER) {
+      return { icon: nodeMetadata.webhookTrigger.icon, id: RegistryNodeId.TRIGGER_WEBHOOK }
     }
     return { icon: nodeMetadata.trigger.icon, id: RegistryNodeId.TRIGGER_MANUAL }
   }

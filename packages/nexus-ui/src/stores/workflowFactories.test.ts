@@ -14,6 +14,7 @@ import {
   createManualTrigger,
   createScheduledTrigger,
   createScriptActivity,
+  createWebhookTrigger,
 } from './workflowFactories'
 
 describe('workflowFactories', () => {
@@ -131,6 +132,40 @@ describe('workflowFactories', () => {
 
         expect(trigger.id).toBe('trigger-14')
         expect(trigger.name).toBe('GitHub Push')
+      })
+    })
+
+    describe('createWebhookTrigger', () => {
+      it('creates a webhook trigger with path', () => {
+        const trigger = createWebhookTrigger('trigger-20', 'jira-updates')
+
+        expect(trigger.id).toBe('trigger-20')
+        expect(trigger.type).toBe('webhook_trigger')
+        expect(trigger.name).toBe('Webhook Trigger')
+        expect(trigger.config.webhook_path).toBe('jira-updates')
+        expect(trigger.config).not.toHaveProperty('input_schema')
+      })
+
+      it('creates a webhook trigger with JSON schema', () => {
+        const schema = { type: 'object', properties: { name: { type: 'string' } } }
+        const trigger = createWebhookTrigger('trigger-21', 'github-push', schema)
+
+        expect(trigger.id).toBe('trigger-21')
+        expect(trigger.config.webhook_path).toBe('github-push')
+        expect(trigger.config.input_schema).toEqual(schema)
+      })
+
+      it('creates a webhook trigger with custom name', () => {
+        const trigger = createWebhookTrigger('trigger-22', 'slack-events', undefined, 'Slack Webhook')
+
+        expect(trigger.id).toBe('trigger-22')
+        expect(trigger.name).toBe('Slack Webhook')
+      })
+
+      it('throws for invalid webhook path format', () => {
+        expect(() => createWebhookTrigger('trigger-23', 'api/v2/events')).toThrow('Invalid webhook path format')
+        expect(() => createWebhookTrigger('trigger-24', '')).toThrow('Invalid webhook path format')
+        expect(() => createWebhookTrigger('trigger-25', '-leading-hyphen')).toThrow('Invalid webhook path format')
       })
     })
   })

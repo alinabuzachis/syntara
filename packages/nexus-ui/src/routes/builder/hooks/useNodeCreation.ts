@@ -7,6 +7,8 @@ export type TriggerFormData = {
   interval?: string
   eventSource?: string
   eventType?: string
+  webhookPath?: string
+  inputSchema?: string
 }
 
 export type ActionFormData = {

@@ -15,6 +15,7 @@ import createFetchClient, { type Middleware } from 'openapi-fetch'
 import createClient from 'openapi-react-query'
 
 import { useAuthStore } from './stores/useAuthStore'
+import { backendOrigin } from './utils/backendUrl'
 
 // ============================================================================
 // Auth Middleware
@@ -125,19 +126,6 @@ export const authClient = createClient(authFetchClient)
  * OIDC redirect URLs — full-page navigations handled by the backend, not JSON API calls.
  * These are not in the OpenAPI contract because the browser navigates to them directly.
  */
-function resolveBackendOrigin(): string {
-  const raw: unknown = import.meta.env.VITE_API_URL
-  if (typeof raw === 'string' && raw) {
-    try {
-      return new URL(raw).origin
-    } catch {
-      // fall through to default
-    }
-  }
-  return globalThis.location.origin
-}
-
-const backendOrigin = resolveBackendOrigin()
 export const OIDC_REDIRECT_URI = `${backendOrigin}/api/v1/auth/oidc/callback`
 export const OIDC_AUTHORIZE_PATH = '/api/v1/auth/oidc/authorize'
 

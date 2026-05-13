@@ -39,6 +39,7 @@ export const TriggerTypeEnum = {
   MANUAL_TRIGGER: 'manual_trigger',
   SCHEDULED: 'scheduled',
   EVENT: 'event',
+  WEBHOOK_TRIGGER: 'webhook_trigger',
 } as const
 
 /**

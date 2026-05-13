@@ -1,9 +1,15 @@
 import { TriggerTypeEnum } from '@ansible/nexus-contracts'
-import { RhUiCalendarIcon, RhUiPlayIcon } from '@patternfly/react-icons'
+import { RhUiCalendarIcon, RhUiLanguageIcon, RhUiPlayIcon } from '@patternfly/react-icons'
 
 import { RegistryNodeId } from '../../../../constants'
-import { createManualTrigger, createScheduledTrigger, useWorkflowStore } from '../../../../stores/useWorkflowStore'
-import type { Trigger } from '../../../../stores/workflowStoreTypes'
+import {
+  createManualTrigger,
+  createScheduledTrigger,
+  createWebhookTrigger,
+  useWorkflowStore,
+} from '../../../../stores/useWorkflowStore'
+import { parseJsonSchema } from '../../../../utils/jsonSafeParse'
+import { normalizeWebhookPath } from '../../../../utils/webhookPath'
 import type { TriggerFormData } from '../../hooks/useNodeCreation'
 import { TriggerNodeForm } from '../../node-forms/TriggerNodeForm'
 import { buildNamedTrigger } from '../../utils/nodeCreationHelpers'
@@ -23,7 +29,7 @@ export default function registerTriggerNode() {
         icon: RhUiPlayIcon,
         category: 'trigger',
         description: 'Start workflow execution with manual, scheduled, or event triggers',
-        keywords: ['start', 'begin', 'manual', 'schedule', 'event', 'webhook'],
+        keywords: ['start', 'begin', 'manual', 'schedule', 'event', 'webhook', 'api', 'http'],
         order: 100,
         selectionTitle: 'Select a trigger step',
         subtypes: [
@@ -43,6 +49,14 @@ export default function registerTriggerNode() {
             formTitle: 'Configure Schedule Triggers',
             initialData: { triggerType: TriggerTypeEnum.SCHEDULED },
           },
+          {
+            id: RegistryNodeId.TRIGGER_WEBHOOK,
+            label: 'Webhook trigger',
+            icon: RhUiLanguageIcon,
+            description: 'Workflow will start when called by an external webhook.',
+            formTitle: 'Configure Webhook Trigger',
+            initialData: { triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER },
+          },
         ],
         formComponent: TriggerNodeForm,
       },
@@ -51,7 +65,8 @@ export default function registerTriggerNode() {
           const baseName = getDefaultNodeBaseName({ nodeTypeId: RegistryNodeId.TRIGGER, label: 'Trigger' })
           const { trigger } = buildNamedTrigger(baseName, data.name, (triggerId, name) => {
             if (data.triggerType === TriggerTypeEnum.MANUAL_TRIGGER) {
-              return createManualTrigger(triggerId, undefined, name)
+              const inputSchema = parseJsonSchema(data.inputSchema)
+              return createManualTrigger(triggerId, undefined, name, inputSchema)
             }
             if (data.triggerType === TriggerTypeEnum.SCHEDULED && data.scheduleType) {
               return createScheduledTrigger(
@@ -65,11 +80,18 @@ export default function registerTriggerNode() {
                 name
               )
             }
+            if (data.triggerType === TriggerTypeEnum.WEBHOOK_TRIGGER && data.webhookPath) {
+              const inputSchema = parseJsonSchema(data.inputSchema)
+              if (data.inputSchema?.trim() && !inputSchema) {
+                throw new Error('Invalid JSON schema — check syntax')
+              }
+              return createWebhookTrigger(triggerId, normalizeWebhookPath(data.webhookPath), inputSchema, name)
+            }
             return null
           })
 
           if (trigger) {
-            useWorkflowStore.getState().addTrigger(trigger as unknown as Trigger)
+            useWorkflowStore.getState().addTrigger(trigger)
             onSuccess()
           } else {
             onError('Invalid trigger configuration. Please check your inputs.')

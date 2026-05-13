@@ -103,6 +103,11 @@ export function getTriggerDisplayData(trigger: Trigger): { name: string; details
         details = 'Event'
       }
       break
+    case TriggerTypeEnum.WEBHOOK_TRIGGER: {
+      const webhookPath = (trigger.config?.webhook_path as string) ?? ''
+      details = webhookPath ? `Webhook: /${webhookPath}` : 'Webhook'
+      break
+    }
   }
 
   return { name, details }

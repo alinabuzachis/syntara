@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { axe } from 'vitest-axe'
 
 import { ExecutionViewContext } from '../../../builder/ExecutionViewContext'
 
@@ -87,7 +88,7 @@ describe('TriggerNodeComponent', () => {
     expect(screen.getByText('Manual trigger')).toBeInTheDocument()
   })
 
-  it('renders "Schedule trigger" for scheduled triggers with cadence details', () => {
+  it('renders "Scheduled trigger" for scheduled triggers with cadence details', () => {
     render(
       <TriggerNodeComponent
         {...createNodeProps({
@@ -98,7 +99,7 @@ describe('TriggerNodeComponent', () => {
       />
     )
 
-    expect(screen.getByText('Schedule trigger')).toBeInTheDocument()
+    expect(screen.getByText('Scheduled trigger')).toBeInTheDocument()
     expect(screen.getByText('Continuous')).toBeInTheDocument()
   })
 
@@ -129,5 +130,41 @@ describe('TriggerNodeComponent', () => {
 
     expect(screen.getByText('${name_via_ai.analysis.default_trigger_configuration}')).toBeInTheDocument()
     expect(screen.getByText('Every 5 minutes on weekdays')).toBeInTheDocument()
+  })
+
+  it('renders "Webhook trigger" label when webhook trigger has no details', () => {
+    render(
+      <TriggerNodeComponent
+        {...createNodeProps({
+          name: 'My Webhook',
+          details: null,
+          triggerType: 'webhook_trigger',
+        })}
+      />
+    )
+
+    expect(screen.getByText('Webhook trigger')).toBeInTheDocument()
+  })
+
+  it('renders webhook path detail instead of label when details are present', () => {
+    render(
+      <TriggerNodeComponent
+        {...createNodeProps({
+          name: 'My Webhook',
+          details: 'Webhook: /jira-updates',
+          triggerType: 'webhook_trigger',
+        })}
+      />
+    )
+
+    expect(screen.getByText('Webhook: /jira-updates')).toBeInTheDocument()
+    expect(screen.queryByText('Webhook trigger')).not.toBeInTheDocument()
+  })
+
+  it('has no accessibility violations', async () => {
+    const { container } = render(<TriggerNodeComponent {...createNodeProps()} />)
+    // Exclude nested-interactive: pre-existing issue in shared NodeMenuWrapper component
+    const results = await axe(container, { rules: { 'nested-interactive': { enabled: false } } })
+    expect(results).toHaveNoViolations()
   })
 })
