@@ -7,6 +7,7 @@ from uuid import uuid4
 from nexus.audit.models.audit_event import ActorType, AuditEvent, EventCategory, EventSeverity, EventStatus
 from nexus.audit.models.audit_event_record import AuditEventRecord
 from nexus.audit.models.structured_data import AuditContextData
+from nexus.core.constants import FieldLimits
 
 
 class TestAuditEventRecordFromEvent:
@@ -236,6 +237,75 @@ class TestAuditEventRecordFromEvent:
         assert isinstance(record.structured_data, AuditContextData)
         assert record.structured_data.error_type is None
         assert record.structured_data.error_message is None
+
+    def test_from_event_truncates_long_actor_username(self) -> None:
+        """Test that oversized actor_username is truncated to NAME_MAX_LENGTH."""
+        long_username = "a" * 10_000
+        event = AuditEvent(
+            event_category=EventCategory.USER_ACTION,
+            event_action="login",
+            source_component="auth",
+            event_message="User logged in",
+            actor_username=long_username,
+            structured_data=AuditContextData(data_type="test"),
+        )
+
+        record = AuditEventRecord.from_event(event)
+
+        assert len(record.actor_username) == FieldLimits.NAME_MAX_LENGTH  # type: ignore[arg-type]
+        assert record.actor_username == long_username[: FieldLimits.NAME_MAX_LENGTH]
+
+    def test_from_event_truncates_long_resource_name(self) -> None:
+        """Test that oversized resource_name is truncated to NAME_MAX_LENGTH.
+
+        AuditEvent.resource_name has a Pydantic max_length validator, so we
+        use model_construct to bypass validation and simulate a value that
+        exceeds the DB column limit (e.g. from a legacy or external source).
+        """
+        long_name = "r" * 10_000
+        event = AuditEvent.model_construct(
+            event_category=EventCategory.USER_ACTION,
+            event_action="create_resource",
+            source_component="resource_mgr",
+            event_message="Resource created",
+            resource_name=long_name,
+            structured_data=AuditContextData(data_type="test"),
+        )
+
+        record = AuditEventRecord.from_event(event)
+
+        assert len(record.resource_name) == FieldLimits.NAME_MAX_LENGTH  # type: ignore[arg-type]
+        assert record.resource_name == long_name[: FieldLimits.NAME_MAX_LENGTH]
+
+    def test_from_event_preserves_short_actor_username(self) -> None:
+        """Test that a normal-length actor_username passes through unchanged."""
+        event = AuditEvent(
+            event_category=EventCategory.USER_ACTION,
+            event_action="login",
+            source_component="auth",
+            event_message="User logged in",
+            actor_username="alice",
+            structured_data=AuditContextData(data_type="test"),
+        )
+
+        record = AuditEventRecord.from_event(event)
+
+        assert record.actor_username == "alice"
+
+    def test_from_event_handles_none_actor_username(self) -> None:
+        """Test that None actor_username is preserved as None."""
+        event = AuditEvent(
+            event_category=EventCategory.SYSTEM_OPERATION,
+            event_action="cleanup",
+            source_component="scheduler",
+            event_message="Cleanup completed",
+            actor_username=None,
+            structured_data=AuditContextData(data_type="test"),
+        )
+
+        record = AuditEventRecord.from_event(event)
+
+        assert record.actor_username is None
 
 
 class TestAuditEventRecordTableConfig:
