@@ -55,10 +55,31 @@ vi.mock('./useCanQueryAuthz', () => ({
   useCanQueryAuthz: () => mockCanQueryAuthz(),
 }))
 
+const mockCanILocation = vi.hoisted(() => {
+  const listeners = new Set<() => void>()
+  return {
+    current: '/system-administration/access-management/can-i',
+    listeners,
+  }
+})
+
 vi.mock('wouter', async () => {
   const React = await import('react')
   return {
-    useLocation: () => React.useState('/system-administration/access-management/can-i'),
+    useLocation: () => {
+      const [, forceUpdate] = React.useReducer((x: number) => x + 1, 0)
+      React.useEffect(() => {
+        mockCanILocation.listeners.add(forceUpdate)
+        return () => {
+          mockCanILocation.listeners.delete(forceUpdate)
+        }
+      }, [forceUpdate])
+      const setLoc = (path: string) => {
+        mockCanILocation.current = path
+        mockCanILocation.listeners.forEach((fn) => fn())
+      }
+      return [mockCanILocation.current, setLoc]
+    },
     useSearchParams: () => React.useState(new URLSearchParams()),
   }
 })
@@ -72,6 +93,7 @@ describe('CanITab', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     queryClient.clear()
+    mockCanILocation.current = '/system-administration/access-management/can-i'
     mockCanQueryAuthz.mockReturnValue({ canQuery: true, isChecking: false })
     mockUseQuery.mockImplementation((...args: unknown[]) => {
       const [, path] = args as [string, string]

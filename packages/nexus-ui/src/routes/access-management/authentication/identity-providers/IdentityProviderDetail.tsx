@@ -18,7 +18,6 @@ import {
   Switch,
   Tab,
   TabTitleText,
-  Tabs,
   Title,
 } from '@patternfly/react-core'
 import { RhUiArrowLeftIcon, RhUiEditIcon, RhUiSearchIcon, RhUiSyncIcon, RhUiTrashIcon } from '@patternfly/react-icons'
@@ -41,7 +40,9 @@ import { ConfirmationDialog } from '../../../../components/ConfirmationDialog'
 import { IconLabel } from '../../../../components/IconLabel'
 import { ProviderIcon } from '../../../../components/ProviderIcon'
 import { useQueryState } from '../../../../components/states/useQueryState'
+import { UrlTabs } from '../../../../components/UrlTabs'
 import { useDeleteAction } from '../../../../hooks/useDeleteAction'
+import { useUrlTab } from '../../../../hooks/useUrlTab'
 import { useAlerts } from '../../../../providers/alerts'
 import { getErrorMessage, getErrorStatus } from '../../../../utils/apiErrors'
 import { formatDateTime } from '../../../../utils/dateUtils'
@@ -176,10 +177,6 @@ function TabContent({
 
 type TabKey = 'details' | 'group-mapping'
 
-function isTabKey(value: string | undefined): value is TabKey {
-  return value === 'details' || value === 'group-mapping'
-}
-
 function identityProviderDetailBreadcrumbTrail(provider: ProviderData, idpDetailBasePath: string, activeTab: TabKey) {
   return breadcrumbsIdentityProviderDetail(provider.name ?? 'Identity provider', idpDetailBasePath, activeTab)
 }
@@ -196,29 +193,26 @@ function IdentityProviderDetailEarlyLayout({ children }: Readonly<{ children: Re
 }
 
 function IdentityProviderDetailTabStrip({
-  activeTab,
+  basePath,
   mappingCount,
-  onSelectTab,
 }: Readonly<{
-  activeTab: TabKey
+  basePath: string
   mappingCount: number
-  onSelectTab: (key: TabKey) => void
 }>) {
   return (
     <StackItem style={{ flexShrink: 0 }}>
-      <Tabs
-        activeKey={activeTab}
-        onSelect={(_event, key) => {
-          const keyStr = String(key)
-          if (isTabKey(keyStr)) onSelectTab(keyStr)
-        }}
+      <UrlTabs
+        basePath={basePath}
+        defaultTab="details"
+        validTabs={['details', 'group-mapping']}
+        aria-label="Identity provider details"
       >
         <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />
         <Tab
           eventKey="group-mapping"
           title={<TabTitleText>Group mapping {mappingCount > 0 && <Badge isRead>{mappingCount}</Badge>}</TabTitleText>}
         />
-      </Tabs>
+      </UrlTabs>
     </StackItem>
   )
 }
@@ -266,9 +260,8 @@ function IdentityProviderDeleteDialog({
 }
 
 export function IdentityProviderDetail() {
-  const { providerId, tab } = useParams<{ providerId: string; tab?: string }>()
+  const { providerId } = useParams<{ providerId: string }>()
   const isValidId = !!providerId && isValidUUID(providerId)
-  const activeTab: TabKey = isTabKey(tab) ? tab : 'details'
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [editMappingTrigger, setEditMappingTrigger] = useState(0)
 
@@ -277,9 +270,7 @@ export function IdentityProviderDetail() {
     providerId ?? ''
   ).replace('/:tab?', '')
 
-  const setActiveTab = (key: TabKey) => {
-    navigate(key === 'details' ? idpDetailBasePath : `${idpDetailBasePath}/${key}`, { replace: true })
-  }
+  const [activeTab, setActiveTab] = useUrlTab<TabKey>(idpDetailBasePath)
 
   const providerQuery = identityProvidersClient.useQuery(
     'get',
@@ -429,7 +420,7 @@ export function IdentityProviderDetail() {
         </Button>
         <ActionsColumn items={kebabActions} />
       </AppPageHeader>
-      <IdentityProviderDetailTabStrip activeTab={activeTab} mappingCount={mappingCount} onSelectTab={setActiveTab} />
+      <IdentityProviderDetailTabStrip basePath={idpDetailBasePath} mappingCount={mappingCount} />
       <AppPageMain>
         <AppPanel isFullHeight>
           <TabContent

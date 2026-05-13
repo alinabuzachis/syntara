@@ -13,7 +13,6 @@ import {
   StackItem,
   Tab,
   TabTitleText,
-  Tabs,
   Title,
 } from '@patternfly/react-core'
 import { RhUiEditIcon } from '@patternfly/react-icons'
@@ -27,7 +26,8 @@ import { breadcrumbsUserDetail, breadcrumbsUserDetailEarlyShell } from '../../..
 import { authClient } from '../../../client'
 import { AppPanel } from '../../../components/AppPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
-import { useDetailTab } from '../../../hooks/useDetailTab'
+import { UrlTabs } from '../../../components/UrlTabs'
+import { useUrlTab } from '../../../hooks/useUrlTab'
 import { formatDateTime } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
 import { isValidUUID } from '../../../utils/generateUUID'
@@ -194,11 +194,13 @@ function UserDetailHeaderTitle({ userData }: Readonly<{ userData: User }>) {
   )
 }
 
+type UserTab = 'details' | 'groups' | 'identities' | 'roles'
+const USER_TABS: UserTab[] = ['details', 'groups', 'identities', 'roles']
+
 export function UserDetail() {
   const { userId } = useParams<{ userId: string }>()
   const basePath = AppRoute.AccessManagement.UserDetail.replace(':userId', userId ?? '')
-  type UserTab = 'details' | 'groups' | 'identities' | 'roles'
-  const [activeTab, goToTab] = useDetailTab<UserTab>(basePath)
+  const [activeTab] = useUrlTab<UserTab>(basePath)
 
   const { userQuery, groupCount, identitiesData, roleAssignmentCount, currentUserId } = useUserDetailData(userId)
 
@@ -249,7 +251,7 @@ export function UserDetail() {
         </Button>
       </AppPageHeader>
       <StackItem style={{ flexShrink: 0 }}>
-        <Tabs activeKey={activeTab} onSelect={(_event, key) => goToTab(key as UserTab)}>
+        <UrlTabs basePath={basePath} defaultTab="details" validTabs={USER_TABS} aria-label="User details">
           <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />
           <Tab
             eventKey="groups"
@@ -275,7 +277,7 @@ export function UserDetail() {
               </TabTitleText>
             }
           />
-        </Tabs>
+        </UrlTabs>
       </StackItem>
       <AppPageMain>
         <AppPanel isFullHeight>

@@ -10,7 +10,6 @@ import {
   StackItem,
   Tab,
   TabTitleText,
-  Tabs,
   Title,
 } from '@patternfly/react-core'
 import { useParams } from 'wouter'
@@ -22,7 +21,8 @@ import { AppRoute } from '../../../app/AppRoute'
 import { breadcrumbsProjectDetail, breadcrumbsProjectDetailEarlyShell } from '../../../app/breadcrumbBuilders'
 import { AppPanel } from '../../../components/AppPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
-import { useDetailTab } from '../../../hooks/useDetailTab'
+import { UrlTabs } from '../../../components/UrlTabs'
+import { useUrlTab } from '../../../hooks/useUrlTab'
 import { formatDateTime } from '../../../utils/dateUtils'
 import { accessClient } from '../../access/accessClient'
 import type { ProjectRead } from '../../access/types'
@@ -83,11 +83,13 @@ function ProjectDetailsTab({ project }: Readonly<{ project: ProjectRead }>) {
   )
 }
 
+type ProjectTab = 'details' | 'role-assignments' | 'roles' | 'policies'
+const PROJECT_TABS: ProjectTab[] = ['details', 'role-assignments', 'roles', 'policies']
+
 export function ProjectDetail() {
   const { projectId } = useParams<{ projectId: string }>()
   const basePath = AppRoute.AccessManagement.ProjectDetail.replace(':projectId', projectId ?? '')
-  type ProjectTab = 'details' | 'role-assignments' | 'roles' | 'policies'
-  const [activeTab, goToTab] = useDetailTab<ProjectTab>(basePath)
+  const [activeTab] = useUrlTab<ProjectTab>(basePath)
 
   const projectQuery = accessClient.useQuery(
     'get',
@@ -136,12 +138,12 @@ export function ProjectDetail() {
     <AppPage>
       <AppPageHeader title={<Title headingLevel="h1">{projectData.name}</Title>} breadcrumbs={projectCrumbs} />
       <StackItem style={{ flexShrink: 0 }}>
-        <Tabs activeKey={activeTab} onSelect={(_event, key) => goToTab(key as ProjectTab)}>
+        <UrlTabs basePath={basePath} defaultTab="details" validTabs={PROJECT_TABS} aria-label="Project details">
           <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />
           <Tab eventKey="policies" title={<TabTitleText>Policies</TabTitleText>} />
           <Tab eventKey="roles" title={<TabTitleText>Roles</TabTitleText>} />
           <Tab eventKey="role-assignments" title={<TabTitleText>Role Assignments</TabTitleText>} />
-        </Tabs>
+        </UrlTabs>
       </StackItem>
       <AppPageMain>
         <AppPanel isFullHeight>

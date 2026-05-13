@@ -33,10 +33,11 @@ vi.mock('../../../../client', async (importOriginal) => {
 
 const VALID_PROVIDER_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
 
-const mockUseParams = vi.fn((): { providerId: string; tab?: string } => ({ providerId: VALID_PROVIDER_ID }))
+const mockSetLocation = vi.fn()
+const mockLocationRef = { current: `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}` }
 vi.mock('wouter', () => ({
-  useLocation: () => [`/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}`, vi.fn()],
-  useParams: () => mockUseParams(),
+  useLocation: (): [string, typeof mockSetLocation] => [mockLocationRef.current, mockSetLocation],
+  useParams: () => ({ providerId: VALID_PROVIDER_ID }),
   useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }))
 
@@ -92,7 +93,7 @@ function mockQueryReturn(overrides: Record<string, unknown> = {}): ReturnType<ty
 describe('IdentityProviderDetail', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseParams.mockReturnValue({ providerId: VALID_PROVIDER_ID })
+    mockLocationRef.current = `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}`
   })
 
   it('renders provider details when data is loaded', () => {
@@ -601,15 +602,11 @@ describe('IdentityProviderDetail', () => {
     const groupMappingTab = screen.getByRole('tab', { name: /group mapping/i })
     await user.click(groupMappingTab)
 
-    // Should navigate with the group-mapping tab key
-    expect(mockNavigate).toHaveBeenCalledWith(
-      expect.stringContaining('group-mapping'),
-      expect.objectContaining({ replace: true })
-    )
+    expect(mockSetLocation).toHaveBeenCalledWith(expect.stringContaining('group-mapping'))
   })
 
   it('renders GroupMappingTab content when tab is group-mapping', () => {
-    mockUseParams.mockReturnValue({ providerId: VALID_PROVIDER_ID, tab: 'group-mapping' })
+    mockLocationRef.current = `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}/group-mapping`
     vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn())
 
     render(<IdentityProviderDetail />, { wrapper: createWrapper() })
@@ -618,7 +615,7 @@ describe('IdentityProviderDetail', () => {
   })
 
   it('renders ProviderDetailsContent when tab is details', () => {
-    mockUseParams.mockReturnValue({ providerId: VALID_PROVIDER_ID, tab: 'details' })
+    mockLocationRef.current = `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}/details`
     vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn())
 
     render(<IdentityProviderDetail />, { wrapper: createWrapper() })
@@ -629,7 +626,7 @@ describe('IdentityProviderDetail', () => {
   })
 
   it('defaults to details tab when tab param is invalid', () => {
-    mockUseParams.mockReturnValue({ providerId: VALID_PROVIDER_ID, tab: 'invalid-tab' })
+    mockLocationRef.current = `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}/invalid-tab`
     vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn())
 
     render(<IdentityProviderDetail />, { wrapper: createWrapper() })
@@ -641,20 +638,15 @@ describe('IdentityProviderDetail', () => {
 
   it('switches to the Details tab from group-mapping', async () => {
     const user = userEvent.setup()
-    mockUseParams.mockReturnValue({ providerId: VALID_PROVIDER_ID, tab: 'group-mapping' })
+    mockLocationRef.current = `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}/group-mapping`
     vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn())
 
     render(<IdentityProviderDetail />, { wrapper: createWrapper() })
 
-    // Click the Details tab
     const detailsTab = screen.getByRole('tab', { name: /details/i })
     await user.click(detailsTab)
 
-    // Should navigate to the base path (no tab suffix)
-    expect(mockNavigate).toHaveBeenCalledWith(
-      expect.not.stringContaining('group-mapping'),
-      expect.objectContaining({ replace: true })
-    )
+    expect(mockSetLocation).toHaveBeenCalledWith(expect.stringContaining('/details'))
   })
 
   it('shows group mapping badge count when entries exist', () => {
@@ -710,11 +702,7 @@ describe('IdentityProviderDetail', () => {
 
     await user.click(screen.getByText('Edit mapping'))
 
-    // Should navigate to group-mapping tab
-    expect(mockNavigate).toHaveBeenCalledWith(
-      expect.stringContaining('group-mapping'),
-      expect.objectContaining({ replace: true })
-    )
+    expect(mockSetLocation).toHaveBeenCalledWith(expect.stringContaining('group-mapping'))
   })
 
   it('shows only some manual endpoints when others are not set', () => {

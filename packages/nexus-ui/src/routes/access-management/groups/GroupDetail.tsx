@@ -12,11 +12,10 @@ import {
   StackItem,
   Tab,
   TabTitleText,
-  Tabs,
   Title,
 } from '@patternfly/react-core'
 import { RhUiEditIcon } from '@patternfly/react-icons'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useParams } from 'wouter'
 import { navigate } from 'wouter/use-browser-location'
 
@@ -26,7 +25,8 @@ import { AppRoute } from '../../../app/AppRoute'
 import { breadcrumbsGroupDetail, breadcrumbsGroupDetailEarlyShell } from '../../../app/breadcrumbBuilders'
 import { AppPanel } from '../../../components/AppPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
-import { useDetailTab } from '../../../hooks/useDetailTab'
+import { UrlTabs } from '../../../components/UrlTabs'
+import { useUrlTab } from '../../../hooks/useUrlTab'
 import { formatDateTime } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
 import { accessClient } from '../../access/accessClient'
@@ -67,20 +67,22 @@ function GroupDetailsTab({ group }: Readonly<{ group: Group }>) {
 }
 
 function GroupTabBar({
-  activeTab,
-  onSelect,
+  basePath,
   isAuthenticated,
   memberCount,
   roleAssignmentCount,
 }: Readonly<{
-  activeTab: string
-  onSelect: (_event: React.MouseEvent | React.KeyboardEvent, key: string | number) => void
+  basePath: string
   isAuthenticated: boolean
   memberCount: number
   roleAssignmentCount: number
 }>) {
+  const validTabs = useMemo(
+    () => (isAuthenticated ? ['details', 'roles'] : ['details', 'members', 'roles']),
+    [isAuthenticated]
+  )
   return (
-    <Tabs activeKey={activeTab} onSelect={onSelect}>
+    <UrlTabs basePath={basePath} defaultTab="details" validTabs={validTabs} aria-label="Group details">
       <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />
       {!isAuthenticated && (
         <Tab
@@ -100,7 +102,7 @@ function GroupTabBar({
           </TabTitleText>
         }
       />
-    </Tabs>
+    </UrlTabs>
   )
 }
 
@@ -163,7 +165,7 @@ export function GroupDetail() {
   const { groupId } = useParams<{ groupId: string }>()
   const basePath = AppRoute.AccessManagement.GroupDetail.replace(':groupId', groupId ?? '')
   type GroupTab = 'details' | 'members' | 'roles'
-  const [activeTab, goToTab] = useDetailTab<GroupTab>(basePath)
+  const [activeTab] = useUrlTab<GroupTab>(basePath)
   const [editModalOpen, setEditModalOpen] = useState(false)
 
   const { groupQuery, membersQuery, isAuthenticated, memberCount, roleAssignmentCount } = useGroupQueries(groupId)
@@ -216,8 +218,7 @@ export function GroupDetail() {
       </AppPageHeader>
       <StackItem style={{ flexShrink: 0 }}>
         <GroupTabBar
-          activeTab={activeTab}
-          onSelect={(_event, key) => goToTab(key as GroupTab)}
+          basePath={basePath}
           isAuthenticated={isAuthenticated}
           memberCount={memberCount}
           roleAssignmentCount={roleAssignmentCount}

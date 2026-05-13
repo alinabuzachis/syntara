@@ -1,10 +1,12 @@
-import { StackItem, Tab, Tabs, TabTitleText } from '@patternfly/react-core'
+import { StackItem, Tab, TabTitleText } from '@patternfly/react-core'
+import { useMemo } from 'react'
 
 import { AppPageMain } from '../../app/AppPage'
 import { AppRoute } from '../../app/AppRoute'
 import { PanelContentStack } from '../../components/PanelContentStack'
 import { useQueryState } from '../../components/states/useQueryState'
-import { useDetailTab } from '../../hooks/useDetailTab'
+import { UrlTabs } from '../../components/UrlTabs'
+import { useUrlTab } from '../../hooks/useUrlTab'
 import { detachPromise } from '../../utils/detachPromise'
 
 import { CheckAccessView } from './CheckAccessView'
@@ -15,11 +17,15 @@ import { WhoCanView } from './WhoCanView'
 
 export function CanITab() {
   type CanIMode = 'check' | 'who-can' | 'my-permissions'
-  const [mode, goToMode] = useDetailTab<CanIMode>(AppRoute.AccessManagement.CanI, 'check')
+  const [mode] = useUrlTab<CanIMode>(AppRoute.AccessManagement.CanI, 'check')
 
   const { resourceTypes, actionsByResource, isLoading, error, refetch } = useResourceActions()
   const { canQuery: canQueryAuthz, isChecking: isCheckingAuthz } = useCanQueryAuthz()
   const showWhoCanTab = isCheckingAuthz || canQueryAuthz
+  const validModes = useMemo<CanIMode[]>(
+    () => (showWhoCanTab ? ['check', 'who-can', 'my-permissions'] : ['check', 'my-permissions']),
+    [showWhoCanTab]
+  )
 
   const resourceActionsQueryState = useQueryState(
     { isPending: isLoading, error },
@@ -29,9 +35,10 @@ export function CanITab() {
   return (
     <PanelContentStack hasGutter>
       <StackItem>
-        <Tabs
-          activeKey={mode}
-          onSelect={(_event, key) => goToMode(key as CanIMode)}
+        <UrlTabs
+          basePath={AppRoute.AccessManagement.CanI}
+          defaultTab="check"
+          validTabs={validModes}
           aria-label="Access check modes"
           variant="secondary"
         >
@@ -53,7 +60,7 @@ export function CanITab() {
             title={<TabTitleText>My Permissions</TabTitleText>}
             aria-label="View all permissions for a user"
           />
-        </Tabs>
+        </UrlTabs>
       </StackItem>
 
       <AppPageMain style={mode !== 'my-permissions' ? { overflow: 'auto' } : undefined}>

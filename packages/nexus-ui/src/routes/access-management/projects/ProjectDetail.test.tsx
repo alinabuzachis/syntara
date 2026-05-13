@@ -22,14 +22,15 @@ vi.mock('../../../client', () => ({
 
 vi.mock('wouter', () => ({
   useParams: () => ({ projectId: 'proj-1' }),
+  useLocation: () => ['/system-administration/access-management/projects/proj-1/details', vi.fn()],
 }))
 
 vi.mock('wouter/use-browser-location', () => ({
   navigate: vi.fn(),
 }))
 
-vi.mock('../../../hooks/useDetailTab', () => ({
-  useDetailTab: () => ['details', vi.fn()],
+vi.mock('../../../hooks/useUrlTab', () => ({
+  useUrlTab: () => ['details', vi.fn()],
 }))
 
 vi.mock('./ProjectRoleAssignmentsTab', () => ({

@@ -90,7 +90,7 @@ export function breadcrumbsEditUser(displayName: string, userBasePath: string): 
   return [crumbAccessManagement(), crumbUsersList(), { label: displayName, href: userBasePath }, { label: 'Edit user' }]
 }
 
-/** `useDetailTab` default; URL with no trailing segment is the same as this tab — omit a redundant last crumb. */
+/** `useUrlTab` default; URL with no trailing segment is the same as this tab — omit a redundant last crumb. */
 const DEFAULT_ENTITY_TAB = 'details'
 
 export function breadcrumbsUserDetail(displayName: string, userBasePath: string, tab: string): AppBreadcrumbItem[] {
