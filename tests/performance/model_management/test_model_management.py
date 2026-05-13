@@ -33,6 +33,7 @@ import pytest
 
 from tests.performance.conftest import (
     compute_percentile,
+    get_configured_models,
     poll_for_component_kpis,
     poll_for_invocation_terminal_status,
     poll_for_metric_records,
@@ -41,7 +42,6 @@ from tests.performance.conftest import (
 from tests.performance.model_management.conftest import (
     ALL_MODEL_PROMPTS,
     LLM_COMPONENT,
-    get_configured_models,
 )
 
 if TYPE_CHECKING:

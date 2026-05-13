@@ -75,11 +75,17 @@ class LLMCallMetrics:
 def _extract_token_usage(response: Any) -> tuple[int, int]:  # noqa: ANN401
     """Extract input/output token counts from a LangChain response.
 
-    Supports both the newer ``usage_metadata`` attribute and the older
+    Supports both the newer ``usage_metadata`` attribute (a TypedDict
+    with ``input_tokens``/``output_tokens`` keys) and the older
     ``response_metadata["token_usage"]`` dictionary.
     """
     if hasattr(response, "usage_metadata") and response.usage_metadata:
         usage = response.usage_metadata
+        if isinstance(usage, dict):
+            return (
+                usage.get("input_tokens", 0) or 0,
+                usage.get("output_tokens", 0) or 0,
+            )
         return (
             getattr(usage, "input_tokens", 0) or 0,
             getattr(usage, "output_tokens", 0) or 0,

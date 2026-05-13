@@ -21,6 +21,7 @@ Run with: pytest --run-performance
 from __future__ import annotations
 
 import logging
+import os
 import re
 import time
 from typing import TYPE_CHECKING, Any
@@ -44,11 +45,19 @@ pytestmark = pytest.mark.performance
 
 METRICS_POLL_INTERVAL = 0.5
 METRICS_POLL_TIMEOUT = 10.0
+PROBE_POLL_TIMEOUT = 60.0
 
 
 # ---------------------------------------------------------------------------
 # Common test data
 # ---------------------------------------------------------------------------
+
+DEFAULT_TEST_MODELS: list[str] = [
+    "anthropic/claude-sonnet-4",
+    "openai/gpt-4o",
+    "google/gemini-2.0-flash-001",
+    "moonshotai/kimi-k2.6",
+]
 
 SIMPLE_WORKFLOW_DEFINITION: dict[str, Any] = {
     "schema_version": "2.0.0",
@@ -146,6 +155,18 @@ def compute_percentile(values: list[float], percentile: float) -> float:
     if c >= n:
         return sorted_vals[-1]
     return sorted_vals[f] + (k - f) * (sorted_vals[c] - sorted_vals[f])
+
+
+def get_configured_models() -> list[str]:
+    """Return the list of LLM models to test.
+
+    Uses ``PERF_TEST_LLM_MODELS`` env var (comma-separated) if set,
+    otherwise falls back to ``DEFAULT_TEST_MODELS``.
+    """
+    env_models = os.environ.get("PERF_TEST_LLM_MODELS", "")
+    if env_models.strip():
+        return [m.strip() for m in env_models.split(",") if m.strip()]
+    return list(DEFAULT_TEST_MODELS)
 
 
 def make_request(
@@ -601,9 +622,6 @@ def poll_for_invocation_terminal_status(
 # ---------------------------------------------------------------------------
 
 
-PROBE_POLL_TIMEOUT = 60.0
-
-
 @pytest.fixture(scope="module")
 def perf_test_mode_enabled(
     nexus_api: NexusApiRegistry,
@@ -652,9 +670,11 @@ def llm_invocation_enabled(
     it did not fail with an LLM configuration error.  Skips the entire
     module when the LLM is not configured.
     """
+    models = get_configured_models()
     _, ok, inv_id = submit_invocation(
         nexus_api,
         "Hello, this is an LLM connectivity probe",
+        model=models[0],
         credential_id=llm_credential_id,
     )
     if not ok or inv_id is None:

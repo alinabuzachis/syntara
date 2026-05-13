@@ -32,8 +32,6 @@ Run with:
 
 from __future__ import annotations
 
-import os
-
 LLM_COMPONENT = "llm"
 
 MODEL_SELECTION_PROMPTS: dict[str, list[str]] = {
@@ -63,22 +61,3 @@ MODEL_SELECTION_PROMPTS: dict[str, list[str]] = {
 }
 
 ALL_MODEL_PROMPTS: list[str] = [prompt for prompts in MODEL_SELECTION_PROMPTS.values() for prompt in prompts]
-
-DEFAULT_TEST_MODELS: list[str] = [
-    "anthropic/claude-sonnet-4",
-    "openai/gpt-4o",
-    "google/gemini-2.0-flash-001",
-    "moonshotai/kimi-k2.6",
-]
-
-
-def get_configured_models() -> list[str]:
-    """Return the list of models to test.
-
-    Uses ``PERF_TEST_LLM_MODELS`` env var (comma-separated) if set,
-    otherwise falls back to ``DEFAULT_TEST_MODELS``.
-    """
-    env_models = os.environ.get("PERF_TEST_LLM_MODELS", "")
-    if env_models.strip():
-        return [m.strip() for m in env_models.split(",") if m.strip()]
-    return list(DEFAULT_TEST_MODELS)

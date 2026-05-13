@@ -112,6 +112,16 @@ class TestExtractTokenUsage:
         assert inp == 300
         assert out == 120
 
+    def test_extracts_from_usage_metadata_dict(self) -> None:
+        """Token counts are extracted when usage_metadata is a TypedDict (real LangChain)."""
+        resp = _FakeAIMessage(
+            content="Hello",
+            usage_metadata={"input_tokens": 350, "output_tokens": 120, "total_tokens": 470},  # type: ignore[arg-type]
+        )
+        inp, out = _extract_token_usage(resp)
+        assert inp == 350
+        assert out == 120
+
     def test_returns_zero_when_no_metadata(self) -> None:
         """Returns (0, 0) when neither metadata source is present."""
         inp, out = _extract_token_usage(_FakeAIMessage(content="plain"))
