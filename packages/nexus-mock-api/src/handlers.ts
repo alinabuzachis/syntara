@@ -1489,6 +1489,39 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 })
   }),
 
+  // User role assignments
+  http.get('/api/v1/users/:userId/role-assignments', ({ params }) => {
+    const user = users.find((u) => u.id === params.userId)
+    if (!user) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/not-found',
+          title: 'User Not Found',
+          detail: `User with id '${params.userId as string}' not found`,
+          code: 'USER_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/users/${params.userId as string}/role-assignments`,
+        },
+        { status: 404 }
+      )
+    }
+    const assignments = mockUserRoleAssignments
+      .filter((a) => a.user_id === (params.userId as string))
+      .map((a) => ({
+        id: a.id,
+        principal_type: 'user',
+        principal_id: a.user_id,
+        principal_name: a.username,
+        role_name: a.role_name,
+        role_description: null,
+        role_policies: [],
+        project_id: null,
+        project_name: null,
+        created_at: a.created_at,
+      }))
+    return HttpResponse.json({ resources: assignments, total: assignments.length })
+  }),
+
   // Group handlers
   http.get('/api/v1/groups', ({ request }) => {
     const url = new URL(request.url)

@@ -32,22 +32,17 @@ import { formatDateTime } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
 import { isValidUUID } from '../../../utils/generateUUID'
 import { accessClient } from '../../access/accessClient'
-import { AUTH_TYPE_LOCAL, BUILTIN_AUTHENTICATED_GROUP_NAME } from '../adminConstants'
+import { AUTH_TYPE_LOCAL } from '../adminConstants'
 import { DetailPageShell } from '../DetailPageShell'
 import { DisabledBadge } from '../DisabledBadge'
 import { RoleAssignmentsPanel } from '../RoleAssignmentsPanel'
 import { splitFullName } from '../userFormSchema'
 
 import type { UserIdentity } from './identityUtils'
+import { computeGroupCount, computeRoleAssignmentCount } from './userDetailUtils'
 import { UserGroupsPanel } from './UserGroupsPanel'
 import { UserIdentitiesPanel } from './UserIdentitiesPanel'
 import { UserNotFoundState } from './UserNotFoundState'
-
-function computeGroupCount(groupsData: { total?: number | null; resources?: { name: string }[] } | undefined): number {
-  const apiGroupCount = groupsData?.total ?? groupsData?.resources?.length ?? 0
-  const hasAuthenticatedGroup = (groupsData?.resources ?? []).some((g) => g.name === BUILTIN_AUTHENTICATED_GROUP_NAME)
-  return hasAuthenticatedGroup ? apiGroupCount : apiGroupCount + 1
-}
 
 function useUserDetailData(userId: string | undefined) {
   const isValidId = !!userId && isValidUUID(userId)
@@ -74,15 +69,27 @@ function useUserDetailData(userId: string | undefined) {
     { enabled: isValidId }
   )
 
+  const roleAssignmentsQuery = accessClient.useQuery(
+    'get',
+    '/users/{user_id}/role-assignments',
+    { params: { path: { user_id: safeUserId } } },
+    { enabled: isValidId }
+  )
+
   const meQuery = authClient.useQuery('get', '/auth/me')
 
   const groupCount = computeGroupCount(groupsQuery.data)
   const identitiesData = identitiesQuery.data?.resources ?? []
+  let roleAssignmentCount = 0
+  if (roleAssignmentsQuery.data) {
+    roleAssignmentCount = computeRoleAssignmentCount(roleAssignmentsQuery.data)
+  }
 
   return {
     userQuery,
     groupCount,
     identitiesData,
+    roleAssignmentCount,
     currentUserId: meQuery.data?.id,
   }
 }
@@ -193,7 +200,7 @@ export function UserDetail() {
   type UserTab = 'details' | 'groups' | 'identities' | 'roles'
   const [activeTab, goToTab] = useDetailTab<UserTab>(basePath)
 
-  const { userQuery, groupCount, identitiesData, currentUserId } = useUserDetailData(userId)
+  const { userQuery, groupCount, identitiesData, roleAssignmentCount, currentUserId } = useUserDetailData(userId)
 
   const navigateBack = () => navigate(AppRoute.AccessManagement.Users)
   const navigateEdit = () => navigate(AppRoute.AccessManagement.EditUser.replace(':userId', userId ?? ''))
@@ -260,7 +267,14 @@ export function UserDetail() {
               </TabTitleText>
             }
           />
-          <Tab eventKey="roles" title={<TabTitleText>Role Assignments</TabTitleText>} />
+          <Tab
+            eventKey="roles"
+            title={
+              <TabTitleText>
+                Role Assignments <Badge isRead>{roleAssignmentCount}</Badge>
+              </TabTitleText>
+            }
+          />
         </Tabs>
       </StackItem>
       <AppPageMain>

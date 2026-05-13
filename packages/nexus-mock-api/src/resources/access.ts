@@ -522,6 +522,22 @@ export const mockUserRoleAssignments: MockUserRoleAssignment[] = [
     role_name: 'admin',
     created_at: '2024-01-01T00:00:00.000Z',
   },
+  {
+    id: 'ura-002',
+    user_id: 'b2c3d4e5-f6a7-8901-bcde-f12345678901',
+    username: 'jdoe',
+    role_id: 'r-001',
+    role_name: 'admin',
+    created_at: '2026-02-15T00:00:00.000Z',
+  },
+  {
+    id: 'ura-003',
+    user_id: 'b2c3d4e5-f6a7-8901-bcde-f12345678901',
+    username: 'jdoe',
+    role_id: 'r-002',
+    role_name: 'viewer',
+    created_at: '2026-03-01T00:00:00.000Z',
+  },
 ]
 
 // ── Helpers ───────────────────────────────────────────────────────────────

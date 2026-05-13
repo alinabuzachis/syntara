@@ -9,6 +9,7 @@ import { AlertProvider } from '../../../providers/alerts'
 import { accessClient } from '../../access/accessClient'
 
 import { UserDetail } from './UserDetail'
+import { computeRoleAssignmentCount } from './userDetailUtils'
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -18,6 +19,16 @@ vi.mock('../../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
   authClient: {
     useQuery: vi.fn().mockReturnValue({ data: undefined, isPending: false, isError: false, error: null }),
+  },
+  usersClient: {
+    useQuery: vi.fn().mockReturnValue({
+      data: undefined,
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    }),
+    useMutation: vi.fn().mockReturnValue({ mutate: vi.fn(), isPending: false }),
   },
 }))
 
@@ -41,6 +52,7 @@ vi.mock('wouter', async () => {
   return {
     useLocation: () => [mockLocationValue, mockSetLocation],
     useParams: () => mockUseParams(),
+    useSearch: () => '',
     useSearchParams: () => React.useState(new URLSearchParams()),
   }
 })
@@ -81,6 +93,35 @@ const mockGroupsData = {
   total: 1,
 }
 
+const mockIdpUser = {
+  ...mockUser,
+  auth_type: 'idp' as const,
+}
+
+const mockIdentitiesData = {
+  resources: [
+    { id: 'id1', identity_provider_id: 'idp-1', provider_name: 'Okta' },
+    { id: 'id2', identity_provider_id: 'idp-2', provider_name: 'Azure AD' },
+  ],
+}
+
+const mockGroupsWithAuthenticated = {
+  resources: [
+    { id: 'g1', name: 'developers' },
+    { id: 'g2', name: 'authenticated' },
+  ],
+  total: 2,
+}
+
+const mockRoleAssignmentsData = {
+  resources: [
+    { id: 'ra1', role: 'admin', scope: 'global' },
+    { id: 'ra2', role: 'viewer', scope: 'global' },
+    { id: 'ra3', role: 'editor', scope: 'project-1' },
+  ],
+  total: 3,
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -95,8 +136,33 @@ const wrapper = ({ children }: { children: ReactNode }) => (
   </QueryClientProvider>
 )
 
-/** Default mock return for a successful user + groups + identities query set. */
-function mockSuccessQueries() {
+/** Build a mock query result */
+function buildQueryResult(data: unknown) {
+  return {
+    data,
+    isPending: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn().mockResolvedValue({}),
+  } as never
+}
+
+/** Configure accessClient.useQuery with per-path overrides */
+function mockQueryByPath(pathResults: Record<string, unknown>) {
+  vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
+    if (path in pathResults) {
+      return buildQueryResult(pathResults[path])
+    }
+    return buildQueryResult(undefined)
+  })
+  vi.mocked(accessClient.useMutation).mockReturnValue({
+    mutate: vi.fn(),
+    isPending: false,
+  } as never)
+}
+
+/** Default mock return for a successful user + groups + identities + role-assignments query set. */
+function mockSuccessQueries(roleAssignments = mockRoleAssignmentsData) {
   vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
     if (path === '/users/{user_id}') {
       return {
@@ -110,6 +176,15 @@ function mockSuccessQueries() {
     if (path === '/users/{user_id}/identities') {
       return {
         data: [],
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      } as never
+    }
+    if (path === '/users/{user_id}/role-assignments') {
+      return {
+        data: roleAssignments,
         isPending: false,
         isError: false,
         error: null,
@@ -135,6 +210,28 @@ function mockSuccessQueries() {
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
+
+describe('computeRoleAssignmentCount', () => {
+  it('returns total when present', () => {
+    expect(computeRoleAssignmentCount({ total: 5, resources: [1, 2] })).toBe(5)
+  })
+
+  it('returns total when total is 0', () => {
+    expect(computeRoleAssignmentCount({ total: 0, resources: [1] })).toBe(0)
+  })
+
+  it('returns resources.length when total is undefined', () => {
+    expect(computeRoleAssignmentCount({ resources: [1, 2, 3] })).toBe(3)
+  })
+
+  it('returns 0 when data has no total or resources', () => {
+    expect(computeRoleAssignmentCount({})).toBe(0)
+  })
+
+  it('returns 0 when resources is undefined and total is null', () => {
+    expect(computeRoleAssignmentCount({ total: null })).toBe(0)
+  })
+})
 
 describe('UserDetail', () => {
   beforeEach(() => {
@@ -472,6 +569,17 @@ describe('UserDetail', () => {
       expect(screen.getByText('jdoe')).toBeInTheDocument()
     })
 
+    it('navigates to identities URL when Identities tab is clicked', async () => {
+      const user = userEvent.setup()
+      render(<UserDetail />, { wrapper })
+
+      await user.click(screen.getByRole('tab', { name: /Identities/i }))
+
+      expect(mockSetLocation).toHaveBeenCalledWith(
+        `/system-administration/access-management/users/${VALID_USER_ID}/identities`
+      )
+    })
+
     it('navigates to groups URL when Groups tab is clicked', async () => {
       const user = userEvent.setup()
       render(<UserDetail />, { wrapper })
@@ -500,6 +608,123 @@ describe('UserDetail', () => {
       expect(groupsTab).toHaveTextContent(/\d+/)
     })
 
+    it('renders Role Assignments tab', () => {
+      render(<UserDetail />, { wrapper })
+
+      expect(screen.getByRole('tab', { name: /Role Assignments/i })).toBeInTheDocument()
+    })
+
+    it('navigates to roles URL when Role Assignments tab is clicked', async () => {
+      const user = userEvent.setup()
+      render(<UserDetail />, { wrapper })
+
+      await user.click(screen.getByRole('tab', { name: /Role Assignments/i }))
+
+      expect(mockSetLocation).toHaveBeenCalledWith(
+        `/system-administration/access-management/users/${VALID_USER_ID}/roles`
+      )
+    })
+
+    it('renders Identities tab with count badge', () => {
+      render(<UserDetail />, { wrapper })
+
+      const identitiesTab = screen.getByRole('tab', { name: /Identities/i })
+      expect(identitiesTab).toBeInTheDocument()
+      expect(identitiesTab).toHaveTextContent('0')
+    })
+
+    it('shows DisabledBadge for disabled users', () => {
+      vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
+        if (path === '/users/{user_id}') {
+          return {
+            data: { ...mockUser, is_enabled: false },
+            isPending: false,
+            isError: false,
+            error: null,
+            refetch: vi.fn(),
+          } as never
+        }
+        if (path === '/users/{user_id}/identities') return emptyIdentitiesResult
+        if (path === '/users/{user_id}/role-assignments') {
+          return {
+            data: mockRoleAssignmentsData,
+            isPending: false,
+            isError: false,
+            error: null,
+            refetch: vi.fn(),
+          } as never
+        }
+        return {
+          data: mockGroupsData,
+          isPending: false,
+          isError: false,
+          error: null,
+          refetch: vi.fn(),
+        } as never
+      })
+      render(<UserDetail />, { wrapper })
+
+      expect(screen.getByText('Disabled')).toBeInTheDocument()
+    })
+
+    it('displays role assignment count badge on Role Assignments tab', () => {
+      render(<UserDetail />, { wrapper })
+
+      const rolesTab = screen.getByRole('tab', { name: /Role Assignments/i })
+      expect(rolesTab).toHaveTextContent('3')
+    })
+
+    it('uses total for role assignment count when both total and resources are present', () => {
+      mockSuccessQueries({
+        resources: [{ id: 'ra1', role: 'admin', scope: 'global' }],
+        total: 10,
+      })
+      render(<UserDetail />, { wrapper })
+
+      const rolesTab = screen.getByRole('tab', { name: /Role Assignments/i })
+      expect(rolesTab).toHaveTextContent('10')
+    })
+
+    it('falls back to resources.length for role assignment count when total is undefined', () => {
+      mockSuccessQueries({
+        resources: [
+          { id: 'ra1', role: 'admin', scope: 'global' },
+          { id: 'ra2', role: 'viewer', scope: 'global' },
+        ],
+      } as typeof mockRoleAssignmentsData)
+      render(<UserDetail />, { wrapper })
+
+      const rolesTab = screen.getByRole('tab', { name: /Role Assignments/i })
+      expect(rolesTab).toHaveTextContent('2')
+    })
+
+    it('shows zero when total is explicitly 0', () => {
+      mockSuccessQueries({
+        resources: [],
+        total: 0,
+      })
+      render(<UserDetail />, { wrapper })
+
+      const rolesTab = screen.getByRole('tab', { name: /Role Assignments/i })
+      expect(rolesTab).toHaveTextContent('0')
+    })
+
+    it('shows zero role assignment count when data is null', () => {
+      mockSuccessQueries(null as unknown as typeof mockRoleAssignmentsData)
+      render(<UserDetail />, { wrapper })
+
+      const rolesTab = screen.getByRole('tab', { name: /Role Assignments/i })
+      expect(rolesTab).toHaveTextContent('0')
+    })
+
+    it('shows zero role assignment count when data has no total or resources', () => {
+      mockSuccessQueries({} as typeof mockRoleAssignmentsData)
+      render(<UserDetail />, { wrapper })
+
+      const rolesTab = screen.getByRole('tab', { name: /Role Assignments/i })
+      expect(rolesTab).toHaveTextContent('0')
+    })
+
     it('displays zero badge when no groups exist', () => {
       vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
         if (path === '/users/{user_id}') {
@@ -526,6 +751,135 @@ describe('UserDetail', () => {
       const groupsTab = screen.getByRole('tab', { name: /Groups/i })
       // groupCount: total=0 (no groups)
       expect(groupsTab).toHaveTextContent(/\d+/)
+    })
+  })
+
+  // ---- Identity Provider rendering ----------------------------------------
+
+  describe('Identity Provider display', () => {
+    it('shows "Identity Provider" label (singular) for a single IdP', () => {
+      mockQueryByPath({
+        '/users/{user_id}': mockIdpUser,
+        '/users/{user_id}/groups': mockGroupsData,
+        '/users/{user_id}/identities': {
+          resources: [{ id: 'id1', identity_provider_id: 'idp-1', provider_name: 'Okta' }],
+        },
+        '/users/{user_id}/role-assignments': mockRoleAssignmentsData,
+      })
+      render(<UserDetail />, { wrapper })
+
+      expect(screen.getByText('Identity Provider')).toBeInTheDocument()
+      expect(screen.getByText('Okta')).toBeInTheDocument()
+    })
+
+    it('shows "Identity Providers" label (plural) for multiple IdPs', () => {
+      mockQueryByPath({
+        '/users/{user_id}': mockIdpUser,
+        '/users/{user_id}/groups': mockGroupsData,
+        '/users/{user_id}/identities': mockIdentitiesData,
+        '/users/{user_id}/role-assignments': mockRoleAssignmentsData,
+      })
+      render(<UserDetail />, { wrapper })
+
+      expect(screen.getByText('Identity Providers')).toBeInTheDocument()
+      expect(screen.getByText('Okta')).toBeInTheDocument()
+      expect(screen.getByText('Azure AD')).toBeInTheDocument()
+    })
+
+    it('navigates to IdP detail when clicking provider label', async () => {
+      const user = userEvent.setup()
+      mockQueryByPath({
+        '/users/{user_id}': mockIdpUser,
+        '/users/{user_id}/groups': mockGroupsData,
+        '/users/{user_id}/identities': {
+          resources: [{ id: 'id1', identity_provider_id: 'idp-1', provider_name: 'Okta' }],
+        },
+        '/users/{user_id}/role-assignments': mockRoleAssignmentsData,
+      })
+      render(<UserDetail />, { wrapper })
+
+      await user.click(screen.getByText('Okta'))
+
+      expect(mockNavigate).toHaveBeenCalledWith(
+        expect.stringContaining('/system-administration/authentication/identity-providers/idp-1')
+      )
+    })
+
+    it('deduplicates providers with the same identity_provider_id', () => {
+      mockQueryByPath({
+        '/users/{user_id}': mockIdpUser,
+        '/users/{user_id}/groups': mockGroupsData,
+        '/users/{user_id}/identities': {
+          resources: [
+            { id: 'id1', identity_provider_id: 'idp-1', provider_name: 'Okta' },
+            { id: 'id2', identity_provider_id: 'idp-1', provider_name: 'Okta' },
+          ],
+        },
+        '/users/{user_id}/role-assignments': mockRoleAssignmentsData,
+      })
+      render(<UserDetail />, { wrapper })
+
+      expect(screen.getByText('Identity Provider')).toBeInTheDocument()
+      expect(screen.getAllByText('Okta')).toHaveLength(1)
+    })
+
+    it('shows "Local" label for local auth type users', () => {
+      render(<UserDetail />, { wrapper })
+
+      expect(screen.getByText('Identity Provider')).toBeInTheDocument()
+      expect(screen.getByText('Local')).toBeInTheDocument()
+    })
+
+    it('shows dash when IdP user has zero identities', () => {
+      mockQueryByPath({
+        '/users/{user_id}': mockIdpUser,
+        '/users/{user_id}/groups': mockGroupsData,
+        '/users/{user_id}/identities': { resources: [] },
+        '/users/{user_id}/role-assignments': mockRoleAssignmentsData,
+      })
+      render(<UserDetail />, { wrapper })
+
+      expect(screen.getByText('Identity Provider')).toBeInTheDocument()
+      expect(screen.getByText('-')).toBeInTheDocument()
+    })
+
+    it('handles identity with null provider_name', () => {
+      mockQueryByPath({
+        '/users/{user_id}': mockIdpUser,
+        '/users/{user_id}/groups': mockGroupsData,
+        '/users/{user_id}/identities': {
+          resources: [{ id: 'id1', identity_provider_id: 'idp-1', provider_name: null }],
+        },
+        '/users/{user_id}/role-assignments': mockRoleAssignmentsData,
+      })
+      render(<UserDetail />, { wrapper })
+
+      expect(screen.getByText('Identity Provider')).toBeInTheDocument()
+    })
+  })
+
+  // ---- Group count edge cases --------------------------------------------
+
+  describe('Group count', () => {
+    it('does not add +1 for authenticated group when it is already in the list', () => {
+      mockQueryByPath({
+        '/users/{user_id}': mockUser,
+        '/users/{user_id}/groups': mockGroupsWithAuthenticated,
+        '/users/{user_id}/identities': { resources: [] },
+        '/users/{user_id}/role-assignments': mockRoleAssignmentsData,
+      })
+      render(<UserDetail />, { wrapper })
+
+      const groupsTab = screen.getByRole('tab', { name: /Groups/i })
+      expect(groupsTab).toHaveTextContent('2')
+    })
+
+    it('adds +1 for implicit authenticated group when not in the list', () => {
+      render(<UserDetail />, { wrapper })
+
+      const groupsTab = screen.getByRole('tab', { name: /Groups/i })
+      // mockGroupsData has total=1, no authenticated group -> +1 = 2
+      expect(groupsTab).toHaveTextContent('2')
     })
   })
 
