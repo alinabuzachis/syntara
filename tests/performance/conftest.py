@@ -166,7 +166,9 @@ def get_configured_models() -> list[str]:
     """
     env_models = os.environ.get("PERF_TEST_LLM_MODELS", "")
     if env_models.strip():
-        return [m.strip() for m in env_models.split(",") if m.strip()]
+        parsed = [m.strip() for m in env_models.split(",") if m.strip()]
+        if parsed:
+            return parsed
     return list(DEFAULT_TEST_MODELS)
 
 
