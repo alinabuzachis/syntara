@@ -70,8 +70,9 @@ describe('UnsavedChangesProvider', () => {
       fireEvent.click(screen.getByText('Navigate Away'))
 
       expect(screen.getByText('Save changes before exiting the workflow builder?')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Save workflow' })).toBeDisabled() // No handler registered
       expect(screen.getByRole('button', { name: 'Exit without saving' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled() // No handler registered
+      expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
     })
 
     it('exits without saving when choosing to discard changes', () => {
@@ -100,7 +101,7 @@ describe('UnsavedChangesProvider', () => {
 
       fireEvent.click(screen.getByText('Register Handler'))
       fireEvent.click(screen.getByText('Navigate Away'))
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Save workflow' }))
 
       await waitFor(() => {
         expect(saveHandler).toHaveBeenCalled()
@@ -119,7 +120,7 @@ describe('UnsavedChangesProvider', () => {
 
       fireEvent.click(screen.getByText('Register Handler'))
       fireEvent.click(screen.getByText('Navigate Away'))
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Save workflow' }))
 
       await waitFor(() => {
         expect(saveHandler).toHaveBeenCalled()
@@ -155,7 +156,7 @@ describe('UnsavedChangesProvider', () => {
 
       fireEvent.click(screen.getByText('Register Handler'))
       fireEvent.click(screen.getByText('Navigate Away'))
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Save workflow' }))
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: 'Exit without saving' })).toBeDisabled()

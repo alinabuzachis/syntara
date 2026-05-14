@@ -119,9 +119,6 @@ export function UnsavedChangesProvider({ children }: Readonly<UnsavedChangesProv
           leaving.
         </ModalBody>
         <ModalFooter>
-          <Button key="exit" variant="secondary" onClick={handleExitWithoutSaving} isDisabled={isSaving}>
-            Exit without saving
-          </Button>
           <Button
             key="save"
             variant="primary"
@@ -129,7 +126,13 @@ export function UnsavedChangesProvider({ children }: Readonly<UnsavedChangesProv
             isLoading={isSaving}
             isDisabled={isSaving || !saveHandler}
           >
-            Save
+            Save workflow
+          </Button>
+          <Button key="exit" variant="secondary" onClick={handleExitWithoutSaving} isDisabled={isSaving}>
+            Exit without saving
+          </Button>
+          <Button key="cancel" variant="link" onClick={handleClose} isDisabled={isSaving}>
+            Cancel
           </Button>
         </ModalFooter>
       </Modal>
