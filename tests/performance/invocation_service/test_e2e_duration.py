@@ -26,8 +26,8 @@ from tests.performance.conftest import (
     poll_for_component_kpis,
     poll_for_metric_records,
     poll_until_resources_terminal,
+    submit_invocations_batch_with_ids,
 )
-from tests.performance.invocation_service.conftest import submit_invocations_batch_with_ids
 
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry

@@ -24,6 +24,7 @@ import logging
 import os
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -31,7 +32,7 @@ import pytest
 import structlog
 
 if TYPE_CHECKING:
-    from concurrent.futures import Future, ThreadPoolExecutor
+    from concurrent.futures import Future
 
     from nexus_api_client.api import NexusApiRegistry
     from nexus_api_client.api.internal_metrics import InternalMetricsApi
@@ -537,6 +538,115 @@ def submit_invocation(
         elapsed_ms = (time.monotonic() - start) * 1000
         _log_request_failure(exc, context="submit_invocation")
         return elapsed_ms, False, None
+
+
+def create_invocation_with_id(
+    nexus_api: NexusApiRegistry,
+    session_id: str,
+    prompt: str = "Performance test invocation",
+    credential_id: str | None = None,
+) -> tuple[str | None, bool]:
+    """Create a single invocation and return (invocation_id, success).
+
+    Args:
+        nexus_api: Authenticated API client registry.
+        session_id: Session identifier for grouping invocations.
+        prompt: Prompt text for the invocation.
+        credential_id: Optional LLM Provider credential ID to inject
+            into ``context_data.metadata``.
+
+    """
+    from nexus_api_client.models.invocation_create_request import InvocationCreateRequest
+    from nexus_api_client.models.invocation_create_request_contextdata import (
+        InvocationCreateRequestContextdata as _Ctx,
+    )
+    from nexus_api_client.types import UNSET
+
+    ctx: InvocationCreateRequestContextdata | Unset = UNSET
+    if credential_id:
+        ctx = _Ctx.from_dict({"metadata": {"credential_id": credential_id}})
+
+    try:
+        r = nexus_api.invocation.create(
+            body=InvocationCreateRequest(
+                prompt=prompt,
+                session_id=session_id,
+                context_data=ctx,
+            ),
+        )
+        if r.is_success and r.parsed:
+            return str(r.parsed.id), True
+        return None, r.is_success
+    except Exception:
+        return None, False
+
+
+def submit_invocations_batch_with_ids(
+    nexus_api: NexusApiRegistry,
+    count: int,
+    session_id: str,
+    *,
+    prompt_prefix: str = "Perf test",
+    prompts: list[str] | None = None,
+    max_workers: int = 10,
+    credential_id: str | None = None,
+) -> tuple[list[str], int]:
+    """Submit *count* invocations concurrently. Returns (invocation_ids, failures).
+
+    Args:
+        nexus_api: Authenticated API client registry.
+        count: Number of invocations to submit.
+        session_id: Session identifier for grouping invocations.
+        prompt_prefix: Prefix for auto-generated prompts.
+        prompts: Optional list of prompts to cycle through.
+        max_workers: Maximum concurrent threads.
+        credential_id: Optional LLM Provider credential ID.
+
+    """
+    invocation_ids: list[str] = []
+    failures = 0
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [
+            executor.submit(
+                create_invocation_with_id,
+                nexus_api,
+                session_id,
+                prompts[i % len(prompts)] if prompts else f"{prompt_prefix} {i}",
+                credential_id,
+            )
+            for i in range(count)
+        ]
+        for future in as_completed(futures):
+            inv_id, ok = future.result()
+            if ok and inv_id:
+                invocation_ids.append(inv_id)
+            else:
+                failures += 1
+
+    return invocation_ids, failures
+
+
+def extract_routing_decisions(
+    records: dict[str, Any],
+) -> list[dict[str, str]]:
+    """Extract routing decisions from ``agent_routing_ms`` metric records.
+
+    Each returned dict contains ``invocation_id`` and ``target_agent``
+    extracted from the record labels.  Only records that carry a
+    ``target_agent`` label are included.
+
+    Useful for accuracy validation (comparing routed agents against
+    expected agents) and utilization distribution across agents.
+    """
+    decisions: list[dict[str, str]] = []
+    for record in records.get("records", []):
+        labels = record.get("labels", {})
+        target = labels.get("target_agent", "")
+        inv_id = labels.get("invocation_id", "")
+        if target:
+            decisions.append({"invocation_id": inv_id, "target_agent": target})
+    return decisions
 
 
 _logger = logging.getLogger(__name__)

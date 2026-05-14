@@ -25,11 +25,9 @@ from nexus_api_client.models.invocation_cancel_request import InvocationCancelRe
 
 from tests.performance.conftest import (
     TERMINAL_STATUSES,
+    create_invocation_with_id,
     poll_for_component_kpis,
     poll_until_resources_terminal,
-)
-from tests.performance.invocation_service.conftest import (
-    create_invocation_with_id,
     submit_invocations_batch_with_ids,
 )
 
