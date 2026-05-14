@@ -2,7 +2,7 @@ import { Stack, StackItem, Tab, Tabs } from '@patternfly/react-core'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 
-import { AppPageMain } from '../../../../app/AppPage'
+import { NxPageBody } from '../../../../components/layout/NxPage'
 
 type NodeFormTabsLayoutProps = {
   parametersContent: ReactNode
@@ -20,11 +20,11 @@ export function NodeFormTabsLayout({ parametersContent, settingsContent }: NodeF
           <Tab eventKey={1} title="Settings" />
         </Tabs>
       </StackItem>
-      <AppPageMain style={{ overflow: 'auto', paddingRight: 'var(--pf-t--global--spacer--md)' }}>
+      <NxPageBody style={{ overflow: 'auto', paddingRight: 'var(--pf-t--global--spacer--md)' }}>
         <Stack hasGutter>
           <StackItem>{activeTabKey === 0 ? parametersContent : (settingsContent ?? null)}</StackItem>
         </Stack>
-      </AppPageMain>
+      </NxPageBody>
     </Stack>
   )
 }

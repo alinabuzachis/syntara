@@ -4,7 +4,7 @@ import React, { type ReactElement } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { AppPageBreadcrumbs } from './AppPageBreadcrumbs'
+import { NxPageBreadcrumbs } from './NxPageBreadcrumbs'
 
 /** PatternFly Dropdown + MenuToggle do not toggle reliably in jsdom; merge open state so tests can exercise menu links. */
 vi.mock('@patternfly/react-core', async (importOriginal) => {
@@ -52,7 +52,7 @@ function stubNarrowViewport() {
   )
 }
 
-describe('AppPageBreadcrumbs', () => {
+describe('NxPageBreadcrumbs', () => {
   beforeEach(() => {
     vi.stubGlobal(
       'matchMedia',
@@ -71,12 +71,12 @@ describe('AppPageBreadcrumbs', () => {
   })
 
   it('returns null when fewer than two items', () => {
-    render(<AppPageBreadcrumbs items={[{ label: 'Only' }]} />)
+    render(<NxPageBreadcrumbs items={[{ label: 'Only' }]} />)
     expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).not.toBeInTheDocument()
   })
 
   it('renders links and current page', () => {
-    render(<AppPageBreadcrumbs items={[{ label: 'Parent', href: '/parent' }, { label: 'Current' }]} />)
+    render(<NxPageBreadcrumbs items={[{ label: 'Parent', href: '/parent' }, { label: 'Current' }]} />)
 
     expect(screen.getByRole('navigation', { name: 'Breadcrumb' })).toBeInTheDocument()
     const parentLink = screen.getByRole('link', { name: 'Parent' })
@@ -86,9 +86,7 @@ describe('AppPageBreadcrumbs', () => {
 
   it('has no accessibility violations', async () => {
     const { container } = render(
-      <AppPageBreadcrumbs
-        items={[{ label: 'One', href: '/one' }, { label: 'Two', href: '/two' }, { label: 'Three' }]}
-      />
+      <NxPageBreadcrumbs items={[{ label: 'One', href: '/one' }, { label: 'Two', href: '/two' }, { label: 'Three' }]} />
     )
 
     expect(await axe(container)).toHaveNoViolations()
@@ -98,7 +96,7 @@ describe('AppPageBreadcrumbs', () => {
     stubNarrowViewport()
 
     render(
-      <AppPageBreadcrumbs
+      <NxPageBreadcrumbs
         items={[
           { label: 'First', href: '/first' },
           { label: 'Mid A', href: '/a' },
@@ -119,7 +117,7 @@ describe('AppPageBreadcrumbs', () => {
     stubNarrowViewport()
 
     render(
-      <AppPageBreadcrumbs
+      <NxPageBreadcrumbs
         items={[
           { label: 'First', href: '/first' },
           { label: 'Mid A', href: '/a' },
@@ -150,9 +148,7 @@ describe('AppPageBreadcrumbs', () => {
     const longLabel = `Project ${'x'.repeat(400)}`
 
     render(
-      <AppPageBreadcrumbs
-        items={[{ label: 'Access management', href: '/system-administration/access-management' }, { label: longLabel }]}
-      />
+      <NxPageBreadcrumbs items={[{ label: 'Access management', href: '/access-management' }, { label: longLabel }]} />
     )
 
     expect(screen.getByText(longLabel)).toBeInTheDocument()
@@ -160,7 +156,7 @@ describe('AppPageBreadcrumbs', () => {
 
   it('renders a non-link middle segment in the full trail (wide viewport)', () => {
     render(
-      <AppPageBreadcrumbs items={[{ label: 'Home', href: '/home' }, { label: 'Unlinked step' }, { label: 'Done' }]} />
+      <NxPageBreadcrumbs items={[{ label: 'Home', href: '/home' }, { label: 'Unlinked step' }, { label: 'Done' }]} />
     )
 
     expect(screen.getByText('Unlinked step')).toBeInTheDocument()
@@ -171,7 +167,7 @@ describe('AppPageBreadcrumbs', () => {
     stubNarrowViewport()
 
     render(
-      <AppPageBreadcrumbs
+      <NxPageBreadcrumbs
         items={[
           { label: 'Section' },
           { label: 'Mid A', href: '/a' },
@@ -186,12 +182,35 @@ describe('AppPageBreadcrumbs', () => {
     expect(screen.getByRole('button', { name: 'Earlier pages, 2 levels' })).toBeInTheDocument()
   })
 
+  it('renders middle items without href as non-link entries in the collapsed dropdown', async () => {
+    const user = userEvent.setup()
+    stubNarrowViewport()
+
+    render(
+      <NxPageBreadcrumbs
+        items={[
+          { label: 'First', href: '/first' },
+          { label: 'Mid no href' }, // no href → key falls back to label
+          { label: 'Mid B', href: '/b' },
+          { label: 'Last' },
+        ]}
+      />
+    )
+
+    const toggle = screen.getByRole('button', { name: 'Earlier pages, 2 levels' })
+    await user.click(toggle)
+
+    const midItem = screen.getByRole('menuitem', { name: 'Mid no href' })
+    expect(midItem).toBeInTheDocument()
+    expect(midItem).not.toHaveAttribute('href')
+  })
+
   it('closes dropdown after selecting a middle segment link', async () => {
     const user = userEvent.setup()
     stubNarrowViewport()
 
     render(
-      <AppPageBreadcrumbs
+      <NxPageBreadcrumbs
         items={[
           { label: 'First', href: '/first' },
           { label: 'Mid A', href: '/a' },

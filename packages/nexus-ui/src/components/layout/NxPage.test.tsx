@@ -2,14 +2,14 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { AppPage, AppPageMain } from './AppPage'
+import { NxPage, NxPageBody } from './NxPage'
 
-describe('AppPage', () => {
+describe('NxPage', () => {
   it('renders children', () => {
     render(
-      <AppPage>
+      <NxPage>
         <div data-testid="child">Child Content</div>
-      </AppPage>
+      </NxPage>
     )
 
     expect(screen.getByTestId('child')).toBeInTheDocument()
@@ -18,11 +18,11 @@ describe('AppPage', () => {
 
   it('renders multiple children', () => {
     render(
-      <AppPage>
+      <NxPage>
         <div data-testid="child1">First</div>
         <div data-testid="child2">Second</div>
         <div data-testid="child3">Third</div>
-      </AppPage>
+      </NxPage>
     )
 
     expect(screen.getByTestId('child1')).toBeInTheDocument()
@@ -30,26 +30,26 @@ describe('AppPage', () => {
     expect(screen.getByTestId('child3')).toBeInTheDocument()
   })
 
-  it('AppPageMain renders a filled stack item for main column content', () => {
+  it('NxPageBody renders a filled stack item for main column content', () => {
     render(
-      <AppPage>
-        <AppPageMain data-testid="app-page-main">
+      <NxPage>
+        <NxPageBody data-testid="app-page-main">
           <div data-testid="main-region">Main</div>
-        </AppPageMain>
-      </AppPage>
+        </NxPageBody>
+      </NxPage>
     )
 
     expect(screen.getByTestId('main-region')).toBeInTheDocument()
     expect(screen.getByTestId('app-page-main')).toHaveClass('pf-m-fill')
   })
 
-  it('AppPageMain applies centered flex layout when isCentered is set', () => {
+  it('NxPageBody applies centered flex layout when isCentered is set', () => {
     render(
-      <AppPage>
-        <AppPageMain data-testid="app-page-main" isCentered>
+      <NxPage>
+        <NxPageBody data-testid="app-page-main" isCentered>
           <div>Centered</div>
-        </AppPageMain>
-      </AppPage>
+        </NxPageBody>
+      </NxPage>
     )
 
     expect(screen.getByTestId('app-page-main')).toHaveStyle({
@@ -60,16 +60,16 @@ describe('AppPage', () => {
   })
 
   describe('Accessibility', () => {
-    it('has no accessibility violations when AppPage wraps AppPageMain', async () => {
+    it('has no accessibility violations when NxPage wraps NxPageBody', async () => {
       const { container } = render(
-        <AppPage>
-          <AppPageMain>
+        <NxPage>
+          <NxPageBody>
             <main>
               <h1>Page title</h1>
               <p>Body</p>
             </main>
-          </AppPageMain>
-        </AppPage>
+          </NxPageBody>
+        </NxPage>
       )
       const results = await axe(container)
       expect(results).toHaveNoViolations()

@@ -1,7 +1,7 @@
 import { EmptyState, EmptyStateBody, Stack, StackItem, Title } from '@patternfly/react-core'
 import { useState } from 'react'
 
-import { AppPanel } from '../../../components/AppPanel'
+import { NxPanel } from '../../../components/layout/NxPanel'
 
 import styles from './panels.module.css'
 import { OutputJsonView } from './views/OutputJsonView'
@@ -34,7 +34,7 @@ export function OutputPanel({ outputData }: Readonly<OutputPanelProps>) {
   }
 
   return (
-    <AppPanel
+    <NxPanel
       variant="raised"
       isFullHeight
       className={styles.panelContainer}
@@ -58,6 +58,6 @@ export function OutputPanel({ outputData }: Readonly<OutputPanelProps>) {
           <EmptyStateBody>Run the workflow to see output data here.</EmptyStateBody>
         </EmptyState>
       )}
-    </AppPanel>
+    </NxPanel>
   )
 }

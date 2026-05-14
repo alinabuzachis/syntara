@@ -11,35 +11,27 @@ type PanelMainProps = Omit<ComponentProps<typeof PanelMain>, 'children'>
 type PanelMainBodyProps = Omit<ComponentProps<typeof PanelMainBody>, 'children'>
 
 /**
- * `Panel` → `PanelMain` → `PanelMainBody` per PatternFly
- * [patternfly-react#12372](https://github.com/patternfly/patternfly-react/pull/12372).
+ * Convenience wrapper around `Panel -> PanelMain -> PanelMainBody` per the PatternFly
+ * [panel composition spec](https://github.com/patternfly/patternfly-react/pull/12372).
  *
- * - **`hasNoPadding`** — `padding: 0` on `PanelMainBody`.
- * - **`isGlass`** — defaults **on** when `pf-v6-theme-glass` is on `<html>` (`index.html`), unless
- *   `isGlass={false}`, **`isPill`**, or **`variant="raised"`**.
- * - **`opaqueFloatingFill`** — with the glass theme, the default primary fill stays translucent even when
- *   `isGlass={false}`; set **`opaqueFloatingFill`** for a solid floating-token fill without **`variant="raised"`**
- *   chrome. Prefer **`variant="raised"`** when you want PatternFly’s raised panel look (opaque + shadow).
- * - **`isFullHeight`** — flex stretch on the root `Panel` and `PanelMain` / `PanelMainBody` so
- *   `height: '100%'` children (e.g. React Flow) resolve.
- * - **`isScrollable` + `isFullHeight`** — defaults **`isAutoHeight`** (avoids PF’s short scroll cap);
- *   pass **`isAutoHeight={false}`** to opt out.
- * - Do not nest another `PanelMain` / `PanelMainBody` inside; use **`panelMainProps`** /
- *   **`panelMainBodyProps`**.
- * - Avoid **`overflow: hidden`** between sibling **`variant="raised"`** panels (clips raised
- *   **`box-shadow`**); use **`AppPageMain`** / **`minHeight: 0`** on scroll regions instead.
+ * Inherited prop overrides: `isGlass` defaults **on** unless `isGlass={false}`, `isPill`, or
+ * `variant="raised"` is set. `isScrollable + isFullHeight` auto-enables `isAutoHeight` (pass
+ * `isAutoHeight={false}` to opt out). Avoid `overflow: hidden` between sibling `variant="raised"`
+ * panels - it clips the box-shadow; use `NxPageBody` / `minHeight: 0` instead.
  */
-export type AppPanelProps = Omit<PanelProps, 'children'> & {
+export type NxPanelProps = Omit<PanelProps, 'children'> & {
+  /** Rendered inside `PanelMainBody`. */
   children?: ReactNode
-  /** Zero padding on `PanelMainBody` */
+  /** Removes padding from `PanelMainBody`. */
   hasNoPadding?: boolean
   /**
-   * Solid background using PatternFly’s floating surface token (opaque under `pf-v6-theme-glass`).
-   * Use for large flat shells where `variant="raised"` would be the wrong chrome; merges before `style`
-   * so callers can override.
+   * Solid floating-token fill (opaque under `pf-v6-theme-glass`) without `variant="raised"` chrome.
+   * Prefer `variant="raised"` when you want the full raised look (shadow + smaller radius).
    */
   opaqueFloatingFill?: boolean
+  /** Props forwarded to the inner `PanelMain` element. */
   panelMainProps?: PanelMainProps
+  /** Props forwarded to the inner `PanelMainBody` element. */
   panelMainBodyProps?: Omit<PanelMainBodyProps, 'children'>
 }
 
@@ -53,7 +45,7 @@ function defaultIsGlass(
   return true
 }
 
-export const AppPanel = forwardRef<HTMLDivElement, AppPanelProps>(function AppPanel(
+export const NxPanel = forwardRef<HTMLDivElement, NxPanelProps>(function NxPanel(
   {
     hasNoPadding,
     children,
@@ -128,4 +120,4 @@ export const AppPanel = forwardRef<HTMLDivElement, AppPanelProps>(function AppPa
   )
 })
 
-AppPanel.displayName = 'AppPanel'
+NxPanel.displayName = 'NxPanel'

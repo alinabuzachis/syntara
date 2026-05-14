@@ -4,14 +4,14 @@ import { Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
 
-import { AppPage, AppPageMain } from '../../../app/AppPage'
-import { AppPageHeader } from '../../../app/AppPageHeader'
 import { credentialsClient } from '../../../client'
-import { AppPanel } from '../../../components/AppPanel'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { FilterBar } from '../../../components/filters/FilterBar'
 import { IconLabel } from '../../../components/IconLabel'
-import { PanelContentStack } from '../../../components/PanelContentStack'
+import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
+import { NxPageHeader } from '../../../components/layout/NxPageHeader'
+import { NxPanel } from '../../../components/layout/NxPanel'
+import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
 import { useCursorPagination, useCursorReset } from '../../../hooks/useCursorPagination'
@@ -231,18 +231,18 @@ export default function Credentials() {
   })
   if (queryState) {
     return (
-      <AppPage>
-        <AppPageHeader title="Credentials" projectSelector={ProjectSelector} />
-        <AppPageMain>
-          <AppPanel isFullHeight>{queryState}</AppPanel>
-        </AppPageMain>
-      </AppPage>
+      <NxPage>
+        <NxPageHeader title="Credentials" projectSelector={ProjectSelector} />
+        <NxPageBody>
+          <NxPanel isFullHeight>{queryState}</NxPanel>
+        </NxPageBody>
+      </NxPage>
     )
   }
 
   return (
-    <AppPage>
-      <AppPageHeader
+    <NxPage>
+      <NxPageHeader
         title="Credentials"
         projectSelector={ProjectSelector}
         toolbar={
@@ -253,15 +253,15 @@ export default function Credentials() {
       />
 
       {results.length === 0 && !hasActiveFilters ? (
-        <AppPageMain>
-          <AppPanel isFullHeight>
+        <NxPageBody>
+          <NxPanel isFullHeight>
             <CredentialEmptyState onCreateCredential={() => setCreateModalOpen(true)} />
-          </AppPanel>
-        </AppPageMain>
+          </NxPanel>
+        </NxPageBody>
       ) : (
-        <AppPageMain>
-          <AppPanel isFullHeight>
-            <PanelContentStack>
+        <NxPageBody>
+          <NxPanel isFullHeight>
+            <NxPanelContentStack>
               <StackItem>
                 <FilterBar
                   fieldDefinitions={filterFieldDefinitions}
@@ -272,9 +272,9 @@ export default function Credentials() {
               </StackItem>
 
               {results.length === 0 ? (
-                <AppPageMain isCentered>
+                <NxPageBody isCentered>
                   <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
-                </AppPageMain>
+                </NxPageBody>
               ) : (
                 <ScrollableTableContainer aria-label="Credentials table" footer={getFooterProps(query.data)}>
                   <Thead>
@@ -307,9 +307,9 @@ export default function Credentials() {
                   )}
                 </ScrollableTableContainer>
               )}
-            </PanelContentStack>
-          </AppPanel>
-        </AppPageMain>
+            </NxPanelContentStack>
+          </NxPanel>
+        </NxPageBody>
       )}
 
       <DisableCredentialDialog
@@ -342,6 +342,6 @@ export default function Credentials() {
         onSuccess={() => detachPromise(query.refetch())}
         defaultProjectId={selectedProject?.id}
       />
-    </AppPage>
+    </NxPage>
   )
 }

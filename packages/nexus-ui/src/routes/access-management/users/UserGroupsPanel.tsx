@@ -16,13 +16,13 @@ import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table
 import type { IAction } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
 
-import { AppPageMain } from '../../../app/AppPage'
 import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
 import { FilterBar } from '../../../components/filters'
 import { IconLabel } from '../../../components/IconLabel'
-import { PanelContentStack } from '../../../components/PanelContentStack'
+import { NxPageBody } from '../../../components/layout/NxPage'
+import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
 import { useFilterState } from '../../../hooks/useFilterState'
@@ -313,7 +313,7 @@ export function UserGroupsPanel({ userId }: Readonly<UserGroupsPanelProps>) {
 
   return (
     <>
-      <PanelContentStack>
+      <NxPanelContentStack>
         <StackItem>
           <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
             <FlexItem grow={{ default: 'grow' }}>
@@ -337,14 +337,14 @@ export function UserGroupsPanel({ userId }: Readonly<UserGroupsPanelProps>) {
         </StackItem>
 
         {filteredGroups.length === 0 ? (
-          <AppPageMain isCentered>
+          <NxPageBody isCentered>
             <EmptyStateFilter
               clearAllFilters={() => {
                 clearAllFilters()
                 setPage(1)
               }}
             />
-          </AppPageMain>
+          </NxPageBody>
         ) : (
           <ScrollableTableContainer
             aria-label="User groups table"
@@ -396,7 +396,7 @@ export function UserGroupsPanel({ userId }: Readonly<UserGroupsPanelProps>) {
             </Tbody>
           </ScrollableTableContainer>
         )}
-      </PanelContentStack>
+      </NxPanelContentStack>
 
       <AddToGroupModal
         userId={userId}

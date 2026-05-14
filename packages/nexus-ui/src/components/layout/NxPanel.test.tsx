@@ -2,20 +2,20 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { AppPanel } from './AppPanel'
+import { NxPanel } from './NxPanel'
 
-describe('AppPanel', () => {
+describe('NxPanel', () => {
   it('renders children', () => {
-    render(<AppPanel>Panel content</AppPanel>)
+    render(<NxPanel>Panel content</NxPanel>)
 
     expect(screen.getByText('Panel content')).toBeInTheDocument()
   })
 
   it('has no accessibility violations', async () => {
     const { container } = render(
-      <AppPanel hasNoPadding isFullHeight isScrollable>
+      <NxPanel hasNoPadding isFullHeight isScrollable>
         <p>Scrollable region</p>
-      </AppPanel>
+      </NxPanel>
     )
 
     expect(await axe(container)).toHaveNoViolations()

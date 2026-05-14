@@ -26,17 +26,17 @@ import { useState, type ReactNode } from 'react'
 import { useParams } from 'wouter'
 import { navigate } from 'wouter/use-browser-location'
 
-import { AppPage, AppPageMain } from '../../../../app/AppPage'
-import { AppPageHeader } from '../../../../app/AppPageHeader'
 import { AppRoute } from '../../../../app/AppRoute'
 import {
   breadcrumbsIdentityProviderDetail,
   breadcrumbsIdentityProviderDetailEarlyShell,
 } from '../../../../app/breadcrumbBuilders'
 import { identityProvidersClient } from '../../../../client'
-import { AppPanel } from '../../../../components/AppPanel'
 import { ConfirmationDialog } from '../../../../components/ConfirmationDialog'
 import { IconLabel } from '../../../../components/IconLabel'
+import { NxPage, NxPageBody } from '../../../../components/layout/NxPage'
+import { NxPageHeader } from '../../../../components/layout/NxPageHeader'
+import { NxPanel } from '../../../../components/layout/NxPanel'
 import { ProviderIcon } from '../../../../components/ProviderIcon'
 import { useQueryState } from '../../../../components/states/useQueryState'
 import { UrlTabs } from '../../../../components/UrlTabs'
@@ -200,12 +200,12 @@ function identityProviderDetailBreadcrumbTrail(provider: ProviderData, idpDetail
 
 function IdentityProviderDetailEarlyLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <AppPage>
-      <AppPageHeader title="Identity Provider Details" breadcrumbs={breadcrumbsIdentityProviderDetailEarlyShell()} />
+    <NxPage>
+      <NxPageHeader title="Identity Provider Details" breadcrumbs={breadcrumbsIdentityProviderDetailEarlyShell()} />
       <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-        <AppPanel isFullHeight>{children}</AppPanel>
+        <NxPanel isFullHeight>{children}</NxPanel>
       </StackItem>
-    </AppPage>
+    </NxPage>
   )
 }
 
@@ -406,8 +406,8 @@ export function IdentityProviderDetail() {
   const mappingCount = identityProviderDetailMappingCount(groupMappingConfig, autoCreateGroups)
 
   return (
-    <AppPage>
-      <AppPageHeader
+    <NxPage>
+      <NxPageHeader
         title={providerData.name ?? ''}
         breadcrumbs={idpDetailCrumbs}
         titleLeading={
@@ -438,8 +438,8 @@ export function IdentityProviderDetail() {
         }
       />
       <IdentityProviderDetailTabStrip basePath={idpDetailBasePath} mappingCount={mappingCount} />
-      <AppPageMain>
-        <AppPanel isFullHeight>
+      <NxPageBody>
+        <NxPanel isFullHeight>
           <TabContent
             activeTab={activeTab}
             provider={providerData}
@@ -451,14 +451,14 @@ export function IdentityProviderDetail() {
             onSaved={() => detachPromise(refetchProvider())}
             editMappingTrigger={editMappingTrigger}
           />
-        </AppPanel>
-      </AppPageMain>
+        </NxPanel>
+      </NxPageBody>
       <IdentityProviderDeleteDialog
         isOpen={deleteDialogOpen}
         providerName={providerData.name ?? ''}
         onClose={() => setDeleteDialogOpen(false)}
         onConfirm={() => handleDelete(providerData)}
       />
-    </AppPage>
+    </NxPage>
   )
 }

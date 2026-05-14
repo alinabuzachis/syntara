@@ -16,13 +16,13 @@ import { RhUiBackwardsIcon, RhUiDislikeIcon, RhUiLikeIcon } from '@patternfly/re
 import { useState } from 'react'
 import { useLocation, useParams } from 'wouter'
 
-import { AppPage, AppPageMain } from '../../app/AppPage'
-import { AppPageHeader } from '../../app/AppPageHeader'
 import { AppRoute } from '../../app/AppRoute'
 import { breadcrumbsApprovalDetail, breadcrumbsApprovalsPage } from '../../app/breadcrumbBuilders'
 import { approvalsClient } from '../../client'
-import { AppPanel } from '../../components/AppPanel'
 import { CodeBlock } from '../../components/details/CodeBlock'
+import { NxPage, NxPageBody } from '../../components/layout/NxPage'
+import { NxPageHeader } from '../../components/layout/NxPageHeader'
+import { NxPanel } from '../../components/layout/NxPanel'
 import { ErrorState } from '../../components/states/ErrorState'
 import { useQueryState } from '../../components/states/useQueryState'
 import { useMutationErrorHandler } from '../../hooks/useMutationErrorHandler'
@@ -75,26 +75,26 @@ export default function ApprovalDetail() {
   // Guard against missing approvalId
   if (!approvalId) {
     return (
-      <AppPage>
-        <AppPageHeader title="Error" breadcrumbs={breadcrumbsApprovalsPage('Error')} />
-        <AppPageMain>
-          <AppPanel isFullHeight>
+      <NxPage>
+        <NxPageHeader title="Error" breadcrumbs={breadcrumbsApprovalsPage('Error')} />
+        <NxPageBody>
+          <NxPanel isFullHeight>
             <ErrorState title="Invalid approval" message="No approval ID provided" />
-          </AppPanel>
-        </AppPageMain>
-      </AppPage>
+          </NxPanel>
+        </NxPageBody>
+      </NxPage>
     )
   }
 
   // Show query state (loading/error)
   if (queryState) {
     return (
-      <AppPage>
-        <AppPageHeader title="Approval details" />
-        <AppPageMain>
-          <AppPanel isFullHeight>{queryState}</AppPanel>
-        </AppPageMain>
-      </AppPage>
+      <NxPage>
+        <NxPageHeader title="Approval details" />
+        <NxPageBody>
+          <NxPanel isFullHeight>{queryState}</NxPanel>
+        </NxPageBody>
+      </NxPage>
     )
   }
 
@@ -198,6 +198,7 @@ export default function ApprovalDetail() {
             icon={<RhUiBackwardsIcon />}
             variant="plain"
             isInline
+            aria-label="Undo decision"
             isDisabled={isSubmitting}
             onClick={() => setPendingDecision(undefined)}
           />
@@ -214,8 +215,8 @@ export default function ApprovalDetail() {
     )
   }
   return (
-    <AppPage>
-      <AppPageHeader
+    <NxPage>
+      <NxPageHeader
         title={approvalName}
         breadcrumbs={breadcrumbsApprovalDetail(approvalName)}
         toolbar={
@@ -231,8 +232,8 @@ export default function ApprovalDetail() {
           </>
         }
       />
-      <AppPageMain>
-        <AppPanel isFullHeight>
+      <NxPageBody>
+        <NxPanel isFullHeight>
           <Stack hasGutter>
             {approval && (
               <>
@@ -251,8 +252,8 @@ export default function ApprovalDetail() {
               </>
             )}
           </Stack>
-        </AppPanel>
-      </AppPageMain>
-    </AppPage>
+        </NxPanel>
+      </NxPageBody>
+    </NxPage>
   )
 }

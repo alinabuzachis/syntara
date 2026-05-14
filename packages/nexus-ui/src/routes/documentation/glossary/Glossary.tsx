@@ -8,10 +8,10 @@ import {
 } from '@patternfly/react-core'
 import { useMemo } from 'react'
 
-import { AppPage, AppPageMain } from '../../../app/AppPage'
-import { AppPageHeader } from '../../../app/AppPageHeader'
-import { AppPanel } from '../../../components/AppPanel'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
+import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
+import { NxPageHeader } from '../../../components/layout/NxPageHeader'
+import { NxPanel } from '../../../components/layout/NxPanel'
 import { useFuse } from '../../../hooks/useFuse'
 
 import { useGlossaryTerms } from './useGlossaryTerms'
@@ -27,8 +27,8 @@ export default function Glossary() {
   const { search, setSearch, items: results } = useFuse(memoizedTerms, GLOSSARY_SEARCH_KEYS)
 
   return (
-    <AppPage>
-      <AppPageHeader
+    <NxPage>
+      <NxPageHeader
         title="Glossary"
         toolbar={
           <SearchInput
@@ -41,14 +41,14 @@ export default function Glossary() {
         }
       />
       {results.length === 0 ? (
-        <AppPageMain>
-          <AppPanel isFullHeight>
+        <NxPageBody>
+          <NxPanel isFullHeight>
             <EmptyStateFilter clearAllFilters={() => setSearch('')} />
-          </AppPanel>
-        </AppPageMain>
+          </NxPanel>
+        </NxPageBody>
       ) : (
-        <AppPageMain>
-          <AppPanel isFullHeight isScrollable>
+        <NxPageBody>
+          <NxPanel isFullHeight isScrollable>
             <DescriptionList>
               {results.map((result) => (
                 <DescriptionListGroup key={result.term}>
@@ -61,9 +61,9 @@ export default function Glossary() {
                 </DescriptionListGroup>
               ))}
             </DescriptionList>
-          </AppPanel>
-        </AppPageMain>
+          </NxPanel>
+        </NxPageBody>
       )}
-    </AppPage>
+    </NxPage>
   )
 }

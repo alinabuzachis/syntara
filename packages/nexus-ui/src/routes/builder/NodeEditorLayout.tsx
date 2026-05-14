@@ -12,7 +12,7 @@ import {
 import { ExternalLinkAltIcon, RhUiMinusIcon } from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
 
-import { AppPanel } from '../../components/AppPanel'
+import { NxPanel } from '../../components/layout/NxPanel'
 
 import { useNodeExecutionData } from './panels/hooks/useNodeExecutionData'
 import { InputPanel } from './panels/InputPanel'
@@ -50,7 +50,7 @@ export function NodeEditorLayout({
   const { inputData, outputData } = useNodeExecutionData(nodeId ?? '', executionId, workflowId)
   const outputFlex = showInputPanel ? 'flex_1' : 'flex_2'
   return (
-    <AppPanel
+    <NxPanel
       hasNoPadding
       isFullHeight
       isGlass={false}
@@ -214,6 +214,6 @@ export function NodeEditorLayout({
           </Flex>
         </StackItem>
       </Stack>
-    </AppPanel>
+    </NxPanel>
   )
 }

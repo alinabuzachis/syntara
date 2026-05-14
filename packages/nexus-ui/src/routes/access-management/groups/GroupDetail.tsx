@@ -18,11 +18,11 @@ import { useMemo, useState } from 'react'
 import { useParams } from 'wouter'
 import { navigate } from 'wouter/use-browser-location'
 
-import { AppPage, AppPageMain } from '../../../app/AppPage'
-import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
 import { breadcrumbsGroupDetail, breadcrumbsGroupDetailEarlyShell } from '../../../app/breadcrumbBuilders'
-import { AppPanel } from '../../../components/AppPanel'
+import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
+import { NxPageHeader } from '../../../components/layout/NxPageHeader'
+import { NxPanel } from '../../../components/layout/NxPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { UrlTabs } from '../../../components/UrlTabs'
 import { useUrlTab } from '../../../hooks/useUrlTab'
@@ -206,8 +206,8 @@ export function GroupDetail() {
   const groupCrumbs = breadcrumbsGroupDetail(groupData.name, basePath, activeTab)
 
   return (
-    <AppPage>
-      <AppPageHeader
+    <NxPage>
+      <NxPageHeader
         title={groupData.name}
         breadcrumbs={groupCrumbs}
         toolbar={
@@ -226,8 +226,8 @@ export function GroupDetail() {
           roleAssignmentCount={roleAssignmentCount}
         />
       </StackItem>
-      <AppPageMain>
-        <AppPanel isFullHeight>
+      <NxPageBody>
+        <NxPanel isFullHeight>
           <GroupTabContent
             group={groupData as Group}
             groupId={groupId ?? ''}
@@ -237,8 +237,8 @@ export function GroupDetail() {
               detachPromise(membersQuery.refetch())
             }}
           />
-        </AppPanel>
-      </AppPageMain>
+        </NxPanel>
+      </NxPageBody>
 
       <GroupFormModal
         group={groupData as Group}
@@ -248,6 +248,6 @@ export function GroupDetail() {
           detachPromise(groupQuery.refetch())
         }}
       />
-    </AppPage>
+    </NxPage>
   )
 }

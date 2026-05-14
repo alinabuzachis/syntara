@@ -6,16 +6,16 @@ import type { IAction } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
 import { useLocation } from 'wouter'
 
-import { AppPage, AppPageMain } from '../../app/AppPage'
-import { AppPageHeader } from '../../app/AppPageHeader'
 import { executionsClient, workflowClient } from '../../client'
-import { AppPanel } from '../../components/AppPanel'
 import { ConfirmationDialog } from '../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
 import { IconLabel } from '../../components/IconLabel'
-import { PanelContentStack } from '../../components/PanelContentStack'
+import { NxPage, NxPageBody } from '../../components/layout/NxPage'
+import { NxPageHeader } from '../../components/layout/NxPageHeader'
+import { NxPanel } from '../../components/layout/NxPanel'
+import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
 import { useQueryState } from '../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
@@ -254,18 +254,18 @@ export default function Workflows() {
   // Show loading/error state
   if (queryState) {
     return (
-      <AppPage>
-        <AppPageHeader title="Workflows" />
-        <AppPageMain>
-          <AppPanel isFullHeight>{queryState}</AppPanel>
-        </AppPageMain>
-      </AppPage>
+      <NxPage>
+        <NxPageHeader title="Workflows" />
+        <NxPageBody>
+          <NxPanel isFullHeight>{queryState}</NxPanel>
+        </NxPageBody>
+      </NxPage>
     )
   }
 
   return (
-    <AppPage>
-      <AppPageHeader
+    <NxPage>
+      <NxPageHeader
         title="Workflows"
         projectSelector={ProjectSelector}
         toolbar={
@@ -280,9 +280,9 @@ export default function Workflows() {
         }
       />
 
-      <AppPageMain>
-        <AppPanel isFullHeight>
-          <PanelContentStack variant="pageGutter">
+      <NxPageBody>
+        <NxPanel isFullHeight>
+          <NxPanelContentStack variant="inset">
             <StackItem>
               <FilterBar
                 fieldDefinitions={filterFieldDefinitions}
@@ -293,7 +293,7 @@ export default function Workflows() {
             </StackItem>
 
             {sortedWorkflows.length === 0 ? (
-              <AppPageMain isCentered>
+              <NxPageBody isCentered>
                 {hasActiveFilters ? (
                   <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
                 ) : (
@@ -304,7 +304,7 @@ export default function Workflows() {
                     addData={() => setLocation('/workflow-builder/new')}
                   />
                 )}
-              </AppPageMain>
+              </NxPageBody>
             ) : (
               <ScrollableTableContainer aria-label="Workflows table" footer={getFooterProps(workflowsQuery.data)}>
                 <Thead>
@@ -329,9 +329,9 @@ export default function Workflows() {
                 )}
               </ScrollableTableContainer>
             )}
-          </PanelContentStack>
-        </AppPanel>
-      </AppPageMain>
+          </NxPanelContentStack>
+        </NxPanel>
+      </NxPageBody>
 
       <ConfirmationDialog
         isOpen={runDialog.isOpen}
@@ -384,6 +384,6 @@ export default function Workflows() {
         defaultProjectId={selectedProjectId}
         projects={projects}
       />
-    </AppPage>
+    </NxPage>
   )
 }

@@ -2,11 +2,11 @@ import { Button, EmptyState, EmptyStateBody, Stack, StackItem, Tab, Tabs } from 
 import { RhUiLockIcon } from '@patternfly/react-icons'
 import { useCallback, useMemo, useState } from 'react'
 
-import { AppPage, AppPageMain } from '../../../app/AppPage'
-import { AppPageHeader } from '../../../app/AppPageHeader'
 import { breadcrumbsSettingsCategory, breadcrumbsSettingsPage } from '../../../app/breadcrumbBuilders'
 import { settingsClient } from '../../../client'
-import { AppPanel } from '../../../components/AppPanel'
+import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
+import { NxPageHeader } from '../../../components/layout/NxPageHeader'
+import { NxPanel } from '../../../components/layout/NxPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
 import { useAlerts } from '../../../providers/alerts'
@@ -137,47 +137,47 @@ export default function Settings() {
 
   if (!canRead) {
     return (
-      <AppPage>
-        <AppPageHeader title="Settings" breadcrumbs={breadcrumbsSettingsPage()} />
+      <NxPage>
+        <NxPageHeader title="Settings" breadcrumbs={breadcrumbsSettingsPage()} />
         <StackItem isFilled>
-          <AppPanel isFullHeight>
+          <NxPanel isFullHeight>
             <EmptyState headingLevel="h2" titleText="Access denied" icon={RhUiLockIcon} isFullHeight>
               <EmptyStateBody>
                 You don&apos;t have permission to view settings. Contact your administrator to request the auditor or
                 admin role.
               </EmptyStateBody>
             </EmptyState>
-          </AppPanel>
+          </NxPanel>
         </StackItem>
-      </AppPage>
+      </NxPage>
     )
   }
 
   if (categoriesState) {
     return (
-      <AppPage>
-        <AppPageHeader title="Settings" breadcrumbs={breadcrumbsSettingsPage()} />
-        <AppPageMain>
-          <AppPanel isFullHeight>{categoriesState}</AppPanel>
-        </AppPageMain>
-      </AppPage>
+      <NxPage>
+        <NxPageHeader title="Settings" breadcrumbs={breadcrumbsSettingsPage()} />
+        <NxPageBody>
+          <NxPanel isFullHeight>{categoriesState}</NxPanel>
+        </NxPageBody>
+      </NxPage>
     )
   }
 
   if (settingsState) {
     return (
-      <AppPage>
-        <AppPageHeader title="Settings" breadcrumbs={breadcrumbsSettingsPage()} />
-        <AppPageMain>
-          <AppPanel isFullHeight>{settingsState}</AppPanel>
-        </AppPageMain>
-      </AppPage>
+      <NxPage>
+        <NxPageHeader title="Settings" breadcrumbs={breadcrumbsSettingsPage()} />
+        <NxPageBody>
+          <NxPanel isFullHeight>{settingsState}</NxPanel>
+        </NxPageBody>
+      </NxPage>
     )
   }
 
   return (
-    <AppPage>
-      <AppPageHeader
+    <NxPage>
+      <NxPageHeader
         title="Settings"
         breadcrumbs={settingsBreadcrumbs}
         toolbar={
@@ -193,8 +193,8 @@ export default function Settings() {
           ) : undefined
         }
       />
-      <AppPageMain>
-        <AppPanel isFullHeight>
+      <NxPageBody>
+        <NxPanel isFullHeight>
           <Stack hasGutter style={{ flex: 1, minHeight: 0, height: '100%' }}>
             <StackItem>
               <Tabs
@@ -207,7 +207,7 @@ export default function Settings() {
                 ))}
               </Tabs>
             </StackItem>
-            <AppPageMain style={{ overflow: 'auto', padding: 'var(--pf-t--global--spacer--md)' }}>
+            <NxPageBody style={{ overflow: 'auto', padding: 'var(--pf-t--global--spacer--md)' }}>
               {categories[activeTab] && (
                 <SettingsCategoryTab
                   settings={settingsByCategory.get(categories[activeTab].slug) ?? []}
@@ -218,10 +218,10 @@ export default function Settings() {
                   readOnly={!canWrite}
                 />
               )}
-            </AppPageMain>
+            </NxPageBody>
           </Stack>
-        </AppPanel>
-      </AppPageMain>
-    </AppPage>
+        </NxPanel>
+      </NxPageBody>
+    </NxPage>
   )
 }

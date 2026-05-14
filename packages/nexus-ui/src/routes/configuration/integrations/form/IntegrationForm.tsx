@@ -18,11 +18,11 @@ import { RhUiErrorIcon, RhUiServerFillIcon } from '@patternfly/react-icons'
 import { Controller, type Control, useForm } from 'react-hook-form'
 import { navigate } from 'wouter/use-browser-location'
 
-import { AppPage, AppPageMain } from '../../../../app/AppPage'
-import { AppPageHeader } from '../../../../app/AppPageHeader'
 import { AppRoute } from '../../../../app/AppRoute'
 import { breadcrumbsIntegrationConfigure } from '../../../../app/breadcrumbBuilders'
-import { AppPanel } from '../../../../components/AppPanel'
+import { NxPage, NxPageBody } from '../../../../components/layout/NxPage'
+import { NxPageHeader } from '../../../../components/layout/NxPageHeader'
+import { NxPanel } from '../../../../components/layout/NxPanel'
 import { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationErrorHandler'
 
 import { integrationFormSchema, type IntegrationFormData } from './integrationFormSchema'
@@ -98,8 +98,8 @@ export function IntegrationForm() {
   }
 
   return (
-    <AppPage>
-      <AppPageHeader
+    <NxPage>
+      <NxPageHeader
         title="Configure integration"
         breadcrumbs={breadcrumbsIntegrationConfigure()}
         toolbar={
@@ -113,8 +113,8 @@ export function IntegrationForm() {
           </>
         }
       />
-      <AppPageMain>
-        <AppPanel isFullHeight panelMainBodyProps={{ style: { padding: 'var(--pf-t--global--spacer--xl)' } }}>
+      <NxPageBody>
+        <NxPanel isFullHeight panelMainBodyProps={{ style: { padding: 'var(--pf-t--global--spacer--xl)' } }}>
           <div style={{ maxWidth: '600px' }}>
             <Form id="integration-form" aria-label="Configure integration" onSubmit={handleSubmit(onSubmit)}>
               <FormGroup label="Integration type" fieldId="provider-type" isRequired>
@@ -173,8 +173,8 @@ export function IntegrationForm() {
               />
             </Form>
           </div>
-        </AppPanel>
-      </AppPageMain>
-    </AppPage>
+        </NxPanel>
+      </NxPageBody>
+    </NxPage>
   )
 }

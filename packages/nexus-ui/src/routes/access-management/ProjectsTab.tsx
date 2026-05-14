@@ -5,14 +5,14 @@ import type { IAction, ThProps } from '@patternfly/react-table'
 import { useCallback, useMemo, useState } from 'react'
 import { navigate } from 'wouter/use-browser-location'
 
-import { AppPageMain } from '../../app/AppPage'
 import { AppRoute } from '../../app/AppRoute'
 import { ConfirmationDialog } from '../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters/FilterBar'
 import { IconLabel } from '../../components/IconLabel'
-import { PanelContentStack } from '../../components/PanelContentStack'
+import { NxPageBody } from '../../components/layout/NxPage'
+import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
 import { useQueryState } from '../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { useDialogState } from '../../hooks/useDialogState'
@@ -148,7 +148,6 @@ function DeleteProjectDialog({
   )
 }
 
-
 const projectSortFieldByColumn: Record<number, string> = {
   0: 'name',
   2: 'created_at',
@@ -269,7 +268,7 @@ export function ProjectsTab() {
 
   return (
     <>
-      <PanelContentStack>
+      <NxPanelContentStack>
         <StackItem>
           <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
             <FlexItem grow={{ default: 'grow' }}>
@@ -298,14 +297,14 @@ export function ProjectsTab() {
           </Flex>
         </StackItem>
         {paginatedProjects.length === 0 ? (
-          <AppPageMain isCentered>
+          <NxPageBody isCentered>
             <EmptyStateFilter
               clearAllFilters={() => {
                 clearAllFilters()
                 setPage(1)
               }}
             />
-          </AppPageMain>
+          </NxPageBody>
         ) : (
           <ScrollableTableContainer
             aria-label="Projects"
@@ -331,7 +330,7 @@ export function ProjectsTab() {
             />
           </ScrollableTableContainer>
         )}
-      </PanelContentStack>
+      </NxPanelContentStack>
 
       <ProjectFormModal
         project={formDialog.item}

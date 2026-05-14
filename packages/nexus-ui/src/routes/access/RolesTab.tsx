@@ -4,13 +4,13 @@ import { ActionsColumn, ExpandableRowContent, Tbody, Td, Th, Thead, Tr } from '@
 import type { IAction, ThProps } from '@patternfly/react-table'
 import { useCallback, useMemo, useState } from 'react'
 
-import { AppPageMain } from '../../app/AppPage'
 import { ConfirmationDialog } from '../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
 import { IconLabel } from '../../components/IconLabel'
-import { PanelContentStack } from '../../components/PanelContentStack'
+import { NxPageBody } from '../../components/layout/NxPage'
+import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
 import { useQueryState } from '../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { useAlerts } from '../../providers/alerts'
@@ -299,7 +299,7 @@ export function RolesTab() {
 
   return (
     <>
-      <PanelContentStack>
+      <NxPanelContentStack>
         <StackItem>
           <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
             <FlexItem grow={{ default: 'grow' }}>
@@ -320,9 +320,9 @@ export function RolesTab() {
         </StackItem>
 
         {roles.length === 0 ? (
-          <AppPageMain isCentered>
+          <NxPageBody isCentered>
             <EmptyStateFilter clearAllFilters={clearAllFilters} />
-          </AppPageMain>
+          </NxPageBody>
         ) : (
           <ScrollableTableContainer
             aria-label="Roles"
@@ -350,7 +350,7 @@ export function RolesTab() {
             />
           </ScrollableTableContainer>
         )}
-      </PanelContentStack>
+      </NxPanelContentStack>
 
       {isAddDialogOpen && <AddRoleDialog onClose={() => setIsAddDialogOpen(false)} onSuccess={handleRolesChanged} />}
 

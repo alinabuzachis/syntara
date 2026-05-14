@@ -1,13 +1,13 @@
 import { Bullseye, Stack, StackItem } from '@patternfly/react-core'
 import { useMemo, useReducer } from 'react'
 
-import { AppPage } from '../../app/AppPage'
-import { AppPageHeader } from '../../app/AppPageHeader'
 import { auditClient } from '../../client'
-import { AppPanel } from '../../components/AppPanel'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters/FilterBar'
+import { NxPage } from '../../components/layout/NxPage'
+import { NxPageHeader } from '../../components/layout/NxPageHeader'
+import { NxPanel } from '../../components/layout/NxPanel'
 import { useQueryState } from '../../components/states/useQueryState'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useTableSort } from '../../hooks/useTableSort'
@@ -108,12 +108,12 @@ export default function AuditLog() {
 
   if (queryState) {
     return (
-      <AppPage>
-        <AppPageHeader title="Audit Log" />
+      <NxPage>
+        <NxPageHeader title="Audit Log" />
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <AppPanel isFullHeight>{queryState}</AppPanel>
+          <NxPanel isFullHeight>{queryState}</NxPanel>
         </StackItem>
-      </AppPage>
+      </NxPage>
     )
   }
 
@@ -131,10 +131,10 @@ export default function AuditLog() {
   }
 
   return (
-    <AppPage>
-      <AppPageHeader title="Audit Log" />
+    <NxPage>
+      <NxPageHeader title="Audit Log" />
       <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-        <AppPanel isFullHeight>
+        <NxPanel isFullHeight>
           <Stack style={{ height: '100%', padding: '0 var(--pf-t--global--spacer--sm)' }}>
             <FilterBar
               fieldDefinitions={filterFieldDefinitions}
@@ -168,8 +168,8 @@ export default function AuditLog() {
               />
             )}
           </Stack>
-        </AppPanel>
+        </NxPanel>
       </StackItem>
-    </AppPage>
+    </NxPage>
   )
 }

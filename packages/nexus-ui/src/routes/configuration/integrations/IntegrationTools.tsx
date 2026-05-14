@@ -13,18 +13,18 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useParams } from 'wouter'
 
-import { AppPage, AppPageMain } from '../../../app/AppPage'
-import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute.tsx'
 import { breadcrumbsIntegrationTools } from '../../../app/breadcrumbBuilders'
 import noToolsImage from '../../../assets/collage-circle-sparkles-window-server-dark-RH.png'
 import { toolManagerClient } from '../../../client'
-import { AppPanel } from '../../../components/AppPanel'
 import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
 import { FilterBar } from '../../../components/filters/FilterBar'
-import { PanelContentStack } from '../../../components/PanelContentStack'
+import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
+import { NxPageHeader } from '../../../components/layout/NxPageHeader'
+import { NxPanel } from '../../../components/layout/NxPanel'
+import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
 import { useCursorPagination, useCursorReset, type UseCursorPaginationResult } from '../../../hooks/useCursorPagination'
@@ -105,8 +105,8 @@ function IntegrationToolsLoadedView({
   refreshDialogOpen,
 }: IntegrationToolsLoadedViewProps) {
   return (
-    <AppPage>
-      <AppPageHeader
+    <NxPage>
+      <NxPageHeader
         title={`${providerName} tools`}
         breadcrumbs={breadcrumbsIntegrationTools(providerName)}
         toolbar={
@@ -132,8 +132,8 @@ function IntegrationToolsLoadedView({
         }
       />
       {results.length === 0 && !hasActiveFilters ? (
-        <AppPageMain>
-          <AppPanel isFullHeight>
+        <NxPageBody>
+          <NxPanel isFullHeight>
             <EmptyStateNoData
               title="No tools available"
               description={`No tools found for "${providerName}". Click the button below to refresh and fetch the latest tools from this integration.`}
@@ -142,12 +142,12 @@ function IntegrationToolsLoadedView({
               imageSrc={noToolsImage}
               imageAlt="No tools available"
             />
-          </AppPanel>
-        </AppPageMain>
+          </NxPanel>
+        </NxPageBody>
       ) : (
-        <AppPageMain>
-          <AppPanel isFullHeight>
-            <PanelContentStack variant="pageGutter">
+        <NxPageBody>
+          <NxPanel isFullHeight>
+            <NxPanelContentStack variant="inset">
               <StackItem>
                 <FilterBar
                   fieldDefinitions={filterFieldDefinitions}
@@ -158,13 +158,13 @@ function IntegrationToolsLoadedView({
               </StackItem>
 
               {results.length === 0 ? (
-                <AppPageMain isCentered>
+                <NxPageBody isCentered>
                   <EmptyStateFilter
                     clearAllFilters={handleClearAllFilters}
                     imageSrc={noToolsImage}
                     imageAlt="No results"
                   />
-                </AppPageMain>
+                </NxPageBody>
               ) : (
                 <ScrollableTableContainer aria-label="Tools table" isExpandable footer={getFooterProps(queryData)}>
                   <Thead>
@@ -203,9 +203,9 @@ function IntegrationToolsLoadedView({
                   </Tbody>
                 </ScrollableTableContainer>
               )}
-            </PanelContentStack>
-          </AppPanel>
-        </AppPageMain>
+            </NxPanelContentStack>
+          </NxPanel>
+        </NxPageBody>
       )}
 
       <ConfirmationDialog
@@ -218,7 +218,7 @@ function IntegrationToolsLoadedView({
         Are you sure you want to refresh tools for &quot;{providerName}&quot;? This will fetch the latest tools from the
         integration.
       </ConfirmationDialog>
-    </AppPage>
+    </NxPage>
   )
 }
 
@@ -375,12 +375,12 @@ export default function IntegrationTools() {
     const toolsTitle = provider?.name ? `${provider.name} tools` : 'Tools'
     const toolsBreadcrumbs = provider?.name ? breadcrumbsIntegrationTools(provider.name) : undefined
     return (
-      <AppPage>
-        <AppPageHeader title={toolsTitle} breadcrumbs={toolsBreadcrumbs} />
-        <AppPageMain>
-          <AppPanel isFullHeight>{integrationQueryStatus}</AppPanel>
-        </AppPageMain>
-      </AppPage>
+      <NxPage>
+        <NxPageHeader title={toolsTitle} breadcrumbs={toolsBreadcrumbs} />
+        <NxPageBody>
+          <NxPanel isFullHeight>{integrationQueryStatus}</NxPanel>
+        </NxPageBody>
+      </NxPage>
     )
   }
 

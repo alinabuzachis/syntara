@@ -4,7 +4,7 @@ import { ReactFlowProvider } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { useEffect, useRef } from 'react'
 
-import { AppPanel } from '../../components/AppPanel'
+import { NxPanel } from '../../components/layout/NxPanel'
 import { useWorkflowStoreActions } from '../../stores/useWorkflowStore'
 import { buildTriggerNodeId } from '../../utils/triggerNodeIds'
 import { useExecutionStoreActions } from '../workflows/stores/useExecutionStore'
@@ -152,7 +152,7 @@ function ExecutionViewContentInner(props: ExecutionViewContentProps) {
   }, [workflow, loadWorkflowWithEdges, setWorkflowInStore, setStoredEdges, executionActivities, executionId])
 
   return (
-    <AppPanel
+    <NxPanel
       hasNoPadding
       isFullHeight
       style={{
@@ -179,7 +179,7 @@ function ExecutionViewContentInner(props: ExecutionViewContentProps) {
           // No-op: cannot delete steps in execution view
         }}
       />
-    </AppPanel>
+    </NxPanel>
   )
 }
 

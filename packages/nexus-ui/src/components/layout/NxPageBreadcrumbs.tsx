@@ -1,8 +1,9 @@
 import { Breadcrumb, BreadcrumbItem } from '@patternfly/react-core'
 import { useSyncExternalStore } from 'react'
 
-import { BreadcrumbCollapsedMiddle } from './AppPageBreadcrumbsCollapsedMiddle'
-import type { AppBreadcrumbItem } from './breadcrumbs/appBreadcrumbItem'
+import type { AppBreadcrumbItem } from '../../app/breadcrumbs/appBreadcrumbItem'
+
+import { NxPageBreadcrumbsCollapsedMiddle } from './NxPageBreadcrumbsCollapsedMiddle'
 
 export type { AppBreadcrumbItem }
 
@@ -29,15 +30,13 @@ function useNarrowViewportForBreadcrumb() {
   return useSyncExternalStore(subscribeNarrowMedia, getNarrowMediaSnapshot, getNarrowMediaServerSnapshot)
 }
 
-type AppPageBreadcrumbsProps = Readonly<{
+type NxPageBreadcrumbsProps = Readonly<{
+  /** Ordered breadcrumb segments. Requires at least two items to render. */
   items: readonly AppBreadcrumbItem[]
 }>
 
-/**
- * PatternFly breadcrumb trail. Parent items are links; the last item is the current page (no link).
- * On narrow viewports, when there are two or more middle segments, they collapse into a dropdown.
- */
-export function AppPageBreadcrumbs(props: AppPageBreadcrumbsProps) {
+/** Breadcrumb trail where parent items are links and the last item is the current page. On narrow viewports, two or more middle segments collapse into a dropdown. */
+export function NxPageBreadcrumbs(props: NxPageBreadcrumbsProps) {
   const { items } = props
   const isNarrow = useNarrowViewportForBreadcrumb()
 
@@ -60,7 +59,7 @@ export function AppPageBreadcrumbs(props: AppPageBreadcrumbsProps) {
           ) : (
             <BreadcrumbItem isActive>{first.label}</BreadcrumbItem>
           )}
-          <BreadcrumbCollapsedMiddle middleItems={middle} />
+          <NxPageBreadcrumbsCollapsedMiddle middleItems={middle} />
           <BreadcrumbItem isActive>{last.label}</BreadcrumbItem>
         </>
       ) : (

@@ -3,7 +3,7 @@ import { Table } from '@patternfly/react-table'
 import type { CSSProperties, ReactNode } from 'react'
 
 import { scrollableTableShellStackStyle } from '../../app/panelContentStackStyle'
-import { AppPanel } from '../AppPanel'
+import { NxPanel } from '../layout/NxPanel'
 
 import { PaginationFooter, type PaginationFooterProps } from './PaginationFooter'
 
@@ -46,7 +46,7 @@ export function ScrollableTableContainer({
         overflow: 'hidden',
       }}
     >
-      <AppPanel hasNoPadding isFullHeight isScrollable style={{ boxShadow: 'none' }}>
+      <NxPanel hasNoPadding isFullHeight isScrollable style={{ boxShadow: 'none' }}>
         <Stack style={scrollableTableShellStackStyle}>
           <StackItem
             isFilled
@@ -85,7 +85,7 @@ export function ScrollableTableContainer({
             </StackItem>
           )}
         </Stack>
-      </AppPanel>
+      </NxPanel>
     </StackItem>
   )
 }

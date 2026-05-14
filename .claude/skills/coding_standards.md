@@ -279,7 +279,7 @@ export function MyListPage() {
   useCursorReset(items.length, hasActiveFilters, cursor, query.isFetching, setCursor)
 
   return (
-    <AppPage>
+    <NxPage>
       <FilterBar ... />
       <ScrollableTableContainer
         footer={getFooterProps(query.data)}
@@ -296,7 +296,7 @@ export function MyListPage() {
       >
         Are you sure?
       </ConfirmationDialog>
-    </AppPage>
+    </NxPage>
   )
 }
 ```

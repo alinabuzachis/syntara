@@ -2,11 +2,11 @@ import { StackItem, Tab, Tabs } from '@patternfly/react-core'
 import { useLayoutEffect } from 'react'
 import { useLocation } from 'wouter'
 
-import { AppPage, AppPageMain } from '../../app/AppPage'
-import { AppPageHeader } from '../../app/AppPageHeader'
 import { AppRoute } from '../../app/AppRoute'
 import { breadcrumbsAccessManagementHub } from '../../app/breadcrumbBuilders'
-import { AppPanel } from '../../components/AppPanel'
+import { NxPage, NxPageBody } from '../../components/layout/NxPage'
+import { NxPageHeader } from '../../components/layout/NxPageHeader'
+import { NxPanel } from '../../components/layout/NxPanel'
 import { AssignmentsTab } from '../access/AssignmentsTab'
 import { CanITab } from '../access/CanITab'
 import { PoliciesTab } from '../access/PoliciesTab'
@@ -51,8 +51,8 @@ export function AccessManagement() {
   }
 
   return (
-    <AppPage>
-      <AppPageHeader title="Access Management" breadcrumbs={hubBreadcrumbs} />
+    <NxPage>
+      <NxPageHeader title="Access Management" breadcrumbs={hubBreadcrumbs} />
       <StackItem style={{ flexShrink: 0 }}>
         <Tabs activeKey={resolvedIndex} onSelect={handleTabSelect}>
           {tabs.map((tab, index) => (
@@ -60,11 +60,11 @@ export function AccessManagement() {
           ))}
         </Tabs>
       </StackItem>
-      <AppPageMain>
-        <AppPanel isFullHeight>
+      <NxPageBody>
+        <NxPanel isFullHeight>
           <ActiveTabComponent />
-        </AppPanel>
-      </AppPageMain>
-    </AppPage>
+        </NxPanel>
+      </NxPageBody>
+    </NxPage>
   )
 }

@@ -219,7 +219,7 @@ Let's add a console.log to understand the data flow:
 
 **Try also** (optional):
 
-- Change the page title in `Workflows.tsx` (look for `AppPageHeader`)
+- Change the page title in `Workflows.tsx` (look for `NxPageHeader`)
 - Add a `console.log` in `BuilderContent.tsx` inside the `useEffect` that loads the workflow
 
 ### 4. Read the workflow builder section below
@@ -389,7 +389,7 @@ const { workflowId } = useParams()
 
 **Page breadcrumbs (location hierarchy):**
 
-- [`AppPageHeader`](packages/nexus-ui/src/app/AppPageHeader.tsx) accepts a required string `title` (default `h1`), optional `breadcrumbs` (PatternFly `Breadcrumb` above the title when there are at least two items), optional `toolbar` for actions (laid out right-aligned via an internal spacer—callers should not add their own `FlexItem grow`), optional `projectSelector` and other title-row slots (`titleLeading`, `titleAddons`), and `titleSlot` for rare full-width custom title rows (e.g. the workflow builder).
+- [`NxPageHeader`](packages/nexus-ui/src/components/layout/NxPageHeader.tsx) accepts a required string `title` (default `h1`), optional `breadcrumbs` (PatternFly `Breadcrumb` above the title when there are at least two items), optional `toolbar` for actions (laid out right-aligned via an internal spacer—callers should not add their own `FlexItem grow`), optional `projectSelector` and other title-row slots (`titleLeading`, `titleAddons`), and `titleSlot` for rare full-width custom title rows (e.g. the workflow builder).
 - Trails are built with helpers in [`breadcrumbBuilders.ts`](packages/nexus-ui/src/app/breadcrumbBuilders.ts); links use `href` values from [`AppRoute.tsx`](packages/nexus-ui/src/app/AppRoute.tsx).
 - **Visibility**: nothing is rendered unless there are **at least two** items. The **last** item omits `href` and represents the current page (including tab-specific labels on detail views).
 - **Default tab**: On entity detail routes where the URL without a trailing segment is the same as the default tab (e.g. `…/projects/:id` and `…/projects/:id/details` both mean “Details”), the trail ends at the **entity name** so the parent link is not redundant with the current page.
@@ -610,7 +610,7 @@ The builder edits nodes + edges directly in the Zustand store. On save, `buildWo
 | `utils/buildNestedStructure.ts`                   | Legacy wrapper (identity function in v2 — returns activities as-is)                                                      |
 | `utils/validation/`                               | Validation rules                                                                                                         |
 
-Floating canvas surfaces (controls, legend, step nodes, undo/redo) use [`AppPanel`](../packages/nexus-ui/src/components/AppPanel.tsx) so they stay readable under the glass theme: compact overlays use `variant="raised"`; large flat panels (for example the node editor shell) use `opaqueFloatingFill` instead of raised chrome.
+Floating canvas surfaces (controls, legend, step nodes, undo/redo) use [`NxPanel`](../packages/nexus-ui/src/components/layout/NxPanel.tsx) so they stay readable under the glass theme: compact overlays use `variant="raised"`; large flat panels (for example the node editor shell) use `opaqueFloatingFill` instead of raised chrome.
 
 ### Builder internals (advanced): registry, edges, and graph semantics
 

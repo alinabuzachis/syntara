@@ -22,7 +22,7 @@ import { flexCenteredBothAxes } from '../../../app/flexCenteredBothAxes'
 import { usersClient } from '../../../client'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { FilterBar } from '../../../components/filters/FilterBar'
-import { PanelContentStack } from '../../../components/PanelContentStack'
+import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
 import { type PaginationFooterProps } from '../../../components/table/PaginationFooter'
 import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
 import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
@@ -88,7 +88,7 @@ function UsersStep({
   const hasActiveFilters = usersFilter.filters.length > 0
 
   return (
-    <PanelContentStack>
+    <NxPanelContentStack>
       <StackItem>
         <FilterBar
           fieldDefinitions={userFilterDefs}
@@ -135,7 +135,7 @@ function UsersStep({
           </Tbody>
         </ScrollableTableContainer>
       )}
-    </PanelContentStack>
+    </NxPanelContentStack>
   )
 }
 
@@ -169,7 +169,7 @@ function IdentitiesStep({
   const hasActiveFilters = identitiesFilter.filters.length > 0
 
   return (
-    <PanelContentStack>
+    <NxPanelContentStack>
       <StackItem>
         <Flex
           alignItems={{ default: 'alignItemsCenter' }}
@@ -279,7 +279,7 @@ function IdentitiesStep({
           </ScrollableTableContainer>
         </div>
       )}
-    </PanelContentStack>
+    </NxPanelContentStack>
   )
 }
 

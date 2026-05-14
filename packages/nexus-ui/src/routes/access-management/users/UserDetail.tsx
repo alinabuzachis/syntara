@@ -17,12 +17,12 @@ import { RhUiEditIcon } from '@patternfly/react-icons'
 import { useParams } from 'wouter'
 import { navigate } from 'wouter/use-browser-location'
 
-import { AppPage, AppPageMain } from '../../../app/AppPage'
-import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
 import { breadcrumbsUserDetail, breadcrumbsUserDetailEarlyShell } from '../../../app/breadcrumbBuilders'
 import { authClient } from '../../../client'
-import { AppPanel } from '../../../components/AppPanel'
+import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
+import { NxPageHeader } from '../../../components/layout/NxPageHeader'
+import { NxPanel } from '../../../components/layout/NxPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { UrlTabs } from '../../../components/UrlTabs'
 import { useUrlTab } from '../../../hooks/useUrlTab'
@@ -226,8 +226,8 @@ export function UserDetail() {
   const userBreadcrumbs = breadcrumbsUserDetail(userDisplayName, basePath, activeTab)
 
   return (
-    <AppPage>
-      <AppPageHeader
+    <NxPage>
+      <NxPageHeader
         title={userDisplayName}
         breadcrumbs={userBreadcrumbs}
         titleAddons={
@@ -272,8 +272,8 @@ export function UserDetail() {
           />
         </UrlTabs>
       </StackItem>
-      <AppPageMain>
-        <AppPanel isFullHeight>
+      <NxPageBody>
+        <NxPanel isFullHeight>
           {activeTab === 'details' && <UserDetailsTab user={userData} identities={identitiesData} />}
           {activeTab === 'groups' && <UserGroupsPanel userId={userId ?? ''} />}
           {activeTab === 'identities' && (
@@ -286,8 +286,8 @@ export function UserDetail() {
             />
           )}
           {activeTab === 'roles' && <RoleAssignmentsPanel principalType="user" principalId={userId ?? ''} />}
-        </AppPanel>
-      </AppPageMain>
-    </AppPage>
+        </NxPanel>
+      </NxPageBody>
+    </NxPage>
   )
 }

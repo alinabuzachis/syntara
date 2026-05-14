@@ -3,7 +3,7 @@ import { Label } from '@patternfly/react-core'
 import { Handle, type NodeProps, Position } from '@xyflow/react'
 import React, { useEffect, useMemo, useState } from 'react'
 
-import { AppPanel } from '../../../../../components/AppPanel'
+import { NxPanel } from '../../../../../components/layout/NxPanel'
 import { FlowNodeType } from '../../../../../constants'
 import { ExecutionStatusBadge } from '../../../../builder/components/ExecutionStatusBadge'
 import type { ActivityStatus } from '../../../execution/types'
@@ -179,7 +179,7 @@ export function NodeComponent(props: {
 
   return (
     <NodeExpandedContext.Provider value={expandedContext}>
-      <AppPanel
+      <NxPanel
         hasNoPadding
         variant="raised"
         className={props.className}
@@ -253,7 +253,7 @@ export function NodeComponent(props: {
             }}
           />
         )}
-      </AppPanel>
+      </NxPanel>
     </NodeExpandedContext.Provider>
   )
 }

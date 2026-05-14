@@ -3,11 +3,11 @@ import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../../app/AppRoute.tsx'
 import noDataImage from '../../../assets/collage-circle-sparkles-window-server-dark-RH.png'
-import { AppPanel } from '../../../components/AppPanel'
+import { NxPanel } from '../../../components/layout/NxPanel.tsx'
 
 export function IntegrationEmptyState() {
   return (
-    <AppPanel isFullHeight>
+    <NxPanel isFullHeight>
       <Flex
         alignItems={{ default: 'alignItemsCenter' }}
         justifyContent={{ default: 'justifyContentFlexStart' }}
@@ -37,6 +37,6 @@ export function IntegrationEmptyState() {
           </Flex>
         </FlexItem>
       </Flex>
-    </AppPanel>
+    </NxPanel>
   )
 }

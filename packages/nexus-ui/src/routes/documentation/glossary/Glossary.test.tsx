@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { axe } from 'vitest-axe'
 
 import Glossary from './Glossary'
 import { useGlossaryTerms } from './useGlossaryTerms'
@@ -88,6 +89,22 @@ describe('Glossary', () => {
     expect(screen.getByText('Workflow')).toBeInTheDocument()
   })
 
+  it('clicking the SearchInput reset button (onClear) restores all terms', async () => {
+    const user = userEvent.setup()
+    render(<Glossary />)
+
+    await user.type(screen.getByPlaceholderText('Search glossary...'), 'Alpha')
+    expect(screen.queryByText('Beta')).not.toBeInTheDocument()
+
+    // PF6 SearchInput renders a "Reset" button when the value is non-empty
+    const resetButton = screen.getByRole('button', { name: /reset/i })
+    await user.click(resetButton)
+
+    expect(screen.getByText('Alpha')).toBeInTheDocument()
+    expect(screen.getByText('Beta')).toBeInTheDocument()
+    expect(screen.getByText('Workflow')).toBeInTheDocument()
+  })
+
   it('empty state clear filters restores all terms', async () => {
     const user = userEvent.setup()
     render(<Glossary />)
@@ -101,5 +118,55 @@ describe('Glossary', () => {
     expect(screen.getByText('Alpha')).toBeInTheDocument()
     expect(screen.getByText('Beta')).toBeInTheDocument()
     expect(screen.getByText('Workflow')).toBeInTheDocument()
+  })
+
+  it('renders with empty terms list showing empty state immediately', () => {
+    vi.mocked(useGlossaryTerms).mockReturnValue([])
+    render(<Glossary />)
+
+    // With no terms, results are empty → shows EmptyStateFilter
+    expect(screen.getByText('No results found')).toBeInTheDocument()
+  })
+
+  it('re-renders when terms change (triggers useMemo recomputation)', () => {
+    const { rerender } = render(<Glossary />)
+    expect(screen.getByText('Alpha')).toBeInTheDocument()
+
+    // Update terms to a new array - forces useMemo recomputation
+    vi.mocked(useGlossaryTerms).mockReturnValue([
+      { term: 'Delta', definition: 'Fourth letter' },
+      { term: 'Epsilon', definition: 'Fifth letter' },
+    ])
+    rerender(<Glossary />)
+
+    expect(screen.getByText('Delta')).toBeInTheDocument()
+    expect(screen.getByText('Epsilon')).toBeInTheDocument()
+    expect(screen.queryByText('Alpha')).not.toBeInTheDocument()
+  })
+
+  it('has no accessibility violations when showing results', async () => {
+    const { container } = render(<Glossary />)
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
+
+  it('has no accessibility violations when showing empty state', async () => {
+    const user = userEvent.setup()
+    const { container } = render(<Glossary />)
+
+    await user.type(screen.getByPlaceholderText('Search glossary...'), 'xyznonexistent')
+
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
+
+  it('calls onChange handler when typing in search', async () => {
+    const user = userEvent.setup()
+    render(<Glossary />)
+
+    const input = screen.getByPlaceholderText('Search glossary...')
+    await user.type(input, 'A')
+
+    expect(input).toHaveValue('A')
   })
 })

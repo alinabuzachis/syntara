@@ -38,6 +38,9 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       strictPort: true,
       proxy: proxyConfig,
+      watch: {
+        ignored: ['**/coverage/**'],
+      },
     },
     preview: {
       host: true,

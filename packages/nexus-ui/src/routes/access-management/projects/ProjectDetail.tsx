@@ -14,11 +14,11 @@ import {
 import { useParams } from 'wouter'
 import { navigate } from 'wouter/use-browser-location'
 
-import { AppPage, AppPageMain } from '../../../app/AppPage'
-import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
 import { breadcrumbsProjectDetail, breadcrumbsProjectDetailEarlyShell } from '../../../app/breadcrumbBuilders'
-import { AppPanel } from '../../../components/AppPanel'
+import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
+import { NxPageHeader } from '../../../components/layout/NxPageHeader'
+import { NxPanel } from '../../../components/layout/NxPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { UrlTabs } from '../../../components/UrlTabs'
 import { useUrlTab } from '../../../hooks/useUrlTab'
@@ -134,8 +134,8 @@ export function ProjectDetail() {
   const projectCrumbs = breadcrumbsProjectDetail(projectData.name, basePath, activeTab)
 
   return (
-    <AppPage>
-      <AppPageHeader title={projectData.name} breadcrumbs={projectCrumbs} />
+    <NxPage>
+      <NxPageHeader title={projectData.name} breadcrumbs={projectCrumbs} />
       <StackItem style={{ flexShrink: 0 }}>
         <UrlTabs basePath={basePath} defaultTab="details" validTabs={PROJECT_TABS} aria-label="Project details">
           <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />
@@ -144,14 +144,14 @@ export function ProjectDetail() {
           <Tab eventKey="role-assignments" title={<TabTitleText>Role Assignments</TabTitleText>} />
         </UrlTabs>
       </StackItem>
-      <AppPageMain>
-        <AppPanel isFullHeight>
+      <NxPageBody>
+        <NxPanel isFullHeight>
           {activeTab === 'details' && <ProjectDetailsTab project={projectData} />}
           {activeTab === 'role-assignments' && <ProjectRoleAssignmentsTab projectId={projectId ?? ''} />}
           {activeTab === 'roles' && <ProjectRolesTab projectId={projectId ?? ''} />}
           {activeTab === 'policies' && <ProjectPoliciesTab projectId={projectId ?? ''} />}
-        </AppPanel>
-      </AppPageMain>
-    </AppPage>
+        </NxPanel>
+      </NxPageBody>
+    </NxPage>
   )
 }

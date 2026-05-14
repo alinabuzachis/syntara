@@ -13,7 +13,7 @@ import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters/FilterBar'
 import { IconLabel } from '../../components/IconLabel'
-import { PanelContentStack } from '../../components/PanelContentStack'
+import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
 import { useQueryState } from '../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
@@ -140,7 +140,7 @@ export function UsersTab() {
 
   return (
     <>
-      <PanelContentStack hasGutter>
+      <NxPanelContentStack hasGutter>
         <StackItem>
           {builtinUser && (
             <BuiltInAdminCard
@@ -215,7 +215,7 @@ export function UsersTab() {
             </Tbody>
           </ScrollableTableContainer>
         )}
-      </PanelContentStack>
+      </NxPanelContentStack>
       <ConfirmationDialog
         isOpen={deleteDialog.isOpen}
         onClose={deleteDialog.close}

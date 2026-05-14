@@ -17,8 +17,8 @@ import {
 } from '@patternfly/react-core'
 import { RhUiCodeIcon, RhUiCloseIcon } from '@patternfly/react-icons'
 
-import { AppPanel } from '../../components/AppPanel'
 import { CodeBlock } from '../../components/details/CodeBlock'
+import { NxPanel } from '../../components/layout/NxPanel'
 
 type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersion']
 
@@ -33,7 +33,7 @@ type WorkflowSidepanelProps = {
 
 export function WorkflowSidepanel(props: WorkflowSidepanelProps) {
   return (
-    <AppPanel style={{ width: '32rem' }} isFullHeight isScrollable>
+    <NxPanel style={{ width: '32rem' }} isFullHeight isScrollable>
       <Stack hasGutter>
         <StackItem>
           <Flex alignItems={{ default: 'alignItemsCenter' }} justifyContent={{ default: 'justifyContentSpaceBetween' }}>
@@ -92,6 +92,6 @@ export function WorkflowSidepanel(props: WorkflowSidepanelProps) {
           </DescriptionList>
         </StackItem>
       </Stack>
-    </AppPanel>
+    </NxPanel>
   )
 }

@@ -2,14 +2,14 @@ import type { Approval } from '@ansible/nexus-contracts'
 import { StackItem } from '@patternfly/react-core'
 import { useMemo, useReducer, useState } from 'react'
 
-import { AppPage, AppPageMain } from '../../app/AppPage'
-import { AppPageHeader } from '../../app/AppPageHeader'
 import { approvalsClient } from '../../client'
-import { AppPanel } from '../../components/AppPanel'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters/FilterBar'
-import { PanelContentStack } from '../../components/PanelContentStack'
+import { NxPage, NxPageBody } from '../../components/layout/NxPage'
+import { NxPageHeader } from '../../components/layout/NxPageHeader'
+import { NxPanel } from '../../components/layout/NxPanel'
+import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
 import { useQueryState } from '../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
@@ -216,12 +216,12 @@ export default function Approvals() {
   // Show query state (loading/error)
   if (queryState) {
     return (
-      <AppPage>
-        <AppPageHeader title="Approvals" projectSelector={ProjectSelector} />
-        <AppPageMain>
-          <AppPanel isFullHeight>{queryState}</AppPanel>
-        </AppPageMain>
-      </AppPage>
+      <NxPage>
+        <NxPageHeader title="Approvals" projectSelector={ProjectSelector} />
+        <NxPageBody>
+          <NxPanel isFullHeight>{queryState}</NxPanel>
+        </NxPageBody>
+      </NxPage>
     )
   }
 
@@ -239,12 +239,12 @@ export default function Approvals() {
   }
 
   return (
-    <AppPage>
-      <AppPageHeader title="Approvals" projectSelector={ProjectSelector} />
+    <NxPage>
+      <NxPageHeader title="Approvals" projectSelector={ProjectSelector} />
 
-      <AppPageMain>
-        <AppPanel isFullHeight>
-          <PanelContentStack variant="pageGutter">
+      <NxPageBody>
+        <NxPanel isFullHeight>
+          <NxPanelContentStack variant="inset">
             <StackItem>
               <FilterBar
                 fieldDefinitions={filterFieldDefinitions}
@@ -255,7 +255,7 @@ export default function Approvals() {
             </StackItem>
 
             {sortedApprovals.length === 0 ? (
-              <AppPageMain isCentered>
+              <NxPageBody isCentered>
                 {hasActiveFilters ? (
                   <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
                 ) : (
@@ -264,7 +264,7 @@ export default function Approvals() {
                     description="No approvals are currently pending or available."
                   />
                 )}
-              </AppPageMain>
+              </NxPageBody>
             ) : (
               <ScrollableTableContainer
                 aria-label="Approvals table"
@@ -294,9 +294,9 @@ export default function Approvals() {
                 )}
               </ScrollableTableContainer>
             )}
-          </PanelContentStack>
-        </AppPanel>
-      </AppPageMain>
-    </AppPage>
+          </NxPanelContentStack>
+        </NxPanel>
+      </NxPageBody>
+    </NxPage>
   )
 }

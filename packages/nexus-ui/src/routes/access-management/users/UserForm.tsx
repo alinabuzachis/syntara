@@ -6,12 +6,12 @@ import type { Control } from 'react-hook-form'
 import { useForm, useWatch } from 'react-hook-form'
 import { navigate } from 'wouter/use-browser-location'
 
-import { AppPage, AppPageMain } from '../../../app/AppPage'
-import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
 import { breadcrumbsCreateUser, breadcrumbsEditUser, breadcrumbsUserFormLoading } from '../../../app/breadcrumbBuilders'
 import type { AppBreadcrumbItem } from '../../../app/breadcrumbs/appBreadcrumbItem'
-import { AppPanel } from '../../../components/AppPanel'
+import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
+import { NxPageHeader } from '../../../components/layout/NxPageHeader'
+import { NxPanel } from '../../../components/layout/NxPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { detachPromise } from '../../../utils/detachPromise'
 import { userFormSchema, userCreateSchema, type UserFormData } from '../userFormSchema'
@@ -133,7 +133,7 @@ function UserFormMainPanel({
   onFormSubmit,
 }: Readonly<UserFormMainPanelProps>) {
   return (
-    <AppPanel isFullHeight panelMainBodyProps={{ style: { padding: 'var(--pf-t--global--spacer--xl)' } }}>
+    <NxPanel isFullHeight panelMainBodyProps={{ style: { padding: 'var(--pf-t--global--spacer--xl)' } }}>
       <Stack hasGutter style={{ maxWidth: '600px' }}>
         <UserFormWarningAlerts
           showDisableWarning={showDisableWarning}
@@ -153,31 +153,31 @@ function UserFormMainPanel({
           </Form>
         </StackItem>
       </Stack>
-    </AppPanel>
+    </NxPanel>
   )
 }
 
 function UserFormEditNotFoundPage({ onBack, onRetry }: Readonly<{ onBack: () => void; onRetry: () => void }>) {
   return (
-    <AppPage>
-      <AppPageHeader title="Edit User" breadcrumbs={breadcrumbsUserFormLoading('Edit user')} />
-      <AppPageMain>
-        <AppPanel isFullHeight>
+    <NxPage>
+      <NxPageHeader title="Edit User" breadcrumbs={breadcrumbsUserFormLoading('Edit user')} />
+      <NxPageBody>
+        <NxPanel isFullHeight>
           <UserNotFoundState onBack={onBack} onRetry={onRetry} />
-        </AppPanel>
-      </AppPageMain>
-    </AppPage>
+        </NxPanel>
+      </NxPageBody>
+    </NxPage>
   )
 }
 
 function UserFormEditBusyPage({ pageTitle, children }: Readonly<{ pageTitle: string; children: ReactNode }>) {
   return (
-    <AppPage>
-      <AppPageHeader title={pageTitle} breadcrumbs={breadcrumbsUserFormLoading(pageTitle)} />
-      <AppPageMain>
-        <AppPanel isFullHeight>{children}</AppPanel>
-      </AppPageMain>
-    </AppPage>
+    <NxPage>
+      <NxPageHeader title={pageTitle} breadcrumbs={breadcrumbsUserFormLoading(pageTitle)} />
+      <NxPageBody>
+        <NxPanel isFullHeight>{children}</NxPanel>
+      </NxPageBody>
+    </NxPage>
   )
 }
 
@@ -246,8 +246,8 @@ export function UserForm({ mode }: Readonly<UserFormProps>) {
   const formBreadcrumbs = userFormBreadcrumbTrail(isEdit, pageTitle, userId, userQuery.data)
 
   return (
-    <AppPage>
-      <AppPageHeader
+    <NxPage>
+      <NxPageHeader
         title={pageTitle}
         breadcrumbs={formBreadcrumbs}
         toolbar={
@@ -259,7 +259,7 @@ export function UserForm({ mode }: Readonly<UserFormProps>) {
           />
         }
       />
-      <AppPageMain>
+      <NxPageBody>
         <UserFormMainPanel
           control={control}
           isEdit={isEdit}
@@ -271,7 +271,7 @@ export function UserForm({ mode }: Readonly<UserFormProps>) {
           showPasswordWarning={showPasswordWarning}
           onFormSubmit={handleSubmit(onSubmit)}
         />
-      </AppPageMain>
-    </AppPage>
+      </NxPageBody>
+    </NxPage>
   )
 }

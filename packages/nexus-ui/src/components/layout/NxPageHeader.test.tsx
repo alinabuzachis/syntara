@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { AppPageHeader } from './AppPageHeader'
+import { NxPageHeader } from './NxPageHeader'
 
 beforeEach(() => {
   vi.stubGlobal(
@@ -21,22 +21,22 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('AppPageHeader', () => {
+describe('NxPageHeader', () => {
   it('renders string title as heading', () => {
-    render(<AppPageHeader title="Test Title" />)
+    render(<NxPageHeader title="Test Title" />)
 
     expect(screen.getByRole('heading', { name: 'Test Title' })).toBeInTheDocument()
   })
 
   it('renders without toolbar when toolbar is omitted', () => {
-    render(<AppPageHeader title="No Toolbar" />)
+    render(<NxPageHeader title="No Toolbar" />)
 
     expect(screen.queryByRole('toolbar')).not.toBeInTheDocument()
   })
 
   it('renders toolbar actions', () => {
     render(
-      <AppPageHeader
+      <NxPageHeader
         title="With Actions"
         toolbar={
           <>
@@ -52,14 +52,14 @@ describe('AppPageHeader', () => {
   })
 
   it('renders heading at h1 level', () => {
-    render(<AppPageHeader title="Main Heading" />)
+    render(<NxPageHeader title="Main Heading" />)
 
     const heading = screen.getByRole('heading', { level: 1 })
     expect(heading).toHaveTextContent('Main Heading')
   })
 
   it('does not render breadcrumbs when fewer than two items', () => {
-    render(<AppPageHeader title="Page" breadcrumbs={[{ label: 'Only' }]} />)
+    render(<NxPageHeader title="Page" breadcrumbs={[{ label: 'Only' }]} />)
 
     expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Page' })).toBeInTheDocument()
@@ -67,7 +67,7 @@ describe('AppPageHeader', () => {
 
   it('renders breadcrumbs above the title when two or more items', () => {
     render(
-      <AppPageHeader
+      <NxPageHeader
         title="Create user"
         breadcrumbs={[
           { label: 'Access management', href: '/system-administration/access-management' },
@@ -87,7 +87,7 @@ describe('AppPageHeader', () => {
 
   it('has no accessibility violations with breadcrumbs', async () => {
     const { container } = render(
-      <AppPageHeader
+      <NxPageHeader
         title="Settings"
         breadcrumbs={[
           { label: 'Configuration', href: '/configuration/integrations' },

@@ -1,7 +1,7 @@
 import { Button, Flex, FlexItem, TextInput } from '@patternfly/react-core'
 import { useState, type Dispatch, type ReactNode } from 'react'
 
-import { AppPageHeader } from '../../app/AppPageHeader'
+import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
 
 import { BuilderEditorToolbar } from './BuilderEditorToolbar'
@@ -94,7 +94,7 @@ function BuilderToolbarContent({
  * Follow-up: consider grouping (e.g. `toolbarHandlers`) or builder-scoped context to trim prop drilling
  * without re-inflating `BuilderContent` cognitive complexity — see PR review discussion.
  */
-export type BuilderWorkflowAppPageHeaderProps = Readonly<{
+export type BuilderWorkflowPageHeaderProps = Readonly<{
   workflowName: string
   workflowDescription: string
   workflowTags: string[]
@@ -120,7 +120,7 @@ export type BuilderWorkflowAppPageHeaderProps = Readonly<{
 /**
  * Builder page title row (name, project, details) and primary toolbar actions.
  */
-export function BuilderWorkflowAppPageHeader({
+export function BuilderWorkflowPageHeader({
   workflowName,
   workflowDescription,
   workflowTags,
@@ -141,7 +141,7 @@ export function BuilderWorkflowAppPageHeader({
   handleToggleHistory,
   handleToggleDetails,
   handleSaveWorkflow,
-}: BuilderWorkflowAppPageHeaderProps) {
+}: BuilderWorkflowPageHeaderProps) {
   const [isSavingToggle, setIsSavingToggle] = useState(false)
   const [enableConfirmOpen, setEnableConfirmOpen] = useState(false)
   const [pendingEnableState, setPendingEnableState] = useState<boolean | null>(null)
@@ -174,7 +174,7 @@ export function BuilderWorkflowAppPageHeader({
 
   return (
     <>
-      <AppPageHeader
+      <NxPageHeader
         title={workflowName}
         titleSlot={
           <Flex

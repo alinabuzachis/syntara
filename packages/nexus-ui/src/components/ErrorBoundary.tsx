@@ -1,9 +1,8 @@
 import { Component, type ReactNode } from 'react'
 
-import { AppPage, AppPageMain } from '../app/AppPage'
-import { AppPageHeader } from '../app/AppPageHeader'
-
-import { AppPanel } from './AppPanel'
+import { NxPage, NxPageBody } from './layout/NxPage'
+import { NxPageHeader } from './layout/NxPageHeader'
+import { NxPanel } from './layout/NxPanel'
 import { ErrorState } from './states/ErrorState'
 
 type ErrorBoundaryProps = {
@@ -37,17 +36,17 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       }
 
       return (
-        <AppPage>
-          <AppPageHeader title="Something went wrong" />
-          <AppPageMain>
-            <AppPanel isFullHeight>
+        <NxPage>
+          <NxPageHeader title="Something went wrong" />
+          <NxPageBody>
+            <NxPanel isFullHeight>
               <ErrorState
                 title="Something went wrong"
                 message={this.state.error?.message ?? 'An unexpected error occurred'}
               />
-            </AppPanel>
-          </AppPageMain>
-        </AppPage>
+            </NxPanel>
+          </NxPageBody>
+        </NxPage>
       )
     }
 

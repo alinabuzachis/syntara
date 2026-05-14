@@ -2,8 +2,8 @@ import { getNodeOutputSchema, TriggerTypeEnum, type OutputFieldDef } from '@ansi
 import { ExpandableSection, Stack, StackItem, Title } from '@patternfly/react-core'
 import { useEffect, useMemo, useState } from 'react'
 
-import { AppPageMain } from '../../../app/AppPage'
-import { AppPanel } from '../../../components/AppPanel'
+import { NxPageBody } from '../../../components/layout/NxPage'
+import { NxPanel } from '../../../components/layout/NxPanel'
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import { selectActivities, selectTriggers } from '../../../stores/workflowStoreSelectors'
 import { parseTriggerIndex } from '../../../utils/triggerNodeIds'
@@ -146,7 +146,7 @@ export function InputPanel({ nodeId, executionData, sourceNodeId }: Readonly<Inp
   }
 
   return (
-    <AppPanel
+    <NxPanel
       variant="raised"
       isFullHeight
       className={styles.panelContainer}
@@ -173,7 +173,7 @@ export function InputPanel({ nodeId, executionData, sourceNodeId }: Readonly<Inp
               />
             </StackItem>
           )}
-          <AppPageMain className={styles.scrollableContent}>
+          <NxPageBody className={styles.scrollableContent}>
             <ExpandableSection
               toggleText={nodeSectionTitle}
               isIndented
@@ -190,9 +190,9 @@ export function InputPanel({ nodeId, executionData, sourceNodeId }: Readonly<Inp
             >
               <VariablesAndContextTree />
             </ExpandableSection>
-          </AppPageMain>
+          </NxPageBody>
         </Stack>
       )}
-    </AppPanel>
+    </NxPanel>
   )
 }

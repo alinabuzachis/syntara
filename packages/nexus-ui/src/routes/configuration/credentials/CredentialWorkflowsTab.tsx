@@ -13,11 +13,11 @@ import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import { useCallback, useState } from 'react'
 import { useLocation } from 'wouter'
 
-import { AppPageMain } from '../../../app/AppPage'
 import { AppRoute } from '../../../app/AppRoute'
 import { stackPaddingLgOnlyStyle } from '../../../app/panelContentStackStyle'
 import { credentialsClient } from '../../../client'
-import { PanelContentStack } from '../../../components/PanelContentStack'
+import { NxPageBody } from '../../../components/layout/NxPage'
+import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
 import { formatDateTime } from '../../../utils/dateUtils'
@@ -85,8 +85,8 @@ export function CredentialWorkflowsTab({ credentialId }: Readonly<CredentialWork
   const paginatedWorkflows = workflows.slice((page - 1) * perPage, page * perPage)
 
   return (
-    <PanelContentStack variant="credentialDetailTab">
-      <AppPageMain style={{ overflow: 'auto' }}>
+    <NxPanelContentStack style={{ padding: 'var(--pf-t--global--spacer--lg)' }}>
+      <NxPageBody style={{ overflow: 'auto' }}>
         <ScrollableTableContainer
           aria-label="Workflows using this credential"
           footer={{
@@ -151,7 +151,7 @@ export function CredentialWorkflowsTab({ credentialId }: Readonly<CredentialWork
             ))}
           </Tbody>
         </ScrollableTableContainer>
-      </AppPageMain>
-    </PanelContentStack>
+      </NxPageBody>
+    </NxPanelContentStack>
   )
 }

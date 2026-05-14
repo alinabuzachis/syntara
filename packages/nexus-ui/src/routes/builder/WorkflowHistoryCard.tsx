@@ -19,10 +19,10 @@ import {
 import { RhUiHistoryIcon, RhUiCloseIcon } from '@patternfly/react-icons'
 import { useMemo, type CSSProperties, type ReactNode } from 'react'
 
-import pageMainSlotStyles from '../../app/AppPage.module.css'
-import { AppPanel } from '../../components/AppPanel'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { FilterBar } from '../../components/filters/FilterBar'
+import pageMainSlotStyles from '../../components/layout/NxPage.module.css'
+import { NxPanel } from '../../components/layout/NxPanel'
 import { useElapsedTime } from '../../hooks/useElapsedTime'
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { formatElapsedTime } from '../../utils/dateUtils'
@@ -177,7 +177,7 @@ export function WorkflowHistoryCard(props: WorkflowHistoryCardProps) {
   }
 
   return (
-    <AppPanel
+    <NxPanel
       hasNoPadding
       isFullHeight
       style={{
@@ -247,6 +247,6 @@ export function WorkflowHistoryCard(props: WorkflowHistoryCardProps) {
           </StackItem>
         </Stack>
       </div>
-    </AppPanel>
+    </NxPanel>
   )
 }

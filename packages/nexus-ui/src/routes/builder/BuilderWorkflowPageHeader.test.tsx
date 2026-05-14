@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { BuilderWorkflowAppPageHeader } from './BuilderWorkflowAppPageHeader'
+import { BuilderWorkflowPageHeader } from './BuilderWorkflowPageHeader'
 
 const mockWorkflowStoreState = vi.hoisted(() => ({
   isDirty: false,
@@ -15,7 +15,7 @@ vi.mock('../../stores/useWorkflowStore', () => ({
   },
 }))
 
-describe('BuilderWorkflowAppPageHeader', () => {
+describe('BuilderWorkflowPageHeader', () => {
   const baseProps = {
     workflowName: 'wf',
     workflowDescription: '',
@@ -39,14 +39,14 @@ describe('BuilderWorkflowAppPageHeader', () => {
   })
 
   it('has no accessibility violations in editor mode', async () => {
-    const { container } = render(<BuilderWorkflowAppPageHeader {...baseProps} />)
+    const { container } = render(<BuilderWorkflowPageHeader {...baseProps} />)
     expect(await axe(container)).toHaveNoViolations()
   })
 
   it('shows Back to editor button during live run and hides toolbar', () => {
     const onBackToEditor = vi.fn()
     render(
-      <BuilderWorkflowAppPageHeader
+      <BuilderWorkflowPageHeader
         {...baseProps}
         isNew={false}
         workflow={{ id: 'workflow-1' }}
@@ -68,7 +68,7 @@ describe('BuilderWorkflowAppPageHeader', () => {
     const onBackToEditor = vi.fn()
     const onReviewApproval = vi.fn()
     render(
-      <BuilderWorkflowAppPageHeader
+      <BuilderWorkflowPageHeader
         {...baseProps}
         isNew={false}
         workflow={{ id: 'workflow-1' }}
@@ -88,7 +88,7 @@ describe('BuilderWorkflowAppPageHeader', () => {
     const dispatch = vi.fn()
     const markDirty = vi.fn()
 
-    render(<BuilderWorkflowAppPageHeader {...baseProps} dispatch={dispatch} markDirty={markDirty} />)
+    render(<BuilderWorkflowPageHeader {...baseProps} dispatch={dispatch} markDirty={markDirty} />)
 
     const nameInput = screen.getByRole('textbox', { name: /Workflow name/i })
     await user.type(nameInput, 'Updated')
@@ -105,7 +105,7 @@ describe('BuilderWorkflowAppPageHeader', () => {
     mockWorkflowStoreState.isDirty = false
 
     render(
-      <BuilderWorkflowAppPageHeader
+      <BuilderWorkflowPageHeader
         {...baseProps}
         isNew={false}
         workflow={{ id: 'workflow-1' }}
@@ -130,7 +130,7 @@ describe('BuilderWorkflowAppPageHeader', () => {
     mockWorkflowStoreState.isDirty = true
 
     render(
-      <BuilderWorkflowAppPageHeader
+      <BuilderWorkflowPageHeader
         {...baseProps}
         isNew={false}
         workflow={{ id: 'workflow-1' }}
@@ -152,7 +152,7 @@ describe('BuilderWorkflowAppPageHeader', () => {
     mockWorkflowStoreState.isDirty = true
 
     render(
-      <BuilderWorkflowAppPageHeader
+      <BuilderWorkflowPageHeader
         {...baseProps}
         isNew={false}
         workflow={{ id: 'workflow-1' }}
@@ -181,7 +181,7 @@ describe('BuilderWorkflowAppPageHeader', () => {
     mockWorkflowStoreState.isDirty = false
 
     render(
-      <BuilderWorkflowAppPageHeader
+      <BuilderWorkflowPageHeader
         {...baseProps}
         isNew={false}
         workflow={{ id: 'workflow-1' }}
@@ -213,7 +213,7 @@ describe('BuilderWorkflowAppPageHeader', () => {
     mockWorkflowStoreState.isDirty = false
 
     render(
-      <BuilderWorkflowAppPageHeader
+      <BuilderWorkflowPageHeader
         {...baseProps}
         isNew={false}
         workflow={{ id: 'workflow-1' }}
@@ -239,9 +239,7 @@ describe('BuilderWorkflowAppPageHeader', () => {
     const user = userEvent.setup()
     mockWorkflowStoreState.isDirty = true
 
-    render(
-      <BuilderWorkflowAppPageHeader {...baseProps} isNew={false} workflow={{ id: 'workflow-1' }} isEnabled={false} />
-    )
+    render(<BuilderWorkflowPageHeader {...baseProps} isNew={false} workflow={{ id: 'workflow-1' }} isEnabled={false} />)
 
     const enableSwitch = screen.getByRole('switch')
     await user.click(enableSwitch)
@@ -261,7 +259,7 @@ describe('BuilderWorkflowAppPageHeader', () => {
     mockWorkflowStoreState.isDirty = true
 
     render(
-      <BuilderWorkflowAppPageHeader
+      <BuilderWorkflowPageHeader
         {...baseProps}
         isNew={false}
         workflow={{ id: 'workflow-1' }}
@@ -284,7 +282,7 @@ describe('BuilderWorkflowAppPageHeader', () => {
     const markDirty = vi.fn()
 
     render(
-      <BuilderWorkflowAppPageHeader
+      <BuilderWorkflowPageHeader
         {...baseProps}
         workflowName="Original Name"
         workflowDescription="Original Description"

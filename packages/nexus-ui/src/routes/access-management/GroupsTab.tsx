@@ -5,7 +5,6 @@ import { Thead, Tbody, Tr, Th, Td, ActionsColumn } from '@patternfly/react-table
 import { useMemo } from 'react'
 import { navigate } from 'wouter/use-browser-location'
 
-import { AppPageMain } from '../../app/AppPage'
 import { AppRoute } from '../../app/AppRoute'
 import { usersClient } from '../../client'
 import { ConfirmationDialog } from '../../components/ConfirmationDialog'
@@ -13,7 +12,8 @@ import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters/FilterBar'
 import { IconLabel } from '../../components/IconLabel'
-import { PanelContentStack } from '../../components/PanelContentStack'
+import { NxPageBody } from '../../components/layout/NxPage'
+import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
 import { useQueryState } from '../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
@@ -109,7 +109,7 @@ export function GroupsTab() {
           addData={() => formDialog.open(null)}
         />
       ) : (
-        <PanelContentStack>
+        <NxPanelContentStack>
           <StackItem>
             <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
               <FlexItem grow={{ default: 'grow' }}>
@@ -130,9 +130,9 @@ export function GroupsTab() {
           </StackItem>
 
           {results.length === 0 ? (
-            <AppPageMain isCentered>
+            <NxPageBody isCentered>
               <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
-            </AppPageMain>
+            </NxPageBody>
           ) : (
             <ScrollableTableContainer aria-label="Groups table" footer={getFooterProps(data)}>
               <Thead>
@@ -189,7 +189,7 @@ export function GroupsTab() {
               </Tbody>
             </ScrollableTableContainer>
           )}
-        </PanelContentStack>
+        </NxPanelContentStack>
       )}
 
       <GroupFormModal

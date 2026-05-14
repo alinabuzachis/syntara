@@ -178,6 +178,26 @@ describe('IdentityProviderDetail', () => {
     expect(screen.getAllByText('Error loading identity provider').length).toBeGreaterThan(0)
   })
 
+  it('calls refetch when retry is clicked in generic error state', async () => {
+    const user = userEvent.setup()
+    const mockRefetch = vi.fn().mockResolvedValue({})
+    vi.mocked(identityProvidersClient.useQuery).mockReturnValue(
+      mockQueryReturn({
+        data: undefined,
+        isError: true,
+        error: { message: 'Server error', retryable: true },
+        refetch: mockRefetch,
+      })
+    )
+
+    render(<IdentityProviderDetail />, { wrapper: createWrapper() })
+
+    const retryButton = screen.getByRole('button', { name: 'Retry' })
+    await user.click(retryButton)
+
+    expect(mockRefetch).toHaveBeenCalled()
+  })
+
   it('navigates to edit page from primary Edit provider button', async () => {
     const user = userEvent.setup()
     vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn())

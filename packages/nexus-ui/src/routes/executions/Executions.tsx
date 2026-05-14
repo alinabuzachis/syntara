@@ -4,14 +4,14 @@ import { Thead, Tr, Th } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
 import { useSearch } from 'wouter'
 
-import { AppPage, AppPageMain } from '../../app/AppPage'
-import { AppPageHeader } from '../../app/AppPageHeader'
 import { executionsClient } from '../../client'
-import { AppPanel } from '../../components/AppPanel'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters/FilterBar'
-import { PanelContentStack } from '../../components/PanelContentStack'
+import { NxPage, NxPageBody } from '../../components/layout/NxPage'
+import { NxPageHeader } from '../../components/layout/NxPageHeader'
+import { NxPanel } from '../../components/layout/NxPanel'
+import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
 import { useQueryState } from '../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
@@ -124,21 +124,21 @@ export default function Executions() {
   })
   if (queryState) {
     return (
-      <AppPage>
-        <AppPageHeader title="Workflow Runs" projectSelector={ProjectSelector} />
-        <AppPageMain>
-          <AppPanel isFullHeight>{queryState}</AppPanel>
-        </AppPageMain>
-      </AppPage>
+      <NxPage>
+        <NxPageHeader title="Workflow Runs" projectSelector={ProjectSelector} />
+        <NxPageBody>
+          <NxPanel isFullHeight>{queryState}</NxPanel>
+        </NxPageBody>
+      </NxPage>
     )
   }
 
   return (
-    <AppPage>
-      <AppPageHeader title="Workflow Runs" projectSelector={ProjectSelector} />
-      <AppPageMain>
-        <AppPanel isFullHeight>
-          <PanelContentStack variant="pageGutter">
+    <NxPage>
+      <NxPageHeader title="Workflow Runs" projectSelector={ProjectSelector} />
+      <NxPageBody>
+        <NxPanel isFullHeight>
+          <NxPanelContentStack variant="inset">
             <StackItem>
               <FilterBar
                 fieldDefinitions={filterFieldDefinitions}
@@ -149,13 +149,13 @@ export default function Executions() {
             </StackItem>
 
             {sortedExecutions.length === 0 ? (
-              <AppPageMain isCentered>
+              <NxPageBody isCentered>
                 {hasActiveFilters ? (
                   <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
                 ) : (
                   <EmptyStateNoData title="No executions found" description="No executions found." />
                 )}
-              </AppPageMain>
+              </NxPageBody>
             ) : (
               <ScrollableTableContainer aria-label="Executions table" footer={getFooterProps(executionsQuery.data)}>
                 <Thead>
@@ -182,9 +182,9 @@ export default function Executions() {
                 )}
               </ScrollableTableContainer>
             )}
-          </PanelContentStack>
-        </AppPanel>
-      </AppPageMain>
-    </AppPage>
+          </NxPanelContentStack>
+        </NxPanel>
+      </NxPageBody>
+    </NxPage>
   )
 }

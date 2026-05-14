@@ -1,19 +1,19 @@
-import { AppPage, AppPageMain } from '../../../app/AppPage'
-import { AppPageHeader } from '../../../app/AppPageHeader'
 import { breadcrumbsIdentityProvidersPage } from '../../../app/breadcrumbBuilders'
-import { AppPanel } from '../../../components/AppPanel'
+import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
+import { NxPageHeader } from '../../../components/layout/NxPageHeader'
+import { NxPanel } from '../../../components/layout/NxPanel'
 
 import { IdentityProvidersTab } from './IdentityProvidersTab'
 
 export default function Authentication() {
   return (
-    <AppPage>
-      <AppPageHeader title="Identity Providers" breadcrumbs={breadcrumbsIdentityProvidersPage()} />
-      <AppPageMain>
-        <AppPanel isFullHeight>
+    <NxPage>
+      <NxPageHeader title="Identity Providers" breadcrumbs={breadcrumbsIdentityProvidersPage()} />
+      <NxPageBody>
+        <NxPanel isFullHeight>
           <IdentityProvidersTab />
-        </AppPanel>
-      </AppPageMain>
-    </AppPage>
+        </NxPanel>
+      </NxPageBody>
+    </NxPage>
   )
 }

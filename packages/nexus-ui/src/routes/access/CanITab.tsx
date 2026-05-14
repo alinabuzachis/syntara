@@ -1,9 +1,9 @@
 import { StackItem, Tab, TabTitleText } from '@patternfly/react-core'
 import { useMemo } from 'react'
 
-import { AppPageMain } from '../../app/AppPage'
 import { AppRoute } from '../../app/AppRoute'
-import { PanelContentStack } from '../../components/PanelContentStack'
+import { NxPageBody } from '../../components/layout/NxPage'
+import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
 import { useQueryState } from '../../components/states/useQueryState'
 import { UrlTabs } from '../../components/UrlTabs'
 import { useUrlTab } from '../../hooks/useUrlTab'
@@ -33,7 +33,7 @@ export function CanITab() {
   )
 
   return (
-    <PanelContentStack hasGutter>
+    <NxPanelContentStack hasGutter>
       <StackItem>
         <UrlTabs
           basePath={AppRoute.AccessManagement.CanI}
@@ -63,7 +63,7 @@ export function CanITab() {
         </UrlTabs>
       </StackItem>
 
-      <AppPageMain style={mode !== 'my-permissions' ? { overflow: 'auto' } : undefined}>
+      <NxPageBody style={mode !== 'my-permissions' ? { overflow: 'auto' } : undefined}>
         {mode === 'my-permissions' && <MyPermissionsView />}
         {mode !== 'my-permissions' &&
           (resourceActionsQueryState ?? (
@@ -76,7 +76,7 @@ export function CanITab() {
               )}
             </>
           ))}
-      </AppPageMain>
-    </PanelContentStack>
+      </NxPageBody>
+    </NxPanelContentStack>
   )
 }

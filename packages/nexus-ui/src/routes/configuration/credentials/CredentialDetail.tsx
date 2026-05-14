@@ -4,13 +4,13 @@ import type { IAction } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
 import { useLocation, useParams } from 'wouter'
 
-import { AppPage, AppPageMain } from '../../../app/AppPage'
-import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
 import { breadcrumbsCredentialDetail, breadcrumbsCredentialEarlyShell } from '../../../app/breadcrumbBuilders'
 import { credentialsClient } from '../../../client'
-import { AppPanel } from '../../../components/AppPanel'
 import { Detail } from '../../../components/details/Detail'
+import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
+import { NxPageHeader } from '../../../components/layout/NxPageHeader'
+import { NxPanel } from '../../../components/layout/NxPanel'
 import { ErrorState } from '../../../components/states/ErrorState'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { useDeleteAction } from '../../../hooks/useDeleteAction'
@@ -164,25 +164,25 @@ export default function CredentialDetail() {
 
   if (!credentialId) {
     return (
-      <AppPage>
-        <AppPageHeader title="Error" breadcrumbs={breadcrumbsCredentialEarlyShell('Error')} />
-        <AppPageMain>
-          <AppPanel isFullHeight>
+      <NxPage>
+        <NxPageHeader title="Error" breadcrumbs={breadcrumbsCredentialEarlyShell('Error')} />
+        <NxPageBody>
+          <NxPanel isFullHeight>
             <ErrorState title="Invalid credential" message="No credential ID provided" />
-          </AppPanel>
-        </AppPageMain>
-      </AppPage>
+          </NxPanel>
+        </NxPageBody>
+      </NxPage>
     )
   }
 
   if (queryState) {
     return (
-      <AppPage>
-        <AppPageHeader title="Credential" breadcrumbs={breadcrumbsCredentialEarlyShell('Credential')} />
-        <AppPageMain>
-          <AppPanel isFullHeight>{queryState}</AppPanel>
-        </AppPageMain>
-      </AppPage>
+      <NxPage>
+        <NxPageHeader title="Credential" breadcrumbs={breadcrumbsCredentialEarlyShell('Credential')} />
+        <NxPageBody>
+          <NxPanel isFullHeight>{queryState}</NxPanel>
+        </NxPageBody>
+      </NxPage>
     )
   }
 
@@ -206,8 +206,8 @@ export default function CredentialDetail() {
   )
 
   return (
-    <AppPage>
-      <AppPageHeader
+    <NxPage>
+      <NxPageHeader
         breadcrumbs={credentialCrumbs}
         title={credential.name}
         toolbar={
@@ -226,8 +226,8 @@ export default function CredentialDetail() {
         }
       />
 
-      <AppPageMain>
-        <AppPanel isFullHeight>
+      <NxPageBody>
+        <NxPanel isFullHeight>
           <Tabs activeKey={activeTab} onSelect={(_e, key) => setActiveTab(key as number)}>
             {/* Details Tab */}
             <Tab eventKey={0} title="Details">
@@ -301,8 +301,8 @@ export default function CredentialDetail() {
               <CredentialWorkflowsTab credentialId={credential.id} />
             </Tab>
           </Tabs>
-        </AppPanel>
-      </AppPageMain>
+        </NxPanel>
+      </NxPageBody>
 
       <DisableCredentialDialog
         credential={credentialToDisable}
@@ -330,6 +330,6 @@ export default function CredentialDetail() {
         credentialToEdit={credential}
         onSuccess={() => detachPromise(credQuery.refetch())}
       />
-    </AppPage>
+    </NxPage>
   )
 }

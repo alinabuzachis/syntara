@@ -1,7 +1,7 @@
 import { CompassMainHeader, Flex, FlexItem, Stack, StackItem, Title, type TitleProps } from '@patternfly/react-core'
 import type { ReactNode } from 'react'
 
-import { AppPageBreadcrumbs, type AppBreadcrumbItem } from './AppPageBreadcrumbs'
+import { NxPageBreadcrumbs, type AppBreadcrumbItem } from './NxPageBreadcrumbs'
 
 export type { AppBreadcrumbItem }
 
@@ -9,7 +9,7 @@ function isRenderableSlot(value: ReactNode): boolean {
   return value != null && value !== false
 }
 
-export type AppPageHeaderProps = Readonly<{
+export type NxPageHeaderProps = Readonly<{
   /** Primary page heading text (rendered as an `h1` unless `titleSlot` is set). */
   title: string
   breadcrumbs?: readonly AppBreadcrumbItem[]
@@ -30,7 +30,7 @@ export type AppPageHeaderProps = Readonly<{
   titleProps?: Readonly<Pick<TitleProps, 'size' | 'className'>>
 }>
 
-function renderTitleRegion(props: AppPageHeaderProps): ReactNode {
+function renderTitleRegion(props: NxPageHeaderProps): ReactNode {
   if (isRenderableSlot(props.titleSlot)) {
     return props.titleSlot
   }
@@ -64,7 +64,7 @@ function renderTitleRegion(props: AppPageHeaderProps): ReactNode {
   )
 }
 
-export function AppPageHeader(props: AppPageHeaderProps) {
+export function NxPageHeader(props: NxPageHeaderProps) {
   const titleRegion = renderTitleRegion(props)
 
   const crumbs = props.breadcrumbs
@@ -72,7 +72,7 @@ export function AppPageHeader(props: AppPageHeaderProps) {
   const titleForCompass = showCrumbs ? (
     <Stack hasGutter>
       <StackItem>
-        <AppPageBreadcrumbs items={crumbs} />
+        <NxPageBreadcrumbs items={crumbs} />
       </StackItem>
       <StackItem>{titleRegion}</StackItem>
     </Stack>

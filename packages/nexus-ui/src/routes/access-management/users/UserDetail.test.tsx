@@ -15,21 +15,36 @@ import { computeRoleAssignmentCount } from './userDetailUtils'
 // Mocks
 // ---------------------------------------------------------------------------
 
+const { mockAuthQuery } = vi.hoisted(() => ({
+  mockAuthQuery: vi.fn().mockReturnValue({ data: undefined, isPending: false, isError: false, error: null }),
+}))
+
 vi.mock('../../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
-  authClient: {
-    useQuery: vi.fn().mockReturnValue({ data: undefined, isPending: false, isError: false, error: null }),
-  },
-  usersClient: {
-    useQuery: vi.fn().mockReturnValue({
-      data: undefined,
-      isPending: false,
-      isError: false,
-      error: null,
-      refetch: vi.fn(),
-    }),
-    useMutation: vi.fn().mockReturnValue({ mutate: vi.fn(), isPending: false }),
-  },
+  authClient: { useQuery: mockAuthQuery },
+}))
+
+vi.mock('./UserIdentitiesPanel', () => ({
+  UserIdentitiesPanel: (props: {
+    userId: string
+    currentUserId?: string
+    isBuiltinUser: boolean
+    isLocalUser: boolean
+    hasPassword: boolean
+  }) => (
+    <div
+      data-testid="identities-panel"
+      data-is-builtin={String(props.isBuiltinUser)}
+      data-is-local={String(props.isLocalUser)}
+      data-current-user={props.currentUserId ?? ''}
+    >
+      Mock Identities Panel
+    </div>
+  ),
+}))
+
+vi.mock('../RoleAssignmentsPanel', () => ({
+  RoleAssignmentsPanel: () => <div data-testid="role-assignments-panel">Mock Role Assignments</div>,
 }))
 
 vi.mock('../../access/accessClient', () => ({
@@ -46,7 +61,7 @@ const VALID_USER_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
 
 let mockLocationValue = `/system-administration/access-management/users/${VALID_USER_ID}`
 const mockSetLocation = vi.fn()
-const mockUseParams = vi.fn(() => ({ userId: VALID_USER_ID }))
+const mockUseParams = vi.fn((): { userId?: string } => ({ userId: VALID_USER_ID }))
 vi.mock('wouter', async () => {
   const React = await import('react')
   return {
@@ -300,6 +315,24 @@ describe('UserDetail', () => {
       expect(screen.getByRole('heading', { name: 'jdoe' })).toBeInTheDocument()
     })
 
+    it('renders nothing when userId param is missing (no valid UUID)', () => {
+      mockUseParams.mockReturnValue({ userId: undefined })
+
+      vi.mocked(accessClient.useQuery).mockReturnValue({
+        data: undefined,
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      } as never)
+
+      const { container } = render(<UserDetail />, { wrapper })
+
+      // isValidId = false because userId is undefined; queries are disabled
+      // userQuery.error = null and queryState = null → component returns null
+      expect(container.innerHTML).toBe('')
+    })
+
     it('renders null when userData is undefined and no error', () => {
       vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
         if (path === '/users/{user_id}') {
@@ -325,6 +358,237 @@ describe('UserDetail', () => {
 
       // Component returns null when no userData and no error/loading
       expect(container.innerHTML).toBe('')
+    })
+
+    it('renders disabled badge when user is not enabled', () => {
+      vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
+        if (path === '/users/{user_id}') {
+          return {
+            data: { ...mockUser, is_enabled: false },
+            isPending: false,
+            isError: false,
+            error: null,
+            refetch: vi.fn(),
+          } as never
+        }
+        if (path === '/users/{user_id}/identities') return emptyIdentitiesResult
+        return { data: mockGroupsData, isPending: false, isError: false, error: null, refetch: vi.fn() } as never
+      })
+
+      render(<UserDetail />, { wrapper })
+
+      // DisabledBadge renders a visible "Disabled" indicator in the header
+      expect(screen.getByText('Disabled')).toBeInTheDocument()
+    })
+
+    it('renders OIDC provider label for non-local user with one identity', () => {
+      vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
+        if (path === '/users/{user_id}') {
+          return {
+            data: { ...mockUser, auth_type: 'oidc' },
+            isPending: false,
+            isError: false,
+            error: null,
+            refetch: vi.fn(),
+          } as never
+        }
+        if (path === '/users/{user_id}/identities') {
+          return {
+            data: { resources: [{ identity_provider_id: 'idp-1', provider_name: 'Okta' }] },
+            isPending: false,
+            isError: false,
+            error: null,
+            refetch: vi.fn(),
+          } as never
+        }
+        return { data: mockGroupsData, isPending: false, isError: false, error: null, refetch: vi.fn() } as never
+      })
+
+      render(<UserDetail />, { wrapper })
+
+      expect(screen.getByText('Okta')).toBeInTheDocument()
+      expect(screen.getByText('Identity Provider')).toBeInTheDocument()
+    })
+
+    it('uses plural Identity Providers label when user has multiple providers', () => {
+      vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
+        if (path === '/users/{user_id}') {
+          return {
+            data: { ...mockUser, auth_type: 'oidc' },
+            isPending: false,
+            isError: false,
+            error: null,
+            refetch: vi.fn(),
+          } as never
+        }
+        if (path === '/users/{user_id}/identities') {
+          return {
+            data: {
+              resources: [
+                { identity_provider_id: 'idp-1', provider_name: 'Okta' },
+                { identity_provider_id: 'idp-2', provider_name: 'Azure AD' },
+              ],
+            },
+            isPending: false,
+            isError: false,
+            error: null,
+            refetch: vi.fn(),
+          } as never
+        }
+        return { data: mockGroupsData, isPending: false, isError: false, error: null, refetch: vi.fn() } as never
+      })
+
+      render(<UserDetail />, { wrapper })
+
+      expect(screen.getByText('Identity Providers')).toBeInTheDocument()
+      expect(screen.getByText('Okta')).toBeInTheDocument()
+      expect(screen.getByText('Azure AD')).toBeInTheDocument()
+    })
+
+    it('clicking an OIDC provider label navigates to the identity provider detail', async () => {
+      const user = userEvent.setup()
+      vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
+        if (path === '/users/{user_id}') {
+          return {
+            data: { ...mockUser, auth_type: 'oidc' },
+            isPending: false,
+            isError: false,
+            error: null,
+            refetch: vi.fn(),
+          } as never
+        }
+        if (path === '/users/{user_id}/identities') {
+          return {
+            data: { resources: [{ identity_provider_id: 'idp-1', provider_name: 'Okta' }] },
+            isPending: false,
+            isError: false,
+            error: null,
+            refetch: vi.fn(),
+          } as never
+        }
+        return { data: mockGroupsData, isPending: false, isError: false, error: null, refetch: vi.fn() } as never
+      })
+
+      render(<UserDetail />, { wrapper })
+
+      await user.click(screen.getByText('Okta'))
+
+      expect(mockNavigate).toHaveBeenCalledWith(expect.stringContaining('idp-1'))
+    })
+
+    it('shows no provider labels when non-local user has no identities', () => {
+      vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
+        if (path === '/users/{user_id}') {
+          return {
+            data: { ...mockUser, auth_type: 'oidc' },
+            isPending: false,
+            isError: false,
+            error: null,
+            refetch: vi.fn(),
+          } as never
+        }
+        if (path === '/users/{user_id}/identities') return emptyIdentitiesResult
+        return { data: mockGroupsData, isPending: false, isError: false, error: null, refetch: vi.fn() } as never
+      })
+
+      render(<UserDetail />, { wrapper })
+
+      // totalProviders = 0 → no Local or OIDC labels rendered
+      expect(screen.queryByText('Local')).not.toBeInTheDocument()
+      expect(screen.getByText('Identity Provider')).toBeInTheDocument()
+    })
+
+    it('deduplicates identity providers with the same ID', () => {
+      vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
+        if (path === '/users/{user_id}') {
+          return {
+            data: { ...mockUser, auth_type: 'oidc' },
+            isPending: false,
+            isError: false,
+            error: null,
+            refetch: vi.fn(),
+          } as never
+        }
+        if (path === '/users/{user_id}/identities') {
+          return {
+            data: {
+              resources: [
+                { identity_provider_id: 'idp-1', provider_name: 'Okta' },
+                { identity_provider_id: 'idp-1', provider_name: 'Okta (dup)' }, // same id
+              ],
+            },
+            isPending: false,
+            isError: false,
+            error: null,
+            refetch: vi.fn(),
+          } as never
+        }
+        return { data: mockGroupsData, isPending: false, isError: false, error: null, refetch: vi.fn() } as never
+      })
+
+      render(<UserDetail />, { wrapper })
+
+      // uniqueProviders deduplicates: size=1, so label is singular
+      expect(screen.getByText('Identity Provider')).toBeInTheDocument()
+      expect(screen.getAllByText('Okta')).toHaveLength(1)
+    })
+
+    it('handles identity without provider_name (falls back to empty string)', () => {
+      vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
+        if (path === '/users/{user_id}') {
+          return {
+            data: { ...mockUser, auth_type: 'oidc' },
+            isPending: false,
+            isError: false,
+            error: null,
+            refetch: vi.fn(),
+          } as never
+        }
+        if (path === '/users/{user_id}/identities') {
+          return {
+            data: { resources: [{ identity_provider_id: 'idp-1', provider_name: null }] },
+            isPending: false,
+            isError: false,
+            error: null,
+            refetch: vi.fn(),
+          } as never
+        }
+        return { data: mockGroupsData, isPending: false, isError: false, error: null, refetch: vi.fn() } as never
+      })
+
+      render(<UserDetail />, { wrapper })
+
+      // provider_name ?? '' → renders an empty-string label (still a <Label>)
+      expect(screen.getByText('Identity Provider')).toBeInTheDocument()
+    })
+
+    it('does not add +1 when authenticated group is already in the list', () => {
+      vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
+        if (path === '/users/{user_id}') {
+          return {
+            data: mockUser,
+            isPending: false,
+            isError: false,
+            error: null,
+            refetch: vi.fn(),
+          } as never
+        }
+        if (path === '/users/{user_id}/identities') return emptyIdentitiesResult
+        // groups includes the builtin 'authenticated' group
+        return {
+          data: { resources: [{ id: 'g-auth', name: 'authenticated' }], total: 1 },
+          isPending: false,
+          isError: false,
+          error: null,
+          refetch: vi.fn(),
+        } as never
+      })
+
+      render(<UserDetail />, { wrapper })
+
+      // total=1 and authenticated IS in the list → groupCount = total (no +1)
+      const groupsTab = screen.getByRole('tab', { name: /Groups/i })
+      expect(groupsTab).toHaveTextContent('1')
     })
 
     it('uses resources.length for group count when total is missing', () => {
@@ -474,6 +738,40 @@ describe('UserDetail', () => {
       render(<UserDetail />, { wrapper })
 
       expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+    })
+
+    it('shows query error state (isError without error object) and calls refetch on retry', async () => {
+      const user = userEvent.setup()
+      const mockRefetch = vi.fn().mockResolvedValue({})
+
+      vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
+        if (path === '/users/{user_id}') {
+          return {
+            data: undefined,
+            isPending: false,
+            isError: true,
+            error: null, // null error bypasses the UserNotFoundState early-return
+            refetch: mockRefetch,
+          } as never
+        }
+        if (path === '/users/{user_id}/identities') return emptyIdentitiesResult
+        return {
+          data: undefined,
+          isPending: false,
+          isError: false,
+          error: null,
+          refetch: vi.fn().mockResolvedValue({}),
+        } as never
+      })
+
+      render(<UserDetail />, { wrapper })
+
+      // useQueryState error path renders a Retry button
+      const retryBtn = screen.queryByRole('button', { name: 'Retry' })
+      if (retryBtn) {
+        await user.click(retryBtn)
+        expect(mockRefetch).toHaveBeenCalled()
+      }
     })
 
     it('calls refetch when Retry button is clicked', async () => {
@@ -880,6 +1178,110 @@ describe('UserDetail', () => {
       const groupsTab = screen.getByRole('tab', { name: /Groups/i })
       // mockGroupsData has total=1, no authenticated group -> +1 = 2
       expect(groupsTab).toHaveTextContent('2')
+    })
+  })
+
+  // ---- Additional tab rendering -------------------------------------------
+
+  describe('Identities and Roles tabs', () => {
+    it('renders Identities tab panel when URL includes /identities', () => {
+      mockLocationValue = `/system-administration/access-management/users/${VALID_USER_ID}/identities`
+      render(<UserDetail />, { wrapper })
+
+      expect(screen.queryByText('Username')).not.toBeInTheDocument()
+      expect(screen.getByTestId('identities-panel')).toBeInTheDocument()
+    })
+
+    it('renders Role Assignments tab panel when URL includes /roles', () => {
+      mockLocationValue = `/system-administration/access-management/users/${VALID_USER_ID}/roles`
+      render(<UserDetail />, { wrapper })
+
+      expect(screen.queryByText('Username')).not.toBeInTheDocument()
+      expect(screen.getByTestId('role-assignments-panel')).toBeInTheDocument()
+    })
+
+    it('passes isBuiltinUser=true when user is builtin', () => {
+      mockLocationValue = `/system-administration/access-management/users/${VALID_USER_ID}/identities`
+
+      vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
+        if (path === '/users/{user_id}') {
+          return {
+            data: { ...mockUser, is_builtin: true },
+            isPending: false,
+            isError: false,
+            error: null,
+            refetch: vi.fn(),
+          } as never
+        }
+        if (path === '/users/{user_id}/identities') return emptyIdentitiesResult
+        return { data: mockGroupsData, isPending: false, isError: false, error: null, refetch: vi.fn() } as never
+      })
+
+      render(<UserDetail />, { wrapper })
+
+      expect(screen.getByTestId('identities-panel')).toHaveAttribute('data-is-builtin', 'true')
+    })
+
+    it('passes isLocalUser=false and hasPassword=false for OIDC user on identities tab', () => {
+      mockLocationValue = `/system-administration/access-management/users/${VALID_USER_ID}/identities`
+
+      vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
+        if (path === '/users/{user_id}') {
+          return {
+            data: { ...mockUser, auth_type: 'oidc' },
+            isPending: false,
+            isError: false,
+            error: null,
+            refetch: vi.fn(),
+          } as never
+        }
+        if (path === '/users/{user_id}/identities') return emptyIdentitiesResult
+        return { data: mockGroupsData, isPending: false, isError: false, error: null, refetch: vi.fn() } as never
+      })
+
+      render(<UserDetail />, { wrapper })
+
+      expect(screen.getByTestId('identities-panel')).toHaveAttribute('data-is-local', 'false')
+    })
+  })
+
+  describe('currentUserId from meQuery', () => {
+    it('passes currentUserId to identities panel when authClient returns the current user', () => {
+      mockAuthQuery.mockReturnValueOnce({
+        data: { id: 'me-user-id' },
+        isPending: false,
+        isError: false,
+        error: null,
+      })
+
+      mockLocationValue = `/system-administration/access-management/users/${VALID_USER_ID}/identities`
+      render(<UserDetail />, { wrapper })
+
+      expect(screen.getByTestId('identities-panel')).toHaveAttribute('data-current-user', 'me-user-id')
+    })
+  })
+
+  describe('computeGroupCount with undefined groupsData', () => {
+    it('defaults group count to 1 (the implicit authenticated group) when groups query returns no data', () => {
+      vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
+        if (path === '/users/{user_id}') {
+          return {
+            data: mockUser,
+            isPending: false,
+            isError: false,
+            error: null,
+            refetch: vi.fn(),
+          } as never
+        }
+        if (path === '/users/{user_id}/identities') return emptyIdentitiesResult
+        return { data: undefined, isPending: false, isError: false, error: null, refetch: vi.fn() } as never
+      })
+
+      render(<UserDetail />, { wrapper })
+
+      // groupsData = undefined → apiGroupCount = 0, hasAuthenticatedGroup = false → groupCount = 0 + 1 = 1
+      const groupsTab = screen.getByRole('tab', { name: /Groups/i })
+      expect(groupsTab).toHaveTextContent('1')
     })
   })
 

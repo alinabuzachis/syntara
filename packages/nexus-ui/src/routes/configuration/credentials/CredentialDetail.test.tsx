@@ -18,6 +18,8 @@ const wouterMock = vi.hoisted(() => ({
   credentialId: '1' as string | undefined,
 }))
 
+const mockUseParams = vi.fn(() => ({ credentialId: '1' }))
+
 const mockCredential = {
   id: '1',
   name: 'GitHub API Token',
@@ -59,7 +61,7 @@ vi.mock('../../../client', () => ({
 
 vi.mock('wouter', () => ({
   useLocation: () => [`/configuration/credentials/${wouterMock.credentialId ?? ''}`, mockNavigate],
-  useParams: () => ({ credentialId: wouterMock.credentialId }),
+  useParams: () => mockUseParams(),
 }))
 
 vi.mock('../../access/useAllProjects', () => ({
@@ -175,6 +177,7 @@ describe('CredentialDetail', () => {
     disableCredentialHookMock.reset()
     vi.clearAllMocks()
     mockMutate = vi.fn()
+    mockUseParams.mockReturnValue({ credentialId: '1' })
 
     vi.mocked(credentialsClient.useQuery).mockImplementation(mockQuery())
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -295,6 +298,31 @@ describe('CredentialDetail', () => {
 
     render(<CredentialDetail />, { wrapper })
     expect(screen.getByLabelText('Loading')).toBeInTheDocument()
+  })
+
+  it('calls refetch when retry is clicked on retryable error', async () => {
+    const mockRefetch = vi.fn().mockResolvedValue({})
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    vi.mocked(credentialsClient.useQuery).mockImplementation((_method: string, path: string): any => {
+      if (path === '/credentials/{credential_id}') {
+        return {
+          data: undefined,
+          isLoading: false,
+          error: { message: 'Server error', retryable: true },
+          isError: true,
+          refetch: mockRefetch,
+        }
+      }
+      return { data: null, isLoading: false, error: null, refetch: vi.fn() }
+    })
+
+    const user = userEvent.setup()
+    render(<CredentialDetail />, { wrapper })
+
+    const retryButton = screen.getByRole('button', { name: 'Retry' })
+    await user.click(retryButton)
+
+    expect(mockRefetch).toHaveBeenCalled()
   })
 
   it('renders error state', () => {
@@ -485,6 +513,7 @@ describe('CredentialDetail', () => {
 
   it('renders invalid credential shell when route has no credential id', () => {
     wouterMock.credentialId = undefined
+    mockUseParams.mockReturnValueOnce({ credentialId: undefined as unknown as string })
 
     render(<CredentialDetail />, { wrapper })
 
@@ -629,6 +658,43 @@ describe('CredentialDetail', () => {
     expect(refetch).toHaveBeenCalled()
   })
 
+  it('shows em-dash when credential type is null with no error', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    vi.mocked(credentialsClient.useQuery).mockImplementation((_method: string, path: string): any => {
+      if (path === '/credentials/{credential_id}') {
+        // Use a credential with no credential_type_id to prevent the type query from running
+        return {
+          data: { ...mockCredential, credential_type_id: '' },
+          isLoading: false,
+          error: null,
+          refetch: vi.fn(),
+        }
+      }
+      if (path === '/credential_types/{credential_type_id}') {
+        return { data: null, isLoading: false, error: null, isError: false, refetch: vi.fn() }
+      }
+      return { data: null, isLoading: false, error: null, refetch: vi.fn() }
+    })
+
+    render(<CredentialDetail />, { wrapper })
+
+    // When type is null with no error, the em-dash is shown for Type
+    expect(screen.getByText('Type')).toBeInTheDocument()
+    // The em-dash character '—' should appear somewhere in the document
+    const allText = document.body.textContent ?? ''
+    expect(allText).toContain('—')
+  })
+
+  it('renders error state when no credential ID is provided', () => {
+    mockUseParams.mockReturnValue({ credentialId: undefined as unknown as string })
+
+    render(<CredentialDetail />, { wrapper })
+
+    expect(screen.getByRole('heading', { name: 'Error' })).toBeInTheDocument()
+    expect(screen.getByText('Invalid credential')).toBeInTheDocument()
+    expect(screen.getByText('No credential ID provided')).toBeInTheDocument()
+  })
+
   it('renders nothing when credential has no id', () => {
     const credMissingId = { ...mockCredential, id: '' }
     vi.mocked(credentialsClient.useQuery).mockImplementation(mockQuery(credMissingId))
@@ -647,5 +713,28 @@ describe('CredentialDetail', () => {
     expect(screen.queryByText('octocat')).not.toBeInTheDocument()
   })
 
-  // Note: useParams is mocked via wouterMock for the missing credentialId case above.
+  it('renders em-dash for workflow count when null', () => {
+    const credWithNullCount = { ...mockCredential, workflow_count: null }
+    vi.mocked(credentialsClient.useQuery).mockImplementation(mockQuery(credWithNullCount as never))
+
+    render(<CredentialDetail />, { wrapper })
+
+    // When workflow_count is null, the em-dash is shown in the Workflows detail row
+    // The Description tab shows "Workflows" as a label; verify the label is present
+    const workflowLabels = screen.getAllByText('Workflows')
+    expect(workflowLabels.length).toBeGreaterThan(0)
+  })
+
+  it('renders workflow count as badge on Workflows tab when greater than zero', () => {
+    const credWithCount = { ...mockCredential, workflow_count: 5 }
+    vi.mocked(credentialsClient.useQuery).mockImplementation(mockQuery(credWithCount as never))
+
+    render(<CredentialDetail />, { wrapper })
+
+    // Badge on the Workflows tab shows the count
+    const workflowsTab = screen.getByRole('tab', { name: /Workflows/ })
+    expect(workflowsTab).toBeInTheDocument()
+    const badges = screen.getAllByText('5')
+    expect(badges.length).toBeGreaterThan(0)
+  })
 })

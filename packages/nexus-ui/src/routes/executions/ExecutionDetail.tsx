@@ -14,10 +14,10 @@ import '@xyflow/react/dist/style.css'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useParams, useSearch } from 'wouter'
 
-import { AppPage, AppPageMain } from '../../app/AppPage'
-import { AppPageHeader } from '../../app/AppPageHeader'
 import { executionsClient } from '../../client'
-import { AppPanel } from '../../components/AppPanel'
+import { NxPage, NxPageBody } from '../../components/layout/NxPage'
+import { NxPageHeader } from '../../components/layout/NxPageHeader'
+import { NxPanel } from '../../components/layout/NxPanel'
 import { ResizableDivider } from '../../components/ResizableDivider'
 import { ErrorState } from '../../components/states/ErrorState'
 import { LoadingState } from '../../components/states/LoadingState'
@@ -396,45 +396,45 @@ export default function ExecutionDetail() {
   // Guard against missing executionId
   if (!executionId) {
     return (
-      <AppPage>
-        <AppPageHeader title="Error" />
-        <AppPageMain>
-          <AppPanel isFullHeight>
+      <NxPage>
+        <NxPageHeader title="Error" />
+        <NxPageBody>
+          <NxPanel isFullHeight>
             <ErrorState title="Invalid execution" message="No execution ID provided" />
-          </AppPanel>
-        </AppPageMain>
-      </AppPage>
+          </NxPanel>
+        </NxPageBody>
+      </NxPage>
     )
   }
 
   // Show loading/error states
   if (executionQuery.error) {
     return (
-      <AppPage>
-        <AppPageHeader title="Error loading execution" />
-        <AppPageMain>
-          <AppPanel isFullHeight>
+      <NxPage>
+        <NxPageHeader title="Error loading execution" />
+        <NxPageBody>
+          <NxPanel isFullHeight>
             <ErrorState
               title="Error loading execution"
               message={executionQuery.error}
               onRetry={() => detachPromise(executionQuery.refetch())}
             />
-          </AppPanel>
-        </AppPageMain>
-      </AppPage>
+          </NxPanel>
+        </NxPageBody>
+      </NxPage>
     )
   }
 
   if (executionQuery.isLoading) {
     return (
-      <AppPage>
-        <AppPageHeader title="Loading execution" />
-        <AppPageMain>
-          <AppPanel isFullHeight>
+      <NxPage>
+        <NxPageHeader title="Loading execution" />
+        <NxPageBody>
+          <NxPanel isFullHeight>
             <LoadingState />
-          </AppPanel>
-        </AppPageMain>
-      </AppPage>
+          </NxPanel>
+        </NxPageBody>
+      </NxPage>
     )
   }
 
@@ -446,8 +446,8 @@ export default function ExecutionDetail() {
   }
 
   return (
-    <AppPage>
-      <AppPageHeader
+    <NxPage>
+      <NxPageHeader
         title={executionDetailPageHeading(execution, executionId)}
         titleProps={{ size: TitleSizes['2xl'] }}
         titleAddons={
@@ -472,7 +472,7 @@ export default function ExecutionDetail() {
           />
         }
       />
-      <AppPageMain>
+      <NxPageBody>
         {approvalViewOpen && pendingApproval ? (
           <ApprovalReviewView
             approval={pendingApproval}
@@ -502,7 +502,7 @@ export default function ExecutionDetail() {
             onDeselectNode={deselectNode}
           />
         )}
-      </AppPageMain>
-    </AppPage>
+      </NxPageBody>
+    </NxPage>
   )
 }

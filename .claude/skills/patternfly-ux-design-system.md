@@ -145,32 +145,31 @@ Use a docked icon navigation (left sidebar) with PatternFly's [flyout panels com
 
 Every page **must** follow this structural hierarchy:
 
-| Layer              | Component                    | Purpose                                   |
-| ------------------ | ---------------------------- | ----------------------------------------- |
-| App Shell          | `Compass`                    | Overall application frame                 |
-| Navigation         | `AppDockedNav`               | Left sidebar with icons                   |
-| Page Content       | `CompassContent` + `AppPage` | Main content area wrapper                 |
-| Page Header        | `AppPageHeader`              | Page title and actions                    |
-| Content Frame      | `AppPanel`                   | `Panel` → `PanelMain` → `PanelMainBody`   |
-| Content Stack      | `PanelContentStack`          | Full-height flex column inside `AppPanel` |
-| Main Content       | Table / Canvas / Form        | Primary page content                      |
-| Footer (on tables) | `PaginationFooter`           | Navigation between table pages            |
+| Layer              | Component                   | Purpose                                  |
+| ------------------ | --------------------------- | ---------------------------------------- |
+| App Shell          | `Compass`                   | Overall application frame                |
+| Navigation         | `AppDockedNav`              | Left sidebar with icons                  |
+| Page Content       | `CompassContent` + `NxPage` | Main content area wrapper                |
+| Page Header        | `NxPageHeader`              | Page title and actions                   |
+| Content Frame      | `NxPanel`                   | `Panel` → `PanelMain` → `PanelMainBody`  |
+| Content Stack      | `NxPanelContentStack`       | Full-height flex column inside `NxPanel` |
+| Main Content       | Table / Canvas / Form       | Primary page content                     |
+| Footer (on tables) | `PaginationFooter`          | Navigation between table pages           |
 
-For **floating panels on the workflow canvas** under the glass theme, prefer `AppPanel` with `variant="raised"` for compact controls (opaque + shadow) or `opaqueFloatingFill` for large flat shells without raised chrome; see JSDoc on `packages/nexus-ui/src/components/AppPanel.tsx`.
+For **floating panels on the workflow canvas** under the glass theme, prefer `NxPanel` with `variant="raised"` for compact controls (opaque + shadow) or `opaqueFloatingFill` for large flat shells without raised chrome; see JSDoc on `packages/nexus-ui/src/components/layout/NxPanel.tsx`.
 
 ### Centered Layout for Loading / Empty States
 
-Use `AppPageMain` with `isCentered` for page-level centered layouts (loading spinners, empty states). For nested slots (e.g. `StackItem` + `isFilled`), use `flexCenteredBothAxes` from `src/app/flexCenteredBothAxes.ts`.
+Use `NxPageBody` with `isCentered` for page-level centered layouts (loading spinners, empty states). For nested slots (e.g. `StackItem` + `isFilled`), use `flexCenteredBothAxes` from `src/app/flexCenteredBothAxes.ts`.
 
 ### Panel Content Stack
 
-Use `PanelContentStack` (from `src/components/PanelContentStack.tsx`) as the main content column inside `AppPanel isFullHeight`. It provides the correct flex behavior (`flex: 1`, `minHeight: 0`) so nested scroll areas resolve height correctly.
+Use `NxPanelContentStack` (from `src/components/layout/NxPanelContentStack.tsx`) as the main content column inside `NxPanel isFullHeight`. It provides the correct flex behavior (`flex: 1`, `minHeight: 0`) so nested scroll areas resolve height correctly.
 
-| Variant               | Use case                                                            |
-| --------------------- | ------------------------------------------------------------------- |
-| `default`             | Standard full-height panel content                                  |
-| `pageGutter`          | List pages with horizontal inset (workflows, executions, approvals) |
-| `credentialDetailTab` | Detail tabs with `lg` padding                                       |
+| Variant   | Use case                                                            |
+| --------- | ------------------------------------------------------------------- |
+| `default` | Standard full-height panel content                                  |
+| `inset`   | List pages with horizontal inset (workflows, executions, approvals) |
 
 ### Page Header Structure
 
@@ -343,11 +342,11 @@ When building or reviewing any page, verify every item:
 
 ### Structure
 
-- [ ] Uses `AppPage` as outer wrapper
-- [ ] Uses `AppPageHeader` for title and actions
-- [ ] Uses `StackItem isFilled` + `AppPanel isFullHeight` for content
-- [ ] Uses `PanelContentStack` for the main content column inside `AppPanel`
-- [ ] Loading / empty states use `AppPageMain isCentered`
+- [ ] Uses `NxPage` as outer wrapper
+- [ ] Uses `NxPageHeader` for title and actions
+- [ ] Uses `StackItem isFilled` + `NxPanel isFullHeight` for content
+- [ ] Uses `NxPanelContentStack` for the main content column inside `NxPanel`
+- [ ] Loading / empty states use `NxPageBody isCentered`
 - [ ] Inner content has consistent padding
 
 ### Header
@@ -834,7 +833,7 @@ The automation builder experience is based on [React Flow](https://reactflow.dev
 ### Canvas Controls
 
 - Should be anchored to the **bottom-left corner** of the canvas view
-- Canvas overlays (controls, legend, undo/redo) use `AppPanel` with `variant="raised"` for opaque + shadow
+- Canvas overlays (controls, legend, undo/redo) use `NxPanel` with `variant="raised"` for opaque + shadow
 - Workflow step nodes also use `variant="raised"` with a border-radius override to match `Card` / canvas chrome
 
 ### Canvas Node Styling
@@ -1012,7 +1011,7 @@ When implementing a new page or feature, use this decision tree:
 What are you building?
 ├── List/table view
 │   ├── Use ScrollableTableContainer (standard variant by default, "compact" only for dense supplementary tables)
-│   ├── Add AppPageHeader with title + primary action
+│   ├── Add NxPageHeader with title + primary action
 │   ├── Add FilterBar (Attribute Search)
 │   ├── Add cursor-based pagination footer via ScrollableTableContainer's footer prop
 │   ├── "Created"/"Modified" columns: username (linked) + date together
@@ -1020,7 +1019,7 @@ What are you building?
 │
 ├── Detail view
 │   ├── Use DescriptionList isCompact isHorizontal
-│   ├── Add AppPageHeader with back button + title + resource actions
+│   ├── Add NxPageHeader with back button + title + resource actions
 │   └── Group related fields with headers
 │
 ├── Create/Edit form
@@ -1062,7 +1061,7 @@ What are you building?
 └── Canvas/builder view
     ├── Use React Flow + PatternFly wrapper
     ├── Left-to-right layout
-    ├── Canvas controls at bottom-left (AppPanel variant="raised")
+    ├── Canvas controls at bottom-left (NxPanel variant="raised")
     ├── Side panel for step details (not modal)
     └── Input/Output panels with Schema/Table/JSON view toggle
 ```

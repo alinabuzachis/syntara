@@ -23,7 +23,7 @@ import { useAuthProviders } from '../../../app/useAuthProviders'
 import { OIDC_AUTHORIZE_PATH, usersClient } from '../../../client'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { FilterBar } from '../../../components/filters/FilterBar'
-import { PanelContentStack } from '../../../components/PanelContentStack'
+import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
 import { ProviderIcon } from '../../../components/ProviderIcon'
 import { LoadingState } from '../../../components/states/LoadingState'
 import { useQueryState } from '../../../components/states/useQueryState'
@@ -347,7 +347,7 @@ export function UserIdentitiesPanel({
   }
 
   return (
-    <PanelContentStack>
+    <NxPanelContentStack>
       <StackItem>
         <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
           <FlexItem grow={{ default: 'grow' }}>
@@ -448,6 +448,6 @@ export function UserIdentitiesPanel({
         </ScrollableTableContainer>
       )}
       {dialogs}
-    </PanelContentStack>
+    </NxPanelContentStack>
   )
 }

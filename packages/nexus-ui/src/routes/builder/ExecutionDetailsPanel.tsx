@@ -20,7 +20,7 @@ import type React from 'react'
 import { useEffect, useState } from 'react'
 
 import { executionsClient } from '../../client'
-import { AppPanel } from '../../components/AppPanel'
+import { NxPanel } from '../../components/layout/NxPanel'
 import { useQueryState } from '../../components/states/useQueryState'
 import { useElapsedTime } from '../../hooks/useElapsedTime'
 import { formatExecutionDateTime, formatElapsedTime } from '../../utils/dateUtils'
@@ -196,7 +196,7 @@ function ThreePanelLayout({
   onClosePanel,
 }: Readonly<ThreePanelLayoutProps>) {
   return (
-    <AppPanel
+    <NxPanel
       hasNoPadding
       style={{
         height: '100%',
@@ -256,7 +256,7 @@ function ThreePanelLayout({
           )}
         </FlexItem>
       </Flex>
-    </AppPanel>
+    </NxPanel>
   )
 }
 
@@ -296,7 +296,7 @@ function SinglePanelLayout({
   onClosePanel,
 }: Readonly<SinglePanelLayoutProps>) {
   return (
-    <AppPanel
+    <NxPanel
       hasNoPadding
       isFullHeight
       style={{
@@ -338,13 +338,13 @@ function SinglePanelLayout({
           />
         </StackItem>
       </Stack>
-    </AppPanel>
+    </NxPanel>
   )
 }
 
 function LoadingErrorState({ queryState }: Readonly<{ queryState: React.ReactNode }>) {
   return (
-    <AppPanel
+    <NxPanel
       style={{
         height: '100%',
         maxHeight: '100%',
@@ -364,7 +364,7 @@ function LoadingErrorState({ queryState }: Readonly<{ queryState: React.ReactNod
           {queryState}
         </StackItem>
       </Stack>
-    </AppPanel>
+    </NxPanel>
   )
 }
 

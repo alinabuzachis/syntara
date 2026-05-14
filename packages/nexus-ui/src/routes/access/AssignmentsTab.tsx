@@ -4,13 +4,13 @@ import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table
 import type { IAction } from '@patternfly/react-table'
 import { useCallback, useMemo, useState } from 'react'
 
-import { AppPageMain } from '../../app/AppPage'
 import { ConfirmationDialog } from '../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
 import { IconLabel } from '../../components/IconLabel'
-import { PanelContentStack } from '../../components/PanelContentStack'
+import { NxPageBody } from '../../components/layout/NxPage'
+import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import type { FilterFieldDefinition } from '../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
@@ -138,7 +138,7 @@ export function AssignmentsTab() {
 
   return (
     <>
-      <PanelContentStack>
+      <NxPanelContentStack>
         <StackItem>
           <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
             <FlexItem grow={{ default: 'grow' }}>
@@ -159,9 +159,9 @@ export function AssignmentsTab() {
         </StackItem>
 
         {sortedRows.length === 0 ? (
-          <AppPageMain isCentered>
+          <NxPageBody isCentered>
             <EmptyStateFilter clearAllFilters={clearAllFilters} />
-          </AppPageMain>
+          </NxPageBody>
         ) : (
           <ScrollableTableContainer
             aria-label="Role assignments"
@@ -235,7 +235,7 @@ export function AssignmentsTab() {
             </Tbody>
           </ScrollableTableContainer>
         )}
-      </PanelContentStack>
+      </NxPanelContentStack>
 
       {isAddDialogOpen && <AssignRoleDialog onClose={() => setIsAddDialogOpen(false)} onSuccess={refetchAll} />}
 

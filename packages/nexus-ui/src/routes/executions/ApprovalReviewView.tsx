@@ -25,8 +25,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 
 import { approvalsClient } from '../../client'
-import { AppPanel } from '../../components/AppPanel'
 import { CodeBlock } from '../../components/details/CodeBlock'
+import { NxPanel } from '../../components/layout/NxPanel'
 import { useFormMutationErrorHandler } from '../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../providers/alerts'
 import { formatDateTime } from '../../utils/dateUtils'
@@ -144,7 +144,7 @@ export function ApprovalReviewView({ approval, activityNameMap, onClose }: Appro
   const approvalDisplayName = resolvedNodeName ? `Approval for ${resolvedNodeName}` : approval.name
 
   return (
-    <AppPanel isFullHeight style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+    <NxPanel isFullHeight style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       <Stack hasGutter style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <StackItem>
           <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }} alignItems={{ default: 'alignItemsCenter' }}>
@@ -248,6 +248,6 @@ export function ApprovalReviewView({ approval, activityNameMap, onClose }: Appro
           </Form>
         </StackItem>
       </Stack>
-    </AppPanel>
+    </NxPanel>
   )
 }

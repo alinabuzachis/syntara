@@ -13,16 +13,16 @@ import type { IAction } from '@patternfly/react-table'
 import { useMemo } from 'react'
 import { useLocation } from 'wouter'
 
-import { AppPage, AppPageMain } from '../../../app/AppPage'
-import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
 import { toolManagerClient } from '../../../client'
-import { AppPanel } from '../../../components/AppPanel'
 import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { FilterBar } from '../../../components/filters/FilterBar'
 import { IconLabel } from '../../../components/IconLabel'
-import { PanelContentStack } from '../../../components/PanelContentStack'
+import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
+import { NxPageHeader } from '../../../components/layout/NxPageHeader'
+import { NxPanel } from '../../../components/layout/NxPanel'
+import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
 import { useCursorPagination, useCursorReset } from '../../../hooks/useCursorPagination'
@@ -247,18 +247,18 @@ export default function Integrations() {
   })
   if (queryState) {
     return (
-      <AppPage>
-        <AppPageHeader title="Integrations" />
-        <AppPageMain>
-          <AppPanel isFullHeight>{queryState}</AppPanel>
-        </AppPageMain>
-      </AppPage>
+      <NxPage>
+        <NxPageHeader title="Integrations" />
+        <NxPageBody>
+          <NxPanel isFullHeight>{queryState}</NxPanel>
+        </NxPageBody>
+      </NxPage>
     )
   }
 
   return (
-    <AppPage>
-      <AppPageHeader
+    <NxPage>
+      <NxPageHeader
         title="Integrations"
         toolbar={
           <Button variant="primary" onClick={() => navigate(AppRoute.Configuration.Integrations.Configure)}>
@@ -268,13 +268,13 @@ export default function Integrations() {
       />
 
       {results.length === 0 && !hasActiveFilters ? (
-        <AppPageMain>
+        <NxPageBody>
           <IntegrationEmptyState />
-        </AppPageMain>
+        </NxPageBody>
       ) : (
-        <AppPageMain>
-          <AppPanel isFullHeight>
-            <PanelContentStack variant="pageGutter">
+        <NxPageBody>
+          <NxPanel isFullHeight>
+            <NxPanelContentStack variant="inset">
               <StackItem>
                 <FilterBar
                   fieldDefinitions={filterFieldDefinitions}
@@ -285,9 +285,9 @@ export default function Integrations() {
               </StackItem>
 
               {results.length === 0 ? (
-                <AppPageMain isCentered>
+                <NxPageBody isCentered>
                   <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
-                </AppPageMain>
+                </NxPageBody>
               ) : (
                 <ScrollableTableContainer aria-label="Integrations table" footer={getFooterProps(query.data)}>
                   <Thead>
@@ -326,9 +326,9 @@ export default function Integrations() {
                   </Tbody>
                 </ScrollableTableContainer>
               )}
-            </PanelContentStack>
-          </AppPanel>
-        </AppPageMain>
+            </NxPanelContentStack>
+          </NxPanel>
+        </NxPageBody>
       )}
 
       <ConfirmationDialog
@@ -356,6 +356,6 @@ export default function Integrations() {
       >
         The integration <strong>{deleteDialog.item?.name}</strong> will be deleted. This cannot be undone.
       </ConfirmationDialog>
-    </AppPage>
+    </NxPage>
   )
 }

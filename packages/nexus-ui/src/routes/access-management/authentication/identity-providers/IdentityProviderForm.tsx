@@ -14,8 +14,6 @@ import { useForm } from 'react-hook-form'
 import { useParams } from 'wouter'
 import { navigate } from 'wouter/use-browser-location'
 
-import { AppPage, AppPageMain } from '../../../../app/AppPage'
-import { AppPageHeader } from '../../../../app/AppPageHeader'
 import { AppRoute } from '../../../../app/AppRoute'
 import {
   breadcrumbsIdentityProviderAdd,
@@ -24,7 +22,9 @@ import {
 } from '../../../../app/breadcrumbBuilders'
 import type { AppBreadcrumbItem } from '../../../../app/breadcrumbs/appBreadcrumbItem'
 import { identityProvidersClient, OIDC_REDIRECT_URI } from '../../../../client'
-import { AppPanel } from '../../../../components/AppPanel'
+import { NxPage, NxPageBody } from '../../../../components/layout/NxPage'
+import { NxPageHeader } from '../../../../components/layout/NxPageHeader'
+import { NxPanel } from '../../../../components/layout/NxPanel'
 import { useQueryState } from '../../../../components/states/useQueryState'
 import { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../../../providers/alerts'
@@ -231,13 +231,13 @@ function identityProviderFormBreadcrumbTrail(
 
 function ProviderNotFound({ onBack, onRetry }: Readonly<{ onBack: () => void; onRetry: () => void }>) {
   return (
-    <AppPage>
-      <AppPageHeader
+    <NxPage>
+      <NxPageHeader
         title="Edit OIDC provider"
         breadcrumbs={breadcrumbsIdentityProviderFormLoading('Edit OIDC provider')}
       />
       <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-        <AppPanel isFullHeight>
+        <NxPanel isFullHeight>
           <EmptyState headingLevel="h2" titleText="Identity provider not found" icon={RhUiSearchIcon} isFullHeight>
             <EmptyStateBody>
               The identity provider you are looking for does not exist or may have been deleted.
@@ -253,9 +253,9 @@ function ProviderNotFound({ onBack, onRetry }: Readonly<{ onBack: () => void; on
               </EmptyStateActions>
             </EmptyStateFooter>
           </EmptyState>
-        </AppPanel>
+        </NxPanel>
       </StackItem>
-    </AppPage>
+    </NxPage>
   )
 }
 
@@ -411,20 +411,20 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
   }
   if (isEdit && queryState) {
     return (
-      <AppPage>
-        <AppPageHeader title={pageTitle} breadcrumbs={breadcrumbsIdentityProviderFormLoading(pageTitle)} />
-        <AppPageMain>
-          <AppPanel isFullHeight>{queryState}</AppPanel>
-        </AppPageMain>
-      </AppPage>
+      <NxPage>
+        <NxPageHeader title={pageTitle} breadcrumbs={breadcrumbsIdentityProviderFormLoading(pageTitle)} />
+        <NxPageBody>
+          <NxPanel isFullHeight>{queryState}</NxPanel>
+        </NxPageBody>
+      </NxPage>
     )
   }
 
   const idpFormCrumbs = identityProviderFormBreadcrumbTrail(isEdit, pageTitle, providerId, providerData?.name)
 
   return (
-    <AppPage>
-      <AppPageHeader
+    <NxPage>
+      <NxPageHeader
         title={pageTitle}
         breadcrumbs={idpFormCrumbs}
         toolbar={
@@ -438,8 +438,8 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
           </>
         }
       />
-      <AppPageMain>
-        <AppPanel
+      <NxPageBody>
+        <NxPanel
           isFullHeight
           isScrollable
           panelMainBodyProps={{ style: { padding: 'var(--pf-t--global--spacer--lg)' } }}
@@ -454,8 +454,8 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
             onTestConnection={onTestConnection}
             isTesting={isTesting}
           />
-        </AppPanel>
-      </AppPageMain>
-    </AppPage>
+        </NxPanel>
+      </NxPageBody>
+    </NxPage>
   )
 }

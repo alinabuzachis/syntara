@@ -5,10 +5,10 @@ import { useReactFlow, useNodesInitialized } from '@xyflow/react'
 import { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
 import { useLocation } from 'wouter'
 
-import { AppPage } from '../../app/AppPage'
 import { useUnsavedChanges } from '../../app/useUnsavedChanges'
 import { executionsClient, workflowClient } from '../../client'
-import { AppPanel } from '../../components/AppPanel'
+import { NxPage } from '../../components/layout/NxPage'
+import { NxPanel } from '../../components/layout/NxPanel'
 import { ResizableDivider } from '../../components/ResizableDivider'
 import { useDialogState } from '../../hooks/useDialogState'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
@@ -21,7 +21,7 @@ import { NodeExpandedAllContext } from '../workflows/canvas/nodes/common/NodeExp
 import { AddNodePanel } from './AddNodePanel'
 import { BuilderFlow } from './BuilderFlow'
 import { builderReducer, getInitialBuilderState } from './builderReducer'
-import { BuilderWorkflowAppPageHeader } from './BuilderWorkflowAppPageHeader'
+import { BuilderWorkflowPageHeader } from './BuilderWorkflowPageHeader'
 import { BuilderDialogs } from './components/BuilderDialogs'
 import { NodeEditorOverlay } from './components/NodeEditorOverlay'
 import type { TestStepDialogData } from './components/TestStepDialog'
@@ -298,10 +298,10 @@ export function BuilderContent(props: BuilderContentProps) {
   return (
     <NodeActionsContext.Provider value={nodeActionsValue}>
       <NodeExpandedAllContext.Provider value={nodeExpandedAllContextValue}>
-        <AppPage>
+        <NxPage>
           <Stack hasGutter>
             <StackItem>
-              <BuilderWorkflowAppPageHeader
+              <BuilderWorkflowPageHeader
                 workflowName={workflowName}
                 workflowDescription={workflowDescription}
                 workflowTags={workflowTags}
@@ -356,7 +356,7 @@ export function BuilderContent(props: BuilderContentProps) {
                     }}
                   >
                     <StackItem isFilled style={{ minHeight: 0 }}>
-                      <AppPanel
+                      <NxPanel
                         hasNoPadding
                         isFullHeight
                         style={{
@@ -381,7 +381,7 @@ export function BuilderContent(props: BuilderContentProps) {
                           newNodeDesiredPosition={state.newNodeDesiredPosition}
                           onClearDesiredPosition={handleClearDesiredPosition}
                         />
-                      </AppPanel>
+                      </NxPanel>
                     </StackItem>
                     {showMostRecentRunPanelInEditor && mostRecentExecutionId && (
                       <>
@@ -503,7 +503,7 @@ export function BuilderContent(props: BuilderContentProps) {
               dispatch({ type: 'SET_MOST_RECENT_EXECUTION', payload: executionId })
             }}
           />
-        </AppPage>
+        </NxPage>
       </NodeExpandedAllContext.Provider>
     </NodeActionsContext.Provider>
   )

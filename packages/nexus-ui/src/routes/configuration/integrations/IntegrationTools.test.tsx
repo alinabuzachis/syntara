@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
@@ -726,7 +726,6 @@ describe('IntegrationTools Component', () => {
     })
 
     it('does not call refresh mutation when confirmation dialog is cancelled', async () => {
-      const user = userEvent.setup()
       const mockRefreshMutate = vi.fn()
       vi.mocked(toolManagerClient.useMutation).mockReturnValue({
         mutate: mockRefreshMutate,
@@ -747,6 +746,7 @@ describe('IntegrationTools Component', () => {
         context: undefined,
       })
 
+      const user = userEvent.setup()
       render(<IntegrationTools />, { wrapper })
 
       const refreshButtons = screen.getAllByText('Refresh tools')
@@ -805,6 +805,343 @@ describe('IntegrationTools Component', () => {
 
       // Confirmation dialog should not be shown
       expect(screen.queryByText(/Are you sure you want to refresh tools/i)).not.toBeInTheDocument()
+    })
+  })
+
+  describe('Error State with Provider Name', () => {
+    it('shows provider name in title when error occurs but provider data is available', () => {
+      vi.mocked(toolManagerClient.useQuery).mockImplementation((_method, path: string) => {
+        if (path === '/tool_manager/tool_providers/{provider_id}') {
+          return {
+            data: mockProvider,
+            isPending: false,
+            isError: true,
+            error: new Error('Provider error'),
+          } as never
+        }
+        return { ...baseQueryResult, data: { resources: [] } } as never
+      })
+
+      render(<IntegrationTools />, { wrapper })
+
+      expect(screen.getByRole('heading', { name: 'Test Provider tools' })).toBeInTheDocument()
+    })
+
+    it('shows generic title when error occurs and provider has no name', () => {
+      vi.mocked(toolManagerClient.useQuery).mockImplementation((_method, path: string) => {
+        if (path === '/tool_manager/tool_providers/{provider_id}') {
+          return {
+            data: { ...mockProvider, name: undefined },
+            isPending: false,
+            isError: true,
+            error: new Error('Provider error'),
+          } as never
+        }
+        return { ...baseQueryResult, data: { resources: [] } } as never
+      })
+
+      render(<IntegrationTools />, { wrapper })
+
+      expect(screen.getByRole('heading', { name: 'Tools' })).toBeInTheDocument()
+    })
+  })
+
+  describe('Save Error Handling', () => {
+    it('shows error alert when save throws an exception', async () => {
+      vi.mocked(toolManagerClient.useMutation).mockImplementation((_method, path: string) => {
+        if (path === '/tool_manager/tools/bulk_update') {
+          return {
+            mutate: vi.fn(),
+            mutateAsync: vi.fn().mockRejectedValue(new Error('Save failed')),
+            isPending: false,
+            isError: false,
+            error: null,
+            data: undefined,
+            reset: vi.fn(),
+            isSuccess: false,
+            isIdle: true,
+            failureCount: 0,
+            failureReason: null,
+            isPaused: false,
+            status: 'idle',
+            submittedAt: 0,
+            variables: undefined,
+            context: undefined,
+          } as never
+        }
+        return {
+          mutate: vi.fn(),
+          isPending: false,
+          isError: false,
+          error: null,
+          data: null,
+          reset: vi.fn(),
+          mutateAsync: vi.fn(),
+          isSuccess: false,
+          isIdle: true,
+          failureCount: 0,
+          failureReason: null,
+          isPaused: false,
+          status: 'idle',
+          submittedAt: 0,
+          variables: undefined,
+          context: undefined,
+        } as never
+      })
+
+      const user = userEvent.setup()
+      render(<IntegrationTools />, { wrapper })
+      await user.click(screen.getByText('Save'))
+
+      await waitFor(() => {
+        expect(screen.getByText(/failed to save tools/i)).toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('handleSubmit edge cases', () => {
+    it('does not call mutation when no tools exist (empty results)', async () => {
+      vi.mocked(toolManagerClient.useQuery).mockImplementation((_method, path: string) => {
+        if (path === '/tool_manager/tool_providers/{provider_id}') {
+          return { ...baseQueryResult, data: mockProvider } as never
+        }
+        // Return the provider but no tools
+        return { ...baseQueryResult, data: { resources: [] } } as never
+      })
+
+      const user = userEvent.setup()
+      render(<IntegrationTools />, { wrapper })
+
+      // The empty state header still shows the Save button
+      await user.click(screen.getByText('Save'))
+
+      await waitFor(() => {
+        expect(mockMutate).not.toHaveBeenCalled()
+      })
+    })
+
+    it('calls only enable mutation when all disabled tools become enabled', async () => {
+      const allDisabledTools = mockTools.map((t) => ({ ...t, enabled: false }))
+      vi.mocked(toolManagerClient.useQuery).mockImplementation((_method, path: string) => {
+        if (path === '/tool_manager/tool_providers/{provider_id}') {
+          return { ...baseQueryResult, data: mockProvider } as never
+        }
+        return { ...baseQueryResult, data: { resources: allDisabledTools } } as never
+      })
+
+      const user = userEvent.setup()
+      render(<IntegrationTools />, { wrapper })
+
+      // All tools are initially disabled, select all of them
+      const selectAll = screen.getAllByRole('checkbox')[0]
+      await user.click(selectAll)
+
+      await user.click(screen.getByText('Save'))
+
+      await waitFor(() => {
+        expect(mockMutate).toHaveBeenCalled()
+      })
+    })
+
+    it('calls only disable mutation when all enabled tools become disabled', async () => {
+      const allEnabledTools = mockTools.map((t) => ({ ...t, enabled: true }))
+      vi.mocked(toolManagerClient.useQuery).mockImplementation((_method, path: string) => {
+        if (path === '/tool_manager/tool_providers/{provider_id}') {
+          return { ...baseQueryResult, data: mockProvider } as never
+        }
+        return { ...baseQueryResult, data: { resources: allEnabledTools } } as never
+      })
+
+      const user = userEvent.setup()
+      render(<IntegrationTools />, { wrapper })
+
+      // Deselect all (currently all selected)
+      const selectAll = screen.getAllByRole('checkbox')[0]
+      await user.click(selectAll)
+
+      await user.click(screen.getByText('Save'))
+
+      await waitFor(() => {
+        expect(mockMutate).toHaveBeenCalled()
+      })
+    })
+  })
+
+  describe('sortData with undefined namespaced_name', () => {
+    it('handles tools with undefined namespaced_name in sort', () => {
+      const toolsWithUndefinedName = [
+        { id: 'tool-x', namespaced_name: undefined as unknown as string, description: 'Tool X', enabled: false },
+        ...mockTools,
+      ]
+
+      vi.mocked(toolManagerClient.useQuery).mockImplementation((_method, path: string) => {
+        if (path === '/tool_manager/tool_providers/{provider_id}') {
+          return { ...baseQueryResult, data: mockProvider } as never
+        }
+        return { ...baseQueryResult, data: { resources: toolsWithUndefinedName } } as never
+      })
+
+      render(<IntegrationTools />, { wrapper })
+
+      expect(screen.getByText('Tool X')).toBeInTheDocument()
+    })
+  })
+
+  describe('Empty filter state (active filters, no results)', () => {
+    it('shows EmptyStateFilter when active filter yields no results', () => {
+      // Set a filter param in mockSearchParams to make hasActiveFilters true
+      mockSearchParams.set('name[contains]', 'nonexistent-tool')
+
+      vi.mocked(toolManagerClient.useQuery).mockImplementation((_method, path: string) => {
+        if (path === '/tool_manager/tool_providers/{provider_id}') {
+          return { ...baseQueryResult, data: mockProvider } as never
+        }
+        return { ...baseQueryResult, data: { resources: [] } } as never
+      })
+
+      render(<IntegrationTools />, { wrapper })
+
+      // With active filters and no results, shows the EmptyStateFilter (not the NoData state)
+      const clearAllButtons = screen.getAllByRole('button', { name: 'Clear all filters' })
+      expect(clearAllButtons.length).toBeGreaterThan(0)
+
+      // Cleanup: reset search params for other tests
+      mockSearchParams.delete('name[contains]')
+    })
+  })
+
+  describe('useQueryState onRetry callback', () => {
+    it('calls integrationQuery.refetch when retry is clicked in error state', async () => {
+      const mockRefetch = vi.fn().mockResolvedValue({})
+      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
+        data: null,
+        isPending: false,
+        isError: true,
+        error: { message: 'Failed to load', retryable: true },
+        refetch: mockRefetch,
+      } as never)
+
+      const user = userEvent.setup()
+      render(<IntegrationTools />, { wrapper })
+
+      const retryButton = screen.getByRole('button', { name: 'Retry' })
+      await user.click(retryButton)
+
+      expect(mockRefetch).toHaveBeenCalled()
+    })
+  })
+
+  describe('mergeEnabledToolIdsFromApi — off-page ID preservation', () => {
+    it('preserves enabled IDs that are not on the current page after tools update', async () => {
+      const toolsOnPage1 = [
+        { id: 'tool-off-page', namespaced_name: 'off.page.tool', description: 'Old page tool', enabled: true },
+      ]
+      const toolsOnPage2 = mockTools
+
+      const toolsRef = { list: toolsOnPage1 }
+      vi.mocked(toolManagerClient.useQuery).mockImplementation((_method, path: string) => {
+        if (path === '/tool_manager/tool_providers/{provider_id}') {
+          return { ...baseQueryResult, data: mockProvider } as never
+        }
+        return { ...baseQueryResult, data: { resources: toolsRef.list } } as never
+      })
+
+      const { rerender } = render(<IntegrationTools />, { wrapper })
+
+      // Initially tool-off-page is enabled
+      const rows = screen.getAllByRole('row').slice(1)
+      expect(rows.length).toBe(1)
+      const offPageCheckbox = within(rows[0]).getByRole('checkbox')
+      expect(offPageCheckbox).toBeChecked()
+
+      // Navigate to page 2 — tool-off-page is no longer in results
+      toolsRef.list = toolsOnPage2
+      rerender(<IntegrationTools />)
+
+      // tool-off-page is preserved as enabled (not on page, so kept in state)
+      // The new tools show with their enabled/disabled states
+      await waitFor(() => {
+        expect(screen.getByText('test.tool_one')).toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('Refresh Mutation Callbacks', () => {
+    it('calls refresh mutation with correct provider and invokes onSuccess on completion', async () => {
+      let capturedCallbacks: { onSuccess?: () => void; onError?: (e: unknown) => void } = {}
+      const mockRefreshMutate = vi.fn(
+        (_params: unknown, callbacks: { onSuccess?: () => void; onError?: (e: unknown) => void }) => {
+          capturedCallbacks = callbacks
+        }
+      )
+      const mockRefetch = vi.fn().mockResolvedValue({})
+
+      vi.mocked(toolManagerClient.useMutation).mockImplementation((_method, path: string) => {
+        if (path === '/tool_manager/tool_providers/{provider_id}/refresh_tools') {
+          return { mutate: mockRefreshMutate, isPending: false } as never
+        }
+        return { mutate: vi.fn(), mutateAsync: vi.fn().mockResolvedValue(undefined), isPending: false } as never
+      })
+
+      vi.mocked(toolManagerClient.useQuery).mockImplementation((_method, path: string) => {
+        if (path === '/tool_manager/tool_providers/{provider_id}') {
+          return { ...baseQueryResult, data: mockProvider } as never
+        }
+        return { ...baseQueryResult, data: { resources: mockTools }, refetch: mockRefetch } as never
+      })
+
+      const user = userEvent.setup()
+      render(<IntegrationTools />, { wrapper })
+
+      const refreshButtons = screen.getAllByText('Refresh tools')
+      await user.click(refreshButtons[0])
+      await user.click(screen.getByRole('button', { name: 'Refresh' }))
+
+      expect(mockRefreshMutate).toHaveBeenCalledWith(
+        expect.objectContaining({ params: { path: { provider_id: 'provider-1' } } }),
+        expect.objectContaining({
+          onSuccess: expect.any(Function) as unknown,
+          onError: expect.any(Function) as unknown,
+        })
+      )
+
+      // Invoke onSuccess inside act to flush state updates
+      // eslint-disable-next-line @typescript-eslint/require-await -- act needs async to flush microtasks
+      await act(async () => {
+        capturedCallbacks.onSuccess?.()
+      })
+
+      expect(mockRefetch).toHaveBeenCalled()
+    })
+
+    it('shows error alert when refresh mutation calls onError', async () => {
+      let capturedCallbacks: { onSuccess?: () => void; onError?: (e: unknown) => void } = {}
+      const mockRefreshMutate = vi.fn(
+        (_params: unknown, callbacks: { onSuccess?: () => void; onError?: (e: unknown) => void }) => {
+          capturedCallbacks = callbacks
+        }
+      )
+
+      vi.mocked(toolManagerClient.useMutation).mockImplementation((_method, path: string) => {
+        if (path === '/tool_manager/tool_providers/{provider_id}/refresh_tools') {
+          return { mutate: mockRefreshMutate, isPending: false } as never
+        }
+        return { mutate: vi.fn(), mutateAsync: vi.fn().mockResolvedValue(undefined), isPending: false } as never
+      })
+
+      const user = userEvent.setup()
+      render(<IntegrationTools />, { wrapper })
+
+      const refreshButtons = screen.getAllByText('Refresh tools')
+      await user.click(refreshButtons[0])
+      await user.click(screen.getByRole('button', { name: 'Refresh' }))
+
+      // eslint-disable-next-line @typescript-eslint/require-await -- act needs async to flush microtasks
+      await act(async () => {
+        capturedCallbacks.onError?.(new Error('Network error'))
+      })
+
+      expect(screen.getByText(/refresh failed/i)).toBeInTheDocument()
     })
   })
 

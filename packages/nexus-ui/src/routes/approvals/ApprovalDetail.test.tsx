@@ -1,5 +1,5 @@
 import type { Approval } from '@ansible/nexus-contracts'
-import { act, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
@@ -144,6 +144,25 @@ describe('ApprovalDetail Component', () => {
     expect(screen.getByText('Error loading approval')).toBeInTheDocument()
   })
 
+  it('calls refetch when retry is clicked in error state', async () => {
+    const mockRefetch = vi.fn().mockResolvedValue({})
+    vi.mocked(approvalsClient.useQuery).mockReturnValue({
+      data: null,
+      isPending: false,
+      error: { message: 'Failed to load', retryable: true },
+      isError: true,
+      refetch: mockRefetch,
+    } as never)
+
+    const user = userEvent.setup()
+    render(<ApprovalDetail />)
+
+    const retryButton = screen.getByRole('button', { name: 'Retry' })
+    await user.click(retryButton)
+
+    expect(mockRefetch).toHaveBeenCalled()
+  })
+
   it('uses approval ID as fallback name when name not provided', () => {
     const approvalWithoutName: Approval = {
       // BaseResource fields
@@ -280,6 +299,26 @@ describe('ApprovalDetail Component', () => {
     expect(screen.getByRole('button', { name: 'Reject' })).toBeInTheDocument()
   })
 
+  it('handleSubmit guard prevents mutation when isSubmitting is true', async () => {
+    vi.mocked(approvalsClient.useMutation).mockReturnValue({
+      mutate: mockMutate,
+      isPending: true,
+      isSuccess: false,
+    } as never)
+    mockApprovalQuery(mockApproval)
+
+    render(<ApprovalDetail />)
+
+    // Click Approve to set pendingDecision — now canSubmit=true, isSubmitting=true
+    await userEvent.click(screen.getByRole('button', { name: 'Approve' }))
+
+    const submitButton = screen.getByRole('button', { name: /submit/i })
+    // Use fireEvent to bypass any aria-disabled restriction
+    fireEvent.click(submitButton)
+
+    expect(mockMutate).not.toHaveBeenCalled()
+  })
+
   it('disables submit button during mutation', () => {
     mockApprovalQuery(mockApproval)
     vi.mocked(approvalsClient.useMutation).mockReturnValue({
@@ -293,6 +332,89 @@ describe('ApprovalDetail Component', () => {
     // since canSubmit requires pendingDecision, and it's not set yet
     const submitButton = screen.getByRole('button', { name: /submit/i })
     expect(submitButton).toBeDisabled()
+  })
+
+  it('shows error when no approval ID is provided', () => {
+    vi.mocked(useParams).mockReturnValue({})
+
+    render(<ApprovalDetail />)
+
+    expect(screen.getByRole('heading', { name: 'Error' })).toBeInTheDocument()
+    expect(screen.getByText('Invalid approval')).toBeInTheDocument()
+    expect(screen.getByText('No approval ID provided')).toBeInTheDocument()
+  })
+
+  it('resets pending decision when undo button is clicked', async () => {
+    mockApprovalQuery(mockApproval)
+
+    render(<ApprovalDetail />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Approve' }))
+    expect(screen.getByRole('textbox')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Undo decision' }))
+
+    expect(screen.getByRole('button', { name: 'Approve' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Reject' })).toBeInTheDocument()
+  })
+
+  it('shows "Rejection notes" label for rejected approvals with notes', () => {
+    const rejectedApproval = { ...mockApproval, status: 'rejected', decision_notes: 'Does not meet standards' }
+    mockApprovalQuery(rejectedApproval as Approval)
+
+    render(<ApprovalDetail />)
+
+    expect(screen.getByText('Rejected')).toBeInTheDocument()
+    expect(screen.getByText('Rejection notes')).toBeInTheDocument()
+    expect(screen.getByText('Does not meet standards')).toBeInTheDocument()
+  })
+
+  it('shows "Notes" label for non-approved/rejected status approvals with notes', () => {
+    const otherApproval = {
+      ...mockApproval,
+      status: 'expired' as unknown as Approval['status'],
+      decision_notes: 'Timed out',
+    }
+    mockApprovalQuery(otherApproval as Approval)
+
+    render(<ApprovalDetail />)
+
+    expect(screen.getByText('Notes')).toBeInTheDocument()
+    expect(screen.getByText('Timed out')).toBeInTheDocument()
+  })
+
+  it('shows "Back to Approvals" button for non-pending approvals', () => {
+    const approvedApproval = { ...mockApproval, status: 'approved' }
+    mockApprovalQuery(approvedApproval as Approval)
+
+    render(<ApprovalDetail />)
+
+    expect(screen.getByRole('button', { name: 'Back to Approvals' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Submit' })).not.toBeInTheDocument()
+  })
+
+  it('shows success alert variant after approval submission', async () => {
+    const mockRefetch = vi.fn().mockResolvedValue({})
+    vi.mocked(approvalsClient.useQuery).mockReturnValue({
+      data: mockApproval,
+      isPending: false,
+      error: null,
+      isError: false,
+      refetch: mockRefetch,
+    } as never)
+
+    render(<ApprovalDetail />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Approve' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
+
+    const mutateCall = mockMutate.mock.calls[0] as [unknown, { onSuccess: () => void }]
+    // eslint-disable-next-line @typescript-eslint/require-await
+    await act(async () => {
+      mutateCall[1].onSuccess()
+    })
+
+    expect(mockRefetch).toHaveBeenCalled()
   })
 
   it('has no accessibility violations', async () => {

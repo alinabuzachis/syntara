@@ -128,6 +128,14 @@ describe('AccessManagement', () => {
     expect(screen.getByRole('link', { name: 'Access management' })).toBeInTheDocument()
   })
 
+  it('defaults to first tab when location does not match any tab path', () => {
+    wouterLocation.path = '/access-management/unknown-path'
+    render(<AccessManagement />, { wrapper })
+
+    // resolvedIndex falls back to 0 (Users tab) when activeTabIndex is -1
+    expect(screen.getByText('No users')).toBeInTheDocument()
+  })
+
   it('navigates to Groups tab when clicked', async () => {
     const user = userEvent.setup()
     render(<AccessManagement />, { wrapper })

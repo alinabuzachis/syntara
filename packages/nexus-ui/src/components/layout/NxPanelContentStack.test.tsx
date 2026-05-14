@@ -2,14 +2,14 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { PanelContentStack } from './PanelContentStack'
+import { NxPanelContentStack } from './NxPanelContentStack'
 
-describe('PanelContentStack', () => {
+describe('NxPanelContentStack', () => {
   it('renders children with default panel stack styles', () => {
     render(
-      <PanelContentStack>
+      <NxPanelContentStack>
         <div>Main</div>
-      </PanelContentStack>
+      </NxPanelContentStack>
     )
 
     const child = screen.getByText('Main')
@@ -22,11 +22,11 @@ describe('PanelContentStack', () => {
     /* eslint-enable testing-library/no-node-access */
   })
 
-  it('renders pageGutter variant', () => {
+  it('renders inset variant with horizontal padding token', () => {
     render(
-      <PanelContentStack variant="pageGutter">
+      <NxPanelContentStack variant="inset">
         <span>List</span>
-      </PanelContentStack>
+      </NxPanelContentStack>
     )
 
     const child = screen.getByText('List')
@@ -39,11 +39,11 @@ describe('PanelContentStack', () => {
   describe('Accessibility', () => {
     it('has no accessibility violations with minimal content', async () => {
       const { container } = render(
-        <PanelContentStack>
+        <NxPanelContentStack>
           <main>
             <h1>Title</h1>
           </main>
-        </PanelContentStack>
+        </NxPanelContentStack>
       )
       expect(await axe(container)).toHaveNoViolations()
     })

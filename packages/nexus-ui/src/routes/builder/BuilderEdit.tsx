@@ -3,10 +3,10 @@ import { ReactFlowProvider } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { useParams } from 'wouter'
 
-import { AppPage, AppPageMain } from '../../app/AppPage'
-import { AppPageHeader } from '../../app/AppPageHeader'
 import { workflowClient } from '../../client'
-import { AppPanel } from '../../components/AppPanel'
+import { NxPage, NxPageBody } from '../../components/layout/NxPage'
+import { NxPageHeader } from '../../components/layout/NxPageHeader'
+import { NxPanel } from '../../components/layout/NxPanel'
 import { ErrorState } from '../../components/states/ErrorState'
 import { LoadingState } from '../../components/states/LoadingState'
 
@@ -35,14 +35,14 @@ export default function BuilderEdit() {
 
   if (error) {
     return (
-      <AppPage>
-        <AppPageHeader title="Error loading workflow" />
-        <AppPageMain>
-          <AppPanel isFullHeight>
+      <NxPage>
+        <NxPageHeader title="Error loading workflow" />
+        <NxPageBody>
+          <NxPanel isFullHeight>
             <ErrorState title="Error loading workflow" message={error} />
-          </AppPanel>
-        </AppPageMain>
-      </AppPage>
+          </NxPanel>
+        </NxPageBody>
+      </NxPage>
     )
   }
 
@@ -50,14 +50,14 @@ export default function BuilderEdit() {
   // isLoading = true only on first fetch, isPending = true on both initial and refetch
   if (isLoading) {
     return (
-      <AppPage>
-        <AppPageHeader title="Loading workflow" />
-        <AppPageMain>
-          <AppPanel isFullHeight>
+      <NxPage>
+        <NxPageHeader title="Loading workflow" />
+        <NxPageBody>
+          <NxPanel isFullHeight>
             <LoadingState />
-          </AppPanel>
-        </AppPageMain>
-      </AppPage>
+          </NxPanel>
+        </NxPageBody>
+      </NxPage>
     )
   }
 

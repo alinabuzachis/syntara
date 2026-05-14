@@ -23,7 +23,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { EmptyStateFilter } from '../../../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../../../components/EmptyStateNoData'
 import { FilterBar } from '../../../../components/filters/FilterBar'
-import { PanelContentStack } from '../../../../components/PanelContentStack'
+import { NxPanelContentStack } from '../../../../components/layout/NxPanelContentStack'
 import { ScrollableTableContainer } from '../../../../components/table/ScrollableTableContainer'
 import type { FilterConfig, FilterFieldDefinition } from '../../../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../../../types/filters'
@@ -319,7 +319,7 @@ export function ReadOnlyView({ entries, nexusGroups, onEditMapping }: Readonly<R
   }
 
   return (
-    <PanelContentStack hasGutter>
+    <NxPanelContentStack hasGutter>
       <GroupMappingReadOnlyToolbar
         filters={filters}
         onFilterChange={handleFilterChange}
@@ -362,6 +362,6 @@ export function ReadOnlyView({ entries, nexusGroups, onEditMapping }: Readonly<R
           </Tbody>
         </ScrollableTableContainer>
       )}
-    </PanelContentStack>
+    </NxPanelContentStack>
   )
 }

@@ -43,9 +43,9 @@ Every page must follow this structural hierarchy:
 |---|---|---|
 | App Shell | `Compass` | Overall application frame |
 | Navigation | `AppDockedNav` | Left sidebar with icons |
-| Page Content | `CompassContent` + `AppPage` | Main content area wrapper |
-| Page Header | `AppPageHeader` | Page title and actions |
-| Content Frame | `AppPanel` | `Panel` → `PanelMain` → `PanelMainBody` |
+| Page Content | `CompassContent` + `NxPage` | Main content area wrapper |
+| Page Header | `NxPageHeader` | Page title and actions |
+| Content Frame | `NxPanel` | `Panel` → `PanelMain` → `PanelMainBody` |
 | Main Content | Table / Canvas / Form | Primary page content |
 | Footer (tables) | Pagination component | Navigation between table pages |
 
@@ -55,9 +55,9 @@ Every page must follow this structural hierarchy:
 - **Form page header** — Left-aligned title, right-aligned actions
 
 ### Structure Checklist
-- Use `AppPage` as outer wrapper
-- Use `AppPageHeader` for title and actions
-- Use `StackItem isFilled` + `AppPanel isFullHeight` for content
+- Use `NxPage` as outer wrapper
+- Use `NxPageHeader` for title and actions
+- Use `StackItem isFilled` + `NxPanel isFullHeight` for content
 - Primary action is the rightmost button
 - Canvas views use `hasNoPadding`
 
