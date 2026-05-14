@@ -106,9 +106,15 @@ test-unit: check-deps ## Run unit tests only
 test-integration: check-deps ## Run integration tests
 	$(call run-tests,tests/integration/ -v -n auto -m "not mcp")
 
-.PHONY: test-mcp
-test-mcp: check-deps ## Run MCP tests only
-	$(call run-tests,tests/ -v -m "mcp" $(E2E_IGNORE))
+.PHONY: test-e2e-mcp
+test-e2e-mcp: check-deps ## Run MCP E2E tests only
+ifndef APP_BASE_URL
+	$(call _e2e-run,tests/ -v -m "mcp")
+else
+	@echo "🧪 Running MCP tests..."
+	SEGMENT_SERVER_URL=$${SEGMENT_SERVER_URL:-http://localhost:$(SEGMENT_SERVER_PORT)} \
+	uv run pytest tests/ -v -m "mcp"
+endif
 
 .PHONY: test-performance
 test-performance: check-deps ## Run performance tests only (excluded from default test runs)

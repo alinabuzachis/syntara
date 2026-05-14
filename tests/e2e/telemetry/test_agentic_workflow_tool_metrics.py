@@ -22,10 +22,6 @@ from uuid import UUID, uuid4
 import httpx
 import pytest
 from nexus_api_client.api import NexusApiRegistry
-from nexus_api_client.models.mcp_configuration import MCPConfiguration
-from nexus_api_client.models.provider_status import ProviderStatus
-from nexus_api_client.models.tool_provider_create import ToolProviderCreate
-from nexus_api_client.models.tool_provider_patch import ToolProviderPatch
 from nexus_api_client.models.workflow_create import WorkflowCreate
 
 from tests.e2e.telemetry.conftest import get_captured_events, new_request_id
@@ -33,14 +29,6 @@ from tests.e2e.telemetry.conftest import get_captured_events, new_request_id
 WORKFLOW_NAME_PREFIX = "e2e-agentic-tool-metrics"
 POLL_INTERVAL = 5
 POLL_TIMEOUT = 120
-
-MCP_PROVIDER_NAME = "mcp"
-MCP_PORT = os.environ.get("MCP_PORT", "8765")
-# Provider URL registered via the API. Must be reachable from the API server.
-# When `make dev` runs on the host, this is localhost; override for containerized deployments.
-MCP_PROVIDER_URL = os.environ.get("MCP_BASE_URL", f"http://mcp-server:{MCP_PORT}/mcp")
-# Health check URL used by the test process (always host network).
-MCP_HEALTH_URL = f"http://localhost:{MCP_PORT}/health"
 
 requires_openrouter = pytest.mark.skipif(
     not os.environ.get("E2E_LLM_CREDENTIAL_CONFIGURED"),
@@ -113,94 +101,10 @@ def _poll_execution(nexus_api: NexusApiRegistry, exec_id: str) -> Any:  # noqa: 
 
 
 @pytest.fixture(scope="module")
-def mcp_provider(nexus_api: NexusApiRegistry) -> str:
-    """Register the MCP tool provider (or reuse existing), validate, and refresh tools.
-
-    The provider URL uses compose DNS (mcp-server:8765) so the Temporal
-    worker can reach it. Validation is done via a direct health check from
-    the test process (localhost:8765) since the API server may run on the
-    host and can't resolve compose DNS names.
-
-    Returns the provider ID.
-    """
-    # Check MCP server is reachable from the test process
-    try:
-        r = httpx.get(MCP_HEALTH_URL, timeout=5)
-        r.raise_for_status()
-    except (httpx.RequestError, httpx.HTTPStatusError) as exc:
-        pytest.skip(f"MCP server not reachable at {MCP_HEALTH_URL}: {exc}")
-
-    # Find or create provider
-    providers = nexus_api.tool_manager.get_tool_providers(
-        additional_params={"name": MCP_PROVIDER_NAME}
-    ).assert_and_get()
-    existing = [p for p in providers.resources if p.name == MCP_PROVIDER_NAME]
-
-    if existing:
-        provider_id: str = str(existing[0].id)
-        # Update configuration to use the current MCP_PROVIDER_URL
-        nexus_api.tool_manager.patch_tool_provider(
-            provider_id=UUID(provider_id),
-            body=ToolProviderPatch(configuration=MCPConfiguration(base_url=MCP_PROVIDER_URL)),
-        )
-        # Re-validate so the provider transitions back to "available" status
-        nexus_api.tool_manager.validate_tool_provider(provider_id=UUID(provider_id))
-    else:
-        response = nexus_api.tool_manager.register_tool_provider(
-            body=ToolProviderCreate(
-                name=MCP_PROVIDER_NAME,
-                description="MCP server for e2e tests",
-                configuration=MCPConfiguration(base_url=MCP_PROVIDER_URL),
-            ),
-        )
-        if response.status_code == 409:
-            # Provider exists but wasn't returned by list query — fetch all and find it
-            all_providers = nexus_api.tool_manager.get_tool_providers().assert_and_get()
-            match = [p for p in all_providers.resources if p.name == MCP_PROVIDER_NAME]
-            if not match:
-                pytest.skip(f"MCP provider '{MCP_PROVIDER_NAME}' conflict but not found in list")
-            provider_id = str(match[0].id)
-        else:
-            provider_id = str(response.assert_and_get().id)
-
-    nexus_api.tool_manager.patch_tool_provider(
-        provider_id=UUID(provider_id),
-        body=ToolProviderPatch(status=ProviderStatus.AVAILABLE),
-    ).assert_and_get()
-
-    # Poll until the PATCH commit is visible to new transactions.
-    # FastAPI's dependency-with-yield commits the session AFTER the HTTP
-    # response is delivered, so a subsequent request may read stale data.
-    prov_status = None
-    for _attempt in range(20):
-        prov = nexus_api.tool_manager.get_tool_provider(provider_id=UUID(provider_id)).assert_and_get()
-        prov_status = prov.status
-        if prov_status == ProviderStatus.AVAILABLE:
-            break
-        time.sleep(0.25)
-    else:
-        pytest.fail(f"Provider status never became AVAILABLE, got: {prov_status}")
-
-    # Refresh tools (the worker will reach the MCP server via compose DNS)
-    nexus_api.tool_manager.refresh_tool_provider(provider_id=UUID(provider_id)).assert_and_get()
-
-    # Verify get_greeting tool is available
-    tools = nexus_api.tool_manager.get_tools(
-        additional_params={"provider_id": provider_id},
-        limit=100,
-    ).assert_and_get()
-    names = [t.namespaced_name for t in tools.resources]
-    if "mcp::get_greeting" not in names:
-        pytest.skip(f"mcp::get_greeting not found after refresh. Available: {names}")
-
-    return provider_id
-
-
-@pytest.fixture(scope="module")
-def workflow_id(nexus_api: NexusApiRegistry, mcp_provider: str) -> Generator[str, None, None]:
+def workflow_id(nexus_api: NexusApiRegistry, mcp_provider_id: str) -> Generator[str, None, None]:
     """Create a uniquely-named test workflow, yield its ID, then delete it.
 
-    Depends on mcp_provider to ensure the tool provider is registered first.
+    Depends on mcp_provider_id to ensure the tool provider is registered first.
     """
     workflow_name = f"{WORKFLOW_NAME_PREFIX}-{uuid4().hex[:8]}"
 

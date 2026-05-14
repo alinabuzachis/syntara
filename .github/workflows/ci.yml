@@ -100,11 +100,8 @@ jobs:
       - name: Check migrations
         run: make check-migrations
 
-      - name: Run tests (excluding MCP) with coverage
+      - name: Run tests with coverage
         run: make test-coverage
-
-      - name: Run MCP tests
-        run: make test-mcp
 
       - name: Upload test results
         uses: actions/upload-artifact@v4

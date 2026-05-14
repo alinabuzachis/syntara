@@ -36,7 +36,7 @@ trap cleanup EXIT
 
 ${MAKE} _deps-install-dev
 
-echo "🚀 Starting mock Segment, database, Temporal, and OPA..."
+echo "🚀 Starting mock Segment, database, Temporal, OPA, and MCP server..."
 APP_SEGMENT_WRITE_KEY=test-e2e-write-key \
 APP_SEGMENT_ENDPOINT="http://mock-segment:${SEGMENT_SERVER_PORT}" \
 APP_SEGMENT_MAX_RETRIES=2 \

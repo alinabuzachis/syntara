@@ -17,15 +17,11 @@ from nexus_api_client.api import NexusApiRegistry
 from nexus_api_client.models import (
     ExecutionCreate,
     ExecutionRead,
-    MCPConfiguration,
-    ToolProviderCreate,
     WorkflowCreate,
     WorkflowUpdate,
 )
 from nexus_api_client.models.execution_status import ExecutionStatus
 
-MCP_SERVER_URL = os.environ.get("NEXUS_MCP_SERVER_URL", "http://mcp-server:8765/mcp")
-MCP_PROVIDER_NAME = "mcp"
 POLL_INTERVAL = 1
 POLL_TIMEOUT = 20
 AGENTIC_POLL_TIMEOUT = 120
@@ -51,33 +47,6 @@ def _poll_execution(api: NexusApiRegistry, exec_id: str, timeout: int = POLL_TIM
         if execution.status in _TERMINAL_STATUSES:
             return execution
     pytest.fail(f"Execution {exec_id} did not finish within {timeout}s")
-
-
-def _ensure_mcp_provider(api: NexusApiRegistry) -> str:
-    """Register and validate the MCP tool provider if not already present."""
-    response = api.tool_manager.get_tool_providers()
-    assert response.is_success, "Failed to list tool providers"
-    assert response.parsed is not None, "Failed to list tool providers"
-    existing = [p for p in response.parsed.resources if p.name == MCP_PROVIDER_NAME]
-
-    if existing:
-        provider_id: str = str(existing[0].id)
-    else:
-        reg = api.tool_manager.register_tool_provider(
-            body=ToolProviderCreate(
-                name=MCP_PROVIDER_NAME,
-                description="MCP server for E2E tests",
-                configuration=MCPConfiguration(base_url=MCP_SERVER_URL),
-            )
-        )
-        assert reg.is_success, "Failed to register tool provider"
-        assert reg.parsed is not None, "Failed to register tool provider"
-        provider_id = str(reg.parsed.id)
-
-    pid = UUID(provider_id)
-    api.tool_manager.validate_tool_provider(provider_id=pid)
-    api.tool_manager.refresh_tool_provider(provider_id=pid)
-    return provider_id
 
 
 def _create_and_run_workflow(
@@ -505,9 +474,8 @@ def test_multi_node_workflow(nexus_api: NexusApiRegistry):
 
 @requires_openrouter
 @pytest.mark.e2e
-def test_script_then_agentic(nexus_api: NexusApiRegistry):
+def test_script_then_agentic(nexus_api: NexusApiRegistry, mcp_provider_id: str):
     """A script node feeds into an agentic node."""
-    _ensure_mcp_provider(nexus_api)
     result = _create_and_run_workflow(
         nexus_api,
         "e2e-script-to-agentic",
@@ -554,9 +522,8 @@ def test_script_then_agentic(nexus_api: NexusApiRegistry):
 
 @requires_openrouter
 @pytest.mark.e2e
-def test_agentic_then_script(nexus_api: NexusApiRegistry):
+def test_agentic_then_script(nexus_api: NexusApiRegistry, mcp_provider_id: str):
     """An agentic node feeds into a script node."""
-    _ensure_mcp_provider(nexus_api)
     result = _create_and_run_workflow(
         nexus_api,
         "e2e-agentic-to-script",
@@ -603,9 +570,8 @@ def test_agentic_then_script(nexus_api: NexusApiRegistry):
 
 @requires_openrouter
 @pytest.mark.e2e
-def test_loop_with_agentic_body(nexus_api: NexusApiRegistry):
+def test_loop_with_agentic_body(nexus_api: NexusApiRegistry, mcp_provider_id: str):
     """A loop iterates with an agentic node as the loop body."""
-    _ensure_mcp_provider(nexus_api)
     result = _create_and_run_workflow(
         nexus_api,
         "e2e-loop-agentic",
@@ -653,9 +619,8 @@ def test_loop_with_agentic_body(nexus_api: NexusApiRegistry):
 
 @requires_openrouter
 @pytest.mark.e2e
-def test_http_request_then_agentic(nexus_api: NexusApiRegistry, worker_base_url: str):
+def test_http_request_then_agentic(nexus_api: NexusApiRegistry, worker_base_url: str, mcp_provider_id: str):
     """An HTTP request node feeds into an agentic node."""
-    _ensure_mcp_provider(nexus_api)
     result = _create_and_run_workflow(
         nexus_api,
         "e2e-http-to-agentic",

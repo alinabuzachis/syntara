@@ -8,6 +8,7 @@ inherited automatically.  This file adds e2e-specific fixtures.
 import os
 from http import HTTPStatus
 from pathlib import Path
+from uuid import UUID
 
 import httpx
 import pytest
@@ -16,8 +17,15 @@ from nexus_api_client.api import NexusApiRegistry
 from nexus_api_client.api.authentication.login import sync_detailed as login_sync
 from nexus_api_client.models.access_token_response import AccessTokenResponse
 from nexus_api_client.models.login_request import LoginRequest
+from nexus_api_client.models.mcp_configuration import MCPConfiguration
 from nexus_api_client.models.sub_resource_role_assignment_create import SubResourceRoleAssignmentCreate
+from nexus_api_client.models.tool_provider_create import ToolProviderCreate
 from nexus_api_client.models.user_create import UserCreate
+
+MCP_PROVIDER_NAME = "mcp"
+MCP_PORT = os.environ.get("MCP_PORT", "8765")
+MCP_PROVIDER_URL = os.environ.get("MCP_BASE_URL", f"http://mcp-server:{MCP_PORT}/mcp")
+MCP_HEALTH_URL = f"http://localhost:{MCP_PORT}/health"
 
 
 def _login(base_url: str, username: str, password: str) -> str:
@@ -75,7 +83,12 @@ def nexus_client(nexus_base_url: str) -> AuthenticatedClient:
 
     access_token = _generate_e2e_token(base_url)
 
-    return AuthenticatedClient(base_url=f"{base_url}/api/v1", token=access_token, verify_ssl=False)
+    return AuthenticatedClient(
+        base_url=f"{base_url}/api/v1",
+        token=access_token,
+        verify_ssl=False,
+        timeout=httpx.Timeout(60.0),
+    )
 
 
 @pytest.fixture(scope="session")
@@ -176,3 +189,47 @@ def worker_base_url() -> str:
     the host.  Override with APP_WORKER_BASE_URL in CI or other environments.
     """
     return os.environ.get("APP_WORKER_BASE_URL", "http://host.containers.internal:8000")
+
+
+@pytest.fixture(scope="session")
+def mcp_provider_id(nexus_api: NexusApiRegistry) -> str:
+    """Register the shared MCP tool provider once, validate and refresh its tools.
+
+    Reuses an existing provider named "mcp" if one is already present.
+    Skips the entire test if the MCP server is not reachable.
+
+    Returns the provider ID as a string.
+    """
+    try:
+        r = httpx.get(MCP_HEALTH_URL, timeout=5)
+        r.raise_for_status()
+    except (httpx.RequestError, httpx.HTTPStatusError) as exc:
+        pytest.skip(f"MCP server not reachable at {MCP_HEALTH_URL}: {exc}")
+
+    providers = nexus_api.tool_manager.get_tool_providers().assert_and_get()
+    existing = [p for p in providers.resources if p.name == MCP_PROVIDER_NAME]
+
+    if existing:
+        provider_id = str(existing[0].id)
+    else:
+        resp = nexus_api.tool_manager.register_tool_provider(
+            body=ToolProviderCreate(
+                name=MCP_PROVIDER_NAME,
+                description="MCP server for E2E tests",
+                configuration=MCPConfiguration(base_url=MCP_PROVIDER_URL),
+            ),
+        )
+        assert resp.is_success, f"Failed to register MCP provider: {resp.content!r}"
+        assert resp.parsed is not None
+        provider_id = str(resp.parsed.id)
+
+    pid = UUID(provider_id)
+    validate_resp = nexus_api.tool_manager.validate_tool_provider(provider_id=pid)
+    assert validate_resp.is_success, f"MCP provider validation request failed: {validate_resp.content!r}"
+    assert validate_resp.parsed is not None
+    assert validate_resp.parsed.valid is True, f"MCP provider validation failed: {validate_resp.parsed.error}"
+
+    refresh_resp = nexus_api.tool_manager.refresh_tool_provider(provider_id=pid)
+    assert refresh_resp.is_success, f"MCP provider refresh failed: {refresh_resp.content!r}"
+
+    return provider_id

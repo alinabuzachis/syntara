@@ -383,7 +383,7 @@ The following lint rules are relaxed for test code:
 make test              # Unit tests only (default)
 make test-unit         # Explicit unit tests
 make test-integration  # Integration tests (excludes MCP)
-make test-mcp          # MCP tests only
+make test-e2e-mcp      # MCP E2E tests (auto-starts services)
 make test-all          # All tests with coverage (excludes e2e, performance)
 make test-e2e          # End-to-end tests (auto-starts services)
 make test-performance  # Performance tests only
