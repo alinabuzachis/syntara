@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Claude Agent Instructions
 
-Claude, you have access to the following skills. **Do not load them all at once** — read each skill file on-demand when its trigger condition is met. If a loaded skill (e.g., `frontend_specialist.md`) tells you to read another skill you have already loaded in this conversation, skip the re-read:
+Claude, you have access to the following skills. **Do not load them all at once** -- read each skill file on-demand when its trigger condition is met. If a loaded skill (e.g., `frontend_specialist.md`) tells you to read another skill you have already loaded in this conversation, skip the re-read.
+
+> **Enforced by hook:** `.claude/hooks/skill-gate.sh` blocks `Edit`/`Write` until required skills are read. Mapping: [`.claude/skill-triggers.json`](.claude/skill-triggers.json).
 
 | Trigger                                                                             | Skill file to read                                                         |
 | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
@@ -15,6 +17,8 @@ Claude, you have access to the following skills. **Do not load them all at once*
 | **Before committing code or reporting a task as done**                              | `.claude/skills/pr_review.md` (self-review against PR checklist)           |
 | **Before writing or modifying any component, hook, or pattern**                     | `.claude/skills/coding_standards.md`                                       |
 | **Before writing code using React, Zod, Zustand, Vitest, Vite, or TanStack Query**  | `.claude/skills/library_references.md` (fetch the relevant `llms.txt` URL) |
+
+> **To add or change skill triggers:** Edit [`.claude/skill-triggers.json`](.claude/skill-triggers.json). The hook and this table should stay in sync -- the JSON is what the hook enforces at runtime.
 
 ### Accessibility review (always)
 
@@ -64,6 +68,7 @@ Treat accessibility as part of every UI change, not an optional follow-up:
 22. **New hooks need test files** — every new `use*.ts` hook must have a dedicated `use*.test.ts(x)` with coverage, not just indirect coverage from a component test
 23. **No unnecessary `useEffect`** — never use `useEffect` to compute derived state, chain state updates, or handle user events; use event handlers, `useMemo`, or inline calculations instead ([React docs](https://react.dev/learn/you-might-not-need-an-effect), [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) §23)
 24. **Cascading form field resets belong in `onChange`** — when one field change should reset another, put the `setValue()` calls in the field's `onChange` handler, not in a `useEffect` watching the field value
+25. **E2E tests must be self-contained** — every E2E test must create ALL resources it needs and delete ALL created resources in a `try-finally` block; no `test.skip()` for missing seed data (see [`.claude/skills/playwright_e2e.md`](.claude/skills/playwright_e2e.md))
 
 ### Feature Preservation Rules
 

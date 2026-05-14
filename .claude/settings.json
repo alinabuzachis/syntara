@@ -19,16 +19,31 @@
             "type": "command",
             "command": "bash -c 'ROOT=$(git rev-parse --show-toplevel) && \"$ROOT/.claude/hooks/format-on-save.sh\"'",
             "timeout": 10000
-          },
-          {
-            "type": "command",
-            "command": "bash -c 'ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0; \"$ROOT/.claude/hooks/skill-reminder.sh\" || true'",
-            "timeout": 5000
           }
         ]
       }
     ],
     "PreToolUse": [
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0; \"$ROOT/.claude/hooks/skill-ack.sh\"'",
+            "timeout": 5000
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0; \"$ROOT/.claude/hooks/skill-gate.sh\"'",
+            "timeout": 5000
+          }
+        ]
+      },
       {
         "matcher": "Bash",
         "hooks": [

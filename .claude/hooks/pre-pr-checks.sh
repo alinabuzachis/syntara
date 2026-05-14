@@ -13,10 +13,11 @@ CMD=$(printf '%s' "$INPUT" | python3 -c "import sys,json; print(json.load(sys.st
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 cd "$PROJECT_ROOT"
 
+# shellcheck disable=SC2034
 UI_DIR="packages/nexus-ui"
 ERRORS=()
 
-# Run shared CI checks (format, tsc, lint, knip)
+# shellcheck source=shared-checks.sh
 source "$(dirname "$0")/shared-checks.sh"
 
 # 5. Unit tests (only vitest — format, tsc, lint already ran via shared-checks)

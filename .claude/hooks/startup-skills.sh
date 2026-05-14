@@ -1,13 +1,20 @@
 #!/usr/bin/env bash
-# Startup hook: reminds Claude about available project skills at session start.
+# SessionStart hook: tells Claude about the skill-gate enforcement system.
 set -euo pipefail
 
 cat >&2 <<'MSG'
-Available project skills — reference these when working on related areas:
+SKILL ENFORCEMENT ACTIVE: A PreToolUse hook will block your first edit to
+each source file category (.ts, .tsx, .test.ts/.test.tsx, e2e/*.spec.ts,
+e2e/helpers/*, e2e/utils/*) until you have read the required skill files.
+The hook tells you exactly which files to read. This applies to all
+contributors automatically.
 
-  - .claude/skills/coding_standards.md        → code patterns, ESLint rules, shared hooks
-  - .claude/skills/testing_guidelines.md      → coverage, vitest-axe, userEvent, accessible queries
-  - .claude/skills/patternfly_ux_design_system.md → PF6 components, layout, styling, UX rules
-  - .claude/skills/playwright_e2e.md          → E2E test conventions, fixtures, helpers
-  - .claude/skills/pr_review.md               → PR review checklist and process
+Available skills (loaded on-demand per file type):
+  - .claude/skills/frontend_specialist.md   (all source files)
+  - .claude/skills/coding_standards.md      (all source files)
+  - .claude/skills/patternfly-ux-design-system.md (.tsx components)
+  - .claude/skills/testing_guidelines.md    (test files)
+  - .claude/skills/playwright_e2e.md        (E2E specs, helpers, utils)
+  - .claude/skills/pr_review.md             (before committing)
+  - .claude/skills/library_references.md    (React, Zod, Zustand, etc.)
 MSG
