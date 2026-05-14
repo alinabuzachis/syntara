@@ -262,58 +262,9 @@ edges:
         await asyncio.sleep(0.5)
 
         # Cancel the workflow
-        cancel_result = await execution_service.cancel_workflow(
+        await execution_service.cancel_workflow(
             temporal_workflow_id=result.temporal_workflow_id,
-            reason="Integration test cancellation",
         )
-
-        assert cancel_result.temporal_workflow_id == result.temporal_workflow_id
-        assert cancel_result.status == "cancelled"
-        assert cancel_result.reason == "Integration test cancellation"
-        assert cancel_result.cancelled_at is not None
-
-    async def test_terminate_workflow(self, execution_service: TemporalExecutionService) -> None:
-        """Test terminating a running workflow."""
-        workflow_yaml = """
-schema_version: "2.0.0"
-name: terminate-test
-description: Test workflow termination
-triggers:
-- id: trigger_manual
-  type: manual_trigger
-nodes:
-- id: long_task
-  type: script
-  config:
-    language: bash
-    code: |
-      sleep 10
-      echo "This should not complete"
-edges:
-- from: trigger_manual
-  to: long_task
-"""
-        workflow_def = yaml.safe_load(workflow_yaml)
-
-        # Start workflow
-        result = await execution_service.start_workflow(
-            workflow_def=workflow_def,
-            workflow_name="terminate-test",
-        )
-
-        # Give it a moment to start
-        await asyncio.sleep(0.5)
-
-        # Terminate the workflow
-        terminate_result = await execution_service.terminate_workflow(
-            temporal_workflow_id=result.temporal_workflow_id,
-            reason="Integration test termination",
-        )
-
-        assert terminate_result.temporal_workflow_id == result.temporal_workflow_id
-        assert terminate_result.status == "terminated"
-        assert terminate_result.reason == "Integration test termination"
-        assert terminate_result.terminated_at is not None
 
 
 @pytest.mark.integration

@@ -10,6 +10,7 @@ from nexus.core.exception_registry import fastapi_exception
 from nexus.core.exceptions import NexusError
 from nexus.workflows.error_handlers import (
     execution_not_found_handler,
+    execution_terminal_state_handler,
     temporal_unavailable_handler,
     trigger_validation_handler,
     validation_error_handler,
@@ -80,6 +81,18 @@ class ExecutionNotFoundError(WorkflowError):
         """Initialize exception with execution ID."""
         self.execution_id = execution_id
         super().__init__(f"Execution {execution_id} not found")
+
+
+@fastapi_exception(handler=execution_terminal_state_handler)
+class ExecutionInTerminalStateError(WorkflowError):
+    """Raised when attempting to modify an execution in a terminal state."""
+
+    def __init__(self, execution_id: UUID, status: str, operation: str = "modify") -> None:
+        """Initialize exception with execution details."""
+        self.execution_id = execution_id
+        self.status = status
+        self.operation = operation
+        super().__init__(f"Cannot {operation} execution {execution_id} in {status} state")
 
 
 @fastapi_exception(handler=temporal_unavailable_handler)

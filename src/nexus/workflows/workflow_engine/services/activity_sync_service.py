@@ -7,7 +7,7 @@ to the database in real-time by streaming Temporal history events.
 import asyncio
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 from uuid import UUID
@@ -92,6 +92,7 @@ class ExecutionMonitorMetadata:
         activity_definitions_map: Map of activity ID to activity definition from workflow
         activity_index_map: Map of activity names to their indices in the activities list
         pending_activity_updates: Map of event IDs to activity update data awaiting database sync
+        pending_sync_event_ids: Set of event IDs that need to be synced to database
         request_id: Optional X-Request-Id (UUID) from the originating HTTP request, for telemetry correlation
 
     """
@@ -101,6 +102,7 @@ class ExecutionMonitorMetadata:
     activity_definitions_map: dict[str, dict[str, Any]]
     activity_index_map: dict[str, int]
     pending_activity_updates: dict[int, dict[str, Any]]
+    pending_sync_event_ids: set[int] = field(default_factory=set)
     workflow_id: UUID | None = None
     request_id: UUID | None = None
     workflow_run_timeout_seconds: float | None = None
@@ -516,6 +518,7 @@ class ActivitySyncService:
             execution_id=metadata.execution_id,
             status=new_status.value,
         )
+        metadata.pending_sync_event_ids.add(event.scheduled_event_id)
         await self._sync_activities_to_db(metadata, handle)
 
     async def _process_history_event(
@@ -653,7 +656,7 @@ class ActivitySyncService:
                         ):
                             break
 
-                    if metadata.pending_activity_updates and not self._shutdown:
+                    if not self._shutdown:
                         await self._sync_activities_to_db(metadata, handle)
 
                 logger.info("Activity monitoring completed for execution", execution_id=execution_id)
@@ -702,6 +705,7 @@ class ActivitySyncService:
             "scheduled_at": ensure_timezone_aware(event.event_time),
             "configured_timeout_seconds": configured_timeout_seconds,
         }
+        metadata.pending_sync_event_ids.add(event.event_id)
 
     def _process_activity_started(self, event: HistoryEvent, metadata: ExecutionMonitorMetadata) -> None:
         """Process ACTIVITY_TASK_STARTED event."""
@@ -721,6 +725,7 @@ class ActivitySyncService:
                 )
             update["started_at"] = ensure_timezone_aware(event.event_time)
             update["retry_count"] = attempt - 1
+            metadata.pending_sync_event_ids.add(scheduled_id)
 
             if attempt > 1:
                 last_failure = attrs.last_failure
@@ -818,6 +823,7 @@ class ActivitySyncService:
             metadata.pending_activity_updates[scheduled_id]["completed_at"] = ensure_timezone_aware(event.event_time)
             if error_details:
                 metadata.pending_activity_updates[scheduled_id]["error_details"] = error_details
+            metadata.pending_sync_event_ids.add(scheduled_id)
 
     def _process_activity_failed(self, event: HistoryEvent, metadata: ExecutionMonitorMetadata) -> None:
         """Process ACTIVITY_TASK_FAILED event."""
@@ -828,6 +834,7 @@ class ActivitySyncService:
             metadata.pending_activity_updates[scheduled_id]["completed_at"] = ensure_timezone_aware(event.event_time)
             if attrs.failure:
                 metadata.pending_activity_updates[scheduled_id]["error_details"] = attrs.failure.message
+            metadata.pending_sync_event_ids.add(scheduled_id)
 
     def _process_activity_timed_out(self, event: HistoryEvent, metadata: ExecutionMonitorMetadata) -> None:
         """Process ACTIVITY_TASK_TIMED_OUT event."""
@@ -847,6 +854,7 @@ class ActivitySyncService:
                 "configured_timeout_seconds": update.get("configured_timeout_seconds", 0.0) or 0.0,
                 "retry_count": update.get("retry_count", 0),
             }
+            metadata.pending_sync_event_ids.add(scheduled_id)
 
     def _process_activity_canceled(self, event: HistoryEvent, metadata: ExecutionMonitorMetadata) -> None:
         """Process ACTIVITY_TASK_CANCELED event."""
@@ -856,6 +864,7 @@ class ActivitySyncService:
             metadata.pending_activity_updates[scheduled_id]["status"] = ActivityStatus.CANCELLED
             metadata.pending_activity_updates[scheduled_id]["completed_at"] = ensure_timezone_aware(event.event_time)
             metadata.pending_activity_updates[scheduled_id]["error_details"] = "Activity was canceled"
+            metadata.pending_sync_event_ids.add(scheduled_id)
 
     def _extract_execution_status_from_event(self, event: HistoryEvent) -> tuple[ExecutionStatus, datetime, str | None]:
         """Extract execution status, completion time, and error from workflow completion event.
@@ -986,6 +995,11 @@ class ActivitySyncService:
                     execution.error_details = error_details
                 execution.updated_at = datetime.now(UTC)
 
+                # If workflow was cancelled, mark unfinished activities as cancelled
+                cancelled_activities: list[tuple[ActivityExecution, dict[str, Any]]] = []
+                if status == ExecutionStatus.CANCELLED:
+                    cancelled_activities = self._update_pending_activities_to_cancelled(execution, completed_at)
+
                 await session.commit()
 
                 logger.info(
@@ -994,6 +1008,9 @@ class ActivitySyncService:
                     status=status.value,
                     completed_at=completed_at.isoformat(),
                 )
+
+                if cancelled_activities:
+                    await self._publish_activity_patches(metadata, cancelled_activities)
 
                 # Publish final snapshot after execution reaches terminal state
                 try:
@@ -1049,6 +1066,48 @@ class ActivitySyncService:
                 )
                 # Don't raise - monitoring should continue
 
+    def _update_pending_activities_to_cancelled(
+        self,
+        execution: Execution,
+        cancelled_at: datetime,
+    ) -> list[tuple[ActivityExecution, dict[str, Any]]]:
+        """Mark unfinished activities as cancelled when workflow is cancelled.
+
+        Modifies activity objects already loaded in execution.activities.
+        Returns list of (activity, old_values) tuples for JSON patch generation.
+        """
+        non_terminal_statuses = {
+            ActivityStatus.PENDING,
+            ActivityStatus.RUNNING,
+            ActivityStatus.RETRYING,
+            ActivityStatus.WAITING,
+        }
+        updated_activities: list[tuple[ActivityExecution, dict[str, Any]]] = []
+
+        for activity in execution.activities:
+            if activity.status in non_terminal_statuses:
+                old_values = {
+                    "status": activity.status,
+                    "started_at": activity.started_at,
+                    "completed_at": activity.completed_at,
+                    "error_details": activity.error_details,
+                    "retry_count": activity.retry_count,
+                }
+                activity.status = ActivityStatus.CANCELLED
+                activity.completed_at = cancelled_at
+                activity.error_details = "Workflow was cancelled"
+                activity.updated_at = datetime.now(UTC)
+                updated_activities.append((activity, old_values))
+
+        if updated_activities:
+            logger.info(
+                "Updated activities to CANCELLED due to workflow cancellation",
+                cancelled_count=len(updated_activities),
+                execution_id=execution.id,
+            )
+
+        return updated_activities
+
     def _process_activity_event(self, event: HistoryEvent, metadata: ExecutionMonitorMetadata) -> None:
         """Process a single activity event and update metadata's pending updates.
 
@@ -1087,6 +1146,9 @@ class ActivitySyncService:
             handle: Temporal workflow handle for queries
 
         """
+        if not metadata.pending_sync_event_ids:
+            return
+
         async with self.session_factory() as session:
             try:
                 # Load existing activities with proper ordering (matches relationship order_by)
@@ -1101,8 +1163,12 @@ class ActivitySyncService:
                 # Track which activities were updated for patch generation
                 updated_activities: list[tuple[ActivityExecution, dict[str, Any]]] = []
 
-                # Update activities from events
-                for activity_data in metadata.pending_activity_updates.values():
+                # Update activities from events (only those marked for sync)
+                for scheduled_event_id in metadata.pending_sync_event_ids:
+                    activity_data = metadata.pending_activity_updates.get(scheduled_event_id)
+                    if not activity_data:
+                        continue
+
                     activity_id = activity_data["activity_id"]
 
                     # Skip internal activities (defense in depth)
@@ -1229,6 +1295,7 @@ class ActivitySyncService:
                     execution.last_processed_event_id = metadata.last_processed_event_id
 
                 await session.commit()
+                metadata.pending_sync_event_ids.clear()
 
                 # Publish activity patches after commit
                 if updated_activities:

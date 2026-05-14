@@ -14,6 +14,7 @@ from nexus.core.error_handlers import PROBLEM_TYPES, create_problem_details_resp
 
 if TYPE_CHECKING:
     from nexus.workflows.exceptions import (
+        ExecutionInTerminalStateError,
         ExecutionNotFoundError,
         TemporalUnavailableError,
         TriggerValidationError,
@@ -71,6 +72,26 @@ def execution_not_found_handler(request: Request, exc: "ExecutionNotFoundError")
         title="Execution Not Found",
         detail="The requested execution was not found",
         code="EXECUTION_NOT_FOUND",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def execution_terminal_state_handler(request: Request, exc: "ExecutionInTerminalStateError") -> JSONResponse:
+    """Handle ExecutionInTerminalStateError with RFC 9457 format."""
+    logger.error(
+        "Cannot modify execution in terminal state",
+        execution_id=str(exc.execution_id),
+        status=exc.status,
+        operation=exc.operation,
+        exc_info=exc,
+    )
+    return create_problem_details_response(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        problem_type=PROBLEM_TYPES["validation_error"],
+        title="Execution In Terminal State",
+        detail=f"Cannot {exc.operation} execution in {exc.status} state",
+        code="EXECUTION_TERMINAL_STATE",
         retryable=False,
         instance=str(request.url),
     )

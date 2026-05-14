@@ -71,37 +71,3 @@ class WorkflowResultResponse(BaseModel):
         default_factory=list,
         description="List of completed activity IDs",
     )
-
-
-class WorkflowCancellationResponse(BaseModel):
-    """Response from cancelling a workflow.
-
-    Attributes:
-        temporal_workflow_id: Temporal workflow ID that was cancelled
-        status: Status after cancellation (should be 'cancelled')
-        cancelled_at: ISO 8601 timestamp when cancellation occurred
-        reason: Optional reason for cancellation
-
-    """
-
-    temporal_workflow_id: str = Field(..., description="Temporal workflow ID")
-    status: str = Field(..., description="Status after cancellation")
-    cancelled_at: str = Field(..., description="ISO 8601 cancellation timestamp")
-    reason: str | None = Field(None, description="Reason for cancellation")
-
-
-class WorkflowTerminationResponse(BaseModel):
-    """Response from terminating a workflow.
-
-    Attributes:
-        temporal_workflow_id: Temporal workflow ID that was terminated
-        status: Status after termination (should be 'terminated')
-        terminated_at: ISO 8601 timestamp when termination occurred
-        reason: Optional reason for termination
-
-    """
-
-    temporal_workflow_id: str = Field(..., description="Temporal workflow ID")
-    status: str = Field(..., description="Status after termination")
-    terminated_at: str = Field(..., description="ISO 8601 termination timestamp")
-    reason: str | None = Field(None, description="Reason for termination")

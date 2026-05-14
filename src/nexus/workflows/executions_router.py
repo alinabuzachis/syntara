@@ -4,7 +4,7 @@ from typing import Annotated
 from uuid import UUID
 
 import structlog
-from fastapi import Depends, Query, Request, status
+from fastapi import Depends, Query, Request, Response, status
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from temporalio.service import RPCError
@@ -260,6 +260,26 @@ async def get_execution(
     """
     include_set = include_params.get_include_set()
     return await service.get_execution(execution_id, include=include_set)
+
+
+@router.post(
+    "/{execution_id}/cancel",
+    operation_id="cancel_execution",
+    summary="Cancel execution",
+    description="Request cancellation of a running workflow execution. "
+    "The status update to CANCELLED happens asynchronously.",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_class=Response,
+    response_description="Cancellation request accepted",
+    dependencies=[Depends(_exec_perm_run)],
+)
+async def cancel_execution(
+    execution_id: UUID,
+    service: Annotated[ExecutionService, Depends(get_execution_service)],
+) -> None:
+    """Cancel a running workflow execution."""
+    logger.info("Cancelling execution", execution_id=execution_id)
+    await service.cancel_execution(execution_id)
 
 
 @router.get(

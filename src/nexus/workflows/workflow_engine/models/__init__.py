@@ -8,11 +8,9 @@ This package contains:
 
 from .approval import ApprovalResult
 from .responses import (
-    WorkflowCancellationResponse,
     WorkflowResultResponse,
     WorkflowStartResponse,
     WorkflowStatusResponse,
-    WorkflowTerminationResponse,
 )
 from .workflow_definition import (
     AAPJobTemplateExecutorConfig,
@@ -40,10 +38,8 @@ __all__ = [
     "NodeType",
     "ScriptExecutorConfig",
     "ScriptLanguage",
-    "WorkflowCancellationResponse",
     "WorkflowResultResponse",
     "WorkflowStartResponse",
     "WorkflowStatusResponse",
     "WorkflowTerminalStatus",
-    "WorkflowTerminationResponse",
 ]

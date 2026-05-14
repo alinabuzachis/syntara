@@ -11,8 +11,8 @@ import pytest
 from temporalio.api.enums.v1 import EventType
 
 from nexus.core.exceptions import SafeValueError
-from nexus.workflows.models.activity_execution import ActivityStatus
-from nexus.workflows.models.execution import Execution
+from nexus.workflows.models.activity_execution import ActivityExecution, ActivityStatus
+from nexus.workflows.models.execution import Execution, ExecutionStatus
 from nexus.workflows.workflow_engine.activities.internal import register_activity_monitoring
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
 from nexus.workflows.workflow_engine.services.activity_sync_service import (
@@ -31,14 +31,17 @@ def create_test_metadata(
     activity_definitions_map: dict[str, dict[str, Any]] | None = None,
     activity_index_map: dict[str, int] | None = None,
     pending_activity_updates: dict[int, dict[str, Any]] | None = None,
+    pending_sync_event_ids: set[int] | None = None,
 ) -> ExecutionMonitorMetadata:
     """Create ExecutionMonitorMetadata for testing with sensible defaults."""
+    updates = pending_activity_updates or {}
     return ExecutionMonitorMetadata(
         execution_id=execution_id or uuid4(),
         last_processed_event_id=last_processed_event_id,
         activity_definitions_map=activity_definitions_map or {},
         activity_index_map=activity_index_map or {},
-        pending_activity_updates=pending_activity_updates or {},
+        pending_activity_updates=updates,
+        pending_sync_event_ids=pending_sync_event_ids if pending_sync_event_ids is not None else set(updates.keys()),
     )
 
 
@@ -2568,3 +2571,123 @@ class TestMonitorExecutionIntegration:
                     self.execution_id,
                     "temporal-wf-id",
                 )
+
+
+class TestPendingSyncEventIds:
+    """Test pending_sync_event_ids mechanism."""
+
+    def test_scheduled_event_adds_to_pending_sync(self) -> None:
+        """Test that SCHEDULED events add to pending_sync_event_ids."""
+        mock_client = Mock()
+        mock_session_factory = Mock()
+        service = ActivitySyncService(mock_client, mock_session_factory)
+
+        metadata = create_test_metadata()
+        event = Mock()
+        event.event_id = 10
+        event.event_type = None
+        event.event_time = Mock()
+        event.activity_task_scheduled_event_attributes = Mock()
+        event.activity_task_scheduled_event_attributes.activity_id = "test_activity"
+        event.activity_task_scheduled_event_attributes.start_to_close_timeout = None
+
+        service._process_activity_scheduled(event, metadata)
+
+        assert 10 in metadata.pending_sync_event_ids
+        assert metadata.pending_activity_updates[10]["activity_id"] == "test_activity"
+
+    def test_started_event_adds_to_pending_sync(self) -> None:
+        """Test that STARTED events add to pending_sync_event_ids."""
+        mock_client = Mock()
+        mock_session_factory = Mock()
+        service = ActivitySyncService(mock_client, mock_session_factory)
+
+        metadata = create_test_metadata(
+            pending_activity_updates={
+                5: {
+                    "activity_id": "test_activity",
+                    "activity_name": "test_activity",
+                    "status": ActivityStatus.PENDING,
+                    "started_at": None,
+                    "completed_at": None,
+                    "error_details": None,
+                    "retry_count": 0,
+                }
+            }
+        )
+
+        event = Mock()
+        event.event_id = 11
+        event.event_time = Mock()
+        event.event_time.ToDatetime = Mock(return_value=datetime.now(UTC))
+        event.activity_task_started_event_attributes = Mock()
+        event.activity_task_started_event_attributes.scheduled_event_id = 5
+        event.activity_task_started_event_attributes.attempt = 1
+
+        service._process_activity_started(event, metadata)
+
+        assert 5 in metadata.pending_sync_event_ids
+        assert metadata.pending_activity_updates[5]["status"] == ActivityStatus.RUNNING
+
+
+class TestUpdatePendingActivitiesToCancelled:
+    """Test _update_pending_activities_to_cancelled method."""
+
+    def test_updates_pending_activities_to_cancelled(self) -> None:
+        """Test that unfinished activities are updated to CANCELLED."""
+        mock_client = Mock()
+        mock_session_factory = Mock()
+        service = ActivitySyncService(mock_client, mock_session_factory)
+
+        execution_id = uuid4()
+        cancelled_at = datetime.now(UTC)
+
+        execution = Execution(
+            id=execution_id,
+            workflow_id=uuid4(),
+            workflow_version_id=uuid4(),
+            temporal_workflow_id=f"workflow-{execution_id}",
+            status=ExecutionStatus.CANCELLED,
+            created_by=uuid4(),
+            input_data={},
+            labels={},
+        )
+
+        pending_activity = ActivityExecution(
+            id=uuid4(),
+            execution_id=execution_id,
+            activity_name="pending_activity",
+            status=ActivityStatus.PENDING,
+        )
+
+        running_activity = ActivityExecution(
+            id=uuid4(),
+            execution_id=execution_id,
+            activity_name="running_activity",
+            status=ActivityStatus.RUNNING,
+            started_at=datetime.now(UTC),
+        )
+
+        completed_activity = ActivityExecution(
+            id=uuid4(),
+            execution_id=execution_id,
+            activity_name="completed_activity",
+            status=ActivityStatus.COMPLETED,
+            started_at=datetime.now(UTC),
+            completed_at=datetime.now(UTC),
+        )
+
+        execution.activities = [pending_activity, running_activity, completed_activity]
+
+        updated_activities = service._update_pending_activities_to_cancelled(execution, cancelled_at)
+
+        assert len(updated_activities) == 2
+        assert pending_activity.status == ActivityStatus.CANCELLED
+        assert pending_activity.completed_at == cancelled_at
+        assert pending_activity.error_details == "Workflow was cancelled"
+
+        assert running_activity.status == ActivityStatus.CANCELLED
+        assert running_activity.completed_at == cancelled_at
+
+        # Completed activity should not be touched
+        assert completed_activity.status == ActivityStatus.COMPLETED

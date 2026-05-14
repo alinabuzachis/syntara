@@ -22,6 +22,7 @@ from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.emission import emit_completion_metrics
 from nexus.metrics.types import ComponentLabel, MetricType
 from nexus.workflows.exceptions import (
+    ExecutionInTerminalStateError,
     ExecutionNotFoundError,
     TemporalUnavailableError,
     WorkflowDisabledError,
@@ -29,6 +30,7 @@ from nexus.workflows.exceptions import (
 )
 from nexus.workflows.models.activity_execution import ActivityExecution, ActivityExecutionListResponse
 from nexus.workflows.models.execution import (
+    TERMINAL_EXECUTION_STATUSES,
     ActivityData,
     Execution,
     ExecutionInclude,
@@ -696,3 +698,45 @@ class ExecutionService(BaseService):
             execution_id=execution_id,
             status=status,
         )
+
+    async def cancel_execution(self, execution_id: UUID) -> None:
+        """Cancel a running workflow execution.
+
+        Requests Temporal to cancel the workflow. The actual status update
+        to CANCELLED happens asynchronously via activity_sync_service.
+
+        Args:
+            execution_id: Execution ID to cancel
+
+        Raises:
+            ExecutionNotFoundError: If execution not found
+            ExecutionInTerminalStateError: If execution is in a terminal state
+            TemporalUnavailableError: If Temporal service is unavailable
+
+        """
+        query = select(Execution).where(Execution.id == execution_id).where(Execution.deleted_at.is_(None))  # type: ignore[union-attr]
+        result = await self.session.exec(query)
+        execution = result.one_or_none()
+
+        if execution is None:
+            raise ExecutionNotFoundError(execution_id)
+
+        if execution.status in TERMINAL_EXECUTION_STATUSES:
+            raise ExecutionInTerminalStateError(
+                execution_id=execution_id,
+                status=execution.status.value,
+                operation="cancel",
+            )
+
+        if self.temporal_service is None:
+            operation = "workflow cancellation"
+            raise TemporalUnavailableError(operation)
+
+        logger.info(
+            "Requesting workflow cancellation",
+            execution_id=execution_id,
+            temporal_workflow_id=execution.temporal_workflow_id,
+            current_status=execution.status.value,
+        )
+
+        await self.temporal_service.cancel_workflow(temporal_workflow_id=execution.temporal_workflow_id)

@@ -21,11 +21,9 @@ from nexus.metrics.types import ComponentLabel, MetricType
 from nexus.workflows.utils.datetime import ensure_timezone_aware
 from nexus.workflows.workflow_engine.dynamic_workflow import NexusWorkflow
 from nexus.workflows.workflow_engine.models.responses import (
-    WorkflowCancellationResponse,
     WorkflowResultResponse,
     WorkflowStartResponse,
     WorkflowStatusResponse,
-    WorkflowTerminationResponse,
 )
 from nexus.workflows.workflow_engine.models.workflow_definition import NodeType
 
@@ -309,16 +307,14 @@ class TemporalExecutionService:
     async def cancel_workflow(
         self,
         temporal_workflow_id: str,
-        reason: str | None = None,
-    ) -> WorkflowCancellationResponse:
+    ) -> None:
         """Cancel a running workflow.
+
+        Sends a cancellation signal to Temporal. The actual status update
+        happens asynchronously via activity_sync_service.
 
         Args:
             temporal_workflow_id: Temporal workflow ID
-            reason: Optional reason for cancellation
-
-        Returns:
-            WorkflowCancellationResponse containing cancellation information
 
         Raises:
             Exception: If cancellation fails
@@ -327,67 +323,20 @@ class TemporalExecutionService:
         try:
             handle = self.temporal_client.get_workflow_handle(temporal_workflow_id)
 
-            logger.info(
-                "Cancelling workflow", temporal_workflow_id=temporal_workflow_id, reason=reason or "No reason provided"
-            )
+            logger.info("Cancelling workflow", temporal_workflow_id=temporal_workflow_id)
 
-            # Cancel the workflow
             await handle.cancel()
 
             logger.info("Workflow cancelled successfully", temporal_workflow_id=temporal_workflow_id)
 
-            return WorkflowCancellationResponse(
-                temporal_workflow_id=temporal_workflow_id,
-                status="cancelled",
-                cancelled_at=datetime.now(UTC).isoformat(),
-                reason=reason,
-            )
-
-        except Exception:
+        except RPCError as e:
+            if "not found" in str(e).lower():
+                logger.info(
+                    "Workflow already completed, cancel is a no-op",
+                    temporal_workflow_id=temporal_workflow_id,
+                )
+                return
             logger.exception("Failed to cancel workflow", temporal_workflow_id=temporal_workflow_id)
-            raise
-
-    async def terminate_workflow(
-        self,
-        temporal_workflow_id: str,
-        reason: str | None = None,
-    ) -> WorkflowTerminationResponse:
-        """Terminate a running workflow immediately.
-
-        Unlike cancel, terminate stops the workflow immediately without cleanup.
-
-        Args:
-            temporal_workflow_id: Temporal workflow ID
-            reason: Optional reason for termination
-
-        Returns:
-            WorkflowTerminationResponse containing termination information
-
-        Raises:
-            Exception: If termination fails
-
-        """
-        try:
-            handle = self.temporal_client.get_workflow_handle(temporal_workflow_id)
-
-            logger.warning(
-                "Terminating workflow", temporal_workflow_id=temporal_workflow_id, reason=reason or "No reason provided"
-            )
-
-            # Terminate the workflow
-            await handle.terminate(reason=reason)
-
-            logger.info("Workflow terminated successfully", temporal_workflow_id=temporal_workflow_id)
-
-            return WorkflowTerminationResponse(
-                temporal_workflow_id=temporal_workflow_id,
-                status="terminated",
-                terminated_at=datetime.now(UTC).isoformat(),
-                reason=reason,
-            )
-
-        except Exception:
-            logger.exception("Failed to terminate workflow", temporal_workflow_id=temporal_workflow_id)
             raise
 
     async def complete_async_activity(

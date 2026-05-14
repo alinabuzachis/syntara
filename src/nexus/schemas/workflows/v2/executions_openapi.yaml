@@ -160,6 +160,44 @@ paths:
         '500':
           $ref: '../../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
 
+  /executions/{execution_id}/cancel:
+    post:
+      summary: Cancel execution
+      description: Request cancellation of a running workflow execution. The status update to CANCELLED happens asynchronously.
+      operationId: cancel_execution
+      tags:
+        - executions
+      security:
+        - bearerAuth: []
+      x-app-permission:
+        resource: execution
+        action: run
+      parameters:
+        - name: execution_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Execution Id
+      responses:
+        '202':
+          description: Cancellation request accepted
+        '400':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
+        '401':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError'
+        '404':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/NotFoundError'
+        '409':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
+        '422':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ValidationError'
+        '500':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
+
   /executions/{execution_id}/activities:
     get:
       summary: List activity executions
