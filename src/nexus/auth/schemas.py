@@ -1,6 +1,8 @@
 """Request and response schemas for authentication endpoints."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from nexus.core.exceptions import SafeValueError
 
 
 class LoginRequest(BaseModel):
@@ -8,6 +10,15 @@ class LoginRequest(BaseModel):
 
     username: str = Field(description="Username")
     password: str = Field(description="Password", json_schema_extra={"format": "password"})
+
+    @field_validator("username")
+    @classmethod
+    def reject_null_bytes(cls, v: str) -> str:
+        """Reject null bytes that would cause PostgreSQL CharacterNotInRepertoireError."""
+        if "\x00" in v:
+            msg = "Username contains invalid characters"
+            raise SafeValueError(msg)
+        return v
 
 
 class AccessTokenResponse(BaseModel):
