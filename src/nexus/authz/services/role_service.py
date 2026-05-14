@@ -7,6 +7,8 @@ import structlog
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.audit.dispatcher import AuditEventDispatcher
+from nexus.authz.audit.role_lifecycle import RoleLifecycleEvent
 from nexus.authz.exceptions import BuiltinProtectionError, RoleNameConflictError, RoleNotFoundError
 from nexus.authz.models.assignments import RoleAssignment
 from nexus.authz.models.role import Role
@@ -105,6 +107,14 @@ class RoleService(BaseService):
         await self.session.refresh(role)
 
         logger.info("Created role", role_id=str(role.id), name=name)
+        AuditEventDispatcher.dispatch(
+            RoleLifecycleEvent(
+                role_id=role.id,
+                role_name=role.name,
+                action="created",
+                project_id=role.project_id,
+            ),
+        )
         return role
 
     async def get_role(self, role_id: UUID) -> Role:
@@ -390,6 +400,14 @@ class RoleService(BaseService):
         await self.session.refresh(role)
 
         logger.info("Updated role", role_id=str(role_id))
+        AuditEventDispatcher.dispatch(
+            RoleLifecycleEvent(
+                role_id=role.id,
+                role_name=role.name,
+                action="updated",
+                project_id=role.project_id,
+            ),
+        )
         return role
 
     async def delete_role(self, role_id: UUID) -> None:
@@ -404,13 +422,24 @@ class RoleService(BaseService):
             raise BuiltinProtectionError(msg)
 
         results = await self.session.exec(select(RoleAssignment).where(RoleAssignment.role_name == role.name))
-        for row in results.all():
+        assignments = results.all()
+        affected_count = len(assignments)
+        for row in assignments:
             await self.session.delete(row)
 
         await self.session.delete(role)
         await self.session.commit()
 
         logger.info("Deleted role", role_id=str(role_id))
+        AuditEventDispatcher.dispatch(
+            RoleLifecycleEvent(
+                role_id=role.id,
+                role_name=role.name,
+                action="deleted",
+                project_id=role.project_id,
+                affected_assignments_count=affected_count,
+            ),
+        )
 
     async def _propagate_role_rename(self, old_name: str, new_name: str) -> None:
         """Update all assignments that reference the old role name."""

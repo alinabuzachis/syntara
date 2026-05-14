@@ -11,6 +11,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.audit.dispatcher import AuditEventDispatcher
+from nexus.authz.audit.role_assignment import RoleAssignmentEvent
 from nexus.authz.exceptions import BuiltinProtectionError
 from nexus.authz.models.assignments import PrincipalType, RoleAssignment
 from nexus.authz.models.project import Project
@@ -101,6 +103,17 @@ class RoleAssignmentService:
             principal_name=principal_name,
             role_name=role_name,
             project_id=str(project_id) if project_id else None,
+        )
+        AuditEventDispatcher.dispatch(
+            RoleAssignmentEvent(
+                assignment_id=assignment.id,
+                principal_type=principal_type.value,
+                principal_id=principal_id,
+                principal_name=principal_name,
+                role_name=role_name,
+                action="assigned",
+                project_id=project_id,
+            ),
         )
         result = self._to_dict(assignment, principal_name, project_name)
         await self._enrich_with_role_info([result])
@@ -276,10 +289,31 @@ class RoleAssignmentService:
             msg = "Cannot revoke built-in role assignment"
             raise BuiltinProtectionError(msg)
 
+        # Capture fields before delete for audit dispatch
+        _principal_type = (
+            assignment.principal_type.value
+            if isinstance(assignment.principal_type, PrincipalType)
+            else str(assignment.principal_type)
+        )
+        _principal_id = assignment.principal_id
+        _role_name = assignment.role_name
+        _project_id = assignment.project_id
+
         await self.session.delete(assignment)
         await self.session.commit()
 
         logger.info("Revoked role assignment", assignment_id=str(assignment_id))
+        AuditEventDispatcher.dispatch(
+            RoleAssignmentEvent(
+                assignment_id=assignment_id,
+                principal_type=_principal_type,
+                principal_id=_principal_id,
+                principal_name="",  # not resolved in revoke path
+                role_name=_role_name,
+                action="revoked",
+                project_id=_project_id,
+            ),
+        )
 
     # ------------------------------------------------------------------
     # Visibility helper for GET detail

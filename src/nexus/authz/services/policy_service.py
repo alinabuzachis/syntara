@@ -8,6 +8,8 @@ import structlog
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.audit.dispatcher import AuditEventDispatcher
+from nexus.authz.audit.policy_lifecycle import PolicyLifecycleEvent
 from nexus.authz.exceptions import (
     BuiltinProtectionError,
     DenyEffectNotSupportedError,
@@ -132,6 +134,14 @@ class PolicyService(BaseService):
         await self.session.refresh(policy)
 
         logger.info("Created policy", policy_id=str(policy.id), name=name)
+        AuditEventDispatcher.dispatch(
+            PolicyLifecycleEvent(
+                policy_id=policy.id,
+                policy_name=policy.name,
+                action="created",
+                project_id=policy.project_id,
+            ),
+        )
         return policy
 
     async def get_policy(self, policy_id: UUID) -> Policy:
@@ -438,6 +448,14 @@ class PolicyService(BaseService):
         await self.session.refresh(policy)
 
         logger.info("Updated policy", policy_id=str(policy_id))
+        AuditEventDispatcher.dispatch(
+            PolicyLifecycleEvent(
+                policy_id=policy.id,
+                policy_name=policy.name,
+                action="updated",
+                project_id=policy.project_id,
+            ),
+        )
         return policy
 
     async def delete_policy(self, policy_id: UUID) -> None:
@@ -454,7 +472,9 @@ class PolicyService(BaseService):
             raise BuiltinProtectionError(msg)
 
         result = await self.session.exec(select(Role).where(Role.policy_names.contains([policy.name])))  # type: ignore[attr-defined]
-        for role in result.all():
+        affected_roles = result.all()
+        affected_count = len(affected_roles)
+        for role in affected_roles:
             role.policy_names = [n for n in role.policy_names if n != policy.name]
             self.session.add(role)
 
@@ -462,6 +482,15 @@ class PolicyService(BaseService):
         await self.session.commit()
 
         logger.info("Deleted policy", policy_id=str(policy_id))
+        AuditEventDispatcher.dispatch(
+            PolicyLifecycleEvent(
+                policy_id=policy.id,
+                policy_name=policy.name,
+                action="deleted",
+                project_id=policy.project_id,
+                affected_roles_count=affected_count,
+            ),
+        )
 
     async def _propagate_policy_rename(self, old_name: str, new_name: str) -> None:
         """Update all roles that reference the old policy name."""
