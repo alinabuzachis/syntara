@@ -11,6 +11,8 @@ Usage:
 
 import argparse
 import asyncio
+import enum
+import hashlib
 import os
 import sys
 from dataclasses import dataclass, field
@@ -35,12 +37,21 @@ EXIT_PARTIAL_FAILURE = 1
 EXIT_FATAL = 2
 
 
+class RowStatus(enum.StrEnum):
+    """Result of rotating a single EncryptedSecret row."""
+
+    ROTATED = "rotated"
+    SKIPPED = "skipped"
+    FAILED = "failed"
+
+
 @dataclass
 class RotationProgress:
     """Tracks key rotation progress across batches."""
 
     total: int = 0
-    processed: int = 0
+    rotated: int = 0
+    skipped: int = 0
     failed: int = 0
     last_processed_id: str | None = field(default=None)
 
@@ -58,6 +69,12 @@ def _create_encryptors(old_key_hex: str, new_key_hex: str) -> tuple[SecretEncryp
         logger.error("Old and new keys are identical — nothing to rotate")
         return None
 
+    logger.info(
+        "Key rotation direction",
+        old_key_fingerprint=hashlib.sha256(old_key).hexdigest()[:16],
+        new_key_fingerprint=hashlib.sha256(new_key).hexdigest()[:16],
+    )
+
     return SecretEncryptor(old_key), SecretEncryptor(new_key)
 
 
@@ -67,28 +84,45 @@ def _rotate_single_row(
     new_encryptor: SecretEncryptor,
     *,
     dry_run: bool,
-) -> bool:
-    """Rotate a single EncryptedSecret row. Returns True on success."""
+) -> RowStatus:
+    """Rotate a single EncryptedSecret row.
+
+    Returns RowStatus.ROTATED on success, SKIPPED if already encrypted
+    with the new key (idempotent re-run), or FAILED if neither key works.
+    """
     secret_id_str = str(row.secret_id)
 
     try:
         decrypted = old_encryptor.decrypt_fields(row.encrypted_data, secret_id_str)
+    except EncryptionError:
+        # Old key failed — check if already rotated to new key
+        try:
+            new_encryptor.decrypt_fields(row.encrypted_data, secret_id_str)
+            logger.debug("Secret already on new key, skipping", secret_id=secret_id_str)
+            return RowStatus.SKIPPED
+        except EncryptionError:
+            logger.error(  # noqa: TRY400
+                "Secret cannot be decrypted with old or new key",
+                secret_id=secret_id_str,
+            )
+            return RowStatus.FAILED
+
+    try:
         re_encrypted = new_encryptor.encrypt_fields(decrypted, secret_id_str)
 
         if dry_run:
             verify = new_encryptor.decrypt_fields(re_encrypted, secret_id_str)
             if verify != decrypted:
                 logger.error("Round-trip verification failed", secret_id=secret_id_str)
-                return False
+                return RowStatus.FAILED
         else:
             row.encrypted_data = re_encrypted
 
     except EncryptionError as exc:
-        # Use error() not exception() to avoid logging tracebacks containing decrypted values
-        logger.error("Failed to rotate secret", secret_id=secret_id_str, error=str(exc))  # noqa: TRY400
-        return False
+        logger.error("Failed to re-encrypt secret", secret_id=secret_id_str, error=str(exc))  # noqa: TRY400
+        return RowStatus.FAILED
 
-    return True
+    return RowStatus.ROTATED
 
 
 async def _process_rows(
@@ -119,23 +153,25 @@ async def _process_rows(
 
         progress.total += len(rows)
         for row in rows:
-            success = _rotate_single_row(row, old_encryptor, new_encryptor, dry_run=dry_run)
+            status = _rotate_single_row(row, old_encryptor, new_encryptor, dry_run=dry_run)
             progress.last_processed_id = str(row.id)
             last_id = row.id
 
-            if not success:
+            if status is RowStatus.ROTATED:
+                progress.rotated += 1
+            elif status is RowStatus.SKIPPED:
+                progress.skipped += 1
+            else:
                 progress.failed += 1
-                continue
-
-            progress.processed += 1
 
         if not dry_run:
             await session.commit()
             logger.info(
                 "Batch committed",
-                processed=progress.processed,
-                total=progress.total,
+                rotated=progress.rotated,
+                skipped=progress.skipped,
                 failed=progress.failed,
+                total=progress.total,
             )
 
     return progress
@@ -183,7 +219,8 @@ async def rotate_keys(
         "Key rotation complete",
         mode=mode,
         total=progress.total,
-        processed=progress.processed,
+        rotated=progress.rotated,
+        skipped=progress.skipped,
         failed=progress.failed,
         last_processed_id=progress.last_processed_id,
     )
