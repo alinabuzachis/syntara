@@ -1,4 +1,5 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
 import { DateRangeCadencePicker } from './DateRangeCadencePicker'
@@ -173,11 +174,13 @@ describe('DateRangeCadencePicker', () => {
 
   describe('onChange callbacks', () => {
     it('calls onChange when start date changes', async () => {
+      const user = userEvent.setup()
       const onChange = vi.fn<(value: string) => void>()
       render(<DateRangeCadencePicker onChange={onChange} value="R/2024-01-15T10:00:00Z/P1D" />)
 
       const startDate = screen.getByLabelText('Start date')
-      fireEvent.change(startDate, { target: { value: '2024-02-01' } })
+      await user.clear(startDate)
+      await user.type(startDate, '2024-02-01')
 
       await waitFor(() => {
         expect(onChange).toHaveBeenCalled()
@@ -187,11 +190,12 @@ describe('DateRangeCadencePicker', () => {
     })
 
     it('calls onChange when cadence changes', async () => {
+      const user = userEvent.setup()
       const onChange = vi.fn<(value: string) => void>()
       render(<DateRangeCadencePicker onChange={onChange} value="R/2024-01-15T10:00:00Z/P1D" />)
 
       const cadenceSelect = screen.getByLabelText('Cadence')
-      fireEvent.change(cadenceSelect, { target: { value: 'weekly' } })
+      await user.selectOptions(cadenceSelect, 'weekly')
 
       await waitFor(() => {
         expect(onChange).toHaveBeenCalled()
@@ -201,11 +205,12 @@ describe('DateRangeCadencePicker', () => {
     })
 
     it('calls onChange with run-once interval (R1/start/PT0S) when cadence is none and start date is set', async () => {
+      const user = userEvent.setup()
       const onChange = vi.fn<(value: string) => void>()
       render(<DateRangeCadencePicker onChange={onChange} value="R/2024-01-15T10:00:00Z/P1D" />)
 
       const cadenceSelect = screen.getByLabelText('Cadence')
-      fireEvent.change(cadenceSelect, { target: { value: 'none' } })
+      await user.selectOptions(cadenceSelect, 'none')
 
       await waitFor(() => {
         expect(onChange).toHaveBeenLastCalledWith(expect.stringMatching(/^R1\/.+\/PT0S$/))
@@ -213,11 +218,13 @@ describe('DateRangeCadencePicker', () => {
     })
 
     it('calls onChange when hour changes', async () => {
+      const user = userEvent.setup()
       const onChange = vi.fn<(value: string) => void>()
       render(<DateRangeCadencePicker onChange={onChange} value="R/2024-01-15T10:00:00Z/P1D" />)
 
       const hourInput = screen.getByLabelText('Hour')
-      fireEvent.change(hourInput, { target: { value: '3' } })
+      await user.clear(hourInput)
+      await user.type(hourInput, '3')
 
       await waitFor(() => {
         expect(onChange).toHaveBeenCalled()
@@ -225,11 +232,13 @@ describe('DateRangeCadencePicker', () => {
     })
 
     it('calls onChange when minute changes', async () => {
+      const user = userEvent.setup()
       const onChange = vi.fn<(value: string) => void>()
       render(<DateRangeCadencePicker onChange={onChange} value="R/2024-01-15T10:00:00Z/P1D" />)
 
       const minuteInput = screen.getByLabelText('Minute')
-      fireEvent.change(minuteInput, { target: { value: '45' } })
+      await user.clear(minuteInput)
+      await user.type(minuteInput, '45')
 
       await waitFor(() => {
         expect(onChange).toHaveBeenCalled()
@@ -237,11 +246,12 @@ describe('DateRangeCadencePicker', () => {
     })
 
     it('calls onChange when period changes', async () => {
+      const user = userEvent.setup()
       const onChange = vi.fn<(value: string) => void>()
       render(<DateRangeCadencePicker onChange={onChange} value="R/2024-01-15T10:00:00Z/P1D" />)
 
       const periodSelect = screen.getByLabelText('Period')
-      fireEvent.change(periodSelect, { target: { value: 'PM' } })
+      await user.selectOptions(periodSelect, 'PM')
 
       await waitFor(() => {
         expect(onChange).toHaveBeenCalled()
@@ -249,11 +259,13 @@ describe('DateRangeCadencePicker', () => {
     })
 
     it('calls onChange when end date changes', async () => {
+      const user = userEvent.setup()
       const onChange = vi.fn<(value: string) => void>()
       render(<DateRangeCadencePicker onChange={onChange} value="R/2024-01-15T10:00:00Z/P1D" />)
 
       const endDate = screen.getByLabelText('End date')
-      fireEvent.change(endDate, { target: { value: '2024-12-31' } })
+      await user.clear(endDate)
+      await user.type(endDate, '2024-12-31')
 
       await waitFor(() => {
         expect(onChange).toHaveBeenCalled()
@@ -265,12 +277,14 @@ describe('DateRangeCadencePicker', () => {
 
   describe('input validation', () => {
     it('clamps hour to valid range (1-12)', async () => {
+      const user = userEvent.setup()
       render(<DateRangeCadencePicker value="R/2024-01-15T10:00:00Z/P1D" />)
 
       const hourInput = screen.getByLabelText('Hour')
 
       // Enter invalid high value
-      fireEvent.change(hourInput, { target: { value: '15' } })
+      await user.clear(hourInput)
+      await user.type(hourInput, '15')
 
       // Should be clamped to 12
       await waitFor(() => {
@@ -279,12 +293,14 @@ describe('DateRangeCadencePicker', () => {
     })
 
     it('clamps minute to valid range (0-59)', async () => {
+      const user = userEvent.setup()
       render(<DateRangeCadencePicker value="R/2024-01-15T10:00:00Z/P1D" />)
 
       const minuteInput = screen.getByLabelText('Minute')
 
       // Enter invalid high value
-      fireEvent.change(minuteInput, { target: { value: '75' } })
+      await user.clear(minuteInput)
+      await user.type(minuteInput, '75')
 
       // Should be clamped to 59
       await waitFor(() => {
@@ -295,16 +311,17 @@ describe('DateRangeCadencePicker', () => {
 
   describe('output format', () => {
     it('generates correct ISO 8601 format for daily cadence', async () => {
+      const user = userEvent.setup()
       const onChange = vi.fn<(value: string) => void>()
       render(<DateRangeCadencePicker onChange={onChange} />)
 
       // Set start date
       const startDate = screen.getByLabelText('Start date')
-      fireEvent.change(startDate, { target: { value: '2024-06-15' } })
+      await user.type(startDate, '2024-06-15')
 
       // Set cadence to daily
       const cadenceSelect = screen.getByLabelText('Cadence')
-      fireEvent.change(cadenceSelect, { target: { value: 'daily' } })
+      await user.selectOptions(cadenceSelect, 'daily')
 
       await waitFor(() => {
         expect(onChange).toHaveBeenCalled()
@@ -314,11 +331,12 @@ describe('DateRangeCadencePicker', () => {
     })
 
     it('generates correct format with end date', async () => {
+      const user = userEvent.setup()
       const onChange = vi.fn<(value: string) => void>()
       render(<DateRangeCadencePicker onChange={onChange} value="R/2024-01-15T10:00:00Z/P1D" />)
 
       const endDate = screen.getByLabelText('End date')
-      fireEvent.change(endDate, { target: { value: '2024-12-31' } })
+      await user.type(endDate, '2024-12-31')
 
       await waitFor(() => {
         const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1][0]
@@ -327,11 +345,12 @@ describe('DateRangeCadencePicker', () => {
     })
 
     it('uses monthly duration P1M', async () => {
+      const user = userEvent.setup()
       const onChange = vi.fn<(value: string) => void>()
       render(<DateRangeCadencePicker onChange={onChange} value="R/2024-01-15T10:00:00Z/P1D" />)
 
       const cadenceSelect = screen.getByLabelText('Cadence')
-      fireEvent.change(cadenceSelect, { target: { value: 'monthly' } })
+      await user.selectOptions(cadenceSelect, 'monthly')
 
       await waitFor(() => {
         const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1][0]
@@ -340,11 +359,12 @@ describe('DateRangeCadencePicker', () => {
     })
 
     it('uses annual duration P1Y', async () => {
+      const user = userEvent.setup()
       const onChange = vi.fn<(value: string) => void>()
       render(<DateRangeCadencePicker onChange={onChange} value="R/2024-01-15T10:00:00Z/P1D" />)
 
       const cadenceSelect = screen.getByLabelText('Cadence')
-      fireEvent.change(cadenceSelect, { target: { value: 'annually' } })
+      await user.selectOptions(cadenceSelect, 'annually')
 
       await waitFor(() => {
         const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1][0]
