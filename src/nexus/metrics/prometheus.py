@@ -248,6 +248,13 @@ class NexusPrometheusMetrics:
             registry=self.registry,
         )
 
+        self.context_duration_seconds = Histogram(
+            "nexus_context_duration_seconds",
+            "Context preparation overhead duration in seconds",
+            buckets=LATENCY_BUCKETS_FAST,
+            registry=self.registry,
+        )
+
         # ---- Component Counters ----
         self.tool_executions_total = Counter(
             "nexus_tool_executions_total",

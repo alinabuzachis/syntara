@@ -23617,7 +23617,7 @@ components:
         - agent_invocation_ms
         - agent_status
         - request_duration_ms
-        - component_duration_ms
+        - context_duration_ms
         - error
         - api_response_time_ms
         - api_error_rate

@@ -377,6 +377,9 @@ class MetricsRecorder:
         }:
             MetricsRecorder._dispatch_database(metric_type, value, labels, p)
 
+        elif metric_type == MetricType.CONTEXT_DURATION:
+            p.context_duration_seconds.observe(value / 1000)
+
         else:
             MetricsRecorder._dispatch_component(metric_type, value, labels, p)
 

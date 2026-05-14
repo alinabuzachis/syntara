@@ -49,7 +49,7 @@ class TestMetricType:
             "AGENT_STATUS",
             # System Overhead
             "REQUEST_DURATION",
-            "COMPONENT_DURATION",
+            "CONTEXT_DURATION",
             # Error
             "ERROR",
             # API Service
@@ -140,7 +140,7 @@ class TestMetricType:
         assert MetricType.WORKFLOW_DURATION in METRIC_CATEGORIES[MetricsCategoryType.WORKFLOW_ENGINE]
         assert MetricType.ACTIVITY_DURATION in METRIC_CATEGORIES[MetricsCategoryType.TEMPORAL_WORKER]
         assert MetricType.REQUEST_DURATION in METRIC_CATEGORIES[MetricsCategoryType.SYSTEM_OVERHEAD]
-        assert MetricType.COMPONENT_DURATION in METRIC_CATEGORIES[MetricsCategoryType.SYSTEM_OVERHEAD]
+        assert MetricType.CONTEXT_DURATION in METRIC_CATEGORIES[MetricsCategoryType.SYSTEM_OVERHEAD]
 
     def test_all_metric_types_belong_to_a_category(self) -> None:
         """Every MetricType is listed in at least one category."""

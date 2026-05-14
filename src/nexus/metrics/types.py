@@ -54,7 +54,7 @@ class MetricType(StrEnum):
 
     # System Overhead Metrics (FR-021 to FR-023)
     REQUEST_DURATION = "request_duration_ms"
-    COMPONENT_DURATION = "component_duration_ms"
+    CONTEXT_DURATION = "context_duration_ms"
 
     # Error Metrics (FR-024 to FR-025)
     ERROR = "error"
@@ -141,7 +141,7 @@ METRIC_CATEGORIES: dict[MetricsCategoryType, list[MetricType]] = {
     ],
     MetricsCategoryType.SYSTEM_OVERHEAD: [
         MetricType.REQUEST_DURATION,
-        MetricType.COMPONENT_DURATION,
+        MetricType.CONTEXT_DURATION,
     ],
     MetricsCategoryType.API: [
         MetricType.API_RESPONSE_TIME,

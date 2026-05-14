@@ -14,7 +14,7 @@ class MetricType(str, Enum):
     CACHE_LOOKUP_MS = "cache_lookup_ms"
     CACHE_MISS = "cache_miss"
     CACHE_UTILIZATION_RATIO = "cache_utilization_ratio"
-    COMPONENT_DURATION_MS = "component_duration_ms"
+    CONTEXT_DURATION_MS = "context_duration_ms"
     DATABASE_CONNECTION_POOL_UTILIZATION_RATIO = "database_connection_pool_utilization_ratio"
     DATABASE_QUERY_RESPONSE_TIME_MS = "database_query_response_time_ms"
     DATABASE_TRANSACTION_RATE_TPS = "database_transaction_rate_tps"

@@ -46,12 +46,12 @@ pytestmark = pytest.mark.performance
 
 METRICS_POLL_INTERVAL = 0.5
 METRICS_POLL_TIMEOUT = 10.0
-PROBE_POLL_TIMEOUT = 60.0
+LLM_PROBE_TIMEOUT = 60.0
 
-
-# ---------------------------------------------------------------------------
-# Common test data
-# ---------------------------------------------------------------------------
+# Timeout for waiting for invocations to reach terminal status (seconds)
+DEFAULT_INVOCATION_TIMEOUT = 120.0
+# Timeout for waiting on concurrent futures (seconds)
+DEFAULT_FUTURE_TIMEOUT = 30.0
 
 DEFAULT_TEST_MODELS: list[str] = [
     "anthropic/claude-sonnet-4",
@@ -59,6 +59,76 @@ DEFAULT_TEST_MODELS: list[str] = [
     "google/gemini-2.0-flash-001",
     "moonshotai/kimi-k2.6",
 ]
+
+
+def get_configured_models() -> list[str]:
+    """Return the list of models to test.
+
+    Uses ``PERF_TEST_LLM_MODELS`` env var (comma-separated) if set,
+    otherwise falls back to ``DEFAULT_TEST_MODELS``.
+    """
+    env_models = os.environ.get("PERF_TEST_LLM_MODELS", "")
+    if env_models.strip():
+        models = [m.strip() for m in env_models.split(",") if m.strip()]
+        if models:
+            return models
+    return list(DEFAULT_TEST_MODELS)
+
+
+# ---------------------------------------------------------------------------
+# Common component names
+# ---------------------------------------------------------------------------
+
+LLM_COMPONENT = "llm"
+API_SERVICE_COMPONENT = "api_service"
+
+# ---------------------------------------------------------------------------
+# Common prompt sets
+# ---------------------------------------------------------------------------
+
+LLM_TEST_PROMPTS: dict[str, list[str]] = {
+    "overhead": [
+        "List the steps to create a new workflow.",
+        "How do I trigger a manual workflow execution?",
+        "Summarize the status of my recent invocations.",
+        "What agents are available for task routing?",
+        "Explain how to configure a script node.",
+        "Describe the workflow execution lifecycle.",
+        "How do I check the result of a completed execution?",
+        "What tool providers are currently registered?",
+        "Help me debug a failed workflow execution.",
+        "How do I add an approval step to a workflow?",
+    ],
+    "code_generation": [
+        "Write a Python function to implement binary search",
+        "Create a REST API endpoint using FastAPI",
+        "Implement a linked list data structure in Python",
+        "Write unit tests for a calculator module",
+        "Build a CLI tool that parses CSV files",
+    ],
+    "creative_writing": [
+        "Write a short story about an AI assistant",
+        "Compose a haiku about technology",
+        "Create a product description for a smart watch",
+    ],
+    "analysis": [
+        "Analyze the trade-offs between SQL and NoSQL databases",
+        "Explain the CAP theorem and its implications",
+        "Compare microservices vs monolithic architecture",
+    ],
+    "general": [
+        "What are the best practices for REST API design?",
+        "Explain how container orchestration works",
+        "Summarize the key features of Python 3.12",
+        "How does a load balancer distribute traffic?",
+    ],
+}
+
+ALL_LLM_TEST_PROMPTS: list[str] = [p for ps in LLM_TEST_PROMPTS.values() for p in ps]
+
+# ---------------------------------------------------------------------------
+# Common test data
+# ---------------------------------------------------------------------------
 
 SIMPLE_WORKFLOW_DEFINITION: dict[str, Any] = {
     "schema_version": "2.0.0",
@@ -156,20 +226,6 @@ def compute_percentile(values: list[float], percentile: float) -> float:
     if c >= n:
         return sorted_vals[-1]
     return sorted_vals[f] + (k - f) * (sorted_vals[c] - sorted_vals[f])
-
-
-def get_configured_models() -> list[str]:
-    """Return the list of LLM models to test.
-
-    Uses ``PERF_TEST_LLM_MODELS`` env var (comma-separated) if set,
-    otherwise falls back to ``DEFAULT_TEST_MODELS``.
-    """
-    env_models = os.environ.get("PERF_TEST_LLM_MODELS", "")
-    if env_models.strip():
-        parsed = [m.strip() for m in env_models.split(",") if m.strip()]
-        if parsed:
-            return parsed
-    return list(DEFAULT_TEST_MODELS)
 
 
 def make_request(
@@ -729,6 +785,24 @@ def poll_for_invocation_terminal_status(
     return parsed
 
 
+def wait_for_invocations(
+    nexus_api: NexusApiRegistry,
+    invocation_ids: list[str],
+    *,
+    timeout: float = DEFAULT_INVOCATION_TIMEOUT,
+) -> None:
+    """Wait for all invocations to reach terminal status.
+
+    Args:
+        nexus_api: Authenticated API client registry.
+        invocation_ids: List of invocation IDs to wait for.
+        timeout: Maximum seconds to wait per invocation.
+
+    """
+    for inv_id in invocation_ids:
+        poll_for_invocation_terminal_status(nexus_api, inv_id, timeout=timeout)
+
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -762,11 +836,31 @@ def llm_credential_id(
 ) -> str | None:
     """Discover the LLM Provider credential ID on the deployment.
 
-    Returns the credential UUID string, or ``None`` if no LLM credential
-    is found (the tests will still run but rely on the
-    ``E2E_LLM_CREDENTIAL_CONFIGURED`` fallback path).
+    Returns the credential UUID string, or None if no LLM credential
+    is found.
     """
     return find_llm_credential_id(nexus_api)
+
+
+@pytest.fixture(scope="module")
+def configured_model() -> str:
+    """Get the first configured model or fail with helpful message.
+
+    Returns the first model from PERF_TEST_LLM_MODELS env var or
+    DEFAULT_TEST_MODELS.
+
+    Raises:
+        pytest.Failed: If no models are configured.
+
+    """
+    models = get_configured_models()
+    if not models:
+        pytest.fail(
+            "No models configured for testing. "
+            "Ensure PERF_TEST_LLM_MODELS environment variable is set or "
+            "DEFAULT_TEST_MODELS contains at least one model."
+        )
+    return models[0]
 
 
 @pytest.fixture(scope="module")
@@ -774,44 +868,36 @@ def llm_invocation_enabled(
     nexus_api: NexusApiRegistry,
     perf_test_mode_enabled: None,
     llm_credential_id: str | None,
+    configured_model: str,
 ) -> None:
-    """Verify that the LLM is configured and invocations complete successfully.
+    """Verify that the LLM is reachable and invocations complete via Nexus.
 
-    Sends a single probe invocation (with the discovered credential if
-    available), waits for it to reach a terminal status, and checks that
-    it did not fail with an LLM configuration error.  Skips the entire
-    module when the LLM is not configured.
+    Sends a probe invocation with the discovered credential, waits for
+    terminal status, and skips the module if the LLM is not configured.
     """
-    models = get_configured_models()
+    model = configured_model
     _, ok, inv_id = submit_invocation(
         nexus_api,
-        "Hello, this is an LLM connectivity probe",
-        model=models[0],
+        "Hello, this is an LLM readiness probe",
+        model=model,
         credential_id=llm_credential_id,
     )
     if not ok or inv_id is None:
         pytest.skip(
-            "Could not create a probe invocation. This suite requires a "
-            "working invocation endpoint with an LLM configured."
+            "Could not create a probe invocation — the invocation API may be unavailable or the LLM is not configured."
         )
 
     parsed = poll_for_invocation_terminal_status(
         nexus_api,
         inv_id,
-        timeout=PROBE_POLL_TIMEOUT,
+        timeout=LLM_PROBE_TIMEOUT,
     )
     status = str(parsed.get("status", "unknown"))
     error_message = str(parsed.get("error_message", "") or "")
 
     if status == "failed" and "LLM" in error_message:
-        cred_hint = (
-            " (credential configured)"
-            if llm_credential_id
-            else " (no LLM credential found via API - also ensure "
-            "E2E_LLM_CREDENTIAL_CONFIGURED=1 is set on the deployment)"
-        )
+        cred_hint = " (credential configured)" if llm_credential_id else " (no LLM credential found via API)"
         pytest.skip(
-            f"Probe invocation failed with LLM configuration error: "
-            f"{error_message}{cred_hint}. This suite requires a configured "
-            f"LLM so invocations can complete."
+            f"Probe invocation failed with LLM error: {error_message}{cred_hint}. "
+            f"A configured LLM is required for this test suite."
         )

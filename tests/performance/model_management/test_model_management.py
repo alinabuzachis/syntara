@@ -15,8 +15,8 @@ Test 14.3: LLM calls across all configured models
     Validation: /_internal/metrics/records?metric_type=llm_duration_ms -> group by model label
 
 Test 14.4: Track overhead breakdown
-    KPI: Component Overhead Breakdown - Routing, orchestration, tool calls
-    MetricType: COMPONENT_DURATION, AGENT_ROUTING_DURATION
+    KPI: Component Overhead Breakdown - Routing, context preparation
+    MetricType: AGENT_ROUTING_DURATION, CONTEXT_DURATION
     Validation: /_internal/metrics/records -> multiple metric types
 
 Run with:
@@ -32,16 +32,14 @@ from typing import TYPE_CHECKING, Any
 import pytest
 
 from tests.performance.conftest import (
+    ALL_LLM_TEST_PROMPTS,
+    LLM_COMPONENT,
     compute_percentile,
     get_configured_models,
     poll_for_component_kpis,
     poll_for_invocation_terminal_status,
     poll_for_metric_records,
     submit_invocation,
-)
-from tests.performance.model_management.conftest import (
-    ALL_MODEL_PROMPTS,
-    LLM_COMPONENT,
 )
 
 if TYPE_CHECKING:
@@ -90,7 +88,7 @@ class TestSelectionAccuracy:
 
         prompts = list(
             itertools.islice(
-                itertools.cycle(ALL_MODEL_PROMPTS),
+                itertools.cycle(ALL_LLM_TEST_PROMPTS),
                 INVOCATIONS_PER_MODEL,
             )
         )
@@ -186,14 +184,19 @@ class TestSystemOverhead:
         self,
         nexus_api: NexusApiRegistry,
         llm_credential_id: str | None,
+        configured_model: str,
     ) -> None:
         """Submit invocations and compare request vs LLM duration; overhead must be < 30%."""
-        models = get_configured_models()
-        prompts = list(itertools.islice(itertools.cycle(ALL_MODEL_PROMPTS), INVOCATIONS_PER_MODEL))
+        prompts = list(itertools.islice(itertools.cycle(ALL_LLM_TEST_PROMPTS), INVOCATIONS_PER_MODEL))
 
         invocation_ids: list[str] = []
         for prompt in prompts:
-            _, ok, inv_id = submit_invocation(nexus_api, prompt, model=models[0], credential_id=llm_credential_id)
+            _, ok, inv_id = submit_invocation(
+                nexus_api,
+                prompt,
+                model=configured_model,
+                credential_id=llm_credential_id,
+            )
             if ok and inv_id:
                 invocation_ids.append(inv_id)
 
@@ -301,7 +304,7 @@ class TestLLMResponseLatency:
         models = get_configured_models()
         assert len(models) > 0, "No test models configured"
 
-        prompts = list(itertools.islice(itertools.cycle(ALL_MODEL_PROMPTS), INVOCATIONS_PER_MODEL))
+        prompts = list(itertools.islice(itertools.cycle(ALL_LLM_TEST_PROMPTS), INVOCATIONS_PER_MODEL))
 
         all_invocation_ids: list[str] = []
         model_invocations: dict[str, list[str]] = {m: [] for m in models}
@@ -372,7 +375,7 @@ class TestLLMResponseLatency:
         from nexus_api_client.api.internal_metrics import InternalMetricsApi
 
         models = get_configured_models()
-        prompts = list(itertools.islice(itertools.cycle(ALL_MODEL_PROMPTS), INVOCATIONS_PER_MODEL))
+        prompts = list(itertools.islice(itertools.cycle(ALL_LLM_TEST_PROMPTS), INVOCATIONS_PER_MODEL))
 
         invocation_ids: list[str] = []
 
@@ -449,9 +452,8 @@ class TestComponentOverheadBreakdown:
     """14.4 - Track overhead breakdown.
 
     Validates:
-        - COMPONENT_DURATION records are emitted, showing time spent in
-          routing, orchestration, and other subsystems
         - AGENT_ROUTING_DURATION records are emitted
+        - CONTEXT_DURATION records are emitted
         - The overhead components are measurable and within expected ranges
 
     This test submits invocations and then retrieves per-component
@@ -471,14 +473,19 @@ class TestComponentOverheadBreakdown:
         self,
         nexus_api: NexusApiRegistry,
         llm_credential_id: str | None,
+        configured_model: str,
     ) -> None:
         """Submit invocations and verify component-level duration metrics."""
-        models = get_configured_models()
-        prompts = list(itertools.islice(itertools.cycle(ALL_MODEL_PROMPTS), INVOCATIONS_PER_MODEL))
+        prompts = list(itertools.islice(itertools.cycle(ALL_LLM_TEST_PROMPTS), INVOCATIONS_PER_MODEL))
 
         invocation_ids: list[str] = []
         for prompt in prompts:
-            _, ok, inv_id = submit_invocation(nexus_api, prompt, model=models[0], credential_id=llm_credential_id)
+            _, ok, inv_id = submit_invocation(
+                nexus_api,
+                prompt,
+                model=configured_model,
+                credential_id=llm_credential_id,
+            )
             if ok and inv_id:
                 invocation_ids.append(inv_id)
 
@@ -505,27 +512,28 @@ class TestComponentOverheadBreakdown:
             timeout=30.0,
         )
 
-        component_records = poll_for_metric_records(
+        context_records = poll_for_metric_records(
             nexus_api.internal_metrics,
-            "component_duration_ms",
-            limit=200,
+            "context_duration_ms",
+            limit=len(invocation_ids) * 2,
             timeout=30.0,
         )
 
         llm_values = _extract_values_from_records(llm_records)
         routing_values = _extract_values_from_records(routing_records)
+        context_values = _extract_values_from_records(context_records)
 
-        breakdown = _build_overhead_breakdown(llm_values, routing_values, component_records)
+        breakdown = _build_overhead_breakdown(llm_values, routing_values, context_values)
 
         diag = _format_breakdown_diagnostic(
-            breakdown, len(invocation_ids), llm_records, routing_records, component_records
+            breakdown, len(invocation_ids), llm_records, routing_records, context_records
         )
 
-        has_metrics = bool(llm_values or routing_values or _extract_values_from_records(component_records))
+        has_metrics = bool(llm_values or routing_values or context_values)
         assert has_metrics, (
             f"No overhead breakdown metrics recorded. "
             f"Expected at least LLM_DURATION, AGENT_ROUTING_DURATION, "
-            f"or COMPONENT_DURATION records to be emitted.{diag}"
+            f"or CONTEXT_DURATION records to be emitted.{diag}"
         )
 
         if llm_values:
@@ -553,9 +561,9 @@ def _compute_stats(values: list[float]) -> dict[str, Any]:
 def _build_overhead_breakdown(
     llm_values: list[float],
     routing_values: list[float],
-    component_records: dict[str, Any],
+    context_values: list[float],
 ) -> dict[str, dict[str, Any]]:
-    """Build a per-component overhead breakdown from metric records."""
+    """Build a per-component overhead breakdown from metric values."""
     breakdown: dict[str, dict[str, Any]] = {}
 
     if llm_values:
@@ -564,18 +572,8 @@ def _build_overhead_breakdown(
     if routing_values:
         breakdown["routing_duration"] = _compute_stats(routing_values)
 
-    component_values = _extract_values_from_records(component_records)
-    if component_values:
-        by_component: dict[str, list[float]] = {}
-        for record in component_records.get("records", []):
-            labels = record.get("labels", {})
-            comp_name = labels.get("component", "unknown")
-            value = record.get("value")
-            if isinstance(value, (int, float)):
-                by_component.setdefault(comp_name, []).append(float(value))
-
-        for comp_name, values in by_component.items():
-            breakdown[f"component_{comp_name}"] = _compute_stats(values)
+    if context_values:
+        breakdown["context_preparation"] = _compute_stats(context_values)
 
     return breakdown
 
@@ -585,7 +583,7 @@ def _format_breakdown_diagnostic(
     invocation_count: int,
     llm_records: dict[str, Any],
     routing_records: dict[str, Any],
-    component_records: dict[str, Any],
+    context_records: dict[str, Any],
 ) -> str:
     """Format the overhead breakdown as a diagnostic string."""
     diag_parts = [
@@ -602,6 +600,6 @@ def _format_breakdown_diagnostic(
     diag_parts.append(
         f"  raw_record_counts: llm={llm_records.get('total', 0)}, "
         f"routing={routing_records.get('total', 0)}, "
-        f"component={component_records.get('total', 0)}"
+        f"context_prep={context_records.get('total', 0)}"
     )
     return "\n".join(diag_parts) + "\n"

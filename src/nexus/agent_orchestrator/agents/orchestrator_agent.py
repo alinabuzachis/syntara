@@ -81,6 +81,7 @@ class OrchestratorAgent:
             State with enhanced prompt and context package
 
         """
+        start = time.perf_counter()
         try:
             logger.debug("Calling context manager for session", session_id=state["session_id"])
 
@@ -140,6 +141,17 @@ class OrchestratorAgent:
             fallback_state = copy.deepcopy(state)
             fallback_state["context_package"] = None
             return fallback_state
+        finally:
+            duration_ms = (time.perf_counter() - start) * 1000
+            recorder = get_metrics_recorder()
+            recorder.record(
+                MetricType.CONTEXT_DURATION,
+                duration_ms,
+                unit="ms",
+                labels={
+                    "invocation_id": state["invocation_id"],
+                },
+            )
 
     def _format_context_prompt(self, original_prompt: str, context_payload: dict[str, Any]) -> str:
         """Format context payload into enhanced prompt.
