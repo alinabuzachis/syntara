@@ -59,6 +59,7 @@ from nexus.files.models import FileMetadata
 from nexus.tool_manager.lib.providers.factory import ProviderFactory, get_provider_factory
 from nexus.tool_manager.models import Tool, ToolProvider
 from nexus.tool_manager.services.tool_provider_service import ToolProviderService
+from nexus.tool_manager.services.tool_service import ToolService
 from nexus.workflows.models import ActivityExecution, ActivityStatus, Workflow, WorkflowVersion
 from nexus.workflows.models.execution import Execution, ExecutionStatus
 from nexus.workflows.services.execution_streaming_service import ExecutionStreamingService
@@ -1505,6 +1506,21 @@ async def test_tool_provider_service(
 
     """
     return ToolProviderService(test_db_session, test_user, test_provider_factory)
+
+
+@pytest_asyncio.fixture
+async def test_tool_service(test_db_session: AsyncSession, test_user: User) -> "ToolService":
+    """Create a ToolService for testing.
+
+    Args:
+        test_db_session: Test database session
+        test_user: Test User
+
+    Returns:
+        ToolService: Service instance
+
+    """
+    return ToolService(test_db_session, test_user)
 
 
 # ============================================================================

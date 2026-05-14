@@ -16,9 +16,12 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
+from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.core.models import User
 from nexus.core.services import BaseService
 from nexus.core.services.extensions import ConvertResourceMixin, EnrichQueryMixin
+from nexus.tool_manager.audit.tool_bulk_update import ToolBulkUpdateEvent
+from nexus.tool_manager.audit.tool_update import ToolUpdateEvent
 from nexus.tool_manager.exceptions import (
     ToolBulkUpdateValidationError,
     ToolNotFoundError,
@@ -157,20 +160,46 @@ class ToolService(BaseService):
 
         if not tool:
             msg = f"Tool {tool_id} not found"
+            AuditEventDispatcher.dispatch(
+                ToolUpdateEvent(
+                    tool_id=tool_id,
+                    tool_name="<unknown>",
+                    namespaced_name="<unknown>",
+                    provider_id=UUID("00000000-0000-0000-0000-000000000000"),
+                    error_type="ToolNotFoundError",
+                )
+            )
             raise ToolNotFoundError(msg)
 
+        # Track which fields are being updated
+        updated_fields: list[str] = []
         if tool_update.enabled is not None:
             tool.enabled = tool_update.enabled
+            updated_fields.append("enabled")
 
         if tool_update.status is not None:
             tool.status = tool_update.status
+            updated_fields.append("status")
 
         # Handle refresh_error - check if field was explicitly provided (including None)
         if "refresh_error" in tool_update.model_fields_set:
             tool.refresh_error = tool_update.refresh_error
+            updated_fields.append("refresh_error")
 
         tool.updated_by = self.user.id
         tool.updated_at = datetime.now(UTC)
+
+        await self.session.flush()
+
+        AuditEventDispatcher.dispatch(
+            ToolUpdateEvent(
+                tool_id=tool.id,
+                tool_name=tool.name,
+                namespaced_name=tool.namespaced_name,
+                provider_id=tool.provider_id,
+                updated_fields=updated_fields,
+            )
+        )
 
         return await self.get_tool_detail(tool.id)
 
@@ -190,10 +219,24 @@ class ToolService(BaseService):
         """
         if not tool_ids:
             msg = "tool_ids cannot be empty"
+            AuditEventDispatcher.dispatch(
+                ToolBulkUpdateEvent(
+                    tool_ids=[],
+                    enabled=enabled,
+                    error_type="ToolBulkUpdateValidationError",
+                )
+            )
             raise ToolBulkUpdateValidationError(msg)
 
         if len(tool_ids) > MAX_BULK_UPDATES:
             msg = f"Cannot update more than {MAX_BULK_UPDATES} tools at once"
+            AuditEventDispatcher.dispatch(
+                ToolBulkUpdateEvent(
+                    tool_ids=tool_ids,
+                    enabled=enabled,
+                    error_type="ToolBulkUpdateValidationError",
+                )
+            )
             raise ToolBulkUpdateValidationError(msg)
 
         # Remove duplicates while preserving order
@@ -258,6 +301,18 @@ class ToolService(BaseService):
         skipped_count = len(unique_tool_ids) - updated_count
 
         await self.session.flush()
+
+        AuditEventDispatcher.dispatch(
+            ToolBulkUpdateEvent(
+                tool_ids=tool_ids,
+                enabled=enabled,
+                updated_count=updated_count,
+                skipped_count=skipped_count,
+                duplicate_count=duplicate_count,
+                deleted_count=len(deleted_tool_ids),
+                not_found_count=len(not_found_tool_ids),
+            )
+        )
 
         logger.info(
             "Bulk update completed",

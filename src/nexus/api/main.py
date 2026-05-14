@@ -26,6 +26,7 @@ import nexus.credentials.audit  # Package scanned by discover_handlers() at star
 import nexus.identity_providers.exceptions
 import nexus.settings.audit  # Package scanned by discover_handlers() at startup
 import nexus.telemetry.handlers  # Package scanned by discover_handlers() at startup
+import nexus.tool_manager.audit  # Package scanned by discover_handlers() at startup
 import nexus.workflows.audit  # Package scanned by discover_handlers() at startup
 from nexus.api.constants import API_V1_PATH_PREFIX
 from nexus.audit.discovery import discover_handlers
@@ -106,6 +107,9 @@ def _discover_and_register_audit_handlers() -> None:
         settings_audit_registry = discover_handlers(nexus.settings.audit)
         AuditEventDispatcher.register(settings_audit_registry)
 
+        tool_manager_audit_registry = discover_handlers(nexus.tool_manager.audit)
+        AuditEventDispatcher.register(tool_manager_audit_registry)
+
         workflows_audit_registry = discover_handlers(nexus.workflows.audit)
         AuditEventDispatcher.register(workflows_audit_registry)
 
@@ -118,6 +122,7 @@ def _discover_and_register_audit_handlers() -> None:
             + len(auth_audit_registry)
             + len(credentials_audit_registry)
             + len(settings_audit_registry)
+            + len(tool_manager_audit_registry)
             + len(workflows_audit_registry)
             + len(telemetry_registry)
         )

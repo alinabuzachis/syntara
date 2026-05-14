@@ -11,15 +11,21 @@ from uuid import UUID
 
 import structlog
 from sqlalchemy import Select, text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import DatabaseError, IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
+from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.core.models import User
 from nexus.core.services import BaseService
 from nexus.core.services.extensions import ConvertResourceMixin
 from nexus.core.utils.filters import Filter
+from nexus.tool_manager.audit.provider_create import ToolProviderCreateEvent
+from nexus.tool_manager.audit.provider_delete import ToolProviderDeleteEvent
+from nexus.tool_manager.audit.provider_refresh import ToolProviderRefreshEvent
+from nexus.tool_manager.audit.provider_update import ToolProviderUpdateEvent
+from nexus.tool_manager.audit.provider_validation import ToolProviderValidationEvent
 from nexus.tool_manager.exceptions import (
     ProviderNameConflictError,
     ProviderNotFoundError,
@@ -327,9 +333,32 @@ class ToolProviderService(BaseService):
         try:
             await self.session.flush()
             logger.info("Successfully created provider with VALIDATING status", provider_name=provider.name)
+
+            # Dispatch success audit event
+            AuditEventDispatcher.dispatch(
+                ToolProviderCreateEvent(
+                    provider_id=provider.id,
+                    provider_name=provider.name,
+                    provider_type=provider.configuration.provider_type,
+                    description=provider.description,
+                    initial_status=provider.status,
+                )
+            )
+
             return ToolProviderWithConfiguration.model_validate(provider)
 
         except IntegrityError as e:
+            # Dispatch failure audit event
+            AuditEventDispatcher.dispatch(
+                ToolProviderCreateEvent(
+                    provider_id=provider.id,
+                    provider_name=provider_create.name,
+                    provider_type=provider_create.configuration.provider_type,
+                    description=provider_create.description,
+                    initial_status=ProviderStatus.VALIDATING,
+                    error_type=type(e).__name__,
+                )
+            )
             await self._handle_integrity_error(e, provider_create.name)
 
     async def get_provider(self, provider_id: UUID) -> ToolProviderWithConfiguration:
@@ -391,11 +420,35 @@ class ToolProviderService(BaseService):
         provider.updated_by = self.user.id
         provider.updated_at = datetime.now(UTC)
 
+        # Track updated fields for audit
+        updated_fields = ["name", "description", "configuration"]
+
         try:
             await self.session.flush()
+
+            # Dispatch success audit event
+            AuditEventDispatcher.dispatch(
+                ToolProviderUpdateEvent(
+                    provider_id=provider.id,
+                    provider_name=provider.name,
+                    updated_fields=updated_fields,
+                    provider_type=provider.configuration.provider_type,
+                )
+            )
+
             return await self.get_provider(provider.id)
 
         except IntegrityError as e:
+            # Dispatch failure audit event
+            AuditEventDispatcher.dispatch(
+                ToolProviderUpdateEvent(
+                    provider_id=provider_id,
+                    provider_name=provider_update.name,
+                    updated_fields=updated_fields,
+                    provider_type=provider_update.configuration.provider_type,
+                    error_type=type(e).__name__,
+                )
+            )
             await self._handle_integrity_error(e, provider_update.name)
 
     async def patch_provider(
@@ -428,35 +481,65 @@ class ToolProviderService(BaseService):
         # Capture the name that will be used (for error handling if needed)
         provider_name = provider_patch.name if provider_patch.name is not None else provider.name
 
+        # Track updated fields for audit
+        updated_fields: list[str] = []
+
         # Apply patch fields if they are provided (not None)
         if provider_patch.name is not None:
             provider.name = provider_patch.name
+            updated_fields.append("name")
 
         if provider_patch.description is not None:
             provider.description = provider_patch.description
+            updated_fields.append("description")
 
         if provider_patch.enabled is not None:
             provider.enabled = provider_patch.enabled
+            updated_fields.append("enabled")
 
         if provider_patch.status is not None:
             provider.status = provider_patch.status
+            updated_fields.append("status")
 
         # Handle validation_error - check if field was explicitly provided (including None)
         if "validation_error" in provider_patch.model_fields_set:
             provider.validation_error = provider_patch.validation_error
+            updated_fields.append("validation_error")
 
         if provider_patch.configuration is not None:
             # Validate merged configuration. Pydantic validates when the property is set.
             provider.configuration = provider_patch.configuration
+            updated_fields.append("configuration")
 
         provider.updated_by = self.user.id
         provider.updated_at = datetime.now(UTC)
 
         try:
             await self.session.flush()
+
+            # Dispatch success audit event
+            AuditEventDispatcher.dispatch(
+                ToolProviderUpdateEvent(
+                    provider_id=provider.id,
+                    provider_name=provider.name,
+                    updated_fields=updated_fields,
+                    provider_type=provider.configuration.provider_type,
+                )
+            )
+
             return await self.get_provider(provider.id)
 
         except IntegrityError as e:
+            # Dispatch failure audit event
+            AuditEventDispatcher.dispatch(
+                ToolProviderUpdateEvent(
+                    provider_id=provider_id,
+                    provider_name=provider_name,
+                    updated_fields=updated_fields,
+                    provider_type=provider.configuration.provider_type if provider_patch.configuration else None,
+                    error_type=type(e).__name__,
+                )
+            )
             # Use the captured provider name for error handling (don't access provider.name after rollback)
             await self._handle_integrity_error(e, provider_name)
 
@@ -477,6 +560,15 @@ class ToolProviderService(BaseService):
 
         if not provider:
             msg = f"Provider {provider_id} not found"
+            # Dispatch error audit event before raising exception
+            AuditEventDispatcher.dispatch(
+                ToolProviderDeleteEvent(
+                    provider_id=provider_id,
+                    provider_name="<unknown>",
+                    tools_deleted=0,
+                    error_type="ProviderNotFoundError",
+                )
+            )
             raise ProviderNotFoundError(msg)
 
         # Soft delete provider
@@ -491,6 +583,29 @@ class ToolProviderService(BaseService):
         for tool in tools:
             tool.deleted_at = datetime.now(UTC)
             tool.deleted_by = self.user.id
+
+        try:
+            await self.session.flush()
+
+            # Dispatch success audit event
+            AuditEventDispatcher.dispatch(
+                ToolProviderDeleteEvent(
+                    provider_id=provider.id,
+                    provider_name=provider.name,
+                    tools_deleted=len(tools),
+                )
+            )
+        except DatabaseError as e:
+            # Dispatch failure audit event
+            AuditEventDispatcher.dispatch(
+                ToolProviderDeleteEvent(
+                    provider_id=provider.id,
+                    provider_name=provider.name,
+                    tools_deleted=len(tools),
+                    error_type=type(e).__name__,
+                )
+            )
+            raise
 
     async def validate_provider(self, provider_id: UUID) -> ToolProviderValidationResult:
         """Validate tool provider connection.
@@ -527,6 +642,19 @@ class ToolProviderService(BaseService):
             provider.updated_by = self.user.id
             provider.updated_at = datetime.now(UTC)
 
+            # Dispatch audit event
+            AuditEventDispatcher.dispatch(
+                ToolProviderValidationEvent(
+                    provider_id=provider.id,
+                    provider_name=provider.name,
+                    provider_type=provider.configuration.provider_type,
+                    timeout=validation_result.timeout,
+                    result_status=provider.status,
+                    is_definition_validation=False,
+                    error_type=type(validation_result.error).__name__ if validation_result.error else None,
+                )
+            )
+
             # Always return validation result - never raise exceptions for validation failures
             return ToolProviderValidationResult(
                 valid=validation_result.valid,
@@ -543,6 +671,19 @@ class ToolProviderService(BaseService):
             provider.last_validated_at = datetime.now(UTC)
             provider.updated_by = self.user.id
             provider.updated_at = datetime.now(UTC)
+
+            # Dispatch audit event
+            AuditEventDispatcher.dispatch(
+                ToolProviderValidationEvent(
+                    provider_id=provider.id,
+                    provider_name=provider.name,
+                    provider_type=provider.configuration.provider_type,
+                    timeout=False,
+                    result_status=provider.status,
+                    is_definition_validation=False,
+                    error_type=type(e).__name__,
+                )
+            )
 
             return ToolProviderValidationResult(
                 valid=False,
@@ -568,6 +709,19 @@ class ToolProviderService(BaseService):
             # Validate provider configuration
             validation_result = await self._validate_provider_connection(provider.name, provider.configuration)
 
+            # Dispatch audit event
+            AuditEventDispatcher.dispatch(
+                ToolProviderValidationEvent(
+                    provider_name=provider.name,
+                    provider_type=provider.configuration.provider_type,
+                    provider_id=None,
+                    timeout=validation_result.timeout,
+                    result_status=None,
+                    is_definition_validation=True,
+                    error_type=type(validation_result.error).__name__ if validation_result.error else None,
+                )
+            )
+
             # Return validation result as-is (no database updates needed)
             return ToolProviderValidationResult(
                 valid=validation_result.valid,
@@ -578,6 +732,19 @@ class ToolProviderService(BaseService):
             )
 
         except Exception as e:  # noqa: BLE001
+            # Dispatch audit event
+            AuditEventDispatcher.dispatch(
+                ToolProviderValidationEvent(
+                    provider_name=provider.name,
+                    provider_type=provider.configuration.provider_type,
+                    provider_id=None,
+                    timeout=False,
+                    result_status=None,
+                    is_definition_validation=True,
+                    error_type=type(e).__name__,
+                )
+            )
+
             # Handle all exceptions gracefully and return validation failure result
             return ToolProviderValidationResult(
                 valid=False,
@@ -604,6 +771,17 @@ class ToolProviderService(BaseService):
 
         if provider.status != ProviderStatus.AVAILABLE:
             msg = f"Provider {provider_id} is not available for tool refresh"
+            # Dispatch error audit event before raising exception
+            AuditEventDispatcher.dispatch(
+                ToolProviderRefreshEvent(
+                    provider_id=provider.id,
+                    provider_name=provider.name,
+                    refreshed_count=0,
+                    updated_count=0,
+                    disabled_count=0,
+                    error_type="ToolRefreshError",
+                )
+            )
             raise ToolRefreshError(msg)
 
         try:
@@ -651,6 +829,17 @@ class ToolProviderService(BaseService):
             provider.updated_by = self.user.id
             provider.updated_at = datetime.now(UTC)
 
+            # Dispatch success audit event
+            AuditEventDispatcher.dispatch(
+                ToolProviderRefreshEvent(
+                    provider_id=provider.id,
+                    provider_name=provider.name,
+                    refreshed_count=refreshed_count,
+                    updated_count=updated_count,
+                    disabled_count=disabled_count,
+                )
+            )
+
             return ToolProviderRefreshResult(
                 refreshed_count=refreshed_count,
                 updated_count=updated_count,
@@ -659,5 +848,17 @@ class ToolProviderService(BaseService):
             )
 
         except Exception as e:
+            # Dispatch failure audit event
+            AuditEventDispatcher.dispatch(
+                ToolProviderRefreshEvent(
+                    provider_id=provider.id,
+                    provider_name=provider.name,
+                    refreshed_count=0,
+                    updated_count=0,
+                    disabled_count=0,
+                    error_type=type(e).__name__,
+                )
+            )
+
             msg = f"Tool refresh failed: {e}"
             raise ToolRefreshError(msg) from e
