@@ -24,6 +24,7 @@ type ProviderIconProps = {
 }
 
 export function ProviderIcon({ name, idpType, style }: Readonly<ProviderIconProps>) {
+  if (idpType === IdpTypeKey.CUSTOM) return null
   const key = getProviderIconKey(name, idpType)
   const iconStyle = style ?? defaultStyle
 

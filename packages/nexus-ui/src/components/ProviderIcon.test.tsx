@@ -15,9 +15,9 @@ describe('ProviderIcon', () => {
     expect(screen.getByTestId('globe-icon')).toBeInTheDocument()
   })
 
-  it('renders globe icon fallback for custom idpType', () => {
-    render(<ProviderIcon name="Unknown" idpType="custom" />)
-    expect(screen.getByTestId('globe-icon')).toBeInTheDocument()
+  it('renders no icon for custom idpType', () => {
+    const { container } = render(<ProviderIcon name="Unknown" idpType="custom" />)
+    expect(container.firstChild).toBeNull()
   })
 
   it('renders globe icon for unknown provider', () => {
@@ -33,6 +33,12 @@ describe('ProviderIcon', () => {
 
   it('has no accessibility violations for fallback icon', async () => {
     const { container } = render(<ProviderIcon name="Okta" />)
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
+
+  it('has no accessibility violations when no icon is rendered (custom idpType)', async () => {
+    const { container } = render(<ProviderIcon name="Custom" idpType="custom" />)
     const results = await axe(container)
     expect(results).toHaveNoViolations()
   })
