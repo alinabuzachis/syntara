@@ -10,6 +10,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.exceptions import (
     BuiltinProtectionError,
+    DenyEffectNotSupportedError,
     InvalidResourceActionError,
     PolicyNameConflictError,
     PolicyNotFoundError,
@@ -67,6 +68,19 @@ class PolicyService(BaseService):
             raise InvalidResourceActionError(msg)
 
     @staticmethod
+    def _validate_no_deny_effect(statements: list[dict[str, Any]]) -> None:
+        """Reject deny-effect statements (AAP-74620).
+
+        Deny-effect policies are not yet supported. A project-scoped deny
+        can lock out higher-privileged users because deny unconditionally
+        overrides allow in OPA. Re-enable when scoped deny controls are
+        implemented (e.g. admin-only via policy:create-deny permission).
+        """
+        if any(s.get("effect") == "deny" for s in statements):
+            msg = "Deny-effect policies are not supported. Use allow-effect policies only."
+            raise DenyEffectNotSupportedError(msg)
+
+    @staticmethod
     def _validate_project_statements(statements: list[dict[str, Any]]) -> None:
         """Reject statements invalid for project-scoped policies."""
         from nexus.authz.resource_actions import validate_project_statements  # noqa: PLC0415
@@ -89,6 +103,7 @@ class PolicyService(BaseService):
 
             await assert_project_alive(self.session, project_id)
 
+        self._validate_no_deny_effect(statements)
         self._validate_resource_actions(statements)
         if project_id is not None:
             self._validate_project_statements(statements)
@@ -410,6 +425,7 @@ class PolicyService(BaseService):
         if description is not None:
             policy.description = description
         if statements is not None:
+            self._validate_no_deny_effect(statements)
             self._validate_resource_actions(statements)
             if policy.project_id is not None:
                 self._validate_project_statements(statements)

@@ -105,3 +105,8 @@ def _invalid_action_handler(request: Request, exc: NexusError) -> JSONResponse:
 @fastapi_exception(handler=_invalid_action_handler)
 class InvalidResourceActionError(NexusError):
     """Raised when a policy statement references an unregistered resource:action pair."""
+
+
+@fastapi_exception(handler=_invalid_action_handler)
+class DenyEffectNotSupportedError(NexusError):
+    """Raised when a policy statement uses effect='deny', which is not yet supported."""

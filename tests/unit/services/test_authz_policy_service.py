@@ -120,12 +120,12 @@ async def test_update_policy(test_db_session: AsyncSession, test_user: User) -> 
         policy.id,
         name="renamed",
         description="updated desc",
-        statements=[{"effect": "deny", "actions": ["workflow:delete"], "scope": "any"}],
+        statements=[{"effect": "allow", "actions": ["workflow:delete"], "scope": "any"}],
         labels={"updated": "true"},
     )
     assert updated.name == "renamed"
     assert updated.description == "updated desc"
-    assert updated.statements == [{"effect": "deny", "actions": ["workflow:delete"], "scope": "any"}]
+    assert updated.statements == [{"effect": "allow", "actions": ["workflow:delete"], "scope": "any"}]
     assert updated.labels == {"updated": "true"}
 
 
@@ -412,3 +412,71 @@ async def test_create_project_policy_wildcard_eligible(test_db_session: AsyncSes
             statements=[{"effect": "allow", "actions": ["user:*"], "scope": "project"}],
             project_id=project.id,
         )
+
+
+# ---------------------------------------------------------------------------
+# Deny-effect rejection (AAP-74620)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_create_deny_policy_rejected(test_db_session: AsyncSession, test_user: User) -> None:
+    """Deny-effect policies are not supported and must be rejected."""
+    from nexus.authz.exceptions import DenyEffectNotSupportedError
+
+    svc = PolicyService(test_db_session, test_user)
+    with pytest.raises(DenyEffectNotSupportedError, match="not supported"):
+        await svc.create_policy(
+            name="deny-workflow-read",
+            statements=[{"effect": "deny", "actions": ["workflow:read"], "scope": "any"}],
+        )
+
+
+@pytest.mark.asyncio
+async def test_create_deny_policy_rejected_project_scoped(test_db_session: AsyncSession, test_user: User) -> None:
+    """Project-scoped deny-effect policies are also rejected."""
+    from nexus.authz.exceptions import DenyEffectNotSupportedError
+    from nexus.authz.models.project import Project
+
+    project = Project(name="deny-proj-1", labels={})
+    test_db_session.add(project)
+    await test_db_session.commit()
+    await test_db_session.refresh(project)
+
+    svc = PolicyService(test_db_session, test_user)
+    with pytest.raises(DenyEffectNotSupportedError, match="not supported"):
+        await svc.create_policy(
+            name="deny-wf-read-proj",
+            statements=[{"effect": "deny", "actions": ["workflow:read"], "scope": "project"}],
+            project_id=project.id,
+        )
+
+
+@pytest.mark.asyncio
+async def test_update_policy_to_deny_rejected(test_db_session: AsyncSession, test_user: User) -> None:
+    """Updating a policy to add deny-effect statements is rejected."""
+    from nexus.authz.exceptions import DenyEffectNotSupportedError
+
+    svc = PolicyService(test_db_session, test_user)
+    policy = await svc.create_policy(
+        name="allow-then-deny",
+        statements=[{"effect": "allow", "actions": ["workflow:read"], "scope": "any"}],
+    )
+
+    with pytest.raises(DenyEffectNotSupportedError, match="not supported"):
+        await svc.update_policy(
+            policy_id=policy.id,
+            statements=[{"effect": "deny", "actions": ["workflow:read"], "scope": "any"}],
+        )
+
+
+@pytest.mark.asyncio
+async def test_create_allow_policy_unaffected(test_db_session: AsyncSession, test_user: User) -> None:
+    """Allow-effect policies are unaffected by the deny restriction."""
+    svc = PolicyService(test_db_session, test_user)
+    policy = await svc.create_policy(
+        name="allow-still-works",
+        statements=[{"effect": "allow", "actions": ["workflow:read"], "scope": "any"}],
+    )
+    assert policy.name == "allow-still-works"
+    assert policy.statements[0]["effect"] == "allow"
