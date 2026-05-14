@@ -253,7 +253,7 @@ describe('BuilderFlow execution view', () => {
     expect(props.nodesConnectable).toBe(true)
   })
 
-  it('marks loop node as running when loop body node has started', () => {
+  it('displays loop node as running via backend status', () => {
     setWorkflowState({
       currentWorkflow: {
         id: 'workflow-loop',
@@ -285,9 +285,10 @@ describe('BuilderFlow execution view', () => {
       ],
     })
 
-    // Loop body task is running, done task is still pending
+    // Loop node has backend status (no longer inferred from downstream)
     setExecutionState(
       new Map([
+        ['loop-1', { status: 'running' }],
         ['task-loop-body', { status: 'running' }],
         ['task-done', { status: 'pending' }],
       ])
@@ -312,7 +313,7 @@ describe('BuilderFlow execution view', () => {
     })
   })
 
-  it('marks loop node as completed when done path node has started', () => {
+  it('displays loop node as completed via backend status', () => {
     setWorkflowState({
       currentWorkflow: {
         id: 'workflow-loop',
@@ -344,9 +345,10 @@ describe('BuilderFlow execution view', () => {
       ],
     })
 
-    // Loop completed, done task has started
+    // Loop node has backend status (no longer inferred from downstream)
     setExecutionState(
       new Map([
+        ['loop-1', { status: 'completed' }],
         ['task-loop-body', { status: 'completed' }],
         ['task-done', { status: 'running' }],
       ])
@@ -371,7 +373,7 @@ describe('BuilderFlow execution view', () => {
     })
   })
 
-  it('marks loop node as pending when neither loop body nor done path has started', () => {
+  it('displays loop node as pending via backend status', () => {
     setWorkflowState({
       currentWorkflow: {
         id: 'workflow-loop',
@@ -403,9 +405,10 @@ describe('BuilderFlow execution view', () => {
       ],
     })
 
-    // Both tasks still pending
+    // Loop node has backend status (no longer inferred from downstream)
     setExecutionState(
       new Map([
+        ['loop-1', { status: 'pending' }],
         ['task-loop-body', { status: 'pending' }],
         ['task-done', { status: 'pending' }],
       ])
@@ -546,9 +549,10 @@ describe('BuilderFlow execution view', () => {
       ],
     })
 
-    // Both tasks still pending
+    // Loop node has backend status (no longer inferred from downstream)
     setExecutionState(
       new Map([
+        ['loop-1', { status: 'pending' }],
         ['task-loop-body', { status: 'pending' }],
         ['task-done', { status: 'pending' }],
       ])
@@ -572,7 +576,7 @@ describe('BuilderFlow execution view', () => {
     expect(doneEdge?.data).toHaveProperty('executionStatus', 'pending')
   })
 
-  it('marks converge node as running when any incoming node is completed or failed', () => {
+  it('displays converge node as running via backend status', () => {
     setWorkflowState({
       currentWorkflow: {
         id: 'workflow-converge',
@@ -605,11 +609,12 @@ describe('BuilderFlow execution view', () => {
       ],
     })
 
-    // Task 1 completed, Task 2 still pending
+    // Converge node has backend status (no longer inferred from upstream)
     setExecutionState(
       new Map([
         ['task-1', { status: 'completed' }],
         ['task-2', { status: 'pending' }],
+        ['converge-1', { status: 'running' }],
       ])
     )
 
@@ -632,7 +637,7 @@ describe('BuilderFlow execution view', () => {
     })
   })
 
-  it('marks converge node as completed when all incoming nodes are completed or failed', () => {
+  it('displays converge node as completed when all incoming nodes complete (via backend status)', () => {
     setWorkflowState({
       currentWorkflow: {
         id: 'workflow-converge',
@@ -665,11 +670,12 @@ describe('BuilderFlow execution view', () => {
       ],
     })
 
-    // Both tasks completed
+    // Converge node has backend status (no longer inferred from upstream)
     setExecutionState(
       new Map([
         ['task-1', { status: 'completed' }],
         ['task-2', { status: 'completed' }],
+        ['converge-1', { status: 'completed' }],
       ])
     )
 
@@ -692,7 +698,7 @@ describe('BuilderFlow execution view', () => {
     })
   })
 
-  it('marks converge node as completed when outgoing node has started', () => {
+  it('displays converge node as completed via backend status when outgoing node starts', () => {
     setWorkflowState({
       currentWorkflow: {
         id: 'workflow-converge',
@@ -732,11 +738,12 @@ describe('BuilderFlow execution view', () => {
       ],
     })
 
-    // Task after converge has started (so converge must be completed)
+    // Converge node has backend status (no longer inferred from downstream)
     setExecutionState(
       new Map([
         ['task-1', { status: 'completed' }],
         ['task-2', { status: 'pending' }],
+        ['converge-1', { status: 'completed' }],
         ['task-after', { status: 'running' }],
       ])
     )
@@ -760,7 +767,7 @@ describe('BuilderFlow execution view', () => {
     })
   })
 
-  it('marks converge node as running when one incoming is failed and others are pending', () => {
+  it('displays converge node as running via backend status when one incoming fails', () => {
     setWorkflowState({
       currentWorkflow: {
         id: 'workflow-converge',
@@ -793,11 +800,12 @@ describe('BuilderFlow execution view', () => {
       ],
     })
 
-    // Task 1 failed, Task 2 still pending
+    // Converge node has backend status (no longer inferred from upstream)
     setExecutionState(
       new Map([
         ['task-1', { status: 'failed' }],
         ['task-2', { status: 'pending' }],
+        ['converge-1', { status: 'running' }],
       ])
     )
 
@@ -820,7 +828,7 @@ describe('BuilderFlow execution view', () => {
     })
   })
 
-  it('marks converge node as pending when all incoming nodes are pending', () => {
+  it('displays converge node as pending via backend status', () => {
     setWorkflowState({
       currentWorkflow: {
         id: 'workflow-converge',
@@ -853,11 +861,12 @@ describe('BuilderFlow execution view', () => {
       ],
     })
 
-    // All tasks still pending
+    // Converge node has backend status (no longer inferred from upstream)
     setExecutionState(
       new Map([
         ['task-1', { status: 'pending' }],
         ['task-2', { status: 'pending' }],
+        ['converge-1', { status: 'pending' }],
       ])
     )
 

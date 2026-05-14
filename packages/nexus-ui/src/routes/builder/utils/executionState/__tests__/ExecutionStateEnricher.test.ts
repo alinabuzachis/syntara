@@ -83,7 +83,7 @@ describe('ExecutionStateEnricher', () => {
       })
     })
 
-    it('infers state for loop node when no backend state', () => {
+    it('uses backend status for loop node', () => {
       const activity: Activity = {
         id: 'loop-1',
         name: 'Loop',
@@ -95,10 +95,7 @@ describe('ExecutionStateEnricher', () => {
         { id: '2', source: 'loop-1', target: 'task-after', sourceHandle: 'done', targetHandle: 'target' },
       ]
       const activityStates = new Map<string, ActivityState>([
-        [
-          'task-body',
-          { activityId: 'task-body', status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null },
-        ],
+        ['loop-1', { activityId: 'loop-1', status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
       ])
 
       const result = enricher.enrichActivity(activity, 'running', activityStates, edges)
@@ -106,7 +103,59 @@ describe('ExecutionStateEnricher', () => {
       expect(result.__executionState?.status).toBe('running')
     })
 
-    it('infers state for converge node when no backend state', () => {
+    it('does NOT infer status from downstream for loop node', () => {
+      const activity: Activity = {
+        id: 'loop-1',
+        name: 'Loop',
+        type: 'loop',
+        config: { type: 'for_each', items: '[1,2,3]' },
+      }
+      const edges: EdgeConnection[] = [
+        { id: '1', source: 'loop-1', target: 'task-body', sourceHandle: 'loop', targetHandle: 'target' },
+      ]
+      const activityStates = new Map<string, ActivityState>([
+        [
+          'task-body',
+          { activityId: 'task-body', status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null },
+        ],
+        // loop-1 has NO backend state
+      ])
+
+      const result = enricher.enrichActivity(activity, 'running', activityStates, edges)
+
+      // Should NOT infer 'running' from downstream - should have no execution state
+      expect(result.__executionState).toBeUndefined()
+    })
+
+    it('uses backend status for converge node', () => {
+      const activity: Activity = {
+        id: 'converge-1',
+        name: 'Converge',
+        type: 'converge',
+        config: { strategy: 'all' },
+      }
+      const edges: EdgeConnection[] = [
+        { id: '1', source: 'task-a', target: 'converge-1', sourceHandle: 'source', targetHandle: 'target' },
+        { id: '2', source: 'task-b', target: 'converge-1', sourceHandle: 'source', targetHandle: 'target' },
+      ]
+      const activityStates = new Map<string, ActivityState>([
+        [
+          'converge-1',
+          {
+            activityId: 'converge-1',
+            status: 'completed',
+            startedAt: '2024-01-01T00:00:00Z',
+            completedAt: '2024-01-01T00:01:00Z',
+          },
+        ],
+      ])
+
+      const result = enricher.enrichActivity(activity, 'running', activityStates, edges)
+
+      expect(result.__executionState?.status).toBe('completed')
+    })
+
+    it('does NOT infer status from upstream for converge node', () => {
       const activity: Activity = {
         id: 'converge-1',
         name: 'Converge',
@@ -128,14 +177,44 @@ describe('ExecutionStateEnricher', () => {
           },
         ],
         ['task-b', { activityId: 'task-b', status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
+        // converge-1 has NO backend state
       ])
 
       const result = enricher.enrichActivity(activity, 'running', activityStates, edges)
 
-      expect(result.__executionState?.status).toBe('running')
+      // Should NOT infer status from upstream - should have no execution state
+      expect(result.__executionState).toBeUndefined()
     })
 
-    it('infers state for conditional node when no backend state', () => {
+    it('uses backend status for conditional node', () => {
+      const activity: Activity = {
+        id: 'cond-1',
+        name: 'Conditional',
+        type: 'condition',
+        config: { condition: 'x > 5' },
+      }
+      const edges: EdgeConnection[] = [
+        { id: '1', source: 'cond-1', target: 'task-true', sourceHandle: 'true', targetHandle: 'target' },
+        { id: '2', source: 'cond-1', target: 'task-false', sourceHandle: 'false', targetHandle: 'target' },
+      ]
+      const activityStates = new Map<string, ActivityState>([
+        [
+          'cond-1',
+          {
+            activityId: 'cond-1',
+            status: 'completed',
+            startedAt: '2024-01-01T00:00:00Z',
+            completedAt: '2024-01-01T00:01:00Z',
+          },
+        ],
+      ])
+
+      const result = enricher.enrichActivity(activity, 'running', activityStates, edges)
+
+      expect(result.__executionState?.status).toBe('completed')
+    })
+
+    it('does NOT infer status from downstream for conditional node', () => {
       const activity: Activity = {
         id: 'cond-1',
         name: 'Conditional',
@@ -151,11 +230,13 @@ describe('ExecutionStateEnricher', () => {
           'task-true',
           { activityId: 'task-true', status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null },
         ],
+        // cond-1 has NO backend state
       ])
 
       const result = enricher.enrichActivity(activity, 'running', activityStates, edges)
 
-      expect(result.__executionState?.status).toBe('completed')
+      // Should NOT infer 'completed' from downstream - should have no execution state
+      expect(result.__executionState).toBeUndefined()
     })
 
     it('marks node as skipped when on non-taken branch', () => {
@@ -195,7 +276,7 @@ describe('ExecutionStateEnricher', () => {
       expect(result.__executionState?.status).toBe('skipped')
     })
 
-    it('sets pending state for structural node with no inferred state', () => {
+    it('does not set pending state for control nodes with no backend state', () => {
       const activity: Activity = {
         id: 'loop-1',
         name: 'Loop',
@@ -210,7 +291,8 @@ describe('ExecutionStateEnricher', () => {
 
       const result = enricher.enrichActivity(activity, 'running', activityStates, edges)
 
-      expect(result.__executionState?.status).toBe('pending')
+      // Control nodes without backend state should not get a pending badge
+      expect(result.__executionState).toBeUndefined()
     })
 
     it('does not set pending state for regular task nodes', () => {
@@ -229,7 +311,35 @@ describe('ExecutionStateEnricher', () => {
       expect(result.__executionState).toBeUndefined()
     })
 
-    it('works with approval nodes using conditional logic', () => {
+    it('uses backend status for approval nodes', () => {
+      const activity: Activity = {
+        id: 'approval-1',
+        name: 'Approval',
+        type: 'approval',
+        config: {},
+      }
+      const edges: EdgeConnection[] = [
+        { id: '1', source: 'approval-1', target: 'task-approved', sourceHandle: 'approved', targetHandle: 'target' },
+        { id: '2', source: 'approval-1', target: 'task-rejected', sourceHandle: 'rejected', targetHandle: 'target' },
+      ]
+      const activityStates = new Map<string, ActivityState>([
+        [
+          'approval-1',
+          {
+            activityId: 'approval-1',
+            status: 'completed',
+            startedAt: '2024-01-01T00:00:00Z',
+            completedAt: '2024-01-01T00:01:00Z',
+          },
+        ],
+      ])
+
+      const result = enricher.enrichActivity(activity, 'running', activityStates, edges)
+
+      expect(result.__executionState?.status).toBe('completed')
+    })
+
+    it('does NOT infer status from downstream for approval nodes', () => {
       const activity: Activity = {
         id: 'approval-1',
         name: 'Approval',
@@ -245,11 +355,13 @@ describe('ExecutionStateEnricher', () => {
           'task-approved',
           { activityId: 'task-approved', status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null },
         ],
+        // approval-1 has NO backend state
       ])
 
       const result = enricher.enrichActivity(activity, 'running', activityStates, edges)
 
-      expect(result.__executionState?.status).toBe('completed')
+      // Should NOT infer 'completed' from downstream - should have no execution state
+      expect(result.__executionState).toBeUndefined()
     })
   })
 

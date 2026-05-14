@@ -1,9 +1,9 @@
 /**
  * Execution state management module.
  *
- * This module provides centralized logic for inferring and enriching workflow activities
- * with execution state for visualization purposes. It uses a strategy pattern to handle
- * different node types (loop, converge, conditional) independently.
+ * This module provides centralized logic for enriching workflow activities with execution
+ * state for visualization purposes. All execution state (including control flow nodes) is
+ * provided by the backend and mapped to workflow nodes for display.
  *
  * Main exports:
  * - ExecutionStateEnricher: Orchestrator class that enriches activities with execution state
@@ -13,5 +13,4 @@
  */
 
 export type { ActivityTypeValue, ActivityStatusValue, BranchHandle } from './executionHelpers'
-export { ExecutionStateEnricher, type ActivityWithMetadata } from './ExecutionStateEnricher'
-export type { ExecutionState, NodeStateInferrer } from './nodeStateInference'
+export { ExecutionStateEnricher, type ActivityWithMetadata, type ExecutionState } from './ExecutionStateEnricher'

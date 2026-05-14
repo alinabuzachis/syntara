@@ -4,14 +4,17 @@ import type { ActivityState } from '../../../workflows/execution/types'
 import type { EdgeConnection } from '../../types/edge'
 
 import { ACTIVITY_STATUS, TERMINAL_ACTIVITY_STATUSES, isBranchHandle } from './executionHelpers'
-import {
-  ConditionalNodeStateInferrer,
-  ConvergeNodeStateInferrer,
-  type ExecutionState,
-  LoopNodeStateInferrer,
-  type NodeStateInferrer,
-} from './nodeStateInference'
 import { WorkflowTraversal } from './traversal'
+
+/**
+ * Execution state information for an activity.
+ */
+export type ExecutionState = {
+  status: string
+  started_at?: string
+  completed_at?: string
+  error_details?: string
+}
 
 function edgePassedWhenTargetStarted(
   activityStates: Map<string, ActivityState>,
@@ -51,9 +54,9 @@ export type ActivityWithMetadata = Activity & {
 /**
  * Orchestrator for enriching workflow activities with execution state.
  *
- * This class completely encapsulates all execution state inference logic,
- * making it independent from BuilderFlow.tsx. It uses a strategy pattern
- * to delegate node-specific inference to specialized inferrer classes.
+ * This class enriches activities with execution status from the backend.
+ * For V2 workflows, all nodes (including control flow nodes like condition,
+ * loop, converge) have backend-tracked status via ActivityExecution records.
  *
  * @example
  * const enricher = new ExecutionStateEnricher()
@@ -70,28 +73,17 @@ export type ActivityWithMetadata = Activity & {
  * )
  */
 export class ExecutionStateEnricher {
-  private nodeInferrers: Map<string, NodeStateInferrer>
-
-  constructor() {
-    // Register node-specific state inferrers
-    this.nodeInferrers = new Map([
-      ['loop', new LoopNodeStateInferrer()],
-      ['converge', new ConvergeNodeStateInferrer()],
-      ['condition', new ConditionalNodeStateInferrer()],
-      ['approval', new ConditionalNodeStateInferrer()], // Approval uses same logic as conditional
-    ])
-  }
-
   /**
    * Enrich an activity with execution state for visualization.
    *
    * This method:
    * 1. Adds execution badge flag to metadata
-   * 2. Adds backend state if available (direct from activityStates)
-   * 3. Infers state for structural nodes (loop, converge, conditional) if no backend state
-   * 4. Marks nodes as skipped when on non-taken branches
-   * 5. Sets default pending state for structural nodes with no other state
-   * 6. Marks nodes with mock data pinned (test execution pre-resolved nodes)
+   * 2. Adds backend state if available (from activityStates)
+   * 3. Marks nodes as skipped when on non-taken branches
+   * 4. Returns pending/unknown state if no backend data available
+   *
+   * All nodes (including control flow) get their status from backend ActivityExecution
+   * records. No inference from downstream nodes is performed.
    *
    * @param activity - The activity to enrich
    * @param executionStatus - Current execution status (null if not in execution view)
@@ -157,22 +149,7 @@ export class ExecutionStateEnricher {
       return enrichedActivity
     }
 
-    // Step 2: Try to infer state for structural nodes
-    const inferrer = this.nodeInferrers.get(activity.type)
-    if (inferrer) {
-      const inferredState = inferrer.inferState(activity, edges, activityStates)
-
-      if (inferredState) {
-        enrichedActivity = {
-          ...enrichedActivity,
-          __executionState: inferredState,
-        }
-
-        return enrichedActivity
-      }
-    }
-
-    // Step 3: Check if node should be marked as skipped
+    // Step 2: Check if node should be marked as skipped
     if (WorkflowTraversal.shouldMarkAsSkipped(activity.id, activityStates, edges)) {
       enrichedActivity = {
         ...enrichedActivity,
@@ -187,20 +164,7 @@ export class ExecutionStateEnricher {
       return enrichedActivity
     }
 
-    // Step 4: Set default pending state for structural nodes
-    // (only for nodes with inferrers - loop, converge, conditional, approval)
-    if (inferrer) {
-      enrichedActivity = {
-        ...enrichedActivity,
-        __executionState: {
-          status: ACTIVITY_STATUS.PENDING,
-          started_at: undefined,
-          completed_at: undefined,
-          error_details: undefined,
-        },
-      }
-    }
-
+    // No backend state and not skipped - return without execution state
     return enrichedActivity
   }
 
