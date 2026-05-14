@@ -21,6 +21,8 @@ export const PROJECT_SELECTOR_WIDTH = '18.75rem'
 export const PROJECT_SELECTOR_LIST_MAX_HEIGHT = 'min(40vh, 28rem)'
 
 export const projectSelectorUx = {
+  /** Shown inline before the typeahead value in the masthead toggle. */
+  togglePrefixLabel: 'Project:',
   allProjectsOptionLabel: 'All projects',
   allProjectsOptionDescription: 'View all items you have access to.',
   /** Shown on the toggle when `requireProject` is true and nothing is selected. */

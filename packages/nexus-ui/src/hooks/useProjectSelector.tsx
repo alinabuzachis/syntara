@@ -1,30 +1,18 @@
-import {
-  Button,
-  Content,
-  ContentVariants,
-  Divider,
-  MenuFooter,
-  MenuToggle,
-  Select,
-  SelectGroup,
-  SelectList,
-  SelectOption,
-  Spinner,
-  TextInputGroup,
-  TextInputGroupMain,
-  TextInputGroupUtilities,
-  Tooltip,
-} from '@patternfly/react-core'
-import { RhUiAddIcon, TimesIcon } from '@patternfly/react-icons'
+import type { MouseEvent, ReactNode } from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import type { ProjectRead } from '../routes/access/types'
-import { ProjectFormModal } from '../routes/access-management/ProjectFormModal'
 import { useProjectStore } from '../stores/useProjectStore'
-import { detachPromise } from '../utils/detachPromise'
 
-import { PROJECT_SELECTOR_LIST_MAX_HEIGHT, PROJECT_SELECTOR_WIDTH, projectSelectorUx } from './projectSelectorUtils'
+import { projectSelectorUx } from './projectSelectorUtils'
 import { usePaginatedProjects } from './usePaginatedProjects'
+import {
+  ALL_PROJECTS_VALUE,
+  CREATE_PROJECT_VALUE,
+  NON_PROJECT_VALUES,
+  VIEW_MORE_VALUE,
+} from './useProjectSelector.constants'
+import { ProjectSelectorDropdown } from './useProjectSelector.dropdown'
 
 function resolveMenuToggleStatus(
   requireProject: boolean,
@@ -61,7 +49,7 @@ function resolveDisplayName(
  */
 function onFavoriteAction(
   toggleFn: (id: string) => void,
-  event: React.MouseEvent | undefined,
+  event: MouseEvent | undefined,
   itemId: string | number | undefined,
   actionId?: string | number
 ): void {
@@ -69,10 +57,6 @@ function onFavoriteAction(
   event?.stopPropagation()
   toggleFn(itemId)
 }
-
-const ALL_PROJECTS_VALUE = '__all__'
-const CREATE_PROJECT_VALUE = '__create__'
-const VIEW_MORE_VALUE = '__view_more__'
 
 type UseProjectSelectorOptions = {
   /** When true, hides the "All projects" option and shows "Select a project" as placeholder. */
@@ -109,7 +93,7 @@ type UseProjectSelectorResult = {
   stableProjectId: string | undefined
   isAllProjects: boolean
   projects: ProjectRead[]
-  ProjectSelector: React.ReactNode
+  ProjectSelector: ReactNode
 }
 
 /**
@@ -135,147 +119,71 @@ function favoriteProjectsInResults(projects: ProjectRead[], favoriteProjectIds: 
   return favoriteProjectIds.map((id) => byId.get(id)).filter((p): p is ProjectRead => p !== undefined)
 }
 
-/** IDs that represent actions/meta-items — not real projects, never favoritable. */
-const NON_PROJECT_VALUES = new Set([ALL_PROJECTS_VALUE, CREATE_PROJECT_VALUE, VIEW_MORE_VALUE])
-
-const descriptionStyle: React.CSSProperties = {
-  display: 'block',
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-  whiteSpace: 'nowrap',
-  maxWidth: '100%',
-}
-
-function renderProjectOption(p: ProjectRead, reactKeyPrefix: string, favoriteProjectIdSet: Set<string>) {
-  const projectId = p.id ?? ''
-  const trimmedDescription = p.description?.trim() || undefined
-  const description = trimmedDescription ? <span style={descriptionStyle}>{trimmedDescription}</span> : undefined
-  return (
-    <SelectOption
-      key={`${reactKeyPrefix}-${projectId}`}
-      value={projectId}
-      description={description}
-      isFavorited={projectId !== '' && favoriteProjectIdSet.has(projectId)}
-    >
-      {p.name}
-    </SelectOption>
-  )
-}
-
-type ProjectGroupsArgs = {
+type ProjectSelectorSyncEffectsParams = {
+  initialProjectId?: string | null
+  selectedProjectId: string | null
+  setSelectedProjectId: (id: string | null, name?: string | null) => void
+  isInitialPage: boolean
   projects: ProjectRead[]
-  favoriteProjectsOrdered: ProjectRead[]
-  favoriteProjectIdSet: Set<string>
-  hasMore: boolean
-  isLoadingMore: boolean
-  loadMore: () => void
+  projectsQueryIsFetching: boolean
+  selectedProject: ProjectRead | null
+  syncName: (name: string | null) => void
 }
 
-/**
- * Returns the Favorites + Projects `SelectGroup` JSX for the scrollable list.
- * Lowercase function (not a component) so the file remains hook-only for react-refresh.
- * Extracted here to keep `useProjectSelector` under the cyclomatic-complexity limit.
- */
-function renderProjectGroups({
+/** Store sync + stale-selection guard; split out to keep `useProjectSelector` under max-lines. */
+/* eslint-disable reactYouMightNotNeedAnEffect/no-event-handler, reactYouMightNotNeedAnEffect/no-pass-data-to-parent -- parameters are Zustand actions / sync helpers, not React child event-handler props */
+function useProjectSelectorSyncEffects({
+  initialProjectId,
+  selectedProjectId,
+  setSelectedProjectId,
+  isInitialPage,
   projects,
-  favoriteProjectsOrdered,
-  favoriteProjectIdSet,
-  hasMore,
-  isLoadingMore,
-  loadMore,
-}: ProjectGroupsArgs) {
-  const hasFavorites = favoriteProjectsOrdered.length > 0
-  const hasProjects = projects.length > 0 || hasMore
-  return (
-    <>
-      {hasFavorites && (
-        <SelectGroup key="group-favorites" label={projectSelectorUx.favoritesGroupLabel} labelHeadingLevel="h2">
-          {favoriteProjectsOrdered.map((p) => renderProjectOption(p, 'fav', favoriteProjectIdSet))}
-        </SelectGroup>
-      )}
-      {hasFavorites && hasProjects && <Divider key="divider-favorites-projects" />}
-      {hasProjects && (
-        <SelectGroup key="group-projects" label={projectSelectorUx.projectsGroupLabel} labelHeadingLevel="h2">
-          {projects.map((p) => renderProjectOption(p, 'proj', favoriteProjectIdSet))}
-          {hasMore && (
-            <SelectOption
-              key={VIEW_MORE_VALUE}
-              value={VIEW_MORE_VALUE}
-              isLoadButton={!isLoadingMore}
-              isLoading={isLoadingMore}
-              onClick={loadMore}
-            >
-              {isLoadingMore ? <Spinner size="lg" /> : 'View more'}
-            </SelectOption>
-          )}
-        </SelectGroup>
-      )}
-    </>
-  )
-}
+  projectsQueryIsFetching,
+  selectedProject,
+  syncName,
+}: ProjectSelectorSyncEffectsParams): void {
+  useEffect(() => {
+    if (initialProjectId) setSelectedProjectId(initialProjectId)
+  }, [initialProjectId, setSelectedProjectId])
 
-type FilteredContentArgs = ProjectGroupsArgs & {
-  noResults: boolean
-  debouncedFilter: string
-}
+  useEffect(() => {
+    if (
+      !initialProjectId &&
+      selectedProjectId &&
+      isInitialPage &&
+      !projectsQueryIsFetching &&
+      projects.length > 0 &&
+      !projects.some((p) => p.id === selectedProjectId)
+    ) {
+      setSelectedProjectId(null)
+    }
+  }, [initialProjectId, selectedProjectId, projects, setSelectedProjectId, isInitialPage, projectsQueryIsFetching])
 
-/**
- * Renders the scrollable list body: "no results" message, or project groups.
- * Extracted to keep `useProjectSelector`'s cyclomatic complexity within limits.
- * The loading state is shown in the toggle's input utilities area (not here) so that
- * `SelectOption` elements are never unmounted during a filter fetch — which would cause
- * PatternFly to replay the favorite-star CSS animation on every keystroke.
- */
-function renderFilteredContent({ noResults, debouncedFilter, ...groupArgs }: FilteredContentArgs) {
-  if (noResults) {
-    return (
-      <SelectOption key="no-results" isAriaDisabled value="no-results">
-        {`No results found for "${debouncedFilter}"`}
-      </SelectOption>
-    )
-  }
-  return renderProjectGroups(groupArgs)
+  useEffect(() => {
+    if (selectedProject?.name) syncName(selectedProject.name)
+  }, [selectedProject, syncName])
 }
-
-/**
- * Renders the right-side utilities area of the typeahead input.
- * The container is always mounted while the dropdown is open so the input field width
- * stays stable — appearing/disappearing utilities causes a layout flash on the first keystroke.
- * The spinner and × button coexist so the × never disappears mid-fetch.
- * Keeping loading feedback here (not in the dropdown list) prevents `SelectOption` elements
- * from unmounting, which would replay PatternFly's favorite-star CSS animation.
- */
-function renderInputUtilities(isOpen: boolean, filterValue: string, isFilterFetching: boolean, onClear: () => void) {
-  // Always render so the toggle layout is stable — returning null when closed causes
-  // the input area to widen/narrow as the utilities appear, which looks like a "shrink".
-  return (
-    <TextInputGroupUtilities style={{ visibility: isOpen ? undefined : 'hidden' }}>
-      {isFilterFetching && <Spinner size="sm" aria-label="Filtering projects" />}
-      {/* Reserve button space so the input width never shifts during filtering. */}
-      <Button
-        variant="plain"
-        aria-label="Clear filter"
-        onClick={onClear}
-        style={{ visibility: filterValue ? 'visible' : 'hidden' }}
-        tabIndex={filterValue && isOpen ? 0 : -1}
-      >
-        <TimesIcon aria-hidden />
-      </Button>
-    </TextInputGroupUtilities>
-  )
-}
+/* eslint-enable reactYouMightNotNeedAnEffect/no-event-handler, reactYouMightNotNeedAnEffect/no-pass-data-to-parent */
 
 export function useProjectSelector(options?: UseProjectSelectorOptions): UseProjectSelectorResult {
-  const { requireProject = false, initialProjectId, hasValidationError = false, onProjectSelect } = options ?? {}
-  const { selectedProjectId, setSelectedProjectId, favoriteProjectIds, toggleFavoriteProjectId } = useProjectStore()
+  const {
+    requireProject = false,
+    initialProjectId,
+    hasValidationError = false,
+    onProjectSelect: onUserProjectSelect,
+  } = options ?? {}
+  const {
+    selectedProjectId,
+    setSelectedProjectId,
+    favoriteProjectIds,
+    toggleFavoriteProjectId,
+    selectedProjectName: storedProjectName,
+    setSelectedProjectName: syncName,
+  } = useProjectStore()
   const menuToggleStatus = resolveMenuToggleStatus(requireProject, hasValidationError, selectedProjectId)
   const [isOpen, setIsOpen] = useState(false)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [isToggleHovered, setIsToggleHovered] = useState(false)
-
-  useEffect(() => {
-    if (initialProjectId) setSelectedProjectId(initialProjectId)
-  }, [initialProjectId, setSelectedProjectId])
 
   const {
     projects,
@@ -301,37 +209,24 @@ export function useProjectSelector(options?: UseProjectSelectorOptions): UseProj
     [selectedProjectId, projects]
   )
 
-  // Clear stale selections that no longer exist in the project list.
-  // Skip when initialProjectId is set — it's a trusted server value that
-  // may not yet appear in the paginated first page.
-  useEffect(() => {
-    if (
-      !initialProjectId &&
-      selectedProjectId &&
-      isInitialPage &&
-      !projectsQuery.isFetching &&
-      projects.length > 0 &&
-      !projects.some((p) => p.id === selectedProjectId)
-    ) {
-      setSelectedProjectId(null)
-    }
-  }, [initialProjectId, selectedProjectId, projects, setSelectedProjectId, isInitialPage, projectsQuery.isFetching])
+  useProjectSelectorSyncEffects({
+    initialProjectId,
+    selectedProjectId,
+    setSelectedProjectId,
+    isInitialPage,
+    projects,
+    projectsQueryIsFetching: projectsQuery.isFetching,
+    selectedProject,
+    syncName,
+  })
 
-  // When the selected project is filtered out of the visible list, fall back to the
-  // store-persisted name so the toggle never flashes "All projects" during the
-  // debounce + re-fetch window that follows dismissing a no-match filter.
-  // syncName is also used in the effect below to keep the store current for initialProjectId cases.
-  const { selectedProjectName: storedProjectName, setSelectedProjectName: syncName } = useProjectStore()
-  useEffect(() => {
-    if (selectedProject?.name) syncName(selectedProject.name)
-  }, [selectedProject, syncName])
   const name = resolveDisplayName(selectedProject?.name, selectedProjectId, storedProjectName)
   const toggleLabel = resolveToggleLabel(name, requireProject)
   const isFilterFetching = !!debouncedFilter && projectsQuery.isFetching
   const noResults = projects.length === 0 && !!debouncedFilter && !projectsQuery.isPending
 
   const handleSelect = useCallback(
-    (event: React.MouseEvent | undefined, value: string | number | undefined) => {
+    (event: MouseEvent | undefined, value: string | number | undefined) => {
       if (value === CREATE_PROJECT_VALUE) {
         setIsOpen(false)
         setCreateDialogOpen(true)
@@ -352,11 +247,9 @@ export function useProjectSelector(options?: UseProjectSelectorOptions): UseProj
       const selected = projectId ? (projects.find((p) => p.id === projectId) ?? null) : null
       setSelectedProjectId(projectId, selected?.name ?? null)
       setIsOpen(false)
-      // Avoid resetPagination() here: it clears extraPages so page-2-only IDs vanish from `projects`
-      // and the stale-selection effect clears the store. With no active filter, only clear typeahead text.
       if (debouncedFilter) updateFilter('')
       else clearTypeaheadOnly()
-      if (onProjectSelect) onProjectSelect(selected)
+      if (onUserProjectSelect) onUserProjectSelect(selected)
     },
     [
       setSelectedProjectId,
@@ -364,7 +257,7 @@ export function useProjectSelector(options?: UseProjectSelectorOptions): UseProj
       debouncedFilter,
       updateFilter,
       clearTypeaheadOnly,
-      onProjectSelect,
+      onUserProjectSelect,
       projects,
     ]
   )
@@ -372,116 +265,41 @@ export function useProjectSelector(options?: UseProjectSelectorOptions): UseProj
   const favoriteProjectIdSet = useMemo(() => new Set(favoriteProjectIds), [favoriteProjectIds])
 
   const handleFavoriteAction = useCallback(
-    (event: React.MouseEvent | undefined, itemId: string | number | undefined, actionId?: string | number) =>
+    (event: MouseEvent | undefined, itemId: string | number | undefined, actionId?: string | number) =>
       onFavoriteAction(toggleFavoriteProjectId, event, itemId, actionId),
     [toggleFavoriteProjectId]
   )
 
   const ProjectSelector = (
-    <>
-      <Select
-        isOpen={isOpen}
-        variant="typeahead"
-        shouldFocusFirstItemOnOpen={false}
-        onOpenChange={(open) => {
-          setIsOpen(open)
-          // Clear stale typeahead text when the dropdown closes without a selection
-          // so reopening starts with a clean filter (mirrors PatternFly typeahead select UX).
-          if (!open) clearTypeaheadOnly()
-        }}
-        popperProps={{ minWidth: PROJECT_SELECTOR_WIDTH, maxWidth: PROJECT_SELECTOR_WIDTH }}
-        onSelect={handleSelect}
-        onActionClick={handleFavoriteAction}
-        selected={selectedProjectId ?? (requireProject ? undefined : ALL_PROJECTS_VALUE)}
-        toggle={(toggleRef) => (
-          <Tooltip
-            content={selectedProject?.name ?? ''}
-            trigger="manual"
-            isVisible={isToggleHovered && !isOpen && !!selectedProject}
-            position="bottom"
-          >
-            <MenuToggle
-              ref={toggleRef}
-              variant="typeahead"
-              onClick={() => setIsOpen(!isOpen)}
-              isExpanded={isOpen}
-              status={menuToggleStatus}
-              style={{ minWidth: PROJECT_SELECTOR_WIDTH }}
-              onMouseEnter={() => setIsToggleHovered(true)}
-              onMouseLeave={() => setIsToggleHovered(false)}
-            >
-              <TextInputGroup isPlain>
-                <TextInputGroupMain
-                  value={isOpen ? filterValue : toggleLabel}
-                  aria-label="Project"
-                  aria-invalid={menuToggleStatus === 'danger'}
-                  onChange={(_e, val) => {
-                    updateFilter(val)
-                    if (!isOpen) setIsOpen(true)
-                  }}
-                  onClick={() => (isOpen ? null : setIsOpen(true))}
-                  placeholder={toggleLabel}
-                  autoComplete="off"
-                />
-                {renderInputUtilities(isOpen, filterValue, isFilterFetching, () => updateFilter(''))}
-              </TextInputGroup>
-            </MenuToggle>
-          </Tooltip>
-        )}
-      >
-        <SelectList style={{ maxHeight: PROJECT_SELECTOR_LIST_MAX_HEIGHT, overflow: 'auto' }}>
-          {!requireProject && (
-            <>
-              <SelectOption
-                key={ALL_PROJECTS_VALUE}
-                value={ALL_PROJECTS_VALUE}
-                description={projectSelectorUx.allProjectsOptionDescription}
-              >
-                {projectSelectorUx.allProjectsOptionLabel}
-              </SelectOption>
-              <Divider key="divider-all" />
-            </>
-          )}
-          {renderFilteredContent({
-            noResults,
-            debouncedFilter,
-            projects,
-            favoriteProjectsOrdered,
-            favoriteProjectIdSet,
-            hasMore,
-            isLoadingMore,
-            loadMore,
-          })}
-        </SelectList>
-        {/* Sticky footer: always visible, does not scroll with the project list */}
-        <Divider key="divider-create" />
-        <SelectList>
-          <SelectOption key={CREATE_PROJECT_VALUE} value={CREATE_PROJECT_VALUE} icon={<RhUiAddIcon />}>
-            Create project
-          </SelectOption>
-        </SelectList>
-        {hasMore && !noResults && !isFilterFetching && (
-          <MenuFooter>
-            <Content component={ContentVariants.small}>Type to refine results</Content>
-          </MenuFooter>
-        )}
-      </Select>
-
-      <ProjectFormModal
-        isOpen={createDialogOpen}
-        onClose={() => setCreateDialogOpen(false)}
-        onSuccess={() => {}} // refetch is handled in onCreated to avoid a race with setSelectedProjectId
-        onCreated={(created) => {
-          setCreateDialogOpen(false)
-          const newId = created.id ?? null
-          detachPromise(
-            projectsQuery.refetch().finally(() => {
-              setSelectedProjectId(newId)
-            })
-          )
-        }}
-      />
-    </>
+    <ProjectSelectorDropdown
+      isOpen={isOpen}
+      setIsOpen={setIsOpen}
+      createDialogOpen={createDialogOpen}
+      setCreateDialogOpen={setCreateDialogOpen}
+      isToggleHovered={isToggleHovered}
+      setIsToggleHovered={setIsToggleHovered}
+      clearTypeaheadOnly={clearTypeaheadOnly}
+      handleSelect={handleSelect}
+      handleFavoriteAction={handleFavoriteAction}
+      selectedProjectId={selectedProjectId}
+      requireProject={requireProject}
+      selectedProject={selectedProject}
+      toggleLabel={toggleLabel}
+      filterValue={filterValue}
+      updateFilter={updateFilter}
+      menuToggleStatus={menuToggleStatus}
+      isFilterFetching={isFilterFetching}
+      noResults={noResults}
+      debouncedFilter={debouncedFilter}
+      projects={projects}
+      favoriteProjectsOrdered={favoriteProjectsOrdered}
+      favoriteProjectIdSet={favoriteProjectIdSet}
+      hasMore={hasMore}
+      isLoadingMore={isLoadingMore}
+      loadMore={loadMore}
+      projectsQueryRefetch={projectsQuery.refetch}
+      setSelectedProjectId={setSelectedProjectId}
+    />
   )
 
   const isAllProjects = selectedProjectId === null

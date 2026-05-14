@@ -8,6 +8,7 @@ import { axe } from 'vitest-axe'
 import { accessClient } from '../routes/access/accessClient'
 import type { ProjectRead } from '../routes/access/types'
 
+import { projectSelectorUx } from './projectSelectorUtils'
 import { useProjectSelector } from './useProjectSelector'
 
 // ── Mocks ─────────────────────────────────────────────────────────────────
@@ -376,6 +377,11 @@ describe('useProjectSelector', () => {
   // ── ProjectSelector UI ─────────────────────────────────────────────────
 
   describe('ProjectSelector UI', () => {
+    it('renders a visible Project: prefix before the typeahead value', () => {
+      renderSelector()
+      expect(screen.getByText(projectSelectorUx.togglePrefixLabel)).toBeInTheDocument()
+    })
+
     it('shows "All projects" in toggle when no project selected', () => {
       renderSelector()
 
@@ -422,9 +428,9 @@ describe('useProjectSelector', () => {
     })
 
     it('applies danger styling when save was attempted without a project while requireProject and no selection', () => {
-      // PatternFly v6 MenuToggle with status="danger" sets aria-invalid on the TextInputGroupMain wrapper.
-      // Once PF exposes this on the accessible input, replace with: getByRole('textbox', { name: 'Project' }).toBeInvalid()
       const { container } = renderSelector({ requireProject: true, hasValidationError: true })
+      // PF sets aria-invalid on the TextInputGroupMain wrapper, not the textbox; no semantic query targets that node.
+      // eslint-disable-next-line testing-library/no-container, testing-library/no-node-access -- see comment above
       expect(container.querySelector('[aria-invalid="true"]')).toBeInTheDocument()
     })
 
