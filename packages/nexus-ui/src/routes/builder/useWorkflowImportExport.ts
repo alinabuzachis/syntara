@@ -6,7 +6,7 @@ import { getErrorMessage } from '../../utils/apiErrors'
 import { downloadWorkflowDefinition, parseWorkflowFile, validateFileSize } from '../../utils/downloadWorkflowExport'
 
 import type { BuilderAction } from './builderReducer'
-import { loadDefinitionIntoStore } from './utils/loadDefinitionIntoStore'
+import { parseImportedDefinition } from './utils/parseImportedDefinition'
 import { buildWorkflowDefinition } from './utils/workflowDefinitionBuilder'
 
 type UseWorkflowImportExportOptions = Readonly<{
@@ -28,9 +28,9 @@ export function useWorkflowImportExport({ dispatch, markDirty }: UseWorkflowImpo
         .then(() => file.text())
         .then((content) => {
           const definition = parseWorkflowFile(content, file.name)
-          const { workflowDef, edges } = loadDefinitionIntoStore(definition)
+          const { workflowDef, edges, nodePositions } = parseImportedDefinition(definition)
 
-          useWorkflowStore.getState().replaceWorkflowContent(workflowDef, edges)
+          useWorkflowStore.getState().replaceWorkflowContent(workflowDef, edges, nodePositions)
 
           if (definition.name && typeof definition.name === 'string') {
             const name = definition.name.slice(0, 255)
@@ -62,7 +62,7 @@ export function useWorkflowImportExport({ dispatch, markDirty }: UseWorkflowImpo
   )
 
   const handleExport = useCallback(() => {
-    const { currentWorkflow, edges } = useWorkflowStore.getState()
+    const { currentWorkflow, edges, nodePositions, _positionsUserModified } = useWorkflowStore.getState()
     if (!currentWorkflow) {
       dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
       return
@@ -72,7 +72,10 @@ export function useWorkflowImportExport({ dispatch, markDirty }: UseWorkflowImpo
       const triggers = currentWorkflow.triggers ?? []
       const name = currentWorkflow.name ?? 'workflow'
       const description = currentWorkflow.description ?? ''
-      const definition = buildWorkflowDefinition(name, description, activities, triggers, edges)
+      const definition = buildWorkflowDefinition(name, description, activities, triggers, {
+        edges,
+        nodePositions: _positionsUserModified ? nodePositions : {},
+      })
       downloadWorkflowDefinition(definition as Record<string, unknown>, name)
     } catch (err: unknown) {
       showError({ title: 'Export failed', description: getErrorMessage(err) })

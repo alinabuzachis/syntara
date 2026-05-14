@@ -3,26 +3,29 @@ import type { Activity } from '@ansible/nexus-contracts'
 import type { WorkflowDefinition } from '../../../stores/workflowStoreTypes'
 import type { EdgeConnection } from '../types/edge'
 
-import { convertV2Definition } from './processExistingWorkflow'
+import { convertV2Definition, parseNodePositions } from './processExistingWorkflow'
 
-/**
- * Takes a parsed workflow definition (from an imported JSON file) and
- * converts it into the internal store format used by the builder.
- */
-export function loadDefinitionIntoStore(definition: Record<string, unknown>): {
+/** Converts a raw imported workflow definition into the builder's internal format. */
+export function parseImportedDefinition(definition: Record<string, unknown>): {
   workflowDef: WorkflowDefinition
   edges: EdgeConnection[]
+  nodePositions: Record<string, { x: number; y: number }>
 } {
+  const rawNodes = ((definition.nodes as unknown[]) ?? []) as Array<Record<string, unknown>>
+  const rawTriggers = ((definition.triggers as unknown[]) ?? []) as Array<Record<string, unknown>>
+
   const { flattenedActivities, edges, triggers } = convertV2Definition(
-    ((definition.nodes as unknown[]) ?? []) as Activity[],
+    rawNodes as Activity[],
     ((definition.edges as unknown[]) ?? []) as Array<{
       from: string
       to: string
       from_port?: string
       to_port?: string
     }>,
-    ((definition.triggers as unknown[]) ?? []) as Array<Record<string, unknown>>
+    rawTriggers
   )
+
+  const nodePositions = parseNodePositions([...rawNodes, ...rawTriggers])
 
   const workflowDef = {
     name: typeof definition.name === 'string' ? definition.name : undefined,
@@ -31,5 +34,5 @@ export function loadDefinitionIntoStore(definition: Record<string, unknown>): {
     workflow: { activities: flattenedActivities },
   } as unknown as WorkflowDefinition
 
-  return { workflowDef, edges }
+  return { workflowDef, edges, nodePositions }
 }

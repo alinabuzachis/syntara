@@ -166,8 +166,9 @@ export function buildWorkflowDefinition(
   workflowDescription: string,
   activities: Activity[],
   triggers: Activity[],
-  edges: EdgeConnection[]
+  graph: { edges: EdgeConnection[]; nodePositions?: Record<string, { x: number; y: number }> }
 ) {
+  const { edges, nodePositions = {} } = graph
   // SECURITY: Validate and sanitize workflow name and description
   if (!workflowName || workflowName.length > 255) {
     throw new Error('Workflow name is required and must be 255 characters or fewer.')
@@ -205,6 +206,7 @@ export function buildWorkflowDefinition(
         type: t.type,
         ...(sanitizedTriggerName && { name: sanitizedTriggerName }),
         config: t.config ?? {},
+        ...(nodePositions[t.id] ? { position: nodePositions[t.id] } : {}),
       }
     }),
     nodes: activities.map((a) => {
@@ -233,6 +235,7 @@ export function buildWorkflowDefinition(
         ...(a.retry_policy && { retry_policy: a.retry_policy }),
         ...(inputs && { inputs }),
         ...(a.outputs && { outputs: a.outputs }),
+        ...(nodePositions[a.id] ? { position: nodePositions[a.id] } : {}),
       }
     }),
     edges: edges.map((e) => {

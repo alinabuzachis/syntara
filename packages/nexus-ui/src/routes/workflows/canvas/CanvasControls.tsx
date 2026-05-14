@@ -89,7 +89,9 @@ function CanvasLegendPopoverBlock() {
   )
 }
 
-export function CanvasControls(props: Readonly<{ onLayout: () => void; hideLayout?: boolean }>) {
+export function CanvasControls(
+  props: Readonly<{ onLayout: (options?: { markDirty?: boolean }) => void; hideLayout?: boolean }>
+) {
   const { fitView, zoomIn, zoomOut } = useReactFlow()
   const { expandAllEvent, collapseAllEvent } = React.useContext(NodeExpandedAllContext)
 
@@ -169,8 +171,8 @@ export function CanvasControls(props: Readonly<{ onLayout: () => void; hideLayou
                 <Button
                   variant="plain"
                   isCircle
-                  onClick={() => props.onLayout()}
-                  aria-label="Layout"
+                  onClick={() => props.onLayout({ markDirty: true })}
+                  aria-label="Reset layout"
                   icon={
                     <Icon isInline>
                       <RhUiCleanUpFillIcon />

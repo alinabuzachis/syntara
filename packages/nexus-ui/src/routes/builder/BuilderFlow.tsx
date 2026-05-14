@@ -1,6 +1,6 @@
 // TODO: Refactor into smaller hooks to reduce file size (AAP-74113)
 // Suggested hooks: useWorkflowGraphInit, useExecutionStateEnrichment, useCanvasInteractions
-/* eslint-disable max-lines */
+ 
 import { Spinner } from '@patternfly/react-core'
 import {
   applyEdgeChanges,
@@ -24,11 +24,10 @@ import {
   selectEdges,
   selectTriggers,
   selectActivities,
-  selectPositionUndoVersion,
 } from '../../stores/useWorkflowStore'
 import { collectAllActivityIds } from '../../stores/workflowActivityHelpers'
 import { detachPromise } from '../../utils/detachPromise'
-import { buildTriggerNodeId } from '../../utils/triggerNodeIds'
+import { buildTriggerNodeId, toPositionKey } from '../../utils/triggerNodeIds'
 import { CanvasControls } from '../workflows/canvas/CanvasControls'
 import { type NodeType } from '../workflows/canvas/nodes/NodeType'
 import { UndoRedoControls } from '../workflows/canvas/UndoRedoControls'
@@ -51,9 +50,9 @@ import { useNodeDeletion } from './hooks/useNodeDeletion'
 import { useNodePositioning } from './hooks/useNodePositioning'
 import { useNodeUpdates } from './hooks/useNodeUpdates'
 import { usePendingEdgeManagement } from './hooks/usePendingEdgeManagement'
+import { usePositionEventHandlers } from './hooks/usePositionEventHandlers'
 import { useWorkflowInitialization } from './hooks/useWorkflowInitialization'
 import type { BuilderFlowProps, PendingEdge } from './types'
-import { getLayoutedElements } from './utils/layoutEngine'
 import { validateConnection } from './utils/validateConnection'
 import { markerEnd, type EdgeType } from './utils/workflowToGraph'
 
@@ -83,7 +82,6 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
   // Use typed selectors for optimized subscriptions
   const workflowVersion = useWorkflowStore(selectWorkflowVersion)
-  const positionUndoVersion = useWorkflowStore(selectPositionUndoVersion)
   const currentWorkflow = useWorkflowStore(selectCurrentWorkflow)
   const storedEdges = useWorkflowStore(selectEdges)
   // Subscribe to triggers array to detect when triggers are added/removed/updated
@@ -247,14 +245,13 @@ export function BuilderFlow(props: BuilderFlowProps) {
       initialNodes.length > 0 &&
       edgesMatchWorkflow
     ) {
-      // Apply stored positions from the Zustand store (restored by undo/redo or saved after layout).
-      // Positions are applied here instead of in useBuilderFlowGraph to avoid cascading
-      // recomputations when positions change during normal drag operations.
+      // Apply stored positions (restored by undo/redo or saved after layout).
       const positions = useWorkflowStore.getState().nodePositions
+      const trigs = currentWorkflow?.triggers ?? []
       const nodesWithPositions =
         Object.keys(positions).length > 0
           ? initialNodes.map((n) => {
-              const stored = positions[n.id]
+              const stored = positions[toPositionKey(n.id, trigs)]
               return stored ? { ...n, position: stored } : n
             })
           : initialNodes
@@ -266,24 +263,6 @@ export function BuilderFlow(props: BuilderFlowProps) {
     }
   }, [initialNodes, initialEdges, workflowId, workflowVersion])
 
-  // Lightweight position-only undo/redo: apply restored positions in-place
-  // without a full re-initialization cycle (preserves button edges, avoids flicker).
-  const positionUndoVersionRef = useRef(positionUndoVersion)
-  useEffect(() => {
-    if (positionUndoVersion === positionUndoVersionRef.current) return
-    positionUndoVersionRef.current = positionUndoVersion
-
-    const positions = useWorkflowStore.getState().nodePositions
-    if (Object.keys(positions).length === 0) return
-
-    setNodes((prev) =>
-      prev.map((n) => {
-        const stored = positions[n.id]
-        return stored ? { ...n, position: stored } : n
-      })
-    )
-  }, [positionUndoVersion])
-
   // Apply React Flow node changes (position, selection, etc.) to local state.
   // Drag-end positions are persisted to the store via onNodeDragStop instead
   // of here, because onNodesChange drag-end events may omit the final position
@@ -294,38 +273,11 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
   useExternalNodeSelection(selectedActivityId, setNodes)
 
-  // Persist final drag positions to the Zustand store for undo/redo tracking.
-  // This fires reliably for ALL node types when a drag completes.
-  const onNodeDragStop = useCallback(
-    (_event: React.MouseEvent, _node: NodeType, draggedNodes: NodeType[]) => {
-      const positions: Record<string, { x: number; y: number }> = {}
-      for (const n of draggedNodes) {
-        positions[n.id] = n.position
-      }
-      if (Object.keys(positions).length > 0) {
-        updateNodePositions(positions)
-      }
-    },
-    [updateNodePositions]
-  )
+  const { onNodeDragStop, onLayout } = usePositionEventHandlers(nodes, edges, setNodes, setEdges)
 
   const onEdgesChange = useCallback((changes: EdgeChange<EdgeType>[]) => {
     setEdges((eds) => applyEdgeChanges(changes, eds))
   }, [])
-
-  const onLayout = useCallback(() => {
-    const layouted = getLayoutedElements(nodes, edges, { direction: 'LR' })
-    setNodes([...layouted.nodes])
-    setEdges([...layouted.edges] as EdgeType[])
-
-    const positions: Record<string, { x: number; y: number }> = {}
-    for (const n of layouted.nodes) {
-      positions[n.id] = n.position
-    }
-    updateNodePositions(positions, { markDirty: false })
-
-    detachPromise(fitView({ maxZoom: 1 }))
-  }, [nodes, edges, setNodes, setEdges, fitView, updateNodePositions])
 
   // Read positions snapshot once per version (non-reactive — avoids re-renders during drag)
   const hasStoredPositions = useMemo(

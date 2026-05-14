@@ -34,8 +34,8 @@ vi.mock('../../utils/downloadWorkflowExport', () => ({
   validateFileSize: (...args: unknown[]) => mockValidateFileSize(...args) as void,
 }))
 
-vi.mock('./utils/loadDefinitionIntoStore', () => ({
-  loadDefinitionIntoStore: () => mockLoadDefinition(),
+vi.mock('./utils/parseImportedDefinition', () => ({
+  parseImportedDefinition: () => mockLoadDefinition(),
 }))
 
 vi.mock('./utils/workflowDefinitionBuilder', () => ({

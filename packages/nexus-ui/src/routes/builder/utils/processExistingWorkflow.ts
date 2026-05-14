@@ -12,6 +12,29 @@ type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersio
 
 type V2Edge = { from: string; to: string; from_port?: string; to_port?: string }
 
+const MAX_POSITION_COORD = 1_000_000
+
+/**
+ * Extract persisted node positions from raw definition nodes/triggers.
+ * Validates that x and y are finite numbers within safe rendering bounds.
+ */
+export function parseNodePositions(rawNodes: Array<Record<string, unknown>>): Record<string, { x: number; y: number }> {
+  const positions: Record<string, { x: number; y: number }> = Object.create(null) as Record<
+    string,
+    { x: number; y: number }
+  >
+  for (const node of rawNodes) {
+    if (typeof node.id !== 'string' || !node.id) continue
+    const pos = node.position as { x?: unknown; y?: unknown } | undefined
+    if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.y)) continue
+    const x = pos.x as number
+    const y = pos.y as number
+    if (Math.abs(x) > MAX_POSITION_COORD || Math.abs(y) > MAX_POSITION_COORD) continue
+    positions[node.id] = { x, y }
+  }
+  return positions
+}
+
 /**
  * Shared conversion: takes raw v2 arrays (nodes, edges, triggers) and produces
  * the flat store representation (activities, EdgeConnection[], trigger ID map).
@@ -85,15 +108,16 @@ export function convertV2Definition(
 export function processExistingWorkflow(workflow: WorkflowWithVersion) {
   const workflowDef = workflow.version!.workflow_definition!
 
+  const rawNodes = (workflowDef.nodes ?? []) as Array<Record<string, unknown>>
+  const rawTriggers = (workflowDef.triggers ?? []) as Array<Record<string, unknown>>
+
   const {
     flattenedActivities,
     edges: generatedEdges,
     triggers,
-  } = convertV2Definition(
-    (workflowDef.nodes ?? []) as Activity[],
-    (workflowDef.edges ?? []) as V2Edge[],
-    (workflowDef.triggers ?? []) as Array<Record<string, unknown>>
-  )
+  } = convertV2Definition(rawNodes as Activity[], (workflowDef.edges ?? []) as V2Edge[], rawTriggers)
+
+  const nodePositions = parseNodePositions([...rawNodes, ...rawTriggers])
 
   const flattenedWorkflow = {
     ...workflowDef,
@@ -106,6 +130,7 @@ export function processExistingWorkflow(workflow: WorkflowWithVersion) {
   return {
     flattenedWorkflow,
     generatedEdges,
+    nodePositions,
     initPayload: {
       name: workflow.name,
       description: workflow.description ?? workflow.name ?? DEFAULT_WORKFLOW_NAME,

@@ -152,10 +152,20 @@ export type WorkflowStore = {
    * NOT partialized — temporal does not track this.
    */
   _preserveHistoryOnLayout: boolean
+  /**
+   * Whether nodePositions represent user intent (drag, API load, import)
+   * and should be serialized into the workflow definition on save/export.
+   * false when positions are only auto-layout computed or were cleared.
+   */
+  _positionsUserModified: boolean
   isDirty: boolean // Tracks whether changes have been made since last save/load
   setWorkflow: (workflow: WorkflowDefinition | null) => void
   // Atomic operation to load workflow and edges together - prevents race conditions
-  loadWorkflowWithEdges: (workflow: WorkflowDefinition, edges: EdgeConnection[]) => void
+  loadWorkflowWithEdges: (
+    workflow: WorkflowDefinition,
+    edges: EdgeConnection[],
+    nodePositions?: Record<string, { x: number; y: number }>
+  ) => void
   markClean: () => void // Called after successful save
   markDirty: () => void // Called when metadata changes
   /**
@@ -198,10 +208,16 @@ export type WorkflowStore = {
    * Used by import-into-existing so the user can undo the import.
    * Unlike loadWorkflowWithEdges, this does NOT clear temporal history.
    */
-  replaceWorkflowContent: (workflow: WorkflowDefinition, edges: EdgeConnection[]) => void
+  replaceWorkflowContent: (
+    workflow: WorkflowDefinition,
+    edges: EdgeConnection[],
+    nodePositions?: Record<string, { x: number; y: number }>
+  ) => void
   /** Batch-update canvas positions (merges with existing). */
   updateNodePositions: (
     positions: Record<string, { x: number; y: number }>,
     options?: { markDirty?: boolean; skipTracking?: boolean }
   ) => void
+  /** Clear all stored node positions so auto-layout runs on next load. */
+  clearNodePositions: () => void
 }

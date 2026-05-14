@@ -17,7 +17,7 @@ type UseNodePositioningParams = {
   /** Persist positions to the Zustand store (with skipTracking to avoid extra undo entries). */
   updateNodePositions: (
     positions: Record<string, { x: number; y: number }>,
-    options?: { skipTracking?: boolean }
+    options?: { skipTracking?: boolean; markDirty?: boolean }
   ) => void
   /** When set, place the next new node's left edge at this position (e.g. from [+] click or pending edge drop) */
   desiredPosition: FlowPosition | null
@@ -180,7 +180,7 @@ function positionLoopBranch(ctx: LoopPositioningContext) {
   })
 
   if (Object.keys(loopBranchPositions).length > 0) {
-    ctx.updateNodePositions(loopBranchPositions, { skipTracking: true })
+    ctx.updateNodePositions(loopBranchPositions, { skipTracking: true, markDirty: false })
   }
 
   if (clearDesiredAfterUpdate.should) {
@@ -229,7 +229,7 @@ function positionStandardNodes(ctx: StandardPositioningContext) {
     })
   )
 
-  ctx.updateNodePositions(positionsToApply, { skipTracking: true })
+  ctx.updateNodePositions(positionsToApply, { skipTracking: true, markDirty: false })
 
   if (useDesired && firstNodeId) {
     ctx.onClearDesiredPosition?.()

@@ -301,7 +301,7 @@ describe('BuilderFlow (builder mode)', () => {
     expect(capturedOnLayout).toBeDefined()
     act(() => capturedOnLayout!())
 
-    expect(mockUpdateNodePositions).toHaveBeenCalledWith(expect.any(Object), { markDirty: false })
+    expect(mockUpdateNodePositions).toHaveBeenCalledWith(expect.any(Object), { skipTracking: true, markDirty: false })
   })
 
   // --- ReactFlow props ---

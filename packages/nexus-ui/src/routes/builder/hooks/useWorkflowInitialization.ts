@@ -6,7 +6,7 @@ type UseWorkflowInitializationOptions = {
   nodes: NodeType[]
   workflowVersion: number
   triggerLayout?: number
-  onLayout: () => void
+  onLayout: (options?: { markDirty?: boolean }) => void
   onVersionChange?: () => void
   /** When true, skip the automatic layout after initialization (e.g. undo/redo with stored positions). */
   hasStoredPositions?: boolean

@@ -5,7 +5,6 @@ import { create } from 'zustand'
 import type { Mutate, StoreApi } from 'zustand'
 import type { UseBoundStore } from 'zustand/react'
 
-import type { EdgeConnection } from '../routes/builder/types/edge'
 import { buildTriggerIndexRemappping, remapTriggerIdsInEdges } from '../routes/builder/utils/triggerIndexRemapping'
 import { generateActivityId } from '../utils/generateUUID'
 
@@ -17,7 +16,8 @@ import {
   replaceActivityInList,
   updateActivityInList,
 } from './workflowActivityHelpers'
-import type { Activity, WorkflowDefinition, WorkflowStore } from './workflowStoreTypes'
+import { edgesEqual, workflowEqual } from './workflowStoreEquality'
+import type { Activity, WorkflowStore } from './workflowStoreTypes'
 
 /** Partialize shape passed to zundo — must match `temporal({ partialize })` below. */
 type WorkflowUndoPartialize = Pick<WorkflowStore, 'currentWorkflow' | 'edges' | 'nodePositions'>
@@ -32,51 +32,6 @@ export type UseWorkflowStoreBound = UseBoundStore<
 // ============================================================================
 
 const HISTORY_LIMIT = 50
-
-/**
- * Structural equality for the partialized temporal state.
- *
- * Reference checks are tried first (cheap). When references differ we fall
- * back to shallow-structural comparisons so that store mutations that produce
- * a new object with identical *content* (e.g. useEdgeSynchronization pushing
- * the same edges, or reorderActivitiesFromEdges producing the same order)
- * are NOT recorded as separate undo entries.
- */
-export function edgesEqual(a: EdgeConnection[], b: EdgeConnection[]): boolean {
-  if (a === b) return true
-  if (a.length !== b.length) return false
-  // Order-independent comparison: useEdgeSynchronization may push edges
-  // in a different order than batchAddActivitiesAndEdges stored them.
-  // Index-based comparison would create spurious temporal entries for
-  // reordering, requiring extra undo clicks for a single user action.
-  const bById = new Map(b.map((e) => [e.id, e]))
-  return a.every((e) => {
-    const o = bById.get(e.id)
-    return (
-      !!o &&
-      e.source === o.source &&
-      e.target === o.target &&
-      e.sourceHandle === o.sourceHandle &&
-      e.targetHandle === o.targetHandle
-    )
-  })
-}
-
-export function workflowEqual(a: WorkflowDefinition | null, b: WorkflowDefinition | null): boolean {
-  if (a === b) return true
-  if (!a || !b) return false
-  if (a.name !== b.name) return false
-  const aActs = a.workflow.activities
-  const bActs = b.workflow.activities
-  if (aActs.length !== bActs.length) return false
-  if (!aActs.every((act, i) => act === bActs[i])) return false
-  const aTriggers = a.triggers
-  const bTriggers = b.triggers
-  if (aTriggers === bTriggers) return true
-  if (!aTriggers || !bTriggers) return false
-  if (aTriggers.length !== bTriggers.length) return false
-  return aTriggers.every((t, i) => t === bTriggers[i])
-}
 
 const TEMPORAL_BATCH_SAFETY_MS = 2000
 
@@ -114,6 +69,7 @@ export const useWorkflowStore: UseWorkflowStoreBound = create<WorkflowStore>()(
       _positionUndoVersion: 0,
       _temporalBatchPending: false,
       _preserveHistoryOnLayout: false,
+      _positionsUserModified: false,
       isDirty: false,
 
       setWorkflow: (workflow) => {
@@ -121,6 +77,7 @@ export const useWorkflowStore: UseWorkflowStoreBound = create<WorkflowStore>()(
           currentWorkflow: workflow,
           workflowVersion: state.workflowVersion + 1,
           nodePositions: {},
+          _positionsUserModified: false,
           isDirty: false,
         }))
         useWorkflowStore.temporal.getState().clear()
@@ -128,23 +85,27 @@ export const useWorkflowStore: UseWorkflowStoreBound = create<WorkflowStore>()(
 
       // Atomic operation to set both workflow and edges in a single update
       // This prevents race conditions where BuilderFlow renders with workflow but no edges
-      loadWorkflowWithEdges: (workflow, edges) => {
+      loadWorkflowWithEdges: (workflow, edges, nodePositions) => {
+        const hasPositions = nodePositions != null && Object.keys(nodePositions).length > 0
         set((state) => ({
           currentWorkflow: workflow,
           workflowVersion: state.workflowVersion + 1,
           edges,
-          nodePositions: {},
+          nodePositions: nodePositions ?? {},
+          _positionsUserModified: hasPositions,
           isDirty: false,
         }))
         useWorkflowStore.temporal.getState().clear()
       },
 
-      replaceWorkflowContent: (workflow, edges) => {
+      replaceWorkflowContent: (workflow, edges, nodePositions) => {
+        const hasPositions = nodePositions != null && Object.keys(nodePositions).length > 0
         set((state) => ({
           currentWorkflow: workflow,
           workflowVersion: state.workflowVersion + 1,
           edges,
-          nodePositions: {},
+          nodePositions: nodePositions ?? {},
+          _positionsUserModified: hasPositions,
           isDirty: true,
           _preserveHistoryOnLayout: true,
         }))
@@ -585,6 +546,10 @@ export const useWorkflowStore: UseWorkflowStoreBound = create<WorkflowStore>()(
         beginTemporalBatch(set)
       },
 
+      clearNodePositions: () => {
+        set(() => ({ nodePositions: {}, _positionsUserModified: false, isDirty: true }))
+      },
+
       updateNodePositions: (positions, { markDirty = true, skipTracking = false } = {}) => {
         // skipTracking: absorb the position update without creating a new undo entry.
         // Used by useNodePositioning so the programmatic placement of a newly added
@@ -604,7 +569,7 @@ export const useWorkflowStore: UseWorkflowStoreBound = create<WorkflowStore>()(
         }
         set((state) => ({
           nodePositions: { ...state.nodePositions, ...positions },
-          ...(markDirty ? { isDirty: true } : {}),
+          ...(markDirty ? { isDirty: true, _positionsUserModified: true } : {}),
         }))
         if (shouldPause) {
           useWorkflowStore.temporal.getState().resume()
@@ -635,6 +600,7 @@ export {
   removeActivityFromList,
   updateActivityInList,
 } from './workflowActivityHelpers'
+export { edgesEqual, workflowEqual } from './workflowStoreEquality'
 export type {
   WorkflowStore,
   WorkflowDefinition,

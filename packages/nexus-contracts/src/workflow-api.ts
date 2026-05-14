@@ -454,6 +454,11 @@ export interface components {
       retry_policy?: components['schemas']['retry_policy']
       /** @description Node execution timeout in seconds. If not specified, the platform default for the node's executor type is used. */
       timeout?: number
+      /** @description Optional UI position hint for this node. Ignored by the workflow engine. */
+      position?: {
+        x: number
+        y: number
+      }
     }
     configSchema: {
       /** @description JSON Schema defining the structure and validation rules for manual trigger inputs */
@@ -840,6 +845,11 @@ export interface components {
           retry_policy?: components['schemas']['retry_policy']
           /** @description Node execution timeout in seconds. If not specified, the platform default for the node's executor type is used. */
           timeout?: number
+          /** @description Optional UI position hint for this node. Ignored by the workflow engine. */
+          position?: {
+            x: number
+            y: number
+          }
         }
         trigger_node: components['schemas']['node_base'] & {
           /** @constant */

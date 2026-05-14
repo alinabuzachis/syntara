@@ -9,6 +9,7 @@ import {
   createScriptActivity,
   createGenericActivity,
 } from './useWorkflowStore'
+import { wrappedUndo } from './workflowStoreSelectors'
 import type { Activity, WorkflowDefinition } from './workflowStoreTypes'
 
 // Helper to create a v2 WorkflowDefinition for tests
@@ -786,6 +787,50 @@ describe('useWorkflowStore', () => {
       expect(useWorkflowStore.getState().currentWorkflow?.workflow.activities).toHaveLength(1)
     })
 
+    it('redo works after add-node + position update with skipTracking', () => {
+      const workflow = makeWorkflow('Test')
+      useWorkflowStore.getState().loadWorkflowWithEdges(workflow, [])
+
+      useWorkflowStore.getState().addActivity(createScriptActivity('a1', 'Step 1', 'python', 'pass'))
+      completeTemporalBatch()
+
+      // Simulate useNodePositioning placing the node (skipTracking keeps it out of undo stack)
+      useWorkflowStore
+        .getState()
+        .updateNodePositions({ a1: { x: 100, y: 200 } }, { skipTracking: true, markDirty: false })
+
+      // Simulate onLayout storing positions (skipTracking as well)
+      useWorkflowStore.getState().updateNodePositions({ a1: { x: 50, y: 0 } }, { skipTracking: true, markDirty: false })
+
+      useWorkflowStore.temporal.getState().undo()
+      expect(useWorkflowStore.getState().currentWorkflow?.workflow.activities).toHaveLength(0)
+
+      expect(useWorkflowStore.temporal.getState().futureStates.length).toBeGreaterThan(0)
+
+      useWorkflowStore.temporal.getState().redo()
+      expect(useWorkflowStore.getState().currentWorkflow?.workflow.activities).toHaveLength(1)
+    })
+
+    it('wrappedUndo preserves redo after clearNodePositions + addActivity', () => {
+      const workflow = makeWorkflow('Test')
+      useWorkflowStore.getState().loadWorkflowWithEdges(workflow, [])
+
+      // Simulate initial layout storing positions
+      useWorkflowStore.getState().updateNodePositions({ n: { x: 10, y: 20 } }, { skipTracking: true, markDirty: false })
+
+      // Simulate CanvasControls Layout click (markDirty: true → clearNodePositions)
+      useWorkflowStore.getState().clearNodePositions()
+
+      useWorkflowStore.getState().addActivity(createScriptActivity('a1', 'Step 1', 'python', 'pass'))
+      completeTemporalBatch()
+
+      // wrappedUndo sets _preserveHistoryOnLayout so clearUndoHistory skips temporal.clear()
+      wrappedUndo()
+      expect(useWorkflowStore.getState().currentWorkflow?.workflow.activities).toHaveLength(0)
+      expect(useWorkflowStore.getState()._preserveHistoryOnLayout).toBe(true)
+      expect(useWorkflowStore.temporal.getState().futureStates.length).toBeGreaterThan(0)
+    })
+
     // --- Edge undo ---
 
     it('undoes edge changes', () => {
@@ -924,6 +969,78 @@ describe('useWorkflowStore', () => {
 
       // History should still exist (not cleared like loadWorkflowWithEdges does)
       expect(useWorkflowStore.temporal.getState().pastStates.length).toBeGreaterThanOrEqual(historyBefore)
+    })
+  })
+
+  describe('_positionsUserModified flag', () => {
+    beforeEach(() => {
+      useWorkflowStore.setState({ _temporalBatchPending: false, _positionsUserModified: false })
+      useWorkflowStore.temporal.getState().resume()
+      useWorkflowStore.temporal.getState().clear()
+    })
+
+    it('is false after setWorkflow', () => {
+      useWorkflowStore.getState().setWorkflow(makeWorkflow('Test'))
+      expect(useWorkflowStore.getState()._positionsUserModified).toBe(false)
+    })
+
+    it('is false after loadWorkflowWithEdges with no positions', () => {
+      useWorkflowStore.getState().loadWorkflowWithEdges(makeWorkflow('Test'), [])
+      expect(useWorkflowStore.getState()._positionsUserModified).toBe(false)
+    })
+
+    it('is true after loadWorkflowWithEdges with positions', () => {
+      useWorkflowStore.getState().loadWorkflowWithEdges(makeWorkflow('Test'), [], { node1: { x: 1, y: 2 } })
+      expect(useWorkflowStore.getState()._positionsUserModified).toBe(true)
+    })
+
+    it('is false after loadWorkflowWithEdges with empty positions', () => {
+      useWorkflowStore.getState().loadWorkflowWithEdges(makeWorkflow('Test'), [], {})
+      expect(useWorkflowStore.getState()._positionsUserModified).toBe(false)
+    })
+
+    it('becomes true after updateNodePositions with markDirty:true (user drag)', () => {
+      useWorkflowStore.getState().loadWorkflowWithEdges(makeWorkflow('Test'), [])
+      expect(useWorkflowStore.getState()._positionsUserModified).toBe(false)
+
+      useWorkflowStore.getState().updateNodePositions({ n: { x: 1, y: 2 } })
+      expect(useWorkflowStore.getState()._positionsUserModified).toBe(true)
+    })
+
+    it('stays false after updateNodePositions with markDirty:false (auto-layout)', () => {
+      useWorkflowStore.getState().loadWorkflowWithEdges(makeWorkflow('Test'), [])
+      useWorkflowStore.getState().updateNodePositions({ n: { x: 1, y: 2 } }, { markDirty: false })
+      expect(useWorkflowStore.getState()._positionsUserModified).toBe(false)
+    })
+
+    it('becomes false after clearNodePositions', () => {
+      useWorkflowStore.getState().loadWorkflowWithEdges(makeWorkflow('Test'), [], { n: { x: 1, y: 2 } })
+      expect(useWorkflowStore.getState()._positionsUserModified).toBe(true)
+
+      useWorkflowStore.getState().clearNodePositions()
+      expect(useWorkflowStore.getState()._positionsUserModified).toBe(false)
+    })
+
+    it('is true after replaceWorkflowContent with positions', () => {
+      useWorkflowStore.getState().loadWorkflowWithEdges(makeWorkflow('Test'), [])
+      useWorkflowStore.getState().replaceWorkflowContent(makeWorkflow('New'), [], { n: { x: 1, y: 2 } })
+      expect(useWorkflowStore.getState()._positionsUserModified).toBe(true)
+    })
+
+    it('is false after replaceWorkflowContent without positions', () => {
+      useWorkflowStore.getState().loadWorkflowWithEdges(makeWorkflow('Test'), [])
+      useWorkflowStore.getState().replaceWorkflowContent(makeWorkflow('New'), [])
+      expect(useWorkflowStore.getState()._positionsUserModified).toBe(false)
+    })
+
+    it('nodePositions are restored by undo', () => {
+      useWorkflowStore.getState().loadWorkflowWithEdges(makeWorkflow('Test'), [])
+      useWorkflowStore.getState().updateNodePositions({ n: { x: 1, y: 2 } }, { markDirty: false })
+
+      useWorkflowStore.getState().updateNodePositions({ n: { x: 50, y: 60 } })
+
+      useWorkflowStore.temporal.getState().undo()
+      expect(useWorkflowStore.getState().nodePositions).toEqual({ n: { x: 1, y: 2 } })
     })
   })
 })

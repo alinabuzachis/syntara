@@ -128,6 +128,7 @@ export const useWorkflowStoreActions = () => {
     batchRemoveNodesAndEdges: state.batchRemoveNodesAndEdges,
     batchAddActivitiesAndEdges: state.batchAddActivitiesAndEdges,
     updateNodePositions: state.updateNodePositions,
+    clearNodePositions: state.clearNodePositions,
   }
 }
 
@@ -218,7 +219,13 @@ export function wrappedUndo(steps?: number) {
   temporal.undo(steps)
   const after = useWorkflowStore.getState()
   if (isContentChange(before, after)) {
-    useWorkflowStore.setState((s) => ({ workflowVersion: s.workflowVersion + 1 }))
+    // Preserve redo stack: the workflowVersion bump triggers re-initialization
+    // which calls clearUndoHistory → temporal.clear(). Setting this flag makes
+    // clearUndoHistory skip the clear so futureStates (redo) survive.
+    useWorkflowStore.setState((s) => ({
+      workflowVersion: s.workflowVersion + 1,
+      _preserveHistoryOnLayout: true,
+    }))
   } else {
     useWorkflowStore.setState((s) => ({ _positionUndoVersion: s._positionUndoVersion + 1 }))
   }
@@ -233,7 +240,10 @@ export function wrappedRedo(steps?: number) {
   temporal.redo(steps)
   const after = useWorkflowStore.getState()
   if (isContentChange(before, after)) {
-    useWorkflowStore.setState((s) => ({ workflowVersion: s.workflowVersion + 1 }))
+    useWorkflowStore.setState((s) => ({
+      workflowVersion: s.workflowVersion + 1,
+      _preserveHistoryOnLayout: true,
+    }))
   } else {
     useWorkflowStore.setState((s) => ({ _positionUndoVersion: s._positionUndoVersion + 1 }))
   }

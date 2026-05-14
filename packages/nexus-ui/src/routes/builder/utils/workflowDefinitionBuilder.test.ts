@@ -12,7 +12,7 @@ function activity(id: string): Activity {
 
 describe('buildWorkflowDefinition', () => {
   it('builds basic workflow definition with minimal data', () => {
-    const result = buildWorkflowDefinition('Test Workflow', '', [], [], [])
+    const result = buildWorkflowDefinition('Test Workflow', '', [], [], { edges: [] })
 
     expect(result).toEqual({
       schema_version: '2.0.0',
@@ -25,13 +25,13 @@ describe('buildWorkflowDefinition', () => {
   })
 
   it('includes description when provided', () => {
-    const result = buildWorkflowDefinition('Test Workflow', 'Test Description', [], [], [])
+    const result = buildWorkflowDefinition('Test Workflow', 'Test Description', [], [], { edges: [] })
 
     expect(result.description).toBe('Test Description')
   })
 
   it('omits description when empty string', () => {
-    const result = buildWorkflowDefinition('Test Workflow', '', [], [], [])
+    const result = buildWorkflowDefinition('Test Workflow', '', [], [], { edges: [] })
 
     expect(result.description).toBeUndefined()
   })
@@ -47,7 +47,7 @@ describe('buildWorkflowDefinition', () => {
         },
       ]
 
-      const result = buildWorkflowDefinition('Test', '', [], triggers, [])
+      const result = buildWorkflowDefinition('Test', '', [], triggers, { edges: [] })
 
       expect(result.triggers).toEqual([
         {
@@ -68,7 +68,7 @@ describe('buildWorkflowDefinition', () => {
         },
       ]
 
-      const result = buildWorkflowDefinition('Test', '', [], triggers, [])
+      const result = buildWorkflowDefinition('Test', '', [], triggers, { edges: [] })
 
       expect(result.triggers[0]).not.toHaveProperty('name')
     })
@@ -82,7 +82,7 @@ describe('buildWorkflowDefinition', () => {
         },
       ]
 
-      const result = buildWorkflowDefinition('Test', '', [], triggers, [])
+      const result = buildWorkflowDefinition('Test', '', [], triggers, { edges: [] })
 
       expect(result.triggers[0].config).toEqual({})
     })
@@ -102,7 +102,7 @@ describe('buildWorkflowDefinition', () => {
         },
       ]
 
-      const result = buildWorkflowDefinition('Test', '', activities, [], [])
+      const result = buildWorkflowDefinition('Test', '', activities, [], { edges: [] })
 
       expect(result.nodes[0]).toMatchObject({
         id: 'task-1',
@@ -125,7 +125,7 @@ describe('buildWorkflowDefinition', () => {
         } as Activity & { inputs: Record<string, unknown> },
       ]
 
-      const result = buildWorkflowDefinition('Test', '', activities, [], [])
+      const result = buildWorkflowDefinition('Test', '', activities, [], { edges: [] })
 
       expect(result.nodes[0]).toHaveProperty('inputs')
       expect(result.nodes[0].inputs).toEqual({ param1: 'value1', param2: 'value2' })
@@ -140,7 +140,7 @@ describe('buildWorkflowDefinition', () => {
         },
       ]
 
-      const result = buildWorkflowDefinition('Test', '', activities, [], [])
+      const result = buildWorkflowDefinition('Test', '', activities, [], { edges: [] })
 
       expect(result.nodes[0]).not.toHaveProperty('inputs')
     })
@@ -154,7 +154,7 @@ describe('buildWorkflowDefinition', () => {
         },
       ]
 
-      const result = buildWorkflowDefinition('Test', '', activities, [], [])
+      const result = buildWorkflowDefinition('Test', '', activities, [], { edges: [] })
 
       expect(result.nodes[0]).not.toHaveProperty('name')
       expect(result.nodes[0]).not.toHaveProperty('timeout')
@@ -172,7 +172,7 @@ describe('buildWorkflowDefinition', () => {
         },
       ]
 
-      const result = buildWorkflowDefinition('Test', '', activities, [], [])
+      const result = buildWorkflowDefinition('Test', '', activities, [], { edges: [] })
 
       expect(result.nodes[0]).toHaveProperty('timeout', 0)
     })
@@ -189,7 +189,7 @@ describe('buildWorkflowDefinition', () => {
         },
       ]
 
-      const result = buildWorkflowDefinition('Test', '', activities, [], edges)
+      const result = buildWorkflowDefinition('Test', '', activities, [], { edges })
 
       expect(result.edges[0]).toEqual({
         from: 'task-1',
@@ -208,7 +208,7 @@ describe('buildWorkflowDefinition', () => {
         },
       ]
 
-      const result = buildWorkflowDefinition('Test', '', activities, [], edges)
+      const result = buildWorkflowDefinition('Test', '', activities, [], { edges })
 
       expect(result.edges[0]).toEqual({
         from: 'loop-1',
@@ -228,7 +228,7 @@ describe('buildWorkflowDefinition', () => {
         },
       ]
 
-      const result = buildWorkflowDefinition('Test', '', activities, [], edges)
+      const result = buildWorkflowDefinition('Test', '', activities, [], { edges })
 
       expect(result.edges[0]).toEqual({
         from: 'task-1',
@@ -248,7 +248,7 @@ describe('buildWorkflowDefinition', () => {
         },
       ]
 
-      const result = buildWorkflowDefinition('Test', '', activities, [], edges)
+      const result = buildWorkflowDefinition('Test', '', activities, [], { edges })
 
       expect(result.edges[0]).toEqual({
         from: 'task-1',
@@ -268,7 +268,7 @@ describe('buildWorkflowDefinition', () => {
         },
       ]
 
-      const result = buildWorkflowDefinition('Test', '', activities, [], edges)
+      const result = buildWorkflowDefinition('Test', '', activities, [], { edges })
 
       expect(result.edges[0]).not.toHaveProperty('to_port')
     })
@@ -293,7 +293,7 @@ describe('buildWorkflowDefinition', () => {
         },
       ]
 
-      const result = buildWorkflowDefinition('Test', '', activities, triggers, edges)
+      const result = buildWorkflowDefinition('Test', '', activities, triggers, { edges })
 
       expect(result.edges[0].from).toBe('webhook_trigger_1') // Mapped to definition ID
     })
@@ -316,7 +316,7 @@ describe('buildWorkflowDefinition', () => {
         },
       ]
 
-      const result = buildWorkflowDefinition('Test', '', activities, triggers, edges)
+      const result = buildWorkflowDefinition('Test', '', activities, triggers, { edges })
 
       expect(result.edges[0].to).toBe('webhook_trigger_1') // Mapped to definition ID
     })
@@ -340,7 +340,7 @@ describe('buildWorkflowDefinition', () => {
       // SECURITY: Must throw instead of falling back to display ID
       // Display IDs (trigger-0) are ephemeral UI constructs and must never
       // appear in persisted workflow definitions sent to backend API
-      expect(() => buildWorkflowDefinition('Test', '', [], triggers, edges)).toThrow(
+      expect(() => buildWorkflowDefinition('Test', '', [], triggers, { edges })).toThrow(
         /Trigger at index 0 is missing an ID.*Display IDs like "trigger-0" cannot be used/
       )
     })
@@ -355,7 +355,7 @@ describe('buildWorkflowDefinition', () => {
         },
       ]
 
-      const result = buildWorkflowDefinition('Test', '', activities, [], edges)
+      const result = buildWorkflowDefinition('Test', '', activities, [], { edges })
 
       expect(result.edges[0].from).toBe('task-1')
       expect(result.edges[0].to).toBe('task-2')
@@ -375,7 +375,7 @@ describe('buildWorkflowDefinition', () => {
         { id: 'e3', source: 'trigger-2', target: 'task-3' },
       ]
 
-      const result = buildWorkflowDefinition('Test', '', activities, triggers, edges)
+      const result = buildWorkflowDefinition('Test', '', activities, triggers, { edges })
 
       expect(result.edges[0].from).toBe('trigger_a')
       expect(result.edges[1].from).toBe('trigger_b')
@@ -416,7 +416,9 @@ describe('buildWorkflowDefinition', () => {
         { id: 'e3', source: 'task-1', target: 'loop-1', targetHandle: 'done' },
       ]
 
-      const result = buildWorkflowDefinition('Complex Workflow', 'A complex test workflow', activities, triggers, edges)
+      const result = buildWorkflowDefinition('Complex Workflow', 'A complex test workflow', activities, triggers, {
+        edges,
+      })
 
       expect(result).toMatchObject({
         schema_version: '2.0.0',
@@ -446,7 +448,7 @@ describe('buildWorkflowDefinition', () => {
         },
       ]
 
-      const result = buildWorkflowDefinition('Test', '', activities, [], [])
+      const result = buildWorkflowDefinition('Test', '', activities, [], { edges: [] })
 
       expect(result.nodes[0].config.condition).toBe('not (${status} == "completed")')
     })
@@ -461,7 +463,7 @@ describe('buildWorkflowDefinition', () => {
         },
       ]
 
-      const result = buildWorkflowDefinition('Test', '', activities, [], [])
+      const result = buildWorkflowDefinition('Test', '', activities, [], { edges: [] })
 
       expect(result.nodes[0].config.condition).toBe('not (${done} == true)')
     })
@@ -476,7 +478,7 @@ describe('buildWorkflowDefinition', () => {
         },
       ]
 
-      const result = buildWorkflowDefinition('Test', '', activities, [], [])
+      const result = buildWorkflowDefinition('Test', '', activities, [], { edges: [] })
 
       expect(result.nodes[0].config.condition).toBe('${value} > 10')
     })
@@ -491,7 +493,7 @@ describe('buildWorkflowDefinition', () => {
         },
       ]
 
-      const result = buildWorkflowDefinition('Test', '', activities, [], [])
+      const result = buildWorkflowDefinition('Test', '', activities, [], { edges: [] })
 
       expect(result.nodes[0].config.condition).toBe('not ((${a} > 5 and ${b} < 10))')
     })
@@ -506,7 +508,7 @@ describe('buildWorkflowDefinition', () => {
         },
       ]
 
-      const result = buildWorkflowDefinition('Test', '', activities, [], [])
+      const result = buildWorkflowDefinition('Test', '', activities, [], { edges: [] })
 
       expect(result.nodes[0].config.code).toBe('if !done: pass')
     })
@@ -521,7 +523,7 @@ describe('buildWorkflowDefinition', () => {
         },
       ]
 
-      const result = buildWorkflowDefinition('Test', '', activities, [], [])
+      const result = buildWorkflowDefinition('Test', '', activities, [], { edges: [] })
 
       // Should remain in backend format
       expect(result.nodes[0].config.condition).toBe('not (${value} == "test")')
@@ -537,7 +539,7 @@ describe('buildWorkflowDefinition', () => {
         },
       ]
 
-      const result = buildWorkflowDefinition('Test', '', activities, [], [])
+      const result = buildWorkflowDefinition('Test', '', activities, [], { edges: [] })
 
       // UI: ${message.text} contains "Hello"
       // Backend: "Hello" in ${message.text}
@@ -554,7 +556,7 @@ describe('buildWorkflowDefinition', () => {
         },
       ]
 
-      const result = buildWorkflowDefinition('Test', '', activities, [], [])
+      const result = buildWorkflowDefinition('Test', '', activities, [], { edges: [] })
 
       // UI: !(${email.body} contains "spam")
       // Backend: "spam" not in ${email.body}
@@ -571,10 +573,50 @@ describe('buildWorkflowDefinition', () => {
         },
       ]
 
-      const result = buildWorkflowDefinition('Test', '', activities, [], [])
+      const result = buildWorkflowDefinition('Test', '', activities, [], { edges: [] })
 
       // Should transform both && to 'and' and 'contains' to 'in'
       expect(result.nodes[0].config.condition).toBe('(${age} >= 18 and "Smith" in ${name})')
+    })
+  })
+
+  describe('Node positions', () => {
+    it('includes position on nodes when nodePositions is provided', () => {
+      const activities: Activity[] = [activity('task-1'), activity('task-2')]
+      const nodePositions = { 'task-1': { x: 100, y: 200 }, 'task-2': { x: 300, y: 400 } }
+
+      const result = buildWorkflowDefinition('Test', '', activities, [], { edges: [], nodePositions })
+
+      expect(result.nodes[0].position).toEqual({ x: 100, y: 200 })
+      expect(result.nodes[1].position).toEqual({ x: 300, y: 400 })
+    })
+
+    it('includes position on triggers when nodePositions is provided', () => {
+      const triggers: Activity[] = [{ id: 'trigger_1', type: 'manual_trigger', config: {} }]
+      const nodePositions = { trigger_1: { x: 50, y: 75 } }
+
+      const result = buildWorkflowDefinition('Test', '', [], triggers, { edges: [], nodePositions })
+
+      expect(result.triggers[0].position).toEqual({ x: 50, y: 75 })
+    })
+
+    it('omits position when node has no stored position', () => {
+      const activities: Activity[] = [activity('task-1')]
+
+      const result = buildWorkflowDefinition('Test', '', activities, [], {
+        edges: [],
+        nodePositions: { 'other-node': { x: 10, y: 20 } },
+      })
+
+      expect(result.nodes[0]).not.toHaveProperty('position')
+    })
+
+    it('omits position when nodePositions is empty', () => {
+      const activities: Activity[] = [activity('task-1')]
+
+      const result = buildWorkflowDefinition('Test', '', activities, [], { edges: [] })
+
+      expect(result.nodes[0]).not.toHaveProperty('position')
     })
   })
 })

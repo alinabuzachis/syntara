@@ -25,7 +25,11 @@ export function useBuilderWorkflowLifecycle(options: {
   dispatch: Dispatch<BuilderAction>
   setWorkflow: (def: WorkflowDefinition | null) => void
   setStoredEdges: (edges: EdgeConnection[]) => void
-  loadWorkflowWithEdges: (def: WorkflowDefinition, edges: EdgeConnection[]) => void
+  loadWorkflowWithEdges: (
+    def: WorkflowDefinition,
+    edges: EdgeConnection[],
+    nodePositions?: Record<string, { x: number; y: number }>
+  ) => void
 }): void {
   const {
     workflowId,
@@ -84,10 +88,10 @@ export function useBuilderWorkflowLifecycle(options: {
         })
       })
     } else if (workflow?.version?.workflow_definition && !hasLoadedRef.current && workflow.id === workflowId) {
-      const { flattenedWorkflow, generatedEdges, initPayload } = processExistingWorkflow(workflow)
+      const { flattenedWorkflow, generatedEdges, nodePositions, initPayload } = processExistingWorkflow(workflow)
 
       queueMicrotask(() => {
-        loadWorkflowWithEdges(flattenedWorkflow, generatedEdges)
+        loadWorkflowWithEdges(flattenedWorkflow, generatedEdges, nodePositions)
         dispatch({ type: 'INIT_WORKFLOW', payload: initPayload })
         hasLoadedRef.current = true
       })

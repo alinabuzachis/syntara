@@ -107,11 +107,14 @@ export function useBuilderSaveWorkflow(
   } = params
 
   const getWorkflowDefinition = useCallback(() => {
-    const edges = useWorkflowStore.getState().edges
+    const { edges, nodePositions, _positionsUserModified } = useWorkflowStore.getState()
     const activities = currentWorkflow?.workflow.activities ?? []
     const triggers = currentWorkflow?.triggers ?? []
 
-    return buildWorkflowDefinition(workflowName, workflowDescription, activities, triggers, edges)
+    return buildWorkflowDefinition(workflowName, workflowDescription, activities, triggers, {
+      edges,
+      nodePositions: _positionsUserModified ? nodePositions : {},
+    })
   }, [currentWorkflow, workflowName, workflowDescription])
 
   return useCallback(
