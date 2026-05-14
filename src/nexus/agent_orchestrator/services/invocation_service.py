@@ -26,8 +26,14 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 if TYPE_CHECKING:
     from nexus.agent_orchestrator.executor import InvocationExecutor
 
-from nexus.agent_orchestrator.models import Invocation, InvocationContextData, InvocationListResponse, InvocationStatus
+from nexus.agent_orchestrator.models import (
+    Invocation,
+    InvocationContextData,
+    InvocationListResponse,
+    InvocationStatus,
+)
 from nexus.agent_orchestrator.models.request import CancellationResult
+from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.core.constants import CONTEXT_KEY_FILE_IDS
 from nexus.core.database.session import get_db
 from nexus.core.exceptions import SafeValueError
@@ -39,6 +45,8 @@ from nexus.files.document_conversion.tasks import (
     DocumentConversionTask,
     get_document_conversion_task,
 )
+from nexus.invocations.audit.invocation_cancelled import InvocationCancellationResult, InvocationCancelledEvent
+from nexus.invocations.audit.invocation_created import InvocationCreatedEvent
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -198,17 +206,18 @@ class InvocationService(BaseService):
         # Generate invocation ID upfront
         invocation_id = uuid4()
 
-        # Extract existing file_ids from context_data
+        # Parse context_data into typed model for validated access and audit.
+        # The raw dict is kept for DB storage since model_dump() masks SecretStr
+        # fields (callback_url, credential_id) which must be preserved in JSONB.
         final_context_data = dict(context_data or {})
-        raw_file_ids = final_context_data.get(CONTEXT_KEY_FILE_IDS, [])
-        existing_file_ids: list[str] = list(raw_file_ids) if isinstance(raw_file_ids, list) else []
+        ctx = InvocationContextData.model_validate(final_context_data)
 
         # Validate existing file_ids reference real files
-        if existing_file_ids:
-            await self._validate_file_ids(existing_file_ids)
+        if ctx.file_ids:
+            await self._validate_file_ids(ctx.file_ids)
             logger.info(
                 "Validated pre-uploaded files",
-                file_count=len(existing_file_ids),
+                file_count=len(ctx.file_ids),
                 invocation_id=invocation_id,
             )
 
@@ -220,15 +229,11 @@ class InvocationService(BaseService):
         for metadata in new_file_metadata_list:
             self.session.add(metadata)
 
-        # Merge all file_ids for context_data
-        all_file_ids = existing_file_ids + new_file_ids
-
-        # Store only file_ids in context_data (not full metadata)
-        # FileMetadata is queried from the FileMetadata table by UploadedFileRetriever
+        # Merge all file_ids
+        all_file_ids = ctx.file_ids + new_file_ids
         if all_file_ids:
             final_context_data[CONTEXT_KEY_FILE_IDS] = all_file_ids
 
-        # Create invocation
         try:
             invocation = Invocation(
                 id=invocation_id,
@@ -247,7 +252,19 @@ class InvocationService(BaseService):
                 file_count=len(all_file_ids),
             )
 
-        except Exception:
+            # Dispatch success audit event
+            AuditEventDispatcher.dispatch(
+                InvocationCreatedEvent(
+                    invocation_id=invocation_id,
+                    session_id=session_id,
+                    file_ids=all_file_ids,
+                    agent=ctx.agent,
+                    model=ctx.model,
+                    metadata=ctx.audit_safe_metadata(),
+                )
+            )
+
+        except Exception as e:
             # Database commit failed - cleanup saved files if any
             if new_file_metadata_list:
                 logger.warning(
@@ -256,6 +273,19 @@ class InvocationService(BaseService):
                 )
                 saved_file_paths = [fm.file_path for fm in new_file_metadata_list]
                 await file_utils.cleanup_files(saved_file_paths, context="after DB failure")
+
+            # Dispatch failure audit event
+            AuditEventDispatcher.dispatch(
+                InvocationCreatedEvent(
+                    invocation_id=invocation_id,
+                    session_id=session_id,
+                    file_ids=all_file_ids,
+                    agent=ctx.agent,
+                    model=ctx.model,
+                    metadata=ctx.audit_safe_metadata(),
+                    error_type=type(e).__name__,
+                )
+            )
             raise
 
         # Schedule background tasks AFTER successful commit
@@ -307,6 +337,15 @@ class InvocationService(BaseService):
 
         if not invocation:
             logger.warning("Cancellation failed: Invocation not found", invocation_id=invocation_id)
+
+            # Dispatch NOT_FOUND audit event
+            AuditEventDispatcher.dispatch(
+                InvocationCancelledEvent(
+                    invocation_id=invocation_id,
+                    result=InvocationCancellationResult.NOT_FOUND,
+                    reason=reason,
+                )
+            )
             return CancellationResult.NOT_FOUND
 
         # Check if invocation is in a cancellable state
@@ -315,6 +354,16 @@ class InvocationService(BaseService):
                 "Cancellation failed: Invocation not in cancellable state",
                 invocation_id=invocation_id,
                 status=invocation.status.value,
+            )
+
+            # Dispatch NOT_CANCELLABLE audit event
+            AuditEventDispatcher.dispatch(
+                InvocationCancelledEvent(
+                    invocation_id=invocation_id,
+                    result=InvocationCancellationResult.NOT_CANCELLABLE,
+                    reason=reason,
+                    current_status=invocation.status,
+                )
             )
             return CancellationResult.NOT_CANCELLABLE
 
@@ -337,16 +386,41 @@ class InvocationService(BaseService):
             invocation.checkpoint_data = cancellation_data
 
         # Clean up uploaded and converted files associated with this invocation
-        await self._cleanup_invocation_files(invocation)
+        cleaned_file_ids = await self._cleanup_invocation_files(invocation)
 
         # Note: Background document conversion tasks cannot be cancelled directly due to
         # FastAPI BackgroundTasks limitations. However, conversion tasks are typically
         # short-lived and will complete harmlessly even for cancelled invocations.
 
-        await self.session.commit()
+        try:
+            await self.session.commit()
 
-        logger.info("Invocation cancelled successfully", invocation_id=invocation_id, reason=reason)
-        return CancellationResult.SUCCESS
+            logger.info("Invocation cancelled successfully", invocation_id=invocation_id, reason=reason)
+
+            # Dispatch success audit event
+            AuditEventDispatcher.dispatch(
+                InvocationCancelledEvent(
+                    invocation_id=invocation_id,
+                    result=InvocationCancellationResult.SUCCESS,
+                    reason=reason,
+                    files_cleaned=cleaned_file_ids,
+                    current_status=InvocationStatus.CANCELLED,
+                )
+            )
+            return CancellationResult.SUCCESS
+
+        except Exception as e:
+            # Dispatch failure audit event
+            AuditEventDispatcher.dispatch(
+                InvocationCancelledEvent(
+                    invocation_id=invocation_id,
+                    result=InvocationCancellationResult.SUCCESS,
+                    reason=reason,
+                    files_cleaned=cleaned_file_ids,
+                    error_type=type(e).__name__,
+                )
+            )
+            raise
 
     async def _cleanup_files_from_paths(self, files_to_cleanup: list[str], invocation_id: UUID) -> None:
         """Clean up files from given paths (best-effort)."""
@@ -367,7 +441,7 @@ class InvocationService(BaseService):
                 invocation_id=invocation_id,
             )
 
-    async def _cleanup_invocation_files(self, invocation: Invocation) -> None:
+    async def _cleanup_invocation_files(self, invocation: Invocation) -> list[UUID]:
         """Clean up uploaded and converted files associated with an invocation.
 
         This method extracts file_ids from the invocation's context_data,
@@ -385,7 +459,7 @@ class InvocationService(BaseService):
         ctx = InvocationContextData.model_validate(invocation.context_data or {})
         if not ctx.file_ids:
             logger.debug("No files to clean up for invocation", invocation_id=invocation.id)
-            return
+            return []
 
         # Convert strings to UUIDs at the boundary
         file_ids = [UUID(fid) for fid in ctx.file_ids]
@@ -394,7 +468,7 @@ class InvocationService(BaseService):
         file_metadata_records = await self.file_manager.get_files_metadata(file_ids, self.session)
         if not file_metadata_records:
             logger.debug("No FileMetadata records found for invocation", invocation_id=invocation.id)
-            return
+            return []
 
         files_to_cleanup: list[str] = []
         for metadata in file_metadata_records:
@@ -404,6 +478,8 @@ class InvocationService(BaseService):
                 files_to_cleanup.append(metadata.converted_content_path)
 
         await self._cleanup_files_from_paths(files_to_cleanup, invocation.id)
+
+        return file_ids
 
     async def list_invocations(
         self,

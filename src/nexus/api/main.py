@@ -25,6 +25,7 @@ import nexus.auth.exceptions  # Side-effect import to trigger exception handler 
 import nexus.authz.audit  # Package scanned by discover_handlers() at startup
 import nexus.credentials.audit  # Package scanned by discover_handlers() at startup
 import nexus.identity_providers.exceptions
+import nexus.invocations.audit  # Package scanned by discover_handlers() at startup
 import nexus.settings.audit  # Package scanned by discover_handlers() at startup
 import nexus.telemetry.handlers  # Package scanned by discover_handlers() at startup
 import nexus.tool_manager.audit  # Package scanned by discover_handlers() at startup
@@ -107,6 +108,9 @@ def _discover_and_register_audit_handlers() -> None:
 
         credentials_audit_registry = discover_handlers(nexus.credentials.audit)
         AuditEventDispatcher.register(credentials_audit_registry)
+
+        invocations_audit_registry = discover_handlers(nexus.invocations.audit)
+        AuditEventDispatcher.register(invocations_audit_registry)
 
         settings_audit_registry = discover_handlers(nexus.settings.audit)
         AuditEventDispatcher.register(settings_audit_registry)
