@@ -8,6 +8,8 @@ from fastapi import Depends, Request, status
 from sqlmodel import Field, SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.audit.decorators import audit
+from nexus.audit.models.audit_event import EventCategory
 from nexus.auth import get_current_user
 from nexus.authz.dependencies import PermissionChecker, VisibilityFilter, get_opa_client
 from nexus.authz.engine import VisibilityResult, resolve_visibility
@@ -234,6 +236,7 @@ def _get_service(
     operation_id="create_role_assignment",
     response_description="Role assignment created",
 )
+@audit(EventCategory.SECURITY_EVENT)
 async def create_role_assignment(
     body: RoleAssignmentCreate,
     service: Annotated[RoleAssignmentService, Depends(_get_service)],
@@ -356,6 +359,7 @@ async def get_role_assignment(
     operation_id="delete_role_assignment",
     response_description="Assignment removed",
 )
+@audit(EventCategory.SECURITY_EVENT)
 async def delete_role_assignment(
     assignment_id: UUID,
     service: Annotated[RoleAssignmentService, Depends(_get_service)],

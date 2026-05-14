@@ -6,6 +6,8 @@ from uuid import UUID
 from fastapi import Depends, Request, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.audit.decorators import audit
+from nexus.audit.models.audit_event import EventCategory
 from nexus.auth import get_current_user
 from nexus.authz.dependencies import PermissionChecker
 from nexus.authz.schemas import PolicyCreate, PolicyListParams, PolicyListResponse, PolicyRead, PolicyUpdate
@@ -32,6 +34,7 @@ def get_policy_service(
     operation_id="create_policy",
     response_description="Policy created",
 )
+@audit(EventCategory.SECURITY_EVENT)
 async def create_policy(
     body: PolicyCreate,
     service: Annotated[PolicyService, Depends(get_policy_service)],
@@ -107,6 +110,7 @@ async def _do_update_policy(
     operation_id="update_policy",
     response_description="Updated policy",
 )
+@audit(EventCategory.SECURITY_EVENT)
 async def update_policy(
     policy_id: UUID,
     body: PolicyUpdate,
@@ -122,6 +126,7 @@ async def update_policy(
     operation_id="replace_policy",
     response_description="Updated policy",
 )
+@audit(EventCategory.SECURITY_EVENT)
 async def replace_policy(
     policy_id: UUID,
     body: PolicyUpdate,
@@ -138,6 +143,7 @@ async def replace_policy(
     operation_id="delete_policy",
     response_description="Policy deleted",
 )
+@audit(EventCategory.SECURITY_EVENT)
 async def delete_policy(
     policy_id: UUID,
     service: Annotated[PolicyService, Depends(get_policy_service)],

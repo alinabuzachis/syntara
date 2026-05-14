@@ -6,6 +6,8 @@ from uuid import UUID
 from fastapi import Depends, Request, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.audit.decorators import audit
+from nexus.audit.models.audit_event import EventCategory
 from nexus.auth import get_current_user
 from nexus.authz.dependencies import PermissionChecker
 from nexus.authz.schemas import RoleCreate, RoleListParams, RoleListResponse, RoleRead, RoleUpdate
@@ -31,6 +33,7 @@ def get_role_service(
     dependencies=[Depends(PermissionChecker("role", "create"))],
     operation_id="create_role",
 )
+@audit(EventCategory.SECURITY_EVENT)
 async def create_role(
     body: RoleCreate,
     service: Annotated[RoleService, Depends(get_role_service)],
@@ -92,6 +95,7 @@ async def _do_update_role(
     dependencies=[Depends(PermissionChecker("role", "update"))],
     operation_id="update_role",
 )
+@audit(EventCategory.SECURITY_EVENT)
 async def update_role(
     role_id: UUID,
     body: RoleUpdate,
@@ -106,6 +110,7 @@ async def update_role(
     dependencies=[Depends(PermissionChecker("role", "update"))],
     operation_id="replace_role",
 )
+@audit(EventCategory.SECURITY_EVENT)
 async def replace_role(
     role_id: UUID,
     body: RoleUpdate,
@@ -121,6 +126,7 @@ async def replace_role(
     dependencies=[Depends(PermissionChecker("role", "delete"))],
     operation_id="delete_role",
 )
+@audit(EventCategory.SECURITY_EVENT)
 async def delete_role(
     role_id: UUID,
     service: Annotated[RoleService, Depends(get_role_service)],
