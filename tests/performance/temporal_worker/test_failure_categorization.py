@@ -158,7 +158,7 @@ class TestFailureCategorization:
                 for _ in range(EXECUTIONS_PER_WORKFLOW):
                     futures.append(executor.submit(submit_execution, nexus_api, wf_id))
             for future in as_completed(futures):
-                _, ok = future.result()
+                _, ok, _ = future.result()
                 if ok:
                     total_accepted += 1
 

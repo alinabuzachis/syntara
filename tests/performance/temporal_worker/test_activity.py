@@ -72,7 +72,7 @@ def _submit_for_workflows(
                 total_submitted += 1
 
         for future in as_completed(futures):
-            _, ok = future.result()
+            _, ok, _ = future.result()
             if ok:
                 total_accepted += 1
 

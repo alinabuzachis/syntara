@@ -401,10 +401,10 @@ def create_perf_test_workflow(
 def submit_execution(
     nexus_api: NexusApiRegistry,
     workflow_id: str,
-) -> tuple[float, bool]:
+) -> tuple[float, bool, str | None]:
     """Submit a single workflow execution.
 
-    Returns (elapsed_ms, success).
+    Returns (elapsed_ms, success, execution_id).
     """
     from uuid import UUID
 
@@ -416,11 +416,13 @@ def submit_execution(
             body=ExecutionCreate(workflow_id=UUID(workflow_id)),
         )
         elapsed_ms = (time.monotonic() - start) * 1000
-        return elapsed_ms, r.is_success or r.status_code in (200, 201, 202)
+        success = r.is_success or r.status_code in (200, 201, 202)
+        exec_id = str(r.parsed.id) if success and r.parsed else None
+        return elapsed_ms, success, exec_id
     except Exception as exc:
         elapsed_ms = (time.monotonic() - start) * 1000
         _log_request_failure(exc, context="submit_execution")
-        return elapsed_ms, False
+        return elapsed_ms, False, None
 
 
 def check_health(
@@ -754,6 +756,22 @@ def _find_llm_credential_type_id(nexus_api: NexusApiRegistry) -> str | None:
     except Exception:
         _logger.warning("Failed to list credential types", exc_info=True)
     return None
+
+
+def build_ws_url(base_url: str, path: str) -> str:
+    """Convert an HTTP base URL to a WebSocket URL with the given path.
+
+    Replaces ``http`` with ``ws`` and ``https`` with ``wss``, then
+    appends *path*.
+
+    Args:
+        base_url: HTTP base URL (e.g. ``https://nexus.apps.example.com``).
+        path: WebSocket path including leading ``/`` (e.g.
+            ``/ws/workflows/v1/executions/<uuid>``).
+
+    """
+    ws_base = re.sub(r"^http", "ws", base_url, count=1)
+    return f"{ws_base.rstrip('/')}{path}"
 
 
 def poll_for_invocation_terminal_status(

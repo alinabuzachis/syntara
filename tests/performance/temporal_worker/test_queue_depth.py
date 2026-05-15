@@ -70,7 +70,7 @@ def _submit_executions_concurrently(
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = [executor.submit(submit_execution, nexus_api, workflow_id) for _ in range(count)]
         for future in as_completed(futures):
-            elapsed_ms, ok = future.result()
+            elapsed_ms, ok, _ = future.result()
             submission_times.append(elapsed_ms)
             if ok:
                 successes += 1
