@@ -114,9 +114,8 @@ function AppLoginForm() {
   const [isLoggingIn, setIsLoggingIn] = useState(false)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [loginError, setLoginError] = useState<string | null>(() => {
-    const params = new URLSearchParams(globalThis.location.search)
-    const authError = params.get('auth_error')
+  const [initialAuthError] = useState(() => {
+    const authError = new URLSearchParams(globalThis.location.search).get('auth_error')
     if (authError) {
       // Clean up the URL so the error doesn't persist on refresh.
       // replaceState is a browser API (not React state), so calling it
@@ -125,8 +124,9 @@ function AppLoginForm() {
     }
     return authError
   })
-  const [loginErrorField, setLoginErrorField] = useState<LoginErrorField | null>(() =>
-    new URLSearchParams(globalThis.location.search).get('auth_error') ? LoginErrorField.Credentials : null
+  const [loginError, setLoginError] = useState<string | null>(initialAuthError)
+  const [loginErrorField, setLoginErrorField] = useState<LoginErrorField | null>(
+    initialAuthError ? LoginErrorField.Credentials : null
   )
   const [showLocalLogin, setShowLocalLogin] = useState(false)
   const bootstrapAttempted = useRef(false)
