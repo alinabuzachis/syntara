@@ -173,6 +173,7 @@ export default tseslint.config(
       // -- nexus custom rules (PR checklist + UX design system enforcement) --
       // no-switch-is-reversed, require-alert-object-param, and require-query-state-object
       // are enforced via no-restricted-syntax AST selectors above (no custom plugin needed).
+      'nexus/prefer-pf-list-components': 'error',
       'nexus/prefer-pf-text-components': 'error',
       'nexus/use-design-tokens-not-hardcoded': 'error',
       'nexus/prefer-confirmation-dialog': 'warn',
@@ -212,6 +213,7 @@ export default tseslint.config(
       'max-nested-callbacks': 'off',
       complexity: 'off',
       'sonarjs/cognitive-complexity': 'off',
+      'nexus/prefer-pf-list-components': 'off',
       'nexus/prefer-pf-text-components': 'off',
       'nexus/use-design-tokens-not-hardcoded': 'off',
       'nexus/prefer-confirmation-dialog': 'off',

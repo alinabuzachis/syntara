@@ -985,6 +985,8 @@ The same rules apply to `showWarning` and `showInfo`.
 
 Never use raw `<span>`, `<p>`, or `<div>` for text content when a PatternFly component exists. Use PF `Content`, `HelperText`, `Label`, or `Title` instead — they pick up design tokens for font size, color, and spacing automatically.
 
+For UI lists, use PF `List` and `ListItem` instead of raw `<ul>`, `<ol>`, or `<li>`. ESLint enforces this via `nexus/prefer-pf-text-components` (text elements) and `nexus/prefer-pf-list-components` (list elements) in `packages/nexus-ui/eslint.config.js`.
+
 See [`.claude/skills/patternfly-ux-design-system.md`](patternfly-ux-design-system.md) — section 13 "No Raw HTML for Text Content" for the full component mapping table and code examples.
 
 ---

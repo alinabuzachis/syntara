@@ -7,9 +7,6 @@ import {
   EmptyStateFooter,
   Flex,
   FlexItem,
-  List,
-  ListItem,
-  Stack,
   StackItem,
   Switch,
   Truncate,
@@ -22,7 +19,6 @@ import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../../app/AppRoute'
 import { identityProvidersClient } from '../../../client'
-import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { FilterBar } from '../../../components/filters/FilterBar'
 import { IconLabel } from '../../../components/IconLabel'
@@ -38,6 +34,7 @@ import type { FilterFieldDefinition } from '../../../types/filters'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 
+import { IdentityProviderDeleteDialog } from './identity-providers/IdentityProviderDeleteDialog'
 import { getProviderNameFilterDefinition, getProviderStatusFilterDefinition } from './identityProviderFilters'
 
 const SORT_FIELDS = ['name', 'issuer_url', 'client_id', 'enabled'] as const
@@ -287,33 +284,12 @@ export function IdentityProvidersTab() {
           </Tbody>
         </ScrollableTableContainer>
       )}
-      <ConfirmationDialog
+      <IdentityProviderDeleteDialog
         isOpen={deleteDialogOpen}
+        providerName={providerToDelete?.name ?? ''}
         onClose={() => dispatch({ type: 'CLOSE_DELETE_DIALOG' })}
         onConfirm={() => handleDelete(providerToDelete)}
-        title="Delete identity provider?"
-        confirmLabel="Delete"
-        confirmVariant="danger"
-        titleIconVariant="warning"
-        destructiveAcknowledgement={{
-          checkboxId: 'delete-idp-ack',
-          label: 'I understand this identity provider and its linked identities will be permanently deleted.',
-        }}
-      >
-        <Stack hasGutter>
-          <StackItem>
-            The identity provider <strong>{providerToDelete?.name}</strong> will be deleted. This cannot be undone.
-          </StackItem>
-          <StackItem>This will immediately:</StackItem>
-          <StackItem>
-            <List>
-              <ListItem>Remove all user identities linked to this provider</ListItem>
-              <ListItem>Revoke active sessions authenticated via this provider</ListItem>
-              <ListItem>Prevent users from signing in with this provider</ListItem>
-            </List>
-          </StackItem>
-        </Stack>
-      </ConfirmationDialog>
+      />
     </NxPanelContentStack>
   )
 }

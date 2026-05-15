@@ -13,7 +13,6 @@ import {
   Flex,
   FlexItem,
   Label,
-  Stack,
   StackItem,
   Switch,
   Tab,
@@ -32,7 +31,6 @@ import {
   breadcrumbsIdentityProviderDetailEarlyShell,
 } from '../../../../app/breadcrumbBuilders'
 import { identityProvidersClient } from '../../../../client'
-import { ConfirmationDialog } from '../../../../components/ConfirmationDialog'
 import { IconLabel } from '../../../../components/IconLabel'
 import { NxPage, NxPageBody } from '../../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../../components/layout/NxPageHeader'
@@ -50,6 +48,7 @@ import { isValidUUID } from '../../../../utils/generateUUID'
 
 import { GroupMappingTab } from './GroupMappingTab'
 import { type GroupMappingConfig } from './groupMappingUtils'
+import { IdentityProviderDeleteDialog } from './IdentityProviderDeleteDialog'
 import { IdpTypeKey, IDP_TYPE_PRESETS } from './idpTypePresets'
 
 type ProviderData = IdentityProvidersAPI.components['schemas']['IdentityProviderResponse']
@@ -231,48 +230,6 @@ function IdentityProviderDetailTabStrip({
         />
       </UrlTabs>
     </StackItem>
-  )
-}
-
-function IdentityProviderDeleteDialog({
-  isOpen,
-  providerName,
-  onClose,
-  onConfirm,
-}: Readonly<{
-  isOpen: boolean
-  providerName: string
-  onClose: () => void
-  onConfirm: () => void
-}>) {
-  return (
-    <ConfirmationDialog
-      isOpen={isOpen}
-      onClose={onClose}
-      onConfirm={onConfirm}
-      title="Delete identity provider?"
-      confirmLabel="Delete"
-      confirmVariant="danger"
-      titleIconVariant="warning"
-      destructiveAcknowledgement={{
-        checkboxId: 'delete-idp-detail-ack',
-        label: 'I understand this identity provider and its linked identities will be permanently deleted.',
-      }}
-    >
-      <Stack hasGutter>
-        <StackItem>
-          The identity provider <strong>{providerName}</strong> will be deleted. This cannot be undone.
-        </StackItem>
-        <StackItem>This will immediately:</StackItem>
-        <StackItem>
-          <ul style={{ paddingLeft: 'var(--pf-t--global--spacer--lg)', margin: 0 }}>
-            <li>Remove all user identities linked to this provider</li>
-            <li>Revoke active sessions authenticated via this provider</li>
-            <li>Prevent users from signing in with this provider</li>
-          </ul>
-        </StackItem>
-      </Stack>
-    </ConfirmationDialog>
   )
 }
 
