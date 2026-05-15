@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 
-from nexus.core.lib.encryption import SecretEncryptor, key_from_string
+from nexus.core.lib.encryption import SecretEncryptor
 from nexus.credentials.cli.rotate_keys import (
     EXIT_FATAL,
     EXIT_PARTIAL_FAILURE,
@@ -17,12 +17,7 @@ from nexus.credentials.cli.rotate_keys import (
     _rotate_single_row,
     rotate_keys,
 )
-
-# Valid 64-char hex keys for testing
-OLD_KEY_HEX = "aa" * 32
-NEW_KEY_HEX = "bb" * 32
-OLD_KEY = key_from_string(OLD_KEY_HEX)
-NEW_KEY = key_from_string(NEW_KEY_HEX)
+from tests.helpers.encryption import NEW_KEY, NEW_KEY_HEX, OLD_KEY, OLD_KEY_HEX, WRONG_KEY
 
 
 def _make_encrypted_row(old_encryptor: SecretEncryptor) -> MagicMock:
@@ -127,8 +122,7 @@ class TestRotateSingleRow:
         old_enc = SecretEncryptor(OLD_KEY)
         new_enc = SecretEncryptor(NEW_KEY)
 
-        third_key = key_from_string("cc" * 32)
-        third_enc = SecretEncryptor(third_key)
+        third_enc = SecretEncryptor(WRONG_KEY)
 
         secret_id = uuid4()
         row = MagicMock()

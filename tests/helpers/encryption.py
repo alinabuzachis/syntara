@@ -1,0 +1,16 @@
+"""Shared encryption test fixtures and constants.
+
+Provides common encryption keys and utilities for testing credential
+encryption key rotation functionality.
+"""
+
+from nexus.core.lib.encryption import key_from_string
+
+# Test encryption keys (64-char hex)
+OLD_KEY_HEX = "aa" * 32
+NEW_KEY_HEX = "bb" * 32
+WRONG_KEY_HEX = "cc" * 32
+
+OLD_KEY = key_from_string(OLD_KEY_HEX)
+NEW_KEY = key_from_string(NEW_KEY_HEX)
+WRONG_KEY = key_from_string(WRONG_KEY_HEX)

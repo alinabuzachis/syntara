@@ -26,53 +26,6 @@ async def preseeded_types(test_db_session: AsyncSession) -> None:
     await preseed_credential_types(test_db_session)
 
 
-@pytest.fixture
-async def bearer_type(test_db_session: AsyncSession) -> CredentialType:
-    """Create a bearer token credential type for testing."""
-    ct = CredentialType(
-        name=f"Test Bearer Token {uuid4().hex[:8]}",
-        description="Test bearer token type",
-        inputs={
-            "fields": [
-                {"id": "token", "label": "Token", "type": "string", "secret": True},
-            ],
-            "required": ["token"],
-        },
-        injectors={"extra_vars": {"bearer_token": "{{token}}"}, "env": {}, "file": {}},
-        managed=False,
-    )
-    test_db_session.add(ct)
-    await test_db_session.commit()
-    await test_db_session.refresh(ct)
-    return ct
-
-
-@pytest.fixture
-async def basic_auth_type(test_db_session: AsyncSession) -> CredentialType:
-    """Create a basic auth credential type with mixed secret/non-secret fields."""
-    ct = CredentialType(
-        name=f"Test Basic Auth {uuid4().hex[:8]}",
-        description="Test basic auth type",
-        inputs={
-            "fields": [
-                {"id": "username", "label": "Username", "type": "string", "secret": False},
-                {"id": "password", "label": "Password", "type": "string", "secret": True},
-            ],
-            "required": ["username", "password"],
-        },
-        injectors={
-            "extra_vars": {"basic_username": "{{username}}", "basic_password": "{{password}}"},
-            "env": {},
-            "file": {},
-        },
-        managed=False,
-    )
-    test_db_session.add(ct)
-    await test_db_session.commit()
-    await test_db_session.refresh(ct)
-    return ct
-
-
 class TestCreateCredential:
     """POST /api/v1/credentials."""
 
