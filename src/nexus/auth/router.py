@@ -57,7 +57,7 @@ from nexus.auth.schemas import (
     UserInfo,
 )
 from nexus.auth.services.idp_group_sync import sync_idp_groups
-from nexus.auth.services.oidc_service import OIDCError, OIDCService
+from nexus.auth.services.oidc_service import OIDCError, OIDCService, _is_ssl_verification_error
 from nexus.auth.services.token_service import TokenPayload
 from nexus.auth.session import SessionInfo, create_session_store
 from nexus.authz.dependencies import get_opa_client
@@ -445,7 +445,9 @@ async def _resolve_end_session_endpoint(config: OIDCConfiguration) -> str | None
 
     try:
         oidc_service = OIDCService()
-        discovery = await oidc_service.fetch_discovery_config(config.issuer_url)
+        discovery = await oidc_service.fetch_discovery_config(
+            config.issuer_url, disable_tls_verify=config.disable_tls_verify
+        )
         return discovery.get("end_session_endpoint")
     except OIDCError:
         logger.warning("Failed to discover end_session_endpoint for RP logout")
@@ -899,7 +901,9 @@ async def _get_oidc_endpoints(
 ) -> dict[str, Any]:
     """Get OIDC endpoints via auto-discovery or from manual configuration."""
     if config.auto_discovery:
-        return await oidc_service.fetch_discovery_config(config.issuer_url)
+        return await oidc_service.fetch_discovery_config(
+            config.issuer_url, disable_tls_verify=config.disable_tls_verify
+        )
 
     # Manual endpoints — validate required fields are present
     if not config.authorization_endpoint or not config.token_endpoint or not config.jwks_uri:
@@ -973,6 +977,7 @@ async def _exchange_and_validate_tokens(
         client_id=config.client_id,
         client_secret=config.client_secret if config.client_secret else "",
         code_verifier=code_verifier,
+        disable_tls_verify=config.disable_tls_verify,
     )
 
     id_token_raw = token_response.get("id_token")
@@ -987,6 +992,7 @@ async def _exchange_and_validate_tokens(
         issuer=discovery["issuer"],
         client_id=config.client_id,
         nonce=nonce,
+        disable_tls_verify=config.disable_tls_verify,
     )
 
     logger.debug("Raw ID token claims from IdP", claims=list(id_token_claims.keys()))
@@ -1005,7 +1011,9 @@ async def _exchange_and_validate_tokens(
 
     if (missing_claims or has_group_mapping) and userinfo_endpoint and access_token:
         try:
-            userinfo = await oidc_service.fetch_userinfo(userinfo_endpoint, access_token)
+            userinfo = await oidc_service.fetch_userinfo(
+                userinfo_endpoint, access_token, disable_tls_verify=config.disable_tls_verify
+            )
             # Verify sub claim matches per OIDC Core §5.3.2
             if userinfo.get("sub") != id_token_claims.get("sub"):
                 logger.warning("Userinfo sub mismatch, discarding userinfo")
@@ -1267,6 +1275,11 @@ _OIDC_ERR_PROVIDER_UNAVAILABLE = "Identity provider not available"
 _OIDC_ERR_DISCOVERY_FAILED = "Failed to connect to identity provider"
 _OIDC_ERR_AUTH_FAILED = "Authentication failed. Please try again."
 _OIDC_ERR_USER_FAILED = "Unable to sign in. Contact your administrator."
+_OIDC_ERR_TLS_VERIFY_FAILED = (
+    "TLS certificate verification failed. "
+    'If the provider uses a self-signed certificate, enable "Skip TLS certificate verification" '
+    "in the identity provider settings."
+)
 _OIDC_ERR_NO_GROUP_MATCH = (
     "Access denied. Your identity provider groups do not match any configured group mappings. "
     "Contact your administrator."
@@ -1640,7 +1653,8 @@ async def _process_oidc_callback(
         discovery = await _get_oidc_endpoints(oidc_service, config)
     except OIDCError as e:
         logger.exception("OIDC endpoint resolution failed during callback")
-        raise _OIDCCallbackError(_OIDC_ERR_DISCOVERY_FAILED, origin=origin) from e
+        msg = _OIDC_ERR_TLS_VERIFY_FAILED if _is_ssl_verification_error(e) else _OIDC_ERR_DISCOVERY_FAILED
+        raise _OIDCCallbackError(msg, origin=origin) from e
 
     redirect_uri = config.redirect_uri
 
@@ -1656,10 +1670,12 @@ async def _process_oidc_callback(
         )
     except OIDCError as e:
         logger.warning("OIDC token exchange/validation failed", error=str(e), provider=provider.name)
-        raise _OIDCCallbackError(_OIDC_ERR_AUTH_FAILED, origin=origin) from e
+        msg = _OIDC_ERR_TLS_VERIFY_FAILED if _is_ssl_verification_error(e) else _OIDC_ERR_AUTH_FAILED
+        raise _OIDCCallbackError(msg, origin=origin) from e
     except Exception as e:
         logger.exception("Unexpected error during OIDC token exchange", provider=provider.name)
-        raise _OIDCCallbackError(_OIDC_ERR_AUTH_FAILED, origin=origin) from e
+        msg = _OIDC_ERR_TLS_VERIFY_FAILED if _is_ssl_verification_error(e) else _OIDC_ERR_AUTH_FAILED
+        raise _OIDCCallbackError(msg, origin=origin) from e
 
     # Handle test-signin flow — return raw claims to frontend, no session created
     if state_data.get("flow_type") == "test_signin":

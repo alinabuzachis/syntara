@@ -80,6 +80,24 @@ class TestTestOIDCConnection:
         assert result.end_session_endpoint_supported is False
 
     @pytest.mark.asyncio
+    async def test_disable_tls_verify_passed_to_oidc_service(self) -> None:
+        """Test that disable_tls_verify flag is forwarded to OIDCService."""
+        discovery_data = {
+            "issuer": "https://idp.example.com",
+            "authorization_endpoint": "https://idp.example.com/authorize",
+            "token_endpoint": "https://idp.example.com/token",
+            "jwks_uri": "https://idp.example.com/jwks",
+        }
+
+        with patch("nexus.identity_providers.services.oidc_discovery.OIDCService") as mock_cls:
+            mock_svc = mock_cls.return_value
+            mock_svc.fetch_discovery_config = AsyncMock(return_value=discovery_data)
+
+            await run_oidc_connection_test("https://idp.example.com", disable_tls_verify=True)
+
+            mock_svc.fetch_discovery_config.assert_called_once_with("https://idp.example.com", disable_tls_verify=True)
+
+    @pytest.mark.asyncio
     async def test_failure_has_no_claims_data(self) -> None:
         """Test that failed connection has no claims_supported or claim_aliases."""
         from nexus.auth.services.oidc_service import OIDCError

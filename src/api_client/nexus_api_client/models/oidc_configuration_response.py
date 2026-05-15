@@ -39,6 +39,8 @@ class OIDCConfigurationResponse:
         group_mapping_entries (list[OIDCGroupMappingEntry] | Unset): IdP-to-Nexus group mapping entries
         auto_create_groups (bool | Unset): Auto-create Nexus groups from IdP group values on login Default: False.
         aap_role_mapping_enabled (bool | Unset): Map AAP aap_system_role claim to built-in groups Default: False.
+        disable_tls_verify (bool | Unset): Disable TLS certificate verification for requests to this identity provider
+            (insecure) Default: False.
     """
 
     issuer_url: str
@@ -59,6 +61,7 @@ class OIDCConfigurationResponse:
     group_mapping_entries: list[OIDCGroupMappingEntry] | Unset = UNSET
     auto_create_groups: bool | Unset = False
     aap_role_mapping_enabled: bool | Unset = False
+    disable_tls_verify: bool | Unset = False
 
     def to_dict(self) -> dict[str, Any]:
         issuer_url = self.issuer_url
@@ -132,6 +135,8 @@ class OIDCConfigurationResponse:
 
         aap_role_mapping_enabled = self.aap_role_mapping_enabled
 
+        disable_tls_verify = self.disable_tls_verify
+
         field_dict: dict[str, Any] = {}
 
         field_dict.update(
@@ -171,6 +176,8 @@ class OIDCConfigurationResponse:
             field_dict["auto_create_groups"] = auto_create_groups
         if aap_role_mapping_enabled is not UNSET:
             field_dict["aap_role_mapping_enabled"] = aap_role_mapping_enabled
+        if disable_tls_verify is not UNSET:
+            field_dict["disable_tls_verify"] = disable_tls_verify
 
         return field_dict
 
@@ -279,6 +286,8 @@ class OIDCConfigurationResponse:
 
         aap_role_mapping_enabled = d.pop("aap_role_mapping_enabled", UNSET)
 
+        disable_tls_verify = d.pop("disable_tls_verify", UNSET)
+
         oidc_configuration_response = cls(
             issuer_url=issuer_url,
             client_id=client_id,
@@ -298,6 +307,7 @@ class OIDCConfigurationResponse:
             group_mapping_entries=group_mapping_entries,
             auto_create_groups=auto_create_groups,
             aap_role_mapping_enabled=aap_role_mapping_enabled,
+            disable_tls_verify=disable_tls_verify,
         )
 
         return oidc_configuration_response

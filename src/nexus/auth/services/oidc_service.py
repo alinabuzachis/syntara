@@ -12,6 +12,7 @@ import hashlib
 import ipaddress
 import secrets
 import socket
+import ssl
 import time
 from base64 import urlsafe_b64encode
 from functools import lru_cache
@@ -39,8 +40,21 @@ OIDC_STATE_TTL_SECONDS = 600  # 10 minutes
 _MAX_JWKS_CLIENTS = 32
 
 
+def _create_insecure_ssl_context() -> ssl.SSLContext:
+    """Build an SSL context that skips all certificate verification.
+
+    Both hostname verification and CA trust-chain validation are disabled,
+    allowing self-signed or internally-signed certificates.
+    Used when the admin has explicitly opted in via ``disable_tls_verify``.
+    """
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    return ctx
+
+
 @lru_cache(maxsize=_MAX_JWKS_CLIENTS)
-def _get_jwks_client(jwks_uri: str) -> PyJWKClient:
+def _get_jwks_client(jwks_uri: str, *, disable_tls_verify: bool = False) -> PyJWKClient:
     """Return a cached PyJWKClient for the given JWKS URI.
 
     The LRU cache ensures we reuse the same client (and its internal JWKS
@@ -50,7 +64,24 @@ def _get_jwks_client(jwks_uri: str) -> PyJWKClient:
     round-trip.  See:
     https://github.com/ansible/django-ansible-base/commit/7dfca80
     """
-    return PyJWKClient(jwks_uri, timeout=10, cache_jwk_set=True, lifespan=300)
+    kwargs: dict[str, Any] = {"timeout": 10, "cache_jwk_set": True, "lifespan": 300}
+    if disable_tls_verify:
+        kwargs["ssl_context"] = _create_insecure_ssl_context()
+    return PyJWKClient(jwks_uri, **kwargs)
+
+
+_SSL_VERIFY_FAILED_MARKER = "CERTIFICATE_VERIFY_FAILED"
+
+_TLS_VERIFY_HINT = (
+    "TLS certificate verification failed while connecting to the identity provider. "
+    "If the provider uses a self-signed or internally-signed certificate, "
+    'enable "Skip TLS certificate verification" in the identity provider configuration.'
+)
+
+
+def _is_ssl_verification_error(exc: Exception) -> bool:
+    """Return True if the exception chain indicates an SSL certificate verification failure."""
+    return _SSL_VERIFY_FAILED_MARKER in str(exc)
 
 
 class OIDCError(Exception):
@@ -125,11 +156,12 @@ class OIDCService:
                 msg = "OIDC issuer URL resolves to a private or internal network address"
                 raise OIDCError(msg)
 
-    async def fetch_discovery_config(self, issuer_url: str) -> dict[str, Any]:
+    async def fetch_discovery_config(self, issuer_url: str, *, disable_tls_verify: bool = False) -> dict[str, Any]:
         """Fetch OIDC discovery configuration from the provider.
 
         Args:
             issuer_url: The OIDC issuer URL
+            disable_tls_verify: Skip TLS certificate verification (insecure)
 
         Returns:
             Discovery configuration dictionary
@@ -153,7 +185,7 @@ class OIDCService:
         self._validate_url(discovery_url)
 
         try:
-            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True, verify=not disable_tls_verify) as client:
                 response = await client.get(discovery_url)
 
             if response.status_code != status.HTTP_200_OK:
@@ -172,6 +204,12 @@ class OIDCService:
 
         except httpx.TimeoutException as e:
             msg = f"Discovery request timed out for {issuer_url}"
+            raise OIDCError(msg) from e
+        except httpx.ConnectError as e:
+            if _is_ssl_verification_error(e):
+                logger.warning("TLS certificate verification failed during OIDC discovery", issuer=issuer_url)
+                raise OIDCError(_TLS_VERIFY_HINT) from e
+            msg = f"Discovery request failed: {e}"
             raise OIDCError(msg) from e
         except httpx.RequestError as e:
             msg = f"Discovery request failed: {e}"
@@ -277,6 +315,8 @@ class OIDCService:
         client_id: str,
         client_secret: str,
         code_verifier: str,
+        *,
+        disable_tls_verify: bool = False,
     ) -> dict[str, Any]:
         """Exchange authorization code for tokens at the token endpoint.
 
@@ -287,6 +327,7 @@ class OIDCService:
             client_id: OAuth 2.0 client ID
             client_secret: OAuth 2.0 client secret
             code_verifier: PKCE code verifier
+            disable_tls_verify: Skip TLS certificate verification (insecure)
 
         Returns:
             Token response dictionary containing access_token, id_token, etc.
@@ -312,7 +353,7 @@ class OIDCService:
             if code_verifier:
                 token_data["code_verifier"] = code_verifier
 
-            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True, verify=not disable_tls_verify) as client:
                 response = await client.post(
                     token_endpoint,
                     data=token_data,
@@ -331,6 +372,12 @@ class OIDCService:
         except httpx.TimeoutException as e:
             msg = "Token exchange request timed out"
             raise OIDCError(msg) from e
+        except httpx.ConnectError as e:
+            if _is_ssl_verification_error(e):
+                logger.warning("TLS certificate verification failed during token exchange", error=str(e))
+                raise OIDCError(_TLS_VERIFY_HINT) from e
+            msg = f"Token exchange request failed: {e}"
+            raise OIDCError(msg) from e
         except httpx.RequestError as e:
             msg = f"Token exchange request failed: {e}"
             raise OIDCError(msg) from e
@@ -342,6 +389,8 @@ class OIDCService:
         issuer: str,
         client_id: str,
         nonce: str,
+        *,
+        disable_tls_verify: bool = False,
     ) -> dict[str, Any]:
         """Validate an OIDC ID token.
 
@@ -353,6 +402,7 @@ class OIDCService:
             issuer: Expected issuer claim
             client_id: Expected audience claim
             nonce: Expected nonce claim
+            disable_tls_verify: Skip TLS certificate verification (insecure)
 
         Returns:
             Decoded ID token claims
@@ -373,7 +423,7 @@ class OIDCService:
             # its built-in lifespan cache) across calls for the same jwks_uri,
             # which amortises the cost.  See:
             # https://github.com/ansible/django-ansible-base/commit/7dfca80
-            jwks_client = _get_jwks_client(jwks_uri)
+            jwks_client = _get_jwks_client(jwks_uri, disable_tls_verify=disable_tls_verify)
             signing_key = jwks_client.get_signing_key_from_jwt(id_token)
 
             claims: dict[str, Any] = pyjwt.decode(
@@ -400,10 +450,15 @@ class OIDCService:
             msg = "ID token audience mismatch"
             raise OIDCError(msg) from e
         except pyjwt.PyJWTError as e:
+            if _is_ssl_verification_error(e):
+                logger.warning("TLS certificate verification failed during JWKS fetch", error=str(e))
+                raise OIDCError(_TLS_VERIFY_HINT) from e
             msg = f"ID token validation failed: {e}"
             raise OIDCError(msg) from e
 
-    async def fetch_userinfo(self, userinfo_endpoint: str, access_token: str) -> dict[str, Any]:
+    async def fetch_userinfo(
+        self, userinfo_endpoint: str, access_token: str, *, disable_tls_verify: bool = False
+    ) -> dict[str, Any]:
         """Fetch user claims from the OIDC userinfo endpoint.
 
         Per OIDC Core §5.3, the userinfo endpoint returns claims about the
@@ -413,6 +468,7 @@ class OIDCService:
         Args:
             userinfo_endpoint: Provider's userinfo endpoint URL
             access_token: Bearer access token from the token exchange
+            disable_tls_verify: Skip TLS certificate verification (insecure)
 
         Returns:
             Userinfo claims dictionary
@@ -424,7 +480,7 @@ class OIDCService:
         self._validate_url(userinfo_endpoint)
 
         try:
-            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True, verify=not disable_tls_verify) as client:
                 response = await client.get(
                     userinfo_endpoint,
                     headers={"Authorization": f"Bearer {access_token}"},
@@ -439,6 +495,12 @@ class OIDCService:
 
         except httpx.TimeoutException as e:
             msg = "Userinfo request timed out"
+            raise OIDCError(msg) from e
+        except httpx.ConnectError as e:
+            if _is_ssl_verification_error(e):
+                logger.warning("TLS certificate verification failed during userinfo fetch", error=str(e))
+                raise OIDCError(_TLS_VERIFY_HINT) from e
+            msg = f"Userinfo request failed: {e}"
             raise OIDCError(msg) from e
         except httpx.RequestError as e:
             msg = f"Userinfo request failed: {e}"

@@ -13,6 +13,7 @@ from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
+from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.auth.exceptions import GroupNotFoundError
 from nexus.auth.session import create_session_store
 from nexus.core.models import User, UserIdentity
@@ -21,6 +22,7 @@ from nexus.core.services import BaseService
 from nexus.core.services.secret_consumer_mixin import SecretConsumerMixin
 from nexus.core.services.secret_service import SecretService
 from nexus.core.utils.filters import Filter
+from nexus.identity_providers.audit.identity_provider import IdentityProviderLifecycleEvent
 from nexus.identity_providers.exceptions import (
     IdentityProviderError,
     IdentityProviderNameConflictError,
@@ -230,6 +232,14 @@ class IdentityProviderService(BaseService, SecretConsumerMixin):
                 await self._save_group_mapping_entries(provider.id, entries)
                 await self.session.flush()
             logger.info("Successfully created identity provider", provider_name=provider.name)
+            AuditEventDispatcher.dispatch(
+                IdentityProviderLifecycleEvent(
+                    provider_id=provider.id,
+                    provider_name=provider.name,
+                    action="created",
+                    disable_tls_verify=getattr(provider_create.configuration, "disable_tls_verify", False),
+                ),
+            )
             response = IdentityProviderResponse.model_validate(provider)
             return await self._populate_response_entries(response)
 
@@ -260,6 +270,9 @@ class IdentityProviderService(BaseService, SecretConsumerMixin):
         # Preserve existing aap_role_mapping_enabled if not provided in patch
         if patch_config.aap_role_mapping_enabled is None:
             patch_config.aap_role_mapping_enabled = provider.configuration.aap_role_mapping_enabled
+        # Preserve existing disable_tls_verify if not provided in patch
+        if patch_config.disable_tls_verify is None:
+            patch_config.disable_tls_verify = provider.configuration.disable_tls_verify
 
         if (
             isinstance(patch_config, OIDCConfigurationPatch)
@@ -326,6 +339,14 @@ class IdentityProviderService(BaseService, SecretConsumerMixin):
             if patch_entries is not None:
                 await self._replace_group_mapping_entries(provider.id, patch_entries)
                 await self.session.flush()
+            AuditEventDispatcher.dispatch(
+                IdentityProviderLifecycleEvent(
+                    provider_id=provider.id,
+                    provider_name=provider_name,
+                    action="updated",
+                    disable_tls_verify=getattr(provider.configuration, "disable_tls_verify", False),
+                ),
+            )
             return await self.get_provider(provider.id)
 
         except IntegrityError as e:

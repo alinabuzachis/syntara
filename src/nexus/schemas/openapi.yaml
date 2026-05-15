@@ -23034,6 +23034,11 @@ components:
           default: false
           title: Aap Role Mapping Enabled
           description: Map AAP aap_system_role claim to built-in groups
+        disable_tls_verify:
+          type: boolean
+          default: false
+          title: Disable Tls Verify
+          description: Disable TLS certificate verification for requests to this identity provider (insecure)
     OIDCConfigurationResponse:
       type: object
       title: OIDCConfigurationResponse
@@ -23136,6 +23141,11 @@ components:
           default: false
           title: Aap Role Mapping Enabled
           description: Map AAP aap_system_role claim to built-in groups
+        disable_tls_verify:
+          type: boolean
+          default: false
+          title: Disable Tls Verify
+          description: Disable TLS certificate verification for requests to this identity provider (insecure)
     OIDCConfigurationPatch:
       type: object
       title: OIDCConfigurationPatch
@@ -23252,6 +23262,12 @@ components:
             - type: 'null'
           title: Aap Role Mapping Enabled
           description: Map AAP aap_system_role claim to built-in groups (omit to keep existing)
+        disable_tls_verify:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Disable Tls Verify
+          description: Disable TLS certificate verification for this identity provider (omit to keep existing)
     IdentityProviderCreate:
       type: object
       title: IdentityProviderCreate

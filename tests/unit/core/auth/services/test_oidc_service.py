@@ -27,6 +27,9 @@ from starlette import status
 from nexus.auth.services.oidc_service import (
     OIDCError,
     OIDCService,
+    _create_insecure_ssl_context,
+    _get_jwks_client,
+    _is_ssl_verification_error,
 )
 from nexus.identity_providers.models.identity_provider_configuration import OIDCClaimMapping
 
@@ -35,6 +38,67 @@ from nexus.identity_providers.models.identity_provider_configuration import OIDC
 def oidc_service() -> OIDCService:
     """Create an OIDCService instance."""
     return OIDCService()
+
+
+class TestCreateInsecureSslContext:
+    """Tests for _create_insecure_ssl_context helper."""
+
+    def test_returns_ssl_context(self) -> None:
+        """Test that an SSLContext is returned."""
+        import ssl
+
+        ctx = _create_insecure_ssl_context()
+        assert isinstance(ctx, ssl.SSLContext)
+
+    def test_verify_mode_is_cert_optional(self) -> None:
+        """Test that verify_mode skips CA trust-chain validation."""
+        import ssl
+
+        ctx = _create_insecure_ssl_context()
+        assert ctx.verify_mode == ssl.CERT_NONE
+
+
+class TestIsSslVerificationError:
+    """Tests for _is_ssl_verification_error helper."""
+
+    def test_detects_ssl_cert_verify_failed(self) -> None:
+        err = Exception("[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed")
+        assert _is_ssl_verification_error(err) is True
+
+    def test_rejects_generic_connection_error(self) -> None:
+        err = Exception("Connection refused")
+        assert _is_ssl_verification_error(err) is False
+
+    def test_detects_wrapped_ssl_error(self) -> None:
+        err = httpx.ConnectError(
+            "[SSL: CERTIFICATE_VERIFY_FAILED] self-signed certificate",
+            request=MagicMock(),
+        )
+        assert _is_ssl_verification_error(err) is True
+
+
+class TestGetJwksClient:
+    """Tests for _get_jwks_client with disable_tls_verify."""
+
+    def test_default_has_no_custom_ssl_context(self) -> None:
+        """Test that the default client does not use a custom SSL context."""
+        _get_jwks_client.cache_clear()
+        with patch("nexus.auth.services.oidc_service.PyJWKClient") as mock_cls:
+            _get_jwks_client("https://example.com/jwks")
+            call_kwargs = mock_cls.call_args
+            assert "ssl_context" not in call_kwargs.kwargs
+
+    def test_disable_tls_verify_passes_ssl_context(self) -> None:
+        """Test that disable_tls_verify passes an insecure SSL context."""
+        import ssl
+
+        _get_jwks_client.cache_clear()
+        with patch("nexus.auth.services.oidc_service.PyJWKClient") as mock_cls:
+            _get_jwks_client("https://example.com/jwks", disable_tls_verify=True)
+            call_kwargs = mock_cls.call_args
+            ctx = call_kwargs.kwargs["ssl_context"]
+            assert isinstance(ctx, ssl.SSLContext)
+            assert ctx.verify_mode == ssl.CERT_NONE
 
 
 class TestFetchDiscoveryConfig:
@@ -148,8 +212,60 @@ class TestFetchDiscoveryConfig:
             mock_async_client.return_value = mock_client
             await oidc_service.fetch_discovery_config("https://example.com")
 
-            # Verify AsyncClient was created with follow_redirects=True
-            mock_async_client.assert_called_once_with(timeout=10.0, follow_redirects=True)
+            # Verify AsyncClient was created with follow_redirects=True and verify=True
+            mock_async_client.assert_called_once_with(timeout=10.0, follow_redirects=True, verify=True)
+
+    @pytest.mark.asyncio
+    async def test_discovery_disable_tls_verify(self, oidc_service: OIDCService) -> None:
+        """Test that discovery passes verify=False when disable_tls_verify is True."""
+        mock_response = MagicMock()
+        mock_response.status_code = status.HTTP_200_OK
+        mock_response.json.return_value = {
+            "issuer": "https://example.com",
+            "authorization_endpoint": "https://example.com/authorize",
+            "token_endpoint": "https://example.com/token",
+            "jwks_uri": "https://example.com/jwks",
+        }
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_response)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("nexus.auth.services.oidc_service.httpx.AsyncClient") as mock_async_client:
+            mock_async_client.return_value = mock_client
+            await oidc_service.fetch_discovery_config("https://example.com", disable_tls_verify=True)
+
+            mock_async_client.assert_called_once_with(timeout=10.0, follow_redirects=True, verify=False)
+
+    @pytest.mark.asyncio
+    async def test_discovery_ssl_verification_error(self, oidc_service: OIDCService) -> None:
+        """SSL cert verification failure produces actionable error message."""
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(
+            side_effect=httpx.ConnectError(
+                "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate",
+                request=MagicMock(),
+            )
+        )
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("nexus.auth.services.oidc_service.httpx.AsyncClient", return_value=mock_client):
+            with pytest.raises(OIDCError, match="TLS certificate verification failed"):
+                await oidc_service.fetch_discovery_config("https://example.com")
+
+    @pytest.mark.asyncio
+    async def test_discovery_non_ssl_connect_error_uses_generic_message(self, oidc_service: OIDCService) -> None:
+        """Non-SSL ConnectError falls through to generic message."""
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(side_effect=httpx.ConnectError("Connection refused", request=MagicMock()))
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("nexus.auth.services.oidc_service.httpx.AsyncClient", return_value=mock_client):
+            with pytest.raises(OIDCError, match="Discovery request failed"):
+                await oidc_service.fetch_discovery_config("https://example.com")
 
 
 class TestGeneratePKCE:
@@ -482,6 +598,35 @@ class TestExchangeCodeForTokens:
                 )
 
     @pytest.mark.asyncio
+    async def test_exchange_disable_tls_verify(self, oidc_service: OIDCService) -> None:
+        """Test that token exchange passes verify=False when disable_tls_verify is True."""
+        mock_response = MagicMock()
+        mock_response.status_code = status.HTTP_200_OK
+        mock_response.json.return_value = {
+            "access_token": "access-token-123",
+            "id_token": "id-token-456",
+        }
+
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=mock_response)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("nexus.auth.services.oidc_service.httpx.AsyncClient") as mock_async_client:
+            mock_async_client.return_value = mock_client
+            await oidc_service.exchange_code_for_tokens(
+                token_endpoint="https://example.com/token",
+                code="auth-code-123",
+                redirect_uri="https://app.example.com/callback",
+                client_id="client-123",
+                client_secret="secret-456",
+                code_verifier="verifier-789",
+                disable_tls_verify=True,
+            )
+
+            mock_async_client.assert_called_once_with(timeout=10.0, follow_redirects=True, verify=False)
+
+    @pytest.mark.asyncio
     async def test_rejects_non_http_scheme_token_endpoint(self, oidc_service: OIDCService) -> None:
         """Test that token exchange rejects non-HTTP(S) schemes (SSRF, AAP-71276)."""
         with patch("nexus.auth.services.oidc_service.get_settings") as mock_gs:
@@ -489,6 +634,30 @@ class TestExchangeCodeForTokens:
             with pytest.raises(OIDCError, match="OIDC issuer URL must use HTTPS"):
                 await oidc_service.exchange_code_for_tokens(
                     token_endpoint="ftp://example.com/token",
+                    code="auth-code-123",
+                    redirect_uri="https://app.example.com/callback",
+                    client_id="client-123",
+                    client_secret="secret-456",
+                    code_verifier="verifier-789",
+                )
+
+    @pytest.mark.asyncio
+    async def test_exchange_ssl_verification_error(self, oidc_service: OIDCService) -> None:
+        """SSL cert verification failure during token exchange produces actionable message."""
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(
+            side_effect=httpx.ConnectError(
+                "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed",
+                request=MagicMock(),
+            )
+        )
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("nexus.auth.services.oidc_service.httpx.AsyncClient", return_value=mock_client):
+            with pytest.raises(OIDCError, match="TLS certificate verification failed"):
+                await oidc_service.exchange_code_for_tokens(
+                    token_endpoint="https://example.com/token",
                     code="auth-code-123",
                     redirect_uri="https://app.example.com/callback",
                     client_id="client-123",
@@ -583,6 +752,31 @@ class TestFetchUserinfo:
                 )
 
     @pytest.mark.asyncio
+    async def test_userinfo_disable_tls_verify(self, oidc_service: OIDCService) -> None:
+        """Test that userinfo passes verify=False when disable_tls_verify is True."""
+        mock_response = MagicMock()
+        mock_response.status_code = status.HTTP_200_OK
+        mock_response.json.return_value = {
+            "sub": "user-123",
+            "email": "user@example.com",
+        }
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_response)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("nexus.auth.services.oidc_service.httpx.AsyncClient") as mock_async_client:
+            mock_async_client.return_value = mock_client
+            await oidc_service.fetch_userinfo(
+                userinfo_endpoint="https://example.com/userinfo",
+                access_token="access-token-123",
+                disable_tls_verify=True,
+            )
+
+            mock_async_client.assert_called_once_with(timeout=10.0, follow_redirects=True, verify=False)
+
+    @pytest.mark.asyncio
     async def test_userinfo_ssrf_validation(self, oidc_service: OIDCService) -> None:
         """Test that userinfo endpoint is validated against SSRF."""
         with patch("nexus.auth.services.oidc_service.get_settings") as mock_gs:
@@ -590,6 +784,26 @@ class TestFetchUserinfo:
             with pytest.raises(OIDCError, match="OIDC issuer URL must use HTTPS"):
                 await oidc_service.fetch_userinfo(
                     userinfo_endpoint="http://example.com/userinfo",
+                    access_token="access-token-123",
+                )
+
+    @pytest.mark.asyncio
+    async def test_userinfo_ssl_verification_error(self, oidc_service: OIDCService) -> None:
+        """SSL cert verification failure during userinfo fetch produces actionable message."""
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(
+            side_effect=httpx.ConnectError(
+                "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed",
+                request=MagicMock(),
+            )
+        )
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("nexus.auth.services.oidc_service.httpx.AsyncClient", return_value=mock_client):
+            with pytest.raises(OIDCError, match="TLS certificate verification failed"):
+                await oidc_service.fetch_userinfo(
+                    userinfo_endpoint="https://example.com/userinfo",
                     access_token="access-token-123",
                 )
 
@@ -729,6 +943,36 @@ class TestValidateIdToken:
                         nonce="expected-nonce",
                     )
 
+    def test_disable_tls_verify_passed_to_jwks_client(self, oidc_service: OIDCService) -> None:
+        """Test that disable_tls_verify is forwarded to _get_jwks_client."""
+        claims = {
+            "sub": "user-123",
+            "iss": "https://example.com",
+            "aud": "client-123",
+            "nonce": "nonce-456",
+            "exp": int((datetime.now(UTC) + timedelta(hours=1)).timestamp()),
+            "iat": int(datetime.now(UTC).timestamp()),
+        }
+
+        mock_signing_key = MagicMock()
+        mock_signing_key.key = "mock-key"
+
+        mock_jwks_client = MagicMock()
+        mock_jwks_client.get_signing_key_from_jwt = MagicMock(return_value=mock_signing_key)
+
+        with patch("nexus.auth.services.oidc_service._get_jwks_client", return_value=mock_jwks_client) as mock_get_jwks:
+            with patch("nexus.auth.services.oidc_service.pyjwt.decode", return_value=claims):
+                oidc_service.validate_id_token(
+                    id_token="mock-id-token",
+                    jwks_uri="https://example.com/jwks",
+                    issuer="https://example.com",
+                    client_id="client-123",
+                    nonce="nonce-456",
+                    disable_tls_verify=True,
+                )
+
+            mock_get_jwks.assert_called_once_with("https://example.com/jwks", disable_tls_verify=True)
+
     def test_rejects_http_jwks_uri(self, oidc_service: OIDCService) -> None:
         """Test that ID token validation rejects HTTP jwks_uri (SSRF, AAP-71276)."""
         with patch("nexus.auth.services.oidc_service.get_settings") as mock_gs:
@@ -758,6 +1002,31 @@ class TestValidateIdToken:
                     client_id="client-123",
                     nonce="nonce-456",
                 )
+
+    def test_validate_ssl_verification_error(self, oidc_service: OIDCService) -> None:
+        """SSL cert verification failure during JWKS fetch produces actionable message."""
+        from jwt.exceptions import PyJWKClientConnectionError
+
+        mock_jwks_client = MagicMock()
+        mock_jwks_client.get_signing_key_from_jwt = MagicMock(
+            side_effect=PyJWKClientConnectionError(
+                "Fail to fetch data from the url, err: "
+                '"<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] '
+                'certificate verify failed: self-signed certificate>"'
+            )
+        )
+
+        with (
+            patch("nexus.auth.services.oidc_service._get_jwks_client", return_value=mock_jwks_client),
+            pytest.raises(OIDCError, match="TLS certificate verification failed"),
+        ):
+            oidc_service.validate_id_token(
+                id_token="mock-token",
+                jwks_uri="https://example.com/jwks",
+                issuer="https://example.com",
+                client_id="client-123",
+                nonce="nonce-456",
+            )
 
 
 class TestExtractUserClaims:

@@ -68,7 +68,10 @@ async def test_identity_provider(
     current_user: Annotated[User, Depends(get_current_user)],  # noqa: ARG001
 ) -> OIDCTestResult:
     """Test identity provider connection without saving. Requires authentication."""
-    return await test_oidc_connection(provider_create.configuration.issuer_url)
+    return await test_oidc_connection(
+        provider_create.configuration.issuer_url,
+        disable_tls_verify=provider_create.configuration.disable_tls_verify,
+    )
 
 
 # ============================================================================

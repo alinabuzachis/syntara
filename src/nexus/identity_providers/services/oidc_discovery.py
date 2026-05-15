@@ -23,7 +23,7 @@ class OIDCTestResult(BaseModel):
     end_session_endpoint_supported: bool = False
 
 
-async def test_oidc_connection(issuer_url: str) -> OIDCTestResult:
+async def test_oidc_connection(issuer_url: str, *, disable_tls_verify: bool = False) -> OIDCTestResult:  # noqa: PT028
     """Test OIDC connection by fetching the well-known configuration.
 
     Delegates to OIDCService.fetch_discovery_config to avoid duplicating
@@ -31,6 +31,7 @@ async def test_oidc_connection(issuer_url: str) -> OIDCTestResult:
 
     Args:
         issuer_url: The OIDC issuer URL to test
+        disable_tls_verify: Skip TLS certificate verification (insecure)
 
     Returns:
         OIDCTestResult with success status, message, and discovered metadata
@@ -38,7 +39,7 @@ async def test_oidc_connection(issuer_url: str) -> OIDCTestResult:
     """
     try:
         oidc_service = OIDCService()
-        data = await oidc_service.fetch_discovery_config(issuer_url)
+        data = await oidc_service.fetch_discovery_config(issuer_url, disable_tls_verify=disable_tls_verify)
 
         return OIDCTestResult(
             success=True,

@@ -127,6 +127,10 @@ class OIDCConfiguration(BaseConsumerConfiguration):
         default=False,
         description="Map AAP aap_system_role claim to built-in groups",
     )
+    disable_tls_verify: bool = Field(
+        default=False,
+        description="Disable TLS certificate verification for requests to this identity provider (insecure)",
+    )
 
     @field_validator("idp_type")
     @classmethod
@@ -196,6 +200,10 @@ class OIDCConfigurationResponse(SQLModel):
         default=False,
         description="Map AAP aap_system_role claim to built-in groups",
     )
+    disable_tls_verify: bool = Field(
+        default=False,
+        description="Disable TLS certificate verification for requests to this identity provider (insecure)",
+    )
 
     model_config: ClassVar[ConfigDict] = ConfigDict(
         extra="forbid",
@@ -263,6 +271,10 @@ class OIDCConfigurationPatch(BaseConsumerConfiguration):
     aap_role_mapping_enabled: bool | None = Field(
         default=None,
         description="Map AAP aap_system_role claim to built-in groups (omit to keep existing)",
+    )
+    disable_tls_verify: bool | None = Field(
+        default=None,
+        description="Disable TLS certificate verification for this identity provider (omit to keep existing)",
     )
 
     @field_validator("idp_type")

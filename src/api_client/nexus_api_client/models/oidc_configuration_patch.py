@@ -44,6 +44,8 @@ class OIDCConfigurationPatch:
             existing)
         aap_role_mapping_enabled (bool | None | Unset): Map AAP aap_system_role claim to built-in groups (omit to keep
             existing)
+        disable_tls_verify (bool | None | Unset): Disable TLS certificate verification for this identity provider (omit
+            to keep existing)
     """
 
     issuer_url: str
@@ -65,6 +67,7 @@ class OIDCConfigurationPatch:
     group_mapping_entries: list[OIDCGroupMappingEntry] | None | Unset = UNSET
     auto_create_groups: bool | None | Unset = UNSET
     aap_role_mapping_enabled: bool | None | Unset = UNSET
+    disable_tls_verify: bool | None | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
         from ..models.oidc_claim_mapping import OIDCClaimMapping
@@ -167,6 +170,12 @@ class OIDCConfigurationPatch:
         else:
             aap_role_mapping_enabled = self.aap_role_mapping_enabled
 
+        disable_tls_verify: bool | None | Unset
+        if isinstance(self.disable_tls_verify, Unset):
+            disable_tls_verify = UNSET
+        else:
+            disable_tls_verify = self.disable_tls_verify
+
         field_dict: dict[str, Any] = {}
 
         field_dict.update(
@@ -208,6 +217,8 @@ class OIDCConfigurationPatch:
             field_dict["auto_create_groups"] = auto_create_groups
         if aap_role_mapping_enabled is not UNSET:
             field_dict["aap_role_mapping_enabled"] = aap_role_mapping_enabled
+        if disable_tls_verify is not UNSET:
+            field_dict["disable_tls_verify"] = disable_tls_verify
 
         return field_dict
 
@@ -371,6 +382,15 @@ class OIDCConfigurationPatch:
 
         aap_role_mapping_enabled = _parse_aap_role_mapping_enabled(d.pop("aap_role_mapping_enabled", UNSET))
 
+        def _parse_disable_tls_verify(data: object) -> bool | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(bool | None | Unset, data)
+
+        disable_tls_verify = _parse_disable_tls_verify(d.pop("disable_tls_verify", UNSET))
+
         oidc_configuration_patch = cls(
             issuer_url=issuer_url,
             client_id=client_id,
@@ -391,6 +411,7 @@ class OIDCConfigurationPatch:
             group_mapping_entries=group_mapping_entries,
             auto_create_groups=auto_create_groups,
             aap_role_mapping_enabled=aap_role_mapping_enabled,
+            disable_tls_verify=disable_tls_verify,
         )
 
         return oidc_configuration_patch

@@ -397,7 +397,9 @@ class TestGetOidcEndpoints:
 
         result = await _get_oidc_endpoints(mock_svc, config)
 
-        mock_svc.fetch_discovery_config.assert_called_once_with(config.issuer_url)
+        mock_svc.fetch_discovery_config.assert_called_once_with(
+            config.issuer_url, disable_tls_verify=config.disable_tls_verify
+        )
         assert result["issuer"] == "https://idp.example.com"
         assert result["authorization_endpoint"] == "https://idp.example.com/oauth/authorize"
 
@@ -1052,7 +1054,9 @@ class TestExchangeAndValidateTokens:
         assert user_claims["email"] == "user@example.com"
         assert user_claims["name"] == "Test User"
         mock_oidc_service.fetch_userinfo.assert_called_once_with(
-            "https://idp.example.com/oauth/userinfo", "access-token-123"
+            "https://idp.example.com/oauth/userinfo",
+            "access-token-123",
+            disable_tls_verify=config.disable_tls_verify,
         )
 
     @pytest.mark.asyncio

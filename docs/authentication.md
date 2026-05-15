@@ -538,6 +538,7 @@ The `configuration` object includes:
 | `group_mapping_entries` | No | Maps IdP group values to Nexus groups (see [Group Mapping and Login Enforcement](#group-mapping-and-login-enforcement)) |
 | `auto_create_groups` | No | Auto-create Nexus groups from IdP group values on login (default: `false`) |
 | `aap_role_mapping_enabled` | No | Map AAP `aap_system_role` claim (`system_administrator`, `system_auditor`, `normal_user`) to built-in groups (default: `false`). Only effective when `idp_type` is `"aap"`. See [AAP Role Mapping](#aap-role-mapping) |
+| `disable_tls_verify` | No | Skip TLS certificate verification when connecting to the provider (default: `false`). See [TLS Certificate Verification](#tls-certificate-verification) |
 | `enable_rp_initiated_logout` | No | Enable RP-initiated logout to terminate IdP sessions on Nexus logout (default: `false`) |
 | `end_session_endpoint` | No | IdP's end-session endpoint URL. Auto-discovered from `.well-known` if not set |
 
@@ -549,6 +550,29 @@ The `configuration` object includes:
 | `token_endpoint` | Yes | URL where authorization codes are exchanged for tokens |
 | `jwks_uri` | Yes | URL to fetch public keys for token signature verification |
 | `userinfo_endpoint` | No | URL to fetch additional user claims |
+
+### TLS Certificate Verification
+
+By default, Nexus validates the TLS certificate chain when connecting to an OIDC identity provider. This ensures that the provider's certificate was issued by a trusted certificate authority (CA) and prevents man-in-the-middle attacks.
+
+When the provider uses a self-signed or internally-signed certificate that is not trusted by the system's CA bundle, all OIDC operations will fail with a TLS certificate verification error. The login page will display: *"TLS certificate verification failed. If the provider uses a self-signed certificate, enable 'Skip TLS certificate verification' in the identity provider settings."*
+
+To allow connections to providers with untrusted certificates, enable **Skip TLS certificate verification** (`disable_tls_verify: true`) in the provider's OIDC configuration. This affects all outbound HTTPS connections for that provider:
+
+- OIDC discovery (`.well-known/openid-configuration`)
+- Token exchange
+- JWKS key fetching (for ID token signature verification)
+- Userinfo endpoint
+
+**What is skipped**: All certificate verification — both CA trust-chain validation and hostname verification are disabled. Self-signed and internally-signed certificates are accepted regardless of the hostname they were issued for.
+
+**What is NOT skipped**: TLS encryption is still active. The connection is encrypted.
+
+**Security considerations**:
+
+- Enabling this option reduces the security of the connection to the identity provider. Use it only when necessary (e.g., development environments, internal infrastructure with private CAs).
+- When this setting is enabled, an audit event with WARNING severity is emitted on provider creation and update for security monitoring.
+- The preferred production approach is to add the provider's CA certificate to the system trust store rather than disabling verification.
 
 ### PKCE
 
