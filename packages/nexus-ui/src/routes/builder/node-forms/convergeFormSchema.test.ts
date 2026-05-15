@@ -16,7 +16,6 @@ describe('convergeFormSchema', () => {
       name: 'Converge',
       strategy: 'any',
       requiredPathCount: 2,
-      remainingBehavior: 'continue',
     })
     expect(result.success).toBe(true)
   })
@@ -43,7 +42,6 @@ describe('convergeFormSchema', () => {
     const result = convergeFormSchema.safeParse({
       name: 'Converge',
       strategy: 'any',
-      remainingBehavior: 'continue',
     })
     expect(result.success).toBe(false)
     if (!result.success) {
@@ -60,29 +58,12 @@ describe('convergeFormSchema', () => {
       name: 'Converge',
       strategy: 'any',
       requiredPathCount: 0,
-      remainingBehavior: 'continue',
     })
     expect(result.success).toBe(false)
     if (!result.success) {
       expect(
         result.error.issues.some(
           (i) => i.message === 'Required path count is required' && i.path?.includes('requiredPathCount')
-        )
-      ).toBe(true)
-    }
-  })
-
-  it('rejects strategy any without remaining behavior', () => {
-    const result = convergeFormSchema.safeParse({
-      name: 'Converge',
-      strategy: 'any',
-      requiredPathCount: 1,
-    })
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(
-        result.error.issues.some(
-          (i) => i.message === 'Behavior of remaining paths is required' && i.path?.includes('remainingBehavior')
         )
       ).toBe(true)
     }
@@ -143,7 +124,6 @@ describe('convergeFormSchema', () => {
       name: 'Converge',
       strategy: 'any',
       requiredPathCount: -1,
-      remainingBehavior: 'continue',
     })
     expect(result.success).toBe(false)
     if (!result.success) {
@@ -162,7 +142,6 @@ describe('convergeFormSchema', () => {
       name: 'Converge',
       strategy: 'any',
       requiredPathCount: 2.5,
-      remainingBehavior: 'continue',
     })
     expect(result.success).toBe(false)
     if (!result.success) {

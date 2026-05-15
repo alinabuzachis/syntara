@@ -142,7 +142,6 @@ describe('registerLogicNode', () => {
           logicType: 'converge',
           name: 'Join Any',
           strategy: 'any',
-          remainingBehavior: 'cancel',
         },
         onSuccess,
         onError
@@ -150,26 +149,6 @@ describe('registerLogicNode', () => {
 
       expect(onError).toHaveBeenCalledWith(
         'Required path count must be at least 1 when using "Any branches reach this step"'
-      )
-      expect(onSuccess).not.toHaveBeenCalled()
-    })
-
-    it('calls onError when strategy any is missing remainingBehavior', () => {
-      const onSuccess = vi.fn()
-      const onError = vi.fn()
-      getHandler()(
-        {
-          logicType: 'converge',
-          name: 'Join Any',
-          strategy: 'any',
-          requiredPathCount: 2,
-        },
-        onSuccess,
-        onError
-      )
-
-      expect(onError).toHaveBeenCalledWith(
-        'Behavior of remaining paths is required when using "Any branches reach this step"'
       )
       expect(onSuccess).not.toHaveBeenCalled()
     })
@@ -183,7 +162,6 @@ describe('registerLogicNode', () => {
           name: 'Join Any',
           strategy: 'any',
           requiredPathCount: 2,
-          remainingBehavior: 'cancel',
         },
         onSuccess,
         onError
@@ -195,7 +173,6 @@ describe('registerLogicNode', () => {
         expect.objectContaining({
           strategy: 'any',
           requiredPathCount: 2,
-          remainingBehavior: 'cancel',
         })
       )
       expect(mockAddActivity).toHaveBeenCalled()

@@ -22,29 +22,20 @@ import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'rea
 
 import { timeUnitsToSeconds } from '../utils/timeUtils'
 
-import {
-  convergeFormSchema,
-  type ConvergeFormData,
-  type ConvergeStrategy,
-  type RemainingBehavior,
-} from './convergeFormSchema'
+import { convergeFormSchema, type ConvergeFormData, type ConvergeStrategy } from './convergeFormSchema'
 import { ActivityNameField } from './shared/ActivityNameField'
+import { ContinueWhenCriteriaHelp } from './shared/ContinueWhenCriteriaHelp'
 import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
+import { RequiredBranchCountHelp } from './shared/RequiredBranchCountHelp'
 
-export type { ConvergeFormData, ConvergeStrategy, RemainingBehavior }
+export type { ConvergeFormData, ConvergeStrategy }
 
 /** Options for "Continue when criteria" dropdown */
-const CONTINUE_WHEN_CRITERIA_OPTIONS: Array<{ label: string; value: ConvergeStrategy; disabled?: boolean }> = [
+const CONTINUE_WHEN_CRITERIA_OPTIONS: Array<{ label: string; value: ConvergeStrategy }> = [
   { label: 'All branches reach this step', value: 'all' },
-  { label: 'Any branches reach this step (not yet implemented)', value: 'any', disabled: true },
-]
-
-/** Options for "Behavior of remaining paths" when strategy is 'any' */
-const REMAINING_BEHAVIOR_OPTIONS: Array<{ label: string; value: 'continue' | 'cancel' }> = [
-  { label: 'Continue running', value: 'continue' },
-  { label: 'Cancel runs from remaining paths', value: 'cancel' },
+  { label: 'Any branches reach this step', value: 'any' },
 ]
 
 /** Options for "Timeout action" dropdown */
@@ -112,7 +103,6 @@ function ConvergeFormFields({
   validationErrors?: {
     strategy?: { message?: string }
     requiredPathCount?: { message?: string }
-    remainingBehavior?: { message?: string }
     onTimeout?: { message?: string }
   }
 }) {
@@ -163,7 +153,12 @@ function ConvergeFormFields({
       {!onHeaderContentChange && <ActivityNameField register={register} fieldId="converge-name" />}
 
       <StackItem>
-        <FormGroup label="Continue when criteria" isRequired fieldId="converge-strategy">
+        <FormGroup
+          label="Continue when criteria"
+          labelHelp={<ContinueWhenCriteriaHelp />}
+          isRequired
+          fieldId="converge-strategy"
+        >
           <Controller
             control={control}
             name="strategy"
@@ -178,12 +173,7 @@ function ConvergeFormFields({
               >
                 <FormSelectOption value="" label="Select continue when criteria" isPlaceholder />
                 {CONTINUE_WHEN_CRITERIA_OPTIONS.map((option) => (
-                  <FormSelectOption
-                    key={option.value}
-                    value={option.value}
-                    label={option.label}
-                    isDisabled={option.disabled}
-                  />
+                  <FormSelectOption key={option.value} value={option.value} label={option.label} />
                 ))}
               </FormSelect>
             )}
@@ -201,59 +191,30 @@ function ConvergeFormFields({
       </StackItem>
 
       {strategy === 'any' && (
-        <>
-          <StackItem>
-            <FormGroup label="Required path count" isRequired fieldId="converge-requiredPathCount">
-              <TextInput
-                {...register('requiredPathCount', { valueAsNumber: true })}
-                id="converge-requiredPathCount"
-                type="number"
-                min={1}
-              />
-              {errors.requiredPathCount && (
-                <FormHelperText>
-                  <HelperText>
-                    <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
-                      {errors.requiredPathCount.message}
-                    </HelperTextItem>
-                  </HelperText>
-                </FormHelperText>
-              )}
-            </FormGroup>
-          </StackItem>
-
-          <StackItem>
-            <FormGroup label="Behavior of remaining paths" isRequired fieldId="converge-remainingBehavior">
-              <Controller
-                control={control}
-                name="remainingBehavior"
-                render={({ field }) => (
-                  <FormSelect
-                    id="converge-remainingBehavior"
-                    aria-label="Behavior of remaining paths"
-                    value={field.value ?? ''}
-                    onChange={(_event, value) => field.onChange(value)}
-                    isRequired
-                  >
-                    <FormSelectOption value="" label="Select behavior of remaining paths" isPlaceholder />
-                    {REMAINING_BEHAVIOR_OPTIONS.map((option) => (
-                      <FormSelectOption key={option.value} value={option.value} label={option.label} />
-                    ))}
-                  </FormSelect>
-                )}
-              />
-              {errors.remainingBehavior && (
-                <FormHelperText>
-                  <HelperText>
-                    <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
-                      {errors.remainingBehavior.message}
-                    </HelperTextItem>
-                  </HelperText>
-                </FormHelperText>
-              )}
-            </FormGroup>
-          </StackItem>
-        </>
+        <StackItem>
+          <FormGroup
+            label="Required number of branches before continuing"
+            labelHelp={<RequiredBranchCountHelp />}
+            isRequired
+            fieldId="converge-requiredPathCount"
+          >
+            <TextInput
+              {...register('requiredPathCount', { valueAsNumber: true })}
+              id="converge-requiredPathCount"
+              type="number"
+              min={1}
+            />
+            {errors.requiredPathCount && (
+              <FormHelperText>
+                <HelperText>
+                  <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+                    {errors.requiredPathCount.message}
+                  </HelperTextItem>
+                </HelperText>
+              </FormHelperText>
+            )}
+          </FormGroup>
+        </StackItem>
       )}
 
       <StackItem>
@@ -396,7 +357,6 @@ export function ConvergeNodeForm(props: ConvergeNodeFormProps) {
       timeout,
       onTimeout: timeout !== undefined ? data.onTimeout : undefined,
       requiredPathCount: data.strategy === 'any' ? data.requiredPathCount : undefined,
-      remainingBehavior: data.strategy === 'any' ? data.remainingBehavior : undefined,
     }
 
     props.onSubmit(cleanedData)

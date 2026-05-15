@@ -475,7 +475,6 @@ export function createConvergeActivity(
     onTimeout?: 'continue' | 'fail'
     aggregateOutputs?: boolean
     requiredPathCount?: number
-    remainingBehavior?: 'continue' | 'cancel'
   }
 ): Activity {
   return {
@@ -484,7 +483,9 @@ export function createConvergeActivity(
     name,
     config: {
       strategy: config?.strategy ?? 'all',
-      ...(config?.onTimeout && { on_timeout: config.onTimeout }),
+      ...(config?.onTimeout != null && { on_timeout: config.onTimeout }),
+      ...(config?.timeout !== undefined && { timeout: config.timeout }),
+      ...(config?.strategy === 'any' && config?.requiredPathCount != null && { n_required: config.requiredPathCount }),
     },
   }
 }

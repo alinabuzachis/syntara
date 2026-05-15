@@ -22,7 +22,7 @@ describe('ConvergeNodeForm', () => {
     it('renders strategy selector', () => {
       renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} />)
 
-      expect(screen.getByLabelText(/Continue when criteria/i)).toBeInTheDocument()
+      expect(screen.getByRole('combobox', { name: /Continue when criteria/i })).toBeInTheDocument()
     })
 
     it('renders timeout toggle', () => {
@@ -50,42 +50,57 @@ describe('ConvergeNodeForm', () => {
       expect(screen.getByLabelText(/Day\(s\)/i)).toBeInTheDocument()
       expect(screen.getByText(/Timeout action/i)).toBeInTheDocument()
     })
+
+    it('renders help popovers for strategy and branch count fields', () => {
+      renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} initialData={{ strategy: 'any' }} />)
+
+      expect(screen.getByRole('button', { name: /Continue when criteria help/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Required branch count help/i })).toBeInTheDocument()
+    })
   })
 
   describe('Strategy "any" Fields', () => {
     it('does not render "any" fields when strategy is "all"', () => {
       renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} />)
 
-      expect(screen.queryByLabelText(/Required path count/i)).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('spinbutton', { name: /Required number of branches before continuing/i })
+      ).not.toBeInTheDocument()
       expect(screen.queryByLabelText(/Behavior of remaining paths/i)).not.toBeInTheDocument()
     })
 
-    // Note: "any" strategy is disabled in the current implementation
-    // These tests are placeholders for when it's enabled
-
-    it.skip('renders "any" fields when strategy is "any"', () => {
+    it('renders "any" fields when strategy is "any"', () => {
       renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} initialData={{ strategy: 'any' }} />)
 
-      expect(screen.getByLabelText(/Required path count/i)).toBeInTheDocument()
-      expect(screen.getByLabelText(/Behavior of remaining paths/i)).toBeInTheDocument()
+      expect(
+        screen.getByRole('spinbutton', { name: /Required number of branches before continuing/i })
+      ).toBeInTheDocument()
+      expect(screen.queryByLabelText(/Behavior of remaining paths/i)).not.toBeInTheDocument()
     })
 
-    it.skip('submits "any" strategy data with required fields', async () => {
+    it('submits "any" strategy data with required fields', async () => {
       const user = userEvent.setup()
-      renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} initialData={{ strategy: 'any' }} />)
+      renderWithHeader(
+        <ConvergeNodeForm onSubmit={mockOnSubmit} initialData={{ strategy: 'any', requiredPathCount: 1 }} />
+      )
 
       await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Any Strategy')
-      await user.type(screen.getByLabelText(/Required path count/i), '3')
-      await user.selectOptions(screen.getByLabelText(/Behavior of remaining paths/i), 'cancel')
-      await user.click(screen.getByRole('button', { name: /Add step/i }))
+      const branchCountInput = screen.getByRole('spinbutton', {
+        name: /Required number of branches before continuing/i,
+      })
+      await user.clear(branchCountInput)
+      await user.type(branchCountInput, '3')
 
-      expect(mockOnSubmit).toHaveBeenCalledWith(
-        expect.objectContaining({
-          strategy: 'any',
-          requiredPathCount: 3,
-          remainingBehavior: 'cancel',
-        })
-      )
+      fireEvent.submit(screen.getByTestId('converge-node-form'))
+
+      await waitFor(() => {
+        expect(mockOnSubmit).toHaveBeenCalledWith(
+          expect.objectContaining({
+            strategy: 'any',
+            requiredPathCount: 3,
+          })
+        )
+      })
     })
   })
 
@@ -100,7 +115,7 @@ describe('ConvergeNodeForm', () => {
       renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} initialData={initialData} />)
 
       expect(screen.getByPlaceholderText(/Enter activity name/i)).toHaveValue('Existing Converge')
-      expect(screen.getByLabelText(/Continue when criteria/i)).toHaveValue('all')
+      expect(screen.getByRole('combobox', { name: /Continue when criteria/i })).toHaveValue('all')
       expect(screen.getByRole('switch', { name: /Timeout/i })).not.toBeChecked()
     })
 
@@ -129,7 +144,7 @@ describe('ConvergeNodeForm', () => {
     it('defaults strategy to "all"', () => {
       renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} />)
 
-      expect(screen.getByLabelText(/Continue when criteria/i)).toHaveValue('all')
+      expect(screen.getByRole('combobox', { name: /Continue when criteria/i })).toHaveValue('all')
     })
 
     it('defaults timeoutEnabled to false', () => {
@@ -145,7 +160,6 @@ describe('ConvergeNodeForm', () => {
       await user.click(screen.getByRole('switch', { name: /Timeout/i }))
       await user.type(screen.getByLabelText(/Minute\(s\)/i), '1')
 
-      // Check that Fail is the default in the Select
       expect(screen.getByRole('button', { name: /Fail/i })).toBeInTheDocument()
     })
   })
@@ -172,38 +186,32 @@ describe('ConvergeNodeForm', () => {
   })
 
   describe('Validation', () => {
-    // TODO: This test has a timing issue that surfaces when timeout calculation is fixed
-    // The test passes with the buggy `|| undefined` but fails with correct logic
-    // Investigation needed: why does timeout calculation affect strategy validation?
     it.skip('validates required strategy field', async () => {
       const user = userEvent.setup()
       renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} />)
 
       await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'No Strategy')
-      // Clear the default 'all' value
-      await user.selectOptions(screen.getByLabelText(/Continue when criteria/i), '')
+      await user.selectOptions(screen.getByRole('combobox', { name: /Continue when criteria/i }), '')
       await user.click(screen.getByRole('button', { name: /Add step/i }))
 
-      // Should show validation error
       expect(screen.getByText(/Continue when criteria is required/i)).toBeInTheDocument()
       expect(mockOnSubmit).not.toHaveBeenCalled()
     })
   })
 
   describe('Form Submission', () => {
-    it('does not include requiredPathCount and remainingBehavior when strategy is "all"', async () => {
+    it('does not include requiredPathCount when strategy is "all"', async () => {
       const user = userEvent.setup()
       renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} />)
 
       await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'All Strategy')
-      await user.selectOptions(screen.getByLabelText(/Continue when criteria/i), 'all')
+      await user.selectOptions(screen.getByRole('combobox', { name: /Continue when criteria/i }), 'all')
 
       fireEvent.submit(screen.getByTestId('converge-node-form'))
 
       await waitFor(() => {
         const submittedData = mockOnSubmit.mock.calls[0][0] as ConvergeFormData
         expect(submittedData.requiredPathCount).toBeUndefined()
-        expect(submittedData.remainingBehavior).toBeUndefined()
       })
     })
 
@@ -212,7 +220,7 @@ describe('ConvergeNodeForm', () => {
       renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} />)
 
       await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'No Timeout')
-      await user.selectOptions(screen.getByLabelText(/Continue when criteria/i), 'all')
+      await user.selectOptions(screen.getByRole('combobox', { name: /Continue when criteria/i }), 'all')
 
       fireEvent.submit(screen.getByTestId('converge-node-form'))
 

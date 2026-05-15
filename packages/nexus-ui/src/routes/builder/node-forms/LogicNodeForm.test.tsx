@@ -64,7 +64,7 @@ describe('LogicNodeForm', () => {
 
       // Verify ConvergeNodeForm is rendered by checking for its unique elements
       expect(screen.getByPlaceholderText(/Enter activity name/i)).toHaveValue('Test Converge')
-      expect(screen.getByLabelText(/Continue when/i)).toBeInTheDocument()
+      expect(screen.getByRole('combobox', { name: /Continue when criteria/i })).toBeInTheDocument()
     })
 
     it('returns null when logicType is unknown', () => {
@@ -248,13 +248,12 @@ describe('LogicNodeForm', () => {
             timeout: 3930,
             onTimeout: 'fail',
             requiredPathCount: 2,
-            remainingBehavior: 'cancel',
           }}
         />
       )
 
       expect(screen.getByPlaceholderText(/Enter activity name/i)).toHaveValue('Converge Node')
-      expect(screen.getByLabelText(/Continue when/i)).toHaveValue('any')
+      expect(screen.getByRole('combobox', { name: /Continue when criteria/i })).toHaveValue('any')
     })
   })
 })

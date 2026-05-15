@@ -240,33 +240,12 @@ describe('registerLogicNodeSubmit', () => {
             name: 'C',
             strategy: 'any',
             requiredPathCount: 0,
-            remainingBehavior: 'cancel',
           } as never,
           onError
         )
       ).toBe(false)
       expect(onError).toHaveBeenCalledWith(
         'Required path count must be at least 1 when using "Any branches reach this step"'
-      )
-    })
-
-    it('returns false for strategy any without remainingBehavior', () => {
-      const onError = vi.fn()
-      expect(
-        submitConvergeLogic(
-          'c1',
-          'C',
-          {
-            logicType: ActivityTypeEnum.CONVERGE,
-            name: 'C',
-            strategy: 'any',
-            requiredPathCount: 2,
-          } as never,
-          onError
-        )
-      ).toBe(false)
-      expect(onError).toHaveBeenCalledWith(
-        'Behavior of remaining paths is required when using "Any branches reach this step"'
       )
     })
 
@@ -295,7 +274,6 @@ describe('registerLogicNodeSubmit', () => {
             name: 'Any join',
             strategy: 'any',
             requiredPathCount: 2,
-            remainingBehavior: 'wait',
             timeout: 60,
             onTimeout: 'fail',
           } as never,

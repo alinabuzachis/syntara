@@ -229,7 +229,6 @@ describe('ConvergeNodeDetails Component', () => {
           strategy: 'any',
           branches: ['a', 'b', 'c'],
           required_path_count: 2,
-          remaining_behavior: 'continue',
         },
       })
 
@@ -244,7 +243,6 @@ describe('ConvergeNodeDetails Component', () => {
           strategy: 'any',
           branches: ['a', 'b', 'c'],
           requiredPathCount: 3,
-          remainingBehavior: 'cancel',
         },
       })
 
@@ -253,32 +251,43 @@ describe('ConvergeNodeDetails Component', () => {
       expect(screen.getByTestId('initial-required-path-count')).toHaveTextContent('3')
     })
 
-    it('prefers required_path_count over requiredPathCount when both present', () => {
+    it('prefers n_required over required_path_count and requiredPathCount', () => {
+      const convergeData = createConvergeData({
+        config: {
+          strategy: 'any',
+          branches: ['a', 'b', 'c'],
+          n_required: 4,
+          required_path_count: 2,
+          requiredPathCount: 5,
+        },
+      })
+
+      render(<ConvergeNodeDetails convergeData={convergeData} nodeId="converge-1" onClose={mockOnClose} />)
+
+      expect(screen.getByTestId('initial-required-path-count')).toHaveTextContent('4')
+    })
+
+    it('falls back to required_path_count when n_required absent', () => {
       const convergeData = createConvergeData({
         config: {
           strategy: 'any',
           branches: ['a', 'b', 'c'],
           required_path_count: 2,
           requiredPathCount: 5,
-          remaining_behavior: 'continue',
         },
       })
 
       render(<ConvergeNodeDetails convergeData={convergeData} nodeId="converge-1" onClose={mockOnClose} />)
 
-      // Should use required_path_count (2), not requiredPathCount (5)
       expect(screen.getByTestId('initial-required-path-count')).toHaveTextContent('2')
     })
 
-    it('writes required_path_count and remaining_behavior in snake_case when saving', () => {
-      // This test verifies the write logic without needing to trigger the actual form submission
-      // The write logic in lines 74-76 shows it correctly uses snake_case
+    it('writes n_required in snake_case when saving', () => {
       const convergeData = createConvergeData({
         config: {
           strategy: 'any',
           branches: ['a', 'b', 'c'],
           requiredPathCount: 3,
-          remainingBehavior: 'cancel',
         },
       })
 

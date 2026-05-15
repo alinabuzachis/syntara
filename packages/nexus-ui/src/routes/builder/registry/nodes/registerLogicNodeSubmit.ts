@@ -132,10 +132,6 @@ export function submitConvergeLogic(
       onError('Required path count must be at least 1 when using "Any branches reach this step"')
       return false
     }
-    if (!data.remainingBehavior) {
-      onError('Behavior of remaining paths is required when using "Any branches reach this step"')
-      return false
-    }
   }
 
   const activity = createConvergeActivity(activityId, name, {
@@ -144,7 +140,6 @@ export function submitConvergeLogic(
     onTimeout: data.onTimeout,
     ...(data.strategy === 'any' && {
       requiredPathCount: data.requiredPathCount,
-      remainingBehavior: data.remainingBehavior,
     }),
   })
 

@@ -16,7 +16,7 @@ const positiveWholeNumber = optionalNumber
 
 /**
  * Zod schema for the Converge node form.
- * Conditional: strategy required; when strategy is 'any', requiredPathCount and remainingBehavior required;
+ * Conditional: strategy required; when strategy is 'any', requiredPathCount required;
  * when timeoutEnabled, onTimeout required.
  */
 const convergeFormSchemaBase = z.object({
@@ -31,7 +31,6 @@ const convergeFormSchemaBase = z.object({
   timeout: z.number().optional(),
   onTimeout: z.enum(['continue', 'fail']).optional(),
   requiredPathCount: positiveWholeNumber,
-  remainingBehavior: z.enum(['continue', 'cancel']).optional(),
 })
 
 export const convergeFormSchema = convergeFormSchemaBase.superRefine((data, ctx) => {
@@ -50,13 +49,6 @@ export const convergeFormSchema = convergeFormSchemaBase.superRefine((data, ctx)
         path: ['requiredPathCount'],
       })
     }
-    if (!data.remainingBehavior) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Behavior of remaining paths is required',
-        path: ['remainingBehavior'],
-      })
-    }
   }
   if (data.timeoutEnabled && !data.onTimeout) {
     ctx.addIssue({
@@ -69,4 +61,3 @@ export const convergeFormSchema = convergeFormSchemaBase.superRefine((data, ctx)
 
 export type ConvergeFormData = z.infer<typeof convergeFormSchemaBase>
 export type ConvergeStrategy = ConvergeFormData['strategy']
-export type RemainingBehavior = NonNullable<ConvergeFormData['remainingBehavior']>

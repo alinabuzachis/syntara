@@ -110,6 +110,39 @@ describe('ConvergeNodeComponent', () => {
       expect(screen.getByText('Type')).toBeInTheDocument()
       expect(screen.getByText('All')).toBeInTheDocument()
     })
+
+    it('renders "Any" for strategy any without n_required', () => {
+      // Cast through unknown because the contract type doesn't include 'any' yet
+      const anyConverge = {
+        type: 'converge',
+        id: 'converge-any-1',
+        name: 'Any Strategy',
+        config: {
+          strategy: 'any',
+        },
+      } as unknown as ConvergeActivity
+
+      render(<ConvergeNodeComponent {...createNodeProps(anyConverge)} />)
+
+      expect(screen.getByText('Any')).toBeInTheDocument()
+    })
+
+    it('renders "Any N" for strategy any with n_required', () => {
+      // Cast through unknown because the contract type doesn't include 'any' yet
+      const anyNConverge = {
+        type: 'converge',
+        id: 'converge-any-n-1',
+        name: 'Any 3 Strategy',
+        config: {
+          strategy: 'any',
+          n_required: 3,
+        },
+      } as unknown as ConvergeActivity
+
+      render(<ConvergeNodeComponent {...createNodeProps(anyNConverge)} />)
+
+      expect(screen.getByText('Any 3')).toBeInTheDocument()
+    })
   })
 
   describe('Empty name', () => {

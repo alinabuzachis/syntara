@@ -437,14 +437,14 @@ describe('workflowFactories', () => {
         expect(activity.config.strategy).toBe('any')
       })
 
-      it('creates a converge activity with strategy any and optional fields', () => {
+      it('creates a converge activity with strategy any and n_required', () => {
         const activity = createConvergeActivity('conv-1', 'Converge Any', {
           strategy: 'any',
           requiredPathCount: 2,
-          remainingBehavior: 'cancel',
         })
 
         expect(activity.config.strategy).toBe('any')
+        expect(activity.config.n_required).toBe(2)
       })
     })
 

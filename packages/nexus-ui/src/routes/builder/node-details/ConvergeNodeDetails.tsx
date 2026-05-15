@@ -29,10 +29,9 @@ export function ConvergeNodeDetails({
     timeout?: number
     on_timeout?: string
     onTimeout?: string
+    n_required?: number
     required_path_count?: number
     requiredPathCount?: number
-    remaining_behavior?: 'continue' | 'cancel'
-    remainingBehavior?: 'continue' | 'cancel'
   }
 
   const storedTimeout = convergeConfig.timeout
@@ -47,8 +46,8 @@ export function ConvergeNodeDetails({
     timeoutHours: timeUnits?.hours ?? undefined,
     timeoutDays: timeUnits?.days ?? undefined,
     onTimeout: (convergeConfig.on_timeout ?? convergeConfig.onTimeout ?? 'fail') as 'continue' | 'fail',
-    requiredPathCount: convergeConfig.required_path_count ?? convergeConfig.requiredPathCount ?? 1,
-    remainingBehavior: convergeConfig.remaining_behavior ?? convergeConfig.remainingBehavior,
+    requiredPathCount:
+      convergeConfig.n_required ?? convergeConfig.required_path_count ?? convergeConfig.requiredPathCount ?? 1,
   }
 
   const handleSubmit = (data: {
@@ -57,20 +56,19 @@ export function ConvergeNodeDetails({
     timeout?: number
     onTimeout?: 'continue' | 'fail'
     requiredPathCount?: number
-    remainingBehavior?: 'continue' | 'cancel'
   }) => {
     try {
       const updatedActivity: ConvergeActivity = {
         ...convergeData,
         name: data.name,
         config: {
-          // TODO: remove cast when backend schema supports 'any' strategy
-          strategy: (data.strategy ?? 'all') as 'all',
+          strategy: data.strategy ?? 'all',
           ...(data.timeout !== undefined && { timeout: data.timeout }),
           ...(data.onTimeout !== undefined && { on_timeout: data.onTimeout }),
           ...(data.strategy === 'any' &&
-            data.requiredPathCount !== undefined && { required_path_count: data.requiredPathCount }),
-          ...(data.strategy === 'any' && data.remainingBehavior && { remaining_behavior: data.remainingBehavior }),
+            data.requiredPathCount !== undefined && {
+              n_required: data.requiredPathCount,
+            }),
         },
       } as ConvergeActivity
 

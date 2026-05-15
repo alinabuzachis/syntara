@@ -15,6 +15,11 @@ import { StandardNodeHeader } from './common/StandardNodeHeader'
 import { nodeMetadata } from './nodeMetadata'
 import { renderNodeIcon } from './renderNodeIcon'
 
+function getStrategyLabel(strategy?: 'all' | 'any', nRequired?: number): string {
+  if (strategy !== 'any') return 'All'
+  return nRequired != null && nRequired > 0 ? `Any ${nRequired}` : 'Any'
+}
+
 export type ConvergeNode = { type: 'converge' } & Node<ConvergeActivity>
 
 export function ConvergeNodeComponent(props: NodeProps<ConvergeNode>) {
@@ -25,11 +30,9 @@ export function ConvergeNodeComponent(props: NodeProps<ConvergeNode>) {
     'canvas',
     getNodeTypeColor(ActivityTypeEnum.CONVERGE)
   )
-  // In v2, strategy is at config.strategy (not converge.strategy)
-  const config = (props.data.config ?? {}) as { strategy?: 'all' | 'any' }
-  const strategyLabel = config.strategy === 'any' ? 'Any' : 'All'
+  const config = (props.data.config ?? {}) as { strategy?: 'all' | 'any'; n_required?: number }
+  const strategyLabel = getStrategyLabel(config.strategy, config.n_required)
 
-  // Extract execution state if present
   const executionState = (props.data as Record<string, unknown>).__executionState as
     | {
         status: ActivityStatus

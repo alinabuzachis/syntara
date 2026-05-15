@@ -6,7 +6,7 @@ import { ConvergeNodeForm, type ConvergeFormData } from './ConvergeNodeForm'
 import { LoopNodeForm, type LoopFormData } from './LoopNodeForm'
 
 /** Converge strategy: when to continue after branches (re-exported from ConvergeNodeForm) */
-export type { ConvergeStrategy, RemainingBehavior } from './ConvergeNodeForm'
+export type { ConvergeStrategy } from './ConvergeNodeForm'
 
 /**
  * Combined form data type for logic nodes.
@@ -34,7 +34,6 @@ export type LogicFormData = {
   onTimeout?: 'continue' | 'fail'
   strategy?: 'all' | 'any'
   requiredPathCount?: number
-  remainingBehavior?: 'continue' | 'cancel'
 }
 
 type LogicNodeFormProps = Readonly<{
@@ -119,7 +118,6 @@ export function LogicNodeForm({ onSubmit, initialData, onHeaderContentChange }: 
       timeout: initialData?.timeout,
       onTimeout: initialData?.onTimeout,
       requiredPathCount: initialData?.requiredPathCount,
-      remainingBehavior: initialData?.remainingBehavior,
     }
 
     const handleConvergeSubmit = (data: ConvergeFormData) => {
