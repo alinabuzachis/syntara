@@ -7,6 +7,8 @@ import {
   EmptyStateFooter,
   Flex,
   FlexItem,
+  List,
+  ListItem,
   Stack,
   StackItem,
   Switch,
@@ -304,11 +306,11 @@ export function IdentityProvidersTab() {
           </StackItem>
           <StackItem>This will immediately:</StackItem>
           <StackItem>
-            <ul style={{ paddingLeft: 'var(--pf-t--global--spacer--lg)', margin: 0 }}>
-              <li>Remove all user identities linked to this provider</li>
-              <li>Revoke active sessions authenticated via this provider</li>
-              <li>Prevent users from signing in with this provider</li>
-            </ul>
+            <List>
+              <ListItem>Remove all user identities linked to this provider</ListItem>
+              <ListItem>Revoke active sessions authenticated via this provider</ListItem>
+              <ListItem>Prevent users from signing in with this provider</ListItem>
+            </List>
           </StackItem>
         </Stack>
       </ConfirmationDialog>
