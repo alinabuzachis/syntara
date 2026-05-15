@@ -84,6 +84,7 @@ def _make_user(
     *,
     user_id: str | None = None,
     is_enabled: bool = True,
+    is_builtin: bool = False,
     password_hash: str | None = "$argon2id$v=19$m=65536,t=3,p=4$fakehash",  # noqa: S107
 ) -> User:
     return User(
@@ -92,8 +93,16 @@ def _make_user(
         email="test@example.com",
         full_name="Test User",
         is_enabled=is_enabled,
+        is_builtin=is_builtin,
         password_hash=password_hash,
     )
+
+
+def _mock_runtime_settings(*, local_login_enabled: bool = True) -> MagicMock:
+    """Build a mock for get_runtime_settings that returns a cache with get_bool configured."""
+    mock_cache = AsyncMock()
+    mock_cache.get_bool.return_value = local_login_enabled
+    return MagicMock(return_value=mock_cache)
 
 
 def _make_session(jti: str = "jti-abc") -> SessionInfo:
@@ -150,6 +159,7 @@ class TestLoginEndpoint:
             patch("nexus.auth.router.create_session_store", _patch_session_store(mock_store)),
             patch("nexus.auth.router.get_settings", return_value=mock_settings),
             patch("nexus.auth.router.set_refresh_cookie") as mock_set_cookie,
+            patch("nexus.auth.router.get_runtime_settings", _mock_runtime_settings()),
         ):
             result = await login(body, request, response, db)
 
@@ -186,6 +196,7 @@ class TestLoginEndpoint:
             patch("nexus.auth.router.create_session_store", _patch_session_store(mock_store)),
             patch("nexus.auth.router.get_settings", return_value=mock_settings),
             patch("nexus.auth.router.set_refresh_cookie"),
+            patch("nexus.auth.router.get_runtime_settings", _mock_runtime_settings()),
         ):
             result = await login(body, request, response, db)
 
@@ -211,6 +222,7 @@ class TestLoginEndpoint:
         db.exec.return_value = mock_result
 
         with (
+            patch("nexus.auth.router.get_runtime_settings", _mock_runtime_settings()),
             patch("nexus.auth.router.verify_password", return_value=False),
             pytest.raises(AuthenticationRequiredError),
         ):
@@ -245,6 +257,7 @@ class TestLoginEndpoint:
         db.exec.return_value = mock_result
 
         with (
+            patch("nexus.auth.router.get_runtime_settings", _mock_runtime_settings()),
             patch("nexus.auth.router.verify_password", return_value=True),
             pytest.raises(AuthenticationRequiredError),
         ):
@@ -265,6 +278,98 @@ class TestLoginEndpoint:
 
         with pytest.raises(AuthenticationRequiredError):
             await login(body, request, response, db)
+
+    @pytest.mark.asyncio
+    async def test_login_rejects_non_builtin_user_when_local_login_disabled(self) -> None:
+        """Non-builtin user is rejected before password verification when local login is disabled."""
+        user = _make_user()
+        request = _make_request()
+        response = _make_response()
+        body = LoginRequest(username="testuser", password="any")  # noqa: S106
+
+        db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = user
+        db.exec.return_value = mock_result
+
+        with (
+            patch("nexus.auth.router.verify_password") as mock_verify,
+            patch("nexus.auth.router.get_runtime_settings", _mock_runtime_settings(local_login_enabled=False)),
+            pytest.raises(AuthenticationRequiredError),
+        ):
+            await login(body, request, response, db)
+
+        mock_verify.assert_not_called()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("local_login_enabled", [True, False], ids=["setting_enabled", "setting_disabled"])
+    async def test_login_allows_builtin_user_regardless_of_setting(self, *, local_login_enabled: bool) -> None:
+        """Built-in user can login regardless of authentication.local_login_enabled value."""
+        user = _make_user(is_builtin=True)
+        request = _make_request()
+        response = _make_response()
+        body = LoginRequest(username="testuser", password="correct-password")  # noqa: S106
+
+        db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = user
+        db.exec.return_value = mock_result
+
+        mock_token_service = MagicMock()
+        mock_token_service.create_access_token.return_value = "access-token-123"
+        mock_token_service.create_refresh_token.return_value = ("refresh-jwt", "jti-1", datetime.now(UTC))
+
+        mock_store = AsyncMock()
+
+        mock_settings = MagicMock()
+        mock_settings.jwt_refresh_token_lifetime_hours = 8
+        mock_settings.jwt_access_token_lifetime_minutes = 15
+
+        with (
+            patch("nexus.auth.router._get_token_service", return_value=mock_token_service),
+            patch("nexus.auth.router.verify_password", return_value=True),
+            patch("nexus.auth.router.create_session_store", _patch_session_store(mock_store)),
+            patch("nexus.auth.router.get_settings", return_value=mock_settings),
+            patch("nexus.auth.router.set_refresh_cookie"),
+            patch(
+                "nexus.auth.router.get_runtime_settings",
+                _mock_runtime_settings(local_login_enabled=local_login_enabled),
+            ),
+        ):
+            result = await login(body, request, response, db)
+
+        assert result.access_token == "access-token-123"  # noqa: S105
+
+    @pytest.mark.asyncio
+    async def test_login_dispatches_local_login_disabled_audit_event(self) -> None:
+        """Audit event with LOCAL_LOGIN_DISABLED reason is dispatched when setting denies login."""
+        from nexus.auth.audit.login_attempt import LoginAttemptEvent, LoginErrorReason
+
+        user = _make_user()
+        request = _make_request()
+        response = _make_response()
+        body = LoginRequest(username="testuser", password="any")  # noqa: S106
+
+        db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = user
+        db.exec.return_value = mock_result
+
+        with (
+            patch("nexus.auth.router.get_runtime_settings", _mock_runtime_settings(local_login_enabled=False)),
+            patch("nexus.auth.router.AuditEventDispatcher.dispatch") as mock_dispatch,
+            pytest.raises(AuthenticationRequiredError),
+        ):
+            await login(body, request, response, db)
+
+        dispatched_events = [call.args[0] for call in mock_dispatch.call_args_list]
+        local_login_events = [
+            e
+            for e in dispatched_events
+            if isinstance(e, LoginAttemptEvent) and e.error_type == LoginErrorReason.LOCAL_LOGIN_DISABLED
+        ]
+        assert len(local_login_events) == 1
+        assert local_login_events[0].user_id == user.id
 
     @pytest.mark.asyncio
     async def test_login_raises_503_when_session_store_unavailable(self) -> None:
@@ -295,6 +400,7 @@ class TestLoginEndpoint:
             patch("nexus.auth.router.verify_password", return_value=True),
             patch("nexus.auth.router._get_user_group_names", return_value=["authenticated"]),
             patch("nexus.auth.router.create_session_store", _patch_session_store(mock_store)),
+            patch("nexus.auth.router.get_runtime_settings", _mock_runtime_settings()),
             pytest.raises(SessionStoreUnavailableError),
         ):
             await login(body, request, response, db)
@@ -1087,6 +1193,7 @@ class TestLoginAuditEvents:
         AuditEventDispatcher.reset()
 
     @pytest.mark.asyncio
+    @patch("nexus.auth.router.get_runtime_settings", _mock_runtime_settings())
     @patch("nexus.auth.router._get_token_service")
     @patch("nexus.auth.router.create_session_store")
     @patch("nexus.auth.router._get_user_group_names", new_callable=AsyncMock)

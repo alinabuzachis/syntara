@@ -392,6 +392,32 @@ Built-in groups (`admins`, `authenticated`) are identified by `is_builtin=True` 
 
 The last-admin-removal guard uses `SELECT ... FOR UPDATE` on the group row to serialize concurrent operations.
 
+### Local Login Setting
+
+The runtime setting `authentication.local_login_enabled` (default: `true`) controls whether non-builtin local users can log in with a password. When disabled, only the built-in admin account can authenticate locally. Identity provider (OIDC) users are not affected.
+
+This is intended to be disabled after identity providers are configured and local password login is no longer needed, reducing the attack surface.
+
+**Login flow with the setting:**
+
+1. User lookup by username
+2. If user is non-builtin: check `authentication.local_login_enabled` — reject immediately if `false`
+3. Password verification (Argon2id)
+4. Account enabled check
+5. Token creation
+
+The check runs **before** password verification to avoid unnecessary computation when local login is disabled. Rejected logins return the same generic 401 as any other authentication failure, and the specific reason (`local_login_disabled`) is recorded in the audit log.
+
+**Key behaviors:**
+
+| User type | Setting enabled | Setting disabled |
+|-----------|----------------|-----------------|
+| Built-in admin | Can log in | Can log in |
+| Non-builtin local user | Can log in | Rejected (401) |
+| Federated (OIDC) user | Not affected | Not affected |
+
+The setting is managed via **System Administration > Settings > Authentication** in the UI and takes effect within 60 seconds (settings cache TTL).
+
 ### Providing a custom admin password
 
 If the `APP_ADMIN_PASSWORD` environment variable is set when `make secrets-generate` (or `make secrets-generate-force`) runs, the script will write that value into `.secrets/admin-password` instead of generating a random one. This lets you control the admin password at deploy time without editing any files.

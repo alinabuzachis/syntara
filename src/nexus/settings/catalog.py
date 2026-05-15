@@ -141,6 +141,7 @@ class AuthenticationGroup(StrEnum):
     """Group names for authentication settings."""
 
     GROUP_MAPPING = "Group mapping"
+    LOCAL_LOGIN = "Local login"
 
 
 class MetricsGroup(StrEnum):
@@ -661,6 +662,25 @@ SETTINGS_CATALOG: list[SettingDefinition] = [
         helper_text="Minimum 0. Set to 0 for no limit.",
         group=AuthenticationGroup.GROUP_MAPPING,
         validation_schema={"min": 0},
+    ),
+    # Authentication — Local login
+    SettingDefinition(
+        key="authentication.local_login_enabled",
+        name="Local login",
+        category=SettingCategory.AUTHENTICATION,
+        value_type=SettingValueType.BOOLEAN,
+        default_value=True,
+        description=(
+            "Controls whether non-builtin local users can log in with a "
+            "password. When disabled, only built-in accounts (such as admin) "
+            "can authenticate with a password. Identity provider users are "
+            "not affected by this setting."
+        ),
+        helper_text=(
+            "Disable after configuring identity providers if local user "
+            "login is no longer needed. Built-in accounts can always log in."
+        ),
+        group=AuthenticationGroup.LOCAL_LOGIN,
     ),
     # Application — Document Conversion
     SettingDefinition(

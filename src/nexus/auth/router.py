@@ -75,6 +75,7 @@ from nexus.identity_providers.models.identity_provider_configuration import (
     IdentityProviderConfigurationTypes,
     OIDCConfiguration,
 )
+from nexus.settings.cache.settings_cache import get_runtime_settings
 from nexus.users.services.user_identity_service import UserIdentityService
 
 logger = structlog.stdlib.get_logger(__name__)
@@ -165,6 +166,20 @@ async def login(
             LoginAttemptEvent(username=username, method=LoginMethod.PASSWORD, error_type=LoginErrorReason.UNKNOWN_USER)
         )
         raise AuthenticationRequiredError
+
+    if not user.is_builtin:
+        cache = get_runtime_settings()
+        local_login_enabled = await cache.get_bool("authentication.local_login_enabled")
+        if not local_login_enabled:
+            AuditEventDispatcher.dispatch(
+                LoginAttemptEvent(
+                    username=username,
+                    method=LoginMethod.PASSWORD,
+                    error_type=LoginErrorReason.LOCAL_LOGIN_DISABLED,
+                    user_id=user.id,
+                )
+            )
+            raise AuthenticationRequiredError
 
     if not verify_password(body.password, user.password_hash):
         AuditEventDispatcher.dispatch(

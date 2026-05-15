@@ -28,6 +28,7 @@ class LoginErrorReason(StrEnum):
     UNKNOWN_USER = "unknown_user"
     BAD_PASSWORD = "bad_password"  # noqa: S105
     INACTIVE_ACCOUNT = "inactive_account"
+    LOCAL_LOGIN_DISABLED = "local_login_disabled"
     SESSION_STORE_UNAVAILABLE = "session_store_unavailable"
     UNKNOWN = "unknown"
 
