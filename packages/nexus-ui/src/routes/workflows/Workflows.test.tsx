@@ -181,6 +181,16 @@ describe('Workflows Component', () => {
       expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
     })
 
+    it('renders Create workflow button before Import workflow in toolbar', () => {
+      render(<Workflows />, { wrapper })
+
+      const createButton = screen.getByRole('button', { name: 'Create workflow' })
+      const importButton = screen.getByRole('button', { name: 'Import workflow' })
+
+      // Create workflow (primary) must precede Import workflow (secondary) in the DOM per UX skill
+      expect(createButton.compareDocumentPosition(importButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    })
+
     it('renders workflows in the table', async () => {
       render(<Workflows />, { wrapper })
 

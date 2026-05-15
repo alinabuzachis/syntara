@@ -1,6 +1,13 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { Button, List, ListItem, Stack, StackItem } from '@patternfly/react-core'
-import { RhUiEditFillIcon, RhUiExportIcon, RhUiHistoryIcon, RhUiPlayIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+import {
+  RhUiAddIcon,
+  RhUiEditFillIcon,
+  RhUiExportIcon,
+  RhUiHistoryIcon,
+  RhUiPlayIcon,
+  RhUiTrashIcon,
+} from '@patternfly/react-icons'
 import { Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
@@ -270,11 +277,11 @@ export default function Workflows() {
         projectSelector={ProjectSelector}
         toolbar={
           <>
+            <Button variant="primary" icon={<RhUiAddIcon />} onClick={() => setLocation('/workflow-builder/new')}>
+              Create workflow
+            </Button>
             <Button variant="secondary" onClick={() => setImportDialogOpen(true)}>
               Import workflow
-            </Button>
-            <Button variant="primary" onClick={() => setLocation('/workflow-builder/new')}>
-              Create workflow
             </Button>
           </>
         }

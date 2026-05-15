@@ -1,6 +1,23 @@
 import { test, expect, toAppUrl } from './fixtures'
 import { buildUniqueName, createBasicWorkflow, deleteWorkflow } from './helpers/workflows'
 
+test('workflows page toolbar shows Create workflow before Import workflow', async ({ app }) => {
+  await app.goto(toAppUrl('/workflows'))
+  await expect(app.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
+
+  // .first() avoids strict mode violations — empty state also renders a "Create workflow" button
+  const createButton = app.getByRole('button', { name: 'Create workflow' }).first()
+  const importButton = app.getByRole('button', { name: 'Import workflow' })
+
+  await expect(createButton).toBeVisible()
+  await expect(importButton).toBeVisible()
+
+  // Create workflow (primary) must appear to the left of Import workflow (secondary) per UX skill
+  const createBox = await createButton.boundingBox()
+  const importBox = await importButton.boundingBox()
+  expect(createBox?.x).toBeLessThan(importBox?.x ?? Infinity)
+})
+
 test('user searches, views, and deletes a workflow', async ({ app }) => {
   test.setTimeout(90_000)
   // Arrange - Create a workflow to manage
