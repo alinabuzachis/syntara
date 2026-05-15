@@ -14,7 +14,7 @@ from nexus.core.exceptions import SafeValueError
 from nexus.workflows.models.activity_execution import ActivityExecution, ActivityStatus
 from nexus.workflows.models.execution import Execution, ExecutionStatus
 from nexus.workflows.workflow_engine.activities.internal import register_activity_monitoring
-from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, NodeType
 from nexus.workflows.workflow_engine.services.activity_sync_service import (
     _PENDING_ACTIVITY_STATE_STARTED as STARTED_STATE,
 )
@@ -695,6 +695,60 @@ class TestHandleEventPostProcessing:
             # Should NOT sync just because event_id is 10
             mock_sync.assert_not_called()
             assert result is None
+
+
+class TestControlNodeSyncTrigger:
+    """Test that control node completions trigger _sync_skipped_nodes."""
+
+    def setup_method(self) -> None:
+        """Set up test fixtures."""
+        self.service = ActivitySyncService(Mock(), Mock())
+        self.mock_handle = Mock()
+
+    def _create_completed_event(self, scheduled_event_id: int = 1, event_id: int = 5) -> Mock:
+        event = Mock()
+        event.event_type = EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED
+        event.event_id = event_id
+        attrs = Mock()
+        attrs.scheduled_event_id = scheduled_event_id
+        event.activity_task_completed_event_attributes = attrs
+        return event
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "node_type",
+        [NodeType.CONDITION, NodeType.APPROVAL, NodeType.CONVERGE],
+    )
+    async def test_sync_skipped_after_control_node_completes(self, node_type: str) -> None:
+        """Completing a control node (condition, approval, converge) syncs skipped nodes."""
+        metadata = create_test_metadata(
+            activity_definitions_map={"ctrl_node": {"type": node_type}},
+            pending_activity_updates={1: {"activity_id": "ctrl_node", "status": ActivityStatus.RUNNING}},
+        )
+        event = self._create_completed_event()
+
+        with (
+            patch.object(self.service, "_sync_skipped_nodes", new_callable=AsyncMock) as mock_skipped,
+            patch.object(self.service, "_sync_activities_to_db", new_callable=AsyncMock),
+        ):
+            await self.service._handle_event_post_processing(event, metadata, self.mock_handle)
+            mock_skipped.assert_called_once_with(metadata, self.mock_handle)
+
+    @pytest.mark.asyncio
+    async def test_no_sync_skipped_for_script_node(self) -> None:
+        """Completing a non-control node (script) does NOT sync skipped nodes."""
+        metadata = create_test_metadata(
+            activity_definitions_map={"script_node": {"type": NodeType.SCRIPT}},
+            pending_activity_updates={1: {"activity_id": "script_node", "status": ActivityStatus.RUNNING}},
+        )
+        event = self._create_completed_event()
+
+        with (
+            patch.object(self.service, "_sync_skipped_nodes", new_callable=AsyncMock) as mock_skipped,
+            patch.object(self.service, "_sync_activities_to_db", new_callable=AsyncMock),
+        ):
+            await self.service._handle_event_post_processing(event, metadata, self.mock_handle)
+            mock_skipped.assert_not_called()
 
 
 class TestWorkflowEventExtraction:
@@ -2691,3 +2745,49 @@ class TestUpdatePendingActivitiesToCancelled:
 
         # Completed activity should not be touched
         assert completed_activity.status == ActivityStatus.COMPLETED
+
+
+class TestFinalizeNonTerminalActivities:
+    """Tests for _finalize_non_terminal_activities."""
+
+    def test_marks_pending_activities_as_skipped(self) -> None:
+        execution = Mock(spec=Execution)
+        pending_activity = Mock()
+        pending_activity.status = ActivityStatus.PENDING
+        completed_activity = Mock()
+        completed_activity.status = ActivityStatus.COMPLETED
+        execution.activities = [pending_activity, completed_activity]
+
+        ActivitySyncService._finalize_non_terminal_activities(execution, uuid4())
+
+        assert pending_activity.status == ActivityStatus.SKIPPED
+        assert pending_activity.completed_at is not None
+        assert completed_activity.status == ActivityStatus.COMPLETED
+
+    def test_marks_running_activities_as_skipped(self) -> None:
+        execution = Mock(spec=Execution)
+        running_activity = Mock()
+        running_activity.status = ActivityStatus.RUNNING
+        execution.activities = [running_activity]
+
+        ActivitySyncService._finalize_non_terminal_activities(execution, uuid4())
+
+        assert running_activity.status == ActivityStatus.SKIPPED
+
+    def test_noop_when_all_terminal(self) -> None:
+        execution = Mock(spec=Execution)
+        done = Mock()
+        done.status = ActivityStatus.COMPLETED
+        skipped = Mock()
+        skipped.status = ActivityStatus.SKIPPED
+        execution.activities = [done, skipped]
+
+        ActivitySyncService._finalize_non_terminal_activities(execution, uuid4())
+
+        assert done.status == ActivityStatus.COMPLETED
+        assert skipped.status == ActivityStatus.SKIPPED
+
+    def test_noop_when_no_activities(self) -> None:
+        execution = Mock(spec=Execution)
+        execution.activities = None
+        ActivitySyncService._finalize_non_terminal_activities(execution, uuid4())

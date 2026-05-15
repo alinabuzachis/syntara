@@ -399,7 +399,7 @@ class ActivitySyncService:
                 activity_type = activity_def.get("type")
 
                 if (
-                    activity_type in (NodeType.CONDITION, NodeType.APPROVAL)
+                    activity_type in (NodeType.CONDITION, NodeType.APPROVAL, NodeType.CONVERGE)
                     or activity_type in self._TRIGGER_ACTIVITY_TYPES
                 ):
                     await self._sync_skipped_nodes(metadata, handle)
@@ -936,6 +936,29 @@ class ActivitySyncService:
             return "; ".join(errors)
         return "One or more workflow activities failed"
 
+    @staticmethod
+    def _finalize_non_terminal_activities(execution: Execution, execution_id: UUID) -> None:
+        """Mark any non-terminal activities as skipped when a workflow completes.
+
+        When a workflow finishes, any activity still pending or running was
+        effectively skipped (e.g. cancelled by an "any N" converge strategy).
+        This updates them directly without depending on Temporal queries.
+        """
+        now = datetime.now(UTC)
+        finalized_count = 0
+        for activity in execution.activities or []:
+            if activity.status not in TERMINAL_ACTIVITY_STATUSES:
+                activity.status = ActivityStatus.SKIPPED
+                activity.completed_at = now
+                activity.updated_at = now
+                finalized_count += 1
+        if finalized_count:
+            logger.info(
+                "Finalized non-terminal activities as skipped",
+                execution_id=execution_id,
+                count=finalized_count,
+            )
+
     async def _update_execution_status_from_event(
         self,
         metadata: ExecutionMonitorMetadata,
@@ -999,6 +1022,11 @@ class ActivitySyncService:
                 cancelled_activities: list[tuple[ActivityExecution, dict[str, Any]]] = []
                 if status == ExecutionStatus.CANCELLED:
                     cancelled_activities = self._update_pending_activities_to_cancelled(execution, completed_at)
+
+                # Safety net: mid-workflow sync (via _sync_skipped_nodes on converge/condition
+                # completion) handles the fast path. This catches anything still non-terminal
+                # if those earlier syncs missed it (e.g. query failure, race).
+                self._finalize_non_terminal_activities(execution, metadata.execution_id)
 
                 await session.commit()
 
@@ -1188,6 +1216,12 @@ class ActivitySyncService:
                         )
                         continue
 
+                    # Don't regress terminal statuses — once skipped/completed/failed/cancelled,
+                    # later event processing (e.g. ACTIVITY_TASK_CANCELED after _sync_skipped_nodes)
+                    # must not overwrite. Check before querying to avoid wasted RPCs.
+                    if existing.status in TERMINAL_ACTIVITY_STATUSES:
+                        continue
+
                     # Query workflow for input/output data
                     input_data: dict[str, Any] = {}
                     output_data: dict[str, Any] | None = None
@@ -1269,17 +1303,11 @@ class ActivitySyncService:
 
                 # Clear terminal activities from pending to avoid re-processing.
                 # Collect timeout info before clearing, for post-commit emission.
-                terminal_statuses = {
-                    ActivityStatus.COMPLETED,
-                    ActivityStatus.FAILED,
-                    ActivityStatus.SKIPPED,
-                    ActivityStatus.CANCELLED,
-                }
                 timed_out_activities: list[tuple[str, dict[str, Any]]] = []
                 terminal_scheduled_ids = [
                     scheduled_id
                     for scheduled_id, data in metadata.pending_activity_updates.items()
-                    if data.get("status") in terminal_statuses
+                    if data.get("status") in TERMINAL_ACTIVITY_STATUSES
                 ]
                 for scheduled_id in terminal_scheduled_ids:
                     data = metadata.pending_activity_updates[scheduled_id]
@@ -1390,11 +1418,30 @@ class ActivitySyncService:
         handle: WorkflowHandle[Any, Any],
     ) -> None:
         """Query workflow for skipped and pre-resolved nodes and update them in database."""
-        try:
-            skipped_node_ids: list[str] = await handle.query("get_skipped_nodes")
-            pre_resolved_node_ids: list[str] = await handle.query("get_pre_resolved_nodes")
-            all_skipped = list(set(skipped_node_ids) | set(pre_resolved_node_ids))
+        skipped_node_ids: list[str] = []
+        pre_resolved_node_ids: list[str] = []
 
+        try:
+            skipped_node_ids = await handle.query("get_skipped_nodes")
+        except Exception:
+            logger.exception(
+                "Error querying skipped nodes",
+                execution_id=metadata.execution_id,
+            )
+
+        try:
+            pre_resolved_node_ids = await handle.query("get_pre_resolved_nodes")
+        except Exception:
+            logger.exception(
+                "Error querying pre-resolved nodes",
+                execution_id=metadata.execution_id,
+            )
+
+        all_skipped = list(set(skipped_node_ids) | set(pre_resolved_node_ids))
+        if not all_skipped:
+            return
+
+        try:
             # Pre-resolved nodes never get Temporal activities, so they may not have
             # ActivityExecution records. Create SKIPPED records for any that are missing.
             if pre_resolved_node_ids:
@@ -1407,7 +1454,7 @@ class ActivitySyncService:
             )
         except Exception:
             logger.exception(
-                "Error syncing skipped nodes (activities may remain PENDING)",
+                "Error syncing skipped nodes to database",
                 execution_id=metadata.execution_id,
             )
 

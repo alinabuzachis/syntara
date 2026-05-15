@@ -14,50 +14,40 @@ logger = structlog.stdlib.get_logger(__name__)
 
 @activity.defn(name=ActivityName.CONVERGE)
 async def converge(
-    input_config: dict[str, Any],  # noqa: ARG001
+    input_config: dict[str, Any],
     output_config: dict[str, str] | None,
     predecessor_results: dict[str, dict[str, Any]],
 ) -> dict[str, Any]:
-    """Execute converge node - waits for all predecessors to complete.
+    """Execute converge node - merges results from completed predecessors.
 
     The actual waiting logic is handled by the workflow executor.
-    This activity just merges the results from all predecessors.
+    This activity aggregates results from predecessors that completed
+    before the convergence condition was met.
 
-    Returns normalized structure with output portion only (no control needed).
-    Output mapping is applied internally before returning to avoid storing suppressed fields in Temporal.
-
-    Note: Currently only strategy "all" is supported (waits for all concurrent paths).
-    The input_config parameter is reserved for future use.
+    Supports two strategies:
+    - "all" (default): all predecessors must complete
+    - "any": at least n_required predecessors must complete
 
     Args:
-        input_config: Converge node configuration (currently unused - only strategy "all" supported)
+        input_config: Converge node configuration with strategy, n_required, total_branches
         output_config: Output mapping configuration (field_name -> template expression)
                        None = return full result, {} = suppress all, {...} = extract specific fields
-        predecessor_results: Results from all predecessor nodes that completed
+        predecessor_results: Results from predecessor nodes that completed
 
     Returns:
-        {
-            "output": {
-                "status": "completed",
-                "converged_from": [...],
-                "results": {...}
-            }
-        }
+        {"output": {"status": "completed", "branch_count": ..., "completed_count": ..., ...}}
 
     """
-    # Currently only supports strategy "all" - waits for all predecessors
-    # Future: could support config["strategy"] = "any" or "n_required"
-
-    # Result conforming to converge.schema.json resultSchema
     completed_branch_ids = list(predecessor_results.keys())
+    total_branches = input_config.get("total_branches", len(completed_branch_ids))
+
     full_result = {
         "status": "completed",
-        "branch_count": len(completed_branch_ids),
-        "completed_count": len(completed_branch_ids),  # Same for "all" strategy
+        "branch_count": total_branches,
+        "completed_count": len(completed_branch_ids),
         "completed_branch_node_ids": completed_branch_ids,
     }
 
-    # Apply output mapping (suppresses fields before Temporal stores it)
     mapped_output = apply_output_mapping(full_result, output_config)
 
     return {"output": mapped_output}

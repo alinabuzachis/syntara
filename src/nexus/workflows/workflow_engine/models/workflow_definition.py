@@ -100,6 +100,13 @@ class NodeType(str, Enum):
     SCRIPT = "script"
 
 
+class ConvergeStrategy(StrEnum):
+    """Convergence strategies for converge nodes."""
+
+    ALL = "all"
+    ANY = "any"
+
+
 class LoopType(StrEnum):
     """Loop sub-types for V2 workflows."""
 

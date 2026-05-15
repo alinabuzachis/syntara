@@ -10,9 +10,14 @@
     "properties": {
       "strategy": {
         "type": "string",
-        "enum": ["all"],
-        "description": "Convergence strategy: 'all' waits for all incoming branches to complete",
+        "enum": ["all", "any"],
+        "description": "Convergence strategy: 'all' waits for all branches, 'any' waits for n_required branches",
         "default": "all"
+      },
+      "n_required": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "Number of branches required before convergence (only used when strategy is 'any')"
       },
       "on_timeout": {
         "type": "string",
@@ -20,6 +25,13 @@
         "description": "Action to take if timeout is reached before convergence condition is met",
         "default": "fail"
       }
+    },
+    "if": {
+      "properties": { "strategy": { "const": "any" } },
+      "required": ["strategy"]
+    },
+    "then": {
+      "required": ["n_required"]
     },
     "additionalProperties": false
   },
