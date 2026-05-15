@@ -46,7 +46,7 @@ export const settingsCategories: SettingCategory[] = [
     slug: 'authentication',
     name: 'Authentication',
     description: 'Authentication, identity provider, and group sync settings',
-    group_names: ['Group mapping'],
+    group_names: ['Group mapping', 'Local login'],
   },
 ]
 
@@ -455,6 +455,19 @@ export const settings: RuntimeSetting[] = [
     value_type: 'integer',
     default_value: 25,
     validation_schema: { min: 0 } as unknown as Record<string, never>,
+  }),
+
+  makeSetting({
+    key: 'authentication.local_login_enabled',
+    name: 'Local login',
+    description:
+      'Controls whether non-builtin local users can log in with a password. When disabled, only built-in accounts (such as admin) can authenticate with a password. Identity provider users are not affected by this setting.',
+    helper_text:
+      'Disable after configuring identity providers if local user login is no longer needed. Built-in accounts can always log in.',
+    category: 'authentication',
+    group: 'Local login',
+    value_type: 'boolean',
+    default_value: true,
   }),
 
   // ── Application: Document Conversion ───────────────────────────────────
