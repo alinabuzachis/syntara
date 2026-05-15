@@ -10,19 +10,71 @@ All tests reside under `tests/` and are organized by test type:
 tests/
 ├── conftest.py          # Session-level fixtures
 ├── __init__.py
-├── contract/            # API contract tests
 ├── e2e/                 # End-to-end tests (full stack required)
+│   └── telemetry/
 ├── fixtures/            # Shared test fixtures and mock resources
+│   ├── external_services/
+│   └── files/
 ├── helpers/             # Test helper utilities
 ├── integration/         # Integration tests (database, services)
-│   ├── api/             # API endpoint tests
 │   ├── agent_orchestrator/
-│   └── workflow/
+│   ├── api/             # API endpoint tests
+│   ├── approvals/       # Approvals tests (includes contract tests)
+│   ├── authz/           # Authorization tests
+│   ├── core/            # Core infrastructure tests
+│   ├── credentials/     # Credentials tests
+│   ├── files/           # File management tests
+│   ├── invocations/     # Invocation tests (includes contract tests)
+│   ├── metrics/         # Metrics tests
+│   ├── services/        # Service layer tests
+│   ├── settings/        # Settings tests
+│   ├── telemetry/       # Telemetry tests (includes contract tests)
+│   ├── tool_manager/    # Tool manager tests
+│   ├── tools/           # Tool tests
+│   ├── websocket/       # WebSocket tests
+│   ├── workflow/        # Legacy workflow tests (to be merged)
+│   └── workflows/       # Workflow tests (includes contract tests)
 ├── performance/         # Performance tests (opt-in via --run-performance)
+│   ├── agent_orchestrator/
+│   ├── api_service/
+│   ├── chat_window/
+│   ├── cli/
+│   ├── database/
+│   ├── execution_service/
+│   ├── files/
+│   ├── invocation_service/
+│   ├── model_management/
+│   ├── routing_service/
+│   ├── system_wide/
+│   ├── telemetry/
+│   ├── temporal_worker/
+│   ├── tool_manager/
+│   └── workflow_engine/
 └── unit/                # Unit tests (isolated, no external deps)
+    ├── aap/
     ├── agent_orchestrator/
+    ├── agents/
+    ├── api/
+    ├── approvals/
+    ├── audit/
+    ├── authz/
+    ├── cli/
+    ├── core/
+    ├── credentials/
+    ├── files/
+    ├── identity_providers/
+    ├── metrics/
     ├── models/
-    └── ...
+    ├── schemas/
+    ├── services/
+    ├── settings/
+    ├── telemetry/
+    ├── tool_manager/
+    ├── tools/
+    ├── utils/
+    ├── validators/
+    ├── websocket/
+    └── workflows/
 ```
 
 **Organization Rules:**
@@ -110,9 +162,15 @@ async def test_get_workflows_empty_list(base_client: AsyncClient) -> None:
     assert isinstance(data["resources"], list)
 ```
 
-### Contract Tests (`tests/contract/`)
+### Contract Tests (Organized by Domain)
 
 **Scope:** Verify API contracts (request/response schemas, status codes, error formats).
+
+**Location:** Contract tests are now integrated into domain directories within `tests/integration/`:
+- `tests/integration/approvals/` - Approval API contract tests
+- `tests/integration/invocations/` - Invocation API contract tests  
+- `tests/integration/telemetry/` - Telemetry API contract tests
+- `tests/integration/workflows/` - Workflow API contract tests
 
 **Characteristics:**
 - Tests API shape, not business logic
@@ -120,6 +178,7 @@ async def test_get_workflows_empty_list(base_client: AsyncClient) -> None:
 - Tests error cases and edge cases comprehensively
 - Uses real or test database
 - Fast feedback on API breaking changes
+- OPA mocking provided automatically by root integration conftest
 
 **Marker:** None (location-based)
 
