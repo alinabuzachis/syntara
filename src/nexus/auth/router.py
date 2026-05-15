@@ -1709,7 +1709,7 @@ async def _resolve_and_login_user(
             await db.flush()
             # No groups resolved from this provider (no mappings matched,
             # auto-create disabled/empty, or extraction failed) — check if the
-            # user has any group memberships from other sources (manual or other IdPs).
+            # user has any group memberships from other sources (manually assigned).
             other_groups = await db.execute(
                 select(user_groups.c.group_id).where(user_groups.c.user_id == user.id).limit(1)
             )

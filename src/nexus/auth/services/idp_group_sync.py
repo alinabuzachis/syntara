@@ -256,8 +256,10 @@ async def sync_idp_groups(
 ) -> bool:
     """Sync Nexus group memberships based on IdP group mapping.
 
-    Only touches groups managed by this specific identity provider.
-    Manually-assigned groups are never affected.
+    Session-scoped: clears all IdP-managed group memberships from every
+    provider and replaces them with groups from the current login's token.
+    Manually-assigned groups (those without ``user_idp_groups`` tracking
+    rows) are never affected.
 
     Returns:
         True if at least one group was resolved from this provider.
@@ -314,27 +316,34 @@ async def _apply_group_membership_diff(
     provider_id: UUID,
     desired_group_ids: set[UUID],
 ) -> None:
-    """Diff desired groups against current IdP-managed groups and apply changes."""
-    current_rows = await db.execute(
-        select(user_idp_groups.c.group_id).where(
+    """Diff desired groups against all IdP-managed groups and apply changes.
+
+    Session-scoped: clears IdP-managed memberships from *every* provider,
+    then assigns only the groups resolved from the current login token.
+    Groups that exist only in ``user_groups`` (no ``user_idp_groups`` row)
+    are manually assigned and left untouched.
+    """
+    all_idp_rows = await db.execute(
+        select(user_idp_groups.c.group_id, user_idp_groups.c.identity_provider_id).where(
             user_idp_groups.c.user_id == user_id,
-            user_idp_groups.c.identity_provider_id == provider_id,
         )
     )
-    current_idp_group_ids: set[UUID] = {row[0] for row in current_rows}
+    rows = list(all_idp_rows)
+    all_idp_group_ids: set[UUID] = {row[0] for row in rows}
+    previous_provider_ids: set[UUID] = {row[1] for row in rows}
 
-    to_add = desired_group_ids - current_idp_group_ids
-    to_remove = current_idp_group_ids - desired_group_ids
+    to_remove = all_idp_group_ids - desired_group_ids
+    displaced_provider_ids = {row[1] for row in rows if row[0] in to_remove} - {provider_id}
 
-    if to_add:
+    if desired_group_ids:
         existing_rows = await db.execute(
             select(user_groups.c.group_id).where(
                 user_groups.c.user_id == user_id,
-                user_groups.c.group_id.in_(to_add),
+                user_groups.c.group_id.in_(desired_group_ids),
             )
         )
         already_member: set[UUID] = {row[0] for row in existing_rows}
-        new_memberships = to_add - already_member
+        new_memberships = desired_group_ids - already_member
         if new_memberships:
             await db.execute(
                 user_groups.insert(),
@@ -342,27 +351,16 @@ async def _apply_group_membership_diff(
             )
 
     if to_remove:
-        other_provider_rows = await db.execute(
-            select(user_idp_groups.c.group_id).where(
-                user_idp_groups.c.user_id == user_id,
-                user_idp_groups.c.group_id.in_(to_remove),
-                user_idp_groups.c.identity_provider_id != provider_id,
+        await db.execute(
+            sa_delete(user_groups).where(
+                user_groups.c.user_id == user_id,
+                user_groups.c.group_id.in_(to_remove),
             )
         )
-        kept_by_other: set[UUID] = {row[0] for row in other_provider_rows}
-        removable = to_remove - kept_by_other
-        if removable:
-            await db.execute(
-                sa_delete(user_groups).where(
-                    user_groups.c.user_id == user_id,
-                    user_groups.c.group_id.in_(removable),
-                )
-            )
 
     await db.execute(
         sa_delete(user_idp_groups).where(
             user_idp_groups.c.user_id == user_id,
-            user_idp_groups.c.identity_provider_id == provider_id,
         )
     )
     if desired_group_ids:
@@ -371,11 +369,23 @@ async def _apply_group_membership_diff(
             [{"user_id": user_id, "identity_provider_id": provider_id, "group_id": gid} for gid in desired_group_ids],
         )
 
-    if to_add or to_remove:
+    added = len(desired_group_ids - all_idp_group_ids)
+    removed = len(to_remove)
+    if added or removed:
         logger.info(
-            "Synced IdP group memberships",
+            "Session-scoped IdP group sync",
             user_id=str(user_id),
             provider_id=str(provider_id),
-            added=len(to_add),
-            removed=len(to_remove),
+            added=added,
+            removed=removed,
+            removed_group_ids=[str(gid) for gid in to_remove] if to_remove else [],
+            previous_provider_ids=[str(pid) for pid in previous_provider_ids] if previous_provider_ids else [],
+        )
+    if displaced_provider_ids:
+        logger.warning(
+            "Cross-provider group displacement: groups from other providers removed",
+            user_id=str(user_id),
+            authenticating_provider_id=str(provider_id),
+            displaced_provider_ids=[str(pid) for pid in displaced_provider_ids],
+            groups_removed=removed,
         )

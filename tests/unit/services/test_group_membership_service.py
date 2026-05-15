@@ -896,3 +896,243 @@ async def test_sync_idp_groups_wildcard_matching(test_db_session: AsyncSession, 
 
     assert result is True
     assert await _get_user_group_ids(test_db_session, member.id) == {group.id}
+
+
+@pytest.mark.asyncio
+async def test_sync_idp_groups_session_scoped_clears_other_provider(
+    test_db_session: AsyncSession, test_user: User
+) -> None:
+    """Logging in with provider B should remove groups from provider A (session-scoped)."""
+    provider_a = await _create_identity_provider(test_db_session, "session-idp-a", test_user)
+    provider_b = await _create_identity_provider(test_db_session, "session-idp-b", test_user)
+    member = await _create_test_user(test_db_session, "session-user", "session@example.com")
+    identity_a = await _create_user_identity(test_db_session, member, provider_a)
+    identity_b = await _create_user_identity(test_db_session, member, provider_b)
+
+    group_a = await _create_test_group(test_db_session, "group-from-a", test_user)
+    group_b = await _create_test_group(test_db_session, "group-from-b", test_user)
+
+    await _create_mapping_entry(test_db_session, provider_a.id, "role-a", group_a.id)
+    await _create_mapping_entry(test_db_session, provider_b.id, "role-b", group_b.id)
+
+    config_a = OIDCConfiguration(
+        provider_type="oidc",
+        issuer_url=provider_a.configuration.issuer_url,
+        client_id="c",
+        client_secret="s",  # noqa: S106
+        redirect_uri="http://localhost/cb",
+        group_jmespath_expression="groups[*]",
+    )
+    config_b = OIDCConfiguration(
+        provider_type="oidc",
+        issuer_url=provider_b.configuration.issuer_url,
+        client_id="c",
+        client_secret="s",  # noqa: S106
+        redirect_uri="http://localhost/cb",
+        group_jmespath_expression="groups[*]",
+    )
+
+    # Login with provider A
+    await sync_idp_groups(test_db_session, member, identity_a, {"groups": ["role-a"]}, config_a)
+    await test_db_session.commit()
+    assert await _get_user_group_ids(test_db_session, member.id) == {group_a.id}
+
+    # Login with provider B — provider A's groups should be removed
+    result = await sync_idp_groups(test_db_session, member, identity_b, {"groups": ["role-b"]}, config_b)
+    await test_db_session.commit()
+
+    assert result is True
+    assert await _get_user_group_ids(test_db_session, member.id) == {group_b.id}
+    assert await _get_user_idp_group_ids(test_db_session, member.id, provider_a.id) == set()
+    assert await _get_user_idp_group_ids(test_db_session, member.id, provider_b.id) == {group_b.id}
+
+
+@pytest.mark.asyncio
+async def test_sync_idp_groups_preserves_manual_groups(test_db_session: AsyncSession, test_user: User) -> None:
+    """Manually assigned groups should persist across IdP logins."""
+    provider = await _create_identity_provider(test_db_session, "manual-keep-idp", test_user)
+    member = await _create_test_user(test_db_session, "manual-keep-user", "manualkeep@example.com")
+    identity = await _create_user_identity(test_db_session, member, provider)
+
+    idp_group = await _create_test_group(test_db_session, "idp-assigned", test_user)
+    manual_group = await _create_test_group(test_db_session, "manually-assigned", test_user)
+
+    # Manually assign a group (insert directly into user_groups, no user_idp_groups entry)
+    await test_db_session.execute(user_groups.insert().values(user_id=member.id, group_id=manual_group.id))
+    await test_db_session.commit()
+
+    await _create_mapping_entry(test_db_session, provider.id, "idp-role", idp_group.id)
+
+    config = OIDCConfiguration(
+        provider_type="oidc",
+        issuer_url=provider.configuration.issuer_url,
+        client_id="c",
+        client_secret="s",  # noqa: S106
+        redirect_uri="http://localhost/cb",
+        group_jmespath_expression="groups[*]",
+    )
+
+    result = await sync_idp_groups(test_db_session, member, identity, {"groups": ["idp-role"]}, config)
+    await test_db_session.commit()
+
+    assert result is True
+    assert await _get_user_group_ids(test_db_session, member.id) == {idp_group.id, manual_group.id}
+
+
+@pytest.mark.asyncio
+async def test_sync_idp_groups_session_scoped_all_idp_tracking_cleared(
+    test_db_session: AsyncSession, test_user: User
+) -> None:
+    """After login with provider B, user_idp_groups should have no rows for provider A."""
+    provider_a = await _create_identity_provider(test_db_session, "track-clear-a", test_user)
+    provider_b = await _create_identity_provider(test_db_session, "track-clear-b", test_user)
+    member = await _create_test_user(test_db_session, "track-clear-user", "trackclear@example.com")
+    identity_a = await _create_user_identity(test_db_session, member, provider_a)
+    identity_b = await _create_user_identity(test_db_session, member, provider_b)
+
+    group_a = await _create_test_group(test_db_session, "track-group-a", test_user)
+    group_b = await _create_test_group(test_db_session, "track-group-b", test_user)
+
+    await _create_mapping_entry(test_db_session, provider_a.id, "track-a", group_a.id)
+    await _create_mapping_entry(test_db_session, provider_b.id, "track-b", group_b.id)
+
+    config_a = OIDCConfiguration(
+        provider_type="oidc",
+        issuer_url=provider_a.configuration.issuer_url,
+        client_id="c",
+        client_secret="s",  # noqa: S106
+        redirect_uri="http://localhost/cb",
+        group_jmespath_expression="groups[*]",
+    )
+    config_b = OIDCConfiguration(
+        provider_type="oidc",
+        issuer_url=provider_b.configuration.issuer_url,
+        client_id="c",
+        client_secret="s",  # noqa: S106
+        redirect_uri="http://localhost/cb",
+        group_jmespath_expression="groups[*]",
+    )
+
+    # Login with provider A
+    await sync_idp_groups(test_db_session, member, identity_a, {"groups": ["track-a"]}, config_a)
+    await test_db_session.commit()
+    assert await _get_user_idp_group_ids(test_db_session, member.id, provider_a.id) == {group_a.id}
+
+    # Login with provider B
+    await sync_idp_groups(test_db_session, member, identity_b, {"groups": ["track-b"]}, config_b)
+    await test_db_session.commit()
+
+    # Provider A tracking should be completely cleared
+    assert await _get_user_idp_group_ids(test_db_session, member.id, provider_a.id) == set()
+    assert await _get_user_idp_group_ids(test_db_session, member.id, provider_b.id) == {group_b.id}
+
+
+async def _get_all_user_idp_tracking_rows(session: AsyncSession, user_id: UUID) -> set[UUID]:
+    """Get all group IDs tracked by any provider for a user."""
+    result = await session.execute(select(user_idp_groups.c.group_id).where(user_idp_groups.c.user_id == user_id))
+    return {row[0] for row in result}
+
+
+@pytest.mark.asyncio
+async def test_sync_idp_groups_overlapping_group_between_providers(
+    test_db_session: AsyncSession, test_user: User
+) -> None:
+    """When providers A and B both map to the same group, login with B should retain that group."""
+    provider_a = await _create_identity_provider(test_db_session, "overlap-idp-a", test_user)
+    provider_b = await _create_identity_provider(test_db_session, "overlap-idp-b", test_user)
+    member = await _create_test_user(test_db_session, "overlap-user", "overlap@example.com")
+    identity_a = await _create_user_identity(test_db_session, member, provider_a)
+    identity_b = await _create_user_identity(test_db_session, member, provider_b)
+
+    shared_group = await _create_test_group(test_db_session, "shared-group", test_user)
+    exclusive_a = await _create_test_group(test_db_session, "only-a-group", test_user)
+
+    await _create_mapping_entry(test_db_session, provider_a.id, "shared-role", shared_group.id)
+    await _create_mapping_entry(test_db_session, provider_a.id, "a-only-role", exclusive_a.id)
+    await _create_mapping_entry(test_db_session, provider_b.id, "shared-role", shared_group.id)
+
+    config_a = OIDCConfiguration(
+        provider_type="oidc",
+        issuer_url=provider_a.configuration.issuer_url,
+        client_id="c",
+        client_secret="s",  # noqa: S106
+        redirect_uri="http://localhost/cb",
+        group_jmespath_expression="groups[*]",
+    )
+    config_b = OIDCConfiguration(
+        provider_type="oidc",
+        issuer_url=provider_b.configuration.issuer_url,
+        client_id="c",
+        client_secret="s",  # noqa: S106
+        redirect_uri="http://localhost/cb",
+        group_jmespath_expression="groups[*]",
+    )
+
+    # Login with provider A — user gets shared_group + exclusive_a
+    await sync_idp_groups(test_db_session, member, identity_a, {"groups": ["shared-role", "a-only-role"]}, config_a)
+    await test_db_session.commit()
+    assert await _get_user_group_ids(test_db_session, member.id) == {shared_group.id, exclusive_a.id}
+
+    # Login with provider B — shared_group should survive (delete+re-insert), exclusive_a removed
+    result = await sync_idp_groups(test_db_session, member, identity_b, {"groups": ["shared-role"]}, config_b)
+    await test_db_session.commit()
+
+    assert result is True
+    assert await _get_user_group_ids(test_db_session, member.id) == {shared_group.id}
+    assert await _get_user_idp_group_ids(test_db_session, member.id, provider_a.id) == set()
+    assert await _get_user_idp_group_ids(test_db_session, member.id, provider_b.id) == {shared_group.id}
+
+
+@pytest.mark.asyncio
+async def test_sync_idp_groups_empty_desired_removes_all_idp_groups(
+    test_db_session: AsyncSession, test_user: User
+) -> None:
+    """When the token resolves no groups, all IdP-managed memberships should be removed."""
+    provider_a = await _create_identity_provider(test_db_session, "empty-idp-a", test_user)
+    provider_b = await _create_identity_provider(test_db_session, "empty-idp-b", test_user)
+    member = await _create_test_user(test_db_session, "empty-user", "empty@example.com")
+    identity_a = await _create_user_identity(test_db_session, member, provider_a)
+    identity_b = await _create_user_identity(test_db_session, member, provider_b)
+
+    group_a = await _create_test_group(test_db_session, "empty-group-a", test_user)
+    manual_group = await _create_test_group(test_db_session, "empty-manual", test_user)
+
+    await _create_mapping_entry(test_db_session, provider_a.id, "role-a", group_a.id)
+
+    # Manually assign a group (no user_idp_groups tracking)
+    await test_db_session.execute(user_groups.insert().values(user_id=member.id, group_id=manual_group.id))
+    await test_db_session.commit()
+
+    config_a = OIDCConfiguration(
+        provider_type="oidc",
+        issuer_url=provider_a.configuration.issuer_url,
+        client_id="c",
+        client_secret="s",  # noqa: S106
+        redirect_uri="http://localhost/cb",
+        group_jmespath_expression="groups[*]",
+    )
+    config_b = OIDCConfiguration(
+        provider_type="oidc",
+        issuer_url=provider_b.configuration.issuer_url,
+        client_id="c",
+        client_secret="s",  # noqa: S106
+        redirect_uri="http://localhost/cb",
+        group_jmespath_expression="groups[*]",
+    )
+
+    # Login with provider A — user gets group_a (+ manual_group persists)
+    await sync_idp_groups(test_db_session, member, identity_a, {"groups": ["role-a"]}, config_a)
+    await test_db_session.commit()
+    assert await _get_user_group_ids(test_db_session, member.id) == {group_a.id, manual_group.id}
+
+    # Provider B has no mapping entries — sync_idp_groups returns False,
+    # but _apply_group_membership_diff is called with empty desired set first.
+    # Simulate this directly: call sync with a token that matches nothing.
+    await _create_mapping_entry(test_db_session, provider_b.id, "nonexistent-role", group_a.id)
+    result = await sync_idp_groups(test_db_session, member, identity_b, {"groups": ["no-match"]}, config_b)
+    await test_db_session.commit()
+
+    assert result is False
+    # All IdP-managed groups removed, manual group preserved
+    assert await _get_user_group_ids(test_db_session, member.id) == {manual_group.id}
+    assert await _get_all_user_idp_tracking_rows(test_db_session, member.id) == set()

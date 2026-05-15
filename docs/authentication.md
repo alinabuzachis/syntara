@@ -625,8 +625,8 @@ When a user authenticates via OIDC, Nexus determines which groups they belong to
 1. The backend extracts group values from the ID token using the configured JMESPath expression (e.g., `groups[*]`, `realm_access.roles[*]`)
 2. Group values are matched against the mapping entries configured for that provider
 3. Matched entries determine which Nexus groups the user is placed in
-4. Groups are synced: new memberships are added, stale ones from this provider are removed
-5. Manually-assigned groups and groups from other providers are never affected
+4. Groups are synced (session-scoped): all previous IdP-assigned group memberships are cleared, and only groups from the current login's token are assigned
+5. Manually-assigned groups are never affected
 
 #### Modes: manual mapping vs auto-create
 
@@ -665,7 +665,7 @@ Login is denied if no groups can be resolved for the user from any source.
 
 **Manual mapping mode** (auto-create off):
 
-| Mapping entries exist? | Any match? | Groups from other sources? | Result |
+| Mapping entries exist? | Any match? | Manual groups exist? | Result |
 |---|---|---|---|
 | No | n/a | No | **Denied** |
 | No | n/a | Yes | Allowed |
@@ -675,7 +675,7 @@ Login is denied if no groups can be resolved for the user from any source.
 
 **Auto-create mode** (auto-create on):
 
-| Groups in token? | Groups from other sources? | Result |
+| Groups in token? | Manual groups exist? | Result |
 |---|---|---|
 | Yes | n/a | Allowed (groups auto-created) |
 | No (empty/missing claim) | No | **Denied** |
@@ -683,10 +683,10 @@ Login is denied if no groups can be resolved for the user from any source.
 
 **Key points:**
 
-- A user is only allowed to log in if they end up with at least one group membership — either from the current provider or from another source (manual assignment, another IdP).
+- A user is only allowed to log in if they end up with at least one group membership — either from the current provider or from another source (manual assignment).
 - **Auto-create groups** does not grant unconditional access. It creates Nexus groups matching the IdP group names from the token, but if the token contains no groups, no groups are created and login is denied.
 - **No mappings configured** (and auto-create off) means the provider cannot assign groups, so login is denied for users with no pre-existing group memberships.
-- "Other group sources" means: groups assigned manually by an admin, or groups assigned by a different identity provider.
+- "Other group sources" means: groups assigned manually by an admin.
 - The denial message shown to the user is: *"Access denied. Your identity provider groups do not match any configured group mappings. Contact your administrator."*
 
 #### Wildcard patterns in mapping entries
@@ -715,7 +715,21 @@ Deleting a group automatically removes any mapping entries pointing to it. Delet
 
 #### Tracking table: `user_idp_groups`
 
-A separate `user_idp_groups` table tracks which groups each IdP assigned to each user. This enables scoped sync — on login, only groups managed by the authenticating provider are added/removed. Groups assigned by other providers or manually by an admin are never touched.
+A separate `user_idp_groups` table tracks which groups the most recent IdP login assigned to the user. Group sync is session-scoped — on login, all previous IdP-assigned group memberships are cleared and replaced with groups from the current login's token. Groups assigned manually by an admin are never touched.
+
+#### Multiple sessions from different IdPs
+
+A user can have multiple active sessions from different identity providers (e.g., one session from Azure and another from Okta). Group sync follows a **last-login-wins** model: the user's IdP-managed group memberships always reflect the most recent login, regardless of which session is being used.
+
+**Example scenario:**
+
+1. User logs in via Azure — groups set to `["admins"]` (from Azure mapping)
+2. User logs in via Okta — groups overwritten to `["developers"]` (from Okta mapping)
+3. User refreshes the Azure session — the access token contains `idp="Azure"` but the groups are `["developers"]` (from the Okta login in step 2), because `POST /auth/refresh` reads group memberships from the user-level `user_groups` table
+
+This is intentional. Group memberships are stored at the user level, not per-session. The session-scoped sync model prevents over-provisioning (which would occur if groups from all IdPs were merged), and a single consistent view of the user's permissions avoids the confusion of having different permissions in different browser tabs.
+
+Manually-assigned groups are unaffected by this behavior — they persist across all IdP logins.
 
 #### Membership sources in API responses
 
@@ -732,7 +746,7 @@ Each `MembershipSource` has:
 | `provider_name` | Name of the IdP (only for `type: "idp"`) |
 | `provider_id` | UUID of the IdP (only for `type: "idp"`) |
 
-A user can have multiple sources for the same group (e.g., manually assigned *and* assigned by an IdP). Removing the IdP mapping does not remove a manually-assigned membership, and vice versa.
+A user can have multiple sources for the same group (e.g., manually assigned *and* assigned by an IdP). Group sync is session-scoped: on each login, all previous IdP-assigned memberships are replaced with those from the current token. Manually-assigned memberships are never affected by IdP sync.
 
 ### User API Response
 
