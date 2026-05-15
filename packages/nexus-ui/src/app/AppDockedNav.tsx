@@ -215,7 +215,7 @@ export function AppDockedNav() {
     <Masthead id="docked-masthead" variant="docked">
       <MastheadMain>
         <MastheadBrand>
-          <MastheadLogo component="a" className="pf-m-compact">
+          <MastheadLogo component="a" href="/" aria-label="Home" className="pf-m-compact">
             <RedhatIcon
               style={{
                 height: 'var(--pf-t--global--icon--size--md)',

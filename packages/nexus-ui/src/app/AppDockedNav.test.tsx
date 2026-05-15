@@ -188,6 +188,16 @@ describe('AppDockedNav', () => {
     expect(screen.getByRole('banner')).toBeInTheDocument()
   })
 
+  it('renders Red Hat logo link to home page', () => {
+    renderDockedNav()
+
+    const banner = screen.getByRole('banner')
+    const logoLink = within(banner).getByRole('link', { name: 'Home' })
+
+    expect(logoLink).toBeInTheDocument()
+    expect(logoLink).toHaveAttribute('href', '/')
+  })
+
   it('navigates to Integrations when Configuration is clicked', async () => {
     const user = userEvent.setup()
     renderDockedNav()
