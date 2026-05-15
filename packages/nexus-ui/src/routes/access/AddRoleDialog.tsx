@@ -90,12 +90,21 @@ export function AddRoleDialog({ onClose, onSuccess }: Readonly<AddRoleDialogProp
       },
       {
         onSuccess: () => {
-          showSuccess({ title: 'Role added', description: 'Role created successfully' })
+          showSuccess({
+            title: 'Role created',
+            description: (
+              <>
+                {'The role '}
+                {data.name}
+                {' has been created successfully.'}
+              </>
+            ),
+          })
           onSuccess()
           onClose()
         },
         onError: (error) => {
-          showError({ title: 'Failed to add role', description: getErrorMessage(error) })
+          showError({ title: 'Failed to create role', description: getErrorMessage(error) })
         },
       }
     )

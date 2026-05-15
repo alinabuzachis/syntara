@@ -14,7 +14,7 @@ export type AlertConfig = {
 
 export type AlertMessage = {
   title: string
-  description?: string
+  description?: string | ReactNode
 }
 
 export type AlertContextType = {
