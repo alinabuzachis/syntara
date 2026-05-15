@@ -34,7 +34,7 @@ class UserInfo(BaseModel):
 
     id: str = Field(description="User UUID")
     username: str = Field(description="Username")
-    email: str = Field(description="User email")
+    email: str | None = Field(default=None, description="User email")
     groups: list[str] = Field(default_factory=list, description="Group memberships")
     rp_logout_enabled: bool = Field(
         default=False,

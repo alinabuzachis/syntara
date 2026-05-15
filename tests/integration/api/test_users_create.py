@@ -132,8 +132,8 @@ class TestUsersCreateContract:
         )
 
     @pytest.mark.asyncio
-    async def test_create_user_duplicate_email(self, admin_client: AsyncClient) -> None:
-        """Test that duplicate emails are allowed (federated users may share emails)."""
+    async def test_create_user_duplicate_email_rejected(self, admin_client: AsyncClient) -> None:
+        """Test that duplicate emails are rejected (email must be unique)."""
         user_data = {
             "username": "emailuser1",
             "email": "same@example.com",
@@ -145,12 +145,12 @@ class TestUsersCreateContract:
         response1 = await admin_client.post(USERS_URL, json=user_data)
         assert response1.status_code == 201
 
-        # Create second user with same email — should succeed
+        # Create second user with same email — should fail
         user_data["username"] = "emailuser2"
         user_data["full_name"] = "Email User 2"
         response2 = await admin_client.post(USERS_URL, json=user_data)
 
-        assert response2.status_code == 201
+        assert response2.status_code == 409
 
     @pytest.mark.asyncio
     async def test_create_user_missing_username(self, admin_client: AsyncClient) -> None:

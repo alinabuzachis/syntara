@@ -836,8 +836,10 @@ class TestOidcCallback:
         db = AsyncMock()
         provider_result = MagicMock()
         provider_result.one_or_none.return_value = provider
-        user_result = MagicMock()
-        user_result.one_or_none.return_value = None
+        identity_result = MagicMock()
+        identity_result.one_or_none.return_value = None
+        email_check_result = MagicMock()
+        email_check_result.one_or_none.return_value = None
         username_result = MagicMock()
         username_result.one_or_none.return_value = None
         # create_identity checks is_builtin and auth_type on the auto-created user
@@ -848,7 +850,7 @@ class TestOidcCallback:
         auto_created_user.is_builtin = False
         auth_type_result = MagicMock()
         auth_type_result.one_or_none.return_value = auto_created_user
-        db.exec.side_effect = [provider_result, user_result, username_result, auth_type_result]
+        db.exec.side_effect = [provider_result, identity_result, email_check_result, username_result, auth_type_result]
 
         mock_oidc_service = _make_oidc_service_mock(state_data=state_data, user_claims=user_claims)
 
@@ -1260,8 +1262,9 @@ class TestResolveOidcUser:
         mock_svc.create_identity.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_raises_when_no_email_claim(self) -> None:
-        """Should raise OIDCError when email claim is missing."""
+    @patch("nexus.auth.router.UserIdentityService")
+    async def test_succeeds_when_no_email_claim(self, mock_svc_cls: MagicMock) -> None:
+        """Should create user without email when email claim is missing."""
         provider = _make_provider()
         user_claims: dict[str, str | None] = {
             "sub": "user-sub",
@@ -1270,9 +1273,41 @@ class TestResolveOidcUser:
             "preferred_username": "testuser",
         }
 
-        db = AsyncMock()
+        mock_svc = mock_svc_cls.return_value
+        mock_svc.find_by_issuer_and_subject = AsyncMock(return_value=None)
+        mock_svc.create_identity = AsyncMock()
 
-        with pytest.raises(OIDCError):
+        db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = None
+        db.exec.return_value = mock_result
+
+        user, _identity = await _resolve_oidc_user(db, user_claims, provider)
+        assert user.username == "testuser"
+        assert user.email is None
+
+    @pytest.mark.asyncio
+    @patch("nexus.auth.router.UserIdentityService")
+    async def test_blocks_login_when_email_already_exists(self, mock_svc_cls: MagicMock) -> None:
+        """Should block login when email is already associated with another account."""
+        existing_user = _make_user(email="taken@example.com", username="existing")
+        provider = _make_provider()
+        user_claims: dict[str, str | None] = {
+            "sub": "new-sub",
+            "email": "taken@example.com",
+            "name": "New User",
+            "preferred_username": "newuser",
+        }
+
+        mock_svc = mock_svc_cls.return_value
+        mock_svc.find_by_issuer_and_subject = AsyncMock(return_value=None)
+
+        db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = existing_user
+        db.exec.return_value = mock_result
+
+        with pytest.raises(OIDCError, match="already associated with an existing account"):
             await _resolve_oidc_user(db, user_claims, provider)
 
     @pytest.mark.asyncio
@@ -1330,12 +1365,15 @@ class TestResolveOidcUser:
 
         db = AsyncMock()
         # First exec: look up linked user (returns None — soft-deleted)
-        # Subsequent execs: username check (not taken) in _auto_create_user
+        # Second exec: email check (no existing user with this email)
+        # Third exec: username check (not taken) in _auto_create_user
         deleted_result = MagicMock()
         deleted_result.one_or_none.return_value = None
+        email_check_result = MagicMock()
+        email_check_result.one_or_none.return_value = None
         not_taken_result = MagicMock()
         not_taken_result.one_or_none.return_value = None
-        db.exec.side_effect = [deleted_result, not_taken_result]
+        db.exec.side_effect = [deleted_result, email_check_result, not_taken_result]
 
         user, identity = await _resolve_oidc_user(db, user_claims, provider)
 
@@ -1388,7 +1426,7 @@ class TestAutoCreateUser:
         mock_result.one_or_none.return_value = None
         db.exec.return_value = mock_result
 
-        result = await _auto_create_user(db, email, user_claims, "Google")
+        result = await _auto_create_user(db, user_claims, "Google", email=email)
 
         assert result.username == "alice"
         assert result.email == email
@@ -1415,7 +1453,7 @@ class TestAutoCreateUser:
         mock_result.one_or_none.return_value = None
         db.exec.return_value = mock_result
 
-        result = await _auto_create_user(db, email, user_claims, "Azure")
+        result = await _auto_create_user(db, user_claims, "Azure", email=email)
 
         assert result.username == "bob"  # From email prefix
 
@@ -1435,7 +1473,7 @@ class TestAutoCreateUser:
         db.exec.return_value = mock_result
 
         with pytest.raises(OIDCError):
-            await _auto_create_user(db, email, user_claims, "Okta")
+            await _auto_create_user(db, user_claims, "Okta", email=email)
 
     @pytest.mark.asyncio
     async def test_disambiguates_username_with_random_suffix(self) -> None:
@@ -1459,7 +1497,7 @@ class TestAutoCreateUser:
         not_taken_result.one_or_none.return_value = None
         db.exec.side_effect = [taken_result, not_taken_result]
 
-        result = await _auto_create_user(db, email, user_claims, "Azure")
+        result = await _auto_create_user(db, user_claims, "Azure", email=email)
 
         assert result.username.startswith("eve-")
         suffix = result.username.removeprefix("eve-")
@@ -1488,7 +1526,7 @@ class TestAutoCreateUser:
         db.flush.side_effect = IntegrityError("ix_users_username_unique", params=None, orig=Exception())
 
         with pytest.raises(OIDCError, match="Unable to create account"):
-            await _auto_create_user(db, email, user_claims, "Azure")
+            await _auto_create_user(db, user_claims, "Azure", email=email)
 
         db.rollback.assert_called_once()
 
@@ -1510,7 +1548,7 @@ class TestAutoCreateUser:
         db.flush.side_effect = IntegrityError("ix_users_email_unique", params=None, orig=Exception())
 
         with pytest.raises(OIDCError, match="Unable to create account"):
-            await _auto_create_user(db, email, user_claims, "Azure")
+            await _auto_create_user(db, user_claims, "Azure", email=email)
 
     @pytest.mark.asyncio
     async def test_uses_preferred_username_as_full_name_fallback(self) -> None:
@@ -1528,9 +1566,51 @@ class TestAutoCreateUser:
         mock_result.one_or_none.return_value = None
         db.exec.return_value = mock_result
 
-        result = await _auto_create_user(db, email, user_claims, "Provider")
+        result = await _auto_create_user(db, user_claims, "Provider", email=email)
 
         assert result.full_name == "dave"
+
+    @pytest.mark.asyncio
+    async def test_creates_user_without_email(self) -> None:
+        """Should create user with email=None when no email provided."""
+        user_claims: dict[str, str | None] = {
+            "sub": "user-sub",
+            "email": None,
+            "name": "No Email User",
+            "preferred_username": "noemail",
+        }
+
+        db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = None
+        db.exec.return_value = mock_result
+
+        result = await _auto_create_user(db, user_claims, "Provider")
+
+        assert result.email is None
+        assert result.username == "noemail"
+        assert result.full_name == "No Email User"
+
+    @pytest.mark.asyncio
+    async def test_username_falls_back_to_sub_when_no_email_or_preferred_username(self) -> None:
+        """Should use sub claim for username when both email and preferred_username are missing."""
+        user_claims: dict[str, str | None] = {
+            "sub": "unique-sub-id",
+            "email": None,
+            "name": None,
+            "preferred_username": None,
+        }
+
+        db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = None
+        db.exec.return_value = mock_result
+
+        result = await _auto_create_user(db, user_claims, "Provider")
+
+        assert result.email is None
+        assert result.username == "unique-sub-id"
+        assert result.full_name == "unique-sub-id"
 
 
 # =============================================================================
@@ -1818,7 +1898,7 @@ class TestAutoCreateUserFromResolveFlow:
         mock_result.one_or_none.return_value = None
         db.exec.return_value = mock_result
 
-        result = await _auto_create_user(db, "user@example.com", user_claims, "test-provider")
+        result = await _auto_create_user(db, user_claims, "test-provider", email="user@example.com")
 
         assert result.username == "newuser"
         db.add.assert_called_once()
@@ -1845,7 +1925,7 @@ class TestCreateIdentityWithRaceHandling:
         db = AsyncMock()
 
         result_user, result_identity = await _create_identity_with_race_handling(
-            db, identity_service, user, provider, "https://idp.example.com", "sub-123"
+            db, identity_service, user, provider.id, "https://idp.example.com", "sub-123"
         )
 
         identity_service.create_identity.assert_called_once_with(
@@ -1880,7 +1960,7 @@ class TestCreateIdentityWithRaceHandling:
         db.exec.return_value = user_result
 
         result_user, result_identity = await _create_identity_with_race_handling(
-            db, identity_service, user, provider, "https://idp.example.com", "sub-123"
+            db, identity_service, user, provider.id, "https://idp.example.com", "sub-123"
         )
 
         db.rollback.assert_called_once()
@@ -1904,7 +1984,7 @@ class TestCreateIdentityWithRaceHandling:
 
         with pytest.raises(OIDCError, match="Unable to sign in"):
             await _create_identity_with_race_handling(
-                db, identity_service, user, provider, "https://idp.example.com", "sub-123"
+                db, identity_service, user, provider.id, "https://idp.example.com", "sub-123"
             )
 
 
@@ -1948,7 +2028,7 @@ class TestLoadActiveUser:
         mock_result.one_or_none.return_value = user
         db.exec.return_value = mock_result
 
-        with pytest.raises(OIDCError, match="deactivated"):
+        with pytest.raises(OIDCError, match="Authentication failed"):
             await _load_active_user(db, user.id)
 
 

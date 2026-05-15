@@ -34,6 +34,7 @@ if TYPE_CHECKING:
         TokenExpiredError,
         TokenGloballyRevokedError,
         UserAlreadyInGroupError,
+        UserEmailConflictError,
         UserIdentityNotFoundError,
         UserNotFoundError,
         UserNotInGroupError,
@@ -374,6 +375,33 @@ def user_username_conflict_handler(
         title="Username Conflict",
         detail="A user with this username already exists",
         code="USER_USERNAME_CONFLICT",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def user_email_conflict_handler(
+    request: Request,
+    exc: UserEmailConflictError,
+) -> JSONResponse:
+    """Handle UserEmailConflictError with RFC 9457 format.
+
+    Args:
+        request: FastAPI request object
+        exc: The email conflict exception
+
+    Returns:
+        RFC 9457 compliant 409 error response
+
+    """
+    logger.warning("Email conflict", exc_info=exc)
+
+    return create_problem_details_response(
+        status_code=status.HTTP_409_CONFLICT,
+        problem_type=PROBLEM_TYPES["name_conflict"],
+        title="Email Conflict",
+        detail="A user with this email already exists",
+        code="USER_EMAIL_CONFLICT",
         retryable=False,
         instance=str(request.url),
     )

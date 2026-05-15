@@ -17,6 +17,7 @@ from nexus.auth.exceptions import (
     AdminDisableNoOtherAdminsError,
     AdminModifyError,
     PasswordOnFederatedUserError,
+    UserEmailConflictError,
     UserUsernameConflictError,
 )
 from nexus.auth.passwords import hash_password
@@ -73,14 +74,29 @@ class UsersService(BaseService):
         error_str = str(e)
         return "ix_users_username_unique" in error_str or "Key (username)" in error_str
 
-    async def _commit_with_duplicate_check(self, username: str) -> None:
+    def _is_duplicate_email_error(self, e: IntegrityError) -> bool:
+        """Check if IntegrityError is due to duplicate email.
+
+        Args:
+            e: The IntegrityError to check
+
+        Returns:
+            True if error is due to duplicate email constraint
+
+        """
+        error_str = str(e)
+        return "ix_users_email_unique" in error_str or "Key (email)" in error_str
+
+    async def _commit_with_duplicate_check(self, username: str, email: str | None = None) -> None:
         """Commit database transaction with duplicate error handling.
 
         Args:
             username: Username of user being created/updated
+            email: Email of user being created/updated
 
         Raises:
             UserUsernameConflictError: If duplicate username constraint violated
+            UserEmailConflictError: If duplicate email constraint violated
             IntegrityError: For other integrity constraint violations
 
         """
@@ -90,6 +106,8 @@ class UsersService(BaseService):
             await self.session.rollback()
             if self._is_duplicate_username_error(e):
                 raise UserUsernameConflictError(username) from e
+            if self._is_duplicate_email_error(e):
+                raise UserEmailConflictError(email or "") from e
             raise
 
     async def create_user(
@@ -129,7 +147,7 @@ class UsersService(BaseService):
         )
 
         self.session.add(user)
-        await self._commit_with_duplicate_check(username)
+        await self._commit_with_duplicate_check(username, email=user.email)
         await self.session.refresh(user)
 
         return user
@@ -260,7 +278,7 @@ class UsersService(BaseService):
         if has_changes:
             target_user.updated_at = datetime.now(UTC)
 
-        await self._commit_with_duplicate_check(target_user.username)
+        await self._commit_with_duplicate_check(target_user.username, email=target_user.email)
         await self.session.refresh(target_user)
 
         return target_user

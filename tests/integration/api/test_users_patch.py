@@ -107,8 +107,8 @@ class TestUsersPatchContract:
         assert data["updated_at"] != str(original_updated_at)
 
     @pytest.mark.asyncio
-    async def test_update_user_duplicate_email_allowed(self, admin_client: AsyncClient, test_user: User) -> None:
-        """Test that updating to a duplicate email is allowed (federated users may share emails)."""
+    async def test_update_user_duplicate_email_rejected(self, admin_client: AsyncClient, test_user: User) -> None:
+        """Test that updating to a duplicate email is rejected (email must be unique)."""
         # Create another user
         create_response = await admin_client.post(
             USERS_URL,
@@ -121,11 +121,11 @@ class TestUsersPatchContract:
         )
         assert create_response.status_code == 201
 
-        # Update test_user to the same email — should succeed
+        # Update test_user to the same email — should fail
         patch_data = {"email": "existing@example.com"}
         response = await admin_client.patch(f"{USERS_URL}/{test_user.id}", json=patch_data)
 
-        assert response.status_code == 200
+        assert response.status_code == 409
 
     @pytest.mark.asyncio
     async def test_update_user_not_found(self, admin_client: AsyncClient) -> None:

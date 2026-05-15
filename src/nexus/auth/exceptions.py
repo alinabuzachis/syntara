@@ -238,6 +238,21 @@ class UserUsernameConflictError(UserError):
         super().__init__(f"User with username '{username}' already exists")
 
 
+@fastapi_exception(handler="nexus.auth.error_handlers.user_email_conflict_handler")
+class UserEmailConflictError(UserError):
+    """Raised when an email already exists."""
+
+    def __init__(self, email: str) -> None:
+        """Initialize exception with email.
+
+        Args:
+            email: The conflicting email address
+
+        """
+        self.email = email
+        super().__init__(f"User with email '{email}' already exists")
+
+
 @fastapi_exception(handler="nexus.auth.error_handlers.admin_modify_handler")
 class AdminModifyError(UserError):
     """Raised when attempting to modify protected properties of the built-in admin."""

@@ -18,7 +18,7 @@ class UserInfo:
     Attributes:
         id (str): User UUID
         username (str): Username
-        email (str): User email
+        email (None | str | Unset): User email
         groups (list[str] | Unset): Group memberships
         rp_logout_enabled (bool | Unset): Whether RP-initiated logout is enabled for this user's current session
             Default: False.
@@ -26,7 +26,7 @@ class UserInfo:
 
     id: str
     username: str
-    email: str
+    email: None | str | Unset = UNSET
     groups: list[str] | Unset = UNSET
     rp_logout_enabled: bool | Unset = False
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
@@ -36,7 +36,11 @@ class UserInfo:
 
         username = self.username
 
-        email = self.email
+        email: None | str | Unset
+        if isinstance(self.email, Unset):
+            email = UNSET
+        else:
+            email = self.email
 
         groups: list[str] | Unset = UNSET
         if not isinstance(self.groups, Unset):
@@ -50,9 +54,10 @@ class UserInfo:
             {
                 "id": id,
                 "username": username,
-                "email": email,
             }
         )
+        if email is not UNSET:
+            field_dict["email"] = email
         if groups is not UNSET:
             field_dict["groups"] = groups
         if rp_logout_enabled is not UNSET:
@@ -67,7 +72,14 @@ class UserInfo:
 
         username = d.pop("username")
 
-        email = d.pop("email")
+        def _parse_email(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        email = _parse_email(d.pop("email", UNSET))
 
         groups = cast(list[str], d.pop("groups", UNSET))
 

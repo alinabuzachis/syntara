@@ -27,6 +27,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.audit.decorators import audit
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.models.audit_event import EventCategory
+from nexus.audit.sanitization import EMAIL_PATTERN
 from nexus.auth.audit.login_attempt import LoginAttemptEvent, LoginErrorReason, LoginMethod
 from nexus.auth.audit.oidc_flow import OIDCFlowEvent, OIDCStage
 from nexus.auth.audit.session_lifecycle import SessionAction, SessionLifecycleEvent
@@ -659,7 +660,7 @@ async def get_me(
     return UserInfo(
         id=payload.sub,
         username=payload.preferred_username or "",
-        email=payload.email or "",
+        email=payload.email,
         groups=payload.groups or [],
         rp_logout_enabled=rp_logout_enabled,
     )
@@ -1028,16 +1029,27 @@ async def _load_active_user(db: AsyncSession, user_id: UUID) -> User:
         msg = "Linked user account has been deleted. Contact your administrator."
         raise OIDCError(msg)
     if not user.is_enabled:
-        msg = "User account is deactivated"
-        raise OIDCError(msg)
+        logger.warning("OIDC login blocked: user account is deactivated", user_id=str(user_id))
+        raise OIDCError(_OIDC_ERR_AUTH_FAILED)
     return user
+
+
+async def _find_user_by_email(db: AsyncSession, email: str) -> User | None:
+    """Find a non-deleted user by email address."""
+    result = await db.exec(
+        select(User).filter(
+            User.email == email,  # type: ignore[arg-type]
+            User.deleted_at.is_(None),  # type: ignore[union-attr]
+        )
+    )
+    return result.one_or_none()
 
 
 async def _create_identity_with_race_handling(
     db: AsyncSession,
     identity_service: UserIdentityService,
     user: User,
-    provider: IdentityProvider,
+    provider_id: UUID,
     issuer: str,
     sub: str,
 ) -> tuple[User, UserIdentity]:
@@ -1050,7 +1062,7 @@ async def _create_identity_with_race_handling(
     try:
         identity = await identity_service.create_identity(
             user_id=user.id,
-            identity_provider_id=provider.id,
+            identity_provider_id=provider_id,
             issuer=issuer,
             subject=sub,
         )
@@ -1078,17 +1090,17 @@ async def _resolve_oidc_user(
     """Resolve a user from OIDC claims using federated identity linking.
 
     1. Look up UserIdentity by (issuer, sub) — if found, return linked user.
-    2. If not found — auto-create new user + identity.
+    2. If an existing user matches by email — block login and direct to self-service linking.
+    3. If no match — auto-create new user + identity.
 
     Returns:
         Tuple of (User, UserIdentity) for session tracking
 
     """
-    email = user_claims.get("email")
-    if not email or "@" not in email:
-        logger.warning("Missing or invalid email claim in ID token", email=email)
-        msg = "Identity provider did not return a valid email address"
-        raise OIDCError(msg)
+    raw_email = user_claims.get("email")
+    email = (
+        raw_email.strip().lower() if isinstance(raw_email, str) and EMAIL_PATTERN.fullmatch(raw_email.strip()) else None
+    )
 
     sub = user_claims.get("sub")
     if not sub:
@@ -1096,6 +1108,9 @@ async def _resolve_oidc_user(
         msg = "Identity provider did not return a subject identifier"
         raise OIDCError(msg)
 
+    # Cache provider attributes before any DB rollback can expire the ORM object
+    provider_name = provider.name
+    provider_id = provider.id
     issuer = provider.configuration.issuer_url
     identity_service = UserIdentityService(db)
 
@@ -1105,8 +1120,8 @@ async def _resolve_oidc_user(
         linked_user = await _find_non_deleted_user(db, identity.user_id)
         if linked_user:
             if not linked_user.is_enabled:
-                msg = "User account is deactivated"
-                raise OIDCError(msg)
+                logger.warning("OIDC login blocked: user account is deactivated", user_id=str(identity.user_id))
+                raise OIDCError(_OIDC_ERR_AUTH_FAILED)
             identity.last_used_at = datetime.now(UTC)
             db.add(identity)
             return (linked_user, identity)
@@ -1118,21 +1133,35 @@ async def _resolve_oidc_user(
         )
         await identity_service.delete_identity(identity.id, force=True)
 
-    # Step 2/3: Identity not found — create new user.
-    # Retry once on OIDCError to handle concurrent-creation races: if a
-    # concurrent request created the same user between our check and flush,
-    # the second attempt re-runs the entire resolve flow from step 1 — which
-    # will now find the identity created by the winning request.
+    # Step 2: Check if a user with the same email already exists.
+    # Block login and direct the user to self-service identity linking.
+    if email:
+        existing_user = await _find_user_by_email(db, email)
+        if existing_user:
+            logger.warning(
+                "Login blocked: email already associated with another account",
+                existing_user_id=str(existing_user.id),
+                provider=provider_name,
+            )
+            msg = (
+                "This email is already associated with an existing account. "
+                "Please sign in with your original authentication method and "
+                "link this identity provider via the Identities tab on your user profile page."
+            )
+            raise OIDCError(msg)
+
+    # Step 3: No identity or email match — create new user.
+    # Retry once on OIDCError to handle concurrent-creation races.
     for attempt in range(2):
         try:
-            user = await _auto_create_user(db, email, user_claims, provider.name)
+            user = await _auto_create_user(db, user_claims, provider_name, email=email)
             break
         except OIDCError:
             if attempt == 1:
                 raise
-            logger.info("Retrying user resolution after concurrent creation", email=email)
+            logger.info("Retrying user resolution after concurrent creation", sub=sub)
 
-    return await _create_identity_with_race_handling(db, identity_service, user, provider, issuer, sub)
+    return await _create_identity_with_race_handling(db, identity_service, user, provider_id, issuer, sub)
 
 
 async def _is_username_taken(db: AsyncSession, value: str) -> bool:
@@ -1148,13 +1177,22 @@ async def _is_username_taken(db: AsyncSession, value: str) -> bool:
 
 async def _auto_create_user(
     db: AsyncSession,
-    email: str,
     user_claims: dict[str, str | None],
     provider_name: str,
+    *,
+    email: str | None = None,
 ) -> User:
     """Auto-create a user from OIDC claims."""
-    email = email.lower()
-    preferred_username = (user_claims.get("preferred_username") or email.split("@", maxsplit=1)[0]).lower()
+    email = email.lower() if email else None
+
+    preferred_username = user_claims.get("preferred_username")
+    if not preferred_username:
+        if email:
+            preferred_username = email.split("@", maxsplit=1)[0]
+        else:
+            preferred_username = user_claims.get("sub") or secrets.token_hex(8)
+    preferred_username = preferred_username.lower()
+
     full_name = user_claims.get("name") or preferred_username
 
     # Resolve unique username: try preferred, then append a random suffix
@@ -1163,7 +1201,7 @@ async def _auto_create_user(
         random_suffix = secrets.token_hex(8)
         username = f"{preferred_username}-{random_suffix}"
         if await _is_username_taken(db, username):
-            logger.warning("OIDC username collision", username=username, email=email)
+            logger.warning("OIDC username collision", username=username)
             msg = "Username already taken. Contact your administrator."
             raise OIDCError(msg)
 
@@ -1188,7 +1226,7 @@ async def _auto_create_user(
         )
         msg = "Unable to create account. Contact your administrator."
         raise OIDCError(msg) from e
-    logger.info("Auto-created user from OIDC", user_id=str(user.id), email=email, provider=provider_name)
+    logger.info("Auto-created user from OIDC", user_id=str(user.id), username=username, provider=provider_name)
     return user
 
 
@@ -1634,18 +1672,22 @@ async def _resolve_and_login_user(
         Tuple of (User, UserIdentity, is_first_login) for session tracking
 
     """
+    # Cache provider attributes before any DB rollback can expire the ORM object
+    provider_name = provider.name
+    provider_config = provider.configuration if isinstance(provider.configuration, OIDCConfiguration) else None
+
     try:
         user, identity = await _resolve_oidc_user(db, user_claims, provider)
     except OIDCError as e:
-        logger.warning("OIDC user resolution failed", error=str(e), provider=provider.name)
-        raise _OIDCCallbackError(_OIDC_ERR_USER_FAILED, origin=origin) from e
+        logger.warning("OIDC user resolution failed", error=str(e), provider=provider_name)
+        raise _OIDCCallbackError(str(e), origin=origin) from e
     except Exception as e:
-        logger.exception("Unexpected error during OIDC user resolution", provider=provider.name)
+        logger.exception("Unexpected error during OIDC user resolution", provider=provider_name)
         raise _OIDCCallbackError(_OIDC_ERR_USER_FAILED, origin=origin) from e
 
     # Sync IdP group memberships before committing
-    if isinstance(provider.configuration, OIDCConfiguration):
-        groups_matched = await sync_idp_groups(db, user, identity, raw_merged_claims, provider.configuration)
+    if provider_config is not None:
+        groups_matched = await sync_idp_groups(db, user, identity, raw_merged_claims, provider_config)
 
         if not groups_matched:
             # Flush so the sync changes are visible to the membership check below
@@ -1660,7 +1702,7 @@ async def _resolve_and_login_user(
                 logger.error(
                     "Login denied: no group mappings matched and user has no other groups",
                     user_id=str(user.id),
-                    provider=provider.name,
+                    provider=provider_name,
                 )
                 await db.rollback()
                 raise _OIDCCallbackError(_OIDC_ERR_NO_GROUP_MATCH, origin=origin)

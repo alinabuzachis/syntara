@@ -18,6 +18,7 @@ from nexus.auth.exceptions import (
     AdminDeleteError,
     AdminDisableNoOtherAdminsError,
     AdminModifyError,
+    UserEmailConflictError,
     UserNotFoundError,
     UserUsernameConflictError,
 )
@@ -121,8 +122,8 @@ async def test_create_user_duplicate_username(test_db_session: AsyncSession, tes
 
 
 @pytest.mark.asyncio
-async def test_create_user_duplicate_email_allowed(test_db_session: AsyncSession, test_user: User) -> None:
-    """Test that duplicate emails are allowed for federated identity support."""
+async def test_create_user_duplicate_email_rejected(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test that duplicate emails are rejected (email must be unique)."""
     service = UsersService(test_db_session, test_user)
 
     await service.create_user(
@@ -132,14 +133,13 @@ async def test_create_user_duplicate_email_allowed(test_db_session: AsyncSession
         password=TEST_PASSWORD,
     )
 
-    user2 = await service.create_user(
-        username="emailuser2",
-        email="same@example.com",
-        full_name="Email User 2",
-        password=TEST_PASSWORD,
-    )
-    assert user2.email == "same@example.com"
-    assert user2.username == "emailuser2"
+    with pytest.raises(UserEmailConflictError):
+        await service.create_user(
+            username="emailuser2",
+            email="same@example.com",
+            full_name="Email User 2",
+            password=TEST_PASSWORD,
+        )
 
 
 @pytest.mark.asyncio
@@ -245,8 +245,8 @@ async def test_update_user_is_enabled(test_db_session: AsyncSession, test_user: 
 
 
 @pytest.mark.asyncio
-async def test_update_user_duplicate_email_allowed(test_db_session: AsyncSession, test_user: User) -> None:
-    """Test that updating to a duplicate email is allowed."""
+async def test_update_user_duplicate_email_rejected(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test that updating to a duplicate email is rejected (email must be unique)."""
     service = UsersService(test_db_session, test_user)
 
     await service.create_user(
@@ -263,8 +263,8 @@ async def test_update_user_duplicate_email_allowed(test_db_session: AsyncSession
         password=TEST_PASSWORD,
     )
 
-    updated = await service.update_user(user.id, email="taken@example.com")
-    assert updated.email == "taken@example.com"
+    with pytest.raises(UserEmailConflictError):
+        await service.update_user(user.id, email="taken@example.com")
 
 
 @pytest.mark.asyncio

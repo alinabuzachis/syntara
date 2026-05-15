@@ -6,8 +6,9 @@ for managing platform users with authentication and authorization.
 
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Any, ClassVar
+from typing import Annotated, Any, ClassVar
 
+from pydantic import StringConstraints
 from sqlalchemy import String, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import JSON, DateTime, Field, Index
@@ -80,7 +81,7 @@ class User(SoftDeletableResource, table=True):
         index=True,
     )
 
-    email: str | None = Field(
+    email: Annotated[str, StringConstraints(to_lower=True)] | None = Field(
         default=None,
         max_length=FieldLimits.NAME_MAX_LENGTH,
         sa_type=String(FieldLimits.NAME_MAX_LENGTH),  # type: ignore[call-overload]
@@ -157,6 +158,12 @@ class User(SoftDeletableResource, table=True):
             "username",
             unique=True,
             postgresql_where=text("deleted_at IS NULL"),
+        ),
+        Index(
+            "ix_users_email_unique",
+            "email",
+            unique=True,
+            postgresql_where=text("email IS NOT NULL AND deleted_at IS NULL"),
         ),
     )
 

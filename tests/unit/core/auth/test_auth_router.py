@@ -870,7 +870,7 @@ class TestGetMeEndpoint:
 
     @pytest.mark.asyncio
     async def test_handles_none_optional_fields(self) -> None:
-        """get_me should default to empty strings when optional claims are None."""
+        """get_me should handle None optional claims gracefully."""
         from nexus.auth.router import get_me
 
         payload = _make_payload()
@@ -883,7 +883,7 @@ class TestGetMeEndpoint:
         result = await get_me(request, payload, AsyncMock())
 
         assert result.username == ""
-        assert result.email == ""
+        assert result.email is None
         assert result.groups == []
         assert result.rp_logout_enabled is False  # No refresh token
 

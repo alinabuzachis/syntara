@@ -415,7 +415,6 @@ components:
       required:
         - id
         - username
-        - email
       properties:
         id:
           type: string
@@ -426,7 +425,9 @@ components:
           description: Username
           title: Username
         email:
-          type: string
+          anyOf:
+            - type: string
+            - type: 'null'
           description: User email
           title: Email
         groups:
