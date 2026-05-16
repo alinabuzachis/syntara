@@ -4,6 +4,7 @@ const RESOURCE_TYPE_ROUTES: Record<string, (id: string) => string> = {
   workflow: (id) => AppRoute.WorkflowBuilder.Edit.replace(':workflowId', id),
   execution: (id) => AppRoute.Executions.Execution.replace(':executionId', id),
   credential: (id) => AppRoute.Configuration.Credentials.Detail.replace(':credentialId', id),
+  'tool-provider': (id) => AppRoute.Configuration.Integrations.IntegrationTools.replace(':provider_id', id),
   user: (id) => AppRoute.AccessManagement.UserDetail.replace(':userId', id),
   group: (id) => AppRoute.AccessManagement.GroupDetail.replace(':groupId', id),
   project: (id) => AppRoute.AccessManagement.ProjectDetail.replace(':projectId', id),

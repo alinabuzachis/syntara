@@ -37,6 +37,15 @@ describe('parseResourceUrn', () => {
     })
   })
 
+  it('parses a tool-provider URN', () => {
+    const result = parseResourceUrn('urn:nexus:tool-provider:id=tp-1')
+    expect(result).toEqual({
+      type: 'tool-provider',
+      id: 'tp-1',
+      href: '/configuration/integrations/tp-1/tools',
+    })
+  })
+
   it('returns null href for unknown resource type', () => {
     const result = parseResourceUrn('urn:nexus:custom_thing:id=42')
     expect(result).toEqual({ type: 'custom_thing', id: '42', href: null })
