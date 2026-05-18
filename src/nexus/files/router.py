@@ -23,10 +23,9 @@ from fastapi import (
 from pydantic import BaseModel, ConfigDict, Field
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.auth import get_current_user
+from nexus.authz.dependencies import PermissionChecker
 from nexus.core.database.session import get_db
-from nexus.core.models import User
-from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
+from nexus.core.nexus_router import NexusRouter
 from nexus.core.utils.session_factory import create_session_factory_from_request
 from nexus.files import FileManager, get_file_manager
 from nexus.files.document_conversion.tasks import DocumentConversionTask
@@ -35,6 +34,10 @@ from nexus.files.models.file_metadata import FileStatus
 router = NexusRouter(prefix="/files", tags=["Files"])
 logger = structlog.stdlib.get_logger(__name__)
 
+_files_perm_upload = PermissionChecker(
+    "files",
+    "upload",
+)
 
 # ============================================================================
 # Dependency Injection Providers
@@ -102,7 +105,7 @@ class FileUploadResponse(BaseModel):
     description="Upload files independently of invocations for later use in agent execution. "
     "Returns file_ids that can be stored in workflow configuration and passed to invocations. "
     "Files are validated, stored, and queued for document conversion.",
-    dependencies=[NO_PERMISSION],
+    dependencies=[Depends(_files_perm_upload)],
     operation_id="upload_files",
     response_description="Files uploaded successfully",
     openapi_extra={
@@ -135,7 +138,6 @@ class FileUploadResponse(BaseModel):
 )
 async def upload_files(
     db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],  # noqa: ARG001 - required for authentication
     file_manager: Annotated[FileManager, Depends(get_file_manager)],
     background_tasks: BackgroundTasks,
     document_conversion_task: Annotated[DocumentConversionTask, Depends(get_document_conversion_task)],

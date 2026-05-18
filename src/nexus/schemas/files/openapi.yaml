@@ -47,8 +47,8 @@ paths:
       tags:
         - Files
       x-app-permission:
-        resource: null
-        action: null
+        resource: files
+        action: upload
       requestBody:
         required: true
         content:
