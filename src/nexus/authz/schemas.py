@@ -9,6 +9,7 @@ from pydantic import computed_field, field_validator
 from sqlmodel import Field, SQLModel
 
 from nexus.core.constants import NAME_PATTERN
+from nexus.core.exceptions import SafeValueError
 from nexus.core.models.base import BaseListParams
 from nexus.core.models.pagination import ResourcesResponse
 
@@ -22,6 +23,7 @@ OptionalNameField = Annotated[
 # ---------------------------------------------------------------------------
 
 VALID_SCOPES = {"any", "self", "project"}
+VALID_EFFECTS = {"allow"}
 
 
 class PolicyStatementSchema(SQLModel):
@@ -31,6 +33,15 @@ class PolicyStatementSchema(SQLModel):
     actions: list[str] = Field(description="List of resource_type:action strings")
     scope: str = Field(description="any, self, or project")
     conditions: dict[str, Any] | None = Field(default=None, description="Optional attribute-based conditions")
+
+    @field_validator("effect")
+    @classmethod
+    def validate_effect(cls, v: str) -> str:
+        """Validate that effect is one of the allowed values."""
+        if v not in VALID_EFFECTS:
+            msg = f"Invalid effect '{v}'. Only 'allow' is currently supported."
+            raise SafeValueError(msg)
+        return v
 
     @field_validator("scope")
     @classmethod
