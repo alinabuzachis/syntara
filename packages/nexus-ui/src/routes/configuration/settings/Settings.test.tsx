@@ -1,4 +1,4 @@
-import { act, render, screen, within } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
@@ -9,10 +9,19 @@ import Settings from './Settings'
 import { useAllSettings } from './useAllSettings'
 import { useSettingsPermissions } from './useSettingsPermissions'
 
+const { mockSetLocation, mockLocation } = vi.hoisted(() => ({
+  mockSetLocation: vi.fn(),
+  mockLocation: { value: '/system-administration/settings/context_manager' },
+}))
+
 const mockMutate = vi.fn()
 const mockShowSuccess = vi.fn()
 const mockShowError = vi.fn()
 const mockShowWarning = vi.fn()
+
+vi.mock('wouter', () => ({
+  useLocation: (): [string, typeof mockSetLocation] => [mockLocation.value, mockSetLocation],
+}))
 
 vi.mock('../../../client', () => ({
   settingsClient: {
@@ -128,6 +137,7 @@ function mockQueries({ isPending = false, error = null as Error | null } = {}) {
 describe('Settings', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockLocation.value = '/system-administration/settings/context_manager'
   })
 
   it('has no accessibility violations', async () => {
@@ -172,16 +182,23 @@ describe('Settings', () => {
     expect(screen.queryByRole('link', { name: 'Configuration' })).not.toBeInTheDocument()
   })
 
-  it('shows breadcrumb with category name after switching to a non-default tab', async () => {
+  it('navigates to the correct URL when a tab is clicked', async () => {
     const user = userEvent.setup()
     mockQueries()
     render(<Settings />)
 
     await user.click(screen.getByRole('tab', { name: 'Application' }))
 
-    const breadcrumbNav = screen.getByRole('navigation', { name: 'Breadcrumb' })
-    expect(within(breadcrumbNav).getByRole('link', { name: 'Settings' })).toBeInTheDocument()
-    expect(within(breadcrumbNav).getByText('Application')).toBeInTheDocument()
+    expect(mockSetLocation).toHaveBeenCalledWith('/system-administration/settings/application')
+  })
+
+  it('renders correct content when URL points to a different tab', () => {
+    mockLocation.value = '/system-administration/settings/application'
+    mockQueries()
+    render(<Settings />)
+
+    expect(screen.getByText('Debug mode')).toBeInTheDocument()
+    expect(screen.queryByText('Max total tokens')).not.toBeInTheDocument()
   })
 
   it('shows first category tab content by default', () => {
@@ -189,16 +206,6 @@ describe('Settings', () => {
     render(<Settings />)
 
     expect(screen.getByText('Max total tokens')).toBeInTheDocument()
-  })
-
-  it('switches tabs on click', async () => {
-    const user = userEvent.setup()
-    mockQueries()
-    render(<Settings />)
-
-    await user.click(screen.getByRole('tab', { name: 'Application' }))
-
-    expect(screen.getByText('Debug mode')).toBeInTheDocument()
   })
 
   it('groups settings by category correctly', () => {

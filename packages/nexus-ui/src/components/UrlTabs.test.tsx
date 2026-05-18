@@ -1,5 +1,5 @@
 import { Tab } from '@patternfly/react-core'
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
@@ -142,5 +142,28 @@ describe('UrlTabs', () => {
     )
 
     expect(screen.getByRole('tab', { name: 'Tab A' })).toBeInTheDocument()
+  })
+
+  it('blurs focused tab on popstate (browser back/forward)', () => {
+    render(
+      <UrlTabs basePath="/base" aria-label="Test tabs">
+        <Tab eventKey="tab-a" title="Tab A">
+          Content A
+        </Tab>
+        <Tab eventKey="tab-b" title="Tab B">
+          Content B
+        </Tab>
+      </UrlTabs>
+    )
+
+    const tabA = screen.getByRole('tab', { name: 'Tab A' })
+    tabA.focus()
+    expect(document.activeElement).toBe(tabA)
+
+    act(() => {
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    })
+
+    expect(document.activeElement).not.toBe(tabA)
   })
 })

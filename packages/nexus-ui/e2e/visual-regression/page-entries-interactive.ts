@@ -25,6 +25,7 @@ const MOCK_APPROVAL_CANCELLED_ID = '550e8400-e29b-41d4-a716-446655440008'
 const MOCK_USER_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
 const MOCK_GROUP_ID = 'g1a2b3c4-d5e6-7890-abcd-ef1234567890'
 const MOCK_PROJECT_ID = 'p-001'
+const MOCK_CREDENTIAL_ID = 'cred-001'
 const MOCK_CREDENTIAL_DISABLED_ID = 'cred-003'
 
 // ---------------------------------------------------------------------------
@@ -160,6 +161,27 @@ export const statusVariantPages: PageEntry[] = [
 // Detail page tab entries
 // ---------------------------------------------------------------------------
 export const detailTabPages: PageEntry[] = [
+  {
+    section: 'settings',
+    name: 'settings-application-tab',
+    path: AppRoute.SystemAdministration.SettingsTab.replace(':category', 'application'),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible()
+      await expect(page.getByRole('tab', { name: /Application/i, selected: true })).toBeVisible()
+    },
+  },
+  {
+    section: 'configuration/credentials',
+    name: 'credential-detail-workflows-tab',
+    path: AppRoute.Configuration.Credentials.DetailTab.replace(':credentialId', MOCK_CREDENTIAL_ID).replace(
+      ':tab',
+      'workflows'
+    ),
+    waitFor: async (page) => {
+      await expect(page.getByText('Production API Auth').first()).toBeVisible()
+      await expect(page.getByRole('tab', { name: /Workflows/i, selected: true })).toBeVisible()
+    },
+  },
   {
     section: 'access-management/users',
     name: 'user-detail-groups-tab',

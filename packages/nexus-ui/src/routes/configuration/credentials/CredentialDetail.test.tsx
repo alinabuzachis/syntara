@@ -414,7 +414,7 @@ describe('CredentialDetail', () => {
 
     await user.click(screen.getByRole('tab', { name: /Workflows/ }))
 
-    expect(screen.getByRole('tab', { name: /Workflows/ })).toHaveAttribute('aria-selected', 'true')
+    expect(mockNavigate).toHaveBeenCalledWith('/configuration/credentials/1/workflows')
   })
 
   it('calls patch mutation to enable credential', async () => {

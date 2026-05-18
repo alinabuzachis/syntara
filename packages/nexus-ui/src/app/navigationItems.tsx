@@ -249,6 +249,14 @@ export const NAV_ITEMS: TNavigationItem[] = [
         path: AppRoute.SystemAdministration.Settings,
         icon: <RhUiSettingsIcon />,
         element: <Settings />,
+        children: [
+          {
+            label: 'Settings Tab',
+            path: AppRoute.SystemAdministration.SettingsTab,
+            element: <Settings />,
+            hidden: true,
+          },
+        ],
       },
       {
         label: 'Audit Log',
@@ -293,6 +301,12 @@ export const NAV_ITEMS: TNavigationItem[] = [
   {
     label: 'Credential Detail',
     path: AppRoute.Configuration.Credentials.Detail,
+    element: <CredentialDetail />,
+    hidden: true,
+  },
+  {
+    label: 'Credential Detail Tab',
+    path: AppRoute.Configuration.Credentials.DetailTab,
     element: <CredentialDetail />,
     hidden: true,
   },

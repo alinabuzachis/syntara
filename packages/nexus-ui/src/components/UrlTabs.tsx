@@ -29,6 +29,16 @@ export function UrlTabs({ basePath, defaultTab = 'details', validTabs, children,
     }
   }, [validTabs, activeTab, defaultTab, basePath, setLocation])
 
+  useEffect(() => {
+    const blurStaleTab = () => {
+      if (document.activeElement instanceof HTMLElement && document.activeElement.getAttribute('role') === 'tab') {
+        document.activeElement.blur()
+      }
+    }
+    globalThis.addEventListener('popstate', blurStaleTab)
+    return () => globalThis.removeEventListener('popstate', blurStaleTab)
+  }, [])
+
   const handleSelect = (_event: React.MouseEvent<HTMLElement, MouseEvent>, key: string | number) => {
     goToTab(String(key))
   }

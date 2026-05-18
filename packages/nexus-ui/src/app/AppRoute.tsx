@@ -25,11 +25,13 @@ export const AppRoute = {
     Credentials: {
       Root: '/configuration/credentials',
       Detail: '/configuration/credentials/:credentialId',
+      DetailTab: '/configuration/credentials/:credentialId/:tab',
     },
   },
   SystemAdministration: {
     Root: '/system-administration',
     Settings: '/system-administration/settings',
+    SettingsTab: '/system-administration/settings/:category',
     AuditLog: '/system-administration/audit-log',
     Authentication: {
       Root: '/system-administration/authentication',

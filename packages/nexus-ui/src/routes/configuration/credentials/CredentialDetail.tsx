@@ -1,4 +1,4 @@
-import { Badge, Button, DescriptionList, Label, Stack, StackItem, Switch, Tab, Tabs } from '@patternfly/react-core'
+import { Badge, Button, DescriptionList, Label, Stack, StackItem, Switch, Tab } from '@patternfly/react-core'
 import { ActionsColumn } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
@@ -13,7 +13,9 @@ import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
 import { ErrorState } from '../../../components/states/ErrorState'
 import { useQueryState } from '../../../components/states/useQueryState'
+import { UrlTabs } from '../../../components/UrlTabs'
 import { useDeleteAction } from '../../../hooks/useDeleteAction'
+import { useUrlTab } from '../../../hooks/useUrlTab'
 import { useAlerts } from '../../../providers/alerts'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
@@ -28,11 +30,14 @@ import { useDeleteCredentialState } from './useDeleteCredentialState'
 import { useDisableCredentialState } from './useDisableCredentialState'
 import { UserTimestamp } from './UserTimestamp'
 
+type CredentialTab = 'details' | 'workflows'
+
 // eslint-disable-next-line max-lines-per-function
 export default function CredentialDetail() {
   const { credentialId } = useParams<{ credentialId: string }>()
   const [, navigate] = useLocation()
-  const [activeTab, setActiveTab] = useState(0)
+  const credentialBasePath = AppRoute.Configuration.Credentials.Detail.replace(':credentialId', credentialId ?? '')
+  const [activeTab] = useUrlTab<CredentialTab>(credentialBasePath)
   const [editModalOpen, setEditModalOpen] = useState(false)
   const {
     credentialToDelete,
@@ -199,11 +204,7 @@ export default function CredentialDetail() {
 
   const hasDescription = credential.description != null && credential.description.trim().length > 0
 
-  const credentialCrumbs = breadcrumbsCredentialDetail(
-    credential.id,
-    credential.name,
-    activeTab === 0 ? 'details' : 'workflows'
-  )
+  const credentialCrumbs = breadcrumbsCredentialDetail(credential.id, credential.name, activeTab)
 
   return (
     <NxPage>
@@ -228,9 +229,8 @@ export default function CredentialDetail() {
 
       <NxPageBody>
         <NxPanel isFullHeight>
-          <Tabs activeKey={activeTab} onSelect={(_e, key) => setActiveTab(key as number)}>
-            {/* Details Tab */}
-            <Tab eventKey={0} title="Details">
+          <UrlTabs basePath={credentialBasePath} defaultTab="details" validTabs={['details', 'workflows']}>
+            <Tab eventKey="details" title="Details">
               <Stack hasGutter style={{ padding: 'var(--pf-t--global--spacer--lg)' }}>
                 <StackItem>
                   <DescriptionList isHorizontal>
@@ -289,9 +289,8 @@ export default function CredentialDetail() {
               </Stack>
             </Tab>
 
-            {/* Workflows Tab */}
             <Tab
-              eventKey={1}
+              eventKey="workflows"
               title={
                 <>
                   Workflows <Badge isRead>{credential.workflow_count ?? 0}</Badge>
@@ -300,7 +299,7 @@ export default function CredentialDetail() {
             >
               <CredentialWorkflowsTab credentialId={credential.id} />
             </Tab>
-          </Tabs>
+          </UrlTabs>
         </NxPanel>
       </NxPageBody>
 

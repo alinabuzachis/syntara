@@ -1,14 +1,18 @@
-import { Button, EmptyState, EmptyStateBody, Stack, StackItem, Tab, Tabs } from '@patternfly/react-core'
+import { Button, EmptyState, EmptyStateBody, Stack, StackItem, Tab } from '@patternfly/react-core'
 import { RhUiLockIcon } from '@patternfly/react-icons'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useLocation } from 'wouter'
 
+import { AppRoute } from '../../../app/AppRoute'
 import { breadcrumbsSettingsCategory, breadcrumbsSettingsPage } from '../../../app/breadcrumbBuilders'
 import { settingsClient } from '../../../client'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
+import { UrlTabs } from '../../../components/UrlTabs'
 import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
+import { useUrlTab } from '../../../hooks/useUrlTab'
 import { useAlerts } from '../../../providers/alerts'
 import { getErrorCode } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
@@ -17,8 +21,9 @@ import { SettingsCategoryTab } from './SettingsCategoryTab'
 import { useAllSettings } from './useAllSettings'
 import { useSettingsPermissions } from './useSettingsPermissions'
 
+const basePath = AppRoute.SystemAdministration.Settings
+
 export default function Settings() {
-  const [activeTab, setActiveTab] = useState(0)
   const [edits, setEdits] = useState<Map<string, unknown>>(new Map())
   const [validationErrors, setValidationErrors] = useState<Set<string>>(new Set())
   const { showSuccess, showError } = useAlerts()
@@ -47,17 +52,33 @@ export default function Settings() {
     }
   )
 
-  const categories = categoriesQuery.data?.results ?? []
+  const categories = useMemo(() => categoriesQuery.data?.results ?? [], [categoriesQuery.data])
+  const validTabs = useMemo(() => categories.map((c) => c.slug), [categories])
+  const defaultCategory = categories[0]?.slug ?? ''
+  const [activeSlug] = useUrlTab(basePath, defaultCategory)
+  const [location, setLocation] = useLocation()
+
+  // UrlTabs only redirects when the URL contains an *invalid* tab slug.
+  // When there is *no* slug at all, useUrlTab silently falls back to defaultTab
+  // without updating the URL — so we redirect here to keep the URL bookmarkable.
+  useEffect(() => {
+    if (defaultCategory && !location.startsWith(`${basePath}/`)) {
+      setLocation(`${basePath}/${defaultCategory}`, { replace: true })
+    }
+  }, [defaultCategory, location, setLocation])
+
+  const activeIndex = useMemo(() => {
+    const idx = categories.findIndex((c) => c.slug === activeSlug)
+    return Math.max(idx, 0)
+  }, [activeSlug, categories])
 
   const settingsBreadcrumbs = useMemo(() => {
-    const categoryList = categoriesQuery.data?.results
-    const category = categoryList?.[activeTab]
-    // First tab is the default view for `/configuration/settings`; title + tabs match the page — omit trailing category crumb.
-    if (category && activeTab > 0) {
+    const category = categories[activeIndex]
+    if (category && activeIndex > 0) {
       return breadcrumbsSettingsCategory(category.name)
     }
     return breadcrumbsSettingsPage()
-  }, [categoriesQuery.data, activeTab])
+  }, [categories, activeIndex])
 
   const settingsByCategory = useMemo(() => {
     const grouped = new Map<string, (typeof allSettings)[number][]>()
@@ -153,23 +174,13 @@ export default function Settings() {
     )
   }
 
-  if (categoriesState) {
+  const errorOrLoadingState = categoriesState ?? settingsState
+  if (errorOrLoadingState) {
     return (
       <NxPage>
         <NxPageHeader title="Settings" breadcrumbs={breadcrumbsSettingsPage()} />
         <NxPageBody>
-          <NxPanel isFullHeight>{categoriesState}</NxPanel>
-        </NxPageBody>
-      </NxPage>
-    )
-  }
-
-  if (settingsState) {
-    return (
-      <NxPage>
-        <NxPageHeader title="Settings" breadcrumbs={breadcrumbsSettingsPage()} />
-        <NxPageBody>
-          <NxPanel isFullHeight>{settingsState}</NxPanel>
+          <NxPanel isFullHeight>{errorOrLoadingState}</NxPanel>
         </NxPageBody>
       </NxPage>
     )
@@ -197,20 +208,21 @@ export default function Settings() {
         <NxPanel isFullHeight>
           <Stack hasGutter style={{ flex: 1, minHeight: 0, height: '100%' }}>
             <StackItem>
-              <Tabs
-                activeKey={activeTab}
-                onSelect={(_event, key) => setActiveTab(Number(key))}
+              <UrlTabs
+                basePath={basePath}
+                defaultTab={defaultCategory}
+                validTabs={validTabs}
                 aria-label="Settings categories"
               >
-                {categories.map((cat, index) => (
-                  <Tab key={cat.slug} eventKey={index} title={cat.name} />
+                {categories.map((cat) => (
+                  <Tab key={cat.slug} eventKey={cat.slug} title={cat.name} />
                 ))}
-              </Tabs>
+              </UrlTabs>
             </StackItem>
             <NxPageBody style={{ overflow: 'auto', padding: 'var(--pf-t--global--spacer--md)' }}>
-              {categories[activeTab] && (
+              {categories[activeIndex] && (
                 <SettingsCategoryTab
-                  settings={settingsByCategory.get(categories[activeTab].slug) ?? []}
+                  settings={settingsByCategory.get(categories[activeIndex].slug) ?? []}
                   edits={edits}
                   onChange={handleChange}
                   onResetField={handleResetField}
