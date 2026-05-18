@@ -1,0 +1,16 @@
+/*
+ * PF defaults map underline color to neutral border tokens, so underlines are not blue even
+ * when link text uses link color tokens. This co-located override aligns link + underline colors
+ * and keeps solid decoration where global tokens use dashed style.
+ *
+ * Loaded via CSS module so it wins the cascade over PF's own breadcrumb.css in all
+ * environments (app and Storybook).
+ */
+.breadcrumb {
+  --pf-v6-c-breadcrumb__link--Color: var(--pf-t--global--text--color--link--default);
+  --pf-v6-c-breadcrumb__link--hover--Color: var(--pf-t--global--text--color--link--hover);
+  --pf-v6-c-breadcrumb__link--TextDecorationColor: var(--pf-t--global--text--color--link--default);
+  --pf-v6-c-breadcrumb__link--hover--TextDecorationColor: var(--pf-t--global--text--color--link--hover);
+  --pf-v6-c-breadcrumb__link--TextDecorationStyle: solid;
+  --pf-v6-c-breadcrumb__link--hover--TextDecorationStyle: solid;
+}

@@ -3,6 +3,7 @@ import { useSyncExternalStore } from 'react'
 
 import type { AppBreadcrumbItem } from '../../app/breadcrumbs/appBreadcrumbItem'
 
+import styles from './NxPageBreadcrumbs.module.css'
 import { NxPageBreadcrumbsCollapsedMiddle } from './NxPageBreadcrumbsCollapsedMiddle'
 
 export type { AppBreadcrumbItem }
@@ -51,7 +52,7 @@ export function NxPageBreadcrumbs(props: NxPageBreadcrumbsProps) {
   const collapseMiddle = isNarrow && middle.length >= 2
 
   return (
-    <Breadcrumb aria-label="Breadcrumb">
+    <Breadcrumb className={styles.breadcrumb} aria-label="Breadcrumb">
       {collapseMiddle ? (
         <>
           {first.href ? (
