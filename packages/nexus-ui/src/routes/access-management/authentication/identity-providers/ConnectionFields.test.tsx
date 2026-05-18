@@ -7,9 +7,17 @@ import { axe } from 'vitest-axe'
 import { ConnectionFields } from './ConnectionFields'
 import { type IdentityProviderFormData, identityProviderDefaults } from './identityProviderFormSchema'
 
-function Wrapper({ autoDiscovery = true, isEdit = false }: { autoDiscovery?: boolean; isEdit?: boolean }) {
+function Wrapper({
+  autoDiscovery = true,
+  isEdit = false,
+  disableTlsVerify = false,
+}: {
+  autoDiscovery?: boolean
+  isEdit?: boolean
+  disableTlsVerify?: boolean
+}) {
   const methods = useForm<IdentityProviderFormData>({
-    defaultValues: { ...identityProviderDefaults, autoDiscovery },
+    defaultValues: { ...identityProviderDefaults, autoDiscovery, disableTlsVerify },
   })
   return (
     <FormProvider {...methods}>
@@ -27,10 +35,15 @@ describe('ConnectionFields', () => {
     expect(screen.getByLabelText(/Client secret/)).toBeInTheDocument()
   })
 
-  it('renders the auto-discovery switch', () => {
+  it('renders the auto-discovery switch and toggles it', async () => {
+    const user = userEvent.setup()
     render(<Wrapper />)
 
-    expect(screen.getByRole('switch', { name: /Use OIDC Discovery/ })).toBeInTheDocument()
+    const toggle = screen.getByRole('switch', { name: /Use OIDC Discovery/ })
+    expect(toggle).toBeInTheDocument()
+
+    await user.click(toggle)
+    expect(toggle).not.toBeChecked()
   })
 
   it('does not render manual endpoint fields when auto-discovery is on', () => {
@@ -68,6 +81,40 @@ describe('ConnectionFields', () => {
 
     await user.click(helpButtons[0])
     expect(screen.getByText(/OpenID Connect provider/)).toBeInTheDocument()
+  })
+
+  it('renders the disable TLS verification checkbox', () => {
+    render(<Wrapper />)
+
+    expect(screen.getByLabelText(/Disable TLS certificate verification/)).toBeInTheDocument()
+  })
+
+  it('toggles the disable TLS verification checkbox', async () => {
+    const user = userEvent.setup()
+    render(<Wrapper />)
+
+    const checkbox = screen.getByLabelText(/Disable TLS certificate verification/)
+    expect(checkbox).not.toBeChecked()
+
+    await user.click(checkbox)
+    expect(checkbox).toBeChecked()
+  })
+
+  it('unchecks the disable TLS verification checkbox when initially enabled', async () => {
+    const user = userEvent.setup()
+    render(<Wrapper disableTlsVerify />)
+
+    const checkbox = screen.getByLabelText(/Disable TLS certificate verification/)
+    expect(checkbox).toBeChecked()
+
+    await user.click(checkbox)
+    expect(checkbox).not.toBeChecked()
+  })
+
+  it('shows warning text for disable TLS verification', () => {
+    render(<Wrapper />)
+
+    expect(screen.getByText(/TLS certificate errors are ignored/)).toBeInTheDocument()
   })
 
   it('has no accessibility violations with auto-discovery on', async () => {

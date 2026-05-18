@@ -1,4 +1,12 @@
-import { FormGroup, FormHelperText, HelperText, HelperTextItem, Switch, TextInput } from '@patternfly/react-core'
+import {
+  Checkbox,
+  FormGroup,
+  FormHelperText,
+  HelperText,
+  HelperTextItem,
+  Switch,
+  TextInput,
+} from '@patternfly/react-core'
 import { Controller, type Control } from 'react-hook-form'
 
 import { FieldErrorMessage, FieldHelpPopover, HintOrError } from './formFieldHelpers'
@@ -111,6 +119,29 @@ export function ConnectionFields({
             ) : (
               <FieldErrorMessage error={fieldState.error} />
             )}
+          </FormGroup>
+        )}
+      />
+
+      <Controller
+        name="disableTlsVerify"
+        control={control}
+        render={({ field }) => (
+          <FormGroup fieldId="disable-tls-verify">
+            <Checkbox
+              id="disable-tls-verify"
+              label="Disable TLS certificate verification"
+              isChecked={field.value}
+              onChange={(_event, checked) => field.onChange(checked)}
+            />
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem variant="warning">
+                  When enabled, TLS certificate errors are ignored for all requests to this identity provider. Only use
+                  this for testing or when connecting to providers with self-signed certificates.
+                </HelperTextItem>
+              </HelperText>
+            </FormHelperText>
           </FormGroup>
         )}
       />

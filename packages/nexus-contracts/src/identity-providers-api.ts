@@ -229,6 +229,12 @@ export interface components {
        * @default false
        */
       aap_role_mapping_enabled?: boolean
+      /**
+       * Disable Tls Verify
+       * @description Disable TLS certificate verification for requests to this identity provider (insecure)
+       * @default false
+       */
+      disable_tls_verify?: boolean
     }
     /**
      * OIDCConfigurationResponse
@@ -327,6 +333,12 @@ export interface components {
        * @default false
        */
       aap_role_mapping_enabled?: boolean
+      /**
+       * Disable Tls Verify
+       * @description Disable TLS certificate verification for requests to this identity provider (insecure)
+       * @default false
+       */
+      disable_tls_verify?: boolean
     }
     /**
      * OIDCConfigurationPatch
@@ -427,6 +439,11 @@ export interface components {
        * @description Map AAP aap_system_role claim to built-in groups (omit to keep existing)
        */
       aap_role_mapping_enabled?: boolean | null
+      /**
+       * Disable Tls Verify
+       * @description Disable TLS certificate verification for requests to this identity provider (omit to keep existing)
+       */
+      disable_tls_verify?: boolean | null
     }
     /**
      * IdentityProviderCreate

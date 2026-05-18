@@ -31,6 +31,7 @@ const validAddData = {
   autoCreateGroups: false,
   aapRoleMappingEnabled: false,
   enableRpInitiatedLogout: false,
+  disableTlsVerify: false,
 } as const
 
 /** Helper that returns flat field-level error paths from a safeParse result. */
@@ -146,6 +147,22 @@ describe('identityProviderAddSchema', () => {
 
     expect(result.success).toBe(false)
     expect(getErrorPaths(result)).toContain('scopes')
+  })
+
+  it('accepts disableTlsVerify as true', () => {
+    const result = identityProviderAddSchema.safeParse({ ...validAddData, disableTlsVerify: true })
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.disableTlsVerify).toBe(true)
+    }
+  })
+
+  it('rejects non-boolean disableTlsVerify', () => {
+    const result = identityProviderAddSchema.safeParse({ ...validAddData, disableTlsVerify: 'yes' })
+
+    expect(result.success).toBe(false)
+    expect(getErrorPaths(result)).toContain('disableTlsVerify')
   })
 })
 
@@ -264,6 +281,7 @@ describe('identityProviderDefaults', () => {
       autoCreateGroups: false,
       aapRoleMappingEnabled: false,
       enableRpInitiatedLogout: false,
+      disableTlsVerify: false,
     })
   })
 

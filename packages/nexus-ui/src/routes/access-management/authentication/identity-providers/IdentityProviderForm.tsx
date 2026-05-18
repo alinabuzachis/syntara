@@ -103,6 +103,7 @@ function toCreatePayload(formData: IdentityProviderFormData) {
       ...groupMappingFields(formData),
       auto_create_groups: formData.autoCreateGroups,
       ...(formData.idpType === IdpTypeKey.AAP ? { aap_role_mapping_enabled: formData.aapRoleMappingEnabled } : {}),
+      disable_tls_verify: formData.disableTlsVerify,
     },
   }
 }
@@ -126,6 +127,7 @@ function toPatchPayload(formData: IdentityProviderFormData) {
       ...groupMappingFields(formData),
       auto_create_groups: formData.autoCreateGroups,
       ...(formData.idpType === IdpTypeKey.AAP ? { aap_role_mapping_enabled: formData.aapRoleMappingEnabled } : {}),
+      disable_tls_verify: formData.disableTlsVerify,
     },
   }
 }
@@ -189,6 +191,7 @@ function toFormValues(provider: {
     groupMapping: toGroupMappingValues(c),
     autoCreateGroups: c?.auto_create_groups ?? false,
     aapRoleMappingEnabled: c?.aap_role_mapping_enabled ?? false,
+    disableTlsVerify: c?.disable_tls_verify ?? false,
   }
 }
 

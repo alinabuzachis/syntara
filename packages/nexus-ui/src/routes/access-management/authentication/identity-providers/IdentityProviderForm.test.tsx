@@ -316,6 +316,59 @@ describe('IdentityProviderForm', () => {
       const callArgs = mockPatch.mock.calls[0] as [{ body: { configuration: { aap_role_mapping_enabled: boolean } } }]
       expect(callArgs[0].body.configuration.aap_role_mapping_enabled).toBe(true)
     })
+
+    it('includes disable_tls_verify in patch payload', async () => {
+      const mockPatch = vi.fn()
+      const providerWithTlsDisabled = {
+        id: 'provider-1',
+        name: 'Self-signed IdP',
+        enabled: true,
+        configuration: {
+          provider_type: 'oidc',
+          auto_discovery: true,
+          issuer_url: 'https://self-signed.example.com',
+          client_id: 'client-123',
+          scopes: 'openid profile email',
+          disable_tls_verify: true,
+        },
+      }
+      mockUseParams.mockReturnValue({ providerId: 'provider-1' })
+      vi.mocked(identityProvidersClient.useQuery).mockReturnValue({
+        data: providerWithTlsDisabled,
+        isLoading: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      } as never)
+
+      vi.mocked(identityProvidersClient.useMutation).mockImplementation(((method: string) => {
+        if (method === 'patch') {
+          return { mutate: mockPatch, isPending: false }
+        }
+        return { mutate: vi.fn(), isPending: false }
+      }) as never)
+
+      const user = userEvent.setup()
+      render(<IdentityProviderForm mode="edit" />, { wrapper })
+
+      expect(screen.getByLabelText(/Disable TLS certificate verification/)).toBeChecked()
+
+      await user.click(screen.getByRole('button', { name: 'Save provider' }))
+
+      await waitFor(() => {
+        expect(mockPatch).toHaveBeenCalled()
+      })
+
+      const callArgs = mockPatch.mock.calls[0] as [{ body: { configuration: { disable_tls_verify: boolean } } }]
+      expect(callArgs[0].body.configuration.disable_tls_verify).toBe(true)
+    })
+
+    it('defaults disable_tls_verify to false when not set in provider data', () => {
+      setupEditMocks()
+      render(<IdentityProviderForm mode="edit" />, { wrapper })
+
+      expect(screen.getByLabelText(/Disable TLS certificate verification/)).not.toBeChecked()
+    })
   })
 
   describe('submit and test connection', () => {
@@ -384,6 +437,39 @@ describe('IdentityProviderForm', () => {
 
       const callArgs = mockCreate.mock.calls[0] as [{ body: { configuration: { aap_role_mapping_enabled: boolean } } }]
       expect(callArgs[0].body.configuration.aap_role_mapping_enabled).toBe(true)
+    })
+
+    it('includes disable_tls_verify in create payload', async () => {
+      const mockCreate = vi.fn()
+      setupMocks()
+
+      vi.mocked(identityProvidersClient.useMutation).mockImplementation(((_method: string, path: string) => {
+        if (path === '/identity_providers/') {
+          return { mutate: mockCreate, isPending: false }
+        }
+        return { mutate: vi.fn(), isPending: false }
+      }) as never)
+
+      const user = userEvent.setup()
+      render(<IdentityProviderForm mode="add" />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: /Select a provider template/ }))
+      await user.click(screen.getByRole('option', { name: /Custom/ }))
+      await user.type(screen.getByLabelText(/Provider name/), 'TLS Test')
+      await user.type(screen.getByLabelText(/Issuer URL/), 'https://issuer.example.com')
+      await user.type(screen.getByLabelText(/Client ID/), 'client-id')
+      await user.type(screen.getByLabelText(/Client secret/), 'secret')
+
+      await user.click(screen.getByLabelText(/Disable TLS certificate verification/))
+
+      await user.click(screen.getByRole('button', { name: 'Add provider' }))
+
+      await waitFor(() => {
+        expect(mockCreate).toHaveBeenCalled()
+      })
+
+      const callArgs = mockCreate.mock.calls[0] as [{ body: { configuration: { disable_tls_verify: boolean } } }]
+      expect(callArgs[0].body.configuration.disable_tls_verify).toBe(true)
     })
 
     it('sets name field error on conflict error', async () => {
