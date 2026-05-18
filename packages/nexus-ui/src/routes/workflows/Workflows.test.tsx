@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-import { executionsClient, workflowClient } from '../../client'
+import { executionsClient, workflowClient, workflowFetchClient } from '../../client'
 import { AlertProvider } from '../../providers/alerts'
 import { assertUrlParam, assertUrlParamIsNull } from '../../test/filter-test-helpers'
 import { accessClient } from '../access/accessClient'
@@ -20,6 +20,10 @@ vi.mock('../../client', () => ({
   executionsClient: {
     useQuery: vi.fn(),
     useMutation: vi.fn(),
+  },
+  workflowFetchClient: {
+    GET: vi.fn(),
+    POST: vi.fn(),
   },
   authMiddleware: { onRequest: vi.fn() },
 }))
@@ -1625,6 +1629,380 @@ describe('Workflows Component', () => {
 
       // PF Pagination renders items range in <b> tags: "<b>1 - 1</b> of <b>1</b> items"
       expect(screen.getByText('1 - 1')).toBeInTheDocument()
+    })
+  })
+
+  describe('Duplicate Workflow Row Action', () => {
+    beforeEach(() => {
+      vi.mocked(workflowFetchClient.GET).mockReset()
+      vi.mocked(workflowFetchClient.POST).mockReset()
+    })
+
+    const openKebabMenuForFirstRow = async (user: ReturnType<typeof userEvent.setup>) => {
+      render(<Workflows />, { wrapper })
+
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
+      })
+
+      const table = screen.getByRole('grid', { name: 'Workflows table' })
+      const rows = within(table).getAllByRole('row')
+      const firstDataRow = rows[1]
+
+      const buttons = within(firstDataRow).getAllByRole('button')
+      const menuTrigger = buttons[buttons.length - 1]
+      await user.click(menuTrigger)
+    }
+
+    it('uses fallback values for missing workflow fields', async () => {
+      const user = userEvent.setup()
+      const minimalWorkflows = [{ ...mockWorkflows[0], name: undefined, description: undefined, labels: undefined }]
+      mockWorkflowQuery({
+        data: { resources: minimalWorkflows, next: null, prev: null, total: 1 },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn().mockResolvedValue(undefined),
+      })
+
+      vi.mocked(workflowFetchClient.GET).mockResolvedValue({
+        data: {
+          id: '1',
+          version: {
+            workflow_definition: { schema_version: '2.0.0', triggers: [], nodes: [], edges: [] },
+          },
+        },
+        error: undefined,
+        response: new Response(),
+      })
+      vi.mocked(workflowFetchClient.POST).mockResolvedValue({
+        data: { id: 'new-id', name: 'test', created_by: 'user-1' },
+        error: undefined,
+        response: new Response(),
+      })
+
+      await openKebabMenuForFirstRow(user)
+      const duplicateItem = await screen.findByText('Duplicate workflow')
+      await user.click(duplicateItem)
+
+      await waitFor(() => {
+        const postCall = vi.mocked(workflowFetchClient.POST).mock.calls[0]
+        const body = (postCall[1] as { body: { name: string; description: string } }).body
+        expect(body.name).toMatch(/^workflow - duplicate-/)
+        expect(body.description).toBe('')
+      })
+    })
+
+    it('shows "Duplicate workflow" in the kebab menu', async () => {
+      const user = userEvent.setup()
+      await openKebabMenuForFirstRow(user)
+
+      const duplicateItem = await screen.findByText('Duplicate workflow')
+      expect(duplicateItem).toBeInTheDocument()
+    })
+
+    it('duplicates workflow successfully and shows success alert', async () => {
+      const user = userEvent.setup()
+      const mockRefetch = vi.fn().mockResolvedValue(undefined)
+      mockWorkflowQuery({
+        data: {
+          resources: mockWorkflows,
+          next: null,
+          prev: null,
+          total: mockWorkflows.length,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+      })
+
+      vi.mocked(workflowFetchClient.GET).mockResolvedValue({
+        data: {
+          id: '1',
+          name: 'Important Project Workflow',
+          version: {
+            workflow_definition: {
+              schema_version: '2.0.0',
+              triggers: [],
+              nodes: [],
+              edges: [],
+            },
+          },
+        },
+        error: undefined,
+        response: new Response(),
+      })
+
+      vi.mocked(workflowFetchClient.POST).mockResolvedValue({
+        data: { id: 'new-id', name: 'Important Project Workflow - duplicate-abc', created_by: 'user-1' },
+        error: undefined,
+        response: new Response(),
+      })
+
+      await openKebabMenuForFirstRow(user)
+
+      const duplicateItem = await screen.findByText('Duplicate workflow')
+      await user.click(duplicateItem)
+
+      await waitFor(() => {
+        expect(workflowFetchClient.GET).toHaveBeenCalledWith('/workflows/{workflow_id}', {
+          params: { path: { workflow_id: '1' } },
+        })
+      })
+
+      await waitFor(() => {
+        expect(workflowFetchClient.POST).toHaveBeenCalledWith(
+          '/workflows',
+          expect.objectContaining({
+            body: expect.objectContaining({
+              workflow_definition: expect.objectContaining({
+                schema_version: '2.0.0',
+              }) as unknown,
+              is_enabled: false,
+            }) as unknown,
+          }) as unknown
+        )
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText('Workflow duplicated')).toBeInTheDocument()
+      })
+
+      const editLink = screen.getByRole('button', { name: /- duplicate-/ })
+      expect(editLink).toBeInTheDocument()
+      expect(screen.getByText(/^Created /)).toBeInTheDocument()
+    })
+
+    it('shows error alert when fetching workflow fails', async () => {
+      const user = userEvent.setup()
+      vi.mocked(workflowFetchClient.GET).mockResolvedValue({
+        data: undefined,
+        error: {
+          type: 'https://api.nexus.com/errors/workflow-not-found',
+          title: 'Workflow Not Found',
+          detail: 'Workflow not found',
+          code: 'WORKFLOW_NOT_FOUND',
+          retryable: false,
+        },
+        response: new Response(null, { status: 404 }),
+      })
+
+      await openKebabMenuForFirstRow(user)
+
+      const duplicateItem = await screen.findByText('Duplicate workflow')
+      await user.click(duplicateItem)
+
+      await waitFor(() => {
+        expect(screen.getByText('Duplicate failed')).toBeInTheDocument()
+      })
+    })
+
+    it('shows error alert when creating duplicate fails', async () => {
+      const user = userEvent.setup()
+      vi.mocked(workflowFetchClient.GET).mockResolvedValue({
+        data: {
+          id: '1',
+          name: 'Important Project Workflow',
+          version: {
+            workflow_definition: {
+              schema_version: '2.0.0',
+              triggers: [],
+              nodes: [],
+              edges: [],
+            },
+          },
+        },
+        error: undefined,
+        response: new Response(),
+      })
+
+      vi.mocked(workflowFetchClient.POST).mockResolvedValue({
+        data: undefined,
+        error: {
+          type: 'https://api.nexus.com/errors/name-conflict',
+          title: 'Workflow Name Conflict',
+          detail: 'Name conflict',
+          code: 'WORKFLOW_NAME_CONFLICT',
+          retryable: false,
+        },
+        response: new Response(null, { status: 409 }),
+      })
+
+      await openKebabMenuForFirstRow(user)
+
+      const duplicateItem = await screen.findByText('Duplicate workflow')
+      await user.click(duplicateItem)
+
+      await waitFor(() => {
+        expect(screen.getByText('Duplicate failed')).toBeInTheDocument()
+      })
+    })
+
+    it('generates a name with duplicate suffix', async () => {
+      const user = userEvent.setup()
+      vi.mocked(workflowFetchClient.GET).mockResolvedValue({
+        data: {
+          id: '1',
+          name: 'Important Project Workflow',
+          version: {
+            workflow_definition: {
+              schema_version: '2.0.0',
+              triggers: [],
+              nodes: [],
+              edges: [],
+            },
+          },
+        },
+        error: undefined,
+        response: new Response(),
+      })
+
+      vi.mocked(workflowFetchClient.POST).mockResolvedValue({
+        data: { id: 'new-id', name: 'test', created_by: 'user-1' },
+        error: undefined,
+        response: new Response(),
+      })
+
+      await openKebabMenuForFirstRow(user)
+
+      const duplicateItem = await screen.findByText('Duplicate workflow')
+      await user.click(duplicateItem)
+
+      await waitFor(() => {
+        const postCall = vi.mocked(workflowFetchClient.POST).mock.calls[0]
+        const body = (postCall[1] as { body: { name: string } }).body
+        expect(body.name).toMatch(/^Important Project Workflow - duplicate-[a-z\d]+$/)
+      })
+    })
+
+    it('creates duplicate with is_enabled set to false', async () => {
+      const user = userEvent.setup()
+      vi.mocked(workflowFetchClient.GET).mockResolvedValue({
+        data: {
+          id: '1',
+          name: 'Important Project Workflow',
+          is_enabled: true,
+          version: {
+            workflow_definition: {
+              schema_version: '2.0.0',
+              triggers: [],
+              nodes: [],
+              edges: [],
+            },
+          },
+        },
+        error: undefined,
+        response: new Response(),
+      })
+
+      vi.mocked(workflowFetchClient.POST).mockResolvedValue({
+        data: { id: 'new-id', name: 'test', created_by: 'user-1' },
+        error: undefined,
+        response: new Response(),
+      })
+
+      await openKebabMenuForFirstRow(user)
+
+      const duplicateItem = await screen.findByText('Duplicate workflow')
+      await user.click(duplicateItem)
+
+      await waitFor(() => {
+        const postCall = vi.mocked(workflowFetchClient.POST).mock.calls[0]
+        const body = (postCall[1] as { body: { is_enabled: boolean } }).body
+        expect(body.is_enabled).toBe(false)
+      })
+    })
+
+    it('shows plain text description when response has no id', async () => {
+      const user = userEvent.setup()
+      vi.mocked(workflowFetchClient.GET).mockResolvedValue({
+        data: {
+          id: '1',
+          name: 'Important Project Workflow',
+          version: {
+            workflow_definition: {
+              schema_version: '2.0.0',
+              triggers: [],
+              nodes: [],
+              edges: [],
+            },
+          },
+        },
+        error: undefined,
+        response: new Response(),
+      })
+
+      vi.mocked(workflowFetchClient.POST).mockResolvedValue({
+        data: { name: 'test', created_by: 'user-1' },
+        error: undefined,
+        response: new Response(),
+      })
+
+      await openKebabMenuForFirstRow(user)
+
+      const duplicateItem = await screen.findByText('Duplicate workflow')
+      await user.click(duplicateItem)
+
+      await waitFor(() => {
+        expect(screen.getByText('Workflow duplicated')).toBeInTheDocument()
+        expect(screen.getByText(/^Created "/)).toBeInTheDocument()
+      })
+    })
+
+    it('shows error when GET returns no data', async () => {
+      const user = userEvent.setup()
+      vi.mocked(workflowFetchClient.GET).mockResolvedValue({
+        data: undefined,
+        error: undefined,
+        response: new Response(),
+      })
+
+      await openKebabMenuForFirstRow(user)
+
+      const duplicateItem = await screen.findByText('Duplicate workflow')
+      await user.click(duplicateItem)
+
+      await waitFor(() => {
+        expect(screen.getByText('Duplicate failed')).toBeInTheDocument()
+      })
+    })
+
+    it('shows error when fetch throws an unexpected error', async () => {
+      const user = userEvent.setup()
+      vi.mocked(workflowFetchClient.GET).mockRejectedValue(new Error('Network error'))
+
+      await openKebabMenuForFirstRow(user)
+
+      const duplicateItem = await screen.findByText('Duplicate workflow')
+      await user.click(duplicateItem)
+
+      await waitFor(() => {
+        expect(screen.getByText('Duplicate failed')).toBeInTheDocument()
+      })
+    })
+
+    it('shows error when workflow has no definition', async () => {
+      const user = userEvent.setup()
+      vi.mocked(workflowFetchClient.GET).mockResolvedValue({
+        data: {
+          id: '1',
+          name: 'Important Project Workflow',
+          version: {},
+        },
+        error: undefined,
+        response: new Response(),
+      })
+
+      await openKebabMenuForFirstRow(user)
+
+      const duplicateItem = await screen.findByText('Duplicate workflow')
+      await user.click(duplicateItem)
+
+      await waitFor(() => {
+        expect(screen.getByText('Duplicate failed')).toBeInTheDocument()
+        expect(screen.getByText('Workflow has no definition to duplicate')).toBeInTheDocument()
+      })
     })
   })
 

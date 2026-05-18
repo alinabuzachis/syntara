@@ -2,6 +2,7 @@ import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { Button, List, ListItem, Stack, StackItem } from '@patternfly/react-core'
 import {
   RhUiAddIcon,
+  RhUiDuplicateIcon,
   RhUiEditFillIcon,
   RhUiExportIcon,
   RhUiHistoryIcon,
@@ -10,10 +11,10 @@ import {
 } from '@patternfly/react-icons'
 import { Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useLocation } from 'wouter'
 
-import { executionsClient, workflowClient } from '../../client'
+import { executionsClient, workflowClient, workflowFetchClient } from '../../client'
 import { ConfirmationDialog } from '../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
@@ -40,6 +41,7 @@ import { ImportWorkflowDialog } from './ImportWorkflowDialog'
 import { FlatWorkflowsTableBody, GroupedWorkflowsTableBody } from './WorkflowsTableBody'
 
 type Workflow = WorkflowAPI.components['schemas']['Workflow']
+type WorkflowDefinitionSchema = WorkflowAPI.components['schemas']['workflow_definition.schema']
 type WorkflowWithProject = Workflow & { project_id?: string }
 
 // Transform is_enabled string values to boolean for the API
@@ -53,7 +55,7 @@ const transformIsEnabledFilter = (filters: FilterConfig[]): FilterConfig[] =>
 
 // eslint-disable-next-line max-lines-per-function
 export default function Workflows() {
-  const { showSuccess, showError } = useAlerts()
+  const { showAlert, showSuccess, showError } = useAlerts()
   const [, setLocation] = useLocation()
   const { selectedProjectId, stableProjectId, isAllProjects, projects, ProjectSelector } = useProjectSelector()
   const projectExtraParams = useMemo(
@@ -219,6 +221,71 @@ export default function Workflows() {
     )
   }
 
+  const [isDuplicating, setIsDuplicating] = useState(false)
+
+  const handleDuplicateWorkflow = useCallback(
+    async (workflow: Workflow) => {
+      if (!workflow.id || isDuplicating) return
+      setIsDuplicating(true)
+      try {
+        const { data: fullWorkflow, error: fetchError } = await workflowFetchClient.GET('/workflows/{workflow_id}', {
+          params: { path: { workflow_id: workflow.id } },
+        })
+        if (fetchError || !fullWorkflow) {
+          showError({ title: 'Duplicate failed', description: getErrorMessage(fetchError) })
+          return
+        }
+
+        const definition = fullWorkflow.version?.workflow_definition
+        if (!definition) {
+          showError({ title: 'Duplicate failed', description: 'Workflow has no definition to duplicate' })
+          return
+        }
+
+        const timestamp = Date.now().toString(36)
+        const duplicateName = `${workflow.name ?? 'workflow'} - duplicate-${timestamp}`
+
+        const { data: createdWorkflow, error: createError } = await workflowFetchClient.POST('/workflows', {
+          body: {
+            name: duplicateName,
+            description: workflow.description ?? '',
+            workflow_definition: definition as unknown as WorkflowDefinitionSchema,
+            labels: (workflow.labels as Record<string, string> | undefined) ?? {},
+            is_enabled: false,
+            ...(workflow.project_id ? { project_id: workflow.project_id } : {}),
+          },
+        })
+
+        if (createError) {
+          showError({ title: 'Duplicate failed', description: getErrorMessage(createError) })
+          return
+        }
+
+        showAlert({
+          variant: 'success',
+          autoDismiss: true,
+          title: 'Workflow duplicated',
+          description: createdWorkflow?.id ? (
+            <>
+              Created{' '}
+              <Button variant="link" isInline onClick={() => setLocation(`/workflow-builder/${createdWorkflow.id}`)}>
+                {duplicateName}
+              </Button>
+            </>
+          ) : (
+            `Created "${duplicateName}"`
+          ),
+        })
+        detachPromise(workflowsQuery.refetch())
+      } catch (err: unknown) {
+        showError({ title: 'Duplicate failed', description: getErrorMessage(err) })
+      } finally {
+        setIsDuplicating(false)
+      }
+    },
+    [isDuplicating, setLocation, showAlert, showError, workflowsQuery]
+  )
+
   const getRowActions = (workflow: Workflow): IAction[] => [
     {
       title: <IconLabel icon={<RhUiEditFillIcon />}>Edit workflow</IconLabel>,
@@ -231,6 +298,11 @@ export default function Workflows() {
     {
       title: <IconLabel icon={<RhUiHistoryIcon />}>View run history</IconLabel>,
       onClick: () => setLocation(`/executions?workflow_id=${workflow.id}`),
+    },
+    {
+      title: <IconLabel icon={<RhUiDuplicateIcon />}>Duplicate workflow</IconLabel>,
+      isDisabled: isDuplicating,
+      onClick: () => detachPromise(handleDuplicateWorkflow(workflow)),
     },
     {
       title: <IconLabel icon={<RhUiExportIcon />}>Export workflow</IconLabel>,
