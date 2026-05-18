@@ -168,7 +168,7 @@ export const NAV_ITEMS: TNavigationItem[] = [
             hidden: true,
           },
           {
-            label: 'Role Assignments',
+            label: 'Assignments',
             path: AppRoute.AccessManagement.Assignments,
             element: <AccessManagement />,
           },

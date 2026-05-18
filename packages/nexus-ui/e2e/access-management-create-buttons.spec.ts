@@ -51,7 +51,7 @@ const MODAL_TAB_CASES: ModalTabCase[] = [
     requiresSeedData: true,
   },
   {
-    tab: /Role Assignments/i,
+    tab: /Assignments/i,
     urlPath: 'assignments',
     label: 'Add assignment',
     heading: 'Add Assignment',

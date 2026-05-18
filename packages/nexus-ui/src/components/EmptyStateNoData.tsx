@@ -1,5 +1,6 @@
 import { Button, EmptyState, EmptyStateBody, EmptyStateActions, EmptyStateFooter } from '@patternfly/react-core'
 import { RhUiCubesFillIcon } from '@patternfly/react-icons'
+import type { ReactNode } from 'react'
 
 /**
  * EmptyStateNoData component for displaying when there's no data available.
@@ -20,6 +21,7 @@ export type EmptyStateNoDataProps = {
   imageSrc?: string
   imageAlt?: string
   addData?: () => void
+  secondaryActions?: ReactNode
 }
 
 // Component to render an image as an icon
@@ -40,7 +42,7 @@ function ImageIcon({ src, alt }: { src: string; alt?: string }) {
 }
 
 export function EmptyStateNoData(props: EmptyStateNoDataProps) {
-  const { title, description, buttonText, imageSrc, imageAlt, addData } = props
+  const { title, description, buttonText, imageSrc, imageAlt, addData, secondaryActions } = props
 
   const defaultTitle = 'No data available'
   const defaultDescription = 'There is no data to display at this time.'
@@ -59,6 +61,7 @@ export function EmptyStateNoData(props: EmptyStateNoDataProps) {
               {buttonText ?? defaultButtonText}
             </Button>
           </EmptyStateActions>
+          {secondaryActions && <EmptyStateActions>{secondaryActions}</EmptyStateActions>}
         </EmptyStateFooter>
       )}
     </EmptyState>

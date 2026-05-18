@@ -42,10 +42,10 @@ describe('breadcrumbBuilders', () => {
 
   it('includes a tab segment when not on the default details tab', () => {
     const base = '/system-administration/access-management/projects/uuid-1'
-    const items = breadcrumbsProjectDetail('My project', base, 'policies')
+    const items = breadcrumbsProjectDetail('My project', base, 'role-assignments')
     expect(items).toHaveLength(4)
     expect(items[2]).toEqual({ label: 'My project', href: base })
-    expect(items[3]).toEqual({ label: 'Policies' })
+    expect(items[3]).toEqual({ label: 'Assignments' })
   })
 
   it('omits default details tab for user, group, and identity provider detail', () => {
@@ -130,9 +130,9 @@ describe('breadcrumbBuilders', () => {
       { label: 'Members' }
     )
     expect(
-      breadcrumbsProjectDetail('p', '/system-administration/access-management/projects/p1', 'policies').at(-1)
+      breadcrumbsProjectDetail('p', '/system-administration/access-management/projects/p1', 'role-assignments').at(-1)
     ).toEqual({
-      label: 'Policies',
+      label: 'Assignments',
     })
     expect(
       breadcrumbsIdentityProviderDetail(

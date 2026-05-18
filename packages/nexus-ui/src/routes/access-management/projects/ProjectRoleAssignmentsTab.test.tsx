@@ -33,6 +33,30 @@ vi.mock('../../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
 }))
 
+vi.mock('../../access/AddRoleDialog', () => ({
+  AddRoleDialog: ({
+    onClose,
+    onSuccess,
+    defaultScope,
+    defaultProjectId,
+  }: {
+    onClose: () => void
+    onSuccess: () => void
+    defaultScope?: string
+    defaultProjectId?: string
+  }) => (
+    <div>
+      Create role modal (scope: {defaultScope}, project: {defaultProjectId})
+      <button type="button" onClick={onSuccess}>
+        Mock create success
+      </button>
+      <button type="button" onClick={onClose}>
+        Mock close create modal
+      </button>
+    </div>
+  ),
+}))
+
 vi.mock('./AssignProjectRoleModal', () => ({
   AssignProjectRoleModal: ({
     isOpen,
@@ -706,6 +730,44 @@ describe('ProjectRoleAssignmentsTab', () => {
     // Table should still render all rows
     expect(within(grid).getAllByText('alice')).toHaveLength(2)
     expect(within(grid).getByText('devs')).toBeInTheDocument()
+  })
+
+  it('renders "Create role" button in toolbar', () => {
+    render(<ProjectRoleAssignmentsTab projectId="proj-1" />, { wrapper })
+
+    expect(screen.getByRole('button', { name: 'Create role' })).toBeInTheDocument()
+  })
+
+  it('opens create role modal with project scope pre-populated', async () => {
+    const user = userEvent.setup()
+    render(<ProjectRoleAssignmentsTab projectId="proj-1" />, { wrapper })
+
+    await user.click(screen.getByRole('button', { name: 'Create role' }))
+
+    expect(screen.getByText(/Create role modal/)).toBeInTheDocument()
+    expect(screen.getByText(/scope: project/)).toBeInTheDocument()
+    expect(screen.getByText(/project: proj-1/)).toBeInTheDocument()
+  })
+
+  it('closes create role modal via onClose callback', async () => {
+    const user = userEvent.setup()
+    render(<ProjectRoleAssignmentsTab projectId="proj-1" />, { wrapper })
+
+    await user.click(screen.getByRole('button', { name: 'Create role' }))
+    expect(screen.getByText(/Create role modal/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Mock close create modal' }))
+    expect(screen.queryByText(/Create role modal/)).not.toBeInTheDocument()
+  })
+
+  it('refetches data when create role reports success', async () => {
+    const user = userEvent.setup()
+    render(<ProjectRoleAssignmentsTab projectId="proj-1" />, { wrapper })
+
+    await user.click(screen.getByRole('button', { name: 'Create role' }))
+    await user.click(screen.getByRole('button', { name: 'Mock create success' }))
+
+    expect(mockRefetch).toHaveBeenCalled()
   })
 
   it('closes the assign modal in empty state via onClose callback', async () => {

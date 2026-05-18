@@ -906,17 +906,17 @@ describe('UserDetail', () => {
       expect(groupsTab).toHaveTextContent(/\d+/)
     })
 
-    it('renders Role Assignments tab', () => {
+    it('renders Assignments tab', () => {
       render(<UserDetail />, { wrapper })
 
-      expect(screen.getByRole('tab', { name: /Role Assignments/i })).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /Assignments/i })).toBeInTheDocument()
     })
 
-    it('navigates to roles URL when Role Assignments tab is clicked', async () => {
+    it('navigates to roles URL when Assignments tab is clicked', async () => {
       const user = userEvent.setup()
       render(<UserDetail />, { wrapper })
 
-      await user.click(screen.getByRole('tab', { name: /Role Assignments/i }))
+      await user.click(screen.getByRole('tab', { name: /Assignments/i }))
 
       expect(mockSetLocation).toHaveBeenCalledWith(
         `/system-administration/access-management/users/${VALID_USER_ID}/roles`
@@ -965,10 +965,10 @@ describe('UserDetail', () => {
       expect(screen.getByText('Disabled')).toBeInTheDocument()
     })
 
-    it('displays role assignment count badge on Role Assignments tab', () => {
+    it('displays role assignment count badge on Assignments tab', () => {
       render(<UserDetail />, { wrapper })
 
-      const rolesTab = screen.getByRole('tab', { name: /Role Assignments/i })
+      const rolesTab = screen.getByRole('tab', { name: /Assignments/i })
       expect(rolesTab).toHaveTextContent('3')
     })
 
@@ -979,7 +979,7 @@ describe('UserDetail', () => {
       })
       render(<UserDetail />, { wrapper })
 
-      const rolesTab = screen.getByRole('tab', { name: /Role Assignments/i })
+      const rolesTab = screen.getByRole('tab', { name: /Assignments/i })
       expect(rolesTab).toHaveTextContent('10')
     })
 
@@ -992,7 +992,7 @@ describe('UserDetail', () => {
       } as typeof mockRoleAssignmentsData)
       render(<UserDetail />, { wrapper })
 
-      const rolesTab = screen.getByRole('tab', { name: /Role Assignments/i })
+      const rolesTab = screen.getByRole('tab', { name: /Assignments/i })
       expect(rolesTab).toHaveTextContent('2')
     })
 
@@ -1003,7 +1003,7 @@ describe('UserDetail', () => {
       })
       render(<UserDetail />, { wrapper })
 
-      const rolesTab = screen.getByRole('tab', { name: /Role Assignments/i })
+      const rolesTab = screen.getByRole('tab', { name: /Assignments/i })
       expect(rolesTab).toHaveTextContent('0')
     })
 
@@ -1011,7 +1011,7 @@ describe('UserDetail', () => {
       mockSuccessQueries(null as unknown as typeof mockRoleAssignmentsData)
       render(<UserDetail />, { wrapper })
 
-      const rolesTab = screen.getByRole('tab', { name: /Role Assignments/i })
+      const rolesTab = screen.getByRole('tab', { name: /Assignments/i })
       expect(rolesTab).toHaveTextContent('0')
     })
 
@@ -1019,7 +1019,7 @@ describe('UserDetail', () => {
       mockSuccessQueries({} as typeof mockRoleAssignmentsData)
       render(<UserDetail />, { wrapper })
 
-      const rolesTab = screen.getByRole('tab', { name: /Role Assignments/i })
+      const rolesTab = screen.getByRole('tab', { name: /Assignments/i })
       expect(rolesTab).toHaveTextContent('0')
     })
 

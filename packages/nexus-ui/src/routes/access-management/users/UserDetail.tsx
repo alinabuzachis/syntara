@@ -266,7 +266,7 @@ export function UserDetail() {
             eventKey="roles"
             title={
               <TabTitleText>
-                Role Assignments <Badge isRead>{roleAssignmentCount}</Badge>
+                Assignments <Badge isRead>{roleAssignmentCount}</Badge>
               </TabTitleText>
             }
           />

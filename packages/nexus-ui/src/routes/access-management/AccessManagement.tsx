@@ -22,7 +22,7 @@ const tabs = [
   { path: AppRoute.AccessManagement.Projects, label: 'Projects', component: ProjectsTab },
   { path: AppRoute.AccessManagement.Policies, label: 'Policies', component: PoliciesTab },
   { path: AppRoute.AccessManagement.Roles, label: 'Roles', component: RolesTab },
-  { path: AppRoute.AccessManagement.Assignments, label: 'Role Assignments', component: AssignmentsTab },
+  { path: AppRoute.AccessManagement.Assignments, label: 'Assignments', component: AssignmentsTab },
   { path: AppRoute.AccessManagement.CanI, label: 'Can I?', component: CanITab },
 ] as const
 

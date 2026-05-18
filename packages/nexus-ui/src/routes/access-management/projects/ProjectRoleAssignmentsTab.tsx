@@ -2,6 +2,7 @@ import { Button, Flex, FlexItem, Label, LabelGroup, StackItem, Truncate } from '
 import { PlusIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
+import { useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 
 import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
@@ -21,6 +22,7 @@ import { FilterOperatorEnum, FilterTypeEnum } from '../../../types/filters'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 import { accessClient } from '../../access/accessClient'
+import { AddRoleDialog } from '../../access/AddRoleDialog'
 
 import { AssignProjectRoleModal } from './AssignProjectRoleModal'
 
@@ -204,7 +206,9 @@ function RoleAssignmentsTable({
 }
 
 export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAssignmentsTabProps>) {
+  const queryClient = useQueryClient()
   const [assignModalOpen, setAssignModalOpen] = useState(false)
+  const [createRoleOpen, setCreateRoleOpen] = useState(false)
   const [rowToUnassign, setRowToUnassign] = useState<RoleAssignmentRow | null>(null)
   const { filters, setAllFilters, clearAllFilters } = useFilterState()
   const { activeSortIndex, sortDirection, getSortParams } = useSortState(sortFieldByColumn)
@@ -274,6 +278,11 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAss
     detachPromise(allAssignmentsQuery.refetch())
   }
 
+  const handleRoleCreated = () => {
+    detachPromise(queryClient.invalidateQueries({ queryKey: ['all-project-roles', projectId] }))
+    refetch()
+  }
+
   const handleUnassign = () => {
     if (!rowToUnassign) return
     const callbacks = {
@@ -308,74 +317,73 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAss
 
   const hasActiveFilters = filters.length > 0
 
-  if (rows.length === 0 && !hasActiveFilters) {
-    return (
-      <>
+  return (
+    <>
+      {rows.length === 0 && !hasActiveFilters ? (
         <EmptyStateNoData
           title="No role assignments"
           description="No roles have been assigned in this project."
           buttonText="Assign role"
           addData={() => setAssignModalOpen(true)}
+          secondaryActions={
+            <Button variant="link" onClick={() => setCreateRoleOpen(true)}>
+              Create role
+            </Button>
+          }
         />
-        <AssignProjectRoleModal
-          projectId={projectId}
-          isOpen={assignModalOpen}
-          assignedRolesByPrincipal={assignedRolesByPrincipal}
-          onClose={() => setAssignModalOpen(false)}
-          onSuccess={refetch}
-        />
-      </>
-    )
-  }
+      ) : (
+        <NxPanelContentStack>
+          <StackItem>
+            <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
+              <FlexItem grow={{ default: 'grow' }}>
+                <FilterBar
+                  fieldDefinitions={filterFieldDefinitions}
+                  filters={filters}
+                  onFilterChange={handleFilterChange}
+                  showClearAll={true}
+                  clearAllFilters={() => {
+                    clearAllFilters()
+                    setPage(1)
+                  }}
+                />
+              </FlexItem>
+              <FlexItem>
+                <Button variant="secondary" onClick={() => setCreateRoleOpen(true)}>
+                  Create role
+                </Button>
+              </FlexItem>
+              <FlexItem>
+                <Button variant="primary" icon={<PlusIcon />} onClick={() => setAssignModalOpen(true)}>
+                  Assign role
+                </Button>
+              </FlexItem>
+            </Flex>
+          </StackItem>
 
-  return (
-    <>
-      <NxPanelContentStack>
-        <StackItem>
-          <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
-            <FlexItem grow={{ default: 'grow' }}>
-              <FilterBar
-                fieldDefinitions={filterFieldDefinitions}
-                filters={filters}
-                onFilterChange={handleFilterChange}
-                showClearAll={true}
+          {sortedRows.length === 0 ? (
+            <NxPageBody isCentered>
+              <EmptyStateFilter
                 clearAllFilters={() => {
                   clearAllFilters()
                   setPage(1)
                 }}
               />
-            </FlexItem>
-            <FlexItem>
-              <Button variant="primary" icon={<PlusIcon />} onClick={() => setAssignModalOpen(true)}>
-                Assign role
-              </Button>
-            </FlexItem>
-          </Flex>
-        </StackItem>
-
-        {sortedRows.length === 0 ? (
-          <NxPageBody isCentered>
-            <EmptyStateFilter
-              clearAllFilters={() => {
-                clearAllFilters()
-                setPage(1)
-              }}
+            </NxPageBody>
+          ) : (
+            <RoleAssignmentsTable
+              rows={paginatedRows}
+              sortedRows={sortedRows}
+              page={page}
+              perPage={perPage}
+              getSortParams={getSortParams}
+              onUnassign={setRowToUnassign}
+              onPrev={() => setPage((p) => Math.max(1, p - 1))}
+              onNext={() => setPage((p) => p + 1)}
+              onPerPageChange={handlePerPageChange}
             />
-          </NxPageBody>
-        ) : (
-          <RoleAssignmentsTable
-            rows={paginatedRows}
-            sortedRows={sortedRows}
-            page={page}
-            perPage={perPage}
-            getSortParams={getSortParams}
-            onUnassign={setRowToUnassign}
-            onPrev={() => setPage((p) => Math.max(1, p - 1))}
-            onNext={() => setPage((p) => p + 1)}
-            onPerPageChange={handlePerPageChange}
-          />
-        )}
-      </NxPanelContentStack>
+          )}
+        </NxPanelContentStack>
+      )}
 
       <AssignProjectRoleModal
         projectId={projectId}
@@ -397,6 +405,15 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAss
         This unassigns the role <strong>{rowToUnassign?.roleName}</strong> from{' '}
         <strong>{rowToUnassign?.principalName}</strong>. Related permissions will be revoked.
       </ConfirmationDialog>
+
+      {createRoleOpen && (
+        <AddRoleDialog
+          onClose={() => setCreateRoleOpen(false)}
+          onSuccess={handleRoleCreated}
+          defaultScope="project"
+          defaultProjectId={projectId}
+        />
+      )}
     </>
   )
 }

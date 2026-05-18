@@ -146,8 +146,8 @@ test.describe('destructive modal UX compliance (AAP-72897)', () => {
     await expect(firstUserLink).toBeVisible()
     await firstUserLink.click()
 
-    // Go to the Role Assignments tab
-    const roleAssignmentsTab = app.getByRole('tab', { name: /Role assignments/i })
+    // Go to the Assignments tab
+    const roleAssignmentsTab = app.getByRole('tab', { name: /Assignments/i })
     const hasRoleTab = await roleAssignmentsTab
       .waitFor({ state: 'visible', timeout: 5000 })
       .then(() => true)

@@ -197,7 +197,7 @@ export const detailTabPages: PageEntry[] = [
     path: AppRoute.AccessManagement.UserDetailTab.replace(':userId', MOCK_USER_ID).replace(':tab', 'roles'),
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-      await expect(page.getByRole('tab', { name: /Role Assignments/i, selected: true })).toBeVisible()
+      await expect(page.getByRole('tab', { name: /Assignments/i, selected: true })).toBeVisible()
     },
   },
   {
@@ -215,16 +215,7 @@ export const detailTabPages: PageEntry[] = [
     path: AppRoute.AccessManagement.GroupDetailTab.replace(':groupId', MOCK_GROUP_ID).replace(':tab', 'roles'),
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-      await expect(page.getByRole('tab', { name: /Role Assignments/i, selected: true })).toBeVisible()
-    },
-  },
-  {
-    section: 'access-management/projects',
-    name: 'project-detail-roles-tab',
-    path: AppRoute.AccessManagement.ProjectDetailTab.replace(':projectId', MOCK_PROJECT_ID).replace(':tab', 'roles'),
-    waitFor: async (page) => {
-      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-      await expect(page.getByRole('tab', { name: /Roles/i, selected: true })).toBeVisible()
+      await expect(page.getByRole('tab', { name: /Assignments/i, selected: true })).toBeVisible()
     },
   },
   {
@@ -236,7 +227,7 @@ export const detailTabPages: PageEntry[] = [
     ),
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-      await expect(page.getByRole('tab', { name: /Role Assignments/i, selected: true })).toBeVisible()
+      await expect(page.getByRole('tab', { name: /Assignments/i, selected: true })).toBeVisible()
     },
   },
 ]

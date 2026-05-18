@@ -380,7 +380,7 @@ export const pages: PageEntry[] = [
     name: 'assignments-list',
     path: AppRoute.AccessManagement.Assignments,
     waitFor: async (page) => {
-      await expect(page.getByRole('tab', { name: 'Role Assignments' })).toBeVisible()
+      await expect(page.getByRole('tab', { name: 'Assignments' })).toBeVisible()
     },
   },
 

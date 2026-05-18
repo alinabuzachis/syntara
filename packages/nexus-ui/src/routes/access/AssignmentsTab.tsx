@@ -127,12 +127,15 @@ export function AssignmentsTab() {
 
   if (allRows.length === 0 && !hasActiveFilters) {
     return (
-      <EmptyStateNoData
-        title="No assignments found"
-        description="Assign roles to users or groups to grant access."
-        buttonText="Add assignment"
-        addData={() => setIsAddDialogOpen(true)}
-      />
+      <>
+        <EmptyStateNoData
+          title="No assignments found"
+          description="Assign roles to users or groups to grant access."
+          buttonText="Add assignment"
+          addData={() => setIsAddDialogOpen(true)}
+        />
+        {isAddDialogOpen && <AssignRoleDialog onClose={() => setIsAddDialogOpen(false)} onSuccess={refetchAll} />}
+      </>
     )
   }
 

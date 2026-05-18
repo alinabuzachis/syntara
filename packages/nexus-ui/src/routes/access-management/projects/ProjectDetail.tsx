@@ -28,9 +28,7 @@ import type { ProjectRead } from '../../access/types'
 import { DetailPageShell } from '../DetailPageShell'
 
 import { ProjectNotFoundState } from './ProjectNotFoundState'
-import { ProjectPoliciesTab } from './ProjectPoliciesTab'
 import { ProjectRoleAssignmentsTab } from './ProjectRoleAssignmentsTab'
-import { ProjectRolesTab } from './ProjectRolesTab'
 
 function ProjectDetailsTab({ project }: Readonly<{ project: ProjectRead }>) {
   const labelEntries = Object.entries(project.labels ?? {})
@@ -82,8 +80,8 @@ function ProjectDetailsTab({ project }: Readonly<{ project: ProjectRead }>) {
   )
 }
 
-type ProjectTab = 'details' | 'role-assignments' | 'roles' | 'policies'
-const PROJECT_TABS: ProjectTab[] = ['details', 'role-assignments', 'roles', 'policies']
+type ProjectTab = 'details' | 'role-assignments'
+const PROJECT_TABS: ProjectTab[] = ['details', 'role-assignments']
 
 export function ProjectDetail() {
   const { projectId } = useParams<{ projectId: string }>()
@@ -139,17 +137,13 @@ export function ProjectDetail() {
       <StackItem style={{ flexShrink: 0 }}>
         <UrlTabs basePath={basePath} defaultTab="details" validTabs={PROJECT_TABS} aria-label="Project details">
           <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />
-          <Tab eventKey="policies" title={<TabTitleText>Policies</TabTitleText>} />
-          <Tab eventKey="roles" title={<TabTitleText>Roles</TabTitleText>} />
-          <Tab eventKey="role-assignments" title={<TabTitleText>Role Assignments</TabTitleText>} />
+          <Tab eventKey="role-assignments" title={<TabTitleText>Assignments</TabTitleText>} />
         </UrlTabs>
       </StackItem>
       <NxPageBody>
         <NxPanel isFullHeight>
           {activeTab === 'details' && <ProjectDetailsTab project={projectData} />}
           {activeTab === 'role-assignments' && <ProjectRoleAssignmentsTab projectId={projectId ?? ''} />}
-          {activeTab === 'roles' && <ProjectRolesTab projectId={projectId ?? ''} />}
-          {activeTab === 'policies' && <ProjectPoliciesTab projectId={projectId ?? ''} />}
         </NxPanel>
       </NxPageBody>
     </NxPage>

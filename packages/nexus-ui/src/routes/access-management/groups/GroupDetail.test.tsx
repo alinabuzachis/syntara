@@ -377,12 +377,12 @@ describe('GroupDetail', () => {
   // ---- Tabs ---------------------------------------------------------------
 
   describe('Tabs', () => {
-    it('renders Details, Members, and Role Assignments tabs for regular groups', () => {
+    it('renders Details, Members, and Assignments tabs for regular groups', () => {
       render(<GroupDetail />, { wrapper })
 
       expect(screen.getByRole('tab', { name: /Details/i })).toBeInTheDocument()
       expect(screen.getByRole('tab', { name: /Members/i })).toBeInTheDocument()
-      expect(screen.getByRole('tab', { name: /Role Assignments/i })).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /Assignments/i })).toBeInTheDocument()
     })
 
     it('shows Details tab content by default', () => {
@@ -399,7 +399,7 @@ describe('GroupDetail', () => {
 
       expect(screen.getByRole('tab', { name: /Details/i })).toBeInTheDocument()
       expect(screen.queryByRole('tab', { name: /Members/i })).not.toBeInTheDocument()
-      expect(screen.getByRole('tab', { name: /Role Assignments/i })).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /Assignments/i })).toBeInTheDocument()
     })
 
     it('displays member count badge on Members tab', () => {
@@ -420,10 +420,10 @@ describe('GroupDetail', () => {
       expect(membersTab).toHaveTextContent('1')
     })
 
-    it('displays role assignment count badge on Role Assignments tab', () => {
+    it('displays role assignment count badge on Assignments tab', () => {
       render(<GroupDetail />, { wrapper })
 
-      const rolesTab = screen.getByRole('tab', { name: /Role Assignments/i })
+      const rolesTab = screen.getByRole('tab', { name: /Assignments/i })
       expect(rolesTab).toHaveTextContent('3')
     })
 
@@ -434,7 +434,7 @@ describe('GroupDetail', () => {
       })
       render(<GroupDetail />, { wrapper })
 
-      const rolesTab = screen.getByRole('tab', { name: /Role Assignments/i })
+      const rolesTab = screen.getByRole('tab', { name: /Assignments/i })
       expect(rolesTab).toHaveTextContent('10')
     })
 
@@ -447,7 +447,7 @@ describe('GroupDetail', () => {
       } as typeof mockRoleAssignmentsData)
       render(<GroupDetail />, { wrapper })
 
-      const rolesTab = screen.getByRole('tab', { name: /Role Assignments/i })
+      const rolesTab = screen.getByRole('tab', { name: /Assignments/i })
       expect(rolesTab).toHaveTextContent('2')
     })
 
@@ -460,7 +460,7 @@ describe('GroupDetail', () => {
 
       render(<GroupDetail />, { wrapper })
 
-      const rolesTab = screen.getByRole('tab', { name: /Role Assignments/i })
+      const rolesTab = screen.getByRole('tab', { name: /Assignments/i })
       expect(rolesTab).toHaveTextContent('0')
     })
 
@@ -487,11 +487,11 @@ describe('GroupDetail', () => {
       )
     })
 
-    it('navigates to roles URL when Role Assignments tab is clicked', async () => {
+    it('navigates to roles URL when Assignments tab is clicked', async () => {
       const user = userEvent.setup()
       render(<GroupDetail />, { wrapper })
 
-      await user.click(screen.getByRole('tab', { name: /Role Assignments/i }))
+      await user.click(screen.getByRole('tab', { name: /Assignments/i }))
 
       expect(mockSetLocation).toHaveBeenCalledWith(
         `/system-administration/access-management/groups/${VALID_GROUP_ID}/roles`

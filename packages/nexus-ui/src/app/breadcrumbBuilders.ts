@@ -50,22 +50,20 @@ function userDetailTabLabel(tab: string): string {
   if (tab === 'details') return 'Details'
   if (tab === 'groups') return 'Groups'
   if (tab === 'identities') return 'Identities'
-  if (tab === 'roles') return 'Role Assignments'
+  if (tab === 'roles') return 'Assignments'
   return tab
 }
 
 function groupDetailTabLabel(tab: string): string {
   if (tab === 'details') return 'Details'
   if (tab === 'members') return 'Members'
-  if (tab === 'roles') return 'Role Assignments'
+  if (tab === 'roles') return 'Assignments'
   return tab
 }
 
 function projectDetailTabLabel(tab: string): string {
   if (tab === 'details') return 'Details'
-  if (tab === 'policies') return 'Policies'
-  if (tab === 'roles') return 'Roles'
-  if (tab === 'role-assignments') return 'Role Assignments'
+  if (tab === 'role-assignments') return 'Assignments'
   return tab
 }
 

@@ -31,9 +31,11 @@ import { useAllProjects } from './useAllProjects'
 type AddRoleDialogProps = {
   onClose: () => void
   onSuccess: () => void
+  defaultScope?: 'system' | 'project'
+  defaultProjectId?: string
 }
 
-export function AddRoleDialog({ onClose, onSuccess }: Readonly<AddRoleDialogProps>) {
+export function AddRoleDialog({ onClose, onSuccess, defaultScope, defaultProjectId }: Readonly<AddRoleDialogProps>) {
   const { showSuccess, showError } = useAlerts()
 
   const {
@@ -47,8 +49,8 @@ export function AddRoleDialog({ onClose, onSuccess }: Readonly<AddRoleDialogProp
     defaultValues: {
       name: '',
       description: '',
-      scope: 'system',
-      projectId: '',
+      scope: defaultScope ?? 'system',
+      projectId: defaultProjectId ?? '',
       policies: [],
     },
   })

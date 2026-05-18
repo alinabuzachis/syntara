@@ -41,14 +41,6 @@ vi.mock('./ProjectRoleAssignmentsTab', () => ({
   ProjectRoleAssignmentsTab: () => <div>Mock Role Assignments Tab</div>,
 }))
 
-vi.mock('./ProjectRolesTab', () => ({
-  ProjectRolesTab: () => <div>Mock Roles Tab</div>,
-}))
-
-vi.mock('./ProjectPoliciesTab', () => ({
-  ProjectPoliciesTab: () => <div>Mock Policies Tab</div>,
-}))
-
 vi.mock('./ProjectNotFoundState', () => ({
   ProjectNotFoundState: ({ onBack, onRetry }: { onBack: () => void; onRetry: () => void }) => (
     <div>
@@ -140,9 +132,7 @@ describe('ProjectDetail', () => {
     render(<ProjectDetail />, { wrapper })
 
     expect(screen.getByRole('tab', { name: 'Details' })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Role Assignments' })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Roles' })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Policies' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Assignments' })).toBeInTheDocument()
   })
 
   it('shows not-found state when query has an error', () => {
@@ -267,25 +257,11 @@ describe('ProjectDetail', () => {
     expect(screen.getByText('Mock Role Assignments Tab')).toBeInTheDocument()
   })
 
-  it('renders the Roles tab content', () => {
-    mockDetailTab.mockReturnValue(['roles', mockGoToTab])
-    render(<ProjectDetail />, { wrapper })
-
-    expect(screen.getByText('Mock Roles Tab')).toBeInTheDocument()
-  })
-
-  it('renders the Policies tab content', () => {
-    mockDetailTab.mockReturnValue(['policies', mockGoToTab])
-    render(<ProjectDetail />, { wrapper })
-
-    expect(screen.getByText('Mock Policies Tab')).toBeInTheDocument()
-  })
-
   it('calls goToTab when a tab is clicked', async () => {
     const user = userEvent.setup()
     render(<ProjectDetail />, { wrapper })
 
-    await user.click(screen.getByRole('tab', { name: 'Role Assignments' }))
+    await user.click(screen.getByRole('tab', { name: 'Assignments' }))
 
     expect(mockGoToTab).toHaveBeenCalledWith('role-assignments')
   })
