@@ -59,14 +59,13 @@ export function ScrollableTableContainer({
               isExpandable={isExpandable}
               style={
                 {
-                  '--pf-t--global--border--color--default': 'rgba(196, 181, 253, 0.2)',
                   // NOTE: We deliberately do not use `table-layout: fixed` for expandable tables because
                   // PatternFly's expandable row layout relies on the browser's automatic table layout to
                   // correctly size columns and expansion control cells. For non-expandable tables, we use
                   // a fixed layout to keep column widths stable.
                   ...(isExpandable || !useFixedLayout ? {} : { tableLayout: 'fixed' }),
                   width: '100%',
-                } as CSSProperties
+                } satisfies CSSProperties
               }
             >
               {children}
@@ -77,7 +76,8 @@ export function ScrollableTableContainer({
               style={{
                 flex: '0 0 auto',
                 width: '100%',
-                borderTop: '1px solid rgba(196, 181, 253, 0.2)',
+                borderTop:
+                  'var(--pf-t--global--border--width--divider--default) solid var(--pf-t--global--border--color--default)',
                 paddingBottom: 'var(--pf-t--global--spacer--sm)',
               }}
             >
