@@ -326,7 +326,7 @@ describe('Integrations Component', () => {
       )
     })
 
-    it('opens delete dialog when uninstall action is clicked', async () => {
+    it('opens disconnect dialog when disconnect action is clicked', async () => {
       const user = userEvent.setup()
       render(<Integrations />, { wrapper })
 
@@ -334,21 +334,34 @@ describe('Integrations Component', () => {
       const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
       await user.click(actionButtons[0])
 
-      // Click uninstall option
-      const uninstallOption = await screen.findByRole('menuitem', { name: /uninstall/i })
-      await user.click(uninstallOption)
+      // Click disconnect option
+      const disconnectOption = await screen.findByRole('menuitem', { name: /disconnect integration/i })
+      await user.click(disconnectOption)
 
-      // Delete dialog should open with integration name in body
+      // Disconnect dialog should open with integration name in body
       await waitFor(() => {
-        expect(screen.getByText(/delete integration/i)).toBeInTheDocument()
+        expect(screen.getByText(/disconnect integration/i)).toBeInTheDocument()
       })
       const dialog = screen.getByRole('dialog')
-      expect(within(dialog).getByText(/will be deleted/)).toBeInTheDocument()
+      expect(within(dialog).getByText(/will be disconnected/)).toBeInTheDocument()
       expect(
         within(dialog).getByRole('checkbox', {
-          name: 'I understand this integration will be permanently deleted.',
+          name: 'I understand this integration will be permanently disconnected.',
         })
       ).toBeInTheDocument()
+    })
+
+    it('applies danger styling to Disconnect integration menu item', async () => {
+      const user = userEvent.setup()
+      render(<Integrations />, { wrapper })
+
+      const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      await user.click(actionButtons[0])
+
+      await waitFor(() => {
+        const disconnectItem = screen.getByRole('menuitem', { name: /disconnect integration/i })
+        expect(disconnectItem.closest('li')).toHaveClass('pf-m-danger')
+      })
     })
   })
 
@@ -1090,18 +1103,18 @@ describe('Integrations Component', () => {
 
       render(<Integrations />, { wrapper })
 
-      // Open actions menu and click uninstall (first row is ID 3 - Development Server)
+      // Open actions menu and click disconnect (first row is ID 3 - Development Server)
       const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
       await user.click(actionButtons[0])
-      const uninstallOption = await screen.findByRole('menuitem', { name: /uninstall/i })
-      await user.click(uninstallOption)
+      const disconnectOption = await screen.findByRole('menuitem', { name: /disconnect integration/i })
+      await user.click(disconnectOption)
 
-      // Check the acknowledgement checkbox before clicking Delete
+      // Check the acknowledgement checkbox before clicking Disconnect
       await user.click(screen.getByRole('checkbox'))
 
-      // Click Delete button in dialog
-      const deleteButton = await screen.findByRole('button', { name: 'Delete' })
-      await user.click(deleteButton)
+      // Click Disconnect button in dialog
+      const disconnectButton = await screen.findByRole('button', { name: 'Disconnect' })
+      await user.click(disconnectButton)
 
       // Verify mutation was called (first row is ID 3 due to alphabetical sort)
       expect(mockDeleteMutate).toHaveBeenCalled()
@@ -1131,18 +1144,18 @@ describe('Integrations Component', () => {
 
       render(<Integrations />, { wrapper })
 
-      // Open delete dialog
+      // Open disconnect dialog
       const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
       await user.click(actionButtons[0])
-      const uninstallOption = await screen.findByRole('menuitem', { name: /uninstall/i })
-      await user.click(uninstallOption)
+      const disconnectOption = await screen.findByRole('menuitem', { name: /disconnect integration/i })
+      await user.click(disconnectOption)
 
-      // Check the acknowledgement checkbox before clicking Delete
+      // Check the acknowledgement checkbox before clicking Disconnect
       await user.click(screen.getByRole('checkbox'))
 
-      // Click Delete
-      const deleteButton = await screen.findByRole('button', { name: 'Delete' })
-      await user.click(deleteButton)
+      // Click Disconnect
+      const disconnectButton = await screen.findByRole('button', { name: 'Disconnect' })
+      await user.click(disconnectButton)
 
       // Simulate successful mutation
       const callbacks = mockDeleteMutate.mock.calls[0][1] as MockMutationCallbacks
@@ -1153,7 +1166,7 @@ describe('Integrations Component', () => {
 
       // Dialog should close
       await waitFor(() => {
-        expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
       })
       expect(mockRefetch).toHaveBeenCalled()
     })
@@ -1171,18 +1184,18 @@ describe('Integrations Component', () => {
 
       render(<Integrations />, { wrapper })
 
-      // Open delete dialog
+      // Open disconnect dialog
       const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
       await user.click(actionButtons[0])
-      const uninstallOption = await screen.findByRole('menuitem', { name: /uninstall/i })
-      await user.click(uninstallOption)
+      const disconnectOption = await screen.findByRole('menuitem', { name: /disconnect integration/i })
+      await user.click(disconnectOption)
 
-      // Check the acknowledgement checkbox before clicking Delete
+      // Check the acknowledgement checkbox before clicking Disconnect
       await user.click(screen.getByRole('checkbox'))
 
-      // Click Delete
-      const deleteButton = await screen.findByRole('button', { name: 'Delete' })
-      await user.click(deleteButton)
+      // Click Disconnect
+      const disconnectButton = await screen.findByRole('button', { name: 'Disconnect' })
+      await user.click(disconnectButton)
 
       // Simulate failed mutation
       const callbacks = mockDeleteMutate.mock.calls[0][1] as MockMutationCallbacks
@@ -1193,23 +1206,23 @@ describe('Integrations Component', () => {
 
       // Dialog should close
       await waitFor(() => {
-        expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
       })
     })
 
-    it('closes delete dialog when Cancel button is clicked', async () => {
+    it('closes disconnect dialog when Cancel button is clicked', async () => {
       const user = userEvent.setup()
       render(<Integrations />, { wrapper })
 
-      // Open delete dialog
+      // Open disconnect dialog
       const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
       await user.click(actionButtons[0])
-      const uninstallOption = await screen.findByRole('menuitem', { name: /uninstall/i })
-      await user.click(uninstallOption)
+      const disconnectOption = await screen.findByRole('menuitem', { name: /disconnect integration/i })
+      await user.click(disconnectOption)
 
       // Verify dialog is open
       await waitFor(() => {
-        expect(screen.getByText(/delete integration/i)).toBeInTheDocument()
+        expect(screen.getByText(/disconnect integration/i)).toBeInTheDocument()
       })
 
       // Click Cancel
@@ -1218,7 +1231,7 @@ describe('Integrations Component', () => {
 
       // Dialog should close
       await waitFor(() => {
-        expect(screen.queryByText(/This action cannot be undone/)).not.toBeInTheDocument()
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
       })
     })
   })

@@ -2,8 +2,8 @@ import { test, expect, toAppUrl } from './fixtures'
 import { buildUniqueName, createBasicWorkflow, deleteWorkflow } from './helpers/workflows'
 
 test.describe('destructive modal UX compliance (AAP-72897)', () => {
-  test('delete integration modal matches UX spec', async ({ app }) => {
-    const integrationName = buildUniqueName('e2e-delete-modal')
+  test('disconnect integration modal matches UX spec', async ({ app }) => {
+    const integrationName = buildUniqueName('e2e-disconnect-modal')
     await app.goto(toAppUrl('/configuration/integrations'))
 
     try {
@@ -21,43 +21,43 @@ test.describe('destructive modal UX compliance (AAP-72897)', () => {
       const row = app.getByRole('row', { name: new RegExp(integrationName) })
       await expect(row).toBeVisible({ timeout: 30000 })
 
-      // Open the kebab menu and click delete
+      // Open the kebab menu and click disconnect
       await row
         .getByRole('button', { name: /Actions|Kebab toggle/i })
         .first()
         .click({ force: true })
-      await app.getByRole('menuitem', { name: /Uninstall/i }).click()
+      await app.getByRole('menuitem', { name: /Disconnect/i }).click()
 
       // Verify the modal matches the UX spec
       const modal = app.getByRole('dialog')
       await expect(modal).toBeVisible()
 
-      // Title should be "Delete integration?" with question mark
-      await expect(modal.getByText('Delete integration?')).toBeVisible()
+      // Title should be "Disconnect integration?" with question mark
+      await expect(modal.getByText('Disconnect integration?')).toBeVisible()
 
       // Body should use the spec format with bold resource name
       await expect(modal.getByText(new RegExp(integrationName))).toBeVisible()
-      await expect(modal.getByText(/will be deleted/)).toBeVisible()
+      await expect(modal.getByText(/will be disconnected/)).toBeVisible()
       await expect(modal.getByText(/cannot be undone/)).toBeVisible()
 
-      // Delete button should be disabled before checkbox is checked
-      const deleteButton = modal.getByRole('button', { name: 'Delete' })
-      await expect(deleteButton).toBeDisabled()
+      // Disconnect button should be disabled before checkbox is checked
+      const disconnectButton = modal.getByRole('button', { name: 'Disconnect' })
+      await expect(disconnectButton).toBeDisabled()
 
       // Checkbox should be present with the acknowledgement text
       const checkbox = modal.getByRole('checkbox')
       await expect(checkbox).toBeVisible()
       await expect(checkbox).not.toBeChecked()
-      await expect(modal.getByText(/I understand this integration will be permanently deleted/)).toBeVisible()
+      await expect(modal.getByText(/I understand this integration will be permanently disconnected/)).toBeVisible()
 
-      // After checking the checkbox, delete button should be enabled
+      // After checking the checkbox, disconnect button should be enabled
       await checkbox.click()
       await expect(checkbox).toBeChecked()
-      await expect(deleteButton).toBeEnabled()
+      await expect(disconnectButton).toBeEnabled()
 
       // Unchecking should disable the button again
       await checkbox.click()
-      await expect(deleteButton).toBeDisabled()
+      await expect(disconnectButton).toBeDisabled()
 
       // Cancel button should use link variant and close the modal
       const cancelButton = modal.getByRole('button', { name: 'Cancel' })
@@ -65,7 +65,7 @@ test.describe('destructive modal UX compliance (AAP-72897)', () => {
       await cancelButton.click()
       await expect(modal).not.toBeVisible()
     } finally {
-      // Cleanup - delete the integration if it exists
+      // Cleanup - disconnect the integration if it exists
       await app.goto(toAppUrl('/configuration/integrations'))
       await app.getByPlaceholder('Filter by name').fill(integrationName)
       await app.getByRole('button', { name: 'Apply filter' }).click()
@@ -75,9 +75,9 @@ test.describe('destructive modal UX compliance (AAP-72897)', () => {
           .getByRole('button', { name: /Actions|Kebab toggle/i })
           .first()
           .click({ force: true })
-        await app.getByRole('menuitem', { name: /Uninstall/i }).click()
+        await app.getByRole('menuitem', { name: /Disconnect/i }).click()
         await app.getByRole('dialog').getByRole('checkbox').click()
-        await app.getByRole('dialog').getByRole('button', { name: 'Delete' }).click()
+        await app.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click()
       }
     }
   })

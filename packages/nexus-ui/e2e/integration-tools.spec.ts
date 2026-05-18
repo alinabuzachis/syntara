@@ -60,9 +60,9 @@ async function deleteIntegration(app: Page, integrationName: string) {
     const kebabButton = row.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
     await expect(kebabButton).toBeVisible()
     await kebabButton.click()
-    await app.getByRole('menuitem', { name: /Uninstall|Delete/i }).click()
+    await app.getByRole('menuitem', { name: /Disconnect/i }).click()
     await app.getByRole('dialog').getByRole('checkbox').click()
-    await app.getByRole('dialog').getByRole('button', { name: 'Delete' }).click()
+    await app.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click()
     await expect(row).toHaveCount(0)
   }
 }

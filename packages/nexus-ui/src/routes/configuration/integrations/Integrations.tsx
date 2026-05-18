@@ -202,8 +202,8 @@ export default function Integrations() {
       {
         onSuccess: () => {
           showAlert({
-            title: 'Integration deleted',
-            description: `Integration "${provider.name}" has been deleted successfully.`,
+            title: 'Integration disconnected',
+            description: `Integration "${provider.name}" has been disconnected successfully.`,
             variant: 'success',
             autoDismiss: true,
           })
@@ -211,8 +211,8 @@ export default function Integrations() {
         },
         onError: (error: unknown) => {
           showAlert({
-            title: 'Delete failed',
-            description: `Failed to delete integration "${provider.name}": ${getErrorMessage(error)}`,
+            title: 'Disconnect failed',
+            description: `Failed to disconnect integration "${provider.name}": ${getErrorMessage(error)}`,
             variant: 'error',
             autoDismiss: true,
           })
@@ -236,7 +236,8 @@ export default function Integrations() {
     },
     { isSeparator: true },
     {
-      title: <IconLabel icon={<RhUiTrashIcon />}>Uninstall</IconLabel>,
+      title: <IconLabel icon={<RhUiTrashIcon />}>Disconnect integration</IconLabel>,
+      isDanger: true,
       onClick: () => deleteDialog.open(provider),
     },
   ]
@@ -345,16 +346,16 @@ export default function Integrations() {
         isOpen={deleteDialog.isOpen}
         onClose={deleteDialog.close}
         onConfirm={handleDelete}
-        title="Delete integration?"
-        confirmLabel="Delete"
+        title="Disconnect integration?"
+        confirmLabel="Disconnect"
         confirmVariant="danger"
         titleIconVariant="warning"
         destructiveAcknowledgement={{
-          checkboxId: 'delete-integration-ack',
-          label: 'I understand this integration will be permanently deleted.',
+          checkboxId: 'disconnect-integration-ack',
+          label: 'I understand this integration will be permanently disconnected.',
         }}
       >
-        The integration <strong>{deleteDialog.item?.name}</strong> will be deleted. This cannot be undone.
+        The integration <strong>{deleteDialog.item?.name}</strong> will be disconnected. This cannot be undone.
       </ConfirmationDialog>
     </NxPage>
   )
