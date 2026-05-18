@@ -325,6 +325,23 @@
               }
             }
           ]
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/node_base"
+            },
+            {
+              "properties": {
+                "type": {
+                  "const": "switch"
+                },
+                "config": {
+                  "$ref": "control-nodes/switch.schema.json#/configSchema"
+                }
+              }
+            }
+          ]
         }
       ]
     },

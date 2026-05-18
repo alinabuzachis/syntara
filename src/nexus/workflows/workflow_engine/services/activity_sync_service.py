@@ -399,7 +399,7 @@ class ActivitySyncService:
                 activity_type = activity_def.get("type")
 
                 if (
-                    activity_type in (NodeType.CONDITION, NodeType.APPROVAL, NodeType.CONVERGE)
+                    activity_type in (NodeType.CONDITION, NodeType.APPROVAL, NodeType.CONVERGE, NodeType.SWITCH)
                     or activity_type in self._TRIGGER_ACTIVITY_TYPES
                 ):
                     await self._sync_skipped_nodes(metadata, handle)
@@ -1648,6 +1648,7 @@ class ActivitySyncService:
                         NodeType.CONDITION,
                         NodeType.CONVERGE,
                         NodeType.LOOP,
+                        NodeType.SWITCH,
                         # V2 executor nodes
                         NodeType.AAP_JOB_TEMPLATE,
                         NodeType.AAP_WORKFLOW_JOB_TEMPLATE,

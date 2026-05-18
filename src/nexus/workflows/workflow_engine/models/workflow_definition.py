@@ -66,6 +66,7 @@ class ActivityName(StrEnum):
     CONDITION = "condition"
     CONVERGE = "converge"
     LOOP = "loop"
+    SWITCH = "switch"
     # Executor nodes
     AAP_JOB_TEMPLATE = "execute_aap_job_template_activity"
     AAP_WORKFLOW_JOB_TEMPLATE = "execute_aap_workflow_job_template_activity"
@@ -91,6 +92,7 @@ class NodeType(str, Enum):
     CONDITION = "condition"
     CONVERGE = "converge"
     LOOP = "loop"
+    SWITCH = "switch"
     # Executor nodes
     AAP_JOB_TEMPLATE = "aap_job_template"
     AAP_WORKFLOW_JOB_TEMPLATE = "aap_workflow_job_template"

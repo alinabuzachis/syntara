@@ -316,14 +316,19 @@ class NexusWorkflow:
         completed_node = graph.get_node(completed_node_id)
 
         # Control-flow nodes must always have routing port data
-        if from_port is None and completed_node.type in (NodeType.CONDITION, NodeType.LOOP, NodeType.APPROVAL):
+        if from_port is None and completed_node.type in (
+            NodeType.CONDITION,
+            NodeType.LOOP,
+            NodeType.APPROVAL,
+            NodeType.SWITCH,
+        ):
             workflow.logger.warning(
                 f"Control-flow node {completed_node_id} (type={completed_node.type}) "
                 f"has no routing port — returning all successors"
             )
 
         # Handle branch skipping for control-flow nodes
-        if from_port and completed_node.type in (NodeType.CONDITION, NodeType.APPROVAL):
+        if from_port and completed_node.type in (NodeType.CONDITION, NodeType.APPROVAL, NodeType.SWITCH):
             self._skip_non_taken_branches(completed_node_id, from_port, graph)
 
         # Stop after nodes: return after branch-skipping but before scheduling successors
@@ -826,6 +831,7 @@ class NexusWorkflow:
         NodeType.HTTP_REQUEST: (ActivityName.HTTP_REQUEST, DEFAULT_ACTIVITY_TIMEOUT_SECONDS),
         NodeType.SCRIPT: (ActivityName.SCRIPT, DEFAULT_ACTIVITY_TIMEOUT_SECONDS),
         NodeType.CONDITION: (ActivityName.CONDITION, DEFAULT_ACTIVITY_TIMEOUT_SECONDS),
+        NodeType.SWITCH: (ActivityName.SWITCH, DEFAULT_ACTIVITY_TIMEOUT_SECONDS),
         NodeType.AGENTIC: (ActivityName.AGENTIC, DEFAULT_AGENTIC_TIMEOUT_SECONDS),
     }
 
@@ -1146,6 +1152,14 @@ class NexusWorkflow:
             resolved_config = {
                 "condition": node.config.get("condition"),  # Raw template (preserved)
                 "namespace": self.resolver.get_complete_namespace(),  # Complete namespace
+            }
+        elif node_type == NodeType.SWITCH:
+            self.resolver.set_context(loop_node_id=self.loop_body_map.get(node_id))
+
+            resolved_config = {
+                "cases": node.config.get("cases", []),
+                "default_port": node.config.get("default_port", "default"),
+                "namespace": self.resolver.get_complete_namespace(),
             }
         else:
             # For all other nodes: standard resolution (Tier 1)

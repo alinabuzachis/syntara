@@ -24,6 +24,7 @@ from .internal import register_activity_monitoring
 from .loop import loop
 from .manual_trigger import manual_trigger
 from .script_activity import execute_script_activity
+from .switch import switch
 from .webhook_trigger import webhook_trigger
 
 _TEMPORAL_ACTIVITIES: list[Callable[..., Any]] = [
@@ -35,6 +36,7 @@ _TEMPORAL_ACTIVITIES: list[Callable[..., Any]] = [
     create_approval_request_activity,
     condition,
     converge,
+    switch,
     execute_http_request_activity,
     loop,
     manual_trigger,
