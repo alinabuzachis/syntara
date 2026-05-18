@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
@@ -18,11 +18,15 @@ describe('DraggableTreeLeaf', () => {
     expect(screen.getByText('server-01')).toBeInTheDocument()
   })
 
-  it('has draggable attribute', () => {
-    const { container } = render(<DraggableTreeLeaf label="S hostname" onDragStart={vi.fn()} />)
+  it('has draggable attribute and fires onDragStart when dragged', () => {
+    const onDragStart = vi.fn()
+    render(<DraggableTreeLeaf label="S hostname" onDragStart={onDragStart} />)
 
-    const draggable = container.querySelector('[draggable="true"]')
-    expect(draggable).toBeInTheDocument()
+    const leaf = screen.getByText('S hostname')
+    // eslint-disable-next-line testing-library/no-node-access -- closest() is the only way to assert the draggable attribute lives on an ancestor element
+    expect(leaf.closest('[draggable="true"]')).toBeInTheDocument()
+    fireEvent.dragStart(leaf)
+    expect(onDragStart).toHaveBeenCalledTimes(1)
   })
 
   it('has no accessibility violations', async () => {

@@ -15,14 +15,14 @@ describe('ExecutionStatusBadge', () => {
   })
 
   it('renders running status with spinner', () => {
-    const { container } = render(<ExecutionStatusBadge status="running" />)
+    render(<ExecutionStatusBadge status="running" />)
 
     const badge = screen.getByLabelText('Running')
     const style = badge.getAttribute('style') ?? ''
     expect(style).toContain('border-color: var(--pf-t--global--color--brand--default)')
     expect(style).toContain('border-style: solid')
 
-    expect(container.querySelector('.pf-v6-c-spinner')).toBeInTheDocument()
+    expect(screen.getByRole('progressbar')).toBeInTheDocument()
   })
 
   it('maps completed status to success styling', () => {

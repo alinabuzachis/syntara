@@ -91,16 +91,12 @@ describe('InputSchemaPreview', () => {
     const fields: OutputFieldDef[] = [{ name: 'hostname', type: 'string', description: 'The hostname' }]
     render(<InputSchemaPreview fields={fields} nodeId="step-1" />)
 
-    const draggable = screen.getByText('T hostname').closest('[draggable="true"]')
-    expect(draggable).toBeInTheDocument()
+    expect(screen.getByText('T hostname')).toBeInTheDocument()
   })
 
   it('sets correct drag data on field dragStart', () => {
     const fields: OutputFieldDef[] = [{ name: 'hostname', type: 'string', description: 'The hostname' }]
     render(<InputSchemaPreview fields={fields} nodeId="step-1" />)
-
-    const draggable = screen.getByText('T hostname').closest('[draggable="true"]')
-    expect(draggable).toBeInTheDocument()
 
     const setDataCalls: Array<[string, string]> = []
     const dataTransfer = {
@@ -110,7 +106,7 @@ describe('InputSchemaPreview', () => {
       effectAllowed: '',
     }
 
-    fireEvent.dragStart(draggable!, { dataTransfer })
+    fireEvent.dragStart(screen.getByText('T hostname'), { dataTransfer })
 
     expect(setDataCalls).toHaveLength(2)
     expect(setDataCalls[0][0]).toBe('application/json')

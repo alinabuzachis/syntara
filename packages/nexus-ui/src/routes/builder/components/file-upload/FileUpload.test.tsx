@@ -58,9 +58,8 @@ describe('computeUploadStatusProps', () => {
 
 describe('FileUpload', () => {
   function getFileInput(): HTMLInputElement {
-    const dropzone = screen.getByText('Drag and drop files here').closest('.pf-v6-c-multiple-file-upload')!
-
-    return dropzone.querySelector('input[type="file"]') as HTMLInputElement
+    // eslint-disable-next-line testing-library/no-node-access -- PatternFly's MultipleFileUpload renders the file input as display:none; it has no accessible role or label by design since users interact via the "Upload" button, and userEvent.upload requires the input element directly
+    return document.querySelector('input[type="file"]') as HTMLInputElement
   }
 
   describe('empty state', () => {
@@ -388,6 +387,7 @@ describe('FileUpload', () => {
     it('applies custom className to container', () => {
       const { container } = render(<FileUpload className="custom-upload-class" />)
 
+      // eslint-disable-next-line testing-library/no-container, testing-library/no-node-access
       expect(container.querySelector('.custom-upload-class')).toBeInTheDocument()
     })
   })

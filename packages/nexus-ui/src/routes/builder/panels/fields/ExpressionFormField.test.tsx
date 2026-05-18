@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { DRAG_TYPE_CONTEXT, DRAG_TYPE_FIELD } from '../utils/dragTypes'
+import { DRAG_TYPE_CONTEXT, DRAG_TYPE_FIELD, DROP_TARGET_OUTLINE } from '../utils/dragTypes'
 
 import { ExpressionFormField } from './ExpressionFormField'
 
@@ -121,8 +121,7 @@ describe('ExpressionFormField', () => {
       dataTransfer: { types: ['application/json'] },
     })
 
-    const container = input.closest('[data-drop-target]')
-    expect(container).toHaveAttribute('data-drop-target', 'active')
+    expect(input).toHaveStyle(DROP_TARGET_OUTLINE as Record<string, unknown>)
   })
 
   it('removes highlight state on dragLeave', () => {
@@ -136,8 +135,7 @@ describe('ExpressionFormField', () => {
 
     fireEvent.dragLeave(input)
 
-    const container = input.closest('[data-drop-target]')
-    expect(container).toHaveAttribute('data-drop-target', 'inactive')
+    expect(input).not.toHaveStyle(DROP_TARGET_OUTLINE as Record<string, unknown>)
   })
 
   it('has no accessibility violations', async () => {

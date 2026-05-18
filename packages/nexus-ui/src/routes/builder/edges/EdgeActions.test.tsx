@@ -1,6 +1,7 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import type React from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { EdgeActions } from './EdgeActions'
 
@@ -12,6 +13,10 @@ vi.mock('@xyflow/react', () => ({
 }))
 
 describe('EdgeActions', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
   const defaultProps = {
     labelX: 100,
     labelY: 50,
@@ -36,31 +41,34 @@ describe('EdgeActions', () => {
     expect(screen.getByTitle('Delete edge')).toBeInTheDocument()
   })
 
-  it('calls onAddNode when add button is clicked', () => {
+  it('calls onAddNode when add button is clicked', async () => {
+    const user = userEvent.setup()
     render(<EdgeActions {...defaultProps} />)
-    fireEvent.click(screen.getByTitle('Add step'))
+    await user.click(screen.getByTitle('Add step'))
     expect(defaultProps.onAddNode).toHaveBeenCalledTimes(1)
   })
 
-  it('calls onDelete when delete button is clicked', () => {
+  it('calls onDelete when delete button is clicked', async () => {
+    const user = userEvent.setup()
     render(<EdgeActions {...defaultProps} />)
-    fireEvent.click(screen.getByTitle('Delete edge'))
+    await user.click(screen.getByTitle('Delete edge'))
     expect(defaultProps.onDelete).toHaveBeenCalledTimes(1)
   })
 
-  it('calls onButtonMouseEnter when hovering', () => {
+  it('calls onButtonMouseEnter when hovering', async () => {
+    const user = userEvent.setup()
     render(<EdgeActions {...defaultProps} />)
-
-    const container = screen.getByTestId('edge-label-renderer').firstChild as HTMLElement
-    fireEvent.mouseEnter(container)
+    const toolbar = screen.getByRole('toolbar', { name: 'Edge actions' })
+    await user.hover(toolbar)
     expect(defaultProps.onButtonMouseEnter).toHaveBeenCalledTimes(1)
   })
 
-  it('calls onButtonMouseLeave when leaving', () => {
+  it('calls onButtonMouseLeave when leaving', async () => {
+    const user = userEvent.setup()
     render(<EdgeActions {...defaultProps} />)
-
-    const container = screen.getByTestId('edge-label-renderer').firstChild as HTMLElement
-    fireEvent.mouseLeave(container)
+    const toolbar = screen.getByRole('toolbar', { name: 'Edge actions' })
+    await user.hover(toolbar)
+    await user.unhover(toolbar)
     expect(defaultProps.onButtonMouseLeave).toHaveBeenCalledTimes(1)
   })
 })

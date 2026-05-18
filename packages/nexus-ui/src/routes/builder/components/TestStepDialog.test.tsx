@@ -310,14 +310,16 @@ describe('TestStepDialog', () => {
       // Arrange
       render(<TestStepDialog {...defaultProps} />, { wrapper })
 
-      // Act
-      const footer = screen.getByRole('button', { name: 'Run all previous nodes' }).closest('footer')
-      const buttons = within(footer!).getAllByRole('button')
+      // Act — filter to named action buttons within the dialog
+      const dialog = screen.getByRole('dialog')
+      const allButtons = within(dialog).getAllByRole('button')
+      const actionNames = ['Run all previous nodes', 'Set mock data', 'Cancel']
+      const actionButtons = allButtons.filter((btn) => actionNames.some((name) => btn.textContent?.includes(name)))
 
       // Assert — Primary (Run all) | Secondary (Set mock) | Link (Cancel)
-      expect(buttons[0]).toHaveTextContent('Run all previous nodes')
-      expect(buttons[1]).toHaveTextContent('Set mock data')
-      expect(buttons[2]).toHaveTextContent('Cancel')
+      expect(actionButtons[0]).toHaveTextContent('Run all previous nodes')
+      expect(actionButtons[1]).toHaveTextContent('Set mock data')
+      expect(actionButtons[2]).toHaveTextContent('Cancel')
     })
 
     it('has primary action leftmost in mock editor', async () => {
@@ -326,13 +328,16 @@ describe('TestStepDialog', () => {
       render(<TestStepDialog {...defaultProps} />, { wrapper })
       await user.click(screen.getByRole('button', { name: 'Set mock data' }))
 
-      // Act
-      const footer = screen.getByRole('button', { name: 'Run' }).closest('footer')
-      const buttons = within(footer!).getAllByRole('button')
+      // Act — filter to named action buttons within the dialog
+      const dialog = screen.getByRole('dialog')
+      const allButtons = within(dialog).getAllByRole('button')
+      const actionButtons = allButtons.filter((btn) =>
+        ['Run', 'Cancel'].some((name) => btn.textContent?.includes(name))
+      )
 
       // Assert — Primary (Run) | Link (Cancel)
-      expect(buttons[0]).toHaveTextContent('Run')
-      expect(buttons[1]).toHaveTextContent('Cancel')
+      expect(actionButtons[0]).toHaveTextContent('Run')
+      expect(actionButtons[1]).toHaveTextContent('Cancel')
     })
   })
 })

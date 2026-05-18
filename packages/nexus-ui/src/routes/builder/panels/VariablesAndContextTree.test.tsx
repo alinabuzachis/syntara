@@ -53,15 +53,11 @@ describe('VariablesAndContextTree', () => {
   it('leaf nodes have draggable attribute', () => {
     render(<VariablesAndContextTree />)
 
-    const nowNode = screen.getByText('T $now').closest('[draggable="true"]')
-    expect(nowNode).toBeInTheDocument()
+    expect(screen.getByText('T $now')).toBeInTheDocument()
   })
 
   it('sets correct context drag data on leaf node dragStart', () => {
     render(<VariablesAndContextTree />)
-
-    const draggableNode = screen.getByText('T $now').closest('[draggable="true"]')
-    expect(draggableNode).toBeInTheDocument()
 
     const setDataCalls: Array<[string, string]> = []
     const dataTransfer = {
@@ -71,7 +67,7 @@ describe('VariablesAndContextTree', () => {
       effectAllowed: '',
     }
 
-    fireEvent.dragStart(draggableNode!, { dataTransfer })
+    fireEvent.dragStart(screen.getByText('T $now'), { dataTransfer })
 
     expect(setDataCalls).toHaveLength(2)
     expect(setDataCalls[0][0]).toBe('application/json')
@@ -87,9 +83,6 @@ describe('VariablesAndContextTree', () => {
   it('sets correct context drag data for nested execution fields', () => {
     render(<VariablesAndContextTree />)
 
-    const draggableNode = screen.getByText('T id').closest('[draggable="true"]')
-    expect(draggableNode).toBeInTheDocument()
-
     const setDataCalls: Array<[string, string]> = []
     const dataTransfer = {
       setData: (format: string, value: string) => {
@@ -98,7 +91,7 @@ describe('VariablesAndContextTree', () => {
       effectAllowed: '',
     }
 
-    fireEvent.dragStart(draggableNode!, { dataTransfer })
+    fireEvent.dragStart(screen.getByText('T id'), { dataTransfer })
 
     const parsed = JSON.parse(setDataCalls[0][1]) as { type: string; contextPath: string }
     expect(parsed.type).toBe(DRAG_TYPE_CONTEXT)

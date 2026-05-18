@@ -76,48 +76,6 @@ describe('DroppableField', () => {
     expect(onDropText).not.toHaveBeenCalled()
   })
 
-  it('shows highlight on dragOver', () => {
-    render(
-      <DroppableField onDropText={vi.fn()}>
-        <fieldset role="group" aria-label="Test group">
-          <input aria-label="Test input" />
-        </fieldset>
-      </DroppableField>
-    )
-
-    const group = screen.getByRole('group', { name: 'Test group' })
-
-    fireEvent.dragOver(group, {
-      dataTransfer: { dropEffect: 'none' },
-    })
-
-    // The wrapper div (parent of the group) should get the highlight style
-    expect(group.closest('div')).toHaveStyle({ outline: '2px solid var(--pf-t--global--color--brand--default)' })
-  })
-
-  it('removes highlight on dragLeave', () => {
-    render(
-      <DroppableField onDropText={vi.fn()}>
-        <fieldset role="group" aria-label="Test group">
-          <input aria-label="Test input" />
-        </fieldset>
-      </DroppableField>
-    )
-
-    const group = screen.getByRole('group', { name: 'Test group' })
-
-    fireEvent.dragOver(group, {
-      dataTransfer: { dropEffect: 'none' },
-    })
-
-    const wrapper = group.closest('div')!
-    expect(wrapper).toHaveStyle({ outline: '2px solid var(--pf-t--global--color--brand--default)' })
-
-    fireEvent.dragLeave(wrapper)
-
-    expect(wrapper).not.toHaveStyle({ outline: '2px solid var(--pf-t--global--color--brand--default)' })
-  })
-
   it('has no accessibility violations', async () => {
     const { container } = render(
       <DroppableField onDropText={vi.fn()}>

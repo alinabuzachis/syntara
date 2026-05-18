@@ -54,9 +54,9 @@ describe('InputJsonView', () => {
   })
 
   it('handles null data by rendering nothing', () => {
-    const { container } = render(<InputJsonView data={null} />)
+    render(<InputJsonView data={null} />)
 
-    expect(container.querySelector('.pf-v6-c-code-block')).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'JSON input' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /copy to clipboard/i })).not.toBeInTheDocument()
   })
 

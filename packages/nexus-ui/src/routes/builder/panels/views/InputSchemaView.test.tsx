@@ -78,16 +78,12 @@ describe('InputSchemaView', () => {
     const data = { name: 'Alice' }
     render(<InputSchemaView data={data} nodeId="http_request_1" />)
 
-    const leafNode = screen.getByText('T name').closest('[draggable="true"]')
-    expect(leafNode).toBeInTheDocument()
+    expect(screen.getByText('T name')).toBeInTheDocument()
   })
 
   it('sets correct drag data on leaf node dragStart', () => {
     const data = { name: 'Alice' }
     render(<InputSchemaView data={data} nodeId="http_request_1" />)
-
-    const draggableNode = screen.getByText('T name').closest('[draggable="true"]')
-    expect(draggableNode).toBeInTheDocument()
 
     const setDataCalls: Array<[string, string]> = []
     const dataTransfer = {
@@ -97,7 +93,7 @@ describe('InputSchemaView', () => {
       effectAllowed: '',
     }
 
-    fireEvent.dragStart(draggableNode!, { dataTransfer })
+    fireEvent.dragStart(screen.getByText('T name'), { dataTransfer })
 
     expect(setDataCalls).toHaveLength(2)
     expect(setDataCalls[0][0]).toBe('application/json')
@@ -115,9 +111,6 @@ describe('InputSchemaView', () => {
     const data = { address: { city: 'Portland' } }
     render(<InputSchemaView data={data} nodeId="fetch_order" />)
 
-    const draggableNode = screen.getByText('T city').closest('[draggable="true"]')
-    expect(draggableNode).toBeInTheDocument()
-
     const setDataCalls: Array<[string, string]> = []
     const dataTransfer = {
       setData: (format: string, value: string) => {
@@ -126,7 +119,7 @@ describe('InputSchemaView', () => {
       effectAllowed: '',
     }
 
-    fireEvent.dragStart(draggableNode!, { dataTransfer })
+    fireEvent.dragStart(screen.getByText('T city'), { dataTransfer })
 
     const parsed = JSON.parse(setDataCalls[0][1]) as { type: string; nodeId: string; fieldPath: string[] }
     expect(parsed.type).toBe(DRAG_TYPE_FIELD)

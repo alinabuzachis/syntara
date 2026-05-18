@@ -15,7 +15,7 @@ function DroppableField({ children, onDropText }: Readonly<DroppableFieldProps>)
   const { isDropTarget, handleDragOver, handleDragLeave, handleDrop } = useDropTarget({ onDropText })
 
   return (
-    // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- drag-and-drop target wrapper
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- drag-and-drop drop zone; not keyboard-accessible by design; child inputs retain their own focus and keyboard interaction
     <div
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}

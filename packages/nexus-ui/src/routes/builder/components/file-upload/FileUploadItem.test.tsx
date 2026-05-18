@@ -118,6 +118,7 @@ describe('FileUploadItem', () => {
       const file = createFile('test.png')
       const { container } = render(<FileUploadItem file={file} fileId="1" className="custom-class" />)
 
+      // eslint-disable-next-line testing-library/no-node-access
       expect(container.firstChild).toHaveClass('custom-class')
     })
   })

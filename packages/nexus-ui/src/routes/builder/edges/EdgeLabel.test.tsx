@@ -15,7 +15,7 @@ describe('EdgeLabel', () => {
   it('returns null when no label is provided', () => {
     const { container } = render(<EdgeLabel labelX={100} labelY={50} />)
 
-    expect(container.firstChild).toBeNull()
+    expect(container).toBeEmptyDOMElement()
   })
 
   it('renders label when provided', () => {
@@ -31,6 +31,7 @@ describe('EdgeLabel', () => {
   it('positions label using transform style', () => {
     render(<EdgeLabel labelX={100} labelY={50} label="Test Label" />)
 
+    // eslint-disable-next-line testing-library/no-node-access
     const labelDiv = screen.getByText('Test Label').closest('div')
     expect(labelDiv).toHaveStyle({
       position: 'absolute',

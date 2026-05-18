@@ -1,5 +1,6 @@
 import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 import { render, screen, fireEvent } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { Position } from '@xyflow/react'
 import type React from 'react'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
@@ -154,17 +155,14 @@ describe('ButtonEdge', () => {
   })
 
   it('renders clickable area', () => {
-    const { container } = render(<ButtonEdge {...defaultProps} />)
-
-    const rect = container.querySelector('rect')
-    expect(rect).toBeInTheDocument()
+    render(<ButtonEdge {...defaultProps} />)
+    expect(screen.getByRole('button', { name: 'Add connected step' })).toBeInTheDocument()
   })
 
-  it('calls onButtonClick when clicked', () => {
-    const { container } = render(<ButtonEdge {...defaultProps} />)
-
-    const rect = container.querySelector('rect')
-    fireEvent.click(rect!)
+  it('calls onButtonClick when clicked', async () => {
+    const user = userEvent.setup()
+    render(<ButtonEdge {...defaultProps} />)
+    await user.click(screen.getByRole('button', { name: 'Add connected step' }))
     expect(defaultProps.data.onButtonClick).toHaveBeenCalled()
   })
 
@@ -198,13 +196,13 @@ describe('ButtonEdge', () => {
     expect(screen.getByTestId('edge-label-renderer')).toBeInTheDocument()
   })
 
-  it('handles missing data gracefully', () => {
-    const { container } = render(<ButtonEdge {...defaultProps} data={undefined} />)
+  it('handles missing data gracefully', async () => {
+    const user = userEvent.setup()
+    render(<ButtonEdge {...defaultProps} data={undefined} />)
 
     expect(screen.getByTestId('base-edge')).toBeInTheDocument()
-    const rect = container.querySelector('rect')
-    expect(rect).not.toBeNull()
-    fireEvent.click(rect!)
+    const addButton = screen.getByRole('button', { name: 'Add connected step' })
+    await user.click(addButton)
   })
 
   it('handles default source position', () => {
@@ -229,8 +227,10 @@ describe('ButtonEdge', () => {
     })
 
     afterEach(() => {
+      // eslint-disable-next-line testing-library/prefer-user-event -- cleans up the global mouseup listener attached by ButtonEdge's drag-start handler; must target document, not a rendered element
       fireEvent.mouseUp(document)
 
+      // eslint-disable-next-line testing-library/no-node-access -- removes a manually appended mock DOM element used to simulate React Flow's handle; not querying rendered component structure
       if (mockHandleElement?.parentNode) {
         mockHandleElement.parentNode.removeChild(mockHandleElement)
       }
@@ -239,10 +239,11 @@ describe('ButtonEdge', () => {
     it('does nothing when source node is not found', () => {
       mockGetNode.mockReturnValue(null)
 
-      const { container } = render(<ButtonEdge {...defaultProps} />)
+      render(<ButtonEdge {...defaultProps} />)
 
-      const rect = container.querySelector('rect')
-      fireEvent.mouseDown(rect!)
+      const addButton = screen.getByRole('button', { name: 'Add connected step' })
+      // eslint-disable-next-line testing-library/prefer-user-event -- ButtonEdge uses onMouseDown (not onClick) to initiate React Flow drag; userEvent triggers the full pointer sequence which interferes with the drag-start handler
+      fireEvent.mouseDown(addButton)
 
       expect(mockSetPendingDragHandle).not.toHaveBeenCalled()
     })
@@ -252,10 +253,11 @@ describe('ButtonEdge', () => {
       // Remove the mock handle element
       document.body.removeChild(mockHandleElement)
 
-      const { container } = render(<ButtonEdge {...defaultProps} />)
+      render(<ButtonEdge {...defaultProps} />)
 
-      const rect = container.querySelector('rect')
-      fireEvent.mouseDown(rect!)
+      const addButton = screen.getByRole('button', { name: 'Add connected step' })
+      // eslint-disable-next-line testing-library/prefer-user-event -- ButtonEdge uses onMouseDown (not onClick) to initiate React Flow drag; userEvent triggers the full pointer sequence which interferes with the drag-start handler
+      fireEvent.mouseDown(addButton)
 
       expect(mockSetPendingDragHandle).not.toHaveBeenCalled()
 
@@ -268,10 +270,11 @@ describe('ButtonEdge', () => {
       mockGetEdge.mockReturnValue({ id: 'button-edge-1', sourceHandle: 'source' })
       mockFlowToScreenPosition.mockReturnValue({ x: 500, y: 300 })
 
-      const { container } = render(<ButtonEdge {...defaultProps} />)
+      render(<ButtonEdge {...defaultProps} />)
 
-      const rect = container.querySelector('rect')
-      fireEvent.mouseDown(rect!)
+      const addButton = screen.getByRole('button', { name: 'Add connected step' })
+      // eslint-disable-next-line testing-library/prefer-user-event -- ButtonEdge uses onMouseDown (not onClick) to initiate React Flow drag; userEvent triggers the full pointer sequence which interferes with the drag-start handler
+      fireEvent.mouseDown(addButton)
 
       expect(mockSetPendingDragHandle).toHaveBeenCalledWith('node-1', 'source')
       expect(dispatchEventSpy).toHaveBeenCalled()
@@ -282,10 +285,11 @@ describe('ButtonEdge', () => {
       mockGetEdge.mockReturnValue({ id: 'button-edge-1', sourceHandle: null })
       mockFlowToScreenPosition.mockReturnValue({ x: 500, y: 300 })
 
-      const { container } = render(<ButtonEdge {...defaultProps} />)
+      render(<ButtonEdge {...defaultProps} />)
 
-      const rect = container.querySelector('rect')
-      fireEvent.mouseDown(rect!)
+      const addButton = screen.getByRole('button', { name: 'Add connected step' })
+      // eslint-disable-next-line testing-library/prefer-user-event -- ButtonEdge uses onMouseDown (not onClick) to initiate React Flow drag; userEvent triggers the full pointer sequence which interferes with the drag-start handler
+      fireEvent.mouseDown(addButton)
 
       expect(mockSetPendingDragHandle).toHaveBeenCalledWith('node-1', 'source')
     })
@@ -302,10 +306,11 @@ describe('ButtonEdge', () => {
       trueHandleElement.dispatchEvent = vi.fn()
       document.body.appendChild(trueHandleElement)
 
-      const { container } = render(<ButtonEdge {...defaultProps} />)
+      render(<ButtonEdge {...defaultProps} />)
 
-      const rect = container.querySelector('rect')
-      fireEvent.mouseDown(rect!)
+      const addButton = screen.getByRole('button', { name: 'Add connected step' })
+      // eslint-disable-next-line testing-library/prefer-user-event -- ButtonEdge uses onMouseDown (not onClick) to initiate React Flow drag; userEvent triggers the full pointer sequence which interferes with the drag-start handler
+      fireEvent.mouseDown(addButton)
 
       expect(mockSetPendingDragHandle).toHaveBeenCalledWith('node-1', 'true')
 
@@ -317,19 +322,19 @@ describe('ButtonEdge', () => {
       mockGetEdge.mockReturnValue({ id: 'button-edge-1', sourceHandle: 'source' })
       mockFlowToScreenPosition.mockReturnValue({ x: 500, y: 300 })
 
-      const { container } = render(<ButtonEdge {...defaultProps} />)
+      render(<ButtonEdge {...defaultProps} />)
 
-      const rect = container.querySelector('rect')
+      const addButton = screen.getByRole('button', { name: 'Add connected step' })
 
-      // Trigger mousedown
-      fireEvent.mouseDown(rect!)
-
-      // Simulate mouseup
+      // eslint-disable-next-line testing-library/prefer-user-event -- ButtonEdge uses onMouseDown (not onClick) to initiate React Flow drag; userEvent triggers the full pointer sequence which interferes with the drag-start handler
+      fireEvent.mouseDown(addButton)
+      // eslint-disable-next-line testing-library/prefer-user-event
       fireEvent.mouseUp(document)
 
       // The dragging state should have been reset
       // We can verify by clicking - if not dragging, onButtonClick should be called
-      fireEvent.click(rect!)
+      // eslint-disable-next-line testing-library/prefer-user-event
+      fireEvent.click(addButton)
       expect(defaultProps.data.onButtonClick).toHaveBeenCalled()
     })
 
@@ -339,22 +344,21 @@ describe('ButtonEdge', () => {
       mockFlowToScreenPosition.mockReturnValue({ x: 500, y: 300 })
 
       const onButtonClick = vi.fn()
-      const { container } = render(<ButtonEdge {...defaultProps} data={{ ...defaultProps.data, onButtonClick }} />)
+      render(<ButtonEdge {...defaultProps} data={{ ...defaultProps.data, onButtonClick }} />)
 
-      const rect = container.querySelector('rect')
+      const addButton = screen.getByRole('button', { name: 'Add connected step' })
 
-      // Start dragging
-      fireEvent.mouseDown(rect!)
-
-      // Click while dragging should be suppressed
-      fireEvent.click(rect!)
+      // eslint-disable-next-line testing-library/prefer-user-event -- ButtonEdge uses onMouseDown (not onClick) to initiate React Flow drag; userEvent triggers the full pointer sequence which interferes with the drag-start handler
+      fireEvent.mouseDown(addButton)
+      // eslint-disable-next-line testing-library/prefer-user-event
+      fireEvent.click(addButton)
       expect(onButtonClick).not.toHaveBeenCalled()
 
-      // After mouseUp the drag state resets
+      // eslint-disable-next-line testing-library/prefer-user-event
       fireEvent.mouseUp(document)
 
-      // Now click should work
-      fireEvent.click(rect!)
+      // eslint-disable-next-line testing-library/prefer-user-event
+      fireEvent.click(addButton)
       expect(onButtonClick).toHaveBeenCalled()
     })
   })

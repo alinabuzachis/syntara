@@ -38,7 +38,7 @@ describe('DisableCredentialDialog', () => {
         onClose={vi.fn()}
       />
     )
-    expect(container.firstChild).toBeNull()
+    expect(container).toBeEmptyDOMElement()
   })
 
   it('renders dialog with credential name', () => {
@@ -334,7 +334,7 @@ describe('DeleteCredentialDialog', () => {
 
   it('returns null when credential is null', () => {
     const { container } = render(<DeleteCredentialDialog credential={null} {...defaultDeleteProps} />)
-    expect(container.firstChild).toBeNull()
+    expect(container).toBeEmptyDOMElement()
   })
 
   it('renders dialog with credential name when no workflows reference it', () => {

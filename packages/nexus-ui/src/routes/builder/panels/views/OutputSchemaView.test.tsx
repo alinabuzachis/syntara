@@ -54,11 +54,11 @@ describe('OutputSchemaView', () => {
 
   it('does not have draggable elements', () => {
     const data = { hostname: 'server1' }
-    const { container } = render(<OutputSchemaView data={data} />)
+    render(<OutputSchemaView data={data} />)
 
-    // querySelectorAll is appropriate here — no accessible query targets the draggable attribute
-    const draggables = container.querySelectorAll('[draggable="true"]')
-    expect(draggables).toHaveLength(0)
+    screen.getAllByRole('treeitem').forEach((item) => {
+      expect(item).not.toHaveAttribute('draggable')
+    })
   })
 
   it('has the correct aria-label on the tree', () => {

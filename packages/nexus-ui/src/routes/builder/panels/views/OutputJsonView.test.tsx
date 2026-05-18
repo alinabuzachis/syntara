@@ -55,9 +55,9 @@ describe('OutputJsonView', () => {
   })
 
   it('handles null data gracefully', () => {
-    const { container } = render(<OutputJsonView data={null} />)
+    render(<OutputJsonView data={null} />)
 
-    expect(container.querySelector('.pf-v6-c-code-block')).not.toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: 'Search json output' })).not.toBeInTheDocument()
   })
 
   it('renders with a search input', () => {
