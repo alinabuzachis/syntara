@@ -6,6 +6,8 @@ with basic formatting improvements.
 
 from typing import TYPE_CHECKING
 
+import structlog
+
 from nexus.files.document_conversion.converters.document_converter import (
     DocumentConverter,
 )
@@ -15,6 +17,8 @@ from nexus.files.document_conversion.models.conversion_result import (
 
 if TYPE_CHECKING:
     from nexus.files import FileMetadata
+
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class TextConverter(DocumentConverter):
@@ -73,19 +77,34 @@ class TextConverter(DocumentConverter):
                 },
             )
 
-        except UnicodeDecodeError as e:
+        except UnicodeDecodeError:
+            error_message = "Unexpected error during document conversion. Unable to decode text file."
+            logger.exception(
+                error_message,
+                filename=file_metadata.filename,
+            )
             return ConversionResult.failure_result(
-                error_message=f"Unable to decode text file: {e!s}", error_type="encoding_error", conversion_time_ms=0
+                error_message=error_message, error_type="encoding_error", conversion_time_ms=0
             )
 
         except MemoryError:
+            error_message = "Unexpected error during document conversion. File too large to process."
+            logger.exception(
+                error_message,
+                filename=file_metadata.filename,
+            )
             return ConversionResult.failure_result(
-                error_message="File too large to process", error_type="memory_exhausted", conversion_time_ms=0
+                error_message=error_message, error_type="memory_exhausted", conversion_time_ms=0
             )
 
         except (OSError, ValueError) as e:
+            error_message = "Unexpected error during document conversion."
+            logger.exception(
+                error_message,
+                filename=file_metadata.filename,
+            )
             return ConversionResult.failure_result(
-                error_message=f"Unexpected error converting text: {e!s}",
+                error_message=error_message,
                 error_type="conversion_error",
                 conversion_time_ms=0,
                 metadata={"exception_type": type(e).__name__},

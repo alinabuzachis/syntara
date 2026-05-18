@@ -390,7 +390,7 @@ class TestDocumentConversionServiceErrorHandling:
         final_metadata = final_call_args[0][0]
         assert final_metadata.status == FileStatus.CONVERSION_FAILED
         assert final_metadata.conversion_error is not None
-        assert "Storage quota exceeded" in final_metadata.conversion_error
+        assert final_metadata.conversion_error == "Unexpected error during conversion."
 
 
 class TestDocumentConversionServiceStorageIntegration:

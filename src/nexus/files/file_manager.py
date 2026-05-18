@@ -16,15 +16,20 @@ from fastapi import UploadFile
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.core.config.base import get_settings
 from nexus.core.exceptions import SafeValueError
 from nexus.files import storage, utils, validators
+from nexus.files.audit.files_uploaded import FilesUploadedEvent
 from nexus.files.exceptions import FileValidationError
 from nexus.files.models import FileMetadata, FileStatus
 from nexus.files.retrievers.base import BaseRetriever
 from nexus.files.retrievers.local import LocalFileRetriever
+from nexus.files.storage import sanitize_filename
 
 logger = structlog.stdlib.get_logger(__name__)
+
+UNKNOWN_FILENAME = "unknown"
 
 
 class FileManager:
@@ -122,6 +127,15 @@ class FileManager:
             validated_files = await validators.validate_files(files, self.settings)
         except FileValidationError:
             logger.warning("File validation failed")
+            # Dispatch error audit event before raising
+            AuditEventDispatcher.dispatch(
+                FilesUploadedEvent(
+                    file_count=len(files),
+                    total_size_bytes=0,
+                    file_details=[{"filename": sanitize_filename(f.filename or UNKNOWN_FILENAME)} for f in files],
+                    error_type="FileValidationError",
+                )
+            )
             raise
 
         # Step 2: Save files and collect metadata
@@ -131,7 +145,7 @@ class FileManager:
 
         try:
             for (file_content, mime_type), file in zip(validated_files, files, strict=True):
-                filename = file.filename or "unknown"
+                safe_filename = sanitize_filename(file.filename) if file.filename else UNKNOWN_FILENAME
                 file_size_bytes = len(file_content)
 
                 # Generate unique file_id first (used for storage path)
@@ -146,7 +160,7 @@ class FileManager:
                 # Save file to storage using file_id for path naming
                 file_path = await storage.save_file(
                     file_content,
-                    filename,
+                    safe_filename,
                     str(file_id),
                     retriever,
                 )
@@ -157,7 +171,7 @@ class FileManager:
                 # Create metadata with the generated file_id as primary key
                 metadata = FileMetadata(
                     id=file_id,  # Use as primary key (inherited from BaseResource)
-                    filename=filename,
+                    filename=safe_filename,
                     size_bytes=file_size_bytes,
                     mime_type=mime_type,
                     file_path=file_path,
@@ -167,11 +181,11 @@ class FileManager:
 
                 logger.info(
                     "File processed successfully",
-                    filename=filename,
+                    filename=safe_filename,
                     file_id=file_id,
                 )
 
-        except (OSError, PermissionError):
+        except OSError as e:
             # Storage failure - cleanup already saved files
             logger.exception(
                 "Storage failure during file processing, cleaning up saved files",
@@ -181,12 +195,43 @@ class FileManager:
             # Attempt to delete saved files
             await utils.cleanup_files(saved_file_paths, context="after storage failure")
 
+            # Dispatch error audit event before raising
+            error_type = type(e).__name__
+            AuditEventDispatcher.dispatch(
+                FilesUploadedEvent(
+                    file_count=len(files),
+                    total_size_bytes=0,
+                    file_details=[{"filename": sanitize_filename(f.filename or UNKNOWN_FILENAME)} for f in files],
+                    error_type=error_type,
+                )
+            )
+
             # Re-raise original exception
             raise
 
         logger.info(
             "All files processed successfully",
             file_count=len(file_metadata_list),
+        )
+
+        # Dispatch success audit event
+        file_details = [
+            {
+                "file_id": str(fm.id),
+                "filename": fm.filename,
+                "mime_type": fm.mime_type,
+                "size_bytes": fm.size_bytes,
+            }
+            for fm in file_metadata_list
+        ]
+        total_size = sum(fm.size_bytes for fm in file_metadata_list)
+
+        AuditEventDispatcher.dispatch(
+            FilesUploadedEvent(
+                file_count=len(file_metadata_list),
+                total_size_bytes=total_size,
+                file_details=file_details,
+            )
         )
 
         return file_metadata_list

@@ -180,7 +180,7 @@ class TestMSWordConverterConversion:
         assert result.error_type == "conversion_error"
         assert result.error_message
         assert result.error_message is not None
-        assert "Unexpected error during conversion: Disk full" in result.error_message
+        assert result.error_message == "Unexpected error during document conversion."
         assert result.metadata["exception_type"] == "OSError"
 
     @pytest.mark.asyncio

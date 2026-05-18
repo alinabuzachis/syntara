@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pypandoc  # type: ignore[import-untyped]
+import structlog
 
 from nexus.files.document_conversion.converters.document_converter import (
     DocumentConverter,
@@ -20,6 +21,8 @@ from nexus.files.document_conversion.models.conversion_result import (
 
 if TYPE_CHECKING:
     from nexus.files import FileMetadata
+
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class MSWordConverter(DocumentConverter):
@@ -114,8 +117,13 @@ class MSWordConverter(DocumentConverter):
             )
 
         except (OSError, ValueError) as e:
+            error_message = "Unexpected error during document conversion."
+            logger.exception(
+                error_message,
+                filename=file_metadata.filename,
+            )
             return ConversionResult.failure_result(
-                error_message=f"Unexpected error during conversion: {e!s}",
+                error_message=error_message,
                 error_type="conversion_error",
                 conversion_time_ms=0,
                 metadata={"exception_type": type(e).__name__},

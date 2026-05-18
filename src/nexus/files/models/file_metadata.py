@@ -52,7 +52,7 @@ class FileMetadata(BaseResource, table=True):
 
     Attributes:
         id: UUID primary key (inherited from BaseResource, used as file_id)
-        filename: Original filename from upload
+        filename: Sanitize filename from original filename from upload
         mime_type: Detected MIME type of the file
         size_bytes: File size in bytes
         file_path: Internal storage path (pattern: nexus-{file_id}-{filename})

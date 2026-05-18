@@ -418,7 +418,7 @@ class TestTextConverterErrorHandling:
         assert result.success is False
         assert result.error_type == "conversion_error"
         assert result.error_message
-        assert "Unexpected error converting text: Disk full" in result.error_message
+        assert result.error_message == "Unexpected error during document conversion."
         assert result.metadata["exception_type"] == "OSError"
 
     @pytest.mark.asyncio
@@ -437,7 +437,7 @@ class TestTextConverterErrorHandling:
         assert result.success is False
         assert result.error_type == "conversion_error"
         assert result.error_message
-        assert "Unexpected error converting text: Invalid input" in result.error_message
+        assert result.error_message == "Unexpected error during document conversion."
         assert result.metadata["exception_type"] == "ValueError"
 
 

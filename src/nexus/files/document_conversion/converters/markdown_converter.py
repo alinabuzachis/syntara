@@ -6,6 +6,8 @@ already in the target format and don't require conversion.
 
 from typing import TYPE_CHECKING
 
+import structlog
+
 from nexus.files.document_conversion.converters.document_converter import (
     DocumentConverter,
 )
@@ -15,6 +17,8 @@ from nexus.files.document_conversion.models.conversion_result import (
 
 if TYPE_CHECKING:
     from nexus.files import FileMetadata
+
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class MarkdownConverter(DocumentConverter):
@@ -69,16 +73,26 @@ class MarkdownConverter(DocumentConverter):
                 },
             )
 
-        except UnicodeDecodeError as e:
+        except UnicodeDecodeError:
+            error_message = "Unexpected error during document conversion. Invalid UTF-8 encoding in markdown file."
+            logger.exception(
+                error_message,
+                filename=file_metadata.filename,
+            )
             return ConversionResult.failure_result(
-                error_message=f"Invalid UTF-8 encoding in markdown file: {e!s}",
+                error_message=error_message,
                 error_type="encoding_error",
                 conversion_time_ms=0,
             )
 
         except (OSError, ValueError) as e:
+            error_message = "Unexpected error during document conversion. Unexpected error processing markdown."
+            logger.exception(
+                error_message,
+                filename=file_metadata.filename,
+            )
             return ConversionResult.failure_result(
-                error_message=f"Unexpected error processing markdown: {e!s}",
+                error_message=error_message,
                 error_type="conversion_error",
                 conversion_time_ms=0,
                 metadata={"exception_type": type(e).__name__},

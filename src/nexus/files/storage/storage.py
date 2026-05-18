@@ -52,7 +52,7 @@ def sanitize_filename(filename: str, max_length: int = 200) -> str:
 
 async def save_file(
     file_content: bytes,
-    filename: str,
+    safe_filename: str,
     file_id: str,
     retriever: BaseRetriever,
 ) -> str:
@@ -62,7 +62,7 @@ async def save_file(
 
     Args:
         file_content: File content as bytes
-        filename: Original filename from upload
+        safe_filename: Sanitize filename from original filename from upload
         file_id: Unique file identifier (UUID) for file naming
         retriever: Storage retriever to use for saving file
 
@@ -76,7 +76,8 @@ async def save_file(
 
     """
     # Sanitize filename to prevent path traversal
-    safe_filename = sanitize_filename(filename)
+    # Defence-in-depth. Callers may not have sanitized filename.
+    safe_filename = sanitize_filename(safe_filename)
 
     # Generate file path with naming pattern
     file_path = f"nexus-{file_id}-{safe_filename}"

@@ -11,8 +11,10 @@ from uuid import uuid4
 
 import structlog
 
+from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.core.exceptions import SafeValueError
 from nexus.files import FileManager, FileMetadata, get_file_manager
+from nexus.files.audit.file_converted import ConversionStateAudit, FileConvertedEvent
 from nexus.files.document_conversion.registry import (
     ConverterRegistry,
     get_converter_registry,
@@ -144,7 +146,6 @@ class DocumentConversionService:
         file_metadata: "FileMetadata",
         status_updater: Callable[[FileMetadata], Awaitable[None]],
         operation_id: str,
-        e: Exception,
     ) -> None:
         logger.exception(
             "Unexpected error during document conversion",
@@ -154,7 +155,7 @@ class DocumentConversionService:
 
         # Update status to conversion_failed with error details
         file_metadata.status = FileStatus.CONVERSION_FAILED
-        file_metadata.conversion_error = f"Unexpected error during conversion: {e!s}"
+        file_metadata.conversion_error = "Unexpected error during conversion."
 
         await status_updater(file_metadata)
 
@@ -200,6 +201,16 @@ class DocumentConversionService:
                 filename=file_metadata.filename,
                 status=file_metadata.status,
             )
+            # Dispatch audit event for skipped conversion
+            AuditEventDispatcher.dispatch(
+                FileConvertedEvent(
+                    file_id=file_metadata.id,
+                    filename=file_metadata.filename,
+                    mime_type=file_metadata.mime_type,
+                    size_bytes=file_metadata.size_bytes,
+                    conversion_state=ConversionStateAudit.SKIPPED,
+                )
+            )
             return ConversionState.SKIPPED
 
         # Generate operation ID for logging and tracking
@@ -229,6 +240,17 @@ class DocumentConversionService:
                 await DocumentConversionService._fail_conversion_missing_converter(
                     file_metadata, operation_id, status_updater
                 )
+                # Dispatch audit event for missing converter
+                AuditEventDispatcher.dispatch(
+                    FileConvertedEvent(
+                        file_id=file_metadata.id,
+                        filename=file_metadata.filename,
+                        mime_type=file_metadata.mime_type,
+                        size_bytes=file_metadata.size_bytes,
+                        conversion_state=ConversionStateAudit.FAILED,
+                        error_type="UnsupportedFormatError",
+                    )
+                )
                 return ConversionState.FAILED
 
             # Perform conversion with timeout
@@ -252,6 +274,17 @@ class DocumentConversionService:
                     output_path=output_path,
                     converter_name=converter.get_converter_name(),
                 )
+                # Dispatch audit event for successful conversion
+                AuditEventDispatcher.dispatch(
+                    FileConvertedEvent(
+                        file_id=file_metadata.id,
+                        filename=file_metadata.filename,
+                        mime_type=file_metadata.mime_type,
+                        size_bytes=file_metadata.size_bytes,
+                        conversion_state=ConversionStateAudit.SUCCESS,
+                        conversion_time_ms=conversion_result.conversion_time_ms,
+                    )
+                )
                 return ConversionState.SUCCESS
 
             await DocumentConversionService._fail_conversion(
@@ -261,10 +294,33 @@ class DocumentConversionService:
                 operation_id=operation_id,
                 converter_name=converter.get_converter_name(),
             )
+            # Dispatch audit event for failed conversion
+            AuditEventDispatcher.dispatch(
+                FileConvertedEvent(
+                    file_id=file_metadata.id,
+                    filename=file_metadata.filename,
+                    mime_type=file_metadata.mime_type,
+                    size_bytes=file_metadata.size_bytes,
+                    conversion_state=ConversionStateAudit.FAILED,
+                    conversion_time_ms=conversion_result.conversion_time_ms,
+                    error_type="ConversionFailureError",
+                )
+            )
             return ConversionState.FAILED
 
-        except (OSError, ValueError, RuntimeError) as e:
-            await DocumentConversionService._fail_conversion_exception(file_metadata, status_updater, operation_id, e)
+        except (OSError, ValueError, RuntimeError):
+            await DocumentConversionService._fail_conversion_exception(file_metadata, status_updater, operation_id)
+            # Dispatch audit event for exception-based failure
+            AuditEventDispatcher.dispatch(
+                FileConvertedEvent(
+                    file_id=file_metadata.id,
+                    filename=file_metadata.filename,
+                    mime_type=file_metadata.mime_type,
+                    size_bytes=file_metadata.size_bytes,
+                    conversion_state=ConversionStateAudit.FAILED,
+                    error_type="ConversionFailureError",
+                )
+            )
 
         return ConversionState.FAILED
 

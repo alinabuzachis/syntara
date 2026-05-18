@@ -183,8 +183,10 @@ class TestMarkdownConverterErrorHandling:
         assert result.success is False
         assert result.error_type == "encoding_error"
         assert result.error_message
-        assert "Invalid UTF-8 encoding" in result.error_message
-        assert "can't decode" in result.error_message
+        assert (
+            result.error_message
+            == "Unexpected error during document conversion. Invalid UTF-8 encoding in markdown file."
+        )
 
     @pytest.mark.asyncio
     async def test_latin1_encoded_content_error(self) -> None:

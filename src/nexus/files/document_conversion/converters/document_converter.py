@@ -9,6 +9,8 @@ import time
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
+import structlog
+
 from nexus.files.document_conversion.models.conversion_config import (
     ConversionConfig,
 )
@@ -18,6 +20,8 @@ from nexus.files.document_conversion.models.conversion_result import (
 
 if TYPE_CHECKING:
     from nexus.files import FileMetadata
+
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class DocumentConverter(ABC):
@@ -119,8 +123,14 @@ class DocumentConverter(ABC):
             end_time = time.time()
             conversion_time_ms = int((end_time - start_time) * 1000)
 
+            error_message = "Unexpected error during document conversion."
+            logger.exception(
+                error_message,
+                filename=file_metadata.filename,
+            )
+
             return ConversionResult.failure_result(
-                error_message=f"Unexpected error during conversion: {e!s}",
+                error_message=error_message,
                 error_type="unexpected_error",
                 conversion_time_ms=conversion_time_ms,
                 metadata={"exception_type": type(e).__name__},

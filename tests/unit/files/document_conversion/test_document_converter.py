@@ -107,7 +107,7 @@ class TestDocumentConverterTimingBehavior:
         assert result.error_type == "unexpected_error"
         assert result.conversion_time_ms >= 0
         assert result.error_message
-        assert "Test conversion error" in result.error_message
+        assert result.error_message == "Unexpected error during document conversion."
         assert result.metadata["exception_type"] == "ValueError"
 
     @patch("nexus.files.document_conversion.models.conversion_config.ConversionConfig.from_settings")
