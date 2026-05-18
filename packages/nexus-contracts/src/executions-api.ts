@@ -48,6 +48,26 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/executions/{execution_id}/cancel': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Cancel execution
+     * @description Request cancellation of a running workflow execution. The status update to CANCELLED happens asynchronously.
+     */
+    post: operations['cancel_execution']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/executions/{execution_id}/activities': {
     parameters: {
       query?: never
@@ -820,6 +840,33 @@ export interface operations {
         content: {
           'application/json': components['schemas']['ExecutionRead']
         }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  cancel_execution: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        execution_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Cancellation request accepted */
+      202: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
       }
       400: components['responses']['BadRequestError']
       401: components['responses']['UnauthorizedError']

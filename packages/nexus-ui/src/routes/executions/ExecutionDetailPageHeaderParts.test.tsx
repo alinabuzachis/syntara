@@ -1,9 +1,26 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { ExecutionDetailHeaderToolbar, ExecutionDetailTitleRowAddons } from './ExecutionDetailPageHeaderParts'
 import { executionDetailHasTitleRowExtras, executionDetailPageHeading } from './executionDetailPageHeaderTitle'
+
+vi.mock('../../client', () => ({
+  executionsClient: {
+    useMutation: vi.fn(() => ({
+      mutate: vi.fn(),
+      isPending: false,
+    })),
+  },
+}))
+
+vi.mock('../../providers/alerts/AlertContext', () => ({
+  useAlerts: () => ({
+    showSuccess: vi.fn(),
+    showError: vi.fn(),
+  }),
+}))
 
 beforeEach(() => {
   vi.stubGlobal(
@@ -55,16 +72,125 @@ describe('ExecutionDetailPageHeaderParts', () => {
   })
 
   it('has no accessibility violations for header toolbar', async () => {
+    const queryClient = new QueryClient()
     const { container } = render(
-      <ExecutionDetailHeaderToolbar
-        showApprovalActionStrip={false}
-        isApprovalLoading={false}
-        onReviewClick={() => {}}
-        historyCardOpen={false}
-        onToggleHistory={() => {}}
-        onBackToEditor={() => {}}
-      />
+      <QueryClientProvider client={queryClient}>
+        <ExecutionDetailHeaderToolbar
+          showApprovalActionStrip={false}
+          isApprovalLoading={false}
+          onReviewClick={() => {}}
+          historyCardOpen={false}
+          onToggleHistory={() => {}}
+          onBackToEditor={() => {}}
+          isCancellable={false}
+          executionId="exec-123"
+        />
+      </QueryClientProvider>
     )
     expect(await axe(container)).toHaveNoViolations()
+  })
+
+  it('renders cancel button when execution is cancellable', () => {
+    const queryClient = new QueryClient()
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ExecutionDetailHeaderToolbar
+          showApprovalActionStrip={false}
+          isApprovalLoading={false}
+          onReviewClick={() => {}}
+          historyCardOpen={false}
+          onToggleHistory={() => {}}
+          onBackToEditor={() => {}}
+          isCancellable={true}
+          executionId="exec-123"
+        />
+      </QueryClientProvider>
+    )
+    expect(screen.getByRole('button', { name: 'Cancel execution' })).toBeInTheDocument()
+  })
+
+  it('does not render cancel button when execution is not cancellable', () => {
+    const queryClient = new QueryClient()
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ExecutionDetailHeaderToolbar
+          showApprovalActionStrip={false}
+          isApprovalLoading={false}
+          onReviewClick={() => {}}
+          historyCardOpen={false}
+          onToggleHistory={() => {}}
+          onBackToEditor={() => {}}
+          isCancellable={false}
+          executionId="exec-123"
+        />
+      </QueryClientProvider>
+    )
+    expect(screen.queryByRole('button', { name: 'Cancel execution' })).not.toBeInTheDocument()
+  })
+
+  it('renders status label when execution has status', () => {
+    const execution = {
+      status: 'running' as const,
+    } as never
+    render(<ExecutionDetailTitleRowAddons execution={execution} />)
+    expect(screen.getByText('Running')).toBeInTheDocument()
+  })
+
+  it('renders viewing run label when execution has created_at', () => {
+    const execution = {
+      created_at: '2024-01-15T10:30:00.000Z',
+    } as never
+    render(<ExecutionDetailTitleRowAddons execution={execution} />)
+    expect(screen.getByText(/Viewing run:/)).toBeInTheDocument()
+  })
+
+  it('renders approval action buttons when showApprovalActionStrip is true', () => {
+    const queryClient = new QueryClient()
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ExecutionDetailHeaderToolbar
+          showApprovalActionStrip={true}
+          isApprovalLoading={false}
+          onReviewClick={() => {}}
+          historyCardOpen={false}
+          onToggleHistory={() => {}}
+          onBackToEditor={() => {}}
+          isCancellable={false}
+          executionId="exec-123"
+        />
+      </QueryClientProvider>
+    )
+    expect(screen.getByRole('button', { name: /Review/i })).toBeInTheDocument()
+  })
+
+  it('renders cancel and approval buttons together when both applicable', () => {
+    const queryClient = new QueryClient()
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ExecutionDetailHeaderToolbar
+          showApprovalActionStrip={true}
+          isApprovalLoading={false}
+          onReviewClick={() => {}}
+          historyCardOpen={true}
+          onToggleHistory={() => {}}
+          onBackToEditor={() => {}}
+          isCancellable={true}
+          executionId="exec-123"
+        />
+      </QueryClientProvider>
+    )
+    expect(screen.getByRole('button', { name: 'Cancel execution' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Review/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Back to editor' })).toBeInTheDocument()
+  })
+
+  it('renders both status and viewing run label when execution has both', () => {
+    const execution = {
+      status: 'completed' as const,
+      created_at: '2024-01-15T10:30:00.000Z',
+    } as never
+    render(<ExecutionDetailTitleRowAddons execution={execution} />)
+    expect(screen.getByText('Completed')).toBeInTheDocument()
+    expect(screen.getByText(/Viewing run:/)).toBeInTheDocument()
   })
 })

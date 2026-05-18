@@ -13,6 +13,7 @@ import type {
   WorkflowWithVersion,
   WorkflowsResponse,
 } from '@ansible/nexus-contracts'
+import { ExecutionStatusEnum } from '@ansible/nexus-contracts'
 import { credentials, credentialTypes, credentialWorkflows } from './resources/credentials'
 import { providers } from './resources/providers'
 import { workflows } from './resources/workflows'
@@ -198,6 +199,21 @@ function validateCredentialId(url: URL): ReturnType<typeof HttpResponse.json> | 
     )
   }
   return null
+}
+
+function createExecutionNotFoundResponse(executionId: string, subPath?: string) {
+  const instance = subPath ? `/api/v1/executions/${executionId}/${subPath}` : `/api/v1/executions/${executionId}`
+  return HttpResponse.json(
+    {
+      type: 'https://api.nexus.com/errors/execution-not-found',
+      title: 'Execution Not Found',
+      detail: 'Execution not found',
+      code: 'EXECUTION_NOT_FOUND',
+      retryable: false,
+      instance,
+    },
+    { status: 404 }
+  )
 }
 
 export const handlers = [
@@ -597,39 +613,42 @@ export const handlers = [
   }),
 
   http.get('/api/v1/executions/:executionId', (request) => {
-    const executionId = request.params.executionId
+    const executionId = request.params.executionId as string
     const body = executions.find((e) => e.id === executionId)
     if (!body) {
-      return HttpResponse.json(
-        {
-          type: 'https://api.nexus.com/errors/execution-not-found',
-          title: 'Execution Not Found',
-          detail: 'Execution not found',
-          code: 'EXECUTION_NOT_FOUND',
-          retryable: false,
-          instance: `/api/v1/executions/${executionId}`,
-        },
-        { status: 404 }
-      )
+      return createExecutionNotFoundResponse(executionId)
     }
     return HttpResponse.json(body)
+  }),
+
+  http.post('/api/v1/executions/:executionId/cancel', (request) => {
+    const executionId = request.params.executionId as string
+    const execution = executions.find((e) => e.id === executionId)
+    if (!execution) {
+      return createExecutionNotFoundResponse(executionId, 'cancel')
+    }
+    if (execution.status !== ExecutionStatusEnum.PENDING && execution.status !== ExecutionStatusEnum.RUNNING) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/invalid-state',
+          title: 'Invalid State',
+          detail: `Cannot cancel execution in '${execution.status}' state`,
+          code: 'INVALID_STATE',
+          retryable: false,
+          instance: `/api/v1/executions/${executionId}/cancel`,
+        },
+        { status: 400 }
+      )
+    }
+    execution.status = ExecutionStatusEnum.CANCELLED
+    return new HttpResponse(null, { status: 202 })
   }),
 
   http.get('/api/v1/executions/:executionId/activities', (request) => {
     const executionId = request.params.executionId as string
     const execution = executions.find((e) => e.id === executionId)
     if (!execution) {
-      return HttpResponse.json(
-        {
-          type: 'https://api.nexus.com/errors/execution-not-found',
-          title: 'Execution Not Found',
-          detail: 'Execution not found',
-          code: 'EXECUTION_NOT_FOUND',
-          retryable: false,
-          instance: `/api/v1/executions/${executionId}/activities`,
-        },
-        { status: 404 }
-      )
+      return createExecutionNotFoundResponse(executionId, 'activities')
     }
 
     const activities = activityExecutions[executionId] ?? []

@@ -86,6 +86,10 @@ vi.mock('../../client', () => ({
       }
       return { data: null, isLoading: false, error: null }
     }),
+    useMutation: vi.fn(() => ({
+      mutate: vi.fn(),
+      isPending: false,
+    })),
   },
   approvalsClient: {
     useQuery: vi.fn(() => ({
@@ -612,6 +616,91 @@ describe('ExecutionDetail', () => {
       expect(screen.queryByTestId('approval-review-view')).not.toBeInTheDocument()
       expect(screen.getByTestId('execution-view-content')).toBeInTheDocument()
       expect(mockClearPendingApproval).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('Cancel Execution Button', () => {
+    it('shows cancel button when execution is running', () => {
+      const queryClient = new QueryClient()
+      render(
+        <QueryClientProvider client={queryClient}>
+          <ExecutionDetail />
+        </QueryClientProvider>
+      )
+
+      expect(screen.getByRole('button', { name: 'Cancel execution' })).toBeInTheDocument()
+    })
+
+    it('shows cancel button when execution is pending', () => {
+      vi.mocked(executionsClient.useQuery).mockImplementation((_method: string, endpoint: string) => {
+        if (endpoint === '/executions/{execution_id}') {
+          return { ...mockExecutionQuery, data: { ...mockExecutionQuery.data, status: 'pending' } }
+        }
+        return mockExecutionsQuery
+      })
+
+      const queryClient = new QueryClient()
+      render(
+        <QueryClientProvider client={queryClient}>
+          <ExecutionDetail />
+        </QueryClientProvider>
+      )
+
+      expect(screen.getByRole('button', { name: 'Cancel execution' })).toBeInTheDocument()
+    })
+
+    it('does not show cancel button when execution is completed', () => {
+      vi.mocked(executionsClient.useQuery).mockImplementation((_method: string, endpoint: string) => {
+        if (endpoint === '/executions/{execution_id}') {
+          return { ...mockExecutionQuery, data: { ...mockExecutionQuery.data, status: 'completed' } }
+        }
+        return mockExecutionsQuery
+      })
+
+      const queryClient = new QueryClient()
+      render(
+        <QueryClientProvider client={queryClient}>
+          <ExecutionDetail />
+        </QueryClientProvider>
+      )
+
+      expect(screen.queryByRole('button', { name: 'Cancel execution' })).not.toBeInTheDocument()
+    })
+
+    it('does not show cancel button when execution is failed', () => {
+      vi.mocked(executionsClient.useQuery).mockImplementation((_method: string, endpoint: string) => {
+        if (endpoint === '/executions/{execution_id}') {
+          return { ...mockExecutionQuery, data: { ...mockExecutionQuery.data, status: 'failed' } }
+        }
+        return mockExecutionsQuery
+      })
+
+      const queryClient = new QueryClient()
+      render(
+        <QueryClientProvider client={queryClient}>
+          <ExecutionDetail />
+        </QueryClientProvider>
+      )
+
+      expect(screen.queryByRole('button', { name: 'Cancel execution' })).not.toBeInTheDocument()
+    })
+
+    it('does not show cancel button when execution is cancelled', () => {
+      vi.mocked(executionsClient.useQuery).mockImplementation((_method: string, endpoint: string) => {
+        if (endpoint === '/executions/{execution_id}') {
+          return { ...mockExecutionQuery, data: { ...mockExecutionQuery.data, status: 'cancelled' } }
+        }
+        return mockExecutionsQuery
+      })
+
+      const queryClient = new QueryClient()
+      render(
+        <QueryClientProvider client={queryClient}>
+          <ExecutionDetail />
+        </QueryClientProvider>
+      )
+
+      expect(screen.queryByRole('button', { name: 'Cancel execution' })).not.toBeInTheDocument()
     })
   })
 

@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
@@ -13,6 +14,37 @@ vi.mock('../../stores/useWorkflowStore', () => ({
   useWorkflowStore: {
     getState: () => mockWorkflowStoreState,
   },
+}))
+
+vi.mock('../../client', () => ({
+  executionsClient: {
+    useMutation: vi.fn(() => ({
+      mutate: vi.fn(),
+      isPending: false,
+    })),
+  },
+}))
+
+vi.mock('../../providers/alerts/AlertContext', () => ({
+  useAlerts: () => ({
+    showSuccess: vi.fn(),
+    showError: vi.fn(),
+  }),
+}))
+
+vi.mock('./EditWorkflowDetailsPopover', () => ({
+  EditWorkflowDetailsPopover: ({
+    onApply,
+  }: {
+    name: string
+    description: string
+    tags: string[]
+    onApply: (name: string, description: string, tags: string[]) => void
+  }) => (
+    <button onClick={() => onApply('New Name', 'New Desc', ['new-tag'])} aria-label="Apply details">
+      Edit details
+    </button>
+  ),
 }))
 
 describe('BuilderWorkflowPageHeader', () => {
@@ -295,5 +327,145 @@ describe('BuilderWorkflowPageHeader', () => {
     // The EditWorkflowDetailsPopover is tested separately, we just verify it's rendered
     // and that the dispatch/markDirty callbacks are passed correctly
     expect(screen.getByRole('textbox', { name: /Workflow name/i })).toHaveValue('Original Name')
+  })
+
+  it('shows cancel button during live run when execution is running', () => {
+    const queryClient = new QueryClient()
+    render(
+      <QueryClientProvider client={queryClient}>
+        <BuilderWorkflowPageHeader
+          {...baseProps}
+          isNew={false}
+          workflow={{ id: 'workflow-1' }}
+          isLiveRunActive
+          onBackToEditor={vi.fn()}
+          executionId="exec-123"
+          executionStatus="running"
+        />
+      </QueryClientProvider>
+    )
+
+    expect(screen.getByRole('button', { name: 'Cancel execution' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Back to editor' })).toBeInTheDocument()
+  })
+
+  it('shows cancel and approval buttons together during live run', () => {
+    const queryClient = new QueryClient()
+    render(
+      <QueryClientProvider client={queryClient}>
+        <BuilderWorkflowPageHeader
+          {...baseProps}
+          isNew={false}
+          workflow={{ id: 'workflow-1' }}
+          isLiveRunActive
+          onBackToEditor={vi.fn()}
+          executionId="exec-123"
+          executionStatus="running"
+          hasApprovalPending
+          onReviewApproval={vi.fn()}
+        />
+      </QueryClientProvider>
+    )
+
+    expect(screen.getByRole('button', { name: 'Cancel execution' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Review approval' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Back to editor' })).toBeInTheDocument()
+  })
+
+  it('shows cancel button during live run when execution is pending', () => {
+    const queryClient = new QueryClient()
+    render(
+      <QueryClientProvider client={queryClient}>
+        <BuilderWorkflowPageHeader
+          {...baseProps}
+          isNew={false}
+          workflow={{ id: 'workflow-1' }}
+          isLiveRunActive
+          onBackToEditor={vi.fn()}
+          executionId="exec-456"
+          executionStatus="pending"
+        />
+      </QueryClientProvider>
+    )
+
+    expect(screen.getByRole('button', { name: 'Cancel execution' })).toBeInTheDocument()
+  })
+
+  it('does not show cancel button during live run when execution is completed', () => {
+    render(
+      <BuilderWorkflowPageHeader
+        {...baseProps}
+        isNew={false}
+        workflow={{ id: 'workflow-1' }}
+        isLiveRunActive
+        onBackToEditor={vi.fn()}
+        executionId="exec-789"
+        executionStatus="completed"
+      />
+    )
+
+    expect(screen.queryByRole('button', { name: 'Cancel execution' })).not.toBeInTheDocument()
+  })
+
+  it('does not show cancel button during live run when executionId is missing', () => {
+    render(
+      <BuilderWorkflowPageHeader
+        {...baseProps}
+        isNew={false}
+        workflow={{ id: 'workflow-1' }}
+        isLiveRunActive
+        onBackToEditor={vi.fn()}
+        executionStatus="running"
+      />
+    )
+
+    expect(screen.queryByRole('button', { name: 'Cancel execution' })).not.toBeInTheDocument()
+  })
+
+  it('dispatches name, description, and tag changes via onApply callback', async () => {
+    const user = userEvent.setup()
+    const dispatch = vi.fn()
+    const markDirty = vi.fn()
+
+    render(
+      <BuilderWorkflowPageHeader
+        {...baseProps}
+        workflowName="Old Name"
+        workflowDescription="Old Desc"
+        workflowTags={['old-tag']}
+        dispatch={dispatch}
+        markDirty={markDirty}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Apply details' }))
+
+    expect(dispatch).toHaveBeenCalledWith({ type: 'SET_WORKFLOW_NAME', payload: 'New Name' })
+    expect(dispatch).toHaveBeenCalledWith({ type: 'SET_WORKFLOW_DESCRIPTION', payload: 'New Desc' })
+    expect(dispatch).toHaveBeenCalledWith({ type: 'SET_WORKFLOW_TAGS', payload: ['new-tag'] })
+    expect(markDirty).toHaveBeenCalled()
+  })
+
+  it('does not dispatch when onApply values are unchanged', async () => {
+    const user = userEvent.setup()
+    const dispatch = vi.fn()
+    const markDirty = vi.fn()
+
+    vi.mocked(await import('./EditWorkflowDetailsPopover')).EditWorkflowDetailsPopover = (({
+      onApply,
+    }: {
+      onApply: (name: string, description: string, tags: string[]) => void
+    }) => (
+      <button onClick={() => onApply('wf', '', [])} aria-label="Apply details">
+        Edit details
+      </button>
+    )) as never
+
+    render(<BuilderWorkflowPageHeader {...baseProps} dispatch={dispatch} markDirty={markDirty} />)
+
+    await user.click(screen.getByRole('button', { name: 'Apply details' }))
+
+    expect(dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'SET_WORKFLOW_NAME' }))
+    expect(markDirty).not.toHaveBeenCalled()
   })
 })

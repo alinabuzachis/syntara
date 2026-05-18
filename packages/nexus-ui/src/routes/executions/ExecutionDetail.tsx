@@ -32,6 +32,7 @@ import { useExecutionStore } from '../workflows/stores/useExecutionStore'
 
 import { ApprovalReviewView } from './ApprovalReviewView'
 import { ConnectionBanner } from './ConnectionBanner'
+import { isExecutionCancellable } from './executionCancellable'
 import { ExecutionDetailHeaderToolbar, ExecutionDetailTitleRowAddons } from './ExecutionDetailPageHeaderParts'
 import { executionDetailHasTitleRowExtras, executionDetailPageHeading } from './executionDetailPageHeaderTitle'
 import { useExecutionNodeClick } from './hooks/useExecutionNodeClick'
@@ -393,6 +394,8 @@ export default function ExecutionDetail() {
   } = useExecutionNodeClick(executionId)
   const [approvalViewOpen, setApprovalViewOpen] = useState(false)
 
+  const isCancellable = isExecutionCancellable(execution?.status)
+
   // Guard against missing executionId
   if (!executionId) {
     return (
@@ -469,6 +472,8 @@ export default function ExecutionDetail() {
                 setLocation(`/workflow-builder/${execution.workflow_id}`)
               }
             }}
+            isCancellable={isCancellable}
+            executionId={executionId}
           />
         }
       />

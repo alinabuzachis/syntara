@@ -317,6 +317,8 @@ export function BuilderContent(props: BuilderContentProps) {
                 handleToggleDetails={handleToggleDetails}
                 handleSaveWorkflow={handleSaveWorkflow}
                 isLiveRunActive={isLiveRunActive}
+                executionId={mostRecentExecutionId}
+                executionStatus={mostRecentExecution?.status}
                 onBackToEditor={isLiveRunActive ? handleCloseMostRecentRunPanel : undefined}
                 hasApprovalPending={!!pendingApproval}
                 isApprovalLoading={isApprovalLoading}

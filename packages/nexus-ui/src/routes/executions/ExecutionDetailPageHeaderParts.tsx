@@ -6,6 +6,7 @@ import { formatHistoryDateTime } from '../builder/historyDateUtils'
 import { RunHistoryToggleButton } from '../builder/RunHistoryToggleButton'
 
 import { ApprovalActionButtons } from './ApprovalActionButtons'
+import { CancelExecutionButton } from './CancelExecutionButton'
 
 type Execution = ExecutionsAPI.components['schemas']['ExecutionRead']
 
@@ -36,6 +37,8 @@ export type ExecutionDetailHeaderToolbarProps = Readonly<{
   historyCardOpen: boolean
   onToggleHistory: () => void
   onBackToEditor: () => void
+  isCancellable: boolean
+  executionId: string
 }>
 
 export function ExecutionDetailHeaderToolbar({
@@ -45,10 +48,13 @@ export function ExecutionDetailHeaderToolbar({
   historyCardOpen,
   onToggleHistory,
   onBackToEditor,
+  isCancellable,
+  executionId,
 }: ExecutionDetailHeaderToolbarProps) {
   return (
     <>
       {showApprovalActionStrip && <ApprovalActionButtons isLoading={isApprovalLoading} onReviewClick={onReviewClick} />}
+      {isCancellable && <CancelExecutionButton executionId={executionId} />}
       <RunHistoryToggleButton onClick={onToggleHistory} isActive={historyCardOpen} />
       <Button variant="secondary" onClick={onBackToEditor}>
         Back to editor

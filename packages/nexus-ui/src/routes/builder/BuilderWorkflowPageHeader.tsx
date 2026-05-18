@@ -1,8 +1,11 @@
+import type { ExecutionStatus } from '@ansible/nexus-contracts'
 import { Button, Flex, FlexItem, TextInput } from '@patternfly/react-core'
 import { useState, type Dispatch, type ReactNode } from 'react'
 
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
+import { CancelExecutionButton } from '../executions/CancelExecutionButton'
+import { isExecutionCancellable } from '../executions/executionCancellable'
 
 import { BuilderEditorToolbar } from './BuilderEditorToolbar'
 import type { BuilderAction } from './builderReducer'
@@ -11,6 +14,8 @@ import { EnableWorkflowConfirmDialog } from './EnableWorkflowConfirmDialog'
 
 type BuilderToolbarContentProps = Readonly<{
   isLiveRunActive?: boolean
+  executionId?: string | null
+  executionStatus?: ExecutionStatus | null
   hasApprovalPending?: boolean
   isApprovalLoading?: boolean
   onBackToEditor?: () => void
@@ -37,6 +42,8 @@ type BuilderToolbarContentProps = Readonly<{
  */
 function BuilderToolbarContent({
   isLiveRunActive,
+  executionId,
+  executionStatus,
   hasApprovalPending,
   isApprovalLoading,
   onBackToEditor,
@@ -56,6 +63,7 @@ function BuilderToolbarContent({
   triggers,
 }: BuilderToolbarContentProps) {
   if (isLiveRunActive && onBackToEditor) {
+    const isCancellable = isExecutionCancellable(executionStatus)
     return (
       <>
         {hasApprovalPending && onReviewApproval && (
@@ -63,6 +71,7 @@ function BuilderToolbarContent({
             Review approval
           </Button>
         )}
+        {isCancellable && executionId && <CancelExecutionButton executionId={executionId} />}
         <Button variant="primary" onClick={onBackToEditor}>
           Back to editor
         </Button>
@@ -104,6 +113,8 @@ export type BuilderWorkflowPageHeaderProps = Readonly<{
   isEnabled: boolean
   isKebabOpen: boolean
   isLiveRunActive?: boolean
+  executionId?: string | null
+  executionStatus?: ExecutionStatus | null
   onBackToEditor?: () => void
   hasApprovalPending?: boolean
   isApprovalLoading?: boolean
@@ -130,6 +141,8 @@ export function BuilderWorkflowPageHeader({
   isEnabled,
   isKebabOpen,
   isLiveRunActive,
+  executionId,
+  executionStatus,
   onBackToEditor,
   hasApprovalPending,
   isApprovalLoading,
@@ -217,6 +230,8 @@ export function BuilderWorkflowPageHeader({
         toolbar={
           <BuilderToolbarContent
             isLiveRunActive={isLiveRunActive}
+            executionId={executionId}
+            executionStatus={executionStatus}
             hasApprovalPending={hasApprovalPending}
             isApprovalLoading={isApprovalLoading}
             onBackToEditor={onBackToEditor}
