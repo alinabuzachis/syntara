@@ -98,6 +98,7 @@ export function useUserFormSubmit({
             full_name: fullName,
             password: formData.password ?? '',
             is_enabled: formData.is_enabled,
+            group_names: formData.group_names,
           },
         },
         {

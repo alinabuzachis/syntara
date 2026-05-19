@@ -1,12 +1,27 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { ReactNode } from 'react'
 import { useForm, FormProvider } from 'react-hook-form'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import type { UserFormData } from '../userFormSchema'
 
 import { UserFormFields } from './UserFormFields'
+
+vi.mock('../../access/useAllGroups', () => ({
+  useAllGroups: () => ({
+    groups: [
+      { id: 'g1', name: 'users', description: 'Default user group' },
+      { id: 'g2', name: 'admins', description: 'Administrator group' },
+      { id: 'g3', name: 'auditors', description: 'Auditor group' },
+    ],
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
+}))
 
 const defaultValues: UserFormData = {
   username: '',
@@ -15,6 +30,13 @@ const defaultValues: UserFormData = {
   email: '',
   password: '',
   is_enabled: true,
+  group_names: ['users'],
+}
+
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+
+function QueryWrapper({ children }: { children: ReactNode }) {
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
 }
 
 function TestWrapper({ isEdit = false }: { isEdit?: boolean }) {
@@ -23,11 +45,13 @@ function TestWrapper({ isEdit = false }: { isEdit?: boolean }) {
   })
 
   return (
-    <FormProvider {...methods}>
-      <form>
-        <UserFormFields control={methods.control} isEdit={isEdit} />
-      </form>
-    </FormProvider>
+    <QueryWrapper>
+      <FormProvider {...methods}>
+        <form>
+          <UserFormFields control={methods.control} isEdit={isEdit} />
+        </form>
+      </FormProvider>
+    </QueryWrapper>
   )
 }
 

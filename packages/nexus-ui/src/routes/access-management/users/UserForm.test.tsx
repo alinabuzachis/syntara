@@ -29,6 +29,19 @@ vi.mock('../../access/accessClient', () => ({
   },
 }))
 
+vi.mock('../../access/useAllGroups', () => ({
+  useAllGroups: () => ({
+    groups: [
+      { id: 'g1', name: 'users' },
+      { id: 'g2', name: 'admins' },
+      { id: 'g3', name: 'auditors' },
+    ],
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
+}))
+
 const mockUseParams = vi.fn(() => ({}))
 vi.mock('wouter', () => ({
   useLocation: () => ['/', vi.fn()],
@@ -170,6 +183,7 @@ describe('UserForm', () => {
           full_name: 'New User',
           password: 'securepass123',
           is_enabled: true,
+          group_names: ['users'],
         },
       })
     })
@@ -253,6 +267,34 @@ describe('UserForm', () => {
       expect(submitButton).toBeDisabled()
     })
 
+    it('renders groups field with "users" pre-selected', () => {
+      setupCreateMocks()
+      render(<UserForm mode="create" />, { wrapper })
+
+      expect(screen.getByText('Groups')).toBeInTheDocument()
+      expect(screen.getByText('users')).toBeInTheDocument()
+    })
+
+    it('sends default group_names in create mutation body', async () => {
+      const { mockMutate } = setupCreateMocks()
+      const user = userEvent.setup()
+      render(<UserForm mode="create" />, { wrapper })
+
+      // Fill required fields and submit — default group_names should be ["users"]
+      await user.type(screen.getByRole('textbox', { name: 'Username' }), 'newuser')
+      await user.type(screen.getByRole('textbox', { name: 'First Name' }), 'New')
+      await user.type(screen.getByLabelText('Password'), 'securepass123')
+
+      await user.click(screen.getByRole('button', { name: 'Create user' }))
+
+      await waitFor(() => {
+        expect(mockMutate).toHaveBeenCalled()
+      })
+
+      const callArgs = mockMutate.mock.calls[0] as [{ body: Record<string, unknown> }]
+      expect(callArgs[0].body.group_names).toEqual(['users'])
+    })
+
     it('has no accessibility violations', async () => {
       setupCreateMocks()
       const { container } = render(<UserForm mode="create" />, { wrapper })
@@ -269,6 +311,13 @@ describe('UserForm', () => {
 
       expect(screen.getByRole('heading', { name: 'Edit User' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument()
+    })
+
+    it('does not render the groups field', () => {
+      setupEditMocks()
+      render(<UserForm mode="edit" />, { wrapper })
+
+      expect(screen.queryByText('Groups')).not.toBeInTheDocument()
     })
 
     it('calls updateUser mutation with form data on submit', async () => {

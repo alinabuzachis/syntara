@@ -357,6 +357,11 @@ export interface components {
        * @default true
        */
       is_enabled?: boolean
+      /**
+       * Group Names
+       * @description Groups to assign the user to. Omit to use the default (users group). Pass an empty list to skip group assignment.
+       */
+      group_names?: string[] | null
     }
     /**
      * UserUpdate
@@ -897,6 +902,11 @@ export interface components {
       project_id?: string | null
       /** Project Name */
       project_name?: string | null
+      /**
+       * Is Builtin
+       * @default false
+       */
+      is_builtin?: boolean
       /** Created At */
       created_at?: string | null
     }

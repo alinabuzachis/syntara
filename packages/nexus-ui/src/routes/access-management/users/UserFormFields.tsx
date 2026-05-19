@@ -1,16 +1,28 @@
 import {
+  Button,
   FormGroup,
   FormHelperText,
   HelperText,
   HelperTextItem,
+  Label,
+  LabelGroup,
+  MenuToggle,
+  Select,
+  SelectList,
+  SelectOption,
   Switch,
   TextInput,
+  TextInputGroup,
+  TextInputGroupMain,
+  TextInputGroupUtilities,
   Tooltip,
 } from '@patternfly/react-core'
-import { RhUiErrorIcon } from '@patternfly/react-icons'
+import { RhUiCloseIcon, RhUiErrorIcon } from '@patternfly/react-icons'
+import { type Ref, useMemo, useRef, useState } from 'react'
 import type { Control } from 'react-hook-form'
 import { Controller } from 'react-hook-form'
 
+import { useAllGroups } from '../../access/useAllGroups'
 import type { UserFormData } from '../userFormSchema'
 
 type ControlledTextFieldProps = {
@@ -67,6 +79,134 @@ function ControlledTextField({
   )
 }
 
+type GroupOption = {
+  name: string
+  description: string | null
+}
+
+function GroupMultiSelect({
+  selected,
+  onChange,
+  isLoading,
+  groupOptions,
+}: Readonly<{
+  selected: string[]
+  onChange: (names: string[]) => void
+  isLoading: boolean
+  groupOptions: GroupOption[]
+}>) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [filterValue, setFilterValue] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const filteredOptions = useMemo(() => {
+    if (!filterValue) return groupOptions
+    const term = filterValue.toLowerCase()
+    return groupOptions.filter((o) => o.name.toLowerCase().includes(term))
+  }, [groupOptions, filterValue])
+
+  const handleSelect = (_event: React.MouseEvent | undefined, value: string | number | undefined) => {
+    if (!value) return
+    const name = String(value)
+    if (selected.includes(name)) {
+      onChange(selected.filter((n) => n !== name))
+    } else {
+      onChange([...selected, name])
+    }
+    inputRef.current?.focus()
+  }
+
+  const handleClear = () => {
+    onChange([])
+    setFilterValue('')
+    inputRef.current?.focus()
+  }
+
+  const toggle = (toggleRef: Ref<HTMLButtonElement>) => (
+    <MenuToggle ref={toggleRef} variant="typeahead" onClick={() => setIsOpen(!isOpen)} isExpanded={isOpen} isFullWidth>
+      <TextInputGroup isPlain>
+        <TextInputGroupMain
+          value={filterValue}
+          onChange={(_e, val) => {
+            setFilterValue(val)
+            if (!isOpen) setIsOpen(true)
+          }}
+          onClick={() => {
+            if (!isOpen) setIsOpen(true)
+          }}
+          placeholder={selected.length === 0 ? 'Select groups...' : ''}
+          autoComplete="off"
+          innerRef={inputRef}
+        >
+          {selected.length > 0 && (
+            <LabelGroup>
+              {selected.map((name) => (
+                <Label
+                  key={name}
+                  color="blue"
+                  onClose={(e) => {
+                    e.stopPropagation()
+                    onChange(selected.filter((n) => n !== name))
+                  }}
+                >
+                  {name}
+                </Label>
+              ))}
+            </LabelGroup>
+          )}
+        </TextInputGroupMain>
+        {selected.length > 0 && (
+          <TextInputGroupUtilities>
+            <Button
+              variant="plain"
+              onClick={(e) => {
+                e.stopPropagation()
+                handleClear()
+              }}
+              aria-label="Clear all groups"
+            >
+              <RhUiCloseIcon />
+            </Button>
+          </TextInputGroupUtilities>
+        )}
+      </TextInputGroup>
+    </MenuToggle>
+  )
+
+  return (
+    <Select
+      id="user-groups-select"
+      aria-label="Select groups"
+      isOpen={isOpen}
+      onOpenChange={setIsOpen}
+      onSelect={handleSelect}
+      selected={selected}
+      toggle={toggle}
+    >
+      <SelectList style={{ maxHeight: '200px', overflow: 'auto' }}>
+        {isLoading && <SelectOption isDisabled>Loading...</SelectOption>}
+        {!isLoading && filteredOptions.length === 0 && (
+          <SelectOption isDisabled>
+            {filterValue ? `No results match "${filterValue}"` : 'No groups available'}
+          </SelectOption>
+        )}
+        {!isLoading &&
+          filteredOptions.map((group) => (
+            <SelectOption
+              key={group.name}
+              value={group.name}
+              hasCheckbox
+              isSelected={selected.includes(group.name)}
+              description={group.description ?? undefined}
+            >
+              {group.name}
+            </SelectOption>
+          ))}
+      </SelectList>
+    </Select>
+  )
+}
+
 type UserFormFieldsProps = {
   control: Control<UserFormData>
   isEdit: boolean
@@ -75,6 +215,30 @@ type UserFormFieldsProps = {
   isFederatedUser?: boolean
   /** When set, the status toggle is disabled and this text is shown in a tooltip. */
   statusToggleDisabledReason?: string
+}
+
+function GroupField({ control }: Readonly<{ control: Control<UserFormData> }>) {
+  const { groups, isLoading: isLoadingGroups } = useAllGroups()
+  const groupOptions = useMemo(
+    () => groups.map((g) => ({ name: g.name, description: g.description ?? null })),
+    [groups]
+  )
+  return (
+    <Controller
+      name="group_names"
+      control={control}
+      render={({ field }) => (
+        <FormGroup label="Groups" fieldId="user-groups-select">
+          <GroupMultiSelect
+            selected={field.value ?? []}
+            onChange={field.onChange}
+            isLoading={isLoadingGroups}
+            groupOptions={groupOptions}
+          />
+        </FormGroup>
+      )}
+    />
+  )
 }
 
 export function UserFormFields({
@@ -133,6 +297,7 @@ export function UserFormFields({
           isDisabled={isBuiltinUser && !isBuiltinSelf}
         />
       )}
+      {!isEdit && <GroupField control={control} />}
       <Controller
         name="is_enabled"
         control={control}

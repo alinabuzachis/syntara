@@ -32,6 +32,7 @@ const DEFAULT_VALUES: UserFormData = {
   email: '',
   password: '',
   is_enabled: true,
+  group_names: ['users'],
 }
 
 function PasswordWarningAlert({ isSelf }: Readonly<{ isSelf: boolean }>) {

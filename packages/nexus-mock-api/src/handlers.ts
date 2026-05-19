@@ -1231,6 +1231,7 @@ export const handlers = [
       full_name?: string
       password?: string
       is_enabled?: boolean
+      group_names?: string[] | null
     }
 
     const existing = users.find(

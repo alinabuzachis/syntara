@@ -11,6 +11,7 @@ const baseSchema = z.object({
   email: z.string().email('Must be a valid email address').max(255).optional().or(z.literal('')),
   password: z.string().min(8, 'Password must be at least 8 characters').optional().or(z.literal('')),
   is_enabled: z.boolean(),
+  group_names: z.array(z.string()).optional(),
 })
 
 /** Schema that enforces password on create mode */
