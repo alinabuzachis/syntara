@@ -51,29 +51,31 @@ tests/
 │   └── workflow_engine/
 └── unit/                # Unit tests (isolated, no external deps)
     ├── aap/
-    ├── agent_orchestrator/
+    ├── agent_orchestrator/  # Includes services/
     ├── agents/
     ├── api/
     ├── approvals/
     ├── audit/
-    ├── authz/
+    ├── authz/               # Includes services/
     ├── cli/
-    ├── core/
+    ├── core/                # Includes services/
     ├── credentials/
     ├── files/
-    ├── identity_providers/
+    ├── identity_providers/  # Includes services/
+    ├── invocations/         # Includes services/
     ├── metrics/
     ├── models/
+    ├── projects/            # Includes services/
     ├── schemas/
-    ├── services/
     ├── settings/
     ├── telemetry/
     ├── tool_manager/
     ├── tools/
+    ├── users/               # Includes services/
     ├── utils/
     ├── validators/
     ├── websocket/
-    └── workflows/
+    └── workflows/           # Includes services/, workflow_engine/services/
 ```
 
 **Organization Rules:**
