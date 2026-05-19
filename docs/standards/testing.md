@@ -32,8 +32,7 @@ tests/
 │   ├── tool_manager/    # Tool manager tests
 │   ├── tools/           # Tool tests
 │   ├── websocket/       # WebSocket tests
-│   ├── workflow/        # Legacy workflow tests (to be merged)
-│   └── workflows/       # Workflow tests (includes contract tests)
+│   └── workflows/       # Workflow tests (includes contract tests, examples/, fixtures/)
 ├── performance/         # Performance tests (opt-in via --run-performance)
 │   ├── agent_orchestrator/
 │   ├── api_service/
