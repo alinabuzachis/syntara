@@ -169,7 +169,9 @@ async def test_assigned_user_gets_project_scoped_policies(
     project_id = response.json()["id"]
     project_name = response.json()["name"]
 
-    other_user = await user_factory(username="carol", email="carol@example.com", full_name="Carol")
+    other_user = await user_factory(
+        username="carol", email="carol@example.com", full_name="Carol", group_names=["users"]
+    )
 
     # Assign project-user
     response = await auth_client.post(

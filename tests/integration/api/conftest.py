@@ -82,7 +82,8 @@ async def _seed_authz(test_db_session: AsyncSession) -> None:
     """
     await seed_authz_data(test_db_session)
 
-    # Create a group with the 'user' role for test users
+    # Create a group with the 'admin' role for test users (functional tests need
+    # broad permissions; authz-specific tests create their own limited-role users)
     test_group = Group(id=uuid4(), name=_TEST_GROUP_NAME, description="Test users group", is_builtin=False, labels={})
     test_db_session.add(test_group)
     await test_db_session.flush()
@@ -91,7 +92,7 @@ async def _seed_authz(test_db_session: AsyncSession) -> None:
             id=uuid4(),
             principal_type=PrincipalType.GROUP,
             principal_id=test_group.id,
-            role_name="user",
+            role_name="admin",
         )
     )
 

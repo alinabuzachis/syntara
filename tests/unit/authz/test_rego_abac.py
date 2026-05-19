@@ -141,7 +141,7 @@ class TestGroupLabelConditions:
 
 
 class TestResourceLabelsNotViaDeny:
-    """Allow workflow:delete via user role + deny when status=archived."""
+    """Allow workflow:delete via admin role + deny when status=archived."""
 
     _DENY_ARCHIVED = deny_policy(
         "deny-archived-delete",
@@ -150,7 +150,7 @@ class TestResourceLabelsNotViaDeny:
     )
 
     def test_delete_active_allowed(self, opa_evaluate):
-        policies = [*policies_for_role("user"), self._DENY_ARCHIVED]
+        policies = [*policies_for_role("admin"), self._DENY_ARCHIVED]
         result = opa_evaluate(
             build_opa_input(
                 action="delete",
@@ -162,7 +162,7 @@ class TestResourceLabelsNotViaDeny:
         assert result["allow"] is True
 
     def test_delete_archived_denied(self, opa_evaluate):
-        policies = [*policies_for_role("user"), self._DENY_ARCHIVED]
+        policies = [*policies_for_role("admin"), self._DENY_ARCHIVED]
         result = opa_evaluate(
             build_opa_input(
                 action="delete",

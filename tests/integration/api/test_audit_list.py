@@ -1,5 +1,6 @@
 """Integration tests for GET /api/v1/audit endpoint."""
 
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
@@ -10,7 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.core.models import User
 from tests.helpers.audit import AuditEventsFactory
 from tests.helpers.error_data import assert_error_data
-from tests.integration.api.conftest import make_auditor
+from tests.integration.api.conftest import make_auditor, make_user_role
 
 AUDIT_URL = "/api/v1/audit"
 
@@ -613,8 +614,17 @@ async def test_list_audit_events_unauthenticated(base_client: AsyncClient) -> No
 
 
 @pytest.mark.asyncio
-async def test_list_audit_events_forbidden_for_non_admin(auth_client: AsyncClient) -> None:
+async def test_list_audit_events_forbidden_for_non_admin(
+    auth_client: AsyncClient,
+    test_db_session: AsyncSession,
+    user_factory: Callable[..., Awaitable[User]],
+    auth_as: Callable[[User], None],
+) -> None:
     """Test that an authenticated non-admin, non-auditor user gets 403."""
+    limited_user = await user_factory(username="limited-audit", email="limited-audit@test.com")
+    await make_user_role(test_db_session, limited_user)
+    auth_as(limited_user)
+
     response = await auth_client.get(AUDIT_URL)
 
     assert response.status_code == 403

@@ -175,6 +175,16 @@ class GroupNameConflictError(GroupError):
         super().__init__(f"Group with name '{name}' already exists")
 
 
+@fastapi_exception(handler="nexus.auth.error_handlers.group_names_not_found_handler")
+class GroupNamesNotFoundError(GroupError):
+    """Raised when one or more group names do not exist."""
+
+    def __init__(self, names: list[str]) -> None:
+        """Initialize with list of group names that were not found."""
+        self.names = names
+        super().__init__(f"Groups not found: {', '.join(names)}")
+
+
 # ============================================================================
 # User management exceptions
 # ============================================================================

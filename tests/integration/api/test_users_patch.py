@@ -3,11 +3,15 @@
 Tests partial update functionality, validation, admin restrictions, and conflict handling.
 """
 
+from collections.abc import Awaitable, Callable
+
 import pytest
 from httpx import AsyncClient
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth import get_current_user
 from nexus.core.models import User
+from tests.integration.api.conftest import make_user_role
 
 USERS_URL = "/api/v1/users"
 
@@ -173,23 +177,24 @@ class TestUsersPatchAdminRestrictions:
 
     @pytest.mark.asyncio
     async def test_non_admin_cannot_disable_admin(
-        self, base_client: AsyncClient, admin_user: User, test_user: User
+        self,
+        base_client: AsyncClient,
+        admin_user: User,
+        test_db_session: AsyncSession,
+        user_factory: Callable[..., Awaitable[User]],
     ) -> None:
         """Test non-admin user cannot disable the built-in admin account.
 
-        Uses a second admin user (admin_user has username='admin') and a
-        non-admin caller (test_user) who is given user:update permission
-        specifically for this test.
+        Creates a dedicated limited-role user (with only 'user' role) and
+        verifies they get 403 from PermissionChecker (no user:update permission).
         """
         from nexus.api.main import app
 
-        # Create a user named 'admin' to trigger the protection logic
-        # admin_user from fixture is 'admin-test', not the protected 'admin' username.
-        # The business rule checks target_user.username == 'admin', so we need
-        # the actual bootstrap admin. For simplicity, just verify that a non-admin
-        # user gets 403 from PermissionChecker (no user:update permission).
+        limited_user = await user_factory(username="limited-patch", email="limited-patch@test.com")
+        await make_user_role(test_db_session, limited_user)
+
         async def override_as_user() -> User:
-            return test_user
+            return limited_user
 
         app.dependency_overrides[get_current_user] = override_as_user
         patch_data = {"is_enabled": False}

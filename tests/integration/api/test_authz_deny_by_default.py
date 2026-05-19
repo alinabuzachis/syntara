@@ -25,10 +25,10 @@ async def test_new_user_project_isolation(
 ) -> None:
     """Fresh user can access own project but is denied in another user's project."""
     alice = await user_factory(username="alice-dd", email="alice-dd@test.com")
-    fresh = await user_factory(username="fresh-dd", email="fresh-dd@test.com")
+    fresh = await user_factory(username="fresh-dd", email="fresh-dd@test.com", group_names=["users"])
     await make_admin(test_db_session, alice)
 
-    # Fresh user creates own project (project:create:any is in the authenticated role)
+    # Fresh user creates own project (project:create:any via user role on authenticated group)
     auth_as(fresh)
     resp = await auth_client.post("/api/v1/projects", json={"name": "dd-own"})
     assert resp.status_code == 201

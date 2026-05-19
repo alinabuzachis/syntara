@@ -120,7 +120,8 @@ class TestRolePolicyMapping:  # noqa: D101
         names = builtin_role_policy_names("authenticated")
         assert len(names) > 0
         assert "user:read:self" in names
-        assert "project:create:any" in names
+        assert "user:update:self" in names
+        assert "role-assignment:read:self" in names
 
     def test_unknown_role_returns_empty(self) -> None:
         names = builtin_role_policy_names("nonexistent")
@@ -152,8 +153,9 @@ class TestStatementResolution:  # noqa: D101
         stmts = resolve_builtin_role_statements("user")
         assert len(stmts) > 0
         actions = {a for s in stmts for a in s["actions"]}
-        assert "workflow:read" in actions
-        assert "workflow:create" in actions
+        assert "project:create" in actions
+        assert "user:read" in actions
+        assert "group:read" in actions
 
     def test_resolve_builtin_role_statements_unknown(self) -> None:
         stmts = resolve_builtin_role_statements("nonexistent")

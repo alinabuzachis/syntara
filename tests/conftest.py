@@ -909,9 +909,21 @@ async def user_factory(
     """Factory fixture for creating a custom user."""
 
     async def _create_user(**overrides: object) -> "User":
+        group_names: list[str] | None = overrides.pop("group_names", None)  # type: ignore[assignment]
         user_data = {**default_user_data, **overrides}
         user = User(**user_data)
         test_db_session.add(user)
+        await test_db_session.flush()
+
+        if group_names:
+            from sqlalchemy import insert
+
+            from nexus.core.models.group import Group, user_groups
+
+            for name in group_names:
+                group = (await test_db_session.exec(select(Group).where(Group.name == name))).one()
+                await test_db_session.execute(insert(user_groups).values(user_id=user.id, group_id=group.id))
+
         await test_db_session.commit()
         return user
 

@@ -7,6 +7,7 @@ Covers:
 - Authorization enforcement (403 for unauthorized users)
 """
 
+from collections.abc import Awaitable, Callable
 from uuid import uuid4
 
 import pytest
@@ -17,6 +18,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.authz.models import PrincipalType, RoleAssignment
 from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
+from tests.integration.api.conftest import make_user_role
 
 
 async def _make_admin(session: AsyncSession, user: User) -> None:
@@ -170,9 +172,15 @@ async def test_duplicate_policy_name_returns_409(
 @pytest.mark.asyncio
 async def test_regular_user_cannot_create_policy(
     auth_client: AsyncClient,
-    test_user: User,
+    test_db_session: AsyncSession,
+    user_factory: Callable[..., Awaitable[User]],
+    auth_as: Callable[[User], None],
 ) -> None:
     """A user with only the 'user' role cannot create policies (403)."""
+    limited_user = await user_factory(username="limited-pol-c", email="limited-pol-c@test.com")
+    await make_user_role(test_db_session, limited_user)
+    auth_as(limited_user)
+
     response = await auth_client.post(
         "/api/v1/policies",
         json={
@@ -187,14 +195,19 @@ async def test_regular_user_cannot_create_policy(
 async def test_regular_user_cannot_delete_policy(
     auth_client: AsyncClient,
     test_db_session: AsyncSession,
-    test_user: User,
+    user_factory: Callable[..., Awaitable[User]],
+    auth_as: Callable[[User], None],
 ) -> None:
     """A user with only the 'user' role cannot delete a custom policy (403).
 
-    The test_user (with 'user' role) cannot delete policies even if they exist.
+    A limited user (with 'user' role) cannot delete policies even if they exist.
     We insert one directly to have a target for the DELETE attempt.
     """
     from nexus.authz.models.policy import Policy
+
+    limited_user = await user_factory(username="limited-pol-d", email="limited-pol-d@test.com")
+    await make_user_role(test_db_session, limited_user)
+    auth_as(limited_user)
 
     policy = Policy(
         name="delete-target",

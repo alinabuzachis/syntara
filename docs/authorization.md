@@ -81,11 +81,11 @@ Defined in `BUILTIN_ROLES` in `src/nexus/authz/role_conventions.py`:
 |------|---------|-------|-------------|-----------------|
 | `admin` | yes | system | Full system access | All policies |
 | `auditor` | yes | system | Read-only with audit visibility | Read workflows, executions, approvals, policies, roles |
-| `user` | yes | system | Standard user | CRUD workflows, run executions, read/update self, create projects, read users/groups |
+| `user` | yes | system | Base user permissions | Create projects, read users, read groups |
 | `project-admin` | yes | project | Full access within a project | Manage project, assign roles, CRUD workflows/executions, create custom roles/policies |
 | `project-user` | yes | project | Standard access within a project | Read project, CRUD workflows, run executions |
 | `project-auditor` | yes | project | Read-only within a project | Read project, workflows, executions, roles, policies |
-| `authenticated` | no | system | Default permissions for all authenticated users (editable) | Read/update self, create projects, read users/groups, read own role assignments, manage own identity links |
+| `authenticated` | no | system | Default permissions for all authenticated users | Read/update self, read own role assignments, manage own identity links |
 
 ## Database Schema
 
@@ -132,16 +132,19 @@ On first boot, the seed module (`src/nexus/authz/seed.py`) creates:
 - `authenticated` group (builtin, implicit — all users belong to it)
 - `admins` group (builtin)
 - `auditors` group (builtin)
+- `users` group (builtin — local users are added on creation by default)
 - `default` project
-- `admin` user (member of `admins` group)
+- `admin` user (member of `admins` and `users` groups)
+- `system` user (member of `admins` and `users` groups)
 - `authenticated` role → `authenticated` group via `RoleAssignment` (principal_type=group, project_id=NULL, global, **builtin**)
+- `user` role → `users` group via `RoleAssignment` (principal_type=group, project_id=NULL, global, **builtin**)
 - `admin` role → `admins` group via `RoleAssignment` (principal_type=group, project_id=NULL, global, **builtin**)
 - `auditor` role → `auditors` group via `RoleAssignment` (principal_type=group, project_id=NULL, global, **builtin**)
-- `project-user` role → `authenticated` group via `RoleAssignment` (principal_type=group, project_id=default project, project-scoped, **builtin**)
+- `project-user` role → `users` group via `RoleAssignment` (principal_type=group, project_id=default project, project-scoped, revocable)
 
-All seed-level role assignments are marked `is_builtin=True` and cannot be revoked via the API. This ensures that the admin, auditor, and authenticated groups always retain their core roles.
+The `authenticated`, `user`, `admin`, and `auditor` role assignments are marked `is_builtin=True` and cannot be revoked via the API. The `project-user` assignment on the `users` group is revocable, allowing admins to customise default project permissions.
 
-This means every authenticated user can immediately read/update their own profile, create projects, read users/groups, and work with workflows/executions in the `default` project. Admins can customise the default permissions by editing the `authenticated` **group's** role assignments (adding or removing non-builtin roles).
+New local users are automatically added to the `users` group by default. The API accepts an optional `group_names` field on user creation: omit it to use the default, pass an empty list to skip group assignment, or pass specific group names to override.
 
 There are two seeding paths:
 - `seed_authz_data()` — full seed used by tests after table truncation.

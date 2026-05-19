@@ -201,7 +201,7 @@ async def test_resolve_roles_to_policies_deduplication(seeded_db: AsyncSession) 
 @pytest.mark.asyncio
 async def test_resolve_effective_policies_global_group_roles(seeded_db: AsyncSession, test_user: User) -> None:
     """User gets policies from group role assignments (global scope)."""
-    # test_user is implicitly in authenticated group which has the default role
+    # test_user is implicitly in authenticated group which has authenticated + user roles
     policies = await resolve_effective_policies(seeded_db, test_user.id)
     assert len(policies) > 0
     names = {p["name"] for p in policies}

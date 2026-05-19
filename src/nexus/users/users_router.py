@@ -108,6 +108,7 @@ async def create_user(
         password=request.password.get_secret_value(),
         email=request.email,
         is_enabled=request.is_enabled,
+        group_names=request.group_names,
     )
     return service.to_read(user)
 

@@ -34,8 +34,8 @@ async def test_lp1_fresh_user_sees_only_default_project(
     test_user: User,
     user_factory: Callable[..., Awaitable[User]],
 ) -> None:
-    """LP-1: A fresh user sees only the default project via the implicit authenticated group."""
-    fresh_user = await user_factory(username="lp1-fresh", email="lp1@example.com")
+    """LP-1: A user in the users group sees only the default project."""
+    fresh_user = await user_factory(username="lp1-fresh", email="lp1@example.com", group_names=["users"])
     _auth_as(fresh_user)
 
     response = await auth_client.get("/api/v1/projects")
@@ -53,7 +53,7 @@ async def test_lp2_project_creator_sees_only_their_project(
     user_factory: Callable[..., Awaitable[User]],
 ) -> None:
     """LP-2: A user who created one project sees only that project (plus default)."""
-    creator = await user_factory(username="lp2-creator", email="lp2@example.com")
+    creator = await user_factory(username="lp2-creator", email="lp2@example.com", group_names=["users"])
     _auth_as(creator)
 
     response = await auth_client.post(
@@ -78,7 +78,7 @@ async def test_lp3_user_with_multiple_project_roles_sees_only_those(
     user_factory: Callable[..., Awaitable[User]],
 ) -> None:
     """LP-3: A user with roles on two projects sees only those two (plus default)."""
-    multi_user = await user_factory(username="lp3-multi", email="lp3@example.com")
+    multi_user = await user_factory(username="lp3-multi", email="lp3@example.com", group_names=["users"])
     _auth_as(multi_user)
 
     # Create two projects (auto-assigned project-admin on each)
@@ -189,7 +189,7 @@ async def test_lp6_project_user_can_see_assigned_project(
     assert resp.status_code == 201
     project_id = resp.json()["id"]
 
-    viewer = await user_factory(username="lp6-viewer", email="lp6-v@example.com")
+    viewer = await user_factory(username="lp6-viewer", email="lp6-v@example.com", group_names=["users"])
     resp = await auth_client.post(
         f"/api/v1/projects/{project_id}/role-assignments",
         json={"principal_type": "user", "principal_id": str(viewer.id), "role_name": "project-user"},
@@ -219,7 +219,7 @@ async def test_lp7_granting_role_makes_project_visible(
     project_id = resp.json()["id"]
 
     # Create a fresh user — should see only default
-    new_user = await user_factory(username="lp7-new", email="lp7@example.com")
+    new_user = await user_factory(username="lp7-new", email="lp7@example.com", group_names=["users"])
     _auth_as(new_user)
     response = await auth_client.get("/api/v1/projects")
     names = [p["name"] for p in response.json()["resources"]]
@@ -256,7 +256,7 @@ async def test_lp8_revoking_role_removes_project_from_list(
     project_id = resp.json()["id"]
 
     # Create user and assign project-auditor
-    target = await user_factory(username="lp8-target", email="lp8@example.com")
+    target = await user_factory(username="lp8-target", email="lp8@example.com", group_names=["users"])
     resp = await auth_client.post(
         f"/api/v1/projects/{project_id}/role-assignments",
         json={"principal_type": "user", "principal_id": str(target.id), "role_name": "project-auditor"},
@@ -293,8 +293,10 @@ async def test_authenticated_user_gets_default_project_access(
     test_user: User,
     user_factory: Callable[..., Awaitable[User]],
 ) -> None:
-    """Any authenticated user gets project-user access to the default project via the implicit authenticated group."""
-    new_user = await user_factory(username="default-access-user", email="default-access@example.com")
+    """A user in the users group gets project-user access to the default project."""
+    new_user = await user_factory(
+        username="default-access-user", email="default-access@example.com", group_names=["users"]
+    )
 
     _auth_as(new_user)
 

@@ -29,27 +29,27 @@ async def test_group_grants_access(
     """Adding user to group grants access that was previously denied."""
     bob = await user_factory(username="bob-gga", email="bob-gga@test.com")
 
-    # Bob has no roles — denied workflow:create
+    # Bob has no explicit roles — denied policy:read
     auth_as(bob)
     resp = await auth_client.post(
         "/api/v1/authz/can-i",
-        json={"action": "create", "resource_type": "workflow"},
+        json={"action": "read", "resource_type": "policy"},
     )
     assert resp.status_code == 200
     assert resp.json()["allowed"] is False
 
-    # Create group with user role and add bob
+    # Create group with auditor role and add bob
     group = Group(name="dev-team-gga", description="Dev team", labels={})
     test_db_session.add(group)
     await test_db_session.flush()
-    test_db_session.add(RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=group.id, role_name="user"))
+    test_db_session.add(RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=group.id, role_name="auditor"))
     await test_db_session.execute(insert(user_groups).values(user_id=bob.id, group_id=group.id))
     await test_db_session.commit()
 
     # Bob now allowed
     resp = await auth_client.post(
         "/api/v1/authz/can-i",
-        json={"action": "create", "resource_type": "workflow"},
+        json={"action": "read", "resource_type": "policy"},
     )
     assert resp.status_code == 200
     assert resp.json()["allowed"] is True
@@ -65,14 +65,14 @@ async def test_multiple_groups_additive(
     """User in multiple groups gets union of permissions."""
     bob = await user_factory(username="bob-mga", email="bob-mga@test.com")
 
-    # Writer group with user role
-    writer_group = Group(name="writer-group-mga", description="Writer group", labels={})
-    test_db_session.add(writer_group)
+    # Admin group
+    admin_group = Group(name="admin-group-mga", description="Admin group", labels={})
+    test_db_session.add(admin_group)
     await test_db_session.flush()
     test_db_session.add(
-        RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=writer_group.id, role_name="user")
+        RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=admin_group.id, role_name="admin")
     )
-    await test_db_session.execute(insert(user_groups).values(user_id=bob.id, group_id=writer_group.id))
+    await test_db_session.execute(insert(user_groups).values(user_id=bob.id, group_id=admin_group.id))
 
     # Reader group with auditor role
     reader_group = Group(name="reader-group-mga", description="Reader group", labels={})
@@ -86,7 +86,7 @@ async def test_multiple_groups_additive(
 
     auth_as(bob)
 
-    # workflow:create from user role
+    # workflow:create from admin role
     resp = await auth_client.post(
         "/api/v1/authz/can-i",
         json={"action": "create", "resource_type": "workflow"},
@@ -171,15 +171,15 @@ async def test_remove_revokes_access(
     group = Group(name="revoke-team-ga", description="Revoke team", labels={})
     test_db_session.add(group)
     await test_db_session.flush()
-    test_db_session.add(RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=group.id, role_name="user"))
+    test_db_session.add(RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=group.id, role_name="auditor"))
     await test_db_session.execute(insert(user_groups).values(user_id=bob.id, group_id=group.id))
     await test_db_session.commit()
 
-    # Bob can create workflow while in group
+    # Bob can read policies while in group
     auth_as(bob)
     resp = await auth_client.post(
         "/api/v1/authz/can-i",
-        json={"action": "create", "resource_type": "workflow"},
+        json={"action": "read", "resource_type": "policy"},
     )
     assert resp.status_code == 200
     assert resp.json()["allowed"] is True
@@ -198,7 +198,7 @@ async def test_remove_revokes_access(
     # Bob denied after removal
     resp = await auth_client.post(
         "/api/v1/authz/can-i",
-        json={"action": "create", "resource_type": "workflow"},
+        json={"action": "read", "resource_type": "policy"},
     )
     assert resp.status_code == 200
     assert resp.json()["allowed"] is False

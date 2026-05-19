@@ -81,7 +81,7 @@ class TestDenyWithResourceLabels:
 
 
 class TestWildcardAllowSpecificDeny:
-    """User role (workflow CRUD) + deny workflow:update."""
+    """Admin role (workflow CRUD) + deny workflow:update."""
 
     @pytest.mark.parametrize(
         ("action", "resource_type", "expected"),
@@ -105,7 +105,7 @@ class TestWildcardAllowSpecificDeny:
         resource_type: str,
         expected: bool,  # noqa: FBT001
     ):
-        policies = [*policies_for_role("user"), deny_policy("deny-wf-update", ["workflow:update"])]
+        policies = [*policies_for_role("admin"), deny_policy("deny-wf-update", ["workflow:update"])]
         result = opa_evaluate(
             build_opa_input(
                 action=action,

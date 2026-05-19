@@ -103,6 +103,16 @@ async def _make_auditor(session: AsyncSession, user: User) -> None:
     await session.commit()
 
 
+async def _make_user_role(session: AsyncSession, user: User) -> None:
+    """Assign the user role to a user via a dedicated group."""
+    group = Group(name=f"user-grp-{uuid4()}", description="", labels={})
+    session.add(group)
+    await session.flush()
+    session.add(RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=group.id, role_name="user"))
+    await session.execute(insert(user_groups).values(user_id=user.id, group_id=group.id))
+    await session.commit()
+
+
 def _auth_as(user: User) -> None:
     """Override the current user dependency to act as a user."""
 
@@ -122,10 +132,10 @@ async def test_can_i_allowed_action(
     auth_client: AsyncClient,
     test_user: User,
 ) -> None:
-    """CI-1: User with 'user' role can read workflows (scope=any)."""
+    """CI-1: User with 'user' role can create projects (scope=any)."""
     response = await auth_client.post(
         "/api/v1/authz/can-i",
-        json={"action": "read", "resource_type": "workflow"},
+        json={"action": "create", "resource_type": "project"},
     )
     assert response.status_code == 200
     data = response.json()
@@ -137,9 +147,14 @@ async def test_can_i_allowed_action(
 @pytest.mark.asyncio
 async def test_can_i_denied_action(
     auth_client: AsyncClient,
-    test_user: User,
+    test_db_session: AsyncSession,
+    user_factory: Callable[..., Awaitable[User]],
 ) -> None:
-    """CI-2: User with 'user' role cannot create policies."""
+    """CI-2: User with only 'user' role cannot create policies."""
+    limited_user = await user_factory(username="limited-ci2", email="limited-ci2@test.com")
+    await _make_user_role(test_db_session, limited_user)
+    _auth_as(limited_user)
+
     response = await auth_client.post(
         "/api/v1/authz/can-i",
         json={"action": "create", "resource_type": "policy"},
@@ -206,7 +221,7 @@ async def test_can_i_self_scope(
     auth_client: AsyncClient,
     test_user: User,
 ) -> None:
-    """CI-5: user:read:any is granted to all authenticated users via authenticated role."""
+    """CI-5: user:read:any is granted via user role."""
     # Should be allowed when resource_id matches user's own ID
     response = await auth_client.post(
         "/api/v1/authz/can-i",
@@ -220,7 +235,7 @@ async def test_can_i_self_scope(
     data = response.json()
     assert data["allowed"] is True
 
-    # Should also be allowed for other users (user:read:any granted to authenticated role)
+    # Should also be allowed for other users (user:read:any granted to user role)
     response = await auth_client.post(
         "/api/v1/authz/can-i",
         json={
@@ -290,7 +305,8 @@ async def test_can_i_explicit_deny_overrides_allow(
     test_user: User,
 ) -> None:
     """CI-7: An explicit deny policy overrides an allow policy."""
-    # test_user has "user" role which grants workflow:delete:any.
+    # Give test_user admin role which grants workflow:delete:any.
+    await _make_admin(test_db_session, test_user)
     # Create a deny policy that blocks workflow:delete.
     deny_policy = Policy(
         id=uuid4(),
@@ -342,12 +358,17 @@ async def test_can_i_explicit_deny_overrides_allow(
 @pytest.mark.asyncio
 async def test_who_can_requires_admin(
     auth_client: AsyncClient,
-    test_user: User,
+    test_db_session: AsyncSession,
+    user_factory: Callable[..., Awaitable[User]],
 ) -> None:
     """WC-0: who-can is admin-only; non-admin gets 403."""
+    limited_user = await user_factory(username="limited-wc0", email="limited-wc0@test.com")
+    await _make_user_role(test_db_session, limited_user)
+    _auth_as(limited_user)
+
     response = await auth_client.post(
         "/api/v1/authz/who-can",
-        json={"action": "read", "resource_type": "workflow"},
+        json={"action": "read", "resource_type": "user"},
     )
     assert response.status_code == 403
 
@@ -371,7 +392,7 @@ async def test_who_can_returns_authorized_users(
 
     response = await auth_client.post(
         "/api/v1/authz/who-can",
-        json={"action": "read", "resource_type": "workflow"},
+        json={"action": "read", "resource_type": "user"},
     )
     assert response.status_code == 200
     data = response.json()
@@ -435,7 +456,7 @@ async def test_who_can_excludes_inactive_users(
     await _make_admin(test_db_session, test_user)
 
     inactive = await user_factory(username="inactive-user", email="inactive@example.com", full_name="Inactive")
-    # Add to test-users group (grants user role with workflow:read)
+    # Add to test-users group (grants user role with user:read)
     test_group = (await test_db_session.exec(select(Group).where(Group.name == "test-users"))).first()
     assert test_group is not None
     await test_db_session.execute(insert(user_groups).values(user_id=inactive.id, group_id=test_group.id))
@@ -446,7 +467,7 @@ async def test_who_can_excludes_inactive_users(
 
     response = await auth_client.post(
         "/api/v1/authz/who-can",
-        json={"action": "read", "resource_type": "workflow"},
+        json={"action": "read", "resource_type": "user"},
     )
     assert response.status_code == 200
     usernames = {u["username"] for u in response.json()["users"]}
@@ -474,7 +495,7 @@ async def test_who_can_pagination(
     # Request page 1 with limit=2
     response = await auth_client.post(
         "/api/v1/authz/who-can",
-        json={"action": "read", "resource_type": "workflow", "limit": 2},
+        json={"action": "read", "resource_type": "user", "limit": 2},
     )
     assert response.status_code == 200
     page1 = response.json()
@@ -484,7 +505,7 @@ async def test_who_can_pagination(
     # Request page 2 using cursor
     response = await auth_client.post(
         "/api/v1/authz/who-can",
-        json={"action": "read", "resource_type": "workflow", "limit": 2, "cursor": page1["next_cursor"]},
+        json={"action": "read", "resource_type": "user", "limit": 2, "cursor": page1["next_cursor"]},
     )
     assert response.status_code == 200
     page2 = response.json()
@@ -512,13 +533,10 @@ async def test_what_can_i_returns_effective_permissions(
     data = response.json()
     permissions = data["permissions"]
     policy_names = {p["policy_name"] for p in permissions}
-    # User role policies
-    assert "workflow:read:any" in policy_names
+    # Admin role includes all policies
     assert "workflow:create:any" in policy_names
-    assert "execution:read:any" in policy_names
-    # Authenticated group policies
-    assert "user:read:self" in policy_names
     assert "project:create:any" in policy_names
+    assert "user:read:self" in policy_names
 
 
 @pytest.mark.asyncio
@@ -575,7 +593,7 @@ async def test_what_can_i_multiple_groups_additive(
     test_user: User,
 ) -> None:
     """WI-4: Permissions from multiple groups are additive."""
-    # test_user already has "user" role via test-users group.
+    # test_user has admin role via test-users group.
     # Add auditor role via a second group.
     await _make_auditor(test_db_session, test_user)
 
@@ -585,7 +603,7 @@ async def test_what_can_i_multiple_groups_additive(
     policy_names = {p["policy_name"] for p in permissions}
 
     # Should have policies from both user role and auditor role
-    assert "workflow:create:any" in policy_names  # from user role
+    assert "project:create:any" in policy_names  # from user role
     assert "policy:read:any" in policy_names  # from auditor role
 
 

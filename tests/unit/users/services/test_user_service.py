@@ -18,6 +18,7 @@ from nexus.auth.exceptions import (
     AdminDeleteError,
     AdminDisableNoOtherAdminsError,
     AdminModifyError,
+    GroupNamesNotFoundError,
     UserEmailConflictError,
     UserNotFoundError,
     UserUsernameConflictError,
@@ -586,3 +587,69 @@ async def test_delete_last_admin_raises_error(test_db_session: AsyncSession) -> 
 
     with pytest.raises(AdminDisableNoOtherAdminsError):
         await service.delete_user(sole_admin.id)
+
+
+# ============================================================================
+# Group assignment on user creation
+# ============================================================================
+
+
+async def _create_group(session: AsyncSession, name: str) -> Group:
+    group = Group(id=uuid4(), name=name, is_builtin=False, labels={})
+    session.add(group)
+    await session.flush()
+    return group
+
+
+async def _user_group_names(session: AsyncSession, user: User) -> set[str]:
+    rows = await session.execute(
+        select(Group.name).join(user_groups, user_groups.c.group_id == Group.id).where(user_groups.c.user_id == user.id)
+    )
+    return {r[0] for r in rows.all()}
+
+
+@pytest.mark.asyncio
+async def test_create_user_no_groups_by_default(test_db_session: AsyncSession, test_user: User) -> None:
+    """When group_names is omitted, no groups are assigned."""
+    service = UsersService(test_db_session, test_user)
+    user = await service.create_user(
+        username="defaultuser",
+        full_name="Default User",
+        password=TEST_PASSWORD,
+    )
+
+    names = await _user_group_names(test_db_session, user)
+    assert len(names) == 0
+
+
+@pytest.mark.asyncio
+async def test_create_user_explicit_groups(test_db_session: AsyncSession, test_user: User) -> None:
+    """When group_names has specific values, those groups are used instead of defaults."""
+    g1 = await _create_group(test_db_session, "team-alpha")
+    g2 = await _create_group(test_db_session, "team-beta")
+    await test_db_session.commit()
+
+    service = UsersService(test_db_session, test_user)
+    user = await service.create_user(
+        username="teamuser",
+        full_name="Team User",
+        password=TEST_PASSWORD,
+        group_names=["team-alpha", "team-beta"],
+    )
+
+    names = await _user_group_names(test_db_session, user)
+    assert names == {g1.name, g2.name}
+
+
+@pytest.mark.asyncio
+async def test_create_user_nonexistent_group_raises(test_db_session: AsyncSession, test_user: User) -> None:
+    """When a requested group name doesn't exist, raise GroupNamesNotFoundError."""
+    service = UsersService(test_db_session, test_user)
+
+    with pytest.raises(GroupNamesNotFoundError, match="no-such-group"):
+        await service.create_user(
+            username="baduser",
+            full_name="Bad User",
+            password=TEST_PASSWORD,
+            group_names=["no-such-group"],
+        )

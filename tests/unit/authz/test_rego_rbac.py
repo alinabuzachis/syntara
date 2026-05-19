@@ -41,23 +41,19 @@ class TestAdminFullAccess:
 
 
 class TestUserRole:
-    """User role grants workflow CRUD + execution but not admin/policy."""
+    """User role grants project:create, user:read, group:read only."""
 
     @pytest.mark.parametrize(
         ("action", "resource_type"),
         [
-            ("create", "workflow"),
-            ("read", "workflow"),
-            ("update", "workflow"),
-            ("delete", "workflow"),
-            ("run", "execution"),
+            ("create", "project"),
+            ("read", "user"),
+            ("read", "group"),
         ],
         ids=[
-            "workflow:create",
-            "workflow:read",
-            "workflow:update",
-            "workflow:delete",
-            "execution:run",
+            "project:create",
+            "user:read",
+            "group:read",
         ],
     )
     def test_user_role_allowed_actions(self, opa_evaluate, action: str, resource_type: str):
@@ -75,8 +71,19 @@ class TestUserRole:
         [
             ("create", "policy"),
             ("delete", "policy"),
+            ("create", "workflow"),
+            ("read", "workflow"),
+            ("run", "execution"),
+            ("read", "credential"),
         ],
-        ids=["policy:create", "policy:delete"],
+        ids=[
+            "policy:create",
+            "policy:delete",
+            "workflow:create",
+            "workflow:read",
+            "execution:run",
+            "credential:read",
+        ],
     )
     def test_user_role_denied_actions(self, opa_evaluate, action: str, resource_type: str):
         result = opa_evaluate(
@@ -172,13 +179,13 @@ class TestAuthenticatedRole:
     @pytest.mark.parametrize(
         ("action", "resource_type", "expected"),
         [
-            ("create", "project", True),
+            ("create", "project", False),
             ("read", "workflow", False),
             ("create", "workflow", False),
             ("create", "policy", False),
         ],
         ids=[
-            "project:create-allowed",
+            "project:create-denied",
             "workflow:read-denied",
             "workflow:create-denied",
             "policy:create-denied",

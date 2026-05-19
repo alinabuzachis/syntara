@@ -38,15 +38,18 @@ class TestPrivilegeEscalation:
     async def test_user_cannot_self_assign_admin_role(
         self,
         auth_client: AsyncClient,
-        test_user: User,
+        test_db_session: AsyncSession,
+        user_factory: Callable[..., Awaitable[User]],
         auth_as: Callable[[User], None],
     ) -> None:
         """SEC-001: Regular user cannot assign admin role to themselves."""
-        auth_as(test_user)
+        limited_user = await user_factory(username="limited-sec1", email="limited-sec1@test.com")
+        await make_user_role(test_db_session, limited_user)
+        auth_as(limited_user)
 
         resp = await auth_client.post(
             "/api/v1/role-assignments",
-            json={"principal_type": "user", "principal_id": str(test_user.id), "role_name": "admin"},
+            json={"principal_type": "user", "principal_id": str(limited_user.id), "role_name": "admin"},
         )
         assert resp.status_code == 403
 
@@ -54,11 +57,14 @@ class TestPrivilegeEscalation:
     async def test_user_cannot_assign_role_via_can_i(
         self,
         auth_client: AsyncClient,
-        test_user: User,
+        test_db_session: AsyncSession,
+        user_factory: Callable[..., Awaitable[User]],
         auth_as: Callable[[User], None],
     ) -> None:
         """SEC-001b: can-i confirms role-assignment:assign is denied for regular user."""
-        auth_as(test_user)
+        limited_user = await user_factory(username="limited-sec1b", email="limited-sec1b@test.com")
+        await make_user_role(test_db_session, limited_user)
+        auth_as(limited_user)
 
         resp = await auth_client.post(
             "/api/v1/authz/can-i",
@@ -134,8 +140,8 @@ class TestPrivilegeEscalation:
         user_factory: Callable[..., Awaitable[User]],
         auth_as: Callable[[User], None],
     ) -> None:
-        """SEC-005: Authenticated role grants user:read:any to all authenticated users."""
-        user_a = await user_factory(username="usera-sec5", email="usera-sec5@test.com")
+        """SEC-005: User role (via users group) grants user:read:any."""
+        user_a = await user_factory(username="usera-sec5", email="usera-sec5@test.com", group_names=["users"])
         user_b = await user_factory(username="userb-sec5", email="userb-sec5@test.com")
 
         # user_a has only the authenticated role policies
@@ -149,7 +155,7 @@ class TestPrivilegeEscalation:
         assert resp.status_code == 200
         assert resp.json()["allowed"] is True
 
-        # Can also read other users (user:read:any granted to authenticated role)
+        # Can also read other users (user:read:any granted via user role on authenticated group)
         resp = await auth_client.post(
             "/api/v1/authz/can-i",
             json={"action": "read", "resource_type": "user", "resource_id": str(user_b.id)},
@@ -183,18 +189,29 @@ class TestRoleBoundaries:
         assert resp.status_code == 200
         permissions = resp.json()["permissions"]
 
-        allow_perms = [p for p in permissions if p["effect"] == "allow"]
-        all_actions: set[str] = set()
-        for p in allow_perms:
-            all_actions.update(p["actions"])
+        # Filter to system-scoped (scope=any) allow permissions only
+        system_perms = [p for p in permissions if p["effect"] == "allow" and p["scope"] == "any"]
+        system_actions: set[str] = set()
+        for p in system_perms:
+            system_actions.update(p["actions"])
 
-        # User role should grant workflow CRUD and execution
-        for expected in ["workflow:create", "workflow:read", "workflow:update", "workflow:delete", "execution:run"]:
-            assert expected in all_actions, f"User role missing {expected}"
+        # User role should grant project:create, user:read, group:read at system scope
+        for expected in ["project:create", "user:read", "group:read"]:
+            assert expected in system_actions, f"User role missing {expected}"
 
-        # User role should NOT grant policy management
-        for forbidden in ["policy:create", "policy:delete", "role:create", "role:delete"]:
-            assert forbidden not in all_actions, f"User role unexpectedly grants {forbidden}"
+        # User role should NOT grant workflow CRUD, execution, or policy management at system scope
+        for forbidden in [
+            "workflow:create",
+            "workflow:read",
+            "workflow:delete",
+            "execution:run",
+            "credential:read",
+            "policy:create",
+            "policy:delete",
+            "role:create",
+            "role:delete",
+        ]:
+            assert forbidden not in system_actions, f"User role unexpectedly grants {forbidden}"
 
     @pytest.mark.asyncio
     async def test_auditor_strictly_read_only(
@@ -215,18 +232,21 @@ class TestRoleBoundaries:
 
         # Filter to auditor-role-specific policies:
         # - scope=any (exclude project-scoped policies from authenticated group)
-        # - Exclude authenticated role policies (user:read:self, project:create, etc.)
-        authenticated_policy_names = {
-            "project:create:any",
+        # - Exclude authenticated + user role policies (granted via authenticated group)
+        non_auditor_policy_names = {
             "user:read:self",
             "user:update:self",
+            "role-assignment:read:self",
+            "user_identity:read:self",
+            "user_identity:detach:self",
+            "project:create:any",
             "user:read:any",
             "group:read:any",
         }
         auditor_allows = [
             p
             for p in permissions
-            if p["effect"] == "allow" and p["scope"] == "any" and p["policy_name"] not in authenticated_policy_names
+            if p["effect"] == "allow" and p["scope"] == "any" and p["policy_name"] not in non_auditor_policy_names
         ]
         auditor_actions: set[str] = set()
         for p in auditor_allows:
@@ -361,10 +381,10 @@ class TestGroupMembershipEdgeCases:
         assert resp.status_code == 200
         permissions = resp.json()["permissions"]
 
-        # Should have at least the authenticated role policies
+        # Should have only the authenticated role policies (not user role)
         policy_names = {p["policy_name"] for p in permissions}
         assert "user:read:self" in policy_names
-        assert "project:create:any" in policy_names
+        assert "project:create:any" not in policy_names
 
     @pytest.mark.asyncio
     async def test_group_with_no_role_grants_nothing_extra(
@@ -408,17 +428,17 @@ class TestGroupMembershipEdgeCases:
         group = Group(name=f"revoke-sec31-{uuid4()}", description="", labels={})
         test_db_session.add(group)
         await test_db_session.flush()
-        role_assignment = RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=group.id, role_name="user")
+        role_assignment = RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=group.id, role_name="auditor")
         test_db_session.add(role_assignment)
         await test_db_session.execute(insert(user_groups).values(user_id=user.id, group_id=group.id))
         await test_db_session.commit()
 
         auth_as(user)
 
-        # Allowed while role assignment exists
+        # Allowed while role assignment exists (auditor has policy:read)
         resp = await auth_client.post(
             "/api/v1/authz/can-i",
-            json={"action": "create", "resource_type": "workflow"},
+            json={"action": "read", "resource_type": "policy"},
         )
         assert resp.status_code == 200
         assert resp.json()["allowed"] is True
@@ -430,7 +450,7 @@ class TestGroupMembershipEdgeCases:
         # Now denied
         resp = await auth_client.post(
             "/api/v1/authz/can-i",
-            json={"action": "create", "resource_type": "workflow"},
+            json={"action": "read", "resource_type": "policy"},
         )
         assert resp.status_code == 200
         assert resp.json()["allowed"] is False
@@ -475,15 +495,18 @@ class TestPermissionChecker403:
     async def test_403_on_role_assignment_attempt(
         self,
         auth_client: AsyncClient,
-        test_user: User,
+        test_db_session: AsyncSession,
+        user_factory: Callable[..., Awaitable[User]],
         auth_as: Callable[[User], None],
     ) -> None:
         """Non-admin trying to assign a role gets 403 with details."""
-        auth_as(test_user)
+        limited_user = await user_factory(username="limited-sec46b", email="limited-sec46b@test.com")
+        await make_user_role(test_db_session, limited_user)
+        auth_as(limited_user)
 
         resp = await auth_client.post(
             "/api/v1/role-assignments",
-            json={"principal_type": "user", "principal_id": str(test_user.id), "role_name": "admin"},
+            json={"principal_type": "user", "principal_id": str(limited_user.id), "role_name": "admin"},
         )
         assert resp.status_code == 403
         detail = resp.json()["detail"]

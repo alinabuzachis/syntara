@@ -8,14 +8,17 @@ from collections.abc import Iterable
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import func, select
+from sqlalchemy import func
+from sqlalchemy import insert as sa_insert
 from sqlalchemy.exc import IntegrityError
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth.exceptions import (
     AdminDeleteError,
     AdminDisableNoOtherAdminsError,
     AdminModifyError,
+    GroupNamesNotFoundError,
     PasswordOnFederatedUserError,
     UserEmailConflictError,
     UserUsernameConflictError,
@@ -118,6 +121,7 @@ class UsersService(BaseService):
         *,
         email: str | None = None,
         is_enabled: bool = True,
+        group_names: list[str] | None = None,
     ) -> User:
         """Create a new local user.
 
@@ -127,6 +131,7 @@ class UsersService(BaseService):
             password: Plaintext password (will be hashed)
             email: Email address (optional)
             is_enabled: Account activation status
+            group_names: Groups to assign. None = use setting default, [] = no groups.
 
         Returns:
             Created user
@@ -149,6 +154,22 @@ class UsersService(BaseService):
         self.session.add(user)
         await self._commit_with_duplicate_check(username, email=user.email)
         await self.session.refresh(user)
+
+        explicit = group_names is not None
+        resolved_names = group_names if explicit else []
+        if resolved_names:
+            result = await self.session.execute(select(Group).where(col(Group.name).in_(resolved_names)))
+            groups = list(result.scalars().all())
+            if explicit:
+                found_names = {g.name for g in groups}
+                missing = [n for n in resolved_names if n not in found_names]
+                if missing:
+                    raise GroupNamesNotFoundError(missing)
+            if groups:
+                await self.session.execute(
+                    sa_insert(user_groups).values([{"user_id": user.id, "group_id": g.id} for g in groups])
+                )
+                await self.session.commit()
 
         return user
 
@@ -333,11 +354,11 @@ class UsersService(BaseService):
         # Lock the admins group row to serialize concurrent disable/delete
         # operations, preventing a race where two requests both see enough
         # admins and then both disable, leaving zero.
-        await self.session.exec(  # type: ignore[call-overload]
+        await self.session.execute(
             select(Group)
             .where(
-                Group.name == "admins",  # type: ignore[arg-type]
-                Group.is_builtin.is_(True),  # type: ignore[attr-defined]
+                col(Group.name) == "admins",
+                col(Group.is_builtin).is_(True),
             )
             .with_for_update()
         )
@@ -345,19 +366,18 @@ class UsersService(BaseService):
         query = (
             select(func.count())
             .select_from(user_groups)
-            .join(Group, Group.id == user_groups.c.group_id)  # type: ignore[arg-type]
-            .join(User, User.id == user_groups.c.user_id)  # type: ignore[arg-type]
+            .join(Group, col(Group.id) == user_groups.c.group_id)
+            .join(User, col(User.id) == user_groups.c.user_id)
             .where(
-                Group.name == "admins",  # type: ignore[arg-type]
-                Group.is_builtin.is_(True),  # type: ignore[attr-defined]
+                col(Group.name) == "admins",
+                col(Group.is_builtin).is_(True),
                 User.deleted_at.is_(None),  # type: ignore[union-attr]
-                User.is_enabled.is_(True),  # type: ignore[attr-defined]
+                col(User.is_enabled).is_(True),
             )
         )
         if exclude_user_id is not None:
-            query = query.where(User.id != exclude_user_id)  # type: ignore[arg-type]
+            query = query.where(col(User.id) != exclude_user_id)
 
-        # session.exec returns Row tuples; [0] extracts the scalar count
-        count_result = await self.session.exec(query)  # type: ignore[call-overload]
-        if count_result.one()[0] < 1:
+        result = await self.session.execute(query)
+        if result.scalar_one() < 1:
             raise AdminDisableNoOtherAdminsError

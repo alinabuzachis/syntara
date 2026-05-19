@@ -85,29 +85,29 @@ class RoleInfo:
 
 BUILTIN_POLICIES: list[PolicyInfo] = [
     # -- self-scoped --
-    PolicyInfo("user", "read", scope="self", roles=("admin", "user", "authenticated")),
-    PolicyInfo("user", "update", scope="self", roles=("admin", "user", "authenticated")),
+    PolicyInfo("user", "read", scope="self", roles=("admin", "authenticated")),
+    PolicyInfo("user", "update", scope="self", roles=("admin", "authenticated")),
     # -- system-scoped (any) --
     # credentials
-    PolicyInfo("credential", "read", roles=("admin", "auditor", "user")),
-    PolicyInfo("credential", "create", roles=("admin", "user")),
-    PolicyInfo("credential", "update", roles=("admin", "user")),
+    PolicyInfo("credential", "read", roles=("admin", "auditor")),
+    PolicyInfo("credential", "create", roles=("admin",)),
+    PolicyInfo("credential", "update", roles=("admin",)),
     PolicyInfo("credential", "delete", roles=("admin",)),
     # workflows
-    PolicyInfo("workflow", "read", roles=("admin", "auditor", "user")),
-    PolicyInfo("workflow", "create", roles=("admin", "user")),
-    PolicyInfo("workflow", "update", roles=("admin", "user")),
-    PolicyInfo("workflow", "delete", roles=("admin", "user")),
+    PolicyInfo("workflow", "read", roles=("admin", "auditor")),
+    PolicyInfo("workflow", "create", roles=("admin",)),
+    PolicyInfo("workflow", "update", roles=("admin",)),
+    PolicyInfo("workflow", "delete", roles=("admin",)),
     # executions
-    PolicyInfo("execution", "read", roles=("admin", "auditor", "user")),
-    PolicyInfo("execution", "run", roles=("admin", "user")),
+    PolicyInfo("execution", "read", roles=("admin", "auditor")),
+    PolicyInfo("execution", "run", roles=("admin",)),
     # approvals
-    PolicyInfo("approval", "read", roles=("admin", "auditor", "user")),
-    PolicyInfo("approval", "decide", roles=("admin", "user")),
+    PolicyInfo("approval", "read", roles=("admin", "auditor")),
+    PolicyInfo("approval", "decide", roles=("admin",)),
     PolicyInfo("approval", "create", roles=("admin",)),
     # projects
-    PolicyInfo("project", "read", roles=("admin", "auditor", "user")),
-    PolicyInfo("project", "create", roles=("admin", "user", "authenticated")),
+    PolicyInfo("project", "read", roles=("admin", "auditor")),
+    PolicyInfo("project", "create", roles=("admin", "user")),
     PolicyInfo("project", "update", roles=("admin",)),
     PolicyInfo("project", "delete", roles=("admin",)),
     # role assignments
@@ -126,11 +126,11 @@ BUILTIN_POLICIES: list[PolicyInfo] = [
     PolicyInfo("policy", "delete", roles=("admin",)),
     # users & groups
     PolicyInfo("user", "create", roles=("admin",)),
-    PolicyInfo("user", "read", roles=("admin", "auditor", "user", "authenticated")),
+    PolicyInfo("user", "read", roles=("admin", "auditor", "user")),
     PolicyInfo("user", "update", roles=("admin",)),
     PolicyInfo("user", "delete", roles=("admin",)),
     PolicyInfo("group", "create", roles=("admin",)),
-    PolicyInfo("group", "read", roles=("admin", "auditor", "user", "authenticated")),
+    PolicyInfo("group", "read", roles=("admin", "auditor", "user")),
     PolicyInfo("group", "update", roles=("admin",)),
     PolicyInfo("group", "delete", roles=("admin",)),
     PolicyInfo("group", "manage-members", roles=("admin",)),
@@ -187,7 +187,7 @@ BUILTIN_POLICIES: list[PolicyInfo] = [
 BUILTIN_ROLES: list[RoleInfo] = [
     RoleInfo("admin", "Full access to all resources"),
     RoleInfo("auditor", "Read-only access with audit log visibility"),
-    RoleInfo("user", "Standard user with CRUD on own resources"),
+    RoleInfo("user", "Base user permissions: create projects, read users and groups"),
     RoleInfo(
         "project-admin",
         "Full access to a project and its resources, including role management",

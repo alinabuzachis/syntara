@@ -134,27 +134,29 @@ class TestAdminPermissions:
 
 
 class TestUserPermissions:
-    """User role can create, read, update but NOT delete."""
+    """User role cannot access credentials (no credential policies)."""
 
     @pytest.mark.asyncio
-    async def test_user_can_create(
+    async def test_user_cannot_create(
         self,
         auth_client: AsyncClient,
         test_db_session: AsyncSession,
         bearer_type: CredentialType,
         test_project: Project,
-        test_user: User,
+        user_factory: Callable[..., Awaitable[User]],
         auth_as: Callable[[User], None],
     ) -> None:
-        auth_as(test_user)
+        user = await user_factory(username="user-uc", email="user-uc@test.com")
+        await make_user_role(test_db_session, user)
+        auth_as(user)
         resp = await auth_client.post(
             "/api/v1/credentials",
             json=_cred_payload(str(bearer_type.id), str(test_project.id)),
         )
-        assert resp.status_code == 201
+        assert resp.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_user_can_read(
+    async def test_user_cannot_read(
         self,
         auth_client: AsyncClient,
         test_db_session: AsyncSession,
@@ -177,31 +179,7 @@ class TestUserPermissions:
         await make_user_role(test_db_session, user)
         auth_as(user)
         resp = await auth_client.get(f"/api/v1/credentials/{cred_id}")
-        assert resp.status_code == 200
-
-    @pytest.mark.asyncio
-    async def test_user_can_update(
-        self,
-        auth_client: AsyncClient,
-        test_db_session: AsyncSession,
-        bearer_type: CredentialType,
-        test_project: Project,
-        test_user: User,
-        auth_as: Callable[[User], None],
-    ) -> None:
-        auth_as(test_user)
-        resp = await auth_client.post(
-            "/api/v1/credentials",
-            json=_cred_payload(str(bearer_type.id), str(test_project.id)),
-        )
-        assert resp.status_code == 201
-        cred_id = resp.json()["id"]
-
-        resp = await auth_client.patch(
-            f"/api/v1/credentials/{cred_id}",
-            json={"name": "updated-name"},
-        )
-        assert resp.status_code == 200
+        assert resp.status_code == 403
 
     @pytest.mark.asyncio
     async def test_user_cannot_delete(

@@ -8,6 +8,7 @@ Covers:
 - Authorization enforcement (403 for unauthorized users)
 """
 
+from collections.abc import Awaitable, Callable
 from uuid import uuid4
 
 import pytest
@@ -19,6 +20,7 @@ from nexus.authz.models import PrincipalType, RoleAssignment
 from nexus.authz.models.role import Role
 from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
+from tests.integration.api.conftest import make_user_role
 
 
 async def _make_admin(session: AsyncSession, user: User) -> None:
@@ -222,9 +224,15 @@ async def test_duplicate_role_name_returns_409(
 @pytest.mark.asyncio
 async def test_regular_user_cannot_create_role(
     auth_client: AsyncClient,
-    test_user: User,
+    test_db_session: AsyncSession,
+    user_factory: Callable[..., Awaitable[User]],
+    auth_as: Callable[[User], None],
 ) -> None:
     """A user with only the 'user' role cannot create roles (403)."""
+    limited_user = await user_factory(username="limited-role-c", email="limited-role-c@test.com")
+    await make_user_role(test_db_session, limited_user)
+    auth_as(limited_user)
+
     response = await auth_client.post(
         "/api/v1/roles",
         json={
@@ -239,12 +247,17 @@ async def test_regular_user_cannot_create_role(
 async def test_regular_user_cannot_delete_role(
     auth_client: AsyncClient,
     test_db_session: AsyncSession,
-    test_user: User,
+    user_factory: Callable[..., Awaitable[User]],
+    auth_as: Callable[[User], None],
 ) -> None:
     """A user with only the 'user' role cannot delete roles (403).
 
     Insert a custom role directly to have a target for the DELETE attempt.
     """
+    limited_user = await user_factory(username="limited-role-d", email="limited-role-d@test.com")
+    await make_user_role(test_db_session, limited_user)
+    auth_as(limited_user)
+
     role = Role(
         name="delete-target-role",
         policies=["workflow:read:any"],

@@ -27,19 +27,19 @@ async def test_matched_policy_field(
     user_factory: Callable[..., Awaitable[User]],
     auth_as: Callable[[User], None],
 ) -> None:
-    """User with user role doing workflow:create shows matched_policy containing 'workflow'."""
+    """User with user role doing project:create shows matched_policy containing 'project'."""
     bob = await user_factory(username="bob-mpf", email="bob-mpf@test.com")
     await make_user_role(test_db_session, bob)
 
     auth_as(bob)
     resp = await auth_client.post(
         "/api/v1/authz/can-i",
-        json={"action": "create", "resource_type": "workflow"},
+        json={"action": "create", "resource_type": "project"},
     )
     assert resp.status_code == 200
     data = resp.json()
     assert data["allowed"] is True
-    assert "workflow" in data["matched_policy"]
+    assert "project" in data["matched_policy"]
 
 
 @pytest.mark.asyncio
@@ -126,7 +126,11 @@ async def test_who_can_lists_authorized(
     user_factory: Callable[..., Awaitable[User]],
     auth_as: Callable[[User], None],
 ) -> None:
-    """who-can create workflow includes admin and user, excludes auditor."""
+    """who-can assign role-assignment includes admin, excludes user and auditor.
+
+    All authenticated users get project:create via the authenticated group,
+    so we test role-assignment:assign which is admin-only.
+    """
     alice = await user_factory(username="alice-wcla", email="alice-wcla@test.com")
     bob = await user_factory(username="bob-wcla", email="bob-wcla@test.com")
     carol = await user_factory(username="carol-wcla", email="carol-wcla@test.com")
@@ -138,10 +142,10 @@ async def test_who_can_lists_authorized(
     auth_as(alice)
     resp = await auth_client.post(
         "/api/v1/authz/who-can",
-        json={"action": "create", "resource_type": "workflow"},
+        json={"action": "assign", "resource_type": "role-assignment"},
     )
     assert resp.status_code == 200
     usernames = {u["username"] for u in resp.json()["users"]}
     assert "alice-wcla" in usernames
-    assert "bob-wcla" in usernames
+    assert "bob-wcla" not in usernames
     assert "carol-wcla" not in usernames

@@ -23,6 +23,8 @@ class UserCreate:
             password (str): Plaintext password (will be hashed)
             email (None | str | Unset): Email address
             is_enabled (bool | Unset): Whether the user account is enabled Default: True.
+            group_names (list[str] | None | Unset): Groups to assign the user to. Omit to use the default (users group).
+                Pass an empty list to skip group assignment.
     """
 
     username: str
@@ -30,6 +32,7 @@ class UserCreate:
     password: str
     email: None | str | Unset = UNSET
     is_enabled: bool | Unset = True
+    group_names: list[str] | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -47,6 +50,15 @@ class UserCreate:
 
         is_enabled = self.is_enabled
 
+        group_names: list[str] | None | Unset
+        if isinstance(self.group_names, Unset):
+            group_names = UNSET
+        elif isinstance(self.group_names, list):
+            group_names = self.group_names
+
+        else:
+            group_names = self.group_names
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -60,6 +72,8 @@ class UserCreate:
             field_dict["email"] = email
         if is_enabled is not UNSET:
             field_dict["is_enabled"] = is_enabled
+        if group_names is not UNSET:
+            field_dict["group_names"] = group_names
 
         return field_dict
 
@@ -83,12 +97,30 @@ class UserCreate:
 
         is_enabled = d.pop("is_enabled", UNSET)
 
+        def _parse_group_names(data: object) -> list[str] | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, list):
+                    raise TypeError()
+                group_names_type_0 = cast(list[str], data)
+
+                return group_names_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(list[str] | None | Unset, data)
+
+        group_names = _parse_group_names(d.pop("group_names", UNSET))
+
         user_create = cls(
             username=username,
             full_name=full_name,
             password=password,
             email=email,
             is_enabled=is_enabled,
+            group_names=group_names,
         )
 
         user_create.additional_properties = d

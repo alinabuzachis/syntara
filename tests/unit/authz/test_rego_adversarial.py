@@ -51,7 +51,7 @@ class TestImplicitDenyUnknownActions:
 
 
 class TestConflictingAllowDenyGroups:
-    """User with user role allow + deny workflow:delete — deny always wins."""
+    """Admin role allow + deny workflow:delete — deny always wins."""
 
     @pytest.mark.parametrize(
         ("action", "resource_type", "expected"),
@@ -73,7 +73,7 @@ class TestConflictingAllowDenyGroups:
         resource_type: str,
         expected: bool,  # noqa: FBT001
     ):
-        policies = [*policies_for_role("user"), deny_policy("deny-all-wf-delete", ["workflow:delete"])]
+        policies = [*policies_for_role("admin"), deny_policy("deny-all-wf-delete", ["workflow:delete"])]
         result = opa_evaluate(
             build_opa_input(
                 action=action,

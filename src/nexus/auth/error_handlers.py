@@ -23,6 +23,7 @@ if TYPE_CHECKING:
         AuthenticationRequiredError,
         BuiltinGroupDeleteError,
         GroupNameConflictError,
+        GroupNamesNotFoundError,
         GroupNotFoundError,
         IdentityOnBuiltinUserError,
         InvalidTokenError,
@@ -280,6 +281,24 @@ def group_name_conflict_handler(
         title="Group Name Conflict",
         detail="A group with this name already exists",
         code="GROUP_NAME_CONFLICT",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def group_names_not_found_handler(
+    request: Request,
+    exc: GroupNamesNotFoundError,
+) -> JSONResponse:
+    """Handle GroupNamesNotFoundError with RFC 9457 format."""
+    logger.warning("Groups not found", names=exc.names)
+
+    return create_problem_details_response(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        problem_type=PROBLEM_TYPES["validation_error"],
+        title="Groups Not Found",
+        detail=f"The following groups do not exist: {', '.join(exc.names)}",
+        code="GROUPS_NOT_FOUND",
         retryable=False,
         instance=str(request.url),
     )

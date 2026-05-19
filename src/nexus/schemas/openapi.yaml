@@ -25570,6 +25570,14 @@ components:
           default: true
           description: Whether the user account is enabled
           title: Is Enabled
+        group_names:
+          anyOf:
+            - type: array
+              items:
+                type: string
+            - type: 'null'
+          description: Groups to assign the user to. Omit to use the default (users group). Pass an empty list to skip group assignment.
+          title: Group Names
     UserUpdate:
       type: object
       title: UserUpdate

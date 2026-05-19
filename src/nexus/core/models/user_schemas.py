@@ -30,6 +30,14 @@ class UserCreate(SQLModel):
     full_name: str = Field(..., min_length=1, max_length=FieldLimits.NAME_MAX_LENGTH, description="User's display name")
     password: SecretStr = Field(..., min_length=8, description="Plaintext password (will be hashed)")
     is_enabled: bool = Field(default=True, description="Whether the user account is enabled")
+    group_names: list[str] | None = Field(
+        default=None,
+        description=(
+            "Groups to assign the user to. "
+            "Omit to use the default (users group). "
+            "Pass an empty list to skip group assignment."
+        ),
+    )
 
 
 class UserUpdate(SQLModel):
