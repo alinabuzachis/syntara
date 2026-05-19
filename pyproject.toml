@@ -91,6 +91,7 @@ dev = [
     "azure-identity>=1.19.0",  # ClientSecretCredential for Azure AD fixture
     "msgraph-sdk>=1.0.0",  # GraphServiceClient and graph models for Azure AD fixture
     "aap-orchestrator-cli",  # local CLI for the AAP Orchestrator API
+    "beautifulsoup4>=4.12.0",  # for parsing HTML in external auth client fixture
 ]
 integration = [
     "external-services",  # GKE service deployment for integration tests

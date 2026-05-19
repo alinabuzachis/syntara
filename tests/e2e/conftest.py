@@ -8,6 +8,7 @@ inherited automatically.  This file adds e2e-specific fixtures.
 import os
 from http import HTTPStatus
 from pathlib import Path
+from typing import Any, cast
 from uuid import UUID
 
 import httpx
@@ -21,6 +22,22 @@ from nexus_api_client.models.mcp_configuration import MCPConfiguration
 from nexus_api_client.models.sub_resource_role_assignment_create import SubResourceRoleAssignmentCreate
 from nexus_api_client.models.tool_provider_create import ToolProviderCreate
 from nexus_api_client.models.user_create import UserCreate
+from nexus_api_client.types import Response
+
+
+def _admin_password() -> str:
+    password_path = Path(os.environ.get("APP_ADMIN_PASSWORD_PATH", ".secrets/admin-password"))
+    if not password_path.exists():
+        msg = f"Admin password file not found: {password_path}. Run 'make secrets-generate'."
+        raise RuntimeError(msg)
+
+    password = password_path.read_text().strip()
+    if not password:
+        msg = f"Admin password file is empty: {password_path}"
+        raise RuntimeError(msg)
+
+    return password
+
 
 MCP_PROVIDER_NAME = "mcp"
 MCP_PORT = os.environ.get("MCP_PORT", "8765")
@@ -40,17 +57,15 @@ def _login(base_url: str, username: str, password: str) -> str:
 
 def _generate_e2e_token(base_url: str) -> str:
     """Obtain a JWT access token for e2e tests via POST /auth/login."""
-    password_path = Path(os.environ.get("APP_ADMIN_PASSWORD_PATH", ".secrets/admin-password"))
-    if not password_path.exists():
-        msg = f"Admin password file not found: {password_path}. Run 'make secrets-generate'."
-        raise RuntimeError(msg)
-
-    password = password_path.read_text().strip()
-    if not password:
-        msg = f"Admin password file is empty: {password_path}"
-        raise RuntimeError(msg)
-
+    password = _admin_password()
     return _login(base_url, "admin", password)
+
+
+def built_in_admin_login(base_url: str) -> Response[Any]:
+    """Login built-in admin user in Unauthenticated client."""
+    password = _admin_password()
+    unauthenticated = Client(base_url=f"{base_url}/api/v1", verify_ssl=False)
+    return login_sync(client=unauthenticated, body=LoginRequest(username="admin", password=password))
 
 
 @pytest.fixture(scope="session")
@@ -189,6 +204,19 @@ def worker_base_url() -> str:
     the host.  Override with APP_WORKER_BASE_URL in CI or other environments.
     """
     return os.environ.get("APP_WORKER_BASE_URL", "http://host.containers.internal:8000")
+
+
+def get_nexus_api_admin_group_id(nexus_api: NexusApiRegistry) -> UUID:
+    """Get admin role group ID for Nexus API."""
+    groups_resp = nexus_api.groups.list()
+    if groups_resp.parsed is None or len(groups_resp.parsed.resources) == 0:
+        msg = "Unable to retrieve admin group ID."
+        raise RuntimeError(msg)
+    admins_group_id = [g.id for g in groups_resp.parsed.resources if g.name == "admins"]
+    if len(admins_group_id) != 1:
+        msg = "Unable to retrieve admin group ID."
+        raise RuntimeError(msg)
+    return cast("UUID", admins_group_id[0])
 
 
 @pytest.fixture(scope="session")

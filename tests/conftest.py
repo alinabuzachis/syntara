@@ -118,6 +118,8 @@ _EXTERNAL_SERVICES_FIXTURES = frozenset(
         "gke_ext_service_client",
         "gke_ext_service_provider",
         "gke_ext_service_url_retriever",
+        "keycloak_auth_client",
+        "keycloak_nexus_api",
         "keycloak_service",
         "logstash_service",
         "logstash_nginx_web_service",
