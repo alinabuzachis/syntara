@@ -10,6 +10,9 @@ All tests reside under `tests/` and are organized by test type:
 tests/
 ├── conftest.py          # Session-level fixtures
 ├── __init__.py
+├── cli/                 # CLI tests (aap-orchestrator-cli package)
+│   ├── test_spec.py
+│   └── test_generated_client_lazy_imports.py
 ├── e2e/                 # End-to-end tests (full stack required)
 │   └── telemetry/
 ├── fixtures/            # Shared test fixtures and mock resources
@@ -53,24 +56,19 @@ tests/
     ├── approvals/
     ├── audit/
     ├── authz/               # Includes services/
-    ├── cli/
-    ├── core/                # Includes services/, utils/, websocket/
+    ├── core/                # Includes services/, utils/, websocket/, models/
     ├── credentials/
     ├── files/
     ├── identity_providers/  # Includes services/
-    ├── invocations/         # Includes services/
+    ├── invocations/         # Includes services/, models/
     ├── metrics/
-    ├── models/
     ├── projects/            # Includes services/
     ├── schemas/
     ├── settings/
     ├── telemetry/
     ├── tool_manager/
-    ├── tools/
-    ├── users/               # Includes services/
-    ├── utils/
-    ├── validators/
-    └── workflows/           # Includes services/, workflow_engine/services/, validators/
+    ├── users/               # Includes services/, models/
+    └── workflows/           # Includes services/, workflow_engine/services/, validators/, models/
 ```
 
 **Organization Rules:**

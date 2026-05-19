@@ -102,6 +102,10 @@ test: test-unit ## Alias to unit tests
 test-unit: check-deps ## Run unit tests only
 	$(call run-tests,tests/unit/ -v -n auto)
 
+.PHONY: test-cli
+test-cli: check-deps ## Run CLI package tests only
+	$(call run-tests,tests/cli/ -v -n auto)
+
 .PHONY: test-integration
 test-integration: check-deps ## Run integration tests
 	$(call run-tests,tests/integration/ -v -n auto -m "not mcp")
