@@ -29,17 +29,17 @@ describe('IntegrationEmptyState', () => {
     expect(screen.getByText(/Configure integrations to use them in workflows/i)).toBeInTheDocument()
   })
 
-  it('renders add integration button', () => {
+  it('renders configure integration button', () => {
     render(<IntegrationEmptyState />)
 
-    expect(screen.getByRole('button', { name: 'Add integration' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Configure integration' })).toBeInTheDocument()
   })
 
   it('navigates to configure page when button is clicked', async () => {
     const user = userEvent.setup()
     render(<IntegrationEmptyState />)
 
-    const addButton = screen.getByRole('button', { name: 'Add integration' })
+    const addButton = screen.getByRole('button', { name: 'Configure integration' })
     await user.click(addButton)
 
     expect(mockNavigate).toHaveBeenCalledWith('/configuration/integrations/configure')

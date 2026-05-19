@@ -148,8 +148,8 @@ describe('Integrations Component', () => {
       // Check page header
       expect(screen.getByText('Integrations')).toBeInTheDocument()
 
-      // Check Add Integration button
-      expect(screen.getByText('Add integration')).toBeInTheDocument()
+      // Check Configure Integration button
+      expect(screen.getByText('Configure integration')).toBeInTheDocument()
 
       // Check FilterBar is present (filter input)
       expect(screen.getByRole('textbox', { name: /name filter/i })).toBeInTheDocument()
@@ -246,8 +246,8 @@ describe('Integrations Component', () => {
 
       // Check for empty state message (no filters active, so shows empty state not filter empty)
       expect(screen.getByText('No integrations have been configured yet.')).toBeInTheDocument()
-      // Multiple "Add integration" buttons exist (header + empty state), so use getAllByText
-      expect(screen.getAllByText('Add integration').length).toBeGreaterThan(0)
+      // Multiple "Configure integration" buttons exist (header + empty state), so use getAllByText
+      expect(screen.getAllByText('Configure integration').length).toBeGreaterThan(0)
     })
   })
 

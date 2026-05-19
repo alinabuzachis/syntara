@@ -8,11 +8,11 @@ test.describe('destructive modal UX compliance (AAP-72897)', () => {
 
     try {
       // Create an integration to delete
-      await app.getByRole('button', { name: 'Add integration' }).first().click()
+      await app.getByRole('button', { name: 'Configure integration' }).first().click()
       await app.getByLabel('Server name / ID').fill(integrationName)
       await app.getByLabel('API URL').fill('https://api.example.com')
       await app.getByLabel('API key').fill('test-key')
-      await app.getByRole('button', { name: 'Add integration' }).first().click()
+      await app.getByRole('button', { name: 'Configure integration' }).first().click()
       await expect(app.getByRole('heading', { level: 1, name: 'Integrations' })).toBeVisible()
 
       // Filter to find it

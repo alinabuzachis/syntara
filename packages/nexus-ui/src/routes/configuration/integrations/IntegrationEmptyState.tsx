@@ -32,7 +32,7 @@ export function IntegrationEmptyState() {
               and performance metrics, view server logs, and manage server settings and configurations.
             </Content>
             <Button variant="primary" onClick={() => navigate(AppRoute.Configuration.Integrations.Configure)}>
-              Add integration
+              Configure integration
             </Button>
           </Flex>
         </FlexItem>

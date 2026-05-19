@@ -9,12 +9,12 @@ test('user configures an integration and verifies it appears', async ({ app }) =
 
   try {
     // Act - Open integration form and submit
-    await app.getByRole('button', { name: 'Add integration' }).first().click()
+    await app.getByRole('button', { name: 'Configure integration' }).first().click()
     await expect(app.getByRole('heading', { name: 'Configure integration' })).toBeVisible()
     await app.getByLabel('Server name / ID').fill(integrationName)
     await app.getByLabel('API URL').fill('https://api.example.com')
     await app.getByLabel('API key').fill('test-key')
-    await app.getByRole('button', { name: 'Add integration' }).first().click()
+    await app.getByRole('button', { name: 'Configure integration' }).first().click()
 
     // Assert - Integration shows in table
     await expect(app.getByRole('heading', { level: 1, name: 'Integrations' })).toBeVisible()

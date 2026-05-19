@@ -105,7 +105,7 @@ export function IntegrationForm() {
         toolbar={
           <>
             <Button type="submit" form="integration-form">
-              Add integration
+              Configure integration
             </Button>
             <Button variant="secondary" onClick={() => navigate(AppRoute.Configuration.Integrations.Root)}>
               Cancel

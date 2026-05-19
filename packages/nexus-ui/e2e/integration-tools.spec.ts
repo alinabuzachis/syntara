@@ -20,12 +20,12 @@ import { buildUniqueName } from './helpers/workflows'
 async function createIntegration(app: Page, name: string) {
   await app.goto(toAppUrl('/configuration/integrations'))
   await expect(app.getByRole('heading', { level: 1, name: 'Integrations' })).toBeVisible()
-  await app.getByRole('button', { name: 'Add integration' }).first().click()
+  await app.getByRole('button', { name: 'Configure integration' }).first().click()
   await expect(app.getByRole('heading', { name: 'Configure integration' })).toBeVisible()
   await app.getByLabel('Server name / ID').fill(name)
   await app.getByLabel('API URL').fill('https://api.example.com')
   await app.getByLabel('API key').fill('test-key-e2e')
-  await app.getByRole('button', { name: 'Add integration' }).first().click()
+  await app.getByRole('button', { name: 'Configure integration' }).first().click()
   await expect(app.getByRole('heading', { level: 1, name: 'Integrations' })).toBeVisible()
 }
 

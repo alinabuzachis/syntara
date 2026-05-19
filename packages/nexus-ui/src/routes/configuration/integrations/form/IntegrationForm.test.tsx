@@ -122,8 +122,8 @@ describe('IntegrationForm Component', () => {
       expect(screen.getByRole('heading', { name: 'Configure integration' })).toBeInTheDocument()
 
       // Action buttons
-      expect(screen.getByText('Add integration')).toBeInTheDocument()
-      expect(screen.getByText('Cancel')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Configure integration' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
 
       expect(screen.getByRole('form', { name: 'Configure integration' })).toBeInTheDocument()
     })
@@ -172,7 +172,7 @@ describe('IntegrationForm Component', () => {
       const user = userEvent.setup()
       render(<IntegrationForm />, { wrapper })
 
-      await user.click(screen.getByText('Add integration'))
+      await user.click(screen.getByRole('button', { name: 'Configure integration' }))
       await waitFor(() => {
         expect(mockCreateMutate).not.toHaveBeenCalled()
       })
@@ -184,7 +184,7 @@ describe('IntegrationForm Component', () => {
 
       await user.type(screen.getByPlaceholderText('Enter server name / ID'), 'My Server')
       await user.type(screen.getByPlaceholderText('Enter API URL'), 'not-a-url')
-      await user.click(screen.getByText('Add integration'))
+      await user.click(screen.getByRole('button', { name: 'Configure integration' }))
       await waitFor(() => {
         expect(mockCreateMutate).not.toHaveBeenCalled()
       })
@@ -207,7 +207,7 @@ describe('IntegrationForm Component', () => {
       expect((apiUrlInput as HTMLInputElement).value).toBe('https://test.example.com')
     })
 
-    it('submits form data when Add integration button is clicked', async () => {
+    it('submits form data when Configure integration button is clicked', async () => {
       const user = userEvent.setup()
       render(<IntegrationForm />, { wrapper })
 
@@ -215,7 +215,7 @@ describe('IntegrationForm Component', () => {
       await user.type(screen.getByPlaceholderText('Enter description'), 'Main production integration')
       await user.type(screen.getByPlaceholderText('Enter API URL'), 'https://prod.example.com/api')
 
-      const submitButton = screen.getByText('Add integration')
+      const submitButton = screen.getByRole('button', { name: 'Configure integration' })
       await user.click(submitButton)
 
       await waitFor(() => {
@@ -280,7 +280,7 @@ describe('IntegrationForm Component', () => {
       await user.type(screen.getByPlaceholderText('Enter server name / ID'), 'Test Server')
       await user.type(screen.getByPlaceholderText('Enter API URL'), 'https://test.example.com')
 
-      const submitButton = screen.getByText('Add integration')
+      const submitButton = screen.getByRole('button', { name: 'Configure integration' })
       await user.click(submitButton)
 
       await waitFor(() => {
@@ -347,7 +347,7 @@ describe('IntegrationForm Component', () => {
       await user.type(screen.getByPlaceholderText('Enter server name / ID'), 'Bad Server')
       await user.type(screen.getByPlaceholderText('Enter API URL'), 'https://bad-url.example.com')
 
-      const submitButton = screen.getByText('Add integration')
+      const submitButton = screen.getByRole('button', { name: 'Configure integration' })
       await user.click(submitButton)
 
       await waitFor(() => {
@@ -424,7 +424,7 @@ describe('IntegrationForm Component', () => {
       await user.type(screen.getByPlaceholderText('Enter server name / ID'), 'Test Server')
       await user.type(screen.getByPlaceholderText('Enter API URL'), 'https://test.example.com')
 
-      const submitButton = screen.getByText('Add integration')
+      const submitButton = screen.getByRole('button', { name: 'Configure integration' })
       await user.click(submitButton)
 
       await waitFor(() => {
@@ -451,7 +451,7 @@ describe('IntegrationForm Component', () => {
       render(<IntegrationForm />, { wrapper })
 
       // Use getByRole to find the actual button element (not the inner span)
-      const addButton = screen.getByRole('button', { name: /add integration/i })
+      const addButton = screen.getByRole('button', { name: /configure integration/i })
       expect(addButton).toHaveAttribute('form', 'integration-form')
       expect(addButton).toHaveAttribute('type', 'submit')
     })
