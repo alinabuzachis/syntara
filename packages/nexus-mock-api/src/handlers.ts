@@ -74,7 +74,7 @@ function approvalCreatedAt(a: Approval): string | undefined {
 
 function getUsernameFromRequest(request: Request): string {
   const auth = request.headers.get('Authorization') ?? ''
-  const match = /^Bearer mock-token-(.+)$/.exec(auth)
+  const match = /^Bearer .*mock-token-(.+)$/.exec(auth)
   return match ? match[1] : 'admin'
 }
 
