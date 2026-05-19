@@ -21,7 +21,7 @@ tests/
 │   ├── api/             # API endpoint tests
 │   ├── approvals/       # Approvals tests (includes contract tests)
 │   ├── authz/           # Authorization tests
-│   ├── core/            # Core infrastructure tests
+│   ├── core/            # Core infrastructure tests (includes websocket/)
 │   ├── credentials/     # Credentials tests
 │   ├── files/           # File management tests
 │   ├── invocations/     # Invocation tests (includes contract tests)
@@ -29,7 +29,6 @@ tests/
 │   ├── settings/        # Settings tests
 │   ├── telemetry/       # Telemetry tests (includes contract tests)
 │   ├── tool_manager/    # Tool manager tests
-│   ├── websocket/       # WebSocket tests
 │   └── workflows/       # Workflow tests (includes contract tests, examples/, fixtures/, services/, workflow_engine/)
 ├── performance/         # Performance tests (opt-in via --run-performance)
 │   ├── agent_orchestrator/
@@ -55,7 +54,7 @@ tests/
     ├── audit/
     ├── authz/               # Includes services/
     ├── cli/
-    ├── core/                # Includes services/, utils/
+    ├── core/                # Includes services/, utils/, websocket/
     ├── credentials/
     ├── files/
     ├── identity_providers/  # Includes services/
@@ -71,7 +70,6 @@ tests/
     ├── users/               # Includes services/
     ├── utils/
     ├── validators/
-    ├── websocket/
     └── workflows/           # Includes services/, workflow_engine/services/, validators/
 ```
 
