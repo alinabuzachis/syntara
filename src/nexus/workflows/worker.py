@@ -22,10 +22,7 @@ import sys
 
 import structlog
 
-import nexus.telemetry.handlers  # Package scanned by discover_handlers() at startup
-import nexus.workflows.audit  # Package scanned by discover_handlers() at startup
-from nexus.audit.discovery import discover_handlers
-from nexus.audit.dispatcher import AuditEventDispatcher
+from nexus.audit.registration import discover_and_register_all_handlers
 from nexus.core.config.base import get_settings
 from nexus.core.database.session import AsyncSessionLocal
 from nexus.core.logging.logging import apply_runtime_log_level
@@ -78,10 +75,7 @@ async def main() -> None:
 
     # Register audit/telemetry handlers so domain events dispatched by
     # activities (e.g. WorkflowStartEvent, WorkflowCompletedEvent) are handled in the worker.
-    workflows_audit_registry = discover_handlers(nexus.workflows.audit)
-    AuditEventDispatcher.register(workflows_audit_registry)
-    telemetry_registry = discover_handlers(nexus.telemetry.handlers)
-    AuditEventDispatcher.register(telemetry_registry)
+    discover_and_register_all_handlers()
 
     try:
         # Start the worker

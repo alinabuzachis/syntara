@@ -18,25 +18,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import text
 from temporalio.service import RPCError
 
-import nexus.agent_orchestrator.audit  # Package scanned by discover_handlers() at startup
-import nexus.approvals.audit  # Package scanned by discover_handlers() at startup
-import nexus.audit.events  # Package scanned by discover_handlers() at startup
-import nexus.auth.audit  # Package scanned by discover_handlers() at startup
 import nexus.auth.exceptions  # Side-effect import to trigger exception handler registration
-import nexus.authz.audit  # Package scanned by discover_handlers() at startup
-import nexus.credentials.audit  # Package scanned by discover_handlers() at startup
-import nexus.files.audit  # Package scanned by discover_handlers() at startup
-import nexus.identity_providers.audit  # Package scanned by discover_handlers() at startup
 import nexus.identity_providers.exceptions
-import nexus.invocations.audit  # Package scanned by discover_handlers() at startup
-import nexus.settings.audit  # Package scanned by discover_handlers() at startup
-import nexus.telemetry.handlers  # Package scanned by discover_handlers() at startup
-import nexus.tool_manager.audit  # Package scanned by discover_handlers() at startup
-import nexus.workflows.audit  # Package scanned by discover_handlers() at startup
 from nexus.api.constants import API_V1_PATH_PREFIX
-from nexus.audit.discovery import discover_handlers
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.middleware import AuditMiddleware
+from nexus.audit.registration import discover_and_register_all_handlers
 from nexus.audit.services.writer import init_audit_writer
 from nexus.auth.middleware import StaleTokenMiddleware
 from nexus.auth.session.cleanup import get_session_cleanup_worker
@@ -88,72 +75,6 @@ from nexus.workflows.error_handlers import (
 )
 
 logger = structlog.stdlib.get_logger(__name__)
-
-
-def _discover_and_register_audit_handlers() -> None:
-    """Discover audit/telemetry event handlers and register them with the dispatcher.
-
-    Scoped to known sub-packages; add new domains here as they are instrumented.
-    Continues startup if discovery fails — audit is observability, not critical path.
-    """
-    try:
-        approvals_audit_registry = discover_handlers(nexus.approvals.audit)
-        AuditEventDispatcher.register(approvals_audit_registry)
-
-        agent_orchestrator_audit_registry = discover_handlers(nexus.agent_orchestrator.audit)
-        AuditEventDispatcher.register(agent_orchestrator_audit_registry)
-
-        audit_events_registry = discover_handlers(nexus.audit.events)
-        AuditEventDispatcher.register(audit_events_registry)
-
-        auth_audit_registry = discover_handlers(nexus.auth.audit)
-        AuditEventDispatcher.register(auth_audit_registry)
-
-        authz_audit_registry = discover_handlers(nexus.authz.audit)
-        AuditEventDispatcher.register(authz_audit_registry)
-
-        credentials_audit_registry = discover_handlers(nexus.credentials.audit)
-        AuditEventDispatcher.register(credentials_audit_registry)
-
-        identity_providers_audit_registry = discover_handlers(nexus.identity_providers.audit)
-        AuditEventDispatcher.register(identity_providers_audit_registry)
-
-        invocations_audit_registry = discover_handlers(nexus.invocations.audit)
-        AuditEventDispatcher.register(invocations_audit_registry)
-
-        files_audit_registry = discover_handlers(nexus.files.audit)
-        AuditEventDispatcher.register(files_audit_registry)
-
-        settings_audit_registry = discover_handlers(nexus.settings.audit)
-        AuditEventDispatcher.register(settings_audit_registry)
-
-        tool_manager_audit_registry = discover_handlers(nexus.tool_manager.audit)
-        AuditEventDispatcher.register(tool_manager_audit_registry)
-
-        workflows_audit_registry = discover_handlers(nexus.workflows.audit)
-        AuditEventDispatcher.register(workflows_audit_registry)
-
-        telemetry_registry = discover_handlers(nexus.telemetry.handlers)
-        AuditEventDispatcher.register(telemetry_registry)
-
-        total_handlers = (
-            len(agent_orchestrator_audit_registry)
-            + len(approvals_audit_registry)
-            + len(audit_events_registry)
-            + len(auth_audit_registry)
-            + len(authz_audit_registry)
-            + len(credentials_audit_registry)
-            + len(identity_providers_audit_registry)
-            + len(invocations_audit_registry)
-            + len(files_audit_registry)
-            + len(settings_audit_registry)
-            + len(tool_manager_audit_registry)
-            + len(workflows_audit_registry)
-            + len(telemetry_registry)
-        )
-        logger.info("Audit event handlers discovered", handler_count=total_handlers)
-    except Exception:
-        logger.exception("Failed to discover and register audit handlers - audit system degraded")
 
 
 async def _check_settings_catalog(session_factory: Any = None) -> None:  # noqa: ANN401
@@ -252,7 +173,7 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
         maxsize=settings.opa_cache_maxsize,
     )
 
-    _discover_and_register_audit_handlers()
+    discover_and_register_all_handlers()
 
     # Initialize telemetry (reads installation ID from database)
     await initialize_telemetry()
@@ -404,7 +325,7 @@ app.add_middleware(AuditMiddleware, fastapi_app=app)
 # Import exception modules so @fastapi_exception decorators populate the registry
 import nexus.aap.exceptions  # noqa: E402
 import nexus.core.storage_exceptions  # noqa: E402
-import nexus.credentials.exceptions  # noqa: E402
+import nexus.credentials.exceptions  # noqa: E402, F401
 
 # Register decorated exceptions automatically
 register_exceptions(app)

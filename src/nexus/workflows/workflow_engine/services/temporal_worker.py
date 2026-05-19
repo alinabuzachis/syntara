@@ -13,8 +13,7 @@ from temporalio.client import Client
 from temporalio.converter import DataConverter
 from temporalio.worker import Worker
 
-from nexus.audit.discovery import discover_handlers
-from nexus.audit.dispatcher import AuditEventDispatcher
+from nexus.audit.registration import discover_and_register_all_handlers
 from nexus.core.config.base import get_settings
 from nexus.core.database.session import AsyncSessionLocal
 from nexus.core.lib.encryption import key_from_string
@@ -109,11 +108,7 @@ class TemporalWorkerService:
 
             # Register audit/telemetry event handlers so dispatched domain
             # events (e.g. NodeExecutedEvent) reach their handlers.
-            import nexus.telemetry.handlers  # noqa: PLC0415
-            import nexus.workflows.audit  # noqa: PLC0415
-
-            AuditEventDispatcher.register(discover_handlers(nexus.telemetry.handlers))
-            AuditEventDispatcher.register(discover_handlers(nexus.workflows.audit))
+            discover_and_register_all_handlers()
 
             # Create worker with workflows, activities, and interceptors
             self.worker = Worker(
