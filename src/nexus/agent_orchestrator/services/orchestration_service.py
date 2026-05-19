@@ -42,6 +42,9 @@ from nexus.agent_orchestrator.tool_manager.execution_failure_handler import (
     create_tool_wrapper,
 )
 from nexus.agent_orchestrator.utils.workflow_signal_client import WorkflowSignalClient
+from nexus.audit.decorators import audit
+from nexus.audit.emitter import AuditActorContext
+from nexus.audit.models.audit_event import EventCategory, EventSeverity
 from nexus.core.cache.stream import StreamClient
 from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.instrumentation import LLMStreamTracker
@@ -83,7 +86,7 @@ class OrchestrationService:
         workflow = StateGraph(AgentState)
 
         # Add agent nodes
-        invocation_id: UUID = UUID(state["invocation_id"])
+        invocation_id: UUID = state["invocation_id"]
         available_tools: list[BaseTool] = await self._get_tools(invocation_id)
 
         workflow.add_node(AgentRoutes.ORCHESTRATOR, self._create_orchestrator_node())
@@ -134,13 +137,20 @@ class OrchestrationService:
         synchronizer = ToolSynchronizer(invocation_id)
         return await synchronizer.synchronize_tools()
 
+    @audit(
+        EventCategory.AGENT_INTERACTION,
+        event_action="orchestrate",
+        source_component="nexus.agent_orchestrator.orchestration",
+        event_severity=EventSeverity.INFO,
+        capture_args={"session_id", "invocation_id", "execution_id"},
+    )
     async def execute(
         self,
         prompt: str,
         session_id: str,
         invocation_id: UUID,
+        actor_context: AuditActorContext,
         ctx: InvocationContextData | None = None,
-        user_id: UUID | None = None,
         execution_id: UUID | None = None,
         response_schema: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
@@ -153,8 +163,8 @@ class OrchestrationService:
             prompt: User's prompt to process
             session_id: Session identifier for multi-turn tracking
             invocation_id: Invocation UUID
+            actor_context: Optional AuditActorContext with actor_id, actor_username, actor_type
             ctx: Optional typed context_data from the invocation
-            user_id: Optional UUID of the user who initiated the invocation
             execution_id: Optional workflow execution ID for telemetry correlation
             response_schema: Optional JSON Schema for structured output
 
@@ -176,7 +186,7 @@ class OrchestrationService:
             session_id=session_id,
             invocation_id=invocation_id,
             metadata=ctx.to_state_dict() if ctx else None,
-            user_id=user_id,
+            actor_context=actor_context,
             execution_id=execution_id,
             response_schema=response_schema,
         )

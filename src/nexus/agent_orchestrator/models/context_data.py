@@ -115,8 +115,6 @@ class InvocationMetadata(BaseModel):
     request_id: str | None = None
     llm_base_url: HttpUrl | None = None
     llm_provider: str | None = None
-    activity_name: str | None = None
-    workflow_id: str | None = None
 
     def audit_safe_dump(self) -> dict[str, Any]:
         """Return metadata dict with sensitive/opaque fields excluded."""
@@ -141,6 +139,10 @@ class InvocationContextData(BaseModel):
     file_ids: list[str] = Field(default_factory=list)
     agent: str | None = None
     model: str | None = None
+    workflow_id: str | None = None
+    activity_id: str | None = None
+    activity_name: str | None = None
+    execution_id: str | None = None
     callback_url: SecretStr | None = None
     input_data: dict[str, Any] | None = None
     metadata: InvocationMetadata | None = None

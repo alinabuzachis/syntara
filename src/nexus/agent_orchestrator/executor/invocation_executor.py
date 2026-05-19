@@ -10,11 +10,14 @@ from uuid import UUID
 
 import structlog
 
+from nexus.audit.utils import escalate_actor_type
+
 if TYPE_CHECKING:
     from nexus.agent_orchestrator.context_manager.compressor import CompressorService
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator import ContextManagerPlanner
+from nexus.agent_orchestrator.audit.invocation_lifecycle import InvocationLifecycleEvent
 from nexus.agent_orchestrator.clients.openrouter_config import get_openrouter_llm
 from nexus.agent_orchestrator.exceptions import InvocationCancelledError, LLMConfigurationError
 from nexus.agent_orchestrator.models import Invocation, InvocationContextData, InvocationStatus, LLMCredentialConfig
@@ -22,9 +25,13 @@ from nexus.agent_orchestrator.services.orchestration_service import Orchestratio
 from nexus.agent_orchestrator.token_manager.models import UsageDetails, UsageDetailsResult
 from nexus.agent_orchestrator.token_manager.repository import TokenUsageRepository
 from nexus.agent_orchestrator.utils.workflow_signal_client import WorkflowSignalClient
-from nexus.audit.emitter import request_id_context_var
+from nexus.audit.context_managers import actor_context as audit_actor_context
+from nexus.audit.dispatcher import AuditEventDispatcher
+from nexus.audit.emitter import AuditActorContext
+from nexus.audit.models.audit_event import ActorType
 from nexus.core.config.base import get_settings
 from nexus.core.database.session import get_db
+from nexus.core.models import User
 from nexus.core.services.secret_service import create_secret_service
 from nexus.credentials.lib.injector_resolver import InjectorResolver
 from nexus.credentials.models.credential import Credential
@@ -37,11 +44,50 @@ from nexus.metrics.types import MetricType
 logger = structlog.stdlib.get_logger(__name__)
 
 
+def _extract_workflow_id(ctx: InvocationContextData) -> UUID | None:
+    """Extract workflow_id UUID from invocation context."""
+    if ctx.workflow_id:
+        with contextlib.suppress(ValueError):
+            return UUID(ctx.workflow_id)
+    return None
+
+
+def _extract_execution_id(ctx: InvocationContextData) -> UUID | None:
+    """Extract execution_id UUID from invocation context."""
+    if ctx.execution_id:
+        with contextlib.suppress(ValueError):
+            return UUID(ctx.execution_id)
+    return None
+
+
 def _extract_request_id(ctx: InvocationContextData) -> UUID | None:
-    """Extract request_id UUID from invocation context_data metadata."""
+    """Extract request_id UUID from invocation context."""
     if ctx.metadata and ctx.metadata.request_id:
         with contextlib.suppress(ValueError):
             return UUID(ctx.metadata.request_id)
+    return None
+
+
+def _extract_response_schema(ctx: InvocationContextData) -> dict[str, Any] | None:
+    """Extract response_schema from invocation context."""
+    opaque = ctx.metadata.response_schema if ctx.metadata else None
+    return opaque.get_data() if opaque else None
+
+
+def _extract_model_name(result_dict: dict[str, Any]) -> str | None:
+    """Extract model name from result metadata.
+
+    Args:
+        result_dict: Result dictionary from orchestration service
+
+    Returns:
+        Model name if found, None otherwise
+
+    """
+    if isinstance(result_dict, dict):
+        response_metadata = result_dict.get("response_metadata")
+        if isinstance(response_metadata, dict):
+            return response_metadata.get("model")
     return None
 
 
@@ -101,6 +147,39 @@ class InvocationExecutor:
         # Create async context manager from the session factory
         self.get_async_session_context = contextlib.asynccontextmanager(session_factory)
 
+    @staticmethod
+    async def _get_actor_context_for_invocation(session: AsyncSession, invocation: Invocation) -> AuditActorContext:
+        """Get AuditActorContext for an invocation's creator.
+
+        Args:
+            session: Database session
+            invocation: Invocation being executed
+
+        Returns:
+            ActorContext with atomic actor_id and actor_username
+
+        """
+        user = await session.get(User, invocation.created_by)
+        if user:
+            return AuditActorContext(
+                actor_id=user.id,
+                actor_username=user.username,
+                actor_type=escalate_actor_type(user.id),
+            )
+        # This scenario should not happen. Invocations are created by the AgenticActivity that
+        # creates a Bearer Token for the System User. The Invocation.created_by will therefore be
+        # that of the System User.
+        logger.warning(
+            "User associated with Invocation.created_by cannot be found. Using System User context.",
+            invocation_id=invocation.id,
+            created_by=invocation.created_by,
+        )
+        return AuditActorContext(
+            actor_id=get_settings().system_user_id,
+            actor_username="system",
+            actor_type=ActorType.SYSTEM,
+        )
+
     async def execute_invocation(self, invocation_id: UUID) -> None:
         """Execute invocation by ID, loading fresh data from database.
 
@@ -143,87 +222,136 @@ class InvocationExecutor:
             if orchestration_service is None:
                 return
 
-            # Store ID for logging in case of session errors
-            exec_invocation_id = invocation.id
-            recorder = get_metrics_recorder()
-            invocation_start = time.perf_counter()
+            # Execute orchestration with error handling
+            workflow_id: UUID | None = _extract_workflow_id(ctx)
+            activity_id: str | None = ctx.activity_id
+            execution_id: UUID | None = _extract_execution_id(ctx)
+            request_id: UUID | None = _extract_request_id(ctx)
+            actor_context = await self._get_actor_context_for_invocation(session, invocation)
+            with audit_actor_context(
+                actor=actor_context,
+                workflow_id=workflow_id,
+                activity_id=activity_id,
+                execution_id=execution_id,
+                request_id=request_id,
+            ):
+                await self._execute_orchestration(invocation, orchestration_service, session, ctx, actor_context)
 
-            try:
-                # Mark invocation as started
-                invocation.started_at = datetime.now(UTC)
-                invocation.status = InvocationStatus.RUNNING
-                await session.commit()
+    async def _execute_orchestration(
+        self,
+        invocation: Invocation,
+        orchestration_service: OrchestrationService,
+        session: AsyncSession,
+        ctx: InvocationContextData,
+        actor_context: AuditActorContext,
+    ) -> None:
+        """Execute orchestration service and handle result processing.
 
-                # Execute through OrchestrationService (which handles context enhancement internally)
-                logger.info(
-                    "Executing through OrchestrationService",
+        Args:
+            invocation: The invocation to execute
+            orchestration_service: Initialized orchestration service
+            session: Database session
+            ctx: Parsed context_data model
+            actor_context: Actor context for audit event
+
+        """
+        recorder = get_metrics_recorder()
+        invocation_start = time.perf_counter()
+        execution_id = _extract_execution_id(ctx)
+
+        try:
+            # Mark invocation as started
+            invocation.started_at = datetime.now(UTC)
+            invocation.status = InvocationStatus.RUNNING
+            await session.commit()
+
+            # Dispatch RUNNING event
+            AuditEventDispatcher.dispatch(
+                InvocationLifecycleEvent(
+                    invocation_id=invocation.id, execution_id=execution_id, status=InvocationStatus.RUNNING
+                )
+            )
+
+            # Execute through OrchestrationService (which handles context enhancement internally)
+            logger.info(
+                "Executing through OrchestrationService",
+                invocation_id=invocation.id,
+                prompt=invocation.prompt,
+            )
+
+            # Extract response_schema for structured output support
+            opaque = ctx.metadata.response_schema if ctx.metadata else None
+            response_schema = opaque.get_data() if opaque else None
+
+            result_dict = await orchestration_service.execute(
+                prompt=invocation.prompt,
+                session_id=invocation.session_id,
+                invocation_id=invocation.id,
+                actor_context=actor_context,
+                ctx=ctx,
+                execution_id=execution_id,
+                response_schema=response_schema,
+            )
+
+            # Check if invocation was cancelled during execution (fix race condition)
+            # Refresh the current invocation to get latest status from database
+            await session.refresh(invocation)
+
+            if invocation.status == InvocationStatus.CANCELLED:
+                logger.warning(
+                    "Invocation was cancelled during execution, skipping completion",
                     invocation_id=invocation.id,
-                    prompt=invocation.prompt,
                 )
-
-                request_id_context_var.set(_extract_request_id(ctx))
-
-                # Extract response_schema for structured output support
-                opaque = ctx.metadata.response_schema if ctx.metadata else None
-                response_schema = opaque.get_data() if opaque else None
-
-                result_dict = await orchestration_service.execute(
-                    prompt=invocation.prompt,
-                    session_id=invocation.session_id,
-                    invocation_id=exec_invocation_id,
-                    ctx=ctx,
-                    user_id=invocation.created_by,
-                    execution_id=None,
-                    response_schema=response_schema,
-                )
-
-                # Check if invocation was cancelled during execution (fix race condition)
-                # Refresh the current invocation to get latest status from database
-                await session.refresh(invocation)
-
-                if invocation.status == InvocationStatus.CANCELLED:
-                    logger.info(
-                        "Invocation was cancelled during execution, skipping completion",
-                        invocation_id=exec_invocation_id,
+                # Dispatch CANCELLED event
+                AuditEventDispatcher.dispatch(
+                    InvocationLifecycleEvent(
+                        invocation_id=invocation.id, execution_id=execution_id, status=InvocationStatus.CANCELLED
                     )
-                    return  # Don't override the CANCELLED status
-
-                # Update token usage record with actual provider-reported counts
-                await self._update_token_usage(result_dict, invocation, session)
-
-                # Extract model name from result metadata
-                model_name = None
-                if isinstance(result_dict, dict):
-                    response_metadata = result_dict.get("response_metadata")
-                    if isinstance(response_metadata, dict):
-                        model_name = response_metadata.get("model")
-
-                # Store result and mark as completed (after cancellation check)
-                invocation.result = result_dict
-                invocation.model_name = model_name
-                invocation.status = InvocationStatus.COMPLETED
-                invocation.completed_at = datetime.now(UTC)
-                await session.commit()
-
-                self._record_invocation_metrics(recorder, invocation_start, exec_invocation_id, status="success")
-
-            except InvocationCancelledError:
-                # Invocation was cancelled during execution - this is expected behavior
-                # Don't mark as failed since cancellation is already handled
-                logger.info("Invocation cancelled during execution", invocation_id=exec_invocation_id)
-            except Exception as e:
-                self._record_invocation_metrics(recorder, invocation_start, exec_invocation_id, status="error", error=e)
-
-                logger.exception(
-                    "Exception during invocation execution",
-                    invocation_id=exec_invocation_id,
-                    error_type=type(e).__name__,
                 )
-                await self._handle_execution_error(e, exec_invocation_id, session)
+                return  # Don't override the CANCELLED status
 
-                # Send failure signal to workflow
-                cb_url = ctx.callback_url.get_secret_value() if ctx.callback_url else None
-                await WorkflowSignalClient.send_failure_signal(cb_url, exec_invocation_id, e)
+            # Update token usage record with actual provider-reported counts
+            await self._update_token_usage(result_dict, invocation, session)
+
+            # Extract model name from result metadata
+            model_name = _extract_model_name(result_dict)
+
+            # Store result and mark as completed (after cancellation check)
+            invocation.result = result_dict
+            invocation.model_name = model_name
+            invocation.status = InvocationStatus.COMPLETED
+            invocation.completed_at = datetime.now(UTC)
+            await session.commit()
+
+            # Dispatch COMPLETED event
+            AuditEventDispatcher.dispatch(
+                InvocationLifecycleEvent(
+                    invocation_id=invocation.id,
+                    execution_id=execution_id,
+                    status=InvocationStatus.COMPLETED,
+                    model_name=model_name,
+                )
+            )
+
+            self._record_invocation_metrics(recorder, invocation_start, invocation.id, status="success")
+
+        except InvocationCancelledError:
+            # Invocation was cancelled during execution - this is expected behavior
+            # Don't mark as failed since cancellation is already handled
+            logger.info("Invocation cancelled during execution", invocation_id=invocation.id)
+        except Exception as e:
+            self._record_invocation_metrics(recorder, invocation_start, invocation.id, status="error", error=e)
+
+            logger.exception(
+                "Exception during invocation execution",
+                invocation_id=invocation.id,
+                error_type=type(e).__name__,
+            )
+            await self._handle_execution_error(e, invocation.id, execution_id, session)
+
+            # Send failure signal to workflow
+            cb_url = ctx.callback_url.get_secret_value() if ctx.callback_url else None
+            await WorkflowSignalClient.send_failure_signal(cb_url, invocation.id, e)
 
     async def _update_token_usage(
         self,
@@ -377,12 +505,15 @@ class InvocationExecutor:
             status_labels["error_type"] = type(error).__name__
         recorder.record(MetricType.AGENT_STATUS, value=1, labels=status_labels)
 
-    async def _handle_execution_error(self, error: Exception, invocation_id: UUID, session: AsyncSession) -> None:
+    async def _handle_execution_error(
+        self, error: Exception, invocation_id: UUID, execution_id: UUID | None, session: AsyncSession
+    ) -> None:
         """Handle execution errors by marking invocation as failed.
 
         Args:
             error: The exception that occurred
             invocation_id: ID of the invocation that failed
+            execution_id: ID of the execution
             session: Database session
 
         """
@@ -405,6 +536,16 @@ class InvocationExecutor:
             fresh_invocation.error_message = str(error)
             fresh_invocation.completed_at = now
             await session.commit()
+
+            # Dispatch FAILED event
+            AuditEventDispatcher.dispatch(
+                InvocationLifecycleEvent(
+                    invocation_id=invocation_id,
+                    execution_id=execution_id,
+                    status=InvocationStatus.FAILED,
+                    error_type=type(error).__name__,
+                )
+            )
 
     async def _log_conversion_failures(
         self, invocation: Invocation, ctx: InvocationContextData, session: AsyncSession

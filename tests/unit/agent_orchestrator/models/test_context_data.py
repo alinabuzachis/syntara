@@ -24,8 +24,6 @@ class TestInvocationMetadata:
             request_id="req-456",
             llm_base_url=HttpUrl("https://api.example.com"),
             llm_provider="openrouter",
-            activity_name="agentic_v2",
-            workflow_id="wf-789",
         )
         assert meta.credential_id is not None
         assert meta.credential_id.get_secret_value() == "cred-123"
@@ -49,7 +47,6 @@ class TestInvocationMetadata:
                 "credential_id": "cred-123",
                 "response_schema": {"type": "object"},
                 "request_id": "req-456",
-                "activity_name": "agentic_v2",
             }
         )
         safe = meta.audit_safe_dump()
@@ -57,7 +54,6 @@ class TestInvocationMetadata:
         assert "credential_id" not in safe
         assert "response_schema" not in safe
         assert safe["request_id"] == "req-456"
-        assert safe["activity_name"] == "agentic_v2"
 
     def test_extra_fields_ignored(self) -> None:
         meta = InvocationMetadata.model_validate({"custom_key": "custom_value"})
@@ -72,6 +68,10 @@ class TestInvocationContextData:
         assert ctx.file_ids == []
         assert ctx.agent is None
         assert ctx.model is None
+        assert ctx.workflow_id is None
+        assert ctx.activity_id is None
+        assert ctx.activity_name is None
+        assert ctx.execution_id is None
         assert ctx.metadata is None
 
     def test_from_raw_dict(self) -> None:
@@ -135,13 +135,15 @@ class TestInvocationContextData:
             "model": "gpt-4",
             "callback_url": "https://cb.example.com",
             "input_data": {"key": "val"},
+            "workflow_id": "w1",
+            "activity_id": "a1",
+            "activity_name": "agentic_v2",
+            "execution_id": "e1",
             "metadata": {
                 "credential_id": "c1",
                 "response_schema": {"type": "object"},
                 "request_id": "r1",
                 "llm_base_url": "https://llm.example.com",
-                "activity_name": "agentic_v2",
-                "workflow_id": "w1",
             },
         }
         ctx = InvocationContextData.model_validate(raw)
@@ -162,14 +164,16 @@ class TestInvocationContextData:
         assert ctx2.callback_url is not None
         assert ctx2.callback_url.get_secret_value() == "https://cb.example.com"
         assert ctx2.input_data == {"key": "val"}
+        assert ctx2.workflow_id == "w1"
+        assert ctx2.activity_id == "a1"
+        assert ctx2.activity_name == "agentic_v2"
+        assert ctx2.execution_id == "e1"
         assert ctx2.metadata is not None
         assert ctx2.metadata.credential_id is not None
         assert ctx2.metadata.credential_id.get_secret_value() == "c1"
         assert ctx2.metadata.response_schema is not None
         assert ctx2.metadata.response_schema.get_data() == {"type": "object"}
         assert ctx2.metadata.request_id == "r1"
-        assert ctx2.metadata.activity_name == "agentic_v2"
-        assert ctx2.metadata.workflow_id == "w1"
 
     def test_top_level_callback_url_is_secret(self) -> None:
         ctx = InvocationContextData.model_validate({"callback_url": "https://secret-cb.com"})
@@ -183,6 +187,67 @@ class TestInvocationContextData:
 
         with pytest.raises(ValidationError, match="metadata must be a dict"):
             InvocationContextData.model_validate({"metadata": "bad"})
+
+    def test_workflow_execution_context_fields(self) -> None:
+        """Workflow/execution context fields are properly validated and serialized."""
+        ctx = InvocationContextData.model_validate(
+            {
+                "workflow_id": "wf-123",
+                "execution_id": "exec-456",
+                "activity_id": "act-789",
+                "activity_name": "process_data",
+            }
+        )
+        assert ctx.workflow_id == "wf-123"
+        assert ctx.execution_id == "exec-456"
+        assert ctx.activity_id == "act-789"
+        assert ctx.activity_name == "process_data"
+
+        # Verify serialization
+        dumped = ctx.model_dump()
+        assert dumped["workflow_id"] == "wf-123"
+        assert dumped["execution_id"] == "exec-456"
+        assert dumped["activity_id"] == "act-789"
+        assert dumped["activity_name"] == "process_data"
+
+    def test_workflow_execution_context_fields_optional(self) -> None:
+        """Workflow/execution context fields are optional and default to None."""
+        ctx = InvocationContextData.model_validate({"agent": "test"})
+        assert ctx.workflow_id is None
+        assert ctx.execution_id is None
+        assert ctx.activity_id is None
+        assert ctx.activity_name is None
+
+        # None values excluded when exclude_none=True
+        dumped = ctx.model_dump(exclude_none=True)
+        assert "workflow_id" not in dumped
+        assert "execution_id" not in dumped
+        assert "activity_id" not in dumped
+        assert "activity_name" not in dumped
+
+    def test_to_state_dict_includes_context_fields(self) -> None:
+        """to_state_dict includes workflow/execution context fields."""
+        ctx = InvocationContextData.model_validate(
+            {
+                "agent": "test-agent",
+                "workflow_id": "wf-999",
+                "execution_id": "exec-888",
+                "activity_id": "act-777",
+                "activity_name": "validate",
+                "callback_url": "https://example.com/callback",
+            }
+        )
+        state_dict = ctx.to_state_dict()
+
+        # Verify context fields are in state dict
+        assert state_dict["workflow_id"] == "wf-999"
+        assert state_dict["execution_id"] == "exec-888"
+        assert state_dict["activity_id"] == "act-777"
+        assert state_dict["activity_name"] == "validate"
+
+        # Verify callback_url is revealed (not SecretStr)
+        assert state_dict["callback_url"] == "https://example.com/callback"
+        assert isinstance(state_dict["callback_url"], str)
 
 
 class TestOpaqueResponseSchema:

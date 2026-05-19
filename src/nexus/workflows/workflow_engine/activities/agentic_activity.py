@@ -145,8 +145,10 @@ async def execute_agentic_activity(
         ) as agent_client:
             # Build metadata (callback_url is extracted by client into contextData)
             agent_metadata: dict[str, Any] = {
-                "activity_name": "agentic_v2",
                 "workflow_id": workflow_id,
+                "activity_id": activity_id,
+                "activity_name": "agentic_v2",
+                "execution_id": execution_id,
             }
             if callback_url:
                 agent_metadata["callback_url"] = callback_url

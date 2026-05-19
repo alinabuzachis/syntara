@@ -13,6 +13,7 @@ from langchain_core.messages import HumanMessage
 from typing_extensions import TypedDict
 
 from nexus.agent_orchestrator.constants import AgentRoutes
+from nexus.audit.emitter import AuditActorContext
 
 
 class AgentState(TypedDict):
@@ -34,11 +35,11 @@ class AgentState(TypedDict):
     session_id: str
     """Session identifier for multi-turn conversation tracking"""
 
-    invocation_id: str
+    invocation_id: UUID
     """UUID of the invocation being processed"""
 
-    user_id: str | None
-    """UUID of the user who initiated the invocation (from JWT claims)"""
+    actor_context: AuditActorContext
+    """Actor context with atomic actor_id and actor_username"""
 
     # Context management
     context_package: dict[str, Any] | None
@@ -81,8 +82,8 @@ class AgentStateFactory:
         prompt: str,
         session_id: str,
         invocation_id: UUID,
+        actor_context: AuditActorContext,
         metadata: dict[str, Any] | None = None,
-        user_id: UUID | None = None,
         execution_id: UUID | None = None,
         response_schema: dict[str, Any] | None = None,
     ) -> AgentState:
@@ -93,7 +94,7 @@ class AgentStateFactory:
             session_id: Session identifier
             invocation_id: Invocation UUID
             metadata: Optional metadata from invocation context_data (e.g., callback_url)
-            user_id: Optional UUID of the user who initiated the invocation
+            actor_context: Optional audit actor context with atomic actor_id, actor_username, and actor_type
             execution_id: Optional workflow execution ID for telemetry correlation
             response_schema: Optional JSON Schema for structured output
 
@@ -105,8 +106,8 @@ class AgentStateFactory:
             prompt=prompt,
             original_prompt=prompt,
             session_id=session_id,
-            invocation_id=str(invocation_id),
-            user_id=str(user_id) if user_id else None,
+            invocation_id=invocation_id,
+            actor_context=actor_context,
             context_package=None,
             current_agent=AgentRoutes.ORCHESTRATOR,
             metadata=metadata,

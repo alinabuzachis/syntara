@@ -9,6 +9,7 @@ import pytest
 
 from nexus.agent_orchestrator.context_manager.models import ContextPackage
 from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
+from nexus.audit.emitter import AuditActorContext
 
 
 def create_mock_streaming_event(event_type: str, content: str | None = None) -> dict[str, Any]:
@@ -100,6 +101,7 @@ class TestOrchestrationServiceStreamingExecution:
                 prompt="Test prompt",
                 session_id="test-session",
                 invocation_id=invocation_id,
+                actor_context=AuditActorContext(),
             )
 
             # Assert - Result should contain streaming metadata
@@ -153,6 +155,7 @@ class TestOrchestrationServiceStreamingExecution:
                 prompt="Test",
                 session_id="test-session",
                 invocation_id=invocation_id,
+                actor_context=AuditActorContext(),
             )
 
             # Assert - Check delta event structure
@@ -194,6 +197,7 @@ class TestOrchestrationServiceStreamingExecution:
                 prompt="Test",
                 session_id="test-session",
                 invocation_id=invocation_id,
+                actor_context=AuditActorContext(),
             )
 
             # Assert - Check completion event
@@ -246,6 +250,7 @@ class TestOrchestrationServiceErrorHandling:
                     prompt="Test",
                     session_id="test-session",
                     invocation_id=invocation_id,
+                    actor_context=AuditActorContext(),
                 )
 
             assert "LLM streaming error" in str(exc_info.value)
@@ -292,6 +297,7 @@ class TestOrchestrationServiceErrorHandling:
                     prompt="Test",
                     session_id="test-session",
                     invocation_id=invocation_id,
+                    actor_context=AuditActorContext(),
                 )
 
             # Verify error event was published
@@ -340,6 +346,7 @@ class TestOrchestrationServiceSessionManagement:
                 prompt="First prompt",
                 session_id=session_id,
                 invocation_id=invocation_id_1,
+                actor_context=AuditActorContext(),
             )
 
             # Act - Second invocation with same session
@@ -347,6 +354,7 @@ class TestOrchestrationServiceSessionManagement:
                 prompt="Second prompt",
                 session_id=session_id,
                 invocation_id=invocation_id_2,
+                actor_context=AuditActorContext(),
             )
 
             # Assert - Both should return streaming metadata
@@ -399,6 +407,7 @@ class TestOrchestrationServiceLogging:
                 prompt="Test prompt",
                 session_id="test-session",
                 invocation_id=invocation_id,
+                actor_context=AuditActorContext(),
             )
 
             # Assert - Verify streaming start was logged

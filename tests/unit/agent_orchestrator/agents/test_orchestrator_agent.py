@@ -12,6 +12,7 @@ from langchain_core.messages import HumanMessage
 from nexus.agent_orchestrator.agents.orchestrator_agent import OrchestratorAgent
 from nexus.agent_orchestrator.constants import AgentRoutes
 from nexus.agent_orchestrator.context_manager.models import ContextPackage
+from nexus.audit.emitter import AuditActorContext
 from tests.conftest import FakeSettingsCache
 
 if TYPE_CHECKING:
@@ -41,13 +42,13 @@ class TestOrchestratorAgentContextIntegration:
         mock_context_manager.plan_request = AsyncMock(return_value=test_context)
 
         orchestrator = OrchestratorAgent(mock_context_manager)
-        invocation_id = str(uuid4())
+        invocation_id = uuid4()
         state: AgentState = {
             "prompt": "What deployment tools are available?",
             "original_prompt": "What deployment tools are available?",
             "session_id": "test-session",
             "invocation_id": invocation_id,
-            "user_id": None,
+            "actor_context": AuditActorContext(),
             "context_package": None,
             "current_agent": "",
             "messages": [HumanMessage("test")],
@@ -79,14 +80,14 @@ class TestOrchestratorAgentContextIntegration:
         mock_context_manager.plan_request = AsyncMock(side_effect=ConnectionError("Context service unavailable"))
 
         orchestrator = OrchestratorAgent(mock_context_manager)
-        invocation_id = str(uuid4())
+        invocation_id = uuid4()
         original_prompt = "What deployment tools are available?"
         state: AgentState = {
             "prompt": original_prompt,
             "original_prompt": original_prompt,
             "session_id": "test-session",
             "invocation_id": invocation_id,
-            "user_id": None,
+            "actor_context": AuditActorContext(),
             "context_package": None,
             "current_agent": "",
             "messages": [HumanMessage("test")],
@@ -129,14 +130,14 @@ class TestOrchestratorAgentContextIntegration:
             mock_context_manager.plan_request = AsyncMock(side_effect=exception)
 
             orchestrator = OrchestratorAgent(mock_context_manager)
-            invocation_id = str(uuid4())
+            invocation_id = uuid4()
             original_prompt = f"Test prompt for {type(exception).__name__}"
             state: AgentState = {
                 "prompt": original_prompt,
                 "original_prompt": original_prompt,
                 "session_id": "test-session",
                 "invocation_id": invocation_id,
-                "user_id": None,
+                "actor_context": AuditActorContext(),
                 "context_package": None,
                 "current_agent": "",
                 "messages": [HumanMessage("test")],
@@ -173,13 +174,13 @@ class TestOrchestratorAgentRouting:
             mock_context_manager.plan_request = AsyncMock(return_value=ContextPackage(payload={}, grounding_score=0.0))
 
             orchestrator = OrchestratorAgent(mock_context_manager)
-            invocation_id = str(uuid4())
+            invocation_id = uuid4()
             state: AgentState = {
                 "prompt": prompt,
                 "original_prompt": prompt,
                 "session_id": "test-session",
                 "invocation_id": invocation_id,
-                "user_id": None,
+                "actor_context": AuditActorContext(),
                 "context_package": None,
                 "current_agent": "",
                 "messages": [HumanMessage("test")],
@@ -210,13 +211,13 @@ class TestOrchestratorAgentRouting:
             mock_context_manager.plan_request = AsyncMock(return_value=ContextPackage(payload={}, grounding_score=0.0))
 
             orchestrator = OrchestratorAgent(mock_context_manager)
-            invocation_id = str(uuid4())
+            invocation_id = uuid4()
             state: AgentState = {
                 "prompt": prompt,
                 "original_prompt": prompt,
                 "session_id": "test-session",
                 "invocation_id": invocation_id,
-                "user_id": None,
+                "actor_context": AuditActorContext(),
                 "context_package": None,
                 "current_agent": "",
                 "messages": [HumanMessage("test")],
@@ -251,14 +252,14 @@ class TestOrchestratorAgentPromptFormatting:
         mock_context_manager.plan_request = AsyncMock(return_value=test_context)
 
         orchestrator = OrchestratorAgent(mock_context_manager)
-        invocation_id = str(uuid4())
+        invocation_id = uuid4()
         original_prompt = "How do I deploy applications?"
         state: AgentState = {
             "prompt": original_prompt,
             "original_prompt": original_prompt,
             "session_id": "test-session",
             "invocation_id": invocation_id,
-            "user_id": None,
+            "actor_context": AuditActorContext(),
             "context_package": None,
             "current_agent": "",
             "messages": [HumanMessage("test")],
@@ -296,14 +297,14 @@ class TestOrchestratorAgentPromptFormatting:
         mock_context_manager.plan_request = AsyncMock(return_value=test_context)
 
         orchestrator = OrchestratorAgent(mock_context_manager)
-        invocation_id = str(uuid4())
+        invocation_id = uuid4()
         original_prompt = "What are the available tools?"
         state: AgentState = {
             "prompt": original_prompt,
             "original_prompt": original_prompt,
             "session_id": "test-session",
             "invocation_id": invocation_id,
-            "user_id": None,
+            "actor_context": AuditActorContext(),
             "context_package": None,
             "current_agent": "",
             "messages": [HumanMessage("test")],
@@ -335,7 +336,7 @@ class TestOrchestratorAgentSettings:
         test_context = ContextPackage(payload={}, grounding_score=0.5)
         mock_context_manager.plan_request = AsyncMock(return_value=test_context)
 
-        invocation_id = str(uuid4())
+        invocation_id = uuid4()
         state: AgentState = {
             "prompt": "test query",
             "original_prompt": "test query",
@@ -347,7 +348,7 @@ class TestOrchestratorAgentSettings:
             "result": None,
             "metadata": None,
             "llm_token_usage_log": [],
-            "user_id": None,
+            "actor_context": AuditActorContext(),
         }
 
         with override_runtime_settings({"context_manager.request_timeout_seconds": 45}):
@@ -367,13 +368,13 @@ class TestOrchestratorAgentLogging:
         mock_context_manager.plan_request = AsyncMock(return_value=test_context)
 
         orchestrator = OrchestratorAgent(mock_context_manager)
-        invocation_id = str(uuid4())
+        invocation_id = uuid4()
         state: AgentState = {
             "prompt": "test query",
             "original_prompt": "test query",
             "session_id": "test-session",
             "invocation_id": invocation_id,
-            "user_id": None,
+            "actor_context": AuditActorContext(),
             "context_package": None,
             "current_agent": "",
             "messages": [HumanMessage("test")],
@@ -390,14 +391,14 @@ class TestOrchestratorAgentLogging:
             # Verify orchestration start was logged
             start_calls = [call for call in mock_logger.info.call_args_list if "Orchestrator processing" in str(call)]
             assert len(start_calls) == 1
-            assert invocation_id in str(start_calls[0])
+            assert str(invocation_id) in str(start_calls[0])
 
             # Verify context enhancement was logged
             context_calls = [call for call in mock_logger.info.call_args_list if "Context enhanced prompt" in str(call)]
             assert len(context_calls) == 1
-            assert invocation_id in str(context_calls[0])
+            assert str(invocation_id) in str(context_calls[0])
 
             # Verify routing was logged
             routing_calls = [call for call in mock_logger.info.call_args_list if "Orchestrator routed" in str(call)]
             assert len(routing_calls) == 1
-            assert invocation_id in str(routing_calls[0])
+            assert str(invocation_id) in str(routing_calls[0])

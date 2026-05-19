@@ -12,9 +12,19 @@ from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
 
 from nexus.agent_orchestrator.agents.base_agent import BaseAgent
+from nexus.agent_orchestrator.audit.agent_execution import (
+    AgentExecutionEvent,
+    AgentExecutionStatus,
+)
+from nexus.agent_orchestrator.audit.llm_interaction import (
+    LLMInteractionEvent,
+    LLMInteractionStatus,
+    LLMInteractionType,
+)
 from nexus.agent_orchestrator.exceptions import EmptyLLMResponseError
 from nexus.agent_orchestrator.models import GenericAgentResponse
 from nexus.agent_orchestrator.models.agent_state import AgentState
+from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.core.utils.retry import retry_with_backoff
 from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.instrumentation import record_llm_call
@@ -55,20 +65,62 @@ class GenericAgent(BaseAgent):
             GenericAgentResponse SQLModel instance with LLM-generated answer
 
         """
-        response_schema = state.get("response_schema")
+        # Extract context from AgentState
+        session_id = state["session_id"]
+        invocation_id = state["invocation_id"]
+        execution_id = state.get("execution_id", None)
 
-        # Case B: Structured output with no tools - use .with_structured_output() directly
-        if response_schema and not self.available_tools:
-            return await self._execute_structured(state, response_schema)
+        # Emit START event
+        AuditEventDispatcher.dispatch(
+            AgentExecutionEvent(
+                agent_type="generic_agent",
+                session_id=session_id,
+                invocation_id=invocation_id,
+                execution_id=execution_id,
+                status=AgentExecutionStatus.STARTED,
+            )
+        )
 
-        # Standard execution (with or without tools)
-        state = await self._execute_standard(state)
+        try:
+            response_schema = state.get("response_schema")
 
-        # Case A: Structured output with tools - run extraction step after tool loop
-        if response_schema and self.available_tools:
-            state = await self._extract_structured_output(state, response_schema)
+            # Case B: Structured output with no tools - use .with_structured_output() directly
+            if response_schema and not self.available_tools:
+                state = await self._execute_structured(state, response_schema)
+            else:
+                # Standard execution (with or without tools)
+                state = await self._execute_standard(state)
 
-        return state
+                # Case A: Structured output with tools - run extraction step after tool loop
+                if response_schema and self.available_tools:
+                    state = await self._extract_structured_output(state, response_schema)
+
+            # Emit COMPLETED event
+            AuditEventDispatcher.dispatch(
+                AgentExecutionEvent(
+                    agent_type="generic_agent",
+                    session_id=session_id,
+                    invocation_id=invocation_id,
+                    execution_id=execution_id,
+                    status=AgentExecutionStatus.COMPLETED,
+                )
+            )
+
+            return state
+
+        except Exception as e:
+            # Emit FAILED event
+            AuditEventDispatcher.dispatch(
+                AgentExecutionEvent(
+                    agent_type="generic_agent",
+                    session_id=session_id,
+                    invocation_id=invocation_id,
+                    execution_id=execution_id,
+                    status=AgentExecutionStatus.FAILED,
+                    error_type=type(e).__name__,
+                )
+            )
+            raise
 
     async def _execute_standard(self, state: AgentState) -> AgentState:
         """Execute standard LLM call with tools.
@@ -80,6 +132,10 @@ class GenericAgent(BaseAgent):
             Updated state with LLM response
 
         """
+        # Extract context from AgentState
+        invocation_id = state["invocation_id"]
+        execution_id = state.get("execution_id", None)
+
         # Query LLM via LangChain (async)
         llm_with_tools = self.llm.bind_tools(self.available_tools)
         messages: list[AnyMessage] = [
@@ -99,7 +155,33 @@ class GenericAgent(BaseAgent):
         # check BEFORE mutating state so retry_with_backoff replays the original messages.
         answer = str(result_message.text)
         if (not answer or not answer.strip()) and not result_message.tool_calls:
-            raise EmptyLLMResponseError(invocation_id=state["invocation_id"])
+            # Emit EMPTY_RESPONSE event before raising
+            AuditEventDispatcher.dispatch(
+                LLMInteractionEvent(
+                    invocation_id=invocation_id,
+                    execution_id=execution_id,
+                    interaction_type=LLMInteractionType.STANDARD,
+                    model_name=getattr(self.llm, "model_name", "unknown"),
+                    status=LLMInteractionStatus.EMPTY_RESPONSE,
+                    error_type="EmptyLLMResponseError",
+                )
+            )
+            raise EmptyLLMResponseError(invocation_id=str(invocation_id))
+
+        # Emit SUCCESS event after successful LLM call
+        tool_calls_count = len(result_message.tool_calls) if result_message.tool_calls else 0
+        AuditEventDispatcher.dispatch(
+            LLMInteractionEvent(
+                invocation_id=invocation_id,
+                execution_id=execution_id,
+                interaction_type=LLMInteractionType.STANDARD,
+                model_name=getattr(self.llm, "model_name", "unknown"),
+                status=LLMInteractionStatus.SUCCESS,
+                tools_available=len(self.available_tools),
+                tool_calls_made=tool_calls_count,
+                response_schema_provided=bool(state.get("response_schema")),
+            )
+        )
 
         # Collect token usage from LLM response for post-LLM update
         token_entry = self._build_token_usage_entry(result_message)
@@ -126,6 +208,10 @@ class GenericAgent(BaseAgent):
             Updated state with structured output
 
         """
+        # Extract context from AgentState
+        invocation_id = state["invocation_id"]
+        execution_id = state.get("execution_id", None)
+
         try:
             structured_llm = self.llm.with_structured_output(response_schema, method="json_mode")
             schema_str = _json.dumps(response_schema, indent=2)
@@ -144,12 +230,50 @@ class GenericAgent(BaseAgent):
                 lambda: structured_llm.ainvoke(messages),
                 model=getattr(self.llm, "model_name", None),
             )
-        except Exception:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001
+            # Emit ERROR event before fallback
+            AuditEventDispatcher.dispatch(
+                LLMInteractionEvent(
+                    invocation_id=invocation_id,
+                    execution_id=execution_id,
+                    interaction_type=LLMInteractionType.STRUCTURED_OUTPUT,
+                    model_name=getattr(self.llm, "model_name", "unknown"),
+                    status=LLMInteractionStatus.ERROR,
+                    tools_available=0,
+                    response_schema_provided=True,
+                    error_type=type(e).__name__,
+                )
+            )
             logger.warning("Structured output failed, falling back to standard execution", exc_info=True)
             return await self._execute_standard(state)
 
         if parsed_output is None:
-            raise EmptyLLMResponseError(invocation_id=state.get("invocation_id"))
+            # Emit EMPTY_RESPONSE event before raising
+            AuditEventDispatcher.dispatch(
+                LLMInteractionEvent(
+                    invocation_id=invocation_id,
+                    execution_id=execution_id,
+                    interaction_type=LLMInteractionType.STRUCTURED_OUTPUT,
+                    model_name=getattr(self.llm, "model_name", "unknown"),
+                    status=LLMInteractionStatus.EMPTY_RESPONSE,
+                    error_type="EmptyLLMResponseError",
+                )
+            )
+            raise EmptyLLMResponseError(invocation_id=str(invocation_id))
+
+        # Emit SUCCESS event after successful structured output
+        AuditEventDispatcher.dispatch(
+            LLMInteractionEvent(
+                invocation_id=state["invocation_id"],
+                interaction_type=LLMInteractionType.STRUCTURED_OUTPUT,
+                model_name=getattr(self.llm, "model_name", "unknown"),
+                status=LLMInteractionStatus.SUCCESS,
+                execution_id=state.get("execution_id"),
+                tools_available=0,  # No tools in structured mode
+                response_schema_provided=True,
+                fallback_strategy_used="native",
+            )
+        )
 
         # Token usage unavailable: json_mode returns a parsed dict, not an AIMessage
         state["llm_token_usage_log"] = []
@@ -175,6 +299,10 @@ class GenericAgent(BaseAgent):
             Updated state with structured content
 
         """
+        # Extract context from AgentState
+        invocation_id = state["invocation_id"]
+        execution_id = state.get("execution_id", None)
+
         try:
             result_dict = state.get("result")
             if not result_dict:
@@ -202,10 +330,34 @@ class GenericAgent(BaseAgent):
                 model=getattr(self.llm, "model_name", None),
             )
 
+            # Emit SUCCESS event after successful extraction
+            AuditEventDispatcher.dispatch(
+                LLMInteractionEvent(
+                    invocation_id=invocation_id,
+                    execution_id=execution_id,
+                    interaction_type=LLMInteractionType.EXTRACTION,
+                    model_name=getattr(self.llm, "model_name", "unknown"),
+                    status=LLMInteractionStatus.SUCCESS,
+                    response_schema_provided=True,
+                    fallback_strategy_used="native",
+                )
+            )
+
             result_dict["content"] = parsed_output
             result_dict["structured_output_metadata"] = {"fallback_strategy_used": "native"}
             return state
-        except Exception:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001
+            # Emit ERROR event before fallback
+            AuditEventDispatcher.dispatch(
+                LLMInteractionEvent(
+                    invocation_id=invocation_id,
+                    execution_id=execution_id,
+                    interaction_type=LLMInteractionType.EXTRACTION,
+                    model_name=getattr(self.llm, "model_name", "unknown"),
+                    status=LLMInteractionStatus.ERROR,
+                    error_type=type(e).__name__,
+                )
+            )
             logger.warning("Structured output extraction failed, keeping raw text", exc_info=True)
             result_dict = state.get("result")
             if result_dict:

@@ -52,7 +52,7 @@ def _build_actor_context(actor: User | None) -> AuditActorContext:
 @contextmanager
 def actor_context(
     *,
-    actor: User | None = None,
+    actor: User | AuditActorContext | None = None,
     workflow_id: UUID | None = None,
     activity_id: str | None = None,
     execution_id: UUID | None = None,
@@ -78,7 +78,7 @@ def actor_context(
             propagated through non-HTTP contexts (e.g. Temporal workflow metadata)
 
     """
-    _actor_context = _build_actor_context(actor)
+    _actor_context = actor if isinstance(actor, AuditActorContext) else _build_actor_context(actor)
 
     # Set new context using context variables for async-safe operations
     token_actor = actor_context_var.set(_actor_context)

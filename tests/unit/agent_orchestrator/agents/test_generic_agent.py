@@ -17,6 +17,7 @@ from nexus.agent_orchestrator.exceptions import (
     AgentRateLimitError,
     AgentTimeoutError,
 )
+from nexus.audit.emitter import AuditActorContext
 
 if TYPE_CHECKING:
     from nexus.agent_orchestrator.models.agent_state import AgentState
@@ -43,8 +44,8 @@ class TestGenericAgentLLMIntegration:
             "prompt": "What tools are available for deployment?",
             "original_prompt": "What tools are available for deployment?",
             "session_id": "test-session",
-            "invocation_id": str(invocation_id),
-            "user_id": None,
+            "invocation_id": invocation_id,
+            "actor_context": AuditActorContext(),
             "context_package": None,
             "current_agent": "generic_agent",
             "messages": [HumanMessage("test")],
@@ -79,8 +80,8 @@ class TestGenericAgentLLMIntegration:
             "prompt": "test query",
             "original_prompt": "test query",
             "session_id": "test-session",
-            "invocation_id": str(invocation_id),
-            "user_id": None,
+            "invocation_id": invocation_id,
+            "actor_context": AuditActorContext(),
             "context_package": None,
             "current_agent": "generic_agent",
             "messages": [HumanMessage("test")],
@@ -107,13 +108,13 @@ class TestGenericAgentLLMIntegration:
         mock_llm.model_name = "anthropic/claude-3.5-sonnet"
 
         agent = GenericAgent(llm=mock_llm, available_tools=[])
-        invocation_id = str(uuid4())
+        invocation_id = uuid4()
         state: AgentState = {
             "prompt": "test query",
             "original_prompt": "test query",
             "session_id": "test-session",
             "invocation_id": invocation_id,
-            "user_id": None,
+            "actor_context": AuditActorContext(),
             "context_package": None,
             "current_agent": "generic_agent",
             "messages": [HumanMessage("test")],
@@ -125,7 +126,7 @@ class TestGenericAgentLLMIntegration:
         with pytest.raises(AgentConfigurationError) as exc_info:
             await agent.execute_as_node(state)
 
-        assert exc_info.value.invocation_id == invocation_id
+        assert exc_info.value.invocation_id == str(invocation_id)
         assert "Invalid API key" in str(exc_info.value)
 
     @pytest.mark.asyncio
@@ -138,13 +139,13 @@ class TestGenericAgentLLMIntegration:
         mock_llm.model_name = "anthropic/claude-3.5-sonnet"
 
         agent = GenericAgent(llm=mock_llm, available_tools=[])
-        invocation_id = str(uuid4())
+        invocation_id = uuid4()
         state: AgentState = {
             "prompt": "test query",
             "original_prompt": "test query",
             "session_id": "test-session",
             "invocation_id": invocation_id,
-            "user_id": None,
+            "actor_context": AuditActorContext(),
             "context_package": None,
             "current_agent": "generic_agent",
             "messages": [HumanMessage("test")],
@@ -156,7 +157,7 @@ class TestGenericAgentLLMIntegration:
         with pytest.raises(AgentRateLimitError) as exc_info:
             await agent.execute_as_node(state)
 
-        assert exc_info.value.invocation_id == invocation_id
+        assert exc_info.value.invocation_id == str(invocation_id)
         assert "Rate limit exceeded" in str(exc_info.value)
 
     @pytest.mark.asyncio
@@ -169,13 +170,13 @@ class TestGenericAgentLLMIntegration:
         mock_llm.model_name = "anthropic/claude-3.5-sonnet"
 
         agent = GenericAgent(llm=mock_llm, available_tools=[])
-        invocation_id = str(uuid4())
+        invocation_id = uuid4()
         state: AgentState = {
             "prompt": "test query",
             "original_prompt": "test query",
             "session_id": "test-session",
             "invocation_id": invocation_id,
-            "user_id": None,
+            "actor_context": AuditActorContext(),
             "context_package": None,
             "current_agent": "generic_agent",
             "messages": [HumanMessage("test")],
@@ -187,7 +188,7 @@ class TestGenericAgentLLMIntegration:
         with pytest.raises(AgentTimeoutError) as exc_info:
             await agent.execute_as_node(state)
 
-        assert exc_info.value.invocation_id == invocation_id
+        assert exc_info.value.invocation_id == str(invocation_id)
 
 
 class TestGenericAgentPromptEngineering:
@@ -209,8 +210,8 @@ class TestGenericAgentPromptEngineering:
             "prompt": user_prompt,
             "original_prompt": user_prompt,
             "session_id": "test-session",
-            "invocation_id": str(invocation_id),
-            "user_id": None,
+            "invocation_id": invocation_id,
+            "actor_context": AuditActorContext(),
             "context_package": None,
             "current_agent": "generic_agent",
             "messages": [HumanMessage("test")],
@@ -235,13 +236,13 @@ class TestGenericAgentPromptEngineering:
         mock_llm.model_name = "anthropic/claude-3.5-sonnet"
 
         agent = GenericAgent(llm=mock_llm, available_tools=[])
-        invocation_id = str(uuid4())
+        invocation_id = uuid4()
         state: AgentState = {
             "prompt": "test query",
             "original_prompt": "test query",
             "session_id": "test-session",
             "invocation_id": invocation_id,
-            "user_id": None,
+            "actor_context": AuditActorContext(),
             "context_package": None,
             "current_agent": "generic_agent",
             "messages": [HumanMessage("test")],
@@ -275,8 +276,8 @@ class TestGenericAgentPromptEngineering:
             "prompt": "test query",
             "original_prompt": "test query",
             "session_id": "test-session",
-            "invocation_id": str(invocation_id),
-            "user_id": None,
+            "invocation_id": invocation_id,
+            "actor_context": AuditActorContext(),
             "context_package": None,
             "current_agent": "generic_agent",
             "messages": [HumanMessage("test")],
@@ -300,13 +301,13 @@ class TestGenericAgentPromptEngineering:
         mock_llm.model_name = "anthropic/claude-3.5-sonnet"
 
         agent = GenericAgent(llm=mock_llm, available_tools=[])
-        invocation_id = str(uuid4())
+        invocation_id = uuid4()
         state: AgentState = {
             "prompt": "test query",
             "original_prompt": "test query",
             "session_id": "test-session",
             "invocation_id": invocation_id,
-            "user_id": None,
+            "actor_context": AuditActorContext(),
             "context_package": None,
             "current_agent": "generic_agent",
             "messages": [HumanMessage("test")],
@@ -318,7 +319,7 @@ class TestGenericAgentPromptEngineering:
         with pytest.raises(AgentOrchestratorError) as exc_info:
             await agent.execute_as_node(state)
 
-        assert exc_info.value.invocation_id == invocation_id
+        assert exc_info.value.invocation_id == str(invocation_id)
 
 
 class TestGenericAgentLogging:
@@ -341,8 +342,8 @@ class TestGenericAgentLogging:
             "prompt": "test query",
             "original_prompt": "test query",
             "session_id": "test-session",
-            "invocation_id": str(invocation_id),
-            "user_id": None,
+            "invocation_id": invocation_id,
+            "actor_context": AuditActorContext(),
             "context_package": None,
             "current_agent": "generic_agent",
             "messages": [HumanMessage("test")],
@@ -444,8 +445,8 @@ class TestTokenUsageLogAccumulation:
             "prompt": "test",
             "original_prompt": "test",
             "session_id": "test-session",
-            "invocation_id": str(invocation_id),
-            "user_id": None,
+            "invocation_id": invocation_id,
+            "actor_context": AuditActorContext(),
             "context_package": None,
             "current_agent": "generic_agent",
             "messages": [HumanMessage("test")],
@@ -480,8 +481,8 @@ class TestTokenUsageLogAccumulation:
             "prompt": "test",
             "original_prompt": "test",
             "session_id": "test-session",
-            "invocation_id": str(invocation_id),
-            "user_id": None,
+            "invocation_id": invocation_id,
+            "actor_context": AuditActorContext(),
             "context_package": None,
             "current_agent": "generic_agent",
             "messages": [HumanMessage("test")],

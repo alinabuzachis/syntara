@@ -3,6 +3,7 @@
 import time
 from abc import ABC, abstractmethod
 from typing import NoReturn
+from uuid import UUID
 
 import structlog
 
@@ -71,7 +72,7 @@ class BaseAgent(ABC):
                 unit="ms",
                 labels={
                     "agent_type": agent_name,
-                    "invocation_id": state["invocation_id"],
+                    "invocation_id": str(state["invocation_id"]),
                     "status": "success",
                 },
             )
@@ -88,7 +89,7 @@ class BaseAgent(ABC):
                 unit="ms",
                 labels={
                     "agent_type": agent_name,
-                    "invocation_id": state["invocation_id"],
+                    "invocation_id": str(state["invocation_id"]),
                     "status": "error",
                 },
             )
@@ -110,7 +111,7 @@ class BaseAgent(ABC):
 
         """
 
-    def _handle_execution_error(self, error: Exception, invocation_id: str) -> NoReturn:
+    def _handle_execution_error(self, error: Exception, invocation_id: UUID) -> NoReturn:
         """Handle execution errors by raising appropriate agent exceptions.
 
         This method inspects the error and raises the appropriate typed
@@ -131,27 +132,27 @@ class BaseAgent(ABC):
         # Handle timeout errors
         if isinstance(error, TimeoutError):
             msg = "Request timed out"
-            raise AgentTimeoutError(msg, invocation_id) from error
+            raise AgentTimeoutError(msg, str(invocation_id)) from error
 
         # Handle configuration and validation errors
         if isinstance(error, KeyError | ValueError):
             msg = f"Configuration or validation error: {error}"
-            raise AgentConfigurationError(msg, invocation_id) from error
+            raise AgentConfigurationError(msg, str(invocation_id)) from error
 
         # Check for API configuration errors in message (invalid key, etc.)
         error_msg = str(error).lower()
         if "invalid" in error_msg and "key" in error_msg:
-            raise AgentConfigurationError(str(error), invocation_id) from error
+            raise AgentConfigurationError(str(error), str(invocation_id)) from error
 
         # Check for rate limit errors in error message
         if "rate limit" in error_msg:
-            raise AgentRateLimitError(str(error), invocation_id) from error
+            raise AgentRateLimitError(str(error), str(invocation_id)) from error
 
         # Handle as general agent error
         msg = f"Execution error: {error}"
-        raise AgentOrchestratorError(msg, invocation_id) from error
+        raise AgentOrchestratorError(msg, str(invocation_id)) from error
 
-    def _log_execution_start(self, invocation_id: str, session_id: str) -> None:
+    def _log_execution_start(self, invocation_id: UUID, session_id: str) -> None:
         """Log the start of agent execution.
 
         Args:
@@ -166,7 +167,7 @@ class BaseAgent(ABC):
             session_id=session_id,
         )
 
-    def _log_execution_success(self, invocation_id: str) -> None:
+    def _log_execution_success(self, invocation_id: UUID) -> None:
         """Log successful completion of agent execution.
 
         Args:

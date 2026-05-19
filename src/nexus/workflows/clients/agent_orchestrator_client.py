@@ -231,9 +231,17 @@ class AgentOrchestratorClient:
             Request payload dictionary
 
         """
-        # Extract callback_url from metadata to put it at top level of contextData
+        # Extract correlation data from metadata to put it at top level of contextData
+        workflow_id = None
+        activity_id = None
+        activity_name = None
+        execution_id = None
         callback_url = None
         if metadata:
+            workflow_id = metadata.pop("workflow_id", None)
+            activity_id = metadata.pop("activity_id", None)
+            activity_name = metadata.pop("activity_name", None)
+            execution_id = metadata.pop("execution_id", None)
             callback_url = metadata.pop("callback_url", None)
             # If metadata is now empty, set it to None so it doesn't appear in contextData
             if not metadata:
@@ -250,6 +258,10 @@ class AgentOrchestratorClient:
                     "file_ids": file_ids,
                     "model": model,
                     "agent": agent,
+                    "workflow_id": workflow_id,
+                    "activity_id": activity_id,
+                    "activity_name": activity_name,
+                    "execution_id": execution_id,
                     "callback_url": callback_url,
                     "metadata": metadata,
                 }.items()

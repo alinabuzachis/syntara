@@ -3,6 +3,7 @@
 from uuid import UUID, uuid4
 
 from nexus.agent_orchestrator.models.agent_state import AgentStateFactory
+from nexus.audit.emitter import AuditActorContext
 
 
 class TestAgentStateFactory:
@@ -10,9 +11,7 @@ class TestAgentStateFactory:
 
     def test_execution_id_defaults_to_none(self):
         state = AgentStateFactory.create_initial_state(
-            prompt="test",
-            session_id="sess-1",
-            invocation_id=uuid4(),
+            prompt="test", session_id="sess-1", invocation_id=uuid4(), actor_context=AuditActorContext()
         )
         assert state.get("execution_id") is None
 
@@ -23,6 +22,7 @@ class TestAgentStateFactory:
             session_id="sess-1",
             invocation_id=uuid4(),
             execution_id=exec_id,
+            actor_context=AuditActorContext(),
         )
         assert state["execution_id"] == exec_id
 
@@ -33,5 +33,6 @@ class TestAgentStateFactory:
             session_id="sess-1",
             invocation_id=uuid4(),
             execution_id=exec_id,
+            actor_context=AuditActorContext(),
         )
         assert state.get("execution_id") == exec_id

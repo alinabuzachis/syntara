@@ -8,14 +8,22 @@ import asyncio
 import copy
 import time
 from typing import Any, ClassVar
-from uuid import UUID
 
 import structlog
 
+from nexus.agent_orchestrator.audit.agent_execution import (
+    AgentExecutionEvent,
+    AgentExecutionStatus,
+)
+from nexus.agent_orchestrator.audit.context_integration import (
+    ContextIntegrationEvent,
+    ContextIntegrationStatus,
+)
 from nexus.agent_orchestrator.constants import AgentRoutes
 from nexus.agent_orchestrator.context_manager.planner import ContextManagerPlanner
 from nexus.agent_orchestrator.exceptions import ContextIntegrationError
 from nexus.agent_orchestrator.models.agent_state import AgentState
+from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.types import MetricType
 from nexus.settings.cache.settings_cache import get_runtime_settings
@@ -55,21 +63,71 @@ class OrchestratorAgent:
             Updated state with enhanced prompt and routing decision
 
         """
-        logger.info("Orchestrator processing invocation", invocation_id=state["invocation_id"])
+        # Extract context from AgentState
+        session_id = state["session_id"]
+        invocation_id = state["invocation_id"]
+        execution_id = state.get("execution_id", None)
 
-        # Step 1: Context Integration
-        enhanced_state = await self._integrate_context(state)
-
-        # Step 2: Route to appropriate agent
-        routed_state = self._route_request(enhanced_state)
-
-        logger.info(
-            "Orchestrator routed for invocation",
-            current_agent=routed_state["current_agent"],
-            invocation_id=state["invocation_id"],
+        # Emit START event (ContextVar also set by invocation_executor)
+        AuditEventDispatcher.dispatch(
+            AgentExecutionEvent(
+                agent_type="orchestrator",
+                session_id=session_id,
+                invocation_id=invocation_id,
+                execution_id=execution_id,
+                status=AgentExecutionStatus.STARTED,
+            )
         )
 
-        return routed_state
+        try:
+            logger.info("Orchestrator processing invocation", invocation_id=invocation_id)
+
+            # Step 1: Context Integration
+            enhanced_state = await self._integrate_context(state)
+
+            # Step 2: Route to appropriate agent
+            routed_state = self._route_request(enhanced_state)
+
+            # Extract context package data
+            context_pkg = routed_state.get("context_package")
+            context_applied = context_pkg is not None
+            grounding_score = context_pkg.get("grounding_score") if context_pkg is not None else None
+
+            # Emit COMPLETED event
+            AuditEventDispatcher.dispatch(
+                AgentExecutionEvent(
+                    agent_type="orchestrator",
+                    session_id=session_id,
+                    invocation_id=invocation_id,
+                    execution_id=execution_id,
+                    status=AgentExecutionStatus.COMPLETED,
+                    context_applied=context_applied,
+                    grounding_score=grounding_score,
+                    routed_to_agent=routed_state["current_agent"],
+                )
+            )
+
+            logger.info(
+                "Orchestrator routed for invocation",
+                current_agent=routed_state["current_agent"],
+                invocation_id=invocation_id,
+            )
+
+            return routed_state
+
+        except Exception as e:
+            # Emit FAILED event
+            AuditEventDispatcher.dispatch(
+                AgentExecutionEvent(
+                    agent_type="orchestrator",
+                    session_id=session_id,
+                    invocation_id=invocation_id,
+                    execution_id=execution_id,
+                    status=AgentExecutionStatus.FAILED,
+                    error_type=type(e).__name__,
+                )
+            )
+            raise
 
     async def _integrate_context(self, state: AgentState) -> AgentState:
         """Integrate context manager to enhance the prompt.
@@ -82,26 +140,34 @@ class OrchestratorAgent:
 
         """
         start = time.perf_counter()
+
+        # Extract context from AgentState
+        actor_context = state.get("actor_context")
+        session_id = state["session_id"]
+        invocation_id = state["invocation_id"]
+        execution_id = state.get("execution_id", None)
+        original_prompt = state["original_prompt"]
+
         try:
-            logger.debug("Calling context manager for session", session_id=state["session_id"])
+            logger.debug("Calling context manager for session", session_id=session_id)
 
             # Get timeout from runtime settings
             timeout = await self.settings.get_int("context_manager.request_timeout_seconds")
 
             # Call context manager using PR 168 pattern with configurable timeout
-            user_id = UUID(state["user_id"]) if state.get("user_id") else None
+            user_id = actor_context.actor_id if actor_context else None
             context_package = await asyncio.wait_for(
                 self.context_manager.plan_request(
-                    session_id=state["session_id"],
-                    query=state["original_prompt"],
-                    invocation_id=UUID(state["invocation_id"]),
+                    session_id=session_id,
+                    invocation_id=invocation_id,
+                    query=original_prompt,
                     user_id=user_id,
                 ),
                 timeout=timeout,
             )
 
             # Enhance prompt with context
-            enhanced_prompt = self._format_context_prompt(state["original_prompt"], context_package.payload)
+            enhanced_prompt = self._format_context_prompt(original_prompt, context_package.payload)
 
             # Update state with context information
             updated_state = copy.deepcopy(state)
@@ -113,27 +179,68 @@ class OrchestratorAgent:
                 "context_applied": True,
             }
 
+            # Emit SUCCESS event
+            AuditEventDispatcher.dispatch(
+                ContextIntegrationEvent(
+                    session_id=session_id,
+                    invocation_id=invocation_id,
+                    execution_id=execution_id,
+                    status=ContextIntegrationStatus.SUCCESS,
+                    grounding_score=context_package.grounding_score,
+                    citations_count=len(context_package.citations) if context_package.citations else 0,
+                )
+            )
+
             logger.info(
                 "Context enhanced prompt for invocation",
-                invocation_id=state["invocation_id"],
+                invocation_id=invocation_id,
                 grounding_score=context_package.grounding_score,
             )
 
             return updated_state
 
-        except (
-            ConnectionError,
-            TimeoutError,
-            ValueError,
-            KeyError,
-            AttributeError,
-            RuntimeError,
-        ) as e:
+        except TimeoutError as e:
+            # Emit TIMEOUT event
+            AuditEventDispatcher.dispatch(
+                ContextIntegrationEvent(
+                    session_id=session_id,
+                    invocation_id=invocation_id,
+                    execution_id=execution_id,
+                    status=ContextIntegrationStatus.TIMEOUT,
+                    error_type="TimeoutError",
+                )
+            )
+
             # Wrap the underlying exception in our custom exception type
-            context_error = ContextIntegrationError(f"Context integration failed: {e}", state["invocation_id"])
+            context_error = ContextIntegrationError(f"Context integration failed: {e}", str(invocation_id))
             logger.warning(
                 "Context integration failed for invocation. Proceeding with original prompt.",
-                invocation_id=state["invocation_id"],
+                invocation_id=invocation_id,
+                error=str(context_error),
+            )
+
+            # Graceful fallback: use original prompt without context
+            fallback_state = copy.deepcopy(state)
+            fallback_state["context_package"] = None
+            return fallback_state
+
+        except (ConnectionError, ValueError, KeyError, AttributeError, RuntimeError) as e:
+            context_error = ContextIntegrationError(f"Context integration failed: {e}", str(invocation_id))
+
+            # Emit FALLBACK event
+            AuditEventDispatcher.dispatch(
+                ContextIntegrationEvent(
+                    session_id=session_id,
+                    invocation_id=invocation_id,
+                    execution_id=execution_id,
+                    status=ContextIntegrationStatus.FALLBACK,
+                    error_type=type(e).__name__,
+                )
+            )
+
+            logger.warning(
+                "Context integration failed for invocation. Proceeding with original prompt.",
+                invocation_id=invocation_id,
                 error=str(context_error),
             )
 
@@ -149,7 +256,7 @@ class OrchestratorAgent:
                 duration_ms,
                 unit="ms",
                 labels={
-                    "invocation_id": state["invocation_id"],
+                    "invocation_id": str(state["invocation_id"]),
                 },
             )
 
@@ -220,7 +327,7 @@ class OrchestratorAgent:
             duration_ms,
             unit="ms",
             labels={
-                "invocation_id": state["invocation_id"],
+                "invocation_id": str(state["invocation_id"]),
                 "target_agent": target_agent,
             },
         )

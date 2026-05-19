@@ -18,6 +18,7 @@ from langchain_core.messages import HumanMessage
 
 from nexus.agent_orchestrator.agents.generic_agent import GenericAgent
 from nexus.agent_orchestrator.models.agent_state import AgentState
+from nexus.audit.emitter import AuditActorContext
 
 
 @pytest.fixture
@@ -27,8 +28,8 @@ def sample_agent_state() -> AgentState:
         "prompt": "What is the weather today?",
         "original_prompt": "What is the weather today?",
         "session_id": "test-session",
-        "invocation_id": str(uuid4()),
-        "user_id": None,
+        "invocation_id": uuid4(),
+        "actor_context": AuditActorContext(),
         "context_package": None,
         "current_agent": "generic_agent",
         "metadata": None,
@@ -392,8 +393,8 @@ class TestConcurrentRequestsWithIndependentState:
             "prompt": query,
             "original_prompt": query,
             "session_id": f"session-{request_id}",
-            "invocation_id": str(uuid4()),
-            "user_id": None,
+            "invocation_id": uuid4(),
+            "actor_context": AuditActorContext(),
             "context_package": None,
             "current_agent": "generic_agent",
             "metadata": None,

@@ -8,6 +8,7 @@ import copy
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from unittest.mock import AsyncMock, patch
+from uuid import uuid4
 
 import pytest
 from prometheus_client import CollectorRegistry
@@ -17,9 +18,12 @@ from nexus.agent_orchestrator.agents.orchestrator_agent import OrchestratorAgent
 from nexus.agent_orchestrator.constants import AgentRoutes
 from nexus.agent_orchestrator.exceptions import AgentOrchestratorError
 from nexus.agent_orchestrator.models.agent_state import AgentState
+from nexus.audit.emitter import AuditActorContext
 from nexus.metrics.recorder import MetricsRecorder
 from nexus.metrics.types import MetricType
 from tests.conftest import FakeSettingsCache
+
+INVOCATION_ID = uuid4()
 
 
 @pytest.fixture
@@ -39,8 +43,8 @@ def _make_agent_state(**overrides: object) -> AgentState:
         "prompt": "hello world",
         "original_prompt": "hello world",
         "session_id": "sess-1",
-        "invocation_id": "inv-1",
-        "user_id": None,
+        "invocation_id": INVOCATION_ID,
+        "actor_context": AuditActorContext(),
         "current_agent": AgentRoutes.ORCHESTRATOR,
         "context_package": None,
         "metadata": None,
@@ -84,7 +88,7 @@ class TestAgentRoutingMetrics:
         assert len(results) == 1
         assert results[0].value >= 0
         assert results[0].unit == "ms"
-        assert results[0].labels["invocation_id"] == "inv-1"
+        assert results[0].labels["invocation_id"] == str(INVOCATION_ID)
         assert results[0].labels["target_agent"] == AgentRoutes.GENERIC_AGENT
         assert result["current_agent"] == AgentRoutes.GENERIC_AGENT
 

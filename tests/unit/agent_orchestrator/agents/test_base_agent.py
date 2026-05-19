@@ -42,77 +42,77 @@ class TestBaseAgentErrorHandling:
     def test_handle_execution_error_converts_timeout_error(self) -> None:
         """Test that TimeoutError is converted to AgentTimeoutError."""
         agent = ConcreteAgent()
-        invocation_id = str(uuid4())
+        invocation_id = uuid4()
         original_error = TimeoutError("Connection timed out")
 
         with pytest.raises(AgentTimeoutError) as exc_info:
             agent._handle_execution_error(original_error, invocation_id)
 
-        assert exc_info.value.invocation_id == invocation_id
+        assert exc_info.value.invocation_id == str(invocation_id)
         assert exc_info.value.__cause__ == original_error
 
     def test_handle_execution_error_converts_key_error(self) -> None:
         """Test that KeyError is converted to AgentConfigurationError."""
         agent = ConcreteAgent()
-        invocation_id = str(uuid4())
+        invocation_id = uuid4()
         original_error = KeyError("API_KEY")
 
         with pytest.raises(AgentConfigurationError) as exc_info:
             agent._handle_execution_error(original_error, invocation_id)
 
-        assert exc_info.value.invocation_id == invocation_id
+        assert exc_info.value.invocation_id == str(invocation_id)
         assert "API_KEY" in str(exc_info.value)
         assert exc_info.value.__cause__ == original_error
 
     def test_handle_execution_error_converts_value_error(self) -> None:
         """Test that ValueError is converted to AgentConfigurationError."""
         agent = ConcreteAgent()
-        invocation_id = str(uuid4())
+        invocation_id = uuid4()
         original_error = ValueError("Invalid configuration")
 
         with pytest.raises(AgentConfigurationError) as exc_info:
             agent._handle_execution_error(original_error, invocation_id)
 
-        assert exc_info.value.invocation_id == invocation_id
+        assert exc_info.value.invocation_id == str(invocation_id)
         assert "Invalid configuration" in str(exc_info.value)
         assert exc_info.value.__cause__ == original_error
 
     def test_handle_execution_error_detects_invalid_key_in_message(self) -> None:
         """Test errors with 'invalid key' become AgentConfigurationError."""
         agent = ConcreteAgent()
-        invocation_id = str(uuid4())
+        invocation_id = uuid4()
         original_error = RuntimeError("Invalid API key provided")
 
         with pytest.raises(AgentConfigurationError) as exc_info:
             agent._handle_execution_error(original_error, invocation_id)
 
-        assert exc_info.value.invocation_id == invocation_id
+        assert exc_info.value.invocation_id == str(invocation_id)
         assert "Invalid API key" in str(exc_info.value)
         assert exc_info.value.__cause__ == original_error
 
     def test_handle_execution_error_detects_rate_limit_in_message(self) -> None:
         """Test that errors with 'rate limit' in message become AgentRateLimitError."""
         agent = ConcreteAgent()
-        invocation_id = str(uuid4())
+        invocation_id = uuid4()
         original_error = RuntimeError("Rate limit exceeded for API")
 
         with pytest.raises(AgentRateLimitError) as exc_info:
             agent._handle_execution_error(original_error, invocation_id)
 
-        assert exc_info.value.invocation_id == invocation_id
+        assert exc_info.value.invocation_id == str(invocation_id)
         assert "Rate limit exceeded" in str(exc_info.value)
         assert exc_info.value.__cause__ == original_error
 
     def test_handle_execution_error_converts_general_errors(self) -> None:
         """Test that general errors are converted to AgentOrchestratorError."""
         agent = ConcreteAgent()
-        invocation_id = str(uuid4())
+        invocation_id = uuid4()
         original_error = ConnectionError("Network failure")
 
         with pytest.raises(AgentOrchestratorError) as exc_info:
             agent._handle_execution_error(original_error, invocation_id)
 
-        assert exc_info.value.invocation_id == invocation_id
+        assert exc_info.value.invocation_id == str(invocation_id)
         assert "Network failure" in str(exc_info.value)
         assert exc_info.value.__cause__ == original_error
 
@@ -123,7 +123,7 @@ class TestBaseAgentLogging:
     def test_log_execution_start_logs_with_correct_format(self) -> None:
         """Test that execution start is logged with invocation and session IDs."""
         agent = ConcreteAgent()
-        invocation_id = str(uuid4())
+        invocation_id = uuid4()
         session_id = "test-session-123"
 
         with patch.object(agent.logger, "info") as mock_info:
@@ -142,7 +142,7 @@ class TestBaseAgentLogging:
     def test_log_execution_success_logs_with_correct_format(self) -> None:
         """Test that execution success is logged with invocation ID."""
         agent = ConcreteAgent()
-        invocation_id = str(uuid4())
+        invocation_id = uuid4()
 
         with patch.object(agent.logger, "info") as mock_info:
             agent._log_execution_success(invocation_id)

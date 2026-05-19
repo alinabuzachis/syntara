@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from nexus.audit.emitter import AuditActorContext
+
 if TYPE_CHECKING:
     from collections.abc import Callable, Coroutine
 from uuid import uuid4
@@ -32,8 +34,8 @@ def sample_state() -> AgentState:
         prompt="Extract server information",
         original_prompt="Extract server information",
         session_id="test-session",
-        invocation_id=str(uuid4()),
-        user_id=str(uuid4()),
+        invocation_id=uuid4(),
+        actor_context=AuditActorContext(),
         context_package=None,
         current_agent="generic_agent",
         metadata=None,

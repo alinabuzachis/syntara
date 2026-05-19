@@ -1,0 +1,420 @@
+"""Unit tests for agentic activity agent metadata handling.
+
+Tests for workflow/execution context propagation to Agent Orchestrator.
+
+These tests verify:
+- workflow_id, activity_id, activity_name, execution_id are passed in metadata
+- callback_url is passed in metadata when execution_id is provided
+- request_id is passed in metadata when provided
+- metadata fields are correctly combined with other metadata (credentials, response_schema)
+"""
+
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
+
+import pytest
+
+from nexus.workflows.workflow_engine.activities.agentic_activity import (
+    execute_agentic_activity,
+)
+from tests.helpers.temporal import CompleteAsyncError
+
+
+@pytest.fixture
+def mock_agent_client() -> AsyncMock:
+    """Create a mock Agent Orchestrator client."""
+    mock_instance = AsyncMock()
+    # New async pattern returns invocation_id immediately
+    mock_instance.invoke_agent_async = AsyncMock(return_value="inv_test_123")
+    mock_instance.__aenter__ = AsyncMock(return_value=mock_instance)
+    mock_instance.__aexit__ = AsyncMock(return_value=None)
+    return mock_instance
+
+
+@pytest.fixture
+def mock_activity_info() -> MagicMock:
+    """Create a mock Temporal activity info."""
+    info = MagicMock()
+    info.workflow_id = "wf-test-123"
+    info.activity_id = "act-test-456"
+    return info
+
+
+class TestAgenticActivityWorkflowContextMetadata:
+    """Test suite for workflow/execution context fields in agent metadata."""
+
+    @pytest.mark.asyncio
+    async def test_workflow_context_fields_in_metadata(
+        self, mock_agent_client: AsyncMock, mock_activity_info: MagicMock
+    ) -> None:
+        """Test that workflow_id, activity_id, activity_name, execution_id are passed in metadata."""
+        execution_id = str(uuid4())
+        input_config = {
+            "prompt": "Test prompt",
+        }
+
+        with (
+            patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
+                return_value="mock_token",
+            ),
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.activity.info",
+                return_value=mock_activity_info,
+            ),
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.generate_activity_signal_url",
+                return_value="https://example.com/callback",
+            ),
+            pytest.raises(CompleteAsyncError),
+        ):
+            mock_cls.return_value = mock_agent_client
+            await execute_agentic_activity(input_config, None, execution_id=execution_id)
+
+        # Verify invoke_agent_async was called
+        mock_agent_client.invoke_agent_async.assert_called_once()
+
+        # Verify workflow context fields are in metadata
+        call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
+        assert "metadata" in call_kwargs
+        metadata = call_kwargs["metadata"]
+
+        assert metadata["workflow_id"] == "wf-test-123"
+        assert metadata["activity_id"] == "act-test-456"
+        assert metadata["activity_name"] == "agentic_v2"
+        assert metadata["execution_id"] == execution_id
+
+    @pytest.mark.asyncio
+    async def test_callback_url_in_metadata_when_execution_id_provided(
+        self, mock_agent_client: AsyncMock, mock_activity_info: MagicMock
+    ) -> None:
+        """Test that callback_url is included in metadata when execution_id is provided."""
+        execution_id = str(uuid4())
+        callback_url = "https://example.com/signal/callback-test"
+        input_config = {
+            "prompt": "Test prompt",
+        }
+
+        with (
+            patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
+                return_value="mock_token",
+            ),
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.activity.info",
+                return_value=mock_activity_info,
+            ),
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.generate_activity_signal_url",
+                return_value=callback_url,
+            ) as mock_generate_url,
+            pytest.raises(CompleteAsyncError),
+        ):
+            mock_cls.return_value = mock_agent_client
+            await execute_agentic_activity(input_config, None, execution_id=execution_id)
+
+        # Verify callback URL was generated with correct parameters
+        from uuid import UUID
+
+        mock_generate_url.assert_called_once_with(UUID(execution_id), "act-test-456")
+
+        # Verify callback_url is in metadata
+        call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
+        metadata = call_kwargs["metadata"]
+        assert "callback_url" in metadata
+        assert metadata["callback_url"] == callback_url
+
+    @pytest.mark.asyncio
+    async def test_callback_url_not_in_metadata_when_no_execution_id(
+        self, mock_agent_client: AsyncMock, mock_activity_info: MagicMock
+    ) -> None:
+        """Test that callback_url is not included when execution_id is empty."""
+        input_config = {
+            "prompt": "Test prompt",
+        }
+
+        with (
+            patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
+                return_value="mock_token",
+            ),
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.activity.info",
+                return_value=mock_activity_info,
+            ),
+            pytest.raises(CompleteAsyncError),
+        ):
+            mock_cls.return_value = mock_agent_client
+            # execution_id defaults to "" when not provided
+            await execute_agentic_activity(input_config, None)
+
+        # Verify callback_url is NOT in metadata
+        call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
+        metadata = call_kwargs["metadata"]
+        assert "callback_url" not in metadata
+
+    @pytest.mark.asyncio
+    async def test_request_id_in_metadata_when_provided(
+        self, mock_agent_client: AsyncMock, mock_activity_info: MagicMock
+    ) -> None:
+        """Test that request_id is included in metadata when provided."""
+        execution_id = str(uuid4())
+        request_id = "req-" + str(uuid4())
+        input_config = {
+            "prompt": "Test prompt",
+        }
+
+        with (
+            patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
+                return_value="mock_token",
+            ),
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.activity.info",
+                return_value=mock_activity_info,
+            ),
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.generate_activity_signal_url",
+                return_value="https://example.com/callback",
+            ),
+            pytest.raises(CompleteAsyncError),
+        ):
+            mock_cls.return_value = mock_agent_client
+            await execute_agentic_activity(input_config, None, execution_id=execution_id, request_id=request_id)
+
+        # Verify request_id is in metadata
+        call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
+        metadata = call_kwargs["metadata"]
+        assert "request_id" in metadata
+        assert metadata["request_id"] == request_id
+
+    @pytest.mark.asyncio
+    async def test_request_id_not_in_metadata_when_none(
+        self, mock_agent_client: AsyncMock, mock_activity_info: MagicMock
+    ) -> None:
+        """Test that request_id is not included in metadata when None."""
+        execution_id = str(uuid4())
+        input_config = {
+            "prompt": "Test prompt",
+        }
+
+        with (
+            patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
+                return_value="mock_token",
+            ),
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.activity.info",
+                return_value=mock_activity_info,
+            ),
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.generate_activity_signal_url",
+                return_value="https://example.com/callback",
+            ),
+            pytest.raises(CompleteAsyncError),
+        ):
+            mock_cls.return_value = mock_agent_client
+            await execute_agentic_activity(input_config, None, execution_id=execution_id, request_id=None)
+
+        # Verify request_id is NOT in metadata
+        call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
+        metadata = call_kwargs["metadata"]
+        assert "request_id" not in metadata
+
+    @pytest.mark.asyncio
+    async def test_metadata_combined_with_credentials(
+        self, mock_agent_client: AsyncMock, mock_activity_info: MagicMock
+    ) -> None:
+        """Test that context metadata is combined with credential metadata."""
+        execution_id = str(uuid4())
+        request_id = "req-test-123"
+        input_config = {
+            "prompt": "Test prompt",
+            "credentialId": "550e8400-e29b-41d4-a716-446655440000",
+            "_resolved_credentials": {
+                "credential_id": "550e8400-e29b-41d4-a716-446655440000",
+                "extra_vars": {
+                    "llm_provider": "openai",
+                    "llm_base_url": "https://api.openai.com/v1",
+                },
+            },
+        }
+
+        with (
+            patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
+                return_value="mock_token",
+            ),
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.activity.info",
+                return_value=mock_activity_info,
+            ),
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.generate_activity_signal_url",
+                return_value="https://example.com/callback",
+            ),
+            pytest.raises(CompleteAsyncError),
+        ):
+            mock_cls.return_value = mock_agent_client
+            await execute_agentic_activity(input_config, None, execution_id=execution_id, request_id=request_id)
+
+        # Verify both context and credential metadata are present
+        call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
+        metadata = call_kwargs["metadata"]
+
+        # Context fields
+        assert metadata["workflow_id"] == "wf-test-123"
+        assert metadata["activity_id"] == "act-test-456"
+        assert metadata["activity_name"] == "agentic_v2"
+        assert metadata["execution_id"] == execution_id
+        assert metadata["callback_url"] == "https://example.com/callback"
+        assert metadata["request_id"] == request_id
+
+        # Credential fields
+        assert metadata["credential_id"] == "550e8400-e29b-41d4-a716-446655440000"
+        assert metadata["llm_provider"] == "openai"
+        assert metadata["llm_base_url"] == "https://api.openai.com/v1"
+
+    @pytest.mark.asyncio
+    async def test_metadata_combined_with_response_schema(
+        self, mock_agent_client: AsyncMock, mock_activity_info: MagicMock
+    ) -> None:
+        """Test that context metadata is combined with response_schema."""
+        execution_id = str(uuid4())
+        schema = {"type": "object", "properties": {"result": {"type": "string"}}}
+        input_config = {
+            "prompt": "Test prompt",
+            "responseSchema": schema,
+        }
+
+        with (
+            patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
+                return_value="mock_token",
+            ),
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.activity.info",
+                return_value=mock_activity_info,
+            ),
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.generate_activity_signal_url",
+                return_value="https://example.com/callback",
+            ),
+            pytest.raises(CompleteAsyncError),
+        ):
+            mock_cls.return_value = mock_agent_client
+            await execute_agentic_activity(input_config, None, execution_id=execution_id)
+
+        # Verify both context and response_schema metadata are present
+        call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
+        metadata = call_kwargs["metadata"]
+
+        # Context fields
+        assert metadata["workflow_id"] == "wf-test-123"
+        assert metadata["activity_id"] == "act-test-456"
+        assert metadata["activity_name"] == "agentic_v2"
+        assert metadata["execution_id"] == execution_id
+        assert metadata["callback_url"] == "https://example.com/callback"
+
+        # Response schema
+        assert metadata["response_schema"] == schema
+
+    @pytest.mark.asyncio
+    async def test_workflow_context_with_direct_invocation(self, mock_agent_client: AsyncMock) -> None:
+        """Test that fallback values are used when activity.info() raises RuntimeError."""
+        execution_id = str(uuid4())
+        input_config = {
+            "prompt": "Test prompt",
+        }
+
+        with (
+            patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
+                return_value="mock_token",
+            ),
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.activity.info",
+                side_effect=RuntimeError("Not in activity context"),
+            ),
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.generate_activity_signal_url",
+                return_value="https://example.com/callback",
+            ),
+            pytest.raises(CompleteAsyncError),
+        ):
+            mock_cls.return_value = mock_agent_client
+            await execute_agentic_activity(input_config, None, execution_id=execution_id)
+
+        # Verify fallback values are used
+        call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
+        metadata = call_kwargs["metadata"]
+
+        assert metadata["workflow_id"] == "direct-invocation"
+        assert metadata["activity_id"] == "unknown"
+        assert metadata["activity_name"] == "agentic_v2"
+        assert metadata["execution_id"] == execution_id
+
+    @pytest.mark.asyncio
+    async def test_all_metadata_fields_together(
+        self, mock_agent_client: AsyncMock, mock_activity_info: MagicMock
+    ) -> None:
+        """Test complete metadata with all possible fields populated."""
+        execution_id = str(uuid4())
+        request_id = "req-complete-test"
+        schema: dict[str, Any] = {"type": "string"}
+        input_config = {
+            "prompt": "Complete test",
+            "responseSchema": schema,
+            "credentialId": "cred-123",
+            "_resolved_credentials": {
+                "credential_id": "cred-123",
+                "extra_vars": {"llm_provider": "anthropic"},
+            },
+        }
+
+        with (
+            patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
+                return_value="mock_token",
+            ),
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.activity.info",
+                return_value=mock_activity_info,
+            ),
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.generate_activity_signal_url",
+                return_value="https://callback.test",
+            ),
+            pytest.raises(CompleteAsyncError),
+        ):
+            mock_cls.return_value = mock_agent_client
+            await execute_agentic_activity(input_config, None, execution_id=execution_id, request_id=request_id)
+
+        # Verify all metadata fields are present
+        call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
+        metadata = call_kwargs["metadata"]
+
+        # Workflow context
+        assert metadata["workflow_id"] == "wf-test-123"
+        assert metadata["activity_id"] == "act-test-456"
+        assert metadata["activity_name"] == "agentic_v2"
+        assert metadata["execution_id"] == execution_id
+        assert metadata["callback_url"] == "https://callback.test"
+        assert metadata["request_id"] == request_id
+
+        # Credential
+        assert metadata["credential_id"] == "cred-123"
+        assert metadata["llm_provider"] == "anthropic"
+
+        # Response schema
+        assert metadata["response_schema"] == schema
