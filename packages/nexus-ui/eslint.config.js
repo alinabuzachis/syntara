@@ -235,7 +235,7 @@ export default tseslint.config(
       ...testingLibrary.configs['flat/react'].rules,
       'testing-library/no-debugging-utils': 'error',
       // Prefer userEvent over fireEvent for realistic user interaction simulation
-      'testing-library/prefer-user-event': 'warn',
+      'testing-library/prefer-user-event': 'error',
       // Many existing tests use container queries / DOM traversal; warn until migrated
       'testing-library/no-container': 'warn',
       'testing-library/no-node-access': 'warn',
