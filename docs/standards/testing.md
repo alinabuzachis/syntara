@@ -26,13 +26,11 @@ tests/
 │   ├── files/           # File management tests
 │   ├── invocations/     # Invocation tests (includes contract tests)
 │   ├── metrics/         # Metrics tests
-│   ├── services/        # Service layer tests
 │   ├── settings/        # Settings tests
 │   ├── telemetry/       # Telemetry tests (includes contract tests)
 │   ├── tool_manager/    # Tool manager tests
-│   ├── tools/           # Tool tests
 │   ├── websocket/       # WebSocket tests
-│   └── workflows/       # Workflow tests (includes contract tests, examples/, fixtures/)
+│   └── workflows/       # Workflow tests (includes contract tests, examples/, fixtures/, services/, workflow_engine/)
 ├── performance/         # Performance tests (opt-in via --run-performance)
 │   ├── agent_orchestrator/
 │   ├── api_service/
@@ -51,14 +49,13 @@ tests/
 │   └── workflow_engine/
 └── unit/                # Unit tests (isolated, no external deps)
     ├── aap/
-    ├── agent_orchestrator/  # Includes services/
-    ├── agents/
+    ├── agent_orchestrator/  # Includes services/, agents/
     ├── api/
     ├── approvals/
     ├── audit/
     ├── authz/               # Includes services/
     ├── cli/
-    ├── core/                # Includes services/
+    ├── core/                # Includes services/, utils/
     ├── credentials/
     ├── files/
     ├── identity_providers/  # Includes services/
@@ -75,7 +72,7 @@ tests/
     ├── utils/
     ├── validators/
     ├── websocket/
-    └── workflows/           # Includes services/, workflow_engine/services/
+    └── workflows/           # Includes services/, workflow_engine/services/, validators/
 ```
 
 **Organization Rules:**
