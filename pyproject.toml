@@ -57,6 +57,7 @@ dependencies = [
     "cryptography>=42.0.0",
     "jmespath>=1.0.0",
     "jsonschema>=4.0.0",
+    "typer>=0.9.0",
 ]
 
 [project.optional-dependencies]
@@ -101,6 +102,9 @@ integration = [
 nexus-api-client = { path = "src/api_client", editable = true }
 external-services = { git = "" }
 aap-orchestrator-cli = { path = "src/cli", editable = true }
+
+[project.scripts]
+ao-admin = "nexus.ao_admin:app"
 
 [project.urls]
 Homepage = "https://github.com/syntara-orchestration/syntara"

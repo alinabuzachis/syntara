@@ -243,6 +243,74 @@ All CLI revocation commands emit audit events:
 | `revoke-user-sessions` | `session_revocation` | `actor_username`, `actor_source`, `target_type` (`user`), `target_identifier`, `sessions_revoked` |
 | `revoke-idp-sessions` | `session_revocation` | `actor_username`, `actor_source`, `target_type` (`idp`), `target_identifier`, `sessions_revoked` |
 
+### Account Management (`ao-admin`)
+
+The `ao-admin` CLI provides production account management operations, designed to be run inside the application pod. It is a separate CLI from the developer `python -m nexus.admin` utility.
+
+#### Account Re-enablement
+
+Re-enables a disabled user account. Works for both local and identity provider users.
+
+```bash
+# Interactive — prompts for confirmation (defaults to admin user)
+ao-admin enable-user
+
+# Specify a different user
+ao-admin enable-user --username alice
+
+# Non-interactive (CI/scripts)
+ao-admin enable-user --username alice --yes
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--username` | `admin` | Username of the account to re-enable (case-insensitive) |
+| `--yes` | `false` | Skip the confirmation prompt |
+
+**What happens when the command runs:**
+
+1. The user is looked up by username (case-insensitive, non-deleted users only).
+2. If the user is already enabled, the command exits cleanly (idempotent).
+3. The user's `is_enabled` flag is set to `true`.
+4. All existing sessions are revoked and the token version is incremented (forces fresh login).
+5. An audit event (`account_enable`) is emitted.
+6. For local users, the output suggests running `ao-admin reset-password` if a password reset is also needed.
+
+#### Password Reset
+
+Resets the password for a local user account. Identity provider users are rejected with a clear error (their credentials are managed by the external identity provider).
+
+```bash
+# Interactive — prompts for confirmation, then prompts for new password (no echo)
+ao-admin reset-password --username alice
+
+# Non-interactive confirmation (still prompts for password securely)
+ao-admin reset-password --username alice --yes
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--username` | *(required)* | Username of the account whose password will be reset |
+| `--yes` | `false` | Skip the confirmation prompt |
+
+**What happens when the command runs:**
+
+1. The user confirms the operation (unless `--yes`).
+2. The new password is collected via secure prompt (no echo), with confirmation.
+3. Password is validated (minimum 8 characters, must match confirmation).
+4. The user is looked up by username (case-insensitive, non-deleted users only).
+5. Identity provider users are rejected — only local users can have passwords reset.
+6. The password is hashed (Argon2id) and stored.
+7. All existing sessions are revoked and the token version is incremented.
+8. An audit event (`password_reset`) is emitted.
+
+#### Account Management Audit Trail
+
+| Command | Event | Severity | Fields |
+|---------|-------|----------|--------|
+| `ao-admin enable-user` | `account_enable` | WARNING | `actor_username`, `actor_source`, `target_username`, `sessions_revoked` |
+| `ao-admin reset-password` | `password_reset` | CRITICAL | `actor_username`, `actor_source`, `target_username`, `sessions_revoked` |
+
 ### Storage Dependencies
 
 Authentication uses **PostgreSQL only** for session storage. Redis is not required for any auth operation. OIDC flow state is encrypted (AES-256-GCM) and encoded in the OAuth2 `state` parameter (no server-side storage required).
