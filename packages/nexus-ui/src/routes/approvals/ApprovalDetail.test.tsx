@@ -14,10 +14,7 @@ const mockMutate = vi.fn()
 vi.mock('../../client', () => ({
   approvalsClient: {
     useQuery: vi.fn(),
-    useMutation: vi.fn(() => ({
-      mutate: mockMutate,
-      isPending: false,
-    })),
+    useMutation: vi.fn(),
   },
 }))
 
@@ -74,6 +71,13 @@ describe('ApprovalDetail Component', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockMutate.mockReset()
+    vi.mocked(approvalsClient.useQuery).mockReturnValue({
+      data: null,
+      isPending: false,
+      error: null,
+      isError: false,
+      refetch: vi.fn().mockResolvedValue({}),
+    } as never)
     vi.mocked(approvalsClient.useMutation).mockReturnValue({
       mutate: mockMutate,
       isPending: false,

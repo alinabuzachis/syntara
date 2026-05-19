@@ -6,7 +6,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../../../providers/alerts'
-import { accessClient } from '../../access/accessClient'
+import { accessClient, accessFetchClient } from '../../access/accessClient'
 
 import { UserDetail } from './UserDetail'
 import { computeRoleAssignmentCount } from './userDetailUtils'
@@ -16,7 +16,7 @@ import { computeRoleAssignmentCount } from './userDetailUtils'
 // ---------------------------------------------------------------------------
 
 const { mockAuthQuery } = vi.hoisted(() => ({
-  mockAuthQuery: vi.fn().mockReturnValue({ data: undefined, isPending: false, isError: false, error: null }),
+  mockAuthQuery: vi.fn(),
 }))
 
 vi.mock('../../../client', () => ({
@@ -53,7 +53,7 @@ vi.mock('../../access/accessClient', () => ({
     useMutation: vi.fn(),
   },
   accessFetchClient: {
-    POST: vi.fn().mockResolvedValue({ data: { allowed: false } }),
+    POST: vi.fn(),
   },
 }))
 
@@ -250,6 +250,8 @@ describe('computeRoleAssignmentCount', () => {
 
 describe('UserDetail', () => {
   beforeEach(() => {
+    mockAuthQuery.mockReturnValue({ data: undefined, isPending: false, isError: false, error: null })
+    vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: false } } as never)
     queryClient.clear()
     mockNavigate.mockClear()
     mockSetLocation.mockClear()

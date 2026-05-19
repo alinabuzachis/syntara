@@ -8,12 +8,13 @@ import { NAV_ITEMS } from './navigationItems'
 import { useFilteredNavigationItems } from './useFilteredNavigationItems'
 
 vi.mock('../routes/configuration/settings/useSettingsPermissions', () => ({
-  useSettingsPermissions: vi.fn().mockReturnValue({ canRead: true, canWrite: true }),
+  useSettingsPermissions: vi.fn(),
 }))
 
 describe('useFilteredNavigationItems', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(useSettingsPermissions).mockReturnValue({ canRead: true, canWrite: true })
   })
 
   it('returns all navigation items when user can read settings', () => {

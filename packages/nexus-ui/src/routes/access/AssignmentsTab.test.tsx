@@ -8,6 +8,7 @@ import { axe } from 'vitest-axe'
 import { AlertProvider } from '../../providers/alerts'
 import type { FilterConfig } from '../../types/filters'
 
+import { accessClient, accessFetchClient } from './accessClient'
 import { AssignmentsTab } from './AssignmentsTab'
 import type { PermissionRow } from './types'
 import { useAssignmentsData } from './useAssignmentsData'
@@ -15,11 +16,7 @@ import { useAssignmentsData } from './useAssignmentsData'
 // ── Mocks ────────────────────────────────────────────────────────────────────
 
 const mockHandleFilterChange = vi.fn()
-const mockGetSortParams = vi.fn().mockReturnValue({
-  sortBy: { index: undefined, direction: 'asc', defaultDirection: 'asc' as const },
-  onSort: vi.fn(),
-  columnIndex: 0,
-})
+const mockGetSortParams = vi.fn()
 const mockRefetchAll = vi.fn()
 const mockHandleDelete = vi.fn()
 
@@ -48,60 +45,16 @@ const defaultHookReturn: ReturnType<typeof useAssignmentsData> = {
 }
 
 vi.mock('./useAssignmentsData', () => ({
-  useAssignmentsData: vi.fn(() => defaultHookReturn),
+  useAssignmentsData: vi.fn(),
 }))
 
 vi.mock('./accessClient', () => ({
   accessClient: {
-    useQuery: vi.fn().mockImplementation((_method: string, path: string) => {
-      if (path === '/projects') {
-        return {
-          data: [{ id: 'p1', name: 'Project Alpha' }],
-          isPending: false,
-          isError: false,
-          error: null,
-          isFetching: false,
-          refetch: vi.fn(),
-        }
-      }
-      if (path === '/roles') {
-        return {
-          data: {
-            resources: [
-              { id: 'r1', name: 'Admin' },
-              { id: 'r2', name: 'Viewer' },
-            ],
-          },
-          isPending: false,
-          isError: false,
-          error: null,
-          isFetching: false,
-          refetch: vi.fn(),
-        }
-      }
-      return { data: undefined, isPending: false, isError: false, error: null, isFetching: false, refetch: vi.fn() }
-    }),
-    useMutation: vi.fn().mockReturnValue({
-      mutate: vi.fn(),
-      mutateAsync: vi.fn().mockResolvedValue({}),
-      isPending: false,
-      isError: false,
-      error: null,
-      data: null,
-      reset: vi.fn(),
-      isIdle: true,
-      isSuccess: false,
-      failureCount: 0,
-      failureReason: null,
-      context: undefined,
-      submittedAt: 0,
-      variables: undefined,
-      status: 'idle',
-      isPaused: false,
-    }),
+    useQuery: vi.fn(),
+    useMutation: vi.fn(),
   },
   accessFetchClient: {
-    GET: vi.fn().mockResolvedValue({ data: { resources: [] }, error: null }),
+    GET: vi.fn(),
     use: vi.fn(),
   },
 }))
@@ -171,7 +124,59 @@ const sampleRows: PermissionRow[] = [
 describe('AssignmentsTab', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockGetSortParams.mockReturnValue({
+      sortBy: { index: undefined, direction: 'asc', defaultDirection: 'asc' as const },
+      onSort: vi.fn(),
+      columnIndex: 0,
+    })
     vi.mocked(useAssignmentsData).mockReturnValue({ ...defaultHookReturn })
+    vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
+      if (path === '/projects') {
+        return {
+          data: [{ id: 'p1', name: 'Project Alpha' }],
+          isPending: false,
+          isError: false,
+          error: null,
+          isFetching: false,
+          refetch: vi.fn(),
+        }
+      }
+      if (path === '/roles') {
+        return {
+          data: {
+            resources: [
+              { id: 'r1', name: 'Admin' },
+              { id: 'r2', name: 'Viewer' },
+            ],
+          },
+          isPending: false,
+          isError: false,
+          error: null,
+          isFetching: false,
+          refetch: vi.fn(),
+        }
+      }
+      return { data: undefined, isPending: false, isError: false, error: null, isFetching: false, refetch: vi.fn() }
+    })
+    vi.mocked(accessClient.useMutation).mockReturnValue({
+      mutate: vi.fn(),
+      mutateAsync: vi.fn().mockResolvedValue({}),
+      isPending: false,
+      isError: false,
+      error: null,
+      data: null,
+      reset: vi.fn(),
+      isIdle: true,
+      isSuccess: false,
+      failureCount: 0,
+      failureReason: null,
+      context: undefined,
+      submittedAt: 0,
+      variables: undefined,
+      status: 'idle',
+      isPaused: false,
+    } as never)
+    vi.mocked(accessFetchClient.GET).mockResolvedValue({ data: { resources: [] } } as never)
   })
 
   describe('Empty State', () => {

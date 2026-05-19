@@ -6,6 +6,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { approvalsClient } from '../../client'
 import { useFilterState } from '../../hooks/useFilterState'
 import { assertUrlParam, assertUrlParamIsNull } from '../../test/filter-test-helpers'
+import { accessClient } from '../access/accessClient'
 
 import Approvals from './Approvals'
 
@@ -20,13 +21,7 @@ vi.mock('../../client', () => ({
 // Mock the accessClient used for project-scoped approvals
 vi.mock('../access/accessClient', () => ({
   accessClient: {
-    useQuery: vi.fn().mockReturnValue({
-      data: undefined,
-      isPending: false,
-      error: null,
-      isError: false,
-      refetch: vi.fn(),
-    }),
+    useQuery: vi.fn(),
   },
 }))
 
@@ -190,6 +185,14 @@ describe('Approvals Component', () => {
     vi.clearAllMocks()
     // Reset useFilterState to its default implementation (not mocked)
     vi.mocked(useFilterState).mockRestore?.()
+
+    vi.mocked(accessClient.useQuery).mockReturnValue({
+      data: undefined,
+      isPending: false,
+      error: null,
+      isError: false,
+      refetch: vi.fn(),
+    } as never)
   })
 
   const mockApprovalsQuery = (data: Approval[], isPending = false, error: unknown = null) => {

@@ -2,15 +2,17 @@ import type { Approval } from '@ansible/nexus-contracts'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
+
+import { approvalsClient } from '../../../client'
 
 import { ApprovalReviewModal } from './ApprovalReviewModal'
 
 vi.mock('../../../client', () => ({
   approvalsClient: {
-    useQuery: vi.fn().mockReturnValue({ data: undefined, refetch: vi.fn() }),
-    useMutation: vi.fn().mockReturnValue({ mutate: vi.fn(), isPending: false }),
+    useQuery: vi.fn(),
+    useMutation: vi.fn(),
   },
 }))
 
@@ -37,6 +39,11 @@ const mockApproval: Approval = {
 }
 
 describe('ApprovalReviewModal', () => {
+  beforeEach(() => {
+    vi.mocked(approvalsClient.useQuery).mockReturnValue({ data: undefined, refetch: vi.fn() })
+    vi.mocked(approvalsClient.useMutation).mockReturnValue({ mutate: vi.fn(), isPending: false })
+  })
+
   it('does not render when isOpen is false', () => {
     render(<ApprovalReviewModal approval={mockApproval} isOpen={false} onClose={vi.fn()} />, { wrapper })
 

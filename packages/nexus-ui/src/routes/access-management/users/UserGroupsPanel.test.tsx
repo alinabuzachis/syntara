@@ -6,7 +6,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../../../providers/alerts'
-import { accessClient } from '../../access/accessClient'
+import { accessClient, accessFetchClient } from '../../access/accessClient'
 import { useAllGroups } from '../../access/useAllGroups'
 
 import { UserGroupsPanel } from './UserGroupsPanel'
@@ -22,7 +22,7 @@ vi.mock('../../access/accessClient', () => ({
     useMutation: vi.fn(),
   },
   accessFetchClient: {
-    POST: vi.fn().mockResolvedValue({ data: { allowed: false } }),
+    POST: vi.fn(),
   },
 }))
 
@@ -71,6 +71,8 @@ const mockGroups = [
 
 describe('UserGroupsPanel', () => {
   beforeEach(() => {
+    vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: false } })
+
     vi.mocked(useAllGroups).mockReturnValue({
       groups: [],
       isLoading: false,

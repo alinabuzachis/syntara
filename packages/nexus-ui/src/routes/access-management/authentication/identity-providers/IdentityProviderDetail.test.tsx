@@ -26,7 +26,7 @@ vi.mock('../../../../client', async (importOriginal) => {
     ...original,
     identityProvidersClient: {
       useQuery: vi.fn(),
-      useMutation: vi.fn().mockReturnValue({ mutate: vi.fn(), isPending: false }),
+      useMutation: vi.fn(),
     },
   }
 })
@@ -93,6 +93,7 @@ function mockQueryReturn(overrides: Record<string, unknown> = {}): ReturnType<ty
 describe('IdentityProviderDetail', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(identityProvidersClient.useMutation).mockReturnValue({ mutate: vi.fn(), isPending: false } as never)
     mockLocationRef.current = `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}`
   })
 

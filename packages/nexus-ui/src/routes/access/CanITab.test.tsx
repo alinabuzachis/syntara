@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import type React from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
+import { accessClient, accessFetchClient } from './accessClient'
 import { CanITab } from './CanITab'
 
 type QueryResult = {
@@ -17,28 +18,11 @@ const mockUseQuery = vi.fn<(...args: unknown[]) => QueryResult>()
 vi.mock('./accessClient', () => ({
   accessClient: {
     useQuery: (...args: unknown[]) => mockUseQuery(...args),
-    useMutation: vi.fn().mockReturnValue({
-      mutate: vi.fn(),
-      mutateAsync: vi.fn(),
-      isPending: false,
-      isIdle: true,
-      isError: false,
-      isSuccess: false,
-      data: undefined,
-      error: null,
-      reset: vi.fn(),
-      status: 'idle',
-      failureCount: 0,
-      failureReason: null,
-      context: undefined,
-      submittedAt: 0,
-      variables: undefined,
-      isPaused: false,
-    }),
+    useMutation: vi.fn(),
   },
   accessFetchClient: {
-    GET: vi.fn().mockResolvedValue({ data: { resources: [] }, error: null }),
-    POST: vi.fn().mockResolvedValue({ data: { permissions: [], allowed: false }, error: null }),
+    GET: vi.fn(),
+    POST: vi.fn(),
   },
 }))
 
@@ -93,6 +77,26 @@ describe('CanITab', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     queryClient.clear()
+    vi.mocked(accessClient.useMutation).mockReturnValue({
+      mutate: vi.fn(),
+      mutateAsync: vi.fn(),
+      isPending: false,
+      isIdle: true,
+      isError: false,
+      isSuccess: false,
+      data: undefined,
+      error: null,
+      reset: vi.fn(),
+      status: 'idle',
+      failureCount: 0,
+      failureReason: null,
+      context: undefined,
+      submittedAt: 0,
+      variables: undefined,
+      isPaused: false,
+    } as never)
+    vi.mocked(accessFetchClient.GET).mockResolvedValue({ data: { resources: [] } } as never)
+    vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { permissions: [], allowed: false } } as never)
     mockCanILocation.current = '/system-administration/access-management/can-i'
     mockCanQueryAuthz.mockReturnValue({ canQuery: true, isChecking: false })
     mockUseQuery.mockImplementation((...args: unknown[]) => {

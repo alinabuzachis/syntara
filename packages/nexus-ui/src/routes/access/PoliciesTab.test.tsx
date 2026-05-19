@@ -16,8 +16,8 @@ vi.mock('./accessClient', () => ({
     useQuery: vi.fn(),
   },
   accessFetchClient: {
-    GET: vi.fn().mockResolvedValue({ data: { resources: [] }, error: null }),
-    POST: vi.fn().mockResolvedValue({ data: {}, error: null }),
+    GET: vi.fn(),
+    POST: vi.fn(),
   },
 }))
 
@@ -29,7 +29,7 @@ vi.mock('./useProjectNameMap', () => ({
 }))
 
 vi.mock('../../components/states/useQueryState', () => ({
-  useQueryState: vi.fn().mockReturnValue(null),
+  useQueryState: vi.fn(),
 }))
 
 vi.mock('../../components/details/CodeBlock', () => ({

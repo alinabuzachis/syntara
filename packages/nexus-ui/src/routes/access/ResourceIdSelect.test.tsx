@@ -17,10 +17,10 @@ vi.mock('./accessClient', () => ({
     useMutation: vi.fn(),
   },
   accessFetchClient: {
-    GET: vi.fn().mockResolvedValue({ data: { resources: [] }, error: null }),
+    GET: vi.fn(),
   },
   dynamicFetchClient: {
-    GET: vi.fn().mockResolvedValue({ data: { resources: [] }, error: undefined, response: new Response() }),
+    GET: vi.fn(),
   },
 }))
 

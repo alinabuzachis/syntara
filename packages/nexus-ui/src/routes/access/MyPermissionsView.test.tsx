@@ -13,11 +13,8 @@ vi.mock('./accessClient', () => ({
     useQuery: vi.fn(),
   },
   accessFetchClient: {
-    GET: vi.fn().mockResolvedValue({ data: { resources: [] }, error: null }),
-    POST: vi.fn().mockResolvedValue({
-      data: { permissions: [] },
-      error: null,
-    }),
+    GET: vi.fn(),
+    POST: vi.fn(),
   },
 }))
 

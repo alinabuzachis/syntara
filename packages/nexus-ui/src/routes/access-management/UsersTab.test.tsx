@@ -25,7 +25,7 @@ vi.mock('../access/accessClient', () => ({
     useMutation: vi.fn(),
   },
   accessFetchClient: {
-    POST: vi.fn().mockResolvedValue({ data: { allowed: false } }),
+    POST: vi.fn(),
   },
 }))
 

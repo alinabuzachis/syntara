@@ -7,6 +7,8 @@ import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../../providers/alerts'
 import { accessClient } from '../access/accessClient'
+import { useAllProjects } from '../access/useAllProjects'
+import { useAllRoles } from '../access/useAllRoles'
 
 import { RoleAssignmentsPanel } from './RoleAssignmentsPanel'
 
@@ -24,16 +26,11 @@ vi.mock('../../client', () => ({
 }))
 
 vi.mock('../access/useAllRoles', () => ({
-  useAllRoles: vi.fn().mockReturnValue({ roles: [], isLoading: false, error: null, refetch: vi.fn() }),
+  useAllRoles: vi.fn(),
 }))
 
 vi.mock('../access/useAllProjects', () => ({
-  useAllProjects: vi.fn().mockReturnValue({
-    projects: [],
-    isLoading: false,
-    error: null,
-    refetch: vi.fn(),
-  }),
+  useAllProjects: vi.fn(),
 }))
 
 const mockDeleteSystemAssignment = vi.fn()
@@ -176,6 +173,13 @@ function setupMocks(overrides?: { userAssignments?: AssignmentResource[]; groupA
 describe('RoleAssignmentsPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(useAllRoles).mockReturnValue({ roles: [], isLoading: false, error: null, refetch: vi.fn() })
+    vi.mocked(useAllProjects).mockReturnValue({
+      projects: [],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    })
     setupMocks()
   })
 

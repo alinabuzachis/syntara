@@ -6,7 +6,7 @@ import type { ComponentProps, ReactNode } from 'react'
 import * as React from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-import { executionsClient, workflowClient } from '../../client'
+import { approvalsClient, executionsClient, workflowClient } from '../../client'
 import { AlertProvider } from '../../providers/alerts'
 
 import { BuilderContent } from './BuilderContent'
@@ -42,8 +42,8 @@ vi.mock('../../client', () => ({
     useMutation: vi.fn(),
   },
   approvalsClient: {
-    useQuery: vi.fn().mockReturnValue({ data: undefined, refetch: vi.fn() }),
-    useMutation: vi.fn().mockReturnValue({ mutate: vi.fn(), isPending: false }),
+    useQuery: vi.fn(),
+    useMutation: vi.fn(),
   },
   authMiddleware: { onRequest: vi.fn() },
 }))
@@ -80,6 +80,9 @@ describe('BuilderContent overlay', () => {
     vi.clearAllMocks()
     queryClient.clear()
     shouldAutoSelectNode = false
+
+    vi.mocked(approvalsClient.useQuery).mockReturnValue({ data: undefined, refetch: vi.fn() })
+    vi.mocked(approvalsClient.useMutation).mockReturnValue({ mutate: vi.fn(), isPending: false })
 
     vi.mocked(executionsClient.useQuery).mockImplementation((method, path) => {
       if (method === 'get' && path === '/executions') {

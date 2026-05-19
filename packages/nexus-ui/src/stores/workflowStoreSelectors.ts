@@ -37,12 +37,6 @@ export const selectWorkflowVersion = (state: WorkflowStore) => state.workflowVer
 export const selectEdges = (state: WorkflowStore) => state.edges
 
 /**
- * Selector for canvas node positions.
- * Used by useBuilderFlowGraph to apply stored positions during undo/redo.
- */
-export const selectNodePositions = (state: WorkflowStore) => state.nodePositions
-
-/**
  * Selector for activities array.
  * Use when you need to map over or filter activities.
  */
@@ -165,17 +159,11 @@ export const useActivitiesCount = () => useWorkflowStore(selectActivitiesCount)
 /** Hook to get triggers count */
 export const useTriggersCount = () => useWorkflowStore(selectTriggersCount)
 
-/** Hook to check if there are unsaved changes */
-export const useIsDirty = () => useWorkflowStore(selectIsDirty)
-
 /** Hook to get workflow name */
 export const useWorkflowName = () => useWorkflowStore(selectWorkflowName)
 
 /** Hook to check if workflow is loaded */
 export const useHasWorkflow = () => useWorkflowStore(selectHasWorkflow)
-
-/** Hook to get canvas node positions */
-export const useNodePositions = () => useWorkflowStore(selectNodePositions)
 
 /**
  * Selector for position-undo version counter (UI-only).

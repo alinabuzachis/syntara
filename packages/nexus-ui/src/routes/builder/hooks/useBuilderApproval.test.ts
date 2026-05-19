@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import { createElement } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { approvalsClient } from '../../../client'
 import type { WorkflowDefinition } from '../../../stores/workflowStoreTypes'
 import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
 import { EXECUTION_BADGE_DATA_ATTR } from '../components/ExecutionStatusBadge'
@@ -31,8 +32,8 @@ vi.mock('../../executions/hooks/useExecutionApproval', () => {
 
 vi.mock('../../../client', () => ({
   approvalsClient: {
-    useQuery: vi.fn().mockReturnValue({ data: undefined, refetch: mockFetchForNode }),
-    useMutation: vi.fn().mockReturnValue({ mutate: vi.fn(), isPending: false }),
+    useQuery: vi.fn(),
+    useMutation: vi.fn(),
   },
 }))
 
@@ -74,6 +75,9 @@ describe('useBuilderApproval', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+
+    vi.mocked(approvalsClient.useQuery).mockReturnValue({ data: undefined, refetch: mockFetchForNode } as never)
+    vi.mocked(approvalsClient.useMutation).mockReturnValue({ mutate: vi.fn(), isPending: false } as never)
   })
 
   it('returns approvalViewOpen as false initially', () => {

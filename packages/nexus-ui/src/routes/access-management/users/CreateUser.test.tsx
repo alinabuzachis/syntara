@@ -10,7 +10,7 @@ import { CreateUser } from './CreateUser'
 
 vi.mock('../../../client', () => ({
   authClient: {
-    useQuery: vi.fn().mockReturnValue({ data: undefined, isPending: false, isError: false, error: null }),
+    useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
   usersClient: { useQuery: vi.fn(), useMutation: vi.fn() },

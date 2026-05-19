@@ -30,13 +30,7 @@ vi.mock('../../client', () => ({
 
 vi.mock('../access/accessClient', () => ({
   accessClient: {
-    useQuery: vi.fn().mockReturnValue({
-      data: undefined,
-      isPending: false,
-      isError: false,
-      error: null,
-      refetch: vi.fn(),
-    }),
+    useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
 }))
@@ -121,6 +115,17 @@ describe('Workflows Component', () => {
     // Reset mocks before each test
     mockSetSearchParams.mockClear()
     mockSearchParams = new URLSearchParams()
+
+    // Set up accessClient default return values FIRST
+    vi.mocked(accessClient.useQuery).mockReturnValue({
+      data: undefined,
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    } as never)
+
+    // Then set up workflow query (mockWorkflowQuery will override accessClient.useQuery)
     const defaultQueryReturn = {
       data: {
         resources: mockWorkflows,

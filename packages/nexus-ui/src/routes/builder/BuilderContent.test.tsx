@@ -6,7 +6,7 @@ import { ReactFlowProvider } from '@xyflow/react'
 import type { ComponentProps, ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 
-import { executionsClient, workflowClient } from '../../client'
+import { approvalsClient, executionsClient, workflowClient } from '../../client'
 import { AlertProvider } from '../../providers/alerts'
 import { ColorSchemeProvider } from '../../providers/theme/ColorSchemeProvider'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
@@ -49,8 +49,8 @@ vi.mock('../../client', () => ({
     useMutation: vi.fn(),
   },
   approvalsClient: {
-    useQuery: vi.fn().mockReturnValue({ data: undefined, refetch: vi.fn() }),
-    useMutation: vi.fn().mockReturnValue({ mutate: vi.fn(), isPending: false }),
+    useQuery: vi.fn(),
+    useMutation: vi.fn(),
   },
   authMiddleware: { onRequest: vi.fn() },
 }))
@@ -196,6 +196,9 @@ describe('BuilderContent', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     queryClient.clear()
+
+    vi.mocked(approvalsClient.useQuery).mockReturnValue({ data: undefined, refetch: vi.fn() })
+    vi.mocked(approvalsClient.useMutation).mockReturnValue({ mutate: vi.fn(), isPending: false })
 
     // Reset workflow store to initial state to prevent test pollution
     useWorkflowStore.setState({

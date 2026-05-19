@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { useAlerts } from '../../../providers/alerts'
 import * as workflowStore from '../../../stores/useWorkflowStore'
 import type { WorkflowStore } from '../../../stores/useWorkflowStore'
 
@@ -12,47 +13,14 @@ import { TaskNodeDetails } from './TaskNodeDetails'
 const mockUpdateActivity = vi.fn()
 const mockCreateAAPJobTemplateActivity = vi.fn()
 
-vi.spyOn(workflowStore, 'useWorkflowStore').mockImplementation((selector?: (state: WorkflowStore) => unknown) => {
-  const store = {
-    updateActivity: mockUpdateActivity,
-  }
-  return selector ? selector(store as unknown as WorkflowStore) : store
-})
-
-vi.spyOn(workflowStore, 'useWorkflowStoreActions').mockImplementation(() => ({
-  updateActivity: mockUpdateActivity,
-  setWorkflow: vi.fn(),
-  loadWorkflowWithEdges: vi.fn(),
-  updateWorkflow: vi.fn(),
-  markClean: vi.fn(),
-  markDirty: vi.fn(),
-  setEdges: vi.fn(),
-  addTrigger: vi.fn(),
-  removeTrigger: vi.fn(),
-  updateTrigger: vi.fn(),
-  addActivity: vi.fn(),
-  removeActivity: vi.fn(),
-  replaceActivity: vi.fn(),
-  duplicateActivity: vi.fn(),
-  syncConvergeNodeBranches: vi.fn(),
-  moveActivityBefore: vi.fn(),
-  moveActivityAfter: vi.fn(),
-  reorderActivitiesFromEdges: vi.fn(),
-  batchRemoveNodesAndEdges: vi.fn(),
-  batchAddActivitiesAndEdges: vi.fn(),
-  updateNodePositions: vi.fn(),
-  clearNodePositions: vi.fn(),
-}))
-
-vi.spyOn(workflowStore, 'createAAPJobTemplateActivity').mockImplementation(mockCreateAAPJobTemplateActivity)
+vi.spyOn(workflowStore, 'useWorkflowStore')
+vi.spyOn(workflowStore, 'useWorkflowStoreActions')
+vi.spyOn(workflowStore, 'createAAPJobTemplateActivity')
 
 // Mock the alerts hook
 const mockShowError = vi.fn()
 vi.mock('../../../providers/alerts', () => ({
-  useAlerts: vi.fn(() => ({
-    showSuccess: vi.fn(),
-    showError: mockShowError,
-  })),
+  useAlerts: vi.fn(),
 }))
 
 // Mock ActionNodeForm
@@ -234,6 +202,46 @@ describe('TaskNodeDetails Component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(workflowStore.useWorkflowStore).mockImplementation((selector?: (state: WorkflowStore) => unknown) => {
+      const store = {
+        updateActivity: mockUpdateActivity,
+      }
+      return selector ? selector(store as unknown as WorkflowStore) : store
+    })
+    vi.mocked(workflowStore.useWorkflowStoreActions).mockImplementation(() => ({
+      updateActivity: mockUpdateActivity,
+      setWorkflow: vi.fn(),
+      loadWorkflowWithEdges: vi.fn(),
+      updateWorkflow: vi.fn(),
+      markClean: vi.fn(),
+      markDirty: vi.fn(),
+      setEdges: vi.fn(),
+      addTrigger: vi.fn(),
+      removeTrigger: vi.fn(),
+      updateTrigger: vi.fn(),
+      addActivity: vi.fn(),
+      removeActivity: vi.fn(),
+      replaceActivity: vi.fn(),
+      duplicateActivity: vi.fn(),
+      syncConvergeNodeBranches: vi.fn(),
+      moveActivityBefore: vi.fn(),
+      moveActivityAfter: vi.fn(),
+      reorderActivitiesFromEdges: vi.fn(),
+      batchRemoveNodesAndEdges: vi.fn(),
+      batchAddActivitiesAndEdges: vi.fn(),
+      updateNodePositions: vi.fn(),
+      clearNodePositions: vi.fn(),
+    }))
+    vi.mocked(workflowStore.createAAPJobTemplateActivity).mockImplementation(mockCreateAAPJobTemplateActivity)
+    vi.mocked(useAlerts).mockReturnValue({
+      showSuccess: vi.fn(),
+      showError: mockShowError,
+      showAlert: vi.fn(),
+      showWarning: vi.fn(),
+      showInfo: vi.fn(),
+      dismissAlert: vi.fn(),
+      clearAllAlerts: vi.fn(),
+    })
     // Setup mockCreateAAPJobTemplateActivity to return proper activity structure
     mockCreateAAPJobTemplateActivity.mockImplementation(
       (id: string, name: string, job_template_id: number, config?: Record<string, unknown>) => ({

@@ -5,7 +5,7 @@ import type React from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { accessClient } from './accessClient'
+import { accessClient, accessFetchClient, dynamicFetchClient } from './accessClient'
 import type { ResourceActionMap } from './canIUtils'
 import { CheckAccessView } from './CheckAccessView'
 import { useAllProjects } from './useAllProjects'
@@ -21,31 +21,14 @@ vi.mock('./useAllProjects', () => ({
 vi.mock('./accessClient', () => ({
   accessClient: {
     useQuery: vi.fn(),
-    useMutation: vi.fn().mockReturnValue({
-      mutate: mockMutate,
-      mutateAsync: vi.fn(),
-      isPending: false,
-      isIdle: true,
-      isError: false,
-      isSuccess: false,
-      data: undefined,
-      error: null,
-      reset: vi.fn(),
-      status: 'idle',
-      failureCount: 0,
-      failureReason: null,
-      context: undefined,
-      submittedAt: 0,
-      variables: undefined,
-      isPaused: false,
-    }),
+    useMutation: vi.fn(),
   },
   accessFetchClient: {
-    GET: vi.fn().mockResolvedValue({ data: { resources: [] }, error: null }),
+    GET: vi.fn(),
     POST: vi.fn(),
   },
   dynamicFetchClient: {
-    GET: vi.fn().mockResolvedValue({ data: { resources: [] }, error: undefined, response: new Response() }),
+    GET: vi.fn(),
   },
 }))
 
@@ -99,6 +82,12 @@ describe('CheckAccessView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     queryClient.clear()
+    vi.mocked(accessFetchClient.GET).mockResolvedValue({ data: { resources: [] } } as never)
+    vi.mocked(dynamicFetchClient.GET).mockResolvedValue({
+      data: { resources: [] },
+      error: undefined,
+      response: new Response(),
+    })
     vi.mocked(useAllProjects).mockReturnValue({
       projects: [
         {

@@ -17,6 +17,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
     css: true,
+    mockReset: true,
     exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**', '**/playwright.config.ts', '**/*.browser.test.{ts,tsx}'],
     coverage: {
       provider: 'v8',

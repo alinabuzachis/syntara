@@ -14,7 +14,7 @@ vi.mock('./accessClient', () => ({
     useMutation: vi.fn(),
   },
   accessFetchClient: {
-    GET: vi.fn().mockResolvedValue({ data: [], error: null }),
+    GET: vi.fn(),
   },
 }))
 

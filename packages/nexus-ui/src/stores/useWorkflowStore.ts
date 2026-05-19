@@ -591,15 +591,6 @@ export const useWorkflowStore: UseWorkflowStoreBound = create<WorkflowStore>()(
   )
 )
 
-// ============================================================================
-// Re-exports for backward compatibility
-// ============================================================================
-export {
-  findActivityById,
-  reorderActivities,
-  removeActivityFromList,
-  updateActivityInList,
-} from './workflowActivityHelpers'
 export { edgesEqual, workflowEqual } from './workflowStoreEquality'
 export type {
   WorkflowStore,

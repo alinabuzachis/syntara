@@ -20,7 +20,7 @@ vi.mock('../../client', () => ({
 
 vi.mock('../access/accessClient', () => ({
   accessClient: {
-    useQuery: vi.fn().mockReturnValue({ data: { resources: [] } }),
+    useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
 }))

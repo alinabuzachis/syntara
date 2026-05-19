@@ -6,7 +6,9 @@ import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { AppRoute } from '../../app/AppRoute'
+import { usersClient } from '../../client'
 import { AlertProvider } from '../../providers/alerts'
+import { accessClient, accessFetchClient } from '../access/accessClient'
 
 import { AccessManagement } from './AccessManagement'
 
@@ -34,44 +36,49 @@ vi.mock('wouter/use-browser-location', () => ({
 
 vi.mock('../../client', () => ({
   usersClient: {
-    useQuery: vi.fn().mockReturnValue({
-      data: { resources: [] },
-      isPending: false,
-      isError: false,
-      error: null,
-      isFetching: false,
-      refetch: vi.fn(),
-    }),
-    useMutation: vi.fn().mockReturnValue({
-      mutate: vi.fn(),
-      isPending: false,
-    }),
+    useQuery: vi.fn(),
+    useMutation: vi.fn(),
   },
   authMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('../access/accessClient', () => ({
   accessClient: {
-    useQuery: vi.fn().mockReturnValue({
+    useQuery: vi.fn(),
+    useMutation: vi.fn(),
+  },
+  accessFetchClient: {
+    POST: vi.fn(),
+  },
+}))
+
+describe('AccessManagement', () => {
+  beforeEach(() => {
+    vi.mocked(usersClient.useQuery).mockReturnValue({
       data: { resources: [] },
       isPending: false,
       isError: false,
       error: null,
       isFetching: false,
       refetch: vi.fn(),
-    }),
-    useMutation: vi.fn().mockReturnValue({
+    } as never)
+    vi.mocked(usersClient.useMutation).mockReturnValue({
       mutate: vi.fn(),
       isPending: false,
-    }),
-  },
-  accessFetchClient: {
-    POST: vi.fn().mockResolvedValue({ data: { allowed: false } }),
-  },
-}))
-
-describe('AccessManagement', () => {
-  beforeEach(() => {
+    } as never)
+    vi.mocked(accessClient.useQuery).mockReturnValue({
+      data: { resources: [] },
+      isPending: false,
+      isError: false,
+      error: null,
+      isFetching: false,
+      refetch: vi.fn(),
+    } as never)
+    vi.mocked(accessClient.useMutation).mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+    } as never)
+    vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: false } } as never)
     wouterLocation.path = AppRoute.AccessManagement.Users
     mockNavigate.mockClear()
   })

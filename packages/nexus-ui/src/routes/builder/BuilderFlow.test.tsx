@@ -52,7 +52,7 @@ vi.mock('@xyflow/react', () => ({
   applyEdgeChanges: (_changes: unknown, edges: Array<Record<string, unknown>>) => edges,
   applyNodeChanges: (_changes: unknown, nodes: Array<Record<string, unknown>>) => nodes,
   useReactFlow: () => ({
-    fitView: vi.fn().mockResolvedValue(undefined),
+    fitView: vi.fn(),
     screenToFlowPosition: vi.fn(() => ({ x: 0, y: 0 })),
     updateNode: vi.fn(),
     getViewport: () => ({ x: 0, y: 0, zoom: 1 }),

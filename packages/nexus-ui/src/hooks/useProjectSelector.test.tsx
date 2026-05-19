@@ -64,7 +64,7 @@ type PaginatedResponse = {
   total: number | null
 }
 
-const mockRefetch = vi.fn().mockResolvedValue({ data: { resources: [], next: null, prev: null, total: 0 } })
+const mockRefetch = vi.fn()
 let mockQueryResponse: { data: PaginatedResponse | undefined; isPending: boolean; isFetching: boolean }
 
 function makePaginatedData(projects: ProjectRead[], next: string | null = null): PaginatedResponse {
@@ -73,11 +73,8 @@ function makePaginatedData(projects: ProjectRead[], next: string | null = null):
 
 vi.mock('../routes/access/accessClient', () => ({
   accessClient: {
-    useQuery: vi.fn().mockImplementation(() => mockQueryResponse),
-    useMutation: vi.fn().mockImplementation(() => ({
-      mutate: mockMutate,
-      isPending: false,
-    })),
+    useQuery: vi.fn(),
+    useMutation: vi.fn(),
   },
 }))
 
@@ -130,6 +127,12 @@ describe('useProjectSelector', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     queryClient.clear()
+    mockRefetch.mockResolvedValue({ data: { resources: [], next: null, prev: null, total: 0 } })
+    vi.mocked(accessClient.useQuery).mockImplementation(() => mockQueryResponse)
+    vi.mocked(accessClient.useMutation).mockImplementation(() => ({
+      mutate: mockMutate,
+      isPending: false,
+    }))
     mockSelectedProjectId = null
     mockSelectedProjectName = null
     mockFavoriteProjectIds = []

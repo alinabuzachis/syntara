@@ -14,7 +14,7 @@ const mockNode = vi.fn()
 vi.mock('@dagrejs/dagre', () => {
   // Create a proper mock class for Graph
   const MockGraph = function (this: Record<string, unknown>) {
-    this.setDefaultEdgeLabel = vi.fn().mockReturnValue(this)
+    this.setDefaultEdgeLabel = vi.fn().mockReturnThis()
     this.setGraph = mockSetGraph
     this.setEdge = mockSetEdge
     this.setNode = mockSetNode

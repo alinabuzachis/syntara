@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { credentialsClient } from '../../../client'
+import { useAllProjects } from '../../access/useAllProjects'
 
 import { ActionNodeForm } from './ActionNodeForm'
 import { renderWithHeader } from './test-utils/renderWithHeader'
@@ -10,22 +11,14 @@ import { renderWithHeader } from './test-utils/renderWithHeader'
 // Mock credentialsClient used by CredentialSelector
 vi.mock('../../../client', () => ({
   credentialsClient: {
-    useQuery: vi.fn().mockReturnValue({
-      data: { resources: [] },
-      isPending: false,
-      error: null,
-      refetch: vi.fn(),
-    }),
-    useMutation: vi.fn().mockReturnValue({
-      mutate: vi.fn(),
-      isPending: false,
-    }),
+    useQuery: vi.fn(),
+    useMutation: vi.fn(),
   },
   authMiddleware: { onRequest: vi.fn(({ request }: { request: unknown }) => request) },
 }))
 
 vi.mock('../../access/useAllProjects', () => ({
-  useAllProjects: () => ({ projects: [], isLoading: false, error: null, refetch: vi.fn() }),
+  useAllProjects: vi.fn(),
 }))
 
 // Mock ExpandableCodeEditor to use a simple textarea for testing
@@ -54,6 +47,17 @@ describe('ActionNodeForm', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(credentialsClient.useQuery).mockReturnValue({
+      data: { resources: [] },
+      isPending: false,
+      error: null,
+      refetch: vi.fn(),
+    } as never)
+    vi.mocked(credentialsClient.useMutation).mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+    } as never)
+    vi.mocked(useAllProjects).mockReturnValue({ projects: [], isLoading: false, error: null, refetch: vi.fn() })
   })
 
   it('renders script fields by default and hides the action type selector', () => {
