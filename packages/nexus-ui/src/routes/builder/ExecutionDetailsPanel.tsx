@@ -198,13 +198,12 @@ function ThreePanelLayout({
   return (
     <NxPanel
       hasNoPadding
+      isFullHeight
       style={{
         height: '100%',
         maxHeight: '100%',
         width: '100%',
         flexShrink: 0,
-        display: 'flex',
-        flexDirection: 'column',
         overflow: 'hidden',
       }}
     >
