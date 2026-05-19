@@ -2,6 +2,8 @@ import type { FilesAPI } from '@ansible/nexus-contracts'
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import { useState, useCallback, useRef } from 'react'
 
+import { useAuthStore } from '../stores/useAuthStore'
+
 type FileUploadResponse = FilesAPI.components['schemas']['FileUploadResponse']
 type FileUploadError = { error: string; message: string }
 
@@ -178,6 +180,14 @@ export function useFileUploadWithProgress(): UseFileUploadWithProgressResult {
       }))
     )
 
+    const store = useAuthStore.getState()
+    try {
+      await store.ensureValidToken()
+    } catch {
+      // If token refresh fails, proceed without auth — server will return 401/403
+    }
+    const { accessToken } = useAuthStore.getState()
+
     return new Promise((resolve, reject) => {
       const formData = new FormData()
       files.forEach((file) => formData.append('files', file))
@@ -201,6 +211,9 @@ export function useFileUploadWithProgress(): UseFileUploadWithProgressResult {
       // Send the request
       xhr.open('POST', '/api/v1/files')
       xhr.setRequestHeader('Accept', 'application/json')
+      if (accessToken) {
+        xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`)
+      }
       // Note: Don't set Content-Type - browser will set it with boundary for multipart/form-data
       xhr.send(formData)
     })

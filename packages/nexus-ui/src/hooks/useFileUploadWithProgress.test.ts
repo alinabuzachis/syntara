@@ -1,9 +1,16 @@
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 
+import { useAuthStore } from '../stores/useAuthStore'
 import { detachPromise } from '../utils/detachPromise'
 
 import { useFileUploadWithProgress, createUploadError, isFileUploadError } from './useFileUploadWithProgress'
+
+vi.mock('../stores/useAuthStore', () => ({
+  useAuthStore: {
+    getState: vi.fn(),
+  },
+}))
 
 // Store instances for test access
 let mockXhrInstances: MockXMLHttpRequest[] = []
@@ -16,6 +23,7 @@ class MockXMLHttpRequest {
   static HEADERS_RECEIVED = 2
   static LOADING = 3
 
+  withCredentials = false
   readyState = 0
   status = 0
   responseText = ''
@@ -117,6 +125,10 @@ describe('useFileUploadWithProgress', () => {
   beforeEach(() => {
     mockXhrInstances = []
     vi.stubGlobal('XMLHttpRequest', MockXMLHttpRequest)
+    vi.mocked(useAuthStore.getState).mockReturnValue({
+      accessToken: 'test-access-token',
+      ensureValidToken: vi.fn().mockResolvedValue(undefined),
+    } as unknown as ReturnType<typeof useAuthStore.getState>)
   })
 
   afterEach(() => {
@@ -133,7 +145,7 @@ describe('useFileUploadWithProgress', () => {
     expect(result.current.error).toBeNull()
   })
 
-  it('sets uploading to true when upload starts', () => {
+  it('sets uploading to true when upload starts', async () => {
     const { result } = renderHook(() => useFileUploadWithProgress())
     const file = new File(['content'], 'test.txt', { type: 'text/plain' })
 
@@ -141,10 +153,11 @@ describe('useFileUploadWithProgress', () => {
       detachPromise(result.current.uploadFiles([file]))
     })
 
+    await waitFor(() => expect(getLastXhr()).toBeDefined())
     expect(result.current.uploading).toBe(true)
   })
 
-  it('initializes progress for each file', () => {
+  it('initializes progress for each file', async () => {
     const { result } = renderHook(() => useFileUploadWithProgress())
     const file1 = new File(['content1'], 'file1.txt', { type: 'text/plain' })
     const file2 = new File(['content2'], 'file2.txt', { type: 'text/plain' })
@@ -153,12 +166,13 @@ describe('useFileUploadWithProgress', () => {
       detachPromise(result.current.uploadFiles([file1, file2]))
     })
 
+    await waitFor(() => expect(getLastXhr()).toBeDefined())
     expect(result.current.progress).toHaveLength(2)
     expect(result.current.progress[0].fileName).toBe('file1.txt')
     expect(result.current.progress[1].fileName).toBe('file2.txt')
   })
 
-  it('sends POST request to correct endpoint', () => {
+  it('sends POST request to correct endpoint', async () => {
     const { result } = renderHook(() => useFileUploadWithProgress())
     const file = new File(['content'], 'test.txt', { type: 'text/plain' })
 
@@ -166,10 +180,87 @@ describe('useFileUploadWithProgress', () => {
       detachPromise(result.current.uploadFiles([file]))
     })
 
-    const xhr = getLastXhr()
-    expect(xhr.open).toHaveBeenCalledWith('POST', '/api/v1/files')
-    expect(xhr.setRequestHeader).toHaveBeenCalledWith('Accept', 'application/json')
-    expect(xhr.send).toHaveBeenCalled()
+    await waitFor(() => {
+      const xhr = getLastXhr()
+      expect(xhr.open).toHaveBeenCalledWith('POST', '/api/v1/files')
+      expect(xhr.setRequestHeader).toHaveBeenCalledWith('Accept', 'application/json')
+      expect(xhr.send).toHaveBeenCalled()
+    })
+  })
+
+  it('sets Authorization header with Bearer token from auth store', async () => {
+    const { result } = renderHook(() => useFileUploadWithProgress())
+    const file = new File(['content'], 'test.txt', { type: 'text/plain' })
+
+    act(() => {
+      detachPromise(result.current.uploadFiles([file]))
+    })
+
+    await waitFor(() => {
+      const xhr = getLastXhr()
+      expect(xhr.setRequestHeader).toHaveBeenCalledWith('Authorization', 'Bearer test-access-token')
+    })
+  })
+
+  it('calls ensureValidToken before sending the request', async () => {
+    const ensureValidToken = vi.fn().mockResolvedValue(undefined)
+    vi.mocked(useAuthStore.getState).mockReturnValue({
+      accessToken: 'refreshed-token',
+      ensureValidToken,
+    } as unknown as ReturnType<typeof useAuthStore.getState>)
+
+    const { result } = renderHook(() => useFileUploadWithProgress())
+    const file = new File(['content'], 'test.txt', { type: 'text/plain' })
+
+    act(() => {
+      detachPromise(result.current.uploadFiles([file]))
+    })
+
+    await waitFor(() => {
+      expect(ensureValidToken).toHaveBeenCalled()
+      const xhr = getLastXhr()
+      expect(xhr.setRequestHeader).toHaveBeenCalledWith('Authorization', 'Bearer refreshed-token')
+    })
+  })
+
+  it('does not set Authorization header when no token is available', async () => {
+    vi.mocked(useAuthStore.getState).mockReturnValue({
+      accessToken: null,
+      ensureValidToken: vi.fn().mockResolvedValue(undefined),
+    } as unknown as ReturnType<typeof useAuthStore.getState>)
+
+    const { result } = renderHook(() => useFileUploadWithProgress())
+    const file = new File(['content'], 'test.txt', { type: 'text/plain' })
+
+    act(() => {
+      detachPromise(result.current.uploadFiles([file]))
+    })
+
+    await waitFor(() => {
+      const xhr = getLastXhr()
+      expect(xhr.setRequestHeader).not.toHaveBeenCalledWith('Authorization', expect.any(String))
+    })
+  })
+
+  it('proceeds without auth when ensureValidToken fails', async () => {
+    vi.mocked(useAuthStore.getState).mockReturnValue({
+      accessToken: null,
+      ensureValidToken: vi.fn().mockRejectedValue(new Error('Token refresh failed')),
+    } as unknown as ReturnType<typeof useAuthStore.getState>)
+
+    const { result } = renderHook(() => useFileUploadWithProgress())
+    const file = new File(['content'], 'test.txt', { type: 'text/plain' })
+
+    act(() => {
+      detachPromise(result.current.uploadFiles([file]))
+    })
+
+    await waitFor(() => {
+      const xhr = getLastXhr()
+      expect(xhr.open).toHaveBeenCalledWith('POST', '/api/v1/files')
+      expect(xhr.send).toHaveBeenCalled()
+      expect(xhr.setRequestHeader).not.toHaveBeenCalledWith('Authorization', expect.any(String))
+    })
   })
 
   it('resolves with response on successful upload', async () => {
@@ -182,6 +273,7 @@ describe('useFileUploadWithProgress', () => {
       uploadPromise = result.current.uploadFiles([file])
     })
 
+    await waitFor(() => expect(getLastXhr()).toBeDefined())
     const xhr = getLastXhr()
     act(() => {
       xhr.simulateLoad(200, expectedResponse)
@@ -205,6 +297,7 @@ describe('useFileUploadWithProgress', () => {
       uploadPromise = result.current.uploadFiles([file])
     })
 
+    await waitFor(() => expect(getLastXhr()).toBeDefined())
     const xhr = getLastXhr()
     act(() => {
       xhr.simulateLoad(400, errorResponse)
@@ -230,6 +323,7 @@ describe('useFileUploadWithProgress', () => {
       uploadPromise = result.current.uploadFiles([file])
     })
 
+    await waitFor(() => expect(getLastXhr()).toBeDefined())
     const xhr = getLastXhr()
     act(() => {
       xhr.simulateError()
@@ -255,6 +349,7 @@ describe('useFileUploadWithProgress', () => {
       uploadPromise = result.current.uploadFiles([file])
     })
 
+    await waitFor(() => expect(getLastXhr()).toBeDefined())
     const xhr = getLastXhr()
     act(() => {
       xhr.simulateLoadRaw(200, 'invalid json')
@@ -266,7 +361,7 @@ describe('useFileUploadWithProgress', () => {
     expect(result.current.error).toEqual(expectedError)
   })
 
-  it('cancelUpload aborts the request', () => {
+  it('cancelUpload aborts the request', async () => {
     const { result } = renderHook(() => useFileUploadWithProgress())
     const file = new File(['content'], 'test.txt', { type: 'text/plain' })
 
@@ -274,6 +369,7 @@ describe('useFileUploadWithProgress', () => {
       detachPromise(result.current.uploadFiles([file]))
     })
 
+    await waitFor(() => expect(getLastXhr()).toBeDefined())
     const xhr = getLastXhr()
     act(() => {
       result.current.cancelUpload()
@@ -295,6 +391,7 @@ describe('useFileUploadWithProgress', () => {
       uploadPromise = result.current.uploadFiles([file])
     })
 
+    await waitFor(() => expect(getLastXhr()).toBeDefined())
     const xhr = getLastXhr()
     act(() => {
       xhr.simulateAbort()
@@ -320,6 +417,7 @@ describe('useFileUploadWithProgress', () => {
       uploadPromise = result.current.uploadFiles([file])
     })
 
+    await waitFor(() => expect(getLastXhr()).toBeDefined())
     const xhr = getLastXhr()
     act(() => {
       xhr.simulateError()
@@ -347,6 +445,7 @@ describe('useFileUploadWithProgress', () => {
       detachPromise(result.current.uploadFiles([file]))
     })
 
+    await waitFor(() => expect(getLastXhr()).toBeDefined())
     const xhr = getLastXhr()
     act(() => {
       xhr.simulateProgress(50, 100)
@@ -366,6 +465,7 @@ describe('useFileUploadWithProgress', () => {
       detachPromise(result.current.uploadFiles([small, large]))
     })
 
+    await waitFor(() => expect(getLastXhr()).toBeDefined())
     const xhr = getLastXhr()
     act(() => {
       xhr.simulateProgress(55, 110)
@@ -394,6 +494,7 @@ describe('useFileUploadWithProgress', () => {
       uploadPromise = result.current.uploadFiles([file])
     })
 
+    await waitFor(() => expect(getLastXhr()).toBeDefined())
     const xhr = getLastXhr()
     act(() => {
       xhr.simulateLoadRaw(422, JSON.stringify({ code: 'INVALID', detail: 'bad request' }))
@@ -416,6 +517,7 @@ describe('useFileUploadWithProgress', () => {
       uploadPromise = result.current.uploadFiles([file])
     })
 
+    await waitFor(() => expect(getLastXhr()).toBeDefined())
     const xhr = getLastXhr()
     act(() => {
       xhr.simulateLoadRaw(500, 'Internal Server Error')
