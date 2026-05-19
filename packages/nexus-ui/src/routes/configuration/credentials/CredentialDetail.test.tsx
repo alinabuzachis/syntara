@@ -276,7 +276,7 @@ describe('CredentialDetail', () => {
     expect(kebabButton).toBeInTheDocument()
     await user.click(kebabButton)
 
-    const deleteItem = await screen.findByText('Delete')
+    const deleteItem = await screen.findByRole('menuitem', { name: /Delete credential/ })
     await user.click(deleteItem)
 
     expect(screen.getByText('Delete credential?')).toBeInTheDocument()
@@ -473,7 +473,7 @@ describe('CredentialDetail', () => {
     const kebabButton = screen.getByRole('button', { name: 'Kebab toggle' })
     await user.click(kebabButton)
 
-    const deleteItem = await screen.findByText('Delete')
+    const deleteItem = await screen.findByRole('menuitem', { name: /Delete credential/ })
     await user.click(deleteItem)
 
     expect(screen.getByText('Delete credential?')).toBeInTheDocument()
@@ -500,7 +500,7 @@ describe('CredentialDetail', () => {
     const kebabButton = screen.getByRole('button', { name: 'Kebab toggle' })
     await user.click(kebabButton)
 
-    const deleteItem = await screen.findByText('Delete')
+    const deleteItem = await screen.findByRole('menuitem', { name: /Delete credential/ })
     await user.click(deleteItem)
 
     const dialog = screen.getByRole('dialog')

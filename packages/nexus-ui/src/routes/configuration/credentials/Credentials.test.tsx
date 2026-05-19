@@ -207,6 +207,8 @@ describe('Credentials', () => {
     vi.mocked(credentialsClient.useQuery).mockImplementation(mockQuery([]))
     render(<Credentials />, { wrapper })
     expect(screen.getByText('No credentials yet')).toBeInTheDocument()
+    // Only the empty state CTA should exist — header button is hidden
+    expect(screen.getAllByRole('button', { name: 'Create credential' })).toHaveLength(1)
   })
 
   it('renders footer with credential count', () => {
@@ -447,7 +449,7 @@ describe('Credentials', () => {
     expect(firstKebab).toBeTruthy()
     await user.click(firstKebab!)
 
-    const deleteItem = await screen.findByText('Delete')
+    const deleteItem = await screen.findByRole('menuitem', { name: /Delete credential/ })
     await user.click(deleteItem)
 
     expect(screen.getByText('Delete credential?')).toBeInTheDocument()
@@ -476,7 +478,7 @@ describe('Credentials', () => {
     expect(firstKebab).toBeTruthy()
     await user.click(firstKebab!)
 
-    const deleteItem = await screen.findByText('Delete')
+    const deleteItem = await screen.findByRole('menuitem', { name: /Delete credential/ })
     await user.click(deleteItem)
 
     const dialog = screen.getByRole('dialog')
@@ -495,7 +497,7 @@ describe('Credentials', () => {
     expect(firstKebab).toBeTruthy()
     await user.click(firstKebab!)
 
-    const editItem = await screen.findByText('Edit')
+    const editItem = await screen.findByRole('menuitem', { name: /Edit credential/ })
     await user.click(editItem)
 
     expect(screen.getByRole('dialog')).toBeInTheDocument()
@@ -557,13 +559,15 @@ describe('Credentials', () => {
     expect(queryParams).not.toHaveProperty('project_id')
   })
 
-  it('renders empty state when no credentials exist', () => {
+  it('renders empty state when no credentials exist (with project selected)', () => {
     mockSelectedProject.current = { id: 'proj-1', name: 'Project Alpha' }
     vi.mocked(credentialsClient.useQuery).mockImplementation(mockQuery([]))
     vi.mocked(credentialsClient.useMutation).mockReturnValue({ mutate: vi.fn(), isPending: false } as never)
     render(<Credentials />, { wrapper })
 
     expect(screen.getByText('No credentials yet')).toBeInTheDocument()
+    // Only the empty state CTA should exist — header button is hidden
+    expect(screen.getAllByRole('button', { name: 'Create credential' })).toHaveLength(1)
   })
 
   it('renders grouped table body when viewing all projects', () => {

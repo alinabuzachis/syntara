@@ -1,14 +1,5 @@
 import type { ExecutionsAPI } from '@ansible/nexus-contracts'
-import {
-  Content,
-  ContentVariants,
-  EmptyState,
-  EmptyStateBody,
-  Label,
-  Stack,
-  StackItem,
-  Truncate,
-} from '@patternfly/react-core'
+import { Content, ContentVariants, Label, Stack, StackItem, Truncate } from '@patternfly/react-core'
 import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import { useCallback, useState } from 'react'
 import { useLocation } from 'wouter'
@@ -16,6 +7,7 @@ import { useLocation } from 'wouter'
 import { AppRoute } from '../../../app/AppRoute'
 import { stackPaddingLgOnlyStyle } from '../../../app/panelContentStackStyle'
 import { credentialsClient } from '../../../client'
+import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
 import { NxPageBody } from '../../../components/layout/NxPage'
 import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
 import { useQueryState } from '../../../components/states/useQueryState'
@@ -69,16 +61,10 @@ export function CredentialWorkflowsTab({ credentialId }: Readonly<CredentialWork
 
   if (workflows.length === 0) {
     return (
-      <Stack hasGutter style={stackPaddingLgOnlyStyle}>
-        <StackItem>
-          <EmptyState headingLevel="h3" titleText="No workflows using this credential">
-            <EmptyStateBody>
-              This credential is not currently referenced by any workflows. Workflows will appear here once they are
-              configured to use this credential.
-            </EmptyStateBody>
-          </EmptyState>
-        </StackItem>
-      </Stack>
+      <EmptyStateNoData
+        title="No workflows using this credential"
+        description="This credential is not currently referenced by any workflows. Workflows will appear here once they are configured to use this credential."
+      />
     )
   }
 

@@ -1,4 +1,5 @@
 import { Badge, Button, DescriptionList, Label, Stack, StackItem, Switch, Tab } from '@patternfly/react-core'
+import { RhUiEditIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
@@ -8,6 +9,7 @@ import { AppRoute } from '../../../app/AppRoute'
 import { breadcrumbsCredentialDetail, breadcrumbsCredentialEarlyShell } from '../../../app/breadcrumbBuilders'
 import { credentialsClient } from '../../../client'
 import { Detail } from '../../../components/details/Detail'
+import { IconLabel } from '../../../components/IconLabel'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
@@ -156,7 +158,8 @@ export default function CredentialDetail() {
 
   const kebabActions: IAction[] = [
     {
-      title: 'Delete',
+      title: <IconLabel icon={<RhUiTrashIcon />}>Delete credential</IconLabel>,
+      isDanger: true,
       onClick: () => openDeleteDialog(credential!),
     },
   ]
@@ -219,7 +222,7 @@ export default function CredentialDetail() {
               isChecked={credential.enabled}
               onChange={handleToggleEnabled}
             />
-            <Button variant="secondary" onClick={() => setEditModalOpen(true)}>
+            <Button variant="primary" icon={<RhUiEditIcon />} onClick={() => setEditModalOpen(true)}>
               Edit credential
             </Button>
             <ActionsColumn items={kebabActions} />

@@ -214,12 +214,13 @@ export default function Credentials() {
 
   const getRowActions = (credential: Credential): IAction[] => [
     {
-      title: <IconLabel icon={<RhUiEditIcon />}>Edit</IconLabel>,
+      title: <IconLabel icon={<RhUiEditIcon />}>Edit credential</IconLabel>,
       onClick: () => setCredentialToEdit(credential),
     },
     { isSeparator: true },
     {
-      title: <IconLabel icon={<RhUiTrashIcon />}>Delete</IconLabel>,
+      title: <IconLabel icon={<RhUiTrashIcon />}>Delete credential</IconLabel>,
+      isDanger: true,
       onClick: () => openDeleteDialog(credential),
     },
   ]
@@ -246,9 +247,11 @@ export default function Credentials() {
         title="Credentials"
         projectSelector={ProjectSelector}
         toolbar={
-          <Button variant="secondary" onClick={() => setCreateModalOpen(true)}>
-            Create credential
-          </Button>
+          results.length > 0 || hasActiveFilters ? (
+            <Button variant="primary" onClick={() => setCreateModalOpen(true)}>
+              Create credential
+            </Button>
+          ) : undefined
         }
       />
 
