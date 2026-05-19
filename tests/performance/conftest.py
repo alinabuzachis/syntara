@@ -32,6 +32,7 @@ import pytest
 import structlog
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from concurrent.futures import Future
 
     from nexus_api_client.api import NexusApiRegistry
@@ -756,6 +757,120 @@ def _find_llm_credential_type_id(nexus_api: NexusApiRegistry) -> str | None:
     except Exception:
         _logger.warning("Failed to list credential types", exc_info=True)
     return None
+
+
+def timed_http_request(
+    base_url: str,
+    method: str,
+    path: str,
+    *,
+    headers: dict[str, str] | None = None,
+    json_body: dict[str, Any] | None = None,
+    cookies: dict[str, str] | None = None,
+    timeout: float = 30.0,
+    verify_ssl: bool = False,
+) -> tuple[float, int, dict[str, Any]]:
+    """Send a timed HTTP request and return (elapsed_ms, status_code, response_json).
+
+    A general-purpose helper for performance tests that need to measure
+    raw HTTP request latency to arbitrary endpoints.
+
+    Args:
+        base_url: Deployment base URL (e.g. ``https://nexus.apps.example.com``).
+        method: HTTP method (GET, POST, etc.).
+        path: URL path (e.g. ``/api/v1/auth/login``).
+        headers: Optional request headers.
+        json_body: Optional JSON body for POST/PUT/PATCH requests.
+        cookies: Optional cookies to send with the request.
+        timeout: Request timeout in seconds.
+        verify_ssl: Whether to verify SSL certificates.
+
+    Returns:
+        Tuple of (elapsed_ms, status_code, response_json).  ``response_json``
+        is an empty dict when the response body is not valid JSON.
+
+    """
+    url = f"{base_url.rstrip('/')}{path}"
+    start = time.monotonic()
+    try:
+        response = httpx.request(
+            method,
+            url,
+            headers=headers,
+            json=json_body,
+            cookies=cookies,
+            timeout=timeout,
+            verify=verify_ssl,
+        )
+        elapsed_ms = (time.monotonic() - start) * 1000
+        try:
+            body = response.json()
+        except Exception:
+            body = {}
+        return elapsed_ms, response.status_code, body
+    except Exception as exc:
+        elapsed_ms = (time.monotonic() - start) * 1000
+        _log_request_failure(exc, context="timed_http_request")
+        return elapsed_ms, 0, {}
+
+
+def run_concurrent_http_requests(
+    base_url: str,
+    method: str,
+    path: str,
+    count: int,
+    *,
+    headers: dict[str, str] | None = None,
+    json_body_factory: Callable[[int], dict[str, Any] | None] | None = None,
+    json_body: dict[str, Any] | None = None,
+    cookies: dict[str, str] | None = None,
+    max_workers: int = 50,
+    timeout: float = 30.0,
+    verify_ssl: bool = False,
+) -> list[tuple[float, int, dict[str, Any]]]:
+    """Send *count* concurrent HTTP requests and collect results.
+
+    Args:
+        base_url: Deployment base URL.
+        method: HTTP method.
+        path: URL path.
+        count: Number of requests to send.
+        headers: Optional shared request headers.
+        json_body_factory: Optional callable(index) returning a JSON body dict.
+            Takes precedence over *json_body*.
+        json_body: Optional static JSON body (used when json_body_factory is None).
+        cookies: Optional cookies to send with each request.
+        max_workers: Maximum concurrent threads.
+        timeout: Per-request timeout.
+        verify_ssl: Whether to verify SSL certificates.
+
+    Returns:
+        List of (elapsed_ms, status_code, response_json) tuples.
+
+    """
+    results: list[tuple[float, int, dict[str, Any]]] = []
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = []
+        for i in range(count):
+            body = json_body_factory(i) if json_body_factory else json_body
+            futures.append(
+                executor.submit(
+                    timed_http_request,
+                    base_url,
+                    method,
+                    path,
+                    headers=headers,
+                    json_body=body,
+                    cookies=cookies,
+                    timeout=timeout,
+                    verify_ssl=verify_ssl,
+                )
+            )
+        for future in as_completed(futures):
+            results.append(future.result())
+
+    return results
 
 
 def build_ws_url(base_url: str, path: str) -> str:
