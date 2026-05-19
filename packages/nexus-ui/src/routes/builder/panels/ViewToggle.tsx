@@ -19,7 +19,7 @@ export function ViewToggle({ activeView, onChange, ariaLabel }: Readonly<ViewTog
   const idPrefix = useId()
 
   return (
-    <ToggleGroup aria-label={ariaLabel}>
+    <ToggleGroup aria-label={ariaLabel} isCompact>
       {VIEW_OPTIONS.map((option) => (
         <ToggleGroupItem
           key={option.value}
