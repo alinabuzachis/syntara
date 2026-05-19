@@ -1,5 +1,5 @@
 import type { ExecutionsAPI } from '@ansible/nexus-contracts'
-import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
+import { render, screen, within, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { useLocation, useSearch, useSearchParams } from 'wouter'
@@ -381,7 +381,8 @@ describe('Executions Component', () => {
       expect(within(statusHeader).getByRole('button')).toBeInTheDocument()
     })
 
-    it('changes sort when clicking column headers', () => {
+    it('changes sort when clicking column headers', async () => {
+      const user = userEvent.setup()
       mockExecutionsQuery(mockExecutions)
 
       render(<Executions />)
@@ -389,7 +390,7 @@ describe('Executions Component', () => {
       // Click Run ID header to sort
       const executionIdHeader = screen.getByRole('columnheader', { name: /Run ID/i })
       const sortButton = within(executionIdHeader).getByRole('button')
-      fireEvent.click(sortButton)
+      await user.click(sortButton)
 
       // All executions should still be visible
       expect(screen.getByText('123e4567-e89b-12d3-a456-426614174000')).toBeInTheDocument()
@@ -397,7 +398,8 @@ describe('Executions Component', () => {
       expect(screen.getByText('323e4567-e89b-12d3-a456-426614174002')).toBeInTheDocument()
     })
 
-    it('can toggle sort direction by clicking the same column header', () => {
+    it('can toggle sort direction by clicking the same column header', async () => {
+      const user = userEvent.setup()
       mockExecutionsQuery(mockExecutions)
 
       render(<Executions />)
@@ -406,8 +408,8 @@ describe('Executions Component', () => {
       const sortButton = within(executionIdHeader).getByRole('button')
 
       // Click twice to toggle direction
-      fireEvent.click(sortButton)
-      fireEvent.click(sortButton)
+      await user.click(sortButton)
+      await user.click(sortButton)
 
       // All executions should still be visible after sorting
       expect(screen.getByText('123e4567-e89b-12d3-a456-426614174000')).toBeInTheDocument()
@@ -415,7 +417,8 @@ describe('Executions Component', () => {
       expect(screen.getByText('323e4567-e89b-12d3-a456-426614174002')).toBeInTheDocument()
     })
 
-    it('can sort by different columns', () => {
+    it('can sort by different columns', async () => {
+      const user = userEvent.setup()
       mockExecutionsQuery(mockExecutions)
 
       render(<Executions />)
@@ -423,7 +426,7 @@ describe('Executions Component', () => {
       // Click Workflow name header
       const workflowHeader = screen.getByRole('columnheader', { name: /^Workflow name$/i })
       const sortButton = within(workflowHeader).getByRole('button')
-      fireEvent.click(sortButton)
+      await user.click(sortButton)
 
       // All executions should still be visible
       expect(screen.getByText('Hello World Workflow')).toBeInTheDocument()
@@ -431,14 +434,15 @@ describe('Executions Component', () => {
       expect(screen.getByText('API Integration Workflow')).toBeInTheDocument()
     })
 
-    it('can sort by Status column', () => {
+    it('can sort by Status column', async () => {
+      const user = userEvent.setup()
       mockExecutionsQuery(mockExecutions)
 
       render(<Executions />)
 
       const statusHeader = screen.getByRole('columnheader', { name: /^Status$/i })
       const sortButton = within(statusHeader).getByRole('button')
-      fireEvent.click(sortButton)
+      await user.click(sortButton)
 
       // All executions should still be visible after sorting by status
       expect(screen.getByText('Completed')).toBeInTheDocument()
@@ -446,20 +450,22 @@ describe('Executions Component', () => {
       expect(screen.getByText('Failed')).toBeInTheDocument()
     })
 
-    it('can sort by Completed at column', () => {
+    it('can sort by Completed at column', async () => {
+      const user = userEvent.setup()
       mockExecutionsQuery(mockExecutions)
 
       render(<Executions />)
 
       const completedAtHeader = screen.getByRole('columnheader', { name: /Completed at/i })
       const sortButton = within(completedAtHeader).getByRole('button')
-      fireEvent.click(sortButton)
+      await user.click(sortButton)
 
       // All executions should still be visible after sorting
       expect(screen.getByText('123e4567-e89b-12d3-a456-426614174000')).toBeInTheDocument()
     })
 
-    it('shows Workflow name column even when filtering by workflow_id', () => {
+    it('shows Workflow name column even when filtering by workflow_id', async () => {
+      const user = userEvent.setup()
       vi.mocked(useSearch).mockReturnValue('?workflow_id=workflow-1')
 
       const filteredExecutions = [
@@ -494,7 +500,7 @@ describe('Executions Component', () => {
 
       // Can still sort by all columns
       const workflowHeader = screen.getByRole('columnheader', { name: /^Workflow name$/i })
-      fireEvent.click(within(workflowHeader).getByRole('button'))
+      await user.click(within(workflowHeader).getByRole('button'))
 
       // Executions should still be visible after sorting
       expect(screen.getByText('123e4567-e89b-12d3-a456-426614174000')).toBeInTheDocument()

@@ -84,12 +84,11 @@ describe('CodeBlock', () => {
     expect(screen.getByRole('button', { name: 'Copy to clipboard' })).toBeInTheDocument()
   })
 
-  // Success-path copy uses fireEvent: Testing Library userEvent + PatternFly ClipboardCopyButton tooltip
-  // does not reliably surface "Copied to clipboard" in jsdom; userEvent is used below where it works.
   it('copies text to clipboard when copy button clicked', async () => {
     render(<CodeBlock enableCopy>code to copy</CodeBlock>)
 
     const copyButton = screen.getByRole('button', { name: 'Copy to clipboard' })
+    // eslint-disable-next-line testing-library/prefer-user-event -- userEvent does not trigger PF ClipboardCopyButton tooltip in jsdom
     fireEvent.click(copyButton)
 
     expect(mockWriteText).toHaveBeenCalledWith('code to copy')
@@ -102,6 +101,7 @@ describe('CodeBlock', () => {
     render(<CodeBlock enableCopy>code</CodeBlock>)
 
     const copyButton = screen.getByRole('button', { name: 'Copy to clipboard' })
+    // eslint-disable-next-line testing-library/prefer-user-event -- userEvent does not trigger PF ClipboardCopyButton tooltip in jsdom
     fireEvent.click(copyButton)
 
     await waitFor(() => {
@@ -114,6 +114,7 @@ describe('CodeBlock', () => {
     render(<CodeBlock enableCopy jsonObject={jsonObject} />)
 
     const copyButton = screen.getByRole('button', { name: 'Copy to clipboard' })
+    // eslint-disable-next-line testing-library/prefer-user-event -- userEvent does not trigger PF ClipboardCopyButton tooltip in jsdom
     fireEvent.click(copyButton)
 
     expect(mockWriteText).toHaveBeenCalledWith(JSON.stringify(jsonObject, undefined, 2))

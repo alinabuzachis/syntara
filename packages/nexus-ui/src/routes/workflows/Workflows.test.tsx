@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
+import { render, screen, within, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
@@ -338,14 +338,15 @@ describe('Workflows Component', () => {
   })
 
   describe('Table Columns', () => {
-    it('renders name column with clickable links that navigate', () => {
+    it('renders name column with clickable links that navigate', async () => {
+      const user = userEvent.setup()
       render(<Workflows />, { wrapper })
 
       const workflowNode = screen.getByText('Important Project Workflow')
       expect(workflowNode).toBeInTheDocument()
 
       // Click the link button and verify navigation
-      fireEvent.click(workflowNode)
+      await user.click(workflowNode)
       expect(mockSetLocation).toHaveBeenCalledWith('/workflow-builder/1')
     })
 
@@ -420,6 +421,7 @@ describe('Workflows Component', () => {
         submittedAt: 0,
       })
 
+      const user = userEvent.setup()
       render(<Workflows />, { wrapper })
 
       // Wait for table to render (PF Table uses role="grid")
@@ -436,15 +438,15 @@ describe('Workflows Component', () => {
       // Actions column is always the last column, so the actions button is the last button in the row
       const buttons = within(firstDataRow).getAllByRole('button')
       const menuTrigger = buttons[buttons.length - 1]
-      fireEvent.click(menuTrigger)
+      await user.click(menuTrigger)
 
       // Wait for menu to open and click the "Run workflow" menu item
       const runWorkflowItem = await screen.findByText('Run workflow')
-      fireEvent.click(runWorkflowItem)
+      await user.click(runWorkflowItem)
 
       // Wait for confirmation dialog to appear and click "Run now" button
       const runButton = await screen.findByRole('button', { name: /^Run now$/i })
-      fireEvent.click(runButton)
+      await user.click(runButton)
 
       // Verify the mutation was called with correct parameters
       await waitFor(() => {
@@ -495,6 +497,7 @@ describe('Workflows Component', () => {
         submittedAt: 0,
       })
 
+      const user = userEvent.setup()
       render(<Workflows />, { wrapper })
 
       // Wait for table to render (PF Table uses role="grid")
@@ -511,15 +514,15 @@ describe('Workflows Component', () => {
       // Actions column is always the last column, so the actions button is the last button in the row
       const buttons = within(firstDataRow).getAllByRole('button')
       const menuTrigger = buttons[buttons.length - 1]
-      fireEvent.click(menuTrigger)
+      await user.click(menuTrigger)
 
       // Wait for menu to open and click the "Run workflow" menu item
       const runWorkflowItem = await screen.findByText('Run workflow')
-      fireEvent.click(runWorkflowItem)
+      await user.click(runWorkflowItem)
 
       // Wait for confirmation dialog to appear and click "Run now" button
       const runButton = await screen.findByRole('button', { name: /^Run now$/i })
-      fireEvent.click(runButton)
+      await user.click(runButton)
 
       // Verify the mutation was called
       await waitFor(() => {
@@ -566,6 +569,7 @@ describe('Workflows Component', () => {
         submittedAt: 0,
       })
 
+      const user = userEvent.setup()
       render(<Workflows />, { wrapper })
 
       // Wait for table to render (PF Table uses role="grid")
@@ -582,15 +586,15 @@ describe('Workflows Component', () => {
       // Actions column is always the last column, so the actions button is the last button in the row
       const buttons = within(firstDataRow).getAllByRole('button')
       const menuTrigger = buttons[buttons.length - 1]
-      fireEvent.click(menuTrigger)
+      await user.click(menuTrigger)
 
       // Wait for menu to open and click the "Run workflow" menu item
       const runWorkflowItem = await screen.findByText('Run workflow')
-      fireEvent.click(runWorkflowItem)
+      await user.click(runWorkflowItem)
 
       // Wait for confirmation dialog to appear and click "Run now" button
       const runButton = await screen.findByRole('button', { name: /^Run now$/i })
-      fireEvent.click(runButton)
+      await user.click(runButton)
 
       // Verify error alert is shown with generic message
       await waitFor(() => {
@@ -602,6 +606,7 @@ describe('Workflows Component', () => {
     })
 
     it('shows confirmation dialog when running workflow', async () => {
+      const user = userEvent.setup()
       render(<Workflows />, { wrapper })
 
       // Wait for table to render (PF Table uses role="grid")
@@ -618,11 +623,11 @@ describe('Workflows Component', () => {
       // Actions column is always the last column, so the actions button is the last button in the row
       const buttons = within(firstDataRow).getAllByRole('button')
       const menuTrigger = buttons[buttons.length - 1]
-      fireEvent.click(menuTrigger)
+      await user.click(menuTrigger)
 
       // Wait for menu to open and click the "Run workflow" menu item
       const runWorkflowItem = await screen.findByText('Run workflow')
-      fireEvent.click(runWorkflowItem)
+      await user.click(runWorkflowItem)
 
       // Verify confirmation dialog is shown
       await waitFor(() => {
@@ -660,6 +665,7 @@ describe('Workflows Component', () => {
         submittedAt: 0,
       })
 
+      const user = userEvent.setup()
       render(<Workflows />, { wrapper })
 
       // Wait for table to render (PF Table uses role="grid")
@@ -676,15 +682,15 @@ describe('Workflows Component', () => {
       // Actions column is always the last column, so the actions button is the last button in the row
       const buttons = within(firstDataRow).getAllByRole('button')
       const menuTrigger = buttons[buttons.length - 1]
-      fireEvent.click(menuTrigger)
+      await user.click(menuTrigger)
 
       // Wait for menu to open and click the "Run workflow" menu item
       const runWorkflowItem = await screen.findByText('Run workflow')
-      fireEvent.click(runWorkflowItem)
+      await user.click(runWorkflowItem)
 
       // Wait for confirmation dialog to appear and click "Cancel" button
       const cancelButton = await screen.findByRole('button', { name: /Cancel/i })
-      fireEvent.click(cancelButton)
+      await user.click(cancelButton)
 
       // Verify the mutation was not called
       await waitFor(() => {
@@ -700,6 +706,7 @@ describe('Workflows Component', () => {
     it('navigates to executions page filtered by workflow when "View run history" is clicked', async () => {
       mockSetLocation.mockClear()
 
+      const user = userEvent.setup()
       render(<Workflows />, { wrapper })
 
       // Wait for table to render (PF Table uses role="grid")
@@ -716,11 +723,11 @@ describe('Workflows Component', () => {
       // Actions column is always the last column, so the actions button is the last button in the row
       const buttons = within(firstDataRow).getAllByRole('button')
       const menuTrigger = buttons[buttons.length - 1]
-      fireEvent.click(menuTrigger)
+      await user.click(menuTrigger)
 
       // Wait for menu to open and click the "View run history" menu item
       const viewRunHistoryItem = await screen.findByText('View run history')
-      fireEvent.click(viewRunHistoryItem)
+      await user.click(viewRunHistoryItem)
 
       // Verify navigation to executions page with workflow filter
       await waitFor(() => {
@@ -782,7 +789,7 @@ describe('Workflows Component', () => {
       expect(screen.getByText((content, element) => element?.tagName === 'B' && content === '30')).toBeInTheDocument()
     })
 
-    it('enables both buttons when both cursors are available', () => {
+    it('enables both buttons when both cursors are available', async () => {
       mockWorkflowQuery({
         data: {
           resources: mockWorkflows,
@@ -796,10 +803,11 @@ describe('Workflows Component', () => {
         refetch: vi.fn(),
       })
 
+      const user = userEvent.setup()
       render(<Workflows />, { wrapper })
 
       // Navigate to page 2 so both prev and next are enabled
-      fireEvent.click(screen.getByRole('button', { name: 'Go to next page' }))
+      await user.click(screen.getByRole('button', { name: 'Go to next page' }))
 
       const nextButton = screen.getByRole('button', { name: 'Go to next page' })
       const prevButton = screen.getByRole('button', { name: 'Go to previous page' })
@@ -843,10 +851,11 @@ describe('Workflows Component', () => {
         refetch: vi.fn(),
       })
 
+      const user = userEvent.setup()
       const { rerender } = render(<Workflows />, { wrapper })
 
       // Navigate to page 2
-      fireEvent.click(screen.getByRole('button', { name: 'Go to next page' }))
+      await user.click(screen.getByRole('button', { name: 'Go to next page' }))
 
       // Now simulate being on last page with only prev cursor available
       mockWorkflowQuery({
@@ -869,7 +878,7 @@ describe('Workflows Component', () => {
       expect(prevButton).not.toBeDisabled()
 
       // Clicking previous should work without errors
-      expect(() => fireEvent.click(prevButton)).not.toThrow()
+      await user.click(prevButton)
     })
 
     it('does not reset cursor while query is fetching', async () => {
@@ -890,6 +899,7 @@ describe('Workflows Component', () => {
         refetch: mockRefetch,
       })
 
+      const user = userEvent.setup()
       render(<Workflows />, { wrapper })
 
       // Verify pagination controls present
@@ -897,7 +907,7 @@ describe('Workflows Component', () => {
       expect(nextButton).toBeInTheDocument()
 
       // Click Next to set internal cursor state
-      fireEvent.click(nextButton)
+      await user.click(nextButton)
 
       // Now simulate fetching state (cursor should NOT be reset while isFetching)
       mockWorkflowQuery({
@@ -916,7 +926,7 @@ describe('Workflows Component', () => {
       })
 
       // Force re-render to trigger useEffect with new query state
-      fireEvent.click(nextButton)
+      await user.click(nextButton)
 
       // Verify pagination controls still present (cursor was not reset despite empty data)
       await waitFor(() => {
@@ -973,6 +983,7 @@ describe('Workflows Component', () => {
 
   describe('Delete Workflow', () => {
     it('shows delete option in row actions menu', async () => {
+      const user = userEvent.setup()
       render(<Workflows />, { wrapper })
 
       // Wait for table to render
@@ -987,7 +998,7 @@ describe('Workflows Component', () => {
       // Open the actions menu
       const buttons = within(firstDataRow).getAllByRole('button')
       const menuTrigger = buttons[buttons.length - 1]
-      fireEvent.click(menuTrigger)
+      await user.click(menuTrigger)
 
       // Verify delete option exists
       await waitFor(() => {
@@ -996,6 +1007,7 @@ describe('Workflows Component', () => {
     })
 
     it('opens delete confirmation dialog when delete is clicked', async () => {
+      const user = userEvent.setup()
       render(<Workflows />, { wrapper })
 
       await waitFor(() => {
@@ -1009,11 +1021,11 @@ describe('Workflows Component', () => {
       // Open actions menu
       const buttons = within(firstDataRow).getAllByRole('button')
       const menuTrigger = buttons[buttons.length - 1]
-      fireEvent.click(menuTrigger)
+      await user.click(menuTrigger)
 
       // Click delete
       const deleteItem = await screen.findByText('Delete workflow')
-      fireEvent.click(deleteItem)
+      await user.click(deleteItem)
 
       // Verify modal is shown
       await waitFor(() => {
@@ -1067,6 +1079,7 @@ describe('Workflows Component', () => {
         submittedAt: 0,
       })
 
+      const user = userEvent.setup()
       render(<Workflows />, { wrapper })
 
       await waitFor(() => {
@@ -1079,19 +1092,19 @@ describe('Workflows Component', () => {
       const firstDataRow = rows[1]
       const buttons = within(firstDataRow).getAllByRole('button')
       const menuTrigger = buttons[buttons.length - 1]
-      fireEvent.click(menuTrigger)
+      await user.click(menuTrigger)
 
       const deleteItem = await screen.findByText('Delete workflow')
-      fireEvent.click(deleteItem)
+      await user.click(deleteItem)
 
       // Confirm deletion
       await waitFor(() => {
         expect(screen.getByText('Delete workflow?')).toBeInTheDocument()
       })
 
-      fireEvent.click(screen.getByRole('checkbox', { name: /I understand this workflow/ }))
+      await user.click(screen.getByRole('checkbox', { name: /I understand this workflow/ }))
       const deleteButton = screen.getByRole('button', { name: 'Delete' })
-      fireEvent.click(deleteButton)
+      await user.click(deleteButton)
 
       // Verify success
       await waitFor(() => {
@@ -1133,6 +1146,7 @@ describe('Workflows Component', () => {
         submittedAt: 0,
       })
 
+      const user = userEvent.setup()
       render(<Workflows />, { wrapper })
 
       await waitFor(() => {
@@ -1145,19 +1159,19 @@ describe('Workflows Component', () => {
       const firstDataRow = rows[1]
       const buttons = within(firstDataRow).getAllByRole('button')
       const menuTrigger = buttons[buttons.length - 1]
-      fireEvent.click(menuTrigger)
+      await user.click(menuTrigger)
 
       const deleteItem = await screen.findByText('Delete workflow')
-      fireEvent.click(deleteItem)
+      await user.click(deleteItem)
 
       // Confirm deletion
       await waitFor(() => {
         expect(screen.getByText('Delete workflow?')).toBeInTheDocument()
       })
 
-      fireEvent.click(screen.getByRole('checkbox', { name: /I understand this workflow/ }))
+      await user.click(screen.getByRole('checkbox', { name: /I understand this workflow/ }))
       const deleteButton = screen.getByRole('button', { name: 'Delete' })
-      fireEvent.click(deleteButton)
+      await user.click(deleteButton)
 
       // Verify error alert
       await waitFor(() => {
@@ -1168,6 +1182,7 @@ describe('Workflows Component', () => {
     })
 
     it('can cancel delete operation', async () => {
+      const user = userEvent.setup()
       render(<Workflows />, { wrapper })
 
       await waitFor(() => {
@@ -1180,10 +1195,10 @@ describe('Workflows Component', () => {
       const firstDataRow = rows[1]
       const buttons = within(firstDataRow).getAllByRole('button')
       const menuTrigger = buttons[buttons.length - 1]
-      fireEvent.click(menuTrigger)
+      await user.click(menuTrigger)
 
       const deleteItem = await screen.findByText('Delete workflow')
-      fireEvent.click(deleteItem)
+      await user.click(deleteItem)
 
       // Modal appears
       await waitFor(() => {
@@ -1192,7 +1207,7 @@ describe('Workflows Component', () => {
 
       // Click cancel
       const cancelButton = screen.getByRole('button', { name: 'Cancel' })
-      fireEvent.click(cancelButton)
+      await user.click(cancelButton)
 
       // Modal closes
       await waitFor(() => {
@@ -1310,6 +1325,7 @@ describe('Workflows Component', () => {
         submittedAt: 0,
       })
 
+      const user = userEvent.setup()
       render(<Workflows />, { wrapper })
 
       await waitFor(() => {
@@ -1322,13 +1338,13 @@ describe('Workflows Component', () => {
       const firstDataRow = rows[1]
       const buttons = within(firstDataRow).getAllByRole('button')
       const menuTrigger = buttons[buttons.length - 1]
-      fireEvent.click(menuTrigger)
+      await user.click(menuTrigger)
 
       const runItem = await screen.findByText('Run workflow')
-      fireEvent.click(runItem)
+      await user.click(runItem)
 
       const runButton = await screen.findByRole('button', { name: /^Run now$/i })
-      fireEvent.click(runButton)
+      await user.click(runButton)
 
       await waitFor(() => {
         expect(mockSetLocation).toHaveBeenCalledWith('/executions/exec-123')
@@ -1370,6 +1386,7 @@ describe('Workflows Component', () => {
         submittedAt: 0,
       })
 
+      const user = userEvent.setup()
       render(<Workflows />, { wrapper })
 
       await waitFor(() => {
@@ -1382,18 +1399,18 @@ describe('Workflows Component', () => {
       const firstDataRow = rows[1]
       const buttons = within(firstDataRow).getAllByRole('button')
       const menuTrigger = buttons[buttons.length - 1]
-      fireEvent.click(menuTrigger)
+      await user.click(menuTrigger)
 
       const deleteItem = await screen.findByText('Delete workflow')
-      fireEvent.click(deleteItem)
+      await user.click(deleteItem)
 
       await waitFor(() => {
         expect(screen.getByText('Delete workflow?')).toBeInTheDocument()
       })
 
-      fireEvent.click(screen.getByRole('checkbox', { name: /I understand this workflow/ }))
+      await user.click(screen.getByRole('checkbox', { name: /I understand this workflow/ }))
       const deleteButton = screen.getByRole('button', { name: 'Delete' })
-      fireEvent.click(deleteButton)
+      await user.click(deleteButton)
 
       // After onSettled, the delete dialog should be closed
       await waitFor(() => {
@@ -1434,6 +1451,7 @@ describe('Workflows Component', () => {
         submittedAt: 0,
       })
 
+      const user = userEvent.setup()
       render(<Workflows />, { wrapper })
 
       await waitFor(() => {
@@ -1445,18 +1463,18 @@ describe('Workflows Component', () => {
       const firstDataRow = rows[1]
       const buttons = within(firstDataRow).getAllByRole('button')
       const menuTrigger = buttons[buttons.length - 1]
-      fireEvent.click(menuTrigger)
+      await user.click(menuTrigger)
 
       const deleteItem = await screen.findByText('Delete workflow')
-      fireEvent.click(deleteItem)
+      await user.click(deleteItem)
 
       await waitFor(() => {
         expect(screen.getByText('Delete workflow?')).toBeInTheDocument()
       })
 
-      fireEvent.click(screen.getByRole('checkbox', { name: /I understand this workflow/ }))
+      await user.click(screen.getByRole('checkbox', { name: /I understand this workflow/ }))
       const deleteButton = screen.getByRole('button', { name: 'Delete' })
-      fireEvent.click(deleteButton)
+      await user.click(deleteButton)
 
       // After onSettled, the delete dialog should be closed even on error
       await waitFor(() => {

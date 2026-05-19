@@ -1,5 +1,5 @@
 import type { Approval } from '@ansible/nexus-contracts'
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
@@ -313,8 +313,7 @@ describe('ApprovalDetail Component', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Approve' }))
 
     const submitButton = screen.getByRole('button', { name: /submit/i })
-    // Use fireEvent to bypass any aria-disabled restriction
-    fireEvent.click(submitButton)
+    await userEvent.click(submitButton)
 
     expect(mockMutate).not.toHaveBeenCalled()
   })

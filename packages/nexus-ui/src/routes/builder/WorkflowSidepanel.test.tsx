@@ -1,5 +1,6 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
 import { WorkflowSidepanel } from './WorkflowSidepanel'
@@ -59,11 +60,12 @@ describe('WorkflowSidepanel', () => {
     expect(closeButton).toBeInTheDocument()
   })
 
-  it('calls onClose when close button is clicked', () => {
+  it('calls onClose when close button is clicked', async () => {
+    const user = userEvent.setup()
     render(<WorkflowSidepanel {...defaultProps} />)
 
     const closeButton = screen.getByLabelText('Close')
-    fireEvent.click(closeButton)
+    await user.click(closeButton)
 
     expect(mockOnClose).toHaveBeenCalledTimes(1)
   })
@@ -75,13 +77,14 @@ describe('WorkflowSidepanel', () => {
     expect(nameInput).toHaveValue('Test Workflow')
   })
 
-  it('calls onNameChange when name input changes', () => {
+  it('calls onNameChange when name input changes', async () => {
+    const user = userEvent.setup()
     render(<WorkflowSidepanel {...defaultProps} />)
 
     const nameInput = screen.getByLabelText('Workflow name in workflow details')
-    fireEvent.change(nameInput, { target: { value: 'New Name' } })
+    await user.type(nameInput, 'X')
 
-    expect(mockOnNameChange).toHaveBeenCalledWith('New Name')
+    expect(mockOnNameChange).toHaveBeenCalledWith('Test WorkflowX')
   })
 
   it('renders description textarea with value', () => {
@@ -91,13 +94,14 @@ describe('WorkflowSidepanel', () => {
     expect(descriptionInput).toHaveValue('Test description')
   })
 
-  it('calls onDescriptionChange when description changes', () => {
+  it('calls onDescriptionChange when description changes', async () => {
+    const user = userEvent.setup()
     render(<WorkflowSidepanel {...defaultProps} />)
 
     const descriptionInput = screen.getByLabelText('Description')
-    fireEvent.change(descriptionInput, { target: { value: 'New description' } })
+    await user.type(descriptionInput, 'X')
 
-    expect(mockOnDescriptionChange).toHaveBeenCalledWith('New description')
+    expect(mockOnDescriptionChange).toHaveBeenCalledWith('Test descriptionX')
   })
 
   it('renders workflow definition code block when available', () => {

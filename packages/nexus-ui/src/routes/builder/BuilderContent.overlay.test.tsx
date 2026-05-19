@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { ReactFlowProvider } from '@xyflow/react'
 import type { ComponentProps, ReactNode } from 'react'
 import * as React from 'react'
@@ -153,11 +154,12 @@ describe('BuilderContent overlay', () => {
   })
 
   it('renders node editor overlay after selecting a node to add', async () => {
+    const user = userEvent.setup()
     shouldAutoSelectNode = true
 
     renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
 
-    fireEvent.click(screen.getByRole('button', { name: /add step/i }))
+    await user.click(screen.getByRole('button', { name: /add step/i }))
 
     await waitFor(() => {
       expect(screen.getByTestId('node-editor-overlay')).toBeInTheDocument()

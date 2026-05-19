@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
@@ -77,111 +77,119 @@ describe('ResizableDivider', () => {
     expect(onResize).not.toHaveBeenCalled()
   })
 
-  it('initiates drag on mouse down', () => {
+  it('initiates drag on mouse down', async () => {
+    const user = userEvent.setup()
     const onResize = vi.fn()
     render(<ResizableDivider onResize={onResize} />)
     const separator = screen.getByRole('separator')
 
-    fireEvent.mouseDown(separator, { clientY: 100 })
+    await user.pointer({ target: separator, keys: '[MouseLeft>]', coords: { clientY: 100 } })
 
     expect(document.body.style.cursor).toBe('row-resize')
     expect(document.body.style.userSelect).toBe('none')
   })
 
-  it('calls onResize during mouse drag', () => {
+  it('calls onResize during mouse drag', async () => {
+    const user = userEvent.setup()
     const onResize = vi.fn()
     render(<ResizableDivider onResize={onResize} />)
     const separator = screen.getByRole('separator')
 
-    fireEvent.mouseDown(separator, { clientY: 100 })
-    fireEvent.mouseMove(document, { clientY: 120 })
+    await user.pointer({ target: separator, keys: '[MouseLeft>]', coords: { clientY: 100 } })
+    await user.pointer({ target: document.body, coords: { clientY: 120 } })
 
     expect(onResize).toHaveBeenCalledWith(20)
   })
 
-  it('updates delta correctly on consecutive mouse moves', () => {
+  it('updates delta correctly on consecutive mouse moves', async () => {
+    const user = userEvent.setup()
     const onResize = vi.fn()
     render(<ResizableDivider onResize={onResize} />)
     const separator = screen.getByRole('separator')
 
-    fireEvent.mouseDown(separator, { clientY: 100 })
-    fireEvent.mouseMove(document, { clientY: 120 })
-    fireEvent.mouseMove(document, { clientY: 150 })
+    await user.pointer({ target: separator, keys: '[MouseLeft>]', coords: { clientY: 100 } })
+    await user.pointer({ target: document.body, coords: { clientY: 120 } })
+    await user.pointer({ target: document.body, coords: { clientY: 150 } })
 
     expect(onResize).toHaveBeenCalledTimes(2)
     expect(onResize).toHaveBeenNthCalledWith(1, 20) // 120 - 100
     expect(onResize).toHaveBeenNthCalledWith(2, 30) // 150 - 120
   })
 
-  it('handles upward mouse drag with negative delta', () => {
+  it('handles upward mouse drag with negative delta', async () => {
+    const user = userEvent.setup()
     const onResize = vi.fn()
     render(<ResizableDivider onResize={onResize} />)
     const separator = screen.getByRole('separator')
 
-    fireEvent.mouseDown(separator, { clientY: 100 })
-    fireEvent.mouseMove(document, { clientY: 80 })
+    await user.pointer({ target: separator, keys: '[MouseLeft>]', coords: { clientY: 100 } })
+    await user.pointer({ target: document.body, coords: { clientY: 80 } })
 
     expect(onResize).toHaveBeenCalledWith(-20)
   })
 
-  it('cleans up on mouse up', () => {
+  it('cleans up on mouse up', async () => {
+    const user = userEvent.setup()
     const onResize = vi.fn()
     render(<ResizableDivider onResize={onResize} />)
     const separator = screen.getByRole('separator')
 
-    fireEvent.mouseDown(separator, { clientY: 100 })
+    await user.pointer({ target: separator, keys: '[MouseLeft>]', coords: { clientY: 100 } })
     expect(document.body.style.cursor).toBe('row-resize')
 
-    fireEvent.mouseUp(document)
+    await user.pointer({ target: document.body, keys: '[/MouseLeft]' })
 
     expect(document.body.style.cursor).toBe('')
     expect(document.body.style.userSelect).toBe('')
   })
 
-  it('does not respond to mouse move after mouse up', () => {
+  it('does not respond to mouse move after mouse up', async () => {
+    const user = userEvent.setup()
     const onResize = vi.fn()
     render(<ResizableDivider onResize={onResize} />)
     const separator = screen.getByRole('separator')
 
-    fireEvent.mouseDown(separator, { clientY: 100 })
-    fireEvent.mouseMove(document, { clientY: 120 })
-    fireEvent.mouseUp(document)
+    await user.pointer({ target: separator, keys: '[MouseLeft>]', coords: { clientY: 100 } })
+    await user.pointer({ target: document.body, coords: { clientY: 120 } })
+    await user.pointer({ target: document.body, keys: '[/MouseLeft]' })
 
     onResize.mockClear()
-    fireEvent.mouseMove(document, { clientY: 150 })
+    await user.pointer({ target: document.body, coords: { clientY: 150 } })
 
     expect(onResize).not.toHaveBeenCalled()
   })
 
-  it('handles multiple drag sessions', () => {
+  it('handles multiple drag sessions', async () => {
+    const user = userEvent.setup()
     const onResize = vi.fn()
     render(<ResizableDivider onResize={onResize} />)
     const separator = screen.getByRole('separator')
 
     // First drag session
-    fireEvent.mouseDown(separator, { clientY: 100 })
-    fireEvent.mouseMove(document, { clientY: 120 })
-    fireEvent.mouseUp(document)
+    await user.pointer({ target: separator, keys: '[MouseLeft>]', coords: { clientY: 100 } })
+    await user.pointer({ target: document.body, coords: { clientY: 120 } })
+    await user.pointer({ target: document.body, keys: '[/MouseLeft]' })
 
     // Second drag session
-    fireEvent.mouseDown(separator, { clientY: 200 })
-    fireEvent.mouseMove(document, { clientY: 230 })
-    fireEvent.mouseUp(document)
+    await user.pointer({ target: separator, keys: '[MouseLeft>]', coords: { clientY: 200 } })
+    await user.pointer({ target: document.body, coords: { clientY: 230 } })
+    await user.pointer({ target: document.body, keys: '[/MouseLeft]' })
 
     expect(onResize).toHaveBeenCalledTimes(2)
     expect(onResize).toHaveBeenNthCalledWith(1, 20)
     expect(onResize).toHaveBeenNthCalledWith(2, 30)
   })
 
-  it('cleans up event listeners on unmount during drag', () => {
+  it('cleans up event listeners on unmount during drag', async () => {
+    const user = userEvent.setup()
     const onResize = vi.fn()
     const { unmount } = render(<ResizableDivider onResize={onResize} />)
 
     const separator = screen.getByRole('separator')
-    fireEvent.mouseDown(separator, { clientY: 100 })
+    await user.pointer({ target: separator, keys: '[MouseLeft>]', coords: { clientY: 100 } })
     unmount()
 
-    fireEvent.mouseMove(document, { clientY: 150 })
+    await user.pointer({ target: document.body, coords: { clientY: 150 } })
     expect(onResize).not.toHaveBeenCalled()
   })
 })

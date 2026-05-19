@@ -1,5 +1,5 @@
 import type { Approval } from '@ansible/nexus-contracts'
-import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
+import { render, screen, within, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
@@ -307,7 +307,8 @@ describe('Approvals Component', () => {
       expect(within(statusHeader).getByRole('button')).toBeInTheDocument()
     })
 
-    it('changes sort when clicking column headers', () => {
+    it('changes sort when clicking column headers', async () => {
+      const user = userEvent.setup()
       mockApprovalsQuery(mockApprovals)
 
       render(<Approvals />)
@@ -315,7 +316,7 @@ describe('Approvals Component', () => {
       // Click Approval name header to sort by name
       const approvalNameHeader = screen.getByRole('columnheader', { name: /Approval name/i })
       const sortButton = within(approvalNameHeader).getByRole('button')
-      fireEvent.click(sortButton)
+      await user.click(sortButton)
 
       // All approvals should still be visible
       expect(screen.getByText('Test Approval 1')).toBeInTheDocument()
@@ -323,7 +324,8 @@ describe('Approvals Component', () => {
       expect(screen.getByText('Test Approval 3')).toBeInTheDocument()
     })
 
-    it('can toggle sort direction by clicking the same column header', () => {
+    it('can toggle sort direction by clicking the same column header', async () => {
+      const user = userEvent.setup()
       mockApprovalsQuery(mockApprovals)
 
       render(<Approvals />)
@@ -332,8 +334,8 @@ describe('Approvals Component', () => {
       const sortButton = within(approvalNameHeader).getByRole('button')
 
       // Click twice to toggle direction
-      fireEvent.click(sortButton)
-      fireEvent.click(sortButton)
+      await user.click(sortButton)
+      await user.click(sortButton)
 
       // All approvals should still be visible after sorting
       expect(screen.getByText('Test Approval 1')).toBeInTheDocument()
@@ -341,7 +343,8 @@ describe('Approvals Component', () => {
       expect(screen.getByText('Test Approval 3')).toBeInTheDocument()
     })
 
-    it('can sort by different columns', () => {
+    it('can sort by different columns', async () => {
+      const user = userEvent.setup()
       mockApprovalsQuery(mockApprovals)
 
       render(<Approvals />)
@@ -349,7 +352,7 @@ describe('Approvals Component', () => {
       // Click Status header
       const statusHeader = screen.getByRole('columnheader', { name: /Status/i })
       const statusSortButton = within(statusHeader).getByRole('button')
-      fireEvent.click(statusSortButton)
+      await user.click(statusSortButton)
 
       // All approvals should still be visible
       expect(screen.getByText('Test Approval 1')).toBeInTheDocument()
@@ -357,7 +360,8 @@ describe('Approvals Component', () => {
       expect(screen.getByText('Test Approval 3')).toBeInTheDocument()
     })
 
-    it('can sort by Actioned on (decided_at) column', () => {
+    it('can sort by Actioned on (decided_at) column', async () => {
+      const user = userEvent.setup()
       mockApprovalsQuery(mockApprovals)
 
       render(<Approvals />)
@@ -365,7 +369,7 @@ describe('Approvals Component', () => {
       // Click Actioned on header
       const actionedOnHeader = screen.getByRole('columnheader', { name: /Actioned on/i })
       const sortButton = within(actionedOnHeader).getByRole('button')
-      fireEvent.click(sortButton)
+      await user.click(sortButton)
 
       // All approvals should still be visible
       expect(screen.getByText('Test Approval 1')).toBeInTheDocument()
@@ -373,14 +377,15 @@ describe('Approvals Component', () => {
       expect(screen.getByText('Test Approval 3')).toBeInTheDocument()
     })
 
-    it('can sort by Workflow column', () => {
+    it('can sort by Workflow column', async () => {
+      const user = userEvent.setup()
       mockApprovalsQuery(mockApprovals)
 
       render(<Approvals />)
 
       const workflowHeader = screen.getByRole('columnheader', { name: /Workflow/i })
       const sortButton = within(workflowHeader).getByRole('button')
-      fireEvent.click(sortButton)
+      await user.click(sortButton)
 
       expect(screen.getByText('Another Workflow')).toBeInTheDocument()
       expect(screen.getByText('Test Workflow')).toBeInTheDocument()
@@ -388,20 +393,22 @@ describe('Approvals Component', () => {
   })
 
   describe('Row Expansion', () => {
-    it('expands a row when clicking the expand button', () => {
+    it('expands a row when clicking the expand button', async () => {
+      const user = userEvent.setup()
       mockApprovalsQuery(mockApprovals)
 
       render(<Approvals />)
 
       // Find and click the first expand toggle
       const expandButtons = screen.getAllByRole('button', { name: /details/i })
-      fireEvent.click(expandButtons[0])
+      await user.click(expandButtons[0])
 
       // The expanded content should show the description
       expect(screen.getByText('This is a test approval requiring manual review')).toBeInTheDocument()
     })
 
-    it('collapses an expanded row when clicking the expand button again', () => {
+    it('collapses an expanded row when clicking the expand button again', async () => {
+      const user = userEvent.setup()
       mockApprovalsQuery(mockApprovals)
 
       render(<Approvals />)
@@ -409,23 +416,24 @@ describe('Approvals Component', () => {
       const expandButtons = screen.getAllByRole('button', { name: /details/i })
 
       // Expand then collapse
-      fireEvent.click(expandButtons[0])
+      await user.click(expandButtons[0])
       expect(screen.getByText('This is a test approval requiring manual review')).toBeInTheDocument()
 
-      fireEvent.click(expandButtons[0])
+      await user.click(expandButtons[0])
       // Row toggle was clicked again - state should be collapsed
       // The expanded row content is still in DOM but the row state changes
       expect(expandButtons[0]).toBeInTheDocument()
     })
 
-    it('can expand all rows using the header expand toggle', () => {
+    it('can expand all rows using the header expand toggle', async () => {
+      const user = userEvent.setup()
       mockApprovalsQuery(mockApprovals)
 
       render(<Approvals />)
 
       // Find the expand all button in the header
       const expandAllButton = screen.getByRole('button', { name: /expand all/i })
-      fireEvent.click(expandAllButton)
+      await user.click(expandAllButton)
 
       // All descriptions should be visible
       expect(screen.getByText('This is a test approval requiring manual review')).toBeInTheDocument()
@@ -433,27 +441,29 @@ describe('Approvals Component', () => {
       expect(screen.getByText('Policy compliance review required')).toBeInTheDocument()
     })
 
-    it('can collapse all rows using the header collapse toggle', () => {
+    it('can collapse all rows using the header collapse toggle', async () => {
+      const user = userEvent.setup()
       mockApprovalsQuery(mockApprovals)
 
       render(<Approvals />)
 
       // Expand all first
       const expandAllButton = screen.getByRole('button', { name: /expand all/i })
-      fireEvent.click(expandAllButton)
+      await user.click(expandAllButton)
 
       // All descriptions should be visible after expanding
       expect(screen.getByText('This is a test approval requiring manual review')).toBeInTheDocument()
 
       // The onCollapseAll function is tested by clicking again
       // After expanding all, clicking the toggle should collapse
-      fireEvent.click(expandAllButton)
+      await user.click(expandAllButton)
 
       // Toggle was clicked - the state changed
       expect(expandAllButton).toBeInTheDocument()
     })
 
-    it('shows "No description provided" for approvals without description', () => {
+    it('shows "No description provided" for approvals without description', async () => {
+      const user = userEvent.setup()
       const approvalWithoutDesc = {
         ...mockApprovals[0],
         id: 'no-desc-approval',
@@ -465,7 +475,7 @@ describe('Approvals Component', () => {
 
       // Expand the row
       const expandButton = screen.getByRole('button', { name: /details/i })
-      fireEvent.click(expandButton)
+      await user.click(expandButton)
 
       expect(screen.getByText('No description provided')).toBeInTheDocument()
     })
@@ -608,7 +618,8 @@ describe('Approvals Component', () => {
       expect(screen.queryAllByText((_, el) => (el?.textContent ?? '').includes('1 - 20 of 50'))).not.toHaveLength(0)
     })
 
-    it('handles next page navigation', () => {
+    it('handles next page navigation', async () => {
+      const user = userEvent.setup()
       vi.mocked(approvalsClient.useQuery).mockReturnValue({
         data: {
           resources: mockApprovals,
@@ -623,12 +634,13 @@ describe('Approvals Component', () => {
       render(<Approvals />)
 
       const nextButton = screen.getByRole('button', { name: /next/i })
-      fireEvent.click(nextButton)
+      await user.click(nextButton)
 
       expect(nextButton).toBeInTheDocument()
     })
 
-    it('handles previous page navigation', () => {
+    it('handles previous page navigation', async () => {
+      const user = userEvent.setup()
       vi.mocked(approvalsClient.useQuery).mockReturnValue({
         data: {
           resources: mockApprovals,
@@ -643,12 +655,13 @@ describe('Approvals Component', () => {
       render(<Approvals />)
 
       const prevButton = screen.getByRole('button', { name: /previous/i })
-      fireEvent.click(prevButton)
+      await user.click(prevButton)
 
       expect(prevButton).toBeInTheDocument()
     })
 
     it('does not reset cursor while query is fetching', async () => {
+      const user = userEvent.setup()
       const mockRefetch = vi.fn()
 
       // First render: page 1 with data
@@ -674,7 +687,7 @@ describe('Approvals Component', () => {
       expect(nextButton).toBeInTheDocument()
 
       // Click Next to set internal cursor state
-      fireEvent.click(nextButton)
+      await user.click(nextButton)
 
       // Verify cursor was set after clicking Next
       await waitFor(() => {
@@ -740,6 +753,7 @@ describe('Approvals Component', () => {
     })
 
     it('resets cursor when data is empty and query is not fetching', async () => {
+      const user = userEvent.setup()
       const mockRefetch = vi.fn()
 
       // Ensure useFilterState returns no active filters so hasActiveFilters is false
@@ -772,7 +786,7 @@ describe('Approvals Component', () => {
 
       // Click Next to set cursor
       const nextButton = screen.getByRole('button', { name: /next/i })
-      fireEvent.click(nextButton)
+      await user.click(nextButton)
 
       // Wait for cursor to be set and verify it's present
       await waitFor(() => {

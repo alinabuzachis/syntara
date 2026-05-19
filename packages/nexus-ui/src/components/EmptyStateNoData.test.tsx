@@ -1,4 +1,5 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
@@ -44,11 +45,12 @@ describe('EmptyStateNoData', () => {
     expect(screen.queryByRole('button', { name: 'Add data' })).not.toBeInTheDocument()
   })
 
-  it('calls addData when button is clicked', () => {
+  it('calls addData when button is clicked', async () => {
+    const user = userEvent.setup()
     const addData = vi.fn()
     render(<EmptyStateNoData addData={addData} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add data' }))
+    await user.click(screen.getByRole('button', { name: 'Add data' }))
     expect(addData).toHaveBeenCalledTimes(1)
   })
 

@@ -1,4 +1,5 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
@@ -53,11 +54,12 @@ describe('EmptyStateFilter', () => {
     expect(screen.queryByRole('button', { name: 'Clear all filters' })).not.toBeInTheDocument()
   })
 
-  it('calls clearAllFilters when button is clicked', () => {
+  it('calls clearAllFilters when button is clicked', async () => {
+    const user = userEvent.setup()
     const clearAllFilters = vi.fn()
     render(<EmptyStateFilter clearAllFilters={clearAllFilters} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Clear all filters' }))
+    await user.click(screen.getByRole('button', { name: 'Clear all filters' }))
     expect(clearAllFilters).toHaveBeenCalledTimes(1)
   })
 

@@ -1,6 +1,6 @@
 import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import { SimpleList } from '@patternfly/react-core'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -69,9 +69,10 @@ describe('WorkflowHistoryCard', () => {
     expect(screen.getByLabelText('Close')).toBeInTheDocument()
   })
 
-  it('calls onClose when close button is clicked', () => {
+  it('calls onClose when close button is clicked', async () => {
+    const user = userEvent.setup()
     render(<WorkflowHistoryCard {...defaultProps} />)
-    fireEvent.click(screen.getByLabelText('Close'))
+    await user.click(screen.getByLabelText('Close'))
     expect(mockOnClose).toHaveBeenCalledTimes(1)
   })
 
@@ -124,10 +125,11 @@ describe('WorkflowHistoryCard', () => {
     expect(statusLabels[1]).toHaveTextContent('failed')
   })
 
-  it('calls onExecutionSelect with the execution id when row is clicked', () => {
+  it('calls onExecutionSelect with the execution id when row is clicked', async () => {
+    const user = userEvent.setup()
     render(<WorkflowHistoryCard {...defaultProps} executions={[baseExecution]} />)
     const row = screen.getByRole('button', { name: /running/i })
-    fireEvent.click(row)
+    await user.click(row)
     expect(mockOnExecutionSelect).toHaveBeenCalledWith(baseExecution.id)
   })
 
@@ -253,9 +255,10 @@ describe('ExecutionHistoryRow', () => {
     expect(screen.queryByTestId('status-label')).not.toBeInTheDocument()
   })
 
-  it('calls onSelect when row is clicked', () => {
+  it('calls onSelect when row is clicked', async () => {
+    const user = userEvent.setup()
     renderRow(baseExecution)
-    fireEvent.click(screen.getByRole('button'))
+    await user.click(screen.getByRole('button'))
     expect(mockOnSelect).toHaveBeenCalledTimes(1)
   })
 
