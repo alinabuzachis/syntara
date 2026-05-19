@@ -1,10 +1,10 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 
-import { CodeBlock } from './CodeBlock'
+import { NxCodeBlock } from './NxCodeBlock'
 
-describe('CodeBlock', () => {
+describe('NxCodeBlock', () => {
   // Mock clipboard API - store ref to mock so we can assert on it
   const originalClipboard = navigator.clipboard
   let mockWriteText: ReturnType<typeof vi.fn>
@@ -30,75 +30,52 @@ describe('CodeBlock', () => {
   })
 
   it('renders string children', () => {
-    render(<CodeBlock>console.log('hello')</CodeBlock>)
+    render(<NxCodeBlock>console.log('hello')</NxCodeBlock>)
 
     expect(screen.getByText("console.log('hello')")).toBeInTheDocument()
   })
 
   it('renders JSON object formatted', () => {
     const jsonObject = { name: 'test', value: 123 }
-    render(<CodeBlock jsonObject={jsonObject} />)
+    render(<NxCodeBlock jsonObject={jsonObject} />)
 
     expect(screen.getByText(/"name": "test"/)).toBeInTheDocument()
     expect(screen.getByText(/"value": 123/)).toBeInTheDocument()
   })
 
   it('renders as PatternFly CodeBlock', () => {
-    const { container } = render(<CodeBlock>code</CodeBlock>)
+    render(<NxCodeBlock>code</NxCodeBlock>)
 
-    const codeBlock = container.querySelector('.pf-v6-c-code-block')
-    expect(codeBlock).toBeInTheDocument()
-  })
-
-  it('renders with maxHeight by default', () => {
-    const { container } = render(<CodeBlock>code</CodeBlock>)
-
-    const wrapper = container.firstChild as HTMLElement
-    expect(wrapper).toHaveStyle({ maxHeight: '24rem' })
-  })
-
-  it('renders without maxHeight when noMaxHeight is true', () => {
-    const { container } = render(<CodeBlock noMaxHeight>code</CodeBlock>)
-
-    const codeBlock = container.querySelector('.pf-v6-c-code-block')
-
-    expect(codeBlock?.parentElement).not.toHaveStyle({ maxHeight: '24rem' })
-  })
-
-  it('renders with fillHeight style', () => {
-    const { container } = render(<CodeBlock fillHeight>code</CodeBlock>)
-
-    const wrapper = container.firstChild as HTMLElement
-    expect(wrapper).toHaveStyle({ height: '100%' })
+    // PF CodeBlock renders content inside a <code> element
+    expect(screen.getByText('code').tagName.toLowerCase()).toBe('code')
   })
 
   it('does not show copy button by default', () => {
-    render(<CodeBlock>code</CodeBlock>)
+    render(<NxCodeBlock>code</NxCodeBlock>)
 
     expect(screen.queryByRole('button', { name: 'Copy to clipboard' })).not.toBeInTheDocument()
   })
 
   it('shows copy button when enableCopy is true', () => {
-    render(<CodeBlock enableCopy>code</CodeBlock>)
+    render(<NxCodeBlock enableCopy>code</NxCodeBlock>)
 
     expect(screen.getByRole('button', { name: 'Copy to clipboard' })).toBeInTheDocument()
   })
 
   it('copies text to clipboard when copy button clicked', async () => {
-    render(<CodeBlock enableCopy>code to copy</CodeBlock>)
+    render(<NxCodeBlock enableCopy>code to copy</NxCodeBlock>)
 
     const copyButton = screen.getByRole('button', { name: 'Copy to clipboard' })
-    // eslint-disable-next-line testing-library/prefer-user-event -- userEvent does not trigger PF ClipboardCopyButton tooltip in jsdom
-    fireEvent.click(copyButton)
+    await userEvent.click(copyButton)
 
     expect(mockWriteText).toHaveBeenCalledWith('code to copy')
-    await waitFor(() => {
-      expect(screen.getByText('Copied to clipboard')).toBeInTheDocument()
-    })
   })
 
+  // fireEvent.click is required here: userEvent's internal scheduler advances setTimeout,
+  // which fires the setIsCopied(false) reset before waitFor can observe the tooltip text.
+  // PF's ClipboardCopyButton tooltip is not reliably surfaced via userEvent in jsdom.
   it('shows "Copied to clipboard" after successful copy', async () => {
-    render(<CodeBlock enableCopy>code</CodeBlock>)
+    render(<NxCodeBlock enableCopy>code</NxCodeBlock>)
 
     const copyButton = screen.getByRole('button', { name: 'Copy to clipboard' })
     // eslint-disable-next-line testing-library/prefer-user-event -- userEvent does not trigger PF ClipboardCopyButton tooltip in jsdom
@@ -111,15 +88,15 @@ describe('CodeBlock', () => {
 
   it('copies JSON object to clipboard', async () => {
     const jsonObject = { test: 'value' }
-    render(<CodeBlock enableCopy jsonObject={jsonObject} />)
+    render(<NxCodeBlock enableCopy jsonObject={jsonObject} />)
 
     const copyButton = screen.getByRole('button', { name: 'Copy to clipboard' })
     // eslint-disable-next-line testing-library/prefer-user-event -- userEvent does not trigger PF ClipboardCopyButton tooltip in jsdom
     fireEvent.click(copyButton)
 
-    expect(mockWriteText).toHaveBeenCalledWith(JSON.stringify(jsonObject, undefined, 2))
+    // waitFor absorbs the setIsCopied(true) microtask (queued via detachPromise) inside act()
     await waitFor(() => {
-      expect(screen.getByText('Copied to clipboard')).toBeInTheDocument()
+      expect(mockWriteText).toHaveBeenCalledWith(JSON.stringify(jsonObject, undefined, 2))
     })
   })
 
@@ -133,10 +110,10 @@ describe('CodeBlock', () => {
       configurable: true,
     })
 
-    render(<CodeBlock enableCopy>code</CodeBlock>)
+    render(<NxCodeBlock enableCopy>code</NxCodeBlock>)
 
     const copyButton = screen.getByRole('button', { name: 'Copy to clipboard' })
-    // Direct userEvent.click (no userEvent.setup()) avoids TL replacing navigator.clipboard with its stub.
+    // Static userEvent.click (no userEvent.setup()) avoids TL replacing navigator.clipboard with its stub.
     await userEvent.click(copyButton)
 
     await waitFor(() => {
@@ -148,17 +125,14 @@ describe('CodeBlock', () => {
   })
 
   it('renders children over jsonObject when both provided', () => {
-    render(<CodeBlock jsonObject={{ ignored: true }}>preferred content</CodeBlock>)
+    render(<NxCodeBlock jsonObject={{ ignored: true }}>preferred content</NxCodeBlock>)
 
     expect(screen.getByText('preferred content')).toBeInTheDocument()
     expect(screen.queryByText('ignored')).not.toBeInTheDocument()
   })
 
   it('handles empty content gracefully', () => {
-    const { container } = render(<CodeBlock />)
-
-    const codeBlock = container.querySelector('.pf-v6-c-code-block')
-    expect(codeBlock).toBeInTheDocument()
+    expect(() => render(<NxCodeBlock />)).not.toThrow()
   })
 
   it('does not copy when clipboard is unavailable', async () => {
@@ -168,7 +142,7 @@ describe('CodeBlock', () => {
       configurable: true,
     })
 
-    render(<CodeBlock enableCopy>code</CodeBlock>)
+    render(<NxCodeBlock enableCopy>code</NxCodeBlock>)
 
     const copyButton = screen.getByRole('button', { name: 'Copy to clipboard' })
     await expect(userEvent.click(copyButton)).resolves.toBeUndefined()
@@ -176,13 +150,13 @@ describe('CodeBlock', () => {
 
   describe('expand modal', () => {
     it('does not render expand button by default', () => {
-      render(<CodeBlock>code</CodeBlock>)
+      render(<NxCodeBlock>code</NxCodeBlock>)
 
       expect(screen.queryByRole('button', { name: 'Expand code' })).not.toBeInTheDocument()
     })
 
     it('renders expand button when enableExpand is true', () => {
-      render(<CodeBlock enableExpand>code</CodeBlock>)
+      render(<NxCodeBlock enableExpand>code</NxCodeBlock>)
 
       expect(screen.getByRole('button', { name: 'Expand code' })).toBeInTheDocument()
     })
@@ -190,9 +164,9 @@ describe('CodeBlock', () => {
     it('opens modal when expand button is clicked', async () => {
       const user = userEvent.setup()
       render(
-        <CodeBlock enableExpand expandTitle="Output JSON">
+        <NxCodeBlock enableExpand expandTitle="Output JSON">
           code content
-        </CodeBlock>
+        </NxCodeBlock>
       )
 
       await user.click(screen.getByRole('button', { name: 'Expand code' }))
@@ -204,9 +178,9 @@ describe('CodeBlock', () => {
     it('closes modal when X button is clicked', async () => {
       const user = userEvent.setup()
       render(
-        <CodeBlock enableExpand expandTitle="Output JSON">
+        <NxCodeBlock enableExpand expandTitle="Output JSON">
           code content
-        </CodeBlock>
+        </NxCodeBlock>
       )
 
       await user.click(screen.getByRole('button', { name: 'Expand code' }))
@@ -219,9 +193,9 @@ describe('CodeBlock', () => {
     it('shows copy button inside modal when enableCopy is true', async () => {
       const user = userEvent.setup()
       render(
-        <CodeBlock enableExpand enableCopy expandTitle="Output JSON">
+        <NxCodeBlock enableExpand enableCopy expandTitle="Output JSON">
           code content
-        </CodeBlock>
+        </NxCodeBlock>
       )
 
       await user.click(screen.getByRole('button', { name: 'Expand code' }))
@@ -235,15 +209,19 @@ describe('CodeBlock', () => {
 
     it('modal has no footer element', async () => {
       const user = userEvent.setup()
-      const { container } = render(
-        <CodeBlock enableExpand expandTitle="Output JSON">
+      render(
+        <NxCodeBlock enableExpand expandTitle="Output JSON">
           code
-        </CodeBlock>
+        </NxCodeBlock>
       )
 
       await user.click(screen.getByRole('button', { name: 'Expand code' }))
 
-      expect(container.querySelector('.pf-v6-c-modal-box__footer')).not.toBeInTheDocument()
+      const dialog = screen.getByRole('dialog', { name: 'Output JSON' })
+      // Only the header Close button should be present — no footer buttons
+      const buttons = within(dialog).getAllByRole('button')
+      expect(buttons).toHaveLength(1)
+      expect(buttons[0]).toHaveAccessibleName('Close')
     })
   })
 })

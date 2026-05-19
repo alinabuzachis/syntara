@@ -1,7 +1,7 @@
 import { SearchInput, Stack, StackItem } from '@patternfly/react-core'
 import { useMemo, useState } from 'react'
 
-import { CodeBlock } from '../../../../components/details/CodeBlock'
+import { NxCodeBlock } from '../../../../components/details/NxCodeBlock'
 
 export type OutputJsonViewProps = {
   data: Record<string, unknown> | null
@@ -34,9 +34,9 @@ export function OutputJsonView({ data }: Readonly<OutputJsonViewProps>) {
         />
       </StackItem>
       <StackItem isFilled>
-        <CodeBlock enableCopy enableExpand expandTitle="Output JSON" noMaxHeight copyContent={fullJson}>
+        <NxCodeBlock enableCopy enableExpand expandTitle="Output JSON" noMaxHeight copyContent={fullJson}>
           {filteredContent ?? fullJson}
-        </CodeBlock>
+        </NxCodeBlock>
       </StackItem>
     </Stack>
   )

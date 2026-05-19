@@ -17,7 +17,7 @@ import {
 } from '@patternfly/react-core'
 import { RhUiCodeIcon, RhUiCloseIcon } from '@patternfly/react-icons'
 
-import { CodeBlock } from '../../components/details/CodeBlock'
+import { NxCodeBlock } from '../../components/details/NxCodeBlock'
 import { NxPanel } from '../../components/layout/NxPanel'
 
 type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersion']
@@ -85,7 +85,7 @@ export function WorkflowSidepanel(props: WorkflowSidepanelProps) {
               <DescriptionListGroup>
                 <DescriptionListTerm>Workflow definition</DescriptionListTerm>
                 <DescriptionListDescription>
-                  <CodeBlock jsonObject={props.workflow.version.workflow_definition} noMaxHeight />
+                  <NxCodeBlock jsonObject={props.workflow.version.workflow_definition} noMaxHeight />
                 </DescriptionListDescription>
               </DescriptionListGroup>
             )}

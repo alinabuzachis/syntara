@@ -21,7 +21,7 @@ import { useEffect } from 'react'
 import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../app/AppRoute'
-import { CodeBlock } from '../../components/details/CodeBlock'
+import { NxCodeBlock } from '../../components/details/NxCodeBlock'
 import { NxPanel } from '../../components/layout/NxPanel'
 
 import { buildPolicyDefinitionJson } from './policyUtils'
@@ -221,7 +221,7 @@ export function PolicyDetailSidebar({ policy, onClose, projectName }: Readonly<P
                         >
                           Conditions:
                         </Content>
-                        <CodeBlock jsonObject={stmt.conditions} noMaxHeight enableCopy={false} />
+                        <NxCodeBlock jsonObject={stmt.conditions} noMaxHeight enableCopy={false} />
                       </FlexItem>
                     )}
                   </Flex>
@@ -240,7 +240,7 @@ export function PolicyDetailSidebar({ policy, onClose, projectName }: Readonly<P
           <Title headingLevel="h3" size={TitleSizes.md} style={{ marginBottom: 'var(--pf-t--global--spacer--sm)' }}>
             Policy definition
           </Title>
-          <CodeBlock jsonObject={policyJson} noMaxHeight enableCopy />
+          <NxCodeBlock jsonObject={policyJson} noMaxHeight enableCopy />
         </StackItem>
       </Stack>
     </NxPanel>

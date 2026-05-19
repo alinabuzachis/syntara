@@ -16,7 +16,7 @@ import {
 import { RhUiCloseIcon } from '@patternfly/react-icons'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { CodeBlock } from '../../components/details/CodeBlock'
+import { NxCodeBlock } from '../../components/details/NxCodeBlock'
 import { ErrorState } from '../../components/states/ErrorState'
 import { useElapsedTime } from '../../hooks/useElapsedTime'
 import { formatExecutionDateTime, formatElapsedTime } from '../../utils/dateUtils'
@@ -86,9 +86,9 @@ function DataPane({ title, nodeId, data, view, onViewChange, isErrorState = fals
       case 'json':
         return (
           <div style={isErrorState ? { color: 'var(--pf-t--global--color--status--danger--default)' } : undefined}>
-            <CodeBlock enableCopy enableExpand expandTitle={`${title} JSON`} noMaxHeight copyContent={jsonText}>
+            <NxCodeBlock enableCopy enableExpand expandTitle={`${title} JSON`} noMaxHeight copyContent={jsonText}>
               {highlightedJson ?? jsonText}
-            </CodeBlock>
+            </NxCodeBlock>
           </div>
         )
     }

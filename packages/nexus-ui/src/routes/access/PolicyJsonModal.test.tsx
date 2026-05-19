@@ -6,8 +6,8 @@ import { axe } from 'vitest-axe'
 import { PolicyJsonModal } from './PolicyJsonModal'
 import type { PolicyRead } from './types'
 
-vi.mock('../../components/details/CodeBlock', () => ({
-  CodeBlock: ({ jsonObject }: { jsonObject: unknown }) => <pre>{JSON.stringify(jsonObject)}</pre>,
+vi.mock('../../components/details/NxCodeBlock', () => ({
+  NxCodeBlock: ({ jsonObject }: { jsonObject: unknown }) => <pre>{JSON.stringify(jsonObject)}</pre>,
 }))
 
 const samplePolicy: PolicyRead = {

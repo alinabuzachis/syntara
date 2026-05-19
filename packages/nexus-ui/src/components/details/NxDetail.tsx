@@ -1,9 +1,14 @@
 import { DescriptionListDescription, DescriptionListGroup, DescriptionListTerm } from '@patternfly/react-core'
 
-export function Detail(props: { label: string; children?: React.ReactNode }) {
+/**
+ * A single label/value row used inside detail pages (credentials, approvals, etc.).
+ * Renders nothing when the value is absent, so optional fields can be passed unconditionally.
+ */
+export function NxDetail(props: { label: string; children?: React.ReactNode }) {
   if (!props.children || props.children === null) {
     return null
   }
+
   return (
     <DescriptionListGroup>
       <DescriptionListTerm>{props.label}</DescriptionListTerm>

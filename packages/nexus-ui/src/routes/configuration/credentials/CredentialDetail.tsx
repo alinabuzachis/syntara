@@ -8,7 +8,7 @@ import { useLocation, useParams } from 'wouter'
 import { AppRoute } from '../../../app/AppRoute'
 import { breadcrumbsCredentialDetail, breadcrumbsCredentialEarlyShell } from '../../../app/breadcrumbBuilders'
 import { credentialsClient } from '../../../client'
-import { Detail } from '../../../components/details/Detail'
+import { NxDetail } from '../../../components/details/NxDetail'
 import { IconLabel } from '../../../components/IconLabel'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
@@ -237,29 +237,29 @@ export default function CredentialDetail() {
               <Stack hasGutter style={{ padding: 'var(--pf-t--global--spacer--lg)' }}>
                 <StackItem>
                   <DescriptionList isHorizontal>
-                    <Detail label="Name">{credential.name}</Detail>
-                    {hasDescription ? <Detail label="Description">{credential.description}</Detail> : null}
-                    <Detail label="Type">{credentialTypeDisplayText}</Detail>
-                    <Detail label="Workflows">
+                    <NxDetail label="Name">{credential.name}</NxDetail>
+                    {hasDescription ? <NxDetail label="Description">{credential.description}</NxDetail> : null}
+                    <NxDetail label="Type">{credentialTypeDisplayText}</NxDetail>
+                    <NxDetail label="Workflows">
                       {credential.workflow_count != null && credential.workflow_count > 0
                         ? credential.workflow_count
                         : '\u2014'}
-                    </Detail>
-                    <Detail label="Last modified">
+                    </NxDetail>
+                    <NxDetail label="Last modified">
                       <UserTimestamp
                         user={credential.updated_by}
                         timestamp={credential.updated_at}
                         subtleTimestamp={false}
                       />
-                    </Detail>
-                    <Detail label="Created">
+                    </NxDetail>
+                    <NxDetail label="Created">
                       <UserTimestamp
                         user={credential.created_by}
                         timestamp={credential.created_at}
                         subtleTimestamp={false}
                       />
-                    </Detail>
-                    <Detail label="State">
+                    </NxDetail>
+                    <NxDetail label="State">
                       {credential.enabled ? (
                         <Label variant="outline" status="success" isCompact>
                           Enabled
@@ -269,14 +269,14 @@ export default function CredentialDetail() {
                           Disabled
                         </Label>
                       )}
-                    </Detail>
+                    </NxDetail>
 
                     {/* Dynamic credential fields */}
                     {typeFields.map((field) => {
                       const value = credInputs[field.id]
                       const isEncrypted = value === ENCRYPTED_SENTINEL
                       return (
-                        <Detail key={field.id} label={field.label}>
+                        <NxDetail key={field.id} label={field.label}>
                           {isEncrypted ? (
                             <Label variant="outline" isCompact>
                               Encrypted
@@ -284,7 +284,7 @@ export default function CredentialDetail() {
                           ) : (
                             String((value as string | number | boolean) ?? '\u2014')
                           )}
-                        </Detail>
+                        </NxDetail>
                       )
                     })}
                   </DescriptionList>

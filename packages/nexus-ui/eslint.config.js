@@ -87,6 +87,9 @@ export default tseslint.config(
         tsconfigRootDir: __dirname,
       },
     },
+    settings: {
+      react: { version: 'detect' },
+    },
     plugins: {
       react,
       'react-hooks': reactHooks,

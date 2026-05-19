@@ -2,8 +2,8 @@ import { ActivityTypeEnum, type ConvergeActivity } from '@ansible/nexus-contract
 import { Flex } from '@patternfly/react-core'
 import { type Node, type NodeProps } from '@xyflow/react'
 
-import { Detail } from '../../../../components/details/Detail'
-import { Details } from '../../../../components/details/Details'
+import { NxDetail } from '../../../../components/details/NxDetail'
+import { NxDetailList } from '../../../../components/details/NxDetailList'
 import { RegistryNodeId } from '../../../../constants'
 import type { ActivityStatus } from '../../execution/types'
 import { getNodeTypeColor } from '../nodeTypeColors'
@@ -58,9 +58,9 @@ export function ConvergeNodeComponent(props: NodeProps<ConvergeNode>) {
       <StandardNodeHeader icon={iconNode} title={props.data.name} subtitle={metadata.label} expandable />
       <Flex justifyContent={{ default: 'justifyContentFlexStart' }} style={{ overflow: 'hidden' }}>
         <NodeBody>
-          <Details data-testid="converge-node-details">
-            <Detail label="Type">{strategyLabel}</Detail>
-          </Details>
+          <NxDetailList data-testid="converge-node-details">
+            <NxDetail label="Type">{strategyLabel}</NxDetail>
+          </NxDetailList>
         </NodeBody>
       </Flex>
     </NodeComponent>

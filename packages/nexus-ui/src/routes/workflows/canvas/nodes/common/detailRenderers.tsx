@@ -1,5 +1,5 @@
-import { CodeBlock } from '../../../../../components/details/CodeBlock'
-import { Detail } from '../../../../../components/details/Detail'
+import { NxCodeBlock } from '../../../../../components/details/NxCodeBlock'
+import { NxDetail } from '../../../../../components/details/NxDetail'
 
 const nodeCodeBlockProps = { noMaxHeight: true }
 
@@ -9,9 +9,9 @@ const nodeCodeBlockProps = { noMaxHeight: true }
 export function renderCondition(condition?: string) {
   if (!condition) return null
   return (
-    <Detail label="Condition">
-      <CodeBlock {...nodeCodeBlockProps}>{condition}</CodeBlock>
-    </Detail>
+    <NxDetail label="Condition">
+      <NxCodeBlock {...nodeCodeBlockProps}>{condition}</NxCodeBlock>
+    </NxDetail>
   )
 }
 
@@ -21,13 +21,13 @@ export function renderCondition(condition?: string) {
 export function renderOutputs(outputs?: Record<string, unknown>) {
   if (!outputs) return null
   return (
-    <Detail label="Outputs">
-      <CodeBlock {...nodeCodeBlockProps}>
+    <NxDetail label="Outputs">
+      <NxCodeBlock {...nodeCodeBlockProps}>
         {Object.entries(outputs)
           .map(([key, value]) => `${key}: ${String(value)}`)
           .join('\n')}
-      </CodeBlock>
-    </Detail>
+      </NxCodeBlock>
+    </NxDetail>
   )
 }
 
@@ -37,13 +37,13 @@ export function renderOutputs(outputs?: Record<string, unknown>) {
 export function renderInputs(inputs?: Record<string, unknown>) {
   if (!inputs) return null
   return (
-    <Detail label="Inputs">
-      <CodeBlock {...nodeCodeBlockProps}>
+    <NxDetail label="Inputs">
+      <NxCodeBlock {...nodeCodeBlockProps}>
         {Object.entries(inputs)
           .map(([key, value]) => `${key}: ${String(value)}`)
           .join('\n')}
-      </CodeBlock>
-    </Detail>
+      </NxCodeBlock>
+    </NxDetail>
   )
 }
 
@@ -54,9 +54,9 @@ export function renderJson(data: unknown, show?: boolean, label = 'JSON') {
   if (!show || data === undefined || data === null) return null
   const jsonObject = typeof data === 'object' ? data : { value: data }
   return (
-    <Detail label={label}>
-      <CodeBlock jsonObject={jsonObject} {...nodeCodeBlockProps} />
-    </Detail>
+    <NxDetail label={label}>
+      <NxCodeBlock jsonObject={jsonObject} {...nodeCodeBlockProps} />
+    </NxDetail>
   )
 }
 
@@ -66,9 +66,9 @@ export function renderJson(data: unknown, show?: boolean, label = 'JSON') {
 export function renderObject(label: string, data?: Record<string, unknown>) {
   if (!data) return null
   return (
-    <Detail label={label}>
-      <CodeBlock jsonObject={data} {...nodeCodeBlockProps} />
-    </Detail>
+    <NxDetail label={label}>
+      <NxCodeBlock jsonObject={data} {...nodeCodeBlockProps} />
+    </NxDetail>
   )
 }
 
@@ -78,8 +78,8 @@ export function renderObject(label: string, data?: Record<string, unknown>) {
 export function renderText(label: string, text?: string) {
   if (text === undefined || text === null || text === '') return null
   return (
-    <Detail label={label}>
-      <CodeBlock {...nodeCodeBlockProps}>{text}</CodeBlock>
-    </Detail>
+    <NxDetail label={label}>
+      <NxCodeBlock {...nodeCodeBlockProps}>{text}</NxCodeBlock>
+    </NxDetail>
   )
 }

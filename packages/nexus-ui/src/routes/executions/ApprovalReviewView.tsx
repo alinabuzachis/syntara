@@ -25,7 +25,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 
 import { approvalsClient } from '../../client'
-import { CodeBlock } from '../../components/details/CodeBlock'
+import { NxCodeBlock } from '../../components/details/NxCodeBlock'
 import { NxPanel } from '../../components/layout/NxPanel'
 import { useFormMutationErrorHandler } from '../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../providers/alerts'
@@ -198,7 +198,7 @@ export function ApprovalReviewView({ approval, activityNameMap, onClose }: Appro
 
         <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
           <Title headingLevel="h3">Approval context</Title>
-          <CodeBlock jsonObject={approval} enableCopy />
+          <NxCodeBlock jsonObject={approval} enableCopy />
         </StackItem>
 
         <StackItem style={{ flexShrink: 0 }}>

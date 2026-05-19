@@ -25,7 +25,11 @@ function resolveCopyText(
   return ''
 }
 
-export function CodeBlock(props: {
+/**
+ * Displays code or JSON in execution panels, policy sidebars, and builder views.
+ * Commonly used with `enableCopy` and `enableExpand` to let users copy or inspect large payloads in a modal.
+ */
+export function NxCodeBlock(props: {
   children?: React.ReactNode
   jsonObject?: object
   noMaxHeight?: boolean

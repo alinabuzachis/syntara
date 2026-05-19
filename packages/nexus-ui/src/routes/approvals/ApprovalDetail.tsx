@@ -19,7 +19,7 @@ import { useLocation, useParams } from 'wouter'
 import { AppRoute } from '../../app/AppRoute'
 import { breadcrumbsApprovalDetail, breadcrumbsApprovalsPage } from '../../app/breadcrumbBuilders'
 import { approvalsClient } from '../../client'
-import { CodeBlock } from '../../components/details/CodeBlock'
+import { NxCodeBlock } from '../../components/details/NxCodeBlock'
 import { NxPage, NxPageBody } from '../../components/layout/NxPage'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxPanel } from '../../components/layout/NxPanel'
@@ -246,7 +246,7 @@ export default function ApprovalDetail() {
                   />
                 </StackItem>
                 <StackItem isFilled style={{ minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                  <CodeBlock jsonObject={approval} enableCopy fillHeight />
+                  <NxCodeBlock jsonObject={approval} enableCopy fillHeight />
                 </StackItem>
                 <StackItem>{renderDecisionActions()}</StackItem>
               </>
