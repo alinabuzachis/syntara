@@ -85,27 +85,6 @@ body {
   background-attachment: fixed;
 }
 
-/*
- * patternfly-override — Compass shell: PF does not expose props or tokens to inset the
- * docked main scrollport; global selectors are the practical hook (see patternfly_ux_design_system
- * section 16). Documented exception: align `compass__content` padding with reduced `compass__main`
- * padding so glass/body shadows are not clipped flush to the scroll edge.
- *
- * Compass main scroll region uses `overflow: auto`, which clips descendant `box-shadow`
- * (glass header + body panels) flush to the scrollport. Inset the scrollport slightly,
- * and shrink docked `.pf-v6-c-compass__main` padding by the same amount so net viewport
- * gutter matches PatternFly’s `--pf-v6-c-compass--Padding` (avoids “double” chrome).
- */
-.pf-v6-c-compass.pf-m-docked .pf-v6-c-compass__main {
-  /* lg inset: `compass__content` uses `overflow: auto`; glass `box-shadow` blur still clipped at md */
-  --nexus-compass-inner-shadow-inset: var(--pf-t--global--spacer--lg);
-
-  padding: calc(var(--pf-v6-c-compass--Padding) - var(--nexus-compass-inner-shadow-inset));
-}
-
-.pf-v6-c-compass.pf-m-docked .pf-v6-c-compass__main > .pf-v6-c-compass__content {
-  padding: var(--nexus-compass-inner-shadow-inset);
-}
 
 /* Prevent horizontal scrollbar from PF portaled menus (Select/Dropdown) that
    extend past the viewport edge. The app requires ≥1200px viewport anyway. */

@@ -82,7 +82,7 @@ export function NxPageHeader(props: NxPageHeaderProps) {
 
   return (
     <CompassMainHeader
-      compassPanelProps={{ isGlass: true }}
+      panelProps={{ isGlass: true }}
       title={titleForCompass}
       toolbar={
         isRenderableSlot(props.toolbar) ? (
