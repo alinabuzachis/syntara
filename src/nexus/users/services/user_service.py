@@ -27,6 +27,7 @@ from nexus.auth.passwords import hash_password
 from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
 from nexus.core.models.user import AuthType
+from nexus.core.models.user_identity import UserIdentity
 from nexus.core.models.user_schemas import (
     UserListResponse,
     UserRead,
@@ -34,6 +35,7 @@ from nexus.core.models.user_schemas import (
 from nexus.core.queries.user_queries import get_user_by_id
 from nexus.core.services import BaseService
 from nexus.core.services.extensions import ConvertResourceMixin
+from nexus.identity_providers.models.identity_provider import IdentityProvider
 
 
 class UserConvertResourceMixin(ConvertResourceMixin):
@@ -43,6 +45,8 @@ class UserConvertResourceMixin(ConvertResourceMixin):
         """Convert User to UserRead format."""
         read = UserRead.model_validate(resource)
         read.auth_type = resource.auth_type
+        if resource.auth_type == AuthType.LOCAL:
+            read.auth_sources = ["Local"]
         return read
 
 
@@ -59,9 +63,19 @@ class UsersService(BaseService):
         """Initialize UsersService with database session and user context."""
         super().__init__(session, user, convert_resource_mixin=UserConvertResourceMixin())
 
-    def to_read(self, user: User) -> UserRead:
+    async def to_read(self, user: User) -> UserRead:
         """Convert a User model to UserRead response."""
         result: UserRead = self.convert_resource_mixin.convert_resource(user)
+        if user.auth_type == AuthType.FEDERATED:
+            identity_result = await self.session.execute(
+                select(IdentityProvider.name)
+                .join(UserIdentity, col(UserIdentity.identity_provider_id) == IdentityProvider.id)
+                .where(
+                    col(UserIdentity.user_id) == user.id,
+                    IdentityProvider.deleted_at.is_(None),  # type: ignore[union-attr]
+                )
+            )
+            result.auth_sources = sorted(identity_result.scalars().all())
         return result
 
     def _is_duplicate_username_error(self, e: IntegrityError) -> bool:
@@ -197,16 +211,73 @@ class UsersService(BaseService):
             UserListResponse with users, pagination metadata, and optional total
 
         """
-        return await self.list_resources(
+        auth_source: str | None = None
+        filtered_params: list[tuple[str, str]] = []
+        if query_params_items:
+            for key, value in query_params_items:
+                if key == "auth_source":
+                    auth_source = value
+                else:
+                    filtered_params.append((key, value))
+
+        if auth_source:
+            if auth_source == "Local":
+                filtered_params.append(("auth_type", "local"))
+            else:
+                provider_user_ids = await self._get_user_ids_by_provider_name(auth_source)
+                if id_restriction is not None:
+                    allowed = set(provider_user_ids)
+                    id_restriction = [uid for uid in id_restriction if uid in allowed]
+                else:
+                    id_restriction = provider_user_ids
+
+        response = await self.list_resources(
             model=User,
             response_type=UserListResponse,
             limit=limit,
             cursor=cursor,
             sort=sort or "-created_at",
-            query_params_items=query_params_items,
+            query_params_items=filtered_params,
             include_total=include_total,
             id_restriction=id_restriction,
         )
+
+        await self._populate_auth_sources(response)
+        return response
+
+    async def _get_user_ids_by_provider_name(self, provider_name: str) -> list[UUID]:
+        """Get user IDs linked to a specific identity provider by name."""
+        result = await self.session.execute(
+            select(UserIdentity.user_id)
+            .join(IdentityProvider, col(IdentityProvider.id) == UserIdentity.identity_provider_id)
+            .where(
+                col(IdentityProvider.name) == provider_name,
+                IdentityProvider.deleted_at.is_(None),  # type: ignore[union-attr]
+            )
+        )
+        return list(result.scalars().all())
+
+    async def _populate_auth_sources(self, response: UserListResponse) -> None:
+        """Batch-populate auth_sources for federated users in a list response."""
+        federated_ids = [r.id for r in response.resources if r.auth_type == AuthType.FEDERATED]
+        if not federated_ids:
+            return
+
+        result = await self.session.execute(
+            select(UserIdentity.user_id, IdentityProvider.name)
+            .join(IdentityProvider, col(IdentityProvider.id) == UserIdentity.identity_provider_id)
+            .where(
+                col(UserIdentity.user_id).in_(federated_ids),
+                IdentityProvider.deleted_at.is_(None),  # type: ignore[union-attr]
+            )
+        )
+        provider_map: dict[UUID, list[str]] = {}
+        for user_id, provider_name in result.all():
+            provider_map.setdefault(user_id, []).append(provider_name)
+
+        for user_read in response.resources:
+            if user_read.id in provider_map:
+                user_read.auth_sources = sorted(provider_map[user_read.id])
 
     async def get_user_by_id(self, user_id: UUID) -> User:
         """Get a user by ID.

@@ -110,7 +110,7 @@ async def create_user(
         is_enabled=request.is_enabled,
         group_names=request.group_names,
     )
-    return service.to_read(user)
+    return await service.to_read(user)
 
 
 @router.get("", dependencies=[NO_PERMISSION], operation_id="list_users", response_description="List of users")
@@ -144,7 +144,7 @@ async def get_user(
 ) -> UserRead:
     """Get a user by ID."""
     user = await service.get_user_by_id(user_id)
-    return service.to_read(user)
+    return await service.to_read(user)
 
 
 @router.patch(
@@ -185,7 +185,7 @@ async def update_user(
     # triggers a background refresh on the next API response.
     await store.increment_token_version(user_id)
 
-    return UserRead.model_validate(user)
+    return await service.to_read(user)
 
 
 @router.delete(

@@ -36,6 +36,8 @@ from nexus.core.models.group import (
     user_groups,
     user_idp_groups,
 )
+from nexus.core.models.user import AuthType
+from nexus.core.models.user_identity import UserIdentity
 from nexus.core.models.user_schemas import GroupMemberListResponse, GroupMemberRead
 from nexus.core.queries.user_queries import get_user_by_id
 from nexus.core.services import BaseService
@@ -489,8 +491,32 @@ class GroupsService(BaseService):
         for u in users:
             read = GroupMemberRead.model_validate(u)
             read.auth_type = u.auth_type
+            if u.auth_type == AuthType.LOCAL:
+                read.auth_sources = ["Local"]
             read.membership_sources = sources.get(u.id, [MembershipSource(type="manual")])
             resources.append(read)
+
+        # Batch-populate auth_sources for federated users
+        federated_ids = [r.id for r in resources if r.auth_type == AuthType.FEDERATED]
+        if federated_ids:
+            idp_result = await self.session.execute(
+                select(UserIdentity.user_id, IdentityProvider.name)
+                .join(
+                    IdentityProvider,
+                    col(IdentityProvider.id) == UserIdentity.identity_provider_id,
+                )
+                .where(
+                    col(UserIdentity.user_id).in_(federated_ids),
+                    IdentityProvider.deleted_at.is_(None),  # type: ignore[union-attr]
+                )
+            )
+            provider_map: dict[UUID, list[str]] = {}
+            for uid, provider_name in idp_result.all():
+                provider_map.setdefault(uid, []).append(provider_name)
+
+            for member_read in resources:
+                if member_read.id in provider_map:
+                    member_read.auth_sources = sorted(provider_map[member_read.id])
 
         return GroupMemberListResponse(
             resources=resources,

@@ -20,6 +20,7 @@ def _get_kwargs(
     username: None | str | Unset = UNSET,
     full_name: None | str | Unset = UNSET,
     auth_type: AuthType | None | Unset = UNSET,
+    auth_source: None | str | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     params: dict[str, Any] = {}
@@ -66,6 +67,13 @@ def _get_kwargs(
     else:
         json_auth_type = auth_type
     params["auth_type"] = json_auth_type
+
+    json_auth_source: None | str | Unset
+    if isinstance(auth_source, Unset):
+        json_auth_source = UNSET
+    else:
+        json_auth_source = auth_source
+    params["auth_source"] = json_auth_source
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
@@ -150,6 +158,7 @@ def sync_detailed(
     username: None | str | Unset = UNSET,
     full_name: None | str | Unset = UNSET,
     auth_type: AuthType | None | Unset = UNSET,
+    auth_source: None | str | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | ResourcesResponseUserRead]:
     """List Users
@@ -167,6 +176,7 @@ def sync_detailed(
         username (None | str | Unset):
         full_name (None | str | Unset):
         auth_type (AuthType | None | Unset):
+        auth_source (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -184,6 +194,7 @@ def sync_detailed(
         username=username,
         full_name=full_name,
         auth_type=auth_type,
+        auth_source=auth_source,
         additional_params=additional_params,
     )
 
@@ -204,6 +215,7 @@ def sync(
     username: None | str | Unset = UNSET,
     full_name: None | str | Unset = UNSET,
     auth_type: AuthType | None | Unset = UNSET,
+    auth_source: None | str | Unset = UNSET,
 ) -> ErrorData | ResourcesResponseUserRead | None:
     """List Users
 
@@ -220,6 +232,7 @@ def sync(
         username (None | str | Unset):
         full_name (None | str | Unset):
         auth_type (AuthType | None | Unset):
+        auth_source (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -238,6 +251,7 @@ def sync(
         username=username,
         full_name=full_name,
         auth_type=auth_type,
+        auth_source=auth_source,
     ).parsed
 
 
@@ -251,6 +265,7 @@ async def asyncio_detailed(
     username: None | str | Unset = UNSET,
     full_name: None | str | Unset = UNSET,
     auth_type: AuthType | None | Unset = UNSET,
+    auth_source: None | str | Unset = UNSET,
 ) -> Response[ErrorData | ResourcesResponseUserRead]:
     """List Users
 
@@ -267,6 +282,7 @@ async def asyncio_detailed(
         username (None | str | Unset):
         full_name (None | str | Unset):
         auth_type (AuthType | None | Unset):
+        auth_source (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -284,6 +300,7 @@ async def asyncio_detailed(
         username=username,
         full_name=full_name,
         auth_type=auth_type,
+        auth_source=auth_source,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -301,6 +318,7 @@ async def asyncio(
     username: None | str | Unset = UNSET,
     full_name: None | str | Unset = UNSET,
     auth_type: AuthType | None | Unset = UNSET,
+    auth_source: None | str | Unset = UNSET,
 ) -> ErrorData | ResourcesResponseUserRead | None:
     """List Users
 
@@ -317,6 +335,7 @@ async def asyncio(
         username (None | str | Unset):
         full_name (None | str | Unset):
         auth_type (AuthType | None | Unset):
+        auth_source (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -336,5 +355,6 @@ async def asyncio(
             username=username,
             full_name=full_name,
             auth_type=auth_type,
+            auth_source=auth_source,
         )
     ).parsed

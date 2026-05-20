@@ -1,6 +1,6 @@
 """Unit tests for user CRUD endpoints in users_router."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
@@ -37,7 +37,7 @@ class TestCreateUserEndpoint:
         user = _make_user()
         service = AsyncMock()
         service.create_user = AsyncMock(return_value=user)
-        service.to_read = MagicMock(
+        service.to_read = AsyncMock(
             return_value=UserRead(
                 id=user.id,
                 username=user.username,
@@ -72,7 +72,7 @@ class TestGetUserEndpoint:
         user = _make_user()
         service = AsyncMock()
         service.get_user_by_id = AsyncMock(return_value=user)
-        service.to_read = MagicMock(
+        service.to_read = AsyncMock(
             return_value=UserRead(
                 id=user.id,
                 username=user.username,
@@ -99,6 +99,18 @@ class TestUpdateUserEndpoint:
         updated_user = _make_user(full_name="Updated")
         service = AsyncMock()
         service.update_user = AsyncMock(return_value=updated_user)
+        service.to_read = AsyncMock(
+            return_value=UserRead(
+                id=updated_user.id,
+                username=updated_user.username,
+                email=updated_user.email,
+                full_name=updated_user.full_name,
+                is_enabled=updated_user.is_enabled,
+                auth_type="local",
+                created_at=updated_user.created_at,
+                updated_at=updated_user.updated_at,
+            )
+        )
         db = AsyncMock()
 
         mock_store = AsyncMock()

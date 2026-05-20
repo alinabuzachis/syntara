@@ -32,6 +32,7 @@ class GroupMemberRead:
         updated_at (datetime.datetime):
         email (None | str | Unset):
         is_builtin (bool | Unset):  Default: False.
+        auth_sources (list[str] | Unset):
         auth_type (AuthType | Unset): Authentication type for users.
         last_login (datetime.datetime | None | Unset):
         membership_sources (list[MembershipSource] | Unset): How this user was assigned to this group
@@ -45,6 +46,7 @@ class GroupMemberRead:
     updated_at: datetime.datetime
     email: None | str | Unset = UNSET
     is_builtin: bool | Unset = False
+    auth_sources: list[str] | Unset = UNSET
     auth_type: AuthType | Unset = UNSET
     last_login: datetime.datetime | None | Unset = UNSET
     membership_sources: list[MembershipSource] | Unset = UNSET
@@ -70,6 +72,10 @@ class GroupMemberRead:
             email = self.email
 
         is_builtin = self.is_builtin
+
+        auth_sources: list[str] | Unset = UNSET
+        if not isinstance(self.auth_sources, Unset):
+            auth_sources = self.auth_sources
 
         auth_type: str | Unset = UNSET
         if not isinstance(self.auth_type, Unset):
@@ -106,6 +112,8 @@ class GroupMemberRead:
             field_dict["email"] = email
         if is_builtin is not UNSET:
             field_dict["is_builtin"] = is_builtin
+        if auth_sources is not UNSET:
+            field_dict["auth_sources"] = auth_sources
         if auth_type is not UNSET:
             field_dict["auth_type"] = auth_type
         if last_login is not UNSET:
@@ -142,6 +150,8 @@ class GroupMemberRead:
         email = _parse_email(d.pop("email", UNSET))
 
         is_builtin = d.pop("is_builtin", UNSET)
+
+        auth_sources = cast(list[str], d.pop("auth_sources", UNSET))
 
         _auth_type = d.pop("auth_type", UNSET)
         auth_type: AuthType | Unset
@@ -185,6 +195,7 @@ class GroupMemberRead:
             updated_at=updated_at,
             email=email,
             is_builtin=is_builtin,
+            auth_sources=auth_sources,
             auth_type=auth_type,
             last_login=last_login,
             membership_sources=membership_sources,

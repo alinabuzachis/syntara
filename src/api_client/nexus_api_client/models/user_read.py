@@ -31,6 +31,7 @@ class UserRead:
             email (None | str | Unset):
             is_builtin (bool | Unset):  Default: False.
             auth_type (AuthType | Unset): Authentication type for users.
+            auth_sources (list[str] | Unset):
             last_login (datetime.datetime | None | Unset):
     """
 
@@ -43,6 +44,7 @@ class UserRead:
     email: None | str | Unset = UNSET
     is_builtin: bool | Unset = False
     auth_type: AuthType | Unset = UNSET
+    auth_sources: list[str] | Unset = UNSET
     last_login: datetime.datetime | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
@@ -71,6 +73,10 @@ class UserRead:
         if not isinstance(self.auth_type, Unset):
             auth_type = self.auth_type.value
 
+        auth_sources: list[str] | Unset = UNSET
+        if not isinstance(self.auth_sources, Unset):
+            auth_sources = self.auth_sources
+
         last_login: None | str | Unset
         if isinstance(self.last_login, Unset):
             last_login = UNSET
@@ -97,6 +103,8 @@ class UserRead:
             field_dict["is_builtin"] = is_builtin
         if auth_type is not UNSET:
             field_dict["auth_type"] = auth_type
+        if auth_sources is not UNSET:
+            field_dict["auth_sources"] = auth_sources
         if last_login is not UNSET:
             field_dict["last_login"] = last_login
 
@@ -135,6 +143,8 @@ class UserRead:
         else:
             auth_type = AuthType(_auth_type)
 
+        auth_sources = cast(list[str], d.pop("auth_sources", UNSET))
+
         def _parse_last_login(data: object) -> datetime.datetime | None | Unset:
             if data is None:
                 return data
@@ -162,6 +172,7 @@ class UserRead:
             email=email,
             is_builtin=is_builtin,
             auth_type=auth_type,
+            auth_sources=auth_sources,
             last_login=last_login,
         )
 

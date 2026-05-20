@@ -113,6 +113,7 @@ class UserRead(SQLModel):
     is_enabled: bool
     is_builtin: bool = False
     auth_type: AuthType = AuthType.LOCAL
+    auth_sources: list[str] = []
     last_login: datetime | None = None
     created_at: datetime
     updated_at: datetime
@@ -140,3 +141,4 @@ class UserListParams(BaseListParams):
     username: str | None = Field(default=None, description="Filter by username")
     full_name: str | None = Field(default=None, description="Filter by full name")
     auth_type: AuthType | None = Field(default=None, description="Filter by authentication type (local or federated)")
+    auth_source: str | None = Field(default=None, description="Filter by authentication source")

@@ -85,8 +85,7 @@ async def _resolve_aap_role_groups(
     Validates that the token's ``iss`` claim matches the configured
     ``issuer_url`` before trusting AAP-specific claims.  Returns ``None``
     on issuer mismatch to signal that login should be denied.  Normal
-    users get no explicit group assignment — they already have the
-    ``user`` role via the implicit ``authenticated`` group.
+    users (no recognized system role) are assigned to the ``users`` group.
     """
     token_issuer = raw_merged_claims.get("iss")
     if not isinstance(token_issuer, str) or token_issuer.rstrip("/") != config.issuer_url.rstrip("/"):
@@ -107,11 +106,14 @@ async def _resolve_aap_role_groups(
 
     if not target_name:
         logger.debug(
-            "AAP role mapping: normal user, no explicit group needed",
+            "AAP role mapping: normal user, assigning to users group",
             user_id=str(user_id),
             aap_system_role=system_role,
         )
-        return set()
+        users_group_id = await _resolve_users_group(db, user_id)
+        if users_group_id is None:
+            return None
+        return {users_group_id}
 
     result = await db.execute(
         select(Group).filter(

@@ -65,6 +65,14 @@ paths:
               - $ref: '#/components/schemas/AuthType'
               - type: 'null'
             title: Auth Type
+        - name: auth_source
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Auth Source
       responses:
         '200':
           description: List of users
@@ -1303,6 +1311,12 @@ components:
         auth_type:
           $ref: '#/components/schemas/AuthType'
           default: local
+        auth_sources:
+          type: array
+          items:
+            type: string
+          default: []
+          title: Auth Sources
         last_login:
           anyOf:
             - type: string
@@ -1666,6 +1680,12 @@ components:
           type: boolean
           default: false
           title: Is Builtin
+        auth_sources:
+          type: array
+          items:
+            type: string
+          default: []
+          title: Auth Sources
         auth_type:
           $ref: '#/components/schemas/AuthType'
           default: local

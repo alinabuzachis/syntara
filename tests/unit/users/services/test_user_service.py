@@ -5,6 +5,7 @@ Tests cover:
 - Duplicate username/email handling
 - Admin self-disable restriction
 - Error conditions and edge cases
+- auth_sources population and auth_source filtering
 """
 
 from uuid import uuid4
@@ -26,7 +27,11 @@ from nexus.auth.exceptions import (
 from nexus.auth.passwords import hash_password, verify_password
 from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
+from nexus.core.models.user import AuthType
+from nexus.core.models.user_identity import UserIdentity
 from nexus.core.models.user_schemas import UserRead
+from nexus.identity_providers.models.identity_provider import IdentityProvider
+from nexus.identity_providers.models.identity_provider_configuration import OIDCConfiguration
 from nexus.users.services.user_service import UsersService
 
 
@@ -444,18 +449,17 @@ async def test_to_read_sets_auth_type_local(test_db_session: AsyncSession, test_
         password=TEST_PASSWORD,
     )
 
-    result = service.to_read(user)
+    result = await service.to_read(user)
 
     assert isinstance(result, UserRead)
     assert result.auth_type == "local"
+    assert result.auth_sources == ["Local"]
     assert result.username == "withpass"
 
 
 @pytest.mark.asyncio
 async def test_to_read_sets_auth_type_federated(test_db_session: AsyncSession, test_user: User) -> None:
     """Test to_read sets auth_type='federated' for users without a password hash."""
-    from nexus.core.models.user import AuthType
-
     service = UsersService(test_db_session, test_user)
 
     user = User(
@@ -470,10 +474,11 @@ async def test_to_read_sets_auth_type_federated(test_db_session: AsyncSession, t
     await test_db_session.commit()
     await test_db_session.refresh(user)
 
-    result = service.to_read(user)
+    result = await service.to_read(user)
 
     assert isinstance(result, UserRead)
     assert result.auth_type == "federated"
+    assert result.auth_sources == []
 
 
 @pytest.mark.asyncio
@@ -695,3 +700,204 @@ async def test_create_user_nonexistent_group_raises(test_db_session: AsyncSessio
             password=TEST_PASSWORD,
             group_names=["no-such-group"],
         )
+
+
+# ============================================================================
+# auth_sources population and auth_source filtering
+# ============================================================================
+
+
+def _make_oidc_config() -> OIDCConfiguration:
+    return OIDCConfiguration(
+        issuer_url="https://idp.example.com",
+        client_id="test-client",
+        redirect_uri="http://localhost/callback",
+    )
+
+
+async def _create_idp(session: AsyncSession, name: str, user: User) -> IdentityProvider:
+    """Create and persist an identity provider."""
+    idp = IdentityProvider(
+        id=uuid4(),
+        name=name,
+        configuration=_make_oidc_config(),
+        enabled=True,
+        created_by=user.id,
+        updated_by=user.id,
+    )
+    session.add(idp)
+    await session.flush()
+    return idp
+
+
+async def _create_federated_user(
+    session: AsyncSession,
+    username: str,
+    idps: list[IdentityProvider],
+) -> User:
+    """Create a federated user linked to the given identity providers."""
+    user = User(
+        id=uuid4(),
+        username=username,
+        email=f"{username}@example.com",
+        full_name=username.title(),
+        password_hash=None,
+        auth_type=AuthType.FEDERATED,
+    )
+    session.add(user)
+    await session.flush()
+    for idp in idps:
+        identity = UserIdentity(
+            id=uuid4(),
+            user_id=user.id,
+            identity_provider_id=idp.id,
+            issuer=idp.configuration.issuer_url,
+            subject=f"sub-{user.id.hex[:8]}-{idp.id.hex[:8]}",
+        )
+        session.add(identity)
+    await session.flush()
+    return user
+
+
+@pytest.mark.asyncio
+async def test_to_read_federated_user_with_provider(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test to_read populates auth_sources with provider name for federated users."""
+    service = UsersService(test_db_session, test_user)
+
+    idp = await _create_idp(test_db_session, "AAP", test_user)
+    user = await _create_federated_user(test_db_session, "fedwithidp", [idp])
+    await test_db_session.commit()
+    await test_db_session.refresh(user)
+
+    result = await service.to_read(user)
+
+    assert result.auth_sources == ["AAP"]
+
+
+@pytest.mark.asyncio
+async def test_to_read_federated_user_with_multiple_providers(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test to_read returns sorted provider names for users linked to multiple IdPs."""
+    service = UsersService(test_db_session, test_user)
+
+    idp_azure = await _create_idp(test_db_session, "Azure AD", test_user)
+    idp_aap = await _create_idp(test_db_session, "AAP", test_user)
+    user = await _create_federated_user(test_db_session, "multiidp", [idp_azure, idp_aap])
+    await test_db_session.commit()
+    await test_db_session.refresh(user)
+
+    result = await service.to_read(user)
+
+    assert result.auth_sources == ["AAP", "Azure AD"]
+
+
+@pytest.mark.asyncio
+async def test_list_users_populates_auth_sources(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test list_users_cursor batch-populates auth_sources for all users."""
+    service = UsersService(test_db_session, test_user)
+
+    local_user = await service.create_user(
+        username="locallist",
+        full_name="Local List",
+        password=TEST_PASSWORD,
+    )
+
+    idp = await _create_idp(test_db_session, "AAP", test_user)
+    fed_user = await _create_federated_user(test_db_session, "fedlist", [idp])
+    await test_db_session.commit()
+
+    result = await service.list_users_cursor(limit=100)
+    by_id = {r.id: r for r in result.resources}
+
+    assert by_id[local_user.id].auth_sources == ["Local"]
+    assert by_id[fed_user.id].auth_sources == ["AAP"]
+
+
+@pytest.mark.asyncio
+async def test_list_users_filter_auth_source_local(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test auth_source=Local filter returns only local users."""
+    service = UsersService(test_db_session, test_user)
+
+    local_user = await service.create_user(
+        username="localfilter",
+        full_name="Local Filter",
+        password=TEST_PASSWORD,
+    )
+
+    idp = await _create_idp(test_db_session, "AAP", test_user)
+    await _create_federated_user(test_db_session, "fedfilter", [idp])
+    await test_db_session.commit()
+
+    result = await service.list_users_cursor(
+        query_params_items=[("auth_source", "Local")],
+    )
+
+    usernames = {r.username for r in result.resources}
+    assert local_user.username in usernames
+    assert "fedfilter" not in usernames
+    for r in result.resources:
+        assert r.auth_type == AuthType.LOCAL
+
+
+@pytest.mark.asyncio
+async def test_list_users_filter_auth_source_provider(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test auth_source=<provider> filter returns only users linked to that provider."""
+    service = UsersService(test_db_session, test_user)
+
+    await service.create_user(
+        username="localexcluded",
+        full_name="Local Excluded",
+        password=TEST_PASSWORD,
+    )
+
+    idp_aap = await _create_idp(test_db_session, "AAP", test_user)
+    idp_azure = await _create_idp(test_db_session, "Azure AD", test_user)
+    aap_user = await _create_federated_user(test_db_session, "aaponly", [idp_aap])
+    await _create_federated_user(test_db_session, "azureonly", [idp_azure])
+    await test_db_session.commit()
+
+    result = await service.list_users_cursor(
+        query_params_items=[("auth_source", "AAP")],
+    )
+
+    assert len(result.resources) == 1
+    assert result.resources[0].id == aap_user.id
+    assert result.resources[0].auth_sources == ["AAP"]
+
+
+@pytest.mark.asyncio
+async def test_list_users_filter_auth_source_nonexistent(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test filtering by a non-existent provider returns no results."""
+    service = UsersService(test_db_session, test_user)
+
+    await service.create_user(
+        username="nofilter",
+        full_name="No Filter",
+        password=TEST_PASSWORD,
+    )
+
+    result = await service.list_users_cursor(
+        query_params_items=[("auth_source", "NonExistent")],
+    )
+
+    assert len(result.resources) == 0
+
+
+@pytest.mark.asyncio
+async def test_list_users_filter_auth_source_with_id_restriction(
+    test_db_session: AsyncSession, test_user: User
+) -> None:
+    """Test auth_source filter intersects correctly with id_restriction."""
+    service = UsersService(test_db_session, test_user)
+
+    idp = await _create_idp(test_db_session, "AAP", test_user)
+    user_a = await _create_federated_user(test_db_session, "visible", [idp])
+    await _create_federated_user(test_db_session, "hidden", [idp])
+    await test_db_session.commit()
+
+    result = await service.list_users_cursor(
+        query_params_items=[("auth_source", "AAP")],
+        id_restriction=[user_a.id],
+    )
+
+    assert len(result.resources) == 1
+    assert result.resources[0].id == user_a.id
