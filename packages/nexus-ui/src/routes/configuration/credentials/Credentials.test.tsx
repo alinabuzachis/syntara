@@ -91,6 +91,18 @@ const mockCredentials = [
     created_at: '2026-03-05T05:30:00Z',
     updated_at: '2026-03-05T05:30:00Z',
   },
+  {
+    id: '3',
+    name: 'No Description Cred',
+    description: '',
+    credential_type_id: 'type-1',
+    inputs: { token: '$encrypted$' },
+    enabled: true,
+    labels: {},
+    project_id: 'proj-1',
+    created_at: '2026-03-10T10:00:00Z',
+    updated_at: '2026-03-10T10:00:00Z',
+  },
 ]
 
 const mockTypes = [
@@ -181,15 +193,22 @@ describe('Credentials', () => {
     expect(screen.getByText('Staging SSH')).toBeInTheDocument()
   })
 
-  it('renders credential descriptions', () => {
+  it('renders credential descriptions in expandable rows (hidden by default)', () => {
     render(<Credentials />, { wrapper })
     expect(screen.getByText('Token for GitHub API access')).toBeInTheDocument()
-    expect(screen.getByText('SSH key for staging')).toBeInTheDocument()
+    expect(screen.queryByText('Token for GitHub API access')).not.toBeVisible()
   })
 
-  it('renders type badges', () => {
+  it('has no accessibility violations when rows are expanded', async () => {
+    const user = userEvent.setup()
+    const { container } = render(<Credentials />, { wrapper })
+    await user.click(screen.getByRole('button', { name: /expand all/i }))
+    expect(await axe(container)).toHaveNoViolations()
+  })
+
+  it('renders type names', () => {
     render(<Credentials />, { wrapper })
-    expect(screen.getByText('HTTP Bearer Token')).toBeInTheDocument()
+    expect(screen.getAllByText('HTTP Bearer Token').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('SSH Key')).toBeInTheDocument()
   })
 
@@ -226,7 +245,7 @@ describe('Credentials', () => {
   it('renders kebab actions column for each row', () => {
     const { container } = render(<Credentials />, { wrapper })
     const actionCells = container.querySelectorAll('td.pf-v6-c-table__action')
-    expect(actionCells.length).toBe(2)
+    expect(actionCells.length).toBe(3)
   })
 
   it('shows disable confirmation dialog when toggling enabled credential', async () => {
@@ -244,7 +263,7 @@ describe('Credentials', () => {
     render(<Credentials />, { wrapper })
 
     const switches = screen.getAllByRole('switch', { name: 'Enabled' })
-    await user.click(switches[1])
+    await user.click(switches[2])
 
     expect(mockMutate).toHaveBeenCalled()
   })
@@ -369,7 +388,7 @@ describe('Credentials', () => {
     render(<Credentials />, { wrapper })
 
     const switches = screen.getAllByRole('switch', { name: 'Enabled' })
-    await user.click(switches[1]) // disabled credential
+    await user.click(switches[2]) // disabled credential
 
     expect(mockMutate).toHaveBeenCalled()
     expect(screen.queryByText('Disable credential?')).not.toBeInTheDocument()
@@ -384,7 +403,7 @@ describe('Credentials', () => {
     render(<Credentials />, { wrapper })
 
     const switches = screen.getAllByRole('switch', { name: 'Enabled' })
-    await user.click(switches[1])
+    await user.click(switches[2])
 
     expect(mockMutate).toHaveBeenCalled()
   })
@@ -616,5 +635,56 @@ describe('Credentials', () => {
 
     expect(screen.queryByText('Project Alpha')).not.toBeInTheDocument()
     expect(screen.getByText('GitHub API Token')).toBeInTheDocument()
+  })
+
+  describe('Expandable rows', () => {
+    it('descriptions are hidden by default and shown when row is expanded', async () => {
+      const user = userEvent.setup()
+      render(<Credentials />, { wrapper })
+
+      expect(screen.getByText('Token for GitHub API access')).not.toBeVisible()
+
+      const expandButtons = screen.getAllByRole('button', { name: /details/i })
+      await user.click(expandButtons[0])
+
+      expect(screen.getByText('Token for GitHub API access')).toBeVisible()
+    })
+
+    it('expand-all button expands all rows, clicking again collapses them', async () => {
+      const user = userEvent.setup()
+      render(<Credentials />, { wrapper })
+
+      const expandAllButton = screen.getByRole('button', { name: /expand all/i })
+      await user.click(expandAllButton)
+
+      expect(screen.getByText('Token for GitHub API access')).toBeVisible()
+      expect(screen.getByText('SSH key for staging')).toBeVisible()
+
+      // Click the same toggle again to collapse all
+      await user.click(screen.getByRole('button', { name: /expand all|collapse all/i }))
+
+      expect(screen.getByText('Token for GitHub API access')).not.toBeVisible()
+      expect(screen.getByText('SSH key for staging')).not.toBeVisible()
+    })
+
+    it('toggling a single row does not affect other rows', async () => {
+      const user = userEvent.setup()
+      render(<Credentials />, { wrapper })
+
+      const expandButtons = screen.getAllByRole('button', { name: /details/i })
+      await user.click(expandButtons[0])
+
+      expect(screen.getByText('Token for GitHub API access')).toBeVisible()
+      expect(screen.getByText('SSH key for staging')).not.toBeVisible()
+    })
+
+    it('credentials without descriptions do not show expand toggle', () => {
+      render(<Credentials />, { wrapper })
+
+      expect(screen.getByText('No Description Cred')).toBeInTheDocument()
+      // Only 2 expand buttons for the 2 credentials with descriptions (not 3)
+      const expandButtons = screen.getAllByRole('button', { name: /details/i })
+      expect(expandButtons).toHaveLength(2)
+    })
   })
 })

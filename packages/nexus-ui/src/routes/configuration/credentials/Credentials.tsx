@@ -2,7 +2,7 @@ import { Button, StackItem } from '@patternfly/react-core'
 import { RhUiEditIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 
 import { credentialsClient } from '../../../client'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
@@ -105,6 +105,39 @@ export default function Credentials() {
         return cred.name ?? ''
     }
   })
+
+  // Expandable row state
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+
+  const expandableCredentialIds = useMemo(
+    () => results.filter((c) => Boolean(c.description?.trim())).map((c) => c.id!),
+    [results]
+  )
+
+  const areAllExpanded = useMemo(
+    () => expandableCredentialIds.length > 0 && expandableCredentialIds.every((id) => expandedRows.has(id)),
+    [expandableCredentialIds, expandedRows]
+  )
+
+  const handleToggleRow = useCallback((credentialId: string) => {
+    setExpandedRows((prev) => {
+      const next = new Set(prev)
+      if (next.has(credentialId)) {
+        next.delete(credentialId)
+      } else {
+        next.add(credentialId)
+      }
+      return next
+    })
+  }, [])
+
+  const handleToggleAllRows = useCallback(() => {
+    if (areAllExpanded) {
+      setExpandedRows(new Set())
+    } else {
+      setExpandedRows(new Set(expandableCredentialIds))
+    }
+  }, [areAllExpanded, expandableCredentialIds])
 
   // Group credentials by project when viewing all projects
   const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set())
@@ -279,9 +312,21 @@ export default function Credentials() {
                   <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
                 </NxPageBody>
               ) : (
-                <ScrollableTableContainer aria-label="Credentials table" footer={getFooterProps(query.data)}>
+                <ScrollableTableContainer
+                  isExpandable
+                  aria-label="Credentials table"
+                  footer={getFooterProps(query.data)}
+                >
                   <Thead>
                     <Tr>
+                      <Th
+                        expand={{
+                          areAllExpanded,
+                          collapseAllAriaLabel: areAllExpanded ? 'Collapse all' : 'Expand all',
+                          onToggle: handleToggleAllRows,
+                        }}
+                        aria-label="Row expansion"
+                      />
                       <Th sort={getSortParams(0)}>Name</Th>
                       <Th sort={getSortParams(1)}>Type</Th>
                       <Th sort={getSortParams(2)}>Workflows</Th>
@@ -297,6 +342,8 @@ export default function Credentials() {
                       collapsedProjects={collapsedProjects}
                       onToggleProject={toggleProjectCollapsed}
                       typeMap={typeMap}
+                      expandedRows={expandedRows}
+                      onToggleRow={handleToggleRow}
                       getRowActions={getRowActions}
                       onToggleEnabled={handleToggleEnabled}
                     />
@@ -304,6 +351,8 @@ export default function Credentials() {
                     <FlatCredentialsTableBody
                       credentials={results}
                       typeMap={typeMap}
+                      expandedRows={expandedRows}
+                      onToggleRow={handleToggleRow}
                       getRowActions={getRowActions}
                       onToggleEnabled={handleToggleEnabled}
                     />
