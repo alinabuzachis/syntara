@@ -93,6 +93,9 @@ dev = [
     "msgraph-sdk>=1.0.0",  # GraphServiceClient and graph models for Azure AD fixture
     "aap-orchestrator-cli",  # local CLI for the AAP Orchestrator API
     "beautifulsoup4>=4.12.0",  # for parsing HTML in external auth client fixture
+    # Static analysis tools
+    "vulture>=2.16",  # dead code detection
+    "pyan3>=2.6.0",  # import cycle detection
 ]
 integration = [
     "external-services",  # GKE service deployment for integration tests
@@ -285,6 +288,29 @@ exclude_lines = [
     "class .*\\bProtocol\\):",
     "@(abc\\.)?abstractmethod",
 ]
+
+[tool.vulture]
+min_confidence = 100
+paths = ["src/nexus"]
+exclude = ["*tests*", "*test_*", "*alembic*", "*migrations*", "*__pycache__*"]
+ignore_decorators = [
+    "@app.*",
+    "@router.*",
+    "@pytest.*",
+    "@event.*",
+    "@staticmethod",
+    "@classmethod",
+    "@property",
+    "@validator",
+    "@field_validator",
+    "@model_validator",
+    "@computed_field",
+    "@lru_cache",
+]
+ignore_names = [
+    "whence",
+]
+sort_by_size = true
 
 [dependency-groups]
 dev = [

@@ -73,6 +73,28 @@ Full import paths improve code readability, make it easier to trace where symbol
 
 **Migration:** Existing re-exports are being removed under [AAP-67182](AAP-67182). New code must use full import paths from the start.
 
+**Note:** Some existing `__init__.py` files still have re-exports (`files/__init__.py`, `metrics/__init__.py`). These are cycle debt and should not be used as patterns for new code.
+
+## Exception Handler Imports
+
+Exception modules (`exceptions.py`) wire themselves to error handlers via the `@fastapi_exception` decorator. Use **string-based handler references** to avoid circular imports between `exceptions.py` and `error_handlers.py`:
+
+```python
+# Correct — string reference, no import of error_handlers needed
+@fastapi_exception(handler="nexus.aap.error_handlers.aap_not_configured_handler")
+class AAPNotConfiguredError(NexusError): ...
+
+# Wrong — direct import creates exceptions ↔ error_handlers cycle
+from nexus.aap.error_handlers import aap_not_configured_handler
+
+@fastapi_exception(handler=aap_not_configured_handler)
+class AAPNotConfiguredError(NexusError): ...
+```
+
+The `@fastapi_exception` decorator resolves string paths via `importlib` at registration time. See `src/nexus/auth/exceptions.py` for the reference implementation. See `src/nexus/core/exception_registry.py` line 59.
+
+**Note:** 11 domains still use the direct import pattern. These are detected by `make check-cycles` and baselined in `tools/ci/known_import_cycles.json`.
+
 ## TYPE_CHECKING Pattern
 
 Use `TYPE_CHECKING` to avoid circular imports and reduce runtime import overhead.
@@ -203,7 +225,7 @@ router = APIRouter(prefix="/workflows", tags=["workflows"])
 
 - One entity per file: `models/workflow.py`, `models/execution.py`, `models/activity_execution.py`
 - Use SQLModel for both database tables and API schemas (no separate Pydantic models)
-- Re-export all public models in `models/__init__.py`
+- Import models from their defining module, not via `__init__.py` (see [No Re-exports](#no-re-exports))
 
 **Services:**
 
@@ -237,10 +259,13 @@ router = APIRouter(prefix="/workflows", tags=["workflows"])
 - Import ordering (Ruff isort rules via `make format` and `make lint`)
 - Unused imports in non-`__init__.py` files (Ruff F401)
 - Import style (Ruff I rules)
+- Import cycle detection (`make check-cycles` — see [Static Analysis](/docs/standards/static-analysis.md))
+- Orphan module detection (`make check-orphans`)
 
 **Enforced by convention (code review):**
 
-- `__all__` completeness in `__init__.py` files
+- No re-exports in `__init__.py` files
+- String-based handler references in `@fastapi_exception` (not direct imports)
 - Proper use of `TYPE_CHECKING` for circular import avoidance
 - Module structure (one entity per file, router auto-discovery)
 - Domain organization and module boundaries

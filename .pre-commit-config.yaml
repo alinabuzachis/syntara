@@ -88,6 +88,30 @@ repos:
         pass_filenames: false
         always_run: true
 
+      - id: check-dead-code
+        name: check for dead code (vulture)
+        entry: make
+        args: [check-dead-code]
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: check-cycles
+        name: check for import cycles (pyan3)
+        entry: make
+        args: [check-cycles]
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: check-orphans
+        name: check for orphan modules
+        entry: make
+        args: [check-orphans]
+        language: system
+        pass_filenames: false
+        always_run: true
+
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v4.4.0
     hooks:

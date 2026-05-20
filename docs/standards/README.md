@@ -32,15 +32,16 @@ These existing documents define core standards and should be consulted first:
 | [Services](services.md) | BaseService, extension mixins, dependency injection, middleware, periodic workers |
 | [Exceptions](exceptions.md) | Exception naming, error handlers, PROBLEM_TYPES, @fastapi_exception, retry classification |
 | [OpenAPI Spec Management](openapi-spec-management.md) | Sub-spec layout, bundling, drift detection, CI checks, AsyncAPI conventions |
+| [Static Analysis](static-analysis.md) | Dead code detection (Vulture), import cycle detection (pyan3), CI checks, allowlists |
 | [Questions](questions.md) | Open questions, inconsistencies, areas needing investigation |
 
 ### Tooling Configuration (enforces standards)
 
 | File | What it enforces |
 |------|-----------------|
-| `pyproject.toml` | Ruff rules (ALL), mypy strict mode, pytest config, coverage thresholds |
+| `pyproject.toml` | Ruff rules (ALL), mypy strict mode, pytest config, coverage thresholds, Vulture config |
 | `.pre-commit-config.yaml` | Formatting, type checking, conventional commits, YAML, requirements sync |
-| `.github/workflows/ci.yml` | CI gates: pre-commit, tests (3.12 + 3.13), migration checks, coverage, E2E |
+| `.github/workflows/ci.yml` | CI gates: pre-commit, dead code check, cycle detection, tests (3.12 + 3.13), migration checks, coverage, E2E |
 | `sonar-project.properties` | SonarCloud code quality scanning |
 | `renovate.json` | Automated dependency updates (weekly, in-range-only) |
 

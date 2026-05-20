@@ -633,6 +633,30 @@ check-migrations: _ensure-secrets ## Validate migrations: conflicts, pending cha
 		uv run python tools/ci/check_migrations.py
 
 
+# Static analysis
+# ========================================================
+.PHONY: check-dead-code
+check-dead-code: ## Check for dead code with vulture
+	@echo "🔍 Checking for dead code..."
+	uv run vulture src/nexus/
+	@echo "✅ No dead code detected"
+
+.PHONY: check-cycles
+check-cycles: ## Check for new import cycles with pyan3
+	@echo "🔍 Checking for import cycles..."
+	uv run pyan3 --module-level --cycles \
+		--exclude 'test_*.py' --exclude '*/tests/*' --exclude '*_test.py' \
+		--root src src/nexus/**/*.py 2>/dev/null | \
+		uv run python tools/ci/check_import_cycles.py
+	@echo "✅ No new import cycles detected"
+
+.PHONY: check-orphans
+check-orphans: ## Check for unimported Python modules
+	@echo "🔍 Checking for orphan modules..."
+	uv run python tools/ci/check_orphan_modules.py
+	@echo "✅ No new orphan modules detected"
+
+
 # Pre-commit targets
 # ========================================================
 .PHONY: update-hooks
