@@ -13,6 +13,7 @@ import sys
 from typing import Any
 
 from temporalio import activity
+from temporalio.exceptions import ApplicationError
 
 from nexus.core.exceptions import SafeValueError
 from nexus.settings.cache.settings_cache import get_runtime_settings
@@ -333,13 +334,9 @@ async def execute_script_activity(
         # Validate config via Pydantic model
         try:
             config = ScriptExecutorConfig.model_validate(input_config)
-        except Exception as e:  # noqa: BLE001
-            return {
-                "output": {
-                    "status": "failed",
-                    "error": {"type": "ConfigError", "message": f"Invalid configuration: {e}"},
-                }
-            }
+        except Exception:  # noqa: BLE001
+            msg = "Script activity configuration validation failed"
+            raise ApplicationError(msg, type="ConfigError", non_retryable=True) from None
 
         # Read values from the validated model
         language = config.language.value
@@ -390,26 +387,10 @@ async def execute_script_activity(
 
         return {"output": mapped_output}
 
+    except ApplicationError:
+        raise
     except ScriptExecutionError as e:
-        # Failed result conforming to baseFailedResult schema
-        # Error message already includes exit code and stderr from _raise_script_error
-        error_result = {
-            "status": "failed",
-            "error": {
-                "type": "ScriptExecutionError",
-                "message": str(e),
-            },
-        }
-        # No mapping on failures
-        return {"output": error_result}
+        raise ApplicationError(str(e), type="ScriptExecutionError", non_retryable=True) from None
     except Exception as e:  # noqa: BLE001
-        # Failed result conforming to baseFailedResult schema
-        error_result = {
-            "status": "failed",
-            "error": {
-                "type": type(e).__name__,
-                "message": str(e),
-            },
-        }
-        # No mapping on failures
-        return {"output": error_result}
+        msg = "Script activity failed unexpectedly"
+        raise ApplicationError(msg, type=type(e).__name__, non_retryable=True) from None

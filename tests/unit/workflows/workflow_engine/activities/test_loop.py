@@ -4,6 +4,7 @@ from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from temporalio.exceptions import ApplicationError
 
 from nexus.settings.catalog import SETTINGS_CATALOG
 from nexus.workflows.workflow_engine.activities.loop import loop
@@ -213,20 +214,15 @@ class TestLoopControlData:
 
 
 class TestUnknownLoopType:
-    """Unknown loop type returns error."""
+    """Unknown loop type raises ApplicationError."""
 
     @pytest.mark.asyncio
-    async def test_unknown_type_returns_failed(self) -> None:
+    async def test_unknown_type_raises(self) -> None:
         config: dict[str, Any] = {"type": "while_true", "current_index": 0}
-        result = await loop(config, None, {})
-        assert result["output"]["status"] == "failed"
-        assert "while_true" in str(result["output"]["error"])
-
-    @pytest.mark.asyncio
-    async def test_unknown_type_still_has_control_with_complete(self) -> None:
-        config: dict[str, Any] = {"type": "nonsense"}
-        result = await loop(config, None, {})
-        assert result["control"]["next_port"] == "complete"
+        with pytest.raises(ApplicationError) as exc_info:
+            await loop(config, None, {})
+        assert "while_true" in str(exc_info.value)
+        assert exc_info.value.type == "ConfigError"
 
 
 class TestLoopConfigDefaults:

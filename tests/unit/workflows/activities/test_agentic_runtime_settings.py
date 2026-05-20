@@ -1,6 +1,7 @@
 """Tests for agentic activity runtime settings injection."""
 
 import pytest
+from temporalio.exceptions import ApplicationError
 
 from nexus.workflows.workflow_engine.activities.agentic_activity import (
     _inject_runtime_settings,
@@ -40,9 +41,9 @@ class TestExecuteAgenticActivitySettingsIntegration:
     """Tests that execute_agentic_activity handles settings errors correctly."""
 
     @pytest.mark.asyncio
-    async def test_prompt_too_long_returns_failed(self) -> None:
-        """Activity returns failed status when prompt exceeds max length."""
+    async def test_prompt_too_long_raises(self) -> None:
+        """Activity raises ApplicationError when prompt exceeds max length."""
         config: dict[str, object] = {"prompt": "x" * 200000, "timeout": 300}
-        result = await execute_agentic_activity(config, None)
-        assert result["output"]["status"] == "failed"
-        assert "exceeds maximum length" in result["output"]["error"]
+        with pytest.raises(ApplicationError) as exc_info:
+            await execute_agentic_activity(config, None)
+        assert exc_info.value.type == "ConfigError"

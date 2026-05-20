@@ -12,6 +12,7 @@ These tests verify:
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from temporalio.exceptions import ApplicationError
 
 from nexus.workflows.workflow_engine.activities.agentic_activity import (
     execute_agentic_activity,
@@ -218,10 +219,9 @@ class TestAgenticActivityResponseSchema:
             "responseSchema": {"properties": {"name": {"type": "string"}}},  # Missing 'type'
         }
 
-        # V2 returns failed status for validation errors
-        result = await execute_agentic_activity(input_config, None)
-        assert result["output"]["status"] == "failed"
-        assert "type" in result["output"]["error"].lower()
+        with pytest.raises(ApplicationError) as exc_info:
+            await execute_agentic_activity(input_config, None)
+        assert exc_info.value.type == "ConfigError"
 
     @pytest.mark.asyncio
     async def test_response_schema_template_expression(self, mock_agent_client: AsyncMock) -> None:

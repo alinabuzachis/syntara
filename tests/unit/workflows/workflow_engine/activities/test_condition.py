@@ -3,6 +3,7 @@
 from unittest.mock import patch
 
 import pytest
+from temporalio.exceptions import ApplicationError
 
 from nexus.workflows.workflow_engine.activities.condition import condition
 
@@ -50,48 +51,47 @@ class TestConditionFalseEvaluation:
 
 
 class TestConditionMissingConfig:
-    """Missing condition expression returns error."""
+    """Missing condition expression raises ApplicationError."""
 
     @pytest.mark.asyncio
-    async def test_empty_condition_returns_failed(self) -> None:
-        result = await condition({"condition": "", "namespace": {}}, None)
-        assert result["output"]["status"] == "failed"
-        assert result["output"]["error"]["type"] == "ConfigurationError"
+    async def test_empty_condition_raises(self) -> None:
+        with pytest.raises(ApplicationError) as exc_info:
+            await condition({"condition": "", "namespace": {}}, None)
+        assert exc_info.value.type == "ConfigError"
 
     @pytest.mark.asyncio
-    async def test_missing_condition_key_returns_failed(self) -> None:
-        result = await condition({"namespace": {}}, None)
-        assert result["output"]["status"] == "failed"
-        assert "Missing 'condition'" in result["output"]["error"]["message"]
-
-    @pytest.mark.asyncio
-    async def test_missing_condition_has_no_control(self) -> None:
-        result = await condition({"namespace": {}}, None)
-        assert "control" not in result
+    async def test_missing_condition_key_raises(self) -> None:
+        with pytest.raises(ApplicationError) as exc_info:
+            await condition({"namespace": {}}, None)
+        assert "Missing 'condition'" in str(exc_info.value)
 
 
 class TestConditionEvaluationFailure:
-    """Condition evaluation raises an exception."""
+    """Condition evaluation raises ApplicationError."""
 
     @pytest.mark.asyncio
-    async def test_invalid_expression_returns_failed(self) -> None:
-        with patch(
-            "nexus.workflows.workflow_engine.activities.condition.safe_eval_with_namespace",
-            side_effect=ValueError("bad expression"),
+    async def test_invalid_expression_raises(self) -> None:
+        with (
+            patch(
+                "nexus.workflows.workflow_engine.activities.condition.safe_eval_with_namespace",
+                side_effect=ValueError("bad expression"),
+            ),
+            pytest.raises(ApplicationError) as exc_info,
         ):
-            result = await condition({"condition": "bad_expr", "namespace": {}}, None)
-        assert result["output"]["status"] == "failed"
-        assert result["output"]["error"]["type"] == "ConditionEvaluationError"
+            await condition({"condition": "bad_expr", "namespace": {}}, None)
+        assert exc_info.value.type == "ConditionEvaluationError"
 
     @pytest.mark.asyncio
-    async def test_evaluation_error_has_no_control(self) -> None:
-        """ValueError from evaluation should return failed result without control key."""
-        with patch(
-            "nexus.workflows.workflow_engine.activities.condition.safe_eval_with_namespace",
-            side_effect=ValueError("invalid expression"),
+    async def test_evaluation_error_is_non_retryable(self) -> None:
+        with (
+            patch(
+                "nexus.workflows.workflow_engine.activities.condition.safe_eval_with_namespace",
+                side_effect=ValueError("invalid expression"),
+            ),
+            pytest.raises(ApplicationError) as exc_info,
         ):
-            result = await condition({"condition": "x", "namespace": {}}, None)
-        assert "control" not in result
+            await condition({"condition": "x", "namespace": {}}, None)
+        assert exc_info.value.non_retryable is True
 
     @pytest.mark.asyncio
     async def test_uncaught_exception_propagates(self) -> None:
@@ -149,18 +149,13 @@ class TestConditionControlData:
 
 
 class TestConditionNoneValue:
-    """Condition key present but value is None."""
+    """Condition key present but value is None raises ApplicationError."""
 
     @pytest.mark.asyncio
-    async def test_none_condition_value_returns_failed(self) -> None:
-        result = await condition({"condition": None, "namespace": {}}, None)
-        assert result["output"]["status"] == "failed"
-        assert result["output"]["error"]["type"] == "ConfigurationError"
-
-    @pytest.mark.asyncio
-    async def test_none_condition_value_has_no_control(self) -> None:
-        result = await condition({"condition": None, "namespace": {}}, None)
-        assert "control" not in result
+    async def test_none_condition_value_raises(self) -> None:
+        with pytest.raises(ApplicationError) as exc_info:
+            await condition({"condition": None, "namespace": {}}, None)
+        assert exc_info.value.type == "ConfigError"
 
 
 class TestConditionErrorMessageContent:
@@ -168,33 +163,36 @@ class TestConditionErrorMessageContent:
 
     @pytest.mark.asyncio
     async def test_evaluation_error_message_includes_expression(self) -> None:
-        with patch(
-            "nexus.workflows.workflow_engine.activities.condition.safe_eval_with_namespace",
-            side_effect=ValueError("syntax error"),
+        with (
+            patch(
+                "nexus.workflows.workflow_engine.activities.condition.safe_eval_with_namespace",
+                side_effect=ValueError("syntax error"),
+            ),
+            pytest.raises(ApplicationError) as exc_info,
         ):
-            result = await condition({"condition": "x + y", "namespace": {}}, None)
-        assert "x + y" in result["output"]["error"]["message"]
-        assert "syntax error" in result["output"]["error"]["message"]
+            await condition({"condition": "x + y", "namespace": {}}, None)
+        assert "x + y" in str(exc_info.value)
+        assert "syntax error" in str(exc_info.value)
 
 
 class TestConditionOutputMappingOnFailure:
-    """Output mapping is ignored when condition fails."""
+    """Output mapping is skipped because failures now raise instead of return."""
 
     @pytest.mark.asyncio
-    async def test_output_mapping_ignored_on_missing_config(self) -> None:
-        result = await condition({"namespace": {}}, {"eval": "${result.evaluated_result}"})
-        assert result["output"]["status"] == "failed"
-        assert "eval" not in result["output"]
+    async def test_missing_config_raises_not_returns(self) -> None:
+        with pytest.raises(ApplicationError):
+            await condition({"namespace": {}}, {"eval": "${result.evaluated_result}"})
 
     @pytest.mark.asyncio
-    async def test_output_mapping_ignored_on_eval_error(self) -> None:
-        with patch(
-            "nexus.workflows.workflow_engine.activities.condition.safe_eval_with_namespace",
-            side_effect=ValueError("bad"),
+    async def test_eval_error_raises_not_returns(self) -> None:
+        with (
+            patch(
+                "nexus.workflows.workflow_engine.activities.condition.safe_eval_with_namespace",
+                side_effect=ValueError("bad"),
+            ),
+            pytest.raises(ApplicationError),
         ):
-            result = await condition({"condition": "bad", "namespace": {}}, {"eval": "${result.evaluated_result}"})
-        assert result["output"]["status"] == "failed"
-        assert "eval" not in result["output"]
+            await condition({"condition": "bad", "namespace": {}}, {"eval": "${result.evaluated_result}"})
 
 
 class TestConditionWithNamespace:
@@ -243,9 +241,9 @@ class TestConditionWithNamespace:
 
     @pytest.mark.asyncio
     async def test_variable_not_found_in_namespace(self) -> None:
-        """Missing variable in namespace raises KeyError."""
+        """Missing variable in namespace raises ApplicationError."""
         namespace = {"status": "ok"}
-        result = await condition({"condition": "${unknown} == 'value'", "namespace": namespace}, None)
-        assert result["output"]["status"] == "failed"
-        assert result["output"]["error"]["type"] == "ConditionEvaluationError"
-        assert "unknown" in result["output"]["error"]["message"]
+        with pytest.raises(ApplicationError) as exc_info:
+            await condition({"condition": "${unknown} == 'value'", "namespace": namespace}, None)
+        assert exc_info.value.type == "ConditionEvaluationError"
+        assert "unknown" in str(exc_info.value)

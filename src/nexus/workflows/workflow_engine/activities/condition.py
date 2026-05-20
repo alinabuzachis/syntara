@@ -3,6 +3,7 @@
 from typing import Any
 
 from temporalio import activity
+from temporalio.exceptions import ApplicationError
 
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
 from nexus.workflows.workflow_engine.unified_eval import safe_eval_with_namespace
@@ -55,16 +56,8 @@ async def condition(
     namespace = input_config.get("namespace", {})
 
     if not condition_expr:
-        # Failed result conforming to baseFailedResult schema
-        return {
-            "output": {
-                "status": "failed",
-                "error": {
-                    "type": "ConfigurationError",
-                    "message": "Missing 'condition' in config",
-                },
-            }
-        }
+        msg = "Missing 'condition' in config"
+        raise ApplicationError(msg, type="ConfigError", non_retryable=True)
 
     try:
         # NEW: Use unified context-aware evaluator (Tier 2)
@@ -87,18 +80,9 @@ async def condition(
         }
 
     except (ValueError, KeyError, TypeError, IndexError) as e:
-        # Failed result conforming to baseFailedResult schema
         # RuntimeError intentionally NOT caught: we prefer Temporal infrastructure
-        # errors (heartbeat timeout, cancellation) to propagate and fail loudly
-        # rather than silently returning a failed condition status.
+        # errors (heartbeat timeout, cancellation) to propagate and fail loudly.
         # AttributeError removed: _eval_attribute raises TypeError for type mismatches.
         # IndexError added: _eval_subscript raises it for out-of-range list access.
-        error_result = {
-            "status": "failed",
-            "error": {
-                "type": "ConditionEvaluationError",
-                "message": f"Failed to evaluate condition '{condition_expr}': {e!s}",
-            },
-        }
-        # No mapping on failures
-        return {"output": error_result}
+        msg = f"Failed to evaluate condition '{condition_expr}': {e!s}"
+        raise ApplicationError(msg, type="ConditionEvaluationError", non_retryable=True) from e

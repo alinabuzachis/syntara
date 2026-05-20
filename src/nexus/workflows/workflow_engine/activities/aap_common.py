@@ -20,6 +20,7 @@ from temporalio.exceptions import ApplicationError, CancelledError
 
 from nexus.core.exceptions import SafeValueError
 from nexus.core.lib.url_validation import validate_host_url
+from nexus.workflows.workflow_engine.utils.credential_scrubber import ensure_resolved_credentials_dict
 
 from .common import ActivityExecutionError
 
@@ -562,6 +563,45 @@ def get_aap_auth_from_credentials(
         "Verify the correct credential type is linked to this activity."
     )
     return AAPCredentialAuth({}, None, host_override, verify_ssl_override)
+
+
+@dataclass
+class AAPResolvedAuth:
+    """Resolved AAP authentication ready for use in HTTP requests."""
+
+    base_url: str
+    auth_headers: dict[str, str]
+    basic_auth: httpx.BasicAuth | None
+    verify_ssl: bool
+
+
+def resolve_aap_auth(input_config: dict[str, Any], settings: Settings) -> AAPResolvedAuth:
+    """Resolve AAP authentication from credentials or environment settings.
+
+    Credential takes priority over env vars. Raises ApplicationError on failure.
+    """
+    resolved_creds = input_config.get("_resolved_credentials")
+    try:
+        if resolved_creds:
+            resolved_creds = ensure_resolved_credentials_dict(resolved_creds)
+            cred_auth = get_aap_auth_from_credentials(resolved_creds)
+            auth_headers = cred_auth.headers
+            basic_auth = cred_auth.basic_auth
+            base_url = cred_auth.host_override or (settings.aap_base_url or "").rstrip("/")
+            # Credential SSL setting takes priority over global setting (supports per-AAP-instance SSL)
+            verify_ssl = (
+                cred_auth.verify_ssl_override if cred_auth.verify_ssl_override is not None else settings.aap_verify_ssl
+            )
+        else:
+            base_url = (settings.aap_base_url or "").rstrip("/")
+            auth_headers = get_aap_auth_headers(settings)
+            basic_auth = get_aap_basic_auth(settings)
+            verify_ssl = settings.aap_verify_ssl
+    except (AAPActivityExecutionError, TypeError, KeyError, ValueError) as e:
+        logger.warning("AAP auth resolution failed", error=str(e), exc_info=True)
+        msg = "Authentication failed — verify AAP credentials"
+        raise ApplicationError(msg, type="ConfigError", non_retryable=True) from None
+    return AAPResolvedAuth(base_url, auth_headers, basic_auth, verify_ssl)
 
 
 def check_timeout(elapsed: float, timeout_seconds: int, job_id: int, *, configured_timeout: int | None = None) -> None:

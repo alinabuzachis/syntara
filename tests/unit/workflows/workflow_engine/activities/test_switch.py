@@ -4,6 +4,7 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
+from temporalio.exceptions import ApplicationError
 
 from nexus.workflows.workflow_engine.activities.switch import switch
 
@@ -117,59 +118,57 @@ class TestSwitchDefaultPort:
 
 
 class TestSwitchMissingConfig:
-    """Missing or empty cases returns error."""
+    """Missing or empty cases raises ApplicationError."""
 
     @pytest.mark.asyncio
     async def test_cases_not_a_list_returns_failed(self) -> None:
-        result = await switch({"cases": "not_a_list", "namespace": {}}, None)
-        assert result["output"]["status"] == "failed"
-        assert "must be a list" in result["output"]["error"]["message"]
-        assert "control" not in result
+        with pytest.raises(ApplicationError) as exc_info:
+            await switch({"cases": "not_a_list", "namespace": {}}, None)
+        assert "must be a list" in str(exc_info.value)
+        assert exc_info.value.non_retryable is True
 
     @pytest.mark.asyncio
     async def test_cases_is_dict_returns_failed(self) -> None:
-        result = await switch({"cases": {"port": "val"}, "namespace": {}}, None)
-        assert result["output"]["status"] == "failed"
-        assert "dict" in result["output"]["error"]["message"]
+        with pytest.raises(ApplicationError) as exc_info:
+            await switch({"cases": {"port": "val"}, "namespace": {}}, None)
+        assert "dict" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_too_many_cases_returns_failed(self) -> None:
         cases = [{"port": f"case_{i}", "label": f"Case {i}", "condition": "True"} for i in range(101)]
-        result = await switch(_make_config(cases=cases), None)
-        assert result["output"]["status"] == "failed"
-        assert "exceeding the maximum" in result["output"]["error"]["message"]
-        assert "control" not in result
+        with pytest.raises(ApplicationError) as exc_info:
+            await switch(_make_config(cases=cases), None)
+        assert "exceeding the maximum" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_empty_cases_returns_failed(self) -> None:
-        result = await switch(_make_config(cases=[]), None)
-        assert result["output"]["status"] == "failed"
-        assert result["output"]["error"]["type"] == "ConfigurationError"
+        with pytest.raises(ApplicationError) as exc_info:
+            await switch(_make_config(cases=[]), None)
+        assert exc_info.value.type == "ConfigError"
 
     @pytest.mark.asyncio
     async def test_case_key_matches_default_port_returns_failed(self) -> None:
         cases = [
             {"port": "default", "label": "Conflicts", "condition": "True"},
         ]
-        result = await switch(_make_config(cases=cases), None)
-        assert result["output"]["status"] == "failed"
-        assert "conflicts with default_port" in result["output"]["error"]["message"]
-        assert "control" not in result
+        with pytest.raises(ApplicationError) as exc_info:
+            await switch(_make_config(cases=cases), None)
+        assert "conflicts with default_port" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_case_key_matches_custom_default_port_returns_failed(self) -> None:
         cases = [
             {"port": "fallback", "label": "Conflicts", "condition": "True"},
         ]
-        result = await switch(_make_config(cases=cases, default_port="fallback"), None)
-        assert result["output"]["status"] == "failed"
-        assert "conflicts with default_port" in result["output"]["error"]["message"]
+        with pytest.raises(ApplicationError) as exc_info:
+            await switch(_make_config(cases=cases, default_port="fallback"), None)
+        assert "conflicts with default_port" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_missing_cases_key_returns_failed(self) -> None:
-        result = await switch({"namespace": {}}, None)
-        assert result["output"]["status"] == "failed"
-        assert "cases" in result["output"]["error"]["message"]
+        with pytest.raises(ApplicationError) as exc_info:
+            await switch({"namespace": {}}, None)
+        assert "cases" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_duplicate_case_keys_returns_failed(self) -> None:
@@ -177,15 +176,14 @@ class TestSwitchMissingConfig:
             {"port": "case_0", "label": "First", "condition": "True"},
             {"port": "case_0", "label": "Duplicate", "condition": "False"},
         ]
-        result = await switch(_make_config(cases=cases), None)
-        assert result["output"]["status"] == "failed"
-        assert "Duplicate" in result["output"]["error"]["message"]
-        assert "control" not in result
+        with pytest.raises(ApplicationError) as exc_info:
+            await switch(_make_config(cases=cases), None)
+        assert "Duplicate" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_missing_cases_has_no_control(self) -> None:
-        result = await switch({"namespace": {}}, None)
-        assert "control" not in result
+        with pytest.raises(ApplicationError):
+            await switch({"namespace": {}}, None)
 
 
 class TestSwitchEmptyConditionSkipped:
@@ -211,41 +209,45 @@ class TestSwitchEmptyConditionSkipped:
 
 
 class TestSwitchEvaluationFailure:
-    """Expression evaluation raises an exception."""
+    """Expression evaluation raises ApplicationError."""
 
     @pytest.mark.asyncio
     async def test_invalid_expression_returns_failed(self) -> None:
-        with patch(
-            "nexus.workflows.workflow_engine.activities.switch.safe_eval_with_namespace",
-            side_effect=ValueError("bad expression"),
+        with (
+            patch(
+                "nexus.workflows.workflow_engine.activities.switch.safe_eval_with_namespace",
+                side_effect=ValueError("bad expression"),
+            ),
+            pytest.raises(ApplicationError) as exc_info,
         ):
             cases = [{"port": "case_0", "label": "Bad", "condition": "bad_expr"}]
-            result = await switch(_make_config(cases=cases), None)
-        assert result["output"]["status"] == "failed"
-        assert result["output"]["error"]["type"] == "SwitchEvaluationError"
+            await switch(_make_config(cases=cases), None)
+        assert exc_info.value.type == "SwitchEvaluationError"
 
     @pytest.mark.asyncio
     async def test_error_on_second_case_reports_correct_condition(self) -> None:
         """Error message should reference the condition that actually failed, not the first one."""
-        with patch(
-            "nexus.workflows.workflow_engine.activities.switch.safe_eval_with_namespace",
-            side_effect=[False, ValueError("fail on case 1")],
+        with (
+            patch(
+                "nexus.workflows.workflow_engine.activities.switch.safe_eval_with_namespace",
+                side_effect=[False, ValueError("fail on case 1")],
+            ),
+            pytest.raises(ApplicationError) as exc_info,
         ):
             cases = [
                 {"port": "case_0", "label": "OK", "condition": "first_expr"},
                 {"port": "case_1", "label": "Bad", "condition": "second_expr"},
             ]
-            result = await switch(_make_config(cases=cases), None)
-        assert result["output"]["status"] == "failed"
-        assert "second_expr" in result["output"]["error"]["message"]
-        assert "first_expr" not in result["output"]["error"]["message"]
+            await switch(_make_config(cases=cases), None)
+        assert "second_expr" in str(exc_info.value)
+        assert "first_expr" not in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_missing_key_field_returns_failed(self) -> None:
-        """Case without 'key' field should fail, not silently fabricate a port name."""
+        """Case without 'port' field should fail, not silently fabricate a port name."""
         cases = [{"label": "No key", "condition": "True"}]
-        result = await switch(_make_config(cases=cases), None)
-        assert result["output"]["status"] == "failed"
+        with pytest.raises(ApplicationError):
+            await switch(_make_config(cases=cases), None)
 
     @pytest.mark.asyncio
     async def test_none_condition_value_skipped(self) -> None:
@@ -259,13 +261,15 @@ class TestSwitchEvaluationFailure:
 
     @pytest.mark.asyncio
     async def test_evaluation_error_has_no_control(self) -> None:
-        with patch(
-            "nexus.workflows.workflow_engine.activities.switch.safe_eval_with_namespace",
-            side_effect=ValueError("invalid"),
+        with (
+            patch(
+                "nexus.workflows.workflow_engine.activities.switch.safe_eval_with_namespace",
+                side_effect=ValueError("invalid"),
+            ),
+            pytest.raises(ApplicationError),
         ):
             cases = [{"port": "case_0", "label": "Bad", "condition": "x"}]
-            result = await switch(_make_config(cases=cases), None)
-        assert "control" not in result
+            await switch(_make_config(cases=cases), None)
 
     @pytest.mark.asyncio
     async def test_uncaught_exception_propagates(self) -> None:
@@ -303,9 +307,8 @@ class TestSwitchOutputMapping:
 
     @pytest.mark.asyncio
     async def test_output_mapping_ignored_on_failure(self) -> None:
-        result = await switch({"namespace": {}}, {"port": "${result.matched_port}"})
-        assert result["output"]["status"] == "failed"
-        assert "port" not in result["output"]
+        with pytest.raises(ApplicationError):
+            await switch({"namespace": {}}, {"port": "${result.matched_port}"})
 
 
 class TestSwitchControlData:
@@ -387,9 +390,9 @@ class TestSwitchWithNamespace:
             cases=[{"port": "case_0", "label": "Missing", "condition": "${unknown} == 'x'"}],
             namespace={"status": "ok"},
         )
-        result = await switch(config, None)
-        assert result["output"]["status"] == "failed"
-        assert result["output"]["error"]["type"] == "SwitchEvaluationError"
+        with pytest.raises(ApplicationError) as exc_info:
+            await switch(config, None)
+        assert exc_info.value.type == "SwitchEvaluationError"
 
     @pytest.mark.asyncio
     async def test_multi_case_with_namespace(self) -> None:

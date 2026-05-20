@@ -2,11 +2,15 @@
 
 import sys
 from collections.abc import Generator
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from temporalio.exceptions import ApplicationError
 
 from nexus.workflows.workflow_engine.activities.script_activity import (
+    ScriptExecutionError,
+    _process_script_result,
+    _sanitize_env_value,
     execute_script_activity,
 )
 
@@ -229,32 +233,28 @@ class TestScriptErrorHandling:
 
     @pytest.mark.asyncio
     async def test_non_zero_exit_code(self) -> None:
-        """Test script that exits with non-zero code."""
+        """Test script that exits with non-zero code raises ApplicationError."""
         input_config = {"language": "bash", "code": "exit 1"}
 
-        # V2 returns error result instead of raising
-        result = await execute_script_activity(input_config, None)
-        output = result["output"]
-        assert output["status"] == "failed"
-        assert "exit code 1" in output["error"]["message"]
+        with pytest.raises(ApplicationError) as exc_info:
+            await execute_script_activity(input_config, None)
+        assert exc_info.value.type == "ScriptExecutionError"
 
     @pytest.mark.asyncio
     async def test_command_not_found(self) -> None:
-        """Test script with invalid command."""
+        """Test script with invalid command raises ApplicationError."""
         input_config = {"language": "bash", "code": "nonexistentcommand12345"}
 
-        result = await execute_script_activity(input_config, None)
-        output = result["output"]
-        assert output["status"] == "failed"
+        with pytest.raises(ApplicationError):
+            await execute_script_activity(input_config, None)
 
     @pytest.mark.asyncio
     async def test_syntax_error(self) -> None:
-        """Test script with bash syntax error."""
+        """Test script with bash syntax error raises ApplicationError."""
         input_config = {"language": "bash", "code": 'if [ true ]; then\necho "incomplete"'}
 
-        result = await execute_script_activity(input_config, None)
-        output = result["output"]
-        assert output["status"] == "failed"
+        with pytest.raises(ApplicationError):
+            await execute_script_activity(input_config, None)
 
 
 class TestScriptAdvancedFeatures:
@@ -416,15 +416,12 @@ done
         assert "世界" in output["stdout"]
 
     @pytest.mark.asyncio
-    async def test_unsupported_language_returns_config_error(self) -> None:
+    async def test_unsupported_language_raises_config_error(self) -> None:
         """Test that unsupported language is caught by Pydantic validation."""
         input_config = {"language": "ruby", "code": "puts 'hello'"}
-        result = await execute_script_activity(input_config, None)
-
-        output = result["output"]
-        assert output["status"] == "failed"
-        assert output["error"]["type"] == "ConfigError"
-        assert "Invalid configuration" in output["error"]["message"]
+        with pytest.raises(ApplicationError) as exc_info:
+            await execute_script_activity(input_config, None)
+        assert exc_info.value.type == "ConfigError"
 
 
 class TestPythonScriptExecution:
@@ -494,17 +491,16 @@ class TestPythonScriptErrorHandling:
 
     @pytest.mark.asyncio
     async def test_python_syntax_error(self) -> None:
-        """Test Python script with syntax error."""
+        """Test Python script with syntax error raises ApplicationError."""
         input_config = {"language": "python", "code": 'print("Missing closing quote'}
 
-        result = await execute_script_activity(input_config, None)
-        output = result["output"]
-        assert output["status"] == "failed"
-        assert "ScriptExecutionError" in output["error"]["type"]
+        with pytest.raises(ApplicationError) as exc_info:
+            await execute_script_activity(input_config, None)
+        assert exc_info.value.type == "ScriptExecutionError"
 
     @pytest.mark.asyncio
     async def test_python_runtime_error(self) -> None:
-        """Test Python script with runtime error."""
+        """Test Python script with runtime error raises ApplicationError."""
         script = """
 x = 10
 y = 0
@@ -512,18 +508,16 @@ result = x / y  # Division by zero
 """
         input_config = {"language": "python", "code": script}
 
-        result = await execute_script_activity(input_config, None)
-        output = result["output"]
-        assert output["status"] == "failed"
+        with pytest.raises(ApplicationError):
+            await execute_script_activity(input_config, None)
 
     @pytest.mark.asyncio
     async def test_python_import_error(self) -> None:
-        """Test Python script with import error."""
+        """Test Python script with import error raises ApplicationError."""
         input_config = {"language": "python", "code": "import nonexistent_module"}
 
-        result = await execute_script_activity(input_config, None)
-        output = result["output"]
-        assert output["status"] == "failed"
+        with pytest.raises(ApplicationError):
+            await execute_script_activity(input_config, None)
 
 
 class TestPythonScriptOutputParsing:
@@ -630,91 +624,72 @@ class TestPydanticConfigValidation:
     """Test that ScriptExecutorConfig.model_validate() is enforced."""
 
     @pytest.mark.asyncio
-    async def test_empty_code_returns_config_error(self) -> None:
-        """Empty code string violates min_length=1 and returns a failed result."""
+    async def test_empty_code_raises_config_error(self) -> None:
+        """Empty code string violates min_length=1 and raises ApplicationError."""
         input_config = {"language": "bash", "code": ""}
-        result = await execute_script_activity(input_config, None)
-
-        output = result["output"]
-        assert output["status"] == "failed"
-        assert output["error"]["type"] == "ConfigError"
-        assert "Invalid configuration" in output["error"]["message"]
+        with pytest.raises(ApplicationError) as exc_info:
+            await execute_script_activity(input_config, None)
+        assert exc_info.value.type == "ConfigError"
 
     @pytest.mark.asyncio
-    async def test_negative_timeout_returns_config_error(self) -> None:
+    async def test_negative_timeout_raises_config_error(self) -> None:
         """Negative timeout violates ge=1 constraint."""
         input_config = {"language": "bash", "code": "echo hi", "timeout": -1}
-        result = await execute_script_activity(input_config, None)
-
-        output = result["output"]
-        assert output["status"] == "failed"
-        assert output["error"]["type"] == "ConfigError"
-        assert "Invalid configuration" in output["error"]["message"]
+        with pytest.raises(ApplicationError) as exc_info:
+            await execute_script_activity(input_config, None)
+        assert exc_info.value.type == "ConfigError"
 
     @pytest.mark.asyncio
-    async def test_zero_timeout_returns_config_error(self) -> None:
+    async def test_zero_timeout_raises_config_error(self) -> None:
         """Zero timeout violates ge=1 constraint."""
         input_config = {"language": "bash", "code": "echo hi", "timeout": 0}
-        result = await execute_script_activity(input_config, None)
-
-        output = result["output"]
-        assert output["status"] == "failed"
-        assert output["error"]["type"] == "ConfigError"
+        with pytest.raises(ApplicationError) as exc_info:
+            await execute_script_activity(input_config, None)
+        assert exc_info.value.type == "ConfigError"
 
     @pytest.mark.asyncio
-    async def test_timeout_exceeding_3600_returns_config_error(self) -> None:
+    async def test_timeout_exceeding_3600_raises_config_error(self) -> None:
         """Timeout > 3600 violates le=3600 constraint."""
         input_config = {"language": "bash", "code": "echo hi", "timeout": 7200}
-        result = await execute_script_activity(input_config, None)
-
-        output = result["output"]
-        assert output["status"] == "failed"
-        assert output["error"]["type"] == "ConfigError"
+        with pytest.raises(ApplicationError) as exc_info:
+            await execute_script_activity(input_config, None)
+        assert exc_info.value.type == "ConfigError"
 
     @pytest.mark.asyncio
-    async def test_invalid_language_returns_config_error(self) -> None:
+    async def test_invalid_language_raises_config_error(self) -> None:
         """Non-enum language value is rejected by Pydantic."""
         input_config = {"language": "ruby", "code": "puts 'hello'"}
-        result = await execute_script_activity(input_config, None)
-
-        output = result["output"]
-        assert output["status"] == "failed"
-        assert output["error"]["type"] == "ConfigError"
-        assert "Invalid configuration" in output["error"]["message"]
+        with pytest.raises(ApplicationError) as exc_info:
+            await execute_script_activity(input_config, None)
+        assert exc_info.value.type == "ConfigError"
 
     @pytest.mark.asyncio
-    async def test_missing_code_field_returns_config_error(self) -> None:
+    async def test_missing_code_field_raises_config_error(self) -> None:
         """Missing required 'code' field is rejected by Pydantic."""
         input_config = {"language": "bash"}
-        result = await execute_script_activity(input_config, None)
-
-        output = result["output"]
-        assert output["status"] == "failed"
-        assert output["error"]["type"] == "ConfigError"
+        with pytest.raises(ApplicationError) as exc_info:
+            await execute_script_activity(input_config, None)
+        assert exc_info.value.type == "ConfigError"
 
     @pytest.mark.asyncio
-    async def test_missing_language_field_returns_config_error(self) -> None:
+    async def test_missing_language_field_raises_config_error(self) -> None:
         """Missing required 'language' field is rejected by Pydantic."""
         input_config = {"code": "echo hello"}
-        result = await execute_script_activity(input_config, None)
-
-        output = result["output"]
-        assert output["status"] == "failed"
-        assert output["error"]["type"] == "ConfigError"
+        with pytest.raises(ApplicationError) as exc_info:
+            await execute_script_activity(input_config, None)
+        assert exc_info.value.type == "ConfigError"
 
     @pytest.mark.asyncio
-    async def test_non_string_environment_values_returns_config_error(self) -> None:
+    async def test_non_string_environment_values_raises_config_error(self) -> None:
         """Environment with non-string values is rejected by Pydantic."""
         input_config = {
             "language": "bash",
             "code": "echo hi",
             "environment": {"KEY": 123},
         }
-        result = await execute_script_activity(input_config, None)
-
-        output = result["output"]
-        assert output["status"] == "failed"
-        assert output["error"]["type"] == "ConfigError"
+        with pytest.raises(ApplicationError) as exc_info:
+            await execute_script_activity(input_config, None)
+        assert exc_info.value.type == "ConfigError"
 
     @pytest.mark.asyncio
     async def test_valid_config_at_boundary_timeout_1(self) -> None:
@@ -737,13 +712,11 @@ class TestPydanticConfigValidation:
         assert output["return_code"] == 0
 
     @pytest.mark.asyncio
-    async def test_completely_empty_config_returns_config_error(self) -> None:
+    async def test_completely_empty_config_raises_config_error(self) -> None:
         """Empty dict is rejected by Pydantic (missing required fields)."""
-        result = await execute_script_activity({}, None)
-
-        output = result["output"]
-        assert output["status"] == "failed"
-        assert output["error"]["type"] == "ConfigError"
+        with pytest.raises(ApplicationError) as exc_info:
+            await execute_script_activity({}, None)
+        assert exc_info.value.type == "ConfigError"
 
 
 class TestSysExecutableForPython:
@@ -869,3 +842,110 @@ print(json.dumps(data))
         output = result["output"]
         assert output["return_code"] == 0
         assert "attempt=1" in output["stdout"]
+
+
+# ---------------------------------------------------------------------------
+# Unit tests for internal helpers (cover lines not reached via subprocess)
+# ---------------------------------------------------------------------------
+
+
+class TestSanitizeEnvValue:
+    """Tests for _sanitize_env_value input validation."""
+
+    def test_null_byte_raises(self) -> None:
+        from nexus.core.exceptions import SafeValueError
+
+        with pytest.raises(SafeValueError, match="null bytes"):
+            _sanitize_env_value("value\x00with_null")
+
+    def test_exceeds_max_length_raises(self) -> None:
+        from nexus.core.exceptions import SafeValueError
+        from nexus.workflows.workflow_engine import constants
+
+        with pytest.raises(SafeValueError, match="maximum length"):
+            _sanitize_env_value("x" * (constants.MAX_ENV_VAR_LENGTH + 1))
+
+    def test_normal_string_passes(self) -> None:
+        assert _sanitize_env_value("hello") == "hello"
+
+    def test_dict_serialized_as_json(self) -> None:
+        result = _sanitize_env_value({"key": "value"})
+        assert result == '{"key": "value"}'
+
+    def test_list_serialized_as_json(self) -> None:
+        result = _sanitize_env_value([1, 2, 3])
+        assert result == "[1, 2, 3]"
+
+
+class TestProcessScriptResult:
+    """Tests for _process_script_result edge cases."""
+
+    def test_returncode_none_raises_runtime_error(self) -> None:
+        with pytest.raises(RuntimeError, match="returncode is None"):
+            _process_script_result(None, b"stdout", b"stderr")
+
+    def test_nonzero_exit_code_raises_script_error(self) -> None:
+        with pytest.raises(ScriptExecutionError):
+            _process_script_result(1, b"out", b"err")
+
+    def test_zero_exit_code_returns_result(self) -> None:
+        result = _process_script_result(0, b"hello\n", b"")
+        assert result["return_code"] == 0
+        assert result["stdout"] == "hello\n"
+        assert result["stderr"] == ""
+
+    def test_none_bytes_handled(self) -> None:
+        result = _process_script_result(0, None, None)
+        assert result["stdout"] == ""
+        assert result["stderr"] == ""
+
+
+class TestGenericExceptionHandler:
+    """Test the outer generic exception handler in execute_script_activity."""
+
+    @pytest.mark.asyncio
+    async def test_subprocess_error_raises_application_error(self) -> None:
+        """SubprocessError falls through to generic ApplicationError handler."""
+        import subprocess
+
+        with (
+            patch(
+                "nexus.workflows.workflow_engine.activities.script_activity.asyncio.create_subprocess_exec",
+                side_effect=subprocess.SubprocessError("spawn failed"),
+            ),
+            pytest.raises(ApplicationError) as exc_info,
+        ):
+            await execute_script_activity({"language": "bash", "code": "echo hi"}, None)
+        assert exc_info.value.non_retryable is True
+
+
+class TestScriptActivityTimeoutAndInputs:
+    """Cover remaining uncovered paths in script activity."""
+
+    @pytest.mark.asyncio
+    async def test_timeout_raises_application_error(self) -> None:
+        """TimeoutError from asyncio.wait_for propagates as ApplicationError."""
+        with (
+            patch(
+                "nexus.workflows.workflow_engine.activities.script_activity.asyncio.create_subprocess_exec",
+                new_callable=AsyncMock,
+            ) as mock_create,
+            pytest.raises(ApplicationError) as exc_info,
+        ):
+            mock_process = AsyncMock()
+            mock_create.return_value = mock_process
+            mock_process.communicate.side_effect = TimeoutError()
+            mock_process.returncode = None
+            mock_process.stdin = None
+            mock_process._transport = None
+            await execute_script_activity({"language": "bash", "code": "sleep 999", "timeout": 1}, None)
+        assert exc_info.value.non_retryable is True
+
+    @pytest.mark.asyncio
+    async def test_inputs_with_none_value_skipped(self) -> None:
+        """None values in inputs dict are not added to environment."""
+        script = 'echo "${INPUT_KEY:-missing}"'
+        input_config = {"language": "bash", "code": script}
+        # V2 resolves templates before calling the activity; inputs dict is empty
+        result = await execute_script_activity(input_config, None)
+        assert result["output"]["return_code"] == 0

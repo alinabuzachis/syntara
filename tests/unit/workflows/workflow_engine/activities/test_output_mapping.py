@@ -9,6 +9,9 @@ Tests cover:
 
 from typing import Any
 
+import pytest
+from temporalio.exceptions import ApplicationError
+
 from nexus.workflows.workflow_engine.activities.output_mapping import apply_output_mapping
 
 # ---------------------------------------------------------------------------
@@ -83,43 +86,32 @@ class TestOutputMappingFieldMappings:
 
 
 # ---------------------------------------------------------------------------
-# Failed status bypass
+# Non-completed status bypass
 # ---------------------------------------------------------------------------
 
 
-class TestOutputMappingFailedBypass:
+class TestOutputMappingNonCompletedBypass:
     """Output mapping is skipped when status is not 'completed'."""
 
-    def test_failed_status_returns_unchanged(self) -> None:
-        result: dict[str, Any] = {"status": "failed", "error": "something broke", "output": {"x": 1}}
-        mapped = apply_output_mapping(result, {"x": "${result.output.x}"})
+    def test_non_completed_status_returns_unchanged(self) -> None:
+        """manual_trigger can produce non-completed status via user-supplied input."""
+        result: dict[str, Any] = {"status": "override", "data": "x"}
+        mapped = apply_output_mapping(result, {"data": "${result.data}"})
         assert mapped == result
 
-    def test_failed_with_empty_config_returns_unchanged(self) -> None:
-        result: dict[str, Any] = {"status": "failed", "error": "err"}
+    def test_non_completed_with_empty_config_returns_unchanged(self) -> None:
+        result: dict[str, Any] = {"status": "override", "data": "x"}
         mapped = apply_output_mapping(result, {})
         assert mapped == result
 
-    def test_failed_with_none_config_returns_unchanged(self) -> None:
-        result: dict[str, Any] = {"status": "failed", "error": "err"}
+    def test_non_completed_with_none_config_returns_unchanged(self) -> None:
+        result: dict[str, Any] = {"status": "override", "data": "x"}
         mapped = apply_output_mapping(result, None)
         assert mapped == result
 
-    def test_error_status_returns_unchanged(self) -> None:
-        result: dict[str, Any] = {"status": "error", "detail": "timeout"}
-        mapped = apply_output_mapping(result, {"x": "${result.detail}"})
-        assert mapped == result
-
-    def test_missing_status_returns_unchanged(self) -> None:
-        """Result without status field should be treated as non-completed."""
-        result: dict[str, Any] = {"output": {"x": 1}}
-        mapped = apply_output_mapping(result, {"x": "${result.output.x}"})
-        assert mapped == result
-
-    def test_failed_is_same_object(self) -> None:
-        """Failed bypass returns the exact same dict, not a copy."""
-        result: dict[str, Any] = {"status": "failed", "error": "boom"}
-        mapped = apply_output_mapping(result, {"x": "${result.error}"})
+    def test_non_completed_returns_same_object(self) -> None:
+        result: dict[str, Any] = {"status": "override"}
+        mapped = apply_output_mapping(result, {"x": "${result.status}"})
         assert mapped is result
 
 
@@ -131,13 +123,13 @@ class TestOutputMappingFailedBypass:
 class TestOutputMappingErrors:
     """Error paths for apply_output_mapping."""
 
-    def test_mapping_referencing_missing_field_returns_error(self) -> None:
-        """Template referencing non-existent field returns a failed result."""
+    def test_mapping_referencing_missing_field_raises(self) -> None:
+        """Template referencing non-existent field raises ApplicationError."""
         result: dict[str, Any] = {"status": "completed", "a": 1}
-        mapped = apply_output_mapping(result, {"x": "${result.nonexistent}"})
-        assert mapped["status"] == "failed"
-        assert mapped["error"]["type"] == "OutputMappingError"
-        assert "nonexistent" in mapped["error"]["message"]
+        with pytest.raises(ApplicationError) as exc_info:
+            apply_output_mapping(result, {"x": "${result.nonexistent}"})
+        assert exc_info.value.type == "OutputMappingError"
+        assert exc_info.value.non_retryable is True
 
     def test_mapping_preserves_status_completed(self) -> None:
         """Mapped result always includes status=completed."""

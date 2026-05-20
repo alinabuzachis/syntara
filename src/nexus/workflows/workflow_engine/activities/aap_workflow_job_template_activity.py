@@ -18,17 +18,14 @@ from temporalio.exceptions import ApplicationError, CancelledError
 from nexus.core.config.base import get_settings
 from nexus.workflows.workflow_engine.models import AAPWorkflowJobTemplateExecutorConfig
 from nexus.workflows.workflow_engine.models.aap_types import AAPResourceType
-from nexus.workflows.workflow_engine.utils.credential_scrubber import ensure_resolved_credentials_dict
 
 from .aap_common import (
     AAP_JOB_TERMINAL_STATUSES,
     AAPActivityExecutionError,
     AAPJobTerminalStatus,
-    get_aap_auth_from_credentials,
-    get_aap_auth_headers,
-    get_aap_basic_auth,
     lookup_resource_by_name,
     poll_until_complete,
+    resolve_aap_auth,
     resolve_label_ids,
 )
 
@@ -317,53 +314,22 @@ async def execute_aap_workflow_job_template_activity(
     try:
         config = AAPWorkflowJobTemplateExecutorConfig.model_validate(input_config)
     except Exception as e:  # noqa: BLE001
+        # Log full details internally; omit values from user-facing message (may contain credentials)
         logger.warning("AAP workflow job template config validation failed", error=str(e))
-        return {
-            "output": {
-                "status": "failed",
-                "error": {"type": "ConfigError", "message": f"Invalid configuration: {e}"},
-            }
-        }
+        msg = "Invalid configuration — check AAP workflow job template activity settings"
+        raise ApplicationError(msg, type="ConfigError", non_retryable=True) from None
 
     settings = get_settings()
 
-    # Resolve authentication — credential takes priority over env vars
-    resolved_creds = input_config.get("_resolved_credentials")
-    try:
-        if resolved_creds:
-            resolved_creds = ensure_resolved_credentials_dict(resolved_creds)
-            cred_auth = get_aap_auth_from_credentials(resolved_creds)
-            auth_headers = cred_auth.headers
-            basic_auth = cred_auth.basic_auth
-            base_url = cred_auth.host_override or (settings.aap_base_url or "").rstrip("/")
-            # Credential SSL setting takes priority over global setting (supports per-AAP-instance SSL)
-            verify_ssl = (
-                cred_auth.verify_ssl_override if cred_auth.verify_ssl_override is not None else settings.aap_verify_ssl
-            )
-        else:
-            base_url = (settings.aap_base_url or "").rstrip("/")
-            auth_headers = get_aap_auth_headers(settings)
-            basic_auth = get_aap_basic_auth(settings)
-            verify_ssl = settings.aap_verify_ssl
-    except (AAPActivityExecutionError, TypeError, KeyError, ValueError) as e:
-        logger.warning("AAP auth resolution failed", error=str(e), exc_info=True)
-        return {
-            "output": {
-                "status": "failed",
-                "error": {"type": "ConfigError", "message": f"Authentication error: {e}"},
-            }
-        }
+    resolved_auth = resolve_aap_auth(input_config, settings)
+    base_url = resolved_auth.base_url
+    auth_headers = resolved_auth.auth_headers
+    basic_auth = resolved_auth.basic_auth
+    verify_ssl = resolved_auth.verify_ssl
 
     if not base_url:
-        return {
-            "output": {
-                "status": "failed",
-                "error": {
-                    "type": "ConfigError",
-                    "message": "AAP host not configured. Set APP_AAP_BASE_URL or attach an AAP credential.",
-                },
-            }
-        }
+        msg = "AAP host not configured. Attach an AAP credential."
+        raise ApplicationError(msg, type="ConfigError", non_retryable=True) from None
 
     start_time = time.time()
     job_id = None
@@ -397,16 +363,8 @@ async def execute_aap_workflow_job_template_activity(
                 AAPJobTerminalStatus.ERROR.lower(),
                 AAPJobTerminalStatus.CANCELED.lower(),
             }:
-                error_result = {
-                    "status": "failed",
-                    "workflow_job_id": job_id,
-                    "error": {
-                        "type": "AAPWorkflowJobExecutionError",
-                        "message": f"AAP workflow job {job_id} failed with status: {final_status}",
-                    },
-                }
-                mapped_output = apply_output_mapping(error_result, output_config)
-                return {"output": mapped_output}
+                msg = f"AAP workflow job {job_id} failed with status: {final_status}"
+                raise ApplicationError(msg, type="AAPWorkflowJobExecutionError", non_retryable=True)  # noqa: TRY301
 
             full_result = {
                 "status": "completed",
@@ -421,17 +379,11 @@ async def execute_aap_workflow_job_template_activity(
             return {"output": mapped_output}
 
     except (ApplicationError, CancelledError):
-        # Re-raise non-retryable and cancellation errors for Temporal retry semantics
         raise
+    except AAPActivityExecutionError as e:
+        # AAP-specific errors have safe diagnostic messages (template names, HTTP codes — no credentials)
+        raise ApplicationError(str(e), type="AAPWorkflowJobExecutionError", non_retryable=True) from e
     except Exception as e:
         logger.exception("Unexpected error in AAP workflow job template activity", job_id=job_id)
-        error_result = {
-            "status": "failed",
-            "workflow_job_id": job_id,
-            "error": {
-                "type": type(e).__name__,
-                "message": f"Unexpected error executing AAP workflow job template: {e}",
-            },
-        }
-        mapped_output = apply_output_mapping(error_result, output_config)
-        return {"output": mapped_output}
+        msg = f"Unexpected error executing AAP workflow job template (job_id={job_id})"
+        raise ApplicationError(msg, type=type(e).__name__, non_retryable=True) from None

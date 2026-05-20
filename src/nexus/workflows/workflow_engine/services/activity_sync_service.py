@@ -783,19 +783,6 @@ class ActivitySyncService:
             None,
         )
 
-    @staticmethod
-    def _parse_error_from_output(output: dict[str, Any] | None) -> str | None:
-        """Extract error message from a v2 activity output if status is failed.
-
-        Returns the error message string, or None if the output is not a failure.
-        """
-        if not isinstance(output, dict) or output.get("status") != "failed":
-            return None
-        error_info = output.get("error", {})
-        if isinstance(error_info, dict):
-            return str(error_info.get("message", "Activity failed"))
-        return str(error_info) if error_info else "Activity failed"
-
     def _process_activity_completed(self, event: HistoryEvent, metadata: ExecutionMonitorMetadata) -> None:
         """Process ACTIVITY_TASK_COMPLETED event.
 
@@ -805,24 +792,8 @@ class ActivitySyncService:
         attrs = event.activity_task_completed_event_attributes
         scheduled_id = attrs.scheduled_event_id
         if scheduled_id in metadata.pending_activity_updates:
-            status = ActivityStatus.COMPLETED
-            error_details = None
-            if attrs.result and attrs.result.payloads:
-                try:
-                    result_data = json.loads(attrs.result.payloads[0].data)
-                    if isinstance(result_data, dict):
-                        output = result_data.get("output", result_data)
-                        error_msg = self._parse_error_from_output(output)
-                        if error_msg is not None:
-                            status = ActivityStatus.FAILED
-                            error_details = error_msg
-                except Exception:  # noqa: BLE001
-                    logger.debug("Failed to parse activity result for v2 error detection", exc_info=True)
-
-            metadata.pending_activity_updates[scheduled_id]["status"] = status
+            metadata.pending_activity_updates[scheduled_id]["status"] = ActivityStatus.COMPLETED
             metadata.pending_activity_updates[scheduled_id]["completed_at"] = ensure_timezone_aware(event.event_time)
-            if error_details:
-                metadata.pending_activity_updates[scheduled_id]["error_details"] = error_details
             metadata.pending_sync_event_ids.add(scheduled_id)
 
     def _process_activity_failed(self, event: HistoryEvent, metadata: ExecutionMonitorMetadata) -> None:

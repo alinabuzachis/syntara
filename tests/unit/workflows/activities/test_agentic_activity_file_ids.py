@@ -12,6 +12,7 @@ import uuid
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from temporalio.exceptions import ApplicationError
 
 from nexus.workflows.workflow_engine.activities.agentic_activity import (
     execute_agentic_activity,
@@ -148,10 +149,10 @@ class TestAgenticActivityFileIds:
             "file_ids": ["not-a-valid-uuid"],
         }
 
-        # V2 returns failed status for validation errors
-        result = await execute_agentic_activity(input_config, None)
-        assert result["output"]["status"] == "failed"
-        assert "invalid" in result["output"]["error"].lower() or "file_id" in result["output"]["error"].lower()
+        with pytest.raises(ApplicationError) as exc_info:
+            await execute_agentic_activity(input_config, None)
+        err = str(exc_info.value).lower()
+        assert "invalid" in err or "file_id" in err
 
     @pytest.mark.asyncio
     async def test_file_ids_too_many_rejected(self) -> None:
@@ -161,9 +162,8 @@ class TestAgenticActivityFileIds:
             "file_ids": generate_valid_uuids(11),
         }
 
-        # V2 returns failed status for validation errors
-        result = await execute_agentic_activity(input_config, None)
-        assert result["output"]["status"] == "failed"
+        with pytest.raises(ApplicationError):
+            await execute_agentic_activity(input_config, None)
 
     @pytest.mark.asyncio
     async def test_file_count_logged(self, mock_agent_client: AsyncMock) -> None:

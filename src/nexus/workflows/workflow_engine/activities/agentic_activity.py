@@ -12,6 +12,7 @@ from uuid import UUID
 import structlog
 from pydantic import ValidationError
 from temporalio import activity, workflow
+from temporalio.exceptions import ApplicationError, CancelledError
 
 from nexus.settings.cache.settings_cache import get_runtime_settings
 from nexus.workflows.workflow_engine import constants
@@ -20,7 +21,6 @@ from nexus.workflows.workflow_engine.models.workflow_definition import ActivityN
 from nexus.workflows.workflow_engine.utils.credential_scrubber import ensure_resolved_credentials_dict
 
 from .common import ActivityExecutionError
-from .output_mapping import apply_output_mapping
 
 # See - https://github.com/temporalio/sdk-python?tab=readme-ov-file#avoiding-the-sandbox for more detail
 with workflow.unsafe.imports_passed_through():
@@ -69,9 +69,9 @@ async def _inject_runtime_settings(input_config: dict[str, Any]) -> None:
 
 
 @activity.defn(name=ActivityName.AGENTIC)
-async def execute_agentic_activity(
+async def execute_agentic_activity(  # noqa: C901, PLR0915
     input_config: dict[str, Any],
-    output_config: dict[str, str] | None,
+    output_config: dict[str, str] | None,  # noqa: ARG001  # must match Temporal dispatch signature; agentic completes async via callback, not via return value
     execution_id: str = "",
     request_id: str | None = None,
 ) -> dict[str, Any]:
@@ -94,21 +94,17 @@ async def execute_agentic_activity(
         try:
             await _inject_runtime_settings(input_config)
         except ValueError as e:
-            full_result = {"status": "failed", "error": str(e)}
-            mapped_output = apply_output_mapping(full_result, output_config)
-            return {"output": mapped_output}
+            logger.warning("Agentic activity runtime settings validation failed", error=str(e))
+            msg = "Runtime settings validation failed"
+            raise ApplicationError(msg, type="ConfigError", non_retryable=True) from None
 
         # Validate config
         config = AgenticExecutorConfig.model_validate(input_config)
 
         # Validate prompt
         if not config.prompt.strip():
-            full_result = {
-                "status": "failed",
-                "error": "Agentic activity requires non-empty 'prompt' field",
-            }
-            mapped_output = apply_output_mapping(full_result, output_config)
-            return {"output": mapped_output}
+            msg = "Agentic activity requires non-empty 'prompt' field"
+            raise ApplicationError(msg, type="ConfigError", non_retryable=True)  # noqa: TRY301
 
         # Extract file_ids from config
         file_ids = config.file_ids or []
@@ -180,38 +176,28 @@ async def execute_agentic_activity(
 
             activity.raise_complete_async()
 
-    # NOTE: All exceptions return a success-shaped response intentionally.
-    # This is a fire-and-forget pattern: the activity creates an async invocation
-    # and returns metadata. The actual AI work completes via callback signal.
-    # Raising exceptions here would trigger Temporal retries, creating duplicate
-    # invocations. The "status: failed" field is consumed by downstream workflow
-    # logic. Compare with credential_resolution_activity.py which IS synchronous
-    # and correctly raises ApplicationError for Temporal retries.
+    # All pre-invocation failures raise ApplicationError(non_retryable=True).
+    # raise_complete_async() raises BaseException (not caught by Exception handlers below),
+    # so these handlers only fire on genuine pre-invocation failures.
+    except (ApplicationError, CancelledError):
+        raise
     except ValidationError as e:
-        full_result = {
-            "status": "failed",
-            "error": f"Invalid configuration: {e}",
-        }
-        mapped_output = apply_output_mapping(full_result, output_config)
-        return {"output": mapped_output}
-
-    except AgentOrchestratorClientConnectionError as e:
+        # Log full details internally; omit values from user-facing message (may contain credentials)
+        logger.warning("Agentic activity config validation failed", error_count=e.error_count())
+        fields = [str(err["loc"]) for err in e.errors()]
+        msg = f"Invalid configuration: {e.error_count()} error(s) in fields {fields}"
+        raise ApplicationError(msg, type="ConfigError", non_retryable=True) from None
+    except AgentOrchestratorClientConnectionError:
         logger.exception("Failed to connect to Agent Orchestrator")
-        full_result = {
-            "status": "failed",
-            "error": f"Failed to connect to Agent Orchestrator: {e}",
-        }
-        mapped_output = apply_output_mapping(full_result, output_config)
-        return {"output": mapped_output}
-
+        msg = "Failed to connect to Agent Orchestrator"
+        # non_retryable=True: this is a pre-invocation failure (dispatch failed before
+        # raise_complete_async). Retrying would re-attempt the entire dispatch and risk
+        # creating a duplicate agent invocation if the first call actually reached the server.
+        raise ApplicationError(msg, type="ConnectionError", non_retryable=True) from None
     except Exception as e:
         logger.exception("Unexpected error during agentic activity")
-        full_result = {
-            "status": "failed",
-            "error": f"Unexpected error: {e}",
-        }
-        mapped_output = apply_output_mapping(full_result, output_config)
-        return {"output": mapped_output}
+        msg = "Unexpected error during agentic activity"
+        raise ApplicationError(msg, type=type(e).__name__, non_retryable=True) from None
 
 
 def _inject_llm_credential_metadata(metadata: dict[str, Any], input_data: dict[str, Any]) -> None:

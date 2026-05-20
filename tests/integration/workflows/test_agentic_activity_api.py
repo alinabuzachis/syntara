@@ -12,6 +12,7 @@ from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from temporalio.exceptions import ApplicationError
 
 from nexus.workflows.workflow_engine.activities.agentic_activity import execute_agentic_activity
 from tests.helpers.temporal import CompleteAsyncError
@@ -145,10 +146,9 @@ class TestAgenticActivityErrorHandling:
             "model": "claude-3-5-sonnet-20241022",
         }
 
-        # V2 wraps errors in result dict instead of raising
-        result = await execute_agentic_activity(input_config, None)
-        assert result["output"]["status"] == "failed"
-        assert "agent orchestrator" in result["output"]["error"].lower()
+        with pytest.raises(ApplicationError) as exc_info:
+            await execute_agentic_activity(input_config, None)
+        assert "agent orchestrator" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
     async def test_handles_agent_orchestrator_timeout(self, mock_agent_client) -> None:
@@ -164,10 +164,8 @@ class TestAgenticActivityErrorHandling:
             "model": "claude-3-5-sonnet-20241022",
         }
 
-        # V2 wraps errors in result dict
-        result = await execute_agentic_activity(input_config, None)
-        assert result["output"]["status"] == "failed"
-        assert "error" in result["output"]
+        with pytest.raises(ApplicationError):
+            await execute_agentic_activity(input_config, None)
 
     @pytest.mark.asyncio
     async def test_handles_agent_orchestrator_error_response(self, mock_agent_client) -> None:
@@ -197,9 +195,9 @@ class TestAgenticActivityEdgeCases:
             "model": "claude-3-5-sonnet-20241022",
         }
 
-        # V2 returns failed status for empty prompt
-        result = await execute_agentic_activity(input_config, None)
-        assert result["output"]["status"] == "failed"
+        with pytest.raises(ApplicationError) as exc_info:
+            await execute_agentic_activity(input_config, None)
+        assert exc_info.value.type == "ConfigError"
 
     @pytest.mark.asyncio
     async def test_rejects_whitespace_only_prompt(self) -> None:
@@ -209,9 +207,9 @@ class TestAgenticActivityEdgeCases:
             "model": "claude-3-5-sonnet-20241022",
         }
 
-        # V2 returns failed status for whitespace-only prompt
-        result = await execute_agentic_activity(input_config, None)
-        assert result["output"]["status"] == "failed"
+        with pytest.raises(ApplicationError) as exc_info:
+            await execute_agentic_activity(input_config, None)
+        assert exc_info.value.type == "ConfigError"
 
 
 class TestAgenticActivityTimeoutConfiguration:
@@ -253,9 +251,9 @@ class TestAgenticActivityTimeoutConfiguration:
             "timeout": 0,
         }
 
-        # V2 returns validation error in result
-        result = await execute_agentic_activity(input_config, None)
-        assert result["output"]["status"] == "failed"
+        with pytest.raises(ApplicationError) as exc_info:
+            await execute_agentic_activity(input_config, None)
+        assert exc_info.value.type == "ConfigError"
 
     @pytest.mark.asyncio
     async def test_rejects_timeout_above_maximum(self) -> None:
@@ -266,9 +264,9 @@ class TestAgenticActivityTimeoutConfiguration:
             "timeout": 4000,
         }
 
-        # V2 returns validation error in result
-        result = await execute_agentic_activity(input_config, None)
-        assert result["output"]["status"] == "failed"
+        with pytest.raises(ApplicationError) as exc_info:
+            await execute_agentic_activity(input_config, None)
+        assert exc_info.value.type == "ConfigError"
 
 
 class TestAgenticActivityInputEdgeCases:

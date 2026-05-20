@@ -12,6 +12,7 @@ from datetime import timedelta
 from typing import Any, ClassVar, cast
 
 from temporalio import workflow
+from temporalio.exceptions import ActivityError, ApplicationError
 
 with workflow.unsafe.imports_passed_through():
     from nexus.core.exceptions import SafeValueError
@@ -262,7 +263,11 @@ class NexusWorkflow:
         graph: WorkflowGraph,
     ) -> None:
         """Record a node failure and mark downstream nodes as skipped."""
-        error_message = str(error)
+        # Unwrap Temporal's ActivityError to surface the inner ApplicationError message
+        if isinstance(error, ActivityError) and isinstance(error.cause, ApplicationError):
+            error_message = error.cause.message or str(error.cause)
+        else:
+            error_message = str(error)
         self.failed_nodes[node_id] = error_message
         self.resolver.set_namespace(node_id, {"status": "failed", "error": error_message})
         workflow.logger.error(f"Node {node_id} failed: {error_message}")
@@ -1315,21 +1320,18 @@ class NexusWorkflow:
         return {"output": {"status": "skipped", "reason": f"Unsupported node type: {node_type}"}}
 
     def _process_node_result(self, node: ActivityNode, result: dict[str, Any]) -> dict[str, Any]:
-        """Extract control data and output from an activity result, raising on failure."""
+        """Extract control data and output from an activity result."""
         control_data = result.get("control")
         if control_data:
             self.node_control_data[node.id] = control_data
 
         output_data = result.get("output", result)
 
-        # Activities return {"output": {"status": "failed", ...}} for errors instead of raising
         if isinstance(output_data, dict) and output_data.get("status") == "failed":
-            error_info = output_data.get("error", {})
-            if isinstance(error_info, dict):
-                error_msg = error_info.get("message", "Activity failed")
-            else:
-                error_msg = str(error_info) if error_info else "Activity failed"
-            raise SafeValueError(error_msg)
+            workflow.logger.warning(
+                f"Node {node.id} returned status=failed without raising — activity should raise ApplicationError",
+                extra={"node_type": node.type},
+            )
 
         workflow.logger.info(
             f"Node {node.id} executed",

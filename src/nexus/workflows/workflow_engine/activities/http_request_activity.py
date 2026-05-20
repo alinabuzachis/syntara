@@ -9,6 +9,7 @@ import httpx
 import structlog
 from pydantic import ValidationError
 from temporalio import activity
+from temporalio.exceptions import ApplicationError
 
 from nexus.credentials.lib.auth_types import AUTH_TYPE_API_KEY, AUTH_TYPE_BASIC, AUTH_TYPE_BEARER
 from nexus.workflows.workflow_engine.models.workflow_definition import (
@@ -121,12 +122,11 @@ async def execute_http_request_activity(
     try:
         config = APIExecutorConfig.model_validate(input_config)
     except ValidationError as exc:
-        return {
-            "output": {
-                "status": "failed",
-                "error": {"type": "ValidationError", "message": str(exc)},
-            }
-        }
+        # Log full details internally; omit values from user-facing message (may contain credentials)
+        logger.warning("HTTP activity config validation failed", error_count=exc.error_count())
+        fields = [str(e["loc"]) for e in exc.errors()]
+        msg = f"Invalid configuration: {exc.error_count()} error(s) in fields {fields}"
+        raise ApplicationError(msg, type="ValidationError", non_retryable=True) from None
 
     # Build headers — Nexus credentials take priority over config-based auth
     headers = dict(config.headers)
@@ -157,24 +157,17 @@ async def execute_http_request_activity(
 
         # Detect HTTP errors (4xx/5xx)
         if response.status_code >= HTTPStatus.BAD_REQUEST:
-            try:
-                error_body = response.json()
-            except Exception:  # noqa: BLE001
-                error_body = response.text
-
-            error_result = {
-                "status": "failed",
-                "status_code": response.status_code,
-                "body": error_body,
-                "headers": dict(response.headers),
-                "elapsed": elapsed,
-                "error": {
-                    "type": "HTTPError",
-                    "message": f"HTTP {response.status_code}: {response.reason_phrase}",
-                },
+            # Strip query params from URL to avoid leaking tokens/keys stored there
+            safe_url = config.url.split("?")[0]
+            msg = f"HTTP {response.status_code} {response.reason_phrase} (url={safe_url}, elapsed={elapsed:.2f}s)"
+            # 429/502/503/504 are transient; all other 4xx/5xx are non-retryable
+            retryable_codes = {
+                HTTPStatus.TOO_MANY_REQUESTS,
+                HTTPStatus.BAD_GATEWAY,
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                HTTPStatus.GATEWAY_TIMEOUT,
             }
-            mapped_output = apply_output_mapping(error_result, output_config)
-            return {"output": mapped_output}
+            raise ApplicationError(msg, type="HTTPError", non_retryable=response.status_code not in retryable_codes)  # noqa: TRY301
 
         # Try to parse JSON response
         try:
@@ -196,14 +189,9 @@ async def execute_http_request_activity(
 
         return {"output": mapped_output}
 
+    except ApplicationError:
+        raise
     except Exception as exc:  # noqa: BLE001
-        # Failed result conforming to baseFailedResult schema
-        error_result = {
-            "status": "failed",
-            "error": {
-                "type": type(exc).__name__,
-                "message": str(exc),
-            },
-        }
-        # No mapping on failures
-        return {"output": error_result}
+        logger.warning("HTTP request activity failed", error_type=type(exc).__name__)
+        msg = f"HTTP request failed: {type(exc).__name__}"
+        raise ApplicationError(msg, type=type(exc).__name__, non_retryable=True) from None

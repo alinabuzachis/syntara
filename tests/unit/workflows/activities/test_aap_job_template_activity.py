@@ -173,22 +173,20 @@ class TestAAPJobTemplateExecution:
 
     @pytest.mark.asyncio
     async def test_failed_job_execution(self, mock_activity_context: object) -> None:
-        """Test job template execution failure returns error result."""
+        """Test job template execution failure raises ApplicationError."""
         launch_response = create_http_response(200, {"id": 456, "url": "/api/v2/jobs/456/"})
         failed_status_response = create_job_status_response(job_id=456, status="failed")
 
         with (
             patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response),
             patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=failed_status_response),
+            pytest.raises(ApplicationError) as exc_info,
         ):
             activity_config = build_activity_config(job_template_id=99)
+            await execute_aap_job_template_activity(activity_config, None)
 
-            # V2: failed jobs return error dict instead of raising
-            result = await execute_aap_job_template_activity(activity_config, None)
-
-            assert result["output"]["status"] == "failed"
-            assert result["output"]["job_id"] == 456
-            assert result["output"]["error"]["type"] == "AAPJobExecutionError"
+        assert exc_info.value.type == "AAPJobExecutionError"
+        assert "456" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_extra_vars_forwarded_to_aap(self, mock_activity_context: object) -> None:
@@ -373,10 +371,8 @@ class TestAAPJobTemplateErrorHandling:
         ):
             activity_config = build_activity_config(job_template_id=42)
 
-            # V2: errors return dict instead of raising
-            result = await execute_aap_job_template_activity(activity_config, None)
-            assert result["output"]["status"] == "failed"
-            assert "Failed to launch" in result["output"]["error"]["message"]
+            with pytest.raises(ApplicationError, match="Failed to launch"):
+                await execute_aap_job_template_activity(activity_config, None)
 
     @pytest.mark.asyncio
     async def test_launch_failure_template_not_found(
@@ -384,7 +380,7 @@ class TestAAPJobTemplateErrorHandling:
         override_settings: Callable[..., AbstractContextManager[object]],
         aap_settings_overrides: dict[str, object],
     ) -> None:
-        """Test job launch fails with 404 template not found."""
+        """Test job launch fails with 404 template not found raises ApplicationError."""
         with (
             override_settings(**aap_settings_overrides),
             patch(
@@ -399,10 +395,8 @@ class TestAAPJobTemplateErrorHandling:
         ):
             activity_config = build_activity_config(job_template_id=999)
 
-            # V2: errors return dict instead of raising
-            result = await execute_aap_job_template_activity(activity_config, None)
-            assert result["output"]["status"] == "failed"
-            assert "Failed to launch" in result["output"]["error"]["message"]
+            with pytest.raises(ApplicationError, match="Failed to launch"):
+                await execute_aap_job_template_activity(activity_config, None)
 
     @pytest.mark.asyncio
     async def test_network_connection_error(
@@ -426,12 +420,12 @@ class TestAAPJobTemplateErrorHandling:
 
     @pytest.mark.asyncio
     async def test_invalid_config_missing_job_template_id(self) -> None:
-        """Test error with missing job_template_id returns v2 error format."""
+        """Test error with missing job_template_id raises ApplicationError."""
         activity_config: dict[str, object] = {}  # Missing job_template_id
 
-        result = await execute_aap_job_template_activity(activity_config, None)
-        assert result["output"]["status"] == "failed"
-        assert result["output"]["error"]["type"] == "ConfigError"
+        with pytest.raises(ApplicationError) as exc_info:
+            await execute_aap_job_template_activity(activity_config, None)
+        assert exc_info.value.type == "ConfigError"
 
 
 class TestAAPJobTemplateTimeout:
@@ -475,12 +469,10 @@ class TestAAPJobTemplateTimeout:
             # Configure timeout of 10 seconds
             activity_config = build_activity_config(job_template_id=42, timeout=10)
 
-            # Should raise timeout error
-            # V2: timeout errors return dict instead of raising
-            result = await execute_aap_job_template_activity(activity_config, None)
-            assert result["output"]["status"] == "failed"
-            assert "timed out after 10 seconds" in result["output"]["error"]["message"]
-            assert result["output"]["job_id"] == 123
+            with pytest.raises(ApplicationError) as exc_info:
+                await execute_aap_job_template_activity(activity_config, None)
+            assert "timed out after 10 seconds" in str(exc_info.value)
+            assert "123" in str(exc_info.value)
 
     @pytest.mark.asyncio
     @patch("temporalio.activity.is_cancelled", return_value=False)
@@ -702,9 +694,9 @@ class TestAAPJobTemplateNameBasedReference:
                 organization_name="Default",
             )
 
-            result = await execute_aap_job_template_activity(activity_config, None)
-            assert result["output"]["status"] == "failed"
-            assert "not found" in result["output"]["error"]["message"]
+            with pytest.raises(ApplicationError) as exc_info:
+                await execute_aap_job_template_activity(activity_config, None)
+            assert "not found" in str(exc_info.value)
 
     @pytest.mark.asyncio
     @patch("temporalio.activity.is_cancelled", return_value=False)
@@ -737,9 +729,9 @@ class TestAAPJobTemplateNameBasedReference:
                 organization_name="Default",
             )
 
-            result = await execute_aap_job_template_activity(activity_config, None)
-            assert result["output"]["status"] == "failed"
-            assert "Multiple job templates" in result["output"]["error"]["message"]
+            with pytest.raises(ApplicationError) as exc_info:
+                await execute_aap_job_template_activity(activity_config, None)
+            assert "Multiple job templates" in str(exc_info.value)
 
     @pytest.mark.parametrize(
         ("config_kwargs", "should_pass", "error_match"),
@@ -1046,9 +1038,9 @@ class TestAAPInventoryNameBasedReference:
                 organization_name="Default",
             )
 
-            result = await execute_aap_job_template_activity(activity_config, None)
-            assert result["output"]["status"] == "failed"
-            assert error_match in result["output"]["error"]["message"]
+            with pytest.raises(ApplicationError) as exc_info:
+                await execute_aap_job_template_activity(activity_config, None)
+            assert error_match in str(exc_info.value)
 
     @pytest.mark.parametrize(
         ("resource_type", "config_kwargs", "status_code", "error_match"),
@@ -1116,9 +1108,9 @@ class TestAAPInventoryNameBasedReference:
         ):
             activity_config = build_activity_config(**config_kwargs)
 
-            result = await execute_aap_job_template_activity(activity_config, None)
-            assert result["output"]["status"] == "failed"
-            assert error_match in result["output"]["error"]["message"]
+            with pytest.raises(ApplicationError) as exc_info:
+                await execute_aap_job_template_activity(activity_config, None)
+            assert error_match in str(exc_info.value)
 
     @pytest.mark.parametrize(
         ("resource_type", "config_kwargs", "error_type", "error_message", "error_match"),
@@ -1202,16 +1194,8 @@ class TestAAPInventoryNameBasedReference:
         ):
             activity_config = build_activity_config(**config_kwargs)
 
-            # ConnectError raises non-retryable ApplicationError; others raise AAPJobExecutionError
-            if error_type is httpx.ConnectError:
-                # ConnectError raises ApplicationError (non-retryable) for Temporal retry semantics
-                with pytest.raises(ApplicationError, match=error_match):
-                    await execute_aap_job_template_activity(activity_config, None)
-            else:
-                # Other errors return v2 error dict
-                result = await execute_aap_job_template_activity(activity_config, None)
-                assert result["output"]["status"] == "failed"
-                assert error_match in result["output"]["error"]["message"]
+            with pytest.raises(ApplicationError, match=error_match):
+                await execute_aap_job_template_activity(activity_config, None)
 
     @pytest.mark.asyncio
     @patch("temporalio.activity.is_cancelled", return_value=False)

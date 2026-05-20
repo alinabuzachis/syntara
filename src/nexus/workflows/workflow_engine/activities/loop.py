@@ -4,6 +4,7 @@ from typing import Any
 
 import structlog
 from temporalio import activity
+from temporalio.exceptions import ApplicationError
 
 from nexus.settings.cache.settings_cache import get_runtime_settings
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, LoopType
@@ -48,16 +49,8 @@ async def loop(
     if loop_type == LoopType.FOR_EACH:
         items = input_config.get("items") or []
         if not isinstance(items, list):
-            return {
-                "output": {
-                    "status": "failed",
-                    "error": {
-                        "type": "ConfigError",
-                        "message": f"'items' must be a list, got {type(items).__name__}",
-                    },
-                },
-                "control": {"next_port": "complete"},
-            }
+            msg = f"'items' must be a list, got {type(items).__name__}"
+            raise ApplicationError(msg, type="ConfigError", non_retryable=True)
 
         # Check if we have more items to process
         if current_index < len(items):
@@ -134,13 +127,5 @@ async def loop(
             },
         }
 
-    return {
-        "output": {
-            "status": "failed",
-            "error": {
-                "type": "ConfigError",
-                "message": f"Unknown loop type: {loop_type}",
-            },
-        },
-        "control": {"next_port": "complete"},
-    }
+    msg = f"Unknown loop type: {loop_type}"
+    raise ApplicationError(msg, type="ConfigError", non_retryable=True)

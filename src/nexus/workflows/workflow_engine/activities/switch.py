@@ -4,6 +4,7 @@ from typing import Any
 
 import structlog
 from temporalio import activity
+from temporalio.exceptions import ApplicationError
 
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
 from nexus.workflows.workflow_engine.unified_eval import safe_eval_with_namespace
@@ -15,15 +16,6 @@ logger = structlog.stdlib.get_logger(__name__)
 # Per-expression complexity is bounded by unified_eval.py (10K chars, 50 depth, 500 AST nodes).
 # This caps total case count to prevent unbounded sequential evaluation.
 SWITCH_CASES_HARD_LIMIT = 100
-
-
-def _make_failed_result(error_type: str, message: str) -> dict[str, Any]:
-    return {
-        "output": {
-            "status": "failed",
-            "error": {"type": error_type, "message": message},
-        }
-    }
 
 
 def _validate_cases_structure(
@@ -105,13 +97,13 @@ async def switch(
 
     structure_error = _validate_cases_structure(cases)
     if structure_error:
-        logger.warning("switch_activity_failed", error_type="ConfigurationError", error=structure_error)
-        return _make_failed_result("ConfigurationError", structure_error)
+        logger.warning("switch_activity_failed", error_type="ConfigError", error=structure_error)
+        raise ApplicationError(structure_error, type="ConfigError", non_retryable=True)
 
     port_error = _validate_case_ports(cases, default_port)
     if port_error:
-        logger.warning("switch_activity_failed", error_type="ConfigurationError", error=port_error)
-        return _make_failed_result("ConfigurationError", port_error)
+        logger.warning("switch_activity_failed", error_type="ConfigError", error=port_error)
+        raise ApplicationError(port_error, type="ConfigError", non_retryable=True)
 
     logger.info("switch_activity_started", case_count=len(cases))
 
@@ -133,10 +125,8 @@ async def switch(
                 condition=case_condition,
                 error=str(e),
             )
-            return _make_failed_result(
-                "SwitchEvaluationError",
-                f"Failed to evaluate case {index} condition '{case_condition}': {e!s}",
-            )
+            msg = f"Failed to evaluate case {index} condition '{case_condition}': {e!s}"
+            raise ApplicationError(msg, type="SwitchEvaluationError", non_retryable=True) from None
 
         if evaluated:
             case_port = case["port"]

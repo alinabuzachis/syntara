@@ -1237,39 +1237,6 @@ class TestAgenticActivityFinalizationOnWorkflowCompletion:
         return handle
 
 
-class TestParseErrorFromOutput:
-    """Test _parse_error_from_output static method."""
-
-    @pytest.mark.parametrize(
-        ("output", "expected"),
-        [
-            ({"status": "failed", "error": {"message": "timeout"}}, "timeout"),
-            ({"status": "failed", "error": "plain error string"}, "plain error string"),
-            ({"status": "failed", "error": {"type": "X"}}, "Activity failed"),
-            ({"status": "failed"}, "Activity failed"),
-            ({"status": "failed", "error": ""}, "Activity failed"),
-            ({"status": "completed"}, None),
-            ({"status": "completed", "error": {"message": "ignored"}}, None),
-            ({}, None),
-            (None, None),
-        ],
-        ids=[
-            "dict_error_with_message",
-            "string_error",
-            "dict_error_no_message",
-            "no_error_key",
-            "empty_string_error",
-            "completed_status",
-            "completed_with_error_ignored",
-            "empty_dict",
-            "none_input",
-        ],
-    )
-    def test_parse_error_from_output(self, output: dict[str, Any] | None, expected: str | None) -> None:
-        """Test error extraction from various output shapes."""
-        assert ActivitySyncService._parse_error_from_output(output) == expected
-
-
 class TestIsAgenticActivity:
     """Test _is_agentic_activity with v1 and v2 formats."""
 

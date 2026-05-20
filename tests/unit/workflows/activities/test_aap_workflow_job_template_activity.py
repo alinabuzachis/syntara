@@ -187,12 +187,10 @@ class TestAAPWorkflowJobTemplateExecution:
         ):
             activity_config = build_activity_config(workflow_job_template_id=99)
 
-            # V2: failed workflows return error dict instead of raising
-            result = await execute_aap_workflow_job_template_activity(activity_config, None)
-
-            assert result["output"]["status"] == "failed"
-            assert result["output"]["workflow_job_id"] == 456
-            assert result["output"]["error"]["type"] == "AAPWorkflowJobExecutionError"
+            with pytest.raises(ApplicationError) as exc_info:
+                await execute_aap_workflow_job_template_activity(activity_config, None)
+            assert exc_info.value.type == "AAPWorkflowJobExecutionError"
+            assert "456" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_extra_vars_forwarded_to_aap(self, mock_activity_context: object) -> None:
@@ -381,10 +379,8 @@ class TestAAPWorkflowJobTemplateErrorHandling:
         ):
             activity_config = build_activity_config(workflow_job_template_id=42)
 
-            # V2: errors return dict instead of raising
-            result = await execute_aap_workflow_job_template_activity(activity_config, None)
-            assert result["output"]["status"] == "failed"
-            assert "Failed to launch" in result["output"]["error"]["message"]
+            with pytest.raises(ApplicationError, match="Failed to launch"):
+                await execute_aap_workflow_job_template_activity(activity_config, None)
 
     @pytest.mark.asyncio
     async def test_launch_failure_template_not_found(
@@ -407,10 +403,8 @@ class TestAAPWorkflowJobTemplateErrorHandling:
         ):
             activity_config = build_activity_config(workflow_job_template_id=999)
 
-            # V2: errors return dict instead of raising
-            result = await execute_aap_workflow_job_template_activity(activity_config, None)
-            assert result["output"]["status"] == "failed"
-            assert "Failed to launch" in result["output"]["error"]["message"]
+            with pytest.raises(ApplicationError, match="Failed to launch"):
+                await execute_aap_workflow_job_template_activity(activity_config, None)
 
     @pytest.mark.asyncio
     async def test_network_connection_error(
@@ -434,12 +428,12 @@ class TestAAPWorkflowJobTemplateErrorHandling:
 
     @pytest.mark.asyncio
     async def test_invalid_config_missing_workflow_job_template_id(self) -> None:
-        """Test error with missing workflow_job_template_id returns v2 error format."""
+        """Test error with missing workflow_job_template_id raises ApplicationError."""
         activity_config: dict[str, object] = {}  # Missing workflow_job_template_id
 
-        result = await execute_aap_workflow_job_template_activity(activity_config, None)
-        assert result["output"]["status"] == "failed"
-        assert result["output"]["error"]["type"] == "ConfigError"
+        with pytest.raises(ApplicationError) as exc_info:
+            await execute_aap_workflow_job_template_activity(activity_config, None)
+        assert exc_info.value.type == "ConfigError"
 
 
 class TestAAPWorkflowJobTemplateTimeout:
@@ -483,12 +477,10 @@ class TestAAPWorkflowJobTemplateTimeout:
             # Configure timeout of 10 seconds
             activity_config = build_activity_config(workflow_job_template_id=42, timeout=10)
 
-            # Should raise timeout error
-            # V2: timeout errors return dict instead of raising
-            result = await execute_aap_workflow_job_template_activity(activity_config, None)
-            assert result["output"]["status"] == "failed"
-            assert "timed out after 10 seconds" in result["output"]["error"]["message"]
-            assert result["output"]["workflow_job_id"] == 123
+            with pytest.raises(ApplicationError) as exc_info:
+                await execute_aap_workflow_job_template_activity(activity_config, None)
+            assert "timed out after 10 seconds" in str(exc_info.value)
+            assert "123" in str(exc_info.value)
 
     @pytest.mark.asyncio
     @patch("temporalio.activity.is_cancelled", return_value=False)
@@ -710,9 +702,9 @@ class TestAAPWorkflowJobTemplateNameBasedReference:
                 organization_name="Default",
             )
 
-            result = await execute_aap_workflow_job_template_activity(activity_config, None)
-            assert result["output"]["status"] == "failed"
-            assert "not found" in result["output"]["error"]["message"]
+            with pytest.raises(ApplicationError) as exc_info:
+                await execute_aap_workflow_job_template_activity(activity_config, None)
+            assert "not found" in str(exc_info.value)
 
     @pytest.mark.asyncio
     @patch("temporalio.activity.is_cancelled", return_value=False)
@@ -745,9 +737,9 @@ class TestAAPWorkflowJobTemplateNameBasedReference:
                 organization_name="Default",
             )
 
-            result = await execute_aap_workflow_job_template_activity(activity_config, None)
-            assert result["output"]["status"] == "failed"
-            assert "Multiple workflow job templates" in result["output"]["error"]["message"]
+            with pytest.raises(ApplicationError) as exc_info:
+                await execute_aap_workflow_job_template_activity(activity_config, None)
+            assert "Multiple workflow job templates" in str(exc_info.value)
 
     @pytest.mark.parametrize(
         ("config_kwargs", "should_pass", "error_match"),

@@ -2,6 +2,8 @@
 
 from typing import Any
 
+from temporalio.exceptions import ApplicationError
+
 from nexus.workflows.utils.namespace_resolver import NamespaceResolver
 
 
@@ -28,7 +30,8 @@ def apply_output_mapping(result: dict[str, Any], output_config: dict[str, str] |
         Mapped result
 
     """
-    # If failed, return result as-is (ignore output mapping)
+    # If status is not "completed" (e.g. manual_trigger with user-supplied status key),
+    # skip output mapping and return result unchanged.
     if result.get("status") != "completed":
         return result
 
@@ -50,12 +53,7 @@ def apply_output_mapping(result: dict[str, Any], output_config: dict[str, str] |
         try:
             mapped_result[output_key] = temp_resolver.resolve_value(template_expr)
         except (KeyError, AttributeError, TypeError) as exc:
-            return {
-                "status": "failed",
-                "error": {
-                    "type": "OutputMappingError",
-                    "message": f"Failed to resolve output mapping '{template_expr}': {exc}",
-                },
-            }
+            msg = f"Failed to resolve output mapping '{template_expr}': {type(exc).__name__}"
+            raise ApplicationError(msg, type="OutputMappingError", non_retryable=True) from exc
 
     return mapped_result
