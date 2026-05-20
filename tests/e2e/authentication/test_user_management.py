@@ -4,16 +4,18 @@ from __future__ import annotations
 
 from http import HTTPStatus
 from typing import TYPE_CHECKING
-from uuid import UUID
 
 import pytest
 from nexus_api_client.models.auth_type import AuthType
 from nexus_api_client.models.user_update import UserUpdate
 
-from tests.e2e.conftest import built_in_admin_login, get_nexus_api_admin_group_id
+from tests.e2e.conftest import built_in_admin_login
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from nexus_api_client.api import NexusApiRegistry
+    from nexus_api_client.models.user_info import UserInfo
     from nexus_api_client.models.user_read import UserRead
 
 pytestmark = [pytest.mark.e2e]
@@ -29,15 +31,14 @@ class TestBuiltInAdminManagement:
         nexus_api: NexusApiRegistry,
         nexus_base_url: str,
         keycloak_nexus_api: NexusApiRegistry,
+        nexus_admin_user: UserInfo,
+        nexus_api_admin_group_id: UUID,
     ) -> None:
         """Disable built-in admin user when Keycloak admin user exists."""
         from tests.fixtures.external_services.keycloak import get_keycloak_nexus_admin_username
 
         """Login as built-in admin user"""
-        curr_user_resp = nexus_api.authentication.get_current_user()
-        assert curr_user_resp.parsed is not None
-        admin_user_id = UUID(curr_user_resp.parsed.id)
-        assert curr_user_resp.parsed.username == "admin"
+        assert nexus_admin_user.username == "admin"
 
         """Check for Keycloak admin user exists."""
         list_user_resp = nexus_api.users.list(username=get_keycloak_nexus_admin_username()).parsed
@@ -46,13 +47,13 @@ class TestBuiltInAdminManagement:
         assert len(list_user_resp.resources) == 1
         keycloak_user: UserRead = list_user_resp.resources[0]
         assert keycloak_user.auth_type == AuthType.FEDERATED
-        admins_group = nexus_api.groups.list_members(group_id=get_nexus_api_admin_group_id(nexus_api))
+        admins_group = nexus_api.groups.list_members(group_id=nexus_api_admin_group_id)
         assert admins_group.parsed is not None
         assert any(gm.id == keycloak_user.id for gm in admins_group.parsed.resources)
 
         try:
             """Disable built-in admin user."""
-            update_resp = nexus_api.users.update(user_id=admin_user_id, body=UserUpdate(is_enabled=False))
+            update_resp = nexus_api.users.update(user_id=nexus_admin_user.id, body=UserUpdate(is_enabled=False))
             assert update_resp.status_code == HTTPStatus.OK
             assert update_resp.parsed is not None
             assert not update_resp.parsed.is_enabled
@@ -69,7 +70,7 @@ class TestBuiltInAdminManagement:
         finally:
             """Re-enable built-in admin user using Keycloak IdP."""
             enable_update_resp = keycloak_nexus_api.users.update(
-                user_id=admin_user_id, body=UserUpdate(is_enabled=True)
+                user_id=nexus_admin_user.id, body=UserUpdate(is_enabled=True)
             )
             assert enable_update_resp.status_code == HTTPStatus.OK
             assert enable_update_resp.parsed is not None

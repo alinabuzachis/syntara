@@ -13,6 +13,7 @@ from nexus_api_client.api import NexusApiRegistry
 from nexus_api_client.api.authentication.refresh_token import sync_detailed as refresh_sync
 from nexus_api_client.models.access_token_response import AccessTokenResponse
 from nexus_api_client.models.identity_provider_create import IdentityProviderCreate
+from nexus_api_client.models.identity_provider_response import IdentityProviderResponse
 from nexus_api_client.models.oidc_configuration import OIDCConfiguration
 
 
@@ -115,7 +116,9 @@ def _idp_form_user_login(
     return idp_resp
 
 
-def create_oidc_identity_provider(nexus_api: NexusApiRegistry, oidc_config: OIDCConfiguration) -> UUID:
+def create_oidc_identity_provider(
+    nexus_api: NexusApiRegistry, oidc_config: OIDCConfiguration
+) -> IdentityProviderResponse:
     """Create an OIDC identity provider."""
     create_resp = nexus_api.identity_providers.create(
         body=IdentityProviderCreate(
@@ -130,7 +133,7 @@ def create_oidc_identity_provider(nexus_api: NexusApiRegistry, oidc_config: OIDC
     if provider is None:
         msg = "Unable to create OIDC identity provider."
         raise RuntimeError(msg)
-    return cast("UUID", provider.id)
+    return cast("IdentityProviderResponse", provider)
 
 
 def create_oidc_auth_client(

@@ -20,7 +20,6 @@ from nexus_api_client.api import NexusApiRegistry
 from nexus_api_client.models.oidc_configuration import OIDCConfiguration
 from nexus_api_client.models.oidc_group_mapping_entry import OIDCGroupMappingEntry
 
-from tests.e2e.conftest import get_nexus_api_admin_group_id
 from tests.fixtures.external_services.connectivity_check import verify_service_connectivity
 from tests.fixtures.external_services.oidc_login import create_oidc_auth_client, create_oidc_identity_provider
 
@@ -194,14 +193,21 @@ def add_keycloak_service_admin_user(keycloak_service_url: str) -> None:
     _add_user_to_realm_group(keycloak_service_url)
 
 
-def keycloak_oidc_config(keycloak_url: str, nexus_base_url: str, admins_group_id: UUID) -> OIDCConfiguration:
+def keycloak_oidc_config(
+    keycloak_url: str,
+    nexus_base_url: str,
+    admins_group_id: UUID,
+    *,
+    auto_discovery: bool = True,
+    pass_token_endpoint: bool = False,
+) -> OIDCConfiguration:
     """Keycloak OIDC Configuration for IdP creation."""
-    return OIDCConfiguration(
+    keycloak_config: OIDCConfiguration = OIDCConfiguration(
         issuer_url=f"{keycloak_url}/realms/{_REALM}",
         client_id=_CLIENT_ID,
         client_secret=_CLIENT_SECRET,
         redirect_uri=f"{nexus_base_url}/api/v1/auth/oidc/callback",
-        auto_discovery=True,
+        auto_discovery=auto_discovery,
         group_jmespath_expression="groups[*]",
         group_mapping_entries=[
             OIDCGroupMappingEntry(
@@ -211,8 +217,17 @@ def keycloak_oidc_config(keycloak_url: str, nexus_base_url: str, admins_group_id
         ],
     )
 
+    if not auto_discovery:
+        keycloak_config.authorization_endpoint = f"{keycloak_url}/realms/{_REALM}/protocol/openid-connect/auth"
+        keycloak_config.jwks_uri = f"{keycloak_url}/realms/{_REALM}/protocol/openid-connect/certs"
 
-def _destroy_keycloak_oidc_identity_provider(nexus_api: NexusApiRegistry, oidc_provider_id: UUID) -> None:
+    if pass_token_endpoint:
+        keycloak_config.token_endpoint = f"{keycloak_url}/realms/{_REALM}/protocol/openid-connect/token"
+
+    return keycloak_config
+
+
+def destroy_keycloak_oidc_identity_provider(nexus_api: NexusApiRegistry, oidc_provider_id: UUID) -> None:
     """Teardown keycloak OIDC identity provider and created IdP User."""
     list_user_resp = nexus_api.users.list(username=_KEYCLOAK_NEXUS_ADMIN_USERNAME)
     if list_user_resp.parsed is not None and len(list_user_resp.parsed.resources) == 1:
@@ -225,13 +240,16 @@ def keycloak_auth_client(
     keycloak_service: HttpApiService,
     nexus_api: NexusApiRegistry,
     nexus_base_url: str,
+    nexus_api_admin_group_id: UUID,
 ) -> Generator["AuthenticatedClient", None, None]:
     """Keycloak OIDC identity provider Authenticated Client."""
     add_keycloak_service_admin_user(keycloak_service.url)
-    provider_id: UUID = create_oidc_identity_provider(
+    provider = create_oidc_identity_provider(
         nexus_api=nexus_api,
-        oidc_config=keycloak_oidc_config(keycloak_service.url, nexus_base_url, get_nexus_api_admin_group_id(nexus_api)),
+        oidc_config=keycloak_oidc_config(keycloak_service.url, nexus_base_url, nexus_api_admin_group_id),
     )
+    assert isinstance(provider.id, UUID)
+    provider_id = provider.id
     auth_client = create_oidc_auth_client(
         nexus_base_url=nexus_base_url,
         nexus_api=nexus_api,
@@ -240,7 +258,7 @@ def keycloak_auth_client(
         password=_KEYCLOAK_NEXUS_ADMIN_PASSWORD,
     )
     yield auth_client
-    _destroy_keycloak_oidc_identity_provider(nexus_api, provider_id)
+    destroy_keycloak_oidc_identity_provider(nexus_api, provider_id)
 
 
 @pytest.fixture
@@ -254,3 +272,8 @@ def keycloak_nexus_api(
 def get_keycloak_nexus_admin_username() -> str:
     """Getter for Keycloak Nexus admin username."""
     return _KEYCLOAK_NEXUS_ADMIN_USERNAME
+
+
+def get_keycloak_nexus_admin_password() -> str:
+    """Getter for Keycloak Nexus admin password."""
+    return _KEYCLOAK_NEXUS_ADMIN_PASSWORD

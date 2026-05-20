@@ -22,6 +22,7 @@ from nexus_api_client.models.mcp_configuration import MCPConfiguration
 from nexus_api_client.models.sub_resource_role_assignment_create import SubResourceRoleAssignmentCreate
 from nexus_api_client.models.tool_provider_create import ToolProviderCreate
 from nexus_api_client.models.user_create import UserCreate
+from nexus_api_client.models.user_info import UserInfo
 from nexus_api_client.types import Response
 
 
@@ -206,7 +207,8 @@ def worker_base_url() -> str:
     return os.environ.get("APP_WORKER_BASE_URL", "http://host.containers.internal:8000")
 
 
-def get_nexus_api_admin_group_id(nexus_api: NexusApiRegistry) -> UUID:
+@pytest.fixture(scope="session")
+def nexus_api_admin_group_id(nexus_api: NexusApiRegistry) -> UUID:
     """Get admin role group ID for Nexus API."""
     groups_resp = nexus_api.groups.list()
     if groups_resp.parsed is None or len(groups_resp.parsed.resources) == 0:
@@ -261,3 +263,11 @@ def mcp_provider_id(nexus_api: NexusApiRegistry) -> str:
     assert refresh_resp.is_success, f"MCP provider refresh failed: {refresh_resp.content!r}"
 
     return provider_id
+
+
+@pytest.fixture(scope="session")
+def nexus_admin_user(nexus_api: NexusApiRegistry) -> UserInfo:
+    """Get admin user ID for Nexus API."""
+    curr_user_resp = nexus_api.authentication.get_current_user()
+    assert curr_user_resp.parsed is not None
+    return cast("UserInfo", curr_user_resp.parsed)
