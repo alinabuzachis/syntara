@@ -142,7 +142,7 @@ BUILTIN_POLICIES: list[PolicyInfo] = [
     PolicyInfo("user_identity", "detach", roles=("admin",)),
     # identity providers
     PolicyInfo("identity-provider", "create", roles=("admin",)),
-    PolicyInfo("identity-provider", "read", roles=("admin",)),
+    PolicyInfo("identity-provider", "read", roles=("admin", "auditor")),
     PolicyInfo("identity-provider", "update", roles=("admin",)),
     PolicyInfo("identity-provider", "delete", roles=("admin",)),
     PolicyInfo("identity-provider", "test", roles=("admin",)),
