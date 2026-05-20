@@ -38,7 +38,7 @@ export function useCanApprovalAction(
 
     detachPromise(
       accessFetchClient
-        .POST('/authz/can-i', { body })
+        .POST('/authz/can_i', { body })
         .then(({ data }) => {
           if (!cancelled) {
             setCanPerformAction(data?.allowed ?? false)

@@ -1,11 +1,14 @@
+import type { AuthzAPI } from '@ansible/nexus-contracts'
 import { useMemo } from 'react'
 
 import { accessClient } from '../access/accessClient'
 
+type PermissionEntry = AuthzAPI.components['schemas']['PermissionEntry']
+
 /**
  * Fetches all user permissions and determines which projects the user can perform approval:decide on.
  *
- * Uses the /authz/what-can-i endpoint to get all permissions in a single API call,
+ * Uses the /authz/what_can_i endpoint to get all permissions in a single API call,
  * then parses the response to extract approval:decide permissions at both system
  * and project levels.
  *
@@ -18,7 +21,7 @@ import { accessClient } from '../access/accessClient'
 export function useApprovalDecideProjects() {
   const query = accessClient.useQuery(
     'post',
-    '/authz/what-can-i',
+    '/authz/what_can_i',
     {},
     {
       staleTime: 5 * 60 * 1000, // Cache for 5 minutes
@@ -32,16 +35,20 @@ export function useApprovalDecideProjects() {
     const permissions = query.data?.permissions ?? []
 
     // Find approval:decide permissions (effect = 'allow', actions includes 'approval:decide')
-    const decidePermissions = permissions.filter((p) => p.effect === 'allow' && p.actions.includes('approval:decide'))
+    const decidePermissions = permissions.filter(
+      (p: PermissionEntry) => p.effect === 'allow' && p.actions.includes('approval:decide')
+    )
 
     // Check for system-level permission (scope is 'any', 'system', or undefined, AND no project specified)
     const hasSystemDecide = decidePermissions.some(
-      (p) => !p.project && (!p.scope || p.scope === 'system' || p.scope === 'any')
+      (p: PermissionEntry) => !p.project && (!p.scope || p.scope === 'system' || p.scope === 'any')
     )
 
     // Extract project-scoped permissions
-    const projectNames = new Set(
-      decidePermissions.filter((p) => p.scope === 'project' && p.project).map((p) => p.project!)
+    const projectNames = new Set<string>(
+      decidePermissions
+        .filter((p: PermissionEntry) => p.scope === 'project' && p.project)
+        .map((p: PermissionEntry) => p.project!)
     )
 
     return {

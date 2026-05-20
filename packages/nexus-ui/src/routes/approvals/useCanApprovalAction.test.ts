@@ -39,7 +39,7 @@ describe('useCanApprovalAction', () => {
       expect(result.current.isChecking).toBe(false)
     })
 
-    expect(mockPost).toHaveBeenCalledWith('/authz/can-i', {
+    expect(mockPost).toHaveBeenCalledWith('/authz/can_i', {
       body: {
         action: 'decide',
         resource_type: 'approval',
@@ -57,7 +57,7 @@ describe('useCanApprovalAction', () => {
       expect(result.current.isChecking).toBe(false)
     })
 
-    expect(mockPost).toHaveBeenCalledWith('/authz/can-i', {
+    expect(mockPost).toHaveBeenCalledWith('/authz/can_i', {
       body: {
         action: 'read',
         resource_type: 'approval',
@@ -75,7 +75,7 @@ describe('useCanApprovalAction', () => {
       expect(result.current.isChecking).toBe(false)
     })
 
-    expect(mockPost).toHaveBeenCalledWith('/authz/can-i', {
+    expect(mockPost).toHaveBeenCalledWith('/authz/can_i', {
       body: {
         action: 'decide',
         resource_type: 'approval',
@@ -158,7 +158,7 @@ describe('useCanApprovalAction', () => {
     })
 
     expect(mockPost).toHaveBeenCalledTimes(1)
-    expect(mockPost).toHaveBeenCalledWith('/authz/can-i', {
+    expect(mockPost).toHaveBeenCalledWith('/authz/can_i', {
       body: {
         action: 'decide',
         resource_type: 'approval',
@@ -171,7 +171,7 @@ describe('useCanApprovalAction', () => {
     rerender({ action: 'read' } as ActionProps)
 
     await waitFor(() => {
-      expect(mockPost).toHaveBeenCalledWith('/authz/can-i', {
+      expect(mockPost).toHaveBeenCalledWith('/authz/can_i', {
         body: {
           action: 'read',
           resource_type: 'approval',
@@ -194,7 +194,7 @@ describe('useCanApprovalAction', () => {
     })
 
     expect(mockPost).toHaveBeenCalledTimes(1)
-    expect(mockPost).toHaveBeenCalledWith('/authz/can-i', {
+    expect(mockPost).toHaveBeenCalledWith('/authz/can_i', {
       body: {
         action: 'decide',
         resource_type: 'approval',
@@ -208,7 +208,7 @@ describe('useCanApprovalAction', () => {
     rerender({ projectId: 'project-2' })
 
     await waitFor(() => {
-      expect(mockPost).toHaveBeenCalledWith('/authz/can-i', {
+      expect(mockPost).toHaveBeenCalledWith('/authz/can_i', {
         body: {
           action: 'decide',
           resource_type: 'approval',
@@ -229,7 +229,7 @@ describe('useCanApprovalAction', () => {
       expect(result.current.isChecking).toBe(false)
     })
 
-    expect(mockPost).toHaveBeenCalledWith('/authz/can-i', {
+    expect(mockPost).toHaveBeenCalledWith('/authz/can_i', {
       body: {
         action: 'decide',
         resource_type: 'approval',
