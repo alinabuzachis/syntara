@@ -112,9 +112,10 @@ async def _async_handle_converge_wait(
     wf: NexusWorkflow,
     converge_node: ActivityNode,
     graph: WorkflowGraph,
+    pending_tasks: dict[str, asyncio.Task[Any]] | None = None,
 ) -> None:
     """Call _handle_converge_wait inside an event loop (needed for asyncio.create_task)."""
-    wf._handle_converge_wait(converge_node.id, converge_node, graph)
+    wf._handle_converge_wait(converge_node.id, converge_node, graph, pending_tasks or {})
 
 
 # ---------------------------------------------------------------------------
@@ -279,7 +280,7 @@ class TestFanInConverge:
         graph = _build_fanin_graph()
         converge_node = graph.get_node("converge_node")
 
-        wf._handle_converge_wait("converge_node", converge_node, graph)
+        wf._handle_converge_wait("converge_node", converge_node, graph, {})
 
         assert "converge_node" not in wf._timeout_tasks
 
@@ -316,7 +317,9 @@ class TestFanInConverge:
         with patch.object(wf, "_skip_incomplete_predecessors", side_effect=RuntimeError("graph error")):
             loop = asyncio.new_event_loop()
             try:
-                loop.run_until_complete(wf._converge_timeout_handler("converge_node", graph, timeout_seconds=0.001))
+                loop.run_until_complete(
+                    wf._converge_timeout_handler("converge_node", graph, timeout_seconds=0.001, pending_tasks={})
+                )
             finally:
                 loop.close()
 
@@ -335,7 +338,9 @@ class TestFanInConverge:
             mock_wf.wait_condition = AsyncMock(side_effect=TimeoutError)
             loop = asyncio.new_event_loop()
             try:
-                loop.run_until_complete(wf._converge_timeout_handler("converge_node", graph, timeout_seconds=10))
+                loop.run_until_complete(
+                    wf._converge_timeout_handler("converge_node", graph, timeout_seconds=10, pending_tasks={})
+                )
             finally:
                 loop.close()
 
@@ -357,13 +362,80 @@ class TestFanInConverge:
             mock_wf.wait_condition = AsyncMock(side_effect=TimeoutError)
             loop = asyncio.new_event_loop()
             try:
-                loop.run_until_complete(wf._converge_timeout_handler("converge_node", graph, timeout_seconds=10))
+                loop.run_until_complete(
+                    wf._converge_timeout_handler("converge_node", graph, timeout_seconds=10, pending_tasks={})
+                )
             finally:
                 loop.close()
 
         assert "converge_node" not in wf.failed_nodes
         assert "converge_node" in wf._timed_out_converge_nodes
         assert "node_b" in wf.skipped_nodes
+
+    def test_on_timeout_continue_leaves_in_flight_predecessor(self) -> None:
+        """on_timeout='continue' must not skip predecessors still running in pending_tasks."""
+        wf = _make_workflow()
+        graph = _build_fanin_graph()
+        converge_node = graph.get_node("converge_node")
+        converge_node.config["on_timeout"] = "continue"
+        wf.resolver.set_namespace("node_a", {"result": "a_done"})
+        pending: dict[str, asyncio.Task[Any]] = {"node_b": MagicMock()}
+
+        with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow") as mock_wf:
+            mock_wf.logger = MagicMock()
+            mock_wf.wait_condition = AsyncMock(side_effect=TimeoutError)
+            loop = asyncio.new_event_loop()
+            try:
+                loop.run_until_complete(
+                    wf._converge_timeout_handler("converge_node", graph, timeout_seconds=10, pending_tasks=pending)
+                )
+            finally:
+                loop.close()
+
+        assert "converge_node" in wf._timed_out_converge_nodes
+        assert "node_b" not in wf.skipped_nodes
+
+    def test_on_timeout_fail_leaves_in_flight_predecessor(self) -> None:
+        """on_timeout='fail' must not skip predecessors still running in pending_tasks."""
+        wf = _make_workflow()
+        graph = _build_fanin_graph()
+        # Don't set on_timeout - defaults to 'fail'
+        wf.resolver.set_namespace("node_a", {"result": "a_done"})
+        pending: dict[str, asyncio.Task[Any]] = {"node_b": MagicMock()}
+
+        with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow") as mock_wf:
+            mock_wf.logger = MagicMock()
+            mock_wf.wait_condition = AsyncMock(side_effect=TimeoutError)
+            loop = asyncio.new_event_loop()
+            try:
+                loop.run_until_complete(
+                    wf._converge_timeout_handler("converge_node", graph, timeout_seconds=10, pending_tasks=pending)
+                )
+            finally:
+                loop.close()
+
+        # Converge should be marked as failed
+        assert "converge_node" in wf.failed_nodes
+        # In-flight predecessor (node_b) should NOT be skipped
+        assert "node_b" not in wf.skipped_nodes
+
+    def test_converge_not_rescheduled_after_already_executed(self) -> None:
+        """When converge has already executed, late-completing predecessors should not reschedule it."""
+        graph = _build_fanin_graph()
+        wf = _make_workflow()
+        wf.resolver.set_namespace("node_a", {"status": "completed"})
+        wf.resolver.set_namespace("converge_node", {"status": "completed", "merged": True})
+        wf.resolver.set_namespace("node_b", {"status": "completed"})
+
+        pending: dict[str, asyncio.Task[Any]] = {}
+
+        # Simulate node_b completing and trying to schedule converge
+        _run_schedule_successors(wf, "node_b", graph, pending)
+
+        # Converge should NOT be in pending (not re-scheduled)
+        assert "converge_node" not in pending
+        # Downstream node_c should also NOT be scheduled (converge already ran)
+        assert "node_c" not in pending
 
     def test_on_timeout_default_is_fail(self) -> None:
         """No on_timeout in config defaults to 'fail'."""
@@ -375,7 +447,9 @@ class TestFanInConverge:
             mock_wf.wait_condition = AsyncMock(side_effect=TimeoutError)
             loop = asyncio.new_event_loop()
             try:
-                loop.run_until_complete(wf._converge_timeout_handler("converge_node", graph, timeout_seconds=10))
+                loop.run_until_complete(
+                    wf._converge_timeout_handler("converge_node", graph, timeout_seconds=10, pending_tasks={})
+                )
             finally:
                 loop.close()
 
@@ -455,9 +529,17 @@ class TestConvergeAnyStrategy:
         graph = _build_fanin_graph()
         wf = _make_workflow()
         wf.resolver.set_namespace("node_a", {"status": "completed"})
-        wf._skip_incomplete_predecessors("converge_node", graph, "test reason")
+        wf._skip_incomplete_predecessors("converge_node", graph, "test reason", {})
         assert "node_b" in wf.skipped_nodes
         assert "node_a" not in wf.skipped_nodes
+
+    def test_skip_incomplete_predecessors_leaves_in_flight_predecessors(self) -> None:
+        graph = _build_fanin_graph()
+        wf = _make_workflow()
+        wf.resolver.set_namespace("node_a", {"status": "completed"})
+        pending: dict[str, asyncio.Task[Any]] = {"node_b": MagicMock()}
+        wf._skip_incomplete_predecessors("converge_node", graph, "test reason", pending)
+        assert "node_b" not in wf.skipped_nodes
 
     def test_should_skip_successor_triggers_any_skip(self) -> None:
         graph = self._build_any_converge_graph({"strategy": "any", "n_required": 1})
@@ -469,6 +551,17 @@ class TestConvergeAnyStrategy:
         result = wf._should_skip_successor(converge_node, "node_a", is_loop_iterate, pending, graph)
         assert result is False
         assert "node_b" in wf.skipped_nodes
+
+    def test_should_skip_successor_any_leaves_in_flight_predecessor(self) -> None:
+        graph = self._build_any_converge_graph({"strategy": "any", "n_required": 1})
+        converge_node = graph.get_node("converge_node")
+        wf = _make_workflow()
+        wf.resolver.set_namespace("node_a", {"status": "completed"})
+        pending: dict[str, asyncio.Task[Any]] = {"node_b": MagicMock()}
+        is_loop_iterate = False
+        result = wf._should_skip_successor(converge_node, "node_a", is_loop_iterate, pending, graph)
+        assert result is False
+        assert "node_b" not in wf.skipped_nodes
 
     def test_any_clamps_against_reachable_not_total(self) -> None:
         """When predecessors are skipped (e.g. by condition), n_required clamps to reachable count."""
@@ -512,6 +605,38 @@ class TestConvergeAnyStrategy:
         wf.resolver.set_namespace("node_a", {"status": "completed"})
         # node_b is reachable but not complete → 2 reachable, 1 complete < 2 → waits
         assert wf._are_predecessors_complete("converge_node", graph) is False
+
+    def test_execute_converge_node_excludes_in_flight_predecessors(self) -> None:
+        """_execute_converge_node should only include completed predecessors in predecessor_results."""
+        graph = _build_fanin_graph()
+        wf = _make_workflow()
+        # node_a has a namespace (completed), node_b doesn't (in-flight or not started)
+        wf.resolver.set_namespace("node_a", {"status": "completed", "output": "result_a"})
+
+        loop = asyncio.new_event_loop()
+        try:
+            with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow") as mock_wf:
+                mock_wf.execute_activity = AsyncMock(return_value={"status": "completed"})
+                result = loop.run_until_complete(
+                    wf._execute_converge_node(
+                        node_id="converge_node",
+                        resolved_config={},
+                        outputs={},
+                        graph=graph,
+                    )
+                )
+                # Verify execute_activity was called with args containing predecessor_results
+                # args is a keyword argument, so access via call_args.kwargs
+                activity_args = mock_wf.execute_activity.call_args.kwargs.get("args", [])
+                assert len(activity_args) == 3
+                predecessor_results = activity_args[2]
+                # Only node_a (completed) should be in results, not node_b (in-flight)
+                assert "node_a" in predecessor_results
+                assert "node_b" not in predecessor_results
+                assert predecessor_results["node_a"]["output"] == "result_a"
+                assert result == {"status": "completed"}
+        finally:
+            loop.close()
 
 
 # ---------------------------------------------------------------------------

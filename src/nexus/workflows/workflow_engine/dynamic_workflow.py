@@ -423,12 +423,12 @@ class NexusWorkflow:
 
         # Converge nodes wait for predecessors per their strategy
         if successor.type == NodeType.CONVERGE and not self._are_predecessors_complete(node_id, graph):
-            self._handle_converge_wait(node_id, successor, graph)
+            self._handle_converge_wait(node_id, successor, graph, pending_tasks)
             return True
 
         # When "any" converge is satisfied, skip remaining incomplete predecessors
         if successor.type == NodeType.CONVERGE and successor.config.get("strategy") == ConvergeStrategy.ANY:
-            self._skip_incomplete_predecessors(node_id, graph, "n_required met")
+            self._skip_incomplete_predecessors(node_id, graph, "n_required met", pending_tasks)
 
         return False
 
@@ -437,6 +437,7 @@ class NexusWorkflow:
         node_id: str,
         successor: ActivityNode,
         graph: WorkflowGraph,
+        pending_tasks: dict[str, asyncio.Task[Any]],
     ) -> None:
         """Handle a converge node that is waiting for predecessors, optionally starting a timeout."""
         workflow.logger.info(f"Converge node {node_id} waiting for predecessors to complete")
@@ -455,7 +456,7 @@ class NexusWorkflow:
         workflow.logger.info(f"Starting converge timeout for {node_id}: {timeout_seconds}s")
 
         self._timeout_tasks[node_id] = asyncio.create_task(
-            self._converge_timeout_handler(node_id, graph, timeout_seconds)
+            self._converge_timeout_handler(node_id, graph, timeout_seconds, pending_tasks)
         )
 
     async def _converge_timeout_handler(
@@ -463,6 +464,7 @@ class NexusWorkflow:
         node_id: str,
         graph: WorkflowGraph,
         timeout_seconds: float,
+        pending_tasks: dict[str, asyncio.Task[Any]],
     ) -> None:
         """Background task that waits for converge predecessors or fires a timeout.
 
@@ -486,7 +488,7 @@ class NexusWorkflow:
             if timed_out:
                 node = graph.get_node(node_id)
                 on_timeout = node.config.get("on_timeout", "fail")
-                self._skip_incomplete_predecessors(node_id, graph, f"timeout after {timeout_seconds}s")
+                self._skip_incomplete_predecessors(node_id, graph, f"timeout after {timeout_seconds}s", pending_tasks)
 
                 if on_timeout == "continue":
                     self._timed_out_converge_nodes.add(node_id)
@@ -503,7 +505,13 @@ class NexusWorkflow:
             self.resolver.set_namespace(node_id, {"status": "failed", "error": error_msg})
             self._mark_downstream_as_skipped(node_id, graph)
 
-    def _skip_incomplete_predecessors(self, node_id: str, graph: WorkflowGraph, reason: str) -> None:
+    def _skip_incomplete_predecessors(
+        self,
+        node_id: str,
+        graph: WorkflowGraph,
+        reason: str,
+        pending_tasks: dict[str, asyncio.Task[Any]],
+    ) -> None:
         """Mark incomplete predecessors of a converge node as skipped.
 
         Used both when a converge timeout fires and when an 'any' strategy
@@ -513,11 +521,15 @@ class NexusWorkflow:
             node_id: Converge node whose predecessors to check
             graph: Workflow graph
             reason: Human-readable reason for the skip (included in log messages)
+            pending_tasks: Currently executing node tasks (in-flight nodes are not skipped)
 
         """
         newly_skipped = []
         for pred_id in graph.get_predecessors(node_id):
             if pred_id not in self.skipped_nodes and not self.resolver.has_namespace(pred_id):
+                if pred_id in pending_tasks:
+                    workflow.logger.info(f"Converge: predecessor {pred_id} is still in flight, not skipping")
+                    continue
                 self.skipped_nodes.add(pred_id)
                 newly_skipped.append(pred_id)
                 workflow.logger.info(f"Converge: predecessor {pred_id} skipped ({reason})")
@@ -1014,7 +1026,7 @@ class NexusWorkflow:
         predecessor_ids = graph.get_predecessors(node_id)
         predecessor_results = {}
         for pred_id in predecessor_ids:
-            if pred_id not in self.skipped_nodes:
+            if pred_id not in self.skipped_nodes and self.resolver.has_namespace(pred_id):
                 predecessor_results[pred_id] = self.resolver.get_namespace(pred_id)
 
         # total_branches is injected at runtime (not part of the user-facing config schema)
