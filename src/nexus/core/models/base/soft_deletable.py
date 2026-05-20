@@ -6,7 +6,7 @@ with soft deletion tracking capabilities.
 
 from abc import ABC
 from datetime import UTC, datetime
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 from uuid import UUID
 
 from sqlmodel import DateTime, Field
@@ -44,6 +44,11 @@ class SoftDeletableResource(BaseResource, ABC):
 
     """
 
+    # Type hint for mypy: subclasses may have an email field
+    # This prevents type errors when soft_delete() anonymizes email
+    if TYPE_CHECKING:
+        email: str | None
+
     # Soft deletion tracking
     deleted_at: datetime | None = Field(
         default=None,
@@ -71,6 +76,10 @@ class SoftDeletableResource(BaseResource, ABC):
     def soft_delete(self, user_id: UUID, deletion_time: datetime | None = None) -> None:
         """Mark the resource as soft deleted.
 
+        For resources with an email field, anonymizes the email to prevent
+        email reuse attacks where deleted users' emails could be re-registered
+        to intercept password resets and communications.
+
         Args:
             user_id: UUID of the user performing the deletion
             deletion_time: Optional timestamp, defaults to current time
@@ -81,6 +90,12 @@ class SoftDeletableResource(BaseResource, ABC):
 
         self.deleted_at = deletion_time
         self.deleted_by = user_id
+
+        # Anonymize email field if present to prevent email reuse attacks
+        # This prevents an attacker from registering with a deleted user's email
+        # to intercept password resets or sensitive communications
+        if hasattr(self, "email") and getattr(self, "email", None) is not None:
+            self.email = None
 
     def restore(self) -> None:
         """Restore a soft deleted resource to active state."""

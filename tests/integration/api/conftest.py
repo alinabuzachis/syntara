@@ -137,7 +137,7 @@ async def admin_user(
     test_db_session: AsyncSession,
 ) -> User:
     """Create a test user with admin role for user/group/idp management tests."""
-    user = await user_factory(username="admin-test", email="admin-test@example.com")
+    user = await user_factory(username="admin-test", email="admin-test@example.com", is_builtin=True)
     await make_admin(test_db_session, user)
     return user
 

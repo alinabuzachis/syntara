@@ -5,6 +5,7 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
+from ...models.auth_type import AuthType
 from ...models.error_data import ErrorData
 from ...models.resources_response_user_read import ResourcesResponseUserRead
 from ...types import UNSET, Response, Unset
@@ -18,6 +19,7 @@ def _get_kwargs(
     include_total: bool | Unset = False,
     username: None | str | Unset = UNSET,
     full_name: None | str | Unset = UNSET,
+    auth_type: AuthType | None | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     params: dict[str, Any] = {}
@@ -55,6 +57,15 @@ def _get_kwargs(
     else:
         json_full_name = full_name
     params["full_name"] = json_full_name
+
+    json_auth_type: None | str | Unset
+    if isinstance(auth_type, Unset):
+        json_auth_type = UNSET
+    elif isinstance(auth_type, AuthType):
+        json_auth_type = auth_type.value
+    else:
+        json_auth_type = auth_type
+    params["auth_type"] = json_auth_type
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
@@ -138,6 +149,7 @@ def sync_detailed(
     include_total: bool | Unset = False,
     username: None | str | Unset = UNSET,
     full_name: None | str | Unset = UNSET,
+    auth_type: AuthType | None | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | ResourcesResponseUserRead]:
     """List Users
@@ -154,6 +166,7 @@ def sync_detailed(
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
         username (None | str | Unset):
         full_name (None | str | Unset):
+        auth_type (AuthType | None | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -170,6 +183,7 @@ def sync_detailed(
         include_total=include_total,
         username=username,
         full_name=full_name,
+        auth_type=auth_type,
         additional_params=additional_params,
     )
 
@@ -189,6 +203,7 @@ def sync(
     include_total: bool | Unset = False,
     username: None | str | Unset = UNSET,
     full_name: None | str | Unset = UNSET,
+    auth_type: AuthType | None | Unset = UNSET,
 ) -> ErrorData | ResourcesResponseUserRead | None:
     """List Users
 
@@ -204,6 +219,7 @@ def sync(
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
         username (None | str | Unset):
         full_name (None | str | Unset):
+        auth_type (AuthType | None | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -221,6 +237,7 @@ def sync(
         include_total=include_total,
         username=username,
         full_name=full_name,
+        auth_type=auth_type,
     ).parsed
 
 
@@ -233,6 +250,7 @@ async def asyncio_detailed(
     include_total: bool | Unset = False,
     username: None | str | Unset = UNSET,
     full_name: None | str | Unset = UNSET,
+    auth_type: AuthType | None | Unset = UNSET,
 ) -> Response[ErrorData | ResourcesResponseUserRead]:
     """List Users
 
@@ -248,6 +266,7 @@ async def asyncio_detailed(
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
         username (None | str | Unset):
         full_name (None | str | Unset):
+        auth_type (AuthType | None | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -264,6 +283,7 @@ async def asyncio_detailed(
         include_total=include_total,
         username=username,
         full_name=full_name,
+        auth_type=auth_type,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -280,6 +300,7 @@ async def asyncio(
     include_total: bool | Unset = False,
     username: None | str | Unset = UNSET,
     full_name: None | str | Unset = UNSET,
+    auth_type: AuthType | None | Unset = UNSET,
 ) -> ErrorData | ResourcesResponseUserRead | None:
     """List Users
 
@@ -295,6 +316,7 @@ async def asyncio(
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
         username (None | str | Unset):
         full_name (None | str | Unset):
+        auth_type (AuthType | None | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -313,5 +335,6 @@ async def asyncio(
             include_total=include_total,
             username=username,
             full_name=full_name,
+            auth_type=auth_type,
         )
     ).parsed

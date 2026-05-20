@@ -6,7 +6,7 @@ from uuid import uuid4
 import pytest
 import typer
 
-from nexus.ao_admin.__main__ import _enable_user_async, _get_actor, _reset_password_async
+from nexus.ao_admin.__main__ import _enable_user_async, _get_actor, _reset_password_async, _validate_password
 from nexus.core.models.user import AuthType
 
 
@@ -40,6 +40,78 @@ def _session_factory(mock_session: AsyncMock) -> AsyncMock:
         __aenter__=AsyncMock(return_value=mock_session),
         __aexit__=AsyncMock(return_value=False),
     )
+
+
+# ---------------------------------------------------------------------------
+# _validate_password
+# ---------------------------------------------------------------------------
+
+
+class TestValidatePassword:
+    """Tests for _validate_password helper (InfoSec requirements)."""
+
+    def test_rejects_password_under_14_characters(self) -> None:
+        """Should reject passwords with fewer than 14 characters."""
+        is_valid, error = _validate_password("Short123!")
+        assert is_valid is False
+        assert error is not None
+        assert "at least 14 characters" in error
+
+    def test_rejects_password_with_only_lowercase(self) -> None:
+        """Should reject passwords with only 1 character class."""
+        is_valid, error = _validate_password("lowercasepasswordonly")  # 21 chars, 1 class
+        assert is_valid is False
+        assert error is not None
+        assert "at least 3 of the following character classes" in error
+
+    def test_rejects_password_with_only_two_classes(self) -> None:
+        """Should reject passwords with only 2 character classes."""
+        is_valid, error = _validate_password("lowercaseonly123456")  # lowercase + digits
+        assert is_valid is False
+        assert error is not None
+        assert "at least 3 of the following character classes" in error
+
+    def test_accepts_password_with_upper_lower_digit(self) -> None:
+        """Should accept passwords with 3 classes: uppercase + lowercase + digits."""
+        is_valid, error = _validate_password("ValidPassword123")
+        assert is_valid is True
+        assert error is None
+
+    def test_accepts_password_with_lower_digit_special(self) -> None:
+        """Should accept passwords with 3 classes: lowercase + digits + special."""
+        is_valid, error = _validate_password("validpassword123!@#")
+        assert is_valid is True
+        assert error is None
+
+    def test_accepts_password_with_upper_digit_special(self) -> None:
+        """Should accept passwords with 3 classes: uppercase + digits + special."""
+        is_valid, error = _validate_password("VALIDPASSWORD123!")
+        assert is_valid is True
+        assert error is None
+
+    def test_accepts_password_with_upper_lower_special(self) -> None:
+        """Should accept passwords with 3 classes: uppercase + lowercase + special."""
+        is_valid, error = _validate_password("ValidPassword!@#$")
+        assert is_valid is True
+        assert error is None
+
+    def test_accepts_password_with_all_four_classes(self) -> None:
+        """Should accept passwords with all 4 character classes."""
+        is_valid, error = _validate_password("ValidPassword123!")
+        assert is_valid is True
+        assert error is None
+
+    def test_accepts_password_with_spaces(self) -> None:
+        """Should accept passwords containing spaces (counts as special characters)."""
+        is_valid, error = _validate_password("Valid Password 123")
+        assert is_valid is True
+        assert error is None
+
+    def test_accepts_exactly_14_chars_with_three_classes(self) -> None:
+        """Should accept minimum length boundary: exactly 14 characters with 3 classes."""
+        is_valid, error = _validate_password("ValidPass123!!")
+        assert is_valid is True
+        assert error is None
 
 
 # ---------------------------------------------------------------------------

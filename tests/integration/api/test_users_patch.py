@@ -11,7 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth import get_current_user
 from nexus.core.models import User
-from tests.integration.api.conftest import make_user_role
+from tests.integration.api.conftest import make_admin, make_user_role
 
 USERS_URL = "/api/v1/users"
 
@@ -120,7 +120,7 @@ class TestUsersPatchContract:
                 "username": "otheruser",
                 "email": "existing@example.com",
                 "full_name": "Other User",
-                "password": "securepassword123",
+                "password": "SecurePassword123!",
             },
         )
         assert create_response.status_code == 201
@@ -205,11 +205,28 @@ class TestUsersPatchAdminRestrictions:
         assert response.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_non_admin_can_update_admin_other_fields(self, admin_client: AsyncClient, admin_user: User) -> None:
-        """Test non-admin can update admin's non-is_enabled fields."""
-        patch_data = {"full_name": "Updated Admin Name"}
+    async def test_admin_can_update_own_non_builtin_fields(
+        self,
+        base_client: AsyncClient,
+        user_factory: Callable[..., Awaitable[User]],
+        test_db_session: AsyncSession,
+    ) -> None:
+        """Test non-builtin admin can update their own non-is_enabled fields."""
+        from nexus.api.main import app
 
-        response = await admin_client.patch(f"{USERS_URL}/{admin_user.id}", json=patch_data)
+        # Create a non-builtin admin user (is_builtin=False allows field updates)
+        non_builtin_admin = await user_factory(
+            username="non-builtin-admin", email="non-builtin-admin@test.com", is_builtin=False
+        )
+        await make_admin(test_db_session, non_builtin_admin)
+
+        async def override_as_admin() -> User:
+            return non_builtin_admin
+
+        app.dependency_overrides[get_current_user] = override_as_admin
+
+        patch_data = {"full_name": "Updated Admin Name"}
+        response = await base_client.patch(f"{USERS_URL}/{non_builtin_admin.id}", json=patch_data)
 
         assert response.status_code == 200
 

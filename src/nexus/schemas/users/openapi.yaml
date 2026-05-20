@@ -57,6 +57,14 @@ paths:
               - type: string
               - type: 'null'
             title: Full Name
+        - name: auth_type
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - $ref: '#/components/schemas/AuthType'
+              - type: 'null'
+            title: Auth Type
       responses:
         '200':
           description: List of users
@@ -1183,7 +1191,7 @@ components:
           type: string
           format: password
           writeOnly: true
-          minLength: 8
+          minLength: 14
           description: Plaintext password (will be hashed)
           title: Password
         is_enabled:

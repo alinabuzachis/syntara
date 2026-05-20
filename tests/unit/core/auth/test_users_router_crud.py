@@ -54,7 +54,7 @@ class TestCreateUserEndpoint:
             username="newuser",
             email="new@example.com",
             full_name="New User",
-            password=SecretStr("password123"),
+            password=SecretStr("ValidPassword123!"),
         )
 
         result = await create_user(request, service)

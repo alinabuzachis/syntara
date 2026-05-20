@@ -61,7 +61,7 @@ async def _get_or_create_builtin_admin(session: AsyncSession) -> User:
     return user
 
 
-TEST_PASSWORD = "securepassword123"  # noqa: S105
+TEST_PASSWORD = "SecurePassword123!"  # noqa: S105
 
 
 @pytest.mark.asyncio
@@ -497,6 +497,48 @@ async def test_delete_user_success(test_db_session: AsyncSession, test_user: Use
 
     await test_db_session.refresh(user)
     assert user.deleted_at is not None
+
+
+@pytest.mark.asyncio
+async def test_delete_user_anonymizes_email(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test that deleting a user anonymizes their email to prevent reuse attacks.
+
+    Security: Prevents attacker from engineering account deletion and then
+    registering with victim's email to intercept password resets.
+    """
+    service = UsersService(test_db_session, test_user)
+
+    original_email = "victim@example.com"
+    user = await service.create_user(
+        username="victim",
+        email=original_email,
+        full_name="Victim User",
+        password=TEST_PASSWORD,
+    )
+
+    # Need an admins group with the test_user so _ensure_other_admins_exist passes
+    admins_group = await _get_or_create_admins_group(test_db_session)
+    await test_db_session.execute(insert(user_groups).values(user_id=test_user.id, group_id=admins_group.id))
+    await test_db_session.flush()
+
+    # Verify email exists before deletion
+    assert user.email == original_email
+
+    await service.delete_user(user.id)
+
+    await test_db_session.refresh(user)
+    assert user.deleted_at is not None
+    assert user.email is None  # Email should be anonymized
+
+    # Verify the email can now be reused by a new user (no unique constraint violation)
+    new_user = await service.create_user(  # type: ignore[unreachable]
+        username="newuser",
+        email=original_email,  # Same email as deleted user
+        full_name="New User",
+        password=TEST_PASSWORD,
+    )
+    assert new_user.email == original_email
+    assert new_user.id != user.id
 
 
 @pytest.mark.asyncio

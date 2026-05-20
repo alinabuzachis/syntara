@@ -13,6 +13,9 @@ DEFAULT_SEGMENT_SERVER_URL = f"http://localhost:{SEGMENT_SERVER_PORT}"
 DEFAULT_POLL_TIMEOUT = 20.0
 POLL_INTERVAL = 0.5
 
+# Meets UserCreate password policy: min 14 chars, 3+ character classes.
+E2E_TELEMETRY_TEST_PASSWORD = "E2eTestPass1234!"  # noqa: S105
+
 
 @pytest.fixture(scope="session")
 def segment_server_url() -> str:

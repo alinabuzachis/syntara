@@ -15,6 +15,7 @@ import asyncio
 import getpass
 import logging
 import os
+import re
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Annotated
 
@@ -31,7 +32,8 @@ app = typer.Typer(
 )
 
 _DEFAULT_ENABLE_USERNAME = "admin"
-_MIN_PASSWORD_LENGTH = 8
+_MIN_PASSWORD_LENGTH = 14
+_MIN_CHARACTER_CLASSES = 3
 
 
 def _quiet_logging() -> None:
@@ -45,6 +47,47 @@ def _get_actor() -> str:
         return os.getlogin()
     except OSError:
         return "ao-admin"
+
+
+def _validate_password(password: str) -> tuple[bool, str | None]:
+    """Validate password meets InfoSec security requirements.
+
+    Requirements:
+    - Minimum 14 characters
+    - At least 3 of the following 4 character classes:
+      - Base 10 digits (0-9)
+      - Uppercase letters (A-Z)
+      - Lowercase letters (a-z)
+      - Punctuation, spaces, and other characters
+
+    Returns:
+        (is_valid, error_message) - error_message is None if valid
+
+    """
+    if len(password) < _MIN_PASSWORD_LENGTH:
+        return False, f"Password must be at least {_MIN_PASSWORD_LENGTH} characters."
+
+    # Count how many character classes are present
+    character_classes = 0
+
+    if re.search(r"\d", password):  # Digits
+        character_classes += 1
+    if re.search(r"[A-Z]", password):  # Uppercase
+        character_classes += 1
+    if re.search(r"[a-z]", password):  # Lowercase
+        character_classes += 1
+    if re.search(r"[^a-zA-Z0-9]", password):  # Punctuation, spaces, and other characters
+        character_classes += 1
+
+    if character_classes < _MIN_CHARACTER_CLASSES:
+        return (
+            False,
+            "Password must contain at least 3 of the following character classes: "
+            "digits (0-9), uppercase letters (A-Z), lowercase letters (a-z), "
+            "punctuation/spaces/other characters",
+        )
+
+    return True, None
 
 
 def _init_audit() -> None:
@@ -238,8 +281,10 @@ def reset_password(
     if password != confirm:
         typer.echo("ERROR: Passwords do not match.", err=True)
         raise typer.Exit(code=1)
-    if len(password) < _MIN_PASSWORD_LENGTH:
-        typer.echo(f"ERROR: Password must be at least {_MIN_PASSWORD_LENGTH} characters.", err=True)
+
+    is_valid, error_message = _validate_password(password)
+    if not is_valid:
+        typer.echo(f"ERROR: {error_message}", err=True)
         raise typer.Exit(code=1)
 
     asyncio.run(_reset_password_async(username=username, new_password=password, actor=_get_actor()))

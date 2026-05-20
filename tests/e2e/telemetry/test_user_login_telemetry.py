@@ -17,7 +17,11 @@ import httpx
 import pytest
 from nexus_api_client import AuthenticatedClient
 
-from tests.e2e.telemetry.conftest import get_captured_events, new_request_id
+from tests.e2e.telemetry.conftest import (
+    E2E_TELEMETRY_TEST_PASSWORD,
+    get_captured_events,
+    new_request_id,
+)
 
 pytestmark = pytest.mark.e2e
 
@@ -34,7 +38,7 @@ def user_login_events(
     the captured events back to the exact request that triggered them.
     """
     username = f"e2e-login-{uuid4().hex[:8]}"
-    password = "TestPass1234!"  # noqa: S105
+    password = E2E_TELEMETRY_TEST_PASSWORD
     email = f"{username}@example.com"
 
     admin_http = nexus_client.get_httpx_client()
