@@ -141,14 +141,14 @@ function getAssignmentActions(row: RoleAssignmentRow, onUnassign: (row: RoleAssi
 function useRoleAssignmentData(principalType: 'user' | 'group', principalId: string) {
   const userAssignmentsQuery = accessClient.useQuery(
     'get',
-    '/users/{user_id}/role-assignments',
+    '/users/{user_id}/role_assignments',
     { params: { path: { user_id: principalId } } },
     { enabled: principalType === 'user', retry: false }
   )
 
   const groupAssignmentsQuery = accessClient.useQuery(
     'get',
-    '/groups/{group_id}/role-assignments',
+    '/groups/{group_id}/role_assignments',
     { params: { path: { group_id: principalId } } },
     { enabled: principalType === 'group', retry: false }
   )
@@ -183,10 +183,10 @@ function useRoleAssignmentData(principalType: 'user' | 'group', principalId: str
     })
   }, [queryForbidden, activeQuery.data])
 
-  const { mutate: deleteRoleAssignment } = accessClient.useMutation('delete', '/role-assignments/{assignment_id}')
+  const { mutate: deleteRoleAssignment } = accessClient.useMutation('delete', '/role_assignments/{assignment_id}')
   const { mutate: deleteProjectRoleAssignment } = accessClient.useMutation(
     'delete',
-    '/projects/{project_id}/role-assignments/{assignment_id}'
+    '/projects/{project_id}/role_assignments/{assignment_id}'
   )
 
   const deleteAssignment = (

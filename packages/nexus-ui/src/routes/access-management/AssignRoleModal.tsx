@@ -154,10 +154,10 @@ export function AssignRoleModal({
       .map((p) => ({ value: p.id, label: p.name }))
   }, [allProjects])
 
-  const { mutateAsync: createRoleAssignment } = accessClient.useMutation('post', '/role-assignments')
+  const { mutateAsync: createRoleAssignment } = accessClient.useMutation('post', '/role_assignments')
   const { mutateAsync: createProjectRoleAssignment } = accessClient.useMutation(
     'post',
-    '/projects/{project_id}/role-assignments'
+    '/projects/{project_id}/role_assignments'
   )
 
   const handleClose = () => {

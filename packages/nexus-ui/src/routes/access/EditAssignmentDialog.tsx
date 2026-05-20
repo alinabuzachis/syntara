@@ -58,16 +58,16 @@ export function EditAssignmentDialog({ row, displayName, onClose, onSuccess }: R
     reset({ roleName: isProjectScoped ? row.assignmentName : '' })
   }, [row, isProjectScoped, reset])
 
-  const { mutateAsync: deleteRoleAssignment } = accessClient.useMutation('delete', '/role-assignments/{assignment_id}')
+  const { mutateAsync: deleteRoleAssignment } = accessClient.useMutation('delete', '/role_assignments/{assignment_id}')
   const { mutateAsync: deleteProjectRoleAssignment } = accessClient.useMutation(
     'delete',
-    '/projects/{project_id}/role-assignments/{assignment_id}'
+    '/projects/{project_id}/role_assignments/{assignment_id}'
   )
 
-  const { mutateAsync: createRoleAssignment } = accessClient.useMutation('post', '/role-assignments')
+  const { mutateAsync: createRoleAssignment } = accessClient.useMutation('post', '/role_assignments')
   const { mutateAsync: createProjectRoleAssignment } = accessClient.useMutation(
     'post',
-    '/projects/{project_id}/role-assignments'
+    '/projects/{project_id}/role_assignments'
   )
 
   const onSubmit = async (data: EditAssignmentFormData) => {

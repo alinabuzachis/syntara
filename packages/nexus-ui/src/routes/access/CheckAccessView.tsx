@@ -138,7 +138,7 @@ export function CheckAccessView({ resourceTypes, actionsByResource }: Readonly<R
     setValue('resourceId', '')
   }
 
-  const canIMutation = accessClient.useMutation('post', '/authz/can-i')
+  const canIMutation = accessClient.useMutation('post', '/authz/can_i')
 
   const onSubmit = handleSubmit((formData) => {
     canIMutation.mutate({

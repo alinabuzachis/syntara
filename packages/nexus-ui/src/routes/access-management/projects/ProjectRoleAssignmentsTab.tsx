@@ -226,13 +226,13 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAss
     setPage(1)
   }
 
-  const allAssignmentsQuery = accessClient.useQuery('get', '/projects/{project_id}/role-assignments', {
+  const allAssignmentsQuery = accessClient.useQuery('get', '/projects/{project_id}/role_assignments', {
     params: { path: { project_id: projectId } },
   })
 
   const { mutate: deleteAssignment } = accessClient.useMutation(
     'delete',
-    '/projects/{project_id}/role-assignments/{assignment_id}'
+    '/projects/{project_id}/role_assignments/{assignment_id}'
   )
 
   const assignments = useMemo(() => allAssignmentsQuery.data?.resources ?? [], [allAssignmentsQuery.data])

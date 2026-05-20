@@ -1510,7 +1510,7 @@ export const handlers = [
   }),
 
   // User role assignments
-  http.get('/api/v1/users/:userId/role-assignments', ({ params }) => {
+  http.get('/api/v1/users/:userId/role_assignments', ({ params }) => {
     const user = users.find((u) => u.id === params.userId)
     if (!user) {
       return HttpResponse.json(
@@ -1520,7 +1520,7 @@ export const handlers = [
           detail: `User with id '${params.userId as string}' not found`,
           code: 'USER_NOT_FOUND',
           retryable: false,
-          instance: `/api/v1/users/${params.userId as string}/role-assignments`,
+          instance: `/api/v1/users/${params.userId as string}/role_assignments`,
         },
         { status: 404 }
       )
@@ -1851,7 +1851,7 @@ export const handlers = [
   }),
 
   // ── Group Role Assignments (nested under /groups/:groupId) ──────────────
-  http.get('/api/v1/groups/:groupId/role-assignments', ({ params }) => {
+  http.get('/api/v1/groups/:groupId/role_assignments', ({ params }) => {
     const groupId = params.groupId as string
     const group = groups.find((g) => g.id === groupId)
     if (!group) {
@@ -1862,7 +1862,7 @@ export const handlers = [
           detail: `Group with id '${groupId}' not found`,
           code: 'GROUP_NOT_FOUND',
           retryable: false,
-          instance: `/api/v1/groups/${groupId}/role-assignments`,
+          instance: `/api/v1/groups/${groupId}/role_assignments`,
         },
         { status: 404 }
       )
@@ -2471,7 +2471,7 @@ export const handlers = [
 
   // ── Access Management: Project Role Assignments ─────────────────────────
 
-  http.get('/api/v1/projects/:project_id/role-assignments', ({ params }) => {
+  http.get('/api/v1/projects/:project_id/role_assignments', ({ params }) => {
     const pid = params.project_id as string
 
     const userEntries = mockProjectRoleAssignments
@@ -2503,7 +2503,7 @@ export const handlers = [
     return HttpResponse.json({ resources: [...userEntries, ...groupEntries] })
   }),
 
-  http.post('/api/v1/projects/:project_id/role-assignments', async ({ params, request }) => {
+  http.post('/api/v1/projects/:project_id/role_assignments', async ({ params, request }) => {
     const body = (await request.json()) as { principal_type: 'user' | 'group'; principal_id: string; role_name: string }
     const projectId = params.project_id as string
 
@@ -2554,7 +2554,7 @@ export const handlers = [
     )
   }),
 
-  http.delete('/api/v1/projects/:project_id/role-assignments/:assignment_id', ({ params }) => {
+  http.delete('/api/v1/projects/:project_id/role_assignments/:assignment_id', ({ params }) => {
     const assignmentId = params.assignment_id as string
     const projectId = params.project_id as string
 
@@ -2580,12 +2580,12 @@ export const handlers = [
 
   // ── Access Management: Project Group Role Assignments ───────────────────
 
-  http.get('/api/v1/projects/:project_id/group-role-assignments', ({ params }) => {
+  http.get('/api/v1/projects/:project_id/group_role_assignments', ({ params }) => {
     const assignments = mockProjectGroupRoleAssignments.filter((a) => a.project_id === params.project_id)
     return HttpResponse.json(assignments)
   }),
 
-  http.post('/api/v1/projects/:project_id/group-role-assignments', async ({ params, request }) => {
+  http.post('/api/v1/projects/:project_id/group_role_assignments', async ({ params, request }) => {
     const body = (await request.json()) as { group_id: string; role_name: string }
     const assignment = {
       id: uuidv4(),
@@ -2599,7 +2599,7 @@ export const handlers = [
     return HttpResponse.json(assignment, { status: 201 })
   }),
 
-  http.delete('/api/v1/projects/:project_id/group-role-assignments/:assignment_id', ({ params }) => {
+  http.delete('/api/v1/projects/:project_id/group_role_assignments/:assignment_id', ({ params }) => {
     const idx = mockProjectGroupRoleAssignments.findIndex(
       (a) => a.id === params.assignment_id && a.project_id === params.project_id
     )
@@ -2999,11 +2999,11 @@ export const handlers = [
 
   // ── Access Management: System-level User Role Assignments ───────────────
 
-  http.get('/api/v1/user-role-assignments', () => {
+  http.get('/api/v1/user_role_assignments', () => {
     return HttpResponse.json(mockUserRoleAssignments)
   }),
 
-  http.post('/api/v1/user-role-assignments', async ({ request }) => {
+  http.post('/api/v1/user_role_assignments', async ({ request }) => {
     const body = (await request.json()) as { user_id: string; role_id: string }
     const assignment = {
       id: uuidv4(),
@@ -3017,7 +3017,7 @@ export const handlers = [
     return HttpResponse.json(assignment, { status: 201 })
   }),
 
-  http.delete('/api/v1/user-role-assignments/:assignment_id', ({ params }) => {
+  http.delete('/api/v1/user_role_assignments/:assignment_id', ({ params }) => {
     const idx = mockUserRoleAssignments.findIndex((a) => a.id === params.assignment_id)
     if (idx === -1) {
       return HttpResponse.json(
@@ -3031,11 +3031,11 @@ export const handlers = [
 
   // ── Access Management: System-level Group Role Assignments ──────────────
 
-  http.get('/api/v1/group-role-assignments', () => {
+  http.get('/api/v1/group_role_assignments', () => {
     return HttpResponse.json(mockGroupRoleAssignments)
   }),
 
-  http.post('/api/v1/group-role-assignments', async ({ request }) => {
+  http.post('/api/v1/group_role_assignments', async ({ request }) => {
     const body = (await request.json()) as { group_id: string; role_id: string }
     const assignment = {
       id: uuidv4(),
@@ -3049,7 +3049,7 @@ export const handlers = [
     return HttpResponse.json(assignment, { status: 201 })
   }),
 
-  http.delete('/api/v1/group-role-assignments/:assignment_id', ({ params }) => {
+  http.delete('/api/v1/group_role_assignments/:assignment_id', ({ params }) => {
     const idx = mockGroupRoleAssignments.findIndex((a) => a.id === params.assignment_id)
     if (idx === -1) {
       return HttpResponse.json(
@@ -3063,7 +3063,7 @@ export const handlers = [
 
   // ── Access Management: All Role Assignments (unified view) ─────────────
 
-  http.get('/api/v1/all-role-assignments', ({ request }) => {
+  http.get('/api/v1/all_role_assignments', ({ request }) => {
     const url = new URL(request.url)
     const cursor = url.searchParams.get('cursor')
     const limit = parseInt(url.searchParams.get('limit') || '50', 10)
@@ -3127,7 +3127,7 @@ export const handlers = [
     return HttpResponse.json(paginate(all, cursor, limit, includeTotal))
   }),
 
-  http.get('/api/v1/projects/:project_id/all-role-assignments', ({ params, request }) => {
+  http.get('/api/v1/projects/:project_id/all_role_assignments', ({ params, request }) => {
     const url = new URL(request.url)
     const cursor = url.searchParams.get('cursor')
     const limit = parseInt(url.searchParams.get('limit') || '50', 10)
@@ -3336,7 +3336,7 @@ export const handlers = [
     return HttpResponse.json({ count: filtered.length, results: filtered })
   }),
 
-  http.get('/api/v1/authz/resource-actions', () => {
+  http.get('/api/v1/authz/resource_actions', () => {
     return HttpResponse.json({
       resource_actions: {
         approval: ['create', 'decide', 'read'],
@@ -3349,7 +3349,7 @@ export const handlers = [
         policy: ['create', 'delete', 'read', 'update'],
         project: ['create', 'delete', 'read', 'update'],
         role: ['create', 'delete', 'read', 'update'],
-        'role-assignment': ['assign', 'read', 'revoke'],
+        role_assignment: ['assign', 'read', 'revoke'],
         setting: ['read', 'write'],
         user: ['create', 'delete', 'read', 'update'],
         workflow: ['create', 'delete', 'read', 'update'],
@@ -3371,7 +3371,7 @@ export const handlers = [
 
   // ── Authz ──────────────────────────────────────────────────────────
   // Returns role-appropriate permissions based on the user's access token.
-  http.post('/api/v1/authz/can-i', async ({ request }) => {
+  http.post('/api/v1/authz/can_i', async ({ request }) => {
     const username = getUsernameFromRequest(request)
     const body = (await request.json()) as { action?: string; resource_type?: string } | null
     const action = body?.action
@@ -3394,7 +3394,7 @@ export const handlers = [
     })
   }),
 
-  http.post('/api/v1/authz/who-can', async ({ request }) => {
+  http.post('/api/v1/authz/who_can', async ({ request }) => {
     const body = (await request.json()) as { resource_type?: string; action?: string } | null
     const resourceType = body?.resource_type ?? 'workflow'
     const action = body?.action ?? 'read'
@@ -3415,7 +3415,7 @@ export const handlers = [
     return HttpResponse.json({ users, next_cursor: null })
   }),
 
-  http.post('/api/v1/authz/what-can-i', () => {
+  http.post('/api/v1/authz/what_can_i', () => {
     return HttpResponse.json({
       permissions: [
         {

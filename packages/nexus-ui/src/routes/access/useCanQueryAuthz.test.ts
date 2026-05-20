@@ -31,7 +31,7 @@ describe('useCanQueryAuthz', () => {
       expect(result.current).toEqual({ canQuery: true, isChecking: false })
     })
 
-    expect(accessFetchClient.POST).toHaveBeenCalledWith('/authz/can-i', {
+    expect(accessFetchClient.POST).toHaveBeenCalledWith('/authz/can_i', {
       body: { action: 'query', resource_type: 'authz' },
     })
   })

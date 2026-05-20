@@ -104,12 +104,12 @@ export function useAssignmentsData() {
     [projects]
   )
 
-  const allAssignmentsQuery = accessClient.useQuery('get', '/role-assignments')
+  const allAssignmentsQuery = accessClient.useQuery('get', '/role_assignments')
 
-  const { mutate: deleteRoleAssignment } = accessClient.useMutation('delete', '/role-assignments/{assignment_id}')
+  const { mutate: deleteRoleAssignment } = accessClient.useMutation('delete', '/role_assignments/{assignment_id}')
   const { mutate: deleteProjectRoleAssignment } = accessClient.useMutation(
     'delete',
-    '/projects/{project_id}/role-assignments/{assignment_id}'
+    '/projects/{project_id}/role_assignments/{assignment_id}'
   )
 
   const allRows = useMemo(

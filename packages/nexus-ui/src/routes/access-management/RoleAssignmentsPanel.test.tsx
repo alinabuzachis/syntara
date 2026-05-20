@@ -129,7 +129,7 @@ function setupMocks(overrides?: { userAssignments?: AssignmentResource[]; groupA
   const mockRefetch = vi.fn().mockResolvedValue({})
 
   vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
-    if (path === '/users/{user_id}/role-assignments') {
+    if (path === '/users/{user_id}/role_assignments') {
       const resources = overrides?.userAssignments ?? mockUserAssignments
       return {
         data: { resources, next: null },
@@ -139,7 +139,7 @@ function setupMocks(overrides?: { userAssignments?: AssignmentResource[]; groupA
         refetch: mockRefetch,
       } as never
     }
-    if (path === '/groups/{group_id}/role-assignments') {
+    if (path === '/groups/{group_id}/role_assignments') {
       const resources = overrides?.groupAssignments ?? mockGroupAssignments
       return {
         data: { resources, next: null },
@@ -156,10 +156,10 @@ function setupMocks(overrides?: { userAssignments?: AssignmentResource[]; groupA
   })
 
   vi.mocked(accessClient.useMutation).mockImplementation((_method: string, path: string) => {
-    if (path === '/role-assignments/{assignment_id}') {
+    if (path === '/role_assignments/{assignment_id}') {
       return mockMutationReturn(mockDeleteSystemAssignment)
     }
-    if (path === '/projects/{project_id}/role-assignments/{assignment_id}') {
+    if (path === '/projects/{project_id}/role_assignments/{assignment_id}') {
       return mockMutationReturn(mockDeleteProjectAssignment)
     }
     return mockMutationReturn(vi.fn())
@@ -201,7 +201,7 @@ describe('RoleAssignmentsPanel', () => {
   describe('Loading and error states', () => {
     it('renders loading state when query is pending', () => {
       vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
-        if (path === '/users/{user_id}/role-assignments') {
+        if (path === '/users/{user_id}/role_assignments') {
           return { data: undefined, isPending: true, isError: false, error: null, refetch: vi.fn() } as never
         }
         return { data: undefined, isPending: false, isError: false, error: null, refetch: vi.fn() } as never
@@ -214,7 +214,7 @@ describe('RoleAssignmentsPanel', () => {
 
     it('renders error state when query fails', () => {
       vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
-        if (path === '/users/{user_id}/role-assignments') {
+        if (path === '/users/{user_id}/role_assignments') {
           return {
             data: undefined,
             isPending: false,
@@ -708,7 +708,7 @@ describe('RoleAssignmentsPanel', () => {
   describe('403 forbidden state', () => {
     it('shows info alert when query returns 403', () => {
       vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
-        if (path === '/users/{user_id}/role-assignments') {
+        if (path === '/users/{user_id}/role_assignments') {
           return {
             data: undefined,
             isPending: false,

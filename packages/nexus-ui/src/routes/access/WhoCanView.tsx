@@ -167,7 +167,7 @@ export function WhoCanView({ resourceTypes, actionsByResource }: Readonly<Resour
   const [currentCursor, setCurrentCursor] = useState<string | undefined>(undefined)
   const [lastSubmittedFormData, setLastSubmittedFormData] = useState<WhoCanFormData | null>(null)
 
-  const whoCanMutation = accessClient.useMutation('post', '/authz/who-can')
+  const whoCanMutation = accessClient.useMutation('post', '/authz/who_can')
 
   const submitWithCursor = useCallback(
     (formData: WhoCanFormData, cursor?: string) => {

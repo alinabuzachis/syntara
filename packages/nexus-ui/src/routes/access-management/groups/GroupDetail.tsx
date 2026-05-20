@@ -148,7 +148,7 @@ function useGroupQueries(groupId: string | undefined) {
 
   const roleAssignmentsQuery = accessClient.useQuery(
     'get',
-    '/groups/{group_id}/role-assignments',
+    '/groups/{group_id}/role_assignments',
     { params: { path: { group_id: groupId ?? '' } } },
     { enabled: !!groupId }
   )

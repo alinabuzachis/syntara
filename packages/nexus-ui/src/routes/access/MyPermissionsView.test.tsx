@@ -95,7 +95,7 @@ describe('MyPermissionsView', () => {
 
   it('auto-loads permissions on mount', async () => {
     await renderAndWaitForData()
-    expect(accessFetchClient.POST).toHaveBeenCalledWith('/authz/what-can-i')
+    expect(accessFetchClient.POST).toHaveBeenCalledWith('/authz/what_can_i')
   })
 
   it('shows spinner immediately on mount', () => {

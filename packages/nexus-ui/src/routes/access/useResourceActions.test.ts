@@ -88,7 +88,7 @@ describe('useResourceActions', () => {
 
     renderHook(() => useResourceActions(), { wrapper })
 
-    expect(mockUseQuery).toHaveBeenCalledWith('get', '/authz/resource-actions')
+    expect(mockUseQuery).toHaveBeenCalledWith('get', '/authz/resource_actions')
   })
 
   it('passes through error from query', () => {

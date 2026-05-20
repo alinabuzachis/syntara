@@ -231,7 +231,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/users/{user_id}/role-assignments': {
+  '/users/{user_id}/role_assignments': {
     parameters: {
       query?: never
       header?: never
@@ -255,7 +255,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/users/{user_id}/role-assignments/{assignment_id}': {
+  '/users/{user_id}/role_assignments/{assignment_id}': {
     parameters: {
       query?: never
       header?: never
@@ -275,7 +275,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/groups/{group_id}/role-assignments': {
+  '/groups/{group_id}/role_assignments': {
     parameters: {
       query?: never
       header?: never
@@ -299,7 +299,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/groups/{group_id}/role-assignments/{assignment_id}': {
+  '/groups/{group_id}/role_assignments/{assignment_id}': {
     parameters: {
       query?: never
       header?: never

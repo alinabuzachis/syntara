@@ -33,10 +33,10 @@ describe('useSettingsPermissions', () => {
     })
 
     expect(result.current.canWrite).toBe(true)
-    expect(accessFetchClient.POST).toHaveBeenCalledWith('/authz/can-i', {
+    expect(accessFetchClient.POST).toHaveBeenCalledWith('/authz/can_i', {
       body: { action: 'read', resource_type: 'setting' },
     })
-    expect(accessFetchClient.POST).toHaveBeenCalledWith('/authz/can-i', {
+    expect(accessFetchClient.POST).toHaveBeenCalledWith('/authz/can_i', {
       body: { action: 'write', resource_type: 'setting' },
     })
   })

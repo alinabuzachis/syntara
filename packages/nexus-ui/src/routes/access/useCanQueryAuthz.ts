@@ -21,7 +21,7 @@ export function useCanQueryAuthz(): { canQuery: boolean; isChecking: boolean } {
 
     detachPromise(
       accessFetchClient
-        .POST('/authz/can-i', {
+        .POST('/authz/can_i', {
           body: { action: 'query', resource_type: 'authz' },
         })
         .then(({ data }) => {

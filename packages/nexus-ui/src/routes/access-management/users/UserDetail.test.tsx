@@ -197,7 +197,7 @@ function mockSuccessQueries(roleAssignments = mockRoleAssignmentsData) {
         refetch: vi.fn(),
       } as never
     }
-    if (path === '/users/{user_id}/role-assignments') {
+    if (path === '/users/{user_id}/role_assignments') {
       return {
         data: roleAssignments,
         isPending: false,
@@ -945,7 +945,7 @@ describe('UserDetail', () => {
           } as never
         }
         if (path === '/users/{user_id}/identities') return emptyIdentitiesResult
-        if (path === '/users/{user_id}/role-assignments') {
+        if (path === '/users/{user_id}/role_assignments') {
           return {
             data: mockRoleAssignmentsData,
             isPending: false,
@@ -1064,7 +1064,7 @@ describe('UserDetail', () => {
         '/users/{user_id}/identities': {
           resources: [{ id: 'id1', identity_provider_id: 'idp-1', provider_name: 'Okta' }],
         },
-        '/users/{user_id}/role-assignments': mockRoleAssignmentsData,
+        '/users/{user_id}/role_assignments': mockRoleAssignmentsData,
       })
       render(<UserDetail />, { wrapper })
 
@@ -1077,7 +1077,7 @@ describe('UserDetail', () => {
         '/users/{user_id}': mockIdpUser,
         '/users/{user_id}/groups': mockGroupsData,
         '/users/{user_id}/identities': mockIdentitiesData,
-        '/users/{user_id}/role-assignments': mockRoleAssignmentsData,
+        '/users/{user_id}/role_assignments': mockRoleAssignmentsData,
       })
       render(<UserDetail />, { wrapper })
 
@@ -1094,7 +1094,7 @@ describe('UserDetail', () => {
         '/users/{user_id}/identities': {
           resources: [{ id: 'id1', identity_provider_id: 'idp-1', provider_name: 'Okta' }],
         },
-        '/users/{user_id}/role-assignments': mockRoleAssignmentsData,
+        '/users/{user_id}/role_assignments': mockRoleAssignmentsData,
       })
       render(<UserDetail />, { wrapper })
 
@@ -1115,7 +1115,7 @@ describe('UserDetail', () => {
             { id: 'id2', identity_provider_id: 'idp-1', provider_name: 'Okta' },
           ],
         },
-        '/users/{user_id}/role-assignments': mockRoleAssignmentsData,
+        '/users/{user_id}/role_assignments': mockRoleAssignmentsData,
       })
       render(<UserDetail />, { wrapper })
 
@@ -1135,7 +1135,7 @@ describe('UserDetail', () => {
         '/users/{user_id}': mockIdpUser,
         '/users/{user_id}/groups': mockGroupsData,
         '/users/{user_id}/identities': { resources: [] },
-        '/users/{user_id}/role-assignments': mockRoleAssignmentsData,
+        '/users/{user_id}/role_assignments': mockRoleAssignmentsData,
       })
       render(<UserDetail />, { wrapper })
 
@@ -1150,7 +1150,7 @@ describe('UserDetail', () => {
         '/users/{user_id}/identities': {
           resources: [{ id: 'id1', identity_provider_id: 'idp-1', provider_name: null }],
         },
-        '/users/{user_id}/role-assignments': mockRoleAssignmentsData,
+        '/users/{user_id}/role_assignments': mockRoleAssignmentsData,
       })
       render(<UserDetail />, { wrapper })
 
@@ -1166,7 +1166,7 @@ describe('UserDetail', () => {
         '/users/{user_id}': mockUser,
         '/users/{user_id}/groups': mockGroupsWithAuthenticated,
         '/users/{user_id}/identities': { resources: [] },
-        '/users/{user_id}/role-assignments': mockRoleAssignmentsData,
+        '/users/{user_id}/role_assignments': mockRoleAssignmentsData,
       })
       render(<UserDetail />, { wrapper })
 

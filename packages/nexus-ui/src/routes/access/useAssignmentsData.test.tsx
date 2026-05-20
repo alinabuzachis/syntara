@@ -164,7 +164,7 @@ function setupDefaultMocks() {
     refetch: vi.fn(),
   })
   vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
-    if (path === '/role-assignments') {
+    if (path === '/role_assignments') {
       return {
         data: { resources: mockAllAssignments, total: mockAllAssignments.length, next: null },
         isPending: false,
@@ -291,7 +291,7 @@ describe('useAssignmentsData', () => {
 
     it('falls back to project_id when project_name is missing', () => {
       vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
-        if (path === '/role-assignments') {
+        if (path === '/role_assignments') {
           return {
             data: {
               resources: [

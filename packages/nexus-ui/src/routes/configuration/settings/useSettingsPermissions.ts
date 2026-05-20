@@ -18,10 +18,10 @@ export function useSettingsPermissions(): SettingsPermissions {
 
     detachPromise(
       Promise.all([
-        accessFetchClient.POST('/authz/can-i', {
+        accessFetchClient.POST('/authz/can_i', {
           body: { action: 'read', resource_type: 'setting' },
         }),
-        accessFetchClient.POST('/authz/can-i', {
+        accessFetchClient.POST('/authz/can_i', {
           body: { action: 'write', resource_type: 'setting' },
         }),
       ])

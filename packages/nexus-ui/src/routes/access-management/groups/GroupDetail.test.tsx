@@ -184,7 +184,7 @@ function mockSuccessQueries(group = mockGroup, members = mockMembersData, roleAs
   mockQueryByPath({
     '/groups/{group_id}': { data: group },
     '/groups/{group_id}/members': { data: members },
-    '/groups/{group_id}/role-assignments': { data: roleAssignments },
+    '/groups/{group_id}/role_assignments': { data: roleAssignments },
   })
 
   vi.mocked(accessClient.useMutation).mockReturnValue({
@@ -455,7 +455,7 @@ describe('GroupDetail', () => {
       mockQueryByPath({
         '/groups/{group_id}': { data: mockGroup },
         '/groups/{group_id}/members': { data: mockMembersData },
-        '/groups/{group_id}/role-assignments': { data: undefined },
+        '/groups/{group_id}/role_assignments': { data: undefined },
       })
 
       render(<GroupDetail />, { wrapper })

@@ -69,7 +69,7 @@ function useUserDetailData(userId: string | undefined) {
 
   const roleAssignmentsQuery = accessClient.useQuery(
     'get',
-    '/users/{user_id}/role-assignments',
+    '/users/{user_id}/role_assignments',
     { params: { path: { user_id: safeUserId } } },
     { enabled: isValidId }
   )

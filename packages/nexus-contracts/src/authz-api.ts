@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-  '/authz/can-i': {
+  '/authz/can_i': {
     parameters: {
       query?: never
       header?: never
@@ -24,7 +24,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/authz/who-can': {
+  '/authz/who_can': {
     parameters: {
       query?: never
       header?: never
@@ -44,7 +44,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/authz/what-can-i': {
+  '/authz/what_can_i': {
     parameters: {
       query?: never
       header?: never
@@ -64,7 +64,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/authz/resource-actions': {
+  '/authz/resource_actions': {
     parameters: {
       query?: never
       header?: never
@@ -84,7 +84,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/authz/validate-name': {
+  '/authz/validate_name': {
     parameters: {
       query?: never
       header?: never
@@ -149,7 +149,7 @@ export interface components {
       }
       /**
        * Resource Project
-       * @description Project scope of the resource
+       * @description Project scope of the resource (project name or UUID)
        * @default
        */
       resource_project?: string
@@ -215,6 +215,7 @@ export interface components {
       }
       /**
        * Resource Project
+       * @description Project scope of the resource (project name or UUID)
        * @default
        */
       resource_project?: string
@@ -293,7 +294,7 @@ export interface components {
     }
     /**
      * ValidateNameResponse
-     * @description Response body for the validate-name endpoint.
+     * @description Response body for the validate_name endpoint.
      */
     ValidateNameResponse: {
       /** Valid */

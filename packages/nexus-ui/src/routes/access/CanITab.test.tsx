@@ -101,7 +101,7 @@ describe('CanITab', () => {
     mockCanQueryAuthz.mockReturnValue({ canQuery: true, isChecking: false })
     mockUseQuery.mockImplementation((...args: unknown[]) => {
       const [, path] = args as [string, string]
-      if (path === '/authz/resource-actions') {
+      if (path === '/authz/resource_actions') {
         return {
           data: {
             resource_actions: {
@@ -184,7 +184,7 @@ describe('CanITab', () => {
     const user = userEvent.setup()
     mockUseQuery.mockImplementation((...args: unknown[]) => {
       const [, path] = args as [string, string]
-      if (path === '/authz/resource-actions') {
+      if (path === '/authz/resource_actions') {
         return {
           data: undefined,
           isPending: false,

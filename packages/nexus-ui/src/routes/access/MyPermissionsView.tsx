@@ -149,7 +149,7 @@ export function MyPermissionsView() {
     setError(null)
 
     try {
-      const { data, error: fetchError } = await accessFetchClient.POST('/authz/what-can-i')
+      const { data, error: fetchError } = await accessFetchClient.POST('/authz/what_can_i')
       if (fetchError) {
         throw new Error(JSON.stringify(fetchError))
       }

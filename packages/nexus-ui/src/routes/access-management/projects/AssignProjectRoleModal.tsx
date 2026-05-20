@@ -195,7 +195,7 @@ export function AssignProjectRoleModal({
       }))
   }, [projectRoles, selectedPrincipalId, assignedRolesByPrincipal])
 
-  const { mutate: assignRole, isPending } = accessClient.useMutation('post', '/projects/{project_id}/role-assignments')
+  const { mutate: assignRole, isPending } = accessClient.useMutation('post', '/projects/{project_id}/role_assignments')
 
   const handleClose = () => {
     reset(defaultValues)

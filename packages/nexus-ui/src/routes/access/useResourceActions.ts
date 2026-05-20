@@ -4,7 +4,7 @@ import { accessClient } from './accessClient'
 import type { ResourceActionMap } from './canIUtils'
 
 export function useResourceActions() {
-  const { data, isLoading, error, refetch } = accessClient.useQuery('get', '/authz/resource-actions')
+  const { data, isLoading, error, refetch } = accessClient.useQuery('get', '/authz/resource_actions')
 
   const { resourceTypes, actionsByResource } = useMemo<ResourceActionMap>(() => {
     const ra: Record<string, string[]> = data?.resource_actions ?? {}

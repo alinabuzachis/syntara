@@ -309,11 +309,11 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
 
   const { mutate: createRoleAssignment, isPending: isPendingSystem } = accessClient.useMutation(
     'post',
-    '/role-assignments'
+    '/role_assignments'
   )
   const { mutate: createProjectRoleAssignment, isPending: isPendingProject } = accessClient.useMutation(
     'post',
-    '/projects/{project_id}/role-assignments'
+    '/projects/{project_id}/role_assignments'
   )
   const isPending = isPendingSystem || isPendingProject
 

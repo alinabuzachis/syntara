@@ -110,7 +110,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/projects/{project_id}/role-assignments': {
+  '/projects/{project_id}/role_assignments': {
     parameters: {
       query?: never
       header?: never
@@ -138,7 +138,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/projects/{project_id}/role-assignments/{assignment_id}': {
+  '/projects/{project_id}/role_assignments/{assignment_id}': {
     parameters: {
       query?: never
       header?: never
@@ -669,6 +669,11 @@ export interface components {
       project_id?: string | null
       /** Project Name */
       project_name?: string | null
+      /**
+       * Is Builtin
+       * @default false
+       */
+      is_builtin?: boolean
       /** Created At */
       created_at?: string | null
     }

@@ -204,7 +204,7 @@ test.describe('Built-in admin login flow', () => {
       })
     )
 
-    await page.route('**/api/v1/authz/can-i', (route) =>
+    await page.route('**/api/v1/authz/can_i', (route) =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
