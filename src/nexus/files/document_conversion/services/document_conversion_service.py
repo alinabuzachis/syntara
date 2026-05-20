@@ -13,14 +13,14 @@ import structlog
 
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.core.exceptions import SafeValueError
-from nexus.files import FileManager, FileMetadata, get_file_manager
 from nexus.files.audit.file_converted import ConversionStateAudit, FileConvertedEvent
 from nexus.files.document_conversion.registry import (
     ConverterRegistry,
     get_converter_registry,
 )
 from nexus.files.document_conversion.services.types import ConversionState
-from nexus.files.models import FileStatus
+from nexus.files.file_manager import FileManager, get_file_manager
+from nexus.files.models import FileMetadata, FileStatus
 
 if TYPE_CHECKING:
     from nexus.files.document_conversion.models import ConversionResult

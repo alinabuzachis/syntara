@@ -6,10 +6,10 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from nexus.files import FileMetadata
 from nexus.files.document_conversion.converters.ms_word_converter import (
     MSWordConverter,
 )
+from nexus.files.models import FileMetadata
 
 
 class TestMSWordConverterMimeTypeSupport:

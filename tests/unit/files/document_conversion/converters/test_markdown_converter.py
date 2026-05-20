@@ -5,10 +5,10 @@ from unittest.mock import Mock
 
 import pytest
 
-from nexus.files import FileMetadata
 from nexus.files.document_conversion.converters.markdown_converter import (
     MarkdownConverter,
 )
+from nexus.files.models import FileMetadata
 
 
 class TestMarkdownConverterMimeTypeSupport:

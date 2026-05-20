@@ -17,7 +17,7 @@ from nexus.agent_orchestrator.context_manager.retriever_service.config.configura
 )
 from nexus.agent_orchestrator.context_manager.retriever_service.exceptions import RelevancyCheckError
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import RelevantDocument
-from nexus.files import FileMetadata
+from nexus.files.models import FileMetadata
 
 
 @pytest.mark.integration

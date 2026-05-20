@@ -18,7 +18,7 @@ from nexus.agent_orchestrator.context_manager.assembler_service import (
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import (
     RelevantDocument,
 )
-from nexus.files import FileMetadata
+from nexus.files.models import FileMetadata
 
 # ==================== Phase 3.2: Unit Tests - Core Logic ====================
 

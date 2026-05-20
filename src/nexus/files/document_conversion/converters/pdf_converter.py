@@ -19,7 +19,7 @@ from nexus.files.document_conversion.models.conversion_result import (
 )
 
 if TYPE_CHECKING:
-    from nexus.files import FileMetadata
+    from nexus.files.models import FileMetadata
 
 
 class PDFConverter(DocumentConverter):

@@ -27,8 +27,8 @@ from nexus.authz.dependencies import PermissionChecker
 from nexus.core.database.session import get_db
 from nexus.core.nexus_router import NexusRouter
 from nexus.core.utils.session_factory import create_session_factory_from_request
-from nexus.files import FileManager, get_file_manager
 from nexus.files.document_conversion.tasks import DocumentConversionTask
+from nexus.files.file_manager import FileManager, get_file_manager
 from nexus.files.models.file_metadata import FileStatus
 
 router = NexusRouter(prefix="/files", tags=["Files"])

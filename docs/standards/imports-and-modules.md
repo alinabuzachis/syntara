@@ -71,9 +71,7 @@ Full import paths improve code readability, make it easier to trace where symbol
 
 **`__init__.py` files should be empty or minimal.** If a docstring is needed to describe the package, that is acceptable, but do not add re-exports or `__all__` definitions.
 
-**Migration:** Existing re-exports are being removed under [AAP-67182](AAP-67182). New code must use full import paths from the start.
-
-**Note:** Some existing `__init__.py` files still have re-exports (`files/__init__.py`, `metrics/__init__.py`). These are cycle debt and should not be used as patterns for new code.
+New code must use full import paths from the start.
 
 ## Exception Handler Imports
 
@@ -93,7 +91,7 @@ class AAPNotConfiguredError(NexusError): ...
 
 The `@fastapi_exception` decorator resolves string paths via `importlib` at registration time. See `src/nexus/auth/exceptions.py` for the reference implementation. See `src/nexus/core/exception_registry.py` line 59.
 
-**Note:** 11 domains still use the direct import pattern. These are detected by `make check-cycles` and baselined in `tools/ci/known_import_cycles.json`.
+All domains use string-based handler references. The only remaining import cycle edge is `auth.__init__` ↔ `auth.dependencies` (accepted — public API boundary).
 
 ## TYPE_CHECKING Pattern
 

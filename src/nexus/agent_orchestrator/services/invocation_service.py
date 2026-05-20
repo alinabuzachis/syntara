@@ -39,12 +39,13 @@ from nexus.core.database.session import get_db
 from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
 from nexus.core.services import BaseService
-from nexus.files import FileManager, FileMetadata, get_file_manager
 from nexus.files import utils as file_utils
 from nexus.files.document_conversion.tasks import (
     DocumentConversionTask,
     get_document_conversion_task,
 )
+from nexus.files.file_manager import FileManager, get_file_manager
+from nexus.files.models import FileMetadata
 from nexus.invocations.audit.invocation_cancelled import InvocationCancellationResult, InvocationCancelledEvent
 from nexus.invocations.audit.invocation_created import InvocationCreatedEvent
 

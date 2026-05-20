@@ -16,7 +16,7 @@ from nexus.agent_orchestrator.services.invocation_service import InvocationServi
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.models.audit_event import EventCategory, EventSeverity, EventStatus
 from nexus.core.models import User
-from nexus.files import FileMetadata
+from nexus.files.models import FileMetadata
 
 if TYPE_CHECKING:
     from nexus.audit.models.audit_event import AuditEvent

@@ -15,8 +15,8 @@ import pytest
 if TYPE_CHECKING:
     from fastapi import UploadFile
 
-from nexus.files import FileManager
 from nexus.files.exceptions import FileValidationError
+from nexus.files.file_manager import FileManager
 
 
 @pytest.mark.asyncio

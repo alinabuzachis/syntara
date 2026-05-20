@@ -2,43 +2,35 @@
 
 from nexus.core.exception_registry import fastapi_exception
 from nexus.core.exceptions import NexusError
-from nexus.tool_manager.error_handlers import (
-    tool_bulk_update_validation_error_handler,
-    tool_manager_error_handler,
-    tool_not_found_handler,
-    tool_provider_name_conflict_handler,
-    tool_provider_not_found_handler,
-    tool_refresh_error_handler,
-)
 
 
 # Domain Exceptions
-@fastapi_exception(handler=tool_manager_error_handler)
+@fastapi_exception(handler="nexus.tool_manager.error_handlers.tool_manager_error_handler")
 class ToolManagerError(NexusError):
     """Base exception for all tool management errors."""
 
 
-@fastapi_exception(handler=tool_refresh_error_handler)
+@fastapi_exception(handler="nexus.tool_manager.error_handlers.tool_refresh_error_handler")
 class ToolRefreshError(ToolManagerError):
     """Exception raised for provider-related errors."""
 
 
-@fastapi_exception(handler=tool_not_found_handler)
+@fastapi_exception(handler="nexus.tool_manager.error_handlers.tool_not_found_handler")
 class ToolNotFoundError(ToolManagerError):
     """Exception raised when a tool is not found."""
 
 
-@fastapi_exception(handler=tool_bulk_update_validation_error_handler)
+@fastapi_exception(handler="nexus.tool_manager.error_handlers.tool_bulk_update_validation_error_handler")
 class ToolBulkUpdateValidationError(ToolManagerError):
     """Exception raised for validation errors."""
 
 
-@fastapi_exception(handler=tool_provider_not_found_handler)
+@fastapi_exception(handler="nexus.tool_manager.error_handlers.tool_provider_not_found_handler")
 class ProviderNotFoundError(ToolManagerError):
     """Exception raised when a provider is not found."""
 
 
-@fastapi_exception(handler=tool_provider_name_conflict_handler)
+@fastapi_exception(handler="nexus.tool_manager.error_handlers.tool_provider_name_conflict_handler")
 class ProviderNameConflictError(ToolManagerError):
     """Exception raised when a provider name already exists."""
 

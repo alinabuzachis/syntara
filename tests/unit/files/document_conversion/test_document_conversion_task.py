@@ -13,13 +13,12 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from nexus.files import FileMetadata
 from nexus.files.document_conversion.services.types import ConversionState
 from nexus.files.document_conversion.tasks import (
     DocumentConversionTask,
     get_document_conversion_task,
 )
-from nexus.files.models import FileStatus
+from nexus.files.models import FileMetadata, FileStatus
 
 
 class TestDocumentConversionTaskInit:

@@ -19,7 +19,7 @@ from nexus.agent_orchestrator.context_manager.retriever_service.registries.relev
 from nexus.agent_orchestrator.context_manager.retriever_service.registries.retriever_registry import RetrieverRegistry
 from nexus.agent_orchestrator.context_manager.retriever_service.services.retriever_service import RetrieverService
 from nexus.agent_orchestrator.models.invocation import Invocation
-from nexus.files import FileMetadata
+from nexus.files.models import FileMetadata
 
 
 class MockRetrieverError(Exception):

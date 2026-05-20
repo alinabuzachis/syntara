@@ -1,6 +1,5 @@
 """Custom exceptions for agent orchestration system."""
 
-from nexus.agent_orchestrator.error_handlers import llm_configuration_error_handler
 from nexus.core.exception_registry import fastapi_exception
 from nexus.core.exceptions import NexusError, RetryableError
 
@@ -40,7 +39,7 @@ class OrchestrationError(AgentOrchestratorError):
     """Exception for orchestration service failures."""
 
 
-@fastapi_exception(handler=llm_configuration_error_handler)
+@fastapi_exception(handler="nexus.agent_orchestrator.error_handlers.llm_configuration_error_handler")
 class LLMConfigurationError(AgentOrchestratorError):
     """Raised when LLM model configuration is missing or invalid.
 

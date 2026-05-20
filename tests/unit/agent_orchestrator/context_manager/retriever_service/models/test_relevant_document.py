@@ -10,7 +10,7 @@ import pytest
 from pydantic import ValidationError
 
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import RelevantDocument
-from nexus.files import FileMetadata
+from nexus.files.models import FileMetadata
 
 
 class TestRelevantDocumentValidation:

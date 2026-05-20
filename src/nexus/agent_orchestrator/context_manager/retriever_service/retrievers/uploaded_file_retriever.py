@@ -19,8 +19,8 @@ from nexus.agent_orchestrator.context_manager.retriever_service.interfaces.docum
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import RelevantDocument
 from nexus.core.constants import CONTEXT_KEY_FILE_IDS
 from nexus.core.database.session import get_db
-from nexus.files import FileManager, FileMetadata, get_file_manager
-from nexus.files.models import FileStatus
+from nexus.files.file_manager import FileManager, get_file_manager
+from nexus.files.models import FileMetadata, FileStatus
 
 logger = structlog.stdlib.get_logger(__name__)
 MAX_CONCURRENT_FILE_LOADS = 20

@@ -26,8 +26,7 @@ from nexus.agent_orchestrator.context_manager.retriever_service.registries.retri
 from nexus.agent_orchestrator.context_manager.retriever_service.services.retriever_service import RetrieverService
 from nexus.agent_orchestrator.models import Invocation
 from nexus.core.constants import CONTEXT_KEY_FILE_IDS
-from nexus.files import FileMetadata
-from nexus.files.models import FileStatus
+from nexus.files.models import FileMetadata, FileStatus
 
 from .conftest import TestUploadedFileRetriever, async_session_generator
 

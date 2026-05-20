@@ -2,19 +2,13 @@
 
 from nexus.core.exception_registry import fastapi_exception
 from nexus.core.exceptions import NexusError
-from nexus.settings.error_handlers import (
-    optimistic_lock_error_handler,
-    setting_not_found_handler,
-    setting_type_error_handler,
-    setting_validation_error_handler,
-)
 
 
 class SettingError(NexusError):
     """Base exception for all settings errors."""
 
 
-@fastapi_exception(handler=setting_not_found_handler)
+@fastapi_exception(handler="nexus.settings.error_handlers.setting_not_found_handler")
 class SettingNotFoundError(SettingError):
     """Raised when a setting key does not exist."""
 
@@ -29,7 +23,7 @@ class SettingNotFoundError(SettingError):
         super().__init__(f"Setting '{key}' not found")
 
 
-@fastapi_exception(handler=optimistic_lock_error_handler)
+@fastapi_exception(handler="nexus.settings.error_handlers.optimistic_lock_error_handler")
 class OptimisticLockError(SettingError):
     """Raised when a write is rejected due to a version mismatch.
 
@@ -53,7 +47,7 @@ class OptimisticLockError(SettingError):
         super().__init__(f"Setting '{key}' version conflict: current={current_version}, submitted={submitted_version}")
 
 
-@fastapi_exception(handler=setting_type_error_handler)
+@fastapi_exception(handler="nexus.settings.error_handlers.setting_type_error_handler")
 class SettingTypeError(SettingError):
     """Raised when a setting value has an unexpected runtime type."""
 
@@ -72,7 +66,7 @@ class SettingTypeError(SettingError):
         super().__init__(f"Setting '{key}' expected type {expected}, got {actual}")
 
 
-@fastapi_exception(handler=setting_validation_error_handler)
+@fastapi_exception(handler="nexus.settings.error_handlers.setting_validation_error_handler")
 class SettingValidationError(SettingError):
     """Raised when a setting value fails type or constraint validation."""
 

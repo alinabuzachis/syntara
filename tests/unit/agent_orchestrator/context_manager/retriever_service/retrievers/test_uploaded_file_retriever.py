@@ -16,8 +16,7 @@ from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_
 from nexus.agent_orchestrator.context_manager.retriever_service.retrievers.uploaded_file_retriever import (
     UploadedFileRetriever,
 )
-from nexus.files import FileMetadata
-from nexus.files.models import FileStatus
+from nexus.files.models import FileMetadata, FileStatus
 
 
 class TestUploadedFileRetriever:

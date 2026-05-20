@@ -21,9 +21,8 @@ from nexus.agent_orchestrator.context_manager.retriever_service.services.retriev
 )
 from nexus.agent_orchestrator.models.invocation import Invocation
 from nexus.core.constants import CONTEXT_KEY_FILE_IDS
-from nexus.files import FileMetadata
 from nexus.files.file_manager import get_file_manager
-from nexus.files.models import FileStatus
+from nexus.files.models import FileMetadata, FileStatus
 
 
 @pytest.mark.integration

@@ -8,31 +8,18 @@ from uuid import UUID
 
 from nexus.core.exception_registry import fastapi_exception
 from nexus.core.exceptions import NexusError
-from nexus.workflows.error_handlers import (
-    execution_not_found_handler,
-    execution_terminal_state_handler,
-    temporal_unavailable_handler,
-    trigger_validation_handler,
-    validation_error_handler,
-    webhook_trigger_not_found_handler,
-    webhook_trigger_path_conflict_handler,
-    workflow_name_conflict_handler,
-    workflow_not_found_handler,
-    workflow_not_published_handler,
-    workflow_version_not_found_handler,
-)
 
 
 class WorkflowError(NexusError):
     """Base exception for all workflow errors."""
 
 
-@fastapi_exception(handler=validation_error_handler)
+@fastapi_exception(handler="nexus.workflows.error_handlers.validation_error_handler")
 class WorkflowValidationError(WorkflowError):
     """Workflow validation error."""
 
 
-@fastapi_exception(handler=workflow_not_found_handler)
+@fastapi_exception(handler="nexus.workflows.error_handlers.workflow_not_found_handler")
 class WorkflowNotFoundError(WorkflowError):
     """Raised when a workflow is not found."""
 
@@ -42,7 +29,7 @@ class WorkflowNotFoundError(WorkflowError):
         super().__init__(f"Workflow {workflow_id} not found")
 
 
-@fastapi_exception(handler=workflow_name_conflict_handler)
+@fastapi_exception(handler="nexus.workflows.error_handlers.workflow_name_conflict_handler")
 class WorkflowNameConflictError(WorkflowError):
     """Raised when a workflow name already exists."""
 
@@ -52,7 +39,7 @@ class WorkflowNameConflictError(WorkflowError):
         super().__init__(f"Workflow with name '{name}' already exists")
 
 
-@fastapi_exception(handler=workflow_version_not_found_handler)
+@fastapi_exception(handler="nexus.workflows.error_handlers.workflow_version_not_found_handler")
 class WorkflowVersionNotFoundError(WorkflowError):
     """Raised when a workflow version is not found."""
 
@@ -63,7 +50,7 @@ class WorkflowVersionNotFoundError(WorkflowError):
         super().__init__(f"Workflow {workflow_id} version {version} not found")
 
 
-@fastapi_exception(handler=workflow_not_published_handler)
+@fastapi_exception(handler="nexus.workflows.error_handlers.workflow_not_published_handler")
 class WorkflowNotPublishedError(WorkflowError):
     """Raised when a triggered execution targets a workflow with no published version."""
 
@@ -73,7 +60,7 @@ class WorkflowNotPublishedError(WorkflowError):
         super().__init__(f"Workflow {workflow_id} has no published version")
 
 
-@fastapi_exception(handler=execution_not_found_handler)
+@fastapi_exception(handler="nexus.workflows.error_handlers.execution_not_found_handler")
 class ExecutionNotFoundError(WorkflowError):
     """Raised when an execution is not found."""
 
@@ -83,7 +70,7 @@ class ExecutionNotFoundError(WorkflowError):
         super().__init__(f"Execution {execution_id} not found")
 
 
-@fastapi_exception(handler=execution_terminal_state_handler)
+@fastapi_exception(handler="nexus.workflows.error_handlers.execution_terminal_state_handler")
 class ExecutionInTerminalStateError(WorkflowError):
     """Raised when attempting to modify an execution in a terminal state."""
 
@@ -95,7 +82,7 @@ class ExecutionInTerminalStateError(WorkflowError):
         super().__init__(f"Cannot {operation} execution {execution_id} in {status} state")
 
 
-@fastapi_exception(handler=temporal_unavailable_handler)
+@fastapi_exception(handler="nexus.workflows.error_handlers.temporal_unavailable_handler")
 class TemporalUnavailableError(WorkflowError):
     """Raised when Temporal service is unavailable."""
 
@@ -115,7 +102,7 @@ class TemporalUnavailableError(WorkflowError):
 # ============================================================================
 
 
-@fastapi_exception(handler=trigger_validation_handler)
+@fastapi_exception(handler="nexus.workflows.error_handlers.trigger_validation_handler")
 class TriggerValidationError(WorkflowError):
     """Raised when a trigger payload fails JSON Schema validation."""
 
@@ -133,7 +120,7 @@ class WebhookTriggerError(WorkflowError):
     """Base exception for all webhook trigger errors."""
 
 
-@fastapi_exception(handler=webhook_trigger_not_found_handler)
+@fastapi_exception(handler="nexus.workflows.error_handlers.webhook_trigger_not_found_handler")
 class WebhookTriggerNotFoundError(WebhookTriggerError):
     """Raised when a webhook trigger is not found for the given path."""
 
@@ -143,7 +130,7 @@ class WebhookTriggerNotFoundError(WebhookTriggerError):
         super().__init__(f"Webhook trigger not found for path '{webhook_path}'")
 
 
-@fastapi_exception(handler=webhook_trigger_path_conflict_handler)
+@fastapi_exception(handler="nexus.workflows.error_handlers.webhook_trigger_path_conflict_handler")
 class WebhookTriggerPathConflictError(WebhookTriggerError):
     """Raised when a webhook path already exists."""
 

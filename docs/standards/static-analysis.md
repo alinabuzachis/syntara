@@ -75,22 +75,20 @@ make check-cycles
 
 ### Known Cycle Patterns
 
-| Pattern | Domains | Status | Path to Fix |
-|---------|---------|--------|-------------|
-| `error_handlers` ↔ `exceptions` (Pattern A) | 11 domains: aap, agent_orchestrator, approvals, core, core.storage, credentials, files, identity_providers, settings, tool_manager, workflows | **Debt** — exceptions.py directly imports handler functions from error_handlers.py, creating a bidirectional dependency. Harmless at runtime (TYPE_CHECKING guard), but unnecessary. | Migrate to string-based handler refs (Pattern B). The `@fastapi_exception` decorator already supports `handler="nexus.X.error_handlers.handler_func"` and documents this as the way to avoid circular imports. Auth domain already uses Pattern B. Would eliminate 22 of 31 cycle edges. |
-| `__init__` ↔ submodules | files, metrics, auth | **Mixed** — auth re-exports are actively consumed (20+ imports across codebase). Files and metrics re-exports are defined but not consumed by external code. | Auth: keep as-is (public API). Files/metrics: remove unused re-exports to eliminate cycles. |
+| Pattern | Domains | Status |
+|---------|---------|--------|
+| `auth.__init__` ↔ `auth.dependencies` | auth | **Accepted** — auth re-exports (`get_current_user`, `create_service_token`) are actively consumed by 20+ modules across the codebase. This is intentional public API encapsulation. |
 
 ### Exception Handler Import Patterns
 
-Three patterns exist in the codebase for wiring exceptions to error handlers:
+Two patterns exist in the codebase for wiring exceptions to error handlers:
 
 | Pattern | How | Cycle? | Used By |
 |---------|-----|--------|---------|
-| **A** — direct import | `from nexus.X.error_handlers import handler_func` in exceptions.py | Yes | 11 domains |
-| **B** — string path | `@fastapi_exception(handler="nexus.X.error_handlers.handler_func")` | No | auth |
+| **B** — string path | `@fastapi_exception(handler="nexus.X.error_handlers.handler_func")` | No | all domains |
 | **C** — embedded | Handler functions defined in exceptions.py itself | No | authz |
 
-Pattern B is the preferred approach per `core/exception_registry.py` (line 59: "Or to avoid circular imports"). Pattern A is debt that should be migrated to Pattern B.
+Pattern B is the standard approach. String paths are resolved via `importlib` at registration time. See `src/nexus/core/exception_registry.py` line 59.
 
 ## Orphan Module Detection
 

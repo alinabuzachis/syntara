@@ -12,7 +12,6 @@ import pytest
 
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.models.audit_event import EventSeverity, EventStatus
-from nexus.files import FileManager
 from nexus.files.audit.file_converted import ConversionStateAudit
 from nexus.files.document_conversion.models.conversion_result import ConversionResult
 from nexus.files.document_conversion.services import ConversionState
@@ -20,6 +19,7 @@ from nexus.files.document_conversion.services.document_conversion_service import
     DocumentConversionService,
 )
 from nexus.files.exceptions import FileValidationError
+from nexus.files.file_manager import FileManager
 from nexus.files.models import FileMetadata, FileStatus
 
 if TYPE_CHECKING:

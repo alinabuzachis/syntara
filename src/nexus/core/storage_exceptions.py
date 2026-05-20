@@ -7,19 +7,14 @@ RFC 9457 error responses via @fastapi_exception handlers.
 
 from nexus.core.exception_registry import fastapi_exception
 from nexus.core.exceptions import NexusError
-from nexus.core.storage_error_handlers import (
-    storage_backend_error_handler,
-    storage_backend_not_found_handler,
-    storage_backend_unavailable_handler,
-)
 
 
-@fastapi_exception(handler=storage_backend_error_handler)
+@fastapi_exception(handler="nexus.core.storage_error_handlers.storage_backend_error_handler")
 class StorageBackendError(NexusError):
     """Base exception for all storage backend failures."""
 
 
-@fastapi_exception(handler=storage_backend_unavailable_handler)
+@fastapi_exception(handler="nexus.core.storage_error_handlers.storage_backend_unavailable_handler")
 class StorageBackendUnavailableError(StorageBackendError):
     """Raised when the storage backend is unreachable (DB connection failure, timeout).
 
@@ -27,7 +22,7 @@ class StorageBackendUnavailableError(StorageBackendError):
     """
 
 
-@fastapi_exception(handler=storage_backend_not_found_handler)
+@fastapi_exception(handler="nexus.core.storage_error_handlers.storage_backend_not_found_handler")
 class StorageBackendNotFoundError(StorageBackendError):
     """Raised when requested secret data is not found in the backend.
 

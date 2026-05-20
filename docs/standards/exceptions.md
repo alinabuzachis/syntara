@@ -127,25 +127,17 @@ The `message` attribute (set by `NexusError.__init__`) is used by error handlers
 
 ## @fastapi_exception Decorator
 
-Register exceptions with their handlers using the `@fastapi_exception` decorator:
+Register exceptions with their handlers using the `@fastapi_exception` decorator with a **string-based handler reference**:
 
 ```python
 from nexus.core.exception_registry import fastapi_exception
-from nexus.approvals.error_handlers import approval_not_found_handler
 
-@fastapi_exception(handler=approval_not_found_handler)
+@fastapi_exception(handler="nexus.approvals.error_handlers.approval_not_found_handler")
 class ApprovalNotFoundError(ApprovalError):
     """Exception raised when an approval request is not found."""
 ```
 
-The decorator accepts either a direct function reference or a string path (for circular import avoidance):
-
-```python
-# String path — resolved via importlib at registration time
-@fastapi_exception(handler="nexus.tool_manager.error_handlers.tool_not_found_handler")
-class ToolNotFoundError(ToolManagerError):
-    """Exception raised when a tool is not found."""
-```
+The string path is resolved via `importlib` at registration time. This avoids circular imports between `exceptions.py` and `error_handlers.py`. Do **not** import handler functions directly — use string references exclusively.
 
 All decorated exceptions are automatically registered when `register_exceptions(app)` is called during app initialization.
 

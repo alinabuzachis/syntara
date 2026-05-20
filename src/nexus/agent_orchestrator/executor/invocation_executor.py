@@ -36,7 +36,8 @@ from nexus.core.services.secret_service import create_secret_service
 from nexus.credentials.lib.injector_resolver import InjectorResolver
 from nexus.credentials.models.credential import Credential
 from nexus.credentials.models.credential_type import CredentialType
-from nexus.files import FileManager, FileStatus, get_file_manager
+from nexus.files.file_manager import FileManager, get_file_manager
+from nexus.files.models import FileStatus
 from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.recorder import MetricsRecorder
 from nexus.metrics.types import MetricType

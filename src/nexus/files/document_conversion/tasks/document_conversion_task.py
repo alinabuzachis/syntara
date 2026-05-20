@@ -19,7 +19,8 @@ import structlog
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.database.session import get_db
-from nexus.files import FileManager, FileMetadata, get_file_manager
+from nexus.files.file_manager import FileManager, get_file_manager
+from nexus.files.models import FileMetadata
 from nexus.files.document_conversion.services.document_conversion_service import (
     DocumentConversionService,
 )

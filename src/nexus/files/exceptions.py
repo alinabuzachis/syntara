@@ -6,14 +6,13 @@ are located in their respective subdomains (e.g., document_conversion/exceptions
 
 from nexus.core.exception_registry import fastapi_exception
 from nexus.core.exceptions import NexusError
-from nexus.files.error_handlers import file_validation_error_handler
 
 
 class FileError(NexusError):
     """Base exception for all file-related errors."""
 
 
-@fastapi_exception(handler=file_validation_error_handler)
+@fastapi_exception(handler="nexus.files.error_handlers.file_validation_error_handler")
 class FileValidationError(FileError):
     """File validation error with actionable messages.
 

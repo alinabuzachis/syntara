@@ -16,13 +16,13 @@ import psutil  # type: ignore[import-untyped]
 import pytest
 from httpx import AsyncClient
 
-from nexus.files import FileMetadata, FileStatus
 from nexus.files.document_conversion.converters.pdf_converter import (
     PDFConverter,
 )
 from nexus.files.document_conversion.converters.text_converter import (
     TextConverter,
 )
+from nexus.files.models import FileMetadata, FileStatus
 from tests.helpers.invocations import wait_for_invocation_execution
 
 # Test fixtures directory

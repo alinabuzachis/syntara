@@ -4,7 +4,6 @@ This module contains the root exception hierarchy for all internal exceptions
 within the Nexus system. Exception boundaries stop at the FastAPI routers.
 """
 
-from nexus.core.error_handlers import safe_value_error_handler
 from nexus.core.exception_registry import fastapi_exception
 
 
@@ -36,7 +35,7 @@ class RetryableError(NexusError):
     """
 
 
-@fastapi_exception(handler=safe_value_error_handler)
+@fastapi_exception(handler="nexus.core.error_handlers.safe_value_error_handler")
 class SafeValueError(ValueError, NexusError):
     """ValueError subclass for user-safe validation error messages.
 

@@ -10,7 +10,7 @@ from uuid import UUID
 
 import pytest
 
-from nexus.files import FileMetadata
+from nexus.files.models import FileMetadata
 
 
 @pytest.fixture

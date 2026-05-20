@@ -17,7 +17,7 @@ from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_
     RelevantDocument,
 )
 from nexus.agent_orchestrator.token_manager.services import TokenValidationService
-from nexus.files import FileMetadata
+from nexus.files.models import FileMetadata
 
 
 @pytest.mark.asyncio

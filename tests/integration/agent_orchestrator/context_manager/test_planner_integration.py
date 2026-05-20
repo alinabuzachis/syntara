@@ -20,7 +20,7 @@ from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_
 )
 from nexus.agent_orchestrator.context_manager.retriever_service.services import RetrieverService
 from nexus.core.models import User
-from nexus.files import FileMetadata
+from nexus.files.models import FileMetadata
 from tests.conftest import FakeSettingsCache
 
 

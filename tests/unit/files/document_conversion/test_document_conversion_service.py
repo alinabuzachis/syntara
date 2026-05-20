@@ -10,7 +10,6 @@ from uuid import uuid4
 import pytest
 
 from nexus.core.exceptions import SafeValueError
-from nexus.files import FileMetadata
 from nexus.files.document_conversion.models.conversion_result import (
     ConversionResult,
 )
@@ -18,7 +17,7 @@ from nexus.files.document_conversion.services import ConversionState
 from nexus.files.document_conversion.services.document_conversion_service import (
     DocumentConversionService,
 )
-from nexus.files.models import FileStatus
+from nexus.files.models import FileMetadata, FileStatus
 
 
 class ConversionTestHelper:
