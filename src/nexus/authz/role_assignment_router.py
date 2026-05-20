@@ -214,7 +214,7 @@ async def delete_principal_assignment(
 # Global role-assignment router
 # ---------------------------------------------------------------------------
 
-router = NexusRouter(prefix="/role-assignments", tags=["Role Assignments"])
+router = NexusRouter(prefix="/role_assignments", tags=["Role Assignments"])
 
 
 def _get_service(

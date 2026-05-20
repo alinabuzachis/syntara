@@ -89,7 +89,7 @@ def _get_kwargs(
 
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": "/role-assignments",
+        "url": "/role_assignments",
         "params": params,
     }
 

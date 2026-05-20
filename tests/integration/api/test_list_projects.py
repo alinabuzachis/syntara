@@ -191,7 +191,7 @@ async def test_lp6_project_user_can_see_assigned_project(
 
     viewer = await user_factory(username="lp6-viewer", email="lp6-v@example.com", group_names=["users"])
     resp = await auth_client.post(
-        f"/api/v1/projects/{project_id}/role-assignments",
+        f"/api/v1/projects/{project_id}/role_assignments",
         json={"principal_type": "user", "principal_id": str(viewer.id), "role_name": "project-user"},
     )
     assert resp.status_code == 201
@@ -228,7 +228,7 @@ async def test_lp7_granting_role_makes_project_visible(
     # Grant project-auditor role
     _auth_as(test_user)
     resp = await auth_client.post(
-        f"/api/v1/projects/{project_id}/role-assignments",
+        f"/api/v1/projects/{project_id}/role_assignments",
         json={"principal_type": "user", "principal_id": str(new_user.id), "role_name": "project-auditor"},
     )
     assert resp.status_code == 201
@@ -258,7 +258,7 @@ async def test_lp8_revoking_role_removes_project_from_list(
     # Create user and assign project-auditor
     target = await user_factory(username="lp8-target", email="lp8@example.com", group_names=["users"])
     resp = await auth_client.post(
-        f"/api/v1/projects/{project_id}/role-assignments",
+        f"/api/v1/projects/{project_id}/role_assignments",
         json={"principal_type": "user", "principal_id": str(target.id), "role_name": "project-auditor"},
     )
     assert resp.status_code == 201
@@ -273,7 +273,7 @@ async def test_lp8_revoking_role_removes_project_from_list(
 
     # Revoke the role
     _auth_as(test_user)
-    resp = await auth_client.delete(f"/api/v1/projects/{project_id}/role-assignments/{assignment_id}")
+    resp = await auth_client.delete(f"/api/v1/projects/{project_id}/role_assignments/{assignment_id}")
     assert resp.status_code == 204
 
     # Target should still see default but no longer the revoked project

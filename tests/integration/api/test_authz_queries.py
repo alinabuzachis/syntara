@@ -123,7 +123,7 @@ def _auth_as(user: User) -> None:
 
 
 # ============================================================================
-# POST /authz/can-i
+# POST /authz/can_i
 # ============================================================================
 
 
@@ -134,7 +134,7 @@ async def test_can_i_allowed_action(
 ) -> None:
     """CI-1: User with 'user' role can create projects (scope=any)."""
     response = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "create", "resource_type": "project"},
     )
     assert response.status_code == 200
@@ -156,7 +156,7 @@ async def test_can_i_denied_action(
     _auth_as(limited_user)
 
     response = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "create", "resource_type": "policy"},
     )
     assert response.status_code == 200
@@ -175,7 +175,7 @@ async def test_can_i_admin_allowed(
     await _make_admin(test_db_session, test_user)
 
     response = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "delete", "resource_type": "policy"},
     )
     assert response.status_code == 200
@@ -202,14 +202,14 @@ async def test_can_i_project_scoped(
 
     # Verify: test_user can read workflows in this project (project-admin has all perms)
     response = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "read", "resource_type": "workflow"},
     )
     assert response.status_code == 200
     assert response.json()["allowed"] is True
 
     # Verify: project-scoped policies appear in what-can-i
-    response = await auth_client.post("/api/v1/authz/what-can-i")
+    response = await auth_client.post("/api/v1/authz/what_can_i")
     assert response.status_code == 200
     permissions = response.json()["permissions"]
     project_perms = [p for p in permissions if p["scope"] == "project" and p["project"] == project_name]
@@ -224,7 +224,7 @@ async def test_can_i_self_scope(
     """CI-5: user:read:any is granted via user role."""
     # Should be allowed when resource_id matches user's own ID
     response = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={
             "action": "read",
             "resource_type": "user",
@@ -237,7 +237,7 @@ async def test_can_i_self_scope(
 
     # Should also be allowed for other users (user:read:any granted to user role)
     response = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={
             "action": "read",
             "resource_type": "user",
@@ -289,7 +289,7 @@ async def test_can_i_wildcard_action(
     await test_db_session.commit()
 
     response = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "delete", "resource_type": "test-resource"},
     )
     assert response.status_code == 200
@@ -339,7 +339,7 @@ async def test_can_i_explicit_deny_overrides_allow(
     await test_db_session.commit()
 
     response = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "delete", "resource_type": "workflow"},
     )
     assert response.status_code == 200
@@ -351,7 +351,7 @@ async def test_can_i_explicit_deny_overrides_allow(
 
 
 # ============================================================================
-# POST /authz/who-can
+# POST /authz/who_can
 # ============================================================================
 
 
@@ -367,7 +367,7 @@ async def test_who_can_requires_admin(
     _auth_as(limited_user)
 
     response = await auth_client.post(
-        "/api/v1/authz/who-can",
+        "/api/v1/authz/who_can",
         json={"action": "read", "resource_type": "user"},
     )
     assert response.status_code == 403
@@ -391,7 +391,7 @@ async def test_who_can_returns_authorized_users(
     await test_db_session.commit()
 
     response = await auth_client.post(
-        "/api/v1/authz/who-can",
+        "/api/v1/authz/who_can",
         json={"action": "read", "resource_type": "user"},
     )
     assert response.status_code == 200
@@ -416,7 +416,7 @@ async def test_who_can_excludes_unauthorized_users(
     await _make_auditor(test_db_session, auditor)
 
     response = await auth_client.post(
-        "/api/v1/authz/who-can",
+        "/api/v1/authz/who_can",
         json={"action": "create", "resource_type": "workflow"},
     )
     assert response.status_code == 200
@@ -438,7 +438,7 @@ async def test_who_can_empty_for_ungranted_action(
     await _make_admin(test_db_session, test_user)
 
     response = await auth_client.post(
-        "/api/v1/authz/who-can",
+        "/api/v1/authz/who_can",
         json={"action": "launch", "resource_type": "spaceship"},
     )
     assert response.status_code == 200
@@ -466,7 +466,7 @@ async def test_who_can_excludes_inactive_users(
     await test_db_session.commit()
 
     response = await auth_client.post(
-        "/api/v1/authz/who-can",
+        "/api/v1/authz/who_can",
         json={"action": "read", "resource_type": "user"},
     )
     assert response.status_code == 200
@@ -494,7 +494,7 @@ async def test_who_can_pagination(
 
     # Request page 1 with limit=2
     response = await auth_client.post(
-        "/api/v1/authz/who-can",
+        "/api/v1/authz/who_can",
         json={"action": "read", "resource_type": "user", "limit": 2},
     )
     assert response.status_code == 200
@@ -504,7 +504,7 @@ async def test_who_can_pagination(
 
     # Request page 2 using cursor
     response = await auth_client.post(
-        "/api/v1/authz/who-can",
+        "/api/v1/authz/who_can",
         json={"action": "read", "resource_type": "user", "limit": 2, "cursor": page1["next_cursor"]},
     )
     assert response.status_code == 200
@@ -518,7 +518,7 @@ async def test_who_can_pagination(
 
 
 # ============================================================================
-# POST /authz/what-can-i
+# POST /authz/what_can_i
 # ============================================================================
 
 
@@ -528,7 +528,7 @@ async def test_what_can_i_returns_effective_permissions(
     test_user: User,
 ) -> None:
     """WI-1: what-can-i returns all effective permissions for the user."""
-    response = await auth_client.post("/api/v1/authz/what-can-i")
+    response = await auth_client.post("/api/v1/authz/what_can_i")
     assert response.status_code == 200
     data = response.json()
     permissions = data["permissions"]
@@ -553,7 +553,7 @@ async def test_what_can_i_includes_project_scoped_policies(
     assert response.status_code == 201
     project_name = response.json()["name"]
 
-    response = await auth_client.post("/api/v1/authz/what-can-i")
+    response = await auth_client.post("/api/v1/authz/what_can_i")
     assert response.status_code == 200
     permissions = response.json()["permissions"]
 
@@ -575,7 +575,7 @@ async def test_what_can_i_admin_sees_all_policies(
     """WI-3: Admin user sees all built-in policies."""
     await _make_admin(test_db_session, test_user)
 
-    response = await auth_client.post("/api/v1/authz/what-can-i")
+    response = await auth_client.post("/api/v1/authz/what_can_i")
     assert response.status_code == 200
     permissions = response.json()["permissions"]
     policy_names = {p["policy_name"] for p in permissions}
@@ -597,7 +597,7 @@ async def test_what_can_i_multiple_groups_additive(
     # Add auditor role via a second group.
     await _make_auditor(test_db_session, test_user)
 
-    response = await auth_client.post("/api/v1/authz/what-can-i")
+    response = await auth_client.post("/api/v1/authz/what_can_i")
     assert response.status_code == 200
     permissions = response.json()["permissions"]
     policy_names = {p["policy_name"] for p in permissions}
@@ -608,7 +608,7 @@ async def test_what_can_i_multiple_groups_additive(
 
 
 # ============================================================================
-# GET /authz/resource-actions
+# GET /authz/resource_actions
 # ============================================================================
 
 
@@ -617,8 +617,8 @@ async def test_resource_actions_returns_catalog(
     auth_client: AsyncClient,
     test_user: User,
 ) -> None:
-    """RA-1: resource-actions returns the full resource type → actions map."""
-    response = await auth_client.get("/api/v1/authz/resource-actions")
+    """RA-1: resource_actions returns the full resource type → actions map."""
+    response = await auth_client.get("/api/v1/authz/resource_actions")
     assert response.status_code == 200
     data = response.json()
     ra = data["resource_actions"]

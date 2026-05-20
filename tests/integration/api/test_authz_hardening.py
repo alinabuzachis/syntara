@@ -48,7 +48,7 @@ class TestPrivilegeEscalation:
         auth_as(limited_user)
 
         resp = await auth_client.post(
-            "/api/v1/role-assignments",
+            "/api/v1/role_assignments",
             json={"principal_type": "user", "principal_id": str(limited_user.id), "role_name": "admin"},
         )
         assert resp.status_code == 403
@@ -67,7 +67,7 @@ class TestPrivilegeEscalation:
         auth_as(limited_user)
 
         resp = await auth_client.post(
-            "/api/v1/authz/can-i",
+            "/api/v1/authz/can_i",
             json={"action": "assign", "resource_type": "role-assignment"},
         )
         assert resp.status_code == 200
@@ -98,7 +98,7 @@ class TestPrivilegeEscalation:
         # Project-admin tries to create a global policy
         auth_as(proj_admin)
         resp = await auth_client.post(
-            "/api/v1/authz/can-i",
+            "/api/v1/authz/can_i",
             json={"action": "create", "resource_type": "policy"},
         )
         assert resp.status_code == 200
@@ -127,7 +127,7 @@ class TestPrivilegeEscalation:
         ]
         for action, resource_type in write_actions:
             resp = await auth_client.post(
-                "/api/v1/authz/can-i",
+                "/api/v1/authz/can_i",
                 json={"action": action, "resource_type": resource_type},
             )
             assert resp.status_code == 200
@@ -149,7 +149,7 @@ class TestPrivilegeEscalation:
 
         # Can read self
         resp = await auth_client.post(
-            "/api/v1/authz/can-i",
+            "/api/v1/authz/can_i",
             json={"action": "read", "resource_type": "user", "resource_id": str(user_a.id)},
         )
         assert resp.status_code == 200
@@ -157,7 +157,7 @@ class TestPrivilegeEscalation:
 
         # Can also read other users (user:read:any granted via user role on authenticated group)
         resp = await auth_client.post(
-            "/api/v1/authz/can-i",
+            "/api/v1/authz/can_i",
             json={"action": "read", "resource_type": "user", "resource_id": str(user_b.id)},
         )
         assert resp.status_code == 200
@@ -185,7 +185,7 @@ class TestRoleBoundaries:
         await make_user_role(test_db_session, user)
         auth_as(user)
 
-        resp = await auth_client.post("/api/v1/authz/what-can-i")
+        resp = await auth_client.post("/api/v1/authz/what_can_i")
         assert resp.status_code == 200
         permissions = resp.json()["permissions"]
 
@@ -226,7 +226,7 @@ class TestRoleBoundaries:
         await make_auditor(test_db_session, auditor)
         auth_as(auditor)
 
-        resp = await auth_client.post("/api/v1/authz/what-can-i")
+        resp = await auth_client.post("/api/v1/authz/what_can_i")
         assert resp.status_code == 200
         permissions = resp.json()["permissions"]
 
@@ -298,7 +298,7 @@ class TestCrossProjectIsolation:
 
         # Can delete in own project
         resp = await auth_client.post(
-            "/api/v1/authz/can-i",
+            "/api/v1/authz/can_i",
             json={"action": "delete", "resource_type": "workflow", "resource_project": proj_a_name},
         )
         assert resp.status_code == 200
@@ -306,7 +306,7 @@ class TestCrossProjectIsolation:
 
         # Cannot delete in other project
         resp = await auth_client.post(
-            "/api/v1/authz/can-i",
+            "/api/v1/authz/can_i",
             json={"action": "delete", "resource_type": "workflow", "resource_project": proj_b_name},
         )
         assert resp.status_code == 200
@@ -343,7 +343,7 @@ class TestCrossProjectIsolation:
         # Can access A and B
         for proj_name in ("sec26-a", "sec26-b"):
             resp = await auth_client.post(
-                "/api/v1/authz/can-i",
+                "/api/v1/authz/can_i",
                 json={"action": "read", "resource_type": "workflow", "resource_project": proj_name},
             )
             assert resp.status_code == 200
@@ -351,7 +351,7 @@ class TestCrossProjectIsolation:
 
         # Cannot access C
         resp = await auth_client.post(
-            "/api/v1/authz/can-i",
+            "/api/v1/authz/can_i",
             json={"action": "read", "resource_type": "workflow", "resource_project": "sec26-c"},
         )
         assert resp.status_code == 200
@@ -377,7 +377,7 @@ class TestGroupMembershipEdgeCases:
         lonely = await user_factory(username="lonely-sec28", email="lonely-sec28@test.com")
         auth_as(lonely)
 
-        resp = await auth_client.post("/api/v1/authz/what-can-i")
+        resp = await auth_client.post("/api/v1/authz/what_can_i")
         assert resp.status_code == 200
         permissions = resp.json()["permissions"]
 
@@ -408,7 +408,7 @@ class TestGroupMembershipEdgeCases:
 
         # workflow:create should be denied (only authenticated policies, no user role)
         resp = await auth_client.post(
-            "/api/v1/authz/can-i",
+            "/api/v1/authz/can_i",
             json={"action": "create", "resource_type": "workflow"},
         )
         assert resp.status_code == 200
@@ -437,7 +437,7 @@ class TestGroupMembershipEdgeCases:
 
         # Allowed while role assignment exists (auditor has policy:read)
         resp = await auth_client.post(
-            "/api/v1/authz/can-i",
+            "/api/v1/authz/can_i",
             json={"action": "read", "resource_type": "policy"},
         )
         assert resp.status_code == 200
@@ -449,7 +449,7 @@ class TestGroupMembershipEdgeCases:
 
         # Now denied
         resp = await auth_client.post(
-            "/api/v1/authz/can-i",
+            "/api/v1/authz/can_i",
             json={"action": "read", "resource_type": "policy"},
         )
         assert resp.status_code == 200
@@ -505,7 +505,7 @@ class TestPermissionChecker403:
         auth_as(limited_user)
 
         resp = await auth_client.post(
-            "/api/v1/role-assignments",
+            "/api/v1/role_assignments",
             json={"principal_type": "user", "principal_id": str(limited_user.id), "role_name": "admin"},
         )
         assert resp.status_code == 403

@@ -315,7 +315,7 @@ async def list_project_approvals(
 
 
 @router.post(
-    "/{project_id}/role-assignments",
+    "/{project_id}/role_assignments",
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(_perm_role_assignment_assign)],
     operation_id="create_project_role_assignment",
@@ -339,7 +339,7 @@ async def create_project_role_assignment(
 
 
 @router.get(
-    "/{project_id}/role-assignments",
+    "/{project_id}/role_assignments",
     dependencies=[NO_PERMISSION],
     operation_id="list_project_role_assignments",
     response_description="List of role assignments",
@@ -394,7 +394,7 @@ async def list_project_role_assignments(
 
 
 @router.delete(
-    "/{project_id}/role-assignments/{assignment_id}",
+    "/{project_id}/role_assignments/{assignment_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(_perm_role_assignment_revoke)],
     operation_id="delete_project_role_assignment",

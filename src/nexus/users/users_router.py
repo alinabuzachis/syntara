@@ -258,7 +258,7 @@ async def set_user_groups(
 
 
 @router.post(
-    "/{user_id}/role-assignments",
+    "/{user_id}/role_assignments",
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(PermissionChecker("role-assignment", "assign", body_project_field="project_id"))],
     operation_id="create_user_role_assignment",
@@ -280,7 +280,7 @@ async def create_user_role_assignment(
 
 
 @router.get(
-    "/{user_id}/role-assignments",
+    "/{user_id}/role_assignments",
     dependencies=[NO_PERMISSION],
     operation_id="list_user_role_assignments",
     response_description="List of role assignments for this user",
@@ -306,7 +306,7 @@ async def list_user_role_assignments(
 
 
 @router.delete(
-    "/{user_id}/role-assignments/{assignment_id}",
+    "/{user_id}/role_assignments/{assignment_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[
         Depends(

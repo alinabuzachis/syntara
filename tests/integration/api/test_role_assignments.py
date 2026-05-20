@@ -1,12 +1,12 @@
 """Integration tests for user and group role assignment sub-resource endpoints.
 
 Covers:
-- POST /api/v1/users/{user_id}/role-assignments
-- GET  /api/v1/users/{user_id}/role-assignments
-- DELETE /api/v1/users/{user_id}/role-assignments/{assignment_id}
-- POST /api/v1/groups/{group_id}/role-assignments
-- GET  /api/v1/groups/{group_id}/role-assignments
-- DELETE /api/v1/groups/{group_id}/role-assignments/{assignment_id}
+- POST /api/v1/users/{user_id}/role_assignments
+- GET  /api/v1/users/{user_id}/role_assignments
+- DELETE /api/v1/users/{user_id}/role_assignments/{assignment_id}
+- POST /api/v1/groups/{group_id}/role_assignments
+- GET  /api/v1/groups/{group_id}/role_assignments
+- DELETE /api/v1/groups/{group_id}/role_assignments/{assignment_id}
 """
 
 from collections.abc import Awaitable, Callable
@@ -39,11 +39,11 @@ async def test_create_user_role_assignment(
     test_db_session: AsyncSession,
     user_factory: Callable[..., Awaitable[User]],
 ) -> None:
-    """POST /users/{user_id}/role-assignments creates an assignment and returns 201."""
+    """POST /users/{user_id}/role_assignments creates an assignment and returns 201."""
     target_user = await user_factory(username="assign-target", email="assign-target@example.com")
 
     response = await admin_client.post(
-        f"{USERS_URL}/{target_user.id}/role-assignments",
+        f"{USERS_URL}/{target_user.id}/role_assignments",
         json={"role_name": "auditor"},
     )
 
@@ -63,24 +63,24 @@ async def test_list_user_role_assignments(
     test_db_session: AsyncSession,
     user_factory: Callable[..., Awaitable[User]],
 ) -> None:
-    """GET /users/{user_id}/role-assignments lists assignments for a user."""
+    """GET /users/{user_id}/role_assignments lists assignments for a user."""
     target_user = await user_factory(username="list-target", email="list-target@example.com")
 
     # Create two role assignments for the user
     response = await admin_client.post(
-        f"{USERS_URL}/{target_user.id}/role-assignments",
+        f"{USERS_URL}/{target_user.id}/role_assignments",
         json={"role_name": "auditor"},
     )
     assert response.status_code == 201
 
     response = await admin_client.post(
-        f"{USERS_URL}/{target_user.id}/role-assignments",
+        f"{USERS_URL}/{target_user.id}/role_assignments",
         json={"role_name": "user"},
     )
     assert response.status_code == 201
 
     # List the assignments
-    response = await admin_client.get(f"{USERS_URL}/{target_user.id}/role-assignments")
+    response = await admin_client.get(f"{USERS_URL}/{target_user.id}/role_assignments")
 
     assert response.status_code == 200
     data = response.json()
@@ -102,22 +102,22 @@ async def test_list_user_role_assignments_filter_by_role_name(
     test_db_session: AsyncSession,
     user_factory: Callable[..., Awaitable[User]],
 ) -> None:
-    """GET /users/{user_id}/role-assignments?role_name=... filters correctly."""
+    """GET /users/{user_id}/role_assignments?role_name=... filters correctly."""
     target_user = await user_factory(username="filter-target", email="filter-target@example.com")
 
     # Create two assignments
     await admin_client.post(
-        f"{USERS_URL}/{target_user.id}/role-assignments",
+        f"{USERS_URL}/{target_user.id}/role_assignments",
         json={"role_name": "auditor"},
     )
     await admin_client.post(
-        f"{USERS_URL}/{target_user.id}/role-assignments",
+        f"{USERS_URL}/{target_user.id}/role_assignments",
         json={"role_name": "user"},
     )
 
     # Filter by role_name
     response = await admin_client.get(
-        f"{USERS_URL}/{target_user.id}/role-assignments",
+        f"{USERS_URL}/{target_user.id}/role_assignments",
         params={"role_name": "auditor"},
     )
 
@@ -133,12 +133,12 @@ async def test_delete_user_role_assignment(
     test_db_session: AsyncSession,
     user_factory: Callable[..., Awaitable[User]],
 ) -> None:
-    """DELETE /users/{user_id}/role-assignments/{id} revokes and returns 204."""
+    """DELETE /users/{user_id}/role_assignments/{id} revokes and returns 204."""
     target_user = await user_factory(username="delete-target", email="delete-target@example.com")
 
     # Create an assignment
     response = await admin_client.post(
-        f"{USERS_URL}/{target_user.id}/role-assignments",
+        f"{USERS_URL}/{target_user.id}/role_assignments",
         json={"role_name": "auditor"},
     )
     assert response.status_code == 201
@@ -146,12 +146,12 @@ async def test_delete_user_role_assignment(
 
     # Delete it
     response = await admin_client.delete(
-        f"{USERS_URL}/{target_user.id}/role-assignments/{assignment_id}",
+        f"{USERS_URL}/{target_user.id}/role_assignments/{assignment_id}",
     )
     assert response.status_code == 204
 
     # Verify it is gone
-    response = await admin_client.get(f"{USERS_URL}/{target_user.id}/role-assignments")
+    response = await admin_client.get(f"{USERS_URL}/{target_user.id}/role_assignments")
     assert response.status_code == 200
     resources = response.json()["resources"]
     assignment_ids = [r["id"] for r in resources]
@@ -164,7 +164,7 @@ async def test_delete_user_role_assignment_idor_protection(
     test_db_session: AsyncSession,
     user_factory: Callable[..., Awaitable[User]],
 ) -> None:
-    """DELETE /users/{user_id}/role-assignments/{id} rejects cross-principal deletion.
+    """DELETE /users/{user_id}/role_assignments/{id} rejects cross-principal deletion.
 
     An assignment belonging to user_a cannot be deleted via user_b's URL.
     """
@@ -173,7 +173,7 @@ async def test_delete_user_role_assignment_idor_protection(
 
     # Create an assignment for user_a
     response = await admin_client.post(
-        f"{USERS_URL}/{user_a.id}/role-assignments",
+        f"{USERS_URL}/{user_a.id}/role_assignments",
         json={"role_name": "auditor"},
     )
     assert response.status_code == 201
@@ -181,13 +181,13 @@ async def test_delete_user_role_assignment_idor_protection(
 
     # Try to delete user_a's assignment via user_b's URL
     response = await admin_client.delete(
-        f"{USERS_URL}/{user_b.id}/role-assignments/{assignment_id}",
+        f"{USERS_URL}/{user_b.id}/role_assignments/{assignment_id}",
     )
     # The endpoint validates that the assignment belongs to the URL principal
     assert response.status_code == 422
 
     # Verify user_a's assignment still exists
-    response = await admin_client.get(f"{USERS_URL}/{user_a.id}/role-assignments")
+    response = await admin_client.get(f"{USERS_URL}/{user_a.id}/role_assignments")
     assert response.status_code == 200
     assignment_ids = [r["id"] for r in response.json()["resources"]]
     assert assignment_id in assignment_ids
@@ -203,7 +203,7 @@ async def test_create_group_role_assignment(
     admin_client: AsyncClient,
     test_db_session: AsyncSession,
 ) -> None:
-    """POST /groups/{group_id}/role-assignments creates an assignment and returns 201."""
+    """POST /groups/{group_id}/role_assignments creates an assignment and returns 201."""
     group = Group(name="role-assign-group", description="Test group for role assignments", labels={})
     test_db_session.add(group)
     await test_db_session.flush()
@@ -211,7 +211,7 @@ async def test_create_group_role_assignment(
     await test_db_session.refresh(group)
 
     response = await admin_client.post(
-        f"{GROUPS_URL}/{group.id}/role-assignments",
+        f"{GROUPS_URL}/{group.id}/role_assignments",
         json={"role_name": "user"},
     )
 
@@ -230,7 +230,7 @@ async def test_list_group_role_assignments(
     admin_client: AsyncClient,
     test_db_session: AsyncSession,
 ) -> None:
-    """GET /groups/{group_id}/role-assignments lists assignments for a group."""
+    """GET /groups/{group_id}/role_assignments lists assignments for a group."""
     group = Group(name="list-assign-group", description="Test group", labels={})
     test_db_session.add(group)
     await test_db_session.flush()
@@ -239,19 +239,19 @@ async def test_list_group_role_assignments(
 
     # Create two role assignments for the group
     response = await admin_client.post(
-        f"{GROUPS_URL}/{group.id}/role-assignments",
+        f"{GROUPS_URL}/{group.id}/role_assignments",
         json={"role_name": "user"},
     )
     assert response.status_code == 201
 
     response = await admin_client.post(
-        f"{GROUPS_URL}/{group.id}/role-assignments",
+        f"{GROUPS_URL}/{group.id}/role_assignments",
         json={"role_name": "auditor"},
     )
     assert response.status_code == 201
 
     # List the assignments
-    response = await admin_client.get(f"{GROUPS_URL}/{group.id}/role-assignments")
+    response = await admin_client.get(f"{GROUPS_URL}/{group.id}/role_assignments")
 
     assert response.status_code == 200
     data = response.json()
@@ -272,7 +272,7 @@ async def test_delete_group_role_assignment(
     admin_client: AsyncClient,
     test_db_session: AsyncSession,
 ) -> None:
-    """DELETE /groups/{group_id}/role-assignments/{id} revokes and returns 204."""
+    """DELETE /groups/{group_id}/role_assignments/{id} revokes and returns 204."""
     group = Group(name="delete-assign-group", description="Test group", labels={})
     test_db_session.add(group)
     await test_db_session.flush()
@@ -281,7 +281,7 @@ async def test_delete_group_role_assignment(
 
     # Create an assignment
     response = await admin_client.post(
-        f"{GROUPS_URL}/{group.id}/role-assignments",
+        f"{GROUPS_URL}/{group.id}/role_assignments",
         json={"role_name": "user"},
     )
     assert response.status_code == 201
@@ -289,12 +289,12 @@ async def test_delete_group_role_assignment(
 
     # Delete it
     response = await admin_client.delete(
-        f"{GROUPS_URL}/{group.id}/role-assignments/{assignment_id}",
+        f"{GROUPS_URL}/{group.id}/role_assignments/{assignment_id}",
     )
     assert response.status_code == 204
 
     # Verify it is gone
-    response = await admin_client.get(f"{GROUPS_URL}/{group.id}/role-assignments")
+    response = await admin_client.get(f"{GROUPS_URL}/{group.id}/role_assignments")
     assert response.status_code == 200
     resources = response.json()["resources"]
     assignment_ids = [r["id"] for r in resources]
@@ -307,7 +307,7 @@ async def test_delete_group_role_assignment_idor_protection(
     test_db_session: AsyncSession,
     user_factory: Callable[..., Awaitable[User]],
 ) -> None:
-    """DELETE /groups/{group_id}/role-assignments/{id} rejects cross-principal deletion.
+    """DELETE /groups/{group_id}/role_assignments/{id} rejects cross-principal deletion.
 
     A user-scoped assignment cannot be deleted via a group's URL.
     """
@@ -321,7 +321,7 @@ async def test_delete_group_role_assignment_idor_protection(
 
     # Create a USER-scoped assignment
     response = await admin_client.post(
-        f"{USERS_URL}/{target_user.id}/role-assignments",
+        f"{USERS_URL}/{target_user.id}/role_assignments",
         json={"role_name": "auditor"},
     )
     assert response.status_code == 201
@@ -329,13 +329,13 @@ async def test_delete_group_role_assignment_idor_protection(
 
     # Try to delete the user assignment via the group's URL
     response = await admin_client.delete(
-        f"{GROUPS_URL}/{group.id}/role-assignments/{user_assignment_id}",
+        f"{GROUPS_URL}/{group.id}/role_assignments/{user_assignment_id}",
     )
     # The endpoint validates principal_type and principal_id match
     assert response.status_code == 422
 
     # Verify the user assignment still exists
-    response = await admin_client.get(f"{USERS_URL}/{target_user.id}/role-assignments")
+    response = await admin_client.get(f"{USERS_URL}/{target_user.id}/role_assignments")
     assert response.status_code == 200
     assignment_ids = [r["id"] for r in response.json()["resources"]]
     assert user_assignment_id in assignment_ids
@@ -374,7 +374,7 @@ async def test_readable_project_names_shown_in_role_assignments(
 
     app.dependency_overrides[get_current_user] = override
 
-    response = await base_client.get(f"{USERS_URL}/{user.id}/role-assignments")
+    response = await base_client.get(f"{USERS_URL}/{user.id}/role_assignments")
     assert response.status_code == 200
     resources = response.json()["resources"]
 
@@ -406,7 +406,7 @@ async def test_admin_sees_all_project_names(
     )
     await test_db_session.commit()
 
-    response = await admin_client.get(f"{USERS_URL}/{user.id}/role-assignments")
+    response = await admin_client.get(f"{USERS_URL}/{user.id}/role_assignments")
     assert response.status_code == 200
     resources = response.json()["resources"]
 
@@ -443,7 +443,7 @@ async def test_what_can_i_shows_readable_project_names(
 
     app.dependency_overrides[get_current_user] = override
 
-    response = await base_client.post("/api/v1/authz/what-can-i")
+    response = await base_client.post("/api/v1/authz/what_can_i")
     assert response.status_code == 200
     permissions = response.json()["permissions"]
 
@@ -474,7 +474,7 @@ async def test_revoke_builtin_group_assignment_forbidden(
     assert group is not None
 
     response = await admin_client.delete(
-        f"{GROUPS_URL}/{group.id}/role-assignments/{builtin_assignment.id}",
+        f"{GROUPS_URL}/{group.id}/role_assignments/{builtin_assignment.id}",
     )
     assert response.status_code == 403
     assert response.json()["code"] == "BUILTIN_PROTECTED"

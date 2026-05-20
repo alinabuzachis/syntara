@@ -33,7 +33,7 @@ async def test_matched_policy_field(
 
     auth_as(bob)
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "create", "resource_type": "project"},
     )
     assert resp.status_code == 200
@@ -55,7 +55,7 @@ async def test_implicit_deny_no_policy_match(
 
     auth_as(carol)
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "create", "resource_type": "workflow"},
     )
     assert resp.status_code == 200
@@ -108,7 +108,7 @@ async def test_explicit_deny_fields(
 
     auth_as(bob)
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "delete", "resource_type": "workflow"},
     )
     assert resp.status_code == 200
@@ -141,7 +141,7 @@ async def test_who_can_lists_authorized(
 
     auth_as(alice)
     resp = await auth_client.post(
-        "/api/v1/authz/who-can",
+        "/api/v1/authz/who_can",
         json={"action": "assign", "resource_type": "role-assignment"},
     )
     assert resp.status_code == 200

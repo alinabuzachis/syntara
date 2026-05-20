@@ -3196,7 +3196,7 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
-  /authz/can-i:
+  /authz/can_i:
     post:
       summary: Check if the current user can perform an action
       description: Evaluates the current user's effective policies against OPA to determine if a specific action is allowed on a resource.
@@ -3307,7 +3307,7 @@ paths:
                 retryable: true
       security:
         - bearerAuth: []
-  /authz/who-can:
+  /authz/who_can:
     post:
       summary: List users who can perform an action
       description: Iterates all active users, resolves their policies, and checks each against OPA. This is a debugging endpoint.
@@ -3418,7 +3418,7 @@ paths:
                 retryable: true
       security:
         - bearerAuth: []
-  /authz/what-can-i:
+  /authz/what_can_i:
     post:
       summary: List all permissions for the current user
       description: Resolves the current user's effective policies and returns them as a flat list of permission entries. No OPA call needed.
@@ -3523,7 +3523,7 @@ paths:
                 retryable: true
       security:
         - bearerAuth: []
-  /authz/resource-actions:
+  /authz/resource_actions:
     get:
       summary: List available resource types and actions
       description: Returns the catalog of all resource types and the actions that can be performed on each.
@@ -3626,7 +3626,7 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
-  /authz/validate-name:
+  /authz/validate_name:
     get:
       summary: Validate Name
       description: |
@@ -5260,7 +5260,7 @@ paths:
                 retryable: true
       security:
         - bearerAuth: []
-  /role-assignments:
+  /role_assignments:
     post:
       summary: Create Role Assignment
       description: |-
@@ -5567,7 +5567,7 @@ paths:
                 retryable: true
       security:
         - bearerAuth: []
-  /role-assignments/{assignment_id}:
+  /role_assignments/{assignment_id}:
     get:
       summary: Get Role Assignment
       description: |-
@@ -10472,7 +10472,7 @@ paths:
                 retryable: true
       security:
         - bearerAuth: []
-  /projects/{project_id}/role-assignments:
+  /projects/{project_id}/role_assignments:
     post:
       summary: Create Project Role Assignment
       description: Assign a role to a user or group within a project.
@@ -10783,7 +10783,7 @@ paths:
                 retryable: true
       security:
         - bearerAuth: []
-  /projects/{project_id}/role-assignments/{assignment_id}:
+  /projects/{project_id}/role_assignments/{assignment_id}:
     delete:
       summary: Delete Project Role Assignment
       description: Remove a role assignment from a project.
@@ -17423,7 +17423,7 @@ paths:
                 retryable: true
       security:
         - bearerAuth: []
-  /users/{user_id}/role-assignments:
+  /users/{user_id}/role_assignments:
     post:
       summary: Create User Role Assignment
       description: Assign a role to this user.
@@ -17711,7 +17711,7 @@ paths:
                 retryable: true
       security:
         - bearerAuth: []
-  /users/{user_id}/role-assignments/{assignment_id}:
+  /users/{user_id}/role_assignments/{assignment_id}:
     delete:
       summary: Delete User Role Assignment
       description: Remove a role assignment from this user.
@@ -17827,7 +17827,7 @@ paths:
                 retryable: true
       security:
         - bearerAuth: []
-  /groups/{group_id}/role-assignments:
+  /groups/{group_id}/role_assignments:
     post:
       summary: Create Group Role Assignment
       description: Assign a role to this group.
@@ -18115,7 +18115,7 @@ paths:
                 retryable: true
       security:
         - bearerAuth: []
-  /groups/{group_id}/role-assignments/{assignment_id}:
+  /groups/{group_id}/role_assignments/{assignment_id}:
     delete:
       summary: Delete Group Role Assignment
       description: Remove a role assignment from this group.
@@ -22004,7 +22004,7 @@ components:
     ValidateNameResponse:
       type: object
       title: ValidateNameResponse
-      description: Response body for the validate-name endpoint.
+      description: Response body for the validate_name endpoint.
       required:
         - valid
         - name

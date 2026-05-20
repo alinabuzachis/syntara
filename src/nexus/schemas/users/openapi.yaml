@@ -845,7 +845,7 @@ paths:
         - bearerAuth: []
 
   # ── User Role Assignments ────────────────────────────────────────────
-  /users/{user_id}/role-assignments:
+  /users/{user_id}/role_assignments:
     post:
       summary: Create User Role Assignment
       description: Assign a role to this user.
@@ -953,7 +953,7 @@ paths:
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
       security:
         - bearerAuth: []
-  /users/{user_id}/role-assignments/{assignment_id}:
+  /users/{user_id}/role_assignments/{assignment_id}:
     delete:
       summary: Delete User Role Assignment
       description: Remove a role assignment from this user.
@@ -999,7 +999,7 @@ paths:
         - bearerAuth: []
 
   # ── Group Role Assignments ───────────────────────────────────────────
-  /groups/{group_id}/role-assignments:
+  /groups/{group_id}/role_assignments:
     post:
       summary: Create Group Role Assignment
       description: Assign a role to this group.
@@ -1107,7 +1107,7 @@ paths:
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
       security:
         - bearerAuth: []
-  /groups/{group_id}/role-assignments/{assignment_id}:
+  /groups/{group_id}/role_assignments/{assignment_id}:
     delete:
       summary: Delete Group Role Assignment
       description: Remove a role assignment from this group.

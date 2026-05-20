@@ -160,7 +160,7 @@ _authz_query_perm = PermissionChecker("authz", "query")
 
 
 @router.post(
-    "/can-i",
+    "/can_i",
     dependencies=[NO_PERMISSION],
     operation_id="can_i",
     summary="Check if the current user can perform an action",
@@ -218,7 +218,7 @@ async def can_i(
 
 
 @router.post(
-    "/who-can",
+    "/who_can",
     dependencies=[Depends(_authz_query_perm)],
     operation_id="who_can",
     summary="List users who can perform an action",
@@ -301,7 +301,7 @@ async def who_can(
 
 
 @router.post(
-    "/what-can-i",
+    "/what_can_i",
     dependencies=[NO_PERMISSION],
     operation_id="what_can_i",
     summary="List all permissions for the current user",
@@ -362,7 +362,7 @@ async def what_can_i(
 
 
 @router.get(
-    "/resource-actions",
+    "/resource_actions",
     dependencies=[NO_PERMISSION],
     operation_id="get_resource_actions",
     summary="List available resource types and actions",
@@ -385,14 +385,14 @@ _NAME_RE = re.compile(NAME_PATTERN)
 
 
 class ValidateNameResponse(SQLModel):
-    """Response body for the validate-name endpoint."""
+    """Response body for the validate_name endpoint."""
 
     valid: bool
     name: str
     reason: str = ""
 
 
-@router.get("/validate-name", dependencies=[NO_PERMISSION], operation_id="validate_name")
+@router.get("/validate_name", dependencies=[NO_PERMISSION], operation_id="validate_name")
 async def validate_name(
     name: Annotated[str, Query(description="Name to validate")],
     resource_type: Annotated[  # noqa: ARG001

@@ -147,7 +147,7 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
     ws_router = build_websocket_router()
     app.include_router(ws_router)
 
-    # Build the resource-actions registry by introspecting all registered
+    # Build the resource_actions registry by introspecting all registered
     # routes and merging with BUILTIN_POLICIES.  Must run after all routers
     # (including WebSocket) are registered.
     from nexus.authz.resource_actions import build_resource_actions  # noqa: PLC0415

@@ -48,14 +48,14 @@ async def test_project_role_isolation(
     # Bob can read/create in alpha
     auth_as(bob)
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "read", "resource_type": "workflow", "resource_project": alpha_name},
     )
     assert resp.status_code == 200
     assert resp.json()["allowed"] is True
 
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "create", "resource_type": "workflow", "resource_project": alpha_name},
     )
     assert resp.status_code == 200
@@ -63,14 +63,14 @@ async def test_project_role_isolation(
 
     # Bob denied in beta
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "read", "resource_type": "workflow", "resource_project": beta_name},
     )
     assert resp.status_code == 200
     assert resp.json()["allowed"] is False
 
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "create", "resource_type": "workflow", "resource_project": beta_name},
     )
     assert resp.status_code == 200
@@ -110,14 +110,14 @@ async def test_project_admin_boundaries(
     # Bob can delete in alpha, denied in beta
     auth_as(bob)
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "delete", "resource_type": "workflow", "resource_project": alpha_name},
     )
     assert resp.status_code == 200
     assert resp.json()["allowed"] is True
 
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "delete", "resource_type": "workflow", "resource_project": beta_name},
     )
     assert resp.status_code == 200
@@ -126,14 +126,14 @@ async def test_project_admin_boundaries(
     # Carol can delete in beta, denied in alpha
     auth_as(carol)
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "delete", "resource_type": "workflow", "resource_project": beta_name},
     )
     assert resp.status_code == 200
     assert resp.json()["allowed"] is True
 
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "delete", "resource_type": "workflow", "resource_project": alpha_name},
     )
     assert resp.status_code == 200
@@ -183,7 +183,7 @@ async def test_cross_project_group_role(
     # Bob can read alpha via group
     auth_as(bob)
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "read", "resource_type": "workflow", "resource_project": alpha_name},
     )
     assert resp.status_code == 200
@@ -191,7 +191,7 @@ async def test_cross_project_group_role(
 
     # Bob denied in beta
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "read", "resource_type": "workflow", "resource_project": beta_name},
     )
     assert resp.status_code == 200
@@ -224,7 +224,7 @@ async def test_can_i_accepts_project_uuid(
 
     # UUID should resolve to name and return allowed
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "read", "resource_type": "workflow", "resource_project": project_uuid},
     )
     assert resp.status_code == 200
@@ -232,7 +232,7 @@ async def test_can_i_accepts_project_uuid(
 
     # Name should still work (regression check)
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "read", "resource_type": "workflow", "resource_project": project_name},
     )
     assert resp.status_code == 200
@@ -240,7 +240,7 @@ async def test_can_i_accepts_project_uuid(
 
     # UUID for a non-existent project should still return denied
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={
             "action": "read",
             "resource_type": "workflow",

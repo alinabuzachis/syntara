@@ -32,7 +32,7 @@ async def test_group_grants_access(
     # Bob has no explicit roles — denied policy:read
     auth_as(bob)
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "read", "resource_type": "policy"},
     )
     assert resp.status_code == 200
@@ -48,7 +48,7 @@ async def test_group_grants_access(
 
     # Bob now allowed
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "read", "resource_type": "policy"},
     )
     assert resp.status_code == 200
@@ -88,7 +88,7 @@ async def test_multiple_groups_additive(
 
     # workflow:create from admin role
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "create", "resource_type": "workflow"},
     )
     assert resp.status_code == 200
@@ -96,7 +96,7 @@ async def test_multiple_groups_additive(
 
     # policy:read from auditor role
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "read", "resource_type": "policy"},
     )
     assert resp.status_code == 200
@@ -143,7 +143,7 @@ async def test_group_project_role(
 
     # Bob can read in gamma
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "read", "resource_type": "workflow", "resource_project": gamma_name},
     )
     assert resp.status_code == 200
@@ -151,7 +151,7 @@ async def test_group_project_role(
 
     # Bob can create in gamma
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "create", "resource_type": "workflow", "resource_project": gamma_name},
     )
     assert resp.status_code == 200
@@ -178,7 +178,7 @@ async def test_remove_revokes_access(
     # Bob can read policies while in group
     auth_as(bob)
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "read", "resource_type": "policy"},
     )
     assert resp.status_code == 200
@@ -197,7 +197,7 @@ async def test_remove_revokes_access(
 
     # Bob denied after removal
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "read", "resource_type": "policy"},
     )
     assert resp.status_code == 200

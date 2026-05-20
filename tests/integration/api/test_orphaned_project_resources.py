@@ -194,11 +194,11 @@ async def test_create_role_assignment_toplevel_against_deleted_project_is_reject
     admin_client: AsyncClient,
     test_user: User,
 ) -> None:
-    """POST /role-assignments with a soft-deleted project_id must return 404."""
+    """POST /role_assignments with a soft-deleted project_id must return 404."""
     project_id = await _create_and_delete_project(admin_client)
 
     resp = await admin_client.post(
-        "/api/v1/role-assignments",
+        "/api/v1/role_assignments",
         json={
             "principal_type": "user",
             "principal_id": str(test_user.id),
@@ -248,7 +248,7 @@ async def test_permchecker_body_field_deleted_project_returns_404(jwt_client: As
     project_id = await _create_and_delete_project(jwt_client)
 
     resp = await jwt_client.post(
-        "/api/v1/role-assignments",
+        "/api/v1/role_assignments",
         json={
             "principal_type": "user",
             "principal_id": str(uuid4()),

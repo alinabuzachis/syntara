@@ -43,14 +43,14 @@ async def test_new_user_project_isolation(
     # Fresh user can create and read in own project
     auth_as(fresh)
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "create", "resource_type": "workflow", "resource_project": own_name},
     )
     assert resp.status_code == 200
     assert resp.json()["allowed"] is True
 
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "read", "resource_type": "workflow", "resource_project": own_name},
     )
     assert resp.status_code == 200
@@ -58,14 +58,14 @@ async def test_new_user_project_isolation(
 
     # Fresh user denied in other project
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "read", "resource_type": "workflow", "resource_project": other_name},
     )
     assert resp.status_code == 200
     assert resp.json()["allowed"] is False
 
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "create", "resource_type": "workflow", "resource_project": other_name},
     )
     assert resp.status_code == 200
@@ -96,7 +96,7 @@ async def test_grant_and_revoke(
     # Bob has access
     auth_as(bob)
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "create", "resource_type": "workflow", "resource_project": project_name},
     )
     assert resp.status_code == 200
@@ -108,7 +108,7 @@ async def test_grant_and_revoke(
 
     # Bob denied
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "create", "resource_type": "workflow", "resource_project": project_name},
     )
     assert resp.status_code == 200

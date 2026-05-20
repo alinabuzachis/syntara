@@ -13,7 +13,7 @@ T = TypeVar("T", bound="ValidateNameResponse")
 
 @_attrs_define
 class ValidateNameResponse:
-    """Response body for the validate-name endpoint.
+    """Response body for the validate_name endpoint.
 
     Attributes:
         valid (bool):

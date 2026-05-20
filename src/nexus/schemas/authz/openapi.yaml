@@ -20,7 +20,7 @@ tags:
     description: Authorization debug and query endpoints
 
 paths:
-  /authz/can-i:
+  /authz/can_i:
     post:
       summary: Check if the current user can perform an action
       description: Evaluates the current user's effective policies against OPA to determine if a specific action is allowed on a resource.
@@ -60,7 +60,7 @@ paths:
 
       security:
         - bearerAuth: []
-  /authz/who-can:
+  /authz/who_can:
     post:
       summary: List users who can perform an action
       description: Iterates all active users, resolves their policies, and checks each against OPA. This is a debugging endpoint.
@@ -100,7 +100,7 @@ paths:
 
       security:
         - bearerAuth: []
-  /authz/what-can-i:
+  /authz/what_can_i:
     post:
       summary: List all permissions for the current user
       description: Resolves the current user's effective policies and returns them as a flat list of permission entries. No OPA call needed.
@@ -135,7 +135,7 @@ paths:
       security:
         - bearerAuth: []
 
-  /authz/resource-actions:
+  /authz/resource_actions:
     get:
       summary: List available resource types and actions
       description: Returns the catalog of all resource types and the actions that can be performed on each.
@@ -167,7 +167,7 @@ paths:
         "500":
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
-  /authz/validate-name:
+  /authz/validate_name:
     get:
       summary: Validate Name
       description: |
@@ -443,7 +443,7 @@ components:
     ValidateNameResponse:
       type: object
       title: ValidateNameResponse
-      description: Response body for the validate-name endpoint.
+      description: Response body for the validate_name endpoint.
       required:
         - valid
         - name

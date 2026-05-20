@@ -66,8 +66,8 @@ Commands follow a `<resource> <action>` pattern:
 ao <resource-group> <command> [ARGUMENTS] [OPTIONS]
 ```
 
-- **Resource groups** map to API tags: `users`, `groups`, `projects`, `workflows`, `roles`, `policies`, `role-assignments`, `credentials`, etc.
-- **Commands** map to API operations: `list`, `create`, `get`, `update`, `delete`, plus resource-specific actions like `add-member`, `list-role-assignments`, etc.
+- **Resource groups** map to API tags: `users`, `groups`, `projects`, `workflows`, `roles`, `policies`, `role_assignments`, `credentials`, etc.
+- **Commands** map to API operations: `list`, `create`, `get`, `update`, `delete`, plus resource-specific actions like `add_member`, `list_role_assignments`, etc.
 - **Arguments** are positional (path parameters like IDs).
 - **Options** are named flags (`--name`, `--email`, etc.).
 
@@ -88,18 +88,18 @@ ao users delete <user-id>
 # Groups
 ao groups create --name backend-eng --description "Backend team"
 ao groups list
-ao groups add-member <group-id> --user-id <user-id>
-ao groups list-members <group-id>
+ao groups add_member <group-id> --user-id <user-id>
+ao groups list_members <group-id>
 
 # Projects
 ao projects create --name staging --description "Staging environment"
 ao projects list
 
 # Role assignments
-ao role-assignments create --principal-type user \
+ao role_assignments create --principal-type user \
   --principal-id <user-id> --role-name admin
-ao users create-role-assignment <user-id> --role-name viewer
-ao users create-role-assignment <user-id> --role-name project-admin \
+ao users create-role_assignment <user-id> --role-name viewer
+ao users create-role_assignment <user-id> --role-name project-admin \
   --project-id <project-id>
 
 # Workflows

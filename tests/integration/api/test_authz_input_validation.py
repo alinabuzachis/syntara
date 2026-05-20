@@ -25,7 +25,7 @@ class TestMissingRequiredFields:
     ) -> None:
         """CHAOS-002a: can-i without action field returns 422."""
         resp = await auth_client.post(
-            "/api/v1/authz/can-i",
+            "/api/v1/authz/can_i",
             json={"resource_type": "workflow"},
         )
         assert resp.status_code == 422
@@ -38,7 +38,7 @@ class TestMissingRequiredFields:
     ) -> None:
         """CHAOS-002b: can-i without resource_type field returns 422."""
         resp = await auth_client.post(
-            "/api/v1/authz/can-i",
+            "/api/v1/authz/can_i",
             json={"action": "read"},
         )
         assert resp.status_code == 422
@@ -51,7 +51,7 @@ class TestMissingRequiredFields:
     ) -> None:
         """CHAOS-002c: can-i with empty body returns 422."""
         resp = await auth_client.post(
-            "/api/v1/authz/can-i",
+            "/api/v1/authz/can_i",
             json={},
         )
         assert resp.status_code == 422
@@ -63,13 +63,13 @@ class TestMissingRequiredFields:
     ) -> None:
         """CHAOS-002d: who-can without required fields returns 422."""
         resp = await auth_client_as_admin.post(
-            "/api/v1/authz/who-can",
+            "/api/v1/authz/who_can",
             json={},
         )
         assert resp.status_code == 422
 
         resp = await auth_client_as_admin.post(
-            "/api/v1/authz/who-can",
+            "/api/v1/authz/who_can",
             json={"action": "read"},
         )
         assert resp.status_code == 422
@@ -91,7 +91,7 @@ class TestLongActionStrings:
     ) -> None:
         """CHAOS-005a: Long action string is handled (denied, not crashed)."""
         resp = await auth_client.post(
-            "/api/v1/authz/can-i",
+            "/api/v1/authz/can_i",
             json={"action": "a" * 10000, "resource_type": "workflow"},
         )
         assert resp.status_code == 200
@@ -105,7 +105,7 @@ class TestLongActionStrings:
     ) -> None:
         """CHAOS-005b: Long resource_type is handled (denied, not crashed)."""
         resp = await auth_client.post(
-            "/api/v1/authz/can-i",
+            "/api/v1/authz/can_i",
             json={"action": "read", "resource_type": "x" * 10000},
         )
         assert resp.status_code == 200
@@ -128,7 +128,7 @@ class TestWrongTypes:
     ) -> None:
         """CHAOS-006a: Dict where string expected returns 422."""
         resp = await auth_client.post(
-            "/api/v1/authz/can-i",
+            "/api/v1/authz/can_i",
             json={"action": {"nested": "value"}, "resource_type": "workflow"},
         )
         assert resp.status_code == 422
@@ -141,7 +141,7 @@ class TestWrongTypes:
     ) -> None:
         """CHAOS-006b: List where string expected returns 422."""
         resp = await auth_client.post(
-            "/api/v1/authz/can-i",
+            "/api/v1/authz/can_i",
             json={"action": ["read", "write"], "resource_type": "workflow"},
         )
         assert resp.status_code == 422
@@ -154,7 +154,7 @@ class TestWrongTypes:
     ) -> None:
         """CHAOS-006c: Number where string expected returns 422."""
         resp = await auth_client.post(
-            "/api/v1/authz/can-i",
+            "/api/v1/authz/can_i",
             json={"action": 42, "resource_type": "workflow"},
         )
         assert resp.status_code == 422
@@ -167,7 +167,7 @@ class TestWrongTypes:
     ) -> None:
         """CHAOS-008: resource_labels as string returns 422."""
         resp = await auth_client.post(
-            "/api/v1/authz/can-i",
+            "/api/v1/authz/can_i",
             json={
                 "action": "read",
                 "resource_type": "workflow",
@@ -184,7 +184,7 @@ class TestWrongTypes:
     ) -> None:
         """CHAOS-008b: Nested values in resource_labels returns 422."""
         resp = await auth_client.post(
-            "/api/v1/authz/can-i",
+            "/api/v1/authz/can_i",
             json={
                 "action": "read",
                 "resource_type": "workflow",
@@ -210,7 +210,7 @@ class TestExtraFieldsIgnored:
     ) -> None:
         """CHAOS-045a: Extra unknown fields in can-i body are ignored."""
         resp = await auth_client.post(
-            "/api/v1/authz/can-i",
+            "/api/v1/authz/can_i",
             json={
                 "action": "read",
                 "resource_type": "workflow",
@@ -230,7 +230,7 @@ class TestExtraFieldsIgnored:
     ) -> None:
         """CHAOS-045b: Extra unknown fields in who-can body are ignored."""
         resp = await auth_client_as_admin.post(
-            "/api/v1/authz/who-can",
+            "/api/v1/authz/who_can",
             json={
                 "action": "read",
                 "resource_type": "workflow",

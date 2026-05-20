@@ -20,7 +20,7 @@ Authorization is **deny-by-default** — requests are denied unless an explicit 
 
 ### Resource Types and Actions
 
-Every authorization decision is about whether a user can perform an **action** on a **resource type**. The canonical catalog is built dynamically at startup by `build_resource_actions()` in `src/nexus/authz/resource_actions.py`, which introspects all registered route dependencies (`PermissionChecker`, `ProjectScopeFilter`) and merges them with `BUILTIN_POLICIES`. The `GET /authz/resource-actions` endpoint exposes the live catalog to API consumers.
+Every authorization decision is about whether a user can perform an **action** on a **resource type**. The canonical catalog is built dynamically at startup by `build_resource_actions()` in `src/nexus/authz/resource_actions.py`, which introspects all registered route dependencies (`PermissionChecker`, `ProjectScopeFilter`) and merges them with `BUILTIN_POLICIES`. The `GET /authz/resource_actions` endpoint exposes the live catalog to API consumers.
 
 #### Adding a New Resource Type or Action
 
@@ -321,22 +321,22 @@ The `/authz` router provides introspection endpoints:
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/authz/can-i` | POST | Check if current user can perform an action |
-| `/authz/who-can` | POST | List users who can perform an action (requires `authz:query`) |
-| `/authz/what-can-i` | POST | List all permissions for the current user |
-| `/authz/resource-actions` | GET | List all available resource types and their valid actions |
+| `/authz/can_i` | POST | Check if current user can perform an action |
+| `/authz/who_can` | POST | List users who can perform an action (requires `authz:query`) |
+| `/authz/what_can_i` | POST | List all permissions for the current user |
+| `/authz/resource_actions` | GET | List all available resource types and their valid actions |
 
-`GET /authz/resource-actions` returns the full catalog of resource types and actions as a map. It requires authentication but no specific permission, and involves no database query — the data is static.
+`GET /authz/resource_actions` returns the full catalog of resource types and actions as a map. It requires authentication but no specific permission, and involves no database query — the data is static.
 
 ## Unified Role Assignment Endpoints
 
-The `/role-assignments` endpoints provide a unified view of both user and group role assignments.
+The `/role_assignments` endpoints provide a unified view of both user and group role assignments.
 
 ```
-POST   /role-assignments           — create (global or project-scoped)
-GET    /role-assignments           — list with project-aware visibility
-GET    /role-assignments/{id}      — detail with project-aware visibility
-DELETE /role-assignments/{id}      — revoke
+POST   /role_assignments           — create (global or project-scoped)
+GET    /role_assignments           — list with project-aware visibility
+GET    /role_assignments/{id}      — detail with project-aware visibility
+DELETE /role_assignments/{id}      — revoke
 ```
 
 **Query parameters (list):**
@@ -362,9 +362,9 @@ Projects expose convenience endpoints for managing role assignments, custom role
 
 | Endpoint | Permission | Description |
 |----------|------------|-------------|
-| `POST /{project_id}/role-assignments` | `role-assignment:assign` | Assign a role to a user or group within the project |
-| `GET /{project_id}/role-assignments` | *(visibility-based)* | List role assignments for the project |
-| `DELETE /{project_id}/role-assignments/{id}` | `role-assignment:revoke` | Remove a role assignment |
+| `POST /{project_id}/role_assignments` | `role-assignment:assign` | Assign a role to a user or group within the project |
+| `GET /{project_id}/role_assignments` | *(visibility-based)* | List role assignments for the project |
+| `DELETE /{project_id}/role_assignments/{id}` | `role-assignment:revoke` | Remove a role assignment |
 
 For visibility-based endpoints: admin/auditor/project-admin see all assignments; other users see only their own.
 

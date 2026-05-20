@@ -35,7 +35,7 @@ async def test_create_and_auto_admin(
 
     for action in ("create", "read", "update", "delete"):
         resp = await auth_client.post(
-            "/api/v1/authz/can-i",
+            "/api/v1/authz/can_i",
             json={"action": action, "resource_type": "workflow", "resource_project": project_name},
         )
         assert resp.status_code == 200
@@ -66,7 +66,7 @@ async def test_delegate_admin(
     auth_as(bob)
     for action in ("create", "delete"):
         resp = await auth_client.post(
-            "/api/v1/authz/can-i",
+            "/api/v1/authz/can_i",
             json={"action": action, "resource_type": "workflow", "resource_project": project_name},
         )
         assert resp.status_code == 200
@@ -108,14 +108,14 @@ async def test_assign_user_and_auditor(
     # Bob can create and read
     auth_as(bob)
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "create", "resource_type": "workflow", "resource_project": project_name},
     )
     assert resp.status_code == 200
     assert resp.json()["allowed"] is True
 
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "read", "resource_type": "workflow", "resource_project": project_name},
     )
     assert resp.status_code == 200
@@ -124,7 +124,7 @@ async def test_assign_user_and_auditor(
     # Carol can read
     auth_as(carol)
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "read", "resource_type": "workflow", "resource_project": project_name},
     )
     assert resp.status_code == 200
@@ -132,14 +132,14 @@ async def test_assign_user_and_auditor(
 
     # Carol denied create and delete
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "create", "resource_type": "workflow", "resource_project": project_name},
     )
     assert resp.status_code == 200
     assert resp.json()["allowed"] is False
 
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "delete", "resource_type": "workflow", "resource_project": project_name},
     )
     assert resp.status_code == 200
@@ -170,7 +170,7 @@ async def test_revoke_role(
     # Bob has access
     auth_as(bob)
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "create", "resource_type": "workflow", "resource_project": project_name},
     )
     assert resp.status_code == 200
@@ -182,7 +182,7 @@ async def test_revoke_role(
 
     # Bob denied after revoke
     resp = await auth_client.post(
-        "/api/v1/authz/can-i",
+        "/api/v1/authz/can_i",
         json={"action": "create", "resource_type": "workflow", "resource_project": project_name},
     )
     assert resp.status_code == 200
