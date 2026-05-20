@@ -15,6 +15,12 @@ vi.mock('../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
   approvalsClient: {
     useQuery: vi.fn(),
+    useMutation: vi.fn(() => ({
+      mutate: vi.fn(),
+      isPending: false,
+      isError: false,
+      error: null,
+    })),
   },
 }))
 
@@ -34,6 +40,14 @@ const mockUseProjectSelector = vi.fn(() => ({
 }))
 vi.mock('../../hooks/useProjectSelector', () => ({
   useProjectSelector: () => mockUseProjectSelector(),
+}))
+
+// Mock useCanApprovalAction
+vi.mock('./useCanApprovalAction', () => ({
+  useCanApprovalAction: vi.fn(() => ({
+    canPerformAction: true,
+    isChecking: false,
+  })),
 }))
 
 // Mock useFilterState - will be configured per-test

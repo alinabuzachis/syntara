@@ -45,15 +45,41 @@ function ApprovalRow({
   rowIndex,
   isExpanded,
   onToggleRow,
+  showSelect = false,
+  isSelected = false,
+  onSelectRow,
+  canDecideOnThisApproval = false,
+  isLoadingPermissions = false,
 }: Readonly<{
   approval: ApprovalWithDetails
   rowIndex: number
   isExpanded: boolean
   onToggleRow: (id: string) => void
+  showSelect?: boolean
+  isSelected?: boolean
+  onSelectRow?: (approval: ApprovalWithDetails, checked: boolean) => void
+  canDecideOnThisApproval?: boolean
+  isLoadingPermissions?: boolean
 }>) {
+  const isPending = approval.status === 'pending'
+
   return (
     <Fragment key={approval.id}>
       <Tr isContentExpanded={isExpanded}>
+        {showSelect && (
+          <Td
+            select={
+              isPending
+                ? {
+                    rowIndex,
+                    onSelect: (_event, isSelecting) => onSelectRow?.(approval, isSelecting),
+                    isSelected,
+                    isDisabled: !canDecideOnThisApproval || isLoadingPermissions,
+                  }
+                : undefined
+            }
+          />
+        )}
         <Td
           expand={{
             rowIndex,
@@ -84,7 +110,7 @@ function ApprovalRow({
         </Td>
       </Tr>
       <Tr isExpanded={isExpanded}>
-        <Td colSpan={6}>
+        <Td colSpan={showSelect ? 7 : 6}>
           <ExpandableRowContent>
             <DescriptionList>
               <DescriptionListGroup>
@@ -112,6 +138,11 @@ type GroupedApprovalsTableBodyProps = {
   onToggleProject: (projectId: string) => void
   expandedRows: Set<string>
   onToggleRow: (id: string) => void
+  showSelect?: boolean
+  selectedApprovalIds?: Set<string>
+  onSelectRow?: (approval: ApprovalWithDetails, checked: boolean) => void
+  approvalPermissions: Map<string, boolean>
+  isLoadingPermissions: boolean
 }
 
 export function GroupedApprovalsTableBody({
@@ -120,6 +151,11 @@ export function GroupedApprovalsTableBody({
   onToggleProject,
   expandedRows,
   onToggleRow,
+  showSelect = false,
+  selectedApprovalIds,
+  onSelectRow,
+  approvalPermissions,
+  isLoadingPermissions,
 }: Readonly<GroupedApprovalsTableBodyProps>) {
   let rowIndex = 0
 
@@ -128,7 +164,7 @@ export function GroupedApprovalsTableBody({
       {[...groupedApprovals.entries()].map(([projectId, { project, approvals }]) => (
         <Tbody key={projectId}>
           <Tr className={groupedTableStyles.groupHeader} onClick={() => onToggleProject(projectId)}>
-            <Td colSpan={6}>
+            <Td colSpan={showSelect ? 7 : 6}>
               <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
                 <FlexItem>{collapsedProjects.has(projectId) ? <RhUiCaretRightIcon /> : <RhUiCaretDownIcon />}</FlexItem>
                 <FlexItem>
@@ -152,6 +188,11 @@ export function GroupedApprovalsTableBody({
                   rowIndex={currentIndex}
                   isExpanded={expandedRows.has(approval.id)}
                   onToggleRow={onToggleRow}
+                  showSelect={showSelect}
+                  isSelected={selectedApprovalIds?.has(approval.id)}
+                  onSelectRow={onSelectRow}
+                  canDecideOnThisApproval={approvalPermissions.get(approval.id) ?? false}
+                  isLoadingPermissions={isLoadingPermissions}
                 />
               )
             })}
@@ -165,12 +206,22 @@ type FlatApprovalsTableBodyProps = {
   approvals: ApprovalWithDetails[]
   expandedRows: Set<string>
   onToggleRow: (id: string) => void
+  showSelect?: boolean
+  selectedApprovalIds?: Set<string>
+  onSelectRow?: (approval: ApprovalWithDetails, checked: boolean) => void
+  approvalPermissions: Map<string, boolean>
+  isLoadingPermissions: boolean
 }
 
 export function FlatApprovalsTableBody({
   approvals,
   expandedRows,
   onToggleRow,
+  showSelect = false,
+  selectedApprovalIds,
+  onSelectRow,
+  approvalPermissions,
+  isLoadingPermissions,
 }: Readonly<FlatApprovalsTableBodyProps>) {
   return (
     <Tbody>
@@ -181,6 +232,11 @@ export function FlatApprovalsTableBody({
           rowIndex={index}
           isExpanded={expandedRows.has(approval.id)}
           onToggleRow={onToggleRow}
+          showSelect={showSelect}
+          isSelected={selectedApprovalIds?.has(approval.id)}
+          onSelectRow={onSelectRow}
+          canDecideOnThisApproval={approvalPermissions.get(approval.id) ?? false}
+          isLoadingPermissions={isLoadingPermissions}
         />
       ))}
     </Tbody>

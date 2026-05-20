@@ -1,8 +1,8 @@
 import type { Approval } from '@ansible/nexus-contracts'
 import { StackItem } from '@patternfly/react-core'
+import type { ThProps } from '@patternfly/react-table'
 import { useMemo, useReducer, useState } from 'react'
 
-import { approvalsClient } from '../../client'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters/FilterBar'
@@ -11,16 +11,23 @@ import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxPanel } from '../../components/layout/NxPanel'
 import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
 import { useQueryState } from '../../components/states/useQueryState'
+import type { PaginationFooterProps } from '../../components/table/PaginationFooter'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { useTableSort } from '../../hooks/useTableSort'
 import { detachPromise } from '../../utils/detachPromise'
-import { accessClient } from '../access/accessClient'
 
 import { getApprovalNameFilterDefinition, getApprovalStatusFilterDefinition } from './approvalFilters'
+import { ApprovalsBulkActions } from './ApprovalsBulkActions'
 import { FlatApprovalsTableBody, GroupedApprovalsTableBody } from './ApprovalsTableBody'
 import { ApprovalsTableHead } from './ApprovalsTableHead'
+import { BulkApproveDialog } from './BulkApproveDialog'
+import { BulkRejectDialog } from './BulkRejectDialog'
+import { useApprovalDecideProjects } from './useApprovalDecideProjects'
+import { useApprovalsData } from './useApprovalsData'
+import { useApprovalSelection } from './useApprovalSelection'
+import { useBulkApprovalActions } from './useBulkApprovalActions'
 
 export type ApprovalWithDetails = Approval & {
   approvalName?: string
@@ -31,33 +38,6 @@ export type ApprovalWithDetails = Approval & {
 
 // Column indices for sorting (excluding the expand column)
 const SORT_COLUMNS = ['approvalName', 'workflowName', 'requested_at', 'decided_at', 'status'] as const
-type SortColumn = (typeof SORT_COLUMNS)[number]
-
-const getApprovalDetails = (approval: ApprovalWithDetails) => {
-  const wfCtx = approval.workflow_context as { workflow_name?: string; workflow_version_id?: string } | undefined
-  return {
-    approvalName: approval.name || approval.id,
-    workflowName: wfCtx?.workflow_name || 'Unknown',
-    workflowId: wfCtx?.workflow_version_id,
-  }
-}
-
-const getSortValue = (approval: ApprovalWithDetails, sortColumn: SortColumn) => {
-  switch (sortColumn) {
-    case 'approvalName':
-      return approval.approvalName || approval.id
-    case 'workflowName':
-      return approval.workflowName ?? ''
-    case 'requested_at':
-      return approval.created_at ? new Date(approval.created_at).getTime() : 0
-    case 'decided_at': {
-      const decidedAt = approval.decided_at
-      return decidedAt ? new Date(decidedAt).getTime() : undefined
-    }
-    case 'status':
-      return approval.status ?? ''
-  }
-}
 
 type ApprovalsAction = { type: 'SET_EXPANDED_ROWS'; payload: Set<string> } | { type: 'TOGGLE_ROW'; payload: string }
 
@@ -79,11 +59,261 @@ function approvalsReducer(state: { expandedRows: Set<string> }, action: Approval
   }
 }
 
+type BulkActionDialogsProps = {
+  bulkApproveDialogOpen: boolean
+  setBulkApproveDialogOpen: (open: boolean) => void
+  bulkRejectDialogOpen: boolean
+  setBulkRejectDialogOpen: (open: boolean) => void
+  handleBulkApprove: (note: string | null) => void
+  handleBulkReject: (note: string) => void
+  selectedCount: number
+  isBulkActionPending: boolean
+}
+
+function BulkActionDialogs({
+  bulkApproveDialogOpen,
+  setBulkApproveDialogOpen,
+  bulkRejectDialogOpen,
+  setBulkRejectDialogOpen,
+  handleBulkApprove,
+  handleBulkReject,
+  selectedCount,
+  isBulkActionPending,
+}: Readonly<BulkActionDialogsProps>) {
+  return (
+    <>
+      <BulkApproveDialog
+        isOpen={bulkApproveDialogOpen}
+        onClose={() => setBulkApproveDialogOpen(false)}
+        onConfirm={handleBulkApprove}
+        approvalCount={selectedCount}
+        isLoading={isBulkActionPending}
+      />
+
+      <BulkRejectDialog
+        isOpen={bulkRejectDialogOpen}
+        onClose={() => setBulkRejectDialogOpen(false)}
+        onConfirm={handleBulkReject}
+        approvalCount={selectedCount}
+        isLoading={isBulkActionPending}
+      />
+    </>
+  )
+}
+
+type ApprovalsContentProps = {
+  sortedApprovals: ApprovalWithDetails[]
+  hasActiveFilters: boolean
+  handleClearAllFilters: () => void
+  expandedRows: Set<string>
+  onToggleRow: (approvalId: string) => void
+  getSortParams: (columnIndex: number) => ThProps['sort']
+  allRowsExpanded: boolean
+  collapseAllAriaLabel: string
+  onCollapseAll: (event: unknown, rowIndex: number, isOpen: boolean) => void
+  allPendingSelected: boolean
+  onSelectAll: (checked: boolean) => void
+  hasPendingApprovals: boolean
+  isAllProjects: boolean
+  groupedApprovals: ReturnType<typeof useApprovalsData>['groupedApprovals']
+  collapsedProjects: Set<string>
+  onToggleProject: (id: string) => void
+  selectedApprovalIds: Set<string>
+  onSelectRow: (approval: ApprovalWithDetails, checked: boolean) => void
+  footerProps: PaginationFooterProps
+  approvalPermissions: Map<string, boolean>
+  isLoadingPermissions: boolean
+}
+
+function ApprovalsContent({
+  sortedApprovals,
+  hasActiveFilters,
+  handleClearAllFilters,
+  expandedRows,
+  onToggleRow,
+  getSortParams,
+  allRowsExpanded,
+  collapseAllAriaLabel,
+  onCollapseAll,
+  allPendingSelected,
+  onSelectAll,
+  hasPendingApprovals,
+  isAllProjects,
+  groupedApprovals,
+  collapsedProjects,
+  onToggleProject,
+  selectedApprovalIds,
+  onSelectRow,
+  footerProps,
+  approvalPermissions,
+  isLoadingPermissions,
+}: Readonly<ApprovalsContentProps>) {
+  if (sortedApprovals.length === 0) {
+    return (
+      <NxPageBody isCentered>
+        {hasActiveFilters ? (
+          <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
+        ) : (
+          <EmptyStateNoData title="No approvals found" description="No approvals are currently pending or available." />
+        )}
+      </NxPageBody>
+    )
+  }
+
+  return (
+    <ApprovalsTableContent
+      sortedApprovals={sortedApprovals}
+      expandedRows={expandedRows}
+      onToggleRow={onToggleRow}
+      getSortParams={getSortParams}
+      allRowsExpanded={allRowsExpanded}
+      collapseAllAriaLabel={collapseAllAriaLabel}
+      onCollapseAll={onCollapseAll}
+      allPendingSelected={allPendingSelected}
+      onSelectAll={onSelectAll}
+      hasPendingApprovals={hasPendingApprovals}
+      isAllProjects={isAllProjects}
+      groupedApprovals={groupedApprovals}
+      collapsedProjects={collapsedProjects}
+      onToggleProject={onToggleProject}
+      selectedApprovalIds={selectedApprovalIds}
+      onSelectRow={onSelectRow}
+      footerProps={footerProps}
+      approvalPermissions={approvalPermissions}
+      isLoadingPermissions={isLoadingPermissions}
+    />
+  )
+}
+
+type ApprovalsTableContentProps = {
+  sortedApprovals: ApprovalWithDetails[]
+  expandedRows: Set<string>
+  onToggleRow: (approvalId: string) => void
+  getSortParams: (columnIndex: number) => ThProps['sort']
+  allRowsExpanded: boolean
+  collapseAllAriaLabel: string
+  onCollapseAll: (event: unknown, rowIndex: number, isOpen: boolean) => void
+  allPendingSelected: boolean
+  onSelectAll: (checked: boolean) => void
+  hasPendingApprovals: boolean
+  isAllProjects: boolean
+  groupedApprovals: ReturnType<typeof useApprovalsData>['groupedApprovals']
+  collapsedProjects: Set<string>
+  onToggleProject: (id: string) => void
+  selectedApprovalIds: Set<string>
+  onSelectRow: (approval: ApprovalWithDetails, checked: boolean) => void
+  footerProps: PaginationFooterProps
+  approvalPermissions: Map<string, boolean>
+  isLoadingPermissions: boolean
+}
+
+function ApprovalsTableContent({
+  sortedApprovals,
+  expandedRows,
+  onToggleRow,
+  getSortParams,
+  allRowsExpanded,
+  collapseAllAriaLabel,
+  onCollapseAll,
+  allPendingSelected,
+  onSelectAll,
+  hasPendingApprovals,
+  isAllProjects,
+  groupedApprovals,
+  collapsedProjects,
+  onToggleProject,
+  selectedApprovalIds,
+  onSelectRow,
+  footerProps,
+  approvalPermissions,
+  isLoadingPermissions,
+}: Readonly<ApprovalsTableContentProps>) {
+  return (
+    <ScrollableTableContainer aria-label="Approvals table" isExpandable footer={footerProps}>
+      <ApprovalsTableHead
+        getSortParams={getSortParams}
+        allRowsExpanded={allRowsExpanded}
+        collapseAllAriaLabel={collapseAllAriaLabel}
+        onCollapseAll={onCollapseAll}
+        showSelect={true}
+        allPendingSelected={allPendingSelected}
+        onSelectAll={onSelectAll}
+        hasPendingApprovals={hasPendingApprovals}
+      />
+      {isAllProjects && groupedApprovals ? (
+        <GroupedApprovalsTableBody
+          groupedApprovals={groupedApprovals}
+          collapsedProjects={collapsedProjects}
+          onToggleProject={onToggleProject}
+          expandedRows={expandedRows}
+          onToggleRow={onToggleRow}
+          showSelect={true}
+          selectedApprovalIds={selectedApprovalIds}
+          onSelectRow={onSelectRow}
+          approvalPermissions={approvalPermissions}
+          isLoadingPermissions={isLoadingPermissions}
+        />
+      ) : (
+        <FlatApprovalsTableBody
+          approvals={sortedApprovals}
+          expandedRows={expandedRows}
+          onToggleRow={onToggleRow}
+          showSelect={true}
+          selectedApprovalIds={selectedApprovalIds}
+          onSelectRow={onSelectRow}
+          approvalPermissions={approvalPermissions}
+          isLoadingPermissions={isLoadingPermissions}
+        />
+      )}
+    </ScrollableTableContainer>
+  )
+}
+
+/**
+ * Determines if the user can perform approval:decide on a specific approval.
+ *
+ * @param approval - The approval to check
+ * @param canDecideAllProjects - True if user has system-level approval:decide permission
+ * @param canDecideProjectNames - Set of project names where user has project-scoped approval:decide
+ * @param projects - List of all projects with id and name
+ * @returns True if user can decide on this approval, false otherwise
+ */
+function canDecideOnApproval(
+  approval: ApprovalWithDetails,
+  canDecideAllProjects: boolean,
+  canDecideProjectNames: Set<string>,
+  projects: { id?: string; name: string }[]
+): boolean {
+  // Always can decide if has system-level permission
+  if (canDecideAllProjects) return true
+
+  // Extract project_id from approval (field exists in Approval type from API schema)
+  // Cast to access project_id which comes from ApprovalRequestRead in the API
+  const approvalWithProject = approval as unknown as { project_id?: string | null }
+  const projectId = approvalWithProject.project_id
+
+  if (!projectId) {
+    // Approval without project - conservative: assume can't decide
+    return false
+  }
+
+  // Find project name from project ID
+  const project = projects.find((p) => p.id === projectId)
+  if (!project) {
+    // Project not found - might be deleted or user lacks project:read
+    return false
+  }
+
+  // Check if user has decide permission for this project
+  return canDecideProjectNames.has(project.name)
+}
+
 export default function Approvals() {
   const { selectedProjectId, stableProjectId, isAllProjects, projects, ProjectSelector } = useProjectSelector()
   const [{ expandedRows }, dispatch] = useReducer(approvalsReducer, {
     expandedRows: new Set<string>(),
   })
+
   const projectExtraParams = useMemo(
     () => (selectedProjectId ? { project_id: selectedProjectId } : undefined),
     [selectedProjectId]
@@ -113,66 +343,17 @@ export default function Approvals() {
   })
   const sortColumn = SORT_COLUMNS[activeSortIndex]
 
-  // Query approvals — use project-scoped endpoint when a project is selected.
+  // Query approvals data
   const projectSelectorReady = isAllProjects || !!stableProjectId
-
-  const allApprovalsQuery = approvalsClient.useQuery(
-    'get',
-    '/approvals',
-    {
-      params: { query: queryParams },
-    },
-    {
-      enabled: projectSelectorReady && isAllProjects,
-    }
-  )
-
-  const projectApprovalsQuery = accessClient.useQuery(
-    'get',
-    '/projects/{project_id}/approvals',
-    {
-      params: {
-        path: { project_id: stableProjectId ?? '' },
-        query: queryParams,
-      },
-    },
-    {
-      enabled: !!stableProjectId && !isAllProjects,
-    }
-  )
-
-  const approvalsQuery = isAllProjects ? allApprovalsQuery : projectApprovalsQuery
-  const approvalsData = approvalsQuery.data
-
-  const enrichedApprovals = useMemo(() => {
-    const approvals = (approvalsData?.resources ?? []) as ApprovalWithDetails[]
-    return approvals.map((approval) => {
-      const { approvalName, workflowName, workflowId } = getApprovalDetails(approval)
-      return {
-        ...approval,
-        approvalName,
-        workflowName,
-        workflowId,
-      }
-    })
-  }, [approvalsData?.resources])
-
-  // Group approvals by project when viewing all projects
-  const groupedApprovals = useMemo(() => {
-    if (!isAllProjects) return null
-    const groups = new Map<string, { project: (typeof projects)[number] | null; approvals: ApprovalWithDetails[] }>()
-    for (const approval of enrichedApprovals) {
-      const projectId = (approval as unknown as { project_id?: string }).project_id ?? 'unknown'
-      if (!groups.has(projectId)) {
-        groups.set(projectId, {
-          project: projects.find((p) => p.id === projectId) ?? null,
-          approvals: [],
-        })
-      }
-      groups.get(projectId)!.approvals.push(approval)
-    }
-    return groups
-  }, [enrichedApprovals, projects, isAllProjects])
+  const { approvalsQuery, enrichedApprovals, groupedApprovals, sortedApprovals } = useApprovalsData({
+    projectSelectorReady,
+    isAllProjects,
+    stableProjectId,
+    queryParams,
+    projects,
+    sortColumn: sortColumn,
+    sortDirection,
+  })
 
   const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set())
 
@@ -186,27 +367,51 @@ export default function Approvals() {
 
   useCursorReset(enrichedApprovals.length, hasActiveFilters, cursor, approvalsQuery.isFetching, resetPagination)
 
-  // Client-side sorting of current page only
-  const sortedApprovals = useMemo(() => {
-    const sorted = [...enrichedApprovals]
-    sorted.sort((a, b) => {
-      const aValue = getSortValue(a, sortColumn)
-      const bValue = getSortValue(b, sortColumn)
+  // Get per-project approval:decide permissions
+  const {
+    canDecideAllProjects,
+    canDecideProjectNames,
+    isLoading: isLoadingDecideProjects,
+  } = useApprovalDecideProjects()
 
-      if (aValue === undefined && bValue === undefined) return 0
-      if (aValue === undefined) return 1
-      if (bValue === undefined) return -1
+  // Compute per-approval permission flags
+  const approvalPermissions = useMemo(() => {
+    const map = new Map<string, boolean>()
+    for (const approval of sortedApprovals) {
+      map.set(approval.id, canDecideOnApproval(approval, canDecideAllProjects, canDecideProjectNames, projects))
+    }
+    return map
+  }, [sortedApprovals, canDecideAllProjects, canDecideProjectNames, projects])
 
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        const comparison = aValue.localeCompare(bValue)
-        return sortDirection === 'asc' ? comparison : -comparison
-      }
+  // Selection state and handlers
+  const {
+    selectedApprovalIds,
+    clearSelectedApprovalIds,
+    handleSelectAll,
+    handleSelectRow,
+    pendingApprovals,
+    allPendingSelected,
+  } = useApprovalSelection(enrichedApprovals, sortedApprovals, {
+    filters,
+    activeSortIndex,
+    sortDirection,
+    approvalPermissions,
+    isLoadingPermissions: isLoadingDecideProjects,
+  })
 
-      const comparison = (aValue as number) - (bValue as number)
-      return sortDirection === 'asc' ? comparison : -comparison
-    })
-    return sorted
-  }, [enrichedApprovals, sortColumn, sortDirection])
+  // Bulk approval actions
+  const {
+    bulkApproveDialogOpen,
+    setBulkApproveDialogOpen,
+    bulkRejectDialogOpen,
+    setBulkRejectDialogOpen,
+    handleBulkApprove,
+    handleBulkReject,
+    isPending: isBulkActionPending,
+  } = useBulkApprovalActions(selectedApprovalIds, () => {
+    clearSelectedApprovalIds()
+    detachPromise(approvalsQuery.refetch())
+  })
 
   const queryState = useQueryState(approvalsQuery, {
     title: 'Error loading approvals',
@@ -240,7 +445,18 @@ export default function Approvals() {
 
   return (
     <NxPage>
-      <NxPageHeader title="Approvals" projectSelector={ProjectSelector} />
+      <NxPageHeader
+        title="Approvals"
+        projectSelector={ProjectSelector}
+        toolbar={
+          <ApprovalsBulkActions
+            selectedCount={selectedApprovalIds.size}
+            onApprove={() => setBulkApproveDialogOpen(true)}
+            onReject={() => setBulkRejectDialogOpen(true)}
+            isDisabled={isBulkActionPending}
+          />
+        }
+      />
 
       <NxPageBody>
         <NxPanel isFullHeight>
@@ -254,49 +470,43 @@ export default function Approvals() {
               />
             </StackItem>
 
-            {sortedApprovals.length === 0 ? (
-              <NxPageBody isCentered>
-                {hasActiveFilters ? (
-                  <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
-                ) : (
-                  <EmptyStateNoData
-                    title="No approvals found"
-                    description="No approvals are currently pending or available."
-                  />
-                )}
-              </NxPageBody>
-            ) : (
-              <ScrollableTableContainer
-                aria-label="Approvals table"
-                isExpandable
-                footer={getFooterProps(approvalsQuery.data)}
-              >
-                <ApprovalsTableHead
-                  getSortParams={getSortParams}
-                  allRowsExpanded={allRowsExpanded}
-                  collapseAllAriaLabel={collapseAllAriaLabel}
-                  onCollapseAll={onCollapseAll}
-                />
-                {isAllProjects && groupedApprovals ? (
-                  <GroupedApprovalsTableBody
-                    groupedApprovals={groupedApprovals}
-                    collapsedProjects={collapsedProjects}
-                    onToggleProject={toggleProjectCollapsed}
-                    expandedRows={expandedRows}
-                    onToggleRow={toggleRow}
-                  />
-                ) : (
-                  <FlatApprovalsTableBody
-                    approvals={sortedApprovals}
-                    expandedRows={expandedRows}
-                    onToggleRow={toggleRow}
-                  />
-                )}
-              </ScrollableTableContainer>
-            )}
+            <ApprovalsContent
+              sortedApprovals={sortedApprovals}
+              hasActiveFilters={hasActiveFilters}
+              handleClearAllFilters={handleClearAllFilters}
+              expandedRows={expandedRows}
+              onToggleRow={toggleRow}
+              getSortParams={getSortParams}
+              allRowsExpanded={allRowsExpanded}
+              collapseAllAriaLabel={collapseAllAriaLabel}
+              onCollapseAll={onCollapseAll}
+              allPendingSelected={allPendingSelected}
+              onSelectAll={handleSelectAll}
+              hasPendingApprovals={pendingApprovals.length > 0}
+              isAllProjects={isAllProjects}
+              groupedApprovals={groupedApprovals}
+              collapsedProjects={collapsedProjects}
+              onToggleProject={toggleProjectCollapsed}
+              selectedApprovalIds={selectedApprovalIds}
+              onSelectRow={handleSelectRow}
+              footerProps={getFooterProps(approvalsQuery.data)}
+              approvalPermissions={approvalPermissions}
+              isLoadingPermissions={isLoadingDecideProjects}
+            />
           </NxPanelContentStack>
         </NxPanel>
       </NxPageBody>
+
+      <BulkActionDialogs
+        bulkApproveDialogOpen={bulkApproveDialogOpen}
+        setBulkApproveDialogOpen={setBulkApproveDialogOpen}
+        bulkRejectDialogOpen={bulkRejectDialogOpen}
+        setBulkRejectDialogOpen={setBulkRejectDialogOpen}
+        handleBulkApprove={handleBulkApprove}
+        handleBulkReject={handleBulkReject}
+        selectedCount={selectedApprovalIds.size}
+        isBulkActionPending={isBulkActionPending}
+      />
     </NxPage>
   )
 }

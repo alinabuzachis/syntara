@@ -6,13 +6,36 @@ export type ApprovalsTableHeadProps = {
   allRowsExpanded: boolean
   collapseAllAriaLabel: string
   onCollapseAll: (event: unknown, rowIndex: number, isOpen: boolean) => void
+  showSelect?: boolean
+  allPendingSelected?: boolean
+  onSelectAll?: (checked: boolean) => void
+  hasPendingApprovals?: boolean
 }
 
 export function ApprovalsTableHead(props: Readonly<ApprovalsTableHeadProps>) {
-  const { getSortParams, allRowsExpanded, collapseAllAriaLabel, onCollapseAll } = props
+  const {
+    getSortParams,
+    allRowsExpanded,
+    collapseAllAriaLabel,
+    onCollapseAll,
+    showSelect = false,
+    allPendingSelected = false,
+    onSelectAll,
+    hasPendingApprovals = false,
+  } = props
   return (
     <Thead>
       <Tr>
+        {showSelect && (
+          <Th
+            select={{
+              onSelect: (_event, isSelecting) => onSelectAll?.(isSelecting),
+              isSelected: allPendingSelected,
+              isHeaderSelectDisabled: !hasPendingApprovals,
+            }}
+            screenReaderText="Select all pending approvals"
+          />
+        )}
         <Th
           expand={{
             areAllExpanded: !allRowsExpanded,

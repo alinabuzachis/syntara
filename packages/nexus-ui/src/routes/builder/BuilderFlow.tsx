@@ -1,6 +1,6 @@
 // TODO: Refactor into smaller hooks to reduce file size (AAP-74113)
 // Suggested hooks: useWorkflowGraphInit, useExecutionStateEnrichment, useCanvasInteractions
- 
+
 import { Spinner } from '@patternfly/react-core'
 import {
   applyEdgeChanges,

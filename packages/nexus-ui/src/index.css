@@ -85,7 +85,6 @@ body {
   background-attachment: fixed;
 }
 
-
 /* Prevent horizontal scrollbar from PF portaled menus (Select/Dropdown) that
    extend past the viewport edge. The app requires ≥1200px viewport anyway. */
 html {

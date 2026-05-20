@@ -109,7 +109,7 @@ Check whether the changes follow:
 | Derived data without `useMemo` in custom hooks          | #21 — wrap computed maps/arrays in `useMemo`                                 |
 | New `use*.ts` hook without `use*.test.ts(x)`            | #22 — every new hook needs a dedicated test file                             |
 | `useEffect` + `setState` for derived/computed values    | #23 — compute during render or use `useMemo`                                 |
-| `useEffect` + `setValue` watching form fields            | #24 — move cascading resets to field's `onChange` handler                     |
+| `useEffect` + `setValue` watching form fields           | #24 — move cascading resets to field's `onChange` handler                    |
 
 **Also check these review-specific items:**
 

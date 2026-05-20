@@ -91,20 +91,14 @@ describe('useCreateIntegration', () => {
     const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
 
     mockCreateMutation.mockImplementation((...args: unknown[]) => {
-       
-       
       const callbacks = args[1] as { onSuccess: (...args: unknown[]) => void }
       callbacks.onSuccess({ id: 'provider-123' })
     })
     mockValidateMutation.mockImplementation((...args: unknown[]) => {
-       
-       
       const callbacks = args[1] as { onSuccess: (...args: unknown[]) => void }
       callbacks.onSuccess({ valid: true, error: null })
     })
     mockRefreshMutation.mockImplementation((...args: unknown[]) => {
-       
-       
       const callbacks = args[1] as { onSettled: () => void }
       callbacks.onSettled()
     })
@@ -126,7 +120,6 @@ describe('useCreateIntegration', () => {
     mockHandleError.mockReturnValue(mockErrorCallback)
 
     mockCreateMutation.mockImplementation((...args: unknown[]) => {
-       
       const callbacks = args[1] as { onSuccess: (...args: unknown[]) => void }
       callbacks.onSuccess({ id: null })
     })
@@ -151,7 +144,6 @@ describe('useCreateIntegration', () => {
     const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
 
     mockCreateMutation.mockImplementation((...args: unknown[]) => {
-       
       const callbacks = args[1] as { onSuccess: (...args: unknown[]) => void }
       callbacks.onSuccess({ id: 'provider-123' })
     })
@@ -182,12 +174,10 @@ describe('useCreateIntegration', () => {
     const validationError = new Error('Connection failed')
 
     mockCreateMutation.mockImplementation((...args: unknown[]) => {
-       
       const callbacks = args[1] as { onSuccess: (...args: unknown[]) => void }
       callbacks.onSuccess({ id: 'provider-123' })
     })
     mockValidateMutation.mockImplementation((...args: unknown[]) => {
-       
       const callbacks = args[1] as { onError: (...args: unknown[]) => void }
       callbacks.onError(validationError)
     })
@@ -212,12 +202,10 @@ describe('useCreateIntegration', () => {
     const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
 
     mockCreateMutation.mockImplementation((...args: unknown[]) => {
-       
       const callbacks = args[1] as { onSuccess: (...args: unknown[]) => void }
       callbacks.onSuccess({ id: 'provider-123' })
     })
     mockValidateMutation.mockImplementation((...args: unknown[]) => {
-       
       const callbacks = args[1] as { onSuccess: (...args: unknown[]) => void }
       callbacks.onSuccess({ valid: false, error: 'Invalid API key' })
     })
@@ -243,12 +231,10 @@ describe('useCreateIntegration', () => {
     const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
 
     mockCreateMutation.mockImplementation((...args: unknown[]) => {
-       
       const callbacks = args[1] as { onSuccess: (...args: unknown[]) => void }
       callbacks.onSuccess({ id: 'provider-123' })
     })
     mockValidateMutation.mockImplementation((...args: unknown[]) => {
-       
       const callbacks = args[1] as { onSuccess: (...args: unknown[]) => void }
       callbacks.onSuccess({ valid: false, error: null })
     })
@@ -273,12 +259,10 @@ describe('useCreateIntegration', () => {
     const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
 
     mockCreateMutation.mockImplementation((...args: unknown[]) => {
-       
       const callbacks = args[1] as { onSuccess: (...args: unknown[]) => void }
       callbacks.onSuccess({ id: 'provider-123' })
     })
     mockValidateMutation.mockImplementation((...args: unknown[]) => {
-       
       const callbacks = args[1] as { onSuccess: (...args: unknown[]) => void }
       callbacks.onSuccess({ valid: true, error: null })
     })
@@ -309,17 +293,14 @@ describe('useCreateIntegration', () => {
     const refreshError = new Error('Refresh timeout')
 
     mockCreateMutation.mockImplementation((...args: unknown[]) => {
-       
       const callbacks = args[1] as { onSuccess: (...args: unknown[]) => void }
       callbacks.onSuccess({ id: 'provider-123' })
     })
     mockValidateMutation.mockImplementation((...args: unknown[]) => {
-       
       const callbacks = args[1] as { onSuccess: (...args: unknown[]) => void }
       callbacks.onSuccess({ valid: true, error: null })
     })
     mockRefreshMutation.mockImplementation((...args: unknown[]) => {
-       
       const callbacks = args[1] as { onError: (...args: unknown[]) => void; onSettled: () => void }
       callbacks.onError(refreshError)
       callbacks.onSettled()
@@ -347,7 +328,6 @@ describe('useCreateIntegration', () => {
     const creationError = new Error('Duplicate name')
 
     mockCreateMutation.mockImplementation((...args: unknown[]) => {
-       
       const callbacks = args[1] as { onError: (...args: unknown[]) => void }
       callbacks.onError(creationError)
     })
@@ -372,7 +352,6 @@ describe('useCreateIntegration', () => {
     const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
 
     mockCreateMutation.mockImplementation((...args: unknown[]) => {
-       
       const callbacks = args[1] as { onSuccess: (...args: unknown[]) => void }
       callbacks.onSuccess({ id: null })
     })
