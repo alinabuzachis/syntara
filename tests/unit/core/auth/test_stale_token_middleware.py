@@ -5,6 +5,7 @@ Tests cover:
 - X-Token-Stale header set when token_ver < DB version
 - No X-Token-Stale header when token_ver >= DB version
 - Graceful handling of DB or decode errors
+- Disabled user rejection with 401
 """
 
 from datetime import UTC, datetime
@@ -17,7 +18,7 @@ from starlette.routing import Route
 from starlette.testclient import TestClient
 
 from nexus.auth.exceptions import InvalidTokenError
-from nexus.auth.middleware import StaleTokenMiddleware, _token_version_cache
+from nexus.auth.middleware import StaleTokenMiddleware, _user_status_cache
 from nexus.auth.services.token_service import TokenPayload
 
 
@@ -27,7 +28,7 @@ def _build_app() -> Starlette:
     async def homepage(request: Request) -> PlainTextResponse:
         return PlainTextResponse("ok")
 
-    app = Starlette(routes=[Route("/", homepage)])
+    app = Starlette(routes=[Route("/", homepage), Route("/api/v1/auth/logout", homepage, methods=["POST"])])
     app.add_middleware(StaleTokenMiddleware)
     return app
 
@@ -55,7 +56,12 @@ def _mock_token_service(payload: TokenPayload | None = None, error: Exception | 
     return mock
 
 
-def _mock_async_session(token_version: int | None = None, error: Exception | None = None) -> AsyncMock:
+def _mock_async_session(
+    token_version: int | None = None,
+    *,
+    is_enabled: bool = True,
+    error: Exception | None = None,
+) -> AsyncMock:
     """Create a mock AsyncSessionLocal context manager that returns a mock session."""
     mock_session = AsyncMock()
     if error:
@@ -63,7 +69,7 @@ def _mock_async_session(token_version: int | None = None, error: Exception | Non
     else:
         mock_result = MagicMock()
         if token_version is not None:
-            mock_result.one_or_none.return_value = (token_version,)
+            mock_result.one_or_none.return_value = (token_version, is_enabled)
         else:
             mock_result.one_or_none.return_value = None
         mock_session.execute.return_value = mock_result
@@ -80,7 +86,7 @@ class TestStaleTokenMiddleware:
 
     def setup_method(self) -> None:
         """Clear the TTL cache between tests."""
-        _token_version_cache.clear()
+        _user_status_cache.clear()
 
     def test_no_auth_header_passes_through(self) -> None:
         """When no Authorization header is present, response passes through unchanged."""
@@ -178,3 +184,92 @@ class TestStaleTokenMiddleware:
 
         assert response.status_code == 200
         assert "X-Token-Stale" not in response.headers
+
+    def test_disabled_user_returns_401(self) -> None:
+        """When user is disabled in DB, middleware returns 401 before handler runs."""
+        app = _build_app()
+        payload = _make_payload(sub="user-123", token_version=1)
+
+        mock_ts = _mock_token_service(payload=payload)
+        mock_ctx = _mock_async_session(token_version=1, is_enabled=False)
+
+        with (
+            patch("nexus.auth.middleware.AsyncSessionLocal", return_value=mock_ctx),
+            patch("nexus.auth.middleware.TokenService", return_value=mock_ts),
+        ):
+            client = TestClient(app)
+            response = client.get("/", headers={"Authorization": "Bearer some-jwt"})
+
+        assert response.status_code == 401
+        body = response.json()
+        assert body["code"] == "ACCOUNT_DISABLED"
+        assert body["detail"] == "User account is disabled"
+
+    def test_disabled_user_cached_returns_401(self) -> None:
+        """When cache has is_enabled=False, return 401 without DB query."""
+        app = _build_app()
+        payload = _make_payload(sub="user-123", token_version=1)
+
+        _user_status_cache["user-123"] = (1, False)
+
+        mock_ts = _mock_token_service(payload=payload)
+
+        with (
+            patch("nexus.auth.middleware.TokenService", return_value=mock_ts),
+        ):
+            client = TestClient(app)
+            response = client.get("/", headers={"Authorization": "Bearer some-jwt"})
+
+        assert response.status_code == 401
+
+    def test_disabled_and_stale_returns_401(self) -> None:
+        """Disabled user rejection takes priority over stale token header."""
+        app = _build_app()
+        payload = _make_payload(sub="user-123", token_version=1)
+
+        mock_ts = _mock_token_service(payload=payload)
+        mock_ctx = _mock_async_session(token_version=5, is_enabled=False)
+
+        with (
+            patch("nexus.auth.middleware.AsyncSessionLocal", return_value=mock_ctx),
+            patch("nexus.auth.middleware.TokenService", return_value=mock_ts),
+        ):
+            client = TestClient(app)
+            response = client.get("/", headers={"Authorization": "Bearer some-jwt"})
+
+        assert response.status_code == 401
+        assert "X-Token-Stale" not in response.headers
+
+    def test_user_not_found_passes_through(self) -> None:
+        """When user row not found, default to enabled and pass through."""
+        app = _build_app()
+        payload = _make_payload(sub="nonexistent-user", token_version=0)
+
+        mock_ts = _mock_token_service(payload=payload)
+        mock_ctx = _mock_async_session(token_version=None)
+
+        with (
+            patch("nexus.auth.middleware.AsyncSessionLocal", return_value=mock_ctx),
+            patch("nexus.auth.middleware.TokenService", return_value=mock_ts),
+        ):
+            client = TestClient(app)
+            response = client.get("/", headers={"Authorization": "Bearer some-jwt"})
+
+        assert response.status_code == 200
+
+    def test_disabled_user_can_still_logout(self) -> None:
+        """Disabled users must be able to POST /auth/logout to clear their session."""
+        app = _build_app()
+        payload = _make_payload(sub="user-123", token_version=1)
+
+        mock_ts = _mock_token_service(payload=payload)
+        mock_ctx = _mock_async_session(token_version=1, is_enabled=False)
+
+        with (
+            patch("nexus.auth.middleware.AsyncSessionLocal", return_value=mock_ctx),
+            patch("nexus.auth.middleware.TokenService", return_value=mock_ts),
+        ):
+            client = TestClient(app)
+            response = client.post("/api/v1/auth/logout", headers={"Authorization": "Bearer some-jwt"})
+
+        assert response.status_code == 200

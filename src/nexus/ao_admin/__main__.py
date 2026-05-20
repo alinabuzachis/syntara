@@ -165,7 +165,7 @@ async def _reset_password_async(username: str, new_password: str, actor: str) ->
     if user.auth_type == AuthType.FEDERATED:
         typer.echo(
             f"ERROR: Cannot reset password for identity provider user '{username}'.\n"
-            f"This account is managed by an external identity provider.",
+            f"This account is managed by an external identity provider and does not have a local password.",
             err=True,
         )
         raise typer.Exit(code=1)

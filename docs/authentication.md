@@ -119,7 +119,7 @@ Sessions are soft-revoked (`revoked_at` is set) when:
 | **Identity re-association** | All sessions for source user | Identity moved to different user via `POST /auth/users/{user_id}/identities` |
 | **Identity deletion** | All sessions for user | Identity detached via `DELETE /auth/users/{user_id}/identities/{identity_id}` |
 
-Stateless access tokens cannot be individually revoked and remain valid until they expire (default 15 minutes). A token blocklist or generation counter would be needed to close this window completely.
+Stateless access tokens cannot be individually revoked. However, the `StaleTokenMiddleware` rejects requests from disabled users within ~5 seconds of the disable action (via the same TTL-cached DB query used for stale token detection). See [Disabled User Enforcement](#disabled-user-enforcement).
 
 ### Global Token Revocation
 
@@ -325,7 +325,7 @@ Authentication uses **PostgreSQL only** for session storage. Redis is not requir
 | **Access token validation** | None | Stateless JWT verified locally |
 | **Stale token check** | In-process cache + PostgreSQL | `cachetools.TTLCache` (5s) for `token_version` lookups |
 
-### Token Version (Stale Token Detection)
+### Token Version (Stale Token Detection) & Disabled User Enforcement
 
 When an admin changes a user's account (group memberships, profile, role, etc.), the user's access token becomes stale — its claims no longer reflect reality. Rather than forcing a logout, Nexus uses a lightweight version counter to trigger a seamless background token refresh.
 
@@ -364,6 +364,14 @@ Admin changes user's account (groups, profile, etc.)
 #### Frontend handling
 
 The `authMiddleware` in `client.tsx` checks every response for the `X-Token-Stale: true` header. When detected, it fires a background `store.refresh()` call (fire-and-forget). The current response is returned normally — the user is never blocked. After the refresh completes, subsequent requests use the new token with updated claims.
+
+#### Disabled user enforcement
+
+The `StaleTokenMiddleware` also enforces disabled-user rejection. When a user's account is disabled (`is_enabled = false`), the middleware returns `401 ACCOUNT_DISABLED` for all subsequent API requests using that user's access token — without running the request handler.
+
+This closes the window during which a disabled user's stateless JWT would otherwise remain valid (up to 15 minutes). The enforcement uses the same DB query and TTL cache as the stale-token check (zero additional database round-trips). After the cache entry expires (max 5 seconds), the next request fetches the updated `is_enabled` value and enforcement takes effect.
+
+**Error handling**: If the DB query or token decode fails, the middleware fails open (same as the stale-token check). The disabled-user rejection only triggers when `is_enabled = false` is positively confirmed from the database or cache.
 
 ## Key Management
 

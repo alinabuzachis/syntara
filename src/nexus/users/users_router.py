@@ -175,9 +175,8 @@ async def update_user(
     # revoke all their existing refresh token sessions.  This is a hard
     # requirement — if the session store is unavailable, the request fails
     # so that compromised sessions cannot persist.
-    # Note: stateless access tokens remain valid until expiry (default 15
-    # minutes) since they cannot be individually revoked.  A token blocklist
-    # or generation counter would be needed to close this window completely.
+    # Note: StaleTokenMiddleware also rejects requests from disabled users
+    # within ~5 seconds (TTL-cached DB check), closing the stateless JWT window.
     store = create_session_store(db)
     if password is not None or request.is_enabled is False:
         await store.revoke_all_for_user(user_id)
