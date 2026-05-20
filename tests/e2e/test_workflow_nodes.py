@@ -1,6 +1,6 @@
 """End-to-end tests for v2 workflow node types.
 
-Tests script, http_request, condition, loop, and converge nodes
+Tests script, http_request, condition, loop, converge, and switch nodes
 using the full Nexus stack (API, Temporal worker, containers).
 
 Run with:
@@ -660,3 +660,368 @@ def test_http_request_then_agentic(nexus_api: NexusApiRegistry, worker_base_url:
     activities = {a.activity_id: a.status for a in (result.activities or [])}
     assert activities["fetch"] == "completed"
     assert activities["analyze"] == "completed"
+
+
+# ---------------------------------------------------------------------------
+# Switch node
+# ---------------------------------------------------------------------------
+
+
+def _switch_workflow_definition(cases: list[dict[str, str]], default_port: str = "default") -> dict[str, Any]:
+    """Build a switch workflow definition with downstream script nodes per case + default."""
+    nodes: list[dict[str, Any]] = [
+        {
+            "id": "sw",
+            "name": "Switch Router",
+            "type": "switch",
+            "config": {"cases": cases, "default_port": default_port},
+        },
+    ]
+    edges: list[dict[str, Any]] = [{"from": "trigger", "to": "sw"}]
+
+    for case in cases:
+        port = case["port"]
+        node_id = f"action_{port}"
+        nodes.append(
+            {
+                "id": node_id,
+                "name": f"Action {port}",
+                "type": "script",
+                "config": {"language": "bash", "code": f'echo "{port} executed"'},
+            }
+        )
+        edges.append({"from": "sw", "to": node_id, "from_port": port})
+
+    nodes.append(
+        {
+            "id": "action_default",
+            "name": "Default Action",
+            "type": "script",
+            "config": {"language": "bash", "code": 'echo "default executed"'},
+        }
+    )
+    edges.append({"from": "sw", "to": "action_default", "from_port": default_port})
+
+    return {
+        "schema_version": "2.0.0",
+        "triggers": [{"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}}],
+        "nodes": nodes,
+        "edges": edges,
+    }
+
+
+@pytest.mark.e2e
+def test_switch_first_case_matches(nexus_api: NexusApiRegistry):
+    """Switch routes to first matching case, other cases and default are skipped."""
+    result = _create_and_run_workflow(
+        nexus_api,
+        "e2e-switch-first-case",
+        _switch_workflow_definition(
+            [
+                {"port": "case_0", "label": "Always True", "condition": "1 == 1"},
+                {"port": "case_1", "label": "Also True", "condition": "2 == 2"},
+            ]
+        ),
+    )
+
+    assert result.status == ExecutionStatus.COMPLETED, f"Failed: {result.error_details}"
+    activities = {a.activity_id: a for a in (result.activities or [])}
+    assert activities["sw"].status == "completed"
+    assert activities["action_case_0"].status == "completed"
+    assert activities["action_case_1"].status == "skipped"
+    assert activities["action_default"].status == "skipped"
+
+    # Verify switch node output contains matched port
+    sw_output = activities["sw"].output_data
+    if sw_output is not None:
+        output_dict = sw_output if isinstance(sw_output, dict) else getattr(sw_output, "additional_properties", {})
+        assert output_dict.get("matched_port") == "case_0"
+
+
+@pytest.mark.e2e
+def test_switch_second_case_matches(nexus_api: NexusApiRegistry):
+    """Switch skips first case (false), routes to second case (true)."""
+    result = _create_and_run_workflow(
+        nexus_api,
+        "e2e-switch-second-case",
+        _switch_workflow_definition(
+            [
+                {"port": "case_0", "label": "False", "condition": "1 == 0"},
+                {"port": "case_1", "label": "True", "condition": "1 == 1"},
+            ]
+        ),
+    )
+
+    assert result.status == ExecutionStatus.COMPLETED, f"Failed: {result.error_details}"
+    activities = {a.activity_id: a for a in (result.activities or [])}
+    assert activities["sw"].status == "completed"
+    assert activities["action_case_1"].status == "completed"
+    assert activities["action_case_0"].status == "skipped"
+    assert activities["action_default"].status == "skipped"
+
+
+@pytest.mark.e2e
+def test_switch_default_fallback(nexus_api: NexusApiRegistry):
+    """Switch routes to default when no case matches."""
+    result = _create_and_run_workflow(
+        nexus_api,
+        "e2e-switch-default",
+        _switch_workflow_definition(
+            [
+                {"port": "case_0", "label": "False", "condition": "1 == 0"},
+                {"port": "case_1", "label": "Also False", "condition": "2 == 0"},
+            ]
+        ),
+    )
+
+    assert result.status == ExecutionStatus.COMPLETED, f"Failed: {result.error_details}"
+    activities = {a.activity_id: a for a in (result.activities or [])}
+    assert activities["sw"].status == "completed"
+    assert activities["action_default"].status == "completed"
+    assert activities["action_case_0"].status == "skipped"
+    assert activities["action_case_1"].status == "skipped"
+
+
+@pytest.mark.e2e
+def test_switch_3_case_routing(nexus_api: NexusApiRegistry):
+    """Switch with 3 cases routes to the first matching case; later cases and default are skipped."""
+    result = _create_and_run_workflow(
+        nexus_api,
+        "e2e-switch-3-case",
+        _switch_workflow_definition(
+            [
+                {"port": "case_0", "label": "False A", "condition": "1 == 0"},
+                {"port": "case_1", "label": "True B", "condition": "1 == 1"},
+                {"port": "case_2", "label": "Also True C", "condition": "2 == 2"},
+            ]
+        ),
+    )
+
+    assert result.status == ExecutionStatus.COMPLETED, f"Failed: {result.error_details}"
+    activities = {a.activity_id: a for a in (result.activities or [])}
+    assert activities["sw"].status == "completed"
+    assert activities["action_case_1"].status == "completed"
+    assert activities["action_case_0"].status == "skipped"
+    assert activities["action_case_2"].status == "skipped"
+    assert activities["action_default"].status == "skipped"
+
+
+@pytest.mark.e2e
+def test_switch_single_case_with_default(nexus_api: NexusApiRegistry):
+    """Switch with one case + default works correctly."""
+    result = _create_and_run_workflow(
+        nexus_api,
+        "e2e-switch-single-case",
+        _switch_workflow_definition(
+            [
+                {"port": "case_0", "label": "Only Case", "condition": "1 == 1"},
+            ]
+        ),
+    )
+
+    assert result.status == ExecutionStatus.COMPLETED, f"Failed: {result.error_details}"
+    activities = {a.activity_id: a for a in (result.activities or [])}
+    assert activities["sw"].status == "completed"
+    assert activities["action_case_0"].status == "completed"
+    assert activities["action_default"].status == "skipped"
+
+
+@pytest.mark.e2e
+def test_switch_numeric_comparison(nexus_api: NexusApiRegistry):
+    """Switch evaluates numeric comparison operators correctly."""
+    result = _create_and_run_workflow(
+        nexus_api,
+        "e2e-switch-numeric",
+        _switch_workflow_definition(
+            [
+                {"port": "case_0", "label": "Greater", "condition": "10 > 5"},
+                {"port": "case_1", "label": "Less", "condition": "10 < 5"},
+            ]
+        ),
+    )
+
+    assert result.status == ExecutionStatus.COMPLETED, f"Failed: {result.error_details}"
+    activities = {a.activity_id: a for a in (result.activities or [])}
+    assert activities["action_case_0"].status == "completed"
+    assert activities["action_case_1"].status == "skipped"
+    assert activities["action_default"].status == "skipped"
+
+
+@pytest.mark.e2e
+def test_switch_negation(nexus_api: NexusApiRegistry):
+    """Switch evaluates not() expressions correctly."""
+    result = _create_and_run_workflow(
+        nexus_api,
+        "e2e-switch-negation",
+        _switch_workflow_definition(
+            [
+                {"port": "case_0", "label": "Not False", "condition": "not False"},
+            ]
+        ),
+    )
+
+    assert result.status == ExecutionStatus.COMPLETED, f"Failed: {result.error_details}"
+    activities = {a.activity_id: a for a in (result.activities or [])}
+    assert activities["action_case_0"].status == "completed"
+    assert activities["action_default"].status == "skipped"
+
+
+@pytest.mark.e2e
+def test_switch_skipped_branches_have_activity_records(nexus_api: NexusApiRegistry):
+    """Skipped branches have ActivityExecution records with correct status and null timing."""
+    result = _create_and_run_workflow(
+        nexus_api,
+        "e2e-switch-skipped",
+        _switch_workflow_definition(
+            [
+                {"port": "case_0", "label": "True", "condition": "1 == 1"},
+                {"port": "case_1", "label": "False", "condition": "1 == 0"},
+                {"port": "case_2", "label": "Also False", "condition": "2 == 0"},
+            ]
+        ),
+    )
+
+    assert result.status == ExecutionStatus.COMPLETED, f"Failed: {result.error_details}"
+    activities = {a.activity_id: a for a in (result.activities or [])}
+
+    # Taken branch has completed status and timing data
+    assert activities["action_case_0"].status == "completed"
+    assert activities["action_case_0"].started_at is not None
+    assert activities["action_case_0"].completed_at is not None
+
+    # Skipped branches have records with skipped status and were never started
+    for skipped_id in ("action_case_1", "action_case_2", "action_default"):
+        assert activities[skipped_id].status == "skipped"
+        assert activities[skipped_id].started_at is None
+
+
+@pytest.mark.e2e
+def test_switch_in_operator(nexus_api: NexusApiRegistry):
+    """Switch evaluates 'in' operator correctly."""
+    result = _create_and_run_workflow(
+        nexus_api,
+        "e2e-switch-in-operator",
+        _switch_workflow_definition(
+            [
+                {"port": "case_0", "label": "Contains a", "condition": "'a' in 'abc'"},
+                {"port": "case_1", "label": "Contains z", "condition": "'z' in 'abc'"},
+            ]
+        ),
+    )
+
+    assert result.status == ExecutionStatus.COMPLETED, f"Failed: {result.error_details}"
+    activities = {a.activity_id: a for a in (result.activities or [])}
+    assert activities["action_case_0"].status == "completed"
+    assert activities["action_case_1"].status == "skipped"
+    assert activities["action_default"].status == "skipped"
+
+
+@pytest.mark.e2e
+def test_switch_empty_cases_fails(nexus_api: NexusApiRegistry):
+    """Switch with empty cases array fails the workflow."""
+    result = _create_and_run_workflow(
+        nexus_api,
+        "e2e-switch-empty-cases",
+        {
+            "schema_version": "2.0.0",
+            "triggers": [
+                {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
+            ],
+            "nodes": [
+                {
+                    "id": "sw",
+                    "name": "Empty Switch",
+                    "type": "switch",
+                    "config": {"cases": [], "default_port": "default"},
+                },
+                {
+                    "id": "action_default",
+                    "name": "Default",
+                    "type": "script",
+                    "config": {"language": "bash", "code": 'echo "should not run"'},
+                },
+            ],
+            "edges": [
+                {"from": "trigger", "to": "sw"},
+                {"from": "sw", "to": "action_default", "from_port": "default"},
+            ],
+        },
+    )
+
+    assert result.status == ExecutionStatus.FAILED, f"Expected failure but got: {result.status}"
+    assert result.error_details is not None, "Expected error details on failure"
+    assert "cases" in result.error_details.lower(), f"Expected 'cases' in error: {result.error_details}"
+    activities = {a.activity_id: a for a in (result.activities or [])}
+    if "action_default" in activities:
+        assert activities["action_default"].status != "completed", "Default should not run with empty cases"
+
+
+@pytest.mark.e2e
+def test_switch_after_script_node(nexus_api: NexusApiRegistry):
+    """Switch reads upstream node output via namespace injection."""
+    result = _create_and_run_workflow(
+        nexus_api,
+        "e2e-switch-after-script",
+        {
+            "schema_version": "2.0.0",
+            "triggers": [
+                {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
+            ],
+            "nodes": [
+                {
+                    "id": "setup",
+                    "name": "Setup",
+                    "type": "script",
+                    "config": {
+                        "language": "python",
+                        "code": 'import json; print(json.dumps({"priority": "high"}))',
+                    },
+                },
+                {
+                    "id": "sw",
+                    "name": "Route by Priority",
+                    "type": "switch",
+                    "config": {
+                        "cases": [
+                            {"port": "case_0", "label": "High", "condition": "${setup.stdout_json.priority} == 'high'"},
+                            {"port": "case_1", "label": "Low", "condition": "${setup.stdout_json.priority} == 'low'"},
+                        ],
+                        "default_port": "default",
+                    },
+                },
+                {
+                    "id": "action_high",
+                    "name": "High Priority",
+                    "type": "script",
+                    "config": {"language": "bash", "code": 'echo "high priority"'},
+                },
+                {
+                    "id": "action_low",
+                    "name": "Low Priority",
+                    "type": "script",
+                    "config": {"language": "bash", "code": 'echo "low priority"'},
+                },
+                {
+                    "id": "action_default",
+                    "name": "Default",
+                    "type": "script",
+                    "config": {"language": "bash", "code": 'echo "default"'},
+                },
+            ],
+            "edges": [
+                {"from": "trigger", "to": "setup"},
+                {"from": "setup", "to": "sw"},
+                {"from": "sw", "to": "action_high", "from_port": "case_0"},
+                {"from": "sw", "to": "action_low", "from_port": "case_1"},
+                {"from": "sw", "to": "action_default", "from_port": "default"},
+            ],
+        },
+    )
+
+    assert result.status == ExecutionStatus.COMPLETED, f"Failed: {result.error_details}"
+    activities = {a.activity_id: a for a in (result.activities or [])}
+    assert activities["setup"].status == "completed"
+    assert activities["sw"].status == "completed"
+    assert activities["action_high"].status == "completed"
+    assert activities["action_low"].status == "skipped"
+    assert activities["action_default"].status == "skipped"
