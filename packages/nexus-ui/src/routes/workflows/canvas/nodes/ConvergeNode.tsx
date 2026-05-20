@@ -12,6 +12,7 @@ import { semanticZoomActivityTitle } from '../semanticZoom'
 import { NodeBody } from './common/NodeBody'
 import { NodeComponent } from './common/NodeComponent'
 import { StandardNodeHeader } from './common/StandardNodeHeader'
+import { MenuNodeType, useNodeMenuActions } from './hooks/useNodeMenuActions'
 import { nodeMetadata } from './nodeMetadata'
 import { renderNodeIcon } from './renderNodeIcon'
 
@@ -30,6 +31,10 @@ export function ConvergeNodeComponent(props: NodeProps<ConvergeNode>) {
     'canvas',
     getNodeTypeColor(ActivityTypeEnum.CONVERGE)
   )
+  const menuActions = useNodeMenuActions({
+    nodeId: props.data.id,
+    nodeType: MenuNodeType.ACTIVITY,
+  })
   const config = (props.data.config ?? {}) as { strategy?: 'all' | 'any'; n_required?: number }
   const strategyLabel = getStrategyLabel(config.strategy, config.n_required)
 
@@ -55,7 +60,7 @@ export function ConvergeNodeComponent(props: NodeProps<ConvergeNode>) {
         typeLabel: metadata.label,
       }}
     >
-      <StandardNodeHeader icon={iconNode} title={props.data.name} subtitle={metadata.label} expandable />
+      <StandardNodeHeader icon={iconNode} title={props.data.name} subtitle={metadata.label} expandable menuActions={menuActions} />
       <Flex justifyContent={{ default: 'justifyContentFlexStart' }} style={{ overflow: 'hidden' }}>
         <NodeBody>
           <NxDetailList data-testid="converge-node-details">

@@ -12,8 +12,10 @@ import {
 import { useState, useCallback, useRef, useEffect } from 'react'
 
 import { workflowFetchClient } from '../../../client'
+import { FlowNodeType } from '../../../constants'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
+import { handleToV2Port } from '../utils/edgeHelpers'
 
 import { ExpandableCodeEditor } from './ExpandableCodeEditor'
 
@@ -24,7 +26,7 @@ import { ExpandableCodeEditor } from './ExpandableCodeEditor'
  */
 type TestExecutionRequest = {
   target_node_id: string
-  pre_resolved_nodes: Record<string, { output: Record<string, unknown> }>
+  pre_resolved_nodes: Record<string, { output: Record<string, unknown>; control?: { next_port: string } }>
   trigger_inputs: Record<string, unknown>
 }
 
@@ -32,7 +34,9 @@ type TestExecutionResponse = {
   id: string
 }
 
-type PredecessorNode = Readonly<{ id: string; name: string }>
+type PredecessorNode = Readonly<{ id: string; name: string; type?: string; portTowardTarget?: string }>
+
+const CONTROL_FLOW_TYPES = new Set<string>([FlowNodeType.CONDITION, FlowNodeType.LOOP, FlowNodeType.APPROVAL])
 
 export type TestStepDialogData = {
   nodeId: string
@@ -162,9 +166,16 @@ export function TestStepDialog({
       }
     }
 
-    const preResolvedNodes: Record<string, { output: Record<string, unknown> }> = {}
+    const preResolvedNodes: Record<string, { output: Record<string, unknown>; control?: { next_port: string } }> = {}
     for (const pred of predecessors) {
-      preResolvedNodes[pred.id] = { output: parsedMock }
+      const nodeData: { output: Record<string, unknown>; control?: { next_port: string } } = { output: parsedMock }
+
+      // Add control flow information for control-flow predecessors
+      if (pred.type && CONTROL_FLOW_TYPES.has(pred.type) && pred.portTowardTarget) {
+        nodeData.control = { next_port: handleToV2Port(pred.portTowardTarget) ?? pred.portTowardTarget }
+      }
+
+      preResolvedNodes[pred.id] = nodeData
     }
 
     await executeTestRun(preResolvedNodes)

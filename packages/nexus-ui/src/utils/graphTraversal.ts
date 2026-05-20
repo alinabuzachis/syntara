@@ -2,16 +2,27 @@ import type { Edge, Node } from '@xyflow/react'
 
 import { parseTriggerIndex } from './triggerNodeIds'
 
-type AncestorNode = { id: string; name: string }
+export type AncestorNode = {
+  id: string;
+  name: string;
+  type?: string;
+  portTowardTarget?: string;
+}
 
-function buildParentMap(edges: Edge[]): Map<string, string[]> {
-  const parentMap = new Map<string, string[]>()
+type ParentInfo = { sourceId: string; sourceHandle?: string }
+
+function buildParentMap(edges: Edge[]): Map<string, ParentInfo[]> {
+  const parentMap = new Map<string, ParentInfo[]>()
   for (const edge of edges) {
+    const parentInfo: ParentInfo = {
+      sourceId: edge.source,
+      sourceHandle: edge.sourceHandle || undefined,
+    }
     const sources = parentMap.get(edge.target)
     if (sources) {
-      sources.push(edge.source)
+      sources.push(parentInfo)
     } else {
-      parentMap.set(edge.target, [edge.source])
+      parentMap.set(edge.target, [parentInfo])
     }
   }
   return parentMap
@@ -32,7 +43,8 @@ export function getAncestorNodes(targetNodeId: string, edges: Edge[], allNodes: 
     const current = queue.shift()!
     const sources = parentMap.get(current)
     if (!sources) continue
-    for (const sourceId of sources) {
+    for (const parentInfo of sources) {
+      const { sourceId, sourceHandle } = parentInfo
       if (!visited.has(sourceId)) {
         visited.add(sourceId)
         queue.push(sourceId)
@@ -41,6 +53,8 @@ export function getAncestorNodes(targetNodeId: string, edges: Edge[], allNodes: 
         ancestors.push({
           id: sourceId,
           name: (predNode?.data as { name?: string } | undefined)?.name ?? sourceId,
+          type: (predNode?.data as { type?: string } | undefined)?.type ?? predNode?.type,
+          portTowardTarget: sourceHandle,
         })
       }
     }
