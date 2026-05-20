@@ -7,6 +7,7 @@ import { useAuthStore } from '../../stores/useAuthStore'
 import { getUserIdFromToken } from '../../utils/jwtUtils'
 import { accessClient } from '../access/accessClient'
 
+import { logoutWithAlert } from './logoutWithAlert'
 import { useAdminToggle } from './useAdminToggle'
 
 // ---------------------------------------------------------------------------
@@ -34,12 +35,19 @@ vi.mock('../../utils/jwtUtils', () => ({
   getUserIdFromToken: vi.fn(),
 }))
 
+vi.mock('./logoutWithAlert', () => ({
+  logoutWithAlert: vi.fn(),
+}))
+
+const mockShowAlert = vi.fn()
+
 vi.mock('../../providers/alerts', () => ({
-  useAlerts: () => ({ showAlert: vi.fn() }),
+  useAlerts: () => ({ showAlert: mockShowAlert }),
 }))
 
 const mockMutate = vi.fn()
 const mockErrorHandler = vi.fn().mockReturnValue(vi.fn())
+const mockLogout = vi.fn().mockResolvedValue(undefined)
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -56,7 +64,10 @@ function setupMocks({
   vi.mocked(useActiveAdminCount).mockReturnValue(activeAdminCount)
   vi.mocked(useMutationErrorHandler).mockReturnValue(mockErrorHandler)
   vi.mocked(useAuthStore).mockImplementation((selector: unknown) =>
-    (selector as (s: { accessToken: string | null }) => unknown)({ accessToken: 'mock-token' })
+    (selector as (s: { accessToken: string | null; logout: () => Promise<void> }) => unknown)({
+      accessToken: 'mock-token',
+      logout: mockLogout,
+    })
   )
   vi.mocked(getUserIdFromToken).mockReturnValue(currentUserId)
 }
@@ -178,19 +189,43 @@ describe('useAdminToggle', () => {
     expect(mockMutate).not.toHaveBeenCalled()
   })
 
-  it('calls refetch on successful toggle', () => {
+  it('calls refetch and shows success alert on successful enable', () => {
     const { result } = renderHook(() => useAdminToggle(enabledAdmin, refetch))
 
     act(() => {
       result.current.handleToggle(true)
     })
 
-    // Extract onSuccess and call it
     const callbacks = mockMutate.mock.calls[0][1] as { onSuccess: () => void }
     act(() => {
       callbacks.onSuccess()
     })
 
     expect(refetch).toHaveBeenCalled()
+    expect(mockShowAlert).toHaveBeenCalledWith({
+      title: 'Administrator enabled',
+      variant: 'success',
+      autoDismiss: true,
+    })
+    expect(logoutWithAlert).not.toHaveBeenCalled()
+  })
+
+  it('calls logout via detachPromise when disable succeeds', () => {
+    const { result } = renderHook(() => useAdminToggle(enabledAdmin, refetch))
+
+    act(() => {
+      result.current.handleToggle(false)
+    })
+    act(() => {
+      result.current.confirmDisable()
+    })
+
+    const callbacks = mockMutate.mock.calls[0][1] as { onSuccess: () => void }
+    act(() => {
+      callbacks.onSuccess()
+    })
+
+    expect(logoutWithAlert).toHaveBeenCalledWith(mockLogout, mockShowAlert, 'Administrator disabled — signing out')
+    expect(refetch).not.toHaveBeenCalled()
   })
 })

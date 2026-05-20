@@ -7,6 +7,8 @@ import { useAuthStore } from '../../stores/useAuthStore'
 import { getUserIdFromToken } from '../../utils/jwtUtils'
 import { accessClient } from '../access/accessClient'
 
+import { logoutWithAlert } from './logoutWithAlert'
+
 type AdminUser = {
   id: string
   is_enabled: boolean
@@ -26,6 +28,7 @@ export function useAdminToggle(builtinUser: AdminUser | undefined, refetch: () =
   const handleMutationError = useMutationErrorHandler()
 
   const accessToken = useAuthStore((s) => s.accessToken)
+  const logout = useAuthStore((s) => s.logout)
   const currentUserId = getUserIdFromToken(accessToken)
   const isSelf = !!builtinUser && currentUserId === builtinUser.id
   const isEnabled = builtinUser?.is_enabled ?? true
@@ -44,18 +47,22 @@ export function useAdminToggle(builtinUser: AdminUser | undefined, refetch: () =
         { params: { path: { user_id: builtinUser.id } }, body: { is_enabled: checked } },
         {
           onSuccess: () => {
-            showAlert({
-              title: checked ? 'Administrator enabled' : 'Administrator disabled',
-              variant: 'success',
-              autoDismiss: true,
-            })
-            refetch()
+            if (checked) {
+              showAlert({
+                title: 'Administrator enabled',
+                variant: 'success',
+                autoDismiss: true,
+              })
+              refetch()
+            } else {
+              logoutWithAlert(logout, showAlert, 'Administrator disabled — signing out')
+            }
           },
           onError: handleMutationError({ title: 'Failed to update administrator' }),
         }
       )
     },
-    [builtinUser, updateUser, showAlert, refetch, handleMutationError]
+    [builtinUser, updateUser, showAlert, refetch, handleMutationError, logout]
   )
 
   const handleToggle = useCallback(

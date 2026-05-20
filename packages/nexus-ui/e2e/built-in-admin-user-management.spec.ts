@@ -147,13 +147,19 @@ test.describe('Disable Built-in Admin — Flow and State Update', () => {
       })
     )
 
+    await page.route('**/api/v1/auth/logout*', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({}),
+      })
+    )
+
     await toggle.click({ force: true })
     await expect(page.getByRole('dialog', { name: 'Disable administrator account?' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Disable and sign out' })).toBeVisible()
     await page.getByRole('button', { name: 'Disable and sign out' }).click()
 
-    // TODO: To be removed, should automatically redirect to Sign in page
-    await page.goto(toAppUrl(USER_MANAGEMENT_ACCESS_URL))
     await expect(page.getByRole('heading', { name: 'Log in to Automation Orchestrator' })).toBeVisible()
     await page.getByRole('button', { name: 'Sign in using local account' }).click()
     await expect(page.getByText(/For local account access only/)).toBeVisible()
