@@ -374,17 +374,13 @@ test.describe('Node editor panels', () => {
     await expect(app.getByRole('group', { name: 'Input view selection' })).not.toBeVisible()
     await closeNodeEditorPanel(app)
 
-    // --- Phase 2: Save, enable, and run the workflow ---
+    // --- Phase 2: Save and run the workflow ---
     await selectProjectIfRequired(app)
     await app.getByPlaceholder('Workflow name').fill(workflowName)
     await app.getByRole('button', { name: 'Save' }).click()
     await expect(app).toHaveURL(/workflow-builder\/.+/)
     const builderUrl = app.url()
     const workflowId = builderUrl.split('/').pop()
-
-    // Toggle Disabled → Enabled
-    await app.getByText('Disabled').click()
-    await expect(app.getByText('Enabled')).toBeVisible()
 
     // Mock the POST /executions endpoint (run workflow)
     const executionId = 'e2e-run-1'

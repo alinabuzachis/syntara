@@ -27,23 +27,6 @@ test.describe('Workflow Filtering', () => {
     // Verify URL contains filter
     await expect(app).toHaveURL(/name%5Bcontains%5D=workflow/)
 
-    // Act - Add state filter (select "Enabled")
-    const fieldSelector = app.getByRole('button', { name: 'Name' }).first()
-    await fieldSelector.click()
-    await app.getByRole('option', { name: 'State' }).click()
-    await app.getByRole('button', { name: 'Filter by state' }).click()
-    await app.getByRole('option', { name: 'Enabled' }).click()
-
-    // Assert - Both filter chips displayed
-    await expect(nameChipGroup.getByText('workflow')).toBeVisible()
-    const stateChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'State' })
-    await expect(stateChipGroup).toBeVisible()
-    await expect(stateChipGroup.getByText('Enabled')).toBeVisible()
-
-    // Verify both filters in URL
-    await expect(app).toHaveURL(/name%5Bcontains%5D=workflow/)
-    await expect(app).toHaveURL(/is_enabled=true/)
-
     // Act - Clear all filters (use first button in toolbar, not in empty state)
     await app.locator('#filter-toolbar').getByRole('button', { name: 'Clear all filters' }).click()
 
@@ -52,7 +35,6 @@ test.describe('Workflow Filtering', () => {
 
     // Verify URL no longer contains filters
     await expect(app).not.toHaveURL(/name%5Bcontains%5D/)
-    await expect(app).not.toHaveURL(/is_enabled/)
   })
 
   test('filter state persists across navigation (URL-based)', async ({ app }) => {
@@ -87,34 +69,25 @@ test.describe('Workflow Filtering', () => {
   })
 
   test('shareable URLs: filters restored from URL', async ({ app, context }) => {
-    // Navigate to workflows and apply filters
+    // Navigate to workflows and apply name filter
     await app.goto(toAppUrl('/workflows'))
     await expect(app.getByText('Workflows', { exact: true }).first()).toBeVisible()
 
     await app.getByPlaceholder('Filter by name').fill('workflow')
     await app.getByRole('button', { name: 'Apply filter' }).click()
 
-    const fieldSelector = app.getByRole('button', { name: 'Name' }).first()
-    await fieldSelector.click()
-    await app.getByRole('option', { name: 'State' }).click()
-    await app.getByRole('button', { name: 'Filter by state' }).click()
-    await app.getByRole('option', { name: 'Enabled' }).click()
-
-    // Capture URL with filters
+    // Capture URL with filter
     const urlWithFilters = app.url()
     await expect(app).toHaveURL(/name%5Bcontains%5D=workflow/)
-    await expect(app).toHaveURL(/is_enabled=true/)
 
     // Act - Open URL in new tab (simulate sharing URL)
     const newPage = await context.newPage()
     await newPage.goto(urlWithFilters)
 
-    // Assert - Filters restored in new tab
+    // Assert - Filter restored in new tab
     await expect(newPage.getByText('Workflows', { exact: true }).first()).toBeVisible()
     const newPageNameChipGroup = newPage.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
     await expect(newPageNameChipGroup.getByText('workflow')).toBeVisible()
-    const newPageStateChipGroup = newPage.locator('#filter-toolbar').getByRole('list', { name: 'State' })
-    await expect(newPageStateChipGroup.getByText('Enabled')).toBeVisible()
 
     // Cleanup
     await newPage.close()
@@ -135,7 +108,6 @@ test.describe('Workflow Filtering', () => {
 
     // Assert - URL no longer contains filter params
     await expect(app).not.toHaveURL(/name%5Bcontains%5D/)
-    await expect(app).not.toHaveURL(/is_enabled/)
 
     // Act - Share clean URL in new tab
     const cleanUrl = app.url()
@@ -151,9 +123,6 @@ test.describe('Workflow Filtering', () => {
   })
 
   test('pagination works with active filters', async ({ app }) => {
-    // Note: This test depends on mock API having enough workflows to paginate
-    // If mock API has < 20 workflows, pagination won't appear
-
     // Navigate to workflows
     await app.goto(toAppUrl('/workflows'))
     await expect(app.getByText('Workflows', { exact: true }).first()).toBeVisible()
@@ -211,44 +180,24 @@ test.describe('Workflow Filtering', () => {
   })
 
   test('individual filter chips can be removed', async ({ app }) => {
-    // Navigate and apply multiple filters
+    // Navigate and apply name filter
     await app.goto(toAppUrl('/workflows'))
     await expect(app.getByText('Workflows', { exact: true }).first()).toBeVisible()
 
     await app.getByPlaceholder('Filter by name').fill('test')
     await app.getByRole('button', { name: 'Apply filter' }).click()
 
-    const fieldSelector = app.getByRole('button', { name: 'Name' }).first()
-    await fieldSelector.click()
-    await app.getByRole('option', { name: 'State' }).click()
-    await app.getByRole('button', { name: 'Filter by state' }).click()
-    await app.getByRole('option', { name: 'Enabled' }).click()
-
-    // Verify both filters active
+    // Verify filter active
     const nameChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
     await expect(nameChipGroup.getByText('test')).toBeVisible()
-    const stateChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'State' })
-    await expect(stateChipGroup.getByText('Enabled')).toBeVisible()
 
-    // Act - Remove name filter chip (find the label with the value and click its close button)
+    // Act - Remove name filter chip
     const nameLabel = nameChipGroup.locator('.pf-v6-c-label').filter({ hasText: 'test' })
     await nameLabel.getByRole('button', { name: /close/i }).click()
 
-    // Assert - Name filter removed, state filter remains
+    // Assert - Filter removed
     await expect(nameChipGroup).not.toBeVisible()
-    await expect(stateChipGroup.getByText('Enabled')).toBeVisible()
-
-    // Assert - URL updated
     await expect(app).not.toHaveURL(/name%5Bcontains%5D/)
-    await expect(app).toHaveURL(/is_enabled=/)
-
-    // Act - Remove state filter chip
-    const stateLabel = stateChipGroup.locator('.pf-v6-c-label').filter({ hasText: 'Enabled' })
-    await stateLabel.getByRole('button', { name: /close/i }).click()
-
-    // Assert - All filters removed
-    await expect(app.locator('#filter-toolbar').getByRole('list')).toHaveCount(0)
-    await expect(app).not.toHaveURL(/is_enabled=/)
   })
 
   test('empty state shows when filters return no results', async ({ app }) => {

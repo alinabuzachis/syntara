@@ -13,7 +13,7 @@ import type {
   WorkflowWithVersion,
   WorkflowsResponse,
 } from '@ansible/nexus-contracts'
-import { ExecutionStatusEnum } from '@ansible/nexus-contracts'
+import { ExecutionStatusEnum, WorkflowVersionStatusEnum } from '@ansible/nexus-contracts'
 import { credentials, credentialTypes, credentialWorkflows } from './resources/credentials'
 import { providers } from './resources/providers'
 import { workflows } from './resources/workflows'
@@ -459,6 +459,8 @@ export const handlers = [
       description: body.description ?? body.name ?? 'New workflow',
       labels: labelRecord,
       is_enabled: body.is_enabled ?? false,
+      published_version: null,
+      current_version: 1,
       created_at: now,
       updated_at: now,
       created_by: 'user-1',
@@ -471,6 +473,7 @@ export const handlers = [
         created_by: 'user-1',
         created_at: now,
         change_description: 'Initial version',
+        status: WorkflowVersionStatusEnum.DRAFT,
       },
     }
 
@@ -565,6 +568,82 @@ export const handlers = [
     }
 
     return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.post('/api/v1/workflows/:workflowId/versions/:version/publish', async (request) => {
+    const workflowId = request.params.workflowId
+    const workflow = workflows.find((w) => w.id === workflowId)
+    if (!workflow) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/workflow-not-found',
+          title: 'Workflow Not Found',
+          detail: `Workflow with id '${workflowId}' not found`,
+          code: 'WORKFLOW_NOT_FOUND',
+          retryable: false,
+        },
+        { status: 404 }
+      )
+    }
+    const body = (await request.request.json()) as { publish_name?: string | null; description?: string | null }
+    const version = parseInt(String(request.params.version), 10)
+    if (isNaN(version) || version < 1) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/validation-error',
+          title: 'Invalid Version',
+          detail: `Version must be a positive integer`,
+          code: 'VALIDATION_ERROR',
+          retryable: false,
+        },
+        { status: 400 }
+      )
+    }
+    if (!workflow.version || workflow.version.version !== version) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/version-not-found',
+          title: 'Version Not Found',
+          detail: `Version ${version} not found for workflow '${workflowId as string}'`,
+          code: 'VERSION_NOT_FOUND',
+          retryable: false,
+        },
+        { status: 404 }
+      )
+    }
+    const mutableWorkflow = workflow as MutableWorkflowWithVersion
+    mutableWorkflow.published_version = version
+    mutableWorkflow.updated_at = new Date().toISOString()
+    const versionObj = mutableWorkflow.version as Record<string, unknown>
+    versionObj.publish_name = body?.publish_name ?? null
+    versionObj.status = WorkflowVersionStatusEnum.PUBLISHED
+    return HttpResponse.json(mutableWorkflow)
+  }),
+
+  http.post('/api/v1/workflows/:workflowId/unpublish', (request) => {
+    const workflowId = request.params.workflowId
+    const workflow = workflows.find((w) => w.id === workflowId)
+    if (!workflow) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/workflow-not-found',
+          title: 'Workflow Not Found',
+          detail: `Workflow with id '${workflowId}' not found`,
+          code: 'WORKFLOW_NOT_FOUND',
+          retryable: false,
+        },
+        { status: 404 }
+      )
+    }
+    const mutableWorkflow = workflow as MutableWorkflowWithVersion
+    mutableWorkflow.published_version = null
+    mutableWorkflow.updated_at = new Date().toISOString()
+    if (mutableWorkflow.version) {
+      const versionObj = mutableWorkflow.version as Record<string, unknown>
+      versionObj.status = WorkflowVersionStatusEnum.DRAFT
+      versionObj.publish_name = null
+    }
+    return HttpResponse.json(mutableWorkflow)
   }),
 
   http.get('/api/v1/executions', ({ request }) => {

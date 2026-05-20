@@ -1,16 +1,17 @@
 import type { ExecutionStatus } from '@ansible/nexus-contracts'
 import { Button, Flex, FlexItem, TextInput } from '@patternfly/react-core'
-import { useState, type Dispatch, type ReactNode } from 'react'
+import { type Dispatch, type ReactNode } from 'react'
 
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
-import { useWorkflowStore } from '../../stores/useWorkflowStore'
+import { WorkflowPublishStatusBadge } from '../../components/WorkflowPublishStatusBadge'
+import { useDialogState } from '../../hooks/useDialogState'
 import { CancelExecutionButton } from '../executions/CancelExecutionButton'
 import { isExecutionCancellable } from '../executions/executionCancellable'
 
 import { BuilderEditorToolbar } from './BuilderEditorToolbar'
 import type { BuilderAction } from './builderReducer'
 import { EditWorkflowDetailsPopover } from './EditWorkflowDetailsPopover'
-import { EnableWorkflowConfirmDialog } from './EnableWorkflowConfirmDialog'
+import { PublishWorkflowDialog } from './PublishWorkflowDialog'
 
 type BuilderToolbarContentProps = Readonly<{
   isLiveRunActive?: boolean
@@ -26,12 +27,12 @@ type BuilderToolbarContentProps = Readonly<{
   isNew: boolean
   workflow: { id: string } | undefined
   isPending: boolean
-  isEnabled: boolean
   isKebabOpen: boolean
-  isSavingToggle: boolean
+  publishedVersion: number | null
   handleToggleDetails: () => void
-  handleSaveWorkflow: (overrideIsEnabled?: boolean) => Promise<boolean>
-  handleToggleEnable: (checked: boolean) => void
+  handleSaveWorkflow: () => Promise<boolean>
+  onPublishClick: () => void
+  onUnpublish: () => void
   triggers?: { id: string; name?: string }[]
 }>
 
@@ -54,12 +55,12 @@ function BuilderToolbarContent({
   isNew,
   workflow,
   isPending,
-  isEnabled,
   isKebabOpen,
-  isSavingToggle,
+  publishedVersion,
   handleToggleDetails,
   handleSaveWorkflow,
-  handleToggleEnable,
+  onPublishClick,
+  onUnpublish,
   triggers,
 }: BuilderToolbarContentProps) {
   if (isLiveRunActive && onBackToEditor) {
@@ -84,15 +85,15 @@ function BuilderToolbarContent({
       isNew={isNew}
       workflow={workflow}
       isPending={isPending}
-      isEnabled={isEnabled}
       isKebabOpen={isKebabOpen}
-      isSavingToggle={isSavingToggle}
+      publishedVersion={publishedVersion}
       dispatch={dispatch}
       markDirty={markDirty}
       handleToggleHistory={handleToggleHistory}
       handleToggleDetails={handleToggleDetails}
       handleSaveWorkflow={handleSaveWorkflow}
-      onToggleEnable={handleToggleEnable}
+      onPublishClick={onPublishClick}
+      onUnpublish={onUnpublish}
       triggers={triggers}
     />
   )
@@ -110,8 +111,10 @@ export type BuilderWorkflowPageHeaderProps = Readonly<{
   isNew: boolean
   workflow: { id: string } | undefined
   isPending: boolean
-  isEnabled: boolean
   isKebabOpen: boolean
+  publishedVersion: number | null
+  currentVersion: number | undefined
+  isPublishing: boolean
   isLiveRunActive?: boolean
   executionId?: string | null
   executionStatus?: ExecutionStatus | null
@@ -125,7 +128,9 @@ export type BuilderWorkflowPageHeaderProps = Readonly<{
   markDirty: () => void
   handleToggleHistory: () => void
   handleToggleDetails: () => void
-  handleSaveWorkflow: (overrideIsEnabled?: boolean) => Promise<boolean>
+  handleSaveWorkflow: () => Promise<boolean>
+  onPublish: (publishName?: string, description?: string, onSettled?: () => void) => void
+  onUnpublish: () => void
 }>
 
 /**
@@ -138,8 +143,10 @@ export function BuilderWorkflowPageHeader({
   isNew,
   workflow,
   isPending,
-  isEnabled,
   isKebabOpen,
+  publishedVersion,
+  currentVersion,
+  isPublishing,
   isLiveRunActive,
   executionId,
   executionStatus,
@@ -154,36 +161,10 @@ export function BuilderWorkflowPageHeader({
   handleToggleHistory,
   handleToggleDetails,
   handleSaveWorkflow,
+  onPublish,
+  onUnpublish,
 }: BuilderWorkflowPageHeaderProps) {
-  const [isSavingToggle, setIsSavingToggle] = useState(false)
-  const [enableConfirmOpen, setEnableConfirmOpen] = useState(false)
-  const [pendingEnableState, setPendingEnableState] = useState<boolean | null>(null)
-
-  const handleToggleEnable = async (checked: boolean) => {
-    // Re-entry guard: ignore clicks while save is in progress
-    if (isSavingToggle) {
-      return
-    }
-
-    const currentIsDirty = useWorkflowStore.getState().isDirty
-
-    if (currentIsDirty) {
-      // Show dialog - there are other unsaved changes
-      setPendingEnableState(checked)
-      setEnableConfirmOpen(true)
-    } else {
-      // No other changes - save immediately with the new enabled state
-      setIsSavingToggle(true)
-      const saved = await handleSaveWorkflow(checked)
-      setIsSavingToggle(false)
-
-      if (saved) {
-        // Update UI state to match saved state
-        dispatch({ type: 'SET_IS_ENABLED', payload: checked })
-      }
-      // If save failed, keep UI showing old state (don't update dispatch)
-    }
-  }
+  const publishDialog = useDialogState<true>()
 
   return (
     <>
@@ -224,6 +205,11 @@ export function BuilderWorkflowPageHeader({
                 }}
               />
             </FlexItem>
+            {!isNew && (
+              <FlexItem style={{ flexShrink: 0 }}>
+                <WorkflowPublishStatusBadge publishedVersion={publishedVersion} currentVersion={currentVersion} />
+              </FlexItem>
+            )}
             <FlexItem style={{ flexShrink: 0 }}>{ProjectSelector}</FlexItem>
           </Flex>
         }
@@ -242,41 +228,23 @@ export function BuilderWorkflowPageHeader({
             isNew={isNew}
             workflow={workflow}
             isPending={isPending}
-            isEnabled={isEnabled}
             isKebabOpen={isKebabOpen}
-            isSavingToggle={isSavingToggle}
+            publishedVersion={publishedVersion}
             handleToggleDetails={handleToggleDetails}
             handleSaveWorkflow={handleSaveWorkflow}
-            handleToggleEnable={handleToggleEnable}
+            onPublishClick={() => publishDialog.open(true)}
+            onUnpublish={onUnpublish}
             triggers={triggers}
           />
         }
       />
 
-      <EnableWorkflowConfirmDialog
-        isOpen={enableConfirmOpen}
-        pendingEnableState={pendingEnableState}
-        isSaving={isSavingToggle}
-        workflowName={workflowName}
-        onClose={() => {
-          setEnableConfirmOpen(false)
-          setPendingEnableState(null)
-        }}
-        onConfirm={async () => {
-          if (pendingEnableState === null) return
-
-          setIsSavingToggle(true)
-          // Save with the new enabled value
-          const saved = await handleSaveWorkflow(pendingEnableState)
-          setIsSavingToggle(false)
-
-          if (saved) {
-            // Update UI state to match saved state
-            dispatch({ type: 'SET_IS_ENABLED', payload: pendingEnableState })
-            setEnableConfirmOpen(false)
-            setPendingEnableState(null)
-          }
-          // If save failed, leave dialog open and keep old state
+      <PublishWorkflowDialog
+        isOpen={publishDialog.isOpen}
+        isPublishing={isPublishing}
+        onClose={publishDialog.close}
+        onPublish={(publishName, description) => {
+          onPublish(publishName, description, publishDialog.close)
         }}
       />
     </>

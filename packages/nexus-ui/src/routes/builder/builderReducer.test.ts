@@ -242,12 +242,6 @@ describe('builderReducer', () => {
       const result = builderReducer(initialState, action)
       expect(result.workflowTags).toEqual(['tag1', 'tag2'])
     })
-
-    it('SET_IS_ENABLED sets isEnabled', () => {
-      const action: BuilderAction = { type: 'SET_IS_ENABLED', payload: false }
-      const result = builderReducer(initialState, action)
-      expect(result.isEnabled).toBe(false)
-    })
   })
 
   describe('Complex panel actions', () => {
@@ -467,7 +461,6 @@ describe('builderReducer', () => {
           name: 'My Workflow',
           description: 'Test Description',
           tags: ['tag1', 'tag2'],
-          isEnabled: false,
         },
       }
       const result = builderReducer(initialState, action)
@@ -475,7 +468,6 @@ describe('builderReducer', () => {
       expect(result.workflowName).toBe('My Workflow')
       expect(result.workflowDescription).toBe('Test Description')
       expect(result.workflowTags).toEqual(['tag1', 'tag2'])
-      expect(result.isEnabled).toBe(false)
     })
 
     it('resets UI state to prevent stale state from previous workflow', () => {
@@ -502,7 +494,6 @@ describe('builderReducer', () => {
           name: 'New Workflow',
           description: 'Fresh Start',
           tags: [],
-          isEnabled: true,
         },
       }
 
@@ -512,7 +503,6 @@ describe('builderReducer', () => {
       expect(result.workflowName).toBe('New Workflow')
       expect(result.workflowDescription).toBe('Fresh Start')
       expect(result.workflowTags).toEqual([])
-      expect(result.isEnabled).toBe(true)
 
       // UI state should be reset to initial values
       expect(result.selectedNode).toBeNull()
@@ -565,7 +555,7 @@ describe('builderReducer', () => {
 
       const action: BuilderAction = {
         type: 'INIT_WORKFLOW',
-        payload: { name: 'Fresh', description: '', tags: [], isEnabled: true },
+        payload: { name: 'Fresh', description: '', tags: [] },
       }
       const result = builderReducer(stateWithExecution, action)
 
@@ -589,7 +579,6 @@ describe('builderReducer', () => {
       expect(state.workflowName).toBe('')
       expect(state.workflowDescription).toBe('')
       expect(state.workflowTags).toEqual([])
-      expect(state.isEnabled).toBe(true)
     })
   })
 })

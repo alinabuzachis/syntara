@@ -2,10 +2,12 @@ import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { Button, List, ListItem, Stack, StackItem } from '@patternfly/react-core'
 import {
   RhUiAddIcon,
+  RhUiCheckCircleIcon,
   RhUiDuplicateIcon,
   RhUiEditFillIcon,
   RhUiExportIcon,
   RhUiHistoryIcon,
+  RhUiMinusCircleFillIcon,
   RhUiPlayIcon,
   RhUiTrashIcon,
 } from '@patternfly/react-icons'
@@ -31,11 +33,12 @@ import { useDialogState } from '../../hooks/useDialogState'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { useAlerts } from '../../providers/alerts'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
-import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
+import type { FilterFieldDefinition } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { detachPromise } from '../../utils/detachPromise'
 import { downloadWorkflowExportById } from '../../utils/downloadWorkflowExport'
 import { accessClient } from '../access/accessClient'
+import { PublishWorkflowDialog } from '../builder/PublishWorkflowDialog'
 
 import { ImportWorkflowDialog } from './ImportWorkflowDialog'
 import { FlatWorkflowsTableBody, GroupedWorkflowsTableBody } from './WorkflowsTableBody'
@@ -43,15 +46,6 @@ import { FlatWorkflowsTableBody, GroupedWorkflowsTableBody } from './WorkflowsTa
 type Workflow = WorkflowAPI.components['schemas']['Workflow']
 type WorkflowDefinitionSchema = WorkflowAPI.components['schemas']['workflow_definition.schema']
 type WorkflowWithProject = Workflow & { project_id?: string }
-
-// Transform is_enabled string values to boolean for the API
-const transformIsEnabledFilter = (filters: FilterConfig[]): FilterConfig[] =>
-  filters.map((filter) => {
-    if (filter.key === 'is_enabled' && typeof filter.value === 'string') {
-      return { ...filter, value: filter.value === 'true' }
-    }
-    return filter
-  })
 
 // eslint-disable-next-line max-lines-per-function
 export default function Workflows() {
@@ -72,10 +66,12 @@ export default function Workflows() {
     handleFilterChange,
     handleClearAllFilters,
     getFooterProps,
-  } = useCursorPagination({ transformFilters: transformIsEnabledFilter, extraParams: projectExtraParams })
+  } = useCursorPagination({ extraParams: projectExtraParams })
 
   const runDialog = useDialogState<Workflow>()
   const deleteDialog = useDialogState<Workflow>()
+  const publishDialog = useDialogState<Workflow>()
+  const unpublishDialog = useDialogState<Workflow>()
   const [importDialogOpen, setImportDialogOpen] = useState(false)
 
   // Define filter field definitions for FilterBar
@@ -88,16 +84,6 @@ export default function Workflows() {
         operators: [FilterOperatorEnum.CONTAINS],
         defaultOperator: FilterOperatorEnum.CONTAINS,
         placeholder: 'Filter by name',
-      },
-      {
-        key: 'is_enabled',
-        label: 'State',
-        type: FilterTypeEnum.SELECT,
-        options: [
-          { value: 'true', label: 'Enabled' },
-          { value: 'false', label: 'Disabled' },
-        ],
-        placeholder: 'Filter by state',
       },
     ],
     []
@@ -138,6 +124,11 @@ export default function Workflows() {
     'delete',
     '/workflows/{workflow_id}'
   )
+  const { mutate: publishWorkflow, isPending: isPublishing } = workflowClient.useMutation(
+    'post',
+    '/workflows/{workflow_id}/versions/{version}/publish'
+  )
+  const { mutate: unpublishWorkflow } = workflowClient.useMutation('post', '/workflows/{workflow_id}/unpublish')
 
   const sortedWorkflows = workflows
 
@@ -221,6 +212,46 @@ export default function Workflows() {
     )
   }
 
+  const handlePublishWorkflow = (publishName?: string, description?: string) => {
+    const workflow = publishDialog.item
+    if (!workflow?.id || !workflow.current_version) return
+
+    publishWorkflow(
+      {
+        params: { path: { workflow_id: workflow.id, version: workflow.current_version } },
+        body: { publish_name: publishName ?? null, description: description ?? null },
+      },
+      {
+        onSuccess: () => {
+          showSuccess({ title: 'Workflow published successfully' })
+          detachPromise(workflowsQuery.refetch())
+        },
+        onError: (error: unknown) => {
+          showError({ title: 'Failed to publish workflow', description: getErrorMessage(error) })
+        },
+        onSettled: () => publishDialog.close(),
+      }
+    )
+  }
+
+  const handleUnpublishWorkflow = () => {
+    const workflow = unpublishDialog.item
+    if (!workflow?.id) return
+
+    unpublishWorkflow(
+      { params: { path: { workflow_id: workflow.id } } },
+      {
+        onSuccess: () => {
+          showSuccess({ title: 'Workflow unpublished successfully' })
+          detachPromise(workflowsQuery.refetch())
+        },
+        onError: (error: unknown) => {
+          showError({ title: 'Failed to unpublish workflow', description: getErrorMessage(error) })
+        },
+        onSettled: () => unpublishDialog.close(),
+      }
+    )
+  }
   const [isDuplicating, setIsDuplicating] = useState(false)
 
   const handleDuplicateWorkflow = useCallback(
@@ -317,6 +348,18 @@ export default function Workflows() {
       },
     },
     {
+      title: <IconLabel icon={<RhUiCheckCircleIcon />}>Publish workflow</IconLabel>,
+      onClick: () => publishDialog.open(workflow),
+    },
+    ...(workflow.published_version == null
+      ? []
+      : [
+          {
+            title: <IconLabel icon={<RhUiMinusCircleFillIcon />}>Unpublish workflow</IconLabel>,
+            onClick: () => unpublishDialog.open(workflow),
+          } satisfies IAction,
+        ]),
+    {
       isSeparator: true,
     },
     {
@@ -392,7 +435,7 @@ export default function Workflows() {
                     <Th>Created at</Th>
                     <Th>Updated at</Th>
                     <Th>Tags</Th>
-                    <Th>State</Th>
+                    <Th>Status</Th>
                     <Th screenReaderText="Actions" />
                   </Tr>
                 </Thead>
@@ -463,6 +506,24 @@ export default function Workflows() {
         defaultProjectId={selectedProjectId}
         projects={projects}
       />
+      <PublishWorkflowDialog
+        isOpen={publishDialog.isOpen}
+        isPublishing={isPublishing}
+        onClose={publishDialog.close}
+        onPublish={handlePublishWorkflow}
+      />
+      <ConfirmationDialog
+        isOpen={unpublishDialog.isOpen}
+        onClose={unpublishDialog.close}
+        onConfirm={handleUnpublishWorkflow}
+        title="Unpublish workflow?"
+        confirmLabel="Unpublish"
+        confirmVariant="danger"
+        titleIconVariant="warning"
+      >
+        The workflow <strong>{unpublishDialog.item?.name}</strong> will be unpublished. It will no longer be available
+        for execution until published again.
+      </ConfirmationDialog>
     </NxPage>
   )
 }

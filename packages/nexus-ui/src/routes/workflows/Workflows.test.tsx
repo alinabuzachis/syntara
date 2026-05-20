@@ -252,27 +252,6 @@ describe('Workflows Component', () => {
       expect(mockSetSearchParams).toHaveBeenCalled()
     })
 
-    it('applies state filter (is_enabled) to API query when selecting option', async () => {
-      const user = userEvent.setup()
-      render(<Workflows />, { wrapper })
-
-      // Switch to state filter - find the field selector toggle (first button with "Name")
-      const fieldButtons = screen.getAllByRole('button', { name: 'Name' })
-      const fieldSelector = fieldButtons[0] // First "Name" button is the filter field selector
-      await user.click(fieldSelector)
-      await user.click(await screen.findByRole('option', { name: /state/i }))
-
-      // Select "Enabled"
-      const stateButton = await screen.findByRole('button', { name: /filter by state/i })
-      await user.click(stateButton)
-      await user.click(await screen.findByRole('option', { name: 'Enabled' }))
-
-      await waitFor(() => {
-        assertUrlParam(mockSetSearchParams, 'is_enabled', 'true')
-      })
-      expect(mockSetSearchParams).toHaveBeenCalled()
-    })
-
     it('resets pagination cursor when filters change', async () => {
       const user = userEvent.setup()
 
@@ -2025,6 +2004,629 @@ describe('Workflows Component', () => {
       await waitFor(() => {
         expect(screen.getByText('Duplicate failed')).toBeInTheDocument()
         expect(screen.getByText('Workflow has no definition to duplicate')).toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('Publish Workflow', () => {
+    it('shows publish option in row actions menu', async () => {
+      const user = userEvent.setup()
+      render(<Workflows />, { wrapper })
+
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
+      })
+
+      const table = screen.getByRole('grid', { name: 'Workflows table' })
+      const rows = within(table).getAllByRole('row')
+      const firstDataRow = rows[1]
+
+      const buttons = within(firstDataRow).getAllByRole('button')
+      const menuTrigger = buttons[buttons.length - 1]
+      await user.click(menuTrigger)
+
+      await waitFor(() => {
+        expect(screen.getByText('Publish workflow')).toBeInTheDocument()
+      })
+    })
+
+    it('opens publish dialog when publish is clicked', async () => {
+      const user = userEvent.setup()
+      render(<Workflows />, { wrapper })
+
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
+      })
+
+      const table = screen.getByRole('grid', { name: 'Workflows table' })
+      const rows = within(table).getAllByRole('row')
+      const firstDataRow = rows[1]
+
+      const buttons = within(firstDataRow).getAllByRole('button')
+      const menuTrigger = buttons[buttons.length - 1]
+      await user.click(menuTrigger)
+
+      const publishItem = await screen.findByText('Publish workflow')
+      await user.click(publishItem)
+
+      await waitFor(() => {
+        expect(screen.getByText('Publish workflow?')).toBeInTheDocument()
+      })
+    })
+
+    it('does not show unpublish option for unpublished workflows', async () => {
+      const user = userEvent.setup()
+      render(<Workflows />, { wrapper })
+
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
+      })
+
+      const table = screen.getByRole('grid', { name: 'Workflows table' })
+      const rows = within(table).getAllByRole('row')
+      const firstDataRow = rows[1]
+
+      const buttons = within(firstDataRow).getAllByRole('button')
+      const menuTrigger = buttons[buttons.length - 1]
+      await user.click(menuTrigger)
+
+      await waitFor(() => {
+        expect(screen.getByText('Publish workflow')).toBeInTheDocument()
+        expect(screen.queryByText('Unpublish workflow')).not.toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('Publish Workflow Mutation', () => {
+    const workflowWithVersion = {
+      ...mockWorkflows[0],
+      current_version: 5,
+    }
+
+    const openPublishDialogForFirstRow = async (user: ReturnType<typeof userEvent.setup>) => {
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
+      })
+
+      const table = screen.getByRole('grid', { name: 'Workflows table' })
+      const rows = within(table).getAllByRole('row')
+      const firstDataRow = rows[1]
+
+      const buttons = within(firstDataRow).getAllByRole('button')
+      const menuTrigger = buttons[buttons.length - 1]
+      await user.click(menuTrigger)
+
+      const publishItem = await screen.findByText('Publish workflow')
+      await user.click(publishItem)
+
+      await waitFor(() => {
+        expect(screen.getByText('Publish workflow?')).toBeInTheDocument()
+      })
+    }
+
+    it('publishes workflow successfully and shows success alert', async () => {
+      const mockRefetch = vi.fn()
+      const mockPublishMutate = vi.fn(
+        (
+          _params: unknown,
+          callbacks?: {
+            onSuccess?: () => void
+            onError?: (error: unknown) => void
+            onSettled?: () => void
+          }
+        ) => {
+          callbacks?.onSuccess?.()
+          callbacks?.onSettled?.()
+        }
+      )
+
+      mockWorkflowQuery({
+        data: {
+          resources: [workflowWithVersion],
+          next: null,
+          prev: null,
+          total: 1,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+      })
+
+      const defaultMutationReturn = {
+        mutateAsync: vi.fn(),
+        reset: vi.fn(),
+        isPending: false,
+        isError: false,
+        isSuccess: false,
+        isIdle: true,
+        error: null,
+        data: undefined,
+        variables: undefined,
+        context: undefined,
+        failureCount: 0,
+        failureReason: null,
+        status: 'idle' as const,
+        submittedAt: 0,
+      }
+
+      vi.mocked(workflowClient.useMutation).mockImplementation((_method: string, path: string) => {
+        if (path.includes('/publish')) {
+          return { ...defaultMutationReturn, mutate: mockPublishMutate } as never
+        }
+        return { ...defaultMutationReturn, mutate: vi.fn() } as never
+      })
+
+      const user = userEvent.setup()
+      render(<Workflows />, { wrapper })
+      await openPublishDialogForFirstRow(user)
+
+      // Fill form and submit
+      const publishButton = screen.getByRole('button', { name: 'Publish' })
+      await user.click(publishButton)
+
+      await waitFor(() => {
+        expect(mockPublishMutate).toHaveBeenCalled()
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText('Workflow published successfully')).toBeInTheDocument()
+      })
+    })
+
+    it('shows error alert when publish fails', async () => {
+      const mockPublishMutate = vi.fn(
+        (
+          _params: unknown,
+          callbacks?: {
+            onSuccess?: () => void
+            onError?: (error: unknown) => void
+            onSettled?: () => void
+          }
+        ) => {
+          callbacks?.onError?.(new Error('Version conflict'))
+          callbacks?.onSettled?.()
+        }
+      )
+
+      mockWorkflowQuery({
+        data: {
+          resources: [workflowWithVersion],
+          next: null,
+          prev: null,
+          total: 1,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      const defaultMutationReturn = {
+        mutateAsync: vi.fn(),
+        reset: vi.fn(),
+        isPending: false,
+        isError: false,
+        isSuccess: false,
+        isIdle: true,
+        error: null,
+        data: undefined,
+        variables: undefined,
+        context: undefined,
+        failureCount: 0,
+        failureReason: null,
+        status: 'idle' as const,
+        submittedAt: 0,
+      }
+
+      vi.mocked(workflowClient.useMutation).mockImplementation((_method: string, path: string) => {
+        if (path.includes('/publish')) {
+          return { ...defaultMutationReturn, mutate: mockPublishMutate } as never
+        }
+        return { ...defaultMutationReturn, mutate: vi.fn() } as never
+      })
+
+      const user = userEvent.setup()
+      render(<Workflows />, { wrapper })
+      await openPublishDialogForFirstRow(user)
+
+      const publishButton = screen.getByRole('button', { name: 'Publish' })
+      await user.click(publishButton)
+
+      await waitFor(() => {
+        expect(screen.getByText('Failed to publish workflow')).toBeInTheDocument()
+      })
+    })
+
+    it('closes publish dialog on settled', async () => {
+      const mockPublishMutate = vi.fn(
+        (
+          _params: unknown,
+          callbacks?: {
+            onSuccess?: () => void
+            onSettled?: () => void
+          }
+        ) => {
+          callbacks?.onSuccess?.()
+          callbacks?.onSettled?.()
+        }
+      )
+
+      mockWorkflowQuery({
+        data: {
+          resources: [workflowWithVersion],
+          next: null,
+          prev: null,
+          total: 1,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      const defaultMutationReturn = {
+        mutateAsync: vi.fn(),
+        reset: vi.fn(),
+        isPending: false,
+        isError: false,
+        isSuccess: false,
+        isIdle: true,
+        error: null,
+        data: undefined,
+        variables: undefined,
+        context: undefined,
+        failureCount: 0,
+        failureReason: null,
+        status: 'idle' as const,
+        submittedAt: 0,
+      }
+
+      vi.mocked(workflowClient.useMutation).mockImplementation((_method: string, path: string) => {
+        if (path.includes('/publish')) {
+          return { ...defaultMutationReturn, mutate: mockPublishMutate } as never
+        }
+        return { ...defaultMutationReturn, mutate: vi.fn() } as never
+      })
+
+      const user = userEvent.setup()
+      render(<Workflows />, { wrapper })
+      await openPublishDialogForFirstRow(user)
+
+      const publishButton = screen.getByRole('button', { name: 'Publish' })
+      await user.click(publishButton)
+
+      // Dialog should close after settled
+      await waitFor(() => {
+        expect(screen.queryByText('Publish workflow?')).not.toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('Unpublish Workflow', () => {
+    const publishedWorkflows = [
+      {
+        ...mockWorkflows[0],
+        published_version: 3,
+      },
+      {
+        ...mockWorkflows[1],
+        published_version: null,
+      },
+    ]
+
+    it('shows unpublish option for published workflows in row actions menu', async () => {
+      mockWorkflowQuery({
+        data: {
+          resources: publishedWorkflows,
+          next: null,
+          prev: null,
+          total: 2,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      const user = userEvent.setup()
+      render(<Workflows />, { wrapper })
+
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
+      })
+
+      // Open actions menu for the first workflow (published)
+      const table = screen.getByRole('grid', { name: 'Workflows table' })
+      const rows = within(table).getAllByRole('row')
+      const firstDataRow = rows[1]
+      const buttons = within(firstDataRow).getAllByRole('button')
+      const menuTrigger = buttons[buttons.length - 1]
+      await user.click(menuTrigger)
+
+      await waitFor(() => {
+        expect(screen.getByText('Unpublish workflow')).toBeInTheDocument()
+      })
+    })
+
+    it('opens unpublish confirmation dialog when unpublish is clicked', async () => {
+      mockWorkflowQuery({
+        data: {
+          resources: publishedWorkflows,
+          next: null,
+          prev: null,
+          total: 2,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      const user = userEvent.setup()
+      render(<Workflows />, { wrapper })
+
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
+      })
+
+      const table = screen.getByRole('grid', { name: 'Workflows table' })
+      const rows = within(table).getAllByRole('row')
+      const firstDataRow = rows[1]
+      const buttons = within(firstDataRow).getAllByRole('button')
+      const menuTrigger = buttons[buttons.length - 1]
+      await user.click(menuTrigger)
+
+      const unpublishItem = await screen.findByText('Unpublish workflow')
+      await user.click(unpublishItem)
+
+      await waitFor(() => {
+        expect(screen.getByText('Unpublish workflow?')).toBeInTheDocument()
+        expect(screen.getByText(/will be unpublished/)).toBeInTheDocument()
+      })
+    })
+
+    it('unpublishes workflow successfully and shows success alert', async () => {
+      const mockRefetch = vi.fn()
+      const mockUnpublishMutate = vi.fn(
+        (
+          _params: unknown,
+          callbacks?: {
+            onSuccess?: () => void
+            onError?: (error: unknown) => void
+            onSettled?: () => void
+          }
+        ) => {
+          callbacks?.onSuccess?.()
+          callbacks?.onSettled?.()
+        }
+      )
+
+      mockWorkflowQuery({
+        data: {
+          resources: publishedWorkflows,
+          next: null,
+          prev: null,
+          total: 2,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+      })
+
+      const defaultMutationReturn = {
+        mutateAsync: vi.fn(),
+        reset: vi.fn(),
+        isPending: false,
+        isError: false,
+        isSuccess: false,
+        isIdle: true,
+        error: null,
+        data: undefined,
+        variables: undefined,
+        context: undefined,
+        failureCount: 0,
+        failureReason: null,
+        status: 'idle' as const,
+        submittedAt: 0,
+      }
+
+      vi.mocked(workflowClient.useMutation).mockImplementation((_method: string, path: string) => {
+        if (path.includes('/unpublish')) {
+          return { ...defaultMutationReturn, mutate: mockUnpublishMutate } as never
+        }
+        return { ...defaultMutationReturn, mutate: vi.fn() } as never
+      })
+
+      const user = userEvent.setup()
+      render(<Workflows />, { wrapper })
+
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
+      })
+
+      const table = screen.getByRole('grid', { name: 'Workflows table' })
+      const rows = within(table).getAllByRole('row')
+      const firstDataRow = rows[1]
+      const buttons = within(firstDataRow).getAllByRole('button')
+      const menuTrigger = buttons[buttons.length - 1]
+      await user.click(menuTrigger)
+
+      const unpublishItem = await screen.findByText('Unpublish workflow')
+      await user.click(unpublishItem)
+
+      await waitFor(() => {
+        expect(screen.getByText('Unpublish workflow?')).toBeInTheDocument()
+      })
+
+      const unpublishButton = screen.getByRole('button', { name: 'Unpublish' })
+      await user.click(unpublishButton)
+
+      await waitFor(() => {
+        expect(mockUnpublishMutate).toHaveBeenCalled()
+        expect(screen.getByText('Workflow unpublished successfully')).toBeInTheDocument()
+      })
+    })
+
+    it('shows error alert when unpublish fails', async () => {
+      const mockUnpublishMutate = vi.fn(
+        (
+          _params: unknown,
+          callbacks?: {
+            onSuccess?: () => void
+            onError?: (error: unknown) => void
+            onSettled?: () => void
+          }
+        ) => {
+          callbacks?.onError?.(new Error('Cannot unpublish'))
+          callbacks?.onSettled?.()
+        }
+      )
+
+      mockWorkflowQuery({
+        data: {
+          resources: publishedWorkflows,
+          next: null,
+          prev: null,
+          total: 2,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      const defaultMutationReturn = {
+        mutateAsync: vi.fn(),
+        reset: vi.fn(),
+        isPending: false,
+        isError: false,
+        isSuccess: false,
+        isIdle: true,
+        error: null,
+        data: undefined,
+        variables: undefined,
+        context: undefined,
+        failureCount: 0,
+        failureReason: null,
+        status: 'idle' as const,
+        submittedAt: 0,
+      }
+
+      vi.mocked(workflowClient.useMutation).mockImplementation((_method: string, path: string) => {
+        if (path.includes('/unpublish')) {
+          return { ...defaultMutationReturn, mutate: mockUnpublishMutate } as never
+        }
+        return { ...defaultMutationReturn, mutate: vi.fn() } as never
+      })
+
+      const user = userEvent.setup()
+      render(<Workflows />, { wrapper })
+
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
+      })
+
+      const table = screen.getByRole('grid', { name: 'Workflows table' })
+      const rows = within(table).getAllByRole('row')
+      const firstDataRow = rows[1]
+      const buttons = within(firstDataRow).getAllByRole('button')
+      const menuTrigger = buttons[buttons.length - 1]
+      await user.click(menuTrigger)
+
+      const unpublishItem = await screen.findByText('Unpublish workflow')
+      await user.click(unpublishItem)
+
+      await waitFor(() => {
+        expect(screen.getByText('Unpublish workflow?')).toBeInTheDocument()
+      })
+
+      const unpublishButton = screen.getByRole('button', { name: 'Unpublish' })
+      await user.click(unpublishButton)
+
+      await waitFor(() => {
+        expect(screen.getByText('Failed to unpublish workflow')).toBeInTheDocument()
+      })
+    })
+
+    it('closes unpublish dialog on settled', async () => {
+      const mockUnpublishMutate = vi.fn(
+        (
+          _params: unknown,
+          callbacks?: {
+            onSuccess?: () => void
+            onSettled?: () => void
+          }
+        ) => {
+          callbacks?.onSuccess?.()
+          callbacks?.onSettled?.()
+        }
+      )
+
+      mockWorkflowQuery({
+        data: {
+          resources: publishedWorkflows,
+          next: null,
+          prev: null,
+          total: 2,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      const defaultMutationReturn = {
+        mutateAsync: vi.fn(),
+        reset: vi.fn(),
+        isPending: false,
+        isError: false,
+        isSuccess: false,
+        isIdle: true,
+        error: null,
+        data: undefined,
+        variables: undefined,
+        context: undefined,
+        failureCount: 0,
+        failureReason: null,
+        status: 'idle' as const,
+        submittedAt: 0,
+      }
+
+      vi.mocked(workflowClient.useMutation).mockImplementation((_method: string, path: string) => {
+        if (path.includes('/unpublish')) {
+          return { ...defaultMutationReturn, mutate: mockUnpublishMutate } as never
+        }
+        return { ...defaultMutationReturn, mutate: vi.fn() } as never
+      })
+
+      const user = userEvent.setup()
+      render(<Workflows />, { wrapper })
+
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
+      })
+
+      const table = screen.getByRole('grid', { name: 'Workflows table' })
+      const rows = within(table).getAllByRole('row')
+      const firstDataRow = rows[1]
+      const buttons = within(firstDataRow).getAllByRole('button')
+      const menuTrigger = buttons[buttons.length - 1]
+      await user.click(menuTrigger)
+
+      const unpublishItem = await screen.findByText('Unpublish workflow')
+      await user.click(unpublishItem)
+
+      await waitFor(() => {
+        expect(screen.getByText('Unpublish workflow?')).toBeInTheDocument()
+      })
+
+      const unpublishButton = screen.getByRole('button', { name: 'Unpublish' })
+      await user.click(unpublishButton)
+
+      await waitFor(() => {
+        expect(screen.queryByText('Unpublish workflow?')).not.toBeInTheDocument()
       })
     })
   })

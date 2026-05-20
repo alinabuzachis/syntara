@@ -325,12 +325,6 @@ describe('BuilderContent', () => {
         expect(screen.queryByRole('menuitem', { name: /Run history/i })).not.toBeInTheDocument()
       })
     })
-
-    it('does not show Enabled switch for new workflows', async () => {
-      await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
-      expect(screen.queryByText('Enabled')).not.toBeInTheDocument()
-      expect(screen.queryByText('Disabled')).not.toBeInTheDocument()
-    })
   })
 
   describe('Existing Workflow', () => {
@@ -356,19 +350,51 @@ describe('BuilderContent', () => {
       })
     })
 
-    it('shows Enabled switch for existing workflows', async () => {
+    it('shows Publish workflow button for existing workflows', async () => {
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+      expect(screen.getByRole('button', { name: /Publish workflow/i })).toBeInTheDocument()
+    })
+
+    it('does not show Publish workflow button for new workflows', async () => {
+      await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
+      expect(screen.queryByRole('button', { name: /Publish workflow/i })).not.toBeInTheDocument()
+    })
+
+    it('shows Draft badge for unpublished existing workflow', async () => {
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
-        expect(screen.getByText('Enabled')).toBeInTheDocument()
+        expect(screen.getByText('Draft')).toBeInTheDocument()
       })
     })
 
-    it('shows Disabled for disabled workflows', async () => {
-      const disabledWorkflow = { ...mockWorkflow, is_enabled: false }
-      await renderBuilder({ workflow: disabledWorkflow, isNew: false, workflowId: 'workflow-1' })
+    it('shows Published badge when published_version matches current_version', async () => {
+      const publishedWorkflow = {
+        ...mockWorkflow,
+        published_version: 1,
+        current_version: 1,
+      } as unknown as WorkflowWithVersion
+      await renderBuilder({ workflow: publishedWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
-        expect(screen.getByText('Disabled')).toBeInTheDocument()
+        expect(screen.getByText('Published')).toBeInTheDocument()
       })
+    })
+
+    it('shows Unpublished changes badge when versions differ', async () => {
+      const changedWorkflow = {
+        ...mockWorkflow,
+        published_version: 1,
+        current_version: 2,
+      } as unknown as WorkflowWithVersion
+      await renderBuilder({ workflow: changedWorkflow, isNew: false, workflowId: 'workflow-1' })
+      await waitFor(() => {
+        expect(screen.getByText('Unpublished changes')).toBeInTheDocument()
+      })
+    })
+
+    it('does not show status badge for new workflows', async () => {
+      await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
+      expect(screen.queryByText('Draft')).not.toBeInTheDocument()
+      expect(screen.queryByText('Published')).not.toBeInTheDocument()
     })
   })
 
@@ -913,56 +939,6 @@ describe('BuilderContent', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Failed to create workflow: Create failed')).toBeInTheDocument()
-      })
-    })
-  })
-
-  // ============================================================================
-  // ENABLED SWITCH
-  // ============================================================================
-
-  describe('Enabled Switch', () => {
-    it('shows Enabled when workflow is enabled', async () => {
-      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
-      await waitFor(() => {
-        expect(screen.getByText('Enabled')).toBeInTheDocument()
-      })
-    })
-
-    it('shows Disabled when workflow is disabled', async () => {
-      const disabledWorkflow = { ...mockWorkflow, is_enabled: false }
-      await renderBuilder({ workflow: disabledWorkflow, isNew: false, workflowId: 'workflow-1' })
-      await waitFor(() => {
-        expect(screen.getByText('Disabled')).toBeInTheDocument()
-      })
-    })
-
-    it('toggles enabled state when clicked', async () => {
-      // Mock workflow update mutation to succeed
-      const mockUpdateMutate = vi.fn((params: unknown, callbacks?: MutationCallbacks) => {
-        if (callbacks?.onSuccess) {
-          callbacks.onSuccess({ id: 'workflow-1' }, params, undefined)
-        }
-      })
-
-      vi.mocked(workflowClient.useMutation).mockImplementation((method, path) => {
-        if (method === 'patch' && path === '/workflows/{workflow_id}') {
-          return createMockMutation(mockUpdateMutate)
-        }
-        return createMockMutation()
-      })
-
-      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
-      await waitFor(() => {
-        expect(screen.getByText('Enabled')).toBeInTheDocument()
-      })
-
-      const user = userEvent.setup()
-      // Toggle the workflow enabled switch
-      await user.click(screen.getByRole('switch'))
-      // Tests SET_IS_ENABLED reducer action
-      await waitFor(() => {
-        expect(screen.getByText('Disabled')).toBeInTheDocument()
       })
     })
   })
@@ -1664,18 +1640,12 @@ describe('BuilderContent', () => {
         ...mockWorkflow,
         name: 'Custom Init Name',
         description: 'Custom Init Description',
-        is_enabled: false,
       } as unknown as WorkflowWithVersion
 
       await renderBuilder({ workflow: customWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Custom Init Name')
-      })
-
-      // Check enabled switch shows Disabled
-      await waitFor(() => {
-        expect(screen.getByText('Disabled')).toBeInTheDocument()
       })
     })
   })
@@ -2225,42 +2195,6 @@ describe('BuilderContent', () => {
       await waitFor(() => {
         expect(mockExecuteMutate).toHaveBeenCalled()
         // Navigation should not happen since no id in response
-      })
-    })
-  })
-
-  // ============================================================================
-  // ENABLED SWITCH ADDITIONAL COVERAGE
-  // ============================================================================
-
-  describe('Enabled Switch Additional', () => {
-    it('toggles from disabled to enabled', async () => {
-      // Mock workflow update mutation to succeed
-      const mockUpdateMutate = vi.fn((params: unknown, callbacks?: MutationCallbacks) => {
-        if (callbacks?.onSuccess) {
-          callbacks.onSuccess({ id: 'workflow-1' }, params, undefined)
-        }
-      })
-
-      vi.mocked(workflowClient.useMutation).mockImplementation((method, path) => {
-        if (method === 'patch' && path === '/workflows/{workflow_id}') {
-          return createMockMutation(mockUpdateMutate)
-        }
-        return createMockMutation()
-      })
-
-      const disabledWorkflow = { ...mockWorkflow, is_enabled: false }
-      await renderBuilder({ workflow: disabledWorkflow, isNew: false, workflowId: 'workflow-1' })
-
-      await waitFor(() => {
-        expect(screen.getByText('Disabled')).toBeInTheDocument()
-      })
-
-      const user = userEvent.setup()
-      // Click to enable
-      await user.click(screen.getByRole('switch'))
-      await waitFor(() => {
-        expect(screen.getByText('Enabled')).toBeInTheDocument()
       })
     })
   })

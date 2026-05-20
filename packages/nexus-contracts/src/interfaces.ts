@@ -98,6 +98,18 @@ export const ProviderStatusEnum = {
   ERROR: 'error',
   VALIDATING: 'validating',
 } as const
+
+/**
+ * Constants for workflow version status discriminators
+ * Use these constants instead of string literals when comparing version status values
+ */
+export const WorkflowVersionStatusEnum = {
+  DRAFT: 'draft',
+  PUBLISHED: 'published',
+  PREVIOUSLY_PUBLISHED: 'previously_published',
+} as const
+
+export type WorkflowVersionStatus = WorkflowAPI.components['schemas']['WorkflowVersionStatus']
 export type WorkflowsResponse =
   WorkflowAPI.paths['/workflows']['get']['responses']['200']['content']['application/json']
 export type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersion']

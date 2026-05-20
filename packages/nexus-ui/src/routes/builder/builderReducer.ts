@@ -29,7 +29,6 @@ export type BuilderState = {
   workflowName: string
   workflowDescription: string
   workflowTags: string[]
-  isEnabled: boolean
 }
 
 // Builder action types
@@ -54,7 +53,6 @@ export type BuilderAction =
   | { type: 'SET_WORKFLOW_NAME'; payload: string }
   | { type: 'SET_WORKFLOW_DESCRIPTION'; payload: string }
   | { type: 'SET_WORKFLOW_TAGS'; payload: string[] }
-  | { type: 'SET_IS_ENABLED'; payload: boolean }
   | {
       type: 'OPEN_ADD_NODE_FROM_EDGE'
       payload: {
@@ -76,7 +74,7 @@ export type BuilderAction =
   | { type: 'SET_MOST_RECENT_EXECUTION'; payload: string }
   | { type: 'CLOSE_MOST_RECENT_RUN_PANEL' }
   | { type: 'SET_SELECTED_TRIGGER'; payload: number }
-  | { type: 'INIT_WORKFLOW'; payload: { name: string; description: string; tags: string[]; isEnabled: boolean } }
+  | { type: 'INIT_WORKFLOW'; payload: { name: string; description: string; tags: string[] } }
 
 // Lookup table for simple state updates - maps action type to the state key it updates
 type SimpleActionType = (typeof SIMPLE_ACTIONS)[number]
@@ -102,7 +100,6 @@ const SIMPLE_STATE_KEY_MAP: Record<
     | 'workflowName'
     | 'workflowDescription'
     | 'workflowTags'
-    | 'isEnabled'
     | 'selectedTriggerIndex'
   >
 > = {
@@ -122,7 +119,6 @@ const SIMPLE_STATE_KEY_MAP: Record<
   SET_WORKFLOW_NAME: 'workflowName',
   SET_WORKFLOW_DESCRIPTION: 'workflowDescription',
   SET_WORKFLOW_TAGS: 'workflowTags',
-  SET_IS_ENABLED: 'isEnabled',
   SET_SELECTED_TRIGGER: 'selectedTriggerIndex',
 }
 
@@ -295,7 +291,6 @@ const SIMPLE_ACTIONS = [
   'SET_WORKFLOW_NAME',
   'SET_WORKFLOW_DESCRIPTION',
   'SET_WORKFLOW_TAGS',
-  'SET_IS_ENABLED',
   'SET_SELECTED_TRIGGER',
 ] as const
 
@@ -383,7 +378,6 @@ export function builderReducer(state: BuilderState, action: BuilderAction): Buil
         workflowName: action.payload.name,
         workflowDescription: action.payload.description,
         workflowTags: action.payload.tags,
-        isEnabled: action.payload.isEnabled,
         // Reset UI state to prevent stale selections/panels from previous workflow
         selectedNode: null,
         nodeEditorMode: null,
@@ -435,6 +429,5 @@ export function getInitialBuilderState(): BuilderState {
     workflowName: '',
     workflowDescription: '',
     workflowTags: [],
-    isEnabled: true,
   }
 }

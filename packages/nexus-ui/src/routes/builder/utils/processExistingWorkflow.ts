@@ -135,7 +135,6 @@ export function processExistingWorkflow(workflow: WorkflowWithVersion) {
       name: workflow.name,
       description: workflow.description ?? workflow.name ?? DEFAULT_WORKFLOW_NAME,
       tags: tagKeys,
-      isEnabled: workflow.is_enabled ?? false,
     },
   }
 }

@@ -84,7 +84,7 @@ export function useBuilderWorkflowLifecycle(options: {
         loadWorkflowWithEdges(newWorkflow, [])
         dispatch({
           type: 'INIT_WORKFLOW',
-          payload: { name: defaultName, description: 'New workflow', tags: [], isEnabled: false },
+          payload: { name: defaultName, description: 'New workflow', tags: [] },
         })
       })
     } else if (workflow?.version?.workflow_definition && !hasLoadedRef.current && workflow.id === workflowId) {
@@ -113,7 +113,6 @@ export function useBuilderWorkflowLifecycle(options: {
           name: workflow.name,
           description: workflow.description ?? workflow.name ?? DEFAULT_WORKFLOW_NAME,
           tags: tagKeys,
-          isEnabled: workflow.is_enabled ?? false,
         },
       })
     })

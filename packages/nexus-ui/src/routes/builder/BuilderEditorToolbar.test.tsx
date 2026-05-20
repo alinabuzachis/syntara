@@ -10,15 +10,15 @@ describe('BuilderEditorToolbar', () => {
     isNew: false,
     workflow: { id: 'wf-1' },
     isPending: false,
-    isEnabled: false,
     isKebabOpen: false,
-    isSavingToggle: false,
+    publishedVersion: null as number | null,
     dispatch: vi.fn(),
     markDirty: vi.fn(),
     handleToggleHistory: vi.fn(),
     handleToggleDetails: vi.fn(),
     handleSaveWorkflow: vi.fn().mockResolvedValue(true),
-    onToggleEnable: vi.fn(),
+    onPublishClick: vi.fn(),
+    onUnpublish: vi.fn(),
   }
 
   afterEach(() => {
@@ -157,17 +157,39 @@ describe('BuilderEditorToolbar', () => {
     expect(saveButton).not.toHaveAttribute('aria-disabled', 'true')
   })
 
-  it('renders enabled/disabled switch for existing workflows', () => {
+  it('renders Publish button for existing workflows', () => {
     render(<BuilderEditorToolbar {...defaultProps} />)
 
-    expect(screen.getByRole('switch')).toBeInTheDocument()
-    expect(screen.getByText(/Disabled/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Publish/i })).toBeInTheDocument()
   })
 
-  it('does not render enabled switch for new workflows', () => {
+  it('does not render Publish button for new workflows', () => {
     render(<BuilderEditorToolbar {...defaultProps} isNew={true} workflow={undefined} />)
 
-    expect(screen.queryByRole('switch')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Publish/i })).not.toBeInTheDocument()
+  })
+
+  it('calls onPublishClick when Publish button is clicked', async () => {
+    const user = userEvent.setup()
+    const onPublishClick = vi.fn()
+
+    render(<BuilderEditorToolbar {...defaultProps} onPublishClick={onPublishClick} />)
+
+    await user.click(screen.getByRole('button', { name: /Publish/i }))
+
+    expect(onPublishClick).toHaveBeenCalledTimes(1)
+  })
+
+  it('renders Unpublish in kebab menu when workflow is published', () => {
+    render(<BuilderEditorToolbar {...defaultProps} isKebabOpen={true} publishedVersion={2} />)
+
+    expect(screen.getByRole('menuitem', { name: /Unpublish workflow/i })).toBeInTheDocument()
+  })
+
+  it('does not render Unpublish when workflow is not published', () => {
+    render(<BuilderEditorToolbar {...defaultProps} isKebabOpen={true} publishedVersion={null} />)
+
+    expect(screen.queryByRole('menuitem', { name: /Unpublish workflow/i })).not.toBeInTheDocument()
   })
 
   it('renders delete workflow menu when kebab is open', () => {

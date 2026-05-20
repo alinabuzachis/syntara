@@ -8,7 +8,7 @@ import groupedTableStyles from '../../components/groupedTable.module.css'
 import { BadgesCell } from '../../components/table/BadgesCell'
 import { DateCell } from '../../components/table/DateCell'
 import { LinkCell } from '../../components/table/LinkCell'
-import { SwitchCell } from '../../components/table/SwitchCell'
+import { WorkflowPublishStatusBadge } from '../../components/WorkflowPublishStatusBadge'
 import { getDateField } from '../../utils/getDateField'
 import { getWorkflowTagsForDisplay } from '../../utils/workflowTags'
 import type { ProjectRead } from '../access/types'
@@ -37,14 +37,10 @@ function WorkflowRow({ workflow, getRowActions }: Readonly<WorkflowRowProps>) {
       <Td dataLabel="Tags">
         <BadgesCell items={getWorkflowTagsForDisplay(workflow as WorkflowWithId)} />
       </Td>
-      <Td dataLabel="State">
-        <SwitchCell
-          checked={workflow?.is_enabled}
-          handleChange={() => {}}
-          showLabels
-          enabledLabel="Enabled"
-          disabledLabel="Disabled"
-          readOnly
+      <Td dataLabel="Status">
+        <WorkflowPublishStatusBadge
+          publishedVersion={workflow.published_version}
+          currentVersion={workflow.current_version}
         />
       </Td>
       <Td isActionCell>

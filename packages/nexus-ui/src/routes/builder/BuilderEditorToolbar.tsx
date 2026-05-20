@@ -15,15 +15,16 @@ import {
   RhUiExportIcon,
   RhUiHistoryIcon,
   RhUiImportIcon,
+  RhUiPublishIcon,
   RhUiSaveFillIcon,
   RhUiTrashIcon,
   RhUiEllipsisVerticalFillIcon,
   RhUiAddSquareIcon,
+  RhUiMinusCircleFillIcon,
 } from '@patternfly/react-icons'
 import { useCallback, useState, type Dispatch, type Ref } from 'react'
 
 import type { BuilderAction } from './builderReducer'
-import { EnabledWorkflowSwitch } from './EnabledWorkflowSwitch'
 import { useWorkflowImportExport } from './useWorkflowImportExport'
 
 type WorkflowKebabToggleProps = Readonly<{
@@ -50,20 +51,24 @@ type WorkflowKebabMenuProps = Readonly<{
   isNew: boolean
   workflow: { id: string } | undefined
   isKebabOpen: boolean
+  publishedVersion: number | null
   dispatch: Dispatch<BuilderAction>
   markDirty: () => void
   handleToggleHistory: () => void
   handleToggleDetails: () => void
+  onUnpublish: () => void
 }>
 
 function WorkflowKebabMenu({
   isNew,
   workflow,
   isKebabOpen,
+  publishedVersion,
   dispatch,
   markDirty,
   handleToggleHistory,
   handleToggleDetails,
+  onUnpublish,
 }: WorkflowKebabMenuProps) {
   const { importFileRef, handleImportFile, handleExport } = useWorkflowImportExport({ dispatch, markDirty })
 
@@ -130,6 +135,19 @@ function WorkflowKebabMenu({
               </Icon>
               Import workflow
             </DropdownItem>
+            {!isNew && workflow?.id && publishedVersion != null && (
+              <DropdownItem
+                onClick={() => {
+                  onUnpublish()
+                  dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
+                }}
+              >
+                <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
+                  <RhUiMinusCircleFillIcon />
+                </Icon>
+                Unpublish workflow
+              </DropdownItem>
+            )}
             {!isNew && workflow?.id && (
               <DropdownItem
                 onClick={() => {
@@ -156,15 +174,15 @@ type BuilderEditorToolbarProps = Readonly<{
   isNew: boolean
   workflow: { id: string } | undefined
   isPending: boolean
-  isEnabled: boolean
   isKebabOpen: boolean
-  isSavingToggle: boolean
+  publishedVersion: number | null
   dispatch: Dispatch<BuilderAction>
   markDirty: () => void
   handleToggleHistory: () => void
   handleToggleDetails: () => void
-  handleSaveWorkflow: (overrideIsEnabled?: boolean) => Promise<boolean>
-  onToggleEnable: (checked: boolean) => void
+  handleSaveWorkflow: () => Promise<boolean>
+  onPublishClick: () => void
+  onUnpublish: () => void
   triggers?: { id: string; name?: string }[]
 }>
 
@@ -175,15 +193,15 @@ export function BuilderEditorToolbar({
   isNew,
   workflow,
   isPending,
-  isEnabled,
   isKebabOpen,
-  isSavingToggle,
+  publishedVersion,
   dispatch,
   markDirty,
   handleToggleHistory,
   handleToggleDetails,
   handleSaveWorkflow,
-  onToggleEnable,
+  onPublishClick,
+  onUnpublish,
   triggers,
 }: BuilderEditorToolbarProps) {
   const [isRunDropdownOpen, setIsRunDropdownOpen] = useState(false)
@@ -286,10 +304,21 @@ export function BuilderEditorToolbar({
         {isPending ? 'Saving...' : 'Save'}
       </Button>
 
-      {!isNew && (
+      {!isNew && workflow?.id && (
         <>
           <Divider orientation={{ default: 'vertical' }} />
-          <EnabledWorkflowSwitch isEnabled={isEnabled} isSaving={isSavingToggle} onToggle={onToggleEnable} />
+          <Button
+            variant="primary"
+            onClick={onPublishClick}
+            icon={
+              <Icon isInline>
+                <RhUiPublishIcon />
+              </Icon>
+            }
+            iconPosition="start"
+          >
+            Publish workflow
+          </Button>
         </>
       )}
 
@@ -298,10 +327,12 @@ export function BuilderEditorToolbar({
         isNew={isNew}
         workflow={workflow}
         isKebabOpen={isKebabOpen}
+        publishedVersion={publishedVersion}
         dispatch={dispatch}
         markDirty={markDirty}
         handleToggleHistory={handleToggleHistory}
         handleToggleDetails={handleToggleDetails}
+        onUnpublish={onUnpublish}
       />
     </>
   )

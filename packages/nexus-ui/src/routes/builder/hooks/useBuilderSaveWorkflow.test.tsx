@@ -26,7 +26,6 @@ function buildParams(overrides: Partial<UseBuilderSaveWorkflowParams> = {}): Use
     workflowName: 'test-wf',
     workflowDescription: 'd',
     workflowTags: [],
-    isEnabled: true,
     workflowId: null,
     isNew: true,
     /** Create path requires a project; tests that assert missing-project behavior override with `null`. */
@@ -112,7 +111,6 @@ describe('useBuilderSaveWorkflow', () => {
     expect(vars.body).toMatchObject({
       name: 'test-wf',
       description: 'd',
-      is_enabled: true,
       labels: {},
     })
     expect(markClean).toHaveBeenCalled()

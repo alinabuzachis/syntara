@@ -35,6 +35,7 @@ import { useBuilderSaveWorkflow, type UseBuilderSaveWorkflowParams } from './hoo
 import { useBuilderToolbarHandlers } from './hooks/useBuilderToolbarHandlers'
 import { useBuilderWindowEffects } from './hooks/useBuilderWindowEffects'
 import { useBuilderWorkflowLifecycle } from './hooks/useBuilderWorkflowLifecycle'
+import { usePublishWorkflow, useUnpublishWorkflow } from './hooks/usePublishWorkflow'
 import { useUndoRedoKeyboard } from './hooks/useUndoRedoKeyboard'
 import { NodeActionsContext } from './NodeActionsContext'
 import { WorkflowHistoryCard } from './WorkflowHistoryCard'
@@ -102,7 +103,6 @@ export function BuilderContent(props: BuilderContentProps) {
     workflowName,
     workflowDescription,
     workflowTags,
-    isEnabled,
     mostRecentExecutionId,
     mostRecentRunPanelOpen,
     selectedTriggerIndex,
@@ -152,12 +152,15 @@ export function BuilderContent(props: BuilderContentProps) {
 
   const isPending = isCreating || isUpdating
 
+  const currentVersion = workflow?.current_version ?? workflow?.version?.version
+  const { publish: onPublish, isPublishing } = usePublishWorkflow(workflowId, currentVersion)
+  const { unpublish: onUnpublish } = useUnpublishWorkflow(workflowId)
+
   const handleSaveWorkflow = useBuilderSaveWorkflow({
     currentWorkflow,
     workflowName,
     workflowDescription,
     workflowTags,
-    isEnabled,
     workflowId,
     isNew,
     selectedProject: selectedProject?.id ? { id: selectedProject.id } : null,
@@ -308,14 +311,18 @@ export function BuilderContent(props: BuilderContentProps) {
                 isNew={isNew}
                 workflow={workflow?.id ? { id: workflow.id } : undefined}
                 isPending={isPending}
-                isEnabled={isEnabled}
                 isKebabOpen={isKebabOpen}
+                publishedVersion={workflow?.published_version ?? null}
+                currentVersion={currentVersion}
+                isPublishing={isPublishing}
                 ProjectSelector={ProjectSelector}
                 dispatch={dispatch}
                 markDirty={markDirty}
                 handleToggleHistory={handleToggleHistory}
                 handleToggleDetails={handleToggleDetails}
                 handleSaveWorkflow={handleSaveWorkflow}
+                onPublish={onPublish}
+                onUnpublish={onUnpublish}
                 isLiveRunActive={isLiveRunActive}
                 executionId={mostRecentExecutionId}
                 executionStatus={mostRecentExecution?.status}

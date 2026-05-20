@@ -1,4 +1,4 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import { WorkflowVersionStatusEnum, type WorkflowAPI } from '@ansible/nexus-contracts'
 import { readFileSync } from 'fs'
 import yaml from 'js-yaml'
 import { basename } from 'path'
@@ -31,8 +31,12 @@ export function convertYamlToWorkflow(yamlFilePath: string, id: string, createdB
     updated_at: timestamp,
     created_by: createdBy,
     labels: {},
+    current_version: 1,
+    published_version: null,
     version: {
       workflow_definition: workflowDefinition,
+      version: 1,
+      status: WorkflowVersionStatusEnum.DRAFT,
     },
   }
 }

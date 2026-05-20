@@ -102,6 +102,46 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/workflows/{workflow_id}/versions/{version}/publish': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Publish workflow version
+     * @description Publish a specific version of a workflow, making it the active published version.
+     */
+    post: operations['publish_workflow_version']
+    get?: never
+    put?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/workflows/{workflow_id}/unpublish': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Unpublish workflow
+     * @description Remove the published version from a workflow, reverting it to draft state.
+     */
+    post: operations['unpublish_workflow']
+    get?: never
+    put?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
 }
 export type webhooks = Record<string, never>
 export interface components {
@@ -113,6 +153,8 @@ export interface components {
         current_version?: number
         /** @description Whether workflow is enabled and available for execution */
         is_enabled?: boolean
+        /** @description Version number of the currently published version, or null if unpublished */
+        published_version?: number | null
         /**
          * Format: uuid
          * @description Project this workflow belongs to
@@ -140,6 +182,8 @@ export interface components {
      * Workflow Version Response
      * @description Complete details of a specific workflow version including workflow definition. Note that deleted_at and deleted_by are always null since soft-deleted versions are excluded from queries.
      */
+    /** @description Version status indicating publish state */
+    WorkflowVersionStatus: 'draft' | 'published' | 'previously_published'
     WorkflowVersionResponse: {
       /**
        * Format: uuid
@@ -160,6 +204,10 @@ export interface components {
       schema_version: string
       /** @description V2 graph-based workflow definition with triggers, nodes, and edges */
       workflow_definition: components['schemas']['workflow_definition.schema']
+      /** @description Version publish status */
+      status?: components['schemas']['WorkflowVersionStatus']
+      /** @description Human-readable name assigned when this version was published */
+      publish_name?: string | null
       /**
        * Format: uuid
        * @description User who created this version
@@ -1452,6 +1500,79 @@ export interface operations {
         }
       }
       /** @description Workflow or version not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ErrorData']
+        }
+      }
+    }
+  }
+  publish_workflow_version: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        workflow_id: string
+        /** @description Version number to publish */
+        version: number
+      }
+      cookie?: never
+    }
+    requestBody?: {
+      content: {
+        'application/json': {
+          /** @description Human-readable name for the published version */
+          publish_name?: string | null
+          /** @description Description of changes in this published version */
+          description?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description Version published successfully */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['WorkflowWithVersion']
+        }
+      }
+      /** @description Workflow or version not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ErrorData']
+        }
+      }
+    }
+  }
+  unpublish_workflow: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        workflow_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Workflow unpublished successfully */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['WorkflowWithVersion']
+        }
+      }
+      /** @description Workflow not found */
       404: {
         headers: {
           [name: string]: unknown

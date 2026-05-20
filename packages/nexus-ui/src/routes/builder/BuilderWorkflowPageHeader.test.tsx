@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
@@ -55,19 +55,22 @@ describe('BuilderWorkflowPageHeader', () => {
     isNew: true,
     workflow: undefined as { id: string } | undefined,
     isPending: false,
-    isEnabled: true,
     isKebabOpen: false,
+    publishedVersion: null as number | null,
+    currentVersion: undefined as number | undefined,
+    isPublishing: false,
     ProjectSelector: <span>Project</span>,
     dispatch: vi.fn(),
     markDirty: vi.fn(),
     handleToggleHistory: vi.fn(),
     handleToggleDetails: vi.fn(),
-    handleSaveWorkflow: vi.fn(),
+    handleSaveWorkflow: vi.fn().mockResolvedValue(true),
+    onPublish: vi.fn(),
+    onUnpublish: vi.fn(),
   }
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockWorkflowStoreState.isDirty = false
   })
 
   it('has no accessibility violations in editor mode', async () => {
@@ -90,7 +93,6 @@ describe('BuilderWorkflowPageHeader', () => {
     const backButton = screen.getByRole('button', { name: 'Back to editor' })
     expect(backButton).toBeInTheDocument()
 
-    // Toolbar buttons should not be present during live run
     expect(screen.queryByRole('button', { name: 'Add Step' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Run/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Save/i })).not.toBeInTheDocument()
@@ -125,188 +127,57 @@ describe('BuilderWorkflowPageHeader', () => {
     const nameInput = screen.getByRole('textbox', { name: /Workflow name/i })
     await user.type(nameInput, 'Updated')
 
-    // userEvent.type() calls onChange for each character, so verify dispatch was called with type
     expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'SET_WORKFLOW_NAME' }))
     expect(markDirty).toHaveBeenCalled()
   })
 
-  it('saves immediately when toggling enable with no unsaved changes', async () => {
-    const user = userEvent.setup()
-    const handleSaveWorkflow = vi.fn().mockResolvedValue(true)
-    const dispatch = vi.fn()
-    mockWorkflowStoreState.isDirty = false
+  it('does not show status badge for new workflows', () => {
+    render(<BuilderWorkflowPageHeader {...baseProps} isNew={true} />)
 
+    expect(screen.queryByText('Draft')).not.toBeInTheDocument()
+    expect(screen.queryByText('Published')).not.toBeInTheDocument()
+  })
+
+  it('shows status badge for existing workflows', () => {
     render(
       <BuilderWorkflowPageHeader
         {...baseProps}
         isNew={false}
-        workflow={{ id: 'workflow-1' }}
-        isEnabled={false}
-        handleSaveWorkflow={handleSaveWorkflow}
-        dispatch={dispatch}
+        workflow={{ id: 'wf-1' }}
+        publishedVersion={null}
+        currentVersion={1}
       />
     )
 
-    const enableSwitch = screen.getByRole('switch')
-    await user.click(enableSwitch)
-
-    await waitFor(() => {
-      expect(handleSaveWorkflow).toHaveBeenCalledWith(true)
-      expect(dispatch).toHaveBeenCalledWith({ type: 'SET_IS_ENABLED', payload: true })
-    })
+    expect(screen.getByText('Draft')).toBeInTheDocument()
   })
 
-  it('shows confirmation dialog when toggling enable with unsaved changes', async () => {
-    const user = userEvent.setup()
-    const handleSaveWorkflow = vi.fn().mockResolvedValue(true)
-    mockWorkflowStoreState.isDirty = true
-
+  it('shows Published badge when versions match', () => {
     render(
       <BuilderWorkflowPageHeader
         {...baseProps}
         isNew={false}
-        workflow={{ id: 'workflow-1' }}
-        isEnabled={false}
-        handleSaveWorkflow={handleSaveWorkflow}
+        workflow={{ id: 'wf-1' }}
+        publishedVersion={2}
+        currentVersion={2}
       />
     )
 
-    const enableSwitch = screen.getByRole('switch')
-    await user.click(enableSwitch)
-
-    expect(screen.getByText(/Save changes to "wf" before enabling\?/i)).toBeInTheDocument()
+    expect(screen.getByText('Published')).toBeInTheDocument()
   })
 
-  it('saves and updates state when confirming enable with unsaved changes', async () => {
-    const user = userEvent.setup()
-    const handleSaveWorkflow = vi.fn().mockResolvedValue(true)
-    const dispatch = vi.fn()
-    mockWorkflowStoreState.isDirty = true
-
+  it('shows Unpublished changes badge when versions differ', () => {
     render(
       <BuilderWorkflowPageHeader
         {...baseProps}
         isNew={false}
-        workflow={{ id: 'workflow-1' }}
-        isEnabled={false}
-        handleSaveWorkflow={handleSaveWorkflow}
-        dispatch={dispatch}
+        workflow={{ id: 'wf-1' }}
+        publishedVersion={1}
+        currentVersion={2}
       />
     )
 
-    const enableSwitch = screen.getByRole('switch')
-    await user.click(enableSwitch)
-
-    const confirmButton = screen.getByRole('button', { name: /Save and continue/i })
-    await user.click(confirmButton)
-
-    await waitFor(() => {
-      expect(handleSaveWorkflow).toHaveBeenCalledWith(true)
-      expect(dispatch).toHaveBeenCalledWith({ type: 'SET_IS_ENABLED', payload: true })
-    })
-  })
-
-  it('does not update state when save fails', async () => {
-    const user = userEvent.setup()
-    const handleSaveWorkflow = vi.fn().mockResolvedValue(false)
-    const dispatch = vi.fn()
-    mockWorkflowStoreState.isDirty = false
-
-    render(
-      <BuilderWorkflowPageHeader
-        {...baseProps}
-        isNew={false}
-        workflow={{ id: 'workflow-1' }}
-        isEnabled={false}
-        handleSaveWorkflow={handleSaveWorkflow}
-        dispatch={dispatch}
-      />
-    )
-
-    const enableSwitch = screen.getByRole('switch')
-    await user.click(enableSwitch)
-
-    await waitFor(() => {
-      expect(handleSaveWorkflow).toHaveBeenCalledWith(true)
-    })
-
-    expect(dispatch).not.toHaveBeenCalledWith({ type: 'SET_IS_ENABLED', payload: true })
-  })
-
-  it('ignores toggle clicks while saving', async () => {
-    const user = userEvent.setup()
-    let resolvePromise: (value: boolean) => void
-    const handleSaveWorkflow = vi.fn(
-      () =>
-        new Promise<boolean>((resolve) => {
-          resolvePromise = resolve
-        })
-    )
-    mockWorkflowStoreState.isDirty = false
-
-    render(
-      <BuilderWorkflowPageHeader
-        {...baseProps}
-        isNew={false}
-        workflow={{ id: 'workflow-1' }}
-        isEnabled={false}
-        handleSaveWorkflow={handleSaveWorkflow}
-      />
-    )
-
-    const enableSwitch = screen.getByRole('switch')
-
-    await user.click(enableSwitch)
-    await user.click(enableSwitch)
-
-    expect(handleSaveWorkflow).toHaveBeenCalledTimes(1)
-
-    // Resolve the promise and wait for state updates
-    await waitFor(() => {
-      resolvePromise!(true)
-    })
-  })
-
-  it('closes confirmation dialog when cancel is clicked', async () => {
-    const user = userEvent.setup()
-    mockWorkflowStoreState.isDirty = true
-
-    render(<BuilderWorkflowPageHeader {...baseProps} isNew={false} workflow={{ id: 'workflow-1' }} isEnabled={false} />)
-
-    const enableSwitch = screen.getByRole('switch')
-    await user.click(enableSwitch)
-
-    expect(screen.getByText(/Save changes to "wf" before enabling\?/i)).toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: /Cancel/i }))
-
-    await waitFor(() => {
-      expect(screen.queryByText(/Save changes to "wf" before enabling\?/i)).not.toBeInTheDocument()
-    })
-  })
-
-  it('does not save when confirm is called with null pending state', async () => {
-    const user = userEvent.setup()
-    const handleSaveWorkflow = vi.fn().mockResolvedValue(true)
-    mockWorkflowStoreState.isDirty = true
-
-    render(
-      <BuilderWorkflowPageHeader
-        {...baseProps}
-        isNew={false}
-        workflow={{ id: 'workflow-1' }}
-        isEnabled={false}
-        handleSaveWorkflow={handleSaveWorkflow}
-      />
-    )
-
-    const enableSwitch = screen.getByRole('switch')
-    await user.click(enableSwitch)
-
-    // Cancel to clear the pending state
-    await user.click(screen.getByRole('button', { name: /Cancel/i }))
-
-    expect(handleSaveWorkflow).not.toHaveBeenCalled()
+    expect(screen.getByText('Unpublished changes')).toBeInTheDocument()
   })
 
   it('updates workflow details via popover and marks dirty', () => {
@@ -324,8 +195,6 @@ describe('BuilderWorkflowPageHeader', () => {
       />
     )
 
-    // The EditWorkflowDetailsPopover is tested separately, we just verify it's rendered
-    // and that the dispatch/markDirty callbacks are passed correctly
     expect(screen.getByRole('textbox', { name: /Workflow name/i })).toHaveValue('Original Name')
   })
 
@@ -467,5 +336,135 @@ describe('BuilderWorkflowPageHeader', () => {
 
     expect(dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'SET_WORKFLOW_NAME' }))
     expect(markDirty).not.toHaveBeenCalled()
+  })
+
+  it('shows approval loading state during live run', () => {
+    render(
+      <BuilderWorkflowPageHeader
+        {...baseProps}
+        isNew={false}
+        workflow={{ id: 'workflow-1' }}
+        isLiveRunActive
+        onBackToEditor={vi.fn()}
+        hasApprovalPending
+        isApprovalLoading={true}
+        onReviewApproval={vi.fn()}
+      />
+    )
+
+    // PF prepends "Loading..." to the accessible name when isLoading is true
+    const approvalButton = screen.getByRole('button', { name: /Review approval/i })
+    expect(approvalButton).toBeInTheDocument()
+  })
+
+  it('does not show approval button when hasApprovalPending is false', () => {
+    render(
+      <BuilderWorkflowPageHeader
+        {...baseProps}
+        isNew={false}
+        workflow={{ id: 'workflow-1' }}
+        isLiveRunActive
+        onBackToEditor={vi.fn()}
+        hasApprovalPending={false}
+        onReviewApproval={vi.fn()}
+      />
+    )
+
+    expect(screen.queryByRole('button', { name: 'Review approval' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Back to editor' })).toBeInTheDocument()
+  })
+
+  it('does not show approval button when onReviewApproval is not provided', () => {
+    render(
+      <BuilderWorkflowPageHeader
+        {...baseProps}
+        isNew={false}
+        workflow={{ id: 'workflow-1' }}
+        isLiveRunActive
+        onBackToEditor={vi.fn()}
+        hasApprovalPending
+      />
+    )
+
+    expect(screen.queryByRole('button', { name: 'Review approval' })).not.toBeInTheDocument()
+  })
+
+  it('renders editor toolbar when isLiveRunActive is false', () => {
+    render(<BuilderWorkflowPageHeader {...baseProps} isNew={false} workflow={{ id: 'wf-1' }} isLiveRunActive={false} />)
+
+    // Editor toolbar should be rendered (not live run toolbar)
+    expect(screen.queryByRole('button', { name: 'Back to editor' })).not.toBeInTheDocument()
+  })
+
+  it('renders editor toolbar when isLiveRunActive is true but onBackToEditor is not provided', () => {
+    render(<BuilderWorkflowPageHeader {...baseProps} isNew={false} workflow={{ id: 'wf-1' }} isLiveRunActive />)
+
+    // Without onBackToEditor, the live run toolbar branch is not taken
+    expect(screen.queryByRole('button', { name: 'Back to editor' })).not.toBeInTheDocument()
+  })
+
+  it('does not show cancel button when execution is not cancellable', () => {
+    render(
+      <BuilderWorkflowPageHeader
+        {...baseProps}
+        isNew={false}
+        workflow={{ id: 'workflow-1' }}
+        isLiveRunActive
+        onBackToEditor={vi.fn()}
+        executionId="exec-abc"
+        executionStatus="failed"
+      />
+    )
+
+    expect(screen.queryByRole('button', { name: 'Cancel execution' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Back to editor' })).toBeInTheDocument()
+  })
+
+  it('opens publish dialog and calls onPublish with form data', async () => {
+    const user = userEvent.setup()
+    const onPublish = vi.fn()
+
+    render(
+      <BuilderWorkflowPageHeader
+        {...baseProps}
+        isNew={false}
+        workflow={{ id: 'wf-1' }}
+        publishedVersion={null}
+        currentVersion={1}
+        onPublish={onPublish}
+      />
+    )
+
+    // The PublishWorkflowDialog is wired to publishDialog.open(true) via onPublishClick
+    // The BuilderEditorToolbar has a "Publish" button that calls onPublishClick
+    // Look for the publish button in the editor toolbar kebab or toolbar
+    const publishButton = screen.getByRole('button', { name: /Publish/i })
+    await user.click(publishButton)
+
+    // Publish dialog should open
+    await screen.findByText('Publish workflow?')
+
+    // Submit the form
+    const submitButton = screen.getByRole('button', { name: 'Publish' })
+    await user.click(submitButton)
+
+    // onPublish should have been called
+    expect(onPublish).toHaveBeenCalled()
+  })
+
+  it('does not show cancel button when executionId is null', () => {
+    render(
+      <BuilderWorkflowPageHeader
+        {...baseProps}
+        isNew={false}
+        workflow={{ id: 'workflow-1' }}
+        isLiveRunActive
+        onBackToEditor={vi.fn()}
+        executionId={null}
+        executionStatus="running"
+      />
+    )
+
+    expect(screen.queryByRole('button', { name: 'Cancel execution' })).not.toBeInTheDocument()
   })
 })

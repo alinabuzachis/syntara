@@ -21,7 +21,7 @@ const processExistingWorkflowMock = vi.hoisted(() =>
       workflow: { activities: [] },
     } as WorkflowDefinition,
     generatedEdges: [] as EdgeConnection[],
-    initPayload: { name: 'processed', description: 'd', tags: [] as string[], isEnabled: true },
+    initPayload: { name: 'processed', description: 'd', tags: [] as string[] },
   }))
 )
 
@@ -173,7 +173,6 @@ describe('useBuilderWorkflowLifecycle', () => {
         name: wf.name,
         description: wf.description ?? wf.name ?? DEFAULT_WORKFLOW_NAME,
         tags: Object.keys(wf.labels ?? {}),
-        isEnabled: wf.is_enabled ?? false,
       },
     }))
     const workflow = {
@@ -202,7 +201,6 @@ describe('useBuilderWorkflowLifecycle', () => {
           name: 'Named',
           description: 'Desc',
           tags: ['env'],
-          isEnabled: true,
         },
       })
     })
