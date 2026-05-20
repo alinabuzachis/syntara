@@ -1,4 +1,4 @@
-import { StackItem, Tab, TabTitleText } from '@patternfly/react-core'
+import { Content, ContentVariants, StackItem, Tab, TabTitleText } from '@patternfly/react-core'
 import { useMemo } from 'react'
 
 import { AppRoute } from '../../app/AppRoute'
@@ -33,8 +33,14 @@ export function CanITab() {
   )
 
   return (
-    <NxPanelContentStack hasGutter>
+    <NxPanelContentStack>
       <StackItem>
+        <Content component={ContentVariants.p} style={{ marginBottom: 'var(--pf-t--global--spacer--md)' }}>
+          Look up which users and groups have access to a specific resource and what actions they can perform on it. Use
+          this page to quickly audit permissions without navigating through individual assignments.
+        </Content>
+      </StackItem>
+      <StackItem style={{ marginBottom: 'var(--pf-t--global--spacer--md)' }}>
         <UrlTabs
           basePath={AppRoute.AccessManagement.CanI}
           defaultTab="check"

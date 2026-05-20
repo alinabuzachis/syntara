@@ -1,4 +1,4 @@
-import { Stack, StackItem, Truncate } from '@patternfly/react-core'
+import { Content, ContentVariants, Stack, StackItem, Truncate } from '@patternfly/react-core'
 import { RhUiCodeIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
@@ -200,6 +200,13 @@ export function PoliciesTab() {
   return (
     <>
       <Stack style={{ height: '100%' }}>
+        <StackItem>
+          <Content component={ContentVariants.p} style={{ marginBottom: 'var(--pf-t--global--spacer--md)' }}>
+            Policies define what actions are allowed or denied on resources at the system or project level. Browse the
+            built-in policies to understand available permissions, then group them into roles for project scoped or
+            system level assignments to users and groups.
+          </Content>
+        </StackItem>
         <StackItem>
           <FilterBar
             fieldDefinitions={filterFieldDefinitions}

@@ -1,4 +1,14 @@
-import { Button, Flex, FlexItem, Label, LabelGroup, StackItem, Truncate } from '@patternfly/react-core'
+import {
+  Button,
+  Content,
+  ContentVariants,
+  Flex,
+  FlexItem,
+  Label,
+  LabelGroup,
+  StackItem,
+  Truncate,
+} from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
@@ -142,6 +152,13 @@ export function AssignmentsTab() {
   return (
     <>
       <NxPanelContentStack>
+        <StackItem>
+          <Content component={ContentVariants.p} style={{ marginBottom: 'var(--pf-t--global--spacer--md)' }}>
+            Assignments connect users and groups to roles, determining what each person can do. Each assignment can be
+            scoped to a specific project or apply system-wide. Use this page to review, create, or revoke access in one
+            place.
+          </Content>
+        </StackItem>
         <StackItem>
           <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
             <FlexItem grow={{ default: 'grow' }}>

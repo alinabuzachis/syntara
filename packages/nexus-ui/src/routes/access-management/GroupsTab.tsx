@@ -1,5 +1,5 @@
 import type { Group } from '@ansible/nexus-contracts'
-import { Badge, Button, Flex, FlexItem, StackItem, Truncate } from '@patternfly/react-core'
+import { Badge, Button, Content, ContentVariants, Flex, FlexItem, StackItem, Truncate } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { Thead, Tbody, Tr, Th, Td, ActionsColumn } from '@patternfly/react-table'
 import { useMemo } from 'react'
@@ -110,6 +110,12 @@ export function GroupsTab() {
         />
       ) : (
         <NxPanelContentStack>
+          <StackItem>
+            <Content component={ContentVariants.p} style={{ marginBottom: 'var(--pf-t--global--spacer--md)' }}>
+              Groups organize users into logical collections, making it easy to assign roles to many users at once. When
+              a role is assigned to a group, every user in that group inherits its permissions.
+            </Content>
+          </StackItem>
           <StackItem>
             <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
               <FlexItem grow={{ default: 'grow' }}>

@@ -1,4 +1,4 @@
-import { Button, Flex, FlexItem, StackItem, Truncate } from '@patternfly/react-core'
+import { Button, Content, ContentVariants, Flex, FlexItem, StackItem, Truncate } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
@@ -269,6 +269,13 @@ export function ProjectsTab() {
   return (
     <>
       <NxPanelContentStack>
+        <StackItem>
+          <Content component={ContentVariants.p} style={{ marginBottom: 'var(--pf-t--global--spacer--md)' }}>
+            Projects organize workflows and their resources, such as credentials, into separate workspaces. Each
+            workflow and credential belongs to exactly one project. Use projects to keep related automation work
+            together and to control access through role assignments.
+          </Content>
+        </StackItem>
         <StackItem>
           <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
             <FlexItem grow={{ default: 'grow' }}>

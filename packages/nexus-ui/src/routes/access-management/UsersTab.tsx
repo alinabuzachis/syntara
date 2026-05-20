@@ -1,5 +1,5 @@
 import type { User } from '@ansible/nexus-contracts'
-import { Button, Divider, Flex, FlexItem, StackItem, Truncate } from '@patternfly/react-core'
+import { Button, Content, ContentVariants, Flex, FlexItem, StackItem, Truncate } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
@@ -140,7 +140,13 @@ export function UsersTab() {
 
   return (
     <>
-      <NxPanelContentStack hasGutter>
+      <NxPanelContentStack>
+        <StackItem>
+          <Content component={ContentVariants.p} style={{ marginBottom: 'var(--pf-t--global--spacer--md)' }}>
+            Users represent individual people who interact with the system. Users are assigned roles directly or through
+            the groups they belong to. A user can belong to multiple groups.
+          </Content>
+        </StackItem>
         <StackItem>
           {builtinUser && (
             <BuiltInAdminCard
@@ -150,9 +156,6 @@ export function UsersTab() {
               onToggle={adminToggle.handleToggle}
             />
           )}
-        </StackItem>
-        <StackItem>
-          <Divider />
         </StackItem>
         <StackItem>
           <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>

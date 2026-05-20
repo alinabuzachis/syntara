@@ -1,4 +1,14 @@
-import { Button, Label, LabelGroup, Flex, FlexItem, StackItem, Truncate } from '@patternfly/react-core'
+import {
+  Button,
+  Content,
+  ContentVariants,
+  Label,
+  LabelGroup,
+  Flex,
+  FlexItem,
+  StackItem,
+  Truncate,
+} from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiEditFillIcon, RhUiLockIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, ExpandableRowContent, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
@@ -300,6 +310,13 @@ export function RolesTab() {
   return (
     <>
       <NxPanelContentStack>
+        <StackItem>
+          <Content component={ContentVariants.p} style={{ marginBottom: 'var(--pf-t--global--spacer--md)' }}>
+            Roles bundle one or more policies together so they can be assigned to users and groups as a unit at the
+            system or project level. Assign roles system-wide for broad access, or scope them to specific projects for
+            tighter control.
+          </Content>
+        </StackItem>
         <StackItem>
           <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
             <FlexItem grow={{ default: 'grow' }}>
