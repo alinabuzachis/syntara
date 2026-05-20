@@ -17,6 +17,7 @@ const samplePolicy: PolicyRead = {
   scope: 'any',
   statements: [{ scope: 'any', effect: 'allow', actions: ['workflow:read'] }],
   is_builtin: true,
+  is_project_eligible: false,
   is_system_scoped: true,
   project_id: null,
   labels: {},

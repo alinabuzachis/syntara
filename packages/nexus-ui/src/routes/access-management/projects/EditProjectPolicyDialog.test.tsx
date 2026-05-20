@@ -58,6 +58,7 @@ const mockPolicy: ProjectPolicyRead = {
   description: 'A policy',
   statements: [{ effect: 'allow', actions: ['read'], scope: 'any' }],
   is_builtin: false,
+  is_project_eligible: true,
   is_system_scoped: false,
   project_id: 'proj-1',
 }

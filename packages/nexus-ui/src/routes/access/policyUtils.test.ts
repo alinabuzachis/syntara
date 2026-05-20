@@ -9,6 +9,7 @@ const baseRaw: PolicyReadApi = {
   description: 'Test description',
   scope: 'any',
   is_builtin: false,
+  is_project_eligible: false,
   is_system_scoped: false,
   project_id: null,
   labels: {},

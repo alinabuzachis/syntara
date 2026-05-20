@@ -78,6 +78,7 @@ export interface MockPolicy {
   name: string
   description: string | null
   is_builtin: boolean
+  is_project_eligible: boolean
   /** Policy scope for list filtering (`any` | `self` | `project`), aligned with PolicyRead.scope */
   scope: 'any' | 'self' | 'project'
   project_id: string | null
@@ -93,6 +94,7 @@ export const mockPolicies: MockPolicy[] = [
     name: 'deployment:approve:any',
     description: 'Approve deployment requests',
     is_builtin: false,
+    is_project_eligible: true,
     scope: 'project',
     project_id: 'p-002',
     statements: [{ effect: 'allow', scope: 'project', actions: ['deployment:approve'] }],
@@ -104,6 +106,7 @@ export const mockPolicies: MockPolicy[] = [
     name: 'inventory:manage:any',
     description: 'Manage inventory resources',
     is_builtin: false,
+    is_project_eligible: true,
     scope: 'project',
     project_id: 'p-001',
     statements: [
@@ -122,6 +125,7 @@ export const mockPolicies: MockPolicy[] = [
     name: 'admin:full:any',
     description: 'Full administrative access to all resources',
     is_builtin: true,
+    is_project_eligible: false,
     scope: 'any',
     project_id: null,
     statements: [
@@ -150,6 +154,7 @@ export const mockPolicies: MockPolicy[] = [
     name: 'workflow:create:any',
     description: 'Create workflows in any project',
     is_builtin: true,
+    is_project_eligible: true,
     scope: 'any',
     project_id: null,
     statements: [{ effect: 'allow', scope: 'any', actions: ['workflow:create'] }],
@@ -161,6 +166,7 @@ export const mockPolicies: MockPolicy[] = [
     name: 'workflow:read:any',
     description: 'View workflows in any project',
     is_builtin: true,
+    is_project_eligible: true,
     scope: 'any',
     project_id: null,
     statements: [{ effect: 'allow', scope: 'any', actions: ['workflow:read'] }],
@@ -172,6 +178,7 @@ export const mockPolicies: MockPolicy[] = [
     name: 'workflow:update:any',
     description: 'Edit workflows in any project',
     is_builtin: true,
+    is_project_eligible: true,
     scope: 'any',
     project_id: null,
     statements: [{ effect: 'allow', scope: 'any', actions: ['workflow:update'] }],
@@ -183,6 +190,7 @@ export const mockPolicies: MockPolicy[] = [
     name: 'workflow:delete:any',
     description: 'Delete workflows in any project',
     is_builtin: true,
+    is_project_eligible: true,
     scope: 'any',
     project_id: null,
     statements: [{ effect: 'allow', scope: 'any', actions: ['workflow:delete'] }],
@@ -194,6 +202,7 @@ export const mockPolicies: MockPolicy[] = [
     name: 'execution:read:any',
     description: 'View execution results',
     is_builtin: true,
+    is_project_eligible: true,
     scope: 'any',
     project_id: null,
     statements: [{ effect: 'allow', scope: 'any', actions: ['execution:read'] }],
@@ -205,6 +214,7 @@ export const mockPolicies: MockPolicy[] = [
     name: 'execution:run:any',
     description: 'Run workflow executions',
     is_builtin: true,
+    is_project_eligible: true,
     scope: 'any',
     project_id: null,
     statements: [{ effect: 'allow', scope: 'any', actions: ['execution:run'] }],
@@ -216,6 +226,7 @@ export const mockPolicies: MockPolicy[] = [
     name: 'audit:read:any',
     description: 'View audit logs',
     is_builtin: true,
+    is_project_eligible: true,
     scope: 'any',
     project_id: null,
     statements: [{ effect: 'allow', scope: 'any', actions: ['audit:read'] }],
@@ -227,6 +238,7 @@ export const mockPolicies: MockPolicy[] = [
     name: 'project-role:assign:any',
     description: 'Assign roles within projects',
     is_builtin: true,
+    is_project_eligible: true,
     scope: 'any',
     project_id: null,
     statements: [{ effect: 'allow', scope: 'any', actions: ['project-role:assign'] }],
@@ -238,6 +250,7 @@ export const mockPolicies: MockPolicy[] = [
     name: 'user:read:self',
     description: 'Read own user information',
     is_builtin: true,
+    is_project_eligible: false,
     scope: 'self',
     project_id: null,
     statements: [{ effect: 'allow', scope: 'self', actions: ['user:read'] }],
@@ -249,6 +262,7 @@ export const mockPolicies: MockPolicy[] = [
     name: 'user:update:self',
     description: 'Update own user information',
     is_builtin: true,
+    is_project_eligible: false,
     scope: 'self',
     project_id: null,
     statements: [{ effect: 'allow', scope: 'self', actions: ['user:update'] }],
@@ -260,6 +274,7 @@ export const mockPolicies: MockPolicy[] = [
     name: 'project:create:any',
     description: 'Create new projects',
     is_builtin: true,
+    is_project_eligible: false,
     scope: 'any',
     project_id: null,
     statements: [{ effect: 'allow', scope: 'any', actions: ['project:create'] }],
@@ -272,6 +287,7 @@ export const mockPolicies: MockPolicy[] = [
     name: 'secret:read:any',
     description: 'Read project secrets and credentials',
     is_builtin: false,
+    is_project_eligible: true,
     scope: 'project',
     project_id: 'p-002',
     statements: [{ effect: 'allow', scope: 'project', actions: ['secret:read'] }],

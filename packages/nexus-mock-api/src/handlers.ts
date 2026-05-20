@@ -2739,6 +2739,7 @@ export const handlers = [
       name: body.name,
       description: body.description ?? null,
       is_builtin: false,
+      is_project_eligible: true,
       scope: 'project' as const,
       project_id: projectId,
       created_at: now,
