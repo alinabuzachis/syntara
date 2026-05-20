@@ -99,6 +99,7 @@ tests/
 - Fast execution (milliseconds)
 - Function-scoped fixtures only
 - Test internal logic, edge cases, validation
+- **Do not use `user_factory` or other database-persisting fixtures** — construct model objects directly. Session-scoped seeders (e.g., `run_seeders` in `session_app`) pre-populate the database with system data. Using factories that INSERT rows with seeded IDs (like `settings.system_user_id`) causes `IntegrityError` under parallel execution when the test lands on a worker where the seeder has already run.
 
 **Marker:** `@pytest.mark.unit` (optional, inferred by location)
 
@@ -394,6 +395,44 @@ async def test_data(test_db_session: AsyncSession) -> MyModel:
 - Await all async operations
 - Use `AsyncClient` for HTTP requests
 - Use `AsyncSession` for database operations
+
+## Capturing structlog Output in Tests
+
+This project uses structlog with `cache_logger_on_first_use=True`. Under pytest-xdist, cached bound loggers from earlier tests on the same worker bypass any handler or processor changes made during a later test. This makes `caplog` unreliable for capturing structlog output — `caplog.text` will be empty when the logger was cached before caplog injected its handler.
+
+**Use `structlog.testing.capture_logs()` with a fresh logger:**
+
+```python
+import structlog
+from nexus.some_module import target_module
+
+@patch("nexus.some_module.emitter._do_emit")
+async def test_logs_warning(self, mock_emit: Mock) -> None:
+    old_logger = target_module.logger
+    try:
+        with structlog.testing.capture_logs() as captured:
+            # Create fresh logger INSIDE capture_logs() context
+            # so it binds to the capture processor chain
+            target_module.logger = structlog.get_logger("nexus.some_module")
+            do_something_that_logs()
+    finally:
+        target_module.logger = old_logger
+
+    assert any("expected message" in e.get("event", "") for e in captured)
+```
+
+**Why this pattern is necessary:**
+
+1. `capture_logs()` replaces structlog's processor chain with a list collector
+2. But `cache_logger_on_first_use=True` means already-cached loggers still use the old chain
+3. Creating a fresh logger *inside* `capture_logs()` binds it to the capture chain
+4. Restoring the original logger in `finally` avoids polluting other tests
+
+**Do not use:**
+
+- Bare `caplog.text` with structlog — unreliable under xdist due to logger caching
+- `caplog.at_level()` — same caching issue; stdlib handler injection doesn't help when structlog's bound logger bypasses it
+- Patching with a plain stdlib logger — structlog's `logger.warning(msg, key=value)` passes kwargs as structured fields, which stdlib's `_log()` rejects as unexpected keyword arguments
 
 ## Tooling Enforcement vs Convention
 

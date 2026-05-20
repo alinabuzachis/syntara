@@ -31,7 +31,6 @@ NexusError(Exception)
 │   ├── WorkflowDisabledError
 │   ├── WorkflowVersionNotFoundError
 │   └── ExecutionNotFoundError
-├── InvocationError
 ├── AgentOrchestratorError
 │   ├── LLMConfigurationError
 │   └── TemporalUnavailableError

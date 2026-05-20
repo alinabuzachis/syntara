@@ -381,22 +381,34 @@ class TestAuditContext:
         assert emitted_event.event_status == EventStatus.SUCCESS
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
-    async def test_audit_context_with_invalid_resource_urn(
-        self, mock_emit: Mock, test_user: User, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    async def test_audit_context_with_invalid_resource_urn(self, mock_emit: Mock, test_user: User) -> None:
         """Test that audit_context drops invalid resource_urn with warning."""
+        import structlog
+
+        from nexus.audit.models import audit_event as audit_event_module
+
         # Arrange
         invalid_urn = "invalid-urn-format"
 
-        # Act
-        with audit_context(
-            event_category=EventCategory.USER_ACTION,
-            event_action="test_action",
-            source_component="test.component",
-            actor=test_user,
-            resource_urn=invalid_urn,
-        ):
-            pass  # Successful execution
+        # Replace the module-level logger with a fresh instance.
+        # Under xdist, cache_logger_on_first_use=True may have cached a
+        # bound logger that bypasses capture_logs()'s processor replacement.
+        # A fresh logger created inside capture_logs() context will bind
+        # to the capture processor chain.
+        old_logger = audit_event_module.logger
+        try:
+            with structlog.testing.capture_logs() as captured:
+                audit_event_module.logger = structlog.get_logger("nexus.audit.models.audit_event")
+                with audit_context(
+                    event_category=EventCategory.USER_ACTION,
+                    event_action="test_action",
+                    source_component="test.component",
+                    actor=test_user,
+                    resource_urn=invalid_urn,
+                ):
+                    pass  # Successful execution
+        finally:
+            audit_event_module.logger = old_logger
 
         # Assert
         mock_emit.assert_called_once()
@@ -407,7 +419,7 @@ class TestAuditContext:
         assert emitted_event.event_category == EventCategory.USER_ACTION
         assert emitted_event.event_status == EventStatus.SUCCESS
         # Verify warning was logged
-        assert "does not conform to RFC 8141" in caplog.text
+        assert any("does not conform to RFC 8141" in entry.get("event", "") for entry in captured)
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
     async def test_audit_context_error_emits_error_event(self, mock_emit: Mock) -> None:

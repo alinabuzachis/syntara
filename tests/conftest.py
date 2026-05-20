@@ -1152,6 +1152,7 @@ async def auth_client_with_mocked_llm(base_client_with_mocked_llm: AsyncClient, 
 
 @pytest.fixture
 def sync_test_client(
+    session_app: FastAPI,
     test_db_session: AsyncSession,
     test_db_engine: AsyncEngine,
 ) -> Generator[TestClient, None, None]:

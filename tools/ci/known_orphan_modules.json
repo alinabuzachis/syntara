@@ -21,10 +21,6 @@
     "nexus/*/worker.py": "Background worker entrypoints — invoked via python -m in podman-compose",
     "nexus/*/utils.py": "Intra-package utilities — imported via package (from nexus.X import utils), not direct module import",
     "nexus/workflows/utils/template_resolution.py": "Functions imported directly by name (resolve_value) from consuming modules, not via module path",
-    "nexus/files/validators.py": "Imported via package (from nexus.files import validators) in file_manager.py",
-    "nexus/invocations/exceptions.py": "TEMPORARY: dead code, remove file — see BUG_orphans.md",
-    "nexus/agent_orchestrator/token_manager/cleanup.py": "TEMPORARY: dead code, remove file — see BUG_orphans.md",
-    "nexus/credentials/lib/encryption.py": "TEMPORARY: dead code, remove file — see BUG_orphans.md",
-    "nexus/workflows/utils/temporal.py": "TEMPORARY: dead code (test-only), remove file and test — see BUG_orphans.md"
+    "nexus/files/validators.py": "Imported via package (from nexus.files import validators) in file_manager.py"
   }
 }

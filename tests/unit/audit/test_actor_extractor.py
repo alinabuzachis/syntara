@@ -344,15 +344,17 @@ class TestActorExtractorAutoDetection:
 class TestActorExtractorSystemUserClassification:
     """Test system user classification based on system_user_id from settings."""
 
-    async def test_system_user_classified_as_system_actor(self, user_factory: Callable[..., Awaitable["User"]]) -> None:
+    def test_system_user_classified_as_system_actor(self) -> None:
         """Test that user with id == settings.system_user_id is classified as SYSTEM."""
         from nexus.core.config.base import get_settings
 
         settings = get_settings()
-        system_user = await user_factory(
+        system_user = User(
+            id=settings.system_user_id,
             username="system_user",
             email="system@example.com",
-            id=settings.system_user_id,
+            full_name="System User",
+            password_hash="not-a-real-hash",  # noqa: S106
         )
 
         def test_func(current_user: User) -> None:
@@ -367,37 +369,43 @@ class TestActorExtractorSystemUserClassification:
         assert result.actor_username == "system_user"
         assert result.actor_type == ActorType.SYSTEM
 
-    async def test_regular_user_classified_as_user_actor(self, test_user: User) -> None:
+    def test_regular_user_classified_as_user_actor(self) -> None:
         """Test that user with id != settings.system_user_id is classified as USER."""
         from nexus.core.config.base import get_settings
 
         settings = get_settings()
-        # Verify test user is NOT the system user
-        assert test_user.id != settings.system_user_id
+        regular_user = User(
+            id=uuid4(),
+            username="regular_user",
+            email="regular@example.com",
+            full_name="Regular User",
+            password_hash="not-a-real-hash",  # noqa: S106
+        )
+        assert regular_user.id != settings.system_user_id
 
         def test_func(current_user: User) -> None:
             pass
 
-        args = (test_user,)
+        args = (regular_user,)
         kwargs: dict[str, str] = {}
 
         result = extract_actor(inspect.signature(test_func), args, kwargs)
 
-        assert result.actor_id == test_user.id
-        assert result.actor_username == test_user.username
+        assert result.actor_id == regular_user.id
+        assert result.actor_username == regular_user.username
         assert result.actor_type == ActorType.USER
 
-    async def test_system_user_via_fastapi_dependency(
-        self, user_factory: Callable[..., Awaitable["User"]], simple_test_signature: inspect.Signature
-    ) -> None:
+    def test_system_user_via_fastapi_dependency(self, simple_test_signature: inspect.Signature) -> None:
         """Test system user classification via FastAPI dependency injection."""
         from nexus.core.config.base import get_settings
 
         settings = get_settings()
-        system_user = await user_factory(
+        system_user = User(
+            id=settings.system_user_id,
             username="system_via_dep",
             email="system_dep@example.com",
-            id=settings.system_user_id,
+            full_name="System Dep",
+            password_hash="not-a-real-hash",  # noqa: S106
         )
 
         kwargs = {"current_user": system_user}
@@ -408,15 +416,17 @@ class TestActorExtractorSystemUserClassification:
         assert result.actor_username == "system_via_dep"
         assert result.actor_type == ActorType.SYSTEM
 
-    async def test_system_user_via_explicit_param(self, user_factory: Callable[..., Awaitable["User"]]) -> None:
+    def test_system_user_via_explicit_param(self) -> None:
         """Test system user classification via explicit actor_param."""
         from nexus.core.config.base import get_settings
 
         settings = get_settings()
-        system_user = await user_factory(
+        system_user = User(
+            id=settings.system_user_id,
             username="system_explicit",
             email="system_explicit@example.com",
-            id=settings.system_user_id,
+            full_name="System Explicit",
+            password_hash="not-a-real-hash",  # noqa: S106
         )
 
         def test_func(actor: User) -> None:
