@@ -103,7 +103,6 @@ def _crud_workflow_cycle(
         body=WorkflowCreate(
             name=wf_name,
             description="Performance test workflow",
-            is_enabled=True,
             workflow_definition=SIMPLE_WORKFLOW_DEFINITION,
         ),
     )

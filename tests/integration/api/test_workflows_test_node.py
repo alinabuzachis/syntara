@@ -41,6 +41,7 @@ async def multi_node_workflow(test_db_session: AsyncSession, test_user: User) ->
     workflow = Workflow(
         name=f"multi-node-test-{uuid.uuid4().hex[:8]}",
         is_enabled=True,
+        published_version=1,
         created_by=test_user.id,
         updated_by=test_user.id,
         current_version=1,

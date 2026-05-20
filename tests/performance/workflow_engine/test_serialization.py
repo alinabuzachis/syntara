@@ -80,7 +80,6 @@ class TestSerializationPerformance:
                         body=WorkflowCreate(
                             name=wf_name,
                             description=f"Serialization test: {num_nodes} nodes, iter {i}",
-                            is_enabled=True,
                             workflow_definition=definition,
                         ),
                     )
@@ -161,7 +160,6 @@ class TestBulkCreationSerialization:
                 body=WorkflowCreate(
                     name=wf_name,
                     description=f"Bulk creation test, index {index}",
-                    is_enabled=True,
                     workflow_definition=definition,
                 ),
             )

@@ -84,11 +84,8 @@ async def test_patch_workflow_description(jwt_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_patch_workflow_is_enabled_toggle(jwt_client: AsyncClient) -> None:
-    """Test toggling workflow enabled status.
-
-    Expected: 200 OK with updated is_enabled status
-    """
+async def test_patch_workflow_is_enabled_not_settable(jwt_client: AsyncClient) -> None:
+    """Test that is_enabled cannot be toggled via PATCH (managed by publish/unpublish)."""
     workflow = {
         "name": "toggle-workflow",
         "workflow_definition": create_minimal_workflow_definition(
@@ -97,14 +94,10 @@ async def test_patch_workflow_is_enabled_toggle(jwt_client: AsyncClient) -> None
             activity_id="task1",
         ),
     }
-
     create_response = await jwt_client.post("/api/v1/workflows", json=workflow)
     workflow_id = create_response.json()["id"]
-    assert create_response.json()["is_enabled"] is True
-
-    # Disable workflow
-    response = await jwt_client.patch(f"/api/v1/workflows/{workflow_id}", json={"is_enabled": False})
-
+    assert create_response.json()["is_enabled"] is False
+    response = await jwt_client.patch(f"/api/v1/workflows/{workflow_id}", json={"name": "updated-toggle"})
     assert response.status_code == 200
     assert response.json()["is_enabled"] is False
 

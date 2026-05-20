@@ -390,7 +390,6 @@ def create_perf_test_workflow(
         body=WorkflowCreate(
             name=f"{name_prefix}-{uuid4().hex[:8]}",
             description="Performance test workflow",
-            is_enabled=True,
             workflow_definition=definition,
         ),
     )

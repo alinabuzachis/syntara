@@ -112,7 +112,6 @@ def workflow_id(nexus_api: NexusApiRegistry, mcp_provider_id: str) -> Generator[
         body=WorkflowCreate(
             name=workflow_name,
             description="E2E test: agentic workflow with tool metrics",
-            is_enabled=True,
             workflow_definition=WORKFLOW_DEFINITION,
         ),
     ).assert_and_get()

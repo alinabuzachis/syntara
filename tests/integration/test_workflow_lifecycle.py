@@ -52,7 +52,7 @@ async def test_workflow_complete_lifecycle(jwt_client: AsyncClient) -> None:  # 
 
     assert workflow["name"] == "lifecycle-test-workflow"
     assert workflow["current_version"] == 1
-    assert workflow["is_enabled"] is True
+    assert workflow["is_enabled"] is False
     assert workflow["labels"] == {"env": "test", "purpose": "integration"}
 
     # Note: POST returns WorkflowResponse (no version data)
@@ -168,7 +168,6 @@ async def test_workflow_complete_lifecycle(jwt_client: AsyncClient) -> None:  # 
     metadata_update_payload = {
         "description": "Updated description",
         "labels": {"env": "production", "purpose": "integration", "team": "platform"},
-        "is_enabled": False,
     }
 
     metadata_update_response = await jwt_client.patch(

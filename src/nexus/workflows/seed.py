@@ -18,6 +18,7 @@ from sqlmodel import select
 from nexus.authz.models import Project
 from nexus.core.models import User
 from nexus.workflows.models import Workflow, WorkflowVersion
+from nexus.workflows.models.workflow_version import WorkflowVersionStatus
 from nexus.workflows.validators import workflow_validator
 
 if TYPE_CHECKING:
@@ -56,6 +57,7 @@ def _load_workflow_from_file(
         labels={"source": "sample", "file": yaml_file.name},
         current_version=1,
         is_enabled=True,
+        published_version=1,
         created_by=creator_id,
         project_id=project_id,
     )
@@ -67,6 +69,7 @@ def _load_workflow_from_file(
         workflow_definition=workflow_dict,
         created_by=creator_id,
         change_description="Initial version from sample file",
+        status=WorkflowVersionStatus.PUBLISHED,
     )
     logger.info("Successfully loaded sample workflow", workflow_name=workflow_name)
     return workflow, version

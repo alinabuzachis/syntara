@@ -7,21 +7,22 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.error_data import ErrorData
+from ...models.publish_version_request import PublishVersionRequest
 from ...models.workflow_read_with_version import WorkflowReadWithVersion
-from ...models.workflow_update import WorkflowUpdate
 from ...types import Response
 
 
 def _get_kwargs(
     workflow_id: UUID,
+    version: int,
     *,
-    body: WorkflowUpdate,
+    body: PublishVersionRequest,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
 
     _kwargs: dict[str, Any] = {
-        "method": "patch",
-        "url": f"/workflows/{workflow_id}",
+        "method": "post",
+        "url": f"/workflows/{workflow_id}/versions/{version}/publish",
     }
 
     _kwargs["json"] = body.to_dict()
@@ -96,26 +97,19 @@ def _build_response(
 
 def sync_detailed(
     workflow_id: UUID,
+    version: int,
     *,
     client: AuthenticatedClient,
-    body: WorkflowUpdate,
+    body: PublishVersionRequest,
 ) -> Response[ErrorData | WorkflowReadWithVersion]:
-    """Update Workflow
+    """Publish Workflow Version
 
-     Update workflow.
-
-    Supports both metadata-only updates and workflow definition updates:
-    - Metadata only (name, description, labels): Updates without creating new version
-    - With workflow_definition: Validates definition, compares with current version, creates new
-    WorkflowVersion
-      only if definition differs (change detection optimization)
+     Publish a specific workflow version.
 
     Args:
         workflow_id (UUID):
-        body (WorkflowUpdate): Schema for updating workflow (PATCH /workflows/{id}).
-
-            All fields are optional for partial updates.
-            Supports metadata updates and workflow definition updates (creates new version).
+        version (int):
+        body (PublishVersionRequest): Request body for publishing a workflow version.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -127,6 +121,7 @@ def sync_detailed(
 
     kwargs = _get_kwargs(
         workflow_id=workflow_id,
+        version=version,
         body=body,
     )
 
@@ -139,26 +134,19 @@ def sync_detailed(
 
 def sync(
     workflow_id: UUID,
+    version: int,
     *,
     client: AuthenticatedClient,
-    body: WorkflowUpdate,
+    body: PublishVersionRequest,
 ) -> ErrorData | WorkflowReadWithVersion | None:
-    """Update Workflow
+    """Publish Workflow Version
 
-     Update workflow.
-
-    Supports both metadata-only updates and workflow definition updates:
-    - Metadata only (name, description, labels): Updates without creating new version
-    - With workflow_definition: Validates definition, compares with current version, creates new
-    WorkflowVersion
-      only if definition differs (change detection optimization)
+     Publish a specific workflow version.
 
     Args:
         workflow_id (UUID):
-        body (WorkflowUpdate): Schema for updating workflow (PATCH /workflows/{id}).
-
-            All fields are optional for partial updates.
-            Supports metadata updates and workflow definition updates (creates new version).
+        version (int):
+        body (PublishVersionRequest): Request body for publishing a workflow version.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -170,6 +158,7 @@ def sync(
 
     return sync_detailed(
         workflow_id=workflow_id,
+        version=version,
         client=client,
         body=body,
     ).parsed
@@ -177,26 +166,19 @@ def sync(
 
 async def asyncio_detailed(
     workflow_id: UUID,
+    version: int,
     *,
     client: AuthenticatedClient,
-    body: WorkflowUpdate,
+    body: PublishVersionRequest,
 ) -> Response[ErrorData | WorkflowReadWithVersion]:
-    """Update Workflow
+    """Publish Workflow Version
 
-     Update workflow.
-
-    Supports both metadata-only updates and workflow definition updates:
-    - Metadata only (name, description, labels): Updates without creating new version
-    - With workflow_definition: Validates definition, compares with current version, creates new
-    WorkflowVersion
-      only if definition differs (change detection optimization)
+     Publish a specific workflow version.
 
     Args:
         workflow_id (UUID):
-        body (WorkflowUpdate): Schema for updating workflow (PATCH /workflows/{id}).
-
-            All fields are optional for partial updates.
-            Supports metadata updates and workflow definition updates (creates new version).
+        version (int):
+        body (PublishVersionRequest): Request body for publishing a workflow version.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -208,6 +190,7 @@ async def asyncio_detailed(
 
     kwargs = _get_kwargs(
         workflow_id=workflow_id,
+        version=version,
         body=body,
     )
 
@@ -218,26 +201,19 @@ async def asyncio_detailed(
 
 async def asyncio(
     workflow_id: UUID,
+    version: int,
     *,
     client: AuthenticatedClient,
-    body: WorkflowUpdate,
+    body: PublishVersionRequest,
 ) -> ErrorData | WorkflowReadWithVersion | None:
-    """Update Workflow
+    """Publish Workflow Version
 
-     Update workflow.
-
-    Supports both metadata-only updates and workflow definition updates:
-    - Metadata only (name, description, labels): Updates without creating new version
-    - With workflow_definition: Validates definition, compares with current version, creates new
-    WorkflowVersion
-      only if definition differs (change detection optimization)
+     Publish a specific workflow version.
 
     Args:
         workflow_id (UUID):
-        body (WorkflowUpdate): Schema for updating workflow (PATCH /workflows/{id}).
-
-            All fields are optional for partial updates.
-            Supports metadata updates and workflow definition updates (creates new version).
+        version (int):
+        body (PublishVersionRequest): Request body for publishing a workflow version.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -250,6 +226,7 @@ async def asyncio(
     return (
         await asyncio_detailed(
             workflow_id=workflow_id,
+            version=version,
             client=client,
             body=body,
         )

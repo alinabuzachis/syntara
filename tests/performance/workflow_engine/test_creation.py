@@ -66,7 +66,6 @@ class TestSequentialWorkflowCreation:
                     body=WorkflowCreate(
                         name=wf_name,
                         description=f"Performance test workflow {i}",
-                        is_enabled=True,
                         workflow_definition=SIMPLE_WORKFLOW_DEFINITION,
                     ),
                 )
@@ -153,7 +152,6 @@ class TestDuplicateNameFailureCategorization:
                 body=WorkflowCreate(
                     name=wf_name,
                     description="First creation",
-                    is_enabled=True,
                     workflow_definition=SIMPLE_WORKFLOW_DEFINITION,
                 ),
             )
@@ -165,7 +163,6 @@ class TestDuplicateNameFailureCategorization:
                 body=WorkflowCreate(
                     name=wf_name,
                     description="Duplicate creation",
-                    is_enabled=True,
                     workflow_definition=SIMPLE_WORKFLOW_DEFINITION,
                 ),
             )
@@ -190,7 +187,6 @@ class TestDuplicateNameFailureCategorization:
                 body=WorkflowCreate(
                     name=wf_name,
                     description="First creation for label test",
-                    is_enabled=True,
                     workflow_definition=SIMPLE_WORKFLOW_DEFINITION,
                 ),
             )
@@ -201,7 +197,6 @@ class TestDuplicateNameFailureCategorization:
                 body=WorkflowCreate(
                     name=wf_name,
                     description="Duplicate for label test",
-                    is_enabled=True,
                     workflow_definition=SIMPLE_WORKFLOW_DEFINITION,
                 ),
             )

@@ -145,7 +145,6 @@ class TestValidationPerformance:
                     body=WorkflowCreate(
                         name=wf_name,
                         description=f"Validation test: valid {complexity} nodes",
-                        is_enabled=True,
                         workflow_definition=definition,
                     ),
                 )
@@ -166,7 +165,6 @@ class TestValidationPerformance:
                     body=WorkflowCreate(
                         name=wf_name,
                         description="Validation test: invalid definition",
-                        is_enabled=True,
                         workflow_definition=definition,
                     ),
                 )

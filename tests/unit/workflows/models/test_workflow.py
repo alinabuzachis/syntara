@@ -43,7 +43,7 @@ async def test_create_workflow_with_required_fields(
     assert workflow.description is None
     assert workflow.labels == {}
     assert workflow.current_version == 1
-    assert workflow.is_enabled is True
+    assert workflow.is_enabled is False
     assert workflow.created_by == test_user.id
     assert workflow.deleted_at is None
     assert workflow.deleted_by is None
@@ -142,19 +142,24 @@ async def test_workflow_is_enabled_toggle(
     test_db_session.add(workflow)
     await test_db_session.commit()
 
-    assert workflow.is_enabled is True
+    assert workflow.is_enabled is False
+    assert workflow.published_version is None
 
-    # Disable workflow
+    # Publish workflow (sets is_enabled=True with published_version)
+    workflow.is_enabled = True
+    workflow.published_version = 1
+    await test_db_session.commit()
+
+    assert workflow.is_enabled is True
+    assert workflow.published_version == 1
+
+    # Unpublish workflow (sets is_enabled=False with published_version=None)
     workflow.is_enabled = False
+    workflow.published_version = None
     await test_db_session.commit()
 
     assert workflow.is_enabled is False
-
-    # Re-enable workflow
-    workflow.is_enabled = True
-    await test_db_session.commit()
-
-    assert workflow.is_enabled is True
+    assert workflow.published_version is None
 
 
 @pytest.mark.asyncio
@@ -292,7 +297,7 @@ async def test_workflow_is_enabled_default(
     test_db_session: AsyncSession,
     test_user: User,
 ) -> None:
-    """Test that is_enabled defaults to True."""
+    """Test that is_enabled defaults to False (unpublished)."""
     workflow = Workflow(
         id=uuid4(),
         name="default-enabled",
@@ -301,7 +306,7 @@ async def test_workflow_is_enabled_default(
     test_db_session.add(workflow)
     await test_db_session.commit()
 
-    assert workflow.is_enabled is True
+    assert workflow.is_enabled is False
 
 
 @pytest.mark.asyncio

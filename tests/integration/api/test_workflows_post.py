@@ -35,7 +35,7 @@ async def test_post_workflow_valid_definition(jwt_client: AsyncClient) -> None:
     assert "created_at" in data
     assert "current_version" in data
     assert data["current_version"] == 1
-    assert data["is_enabled"] is True
+    assert data["is_enabled"] is False
 
 
 @pytest.mark.asyncio

@@ -88,27 +88,21 @@ async def test_create_execution_workflow_not_found(
 
 
 @pytest.mark.asyncio
-async def test_create_execution_workflow_disabled(
+async def test_create_execution_unpublished_workflow_succeeds(
     auth_client: AsyncClient,
     test_db_session: AsyncSession,
     test_user: User,
     test_workflow: Workflow,
 ) -> None:
-    """Test execution creation with disabled workflow."""
+    """Test manual execution succeeds even for unpublished workflows."""
     test_workflow.is_enabled = False
+    test_workflow.published_version = None
     await test_db_session.commit()
-
     response = await auth_client.post(
         "/api/v1/executions",
-        json={
-            "workflow_id": str(test_workflow.id),
-            "input_data": {},
-        },
+        json={"workflow_id": str(test_workflow.id), "input_data": {}},
     )
-
-    assert response.status_code == 400
-    data = response.json()
-    assert data["detail"] == "The requested workflow is currently disabled"
+    assert response.status_code == 201
 
 
 @pytest.mark.asyncio

@@ -8,7 +8,7 @@ import base64
 import json
 from datetime import UTC, datetime, timedelta
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
 import pytest
@@ -21,9 +21,11 @@ from nexus.core.models import User
 from nexus.workflows.exceptions import (
     WorkflowNameConflictError,
     WorkflowNotFoundError,
+    WorkflowNotPublishedError,
     WorkflowVersionNotFoundError,
 )
 from nexus.workflows.models import Workflow, WorkflowListResponse, WorkflowRead, WorkflowVersion
+from nexus.workflows.models.workflow_version import WorkflowVersionStatus
 from nexus.workflows.services.workflow_service import WorkflowConvertResourceMixin, WorkflowService
 
 
@@ -54,6 +56,7 @@ class TestWorkflowServiceBase:
             current_version=current_version,
             created_by=created_by or uuid4(),
             is_enabled=is_enabled,
+            published_version=current_version if is_enabled else None,
             created_at=created_at or now,
             updated_at=updated_at or now,
             deleted_at=deleted_at,
@@ -231,7 +234,6 @@ class TestWorkflowServiceCreateWorkflow(TestWorkflowServiceBase):
                 description="Test description",
                 labels={"env": "test"},
                 workflow_definition=workflow_definition,
-                is_enabled=True,
             )
 
             workflow, version = result
@@ -240,7 +242,7 @@ class TestWorkflowServiceCreateWorkflow(TestWorkflowServiceBase):
             assert workflow.labels == {"env": "test"}
             assert workflow.current_version == 1
             assert workflow.created_by == test_user.id
-            assert workflow.is_enabled is True
+            assert workflow.is_enabled is False
 
             assert version.workflow_id == workflow.id
             assert version.version == 1
@@ -271,7 +273,6 @@ class TestWorkflowServiceCreateWorkflow(TestWorkflowServiceBase):
                     description=None,
                     labels={},
                     workflow_definition=workflow_definition,
-                    is_enabled=True,
                 )
 
             # Verify no workflow was created in database
@@ -293,7 +294,6 @@ class TestWorkflowServiceCreateWorkflow(TestWorkflowServiceBase):
                 description=None,
                 labels={},
                 workflow_definition=workflow_definition,
-                is_enabled=True,
             )
 
         # Now try to create another with the same name
@@ -306,7 +306,6 @@ class TestWorkflowServiceCreateWorkflow(TestWorkflowServiceBase):
                 description=None,
                 labels={},
                 workflow_definition=workflow_definition,
-                is_enabled=True,
             )
 
 
@@ -391,13 +390,11 @@ class TestWorkflowServiceUpdateMetadata(TestWorkflowServiceBase):
             name="updated-name",
             description="Updated description",
             labels={"env": "prod"},
-            is_enabled=False,
         )
 
         assert workflow.name == "updated-name"
         assert workflow.description == "Updated description"
         assert workflow.labels == {"env": "prod"}
-        assert workflow.is_enabled is False
         assert workflow.updated_by == test_user.id
         assert workflow.updated_at > original_updated_at
 
@@ -421,13 +418,11 @@ class TestWorkflowServiceUpdateMetadata(TestWorkflowServiceBase):
             name="updated-name",
             description=None,  # Should not change
             labels=None,  # Should not change
-            is_enabled=None,  # Should not change
         )
 
         assert workflow.name == "updated-name"
         assert workflow.description == "Original description"  # Unchanged
         assert workflow.labels == {"env": "dev"}  # Unchanged
-        assert workflow.is_enabled is True  # Unchanged
         assert workflow.updated_by == test_user.id
 
     @pytest.mark.asyncio
@@ -564,7 +559,6 @@ class TestWorkflowServiceUpdateWorkflow(TestWorkflowServiceBase):
             name="updated-name",
             description="Updated description",
             labels={"env": "prod"},
-            is_enabled=False,
         )
 
         result_workflow, result_version = result
@@ -572,7 +566,6 @@ class TestWorkflowServiceUpdateWorkflow(TestWorkflowServiceBase):
         assert result_workflow.name == "updated-name"
         assert result_workflow.description == "Updated description"
         assert result_workflow.labels == {"env": "prod"}
-        assert not result_workflow.is_enabled
         assert result_version.id == version.id
 
     @pytest.mark.asyncio
@@ -1175,3 +1168,177 @@ class TestWorkflowConvertResourceMixin(TestWorkflowServiceBase):
         assert result.id == workflow.id
         assert result.name == workflow.name
         assert result.description == workflow.description
+
+
+class TestPublishWorkflowVersion(TestWorkflowServiceBase):
+    """Test publish_workflow_version method."""
+
+    @pytest.mark.asyncio
+    async def test_publish_version_success(self, test_db_session: AsyncSession, test_user: User) -> None:
+        """Test publishing a version sets status and workflow state."""
+        service = WorkflowService(test_db_session, test_user)
+        workflow_def = self._create_workflow_definition()
+
+        with patch("nexus.workflows.services.workflow_service.workflow_validator"):
+            workflow, _ = await service.create_workflow(
+                name="publish-test",
+                description=None,
+                labels={},
+                workflow_definition=workflow_def,
+            )
+
+        mock_wh_svc = MagicMock()
+        mock_wh_svc.return_value.sync_webhook_triggers = AsyncMock()
+        with patch("nexus.workflows.services.workflow_service.WebhookTriggerService", mock_wh_svc):
+            result_workflow, result_version = await service.publish_workflow_version(
+                workflow_id=workflow.id,
+                version=1,
+                publish_name="v1.0",
+                change_description="Initial release",
+            )
+
+        assert result_version.status == WorkflowVersionStatus.PUBLISHED
+        assert result_version.publish_name == "v1.0"
+        assert result_version.change_description == "Initial release"
+        assert result_workflow.published_version == 1
+        assert result_workflow.is_enabled is True
+
+    @pytest.mark.asyncio
+    async def test_publish_demotes_previous(self, test_db_session: AsyncSession, test_user: User) -> None:
+        """Test publishing a new version demotes the previous."""
+        service = WorkflowService(test_db_session, test_user)
+        workflow_def = self._create_workflow_definition()
+
+        with patch("nexus.workflows.services.workflow_service.workflow_validator"):
+            workflow, v1 = await service.create_workflow(
+                name="demote-test",
+                description=None,
+                labels={},
+                workflow_definition=workflow_def,
+            )
+
+        mock_wh_svc = MagicMock()
+        mock_wh_svc.return_value.sync_webhook_triggers = AsyncMock()
+        with patch("nexus.workflows.services.workflow_service.WebhookTriggerService", mock_wh_svc):
+            await service.publish_workflow_version(workflow_id=workflow.id, version=1)
+
+        # Create v2
+        v2_def = self._create_workflow_definition()
+        v2_def["description"] = "v2"
+        with patch("nexus.workflows.services.workflow_service.workflow_validator"):
+            v2 = await service.create_workflow_version(workflow, v2_def, "v2 changes")
+
+        assert v2 is not None
+
+        mock_wh_svc2 = MagicMock()
+        mock_wh_svc2.return_value.sync_webhook_triggers = AsyncMock()
+        with patch("nexus.workflows.services.workflow_service.WebhookTriggerService", mock_wh_svc2):
+            await service.publish_workflow_version(workflow_id=workflow.id, version=2)
+
+        await test_db_session.refresh(v1)
+        assert v1.status == WorkflowVersionStatus.PREVIOUSLY_PUBLISHED
+
+    @pytest.mark.asyncio
+    async def test_publish_idempotent(self, test_db_session: AsyncSession, test_user: User) -> None:
+        """Test republishing the same version is a no-op."""
+        service = WorkflowService(test_db_session, test_user)
+        workflow_def = self._create_workflow_definition()
+
+        with patch("nexus.workflows.services.workflow_service.workflow_validator"):
+            workflow, _ = await service.create_workflow(
+                name="idempotent-test",
+                description=None,
+                labels={},
+                workflow_definition=workflow_def,
+            )
+
+        mock_wh_svc = MagicMock()
+        mock_wh_svc.return_value.sync_webhook_triggers = AsyncMock()
+        with patch("nexus.workflows.services.workflow_service.WebhookTriggerService", mock_wh_svc):
+            await service.publish_workflow_version(workflow_id=workflow.id, version=1)
+            result_workflow, result_version = await service.publish_workflow_version(workflow_id=workflow.id, version=1)
+
+        assert result_version.status == WorkflowVersionStatus.PUBLISHED
+        assert result_workflow.published_version == 1
+
+    @pytest.mark.asyncio
+    async def test_publish_nonexistent_version_raises(self, test_db_session: AsyncSession, test_user: User) -> None:
+        """Test publishing a nonexistent version raises error."""
+        service = WorkflowService(test_db_session, test_user)
+        workflow_def = self._create_workflow_definition()
+
+        with patch("nexus.workflows.services.workflow_service.workflow_validator"):
+            workflow, _ = await service.create_workflow(
+                name="nonexistent-version-test",
+                description=None,
+                labels={},
+                workflow_definition=workflow_def,
+            )
+
+        with pytest.raises(WorkflowVersionNotFoundError):
+            await service.publish_workflow_version(workflow_id=workflow.id, version=99)
+
+    @pytest.mark.asyncio
+    async def test_publish_nonexistent_workflow_raises(self, test_db_session: AsyncSession, test_user: User) -> None:
+        """Test publishing on a nonexistent workflow raises error."""
+        service = WorkflowService(test_db_session, test_user)
+        fake_id = uuid4()
+
+        with pytest.raises(WorkflowNotFoundError):
+            await service.publish_workflow_version(workflow_id=fake_id, version=1)
+
+
+class TestUnpublishWorkflow(TestWorkflowServiceBase):
+    """Test unpublish_workflow method."""
+
+    @pytest.mark.asyncio
+    async def test_unpublish_success(self, test_db_session: AsyncSession, test_user: User) -> None:
+        """Test unpublishing sets workflow state correctly."""
+        service = WorkflowService(test_db_session, test_user)
+        workflow_def = self._create_workflow_definition()
+
+        with patch("nexus.workflows.services.workflow_service.workflow_validator"):
+            workflow, v1 = await service.create_workflow(
+                name="unpublish-test",
+                description=None,
+                labels={},
+                workflow_definition=workflow_def,
+            )
+
+        mock_wh_svc = MagicMock()
+        mock_wh_svc.return_value.sync_webhook_triggers = AsyncMock()
+        with patch("nexus.workflows.services.workflow_service.WebhookTriggerService", mock_wh_svc):
+            await service.publish_workflow_version(workflow_id=workflow.id, version=1)
+            result = await service.unpublish_workflow(workflow_id=workflow.id)
+
+        assert result.published_version is None
+        assert result.is_enabled is False
+
+        await test_db_session.refresh(v1)
+        assert v1.status == WorkflowVersionStatus.PREVIOUSLY_PUBLISHED
+
+    @pytest.mark.asyncio
+    async def ***REMOVED***(self, test_db_session: AsyncSession, test_user: User) -> None:
+        """Test unpublishing when no version is published raises error."""
+        service = WorkflowService(test_db_session, test_user)
+        workflow_def = self._create_workflow_definition()
+
+        with patch("nexus.workflows.services.workflow_service.workflow_validator"):
+            workflow, _ = await service.create_workflow(
+                name="unpublish-error-test",
+                description=None,
+                labels={},
+                workflow_definition=workflow_def,
+            )
+
+        with pytest.raises(WorkflowNotPublishedError):
+            await service.unpublish_workflow(workflow_id=workflow.id)
+
+    @pytest.mark.asyncio
+    async def test_unpublish_nonexistent_workflow_raises(self, test_db_session: AsyncSession, test_user: User) -> None:
+        """Test unpublishing a nonexistent workflow raises error."""
+        service = WorkflowService(test_db_session, test_user)
+        fake_id = uuid4()
+
+        with pytest.raises(WorkflowNotFoundError):
+            await service.unpublish_workflow(workflow_id=fake_id)

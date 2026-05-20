@@ -70,7 +70,6 @@ class TestStartLatency:
             body=WorkflowCreate(
                 name=wf_name,
                 description="Execution start latency test workflow",
-                is_enabled=True,
                 workflow_definition=EXECUTION_WORKFLOW_DEFINITION,
             ),
         )

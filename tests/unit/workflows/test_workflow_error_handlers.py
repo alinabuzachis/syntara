@@ -4,23 +4,22 @@ import json
 from unittest.mock import Mock
 from uuid import uuid4
 
-import pytest
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
 from nexus.core.error_handlers import PROBLEM_TYPES
 from nexus.workflows.error_handlers import (
     execution_not_found_handler,
-    workflow_disabled_handler,
     workflow_name_conflict_handler,
     workflow_not_found_handler,
+    workflow_not_published_handler,
     workflow_version_not_found_handler,
 )
 from nexus.workflows.exceptions import (
     ExecutionNotFoundError,
-    WorkflowDisabledError,
     WorkflowNameConflictError,
     WorkflowNotFoundError,
+    WorkflowNotPublishedError,
     WorkflowVersionNotFoundError,
 )
 
@@ -186,66 +185,35 @@ class TestWorkflowNameConflictHandler:
         assert data["retryable"] is False
 
 
-class TestWorkflowDisabledHandler:
-    """Test suite for workflow_disabled_handler."""
+class TestWorkflowNotPublishedHandler:
+    """Test suite for workflow_not_published_handler."""
 
-    def test_handles_workflow_disabled_error(self) -> None:
-        """Test handling of workflow disabled errors."""
-        request = Mock(spec=Request)
-        request.url = "https://api.example.com/workflows/disabled-workflow/execute"
-
-        exc = WorkflowDisabledError(uuid4())
-        response = workflow_disabled_handler(request, exc)
-
-        assert isinstance(response, JSONResponse)
-        assert response.status_code == 400
-
-        data = json.loads(bytes(response.body).decode())
-        assert data["type"] == PROBLEM_TYPES["resource_disabled"]
-        assert data["title"] == "Workflow Disabled"
-        assert data["detail"] == "The requested workflow is currently disabled"
-        assert data["code"] == "WORKFLOW_DISABLED"
-        assert data["retryable"] is False
-
-    def test_does_not_expose_workflow_ids(self) -> None:
-        """Test that workflow IDs are not exposed in error details."""
-        request = Mock(spec=Request)
-        request.url = "https://api.example.com/workflows/secret-workflow/execute"
-
-        exc = WorkflowDisabledError(uuid4())
-        response = workflow_disabled_handler(request, exc)
-
-        data = json.loads(bytes(response.body).decode())
-        # Should not contain the actual workflow ID from the exception
-        assert "secret-workflow" not in data["detail"]
-        assert data["detail"] == "The requested workflow is currently disabled"
-
-    def test_not_retryable(self) -> None:
-        """Test that workflow disabled errors are not retryable."""
+    def test_handles_workflow_not_published_error(self) -> None:
+        """Test handling of workflow not published errors."""
         request = Mock(spec=Request)
         request.url = "https://api.example.com/workflows/test/execute"
 
-        exc = WorkflowDisabledError(uuid4())
-        response = workflow_disabled_handler(request, exc)
+        exc = WorkflowNotPublishedError(uuid4())
+        response = workflow_not_published_handler(request, exc)
+
+        assert isinstance(response, JSONResponse)
+        assert response.status_code == 400
+        assert response.media_type == "application/problem+json"
+
+        data = json.loads(bytes(response.body).decode())
+        assert data["type"] == PROBLEM_TYPES["resource_not_published"]
+        assert data["title"] == "Workflow Not Published"
+        assert data["detail"] == "The requested workflow has no published version"
+        assert data["code"] == "WORKFLOW_NOT_PUBLISHED"
+        assert data["retryable"] is False
+
+    def test_not_retryable(self) -> None:
+        """Test that workflow not published errors are not retryable."""
+        request = Mock(spec=Request)
+        request.url = "https://api.example.com/workflows/test/execute"
+
+        exc = WorkflowNotPublishedError(uuid4())
+        response = workflow_not_published_handler(request, exc)
 
         data = json.loads(bytes(response.body).decode())
         assert data["retryable"] is False
-
-    @pytest.mark.parametrize(
-        "url",
-        [
-            "https://api.example.com/workflows/123/execute",
-            "https://api.example.com/workflows/test-workflow/run",
-            "http://localhost:8000/api/v1/workflows/disabled/start",
-        ],
-    )
-    def test_various_request_urls(self, url: str) -> None:
-        """Test handling of various workflow execution URLs."""
-        request = Mock(spec=Request)
-        request.url = url
-
-        exc = WorkflowDisabledError(uuid4())
-        response = workflow_disabled_handler(request, exc)
-
-        data = json.loads(bytes(response.body).decode())
-        assert data["instance"] == url

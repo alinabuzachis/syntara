@@ -61,6 +61,11 @@ components:
               format: uuid
             - type: 'null'
           title: Project Id
+        published_version:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Published Version
         created_at:
           type: string
           format: date-time
@@ -137,6 +142,11 @@ components:
               format: uuid
             - type: 'null'
           title: Project Id
+        published_version:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Published Version
         created_at:
           type: string
           format: date-time
@@ -577,11 +587,6 @@ components:
         workflow_definition:
           title: Workflow Definition
           description: Workflow definition object
-        is_enabled:
-          type: boolean
-          title: Is Enabled
-          description: Enable workflow for execution
-          default: true
         project_id:
           anyOf:
             - type: string
@@ -621,12 +626,6 @@ components:
             - type: "null"
           title: Labels
           description: Update workflow labels
-        is_enabled:
-          anyOf:
-            - type: boolean
-            - type: "null"
-          title: Is Enabled
-          description: Enable/disable workflow
         workflow_definition:
           anyOf:
             - {}

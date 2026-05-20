@@ -20,9 +20,9 @@ if TYPE_CHECKING:
         TriggerValidationError,
         WebhookTriggerNotFoundError,
         WebhookTriggerPathConflictError,
-        WorkflowDisabledError,
         WorkflowNameConflictError,
         WorkflowNotFoundError,
+        WorkflowNotPublishedError,
         WorkflowValidationError,
         WorkflowVersionNotFoundError,
     )
@@ -126,16 +126,15 @@ def workflow_name_conflict_handler(request: Request, exc: "WorkflowNameConflictE
     )
 
 
-def workflow_disabled_handler(request: Request, exc: "WorkflowDisabledError") -> JSONResponse:
-    """Handle WorkflowDisabledError with RFC 9457 format."""
-    # Log the full exception for debugging but don't expose workflow IDs to users
-    logger.error("Workflow disabled", exc_info=exc)
+def workflow_not_published_handler(request: Request, exc: "WorkflowNotPublishedError") -> JSONResponse:
+    """Handle WorkflowNotPublishedError with RFC 9457 format."""
+    logger.error("Workflow not published", exc_info=exc)
     return create_problem_details_response(
         status_code=status.HTTP_400_BAD_REQUEST,
-        problem_type=PROBLEM_TYPES["resource_disabled"],
-        title="Workflow Disabled",
-        detail="The requested workflow is currently disabled",
-        code="WORKFLOW_DISABLED",
+        problem_type=PROBLEM_TYPES["resource_not_published"],
+        title="Workflow Not Published",
+        detail="The requested workflow has no published version",
+        code="WORKFLOW_NOT_PUBLISHED",
         retryable=False,
         instance=str(request.url),
     )

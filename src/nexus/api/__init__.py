@@ -21,9 +21,9 @@ from nexus.tool_manager.exceptions import (
 from nexus.workflows.exceptions import (
     ExecutionNotFoundError,
     TemporalUnavailableError,
-    WorkflowDisabledError,
     WorkflowNameConflictError,
     WorkflowNotFoundError,
+    WorkflowNotPublishedError,
     WorkflowValidationError,
     WorkflowVersionNotFoundError,
 )

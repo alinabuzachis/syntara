@@ -319,6 +319,7 @@ class TestReceiveWebhook:
                 workflow_id=trigger.workflow_id,
                 input_data={"payload": {"event": "push"}},
                 trigger_node_id=trigger.trigger_node_id,
+                use_published=True,
             )
 
     @pytest.mark.asyncio

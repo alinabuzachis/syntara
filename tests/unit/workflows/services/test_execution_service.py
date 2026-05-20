@@ -16,8 +16,8 @@ from nexus.core.models import User
 from nexus.core.models.pagination import ResourcesResponseBase
 from nexus.workflows.exceptions import (
     ExecutionNotFoundError,
-    WorkflowDisabledError,
     WorkflowNotFoundError,
+    WorkflowNotPublishedError,
 )
 from nexus.workflows.models.execution import Execution, ExecutionRead, ExecutionStatus
 from nexus.workflows.models.workflow import Workflow
@@ -282,34 +282,67 @@ class TestCreateExecution:
         assert str(workflow_id) in str(exc_info.value)
 
     @pytest.mark.asyncio
-    async def test_create_execution_workflow_disabled(self) -> None:
-        """Test execution creation with disabled workflow."""
+    async def test_create_execution_use_published_success(self) -> None:
+        """Test triggered execution uses published version successfully."""
         mock_session = Mock(spec=AsyncSession)
 
         workflow_id = uuid4()
+        version_id = uuid4()
+        user_id = uuid4()
 
-        # Mock disabled workflow
         workflow = Mock(spec=Workflow)
         workflow.id = workflow_id
-        workflow.name = "disabled-workflow"
-        workflow.is_enabled = False
+        workflow.name = "test-workflow"
+        workflow.is_enabled = True
+        workflow.published_version = 1
+        workflow.project_id = None
 
         workflow_version = Mock(spec=WorkflowVersion)
-        workflow_version.id = uuid4()
+        workflow_version.id = version_id
+        workflow_version.version = 1
+        workflow_version.schema_version = "1.0.0"
+        workflow_version.workflow_definition = {}
 
         mock_result = Mock()
         mock_result.first = Mock(return_value=(workflow, workflow_version))
         mock_session.exec = AsyncMock(return_value=mock_result)
+        mock_session.add = Mock()
+        mock_session.commit = AsyncMock()
+        mock_session.refresh = AsyncMock()
 
         mock_user = Mock(spec=User)
-        service = ExecutionService(session=mock_session, user=mock_user)
+        mock_user.id = user_id
+        service = ExecutionService(session=mock_session, user=mock_user, temporal_service=None)
 
-        with pytest.raises(WorkflowDisabledError) as exc_info:
+        result = await service.create_execution(
+            workflow_id=workflow_id,
+            input_data={},
+            use_published=True,
+        )
+
+        assert result.temporal_workflow_id.startswith("exec-")
+        assert result.workflow_version_id == version_id
+
+    @pytest.mark.asyncio
+    async def test_create_execution_use_published_no_published_version(self) -> None:
+        """Test triggered execution fails when no published version exists."""
+        mock_session = Mock(spec=AsyncSession)
+        workflow_id = uuid4()
+        mock_result = Mock()
+        mock_result.first = Mock(return_value=None)
+        workflow = Mock(spec=Workflow)
+        workflow.id = workflow_id
+        mock_wf_result = Mock()
+        mock_wf_result.first = Mock(return_value=workflow)
+        mock_session.exec = AsyncMock(side_effect=[mock_result, mock_wf_result])
+        mock_user = Mock(spec=User)
+        service = ExecutionService(session=mock_session, user=mock_user)
+        with pytest.raises(WorkflowNotPublishedError) as exc_info:
             await service.create_execution(
                 workflow_id=workflow_id,
                 input_data={},
+                use_published=True,
             )
-
         assert str(workflow_id) in str(exc_info.value)
 
 

@@ -68,7 +68,6 @@ class TestActiveWorkflowCount:
             body=WorkflowCreate(
                 name=wf_name,
                 description="Active workflow count test",
-                is_enabled=True,
                 workflow_definition=EXECUTION_WORKFLOW_DEFINITION,
             ),
         )

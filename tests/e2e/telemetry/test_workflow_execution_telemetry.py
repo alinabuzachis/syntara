@@ -105,7 +105,6 @@ def workflow_id(nexus_api: NexusApiRegistry) -> str:
         body=WorkflowCreate(
             name=WORKFLOW_NAME,
             description="E2E telemetry test: simple script workflow",
-            is_enabled=True,
             workflow_definition=WORKFLOW_DEFINITION,
         ),
     ).assert_and_get()

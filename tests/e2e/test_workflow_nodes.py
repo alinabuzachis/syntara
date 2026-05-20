@@ -66,7 +66,6 @@ def _create_and_run_workflow(
             body=WorkflowCreate(
                 name=name,
                 description=f"E2E test: {name}",
-                is_enabled=True,
                 workflow_definition=definition,
             )
         )

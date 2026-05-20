@@ -61,7 +61,7 @@ def _run_workflow(
         api.workflows.update(workflow_id=wf_id, body=WorkflowUpdate(workflow_definition=definition))
     else:
         create = api.workflows.create(
-            body=WorkflowCreate(name=name, description=f"E2E: {name}", is_enabled=True, workflow_definition=definition)
+            body=WorkflowCreate(name=name, description=f"E2E: {name}", workflow_definition=definition)
         )
         assert create.is_success
         assert create.parsed is not None

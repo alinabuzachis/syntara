@@ -185,6 +185,7 @@ __all__ = (
     "ProjectUpdate",
     "ProjectUpdateLabelsType0",
     "ProviderStatus",
+    "PublishVersionRequest",
     "ResetInternalMetricsStoreResponseResetInternalMetricsStore",
     "ResourceActionsResponse",
     "ResourceActionsResponseResourceActions",
@@ -278,6 +279,7 @@ __all__ = (
     "WorkflowVersionListResponse",
     "WorkflowVersionRead",
     "WorkflowVersionReadWorkflowDefinition",
+    "WorkflowVersionStatus",
 )
 
 _MODEL_MODULES = frozenset(path.stem for path in Path(__file__).parent.glob("*.py") if path.stem != "__init__")

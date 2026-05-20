@@ -173,7 +173,6 @@ class TestSystemAnalyticsCredentialCounts:
             body=WorkflowCreate(
                 name=f"e2e-cred-wf-{uuid4().hex[:8]}",
                 description="E2E test: workflow referencing a credential",
-                is_enabled=True,
                 workflow_definition=workflow_definition,
             ),
         ).assert_and_get()

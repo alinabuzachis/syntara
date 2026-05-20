@@ -37,6 +37,7 @@ class WorkflowRead:
             description (None | str | Unset): Workflow description
             labels (WorkflowReadLabels | Unset): Workflow labels
             project_id (None | Unset | UUID):
+            published_version (int | None | Unset):
             deleted_at (datetime.datetime | None | Unset):
             deleted_by (None | Unset | UUID):
     """
@@ -51,6 +52,7 @@ class WorkflowRead:
     description: None | str | Unset = UNSET
     labels: WorkflowReadLabels | Unset = UNSET
     project_id: None | Unset | UUID = UNSET
+    published_version: int | None | Unset = UNSET
     deleted_at: datetime.datetime | None | Unset = UNSET
     deleted_by: None | Unset | UUID = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
@@ -88,6 +90,12 @@ class WorkflowRead:
         else:
             project_id = self.project_id
 
+        published_version: int | None | Unset
+        if isinstance(self.published_version, Unset):
+            published_version = UNSET
+        else:
+            published_version = self.published_version
+
         deleted_at: None | str | Unset
         if isinstance(self.deleted_at, Unset):
             deleted_at = UNSET
@@ -123,6 +131,8 @@ class WorkflowRead:
             field_dict["labels"] = labels
         if project_id is not UNSET:
             field_dict["project_id"] = project_id
+        if published_version is not UNSET:
+            field_dict["published_version"] = published_version
         if deleted_at is not UNSET:
             field_dict["deleted_at"] = deleted_at
         if deleted_by is not UNSET:
@@ -182,6 +192,15 @@ class WorkflowRead:
 
         project_id = _parse_project_id(d.pop("project_id", UNSET))
 
+        def _parse_published_version(data: object) -> int | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(int | None | Unset, data)
+
+        published_version = _parse_published_version(d.pop("published_version", UNSET))
+
         def _parse_deleted_at(data: object) -> datetime.datetime | None | Unset:
             if data is None:
                 return data
@@ -227,6 +246,7 @@ class WorkflowRead:
             description=description,
             labels=labels,
             project_id=project_id,
+            published_version=published_version,
             deleted_at=deleted_at,
             deleted_by=deleted_by,
         )

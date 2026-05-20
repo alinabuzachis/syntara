@@ -72,7 +72,6 @@ class TestCompletionRate:
             body=WorkflowCreate(
                 name=wf_name,
                 description="Execution completion rate test workflow",
-                is_enabled=True,
                 workflow_definition=EXECUTION_WORKFLOW_DEFINITION,
             ),
         )
@@ -222,7 +221,6 @@ class TestCancellationTracking:
             body=WorkflowCreate(
                 name=wf_name,
                 description="Execution cancellation tracking test workflow",
-                is_enabled=True,
                 workflow_definition=EXECUTION_WORKFLOW_DEFINITION,
             ),
         )

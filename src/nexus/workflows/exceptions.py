@@ -16,9 +16,9 @@ from nexus.workflows.error_handlers import (
     validation_error_handler,
     webhook_trigger_not_found_handler,
     webhook_trigger_path_conflict_handler,
-    workflow_disabled_handler,
     workflow_name_conflict_handler,
     workflow_not_found_handler,
+    workflow_not_published_handler,
     workflow_version_not_found_handler,
 )
 
@@ -63,14 +63,14 @@ class WorkflowVersionNotFoundError(WorkflowError):
         super().__init__(f"Workflow {workflow_id} version {version} not found")
 
 
-@fastapi_exception(handler=workflow_disabled_handler)
-class WorkflowDisabledError(WorkflowError):
-    """Raised when attempting to execute a disabled workflow."""
+@fastapi_exception(handler=workflow_not_published_handler)
+class WorkflowNotPublishedError(WorkflowError):
+    """Raised when a triggered execution targets a workflow with no published version."""
 
     def __init__(self, workflow_id: UUID) -> None:
         """Initialize exception with workflow ID."""
         self.workflow_id = workflow_id
-        super().__init__(f"Workflow {workflow_id} is disabled")
+        super().__init__(f"Workflow {workflow_id} has no published version")
 
 
 @fastapi_exception(handler=execution_not_found_handler)

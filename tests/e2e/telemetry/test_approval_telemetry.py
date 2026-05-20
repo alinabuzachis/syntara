@@ -47,7 +47,6 @@ def _create_approval_workflow(nexus_api: NexusApiRegistry) -> str:
         body=WorkflowCreate(
             name=WORKFLOW_NAME,
             description="E2E approval telemetry test workflow",
-            is_enabled=True,
             workflow_definition={
                 "schema_version": "2.0.0",
                 "triggers": [

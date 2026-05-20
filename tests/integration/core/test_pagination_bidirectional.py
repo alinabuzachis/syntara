@@ -50,7 +50,6 @@ async def workflows_dataset(test_db_session: AsyncSession, test_user: User) -> l
                 name=f"test-workflow-{i:02d}",
                 description=f"Workflow for pagination testing - number {i}",
             ),
-            is_enabled=True,
         )
 
         workflows.append(workflow)
@@ -330,7 +329,6 @@ class TestBidirectionalPagination:
                     name=f"single-page-workflow-{i}",
                     description="Test",
                 ),
-                is_enabled=True,
             )
 
         response = await service.list_workflows_cursor(
@@ -684,7 +682,6 @@ class TestBidirectionalPagination:
                     name=f"single-item-test-{i}",
                     description="Test",
                 ),
-                is_enabled=True,
             )
 
         # Get page 1 (1 item)

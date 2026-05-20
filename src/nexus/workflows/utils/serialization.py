@@ -23,6 +23,8 @@ def deserialize_workflow_version(version: WorkflowVersion) -> dict[str, Any]:
         "schema_version": version.schema_version,
         "workflow_definition": version.workflow_definition,  # Already a dict from JSONB
         "change_description": version.change_description,
+        "status": version.status,
+        "publish_name": version.publish_name,
         "created_by": version.created_by,
         "created_at": version.created_at,
         "updated_at": version.updated_at,

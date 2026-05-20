@@ -280,6 +280,7 @@ class TestCredentialWorkflows:
             description="Workflow referencing a credential",
             created_by=test_user.id,
             is_enabled=True,
+            published_version=1,
             current_version=1,
         )
         test_db_session.add(workflow)
@@ -345,6 +346,7 @@ class TestCredentialWorkflows:
             description="Workflow with multiple nodes using same credential",
             created_by=test_user.id,
             is_enabled=True,
+            published_version=1,
             current_version=1,
         )
         test_db_session.add(workflow)

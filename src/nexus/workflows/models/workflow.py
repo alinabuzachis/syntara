@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from uuid import UUID
 
 from pydantic import ConfigDict
-from sqlmodel import Field, Index, Relationship, SQLModel, text
+from sqlmodel import CheckConstraint, Field, Index, Relationship, SQLModel, text
 
 from nexus.core.constants import FieldLimits
 from nexus.core.models.base import Resource
@@ -52,6 +52,7 @@ class Workflow(Resource, table=True):
     __filterable_fields__: ClassVar[list[str]] = [
         *Resource.__filterable_fields__,
         "is_enabled",
+        "published_version",
         "project_id",
     ]
 
@@ -68,8 +69,14 @@ class Workflow(Resource, table=True):
     )
 
     is_enabled: bool = Field(
-        default=True,
-        description="Whether workflow is enabled for execution",
+        default=False,
+        description="Derived field: True when a version is published. Managed by publish/unpublish.",
+        index=True,
+    )
+
+    published_version: int | None = Field(
+        default=None,
+        description="Version number of the currently published version",
         index=True,
     )
 
@@ -111,6 +118,10 @@ class Workflow(Resource, table=True):
             "name",
             unique=True,
             postgresql_where=text("deleted_at IS NULL"),
+        ),
+        CheckConstraint(
+            "(published_version IS NULL) = (NOT is_enabled)",
+            name="ck_workflows_is_enabled_published_version",
         ),
     )
 
@@ -156,7 +167,6 @@ class WorkflowCreate(WorkflowBase):
     """
 
     workflow_definition: Any = Field(..., description="Workflow definition object")
-    is_enabled: bool = Field(default=True, description="Enable workflow for execution")
     project_id: UUID | None = Field(default=None, description="Project to assign workflow to")
 
 
@@ -172,7 +182,6 @@ class WorkflowUpdate(SQLModel):
         None, max_length=FieldLimits.DESCRIPTION_MAX_LENGTH, description="Update workflow description"
     )
     labels: dict[str, Any] | None = Field(None, description="Update workflow labels")
-    is_enabled: bool | None = Field(None, description="Enable/disable workflow")
     workflow_definition: Any | None = Field(None, description="New workflow definition (auto-creates version)")
     change_description: str | None = Field(None, description="Description of changes for version history")
 
@@ -189,6 +198,7 @@ class WorkflowRead(WorkflowBase):
     id: UUID
     current_version: int
     is_enabled: bool
+    published_version: int | None = None
     created_by: UUID
     project_id: UUID | None = None
     created_at: datetime

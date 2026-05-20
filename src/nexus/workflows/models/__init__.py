@@ -54,7 +54,13 @@ from .workflow import (
     WorkflowReadWithVersion,
     WorkflowUpdate,
 )
-from .workflow_version import WorkflowVersion
+from .workflow_version import (
+    PublishVersionRequest,
+    WorkflowVersion,
+    WorkflowVersionListResponse,
+    WorkflowVersionRead,
+    WorkflowVersionStatus,
+)
 
 __all__ = [
     "TERMINAL_EXECUTION_STATUSES",
@@ -74,6 +80,7 @@ __all__ = [
     "ExecutionStatus",
     "ExecutionStreamingQueryParams",
     "JsonPatchOperation",
+    "PublishVersionRequest",
     "SignalResponse",
     "WebhookTrigger",
     "WebhookTriggerRead",
@@ -85,4 +92,7 @@ __all__ = [
     "WorkflowReadWithVersion",
     "WorkflowUpdate",
     "WorkflowVersion",
+    "WorkflowVersionListResponse",
+    "WorkflowVersionRead",
+    "WorkflowVersionStatus",
 ]

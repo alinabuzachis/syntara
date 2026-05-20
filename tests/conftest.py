@@ -60,7 +60,7 @@ from nexus.tool_manager.lib.providers.factory import ProviderFactory, get_provid
 from nexus.tool_manager.models import Tool, ToolProvider
 from nexus.tool_manager.services.tool_provider_service import ToolProviderService
 from nexus.tool_manager.services.tool_service import ToolService
-from nexus.workflows.models import ActivityExecution, ActivityStatus, Workflow, WorkflowVersion
+from nexus.workflows.models import ActivityExecution, ActivityStatus, Workflow, WorkflowVersion, WorkflowVersionStatus
 from nexus.workflows.models.execution import Execution, ExecutionStatus
 from nexus.workflows.services.execution_streaming_service import ExecutionStreamingService
 from nexus.workflows.workflow_engine.activities.condition import condition
@@ -1003,6 +1003,7 @@ async def test_workflow(
         description="Test workflow for execution tests",
         created_by=test_user.id,
         is_enabled=True,
+        published_version=1,
         current_version=1,
     )
     test_db_session.add(workflow)
@@ -1013,6 +1014,7 @@ async def test_workflow(
         schema_version="2.0.0",
         workflow_definition=test_workflow_definition,
         created_by=test_user.id,
+        status=WorkflowVersionStatus.PUBLISHED,
     )
     test_db_session.add(version)
     await test_db_session.commit()

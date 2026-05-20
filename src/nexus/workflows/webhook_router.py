@@ -205,6 +205,7 @@ async def receive_webhook(
         workflow_id=trigger.workflow_id,
         input_data=trigger_input,
         trigger_node_id=trigger.trigger_node_id,
+        use_published=True,
     )
 
     logger.info(

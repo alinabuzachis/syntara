@@ -19379,7 +19379,7 @@ paths:
         Update workflow.
 
         Supports both metadata-only updates and workflow definition updates:
-        - Metadata only (name, description, is_enabled, labels): Updates without creating new version
+        - Metadata only (name, description, labels): Updates without creating new version
         - With workflow_definition: Validates definition, compares with current version, creates new WorkflowVersion
           only if definition differs (change detection optimization)
       operationId: update_workflow
@@ -19893,6 +19893,245 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WorkflowVersionRead'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+  /workflows/{workflow_id}/versions/{version}/publish:
+    post:
+      summary: Publish Workflow Version
+      description: Publish a specific workflow version.
+      operationId: publish_workflow_version
+      tags:
+        - workflows
+      security:
+        - bearerAuth: []
+      x-app-permission:
+        resource: workflow
+        action: update
+      parameters:
+        - name: workflow_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Workflow Id
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Version
+          description: Version number to publish
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishVersionRequest'
+      responses:
+        '200':
+          description: Published workflow version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowReadWithVersion'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+  /workflows/{workflow_id}/unpublish:
+    post:
+      summary: Unpublish Workflow
+      description: Unpublish the currently published workflow version.
+      operationId: unpublish_workflow
+      tags:
+        - workflows
+      security:
+        - bearerAuth: []
+      x-app-permission:
+        resource: workflow
+        action: update
+      parameters:
+        - name: workflow_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Workflow Id
+      responses:
+        '200':
+          description: Unpublished workflow
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowRead'
         '400':
           description: Bad Request
           content:
@@ -26802,6 +27041,11 @@ components:
               format: uuid
             - type: 'null'
           title: Project Id
+        published_version:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Published Version
         created_at:
           type: string
           format: date-time
@@ -26877,6 +27121,11 @@ components:
               format: uuid
             - type: 'null'
           title: Project Id
+        published_version:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Published Version
         created_at:
           type: string
           format: date-time
@@ -26942,6 +27191,14 @@ components:
             - type: string
             - type: 'null'
           title: Change Description
+        status:
+          $ref: '#/components/schemas/WorkflowVersionStatus'
+          default: draft
+        publish_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Publish Name
         created_by:
           type: string
           format: uuid
@@ -26966,6 +27223,33 @@ components:
               format: uuid
             - type: 'null'
           title: Deleted By
+    WorkflowVersionStatus:
+      type: string
+      title: WorkflowVersionStatus
+      description: Publish status of a workflow version.
+      enum:
+        - draft
+        - published
+        - previously_published
+    PublishVersionRequest:
+      type: object
+      title: PublishVersionRequest
+      description: Request body for publishing a workflow version.
+      properties:
+        publish_name:
+          anyOf:
+            - type: string
+              maxLength: 255
+            - type: 'null'
+          title: Publish Name
+          description: Optional name for this published version
+        change_description:
+          anyOf:
+            - type: string
+              maxLength: 1024
+            - type: 'null'
+          title: Change Description
+          description: Description of changes in this version
     WorkflowVersionListResponse:
       type: object
       title: WorkflowVersionListResponse
@@ -27010,11 +27294,6 @@ components:
         workflow_definition:
           title: Workflow Definition
           description: Workflow definition object
-        is_enabled:
-          type: boolean
-          title: Is Enabled
-          description: Enable workflow for execution
-          default: true
         project_id:
           anyOf:
             - type: string
@@ -27053,12 +27332,6 @@ components:
             - type: 'null'
           title: Labels
           description: Update workflow labels
-        is_enabled:
-          anyOf:
-            - type: boolean
-            - type: 'null'
-          title: Is Enabled
-          description: Enable/disable workflow
         workflow_definition:
           anyOf:
             - {}

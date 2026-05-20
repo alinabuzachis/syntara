@@ -25,8 +25,8 @@ from nexus.workflows.exceptions import (
     ExecutionInTerminalStateError,
     ExecutionNotFoundError,
     TemporalUnavailableError,
-    WorkflowDisabledError,
     WorkflowNotFoundError,
+    WorkflowNotPublishedError,
 )
 from nexus.workflows.models.activity_execution import ActivityExecution, ActivityExecutionListResponse
 from nexus.workflows.models.execution import (
@@ -136,6 +136,8 @@ class ExecutionService(BaseService):
         workflow_id: UUID,
         input_data: dict[str, Any],
         trigger_node_id: str | None = None,
+        *,
+        use_published: bool = False,
     ) -> ExecutionRead:
         """Create and start a new workflow execution.
 
@@ -149,13 +151,14 @@ class ExecutionService(BaseService):
             workflow_id: ID of workflow to execute
             input_data: Input parameters for the workflow
             trigger_node_id: Optional trigger node ID to start from (defaults to first trigger)
+            use_published: If True, use the published version instead of current version
 
         Returns:
             Created execution with status=PENDING
 
         Raises:
             WorkflowNotFoundError: If workflow not found
-            WorkflowDisabledError: If workflow is disabled
+            WorkflowNotPublishedError: If use_published=True and no published version
             Exception: If Temporal workflow start fails
 
         """
@@ -164,14 +167,15 @@ class ExecutionService(BaseService):
         recorder = get_metrics_recorder()
         component = ComponentLabel.EXECUTION_SERVICE
 
-        # Step 1: Validate workflow exists and is enabled
+        # Step 1: Validate workflow exists and resolve version
+        version_field = Workflow.published_version if use_published else Workflow.current_version
         result = await self.session.exec(
             select(Workflow, WorkflowVersion)
             .join(
                 WorkflowVersion,
                 and_(
                     WorkflowVersion.workflow_id == Workflow.id,
-                    WorkflowVersion.version == Workflow.current_version,
+                    WorkflowVersion.version == version_field,
                 ),
             )
             .where(Workflow.id == workflow_id)
@@ -180,12 +184,15 @@ class ExecutionService(BaseService):
         row = result.first()
 
         if row is None:
+            if use_published:
+                wf_check = await self.session.exec(
+                    select(Workflow).where(Workflow.id == workflow_id).where(Workflow.deleted_at.is_(None))  # type: ignore[union-attr]
+                )
+                if wf_check.first() is not None:
+                    raise WorkflowNotPublishedError(workflow_id)
             raise WorkflowNotFoundError(workflow_id)
 
         workflow, workflow_version = row
-
-        if not workflow.is_enabled:
-            raise WorkflowDisabledError(workflow_id)
 
         logger.info(
             "Workflow validated",

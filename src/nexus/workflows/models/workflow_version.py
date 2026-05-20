@@ -5,16 +5,27 @@ SQLModel Pattern 1 (separate models with table=False for API operations).
 """
 
 from datetime import datetime
+from enum import StrEnum
 from typing import TYPE_CHECKING, Any, ClassVar
 from uuid import UUID
 
 from pydantic import ConfigDict
 from sqlalchemy import String
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlmodel import Field, Index, Relationship, SQLModel
+from sqlmodel import Field, Index, Relationship, SQLModel, text
 
 from nexus.core.constants import FieldLimits
 from nexus.core.models.base import SoftDeletableResource, UserOwnedResource
+from nexus.core.utils.sqlmodel import postgres_enum_column
+
+
+class WorkflowVersionStatus(StrEnum):
+    """Publish status of a workflow version."""
+
+    DRAFT = "draft"
+    PUBLISHED = "published"
+    PREVIOUSLY_PUBLISHED = "previously_published"
+
 
 if TYPE_CHECKING:
     from nexus.workflows.models.execution import Execution
@@ -83,6 +94,24 @@ class WorkflowVersion(UserOwnedResource, SoftDeletableResource, table=True):
         description="Description of changes in this version",
     )
 
+    status: WorkflowVersionStatus = Field(
+        default=WorkflowVersionStatus.DRAFT,
+        sa_column=postgres_enum_column(
+            WorkflowVersionStatus,
+            "workflowversionstatus",
+            index=True,
+            server_default=text("'draft'::workflowversionstatus"),
+        ),
+        description="Publish status of this version",
+    )
+
+    publish_name: str | None = Field(
+        default=None,
+        max_length=FieldLimits.NAME_MAX_LENGTH,
+        sa_type=String(FieldLimits.NAME_MAX_LENGTH),  # type: ignore[call-overload]
+        description="User-provided name for this published version",
+    )
+
     # Relationships
     workflow: "Workflow" = Relationship(back_populates="versions")
 
@@ -102,6 +131,13 @@ class WorkflowVersion(UserOwnedResource, SoftDeletableResource, table=True):
         ),
         # Index for version history queries
         Index("ix_workflow_versions_workflow_created", "workflow_id", "created_at"),
+        # Only one published version per workflow (enforced at DB level)
+        Index(
+            "ix_workflow_versions_single_published",
+            "workflow_id",
+            unique=True,
+            postgresql_where=text("status = 'published' AND deleted_at IS NULL"),
+        ),
     )
 
     def __repr__(self) -> str:
@@ -135,6 +171,8 @@ class WorkflowVersionRead(SQLModel):
     schema_version: str
     workflow_definition: dict[str, Any]
     change_description: str | None = None
+    status: WorkflowVersionStatus = WorkflowVersionStatus.DRAFT
+    publish_name: str | None = None
     created_by: UUID
     created_at: datetime
     updated_at: datetime
@@ -146,6 +184,13 @@ class WorkflowVersionListResponse(SQLModel):
     """Schema for workflow version list response."""
 
     versions: list[WorkflowVersionRead]
+
+
+class PublishVersionRequest(SQLModel):
+    """Request body for publishing a workflow version."""
+
+    publish_name: str | None = Field(None, max_length=255, description="Optional name for this published version")
+    change_description: str | None = Field(None, max_length=1024, description="Description of changes in this version")
 
 
 # Rebuild models to resolve forward references

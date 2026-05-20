@@ -12,7 +12,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
-from nexus.workflows.models import Workflow, WorkflowVersion
+from nexus.workflows.models import Workflow, WorkflowVersion, WorkflowVersionStatus
 from nexus.workflows.models.activity_execution import ActivityExecution, ActivityStatus
 from nexus.workflows.models.execution import Execution, ExecutionStatus
 
@@ -125,6 +125,7 @@ class WorkflowFactory:
             name=name,
             created_by=self.user.id,
             is_enabled=is_enabled,
+            published_version=1 if is_enabled else None,
             current_version=1,
         )
         self.session.add(wf)
@@ -134,6 +135,7 @@ class WorkflowFactory:
             schema_version="1.0.0",
             workflow_definition=_wf_def(name),
             created_by=self.user.id,
+            status=WorkflowVersionStatus.PUBLISHED if is_enabled else WorkflowVersionStatus.DRAFT,
         )
         self.session.add(version)
         await self.session.flush()

@@ -27,7 +27,6 @@ class WorkflowCreate:
             workflow_definition (Any): Workflow definition object
             description (None | str | Unset): Workflow description
             labels (WorkflowCreateLabels | Unset): Workflow labels
-            is_enabled (bool | Unset): Enable workflow for execution Default: True.
             project_id (None | Unset | UUID): Project to assign workflow to
     """
 
@@ -35,7 +34,6 @@ class WorkflowCreate:
     workflow_definition: Any
     description: None | str | Unset = UNSET
     labels: WorkflowCreateLabels | Unset = UNSET
-    is_enabled: bool | Unset = True
     project_id: None | Unset | UUID = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
@@ -53,8 +51,6 @@ class WorkflowCreate:
         labels: dict[str, Any] | Unset = UNSET
         if not isinstance(self.labels, Unset):
             labels = self.labels.to_dict()
-
-        is_enabled = self.is_enabled
 
         project_id: None | str | Unset
         if isinstance(self.project_id, Unset):
@@ -76,8 +72,6 @@ class WorkflowCreate:
             field_dict["description"] = description
         if labels is not UNSET:
             field_dict["labels"] = labels
-        if is_enabled is not UNSET:
-            field_dict["is_enabled"] = is_enabled
         if project_id is not UNSET:
             field_dict["project_id"] = project_id
 
@@ -108,8 +102,6 @@ class WorkflowCreate:
         else:
             labels = WorkflowCreateLabels.from_dict(_labels)
 
-        is_enabled = d.pop("is_enabled", UNSET)
-
         def _parse_project_id(data: object) -> None | Unset | UUID:
             if data is None:
                 return data
@@ -132,7 +124,6 @@ class WorkflowCreate:
             workflow_definition=workflow_definition,
             description=description,
             labels=labels,
-            is_enabled=is_enabled,
             project_id=project_id,
         )
 

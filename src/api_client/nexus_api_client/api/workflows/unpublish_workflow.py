@@ -7,36 +7,26 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.error_data import ErrorData
-from ...models.workflow_read_with_version import WorkflowReadWithVersion
-from ...models.workflow_update import WorkflowUpdate
+from ...models.workflow_read import WorkflowRead
 from ...types import Response
 
 
 def _get_kwargs(
     workflow_id: UUID,
-    *,
-    body: WorkflowUpdate,
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-
     _kwargs: dict[str, Any] = {
-        "method": "patch",
-        "url": f"/workflows/{workflow_id}",
+        "method": "post",
+        "url": f"/workflows/{workflow_id}/unpublish",
     }
 
-    _kwargs["json"] = body.to_dict()
-
-    headers["Content-Type"] = "application/json"
-
-    _kwargs["headers"] = headers
     return _kwargs
 
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> ErrorData | WorkflowReadWithVersion | None:
+) -> ErrorData | WorkflowRead | None:
     if response.status_code == 200:
-        response_200 = WorkflowReadWithVersion.from_dict(response.json())
+        response_200 = WorkflowRead.from_dict(response.json())
 
         return response_200
 
@@ -83,7 +73,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[ErrorData | WorkflowReadWithVersion]:
+) -> Response[ErrorData | WorkflowRead]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -98,36 +88,24 @@ def sync_detailed(
     workflow_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: WorkflowUpdate,
-) -> Response[ErrorData | WorkflowReadWithVersion]:
-    """Update Workflow
+) -> Response[ErrorData | WorkflowRead]:
+    """Unpublish Workflow
 
-     Update workflow.
-
-    Supports both metadata-only updates and workflow definition updates:
-    - Metadata only (name, description, labels): Updates without creating new version
-    - With workflow_definition: Validates definition, compares with current version, creates new
-    WorkflowVersion
-      only if definition differs (change detection optimization)
+     Unpublish the currently published workflow version.
 
     Args:
         workflow_id (UUID):
-        body (WorkflowUpdate): Schema for updating workflow (PATCH /workflows/{id}).
-
-            All fields are optional for partial updates.
-            Supports metadata updates and workflow definition updates (creates new version).
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorData | WorkflowReadWithVersion]
+        Response[ErrorData | WorkflowRead]
     """
 
     kwargs = _get_kwargs(
         workflow_id=workflow_id,
-        body=body,
     )
 
     response = client.get_httpx_client().request(
@@ -141,37 +119,25 @@ def sync(
     workflow_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: WorkflowUpdate,
-) -> ErrorData | WorkflowReadWithVersion | None:
-    """Update Workflow
+) -> ErrorData | WorkflowRead | None:
+    """Unpublish Workflow
 
-     Update workflow.
-
-    Supports both metadata-only updates and workflow definition updates:
-    - Metadata only (name, description, labels): Updates without creating new version
-    - With workflow_definition: Validates definition, compares with current version, creates new
-    WorkflowVersion
-      only if definition differs (change detection optimization)
+     Unpublish the currently published workflow version.
 
     Args:
         workflow_id (UUID):
-        body (WorkflowUpdate): Schema for updating workflow (PATCH /workflows/{id}).
-
-            All fields are optional for partial updates.
-            Supports metadata updates and workflow definition updates (creates new version).
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorData | WorkflowReadWithVersion
+        ErrorData | WorkflowRead
     """
 
     return sync_detailed(
         workflow_id=workflow_id,
         client=client,
-        body=body,
     ).parsed
 
 
@@ -179,36 +145,24 @@ async def asyncio_detailed(
     workflow_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: WorkflowUpdate,
-) -> Response[ErrorData | WorkflowReadWithVersion]:
-    """Update Workflow
+) -> Response[ErrorData | WorkflowRead]:
+    """Unpublish Workflow
 
-     Update workflow.
-
-    Supports both metadata-only updates and workflow definition updates:
-    - Metadata only (name, description, labels): Updates without creating new version
-    - With workflow_definition: Validates definition, compares with current version, creates new
-    WorkflowVersion
-      only if definition differs (change detection optimization)
+     Unpublish the currently published workflow version.
 
     Args:
         workflow_id (UUID):
-        body (WorkflowUpdate): Schema for updating workflow (PATCH /workflows/{id}).
-
-            All fields are optional for partial updates.
-            Supports metadata updates and workflow definition updates (creates new version).
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorData | WorkflowReadWithVersion]
+        Response[ErrorData | WorkflowRead]
     """
 
     kwargs = _get_kwargs(
         workflow_id=workflow_id,
-        body=body,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -220,37 +174,25 @@ async def asyncio(
     workflow_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: WorkflowUpdate,
-) -> ErrorData | WorkflowReadWithVersion | None:
-    """Update Workflow
+) -> ErrorData | WorkflowRead | None:
+    """Unpublish Workflow
 
-     Update workflow.
-
-    Supports both metadata-only updates and workflow definition updates:
-    - Metadata only (name, description, labels): Updates without creating new version
-    - With workflow_definition: Validates definition, compares with current version, creates new
-    WorkflowVersion
-      only if definition differs (change detection optimization)
+     Unpublish the currently published workflow version.
 
     Args:
         workflow_id (UUID):
-        body (WorkflowUpdate): Schema for updating workflow (PATCH /workflows/{id}).
-
-            All fields are optional for partial updates.
-            Supports metadata updates and workflow definition updates (creates new version).
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorData | WorkflowReadWithVersion
+        ErrorData | WorkflowRead
     """
 
     return (
         await asyncio_detailed(
             workflow_id=workflow_id,
             client=client,
-            body=body,
         )
     ).parsed

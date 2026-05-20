@@ -573,6 +573,7 @@ class TestQueryCredentialCountsRealDB:
             description="test",
             current_version=1,
             is_enabled=True,
+            published_version=1,
             project_id=project.id,
             created_by=test_user.id,
         )
@@ -624,6 +625,7 @@ class TestQueryCredentialCountsRealDB:
                 description="test",
                 current_version=1,
                 is_enabled=True,
+                published_version=1,
                 project_id=project.id,
                 created_by=test_user.id,
             )
@@ -668,6 +670,7 @@ class TestQueryCredentialCountsRealDB:
             description="test",
             current_version=1,
             is_enabled=True,
+            published_version=1,
             project_id=project.id,
             created_by=test_user.id,
         )

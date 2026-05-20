@@ -14,21 +14,20 @@ from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.core.nexus_router import NexusRouter
 from nexus.workflows.executions_router import get_temporal_execution_service
-from nexus.workflows.models import WorkflowListParams
-from nexus.workflows.models.execution import ExecutionRead, TestExecutionCreate
-from nexus.workflows.models.workflow import (
+from nexus.workflows.models import (
+    PublishVersionRequest,
     Workflow,
     WorkflowCreate,
+    WorkflowListParams,
     WorkflowListResponse,
     WorkflowRead,
     WorkflowReadWithVersion,
     WorkflowUpdate,
-)
-from nexus.workflows.models.workflow_version import (
     WorkflowVersion,
     WorkflowVersionListResponse,
     WorkflowVersionRead,
 )
+from nexus.workflows.models.execution import ExecutionRead, TestExecutionCreate
 from nexus.workflows.services import ExecutionService, WorkflowService
 from nexus.workflows.utils.serialization import deserialize_workflow_version
 from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
@@ -60,6 +59,13 @@ _wf_perm_create = PermissionChecker(
 )
 
 WORKFLOW_NOT_FOUND: str = "Workflow not found"
+
+
+def _build_workflow_with_version_response(workflow: Workflow, version: WorkflowVersion) -> WorkflowReadWithVersion:
+    base = WorkflowRead.model_validate(workflow, from_attributes=True).model_dump()
+    base["version"] = deserialize_workflow_version(version)
+    return WorkflowReadWithVersion.model_validate(base)
+
 
 # ============================================================================
 # Dependency Injection Providers
@@ -116,7 +122,6 @@ async def create_workflow(
         description=request.description,
         labels=request.labels,
         workflow_definition=request.workflow_definition,
-        is_enabled=request.is_enabled,
         project_id=request.project_id,
     )
     return workflow
@@ -161,24 +166,7 @@ async def get_workflow(
     """Get a workflow by ID including its current active version."""
     workflow, current_version = await service.get_workflow_with_version(workflow_id)
 
-    # Return workflow with version data - deserialize workflow_definition from JSON
-    return WorkflowReadWithVersion.model_validate(
-        {
-            "id": workflow.id,
-            "name": workflow.name,
-            "description": workflow.description,
-            "labels": workflow.labels,
-            "current_version": workflow.current_version,
-            "is_enabled": workflow.is_enabled,
-            "created_by": workflow.created_by,
-            "created_at": workflow.created_at,
-            "updated_at": workflow.updated_at,
-            "deleted_at": workflow.deleted_at,
-            "deleted_by": workflow.deleted_by,
-            "project_id": workflow.project_id,
-            "version": deserialize_workflow_version(current_version),
-        }
-    )
+    return _build_workflow_with_version_response(workflow, current_version)
 
 
 @router.patch(
@@ -195,7 +183,7 @@ async def update_workflow(
     """Update workflow.
 
     Supports both metadata-only updates and workflow definition updates:
-    - Metadata only (name, description, is_enabled, labels): Updates without creating new version
+    - Metadata only (name, description, labels): Updates without creating new version
     - With workflow_definition: Validates definition, compares with current version, creates new WorkflowVersion
       only if definition differs (change detection optimization)
     """
@@ -204,29 +192,11 @@ async def update_workflow(
         name=request.name,
         description=request.description,
         labels=request.labels,
-        is_enabled=request.is_enabled,
         workflow_definition=request.workflow_definition,
         change_description=request.change_description,
     )
 
-    # Return workflow with version data - deserialize workflow_definition from JSON
-    return WorkflowReadWithVersion.model_validate(
-        {
-            "id": workflow.id,
-            "name": workflow.name,
-            "description": workflow.description,
-            "labels": workflow.labels,
-            "current_version": workflow.current_version,
-            "is_enabled": workflow.is_enabled,
-            "created_by": workflow.created_by,
-            "created_at": workflow.created_at,
-            "updated_at": workflow.updated_at,
-            "deleted_at": workflow.deleted_at,
-            "deleted_by": workflow.deleted_by,
-            "project_id": workflow.project_id,
-            "version": deserialize_workflow_version(current_version),
-        }
-    )
+    return _build_workflow_with_version_response(workflow, current_version)
 
 
 @router.delete(
@@ -382,3 +352,40 @@ async def get_workflow_version(
 
     # Deserialize workflow_definition from JSON string to dict and return
     return WorkflowVersionRead.model_validate(deserialize_workflow_version(workflow_version))
+
+
+@router.post(
+    "/{workflow_id}/versions/{version}/publish",
+    dependencies=[Depends(_wf_perm_update)],
+    operation_id="publish_workflow_version",
+    response_description="Published workflow version",
+)
+async def publish_workflow_version(
+    workflow_id: UUID,
+    version: int,
+    request: PublishVersionRequest,
+    service: Annotated[WorkflowService, Depends(get_workflow_service)],
+) -> WorkflowReadWithVersion:
+    """Publish a specific workflow version."""
+    workflow, published_version = await service.publish_workflow_version(
+        workflow_id=workflow_id,
+        version=version,
+        publish_name=request.publish_name,
+        change_description=request.change_description,
+    )
+    return _build_workflow_with_version_response(workflow, published_version)
+
+
+@router.post(
+    "/{workflow_id}/unpublish",
+    dependencies=[Depends(_wf_perm_update)],
+    operation_id="unpublish_workflow",
+    response_description="Unpublished workflow",
+)
+async def unpublish_workflow(
+    workflow_id: UUID,
+    service: Annotated[WorkflowService, Depends(get_workflow_service)],
+) -> WorkflowRead:
+    """Unpublish the currently published workflow version."""
+    workflow = await service.unpublish_workflow(workflow_id=workflow_id)
+    return WorkflowRead.model_validate(workflow)

@@ -175,7 +175,7 @@ paths:
           $ref: '../../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
     patch:
       summary: Update Workflow
-      description: "Update workflow.\n\nSupports both metadata-only updates and workflow definition updates:\n- Metadata only (name, description, is_enabled, labels): Updates without creating new version\n- With workflow_definition: Validates definition, compares with current version, creates new WorkflowVersion\n  only if definition differs (change detection optimization)"
+      description: "Update workflow.\n\nSupports both metadata-only updates and workflow definition updates:\n- Metadata only (name, description, labels): Updates without creating new version\n- With workflow_definition: Validates definition, compares with current version, creates new WorkflowVersion\n  only if definition differs (change detection optimization)"
       operationId: update_workflow
       tags:
         - workflows
@@ -395,6 +395,103 @@ paths:
         '500':
           $ref: '../../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
 
+  /workflows/{workflow_id}/versions/{version}/publish:
+    post:
+      summary: Publish Workflow Version
+      description: Publish a specific workflow version.
+      operationId: publish_workflow_version
+      tags:
+        - workflows
+      security:
+        - bearerAuth: []
+      x-app-permission:
+        resource: workflow
+        action: update
+      parameters:
+        - name: workflow_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Workflow Id
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Version
+          description: Version number to publish
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishVersionRequest'
+      responses:
+        '200':
+          description: Published workflow version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowReadWithVersion'
+        '400':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
+        '401':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError'
+        '404':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/NotFoundError'
+        '409':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
+        '422':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ValidationError'
+        '500':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
+
+  /workflows/{workflow_id}/unpublish:
+    post:
+      summary: Unpublish Workflow
+      description: Unpublish the currently published workflow version.
+      operationId: unpublish_workflow
+      tags:
+        - workflows
+      security:
+        - bearerAuth: []
+      x-app-permission:
+        resource: workflow
+        action: update
+      parameters:
+        - name: workflow_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Workflow Id
+      responses:
+        '200':
+          description: Unpublished workflow
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowRead'
+        '400':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
+        '401':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError'
+        '404':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/NotFoundError'
+        '409':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
+        '422':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ValidationError'
+        '500':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
+
   # Note: Approval endpoints are in a separate API
   # See: src/nexus/schemas/approvals/openapi.yaml
 
@@ -495,6 +592,14 @@ components:
             - type: string
             - type: 'null'
           title: Change Description
+        status:
+          $ref: '#/components/schemas/WorkflowVersionStatus'
+          default: draft
+        publish_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Publish Name
         created_by:
           type: string
           format: uuid
@@ -519,6 +624,35 @@ components:
               format: uuid
             - type: 'null'
           title: Deleted By
+
+    WorkflowVersionStatus:
+      type: string
+      title: WorkflowVersionStatus
+      description: Publish status of a workflow version.
+      enum:
+        - draft
+        - published
+        - previously_published
+
+    PublishVersionRequest:
+      type: object
+      title: PublishVersionRequest
+      description: Request body for publishing a workflow version.
+      properties:
+        publish_name:
+          anyOf:
+            - type: string
+              maxLength: 255
+            - type: 'null'
+          title: Publish Name
+          description: Optional name for this published version
+        change_description:
+          anyOf:
+            - type: string
+              maxLength: 1024
+            - type: 'null'
+          title: Change Description
+          description: Description of changes in this version
 
     WorkflowVersionListResponse:
       type: object

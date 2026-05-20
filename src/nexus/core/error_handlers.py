@@ -33,7 +33,7 @@ PROBLEM_TYPES = {
     "validation_error": "https://api.nexus.com/errors/validation-error",
     "integrity_constraint": "https://api.nexus.com/errors/integrity-constraint",
     "service_unavailable": "https://api.nexus.com/errors/service-unavailable",
-    "resource_disabled": "https://api.nexus.com/errors/resource-disabled",
+    "resource_not_published": "https://api.nexus.com/errors/resource-not-published",
     "provider_error": "https://api.nexus.com/errors/provider-error",
     "internal_error": "https://api.nexus.com/errors/internal-error",
 }
