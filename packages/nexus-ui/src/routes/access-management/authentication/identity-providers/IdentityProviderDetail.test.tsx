@@ -417,25 +417,26 @@ describe('IdentityProviderDetail', () => {
     render(<IdentityProviderDetail />, { wrapper: createWrapper() })
 
     expect(screen.getByText('Auto-discovery')).toBeInTheDocument()
-    // auto_discovery is false and auto_create_groups defaults to false, so there are two "Disabled" labels
+    // auto_discovery is false and allow_all_authenticated defaults to false, so there are two "Disabled" labels
     const disabledLabels = screen.getAllByText('Disabled')
     expect(disabledLabels.length).toBeGreaterThanOrEqual(2)
   })
 
-  it('displays auto-create groups as Enabled when true', () => {
-    const autoCreateProvider = {
+  it('displays allow all authenticated as Enabled when true', () => {
+    const allowAllProvider = {
       ...mockProvider,
       configuration: {
         ...mockProvider.configuration,
-        auto_create_groups: true,
+        allow_all_authenticated: true,
       },
     }
 
-    vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn({ data: autoCreateProvider }))
+    vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn({ data: allowAllProvider }))
 
     render(<IdentityProviderDetail />, { wrapper: createWrapper() })
 
-    expect(screen.getByText('Auto-create groups')).toBeInTheDocument()
+    const field = screen.getByTestId('allow-all-authenticated-field')
+    expect(within(field).getByText('Enabled')).toBeInTheDocument()
   })
 
   it('displays fallback dash when issuer_url is not set', () => {
@@ -692,7 +693,6 @@ describe('IdentityProviderDetail', () => {
       ...mockProvider,
       configuration: {
         ...mockProvider.configuration,
-        auto_create_groups: false,
         group_mapping_entries: [
           { provider_group: 'admins', local_group_id: 'g1' },
           { provider_group: 'users', local_group_id: 'g2' },
@@ -706,27 +706,6 @@ describe('IdentityProviderDetail', () => {
 
     // Should show the badge with count 2
     expect(screen.getByText('2')).toBeInTheDocument()
-  })
-
-  it('does not show group mapping badge when auto_create_groups is true', () => {
-    const autoCreateProvider = {
-      ...mockProvider,
-      configuration: {
-        ...mockProvider.configuration,
-        auto_create_groups: true,
-        group_mapping_entries: [{ provider_group: 'admins', local_group_id: 'g1' }],
-      },
-    }
-
-    vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn({ data: autoCreateProvider }))
-
-    render(<IdentityProviderDetail />, { wrapper: createWrapper() })
-
-    // With auto_create_groups=true, mappingCount is forced to 0, so no badge
-    const groupMappingTab = screen.getByRole('tab', { name: /group mapping/i })
-    expect(groupMappingTab).toBeInTheDocument()
-    // Badge "1" should not appear
-    expect(screen.queryByText('1')).not.toBeInTheDocument()
   })
 
   it('navigates to edit mapping via kebab menu', async () => {
@@ -845,7 +824,6 @@ describe('IdentityProviderDetail', () => {
       ...mockProvider,
       configuration: {
         ...mockProvider.configuration,
-        auto_create_groups: false,
         group_jmespath_expression: 'groups[*]',
         group_mapping_entries: [],
       },
@@ -855,7 +833,7 @@ describe('IdentityProviderDetail', () => {
 
     render(<IdentityProviderDetail />, { wrapper: createWrapper() })
 
-    // With no mapping entries and auto_create_groups=false, badge count is 0 (no badge shown)
+    // With no mapping entries, badge count is 0 (no badge shown)
     const groupMappingTab = screen.getByRole('tab', { name: /group mapping/i })
     expect(groupMappingTab).toBeInTheDocument()
   })

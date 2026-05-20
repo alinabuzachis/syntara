@@ -66,13 +66,7 @@ function identityProviderTypeDisplayLabel(idpType: string | null | undefined): s
   return idpType ? (IDP_TYPE_PRESETS[idpType]?.label ?? idpType) : 'OIDC'
 }
 
-function identityProviderDetailMappingCount(
-  groupMappingConfig: GroupMappingConfig | null,
-  autoCreateGroups: boolean
-): number {
-  if (autoCreateGroups) {
-    return 0
-  }
+function identityProviderDetailMappingCount(groupMappingConfig: GroupMappingConfig | null): number {
   return groupMappingConfig?.group_mapping_entries?.length ?? 0
 }
 
@@ -105,7 +99,7 @@ function ProviderDetailsContent({ provider }: Readonly<{ provider: ProviderData 
   const config = provider.configuration
   if (!config) return null
 
-  const autoCreateGroups = config.auto_create_groups ?? false
+  const allowAllAuthenticated = config.allow_all_authenticated ?? false
 
   return (
     <DescriptionList isHorizontal isCompact>
@@ -130,9 +124,9 @@ function ProviderDetailsContent({ provider }: Readonly<{ provider: ProviderData 
           {config.auto_discovery ? 'Enabled' : 'Disabled'}
         </Label>
       </DetailField>
-      <DetailField label="Auto-create groups">
-        <Label color={autoCreateGroups ? 'blue' : 'grey'} isCompact>
-          {autoCreateGroups ? 'Enabled' : 'Disabled'}
+      <DetailField label="Allow all authenticated" data-testid="allow-all-authenticated-field">
+        <Label color={allowAllAuthenticated ? 'blue' : 'grey'} isCompact>
+          {allowAllAuthenticated ? 'Enabled' : 'Disabled'}
         </Label>
       </DetailField>
       <AapRoleMappingField config={config} />
@@ -157,7 +151,6 @@ type TabContentProps = {
   provider: ProviderData
   providerId: string
   idpType?: string | null
-  autoCreateGroups: boolean
   providerConfig?: ProviderConfig
   groupMappingConfig: GroupMappingConfig | null
   onSaved: () => void
@@ -169,7 +162,6 @@ function TabContent({
   provider,
   providerId,
   idpType,
-  autoCreateGroups,
   providerConfig,
   groupMappingConfig,
   onSaved,
@@ -180,7 +172,6 @@ function TabContent({
       <GroupMappingTab
         providerId={providerId}
         idpType={idpType}
-        autoCreateGroups={autoCreateGroups}
         providerConfig={providerConfig}
         groupMapping={groupMappingConfig}
         onSaved={onSaved}
@@ -359,8 +350,7 @@ export function IdentityProviderDetail() {
   const idpType = config?.idp_type
   const idpTypeLabel = identityProviderTypeDisplayLabel(idpType)
   const groupMappingConfig = buildGroupMappingConfig(config)
-  const autoCreateGroups = config?.auto_create_groups === true
-  const mappingCount = identityProviderDetailMappingCount(groupMappingConfig, autoCreateGroups)
+  const mappingCount = identityProviderDetailMappingCount(groupMappingConfig)
 
   return (
     <NxPage>
@@ -402,7 +392,6 @@ export function IdentityProviderDetail() {
             provider={providerData}
             providerId={providerId ?? ''}
             idpType={idpType}
-            autoCreateGroups={autoCreateGroups}
             providerConfig={config}
             groupMappingConfig={groupMappingConfig}
             onSaved={() => detachPromise(refetchProvider())}

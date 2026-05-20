@@ -66,7 +66,6 @@ const mockAllGroups = mockNexusGroups.map((g) => ({
 const defaultProps = {
   providerId: 'provider-123',
   idpType: 'custom',
-  autoCreateGroups: false,
   providerConfig: {
     issuer_url: 'https://example.com',
     provider_type: 'oidc' as const,
@@ -99,14 +98,6 @@ describe('GroupMappingTab', () => {
       mutate: vi.fn(),
       isPending: false,
     } as never)
-  })
-
-  describe('Auto-create groups mode', () => {
-    it('shows auto-create state when autoCreateGroups is true', () => {
-      render(<GroupMappingTab {...defaultProps} autoCreateGroups />, { wrapper })
-
-      expect(screen.getByRole('heading', { name: /auto-create groups is enabled/i })).toBeInTheDocument()
-    })
   })
 
   describe('Empty state', () => {
@@ -436,12 +427,6 @@ describe('GroupMappingTab', () => {
   describe('Accessibility', () => {
     it('has no accessibility violations in empty state', async () => {
       const { container } = render(<GroupMappingTab {...defaultProps} />, { wrapper })
-      const results = await axe(container)
-      expect(results).toHaveNoViolations()
-    })
-
-    it('has no accessibility violations in auto-create state', async () => {
-      const { container } = render(<GroupMappingTab {...defaultProps} autoCreateGroups />, { wrapper })
       const results = await axe(container)
       expect(results).toHaveNoViolations()
     })

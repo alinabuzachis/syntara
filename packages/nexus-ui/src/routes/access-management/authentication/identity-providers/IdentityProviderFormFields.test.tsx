@@ -170,10 +170,20 @@ describe('IdentityProviderFormFields', () => {
     expect(screen.getByLabelText(/Single logout/)).toBeInTheDocument()
   })
 
-  it('renders auto-create groups switch', () => {
+  it('renders allow all authenticated switch', () => {
     render(<TestWrapper />)
 
-    expect(screen.getByLabelText(/Auto-create groups/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Allow all authenticated/)).toBeInTheDocument()
+  })
+
+  it('shows warning when allow all authenticated is enabled', async () => {
+    const user = userEvent.setup()
+    render(<TestWrapper />)
+
+    const toggle = screen.getByLabelText(/Allow all authenticated/)
+    await user.click(toggle)
+
+    expect(screen.getByText(/any user who authenticates via this provider will be granted access/i)).toBeInTheDocument()
   })
 
   it('has no accessibility violations', async () => {

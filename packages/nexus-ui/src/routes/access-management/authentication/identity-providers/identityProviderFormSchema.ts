@@ -48,7 +48,7 @@ const baseFields = {
   enableRpInitiatedLogout: z.boolean(),
   claimMapping: claimMappingSchema,
   groupMapping: groupMappingSchema,
-  autoCreateGroups: z.boolean(),
+  allowAllAuthenticated: z.boolean(),
   aapRoleMappingEnabled: z.boolean(),
   disableTlsVerify: z.boolean(),
 }
@@ -135,7 +135,7 @@ export const identityProviderDefaults: IdentityProviderFormData = {
     groups: null,
   },
   groupMapping: null,
-  autoCreateGroups: false,
+  allowAllAuthenticated: false,
   aapRoleMappingEnabled: false,
   disableTlsVerify: false,
 }

@@ -1,12 +1,4 @@
-import {
-  Checkbox,
-  FormGroup,
-  FormHelperText,
-  HelperText,
-  HelperTextItem,
-  Switch,
-  TextInput,
-} from '@patternfly/react-core'
+import { FormGroup, FormHelperText, HelperText, HelperTextItem, Switch, TextInput } from '@patternfly/react-core'
 import { Controller, type Control } from 'react-hook-form'
 
 import { FieldErrorMessage, FieldHelpPopover, HintOrError } from './formFieldHelpers'
@@ -128,9 +120,10 @@ export function ConnectionFields({
         control={control}
         render={({ field }) => (
           <FormGroup fieldId="disable-tls-verify">
-            <Checkbox
+            <Switch
               id="disable-tls-verify"
               label="Disable TLS certificate verification"
+              hasCheckIcon
               isChecked={field.value}
               onChange={(_event, checked) => field.onChange(checked)}
             />

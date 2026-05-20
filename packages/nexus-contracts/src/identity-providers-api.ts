@@ -218,11 +218,11 @@ export interface components {
        */
       group_mapping_entries?: components['schemas']['OIDCGroupMappingEntry'][]
       /**
-       * Auto Create Groups
-       * @description Auto-create Nexus groups from IdP group values on login
+       * Allow All Authenticated
+       * @description Allow all users from this IdP to log in regardless of group mapping results
        * @default false
        */
-      auto_create_groups?: boolean
+      allow_all_authenticated?: boolean
       /**
        * Aap Role Mapping Enabled
        * @description Map AAP aap_system_role claim to built-in groups
@@ -322,11 +322,11 @@ export interface components {
        */
       group_mapping_entries?: components['schemas']['OIDCGroupMappingEntry'][]
       /**
-       * Auto Create Groups
-       * @description Auto-create Nexus groups from IdP group values on login
+       * Allow All Authenticated
+       * @description Allow all users from this IdP to log in regardless of group mapping results
        * @default false
        */
-      auto_create_groups?: boolean
+      allow_all_authenticated?: boolean
       /**
        * Aap Role Mapping Enabled
        * @description Map AAP aap_system_role claim to built-in groups
@@ -430,10 +430,10 @@ export interface components {
        */
       group_mapping_entries?: components['schemas']['OIDCGroupMappingEntry'][] | null
       /**
-       * Auto Create Groups
-       * @description Auto-create Nexus groups from IdP group values on login (omit to keep existing)
+       * Allow All Authenticated
+       * @description Allow all users from this IdP to log in regardless of group mapping results (omit to keep existing)
        */
-      auto_create_groups?: boolean | null
+      allow_all_authenticated?: boolean | null
       /**
        * Aap Role Mapping Enabled
        * @description Map AAP aap_system_role claim to built-in groups (omit to keep existing)

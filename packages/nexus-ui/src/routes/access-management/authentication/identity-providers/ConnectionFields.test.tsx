@@ -83,32 +83,32 @@ describe('ConnectionFields', () => {
     expect(screen.getByText(/OpenID Connect provider/)).toBeInTheDocument()
   })
 
-  it('renders the disable TLS verification checkbox', () => {
+  it('renders the disable TLS verification switch', () => {
     render(<Wrapper />)
 
     expect(screen.getByLabelText(/Disable TLS certificate verification/)).toBeInTheDocument()
   })
 
-  it('toggles the disable TLS verification checkbox', async () => {
+  it('toggles the disable TLS verification switch', async () => {
     const user = userEvent.setup()
     render(<Wrapper />)
 
-    const checkbox = screen.getByLabelText(/Disable TLS certificate verification/)
-    expect(checkbox).not.toBeChecked()
+    const toggle = screen.getByLabelText(/Disable TLS certificate verification/)
+    expect(toggle).not.toBeChecked()
 
-    await user.click(checkbox)
-    expect(checkbox).toBeChecked()
+    await user.click(toggle)
+    expect(toggle).toBeChecked()
   })
 
-  it('unchecks the disable TLS verification checkbox when initially enabled', async () => {
+  it('unchecks the disable TLS verification switch when initially enabled', async () => {
     const user = userEvent.setup()
     render(<Wrapper disableTlsVerify />)
 
-    const checkbox = screen.getByLabelText(/Disable TLS certificate verification/)
-    expect(checkbox).toBeChecked()
+    const toggle = screen.getByLabelText(/Disable TLS certificate verification/)
+    expect(toggle).toBeChecked()
 
-    await user.click(checkbox)
-    expect(checkbox).not.toBeChecked()
+    await user.click(toggle)
+    expect(toggle).not.toBeChecked()
   })
 
   it('shows warning text for disable TLS verification', () => {

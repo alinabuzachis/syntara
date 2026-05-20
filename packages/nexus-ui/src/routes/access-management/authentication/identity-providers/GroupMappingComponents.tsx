@@ -77,17 +77,6 @@ export function EmptyMappingState({ onTestSignIn, onAddManually }: Readonly<Empt
   )
 }
 
-export function AutoCreateGroupsState() {
-  return (
-    <EmptyState headingLevel="h2" titleText="Auto-create groups is enabled" variant="lg">
-      <EmptyStateBody>
-        Groups are automatically created and assigned when users sign in. To use manual group mapping instead, disable
-        &quot;Auto-create groups&quot; in the provider configuration.
-      </EmptyStateBody>
-    </EmptyState>
-  )
-}
-
 export type AdvancedSectionProps = {
   expression: string
   onExpressionChange: (value: string) => void

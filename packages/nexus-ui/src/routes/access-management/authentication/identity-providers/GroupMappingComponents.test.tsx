@@ -3,13 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import {
-  AdvancedSection,
-  AutoCreateGroupsState,
-  EmptyMappingState,
-  MappingTable,
-  ReadOnlyView,
-} from './GroupMappingComponents'
+import { AdvancedSection, EmptyMappingState, MappingTable, ReadOnlyView } from './GroupMappingComponents'
 import type { GroupMappingEntry, NexusGroup } from './groupMappingUtils'
 
 const mockNexusGroups: NexusGroup[] = [
@@ -57,21 +51,6 @@ describe('EmptyMappingState', () => {
 
   it('has no accessibility violations', async () => {
     const { container } = render(<EmptyMappingState onTestSignIn={vi.fn()} onAddManually={vi.fn()} />)
-    const results = await axe(container)
-    expect(results).toHaveNoViolations()
-  })
-})
-
-describe('AutoCreateGroupsState', () => {
-  it('renders heading and description', () => {
-    render(<AutoCreateGroupsState />)
-
-    expect(screen.getByRole('heading', { name: /auto-create groups is enabled/i })).toBeInTheDocument()
-    expect(screen.getByText(/automatically created and assigned/i)).toBeInTheDocument()
-  })
-
-  it('has no accessibility violations', async () => {
-    const { container } = render(<AutoCreateGroupsState />)
     const results = await axe(container)
     expect(results).toHaveNoViolations()
   })

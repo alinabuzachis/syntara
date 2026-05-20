@@ -9,13 +9,7 @@ import { useAllGroups } from '../../../access/useAllGroups'
 import { BUILTIN_AUTHENTICATED_GROUP_NAME } from '../../adminConstants'
 import { GroupFormModal } from '../../GroupFormModal'
 
-import {
-  AdvancedSection,
-  AutoCreateGroupsState,
-  EmptyMappingState,
-  MappingTable,
-  ReadOnlyView,
-} from './GroupMappingComponents'
+import { AdvancedSection, EmptyMappingState, MappingTable, ReadOnlyView } from './GroupMappingComponents'
 import {
   buildSavePayload,
   nextKey,
@@ -60,7 +54,6 @@ function signInAlertTitle(variant: string): string {
 type GroupMappingTabProps = {
   providerId: string
   idpType?: string | null
-  autoCreateGroups?: boolean
   providerConfig: OIDCConfigurationResponse
   groupMapping: GroupMappingConfig | null | undefined
   onSaved: () => void
@@ -71,7 +64,6 @@ type GroupMappingTabProps = {
 export function GroupMappingTab({
   providerId,
   idpType,
-  autoCreateGroups,
   providerConfig,
   groupMapping,
   onSaved,
@@ -202,7 +194,6 @@ export function GroupMappingTab({
     setShowValidation(false)
   }, [groupMapping])
 
-  if (autoCreateGroups) return <AutoCreateGroupsState />
   const hasEntries = entries.length > 0
 
   if (!hasEntries && !signInAlert && !isEditing) {

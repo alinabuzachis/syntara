@@ -445,19 +445,6 @@ export const settings: RuntimeSetting[] = [
 
   // ── Authentication ─────────────────────────────────────────────────────
   makeSetting({
-    key: 'authentication.max_auto_create_groups',
-    name: 'Max auto-created groups per login',
-    description:
-      "Limits the number of groups that can be automatically created from identity provider (IdP) claims during a single login. If a user's token contains more groups than this limit, the login is denied to prevent accidental mass group creation. Set to 0 to remove the limit entirely.",
-    helper_text: 'Minimum 0. Set to 0 for no limit.',
-    category: 'authentication',
-    group: 'Group mapping',
-    value_type: 'integer',
-    default_value: 25,
-    validation_schema: { min: 0 } as unknown as Record<string, never>,
-  }),
-
-  makeSetting({
     key: 'authentication.local_login_enabled',
     name: 'Local login',
     description:

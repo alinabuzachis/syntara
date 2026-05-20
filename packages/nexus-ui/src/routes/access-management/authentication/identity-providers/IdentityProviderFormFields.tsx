@@ -105,7 +105,7 @@ function IdpTypeMenuToggle({
 
 // Fields validated before advancing from step 1 to step 2 in the wizard.
 // Boolean toggles (enabled, autoDiscovery, enableRpInitiatedLogout,
-// autoCreateGroups) are intentionally excluded — they have no validation
+// allowAllAuthenticated) are intentionally excluded — they have no validation
 // constraints and always hold a valid default value.
 const STEP1_FIELDS: (keyof IdentityProviderFormData)[] = [
   'idpType',
@@ -285,16 +285,16 @@ function ScopesField({
   )
 }
 
-function AutoCreateGroupsField({ control }: Readonly<{ control: Control<IdentityProviderFormData> }>) {
+function AllowAllAuthenticatedField({ control }: Readonly<{ control: Control<IdentityProviderFormData> }>) {
   return (
     <Controller
-      name="autoCreateGroups"
+      name="allowAllAuthenticated"
       control={control}
       render={({ field }) => (
-        <FormGroup fieldId="auto-create-groups">
+        <FormGroup fieldId="allow-all-authenticated">
           <Switch
-            id="auto-create-groups"
-            label="Auto-create groups"
+            id="allow-all-authenticated"
+            label="Allow all authenticated"
             hasCheckIcon
             isChecked={field.value}
             onChange={(_event, checked) => field.onChange(checked)}
@@ -302,9 +302,14 @@ function AutoCreateGroupsField({ control }: Readonly<{ control: Control<Identity
           <FormHelperText>
             <HelperText>
               <HelperTextItem>
-                Automatically create Nexus groups matching IdP group names on login. Disable to use manual group mapping
-                instead.
+                Allow all users from this identity provider to log in, even without group mapping matches.
               </HelperTextItem>
+              {field.value && (
+                <HelperTextItem variant="warning">
+                  Any user who authenticates via this provider will be granted access. Only enable this if you trust all
+                  users from this identity provider.
+                </HelperTextItem>
+              )}
             </HelperText>
           </FormHelperText>
         </FormGroup>
@@ -486,7 +491,7 @@ export function IdentityProviderFormFields({
           </FormGroup>
 
           <ScopesField control={control} isPresetTemplate={isPresetTemplate} />
-          <AutoCreateGroupsField control={control} />
+          <AllowAllAuthenticatedField control={control} />
           {idpType === IdpTypeKey.AAP && <AapRoleMappingField control={control} />}
           <RpInitiatedLogoutField control={control} />
           {onTestConnection && (
