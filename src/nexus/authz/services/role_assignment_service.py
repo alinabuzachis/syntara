@@ -6,7 +6,7 @@ from typing import Any
 from uuid import UUID
 
 import structlog
-from sqlalchemy import case, func, or_
+from sqlalchemy import case, false, func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -186,7 +186,7 @@ class RoleAssignmentService:
         )
 
         # Visibility filter
-        if restrict_user_id is not None or restrict_group_ids is not None:
+        if restrict_user_id is not None or restrict_group_ids is not None or allowed_project_ids is not None:
             visibility_clauses: builtins.list[Any] = []
             if restrict_user_id is not None:
                 visibility_clauses.append(
@@ -202,8 +202,7 @@ class RoleAssignmentService:
                 visibility_clauses.append(
                     RoleAssignment.project_id.in_(allowed_project_ids)  # type: ignore[union-attr]
                 )
-            if visibility_clauses:
-                base = base.where(or_(*visibility_clauses))
+            base = base.where(or_(*visibility_clauses)) if visibility_clauses else base.where(false())
 
         # Attribute filters
         if principal_type is not None:

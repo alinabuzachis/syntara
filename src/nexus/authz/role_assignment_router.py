@@ -181,7 +181,7 @@ async def list_principal_assignments(
         restrict_group_ids=(
             list(visibility.self_group_ids) if visibility.has_self_scope and not visibility.unrestricted else None
         ),
-        allowed_project_ids=visibility.allowed_project_ids or None,
+        allowed_project_ids=visibility.allowed_project_ids if not visibility.unrestricted else None,
     )
 
     _redact_project_names(result["resources"], visibility.readable_project_ids)
@@ -291,7 +291,7 @@ async def list_role_assignments(
         restrict_group_ids=(
             list(visibility.self_group_ids) if visibility.has_self_scope and not visibility.unrestricted else None
         ),
-        allowed_project_ids=visibility.allowed_project_ids or None,
+        allowed_project_ids=visibility.allowed_project_ids if not visibility.unrestricted else None,
     )
 
     _redact_project_names(result["resources"], visibility.readable_project_ids)
@@ -331,7 +331,7 @@ async def get_role_assignment(
         all_projects=False,
         user_id=current_user.id,
         group_ids=list(visibility.self_group_ids),
-        allowed_project_ids=visibility.allowed_project_ids,
+        allowed_project_ids=visibility.allowed_project_ids if not visibility.unrestricted else None,
     ):
         from nexus.core.exceptions import SafeValueError  # noqa: PLC0415
 
