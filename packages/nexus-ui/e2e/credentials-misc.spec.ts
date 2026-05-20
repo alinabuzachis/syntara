@@ -23,6 +23,7 @@ import {
   filterCredentialByName,
   goToCredentialsList,
   navigateToCredentialDetail,
+  selectCredentialType,
 } from './helpers/credentials'
 import {
   buildUniqueName,
@@ -228,7 +229,7 @@ test.describe('Alert Notifications', () => {
     await app.getByRole('button', { name: 'Create credential' }).first().click()
     const modal = app.getByRole('dialog')
     await modal.getByRole('textbox', { name: 'Credential name' }).fill('error-test-cred')
-    await modal.getByRole('combobox', { name: 'Credential type' }).selectOption({ label: 'HTTP Bearer Token' })
+    await selectCredentialType(modal, 'HTTP Bearer Token')
     await modal.getByRole('textbox', { name: 'Token' }).fill('test-token')
     await modal.getByRole('button', { name: 'Create credential' }).click()
 
@@ -251,7 +252,7 @@ test.describe('Dynamic Field Renderer — Help Text', () => {
 
     const modal = app.getByRole('dialog')
 
-    await modal.getByRole('combobox', { name: 'Credential type' }).selectOption({ label: 'HTTP Bearer Token' })
+    await selectCredentialType(modal, 'HTTP Bearer Token')
 
     // Help buttons use aria-label="${label} help" — only present when help_text is set
     const tokenHelpButton = modal.getByRole('button', { name: /Token help/i })
@@ -265,7 +266,7 @@ test.describe('Dynamic Field Renderer — Help Text', () => {
     // Help popover should appear — PF6 renders it as a popover with a body
     await expect(app.locator('.pf-v6-c-popover__body').first()).toBeVisible({ timeout: 5_000 })
 
-    await modal.getByRole('combobox', { name: 'Credential type' }).selectOption({ label: 'HTTP Basic Auth' })
+    await selectCredentialType(modal, 'HTTP Basic Auth')
 
     await expect(modal.getByRole('button', { name: /Username help/i })).toBeVisible()
     await expect(modal.getByRole('button', { name: /Password help/i })).toBeVisible()
@@ -301,7 +302,7 @@ test.describe('Secret Field Security', () => {
       await app.getByRole('button', { name: 'Create credential' }).first().click()
       const createModal = app.getByRole('dialog')
       await createModal.getByRole('textbox', { name: 'Credential name' }).fill(credName)
-      await createModal.getByRole('combobox', { name: 'Credential type' }).selectOption({ label: 'HTTP Bearer Token' })
+      await selectCredentialType(createModal, 'HTTP Bearer Token')
       await createModal.getByRole('textbox', { name: 'Token' }).fill('super-secret-value-12345')
 
       await createModal.getByRole('button', { name: 'Create credential' }).click()
@@ -334,7 +335,7 @@ test.describe('Submit State — Loading Spinner', () => {
       await app.getByRole('button', { name: 'Create credential' }).first().click()
       const modal = app.getByRole('dialog')
       await modal.getByRole('textbox', { name: 'Credential name' }).fill(credName)
-      await modal.getByRole('combobox', { name: 'Credential type' }).selectOption({ label: 'HTTP Bearer Token' })
+      await selectCredentialType(modal, 'HTTP Bearer Token')
       await modal.getByRole('textbox', { name: 'Token' }).fill('spinner-test-token')
 
       // Delay only the POST response so we can observe the loading state

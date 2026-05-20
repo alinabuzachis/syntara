@@ -133,19 +133,25 @@ describe('CredentialFormModal', () => {
     expect(screen.getByLabelText('Credential description')).toBeInTheDocument()
   })
 
-  it('renders credential type dropdown with types', () => {
-    render(<CredentialFormModal isOpen onClose={vi.fn()} />, { wrapper })
-    expect(screen.getByLabelText('Credential type')).toBeInTheDocument()
-    expect(screen.getByText('HTTP Bearer Token')).toBeInTheDocument()
-    expect(screen.getByText('HTTP Basic Auth')).toBeInTheDocument()
-  })
-
-  it('shows dynamic fields when type is selected', async () => {
+  it('renders credential type dropdown with types', async () => {
     const user = userEvent.setup()
     render(<CredentialFormModal isOpen onClose={vi.fn()} />, { wrapper })
+    const typeToggle = screen.getByLabelText('Credential type')
+    expect(typeToggle).toBeInTheDocument()
+    // Auto-selects first type, shown in toggle
+    expect(typeToggle).toHaveTextContent('HTTP Bearer Token')
 
-    await user.selectOptions(screen.getByLabelText('Credential type'), 'type-1')
+    // Open dropdown to verify all options are listed
+    await user.click(typeToggle)
+    const listbox = screen.getByRole('listbox', { name: 'Credential type options' })
+    expect(within(listbox).getByText('HTTP Bearer Token')).toBeInTheDocument()
+    expect(within(listbox).getByText('HTTP Basic Auth')).toBeInTheDocument()
+  })
 
+  it('shows dynamic fields when type is selected', () => {
+    render(<CredentialFormModal isOpen onClose={vi.fn()} />, { wrapper })
+
+    // Auto-selects type-1 (HTTP Bearer Token) on mount, so Token field should be visible
     expect(screen.getByLabelText('Token', { selector: 'input' })).toBeInTheDocument()
   })
 
@@ -153,7 +159,9 @@ describe('CredentialFormModal', () => {
     const user = userEvent.setup()
     render(<CredentialFormModal isOpen onClose={vi.fn()} />, { wrapper })
 
-    await user.selectOptions(screen.getByLabelText('Credential type'), 'type-2')
+    // Open dropdown and select HTTP Basic Auth
+    await user.click(screen.getByLabelText('Credential type'))
+    await user.click(screen.getByRole('option', { name: 'HTTP Basic Auth' }))
 
     expect(screen.getByLabelText('Username', { selector: 'input' })).toBeInTheDocument()
     expect(screen.getByLabelText('Password', { selector: 'input' })).toBeInTheDocument()
@@ -205,7 +213,8 @@ describe('CredentialFormModal', () => {
   it('auto-selects first credential type in create mode', () => {
     render(<CredentialFormModal isOpen onClose={vi.fn()} />, { wrapper })
 
-    expect(screen.getByLabelText('Credential type')).toHaveValue('type-1')
+    // PF6 Select shows the selected type name in the toggle
+    expect(screen.getByLabelText('Credential type')).toHaveTextContent('HTTP Bearer Token')
   })
 
   it('shows loading placeholder when types are loading', () => {
@@ -239,7 +248,7 @@ describe('CredentialFormModal', () => {
     render(<CredentialFormModal isOpen onClose={vi.fn()} defaultProjectId="proj-1" />, { wrapper })
 
     await user.type(screen.getByLabelText('Credential name'), 'New Token')
-    await user.selectOptions(screen.getByLabelText('Credential type'), 'type-1')
+    // type-1 (HTTP Bearer Token) is auto-selected, no need to re-select
     await user.type(screen.getByLabelText('Token', { selector: 'input' }), 'my-secret-token')
     await user.click(screen.getByRole('button', { name: 'Create credential' }))
 
@@ -282,7 +291,7 @@ describe('CredentialFormModal', () => {
     })
 
     await user.type(screen.getByLabelText('Credential name'), 'New Token')
-    await user.selectOptions(screen.getByLabelText('Credential type'), 'type-1')
+    // type-1 (HTTP Bearer Token) is auto-selected
     await user.type(screen.getByLabelText('Token', { selector: 'input' }), 'secret')
     await user.click(screen.getByRole('button', { name: 'Create credential' }))
 
@@ -294,12 +303,12 @@ describe('CredentialFormModal', () => {
     const user = userEvent.setup()
     render(<CredentialFormModal isOpen onClose={vi.fn()} />, { wrapper })
 
-    // Select first type
-    await user.selectOptions(screen.getByLabelText('Credential type'), 'type-1')
+    // First type (HTTP Bearer Token) is auto-selected
     expect(screen.getByLabelText('Token', { selector: 'input' })).toBeInTheDocument()
 
-    // Change to second type
-    await user.selectOptions(screen.getByLabelText('Credential type'), 'type-2')
+    // Change to second type via PF6 Select
+    await user.click(screen.getByLabelText('Credential type'))
+    await user.click(screen.getByRole('option', { name: 'HTTP Basic Auth' }))
     expect(screen.getByLabelText('Username', { selector: 'input' })).toBeInTheDocument()
     expect(screen.getByLabelText('Password', { selector: 'input' })).toBeInTheDocument()
     expect(screen.queryByLabelText('Token', { selector: 'input' })).not.toBeInTheDocument()
@@ -321,9 +330,9 @@ describe('CredentialFormModal', () => {
   it('pre-selects credential type when preSelectedTypeId is provided', () => {
     render(<CredentialFormModal isOpen onClose={vi.fn()} preSelectedTypeId="type-1" />, { wrapper })
 
-    const typeSelect = screen.getByLabelText('Credential type')
-    expect(typeSelect).toHaveValue('type-1')
-    expect(typeSelect).toBeDisabled()
+    const typeToggle = screen.getByLabelText('Credential type')
+    expect(typeToggle).toHaveTextContent('HTTP Bearer Token')
+    expect(typeToggle).toBeDisabled()
   })
 
   it('shows dynamic fields for pre-selected type', () => {
@@ -360,7 +369,7 @@ describe('CredentialFormModal', () => {
     render(<CredentialFormModal isOpen onClose={vi.fn()} />, { wrapper })
 
     await user.type(screen.getByLabelText('Credential name'), 'New Token')
-    await user.selectOptions(screen.getByLabelText('Credential type'), 'type-1')
+    // type-1 (HTTP Bearer Token) is auto-selected
     await user.type(screen.getByLabelText('Token', { selector: 'input' }), 'my-secret-token')
     await user.click(screen.getByRole('button', { name: 'Create credential' }))
 
@@ -372,7 +381,7 @@ describe('CredentialFormModal', () => {
     render(<CredentialFormModal isOpen onClose={vi.fn()} defaultProjectId="proj-1" />, { wrapper })
 
     await user.type(screen.getByLabelText('Credential name'), 'New Token')
-    await user.selectOptions(screen.getByLabelText('Credential type'), 'type-1')
+    // type-1 (HTTP Bearer Token) is auto-selected
     await user.type(screen.getByLabelText('Token', { selector: 'input' }), 'my-secret-token')
     await user.click(screen.getByRole('button', { name: 'Create credential' }))
 
@@ -388,7 +397,7 @@ describe('CredentialFormModal', () => {
 
     await user.selectOptions(screen.getByLabelText('Credential project'), 'proj-2')
     await user.type(screen.getByLabelText('Credential name'), 'New Token')
-    await user.selectOptions(screen.getByLabelText('Credential type'), 'type-1')
+    // type-1 (HTTP Bearer Token) is auto-selected
     await user.type(screen.getByLabelText('Token', { selector: 'input' }), 'my-secret-token')
     await user.click(screen.getByRole('button', { name: 'Create credential' }))
 
@@ -444,7 +453,7 @@ describe('CredentialFormModal', () => {
     })
 
     await user.type(screen.getByLabelText('Credential name'), 'New Token')
-    await user.selectOptions(screen.getByLabelText('Credential type'), 'type-1')
+    // type-1 (HTTP Bearer Token) is auto-selected
     await user.type(screen.getByLabelText('Token', { selector: 'input' }), 'secret')
     await user.click(screen.getByRole('button', { name: 'Create credential' }))
 

@@ -10,7 +10,7 @@
  */
 
 import { test, expect } from './fixtures'
-import { openCreateModal } from './helpers/credentials'
+import { openCreateModal, selectCredentialType } from './helpers/credentials'
 
 // ---------------------------------------------------------------------------
 // Type Change Resets Dynamic Fields
@@ -20,12 +20,12 @@ test.describe('Type Change Resets Dynamic Fields', () => {
   test('switching from HTTP Basic Auth to LLM Provider removes old fields and renders new ones', async ({ app }) => {
     const modal = await openCreateModal(app)
 
-    await modal.getByRole('combobox', { name: 'Credential type' }).selectOption({ label: 'HTTP Basic Auth' })
+    await selectCredentialType(modal, 'HTTP Basic Auth')
     await expect(modal.getByRole('textbox', { name: 'Username' })).toBeVisible()
     await modal.getByRole('textbox', { name: 'Username' }).fill('old-user')
     await modal.getByRole('textbox', { name: 'Password' }).fill('old-pass')
 
-    await modal.getByRole('combobox', { name: 'Credential type' }).selectOption({ label: 'LLM Provider' })
+    await selectCredentialType(modal, 'LLM Provider')
 
     await expect(modal.getByRole('combobox', { name: 'Provider' })).toBeVisible()
     await expect(modal.getByRole('textbox', { name: 'API Key' })).toBeVisible()
@@ -46,7 +46,7 @@ test.describe('Form Reset on Modal Open/Close', () => {
 
     await modal.getByRole('textbox', { name: 'Credential name' }).fill('should-not-persist')
     await modal.getByRole('textbox', { name: 'Credential description' }).fill('temp description')
-    await modal.getByRole('combobox', { name: 'Credential type' }).selectOption({ label: 'HTTP Basic Auth' })
+    await selectCredentialType(modal, 'HTTP Basic Auth')
     await modal.getByRole('textbox', { name: 'Username' }).fill('temp-user')
     await modal.getByRole('textbox', { name: 'Password' }).fill('temp-pass')
 

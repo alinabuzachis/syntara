@@ -1,9 +1,22 @@
-import { type Page } from '@playwright/test'
+import { type Locator, type Page } from '@playwright/test'
 
 import { expect, toAppUrl } from '../fixtures'
 import { createCredentialViaApi, deleteCredentialViaApi, ensureProject, listCredentialsByName } from '../utils/api'
 
 import { buildUniqueName, selectFirstProject } from './workflows'
+
+/**
+ * Select a credential type from the PF6 Select dropdown.
+ *
+ * The credential type field uses a PF6 `Select` component (button toggle +
+ * dropdown menu) instead of a native `<select>`.  Interaction requires
+ * clicking the toggle button to open the menu, then clicking the desired
+ * option.
+ */
+export async function selectCredentialType(container: Locator, typeName: string): Promise<void> {
+  await container.getByRole('button', { name: 'Credential type', exact: true }).click()
+  await container.getByRole('option', { name: typeName }).click()
+}
 
 /** Open the Create Credential modal and return the dialog locator. */
 export async function openCreateModal(app: Page) {
@@ -71,7 +84,7 @@ async function createTestCredentialViaUi(app: Page, name: string): Promise<boole
 
     const modal = app.getByRole('dialog')
     await modal.getByRole('textbox', { name: 'Credential name' }).fill(name)
-    await modal.getByRole('combobox', { name: 'Credential type' }).selectOption({ label: 'HTTP Bearer Token' })
+    await selectCredentialType(modal, 'HTTP Bearer Token')
     await modal.getByRole('textbox', { name: 'Token' }).fill('e2e-test-token')
     await modal.getByRole('button', { name: 'Create credential' }).click()
     await expect(app.getByText('Credential created')).toBeVisible()
@@ -132,7 +145,7 @@ export async function createCredentialOfTypeViaUI(
 
   const modal = app.getByRole('dialog')
   await modal.getByRole('textbox', { name: 'Credential name' }).fill(options.name)
-  await modal.getByRole('combobox', { name: 'Credential type' }).selectOption({ label: options.type })
+  await selectCredentialType(modal, options.type)
 
   for (const [fieldName, value] of Object.entries(options.fields)) {
     await modal.getByRole('textbox', { name: fieldName }).fill(value)

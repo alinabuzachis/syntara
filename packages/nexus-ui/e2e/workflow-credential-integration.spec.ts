@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test'
 
 import { test, expect, toAppUrl } from './fixtures'
-import { deleteCredentialByName, goToCredentialsList } from './helpers/credentials'
+import { deleteCredentialByName, goToCredentialsList, selectCredentialType } from './helpers/credentials'
 import { buildUniqueName, clickAddConnectedStep, selectProjectIfRequired } from './helpers/workflows'
 import { ensureProject } from './utils/api'
 
@@ -61,7 +61,7 @@ test.describe('Credential Selector', () => {
       await app.getByRole('button', { name: 'Create credential' }).first().click()
       const createModal = app.getByRole('dialog')
       await createModal.getByRole('textbox', { name: 'Credential name' }).fill(credName)
-      await createModal.getByRole('combobox', { name: 'Credential type' }).selectOption({ label: 'HTTP Bearer Token' })
+      await selectCredentialType(createModal, 'HTTP Bearer Token')
       await createModal.getByRole('textbox', { name: 'Token' }).fill('select-test-token')
       await createModal.getByRole('button', { name: 'Create credential' }).click()
       await expect(app.getByText('Credential created')).toBeVisible()
@@ -102,7 +102,7 @@ test.describe('Credential Selector', () => {
       await app.getByRole('button', { name: 'Create credential' }).first().click()
       const createModal = app.getByRole('dialog')
       await createModal.getByRole('textbox', { name: 'Credential name' }).fill(incompatibleName)
-      await createModal.getByRole('combobox', { name: 'Credential type' }).selectOption({ label: 'LLM Provider' })
+      await selectCredentialType(createModal, 'LLM Provider')
       await createModal.getByRole('textbox', { name: 'API Key' }).fill('test-llm-key')
       await createModal.getByRole('button', { name: 'Create credential' }).click()
       await expect(app.getByText('Credential created')).toBeVisible()
@@ -128,7 +128,7 @@ test.describe('Credential Selector', () => {
       await app.getByRole('button', { name: 'Create credential' }).first().click()
       const createModal = app.getByRole('dialog')
       await createModal.getByRole('textbox', { name: 'Credential name' }).fill(credName)
-      await createModal.getByRole('combobox', { name: 'Credential type' }).selectOption({ label: 'HTTP Bearer Token' })
+      await selectCredentialType(createModal, 'HTTP Bearer Token')
       await createModal.getByRole('textbox', { name: 'Token' }).fill('clear-test-token')
       await createModal.getByRole('button', { name: 'Create credential' }).click()
       await expect(app.getByText('Credential created')).toBeVisible()
@@ -175,7 +175,7 @@ test.describe('Inline Credential Creation', () => {
 
     // Assert - Credential type is pre-selected and disabled
     const modal = app.getByRole('dialog')
-    await expect(modal.getByRole('combobox', { name: 'Credential type' })).toBeDisabled()
+    await expect(modal.getByRole('button', { name: 'Credential type', exact: true })).toBeDisabled()
   })
 
   test('create credential inline and auto-select', async ({ app }) => {

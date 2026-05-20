@@ -64,7 +64,7 @@ test.describe('Credential Detail Page & Workflows Tab', () => {
       await expect(modal.getByRole('textbox', { name: 'Credential name' })).toHaveValue(name)
 
       // Assert - Credential type is disabled in edit mode
-      await expect(modal.getByRole('combobox', { name: 'Credential type' })).toBeDisabled()
+      await expect(modal.getByRole('button', { name: 'Credential type', exact: true })).toBeDisabled()
     } finally {
       await deleteCredentialByName(app, name)
     }

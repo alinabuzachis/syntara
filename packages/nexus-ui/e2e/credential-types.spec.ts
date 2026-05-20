@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test'
 
 import { test, expect, toAppUrl } from './fixtures'
-import { createTestCredential, deleteCredentialByName } from './helpers/credentials'
+import { createTestCredential, deleteCredentialByName, selectCredentialType } from './helpers/credentials'
 import { buildUniqueName } from './helpers/workflows'
 
 /** Navigate to credential types list and click a type row to open its detail page */
@@ -139,7 +139,7 @@ test.describe('Credential Types Management', () => {
 
     const modal = app.getByRole('dialog')
     await modal.getByRole('textbox', { name: 'Credential name' }).fill(name)
-    await modal.getByRole('combobox', { name: 'Credential type' }).selectOption({ label: 'HTTP Bearer Token' })
+    await selectCredentialType(modal, 'HTTP Bearer Token')
     await modal.getByRole('textbox', { name: 'Token' }).fill('test-token-for-count')
     await modal.getByRole('button', { name: 'Create credential' }).click()
     await expect(app.getByText('Credential created')).toBeVisible()

@@ -246,7 +246,7 @@ test.describe('Kebab Menu Edit Action', () => {
       await expect(modal.getByText('Edit credential')).toBeVisible()
 
       await expect(modal.getByRole('textbox', { name: 'Credential name' })).toHaveValue(credName)
-      await expect(modal.getByRole('combobox', { name: 'Credential type' })).toBeDisabled()
+      await expect(modal.getByRole('button', { name: 'Credential type', exact: true })).toBeDisabled()
 
       await modal.getByRole('button', { name: 'Cancel' }).click()
       await expect(modal).not.toBeVisible()

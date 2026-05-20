@@ -10,26 +10,38 @@ import {
   FormSelectOption,
   HelperText,
   HelperTextItem,
+  MenuToggle,
+  type MenuToggleElement,
   Modal,
   ModalBody,
   ModalFooter,
   ModalHeader,
+  Select,
+  SelectList,
+  SelectOption,
+  Spinner,
   TextInput,
 } from '@patternfly/react-core'
-import { RhUiErrorIcon } from '@patternfly/react-icons'
+import { RhUiAddIcon, RhUiEditIcon, RhUiErrorIcon } from '@patternfly/react-icons'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Controller, useForm, type UseFormSetError } from 'react-hook-form'
+import type { Ref } from 'react'
+import { Controller, useForm } from 'react-hook-form'
 
 import { credentialsClient } from '../../../../client'
 import { FormLabelWithHelp } from '../../../../components/FormLabelWithHelp'
 import { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../../../providers/alerts'
 import { useAllProjects } from '../../../access/useAllProjects'
-import type { Credential, CredentialType } from '../credentialConstants'
+import type { Credential } from '../credentialConstants'
 import { ENCRYPTED_SENTINEL } from '../credentialConstants'
 
 import { credentialFormSchema, type CredentialFormData } from './credentialFormSchema'
-import type { FieldDefinition } from './DynamicFieldRenderer'
+import {
+  getDefaultInputs,
+  getTypeInputs,
+  validateCreateModeRequiredDynamicField,
+  validateEditModeRequiredDynamicField,
+} from './credentialFormUtils'
 import { DynamicFieldRenderer } from './DynamicFieldRenderer'
 
 type CredentialFormModalProps = {
@@ -45,65 +57,7 @@ type CredentialFormModalProps = {
   defaultProjectId?: string
 }
 
-type TypeInputs = {
-  fields: FieldDefinition[]
-  required: string[]
-}
-
-function getTypeInputs(credType: CredentialType): TypeInputs {
-  const inputs = credType.inputs as Record<string, unknown>
-  return {
-    fields: (inputs?.fields as FieldDefinition[]) ?? [],
-    required: (inputs?.required as string[]) ?? [],
-  }
-}
-
-function getDefaultInputs(credType: CredentialType | undefined): Record<string, unknown> {
-  if (!credType) return {}
-  const typeInputs = getTypeInputs(credType)
-  const defaults: Record<string, unknown> = {}
-  for (const field of typeInputs.fields) {
-    if (field.default != null) {
-      defaults[field.id] = field.default
-    }
-  }
-  return defaults
-}
-
-function validateEditModeRequiredDynamicField(
-  requiredId: string,
-  val: unknown,
-  field: FieldDefinition | undefined,
-  touchedSecrets: Set<string>,
-  setError: UseFormSetError<CredentialFormData>
-): boolean {
-  const isSecret = field?.secret === true
-  if (isSecret) {
-    if (touchedSecrets.has(requiredId) && (val == null || val === '')) {
-      setError(`inputs.${requiredId}`, { message: `${field?.label ?? requiredId} is required` })
-      return false
-    }
-    return true
-  }
-  if (val == null || val === '') {
-    setError(`inputs.${requiredId}`, { message: `${field?.label ?? requiredId} is required` })
-    return false
-  }
-  return true
-}
-
-function validateCreateModeRequiredDynamicField(
-  requiredId: string,
-  val: unknown,
-  field: FieldDefinition | undefined,
-  setError: UseFormSetError<CredentialFormData>
-): boolean {
-  if (val == null || val === '') {
-    setError(`inputs.${requiredId}`, { message: `${field?.label ?? requiredId} is required` })
-    return false
-  }
-  return true
-}
+const INLINE_POPPER_PROPS = { appendTo: 'inline' } as const
 
 // eslint-disable-next-line max-lines-per-function
 export function CredentialFormModal({
@@ -122,6 +76,9 @@ export function CredentialFormModal({
   // Track which secret fields have been touched by the user (for edit mode)
   const [touchedSecrets, setTouchedSecrets] = useState<Set<string>>(new Set())
 
+  // PF6 Select open state for credential type dropdown
+  const [isTypeSelectOpen, setIsTypeSelectOpen] = useState(false)
+
   // Zod + react-hook-form
   const {
     control,
@@ -130,7 +87,7 @@ export function CredentialFormModal({
     watch,
     setValue,
     setError,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<CredentialFormData>({
     resolver: zodResolver(credentialFormSchema, undefined, { mode: 'sync' }),
     defaultValues: {
@@ -156,8 +113,12 @@ export function CredentialFormModal({
   const typeInputs = useMemo(() => (selectedType ? getTypeInputs(selectedType) : null), [selectedType])
 
   // Mutations
-  const { mutate: createCredential } = credentialsClient.useMutation('post', '/credentials')
-  const { mutate: patchCredential } = credentialsClient.useMutation('patch', '/credentials/{credential_id}')
+  const { mutate: createCredential, isPending: isCreating } = credentialsClient.useMutation('post', '/credentials')
+  const { mutate: patchCredential, isPending: isPatching } = credentialsClient.useMutation(
+    'patch',
+    '/credentials/{credential_id}'
+  )
+  const isSubmitting = isCreating || isPatching
 
   // Reset form when modal opens/closes or credential changes
   const resetKey = isOpen ? (credentialToEdit?.id ?? preSelectedTypeId ?? 'create') : 'closed'
@@ -195,15 +156,48 @@ export function CredentialFormModal({
   }, [types, isEditMode, selectedTypeId, preSelectedTypeId, setValue])
 
   // Reset inputs when type changes (create mode only)
-  const handleTypeChange = useCallback(
-    (_event: React.FormEvent, typeId: string) => {
-      setValue('credential_type_id', typeId, { shouldValidate: true })
+  const handleTypeSelect = useCallback(
+    (_event: React.MouseEvent | undefined, typeId: string | number | undefined) => {
+      if (typeId == null) return
+      const id = String(typeId)
+      setIsTypeSelectOpen(false)
+      setValue('credential_type_id', id, { shouldValidate: true })
       if (!isEditMode) {
-        const newType = types.find((t) => t.id === typeId)
+        const newType = types.find((t) => t.id === id)
         setValue('inputs', newType ? getDefaultInputs(newType) : {})
       }
     },
     [isEditMode, types, setValue]
+  )
+
+  const isTypeSelectDisabled = isEditMode || !!preSelectedTypeId || typesQuery.isLoading
+
+  const typeToggleLabel = useMemo(() => {
+    if (typesQuery.isLoading) return 'Loading types...'
+    return selectedType?.name ?? 'Select a credential type'
+  }, [typesQuery.isLoading, selectedType?.name])
+
+  const renderTypeToggle = useCallback(
+    (toggleRef: Ref<MenuToggleElement>) => (
+      <MenuToggle
+        ref={toggleRef}
+        onClick={() => setIsTypeSelectOpen((prev) => !prev)}
+        isExpanded={isTypeSelectOpen}
+        isDisabled={isTypeSelectDisabled}
+        isFullWidth
+        status={errors.credential_type_id ? 'danger' : undefined}
+        aria-label="Credential type"
+      >
+        {typesQuery.isLoading ? (
+          <>
+            <Spinner size="sm" aria-label="Loading credential types" /> {typeToggleLabel}
+          </>
+        ) : (
+          typeToggleLabel
+        )}
+      </MenuToggle>
+    ),
+    [isTypeSelectOpen, isTypeSelectDisabled, errors.credential_type_id, typesQuery.isLoading, typeToggleLabel]
   )
 
   const handleInputChange = useCallback(
@@ -465,19 +459,24 @@ export function CredentialFormModal({
             fieldId="credential-type"
             isRequired
           >
-            <FormSelect
+            <Select
               id="credential-type"
-              value={selectedTypeId}
-              onChange={handleTypeChange}
-              isDisabled={isEditMode || !!preSelectedTypeId || typesQuery.isLoading}
-              validated={errors.credential_type_id ? 'error' : 'default'}
-              aria-label="Credential type"
+              isOpen={isTypeSelectOpen}
+              selected={selectedTypeId}
+              onSelect={handleTypeSelect}
+              onOpenChange={setIsTypeSelectOpen}
+              toggle={renderTypeToggle}
+              shouldFocusToggleOnSelect
+              popperProps={INLINE_POPPER_PROPS}
             >
-              {typesQuery.isLoading && <FormSelectOption value="" label="Loading types..." isPlaceholder />}
-              {types.map((t) => (
-                <FormSelectOption key={t.id} value={t.id} label={t.name} />
-              ))}
-            </FormSelect>
+              <SelectList aria-label="Credential type options">
+                {types.map((t) => (
+                  <SelectOption key={t.id} value={t.id} isSelected={t.id === selectedTypeId}>
+                    {t.name}
+                  </SelectOption>
+                ))}
+              </SelectList>
+            </Select>
             {typesQuery.error && (
               <FormHelperText>
                 <HelperText>
@@ -523,7 +522,13 @@ export function CredentialFormModal({
         </Form>
       </ModalBody>
       <ModalFooter>
-        <Button variant="primary" onClick={handleSubmit(onSubmit)} isDisabled={isSubmitting} isLoading={isSubmitting}>
+        <Button
+          variant="primary"
+          onClick={handleSubmit(onSubmit)}
+          isDisabled={isSubmitting}
+          isLoading={isSubmitting}
+          icon={isEditMode ? <RhUiEditIcon /> : <RhUiAddIcon />}
+        >
           {isEditMode ? 'Save changes' : 'Create credential'}
         </Button>
         <Button variant="link" onClick={onClose} isDisabled={isSubmitting}>

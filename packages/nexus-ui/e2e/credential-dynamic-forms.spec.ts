@@ -3,7 +3,7 @@ import { generateKeyPairSync } from 'node:crypto'
 import type { Page } from '@playwright/test'
 
 import { test, expect } from './fixtures'
-import { deleteCredentialByName, goToCredentialsList } from './helpers/credentials'
+import { deleteCredentialByName, goToCredentialsList, selectCredentialType } from './helpers/credentials'
 import { buildUniqueName } from './helpers/workflows'
 
 function generateTestSSHKey(): string {
@@ -28,7 +28,7 @@ test.describe('Dynamic Credential Form Rendering', () => {
 
   test('HTTP Bearer Token: form renders correct fields', async ({ app }) => {
     const modal = await openCreateModal(app)
-    await modal.getByRole('combobox', { name: 'Credential type' }).selectOption({ label: 'HTTP Bearer Token' })
+    await selectCredentialType(modal, 'HTTP Bearer Token')
 
     await expect(modal.getByRole('textbox', { name: 'Token' })).toBeVisible()
     await expect(modal.getByRole('button', { name: /Show secret|Hide secret/ })).toBeVisible()
@@ -39,7 +39,7 @@ test.describe('Dynamic Credential Form Rendering', () => {
     const name = buildUniqueName('e2e-bearer')
 
     await modal.getByRole('textbox', { name: 'Credential name' }).fill(name)
-    await modal.getByRole('combobox', { name: 'Credential type' }).selectOption({ label: 'HTTP Bearer Token' })
+    await selectCredentialType(modal, 'HTTP Bearer Token')
     await modal.getByRole('textbox', { name: 'Token' }).fill('test-bearer-token-value')
     await modal.getByRole('button', { name: 'Create credential' }).click()
 
@@ -52,7 +52,7 @@ test.describe('Dynamic Credential Form Rendering', () => {
 
   test('HTTP Bearer Token: validation shows errors for required fields', async ({ app }) => {
     const modal = await openCreateModal(app)
-    await modal.getByRole('combobox', { name: 'Credential type' }).selectOption({ label: 'HTTP Bearer Token' })
+    await selectCredentialType(modal, 'HTTP Bearer Token')
 
     // Fill name so Zod validation passes and dynamic field validation runs
     await modal.getByRole('textbox', { name: 'Credential name' }).fill('validation-test')
@@ -65,7 +65,7 @@ test.describe('Dynamic Credential Form Rendering', () => {
 
   test('HTTP Basic Auth: form renders correct fields', async ({ app }) => {
     const modal = await openCreateModal(app)
-    await modal.getByRole('combobox', { name: 'Credential type' }).selectOption({ label: 'HTTP Basic Auth' })
+    await selectCredentialType(modal, 'HTTP Basic Auth')
 
     await expect(modal.getByRole('textbox', { name: 'Username' })).toBeVisible()
     await expect(modal.getByRole('textbox', { name: 'Password' })).toBeVisible()
@@ -76,7 +76,7 @@ test.describe('Dynamic Credential Form Rendering', () => {
     const name = buildUniqueName('e2e-basic')
 
     await modal.getByRole('textbox', { name: 'Credential name' }).fill(name)
-    await modal.getByRole('combobox', { name: 'Credential type' }).selectOption({ label: 'HTTP Basic Auth' })
+    await selectCredentialType(modal, 'HTTP Basic Auth')
     await modal.getByRole('textbox', { name: 'Username' }).fill('testuser')
     await modal.getByRole('textbox', { name: 'Password' }).fill('testpass123')
     await modal.getByRole('button', { name: 'Create credential' }).click()
@@ -90,7 +90,7 @@ test.describe('Dynamic Credential Form Rendering', () => {
 
   test('HTTP Basic Auth: validation shows errors for required fields', async ({ app }) => {
     const modal = await openCreateModal(app)
-    await modal.getByRole('combobox', { name: 'Credential type' }).selectOption({ label: 'HTTP Basic Auth' })
+    await selectCredentialType(modal, 'HTTP Basic Auth')
 
     // Fill name so Zod validation passes and dynamic field validation runs
     await modal.getByRole('textbox', { name: 'Credential name' }).fill('validation-test')
@@ -104,7 +104,7 @@ test.describe('Dynamic Credential Form Rendering', () => {
 
   test('SSH Key: form renders correct fields', async ({ app }) => {
     const modal = await openCreateModal(app)
-    await modal.getByRole('combobox', { name: 'Credential type' }).selectOption({ label: 'SSH Key' })
+    await selectCredentialType(modal, 'SSH Key')
 
     await expect(modal.getByRole('textbox', { name: 'Username' })).toBeVisible()
     await expect(modal.getByRole('textbox', { name: 'Private key' })).toBeVisible()
@@ -115,7 +115,7 @@ test.describe('Dynamic Credential Form Rendering', () => {
     const name = buildUniqueName('e2e-ssh')
 
     await modal.getByRole('textbox', { name: 'Credential name' }).fill(name)
-    await modal.getByRole('combobox', { name: 'Credential type' }).selectOption({ label: 'SSH Key' })
+    await selectCredentialType(modal, 'SSH Key')
     await modal.getByRole('textbox', { name: 'Username' }).fill('deploy')
     await modal.getByRole('textbox', { name: 'Private key' }).fill(generateTestSSHKey())
     await modal.getByRole('button', { name: 'Create credential' }).click()
@@ -129,7 +129,7 @@ test.describe('Dynamic Credential Form Rendering', () => {
 
   test('SSH Key: validation shows errors for required fields', async ({ app }) => {
     const modal = await openCreateModal(app)
-    await modal.getByRole('combobox', { name: 'Credential type' }).selectOption({ label: 'SSH Key' })
+    await selectCredentialType(modal, 'SSH Key')
 
     // Fill name so Zod validation passes and dynamic field validation runs
     await modal.getByRole('textbox', { name: 'Credential name' }).fill('validation-test')
@@ -143,7 +143,7 @@ test.describe('Dynamic Credential Form Rendering', () => {
 
   test('LLM Provider: form renders correct fields', async ({ app }) => {
     const modal = await openCreateModal(app)
-    await modal.getByRole('combobox', { name: 'Credential type' }).selectOption({ label: 'LLM Provider' })
+    await selectCredentialType(modal, 'LLM Provider')
 
     await expect(modal.getByRole('combobox', { name: 'Provider' })).toBeVisible()
     await expect(modal.getByRole('textbox', { name: 'API Key' })).toBeVisible()
@@ -155,7 +155,7 @@ test.describe('Dynamic Credential Form Rendering', () => {
     const name = buildUniqueName('e2e-llm')
 
     await modal.getByRole('textbox', { name: 'Credential name' }).fill(name)
-    await modal.getByRole('combobox', { name: 'Credential type' }).selectOption({ label: 'LLM Provider' })
+    await selectCredentialType(modal, 'LLM Provider')
     await modal.getByRole('combobox', { name: 'Provider' }).selectOption('anthropic')
     await modal.getByRole('textbox', { name: 'API Key' }).fill('sk-ant-test-key-123')
     await modal.getByRole('button', { name: 'Create credential' }).click()
@@ -169,7 +169,7 @@ test.describe('Dynamic Credential Form Rendering', () => {
 
   test('LLM Provider: validation shows errors for required fields', async ({ app }) => {
     const modal = await openCreateModal(app)
-    await modal.getByRole('combobox', { name: 'Credential type' }).selectOption({ label: 'LLM Provider' })
+    await selectCredentialType(modal, 'LLM Provider')
 
     // Fill name so Zod validation passes and dynamic field validation runs
     await modal.getByRole('textbox', { name: 'Credential name' }).fill('validation-test')
@@ -182,9 +182,7 @@ test.describe('Dynamic Credential Form Rendering', () => {
 
   test('Ansible Automation Platform: form renders correct fields', async ({ app }) => {
     const modal = await openCreateModal(app)
-    await modal
-      .getByRole('combobox', { name: 'Credential type' })
-      .selectOption({ label: 'Ansible Automation Platform' })
+    await selectCredentialType(modal, 'Ansible Automation Platform')
 
     // Scope to the form to avoid matching the dialog's own aria-label
     const form = modal.locator('form')
@@ -200,9 +198,7 @@ test.describe('Dynamic Credential Form Rendering', () => {
     const name = buildUniqueName('e2e-aap')
 
     await modal.getByRole('textbox', { name: 'Credential name' }).fill(name)
-    await modal
-      .getByRole('combobox', { name: 'Credential type' })
-      .selectOption({ label: 'Ansible Automation Platform' })
+    await selectCredentialType(modal, 'Ansible Automation Platform')
     await modal.getByRole('textbox', { name: 'AAP Host' }).fill('https://controller.example.com')
     await modal.getByRole('textbox', { name: 'OAuth Token' }).fill('test-oauth-token')
     await modal.getByRole('button', { name: 'Create credential' }).click()
@@ -216,9 +212,7 @@ test.describe('Dynamic Credential Form Rendering', () => {
 
   test('Ansible Automation Platform: validation shows errors for required fields', async ({ app }) => {
     const modal = await openCreateModal(app)
-    await modal
-      .getByRole('combobox', { name: 'Credential type' })
-      .selectOption({ label: 'Ansible Automation Platform' })
+    await selectCredentialType(modal, 'Ansible Automation Platform')
 
     // Fill name so Zod validation passes and dynamic field validation runs
     await modal.getByRole('textbox', { name: 'Credential name' }).fill('validation-test')
