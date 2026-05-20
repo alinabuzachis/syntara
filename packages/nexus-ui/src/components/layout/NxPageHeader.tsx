@@ -13,7 +13,17 @@ export type NxPageHeaderProps = Readonly<{
   /** Primary page heading text (rendered as an `h1` unless `titleSlot` is set). */
   title: string
   breadcrumbs?: readonly AppBreadcrumbItem[]
-  /** Header toolbar actions (right-aligned in the compass header). Do not add a leading spacer; the layout supplies one. */
+  /**
+   * Header toolbar actions (right-aligned in the compass header). Do not add a leading spacer; the layout supplies one.
+   *
+   * **Button order:** The primary action must always be the **last** (rightmost) element.
+   * Place secondary buttons and other controls (switches, kebab menus) to its left.
+   * This is the opposite of modals and full-page forms, where the primary button is leftmost.
+   *
+   * @example
+   * // Correct: secondary left, primary rightmost
+   * toolbar={<><Button variant="secondary">Cancel</Button><Button variant="primary">Save</Button></>}
+   */
   toolbar?: ReactNode
   /** Optional content before the default title (e.g. provider icon). Ignored when `titleSlot` is set. */
   titleLeading?: ReactNode

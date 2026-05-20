@@ -1,5 +1,8 @@
 import { Button, Content, StackItem } from '@patternfly/react-core'
-import type { Meta, StoryObj } from '@storybook/react'
+import type { Meta, StoryObj } from '@storybook/react-vite'
+import { fn } from 'storybook/test'
+
+import { ErrorState } from '../states/ErrorState'
 
 import { NxPage, NxPageBody } from './NxPage'
 import { NxPageHeader } from './NxPageHeader'
@@ -8,6 +11,17 @@ import { NxPanelContentStack } from './NxPanelContentStack'
 
 const meta: Meta<typeof NxPage> = {
   component: NxPage,
+  tags: ['autodocs'],
+  parameters: {
+    docs: {
+      description: {
+        component:
+          '`NxPage` + `NxPageHeader` + `NxPageBody` form the standard page layout skeleton.\n\n' +
+          '`NxPageBody` is the main content area below the header. ' +
+          'Pass `isCentered` to center content on both axes — use this for loading spinners and empty states.',
+      },
+    },
+  },
   decorators: [
     (Story) => (
       <div
@@ -27,112 +41,16 @@ export default meta
 
 type Story = StoryObj<typeof meta>
 
-export const WithHeader: Story = {
-  render: () => (
-    <NxPage>
-      <NxPageHeader title="Users" />
-      <NxPageBody>
-        <Content component="p">Main content area.</Content>
-      </NxPageBody>
-    </NxPage>
-  ),
-}
-
-export const WithHeaderAndToolbar: Story = {
-  render: () => (
-    <NxPage>
-      <NxPageHeader title="Users" toolbar={<Button variant="primary">Create user</Button>} />
-      <NxPageBody>
-        <Content component="p">Main content area.</Content>
-      </NxPageBody>
-    </NxPage>
-  ),
-}
-
-export const WithBreadcrumbsAndToolbar: Story = {
-  render: () => (
-    <NxPage>
-      <NxPageHeader
-        title="Create user"
-        breadcrumbs={[
-          { label: 'Access management', href: '/access-management' },
-          { label: 'Users', href: '/access-management/users' },
-          { label: 'Create user' },
-        ]}
-        toolbar={
-          <>
-            <Button variant="primary">Save</Button>
-            <Button variant="secondary">Cancel</Button>
-          </>
-        }
-      />
-      <NxPageBody>
-        <Content component="p">Main content area.</Content>
-      </NxPageBody>
-    </NxPage>
-  ),
-}
-
-export const CenteredMain: Story = {
-  name: 'NxPageBody — isCentered',
-  render: () => (
-    <NxPage>
-      <NxPageHeader title="Users" />
-      <NxPageBody isCentered>
-        <Content component="p">Centered layout for empty states and loading.</Content>
-      </NxPageBody>
-    </NxPage>
-  ),
-}
-
-export const WithPanel: Story = {
-  name: 'NxPageBody — with NxPanel',
-  render: () => (
-    <NxPage>
-      <NxPageHeader title="Users" toolbar={<Button variant="primary">Create user</Button>} />
-      <NxPageBody>
-        <NxPanel>
-          <Content component="p">Content inside a glass panel.</Content>
-        </NxPanel>
-      </NxPageBody>
-    </NxPage>
-  ),
-}
-
-export const WithRaisedPanel: Story = {
-  name: 'NxPageBody — with raised NxPanel',
-  render: () => (
-    <NxPage>
-      <NxPageHeader title="Settings" />
-      <NxPageBody>
-        <NxPanel variant="raised">
-          <Content component="p">Content inside a raised panel with shadow and smaller corner radius.</Content>
-        </NxPanel>
-      </NxPageBody>
-    </NxPage>
-  ),
-}
-
-export const WithScrollablePanel: Story = {
-  name: 'NxPageBody — with scrollable NxPanel',
-  render: () => (
-    <NxPage>
-      <NxPageHeader title="Audit log" />
-      <NxPageBody>
-        <NxPanel isFullHeight isScrollable>
-          {Array.from({ length: 20 }, (_, i) => (
-            <Content key={i} component="p">
-              Row {i + 1} — overflow content to demonstrate the full-height scrollable panel inside NxPageBody.
-            </Content>
-          ))}
-        </NxPanel>
-      </NxPageBody>
-    </NxPage>
-  ),
-}
-
 export const FullListPageLayout: Story = {
-  name: 'NxPageBody — full list page layout',
+  name: 'Full list page layout',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Standard list page layout: fixed filter bar row above a filled table area, with horizontal inset padding.',
+      },
+    },
+  },
   render: () => (
     <NxPage>
       <NxPageHeader title="Workflows" toolbar={<Button variant="primary">Create workflow</Button>} />
@@ -152,21 +70,87 @@ export const FullListPageLayout: Story = {
   ),
 }
 
-export const FullTabPageLayout: Story = {
-  name: 'NxPageBody — full tab panel layout',
+export const FullDetailPageLayout: Story = {
+  name: 'Full detail page layout (breadcrumbs)',
+  parameters: {
+    docs: {
+      description: {
+        story: 'Detail page with breadcrumb navigation. Use when the user drills into a specific resource from a list.',
+      },
+    },
+  },
   render: () => (
     <NxPage>
-      <NxPageHeader title="User detail" />
+      <NxPageHeader
+        title="my-workflow"
+        breadcrumbs={[{ label: 'Workflows', href: '/workflows' }, { label: 'my-workflow' }]}
+      />
       <NxPageBody>
         <NxPanel isFullHeight>
           <NxPanelContentStack>
             <StackItem>
-              <Content component="p">Filter bar (no inset — tab chrome provides spacing)</Content>
+              <Content component="p">Tab bar</Content>
             </StackItem>
             <StackItem isFilled>
-              <Content component="p">Table content area</Content>
+              <Content component="p">Tab content area</Content>
             </StackItem>
           </NxPanelContentStack>
+        </NxPanel>
+      </NxPageBody>
+    </NxPage>
+  ),
+}
+
+export const FullFormPageLayout: Story = {
+  name: 'Full form page layout (breadcrumbs + toolbar)',
+  parameters: {
+    docs: {
+      description: {
+        story: 'Create/edit form page with breadcrumb trail and Save/Cancel toolbar.',
+      },
+    },
+  },
+  render: () => (
+    <NxPage>
+      <NxPageHeader
+        title="Create user"
+        breadcrumbs={[
+          { label: 'Access management', href: '/access-management' },
+          { label: 'Users', href: '/access-management/users' },
+          { label: 'Create user' },
+        ]}
+        toolbar={
+          <>
+            <Button variant="secondary">Cancel</Button>
+            <Button variant="primary">Save</Button>
+          </>
+        }
+      />
+      <NxPageBody>
+        <NxPanel>
+          <Content component="p">Form fields</Content>
+        </NxPanel>
+      </NxPageBody>
+    </NxPage>
+  ),
+}
+
+export const ErrorPageLayout: Story = {
+  name: 'Error state in panel',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Error states live inside `NxPanel` within the page body — the same panel that normally holds table or form content.',
+      },
+    },
+  },
+  render: () => (
+    <NxPage>
+      <NxPageHeader title="Workflows" toolbar={<Button variant="primary">Create workflow</Button>} />
+      <NxPageBody isCentered>
+        <NxPanel isFullHeight>
+          <ErrorState message={{ detail: 'Connection timed out.', retryable: true }} onRetry={fn()} />
         </NxPanel>
       </NxPageBody>
     </NxPage>

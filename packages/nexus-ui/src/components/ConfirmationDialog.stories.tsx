@@ -1,5 +1,5 @@
 import { Content } from '@patternfly/react-core'
-import type { Meta, StoryObj } from '@storybook/react'
+import type { Meta, StoryObj } from '@storybook/react-vite'
 import { fn } from 'storybook/test'
 
 import { ConfirmationDialog } from './ConfirmationDialog'

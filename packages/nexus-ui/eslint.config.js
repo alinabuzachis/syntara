@@ -1,3 +1,4 @@
+import storybook from 'eslint-plugin-storybook'
 import js from '@eslint/js'
 import globals from 'globals'
 import react from 'eslint-plugin-react'
@@ -159,7 +160,7 @@ export default tseslint.config(
       'max-depth': ['error', 4],
       'max-params': ['error', 5],
       // Limit nested functions/callbacks (e.g. hooks → timeout → setState updater). Complements max-depth
-      // and aligns with Sonar-style “deeply nested functions” maintainability rules. Tests disable this.
+      // and aligns with Sonar-style "deeply nested functions" maintainability rules. Tests disable this.
       'max-nested-callbacks': ['error', 4],
       'import-x/order': [
         'error',
@@ -323,5 +324,6 @@ export default tseslint.config(
     files: ['**/*.js'],
     ...tseslint.configs.disableTypeChecked,
   },
-  eslintConfigPrettier
+  ...storybook.configs['flat/recommended'],
+  eslintConfigPrettier,
 )

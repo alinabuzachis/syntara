@@ -1,5 +1,5 @@
 import { Content } from '@patternfly/react-core'
-import type { Decorator, Meta, StoryObj } from '@storybook/react'
+import type { Decorator, Meta, StoryObj } from '@storybook/react-vite'
 
 import { NxPanel } from './NxPanel'
 
@@ -17,8 +17,19 @@ const heightConstraintDecorator: Decorator = (Story) => (
 
 const meta: Meta<typeof NxPanel> = {
   component: NxPanel,
+  tags: ['autodocs'],
   args: {
     children: PANEL_CONTENT,
+  },
+  parameters: {
+    docs: {
+      description: {
+        component:
+          'Content panel used on every page to frame the main content area.\n\n' +
+          '**Variants:** use `variant="raised"` for floating controls that need elevation (canvas overlays, step nodes); ' +
+          '`opaqueFloatingFill` for a solid background without the raised chrome.',
+      },
+    },
   },
 }
 export default meta

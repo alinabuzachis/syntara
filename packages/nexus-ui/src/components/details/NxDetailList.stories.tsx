@@ -1,5 +1,5 @@
 import { Label } from '@patternfly/react-core'
-import type { Meta, StoryObj } from '@storybook/react'
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
 import { NxDetail } from './NxDetail'
 import { NxDetailList } from './NxDetailList'
