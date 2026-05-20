@@ -264,9 +264,9 @@ class IdentityProviderService(BaseService, SecretConsumerMixin):
         # Preserve existing group_jmespath_expression if not provided in patch
         if patch_config.group_jmespath_expression is None:
             patch_config.group_jmespath_expression = provider.configuration.group_jmespath_expression
-        # Preserve existing auto_create_groups if not provided in patch
-        if patch_config.auto_create_groups is None:
-            patch_config.auto_create_groups = provider.configuration.auto_create_groups
+        # Preserve existing allow_all_authenticated if not provided in patch
+        if patch_config.allow_all_authenticated is None:
+            patch_config.allow_all_authenticated = provider.configuration.allow_all_authenticated
         # Preserve existing aap_role_mapping_enabled if not provided in patch
         if patch_config.aap_role_mapping_enabled is None:
             patch_config.aap_role_mapping_enabled = provider.configuration.aap_role_mapping_enabled

@@ -14,7 +14,6 @@ from sqlalchemy import delete as sa_delete
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.core.constants import FieldLimits
 from nexus.core.models import Group, User, UserIdentity
 from nexus.core.models.group import user_groups, user_idp_groups
 from nexus.identity_providers.models.identity_provider_configuration import (
@@ -22,7 +21,6 @@ from nexus.identity_providers.models.identity_provider_configuration import (
     OIDCIdpType,
 )
 from nexus.identity_providers.models.idp_group_mapping import IdpGroupMappingEntry
-from nexus.settings.cache.settings_cache import get_runtime_settings
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -73,79 +71,6 @@ def match_group_entries(
             if fnmatch(value, pattern):
                 desired.add(entry.nexus_group_id)
                 break  # no need to check more values for this entry
-    return desired
-
-
-def _is_valid_group_name(name: str) -> bool:
-    """Check if an IdP group name is valid for auto-creation (same rules as local groups)."""
-    return 0 < len(name) <= FieldLimits.NAME_MAX_LENGTH
-
-
-async def _resolve_auto_create_groups(
-    db: AsyncSession,
-    idp_group_values: set[str],
-    user_id: UUID,
-) -> set[UUID]:
-    """Find or create Nexus groups by name for auto-create mode.
-
-    For each IdP group value, look up a Nexus group with that name.
-    If none exists, create it. Uses a single flush for all new groups.
-    Group names are validated; login is denied if the token exceeds the
-    configured ``authentication.max_auto_create_groups`` limit (0 = no limit).
-    """
-    if not idp_group_values:
-        return set()
-
-    cache = get_runtime_settings()
-    max_groups = await cache.get_int("authentication.max_auto_create_groups")
-    if max_groups > 0 and len(idp_group_values) > max_groups:
-        logger.warning(
-            "Too many IdP groups in token for auto-create, skipping auto-create for this provider",
-            count=len(idp_group_values),
-            limit=max_groups,
-            user_id=str(user_id),
-        )
-        return set()
-
-    # Filter out invalid group names
-    valid_names = {name for name in idp_group_values if _is_valid_group_name(name)}
-    skipped = idp_group_values - valid_names
-    if skipped:
-        logger.warning(
-            "Skipped invalid IdP group names during auto-create",
-            skipped=list(skipped),
-            user_id=str(user_id),
-        )
-
-    if not valid_names:
-        return set()
-
-    # Batch-lookup existing groups by name
-    result = await db.execute(
-        select(Group).filter(
-            col(Group.name).in_(valid_names),
-            Group.deleted_at.is_(None),  # type: ignore[union-attr]
-        )
-    )
-    existing_groups = {g.name: g for g in result.scalars().all()}
-
-    desired: set[UUID] = set()
-    new_groups: list[Group] = []
-    for group_name in valid_names:
-        group = existing_groups.get(group_name)
-        if not group:
-            group = Group(name=group_name, created_by=user_id, source="idp")
-            db.add(group)
-            new_groups.append(group)
-        else:
-            desired.add(group.id)
-
-    if new_groups:
-        await db.flush()
-        for group in new_groups:
-            logger.info("Auto-created group from IdP", group_name=group.name, group_id=str(group.id))
-            desired.add(group.id)
-
     return desired
 
 
@@ -222,15 +147,14 @@ def _resolve_jmespath_expression(config: OIDCConfiguration) -> str:
     return config.group_jmespath_expression or _DEFAULT_JMESPATH_EXPRESSION
 
 
-async def _resolve_claim_based_groups(
-    db: AsyncSession,
+def _resolve_claim_based_groups(
     user: User,
     raw_merged_claims: dict[str, Any],
     config: OIDCConfiguration,
     provider_id: UUID,
     mapping_entries: list[IdpGroupMappingEntry],
 ) -> set[UUID] | None:
-    """Resolve groups from JMESPath/auto-create/manual mapping. Returns None on extraction failure."""
+    """Resolve groups from JMESPath and manual mapping. Returns None on extraction failure."""
     jmespath_expr = _resolve_jmespath_expression(config)
     idp_group_values = extract_idp_group_values(jmespath_expr, raw_merged_claims, user.id)
     if idp_group_values is None:
@@ -242,9 +166,31 @@ async def _resolve_claim_based_groups(
         )
         return None
 
-    if config.auto_create_groups:
-        return await _resolve_auto_create_groups(db, idp_group_values, user.id)
     return match_group_entries(mapping_entries, idp_group_values)
+
+
+async def _resolve_users_group(db: AsyncSession, user_id: UUID) -> UUID | None:
+    """Look up the built-in ``users`` group. Returns None if not found."""
+    result = await db.execute(
+        select(Group).filter(
+            col(Group.name) == "users",
+            col(Group.is_builtin) == True,  # noqa: E712
+            Group.deleted_at.is_(None),  # type: ignore[union-attr]
+        )
+    )
+    group: Group | None = result.scalars().first()
+    if not group:
+        logger.error("Built-in 'users' group not found", user_id=str(user_id))
+        return None
+    return group.id
+
+
+async def _resolve_allow_all_groups(db: AsyncSession, user_id: UUID, config: OIDCConfiguration) -> set[UUID]:
+    """Return the built-in ``users`` group if ``allow_all_authenticated`` is enabled."""
+    if not config.allow_all_authenticated:
+        return set()
+    users_group_id = await _resolve_users_group(db, user_id)
+    return {users_group_id} if users_group_id else set()
 
 
 async def sync_idp_groups(
@@ -276,24 +222,27 @@ async def sync_idp_groups(
     )
     mapping_entries = list(mapping_entries_result.scalars().all())
 
-    has_claim_based = config.auto_create_groups or bool(mapping_entries)
+    has_claim_based = bool(mapping_entries)
     if not has_claim_based and not aap_role_mapping:
-        return False
+        desired = await _resolve_allow_all_groups(db, user.id, config)
+        await _apply_group_membership_diff(db, user.id, provider_id, desired)
+        return bool(desired)
 
-    desired_group_ids: set[UUID] = set()
+    desired_group_ids = await _resolve_allow_all_groups(db, user.id, config)
 
     if has_claim_based:
-        result = await _resolve_claim_based_groups(db, user, raw_merged_claims, config, provider_id, mapping_entries)
-        if result is None and not aap_role_mapping:
+        result = _resolve_claim_based_groups(user, raw_merged_claims, config, provider_id, mapping_entries)
+        if result is None and not aap_role_mapping and not config.allow_all_authenticated:
             return False
-        if result is None and aap_role_mapping:
+        if result is None and (aap_role_mapping or config.allow_all_authenticated):
             logger.warning(
-                "JMESPath extraction failed but login proceeding via AAP role mapping",
+                "JMESPath extraction failed but login proceeding",
+                reason="aap_role_mapping" if aap_role_mapping else "allow_all_authenticated",
                 user_id=str(user.id),
                 provider_id=str(provider_id),
             )
         if result is not None:
-            desired_group_ids = result
+            desired_group_ids = desired_group_ids | result
 
     aap_validated = False
     if aap_role_mapping:
@@ -303,7 +252,7 @@ async def sync_idp_groups(
         desired_group_ids = desired_group_ids | aap_group_ids
         aap_validated = True
 
-    has_matched = len(desired_group_ids) > 0 or aap_validated
+    has_matched = len(desired_group_ids) > 0 or aap_validated or config.allow_all_authenticated
 
     await _apply_group_membership_diff(db, user.id, provider_id, desired_group_ids)
 

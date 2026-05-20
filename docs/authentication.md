@@ -604,7 +604,7 @@ The `configuration` object includes:
 | `claim_mapping` | No | Maps IdP-specific claim names to Nexus fields (see [Claim Mapping](#claim-mapping)) |
 | `group_jmespath_expression` | No | JMESPath expression to extract group values from token claims (see [Group Mapping and Login Enforcement](#group-mapping-and-login-enforcement)) |
 | `group_mapping_entries` | No | Maps IdP group values to Nexus groups (see [Group Mapping and Login Enforcement](#group-mapping-and-login-enforcement)) |
-| `auto_create_groups` | No | Auto-create Nexus groups from IdP group values on login (default: `false`) |
+| `allow_all_authenticated` | No | Allow all users from this IdP to log in regardless of group mapping results (default: `false`). Users receive the implicit "authenticated" group; group mappings still apply if configured |
 | `aap_role_mapping_enabled` | No | Map AAP `aap_system_role` claim (`system_administrator`, `system_auditor`, `normal_user`) to built-in groups (default: `false`). Only effective when `idp_type` is `"aap"`. See [AAP Role Mapping](#aap-role-mapping) |
 | `disable_tls_verify` | No | Skip TLS certificate verification when connecting to the provider (default: `false`). See [TLS Certificate Verification](#tls-certificate-verification) |
 | `enable_rp_initiated_logout` | No | Enable RP-initiated logout to terminate IdP sessions on Nexus logout (default: `false`) |
@@ -720,14 +720,12 @@ When a user authenticates via OIDC, Nexus determines which groups they belong to
 4. Groups are synced (session-scoped): all previous IdP-assigned group memberships are cleared, and only groups from the current login's token are assigned
 5. Manually-assigned groups are never affected
 
-#### Modes: manual mapping vs auto-create
+#### Modes: manual mapping and allow all authenticated
 
-These two modes are **mutually exclusive** — a provider uses one or the other, never both:
+- **Manual mapping** — Admins configure explicit mapping entries that map IdP group values to Nexus groups. Only matched entries grant group membership.
+- **Allow all authenticated** — When `allow_all_authenticated` is enabled, all users from the IdP can log in regardless of group mapping results. They are added to the built-in `users` group and receive the implicit "authenticated" group (added automatically by the authz resolver). Group mappings can still be configured alongside this for more granular access.
 
-- **Manual mapping** (auto-create off) — Admins configure explicit mapping entries that map IdP group values to Nexus groups. Only matched entries grant group membership.
-- **Auto-create groups** (auto-create on) — Nexus automatically creates groups matching the IdP group names from the token. No manual mapping entries are used.
-
-Both modes respect the **JMESPath expression** configured on the provider. The expression is evaluated first to extract group values from the token claims, and only the extracted values are used for mapping or auto-creation. This means admins can use JMESPath to filter which groups are considered — for example, `groups[?starts_with(@, 'nexus-')]` would only extract groups prefixed with `nexus-`, ignoring all others in the token.
+Both modes respect the **JMESPath expression** configured on the provider. The expression is evaluated first to extract group values from the token claims, and only the extracted values are used for mapping. This means admins can use JMESPath to filter which groups are considered — for example, `groups[?starts_with(@, 'nexus-')]` would only extract groups prefixed with `nexus-`, ignoring all others in the token.
 
 **JMESPath validation**: Expressions are validated at configuration time — saving an invalid expression (e.g., `[[[bad`) returns a 422 error. If a valid expression fails at runtime (e.g., unexpected token claim structure), the group sync is aborted and login is denied rather than silently removing the user's groups.
 
@@ -745,7 +743,7 @@ The mapping uses the `aap_system_role` string claim from the AAP OIDC token:
 
 **Key behaviors:**
 
-- **Additive**: AAP role mapping runs alongside JMESPath/auto-create/manual group mapping. The groups it resolves are merged with whatever the existing mapping produces.
+- **Additive**: AAP role mapping runs alongside JMESPath/manual group mapping. The groups it resolves are merged with whatever the existing mapping produces.
 - **AAP-only**: The mapping only activates when both `aap_role_mapping_enabled` is `true` and `idp_type` is `"aap"`. Setting the flag on a custom provider has no effect.
 - **String matching**: The `aap_system_role` claim must be an exact string match (`"system_administrator"`, `"system_auditor"`). Unrecognised values or non-string types fall back to the `users` group.
 - **Always resolves a group**: Because the fallback is `users`, AAP role mapping always produces at least one group membership. This means login is never denied due to missing group mappings when AAP role mapping is enabled — even if a co-configured JMESPath expression fails at runtime, AAP role mapping still proceeds independently.
@@ -755,7 +753,7 @@ The mapping uses the `aap_system_role` string claim from the AAP OIDC token:
 
 Login is denied if no groups can be resolved for the user from any source.
 
-**Manual mapping mode** (auto-create off):
+**Manual mapping mode:**
 
 | Mapping entries exist? | Any match? | Manual groups exist? | Result |
 |---|---|---|---|
@@ -765,20 +763,20 @@ Login is denied if no groups can be resolved for the user from any source.
 | Yes | No | No | **Denied** |
 | Yes | No | Yes | Allowed |
 
-**Auto-create mode** (auto-create on):
+**Allow all authenticated mode** (`allow_all_authenticated: true`):
 
-| Groups in token? | Manual groups exist? | Result |
+| Mapping entries exist? | Any match? | Result |
 |---|---|---|
-| Yes | n/a | Allowed (groups auto-created) |
-| No (empty/missing claim) | No | **Denied** |
-| No (empty/missing claim) | Yes | Allowed |
+| No | n/a | Allowed (user gets built-in "users" group + implicit "authenticated" group) |
+| Yes | Yes | Allowed (user gets matched groups + built-in "users" group + implicit "authenticated" group) |
+| Yes | No | Allowed (user gets built-in "users" group + implicit "authenticated" group; stale IdP groups cleared) |
 
 **Key points:**
 
-- A user is only allowed to log in if they end up with at least one group membership — either from the current provider or from another source (manual assignment).
-- **Auto-create groups** does not grant unconditional access. It creates Nexus groups matching the IdP group names from the token, but if the token contains no groups, no groups are created and login is denied.
-- **No mappings configured** (and auto-create off) means the provider cannot assign groups, so login is denied for users with no pre-existing group memberships.
-- "Other group sources" means: groups assigned manually by an admin.
+- A user is only allowed to log in if they end up with at least one group membership — either from the current provider or from another source (manual assignment, another IdP).
+- **Allow all authenticated** grants unconditional login access. Users are added to the built-in `users` group and also receive the implicit "authenticated" group from the authz resolver. Group mappings still sync normally if configured. If a JMESPath expression fails at runtime, login is still allowed — the user gets the `users` and "authenticated" groups but no claim-based groups are synced.
+- **No mappings configured** (and `allow_all_authenticated` off) means the provider cannot assign groups, so login is denied for users with no pre-existing group memberships.
+- "Other group sources" means: groups assigned manually by an admin, or groups assigned by a different identity provider.
 - The denial message shown to the user is: *"Access denied. Your identity provider groups do not match any configured group mappings. Contact your administrator."*
 
 #### Wildcard patterns in mapping entries
@@ -793,6 +791,8 @@ The IdP Group Value field supports glob-style wildcard patterns (Python `fnmatch
 | `team-?` | Single character wildcard | `team-a`, `team-b` (not `team-ab`) |
 
 Wildcards are evaluated at login time when matching the user's IdP group values against configured mapping entries.
+
+**Note:** A bare `*` mapping unconditionally matches — it adds the target group even when the user's token contains no group claims (empty or missing). This makes `*` effectively an "allow everyone" mapping for a specific group. For broader unconditional access without needing a mapping entry, use `allow_all_authenticated` instead.
 
 #### Group mapping storage
 

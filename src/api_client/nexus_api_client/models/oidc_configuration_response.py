@@ -37,7 +37,8 @@ class OIDCConfigurationResponse:
         claim_mapping (OIDCClaimMapping | Unset): Maps Nexus user fields to IdP-specific OIDC claim names.
         group_jmespath_expression (None | str | Unset): JMESPath expression for group extraction
         group_mapping_entries (list[OIDCGroupMappingEntry] | Unset): IdP-to-Nexus group mapping entries
-        auto_create_groups (bool | Unset): Auto-create Nexus groups from IdP group values on login Default: False.
+        allow_all_authenticated (bool | Unset): Allow all users from this IdP to log in regardless of group mapping
+            results Default: False.
         aap_role_mapping_enabled (bool | Unset): Map AAP aap_system_role claim to built-in groups Default: False.
         disable_tls_verify (bool | Unset): Disable TLS certificate verification for requests to this identity provider
             (insecure) Default: False.
@@ -59,7 +60,7 @@ class OIDCConfigurationResponse:
     claim_mapping: OIDCClaimMapping | Unset = UNSET
     group_jmespath_expression: None | str | Unset = UNSET
     group_mapping_entries: list[OIDCGroupMappingEntry] | Unset = UNSET
-    auto_create_groups: bool | Unset = False
+    allow_all_authenticated: bool | Unset = False
     aap_role_mapping_enabled: bool | Unset = False
     disable_tls_verify: bool | Unset = False
 
@@ -131,7 +132,7 @@ class OIDCConfigurationResponse:
                 group_mapping_entries_item = group_mapping_entries_item_data.to_dict()
                 group_mapping_entries.append(group_mapping_entries_item)
 
-        auto_create_groups = self.auto_create_groups
+        allow_all_authenticated = self.allow_all_authenticated
 
         aap_role_mapping_enabled = self.aap_role_mapping_enabled
 
@@ -172,8 +173,8 @@ class OIDCConfigurationResponse:
             field_dict["group_jmespath_expression"] = group_jmespath_expression
         if group_mapping_entries is not UNSET:
             field_dict["group_mapping_entries"] = group_mapping_entries
-        if auto_create_groups is not UNSET:
-            field_dict["auto_create_groups"] = auto_create_groups
+        if allow_all_authenticated is not UNSET:
+            field_dict["allow_all_authenticated"] = allow_all_authenticated
         if aap_role_mapping_enabled is not UNSET:
             field_dict["aap_role_mapping_enabled"] = aap_role_mapping_enabled
         if disable_tls_verify is not UNSET:
@@ -282,7 +283,7 @@ class OIDCConfigurationResponse:
 
                 group_mapping_entries.append(group_mapping_entries_item)
 
-        auto_create_groups = d.pop("auto_create_groups", UNSET)
+        allow_all_authenticated = d.pop("allow_all_authenticated", UNSET)
 
         aap_role_mapping_enabled = d.pop("aap_role_mapping_enabled", UNSET)
 
@@ -305,7 +306,7 @@ class OIDCConfigurationResponse:
             claim_mapping=claim_mapping,
             group_jmespath_expression=group_jmespath_expression,
             group_mapping_entries=group_mapping_entries,
-            auto_create_groups=auto_create_groups,
+            allow_all_authenticated=allow_all_authenticated,
             aap_role_mapping_enabled=aap_role_mapping_enabled,
             disable_tls_verify=disable_tls_verify,
         )

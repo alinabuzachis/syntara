@@ -1,8 +1,7 @@
 # ruff: noqa: S106
 """Unit tests for IdP group sync on OIDC login."""
 
-from collections.abc import Generator
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
 
 import pytest
@@ -15,15 +14,6 @@ from nexus.identity_providers.models.identity_provider_configuration import (
     OIDCIdpType,
 )
 from nexus.identity_providers.models.idp_group_mapping import IdpGroupMappingEntry
-
-
-@pytest.fixture(autouse=True)
-def _mock_runtime_settings() -> Generator[AsyncMock, None, None]:
-    """Mock get_runtime_settings so auto-create tests don't need a real SettingsCache."""
-    mock_cache = AsyncMock()
-    mock_cache.get_int = AsyncMock(return_value=25)  # default limit
-    with patch("nexus.auth.services.idp_group_sync.get_runtime_settings", return_value=mock_cache):
-        yield mock_cache
 
 
 def _make_user() -> User:
@@ -51,6 +41,7 @@ def _make_config(
     *,
     aap_role_mapping_enabled: bool = False,
     idp_type: str | None = None,
+    allow_all_authenticated: bool = False,
 ) -> OIDCConfiguration:
     return OIDCConfiguration(
         provider_type="oidc",
@@ -61,6 +52,7 @@ def _make_config(
         group_jmespath_expression=group_jmespath_expression,
         aap_role_mapping_enabled=aap_role_mapping_enabled,
         idp_type=idp_type,
+        allow_all_authenticated=allow_all_authenticated,
     )
 
 
@@ -74,11 +66,16 @@ def _make_db_entry(provider_id: UUID, idp_group_value: str, nexus_group_id: UUID
     )
 
 
-def _make_mock_db(mapping_entries: list[IdpGroupMappingEntry] | None = None) -> AsyncMock:
+def _make_mock_db(
+    mapping_entries: list[IdpGroupMappingEntry] | None = None,
+    users_group: MagicMock | None = None,
+) -> AsyncMock:
     """Create a mock db session.
 
     The first call to db.execute returns the mapping entries (for the
-    IdpGroupMappingEntry query). Subsequent calls return empty results.
+    IdpGroupMappingEntry query). If ``users_group`` is provided, the second
+    call returns it (for ``_resolve_users_group``). Remaining calls return
+    empty results.
     """
     db = AsyncMock()
 
@@ -88,6 +85,12 @@ def _make_mock_db(mapping_entries: list[IdpGroupMappingEntry] | None = None) -> 
     mapping_scalars = MagicMock()
     mapping_scalars.all = MagicMock(return_value=entries)
     mapping_result.scalars = MagicMock(return_value=mapping_scalars)
+
+    # Build result for users group lookup (second call, if provided)
+    users_group_result = MagicMock()
+    users_group_scalars = MagicMock()
+    users_group_scalars.first = MagicMock(return_value=users_group)
+    users_group_result.scalars = MagicMock(return_value=users_group_scalars)
 
     # Build empty result for all subsequent queries
     def _make_empty_result() -> MagicMock:
@@ -104,6 +107,8 @@ def _make_mock_db(mapping_entries: list[IdpGroupMappingEntry] | None = None) -> 
         call_count += 1
         if call_count == 1:
             return mapping_result
+        if call_count == 2 and users_group is not None:
+            return users_group_result
         return _make_empty_result()
 
     db.execute = AsyncMock(side_effect=_execute_side_effect)
@@ -115,7 +120,7 @@ class TestSyncIdpGroups:
 
     @pytest.mark.asyncio
     async def test_denies_when_no_group_mapping(self):
-        """Should return False when no jmespath expression and no entries exist."""
+        """Should return False and clean up stale IdP groups when no entries exist."""
         user = _make_user()
         provider_id = uuid4()
         identity = _make_identity(user, provider_id)
@@ -124,11 +129,11 @@ class TestSyncIdpGroups:
 
         result = await sync_idp_groups(db, user, identity, {"groups": ["admin"]}, config)
         assert result is False
-        assert db.execute.call_count == 1
+        assert db.execute.call_count > 1
 
     @pytest.mark.asyncio
     async def test_denies_when_no_mapping_entries(self):
-        """Should return False when no entries exist and auto-create is off."""
+        """Should return False and clean up stale IdP groups when no entries exist."""
         user = _make_user()
         provider_id = uuid4()
         identity = _make_identity(user, provider_id)
@@ -137,7 +142,7 @@ class TestSyncIdpGroups:
 
         result = await sync_idp_groups(db, user, identity, {"groups": ["admin"]}, config)
         assert result is False
-        assert db.execute.call_count == 1
+        assert db.execute.call_count > 1
 
     def test_rejects_invalid_jmespath_at_config_time(self):
         """Should reject syntactically invalid JMESPath at model validation time."""
@@ -229,44 +234,6 @@ class TestSyncIdpGroups:
         assert db.execute.call_count > 1
 
     @pytest.mark.asyncio
-    async def test_auto_create_allows_login_when_groups_present(self):
-        """Should return True when auto-create resolves groups from the token."""
-        user = _make_user()
-        provider_id = uuid4()
-        identity = _make_identity(user, provider_id)
-        config = OIDCConfiguration(
-            provider_type="oidc",
-            issuer_url="https://idp.example.com",
-            client_id="client-id",
-            client_secret="client-secret",
-            redirect_uri="http://localhost:8000/callback",
-            auto_create_groups=True,
-        )
-        db = _make_mock_db(mapping_entries=[])
-
-        result = await sync_idp_groups(db, user, identity, {"groups": ["team-a"]}, config)
-        assert result is True
-
-    @pytest.mark.asyncio
-    async def test_auto_create_denies_when_no_groups_in_token(self):
-        """Should return False when auto-create is on but token has no groups."""
-        user = _make_user()
-        provider_id = uuid4()
-        identity = _make_identity(user, provider_id)
-        config = OIDCConfiguration(
-            provider_type="oidc",
-            issuer_url="https://idp.example.com",
-            client_id="client-id",
-            client_secret="client-secret",
-            redirect_uri="http://localhost:8000/callback",
-            auto_create_groups=True,
-        )
-        db = _make_mock_db(mapping_entries=[])
-
-        result = await sync_idp_groups(db, user, identity, {"sub": "user-123"}, config)
-        assert result is False
-
-    @pytest.mark.asyncio
     async def test_handles_scalar_jmespath_result(self):
         """Should wrap scalar JMESPath result into a list."""
         user = _make_user()
@@ -280,70 +247,70 @@ class TestSyncIdpGroups:
         assert db.execute.call_count > 1
 
 
-class TestAutoCreateGroupLimit:
-    """Tests for the max_auto_create_groups runtime setting enforcement."""
+class TestAllowAllAuthenticated:
+    """Tests for the allow_all_authenticated flag."""
 
     @pytest.mark.asyncio
-    async def test_denies_login_when_groups_exceed_limit(self, _mock_runtime_settings: AsyncMock):  # noqa: PT019
-        """Should return False (deny login) when token groups exceed the configured limit."""
-        _mock_runtime_settings.get_int.return_value = 5
-
+    async def test_returns_true_with_no_mappings(self):
+        """Should return True and add user to users group when allow_all_authenticated is True."""
         user = _make_user()
         provider_id = uuid4()
         identity = _make_identity(user, provider_id)
-        config = OIDCConfiguration(
-            provider_type="oidc",
-            issuer_url="https://idp.example.com",
-            client_id="client-id",
-            client_secret="client-secret",
-            redirect_uri="http://localhost:8000/callback",
-            auto_create_groups=True,
-        )
-        db = _make_mock_db(mapping_entries=[])
+        users_group = _make_builtin_group("users")
+        config = _make_config(allow_all_authenticated=True)
+        db = _make_mock_db(mapping_entries=[], users_group=users_group)
 
-        groups = [f"group-{i}" for i in range(10)]
-        result = await sync_idp_groups(db, user, identity, {"groups": groups}, config)
-        assert result is False
-
-    @pytest.mark.asyncio
-    async def test_allows_login_when_groups_within_limit(self):
-        """Should allow login when token groups are within the configured limit."""
-        user = _make_user()
-        provider_id = uuid4()
-        identity = _make_identity(user, provider_id)
-        config = OIDCConfiguration(
-            provider_type="oidc",
-            issuer_url="https://idp.example.com",
-            client_id="client-id",
-            client_secret="client-secret",
-            redirect_uri="http://localhost:8000/callback",
-            auto_create_groups=True,
-        )
-        db = _make_mock_db(mapping_entries=[])
-
-        result = await sync_idp_groups(db, user, identity, {"groups": ["team-a", "team-b"]}, config)
+        result = await sync_idp_groups(db, user, identity, {"groups": ["team-a"]}, config)
         assert result is True
 
     @pytest.mark.asyncio
-    async def test_zero_limit_means_no_limit(self, _mock_runtime_settings: AsyncMock):  # noqa: PT019
-        """Should allow any number of groups when limit is 0 (no limit)."""
-        _mock_runtime_settings.get_int.return_value = 0
+    async def test_with_mappings_still_syncs(self):
+        """Should sync groups normally AND add users group when allow_all_authenticated is True with mappings."""
+        user = _make_user()
+        provider_id = uuid4()
+        identity = _make_identity(user, provider_id)
+        nexus_group_id = uuid4()
+        users_group = _make_builtin_group("users")
+        config = _make_config(group_jmespath_expression="groups[*]", allow_all_authenticated=True)
+        db = _make_mock_db(
+            mapping_entries=[_make_db_entry(provider_id, "admin", nexus_group_id)],
+            users_group=users_group,
+        )
+
+        result = await sync_idp_groups(db, user, identity, {"groups": ["admin"]}, config)
+        assert result is True
+        assert db.execute.call_count > 1
+
+    @pytest.mark.asyncio
+    async def test_false_requires_mappings(self):
+        """Should return False when allow_all_authenticated is False and no mappings match."""
+        user = _make_user()
+        provider_id = uuid4()
+        identity = _make_identity(user, provider_id)
+        config = _make_config(allow_all_authenticated=False)
+        db = _make_mock_db(mapping_entries=[])
+
+        result = await sync_idp_groups(db, user, identity, {"groups": ["team-a"]}, config)
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_jmespath_failure_still_allows_login(self):
+        """Should return True when allow_all_authenticated is True even if JMESPath extraction fails."""
+        from unittest.mock import patch
 
         user = _make_user()
         provider_id = uuid4()
         identity = _make_identity(user, provider_id)
-        config = OIDCConfiguration(
-            provider_type="oidc",
-            issuer_url="https://idp.example.com",
-            client_id="client-id",
-            client_secret="client-secret",
-            redirect_uri="http://localhost:8000/callback",
-            auto_create_groups=True,
+        nexus_group_id = uuid4()
+        users_group = _make_builtin_group("users")
+        config = _make_config(group_jmespath_expression="groups[*]", allow_all_authenticated=True)
+        db = _make_mock_db(
+            mapping_entries=[_make_db_entry(provider_id, "admin", nexus_group_id)],
+            users_group=users_group,
         )
-        db = _make_mock_db(mapping_entries=[])
 
-        groups = [f"group-{i}" for i in range(100)]
-        result = await sync_idp_groups(db, user, identity, {"groups": groups}, config)
+        with patch("nexus.auth.services.idp_group_sync.jmespath.search", side_effect=TypeError("unexpected type")):
+            result = await sync_idp_groups(db, user, identity, {"groups": ["admin"]}, config)
         assert result is True
 
 

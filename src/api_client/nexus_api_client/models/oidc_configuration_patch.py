@@ -40,8 +40,8 @@ class OIDCConfigurationPatch:
         group_jmespath_expression (None | str | Unset): JMESPath expression for group extraction (omit to keep existing)
         group_mapping_entries (list[OIDCGroupMappingEntry] | None | Unset): IdP-to-Nexus group mapping entries (omit to
             keep existing)
-        auto_create_groups (bool | None | Unset): Auto-create Nexus groups from IdP group values on login (omit to keep
-            existing)
+        allow_all_authenticated (bool | None | Unset): Allow all users from this IdP to log in regardless of group
+            mapping results (omit to keep existing)
         aap_role_mapping_enabled (bool | None | Unset): Map AAP aap_system_role claim to built-in groups (omit to keep
             existing)
         disable_tls_verify (bool | None | Unset): Disable TLS certificate verification for this identity provider (omit
@@ -65,7 +65,7 @@ class OIDCConfigurationPatch:
     claim_mapping: None | OIDCClaimMapping | Unset = UNSET
     group_jmespath_expression: None | str | Unset = UNSET
     group_mapping_entries: list[OIDCGroupMappingEntry] | None | Unset = UNSET
-    auto_create_groups: bool | None | Unset = UNSET
+    allow_all_authenticated: bool | None | Unset = UNSET
     aap_role_mapping_enabled: bool | None | Unset = UNSET
     disable_tls_verify: bool | None | Unset = UNSET
 
@@ -158,11 +158,11 @@ class OIDCConfigurationPatch:
         else:
             group_mapping_entries = self.group_mapping_entries
 
-        auto_create_groups: bool | None | Unset
-        if isinstance(self.auto_create_groups, Unset):
-            auto_create_groups = UNSET
+        allow_all_authenticated: bool | None | Unset
+        if isinstance(self.allow_all_authenticated, Unset):
+            allow_all_authenticated = UNSET
         else:
-            auto_create_groups = self.auto_create_groups
+            allow_all_authenticated = self.allow_all_authenticated
 
         aap_role_mapping_enabled: bool | None | Unset
         if isinstance(self.aap_role_mapping_enabled, Unset):
@@ -213,8 +213,8 @@ class OIDCConfigurationPatch:
             field_dict["group_jmespath_expression"] = group_jmespath_expression
         if group_mapping_entries is not UNSET:
             field_dict["group_mapping_entries"] = group_mapping_entries
-        if auto_create_groups is not UNSET:
-            field_dict["auto_create_groups"] = auto_create_groups
+        if allow_all_authenticated is not UNSET:
+            field_dict["allow_all_authenticated"] = allow_all_authenticated
         if aap_role_mapping_enabled is not UNSET:
             field_dict["aap_role_mapping_enabled"] = aap_role_mapping_enabled
         if disable_tls_verify is not UNSET:
@@ -364,14 +364,14 @@ class OIDCConfigurationPatch:
 
         group_mapping_entries = _parse_group_mapping_entries(d.pop("group_mapping_entries", UNSET))
 
-        def _parse_auto_create_groups(data: object) -> bool | None | Unset:
+        def _parse_allow_all_authenticated(data: object) -> bool | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
                 return data
             return cast(bool | None | Unset, data)
 
-        auto_create_groups = _parse_auto_create_groups(d.pop("auto_create_groups", UNSET))
+        allow_all_authenticated = _parse_allow_all_authenticated(d.pop("allow_all_authenticated", UNSET))
 
         def _parse_aap_role_mapping_enabled(data: object) -> bool | None | Unset:
             if data is None:
@@ -409,7 +409,7 @@ class OIDCConfigurationPatch:
             claim_mapping=claim_mapping,
             group_jmespath_expression=group_jmespath_expression,
             group_mapping_entries=group_mapping_entries,
-            auto_create_groups=auto_create_groups,
+            allow_all_authenticated=allow_all_authenticated,
             aap_role_mapping_enabled=aap_role_mapping_enabled,
             disable_tls_verify=disable_tls_verify,
         )

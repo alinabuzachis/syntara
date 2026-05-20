@@ -120,8 +120,8 @@ class OIDCConfiguration(BaseConsumerConfiguration):
         exclude=True,
         description="IdP-to-Nexus group mapping entries",
     )
-    auto_create_groups: bool = Field(
-        default=False, description="Auto-create Nexus groups from IdP group values on login"
+    allow_all_authenticated: bool = Field(
+        default=False, description="Allow all users from this IdP to log in regardless of group mapping results"
     )
     aap_role_mapping_enabled: bool = Field(
         default=False,
@@ -193,8 +193,8 @@ class OIDCConfigurationResponse(SQLModel):
     group_mapping_entries: list[OIDCGroupMappingEntry] = Field(
         default_factory=list, description="IdP-to-Nexus group mapping entries"
     )
-    auto_create_groups: bool = Field(
-        default=False, description="Auto-create Nexus groups from IdP group values on login"
+    allow_all_authenticated: bool = Field(
+        default=False, description="Allow all users from this IdP to log in regardless of group mapping results"
     )
     aap_role_mapping_enabled: bool = Field(
         default=False,
@@ -265,8 +265,11 @@ class OIDCConfigurationPatch(BaseConsumerConfiguration):
         exclude=True,
         description="IdP-to-Nexus group mapping entries (omit to keep existing)",
     )
-    auto_create_groups: bool | None = Field(
-        default=None, description="Auto-create Nexus groups from IdP group values on login (omit to keep existing)"
+    allow_all_authenticated: bool | None = Field(
+        default=None,
+        description=(
+            "Allow all users from this IdP to log in regardless of group mapping results (omit to keep existing)"
+        ),
     )
     aap_role_mapping_enabled: bool | None = Field(
         default=None,

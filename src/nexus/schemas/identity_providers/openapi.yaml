@@ -412,11 +412,11 @@ components:
             $ref: '#/components/schemas/OIDCGroupMappingEntry'
           title: Group Mapping Entries
           description: IdP-to-Nexus group mapping entries
-        auto_create_groups:
+        allow_all_authenticated:
           type: boolean
           default: false
-          title: Auto Create Groups
-          description: Auto-create Nexus groups from IdP group values on login
+          title: Allow All Authenticated
+          description: Allow all users from this IdP to log in regardless of group mapping results
         aap_role_mapping_enabled:
           type: boolean
           default: false
@@ -520,11 +520,11 @@ components:
             $ref: '#/components/schemas/OIDCGroupMappingEntry'
           title: Group Mapping Entries
           description: IdP-to-Nexus group mapping entries
-        auto_create_groups:
+        allow_all_authenticated:
           type: boolean
           default: false
-          title: Auto Create Groups
-          description: Auto-create Nexus groups from IdP group values on login
+          title: Allow All Authenticated
+          description: Allow all users from this IdP to log in regardless of group mapping results
         aap_role_mapping_enabled:
           type: boolean
           default: false
@@ -640,12 +640,12 @@ components:
             - type: 'null'
           title: Group Mapping Entries
           description: IdP-to-Nexus group mapping entries (omit to keep existing)
-        auto_create_groups:
+        allow_all_authenticated:
           anyOf:
             - type: boolean
             - type: 'null'
-          title: Auto Create Groups
-          description: Auto-create Nexus groups from IdP group values on login (omit to keep existing)
+          title: Allow All Authenticated
+          description: Allow all users from this IdP to log in regardless of group mapping results (omit to keep existing)
         aap_role_mapping_enabled:
           anyOf:
             - type: boolean

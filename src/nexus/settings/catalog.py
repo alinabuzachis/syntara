@@ -140,7 +140,6 @@ class SettingDefinition:
 class AuthenticationGroup(StrEnum):
     """Group names for authentication settings."""
 
-    GROUP_MAPPING = "Group mapping"
     LOCAL_LOGIN = "Local login"
 
 
@@ -644,24 +643,6 @@ SETTINGS_CATALOG: list[SettingDefinition] = [
         helper_text="Minimum 1000 characters. Default: 100,000 (100 KB).",
         group=WorkflowEngineGroup.EXECUTION,
         validation_schema={"min": 1000},
-    ),
-    # Authentication — Group sync
-    SettingDefinition(
-        key="authentication.max_auto_create_groups",
-        name="Max auto-created groups per login",
-        category=SettingCategory.AUTHENTICATION,
-        value_type=SettingValueType.INTEGER,
-        default_value=25,
-        description=(
-            "Limits the number of groups that can be automatically created "
-            "from identity provider (IdP) claims during a single login. "
-            "If a user's token contains more groups than this limit, the "
-            "login is denied to prevent accidental mass group creation. "
-            "Set to 0 to remove the limit entirely."
-        ),
-        helper_text="Minimum 0. Set to 0 for no limit.",
-        group=AuthenticationGroup.GROUP_MAPPING,
-        validation_schema={"min": 0},
     ),
     # Authentication — Local login
     SettingDefinition(
