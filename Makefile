@@ -125,12 +125,33 @@ test-performance: check-deps ## Run performance tests only (excluded from defaul
 	@echo "🧪 Running performance tests..."
 	uv run pytest tests/performance/ -v --run-performance
 
+# Coverage targets - separate and combined
+# ========================================================
+
+.PHONY: test-unit-coverage
+test-unit-coverage: check-deps ## Run unit tests with coverage report
+	@echo "📊 Running unit tests with coverage..."
+	$(call run-tests,tests/unit/ -v -n auto --cov=src --cov-report=html:htmlcov-unit --cov-report=term --cov-config=pyproject.toml)
+	@echo "✅ Unit test coverage report: htmlcov-unit/index.html"
+
+.PHONY: test-cli-coverage
+test-cli-coverage: check-deps ## Run CLI tests with coverage report
+	@echo "📊 Running CLI tests with coverage..."
+	$(call run-tests,tests/cli/ -v -n auto --cov=src --cov-report=html:htmlcov-cli --cov-report=term --cov-config=pyproject.toml)
+	@echo "✅ CLI test coverage report: htmlcov-cli/index.html"
+
+.PHONY: test-integration-coverage
+test-integration-coverage: check-deps ## Run integration tests with coverage report
+	@echo "📊 Running integration tests with coverage..."
+	$(call run-tests,tests/integration/ -v -n auto -m "not mcp" --cov=src --cov-report=html:htmlcov-integration --cov-report=term --cov-config=pyproject.toml)
+	@echo "✅ Integration test coverage report: htmlcov-integration/index.html"
+
 .PHONY: test-coverage
-test-coverage: check-deps ## Run tests with coverage report (XML)
+test-coverage: check-deps ## Run tests with combined coverage report (XML for CI)
 	$(call run-tests,tests/ -n auto -m "not mcp" $(E2E_IGNORE) --cov=src --cov-report=xml --cov-report=term --cov-config=pyproject.toml --junitxml=pytest-results.xml)
 
 .PHONY: test-coverage-report
-test-coverage-report: check-deps ## Run tests with coverage report (HTML)
+test-coverage-report: check-deps ## Run tests with combined coverage report (HTML)
 	$(call run-tests,tests/ -n auto -m "not mcp" $(E2E_IGNORE) --cov=src --cov-report=html --cov-report=term --cov-config=pyproject.toml --junitxml=pytest-results.xml)
 
 .PHONY: test-fast

@@ -457,7 +457,7 @@ All test commands (except e2e, performance) use the `run-tests` make function:
 **Configuration (`pyproject.toml`):**
 - Minimum coverage: 80% (`fail_under = 80`)
 - Source: `src/`
-- Omit: `*/tests/*`, `*/__init__.py`, `tools/*`
+- Omit: `*/tests/*`, `*/__init__.py`, `tools/*`, `src/api_client/*`, `src/cli/*`
 
 **Known Inconsistency:**
 - Constitution specifies 90% coverage
@@ -471,6 +471,38 @@ All test commands (except e2e, performance) use the `run-tests` make function:
 - Abstract methods
 - NotImplementedError
 - Main blocks
+
+### Coverage Reporting by Test Layer
+
+The project supports separate coverage reporting for each test layer:
+
+**Make Targets:**
+
+```bash
+# Combined coverage (all tests except e2e)
+make test-coverage         # XML report (for CI)
+make test-coverage-report  # HTML report → htmlcov/
+
+# Per-layer coverage reports
+make test-unit-coverage        # Unit tests → htmlcov-unit/
+make test-cli-coverage         # CLI tests → htmlcov-cli/
+make test-integration-coverage # Integration → htmlcov-integration/
+```
+
+**Use Cases:**
+
+- **Development**: Use layer-specific coverage to focus on the tests you're writing
+- **Code Review**: Check coverage impact of new unit tests vs integration tests
+- **CI/CD**: Use `make test-coverage` for combined XML report
+- **Investigation**: Compare coverage across layers to identify testing gaps
+
+**Coverage Report Directories:**
+
+All HTML coverage reports are gitignored via the `htmlcov-*/` pattern:
+- `htmlcov/` - Combined coverage from all test layers
+- `htmlcov-unit/` - Unit test coverage only
+- `htmlcov-cli/` - CLI test coverage only
+- `htmlcov-integration/` - Integration test coverage only
 
 ## Adding Tests for a New Domain
 

@@ -504,14 +504,32 @@ curl 'http://localhost:8000/api/v1/invocations?status=completed'
 # Run all tests
 make test-all
 
-# Run tests with coverage
-make test-coverage
-
 # Run only unit tests
 make test-unit
 
+# Run only integration tests
+make test-integration
+
+# Run only CLI tests
+make test-cli
+
 # Validate migrations (spins up a temporary DB via testcontainers)
 make check-migrations
+```
+
+### Coverage Reporting
+
+```bash
+# Run all tests with combined coverage report (HTML)
+make test-coverage-report
+
+# Run all tests with coverage report (XML for CI)
+make test-coverage
+
+# Run tests by layer with separate coverage reports
+make test-unit-coverage        # Unit tests only → htmlcov-unit/
+make test-cli-coverage         # CLI tests only → htmlcov-cli/
+make test-integration-coverage # Integration tests only → htmlcov-integration/
 ```
 
 ### Running End to End Tests
