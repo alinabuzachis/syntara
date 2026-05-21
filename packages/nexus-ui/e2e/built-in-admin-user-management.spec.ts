@@ -7,6 +7,7 @@
  * - Re-enable built-in admin user
  */
 import { test, expect, toAppUrl } from './fixtures'
+import { AAP_AUTH_PROVIDER } from './fixtures/mock-oidc-idps'
 import {
   BUILT_IN_ADMIN_USER_INFO,
   BUILT_IN_ADMIN_USER_READ,
@@ -135,14 +136,7 @@ test.describe('Disable Built-in Admin — Flow and State Update', () => {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          providers: [
-            {
-              id: '886ff243-fa0d-4895-8738-a9ece82bf3bf',
-              name: 'AAP',
-              provider_type: 'oidc',
-              provider_template: 'aap',
-            },
-          ],
+          providers: [AAP_AUTH_PROVIDER],
         }),
       })
     )
