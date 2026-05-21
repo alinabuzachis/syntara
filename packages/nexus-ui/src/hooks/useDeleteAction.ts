@@ -53,7 +53,7 @@ type UseDeleteActionOptions<T, P = unknown> = {
  * })
  *
  * // In JSX:
- * <ConfirmationDialog onConfirm={() => handleDelete(userToDelete)} ... />
+ * <NxConfirmationDialog onConfirm={() => handleDelete(userToDelete)} ... />
  * ```
  */
 export function useDeleteAction<T, P = unknown>({

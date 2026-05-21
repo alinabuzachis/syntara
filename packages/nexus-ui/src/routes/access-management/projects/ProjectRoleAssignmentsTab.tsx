@@ -5,7 +5,7 @@ import type { IAction, ThProps } from '@patternfly/react-table'
 import { useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 
-import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
+import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
 import { FilterBar } from '../../../components/filters'
@@ -393,7 +393,7 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAss
         onSuccess={refetch}
       />
 
-      <ConfirmationDialog
+      <NxConfirmationDialog
         isOpen={!!rowToUnassign}
         onClose={() => setRowToUnassign(null)}
         onConfirm={handleUnassign}
@@ -404,7 +404,7 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAss
       >
         This unassigns the role <strong>{rowToUnassign?.roleName}</strong> from{' '}
         <strong>{rowToUnassign?.principalName}</strong>. Related permissions will be revoked.
-      </ConfirmationDialog>
+      </NxConfirmationDialog>
 
       {createRoleOpen && (
         <AddRoleDialog

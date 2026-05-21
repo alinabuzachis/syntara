@@ -4,7 +4,7 @@ import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table
 import type { IAction, ThProps } from '@patternfly/react-table'
 import { type ReactNode, useMemo, useState } from 'react'
 
-import { ConfirmationDialog } from '../../components/ConfirmationDialog'
+import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
@@ -480,7 +480,7 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
         onSuccess={refetch}
       />
 
-      <ConfirmationDialog
+      <NxConfirmationDialog
         isOpen={!!rowToUnassign}
         onClose={() => setRowToUnassign(null)}
         onConfirm={handleUnassign}
@@ -491,7 +491,7 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
       >
         This unassigns the role <strong>{rowToUnassign?.roleName}</strong> from this principal. Related permissions will
         be revoked.
-      </ConfirmationDialog>
+      </NxConfirmationDialog>
     </>
   )
 }

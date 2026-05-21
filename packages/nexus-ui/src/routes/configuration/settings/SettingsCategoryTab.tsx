@@ -2,7 +2,7 @@ import type { SettingsAPI } from '@ansible/nexus-contracts'
 import { ActionGroup, Button, Form, FormSection } from '@patternfly/react-core'
 import { useMemo } from 'react'
 
-import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
+import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 import { useDialogState } from '../../../hooks/useDialogState'
 
 import { SettingField } from './SettingField'
@@ -115,7 +115,7 @@ export function SettingsCategoryTab({
         </ActionGroup>
       )}
 
-      <ConfirmationDialog
+      <NxConfirmationDialog
         isOpen={resetDialog.isOpen}
         onClose={resetDialog.close}
         onConfirm={handleResetAll}
@@ -126,7 +126,7 @@ export function SettingsCategoryTab({
       >
         This will reset all configuration values on this page to their factory defaults. These changes will not take
         effect until you click Save changes.
-      </ConfirmationDialog>
+      </NxConfirmationDialog>
     </Form>
   )
 }

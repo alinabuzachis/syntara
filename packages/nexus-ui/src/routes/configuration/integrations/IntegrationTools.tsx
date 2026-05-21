@@ -17,7 +17,7 @@ import { AppRoute } from '../../../app/AppRoute.tsx'
 import { breadcrumbsIntegrationTools } from '../../../app/breadcrumbBuilders'
 import noToolsImage from '../../../assets/collage-circle-sparkles-window-server-dark-RH.png'
 import { toolManagerClient } from '../../../client'
-import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
+import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
 import { FilterBar } from '../../../components/filters/FilterBar'
@@ -208,7 +208,7 @@ function IntegrationToolsLoadedView({
         </NxPageBody>
       )}
 
-      <ConfirmationDialog
+      <NxConfirmationDialog
         isOpen={refreshDialogOpen}
         onClose={() => setRefreshDialogOpen(false)}
         onConfirm={handleRefreshTools}
@@ -217,7 +217,7 @@ function IntegrationToolsLoadedView({
       >
         Are you sure you want to refresh tools for &quot;{providerName}&quot;? This will fetch the latest tools from the
         integration.
-      </ConfirmationDialog>
+      </NxConfirmationDialog>
     </NxPage>
   )
 }

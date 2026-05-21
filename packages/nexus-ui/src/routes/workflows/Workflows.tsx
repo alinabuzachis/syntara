@@ -17,7 +17,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useLocation } from 'wouter'
 
 import { executionsClient, workflowClient, workflowFetchClient } from '../../client'
-import { ConfirmationDialog } from '../../components/ConfirmationDialog'
+import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
@@ -455,7 +455,7 @@ export default function Workflows() {
         </NxPanel>
       </NxPageBody>
 
-      <ConfirmationDialog
+      <NxConfirmationDialog
         isOpen={runDialog.isOpen}
         onClose={runDialog.close}
         onConfirm={() => {
@@ -469,9 +469,9 @@ export default function Workflows() {
       >
         You are about to manually run this workflow. This action will start the workflow immediately, bypassing its
         normal trigger conditions.
-      </ConfirmationDialog>
+      </NxConfirmationDialog>
 
-      <ConfirmationDialog
+      <NxConfirmationDialog
         isOpen={deleteDialog.isOpen}
         onClose={deleteDialog.close}
         onConfirm={handleDeleteWorkflow}
@@ -498,7 +498,7 @@ export default function Workflows() {
             </List>
           </StackItem>
         </Stack>
-      </ConfirmationDialog>
+      </NxConfirmationDialog>
       <ImportWorkflowDialog
         isOpen={importDialogOpen}
         onClose={() => setImportDialogOpen(false)}
@@ -512,7 +512,7 @@ export default function Workflows() {
         onClose={publishDialog.close}
         onPublish={handlePublishWorkflow}
       />
-      <ConfirmationDialog
+      <NxConfirmationDialog
         isOpen={unpublishDialog.isOpen}
         onClose={unpublishDialog.close}
         onConfirm={handleUnpublishWorkflow}
@@ -523,7 +523,7 @@ export default function Workflows() {
       >
         The workflow <strong>{unpublishDialog.item?.name}</strong> will be unpublished. It will no longer be available
         for execution until published again.
-      </ConfirmationDialog>
+      </NxConfirmationDialog>
     </NxPage>
   )
 }

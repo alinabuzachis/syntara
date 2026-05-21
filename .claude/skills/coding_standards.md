@@ -245,7 +245,7 @@ Codebase Search Patterns:
 - `useCursorReset(itemCount, hasActiveFilters, cursor, isFetching, setCursor)` — reset to page 1
 - `useDialogState<T>()` — dialog open/close state with associated item
 - `useDeleteAction(options)` — delete mutation with success/error alerts
-- `ConfirmationDialog` — reusable confirm/cancel modal (`src/components/ConfirmationDialog.tsx`)
+- `NxConfirmationDialog` — reusable confirm/cancel modal (`src/components/dialogs/NxConfirmationDialog.tsx`)
 
 ### List Page Standard Pattern
 
@@ -253,7 +253,7 @@ Codebase Search Patterns:
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useDialogState } from '../../hooks/useDialogState'
 import { useDeleteAction } from '../../hooks/useDeleteAction'
-import { ConfirmationDialog } from '../../components/ConfirmationDialog'
+import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
 
 export function MyListPage() {
   const {
@@ -286,7 +286,7 @@ export function MyListPage() {
       >
         {/* table content */}
       </ScrollableTableContainer>
-      <ConfirmationDialog
+      <NxConfirmationDialog
         isOpen={deleteDialog.isOpen}
         onClose={deleteDialog.close}
         onConfirm={() => handleDelete(deleteDialog.item)}
@@ -295,7 +295,7 @@ export function MyListPage() {
         confirmVariant="danger"
       >
         Are you sure?
-      </ConfirmationDialog>
+      </NxConfirmationDialog>
     </NxPage>
   )
 }
@@ -746,9 +746,11 @@ The `ErrorState` component automatically shows a retry button for retryable erro
 
 ---
 
-## 12. `ConfirmationDialog` — Never Inline Modal Boilerplate
+## 12. `NxConfirmationDialog` — Never Inline Modal Boilerplate
 
-Use `ConfirmationDialog` for all confirmation prompts. Never use raw `Modal` + `ModalHeader` + `ModalBody` + `ModalFooter`.
+Use `NxConfirmationDialog` for all confirmation prompts. Never use raw `Modal` + `ModalHeader` + `ModalBody` + `ModalFooter`.
+
+> **Check Storybook first:** Before implementing any confirmation dialog, call the Storybook MCP `get-documentation` tool with id `"components-dialogs-nxconfirmationdialog"`. The stories are the primary source of truth for tier selection, correct prop usage, title format, body copy, checkbox labels, and button labels — and take precedence over the static examples below.
 
 There are **two tiers** of destructive modals depending on reversibility:
 
@@ -768,7 +770,7 @@ Requires `titleIconVariant="warning"` + `destructiveAcknowledgement` checkbox. T
 </Modal>
 
 // ✅ GOOD — warning icon, acknowledgement checkbox, descriptive body
-<ConfirmationDialog
+<NxConfirmationDialog
   isOpen={isOpen}
   onClose={onClose}
   onConfirm={handleDelete}
@@ -782,7 +784,7 @@ Requires `titleIconVariant="warning"` + `destructiveAcknowledgement` checkbox. T
   }}
 >
   The workflow <strong>{item?.name}</strong> will be deleted. This cannot be undone.
-</ConfirmationDialog>
+</NxConfirmationDialog>
 ```
 
 ### Tier 2: Reversible actions (remove, unassign)
@@ -791,7 +793,7 @@ Uses `titleIconVariant="warning"` but **no** `destructiveAcknowledgement` checkb
 
 ```typescript
 // ✅ GOOD — warning icon, descriptive body, no checkbox
-<ConfirmationDialog
+<NxConfirmationDialog
   isOpen={!!memberToRemove}
   onClose={() => setMemberToRemove(null)}
   onConfirm={handleRemove}
@@ -802,7 +804,7 @@ Uses `titleIconVariant="warning"` but **no** `destructiveAcknowledgement` checkb
 >
   This removes <strong>{memberToRemove?.username}</strong> from the group.
   They will lose any permissions granted through this group membership.
-</ConfirmationDialog>
+</NxConfirmationDialog>
 ```
 
 ### Body text rules

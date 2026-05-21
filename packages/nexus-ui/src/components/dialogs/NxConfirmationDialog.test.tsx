@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { ConfirmationDialog } from './ConfirmationDialog'
+import { NxConfirmationDialog } from './NxConfirmationDialog'
 
 const defaultProps = {
   isOpen: true,
@@ -13,9 +13,9 @@ const defaultProps = {
   children: 'Are you sure you want to proceed?',
 } as const
 
-function renderDialog(overrides: Partial<Parameters<typeof ConfirmationDialog>[0]> = {}) {
+function renderDialog(overrides: Partial<Parameters<typeof NxConfirmationDialog>[0]> = {}) {
   const props = { ...defaultProps, onClose: vi.fn(), onConfirm: vi.fn(), ...overrides }
-  return { ...render(<ConfirmationDialog {...props} />), props }
+  return { ...render(<NxConfirmationDialog {...props} />), props }
 }
 
 describe('ConfirmationDialog', () => {
@@ -204,8 +204,8 @@ describe('ConfirmationDialog', () => {
       await user.click(screen.getByRole('checkbox', { name: 'I understand this cannot be undone.' }))
       expect(screen.getByRole('checkbox')).toBeChecked()
 
-      rerender(<ConfirmationDialog {...defaultProps} {...ackProps} isOpen={false} />)
-      rerender(<ConfirmationDialog {...defaultProps} {...ackProps} isOpen />)
+      rerender(<NxConfirmationDialog {...defaultProps} {...ackProps} isOpen={false} />)
+      rerender(<NxConfirmationDialog {...defaultProps} {...ackProps} isOpen />)
 
       await waitFor(() => {
         expect(screen.getByRole('checkbox')).not.toBeChecked()

@@ -1,4 +1,4 @@
-import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
+import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 import type { RoleAssignmentRead } from '../../access/types'
 
 export function UnassignProjectRoleDialog({
@@ -13,7 +13,7 @@ export function UnassignProjectRoleDialog({
   onConfirm: () => void
 }>) {
   return (
-    <ConfirmationDialog
+    <NxConfirmationDialog
       isOpen={isOpen}
       onClose={onClose}
       onConfirm={onConfirm}
@@ -24,6 +24,6 @@ export function UnassignProjectRoleDialog({
     >
       This unassigns the role <strong>{assignment?.role_name}</strong> from{' '}
       <strong>{assignment?.principal_name}</strong>. Related permissions will be revoked.
-    </ConfirmationDialog>
+    </NxConfirmationDialog>
   )
 }

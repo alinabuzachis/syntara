@@ -14,7 +14,7 @@ import { ActionsColumn, ExpandableRowContent, Tbody, Td, Th, Thead, Tr } from '@
 import type { IAction, ThProps } from '@patternfly/react-table'
 import { useCallback, useMemo, useState } from 'react'
 
-import { ConfirmationDialog } from '../../components/ConfirmationDialog'
+import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
@@ -375,7 +375,7 @@ export function RolesTab() {
         <EditRoleDialog role={roleToEdit} onClose={() => setRoleToEdit(null)} onSuccess={handleRolesChanged} />
       )}
 
-      <ConfirmationDialog
+      <NxConfirmationDialog
         isOpen={!!roleToDelete}
         onClose={() => setRoleToDelete(null)}
         onConfirm={handleDelete}
@@ -390,7 +390,7 @@ export function RolesTab() {
       >
         The role <strong>{roleToDelete?.name}</strong> will be deleted. Assignments that use this role will lose access.
         This cannot be undone.
-      </ConfirmationDialog>
+      </NxConfirmationDialog>
     </>
   )
 }

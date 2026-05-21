@@ -7,7 +7,7 @@ import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../app/AppRoute'
 import { usersClient } from '../../client'
-import { ConfirmationDialog } from '../../components/ConfirmationDialog'
+import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters/FilterBar'
@@ -207,7 +207,7 @@ export function GroupsTab() {
         }}
       />
 
-      <ConfirmationDialog
+      <NxConfirmationDialog
         isOpen={deleteDialog.isOpen}
         onClose={deleteDialog.close}
         onConfirm={() => handleDelete(deleteDialog.item)}
@@ -221,7 +221,7 @@ export function GroupsTab() {
         }}
       >
         The group <strong>{deleteDialog.item?.name}</strong> will be deleted. This cannot be undone.
-      </ConfirmationDialog>
+      </NxConfirmationDialog>
     </>
   )
 }

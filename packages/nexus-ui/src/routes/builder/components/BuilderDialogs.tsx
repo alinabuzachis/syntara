@@ -2,7 +2,7 @@ import type { Approval } from '@ansible/nexus-contracts'
 import { Checkbox, Content, List, ListItem, Stack, StackItem } from '@patternfly/react-core'
 import { useEffect, useRef, useState, type Dispatch } from 'react'
 
-import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
+import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 import type { DialogState } from '../../../hooks/useDialogState'
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import type { BuilderAction } from '../builderReducer'
@@ -148,7 +148,7 @@ export function BuilderDialogs({
     useRunConfirmState({ confirmDialogOpen, isDirty, hasInputSchema, dispatch, handleRunWorkflow, triggerNodeId })
   return (
     <>
-      <ConfirmationDialog
+      <NxConfirmationDialog
         isOpen={showConfirmStep}
         onClose={closeAll}
         onConfirm={handleConfirmRun}
@@ -174,7 +174,7 @@ export function BuilderDialogs({
             />
           </StackItem>
         </Stack>
-      </ConfirmationDialog>
+      </NxConfirmationDialog>
       <RunWorkflowModal
         key={showInputStep ? `open-${triggerNodeId ?? ''}` : 'closed'}
         isOpen={showInputStep}
@@ -185,7 +185,7 @@ export function BuilderDialogs({
         triggerNodeId={triggerNodeId}
         inputSchema={triggerInputSchema}
       />
-      <ConfirmationDialog
+      <NxConfirmationDialog
         isOpen={deleteDialogOpen}
         onClose={() => dispatch({ type: 'SET_DELETE_DIALOG', payload: false })}
         onConfirm={handleDeleteWorkflow}
@@ -215,7 +215,7 @@ export function BuilderDialogs({
             </List>
           </StackItem>
         </Stack>
-      </ConfirmationDialog>
+      </NxConfirmationDialog>
       <ApprovalReviewModal
         approval={pendingApproval}
         isOpen={approvalViewOpen}

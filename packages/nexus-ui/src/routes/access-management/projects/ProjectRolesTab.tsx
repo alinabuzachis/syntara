@@ -4,7 +4,7 @@ import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table
 import type { IAction, ThProps } from '@patternfly/react-table'
 import { useState } from 'react'
 
-import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
+import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
 import { FilterBar } from '../../../components/filters'
@@ -260,7 +260,7 @@ export function ProjectRolesTab({ projectId }: Readonly<{ projectId: string }>) 
         />
       )}
 
-      <ConfirmationDialog
+      <NxConfirmationDialog
         isOpen={deleteDialog.isOpen}
         onClose={deleteDialog.close}
         onConfirm={() => handleDelete(deleteDialog.item)}
@@ -275,7 +275,7 @@ export function ProjectRolesTab({ projectId }: Readonly<{ projectId: string }>) 
       >
         The role <strong>{deleteDialog.item?.name}</strong> will be deleted. Assignments that use this role will lose
         access. This cannot be undone.
-      </ConfirmationDialog>
+      </NxConfirmationDialog>
     </>
   )
 }

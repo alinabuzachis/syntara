@@ -26,14 +26,14 @@ export type DialogState<T> = {
  * deleteDialog.open(user)
  *
  * // In JSX:
- * <ConfirmationDialog
+ * <NxConfirmationDialog
  *   isOpen={deleteDialog.isOpen}
  *   onClose={deleteDialog.close}
  *   onConfirm={() => handleDelete(deleteDialog.item)}
  *   title="Delete user"
  * >
  *   Are you sure you want to delete "{deleteDialog.item?.name}"?
- * </ConfirmationDialog>
+ * </NxConfirmationDialog>
  * ```
  */
 export function useDialogState<T>(): DialogState<T> {

@@ -14,7 +14,7 @@ import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table
 import type { IAction } from '@patternfly/react-table'
 import { useCallback, useMemo, useState } from 'react'
 
-import { ConfirmationDialog } from '../../components/ConfirmationDialog'
+import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
@@ -259,7 +259,7 @@ export function AssignmentsTab() {
 
       {isAddDialogOpen && <AssignRoleDialog onClose={() => setIsAddDialogOpen(false)} onSuccess={refetchAll} />}
 
-      <ConfirmationDialog
+      <NxConfirmationDialog
         isOpen={!!rowToDelete}
         onClose={() => setRowToDelete(null)}
         onConfirm={() => {
@@ -281,7 +281,7 @@ export function AssignmentsTab() {
           </>
         )}
         . The associated permissions will be revoked.
-      </ConfirmationDialog>
+      </NxConfirmationDialog>
 
       {rowToEdit && (
         <EditAssignmentDialog

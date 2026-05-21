@@ -1,6 +1,6 @@
 import { Content, ContentVariants, Spinner } from '@patternfly/react-core'
 
-import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
+import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 
 import type { Credential, CredentialWorkflowRef } from './credentialConstants'
 import { CredentialWorkflowWarning } from './CredentialWorkflowWarning'
@@ -27,7 +27,7 @@ export function DeleteCredentialDialog({
   if (!credential) return null
 
   return (
-    <ConfirmationDialog
+    <NxConfirmationDialog
       isOpen
       onClose={onClose}
       onConfirm={onConfirm}
@@ -57,6 +57,6 @@ export function DeleteCredentialDialog({
           />
         </>
       )}
-    </ConfirmationDialog>
+    </NxConfirmationDialog>
   )
 }

@@ -468,7 +468,7 @@ Use when users need to inspect structured data (JSON, policy definitions, config
 
 ### Delete: Destructive Confirmation Modal with Checkbox
 
-**Always** use `ConfirmationDialog` from `src/components/ConfirmationDialog.tsx` for delete actions. Never build modals from raw `Modal` + `ModalHeader` + `ModalBody` + `ModalFooter`.
+**Always** use `NxConfirmationDialog` from `src/components/dialogs/NxConfirmationDialog.tsx` for delete actions. Never build modals from raw `Modal` + `ModalHeader` + `ModalBody` + `ModalFooter`.
 
 There are three delete variants depending on what happens downstream when the resource is deleted.
 
@@ -476,15 +476,14 @@ There are three delete variants depending on what happens downstream when the re
 
 Use when deleting a standalone resource with no downstream effects (e.g., role, policy, group, user, identity provider).
 
-| Element       | Specification                                                                                                                                                           |
-| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Component     | `ConfirmationDialog` with `destructiveAcknowledgement` prop                                                                                                             |
-| Modal variant | Small (default)                                                                                                                                                         |
-| Title         | `"Delete [resource type]?"` with `titleIconVariant="warning"`                                                                                                           |
-| Body          | `"The [resource] <strong>[name]</strong> will be deleted. This cannot be undone."` — add context if relevant (e.g., "Assignments that use this role will lose access.") |
-| Checkbox      | `"I understand this [resource] will be permanently deleted."` — Delete button stays disabled until checked                                                              |
-| Action button | `confirmVariant="danger"`, `confirmLabel="Delete"`                                                                                                                      |
-| Cancel button | `variant="link"` (handled by ConfirmationDialog)                                                                                                                        |
+| Element       | Specification                                                 |
+| ------------- | ------------------------------------------------------------- |
+| Component     | `NxConfirmationDialog` with `destructiveAcknowledgement` prop |
+| Modal variant | Small (default)                                               |
+| Action button | `confirmVariant="danger"`, `confirmLabel="Delete"`            |
+| Cancel button | `variant="link"` (handled by NxConfirmationDialog)            |
+
+For title, body copy, and checkbox label patterns → see Storybook `NxConfirmationDialog` → **DestructiveAcknowledgement** story.
 
 #### Cascade Delete
 
@@ -492,14 +491,14 @@ Use when deleting the resource also permanently deletes other records (e.g., wor
 
 | Element       | Specification                                                                                                                                                                                            |
 | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Component     | `ConfirmationDialog` with `destructiveAcknowledgement` prop                                                                                                                                              |
+| Component     | `NxConfirmationDialog` with `destructiveAcknowledgement` prop                                                                                                                                            |
 | Modal variant | Small (default)                                                                                                                                                                                          |
 | Title         | `"Delete [resource type]?"` with `titleIconVariant="warning"`                                                                                                                                            |
 | Body          | `"The [resource] <strong>[name]</strong> will be deleted. This cannot be undone."`                                                                                                                       |
 | Body 2        | `"Resources that will be deleted"` as a header, then one row per resource type each with its own [Badge](https://www.patternfly.org/components/badge/#read) count — e.g., "Executions [12]", "Tools [3]" |
 | Checkbox      | `"I understand this [resource] and the resources shown above will be permanently deleted."` — Delete button stays disabled until checked                                                                 |
 | Action button | `confirmVariant="danger"`, `confirmLabel="Delete"`                                                                                                                                                       |
-| Cancel button | `variant="link"` (handled by ConfirmationDialog)                                                                                                                                                         |
+| Cancel button | `variant="link"` (handled by NxConfirmationDialog)                                                                                                                                                       |
 
 #### Ripple Effect Delete
 
@@ -507,34 +506,16 @@ Use when deleting the resource leaves other resources in a broken or invalid sta
 
 | Element       | Specification                                                                                                                                                                                                 |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Component     | `ConfirmationDialog` with `destructiveAcknowledgement` prop                                                                                                                                                   |
+| Component     | `NxConfirmationDialog` with `destructiveAcknowledgement` prop                                                                                                                                                 |
 | Modal variant | Small (default)                                                                                                                                                                                               |
 | Title         | `"Delete [resource type]?"` with `titleIconVariant="warning"`                                                                                                                                                 |
 | Body          | `"The [resource] <strong>[name]</strong> will be deleted. This cannot be undone."`                                                                                                                            |
 | Body 2        | `"Resources that will be affected"` as a header, then one row per resource type each with its own [Badge](https://www.patternfly.org/components/badge/#read) count — e.g., "Workflows [2]", "Credentials [5]" |
 | Checkbox      | `"I understand this [resource] and the resources shown above will be affected by this deletion."` — Delete button stays disabled until checked                                                                |
 | Action button | `confirmVariant="danger"`, `confirmLabel="Delete"`                                                                                                                                                            |
-| Cancel button | `variant="link"` (handled by ConfirmationDialog)                                                                                                                                                              |
+| Cancel button | `variant="link"` (handled by NxConfirmationDialog)                                                                                                                                                            |
 
 > **Note:** A resource can combine both cascade and ripple effects. For example, deleting a workflow both cascade-deletes its executions and ripple-affects parent workflows that reference it as a step. In this case, show both Body 2 sections.
-
-```tsx
-<ConfirmationDialog
-  isOpen={deleteDialog.isOpen}
-  onClose={deleteDialog.close}
-  onConfirm={handleDelete}
-  title="Delete credential?"
-  confirmLabel="Delete"
-  confirmVariant="danger"
-  titleIconVariant="warning"
-  destructiveAcknowledgement={{
-    checkboxId: 'delete-credential-ack',
-    label: 'I understand this credential will be permanently deleted.',
-  }}
->
-  The credential <strong>{credential.name}</strong> will be deleted. This cannot be undone.
-</ConfirmationDialog>
-```
 
 **Post-delete behavior:**
 
@@ -544,21 +525,16 @@ Use when deleting the resource leaves other resources in a broken or invalid sta
 
 ### Remove/Unassign/Cancel/Stop: Confirmation Modal without Checkbox
 
-These are reversible actions. Use `ConfirmationDialog` with warning icon but no checkbox.
+These are reversible actions. Use `NxConfirmationDialog` with warning icon but no checkbox.
 
-| Element       | Specification                                                                        |
-| ------------- | ------------------------------------------------------------------------------------ |
-| Component     | `ConfirmationDialog` (no `destructiveAcknowledgement`)                               |
-| Modal variant | Small (default)                                                                      |
-| Title         | `"[Remove/Unassign/Cancel/Stop] [resource type]?"` with `titleIconVariant="warning"` |
-| Body          | See context-specific body copy below                                                 |
-| Action button | `confirmVariant="danger"`, `confirmLabel="[Remove/Unassign/etc.]"`                   |
-| Cancel button | `variant="link"` (handled by ConfirmationDialog)                                     |
+| Element       | Specification                                                      |
+| ------------- | ------------------------------------------------------------------ |
+| Component     | `NxConfirmationDialog` (no `destructiveAcknowledgement`)           |
+| Modal variant | Small (default)                                                    |
+| Action button | `confirmVariant="danger"`, `confirmLabel="[Remove/Unassign/etc.]"` |
+| Cancel button | `variant="link"` (handled by NxConfirmationDialog)                 |
 
-**Context-specific body copy:**
-
-- **Unassign:** `"This unassigns the role <strong>[resource name]</strong> from this principal. Related permissions will be revoked."`
-- **Remove:** `"This removes the assignment for role <strong>[role name]</strong> from <strong>[user/group name]</strong> in the project <strong>[project name]</strong>. Related permissions will be revoked."`
+For title and body copy patterns → see Storybook `NxConfirmationDialog` → **Danger** story.
 
 **Post-cancel/stop behavior:**
 
@@ -570,13 +546,13 @@ These are reversible actions. Use `ConfirmationDialog` with warning icon but no 
 
 Disable is **not** a destructive action — use a standard confirmation modal (no warning icon, no danger button).
 
-| Element        | Specification                                                                                                                |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Modal variant  | Small — PatternFly's [Small Variant Modal](https://www.patternfly.org/components/modal#modal-sizes)                          |
-| Title          | `"Disable [resource type]?"`                                                                                                 |
-| Body           | `"You are about to disable the [resource type] <strong>[name]</strong>. You can re-enable the [resource type] at any time."` |
-| Confirm button | `variant="primary"`                                                                                                          |
-| Cancel button  | `variant="link"`                                                                                                             |
+| Element        | Specification                                                                                       |
+| -------------- | --------------------------------------------------------------------------------------------------- |
+| Modal variant  | Small — PatternFly's [Small Variant Modal](https://www.patternfly.org/components/modal#modal-sizes) |
+| Confirm button | `variant="primary"`                                                                                 |
+| Cancel button  | `variant="link"`                                                                                    |
+
+For title and body copy patterns → see Storybook `NxConfirmationDialog` → **Disable** story.
 
 **Post-disable behavior:**
 

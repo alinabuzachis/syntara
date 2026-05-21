@@ -8,7 +8,7 @@ import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../app/AppRoute'
 import { flexCenteredBothAxes } from '../../app/flexCenteredBothAxes'
-import { ConfirmationDialog } from '../../components/ConfirmationDialog'
+import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters/FilterBar'
@@ -234,7 +234,7 @@ export function UsersTab() {
           </ScrollableTableContainer>
         )}
       </NxPanelContentStack>
-      <ConfirmationDialog
+      <NxConfirmationDialog
         isOpen={deleteDialog.isOpen}
         onClose={deleteDialog.close}
         onConfirm={() => handleDelete(deleteDialog.item)}
@@ -248,8 +248,8 @@ export function UsersTab() {
         }}
       >
         The user <strong>{deleteDialog.item?.username}</strong> will be deleted. This cannot be undone.
-      </ConfirmationDialog>
-      <ConfirmationDialog
+      </NxConfirmationDialog>
+      <NxConfirmationDialog
         isOpen={adminToggle.showConfirm}
         onClose={adminToggle.cancelDisable}
         onConfirm={adminToggle.confirmDisable}
@@ -258,7 +258,7 @@ export function UsersTab() {
       >
         Disabling the built-in administrator account will immediately end your current session. You will need to sign in
         with another admin account to re-enable it.
-      </ConfirmationDialog>
+      </NxConfirmationDialog>
     </>
   )
 }

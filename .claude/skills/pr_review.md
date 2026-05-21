@@ -159,7 +159,7 @@ Examples:
 - Use `detachPromise(...)` instead of unary `void` for intentionally unawaited promises
 - Use PF6 components (`Button`, `List`, `Content`, `Title`) instead of native HTML (`<button>`, `<ul>`, `<p>`, `<h1>`)
 - Use `useCursorPagination` instead of manual cursor/filter/queryParams boilerplate
-- Use `ConfirmationDialog` instead of inline Modal+ModalHeader+ModalBody+ModalFooter
+- Use `NxConfirmationDialog` instead of inline Modal+ModalHeader+ModalBody+ModalFooter
 - Use `useDialogState` instead of manual `useState` pairs for dialog open/close
 - Use `useMemo` for derived data (maps, sorted arrays) in custom hooks instead of recomputing on every render
 - Use PF `Content` / `HelperText` / `Title` instead of raw `<span>` / `<p>` / `<div>` for text content

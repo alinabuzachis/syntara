@@ -8,7 +8,7 @@ Standards for implementing, reviewing, and refactoring frontend code using React
 
 **Before implementing ANY code**, read these project skill files:
 
-1. **`.claude/skills/coding_standards.md`** — API integration rules, form patterns, shared hooks (`useCursorPagination`, `useDialogState`, `useDeleteAction`, `ConfirmationDialog`), PatternFly guidelines, i18n rules, and enum constant usage.
+1. **`.claude/skills/coding_standards.md`** — API integration rules, form patterns, shared hooks (`useCursorPagination`, `useDialogState`, `useDeleteAction`, `NxConfirmationDialog`), PatternFly guidelines, i18n rules, and enum constant usage.
 
 2. **`.claude/skills/testing_guidelines.md`** — Testing rules (userEvent over fireEvent, accessible queries, vitest-axe), coverage requirements (80%), AAA pattern, and accessibility testing at three levels.
 
@@ -80,7 +80,7 @@ Standards for implementing, reviewing, and refactoring frontend code using React
 
 ### Code Organization
 
-- [ ] No duplicated dialogs/logic — use `ConfirmationDialog`, `useDialogState`, `useDeleteAction`
+- [ ] No duplicated dialogs/logic — use `NxConfirmationDialog`, `useDialogState`, `useDeleteAction`
 - [ ] List views use `useCursorPagination` — no manual cursor state
 - [ ] File/function within ESLint size limits — extraction preferred over suppression
 - [ ] Enum constants from `@ansible/nexus-contracts` — no string literals for discriminators

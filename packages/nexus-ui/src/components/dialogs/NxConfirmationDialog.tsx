@@ -1,20 +1,11 @@
 import { Button, Checkbox, Modal, ModalBody, ModalFooter, ModalHeader, Stack, StackItem } from '@patternfly/react-core'
 import { useState, type ReactNode } from 'react'
 
-type ConfirmVariant = 'primary' | 'danger'
-
-/** When set, the user must check the box before the confirm action is enabled. */
-export type DestructiveAcknowledgementProps = {
-  /** Stable id for the checkbox (labels and tests). */
-  checkboxId: string
-  /** Checkbox label (e.g. "I understand this cannot be undone"). */
-  label: ReactNode
-}
-
-type ConfirmationDialogProps = {
+type NxConfirmationDialogProps = {
   /** Whether the dialog is open */
   isOpen: boolean
-  /** Called when the dialog is closed (cancel or backdrop click) */
+  /** Called when the dialog is closed
+   *  (cancel or backdrop click) */
   onClose: () => void
   /** Called when the confirm button is clicked */
   onConfirm: () => void
@@ -27,7 +18,7 @@ type ConfirmationDialogProps = {
   /** Cancel button label (defaults to "Cancel") */
   cancelLabel?: string
   /** Confirm button variant (defaults to "primary") */
-  confirmVariant?: ConfirmVariant
+  confirmVariant?: 'primary' | 'danger'
   /** Modal size variant (defaults to "small") */
   variant?: 'small' | 'medium' | 'large'
   /** Optional title icon variant (e.g., "warning") */
@@ -36,7 +27,12 @@ type ConfirmationDialogProps = {
    * Optional extra confirmation for irreversible actions. The confirm button stays
    * disabled until the checkbox is checked; state resets whenever the dialog opens.
    */
-  destructiveAcknowledgement?: DestructiveAcknowledgementProps
+  destructiveAcknowledgement?: {
+    /** Stable id for the checkbox (labels and tests). */
+    checkboxId: string
+    /** Checkbox label (e.g. "I understand this cannot be undone"). */
+    label: ReactNode
+  }
   /** When true, confirm shows a spinner and both footer actions are disabled */
   confirmLoading?: boolean
   /** Optional aria-labelledby id */
@@ -53,7 +49,7 @@ type ConfirmationDialogProps = {
  *
  * @example
  * ```tsx
- * <ConfirmationDialog
+ * <NxConfirmationDialog
  *   isOpen={deleteDialogOpen}
  *   onClose={closeDialog}
  *   onConfirm={handleDelete}
@@ -69,10 +65,10 @@ type ConfirmationDialogProps = {
  *   <Content component="p">
  *     The user <strong>{user.name}</strong> will be deleted. This cannot be undone.
  *   </Content>
- * </ConfirmationDialog>
+ * </NxConfirmationDialog>
  * ```
  */
-export function ConfirmationDialog({
+export function NxConfirmationDialog({
   isOpen,
   onClose,
   onConfirm,
@@ -87,7 +83,7 @@ export function ConfirmationDialog({
   confirmLoading = false,
   'aria-labelledby': ariaLabelledby,
   'aria-describedby': ariaDescribedby,
-}: Readonly<ConfirmationDialogProps>) {
+}: Readonly<NxConfirmationDialogProps>) {
   const [destructiveAcknowledged, setDestructiveAcknowledged] = useState(false)
 
   // Reset acknowledgement state when the dialog is not visible, so reopening starts clean.

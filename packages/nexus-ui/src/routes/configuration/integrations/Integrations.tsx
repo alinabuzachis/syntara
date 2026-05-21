@@ -15,7 +15,7 @@ import { useLocation } from 'wouter'
 
 import { AppRoute } from '../../../app/AppRoute'
 import { toolManagerClient } from '../../../client'
-import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
+import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { FilterBar } from '../../../components/filters/FilterBar'
 import { IconLabel } from '../../../components/IconLabel'
@@ -332,7 +332,7 @@ export default function Integrations() {
         </NxPageBody>
       )}
 
-      <ConfirmationDialog
+      <NxConfirmationDialog
         isOpen={validateDialog.isOpen}
         onClose={validateDialog.close}
         onConfirm={handleValidate}
@@ -340,9 +340,9 @@ export default function Integrations() {
         confirmLabel="Validate"
       >
         Are you sure you want to validate the connection for &quot;{validateDialog.item?.name}&quot;?
-      </ConfirmationDialog>
+      </NxConfirmationDialog>
 
-      <ConfirmationDialog
+      <NxConfirmationDialog
         isOpen={deleteDialog.isOpen}
         onClose={deleteDialog.close}
         onConfirm={handleDelete}
@@ -356,7 +356,7 @@ export default function Integrations() {
         }}
       >
         The integration <strong>{deleteDialog.item?.name}</strong> will be disconnected. This cannot be undone.
-      </ConfirmationDialog>
+      </NxConfirmationDialog>
     </NxPage>
   )
 }

@@ -16,7 +16,7 @@ import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table
 import type { IAction } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
 
-import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
+import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
 import { FilterBar } from '../../../components/filters'
@@ -406,7 +406,7 @@ export function UserGroupsPanel({ userId }: Readonly<UserGroupsPanelProps>) {
         existingGroupIds={groups.flatMap((g) => (g.id ? [g.id] : []))}
       />
 
-      <ConfirmationDialog
+      <NxConfirmationDialog
         isOpen={!!groupToRemove}
         onClose={() => setGroupToRemove(null)}
         onConfirm={handleRemove}
@@ -417,7 +417,7 @@ export function UserGroupsPanel({ userId }: Readonly<UserGroupsPanelProps>) {
       >
         This removes the user from group <strong>{groupToRemove?.name}</strong>. They will lose any permissions granted
         through this group membership.
-      </ConfirmationDialog>
+      </NxConfirmationDialog>
     </>
   )
 }

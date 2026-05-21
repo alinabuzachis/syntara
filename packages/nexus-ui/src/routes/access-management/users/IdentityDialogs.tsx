@@ -11,7 +11,7 @@ import {
 } from '@patternfly/react-core'
 import { PluggedIcon } from '@patternfly/react-icons'
 
-import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
+import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 
 import { AttachIdentityModal } from './AttachIdentityModal'
 import type { UserIdentity } from './identityUtils'
@@ -28,7 +28,7 @@ function DetachConfirmModal({
   onCancel: () => void
 }>) {
   return (
-    <ConfirmationDialog
+    <NxConfirmationDialog
       isOpen={!!identity}
       onClose={onCancel}
       onConfirm={onConfirm}
@@ -55,7 +55,7 @@ function DetachConfirmModal({
           </DescriptionListDescription>
         </DescriptionListGroup>
       </DescriptionList>
-    </ConfirmationDialog>
+    </NxConfirmationDialog>
   )
 }
 
@@ -100,7 +100,7 @@ export function IdentityDialogs({
         onConfirm={onConfirmDetach}
         onCancel={onCancelDetach}
       />
-      <ConfirmationDialog
+      <NxConfirmationDialog
         isOpen={!!convertProvider}
         onClose={onCloseConvert}
         onConfirm={onConfirmConvert}
@@ -121,7 +121,7 @@ export function IdentityDialogs({
           <ListItem>You will be signed out and must sign in via the identity provider</ListItem>
           <ListItem>This action cannot be undone</ListItem>
         </List>
-      </ConfirmationDialog>
+      </NxConfirmationDialog>
     </>
   )
 }

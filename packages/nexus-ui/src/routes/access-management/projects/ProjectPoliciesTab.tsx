@@ -4,7 +4,7 @@ import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table
 import type { IAction, ThProps } from '@patternfly/react-table'
 import { useState } from 'react'
 
-import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
+import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
 import { FilterBar } from '../../../components/filters'
@@ -210,7 +210,7 @@ export function ProjectPoliciesTab({ projectId }: Readonly<{ projectId: string }
         />
       )}
 
-      <ConfirmationDialog
+      <NxConfirmationDialog
         isOpen={deleteDialog.isOpen}
         onClose={deleteDialog.close}
         onConfirm={() => handleDelete(deleteDialog.item)}
@@ -225,7 +225,7 @@ export function ProjectPoliciesTab({ projectId }: Readonly<{ projectId: string }
       >
         The policy <strong>{deleteDialog.item?.name}</strong> will be deleted. Any roles using this policy will lose its
         permissions. This cannot be undone.
-      </ConfirmationDialog>
+      </NxConfirmationDialog>
     </>
   )
 }

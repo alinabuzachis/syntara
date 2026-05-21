@@ -1,7 +1,7 @@
 import type { IdentityProvidersAPI } from '@ansible/nexus-contracts'
 import { Content, ContentVariants } from '@patternfly/react-core'
 
-import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
+import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 
 type IdentityProvider = IdentityProvidersAPI.components['schemas']['IdentityProviderResponse']
 
@@ -21,7 +21,7 @@ export function DisableIdentityProviderDialog({
   if (!provider) return null
 
   return (
-    <ConfirmationDialog
+    <NxConfirmationDialog
       isOpen
       onClose={onClose}
       onConfirm={onConfirm}
@@ -35,6 +35,6 @@ export function DisableIdentityProviderDialog({
         sign in with this provider until it is re-enabled.
       </Content>
       <Content component={ContentVariants.p}>You can re-enable the identity provider at any time.</Content>
-    </ConfirmationDialog>
+    </NxConfirmationDialog>
   )
 }
