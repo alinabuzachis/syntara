@@ -12,6 +12,8 @@ describe('BuilderEditorToolbar', () => {
     isPending: false,
     isKebabOpen: false,
     publishedVersion: null as number | null,
+    isAddNodePanelOpen: false,
+    hasNoWorkflowNodes: false,
     dispatch: vi.fn(),
     markDirty: vi.fn(),
     handleToggleHistory: vi.fn(),
@@ -29,6 +31,27 @@ describe('BuilderEditorToolbar', () => {
     render(<BuilderEditorToolbar {...defaultProps} />)
 
     expect(screen.getByRole('button', { name: /Add Step/i })).toBeInTheDocument()
+  })
+
+  it('shows active state when Add step panel is open', () => {
+    render(<BuilderEditorToolbar {...defaultProps} isAddNodePanelOpen />)
+
+    expect(screen.getByRole('button', { name: /Add Step/i })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('shows inactive state when Add step panel is closed', () => {
+    render(<BuilderEditorToolbar {...defaultProps} isAddNodePanelOpen={false} />)
+
+    expect(screen.getByRole('button', { name: /Add Step/i })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('hides Add Step button when workflow has no triggers or steps yet', () => {
+    const { container } = render(
+      <BuilderEditorToolbar {...defaultProps} isNew hasNoWorkflowNodes isAddNodePanelOpen workflow={undefined} />
+    )
+
+    expect(screen.queryByRole('button', { name: /Add Step/i })).not.toBeInTheDocument()
+    expect(container.querySelectorAll('.pf-v6-c-divider')).toHaveLength(1)
   })
 
   it('opens add node panel when Add Step is clicked', async () => {

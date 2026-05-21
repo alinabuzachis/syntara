@@ -34,6 +34,8 @@ type BuilderToolbarContentProps = Readonly<{
   onPublishClick: () => void
   onUnpublish: () => void
   triggers?: { id: string; name?: string }[]
+  isAddNodePanelOpen: boolean
+  hasNoWorkflowNodes: boolean
 }>
 
 /**
@@ -62,6 +64,8 @@ function BuilderToolbarContent({
   onPublishClick,
   onUnpublish,
   triggers,
+  isAddNodePanelOpen,
+  hasNoWorkflowNodes,
 }: BuilderToolbarContentProps) {
   if (isLiveRunActive && onBackToEditor) {
     const isCancellable = isExecutionCancellable(executionStatus)
@@ -95,6 +99,8 @@ function BuilderToolbarContent({
       onPublishClick={onPublishClick}
       onUnpublish={onUnpublish}
       triggers={triggers}
+      isAddNodePanelOpen={isAddNodePanelOpen}
+      hasNoWorkflowNodes={hasNoWorkflowNodes}
     />
   )
 }
@@ -123,6 +129,8 @@ export type BuilderWorkflowPageHeaderProps = Readonly<{
   isApprovalLoading?: boolean
   onReviewApproval?: () => void
   triggers?: { id: string; name?: string }[]
+  isAddNodePanelOpen: boolean
+  hasNoWorkflowNodes: boolean
   ProjectSelector: ReactNode
   dispatch: Dispatch<BuilderAction>
   markDirty: () => void
@@ -155,6 +163,8 @@ export function BuilderWorkflowPageHeader({
   isApprovalLoading,
   onReviewApproval,
   triggers,
+  isAddNodePanelOpen,
+  hasNoWorkflowNodes,
   ProjectSelector,
   dispatch,
   markDirty,
@@ -235,6 +245,8 @@ export function BuilderWorkflowPageHeader({
             onPublishClick={() => publishDialog.open(true)}
             onUnpublish={onUnpublish}
             triggers={triggers}
+            isAddNodePanelOpen={isAddNodePanelOpen}
+            hasNoWorkflowNodes={hasNoWorkflowNodes}
           />
         }
       />

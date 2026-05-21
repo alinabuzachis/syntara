@@ -331,6 +331,8 @@ export function BuilderContent(props: BuilderContentProps) {
                 isApprovalLoading={isApprovalLoading}
                 onReviewApproval={openApprovalView}
                 triggers={triggers}
+                isAddNodePanelOpen={isAddNodePanelOpen}
+                hasNoWorkflowNodes={hasNoWorkflowNodes}
               />
             </StackItem>
             <StackItem isFilled style={{ minHeight: 0 }}>

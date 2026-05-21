@@ -176,6 +176,10 @@ type BuilderEditorToolbarProps = Readonly<{
   isPending: boolean
   isKebabOpen: boolean
   publishedVersion: number | null
+  /** True while the Add step side panel is open (including forced-open trigger selection). */
+  isAddNodePanelOpen: boolean
+  /** Empty workflow with no triggers or steps — hide toolbar Add step; panel stays open for triggers. */
+  hasNoWorkflowNodes: boolean
   dispatch: Dispatch<BuilderAction>
   markDirty: () => void
   handleToggleHistory: () => void
@@ -195,6 +199,8 @@ export function BuilderEditorToolbar({
   isPending,
   isKebabOpen,
   publishedVersion,
+  isAddNodePanelOpen,
+  hasNoWorkflowNodes,
   dispatch,
   markDirty,
   handleToggleHistory,
@@ -227,27 +233,31 @@ export function BuilderEditorToolbar({
 
   return (
     <>
-      <Button
-        variant="plain"
-        onClick={() => {
-          dispatch({
-            type: 'OPEN_ADD_NODE_PANEL',
-            payload: { sourceNodeId: null, replacementNodeId: null },
-          })
-        }}
-        icon={
-          <Icon isInline>
-            <RhUiAddSquareIcon />
-          </Icon>
-        }
-        iconPosition="start"
-      >
-        Add step
-      </Button>
+      {!hasNoWorkflowNodes && (
+        <Button
+          variant="plain"
+          isClicked={isAddNodePanelOpen}
+          aria-pressed={isAddNodePanelOpen}
+          onClick={() => {
+            dispatch({
+              type: 'OPEN_ADD_NODE_PANEL',
+              payload: { sourceNodeId: null, replacementNodeId: null },
+            })
+          }}
+          icon={
+            <Icon isInline>
+              <RhUiAddSquareIcon />
+            </Icon>
+          }
+          iconPosition="start"
+        >
+          Add step
+        </Button>
+      )}
 
       {!isNew && workflow?.id && (
         <>
-          <Divider orientation={{ default: 'vertical' }} />
+          {!hasNoWorkflowNodes && <Divider orientation={{ default: 'vertical' }} />}
           {hasMultipleTriggers ? (
             <Dropdown
               isOpen={isRunDropdownOpen}
@@ -287,7 +297,7 @@ export function BuilderEditorToolbar({
         </>
       )}
 
-      <Divider orientation={{ default: 'vertical' }} />
+      {(!hasNoWorkflowNodes || (!isNew && workflow?.id)) && <Divider orientation={{ default: 'vertical' }} />}
 
       <Button
         variant="plain"

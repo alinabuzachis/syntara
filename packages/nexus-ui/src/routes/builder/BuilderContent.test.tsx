@@ -137,6 +137,30 @@ describe('BuilderContent', () => {
     },
   } as unknown as WorkflowWithVersion
 
+  /** Workflow with at least one trigger and step so toolbar Add step is shown and the panel can be toggled. */
+  const createWorkflowWithNodes = (): WorkflowWithVersion =>
+    ({
+      ...mockWorkflow,
+      version: {
+        workflow_definition: {
+          schema_version: '2.0.0' as const,
+          name: 'Test Workflow',
+          description: 'Test Description',
+          triggers: [{ id: 'manual_trigger', type: 'manual_trigger', config: {} }],
+          nodes: [
+            {
+              type: 'script' as const,
+              id: 'task-1',
+              name: 'Task 1',
+              config: { language: 'python', code: '' },
+            },
+          ],
+          edges: [],
+          $defs: {},
+        },
+      },
+    }) as unknown as WorkflowWithVersion
+
   // Helper to create a workflow with a manual trigger that has an input schema
   const createWorkflowWithInputSchema = (): WorkflowWithVersion =>
     ({
@@ -430,9 +454,18 @@ describe('BuilderContent', () => {
   // ============================================================================
 
   describe('Add step panel', () => {
+    it('shows Add step panel by default for empty new workflow without toolbar button', async () => {
+      await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
+
+      await waitFor(() => {
+        expect(screen.getByRole('region', { name: 'Add step' })).toBeInTheDocument()
+      })
+      expect(screen.queryByRole('button', { name: /add step/i })).not.toBeInTheDocument()
+    })
+
     it('opens Add step panel when Add Step button is clicked', async () => {
       const user = userEvent.setup()
-      await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
+      await renderBuilder({ workflow: createWorkflowWithNodes(), isNew: false, workflowId: 'workflow-1' })
       const addNodeButton = screen.getByRole('button', { name: /add step/i })
       await user.click(addNodeButton)
       await waitFor(() => {
@@ -441,29 +474,7 @@ describe('BuilderContent', () => {
     })
 
     it('closes Add step panel via close callback', async () => {
-      // Use workflow with steps - empty workflows force add step panel to stay open
-      const workflowWithNodes = {
-        ...mockWorkflow,
-        version: {
-          workflow_definition: {
-            schema_version: '2.0.0' as const,
-            name: 'Test',
-            description: '',
-            triggers: [{ id: 'manual_trigger', type: 'manual_trigger', config: {} }],
-            nodes: [
-              {
-                type: 'script' as const,
-                id: 'task-1',
-                name: 'Task',
-                config: { language: 'python', code: '' },
-              },
-            ],
-            edges: [],
-            $defs: {},
-          },
-        },
-      } as unknown as WorkflowWithVersion
-      await renderBuilder({ workflow: workflowWithNodes, isNew: false, workflowId: 'workflow-1' })
+      await renderBuilder({ workflow: createWorkflowWithNodes(), isNew: false, workflowId: 'workflow-1' })
 
       // Open panel
       const user = userEvent.setup()
@@ -483,30 +494,17 @@ describe('BuilderContent', () => {
       })
     })
 
-    it('opens step editor when selecting a step type from add step panel', async () => {
+    it('opens Add step panel from toolbar when workflow has nodes', async () => {
       const user = userEvent.setup()
-      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
-      await waitFor(() => {
-        expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
-      })
+      await renderBuilder({ workflow: createWorkflowWithNodes(), isNew: false, workflowId: 'workflow-1' })
 
-      // Open add step panel
+      expect(screen.queryByRole('region', { name: 'Add step' })).not.toBeInTheDocument()
+
       await user.click(screen.getByRole('button', { name: /add step/i }))
       await waitFor(() => {
         expect(screen.getByRole('region', { name: 'Add step' })).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: /add step/i })).toHaveAttribute('aria-pressed', 'true')
       })
-
-      // Find and click a step type option (tests onSelectNode callback - line 1125)
-      // Look for options that appear in the panel - try different labels
-      const nodeOptions = ['Script', 'REST API', 'Condition', 'Loop', 'Parallel']
-      for (const nodeName of nodeOptions) {
-        const option = screen.queryByText(nodeName)
-        if (option) {
-          await user.click(option)
-          // This should trigger OPEN_NODE_EDITOR_ADD action or show subtypes
-          break
-        }
-      }
     })
   })
 
@@ -754,7 +752,7 @@ describe('BuilderContent', () => {
 
     it('closes run modal via modal onClose', async () => {
       const user = userEvent.setup()
-      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+      await renderBuilder({ workflow: createWorkflowWithNodes(), isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
@@ -1555,33 +1553,9 @@ describe('BuilderContent', () => {
   // ============================================================================
 
   describe('Reducer State Transitions', () => {
-    // Workflow with at least one step so addNodePanelOpen can be toggled
-    // (empty workflows force the add step panel to stay open)
-    const workflowWithNodes = {
-      ...mockWorkflow,
-      version: {
-        workflow_definition: {
-          schema_version: '2.0.0' as const,
-          name: 'Test Workflow',
-          description: 'Test Description',
-          triggers: [{ id: 'manual_trigger', type: 'manual_trigger', config: {} }],
-          nodes: [
-            {
-              type: 'script' as const,
-              id: 'task-1',
-              name: 'Task 1',
-              config: { language: 'python', code: '' },
-            },
-          ],
-          edges: [],
-          $defs: {},
-        },
-      },
-    } as unknown as WorkflowWithVersion
-
     it('TOGGLE_DETAILS closes add step panel when opening details', async () => {
       const user = userEvent.setup()
-      await renderBuilder({ workflow: workflowWithNodes, isNew: false, workflowId: 'workflow-1' })
+      await renderBuilder({ workflow: createWorkflowWithNodes(), isNew: false, workflowId: 'workflow-1' })
 
       // First open add step panel
       await user.click(screen.getByRole('button', { name: /add step/i }))
@@ -1599,7 +1573,7 @@ describe('BuilderContent', () => {
 
     it('TOGGLE_HISTORY closes add step panel when opening history', async () => {
       const user = userEvent.setup()
-      await renderBuilder({ workflow: workflowWithNodes, isNew: false, workflowId: 'workflow-1' })
+      await renderBuilder({ workflow: createWorkflowWithNodes(), isNew: false, workflowId: 'workflow-1' })
 
       // First open add step panel
       await user.click(screen.getByRole('button', { name: /add step/i }))
@@ -1832,7 +1806,7 @@ describe('BuilderContent', () => {
 
   describe('Panel Interactions', () => {
     it('closes details panel when opening add step panel', async () => {
-      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+      await renderBuilder({ workflow: createWorkflowWithNodes(), isNew: false, workflowId: 'workflow-1' })
 
       // Open details first
       await clickKebabItem('Workflow details')
@@ -1847,7 +1821,7 @@ describe('BuilderContent', () => {
     })
 
     it('closes history panel when opening add step panel', async () => {
-      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+      await renderBuilder({ workflow: createWorkflowWithNodes(), isNew: false, workflowId: 'workflow-1' })
 
       // Open history first
       await clickKebabItem('Run history')
@@ -2322,7 +2296,7 @@ describe('BuilderContent', () => {
 
   describe('Panel State Management', () => {
     it('opens add step panel with source step context', async () => {
-      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+      await renderBuilder({ workflow: createWorkflowWithNodes(), isNew: false, workflowId: 'workflow-1' })
 
       const user = userEvent.setup()
       // Open add step panel
