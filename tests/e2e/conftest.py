@@ -6,6 +6,7 @@ inherited automatically.  This file adds e2e-specific fixtures.
 """
 
 import os
+from collections.abc import Generator
 from http import HTTPStatus
 from pathlib import Path
 from typing import Any, cast
@@ -111,6 +112,17 @@ def nexus_client(nexus_base_url: str) -> AuthenticatedClient:
 def nexus_api(nexus_client: AuthenticatedClient) -> NexusApiRegistry:
     """Return a NexusApiRegistry bound to the authenticated test client."""
     return NexusApiRegistry(nexus_client)
+
+
+@pytest.fixture(autouse=True)
+def reset_async_client(nexus_client: AuthenticatedClient) -> Generator[None, None, None]:
+    """Reset the cached async httpx client after each test.
+
+    nexus_client is session-scoped but async tests run with function-scoped event loops.
+    Without this, the AsyncClient created in one test's loop becomes stale for the next.
+    """
+    yield
+    nexus_client._async_client = None
 
 
 @pytest.fixture(scope="session")

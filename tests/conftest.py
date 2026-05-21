@@ -12,7 +12,6 @@ import os as _os
 _os.environ.setdefault("APP_ENV_FILE_PATH", "/dev/null")
 
 import asyncio
-import gc
 import os
 import tempfile
 from collections.abc import AsyncGenerator, Awaitable, Callable, Generator
@@ -482,43 +481,6 @@ def worker_id(request: pytest.FixtureRequest) -> str:
     if hasattr(request.config, "workerinput"):
         return request.config.workerinput["workerid"]  # type: ignore[no-any-return]
     return "master"
-
-
-@pytest.fixture(scope="session")
-def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
-    """Create an event loop for the test session.
-
-    This ensures async fixtures work correctly across the test session.
-    Includes cleanup to prevent subprocess warnings.
-
-    Yields:
-        Event loop for async tests
-
-    """
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-
-    # Cleanup to prevent subprocess transport warnings
-    try:
-        # Force garbage collection to cleanup subprocess transports
-        gc.collect()
-
-        # Cancel all remaining tasks
-        pending = asyncio.all_tasks(loop)
-        for task in pending:
-            task.cancel()
-
-        # Run the loop briefly to process cancellations
-        if pending:
-            loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
-
-        # Small delay to allow subprocess cleanup
-        loop.run_until_complete(asyncio.sleep(0.01))
-    except (RuntimeError, asyncio.CancelledError):
-        # Ignore errors during cleanup
-        pass
-
-    loop.close()
 
 
 # ============================================================================
