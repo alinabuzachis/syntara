@@ -38,6 +38,7 @@ COPY samples/ ./samples/
 FROM registry.access.redhat.com/ubi9/ubi-minimal:latest@sha256:83006d535923fcf1345067873524a3980316f51794f01d8655be55d6e9387183
 
 ARG CONTAINER_IMAGE_VERSION=""
+ARG APP_SEGMENT_WRITE_KEY=""
 
 USER root
 
@@ -57,9 +58,6 @@ COPY LICENSE /licenses/LICENSE
 # Copy application, venv, and uv from builder
 COPY --from=builder /opt/app-root/ /opt/app-root/
 
-RUN --mount=type=secret,id=nexus-segment-write-keys/SEGMENT_WRITE_KEY_DEV \
-    printf 'APP_SEGMENT_WRITE_KEY=%s\n' "$(cat /run/secrets/nexus-segment-write-keys/SEGMENT_WRITE_KEY_DEV)" > /opt/app-root/src/.env
-
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -67,7 +65,8 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PYTHONPATH=/opt/app-root/src/src \
     PATH="/opt/app-root/src/.venv/bin:/opt/app-root/bin:$PATH" \
-    APP_CONTAINER_IMAGE_VERSION="${CONTAINER_IMAGE_VERSION}"
+    APP_CONTAINER_IMAGE_VERSION="${CONTAINER_IMAGE_VERSION}" \
+    APP_SEGMENT_WRITE_KEY="${APP_SEGMENT_WRITE_KEY}"
 
 WORKDIR /opt/app-root/src
 
