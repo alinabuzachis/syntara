@@ -1,7 +1,5 @@
 """Unit tests for telemetry event models and builders."""
 
-from unittest.mock import patch
-
 import pytest
 from pydantic import ValidationError
 
@@ -86,19 +84,12 @@ class TestBaseTelemetryEventContext:
         class StubEvent(BaseTelemetryEvent):
             pass
 
-        with (
-            override_settings(container_image_version="v1.2.3-deadbeef"),
-            patch(
-                "importlib.metadata.version",
-                return_value="4.5.6",
-            ),
-        ):
+        with override_settings(container_image_version="v1.2.3-deadbeef"):
             event = StubEvent(entitlement_id="ent-1")
             segment_event = event.to_segment_event()
 
         ctx = segment_event["context"]
         assert ctx == {
-            "nexus_version": "4.5.6",
             "container_image_version": "v1.2.3-deadbeef",
         }
 
@@ -108,17 +99,10 @@ class TestBaseTelemetryEventContext:
         class StubEvent(BaseTelemetryEvent):
             pass
 
-        with (
-            override_settings(container_image_version="img-tag"),
-            patch(
-                "importlib.metadata.version",
-                return_value="0.0.1",
-            ),
-        ):
+        with override_settings(container_image_version="img-tag"):
             event = StubEvent(entitlement_id="ent-2")
             props = event.to_segment_event()["properties"]
 
-        assert "nexus_version" not in props  # type: ignore[operator]
         assert "container_image_version" not in props  # type: ignore[operator]
 
 
