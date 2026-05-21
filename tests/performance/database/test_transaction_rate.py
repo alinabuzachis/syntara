@@ -23,7 +23,7 @@ from nexus_api_client.models.execution_create import ExecutionCreate
 from nexus_api_client.models.workflow_update import WorkflowUpdate
 
 from tests.performance.conftest import (
-    _log_request_failure,
+    log_request_failure,
     make_request,
     poll_for_component_kpis,
     poll_for_metric_records,
@@ -77,7 +77,7 @@ def _write_operation(nexus_api: NexusApiRegistry, workflow_ids: list[str]) -> tu
         return elapsed_ms, r.is_success or r.status_code in (200, 201, 202)
     except Exception as exc:
         elapsed_ms = (time.monotonic() - start) * 1000
-        _log_request_failure(exc, context="_write_operation")
+        log_request_failure(exc, context="_write_operation")
         return elapsed_ms, False
 
 
@@ -136,7 +136,7 @@ class TestDatabaseTransactionRate:
                 if not success:
                     read_errors += 1
             except Exception as exc:
-                _log_request_failure(exc, context="_run_mixed_workload[read]")
+                log_request_failure(exc, context="_run_mixed_workload[read]")
                 read_errors += 1
 
         write_completed = 0
@@ -148,7 +148,7 @@ class TestDatabaseTransactionRate:
                 if not success:
                     write_errors += 1
             except Exception as exc:
-                _log_request_failure(exc, context="_run_mixed_workload[write]")
+                log_request_failure(exc, context="_run_mixed_workload[write]")
                 write_errors += 1
 
         return {

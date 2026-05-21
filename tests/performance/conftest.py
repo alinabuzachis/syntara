@@ -174,7 +174,7 @@ def _extract_status_code(exc: Exception) -> int | None:
     return None
 
 
-def _log_request_failure(exc: Exception, *, context: str) -> None:
+def log_request_failure(exc: Exception, *, context: str) -> None:
     """Log and fail-fast on auth/permission errors.
 
     HTTP errors (httpx.HTTPStatusError, UnexpectedStatus) are logged without
@@ -257,7 +257,7 @@ def make_request(
         return elapsed_ms, r.is_success
     except Exception as exc:
         elapsed_ms = (time.monotonic() - start) * 1000
-        _log_request_failure(exc, context="make_request")
+        log_request_failure(exc, context="make_request")
         return elapsed_ms, False
 
 
@@ -358,7 +358,7 @@ def poll_until_resources_terminal(
                     status = str(r.parsed.status)
                     status_counts[status] = status_counts.get(status, 0) + 1
             except Exception as exc:
-                _log_request_failure(exc, context="poll_for_resource_status")
+                log_request_failure(exc, context="poll_for_resource_status")
         terminal = sum(v for k, v in status_counts.items() if k in TERMINAL_STATUSES)
         if terminal >= len(resource_ids):
             break
@@ -421,7 +421,7 @@ def submit_execution(
         return elapsed_ms, success, exec_id
     except Exception as exc:
         elapsed_ms = (time.monotonic() - start) * 1000
-        _log_request_failure(exc, context="submit_execution")
+        log_request_failure(exc, context="submit_execution")
         return elapsed_ms, False, None
 
 
@@ -446,7 +446,7 @@ def check_health(
         return elapsed_ms, response.status_code == 200
     except Exception as exc:
         elapsed_ms = (time.monotonic() - start) * 1000
-        _log_request_failure(exc, context="check_health")
+        log_request_failure(exc, context="check_health")
         return elapsed_ms, False
 
 
@@ -498,7 +498,7 @@ def run_load_window(
             if not success:
                 errors += 1
         except Exception as exc:
-            _log_request_failure(exc, context="run_load_window")
+            log_request_failure(exc, context="run_load_window")
             errors += 1
 
     wall_time = time.monotonic() - window_start
@@ -596,7 +596,7 @@ def submit_invocation(
         return elapsed_ms, r.is_success or r.status_code in (200, 201, 202), inv_id
     except Exception as exc:
         elapsed_ms = (time.monotonic() - start) * 1000
-        _log_request_failure(exc, context="submit_invocation")
+        log_request_failure(exc, context="submit_invocation")
         return elapsed_ms, False, None
 
 
@@ -809,7 +809,7 @@ def timed_http_request(
         return elapsed_ms, response.status_code, body
     except Exception as exc:
         elapsed_ms = (time.monotonic() - start) * 1000
-        _log_request_failure(exc, context="timed_http_request")
+        log_request_failure(exc, context="timed_http_request")
         return elapsed_ms, 0, {}
 
 
@@ -911,7 +911,7 @@ def poll_for_invocation_terminal_status(
                 if str(parsed.get("status", "")) in terminal_statuses:
                     return parsed
         except Exception as exc:
-            _log_request_failure(exc, context="poll_for_invocation_terminal_status")
+            log_request_failure(exc, context="poll_for_invocation_terminal_status")
         time.sleep(interval)
 
     return parsed

@@ -27,8 +27,8 @@ if TYPE_CHECKING:
 from tests.performance.conftest import (
     SIMPLE_WORKFLOW_DEFINITION,
     _extract_status_code,
-    _log_request_failure,
     create_perf_test_workflow,
+    log_request_failure,
 )
 
 TARGET_SIMPLE_QUERY_P95_MS = 50
@@ -131,7 +131,7 @@ def measure_api_call(
         return elapsed_ms, r.is_success
     except Exception as exc:
         elapsed_ms = (time.monotonic() - start) * 1000
-        _log_request_failure(exc, context="measure_api_call")
+        log_request_failure(exc, context="measure_api_call")
         return elapsed_ms, False
 
 
@@ -161,5 +161,5 @@ def measure_list_api_call(
         return elapsed_ms, r.is_success, item_count
     except Exception as exc:
         elapsed_ms = (time.monotonic() - start) * 1000
-        _log_request_failure(exc, context="measure_list_api_call")
+        log_request_failure(exc, context="measure_list_api_call")
         return elapsed_ms, False, 0

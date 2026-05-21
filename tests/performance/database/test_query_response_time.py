@@ -25,9 +25,9 @@ from nexus_api_client.models.workflow_update import WorkflowUpdate
 
 from tests.performance.conftest import (
     SIMPLE_WORKFLOW_DEFINITION,
-    _log_request_failure,
     compute_percentile,
     create_perf_test_workflow,
+    log_request_failure,
     poll_for_component_kpis,
     poll_for_metric_records,
 )
@@ -135,7 +135,7 @@ class TestDatabaseQueryResponseTime:
                 success = r.is_success
             except Exception as exc:
                 elapsed = (time.monotonic() - start) * 1000
-                _log_request_failure(exc, context="_run_execution_queries")
+                log_request_failure(exc, context="_run_execution_queries")
                 success = False
 
             complex_times.append(elapsed)

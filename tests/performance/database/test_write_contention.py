@@ -24,9 +24,9 @@ from nexus_api_client.models.workflow_update import WorkflowUpdate
 
 from tests.performance.conftest import (
     SIMPLE_WORKFLOW_DEFINITION,
-    _log_request_failure,
     compute_percentile,
     create_perf_test_workflow,
+    log_request_failure,
     poll_for_component_kpis,
     poll_for_metric_records,
 )
@@ -91,7 +91,7 @@ def _concurrent_update(
         return elapsed_ms, r.is_success
     except Exception as exc:
         elapsed_ms = (time.monotonic() - start) * 1000
-        _log_request_failure(exc, context="_concurrent_update")
+        log_request_failure(exc, context="_concurrent_update")
         return elapsed_ms, False
 
 

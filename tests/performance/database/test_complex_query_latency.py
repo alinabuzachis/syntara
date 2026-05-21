@@ -22,8 +22,8 @@ import pytest
 import structlog
 
 from tests.performance.conftest import (
-    _log_request_failure,
     compute_percentile,
+    log_request_failure,
     poll_for_component_kpis,
     poll_for_metric_records,
 )
@@ -114,7 +114,7 @@ class TestComplexQueryLatency:
                 else:
                     break
             except Exception as exc:
-                _log_request_failure(exc, context="_advance_cursor")
+                log_request_failure(exc, context="_advance_cursor")
                 break
         return cursor
 
@@ -156,7 +156,7 @@ class TestComplexQueryLatency:
                         elapsed = (time.monotonic() - start) * 1000
                 except Exception as exc:
                     elapsed = (time.monotonic() - start) * 1000
-                    _log_request_failure(exc, context="_run_deep_pagination_queries")
+                    log_request_failure(exc, context="_run_deep_pagination_queries")
                 times.append(elapsed)
 
             per_depth_times[page_depth] = times
