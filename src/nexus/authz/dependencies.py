@@ -227,6 +227,18 @@ class PermissionChecker:
         authz_result: AuthzResult = await authorize(db, opa_client, authz_request)
 
         if not authz_result.allowed:
+            from nexus.audit.dispatcher import AuditEventDispatcher  # noqa: PLC0415
+            from nexus.authz.audit.authorization_denied import AuthorizationDeniedEvent  # noqa: PLC0415
+
+            AuditEventDispatcher.dispatch(
+                AuthorizationDeniedEvent(
+                    user_id=current_user.id,
+                    username=current_user.username,
+                    resource_type=self.resource_type,
+                    action=self.action,
+                    denied_by=authz_result.denied_by,
+                )
+            )
             logger.info(
                 "Authorization denied",
                 user_id=str(current_user.id),

@@ -203,7 +203,7 @@ async def get_current_user(
     return _user_from_payload(payload)
 
 
-def get_token_payload(
+async def get_token_payload(
     request: Request,  # noqa: ARG001
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)] = None,
 ) -> TokenPayload:
@@ -219,16 +219,22 @@ def get_token_payload(
     Raises:
         AuthenticationRequiredError: If no valid credentials provided
         InvalidTokenError: If token is invalid
+        TokenGloballyRevokedError: If token was issued before the global
+            revocation timestamp
 
     """
     if not credentials:
         raise AuthenticationRequiredError
 
     token_service = _get_token_service()
-    return token_service.decode_token(
+    payload = token_service.decode_token(
         credentials.credentials,
         token_type="access",  # noqa: S106
     )
+
+    await _check_global_revocation(payload, token_type="access")  # noqa: S106
+
+    return payload
 
 
 async def get_refresh_token(request: Request) -> TokenPayload:

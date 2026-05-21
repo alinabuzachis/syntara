@@ -437,3 +437,11 @@ class IdentityProviderService(BaseService, SecretConsumerMixin):
 
         provider.deleted_at = datetime.now(UTC)
         provider.deleted_by = self.user.id
+
+        AuditEventDispatcher.dispatch(
+            IdentityProviderLifecycleEvent(
+                provider_id=provider.id,
+                provider_name=provider.name,
+                action="deleted",
+            )
+        )

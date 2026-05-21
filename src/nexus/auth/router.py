@@ -296,7 +296,7 @@ async def login(
         401: {"description": "Invalid or expired refresh token"},
     },
 )
-@audit(EventCategory.USER_ACTION)
+@audit(EventCategory.SECURITY_EVENT)
 async def refresh_token(
     request: Request,  # noqa: ARG001
     response: Response,  # noqa: ARG001
@@ -360,6 +360,14 @@ async def refresh_token(
             raise AuthenticationRequiredError
 
         if not user.is_enabled:
+            from nexus.auth.audit.disabled_user_rejection import (  # noqa: PLC0415
+                DisabledUserRejectionEvent,
+                RejectionContext,
+            )
+
+            AuditEventDispatcher.dispatch(
+                DisabledUserRejectionEvent(user_id=str(payload.sub), context=RejectionContext.TOKEN_REFRESH)
+            )
             logger.warning("Inactive user attempted token refresh", user_id=payload.sub)
             raise AuthenticationRequiredError
 

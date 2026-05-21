@@ -6,6 +6,8 @@ from uuid import UUID
 from fastapi import Depends, Query, Request, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.audit.decorators import audit
+from nexus.audit.models.audit_event import EventCategory
 from nexus.auth import get_current_user
 from nexus.auth.session import create_session_store
 from nexus.authz.dependencies import PermissionChecker, VisibilityFilter
@@ -97,6 +99,7 @@ def _get_role_assignment_service(
     operation_id="create_user",
     response_description="User created",
 )
+@audit(EventCategory.USER_ACTION, event_action="user_create")
 async def create_user(
     request: UserCreate,
     service: Annotated[UsersService, Depends(get_user_service)],
@@ -150,10 +153,12 @@ async def get_user(
 @router.patch(
     "/{user_id}", dependencies=[Depends(_user_update)], operation_id="update_user", response_description="Updated user"
 )
+@audit(EventCategory.USER_ACTION, event_action="user_update", capture_args={"user_id"})
 async def update_user(
     user_id: UUID,
     request: UserUpdate,
     service: Annotated[UsersService, Depends(get_user_service)],
+    current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> UserRead:
     """Update a user.
@@ -170,6 +175,33 @@ async def update_user(
         password=password,
         is_enabled=request.is_enabled,
     )
+
+    if password is not None:
+        from nexus.audit.dispatcher import AuditEventDispatcher  # noqa: PLC0415
+        from nexus.auth.audit.user_account_change import UserPasswordChangedEvent  # noqa: PLC0415
+
+        AuditEventDispatcher.dispatch(
+            UserPasswordChangedEvent(
+                actor_id=current_user.id,
+                actor_username=current_user.username,
+                target_user_id=user_id,
+                target_username=user.username,
+            )
+        )
+
+    if request.is_enabled is not None:
+        from nexus.audit.dispatcher import AuditEventDispatcher  # noqa: PLC0415
+        from nexus.auth.audit.user_account_change import AccountStatus, UserAccountStatusChangedEvent  # noqa: PLC0415
+
+        AuditEventDispatcher.dispatch(
+            UserAccountStatusChangedEvent(
+                actor_id=current_user.id,
+                actor_username=current_user.username,
+                target_user_id=user_id,
+                target_username=user.username,
+                new_status=AccountStatus.ENABLED if request.is_enabled else AccountStatus.DISABLED,
+            )
+        )
 
     # When a user's password is changed or their account is deactivated,
     # revoke all their existing refresh token sessions.  This is a hard
@@ -195,6 +227,7 @@ async def update_user(
     operation_id="delete_user",
     response_description="User deleted",
 )
+@audit(EventCategory.USER_ACTION, event_action="user_delete", capture_args={"user_id"})
 async def delete_user(
     user_id: UUID,
     service: Annotated[UsersService, Depends(get_user_service)],
@@ -235,6 +268,7 @@ async def list_user_groups(
     operation_id="set_user_groups",
     response_description="Updated group memberships",
 )
+@audit(EventCategory.USER_ACTION, event_action="user_groups_set", capture_args={"user_id"})
 async def set_user_groups(
     user_id: UUID,
     request: UserGroupsSet,
@@ -355,6 +389,7 @@ async def list_user_identities(
     dependencies=[Depends(_identity_attach)],
     operation_id="attach_user_identity",
 )
+@audit(EventCategory.USER_ACTION, event_action="identity_attach", capture_args={"user_id"})
 async def attach_user_identity(
     user_id: UUID,
     request: UserIdentityAttach,
@@ -373,6 +408,7 @@ async def attach_user_identity(
     dependencies=[Depends(_identity_detach)],
     operation_id="detach_user_identity",
 )
+@audit(EventCategory.USER_ACTION, event_action="identity_detach", capture_args={"user_id", "identity_id"})
 async def detach_user_identity(
     user_id: UUID,
     identity_id: UUID,

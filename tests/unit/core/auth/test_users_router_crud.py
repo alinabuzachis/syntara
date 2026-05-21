@@ -97,6 +97,7 @@ class TestUpdateUserEndpoint:
     @pytest.mark.asyncio
     async def test_updates_user_and_returns_read(self) -> None:
         updated_user = _make_user(full_name="Updated")
+        actor = _make_user(username="admin")
         service = AsyncMock()
         service.update_user = AsyncMock(return_value=updated_user)
         service.to_read = AsyncMock(
@@ -117,7 +118,7 @@ class TestUpdateUserEndpoint:
 
         request = UserUpdate(full_name="Updated")
         with patch("nexus.users.users_router.create_session_store", return_value=mock_store):
-            result = await update_user(updated_user.id, request, service, db)
+            result = await update_user(updated_user.id, request, service, actor, db)
 
         assert result.full_name == "Updated"
         service.update_user.assert_called_once()
@@ -125,6 +126,7 @@ class TestUpdateUserEndpoint:
     @pytest.mark.asyncio
     async def test_revokes_sessions_on_password_change(self) -> None:
         user = _make_user()
+        actor = _make_user(username="admin")
         service = AsyncMock()
         service.update_user = AsyncMock(return_value=user)
         db = AsyncMock()
@@ -134,7 +136,7 @@ class TestUpdateUserEndpoint:
         request = UserUpdate(password=SecretStr("newpassword"))
 
         with patch("nexus.users.users_router.create_session_store", return_value=mock_store):
-            await update_user(user.id, request, service, db)
+            await update_user(user.id, request, service, actor, db)
 
         mock_store.revoke_all_for_user.assert_called_once_with(user.id)
 

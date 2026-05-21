@@ -8,6 +8,8 @@ from fastapi import APIRouter, Depends, Query, Request, status
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.audit.decorators import audit
+from nexus.audit.models.audit_event import EventCategory
 from nexus.auth import get_current_user
 from nexus.auth.session import create_session_store
 from nexus.authz.dependencies import PermissionChecker
@@ -107,6 +109,7 @@ async def list_identity_providers(
     operation_id="create_identity_provider",
     response_description="Identity provider created",
 )
+@audit(EventCategory.USER_ACTION, event_action="identity_provider_create")
 async def create_identity_provider(
     provider_create: IdentityProviderCreate,
     service: Annotated[IdentityProviderService, Depends(get_identity_provider_service)],
@@ -130,6 +133,7 @@ async def get_identity_provider(
 
 
 @router.patch("/{provider_id}", dependencies=[Depends(_idp_update)], operation_id="patch_identity_provider")
+@audit(EventCategory.USER_ACTION, event_action="identity_provider_update", capture_args={"provider_id"})
 async def patch_identity_provider(
     provider_id: UUID,
     provider_patch: IdentityProviderPatch,
@@ -146,6 +150,7 @@ async def patch_identity_provider(
     operation_id="delete_identity_provider",
     response_description="Identity provider deleted",
 )
+@audit(EventCategory.USER_ACTION, event_action="identity_provider_delete", capture_args={"provider_id"})
 async def delete_identity_provider(
     provider_id: UUID,
     service: Annotated[IdentityProviderService, Depends(get_identity_provider_service)],

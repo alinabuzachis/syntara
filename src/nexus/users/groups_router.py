@@ -6,6 +6,8 @@ from uuid import UUID
 from fastapi import Depends, Query, Request, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.audit.decorators import audit
+from nexus.audit.models.audit_event import EventCategory
 from nexus.auth import get_current_user
 from nexus.auth.session import create_session_store
 from nexus.authz.dependencies import PermissionChecker, VisibilityFilter
@@ -88,6 +90,7 @@ def _get_role_assignment_service(
     operation_id="create_group",
     response_description="Group created",
 )
+@audit(EventCategory.USER_ACTION, event_action="group_create")
 async def create_group(
     request: GroupCreate,
     service: Annotated[GroupsService, Depends(get_group_service)],
@@ -140,6 +143,7 @@ async def get_group(
     operation_id="update_group",
     response_description="Updated group",
 )
+@audit(EventCategory.USER_ACTION, event_action="group_update", capture_args={"group_id"})
 async def update_group(
     group_id: UUID,
     request: GroupUpdate,
@@ -162,6 +166,7 @@ async def update_group(
     operation_id="delete_group",
     response_description="Group deleted",
 )
+@audit(EventCategory.USER_ACTION, event_action="group_delete", capture_args={"group_id"})
 async def delete_group(
     group_id: UUID,
     service: Annotated[GroupsService, Depends(get_group_service)],
@@ -182,6 +187,7 @@ async def delete_group(
     operation_id="add_member",
     response_description="Member added",
 )
+@audit(EventCategory.USER_ACTION, event_action="group_member_add", capture_args={"group_id"})
 async def add_member(
     group_id: UUID,
     request: GroupMemberAdd,
@@ -202,6 +208,7 @@ async def add_member(
     operation_id="remove_member",
     response_description="Member removed",
 )
+@audit(EventCategory.USER_ACTION, event_action="group_member_remove", capture_args={"group_id", "user_id"})
 async def remove_member(
     group_id: UUID,
     user_id: UUID,

@@ -1,7 +1,7 @@
 """Unit tests for auth dependencies (get_current_user, get_token_payload)."""
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -133,7 +133,7 @@ class TestGetTokenPayload:
         request = MagicMock()
 
         with pytest.raises(AuthenticationRequiredError):
-            get_token_payload(request, credentials=None)
+            await get_token_payload(request, credentials=None)
 
     @pytest.mark.asyncio
     async def test_returns_payload_for_valid_token(self) -> None:
@@ -146,7 +146,10 @@ class TestGetTokenPayload:
         credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="valid-jwt")
         request = MagicMock()
 
-        with patch("nexus.auth.dependencies._get_token_service", return_value=mock_token_service):
-            result = get_token_payload(request, credentials=credentials)
+        with (
+            patch("nexus.auth.dependencies._get_token_service", return_value=mock_token_service),
+            patch("nexus.auth.dependencies._check_global_revocation", new_callable=AsyncMock),
+        ):
+            result = await get_token_payload(request, credentials=credentials)
 
         assert result is payload

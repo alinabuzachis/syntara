@@ -26,6 +26,7 @@ from nexus.core.database.session import AsyncSessionLocal
 logger = structlog.stdlib.get_logger(__name__)
 
 _user_status_cache: TTLCache[str, tuple[int, bool]] = TTLCache(maxsize=4096, ttl=5)
+_stale_audit_cache: TTLCache[str, bool] = TTLCache(maxsize=4096, ttl=60)
 
 _GET_USER_STATUS_SQL = "SELECT token_version, is_enabled FROM users WHERE id = :uid"
 
@@ -83,6 +84,15 @@ class StaleTokenMiddleware(BaseHTTPMiddleware):
 
         is_logout = request.url.path.rstrip("/").endswith("/auth/logout")
         if status_resolved and not is_enabled and not is_logout:
+            from nexus.audit.dispatcher import AuditEventDispatcher  # noqa: PLC0415
+            from nexus.auth.audit.disabled_user_rejection import (  # noqa: PLC0415
+                DisabledUserRejectionEvent,
+                RejectionContext,
+            )
+
+            AuditEventDispatcher.dispatch(
+                DisabledUserRejectionEvent(user_id=user_id, context=RejectionContext.MIDDLEWARE)
+            )
             logger.warning("Rejected request from disabled user", user_id=user_id)
             return JSONResponse(
                 status_code=401,
@@ -94,5 +104,18 @@ class StaleTokenMiddleware(BaseHTTPMiddleware):
 
         if status_resolved and current_ver > token_ver:
             response.headers["X-Token-Stale"] = "true"
+
+            if user_id not in _stale_audit_cache:
+                from nexus.audit.dispatcher import AuditEventDispatcher  # noqa: PLC0415
+                from nexus.auth.audit.stale_token_detection import StaleTokenDetectionEvent  # noqa: PLC0415
+
+                AuditEventDispatcher.dispatch(
+                    StaleTokenDetectionEvent(
+                        user_id=user_id,
+                        token_version=token_ver,
+                        current_version=current_ver,
+                    )
+                )
+                _stale_audit_cache[user_id] = True
 
         return response
