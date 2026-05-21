@@ -11,14 +11,14 @@ npm run format:check >&2 || {
 
 # 2. TypeScript type check (mirrors CI: npm run tsc)
 echo "Running TypeScript type check..." >&2
-(cd "$UI_DIR" && npm run tsc) >&2 || {
-  ERRORS+=("TypeScript: run 'cd packages/nexus-ui && npm run tsc'")
+npm run tsc >&2 || {
+  ERRORS+=("TypeScript: run 'npm run tsc'")
 }
 
 # 3. ESLint (mirrors CI: npm run lint)
 echo "Running ESLint..." >&2
-(cd "$UI_DIR" && npm run lint) >&2 || {
-  ERRORS+=("ESLint: run 'cd packages/nexus-ui && npm run lint'")
+npm run lint >&2 || {
+  ERRORS+=("ESLint: run 'npm run lint'")
 }
 
 # 4. Knip dead code detection (mirrors CI: npm run knip)

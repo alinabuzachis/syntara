@@ -129,8 +129,8 @@ npm run gen                # Regenerate API contracts
 # Code Quality
 npm run format             # Format code
 npm run format:check       # Check formatting
-cd packages/nexus-ui && npm run lint   # Run ESLint
-cd packages/nexus-ui && npm run tsc     # Type check only
+npm run lint                           # Run ESLint
+npm run tsc                              # Type check only
 ```
 
 ## Connecting to Real Backend

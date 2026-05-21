@@ -215,8 +215,8 @@ Run these project commands:
 ```bash
 npm test                              # All tests
 npm run format:check                  # Formatting
-cd packages/nexus-ui && npm run lint  # Linting
-cd packages/nexus-ui && npm run tsc    # Type check
+npm run lint                          # Linting
+npm run tsc                           # Type check
 ```
 
 Then ask the user to confirm manually:

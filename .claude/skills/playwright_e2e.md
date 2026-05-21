@@ -759,7 +759,7 @@ npm run e2e
 cd packages/nexus-ui && npx playwright test --grep "specific test"
 
 # TypeScript compiles
-cd packages/nexus-ui && npx tsc --noEmit
+npm run tsc
 ```
 
 ---
