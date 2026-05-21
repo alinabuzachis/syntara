@@ -18,7 +18,7 @@ from urllib.parse import quote, urlencode, urlparse
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, Depends, Query, Request, Response
+from fastapi import Depends, Query, Request, Response
 from fastapi.responses import RedirectResponse
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlmodel import col, select
@@ -69,6 +69,7 @@ from nexus.core.lib.encryption import SecretEncryptor, key_from_string
 from nexus.core.models import Group, User, UserIdentity
 from nexus.core.models.group import user_groups
 from nexus.core.models.user import AuthType
+from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
 from nexus.core.services.secret_service import create_secret_service
 from nexus.identity_providers.models.identity_provider import IdentityProvider
 from nexus.identity_providers.models.identity_provider_configuration import (
@@ -106,12 +107,13 @@ async def _get_user_group_names(db: AsyncSession, user_id: UUID) -> list[str]:
     return names
 
 
-router = APIRouter(prefix="/auth", tags=["Authentication"])
+router = NexusRouter(prefix="/auth", tags=["Authentication"])
 
 
 @router.post(
     "/login",
     operation_id="login",
+    dependencies=[NO_PERMISSION],
     summary="Login with username and password",
     description="""
     Authenticate with a username and password to receive a JWT access token.
@@ -279,6 +281,7 @@ async def login(
 @router.post(
     "/refresh",
     operation_id="refresh_token",
+    dependencies=[NO_PERMISSION],
     summary="Refresh access token",
     description="""
     Exchange a valid refresh token for a new access token.
@@ -524,6 +527,7 @@ async def _maybe_rp_logout(
     "/logout",
     summary="Terminate session",
     operation_id="logout",
+    dependencies=[NO_PERMISSION],
     description="""
     Terminate the current session by revoking the refresh token.
 
@@ -641,6 +645,7 @@ async def logout(
 @router.get(
     "/me",
     operation_id="get_current_user",
+    dependencies=[NO_PERMISSION],
     summary="Get current user",
     description="""
     Returns information about the currently authenticated user
@@ -686,6 +691,7 @@ async def get_me(
 @router.get(
     "/providers",
     operation_id="list_auth_providers",
+    dependencies=[NO_PERMISSION],
     summary="List enabled identity providers",
     description="""
     Returns a list of enabled identity providers for the login page.
@@ -723,6 +729,7 @@ async def list_auth_providers(
 @router.get(
     "/oidc/authorize",
     operation_id="oidc_authorize",
+    dependencies=[NO_PERMISSION],
     summary="Initiate OIDC login",
     description=(
         "Initiates the OIDC authorization code flow. Redirects the user's browser\n"
@@ -1289,6 +1296,7 @@ _OIDC_ERR_NO_GROUP_MATCH = (
 @router.get(
     "/oidc/callback",
     operation_id="oidc_callback",
+    dependencies=[NO_PERMISSION],
     summary="OIDC callback",
     description=(
         "Handles the OIDC callback after the user authenticates at the identity provider.\n"
