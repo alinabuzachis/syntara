@@ -22,7 +22,13 @@ import { useAlerts } from '../../providers/alerts'
 import { accessClient } from '../access/accessClient'
 import type { ProjectRead } from '../access/types'
 
-import { projectFormSchema, type ProjectFormData } from './projectFormSchema'
+import { HintOrError } from './authentication/identity-providers/formFieldHelpers'
+import {
+  PROJECT_NAME_HINT,
+  PROJECT_NAME_PLACEHOLDER,
+  projectFormSchema,
+  type ProjectFormData,
+} from './projectFormSchema'
 
 export type ProjectFormModalProps = {
   /** Project to edit, or null/undefined to create a new project */
@@ -138,22 +144,14 @@ export function ProjectFormModal({ project, isOpen, onClose, onSuccess, onCreate
                 <TextInput
                   id="project-name"
                   aria-label="Project name"
-                  placeholder="Enter project name"
+                  placeholder={PROJECT_NAME_PLACEHOLDER}
                   validated={fieldState.error ? 'error' : 'default'}
                   value={field.value ?? ''}
                   onChange={field.onChange}
                   onBlur={field.onBlur}
                   name={field.name}
                 />
-                {fieldState.error && (
-                  <FormHelperText>
-                    <HelperText>
-                      <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
-                        {fieldState.error.message}
-                      </HelperTextItem>
-                    </HelperText>
-                  </FormHelperText>
-                )}
+                <HintOrError error={fieldState.error} hint={PROJECT_NAME_HINT} />
               </FormGroup>
             )}
           />

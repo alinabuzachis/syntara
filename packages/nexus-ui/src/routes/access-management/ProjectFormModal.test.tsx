@@ -10,6 +10,7 @@ import { accessClient } from '../access/accessClient'
 import type { ProjectRead } from '../access/types'
 
 import { ProjectFormModal } from './ProjectFormModal'
+import { PROJECT_NAME_HINT, PROJECT_NAME_VALIDATION_MESSAGE } from './projectFormSchema'
 
 vi.mock('../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
@@ -101,10 +102,11 @@ describe('ProjectFormModal', () => {
       expect(screen.getByRole('button', { name: 'Create project' })).toBeInTheDocument()
     })
 
-    it('renders form fields with placeholders', () => {
+    it('renders form fields with placeholders and name format hint', () => {
       render(<ProjectFormModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />, { wrapper })
 
-      expect(screen.getByPlaceholderText('Enter project name')).toBeInTheDocument()
+      expect(screen.getByPlaceholderText('project-name')).toBeInTheDocument()
+      expect(screen.getByText(PROJECT_NAME_HINT)).toBeInTheDocument()
       expect(screen.getByPlaceholderText('Enter description')).toBeInTheDocument()
     })
 
@@ -128,13 +130,53 @@ describe('ProjectFormModal', () => {
       await waitFor(() => {
         expect(screen.getByText('Project name is required')).toBeInTheDocument()
       })
+      expect(screen.queryByText(PROJECT_NAME_HINT)).not.toBeInTheDocument()
+    })
+
+    it('shows human-readable error for names with spaces', async () => {
+      const user = userEvent.setup()
+      render(<ProjectFormModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />, { wrapper })
+
+      await user.type(screen.getByRole('textbox', { name: 'Project name' }), 'linux team')
+      await user.click(screen.getByRole('button', { name: 'Create project' }))
+
+      await waitFor(() => {
+        expect(screen.getByText(PROJECT_NAME_VALIDATION_MESSAGE)).toBeInTheDocument()
+      })
+      expect(mockCreateMutate).not.toHaveBeenCalled()
+    })
+
+    it('shows human-readable error for names starting with hyphen', async () => {
+      const user = userEvent.setup()
+      render(<ProjectFormModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />, { wrapper })
+
+      await user.type(screen.getByRole('textbox', { name: 'Project name' }), '-invalid')
+      await user.click(screen.getByRole('button', { name: 'Create project' }))
+
+      await waitFor(() => {
+        expect(screen.getByText(/must start and end with a letter or number/)).toBeInTheDocument()
+      })
+      expect(mockCreateMutate).not.toHaveBeenCalled()
+    })
+
+    it('shows human-readable error for names with special characters', async () => {
+      const user = userEvent.setup()
+      render(<ProjectFormModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />, { wrapper })
+
+      await user.type(screen.getByRole('textbox', { name: 'Project name' }), 'test@project')
+      await user.click(screen.getByRole('button', { name: 'Create project' }))
+
+      await waitFor(() => {
+        expect(screen.getByText(/can only contain letters, numbers, hyphens/)).toBeInTheDocument()
+      })
+      expect(mockCreateMutate).not.toHaveBeenCalled()
     })
 
     it('calls create mutation with form data on submit', async () => {
       const user = userEvent.setup()
       render(<ProjectFormModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />, { wrapper })
 
-      await user.type(screen.getByRole('textbox', { name: 'Project name' }), 'New Project')
+      await user.type(screen.getByRole('textbox', { name: 'Project name' }), 'new-project')
       await user.type(screen.getByRole('textbox', { name: 'Description' }), 'A description')
       await user.click(screen.getByRole('button', { name: 'Create project' }))
 
@@ -142,7 +184,7 @@ describe('ProjectFormModal', () => {
         expect(mockCreateMutate).toHaveBeenCalled()
         const callArgs = mockCreateMutate.mock.calls[0]
         expect(callArgs[0]).toEqual({
-          body: { name: 'New Project', description: 'A description' },
+          body: { name: 'new-project', description: 'A description' },
         })
       })
     })
@@ -151,7 +193,7 @@ describe('ProjectFormModal', () => {
       const user = userEvent.setup()
       render(<ProjectFormModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />, { wrapper })
 
-      await user.type(screen.getByRole('textbox', { name: 'Project name' }), 'New Project')
+      await user.type(screen.getByRole('textbox', { name: 'Project name' }), 'new-project')
       await user.click(screen.getByRole('button', { name: 'Create project' }))
 
       await waitFor(() => {
@@ -171,7 +213,7 @@ describe('ProjectFormModal', () => {
       const user = userEvent.setup()
       render(<ProjectFormModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />, { wrapper })
 
-      await user.type(screen.getByRole('textbox', { name: 'Project name' }), 'New Project')
+      await user.type(screen.getByRole('textbox', { name: 'Project name' }), 'new-project')
       await user.click(screen.getByRole('button', { name: 'Create project' }))
 
       await waitFor(() => {
@@ -197,7 +239,7 @@ describe('ProjectFormModal', () => {
         wrapper,
       })
 
-      expect(screen.getByPlaceholderText('Enter project name')).toHaveValue('Alpha')
+      expect(screen.getByPlaceholderText('project-name')).toHaveValue('Alpha')
       expect(screen.getByPlaceholderText('Enter description')).toHaveValue('Alpha project')
     })
 
@@ -207,9 +249,9 @@ describe('ProjectFormModal', () => {
         wrapper,
       })
 
-      const nameInput = screen.getByPlaceholderText('Enter project name')
+      const nameInput = screen.getByPlaceholderText('project-name')
       await user.clear(nameInput)
-      await user.type(nameInput, 'Updated Alpha')
+      await user.type(nameInput, 'updated-alpha')
       await user.click(screen.getByRole('button', { name: 'Save' }))
 
       await waitFor(() => {
@@ -217,7 +259,7 @@ describe('ProjectFormModal', () => {
         const callArgs = mockUpdateMutate.mock.calls[0]
         expect(callArgs[0]).toEqual({
           params: { path: { project_id: 'p1' } },
-          body: { name: 'Updated Alpha', description: 'Alpha project' },
+          body: { name: 'updated-alpha', description: 'Alpha project' },
         })
       })
     })
@@ -251,7 +293,7 @@ describe('ProjectFormModal', () => {
         </Wrapper>
       )
 
-      expect(screen.getByPlaceholderText('Enter project name')).toHaveValue('')
+      expect(screen.getByPlaceholderText('project-name')).toHaveValue('')
 
       rerender(
         <Wrapper>
@@ -259,7 +301,7 @@ describe('ProjectFormModal', () => {
         </Wrapper>
       )
 
-      expect(screen.getByPlaceholderText('Enter project name')).toHaveValue('Alpha')
+      expect(screen.getByPlaceholderText('project-name')).toHaveValue('Alpha')
       expect(screen.getByPlaceholderText('Enter description')).toHaveValue('Alpha project')
     })
   })

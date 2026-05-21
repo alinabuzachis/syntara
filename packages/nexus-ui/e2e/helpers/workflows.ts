@@ -202,7 +202,7 @@ async function createProjectViaDropdown(page: Page) {
   const dialog = page.getByRole('dialog')
   await expect(dialog).toBeVisible()
   await dialog.getByRole('textbox', { name: 'Project name' }).fill('default')
-  await dialog.getByRole('button', { name: 'Create' }).click()
+  await dialog.getByRole('button', { name: 'Create project' }).click()
 
   // Wait for dialog to close (project created) or for a success toast
   await expect(dialog).not.toBeVisible({ timeout: 15_000 })

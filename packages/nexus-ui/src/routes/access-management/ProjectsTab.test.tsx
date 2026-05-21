@@ -10,6 +10,7 @@ import { accessClient } from '../access/accessClient'
 import type { ProjectRead } from '../access/types'
 import { useAllProjects } from '../access/useAllProjects'
 
+import { PROJECT_NAME_PLACEHOLDER } from './projectFormSchema'
 import { ProjectsTab } from './ProjectsTab'
 
 vi.mock('../../client', () => ({
@@ -181,7 +182,7 @@ describe('ProjectsTab', () => {
       await user.click(screen.getByRole('button', { name: /create project/i }))
 
       await waitFor(() => {
-        expect(screen.getByPlaceholderText('Enter project name')).toBeInTheDocument()
+        expect(screen.getByPlaceholderText(PROJECT_NAME_PLACEHOLDER)).toBeInTheDocument()
       })
     })
   })
@@ -494,7 +495,7 @@ describe('ProjectsTab', () => {
       await user.click(screen.getByRole('button', { name: /create project/i }))
 
       await waitFor(() => {
-        expect(screen.getByPlaceholderText('Enter project name')).toBeInTheDocument()
+        expect(screen.getByPlaceholderText(PROJECT_NAME_PLACEHOLDER)).toBeInTheDocument()
       })
     })
 

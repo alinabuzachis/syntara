@@ -24,9 +24,20 @@ import {
   fillCodeEditor,
   selectProjectIfRequired,
 } from './helpers/workflows'
+import { ensureProject } from './utils/api'
+
+/** Click Layout so nodes are in view before canvas interactions. */
+async function layoutCanvas(app: import('@playwright/test').Page) {
+  const layoutButton = app.getByRole('button', { name: 'Layout' }).first()
+  if ((await layoutButton.count()) > 0) {
+    await layoutButton.click()
+    await expect(app.locator('.react-flow__node').first()).toBeVisible({ timeout: 15_000 })
+  }
+}
 
 /** Create trigger → First action → Second action workflow from scratch. */
 async function createTwoNodeWorkflow(app: import('@playwright/test').Page, workflowName: string) {
+  await ensureProject(app)
   await app.goto(toAppUrl('/workflow-builder/new'))
   await expect(app.getByRole('heading', { name: 'Select a trigger step' })).toBeVisible()
 
@@ -58,18 +69,31 @@ async function createTwoNodeWorkflow(app: import('@playwright/test').Page, workf
   await app.getByPlaceholder('Workflow name').fill(workflowName)
   await app.getByRole('button', { name: 'Save' }).click()
   await expect(app).toHaveURL(/workflow-builder\/.+/)
+  await layoutCanvas(app)
+  await expect(app.locator('.react-flow__node').filter({ hasText: 'Second action' })).toBeVisible({
+    timeout: 15_000,
+  })
 }
 
 /** Click a React Flow node's kebab menu by its visible text label. */
 async function openNodeKebabMenu(app: import('@playwright/test').Page, nodeText: string) {
+  await layoutCanvas(app)
   const node = app.locator('.react-flow__node').filter({ hasText: nodeText })
-  await expect(node).toBeVisible({ timeout: 5_000 })
+  await expect(node).toBeVisible({ timeout: 15_000 })
   // Single-click expands the node to reveal kebab; use the chevron area
   const expandToggle = node.getByRole('button').first()
   await expandToggle.click()
   const kebabButton = node.getByLabel('Step actions menu')
-  await expect(kebabButton).toBeVisible({ timeout: 5_000 })
+  await expect(kebabButton).toBeVisible({ timeout: 10_000 })
   await kebabButton.click()
+  await expect(app.getByRole('menuitem', { name: 'Run step' })).toBeVisible({ timeout: 5_000 })
+}
+
+/** Open the Run step choice dialog for a node by its canvas label. */
+async function openRunStepDialog(app: import('@playwright/test').Page, nodeText: string) {
+  await openNodeKebabMenu(app, nodeText)
+  await app.getByRole('menuitem', { name: 'Run step' }).click()
+  await expect(app.getByRole('heading', { name: `Run ${nodeText}?` })).toBeVisible({ timeout: 15_000 })
 }
 
 test.describe('Run Step', () => {
@@ -96,11 +120,9 @@ test.describe('Run Step', () => {
 
     try {
       // Act - Open the Run step dialog
-      await openNodeKebabMenu(app, 'Test action')
-      await app.getByRole('menuitem', { name: 'Run step' }).click()
+      await openRunStepDialog(app, 'Test action')
 
-      // Assert - Verify dialog appears with correct title
-      await expect(app.getByRole('heading', { name: 'Run Test action?' })).toBeVisible()
+      // Assert - Verify dialog appears with correct title (openRunStepDialog already waited)
 
       // Assert - Verify both option buttons exist
       const runAllButton = app.getByRole('button', { name: 'Run all previous nodes' })
@@ -124,9 +146,7 @@ test.describe('Run Step', () => {
     await createTwoNodeWorkflow(app, workflowName)
 
     try {
-      await openNodeKebabMenu(app, 'Second action')
-      await app.getByRole('menuitem', { name: 'Run step' }).click()
-      await expect(app.getByRole('heading', { name: 'Run Second action?' })).toBeVisible()
+      await openRunStepDialog(app, 'Second action')
       await app.getByRole('button', { name: 'Set mock data' }).click()
 
       await expect(app.getByRole('heading', { name: 'Set mock data for Second action' })).toBeVisible()
@@ -146,9 +166,7 @@ test.describe('Run Step', () => {
 
     try {
       // Act - Open mock editor
-      await openNodeKebabMenu(app, 'Test action')
-      await app.getByRole('menuitem', { name: 'Run step' }).click()
-      await expect(app.getByRole('heading', { name: 'Run Test action?' })).toBeVisible()
+      await openRunStepDialog(app, 'Test action')
       await app.getByRole('button', { name: 'Set mock data' }).click()
 
       // Act - Enter JSON in code editor
@@ -175,11 +193,7 @@ test.describe('Run Step', () => {
 
     try {
       // Act - Open run step dialog
-      await openNodeKebabMenu(app, 'Test action')
-      await app.getByRole('menuitem', { name: 'Run step' }).click()
-
-      // Assert - Dialog is visible
-      await expect(app.getByRole('heading', { name: 'Run Test action?' })).toBeVisible()
+      await openRunStepDialog(app, 'Test action')
 
       // Act - Click Cancel
       await app.getByRole('button', { name: 'Cancel' }).click()
@@ -197,9 +211,7 @@ test.describe('Run Step', () => {
     await createTwoNodeWorkflow(app, workflowName)
 
     try {
-      await openNodeKebabMenu(app, 'Second action')
-      await app.getByRole('menuitem', { name: 'Run step' }).click()
-      await expect(app.getByRole('heading', { name: 'Run Second action?' })).toBeVisible()
+      await openRunStepDialog(app, 'Second action')
       await app.getByRole('button', { name: 'Set mock data' }).click()
       await expect(app.getByRole('heading', { name: 'Set mock data for Second action' })).toBeVisible()
 
@@ -218,9 +230,7 @@ test.describe('Run Step', () => {
 
     try {
       // Act - Open mock editor (JSON is empty by default)
-      await openNodeKebabMenu(app, 'Test action')
-      await app.getByRole('menuitem', { name: 'Run step' }).click()
-      await expect(app.getByRole('heading', { name: 'Run Test action?' })).toBeVisible()
+      await openRunStepDialog(app, 'Test action')
       await app.getByRole('button', { name: 'Set mock data' }).click()
 
       // Act - Click Run with empty JSON
@@ -242,9 +252,7 @@ test.describe('Run Step', () => {
 
     try {
       // Act - Open mock editor
-      await openNodeKebabMenu(app, 'Test action')
-      await app.getByRole('menuitem', { name: 'Run step' }).click()
-      await expect(app.getByRole('heading', { name: 'Run Test action?' })).toBeVisible()
+      await openRunStepDialog(app, 'Test action')
       await app.getByRole('button', { name: 'Set mock data' }).click()
 
       // Act - Enter invalid JSON
@@ -271,19 +279,17 @@ test.describe('Run Step', () => {
 
     try {
       // Act 1 - Open mock editor on second node
-      await openNodeKebabMenu(app, 'Second action')
-      await app.getByRole('menuitem', { name: 'Run step' }).click()
-      await expect(app.getByRole('heading', { name: 'Run Second action?' })).toBeVisible()
+      await openRunStepDialog(app, 'Second action')
       await app.getByRole('button', { name: 'Set mock data' }).click()
       await expect(app.getByTestId('inline-code-editor')).toBeVisible()
 
-      // Act 2 - Close dialog
+      // Act 2 - Close dialog and wait for backdrop to clear
       await app.getByRole('button', { name: 'Cancel' }).click()
       await expect(app.getByRole('heading', { name: 'Set mock data for Second action' })).not.toBeVisible()
+      await expect(app.getByRole('dialog')).not.toBeVisible()
 
       // Act 3 - Reopen dialog
-      await openNodeKebabMenu(app, 'Second action')
-      await app.getByRole('menuitem', { name: 'Run step' }).click()
+      await openRunStepDialog(app, 'Second action')
 
       // Assert - Dialog resets to choice screen
       await expect(app.getByRole('heading', { name: 'Run Second action?' })).toBeVisible()

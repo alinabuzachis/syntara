@@ -808,8 +808,8 @@ describe('useProjectSelector', () => {
       await user.click(screen.getByDisplayValue('All projects'))
       await user.click(screen.getByRole('option', { name: 'Create project' }))
 
-      // Fill form
-      await user.type(screen.getByLabelText('Project name'), 'New Project')
+      // Fill form (name must match projectFormSchema — no spaces)
+      await user.type(screen.getByLabelText('Project name'), 'new-project')
       await user.type(screen.getByLabelText('Description'), 'A new test project')
 
       // Submit
@@ -817,7 +817,7 @@ describe('useProjectSelector', () => {
 
       await waitFor(() => {
         expect(mockMutate).toHaveBeenCalledWith(
-          { body: { name: 'New Project', description: 'A new test project' } },
+          { body: { name: 'new-project', description: 'A new test project' } },
           expect.objectContaining({
             onSuccess: expect.any(Function) as unknown,
             onError: expect.any(Function) as unknown,
@@ -829,7 +829,7 @@ describe('useProjectSelector', () => {
     it('calls showAlert and selects new project on create success', async () => {
       const createdProject: ProjectRead = {
         id: 'proj-new',
-        name: 'New Project',
+        name: 'new-project',
         description: 'Created',
         labels: {},
         is_default: false,
@@ -849,7 +849,7 @@ describe('useProjectSelector', () => {
       await user.click(screen.getByRole('option', { name: 'Create project' }))
 
       // Fill and submit
-      await user.type(screen.getByLabelText('Project name'), 'New Project')
+      await user.type(screen.getByLabelText('Project name'), 'new-project')
       await user.click(screen.getByRole('button', { name: 'Create project' }))
 
       await waitFor(() => {
@@ -867,7 +867,7 @@ describe('useProjectSelector', () => {
     it('selects new project only after refetch completes', async () => {
       const createdProject: ProjectRead = {
         id: 'proj-new-2',
-        name: 'Created Project',
+        name: 'created-project',
         description: '',
         labels: {},
         is_default: false,
@@ -887,7 +887,7 @@ describe('useProjectSelector', () => {
 
       await user.click(screen.getByPlaceholderText('Select a project'))
       await user.click(screen.getByRole('option', { name: 'Create project' }))
-      await user.type(screen.getByLabelText('Project name'), 'Created Project')
+      await user.type(screen.getByLabelText('Project name'), 'created-project')
       await user.click(screen.getByRole('button', { name: 'Create project' }))
 
       await waitFor(() => expect(mockRefetch).toHaveBeenCalled())
