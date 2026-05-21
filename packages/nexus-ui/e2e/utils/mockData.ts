@@ -117,12 +117,20 @@ export const federatedUserResponse = {
 
 export const IDENTITY_ID_1 = 'id-1111-2222-3333-4444-555566667777'
 export const IDENTITY_ID_2 = 'id-aaaa-bbbb-cccc-dddd-eeeeffff0000'
-export const PROVIDER_ID = 'provider-oidc-1'
+export const PROVIDER_ID_1 = 'provider-oidc-1'
+export const PROVIDER_ID_2 = 'provider-keycloak-1'
+
+export const twoProvidersResponse = {
+  providers: [
+    { id: PROVIDER_ID_1, name: 'Corporate SSO', provider_type: 'oidc' },
+    { id: PROVIDER_ID_2, name: 'Keycloak', provider_type: 'oidc' },
+  ],
+}
 
 export const federatedUserIdentity = {
   id: IDENTITY_ID_1,
   user_id: FEDERATED_USER_ID,
-  identity_provider_id: PROVIDER_ID,
+  identity_provider_id: PROVIDER_ID_1,
   issuer: 'https://sso.example.com',
   subject: 'asmith@example.com',
   created_at: '2024-02-10T12:00:00Z',
@@ -131,10 +139,24 @@ export const federatedUserIdentity = {
   provider_name: 'Corporate SSO',
 }
 
+export const IDENTITY_ID_3 = 'id-3333-4444-5555-6666-777788889999'
+
+export const federatedUserIdentity2 = {
+  id: IDENTITY_ID_3,
+  user_id: FEDERATED_USER_ID,
+  identity_provider_id: PROVIDER_ID_2,
+  issuer: 'https://keycloak.example.com/realms/nexus',
+  subject: 'asmith',
+  created_at: '2024-03-15T10:00:00Z',
+  updated_at: '2024-03-15T10:00:00Z',
+  last_used_at: '2024-04-01T14:00:00Z',
+  provider_name: 'Keycloak',
+}
+
 export const nonBuiltinUserIdentity = {
   id: IDENTITY_ID_2,
   user_id: NON_BUILTIN_USER_ID,
-  identity_provider_id: PROVIDER_ID,
+  identity_provider_id: PROVIDER_ID_1,
   issuer: 'https://sso.example.com',
   subject: 'jdoe@example.com',
   created_at: '2024-01-20T10:00:00Z',
