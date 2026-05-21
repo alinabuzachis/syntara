@@ -7,6 +7,7 @@ import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../../../providers/alerts'
 import { accessClient, accessFetchClient } from '../../access/accessClient'
+import { AUTH_TYPE_FEDERATED } from '../adminConstants'
 
 import { UserDetail } from './UserDetail'
 import { computeRoleAssignmentCount } from './userDetailUtils'
@@ -108,9 +109,9 @@ const mockGroupsData = {
   total: 1,
 }
 
-const mockIdpUser = {
+const mockFederatedUser = {
   ...mockUser,
-  auth_type: 'idp' as const,
+  auth_type: AUTH_TYPE_FEDERATED,
 }
 
 const mockIdentitiesData = {
@@ -383,11 +384,11 @@ describe('UserDetail', () => {
       expect(screen.getByText('Disabled')).toBeInTheDocument()
     })
 
-    it('renders OIDC provider label for non-local user with one identity', () => {
+    it('renders identity provider label for federated user with one identity', () => {
       vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
         if (path === '/users/{user_id}') {
           return {
-            data: { ...mockUser, auth_type: 'oidc' },
+            data: { ...mockUser, auth_type: AUTH_TYPE_FEDERATED },
             isPending: false,
             isError: false,
             error: null,
@@ -416,7 +417,7 @@ describe('UserDetail', () => {
       vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
         if (path === '/users/{user_id}') {
           return {
-            data: { ...mockUser, auth_type: 'oidc' },
+            data: { ...mockUser, auth_type: AUTH_TYPE_FEDERATED },
             isPending: false,
             isError: false,
             error: null,
@@ -447,12 +448,12 @@ describe('UserDetail', () => {
       expect(screen.getByText('Azure AD')).toBeInTheDocument()
     })
 
-    it('clicking an OIDC provider label navigates to the identity provider detail', async () => {
+    it('clicking an identity provider label navigates to the identity provider detail', async () => {
       const user = userEvent.setup()
       vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
         if (path === '/users/{user_id}') {
           return {
-            data: { ...mockUser, auth_type: 'oidc' },
+            data: { ...mockUser, auth_type: AUTH_TYPE_FEDERATED },
             isPending: false,
             isError: false,
             error: null,
@@ -482,7 +483,7 @@ describe('UserDetail', () => {
       vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
         if (path === '/users/{user_id}') {
           return {
-            data: { ...mockUser, auth_type: 'oidc' },
+            data: { ...mockUser, auth_type: AUTH_TYPE_FEDERATED },
             isPending: false,
             isError: false,
             error: null,
@@ -495,7 +496,7 @@ describe('UserDetail', () => {
 
       render(<UserDetail />, { wrapper })
 
-      // totalProviders = 0 → no Local or OIDC labels rendered
+      // totalProviders = 0 → no Local or identity provider labels rendered
       expect(screen.queryByText('Local')).not.toBeInTheDocument()
       expect(screen.getByText('Identity Provider')).toBeInTheDocument()
     })
@@ -504,7 +505,7 @@ describe('UserDetail', () => {
       vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
         if (path === '/users/{user_id}') {
           return {
-            data: { ...mockUser, auth_type: 'oidc' },
+            data: { ...mockUser, auth_type: AUTH_TYPE_FEDERATED },
             isPending: false,
             isError: false,
             error: null,
@@ -539,7 +540,7 @@ describe('UserDetail', () => {
       vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
         if (path === '/users/{user_id}') {
           return {
-            data: { ...mockUser, auth_type: 'oidc' },
+            data: { ...mockUser, auth_type: AUTH_TYPE_FEDERATED },
             isPending: false,
             isError: false,
             error: null,
@@ -1059,7 +1060,7 @@ describe('UserDetail', () => {
   describe('Identity Provider display', () => {
     it('shows "Identity Provider" label (singular) for a single IdP', () => {
       mockQueryByPath({
-        '/users/{user_id}': mockIdpUser,
+        '/users/{user_id}': mockFederatedUser,
         '/users/{user_id}/groups': mockGroupsData,
         '/users/{user_id}/identities': {
           resources: [{ id: 'id1', identity_provider_id: 'idp-1', provider_name: 'Okta' }],
@@ -1074,7 +1075,7 @@ describe('UserDetail', () => {
 
     it('shows "Identity Providers" label (plural) for multiple IdPs', () => {
       mockQueryByPath({
-        '/users/{user_id}': mockIdpUser,
+        '/users/{user_id}': mockFederatedUser,
         '/users/{user_id}/groups': mockGroupsData,
         '/users/{user_id}/identities': mockIdentitiesData,
         '/users/{user_id}/role_assignments': mockRoleAssignmentsData,
@@ -1089,7 +1090,7 @@ describe('UserDetail', () => {
     it('navigates to IdP detail when clicking provider label', async () => {
       const user = userEvent.setup()
       mockQueryByPath({
-        '/users/{user_id}': mockIdpUser,
+        '/users/{user_id}': mockFederatedUser,
         '/users/{user_id}/groups': mockGroupsData,
         '/users/{user_id}/identities': {
           resources: [{ id: 'id1', identity_provider_id: 'idp-1', provider_name: 'Okta' }],
@@ -1107,7 +1108,7 @@ describe('UserDetail', () => {
 
     it('deduplicates providers with the same identity_provider_id', () => {
       mockQueryByPath({
-        '/users/{user_id}': mockIdpUser,
+        '/users/{user_id}': mockFederatedUser,
         '/users/{user_id}/groups': mockGroupsData,
         '/users/{user_id}/identities': {
           resources: [
@@ -1130,9 +1131,9 @@ describe('UserDetail', () => {
       expect(screen.getByText('Local')).toBeInTheDocument()
     })
 
-    it('shows dash when IdP user has zero identities', () => {
+    it('shows dash when federated user has zero identities', () => {
       mockQueryByPath({
-        '/users/{user_id}': mockIdpUser,
+        '/users/{user_id}': mockFederatedUser,
         '/users/{user_id}/groups': mockGroupsData,
         '/users/{user_id}/identities': { resources: [] },
         '/users/{user_id}/role_assignments': mockRoleAssignmentsData,
@@ -1145,7 +1146,7 @@ describe('UserDetail', () => {
 
     it('handles identity with null provider_name', () => {
       mockQueryByPath({
-        '/users/{user_id}': mockIdpUser,
+        '/users/{user_id}': mockFederatedUser,
         '/users/{user_id}/groups': mockGroupsData,
         '/users/{user_id}/identities': {
           resources: [{ id: 'id1', identity_provider_id: 'idp-1', provider_name: null }],
@@ -1224,13 +1225,13 @@ describe('UserDetail', () => {
       expect(screen.getByTestId('identities-panel')).toHaveAttribute('data-is-builtin', 'true')
     })
 
-    it('passes isLocalUser=false and hasPassword=false for OIDC user on identities tab', () => {
+    it('passes isLocalUser=false and hasPassword=false for federated user on identities tab', () => {
       mockLocationValue = `/system-administration/access-management/users/${VALID_USER_ID}/identities`
 
       vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
         if (path === '/users/{user_id}') {
           return {
-            data: { ...mockUser, auth_type: 'oidc' },
+            data: { ...mockUser, auth_type: AUTH_TYPE_FEDERATED },
             isPending: false,
             isError: false,
             error: null,

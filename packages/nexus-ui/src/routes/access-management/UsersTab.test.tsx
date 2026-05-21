@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
+import { authFetchClient } from '../../client'
 import { AlertProvider } from '../../providers/alerts'
 import { accessClient } from '../access/accessClient'
 
@@ -469,6 +470,81 @@ describe('UsersTab Component', () => {
         expect(mockSetSearchParams).toHaveBeenCalled()
         const lastParams = mockSetSearchParams.mock.calls.at(-1)?.[0] as URLSearchParams
         expect(lastParams.get('username[contains]')).toBe('admin')
+      })
+    })
+
+    it('sends auth_source query param when authentication source filter is in the URL', async () => {
+      currentSearchParams = new URLSearchParams('auth_source=Local')
+      render(<UsersTab />, { wrapper })
+
+      await waitFor(() => {
+        const lastCall = vi
+          .mocked(accessClient.useQuery)
+          .mock.calls.filter((c) => c[1] === '/users')
+          .at(-1)
+        expect(lastCall).toBeDefined()
+        const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
+          ?.query
+        expect(queryParams?.auth_source).toBe('Local')
+        expect(queryParams?.auth_type).toBeUndefined()
+      })
+    })
+
+    it('sends auth_source query param for a federated provider filter', async () => {
+      currentSearchParams = new URLSearchParams('auth_source=AAP')
+      render(<UsersTab />, { wrapper })
+
+      await waitFor(() => {
+        const lastCall = vi
+          .mocked(accessClient.useQuery)
+          .mock.calls.filter((c) => c[1] === '/users')
+          .at(-1)
+        expect(lastCall).toBeDefined()
+        const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
+          ?.query
+        expect(queryParams?.auth_source).toBe('AAP')
+      })
+    })
+
+    it('applies authentication source filter from UI to URL and API query', async () => {
+      vi.mocked(authFetchClient.GET).mockResolvedValueOnce({
+        data: {
+          providers: [
+            { id: '1', name: 'AAP', provider_type: 'oidc', provider_template: null },
+            { id: '2', name: 'Azure AD', provider_type: 'oidc', provider_template: null },
+          ],
+        },
+      } as never)
+
+      const user = userEvent.setup()
+      const { rerender } = render(<UsersTab />, { wrapper })
+
+      const filterBar = screen.getByRole('search', { name: 'Filters' })
+      await user.click(within(filterBar).getByRole('button', { name: 'Username' }))
+      await user.click(await screen.findByRole('option', { name: 'Authentication' }))
+
+      const valueSelector = within(filterBar).getByRole('button', { name: /Filter by authentication/i })
+      await user.click(valueSelector)
+      await user.click(await screen.findByRole('option', { name: 'AAP' }))
+
+      await waitFor(() => {
+        expect(mockSetSearchParams).toHaveBeenCalled()
+        const lastParams = mockSetSearchParams.mock.calls.at(-1)?.[0] as URLSearchParams
+        expect(lastParams.get('auth_source')).toBe('AAP')
+      })
+
+      // Stateful wouter mock updates currentSearchParams without triggering React; re-render to sync.
+      rerender(<UsersTab />)
+
+      await waitFor(() => {
+        const lastCall = vi
+          .mocked(accessClient.useQuery)
+          .mock.calls.filter((c) => c[1] === '/users')
+          .at(-1)
+        expect(lastCall).toBeDefined()
+        const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
+          ?.query
+        expect(queryParams?.auth_source).toBe('AAP')
       })
     })
   })

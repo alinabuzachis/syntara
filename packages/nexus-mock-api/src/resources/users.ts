@@ -1,7 +1,6 @@
-import type * as AuthAPI from '@ansible/nexus-contracts/src/auth-api.js'
 import type * as UsersAPI from '@ansible/nexus-contracts/src/users-api.js'
 
-export type UserRead = AuthAPI.components['schemas']['UserRead']
+export type UserRead = UsersAPI.components['schemas']['UserRead']
 export type UserIdentityRead = UsersAPI.components['schemas']['UserIdentityRead']
 
 /** Mutable map of user_id → identities for the mock API */

@@ -4,6 +4,8 @@ import {
   FormHelperText,
   HelperText,
   HelperTextItem,
+  InputGroup,
+  InputGroupItem,
   Label,
   LabelGroup,
   MenuToggle,
@@ -17,12 +19,13 @@ import {
   TextInputGroupUtilities,
   Tooltip,
 } from '@patternfly/react-core'
-import { RhUiCloseIcon, RhUiErrorIcon } from '@patternfly/react-icons'
+import { RhUiCloseIcon, RhUiErrorIcon, RhUiViewIcon, RhUiViewOffIcon } from '@patternfly/react-icons'
 import { type Ref, useMemo, useRef, useState } from 'react'
-import type { Control } from 'react-hook-form'
+import type { Control, ControllerFieldState, ControllerRenderProps } from 'react-hook-form'
 import { Controller } from 'react-hook-form'
 
 import { useAllGroups } from '../../access/useAllGroups'
+import { PASSWORD_CHARACTER_CLASSES_MESSAGE, PASSWORD_MIN_LENGTH_MESSAGE } from '../passwordComplexity'
 import type { UserFormData } from '../userFormSchema'
 
 type ControlledTextFieldProps = {
@@ -241,6 +244,67 @@ function GroupField({ control }: Readonly<{ control: Control<UserFormData> }>) {
   )
 }
 
+type PasswordFieldInputProps = {
+  field: ControllerRenderProps<UserFormData, 'password'>
+  fieldState: ControllerFieldState
+  isEdit: boolean
+  isDisabled: boolean
+}
+
+function PasswordFieldInput({ field, fieldState, isEdit, isDisabled }: Readonly<PasswordFieldInputProps>) {
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false)
+  const validated = fieldState.error ? 'error' : 'default'
+  const placeholder = isEdit ? 'Leave blank to keep current password' : 'Enter password'
+
+  return (
+    <>
+      <InputGroup>
+        <InputGroupItem isFill>
+          <TextInput
+            id="user-password"
+            aria-label="Password"
+            placeholder={placeholder}
+            type={isPasswordVisible ? 'text' : 'password'}
+            validated={validated}
+            isDisabled={isDisabled}
+            value={field.value ?? ''}
+            onChange={field.onChange}
+            onBlur={field.onBlur}
+            name={field.name}
+          />
+        </InputGroupItem>
+        <InputGroupItem>
+          <Button
+            variant="control"
+            isDisabled={isDisabled}
+            onClick={() => setIsPasswordVisible((visible) => !visible)}
+            aria-label={isPasswordVisible ? 'Hide password' : 'Show password'}
+          >
+            {isPasswordVisible ? <RhUiViewOffIcon /> : <RhUiViewIcon />}
+          </Button>
+        </InputGroupItem>
+      </InputGroup>
+      {!fieldState.error && (
+        <FormHelperText>
+          <HelperText>
+            <HelperTextItem>{PASSWORD_MIN_LENGTH_MESSAGE}</HelperTextItem>
+            <HelperTextItem>{PASSWORD_CHARACTER_CLASSES_MESSAGE}</HelperTextItem>
+          </HelperText>
+        </FormHelperText>
+      )}
+      {fieldState.error && (
+        <FormHelperText>
+          <HelperText>
+            <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+              {fieldState.error.message}
+            </HelperTextItem>
+          </HelperText>
+        </FormHelperText>
+      )}
+    </>
+  )
+}
+
 export function UserFormFields({
   control,
   isEdit,
@@ -286,15 +350,19 @@ export function UserFormFields({
         isDisabled={isBuiltinUser}
       />
       {!isFederatedUser && (
-        <ControlledTextField
+        <Controller
           name="password"
           control={control}
-          label="Password"
-          fieldId="user-password"
-          placeholder={isEdit ? 'Leave blank to keep current password' : 'Enter password'}
-          type="password"
-          isRequired={!isEdit}
-          isDisabled={isBuiltinUser && !isBuiltinSelf}
+          render={({ field, fieldState }) => (
+            <FormGroup label="Password" fieldId="user-password" isRequired={!isEdit}>
+              <PasswordFieldInput
+                field={field}
+                fieldState={fieldState}
+                isEdit={isEdit}
+                isDisabled={isBuiltinUser && !isBuiltinSelf}
+              />
+            </FormGroup>
+          )}
         />
       )}
       {!isEdit && <GroupField control={control} />}

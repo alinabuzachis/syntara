@@ -5,6 +5,7 @@ import { useFormMutationErrorHandler } from '../../../hooks/useFormMutationError
 import { useAuthStore } from '../../../stores/useAuthStore'
 import { accessClient } from '../../access/accessClient'
 import { logoutWithAlert } from '../logoutWithAlert'
+import { COMPLIANT_TEST_PASSWORD } from '../passwordComplexity.testFixtures'
 import type { UserFormData } from '../userFormSchema'
 
 import { useUserFormSubmit } from './useUserFormSubmit'
@@ -159,7 +160,7 @@ describe('useUserFormSubmit', () => {
       const { result } = renderHook(() => useUserFormSubmit({ ...defaultOptions, isSelf: true }))
 
       act(() => {
-        result.current.onSubmit({ ...baseFormData, is_enabled: false, password: 'newpassword123' })
+        result.current.onSubmit({ ...baseFormData, is_enabled: false, password: COMPLIANT_TEST_PASSWORD })
       })
       act(() => {
         getOnSuccess()()
@@ -194,7 +195,7 @@ describe('useUserFormSubmit', () => {
       const { result } = renderHook(() => useUserFormSubmit({ ...defaultOptions, isSelf: true }))
 
       act(() => {
-        result.current.onSubmit({ ...baseFormData, password: 'newpassword123' })
+        result.current.onSubmit({ ...baseFormData, password: COMPLIANT_TEST_PASSWORD })
       })
       act(() => {
         getOnSuccess()()
@@ -208,7 +209,7 @@ describe('useUserFormSubmit', () => {
       const { result } = renderHook(() => useUserFormSubmit({ ...defaultOptions, isSelf: false }))
 
       act(() => {
-        result.current.onSubmit({ ...baseFormData, password: 'newpassword123' })
+        result.current.onSubmit({ ...baseFormData, password: COMPLIANT_TEST_PASSWORD })
       })
       act(() => {
         getOnSuccess()()
@@ -230,7 +231,7 @@ describe('useUserFormSubmit', () => {
       const { result } = renderHook(() => useUserFormSubmit({ ...defaultOptions, isEdit: false }))
 
       act(() => {
-        result.current.onSubmit({ ...baseFormData, password: 'password123' })
+        result.current.onSubmit({ ...baseFormData, password: COMPLIANT_TEST_PASSWORD })
       })
 
       expect(mockCreateMutate).toHaveBeenCalledTimes(1)

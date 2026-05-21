@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
+import { PASSWORD_CHARACTER_CLASSES_MESSAGE, PASSWORD_MIN_LENGTH_MESSAGE } from './passwordComplexity'
+import { COMPLIANT_TEST_PASSWORD } from './passwordComplexity.testFixtures'
 import { splitFullName, toFullName, userFormSchema, userCreateSchema } from './userFormSchema'
 
 describe('userFormSchema', () => {
@@ -8,7 +10,7 @@ describe('userFormSchema', () => {
     email: 'jdoe@example.com',
     first_name: 'John',
     last_name: 'Doe',
-    password: 'securepass123',
+    password: COMPLIANT_TEST_PASSWORD,
     is_enabled: true,
   }
 
@@ -84,11 +86,19 @@ describe('userFormSchema', () => {
   })
 
   describe('password validation', () => {
-    it('rejects password shorter than 8 characters', () => {
+    it('rejects password shorter than 14 characters', () => {
       const result = userFormSchema.safeParse({ ...validData, password: 'short' })
       expect(result.success).toBe(false)
       if (!result.success) {
-        expect(result.error.issues[0].message).toBe('Password must be at least 8 characters')
+        expect(result.error.issues[0].message).toBe(PASSWORD_MIN_LENGTH_MESSAGE)
+      }
+    })
+
+    it('rejects password with insufficient character classes', () => {
+      const result = userFormSchema.safeParse({ ...validData, password: 'lowercaseonly123456' })
+      expect(result.success).toBe(false)
+      if (!result.success) {
+        expect(result.error.issues[0].message).toBe(PASSWORD_CHARACTER_CLASSES_MESSAGE)
       }
     })
   })
@@ -100,7 +110,7 @@ describe('userCreateSchema', () => {
     email: 'jdoe@example.com',
     first_name: 'John',
     last_name: 'Doe',
-    password: 'securepass123',
+    password: COMPLIANT_TEST_PASSWORD,
     is_enabled: true,
   }
 
@@ -131,7 +141,7 @@ describe('userCreateSchema', () => {
     expect(result.success).toBe(false)
     if (!result.success) {
       const passwordError = result.error.issues.find((i) => i.path.includes('password'))
-      expect(passwordError?.message).toBe('Password is required (min 8 characters)')
+      expect(passwordError?.message).toBe('Password is required')
     }
   })
 })

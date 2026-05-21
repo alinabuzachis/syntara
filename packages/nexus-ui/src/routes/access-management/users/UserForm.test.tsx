@@ -8,6 +8,7 @@ import { axe } from 'vitest-axe'
 import { authClient } from '../../../client'
 import { AlertProvider } from '../../../providers/alerts'
 import { accessClient } from '../../access/accessClient'
+import { COMPLIANT_TEST_PASSWORD } from '../passwordComplexity.testFixtures'
 
 import { UserForm } from './UserForm'
 
@@ -167,7 +168,7 @@ describe('UserForm', () => {
       await user.type(screen.getByRole('textbox', { name: 'First Name' }), 'New')
       await user.type(screen.getByRole('textbox', { name: 'Last Name' }), 'User')
       await user.type(screen.getByRole('textbox', { name: 'Email' }), 'new@nexus.local')
-      await user.type(screen.getByLabelText('Password'), 'securepass123')
+      await user.type(screen.getByLabelText('Password'), COMPLIANT_TEST_PASSWORD)
 
       await user.click(screen.getByRole('button', { name: 'Create user' }))
 
@@ -181,7 +182,7 @@ describe('UserForm', () => {
           username: 'newuser',
           email: 'new@nexus.local',
           full_name: 'New User',
-          password: 'securepass123',
+          password: COMPLIANT_TEST_PASSWORD,
           is_enabled: true,
           group_names: ['users'],
         },
@@ -197,7 +198,7 @@ describe('UserForm', () => {
       await user.type(screen.getByRole('textbox', { name: 'First Name' }), 'New')
       await user.type(screen.getByRole('textbox', { name: 'Last Name' }), 'User')
       await user.type(screen.getByRole('textbox', { name: 'Email' }), 'new@nexus.local')
-      await user.type(screen.getByLabelText('Password'), 'securepass123')
+      await user.type(screen.getByLabelText('Password'), COMPLIANT_TEST_PASSWORD)
 
       await user.click(screen.getByRole('button', { name: 'Create user' }))
 
@@ -223,7 +224,7 @@ describe('UserForm', () => {
       await user.type(screen.getByRole('textbox', { name: 'First Name' }), 'New')
       await user.type(screen.getByRole('textbox', { name: 'Last Name' }), 'User')
       await user.type(screen.getByRole('textbox', { name: 'Email' }), 'new@nexus.local')
-      await user.type(screen.getByLabelText('Password'), 'securepass123')
+      await user.type(screen.getByLabelText('Password'), COMPLIANT_TEST_PASSWORD)
 
       await user.click(screen.getByRole('button', { name: 'Create user' }))
 
@@ -283,7 +284,7 @@ describe('UserForm', () => {
       // Fill required fields and submit — default group_names should be ["users"]
       await user.type(screen.getByRole('textbox', { name: 'Username' }), 'newuser')
       await user.type(screen.getByRole('textbox', { name: 'First Name' }), 'New')
-      await user.type(screen.getByLabelText('Password'), 'securepass123')
+      await user.type(screen.getByLabelText('Password'), COMPLIANT_TEST_PASSWORD)
 
       await user.click(screen.getByRole('button', { name: 'Create user' }))
 
@@ -353,7 +354,7 @@ describe('UserForm', () => {
       const user = userEvent.setup()
       render(<UserForm mode="edit" />, { wrapper })
 
-      await user.type(screen.getByLabelText('Password'), 'newpassword123')
+      await user.type(screen.getByLabelText('Password'), COMPLIANT_TEST_PASSWORD)
 
       await user.click(screen.getByRole('button', { name: 'Save' }))
 
@@ -362,7 +363,7 @@ describe('UserForm', () => {
       })
 
       const callArgs = mockMutate.mock.calls[0] as [{ body: Record<string, unknown> }]
-      expect(callArgs[0].body).toHaveProperty('password', 'newpassword123')
+      expect(callArgs[0].body).toHaveProperty('password', COMPLIANT_TEST_PASSWORD)
     })
 
     it('navigates back on successful update', async () => {
