@@ -102,7 +102,7 @@ async function disableCredential(app: Page, name: string): Promise<void> {
   await row.getByRole('switch', { name: 'Enabled' }).click({ force: true })
   const dialog = app.getByRole('dialog')
   await dialog.getByRole('button', { name: 'Disable' }).click()
-  await expect(app.getByText('Credential disabled')).toBeVisible()
+  await expect(row.getByRole('switch')).not.toBeChecked()
 }
 
 /**

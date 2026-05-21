@@ -254,10 +254,7 @@ describe('Settings', () => {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) })
     )
-    expect(mockShowSuccess).toHaveBeenCalledWith({
-      title: 'Settings saved',
-      description: 'Your changes have been saved successfully.',
-    })
+    expect(mockShowSuccess).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled()
   })
 

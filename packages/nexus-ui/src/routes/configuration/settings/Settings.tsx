@@ -26,7 +26,7 @@ const basePath = AppRoute.SystemAdministration.Settings
 export default function Settings() {
   const [edits, setEdits] = useState<Map<string, unknown>>(new Map())
   const [validationErrors, setValidationErrors] = useState<Set<string>>(new Set())
-  const { showSuccess, showError } = useAlerts()
+  const { showError } = useAlerts()
   const handleMutationError = useMutationErrorHandler()
   const { canRead, canWrite } = useSettingsPermissions()
 
@@ -134,7 +134,6 @@ export default function Settings() {
       {
         onSuccess: () => {
           setEdits(new Map())
-          showSuccess({ title: 'Settings saved', description: 'Your changes have been saved successfully.' })
           detachPromise(refetchSettings())
         },
         onError: (err) => {
@@ -151,7 +150,7 @@ export default function Settings() {
         },
       }
     )
-  }, [edits, allSettings, bulkUpdate, showSuccess, showError, handleMutationError, refetchSettings])
+  }, [edits, allSettings, bulkUpdate, showError, handleMutationError, refetchSettings])
 
   const hasChanges = edits.size > 0
   const hasValidationErrors = validationErrors.size > 0

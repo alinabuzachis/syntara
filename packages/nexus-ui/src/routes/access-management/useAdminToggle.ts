@@ -48,11 +48,6 @@ export function useAdminToggle(builtinUser: AdminUser | undefined, refetch: () =
         {
           onSuccess: () => {
             if (checked) {
-              showAlert({
-                title: 'Administrator enabled',
-                variant: 'success',
-                autoDismiss: true,
-              })
               refetch()
             } else {
               logoutWithAlert(logout, showAlert, 'Administrator disabled — signing out')

@@ -408,8 +408,8 @@ test.describe('Node editor panels', () => {
     await expect(app.getByRole('button', { name: 'Run now' })).toBeVisible()
     await app.getByRole('button', { name: 'Run now' }).click()
 
-    // After run, user stays in editor — wait for the success toast confirming execution started
-    await expect(app.getByText('Workflow started')).toBeVisible({ timeout: 10_000 })
+    // After run, user stays in editor — wait for the run dialog to close, confirming execution started
+    await expect(app.getByRole('button', { name: 'Run now' })).not.toBeVisible({ timeout: 10_000 })
 
     // --- Phase 3: Navigate away and mock completed execution data ---
     // Set up execution data mocks BEFORE navigating back

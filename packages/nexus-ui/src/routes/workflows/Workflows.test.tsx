@@ -375,7 +375,7 @@ describe('Workflows Component', () => {
   })
 
   describe('Execute Workflow Row Action', () => {
-    it('shows success alert when workflow executes successfully', async () => {
+    it('calls execute mutation when workflow is run', async () => {
       const mockMutate = vi.fn(
         (
           body: unknown,
@@ -441,12 +441,6 @@ describe('Workflows Component', () => {
             onError: expect.any(Function) as unknown,
           })
         )
-      })
-
-      // Verify success alert is shown
-      await waitFor(() => {
-        expect(screen.getByText('Workflow started')).toBeInTheDocument()
-        expect(screen.getByText(/Successfully started workflow "Important Project Workflow"/)).toBeInTheDocument()
       })
     })
 

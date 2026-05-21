@@ -221,10 +221,7 @@ describe('useBuilderToolbarHandlers', () => {
     expect(variables).toEqual({ body: { workflow_id: 'wf-1', input_data: {} } })
     expect(options?.onSuccess).toEqual(expect.any(Function))
     expect(options?.onError).toEqual(expect.any(Function))
-    expect(showSuccess).toHaveBeenCalledWith({
-      title: 'Workflow started',
-      description: 'Successfully started workflow "My workflow"',
-    })
+    expect(showSuccess).not.toHaveBeenCalled()
     expect(dispatch).toHaveBeenCalledWith({ type: 'SET_CONFIRM_DIALOG', payload: false })
     expect(dispatch).toHaveBeenCalledWith({ type: 'SET_MOST_RECENT_EXECUTION', payload: 'exec-99' })
     expect(setLocation).not.toHaveBeenCalled()

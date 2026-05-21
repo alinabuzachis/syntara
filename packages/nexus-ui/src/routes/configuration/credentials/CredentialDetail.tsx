@@ -109,7 +109,6 @@ export default function CredentialDetail() {
         { params: { path: { credential_id: credential.id } }, body: { enabled: true } },
         {
           onSuccess: () => {
-            showAlert({ title: 'Credential enabled', variant: 'success', autoDismiss: true })
             detachPromise(credQuery.refetch())
           },
           onError: (error: unknown) => {
@@ -131,7 +130,6 @@ export default function CredentialDetail() {
       { params: { path: { credential_id: credentialToDisable.id! } }, body: { enabled: false } },
       {
         onSuccess: () => {
-          showAlert({ title: 'Credential disabled', variant: 'success', autoDismiss: true })
           detachPromise(credQuery.refetch())
         },
         onError: (error: unknown) => {

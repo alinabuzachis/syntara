@@ -191,8 +191,6 @@ export default function Workflows() {
       { body: { workflow_id: workflow.id, input_data: {} } },
       {
         onSuccess: (data) => {
-          showSuccess({ title: 'Workflow started', description: `Successfully started workflow "${workflow.name}"` })
-
           if (data && 'id' in data) {
             setLocation(`/executions/${data.id}`)
           }

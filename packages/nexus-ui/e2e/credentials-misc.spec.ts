@@ -172,23 +172,12 @@ test.describe('Credential Selector — Error State', () => {
 // Test 36: Alert Notifications
 // ---------------------------------------------------------------------------
 test.describe('Alert Notifications', () => {
-  test('success alerts auto-dismiss for create, disable, enable, and delete', async ({ app }) => {
+  test('success alerts auto-dismiss for create and delete', async ({ app }) => {
     const { name, id: credId } = await createTestCredential(app, { prefix: 'e2e-alert-lifecycle' })
     try {
       await goToCredentialsList(app)
       await filterCredentialByName(app, name)
       const row = app.getByRole('row', { name: new RegExp(name) })
-      await row.getByRole('switch').click({ force: true })
-      const dialog = app.getByRole('dialog')
-      await dialog.getByRole('button', { name: 'Disable' }).click()
-      await expect(app.getByText('Credential disabled')).toBeVisible()
-
-      await expect(app.getByText('Credential disabled')).not.toBeVisible({ timeout: 12_000 })
-
-      await row.getByRole('switch').click({ force: true })
-      await expect(app.getByText('Credential enabled')).toBeVisible()
-
-      await expect(app.getByText('Credential enabled')).not.toBeVisible({ timeout: 12_000 })
 
       await row
         .getByRole('button', { name: /Actions|Kebab toggle/i })

@@ -521,7 +521,7 @@ describe('IdentityProvidersTab', () => {
       )
     })
 
-    it('shows success alert and refetches after enabling a provider', async () => {
+    it('refetches after enabling a provider', async () => {
       const mockPatchMutate = vi.fn()
       const mockRefetch = vi.fn().mockResolvedValue({})
       const disabledProvider = { ...mockProvider, enabled: false }
@@ -553,10 +553,9 @@ describe('IdentityProvidersTab', () => {
       })
 
       expect(mockRefetch).toHaveBeenCalled()
-      expect(screen.getByText('Identity provider enabled')).toBeInTheDocument()
     })
 
-    it('shows success alert after confirming disable dialog', async () => {
+    it('refetches after disabling a provider', async () => {
       const mockPatchMutate = vi.fn()
       const mockRefetch = vi.fn().mockResolvedValue({})
       const user = userEvent.setup()
@@ -586,7 +585,7 @@ describe('IdentityProvidersTab', () => {
         getMutationCallbacks(mockPatchMutate).onSuccess?.()
       })
 
-      expect(screen.getByText('Identity provider disabled')).toBeInTheDocument()
+      expect(mockRefetch).toHaveBeenCalled()
     })
 
     it('shows error alert when disable fails after confirming dialog', async () => {

@@ -11,6 +11,14 @@ async function filterCredentialByName(app: import('@playwright/test').Page, name
   await app.getByRole('button', { name: 'Apply filter' }).click()
 }
 
+function listRowToggle(row: import('@playwright/test').Locator) {
+  return row.getByRole('switch')
+}
+
+function detailPageToggle(app: import('@playwright/test').Page) {
+  return app.getByRole('switch', { name: /enabled/i })
+}
+
 test.describe('Credential Enable/Disable State Management', () => {
   test.describe.configure({ mode: 'serial' })
 
@@ -20,7 +28,7 @@ test.describe('Credential Enable/Disable State Management', () => {
       await goToCredentialsList(app)
       await filterCredentialByName(app, name)
       const row = app.getByRole('row', { name: new RegExp(name) })
-      await row.getByRole('switch').click({ force: true })
+      await listRowToggle(row).click({ force: true })
 
       const dialog = app.getByRole('dialog')
       await expect(dialog).toBeVisible()
@@ -36,7 +44,7 @@ test.describe('Credential Enable/Disable State Management', () => {
       await goToCredentialsList(app)
       await filterCredentialByName(app, name)
       const row = app.getByRole('row', { name: new RegExp(name) })
-      await row.getByRole('switch').click({ force: true })
+      await listRowToggle(row).click({ force: true })
 
       const dialog = app.getByRole('dialog')
       await expect(dialog.getByText(new RegExp(name))).toBeVisible()
@@ -54,12 +62,13 @@ test.describe('Credential Enable/Disable State Management', () => {
       await goToCredentialsList(app)
       await filterCredentialByName(app, name)
       const row = app.getByRole('row', { name: new RegExp(name) })
-      await row.getByRole('switch').click({ force: true })
+      await listRowToggle(row).click({ force: true })
 
       const dialog = app.getByRole('dialog')
       await dialog.getByRole('button', { name: 'Disable' }).click()
 
-      await expect(app.getByText('Credential disabled')).toBeVisible()
+      await expect(dialog).not.toBeVisible()
+      await expect(listRowToggle(row)).not.toBeChecked()
     } finally {
       await deleteCredentialByName(app, name)
     }
@@ -71,15 +80,14 @@ test.describe('Credential Enable/Disable State Management', () => {
       await goToCredentialsList(app)
       await filterCredentialByName(app, name)
       const row = app.getByRole('row', { name: new RegExp(name) })
-      await row.getByRole('switch').click({ force: true })
+      await listRowToggle(row).click({ force: true })
 
       const dialog = app.getByRole('dialog')
       await expect(dialog).toBeVisible()
       await dialog.getByRole('button', { name: 'Cancel' }).click()
 
       await expect(dialog).not.toBeVisible()
-      const toggle = row.getByRole('switch')
-      await expect(toggle).toBeChecked()
+      await expect(listRowToggle(row)).toBeChecked()
     } finally {
       await deleteCredentialByName(app, name)
     }
@@ -92,13 +100,11 @@ test.describe('Credential Enable/Disable State Management', () => {
       await filterCredentialByName(app, name)
       const row = app.getByRole('row', { name: new RegExp(name) })
 
-      const toggle = row.getByRole('switch')
-      await expect(toggle).not.toBeChecked()
+      await expect(listRowToggle(row)).not.toBeChecked()
 
-      await row.getByRole('switch').click({ force: true })
+      await listRowToggle(row).click({ force: true })
 
-      await expect(app.getByText('Credential enabled')).toBeVisible()
-      await expect(toggle).toBeChecked()
+      await expect(listRowToggle(row)).toBeChecked()
     } finally {
       await deleteCredentialByName(app, name)
     }
@@ -109,13 +115,13 @@ test.describe('Credential Enable/Disable State Management', () => {
     try {
       await navigateToCredentialDetail(app, name)
 
-      await app.getByRole('switch', { name: /enabled/i }).click({ force: true })
+      await detailPageToggle(app).click({ force: true })
 
       const dialog = app.getByRole('dialog')
       await expect(dialog.getByText('Disable credential?')).toBeVisible()
       await dialog.getByRole('button', { name: 'Disable' }).click()
 
-      await expect(app.getByText('Credential disabled')).toBeVisible()
+      await expect(detailPageToggle(app)).not.toBeChecked()
     } finally {
       await deleteCredentialByName(app, name)
     }
@@ -129,11 +135,11 @@ test.describe('Credential Enable/Disable State Management', () => {
       const detailsTab = app.getByLabel('Details')
       await expect(detailsTab.getByText('Enabled')).toBeVisible()
 
-      await app.getByRole('switch', { name: /enabled/i }).click({ force: true })
+      await detailPageToggle(app).click({ force: true })
       const dialog = app.getByRole('dialog')
       await dialog.getByRole('button', { name: 'Disable' }).click()
-      await expect(app.getByText('Credential disabled')).toBeVisible()
 
+      await expect(detailPageToggle(app)).not.toBeChecked()
       await expect(detailsTab.getByText('Disabled')).toBeVisible()
     } finally {
       await deleteCredentialByName(app, name)
@@ -147,10 +153,10 @@ test.describe('Credential Enable/Disable State Management', () => {
       await goToCredentialsList(app)
       await filterCredentialByName(app, name)
       const row = app.getByRole('row', { name: new RegExp(name) })
-      await row.getByRole('switch').click({ force: true })
+      await listRowToggle(row).click({ force: true })
       const dialog = app.getByRole('dialog')
       await dialog.getByRole('button', { name: 'Disable' }).click()
-      await expect(app.getByText('Credential disabled')).toBeVisible()
+      await expect(listRowToggle(row)).not.toBeChecked()
 
       // Navigate away and back
       await app.goto(toAppUrl('/workflows'))
@@ -161,8 +167,7 @@ test.describe('Credential Enable/Disable State Management', () => {
       await filterCredentialByName(app, name)
 
       const updatedRow = app.getByRole('row', { name: new RegExp(name) })
-      const updatedToggle = updatedRow.getByRole('switch')
-      await expect(updatedToggle).not.toBeChecked()
+      await expect(listRowToggle(updatedRow)).not.toBeChecked()
     } finally {
       await deleteCredentialByName(app, name)
     }

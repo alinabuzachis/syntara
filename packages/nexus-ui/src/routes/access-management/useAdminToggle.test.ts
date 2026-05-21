@@ -189,7 +189,7 @@ describe('useAdminToggle', () => {
     expect(mockMutate).not.toHaveBeenCalled()
   })
 
-  it('calls refetch and shows success alert on successful enable', () => {
+  it('calls refetch on successful enable', () => {
     const { result } = renderHook(() => useAdminToggle(enabledAdmin, refetch))
 
     act(() => {
@@ -202,12 +202,6 @@ describe('useAdminToggle', () => {
     })
 
     expect(refetch).toHaveBeenCalled()
-    expect(mockShowAlert).toHaveBeenCalledWith({
-      title: 'Administrator enabled',
-      variant: 'success',
-      autoDismiss: true,
-    })
-    expect(logoutWithAlert).not.toHaveBeenCalled()
   })
 
   it('calls logout via detachPromise when disable succeeds', () => {
