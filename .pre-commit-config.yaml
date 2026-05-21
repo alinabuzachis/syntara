@@ -88,6 +88,14 @@ repos:
         pass_filenames: false
         always_run: true
 
+      - id: check-api-paths
+        name: check API paths use snake_case
+        entry: make
+        args: [check-api-paths]
+        language: system
+        pass_filenames: false
+        always_run: true
+
       - id: check-dead-code
         name: check for dead code (vulture)
         entry: make

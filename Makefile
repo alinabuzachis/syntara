@@ -605,7 +605,7 @@ lint: ## Run linters and type checking (no file modifications)
 	@echo "📝 Running type checking..."
 	$(MAKE) typecheck
 	@echo "📝 Running pre-commit validation checks..."
-	SKIP=ruff-format,trailing-whitespace,end-of-file-fixer,mixed-line-ending,pyrefly,check-path-sequence uv run pre-commit run --all-files
+	SKIP=ruff-format,trailing-whitespace,end-of-file-fixer,mixed-line-ending,pyrefly,check-api-paths uv run pre-commit run --all-files
 	@echo "✅ All lint checks passed"
 
 .PHONY: typecheck
@@ -629,6 +629,12 @@ check-migrations: _ensure-secrets ## Validate migrations: conflicts, pending cha
 
 # Static analysis
 # ========================================================
+.PHONY: check-api-paths
+check-api-paths: ## Check API endpoint paths use snake_case (no hyphens)
+	@echo "🔍 Checking API path naming..."
+	uv run python tools/ci/check_api_path_naming.py
+	@echo "✅ API path naming check passed"
+
 .PHONY: check-dead-code
 check-dead-code: ## Check for dead code with vulture
 	@echo "🔍 Checking for dead code..."
