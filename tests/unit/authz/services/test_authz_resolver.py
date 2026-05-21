@@ -142,7 +142,7 @@ async def test_resolve_roles_to_policies_empty(seeded_db: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_resolve_roles_to_policies_with_project(seeded_db: AsyncSession) -> None:
-    """Project parameter injects scope and project into statements."""
+    """Project parameter narrows scope to project but preserves self scope."""
     # Create a policy and role with policy_names referencing it
     policy = Policy(
         name="test:resolve:any",
@@ -165,6 +165,46 @@ async def test_resolve_roles_to_policies_with_project(seeded_db: AsyncSession) -
     proj_stmts = [s for s in result if s.get("project") == "my-project"]
     assert len(proj_stmts) >= 1
     assert proj_stmts[0]["scope"] == "project"
+
+
+@pytest.mark.asyncio
+async def test_resolve_roles_to_policies_preserves_self_scope(seeded_db: AsyncSession) -> None:
+    """Project scoping preserves self scope instead of widening to project."""
+    policy = Policy(
+        name="test:resolve:self",
+        statements=[{"name": "test:resolve:self", "effect": "allow", "actions": ["user:read"], "scope": "self"}],
+        is_builtin=False,
+        labels={},
+    )
+    seeded_db.add(policy)
+    await seeded_db.flush()
+
+    role = Role(name="self-scope-role", is_builtin=False, policy_names=["test:resolve:self"], labels={})
+    seeded_db.add(role)
+    await seeded_db.commit()
+
+    seen: set[str] = set()
+    result: list[dict[str, object]] = []
+    await _resolve_roles_to_policies(seeded_db, ["self-scope-role"], seen, result, project="my-project")
+
+    assert len(result) >= 1
+    proj_stmts = [s for s in result if s.get("project") == "my-project"]
+    assert len(proj_stmts) >= 1
+    assert proj_stmts[0]["scope"] == "self"
+
+
+@pytest.mark.asyncio
+async def test_resolve_builtin_role_preserves_self_scope(seeded_db: AsyncSession) -> None:
+    """Builtin roles with self-scoped policies preserve scope in project context."""
+    seen: set[str] = set()
+    result: list[dict[str, object]] = []
+    await _resolve_roles_to_policies(seeded_db, ["authenticated"], seen, result, project="my-project")
+
+    assert len(result) >= 1
+    self_stmts = [s for s in result if s.get("scope") == "self" and s.get("project") == "my-project"]
+    assert len(self_stmts) >= 1
+    widened_stmts = [s for s in result if s.get("scope") == "project" and s.get("project") == "my-project"]
+    assert len(widened_stmts) == 0
 
 
 @pytest.mark.asyncio

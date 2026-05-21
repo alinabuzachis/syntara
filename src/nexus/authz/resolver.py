@@ -69,7 +69,10 @@ def _add_builtin_role_statements(
             entry = {**stmt, "name": policy_name}
             name = policy_name
             if project:
-                entry = {**entry, "scope": "project", "project": project}
+                if entry.get("scope") != "self":
+                    entry = {**entry, "scope": "project", "project": project}
+                else:
+                    entry = {**entry, "project": project}
                 name = f"{name}@{project}"
             if name not in seen:
                 seen.add(name)
@@ -151,7 +154,10 @@ def _add_stmt(
     name = stmt.get("name", fallback_name)
     entry = stmt
     if project:
-        entry = {**stmt, "scope": "project", "project": project}
+        if stmt.get("scope") != "self":
+            entry = {**stmt, "scope": "project", "project": project}
+        else:
+            entry = {**stmt, "project": project}
         name = f"{name}@{project}"
     if name not in seen:
         seen.add(name)
