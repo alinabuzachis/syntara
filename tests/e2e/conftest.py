@@ -278,6 +278,12 @@ def mcp_provider_id(nexus_api: NexusApiRegistry) -> str:
 
 
 @pytest.fixture(scope="session")
+def unauthenticated_client(nexus_base_url: str) -> Client:
+    """Return an unauthenticated Nexus API client for testing public endpoints."""
+    return Client(base_url=f"{nexus_base_url}/api/v1", verify_ssl=False)
+
+
+@pytest.fixture(scope="session")
 def nexus_admin_user(nexus_api: NexusApiRegistry) -> UserInfo:
     """Get admin user ID for Nexus API."""
     curr_user_resp = nexus_api.authentication.get_current_user()

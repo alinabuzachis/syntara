@@ -4,6 +4,7 @@ Duplicated from atf_sdk.fixtures.external_services.base (keycloak_service only).
 When atf-sdk is added as a dependency, replace this module with the atf-sdk equivalents.
 """
 
+import logging
 import os
 import secrets
 from collections.abc import Callable, Generator
@@ -17,11 +18,14 @@ from external_services.types import HttpApiService
 from external_services.utils import WaitException
 from nexus_api_client import AuthenticatedClient
 from nexus_api_client.api import NexusApiRegistry
+from nexus_api_client.models.identity_provider_response import IdentityProviderResponse
 from nexus_api_client.models.oidc_configuration import OIDCConfiguration
 from nexus_api_client.models.oidc_group_mapping_entry import OIDCGroupMappingEntry
 
 from tests.fixtures.external_services.connectivity_check import verify_service_connectivity
 from tests.fixtures.external_services.oidc_login import create_oidc_auth_client, create_oidc_identity_provider
+
+logger = logging.getLogger(__name__)
 
 _ADMIN_USERNAME = "admin"
 _ADMIN_PASSWORD = "admin"  # noqa: S105
@@ -277,3 +281,138 @@ def get_keycloak_nexus_admin_username() -> str:
 def get_keycloak_nexus_admin_password() -> str:
     """Getter for Keycloak Nexus admin password."""
     return _KEYCLOAK_NEXUS_ADMIN_PASSWORD
+
+
+def generate_test_user_credentials() -> tuple[str, str]:
+    """Generate unique Keycloak user credentials for tests."""
+    username = f"test-user-{uuid4().hex[:8]}"
+    password = secrets.token_urlsafe(16)
+    return username, password
+
+
+def create_test_user(keycloak_url: str, username: str, password: str, realm: str = "nexus") -> None:
+    """Create a test user in Keycloak realm for e2e tests."""
+    token = _get_admin_token(keycloak_url)
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    user_resp = httpx.post(
+        f"{keycloak_url}/admin/realms/{realm}/users",
+        json={
+            "username": username,
+            "email": f"{username}@example.com",
+            "firstName": "Test",
+            "lastName": "User",
+            "enabled": True,
+            "credentials": [{"type": "password", "value": password, "temporary": False}],
+        },
+        headers=headers,
+        verify=False,  # noqa: S501
+        timeout=30,
+    )
+    if user_resp.status_code not in (201, 409):
+        user_resp.raise_for_status()
+
+
+def delete_test_user(keycloak_url: str, username: str, realm: str = "nexus") -> None:
+    """Delete a test user from Keycloak realm for test cleanup."""
+    token = _get_admin_token(keycloak_url)
+    headers = {"Authorization": f"Bearer {token}"}
+    users_resp = httpx.get(
+        f"{keycloak_url}/admin/realms/{realm}/users",
+        params={"username": username, "exact": "true"},
+        headers=headers,
+        verify=False,  # noqa: S501
+        timeout=30,
+    )
+    if users_resp.status_code == 200:
+        users = users_resp.json()
+        if users:
+            user_id = users[0]["id"]
+            delete_resp = httpx.delete(
+                f"{keycloak_url}/admin/realms/{realm}/users/{user_id}",
+                headers=headers,
+                verify=False,  # noqa: S501
+                timeout=30,
+            )
+            if delete_resp.status_code not in (204, 404):
+                delete_resp.raise_for_status()
+
+
+@pytest.fixture
+def keycloak_user_factory(
+    keycloak_service: HttpApiService,
+) -> Generator[Callable[[], tuple[str, str]], None, None]:
+    """Factory that creates Keycloak test users with automatic cleanup."""
+    created_users: list[str] = []
+
+    def _create() -> tuple[str, str]:
+        username, password = generate_test_user_credentials()
+        create_test_user(keycloak_service.url, username, password)
+        created_users.append(username)
+        return username, password
+
+    yield _create
+
+    for username in created_users:
+        try:
+            delete_test_user(keycloak_service.url, username)
+        except Exception:
+            logger.warning("Failed to clean up Keycloak test user %s", username, exc_info=True)
+
+
+@pytest.fixture
+def oidc_provider_factory(
+    nexus_api: NexusApiRegistry,
+    keycloak_service: HttpApiService,
+    nexus_base_url: str,
+    nexus_api_admin_group_id: UUID,
+) -> Generator[Callable[[], IdentityProviderResponse], None, None]:
+    """Factory that creates OIDC identity providers with automatic cleanup."""
+    created_provider_ids: list[UUID] = []
+
+    def _create() -> IdentityProviderResponse:
+        provider = create_oidc_identity_provider(
+            nexus_api=nexus_api,
+            oidc_config=keycloak_oidc_config(keycloak_service.url, nexus_base_url, nexus_api_admin_group_id),
+        )
+        assert isinstance(provider.id, UUID)
+        created_provider_ids.append(provider.id)
+        return provider
+
+    yield _create
+
+    for provider_id in created_provider_ids:
+        try:
+            nexus_api.identity_providers.delete(provider_id=provider_id)
+        except Exception:
+            logger.warning("Failed to clean up OIDC provider %s", provider_id, exc_info=True)
+
+
+@pytest.fixture
+def oidc_user_factory(
+    nexus_base_url: str,
+    nexus_api: NexusApiRegistry,
+) -> Generator[Callable[[UUID, str, str], NexusApiRegistry], None, None]:
+    """Factory that authenticates a user via OIDC and returns a NexusApiRegistry."""
+    created_user_ids: list[str] = []
+
+    def _authenticate(provider_id: UUID, username: str, password: str) -> NexusApiRegistry:
+        client = create_oidc_auth_client(
+            nexus_base_url=nexus_base_url,
+            nexus_api=nexus_api,
+            oidc_provider_id=provider_id,
+            username=username,
+            password=password,
+        )
+        user_api = NexusApiRegistry(client)
+        me_resp = user_api.authentication.get_current_user()
+        if me_resp.parsed is not None:
+            created_user_ids.append(str(me_resp.parsed.id))
+        return user_api
+
+    yield _authenticate
+
+    for user_id in created_user_ids:
+        try:
+            nexus_api.users.delete(user_id=user_id)
+        except Exception:
+            logger.warning("Failed to clean up Nexus user %s", user_id, exc_info=True)
