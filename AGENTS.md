@@ -50,14 +50,16 @@ Nexus is a distributed multi-agent system that enables coordinated AI agents to 
    - `make test-all` - All tests
    - `make typecheck` - Type checking (mypy strict mode)
 
-3. **Documentation**: Update [README.md](README.md) if changes affect:
+3. **Formatting rule**: Pre-commit (`.pre-commit-config.yaml`) is the single source of truth for formatting tools and versions. Never add standalone formatter invocations that duplicate a pre-commit hook. See [Formatting Standards](/docs/standards/formatting.md)
+
+4. **Documentation**: Update [README.md](README.md) if changes affect:
 
    - Installation steps
    - Available commands
    - Project structure
    - Development workflow
 
-4. **CI Alignment**: Ensure [.github/workflows/ci.yml](.github/workflows/ci.yml) is updated if:
+5. **CI Alignment**: Ensure [.github/workflows/ci.yml](.github/workflows/ci.yml) is updated if:
    - New dependencies are added
    - Test structure changes
    - Quality check requirements change
@@ -86,6 +88,7 @@ Consult these standards when making changes.
 - [Exceptions](/docs/standards/exceptions.md) — exception naming, error handlers, PROBLEM_TYPES, @fastapi_exception, retry classification
 - [OpenAPI Spec Management](/docs/standards/openapi-spec-management.md) — sub-spec layout, bundling, drift detection, CI checks, AsyncAPI conventions
 - [Static Analysis](/docs/standards/static-analysis.md) — dead code detection (Vulture), import cycle detection (pyan3), allowlists, CI checks
+- [Formatting](/docs/standards/formatting.md) — pre-commit as single source of truth, tool inventory, generated file cleanup
 
 **Open Questions:** [Questions](/docs/standards/questions.md) — known inconsistencies and areas needing investigation
 

@@ -515,8 +515,8 @@ generate-api-client: ## Generate the Nexus Python API client from the OpenAPI sp
 	@rm -rf src/api_client
 	@mv $(TMPDIR)/nexus_api_client src/api_client
 	@rm -rf $(TMPDIR)
-	@uv run pre-commit run trailing-whitespace --files $$(find src/api_client -type f | tr '\n' ' ') > /dev/null 2>&1 || true
-	@uv run pre-commit run end-of-file-fixer --files $$(find src/api_client -type f | tr '\n' ' ') > /dev/null 2>&1 || true
+	@find src/api_client -type f \( -name '*.py' -o -name '*.md' -o -name '*.toml' -o -name '*.typed' -o -name '*.txt' \) -exec sed -i 's/[[:space:]]*$$//' {} +
+	@find src/api_client -type f \( -name '*.py' -o -name '*.md' -o -name '*.toml' -o -name '*.typed' -o -name '*.txt' \) -exec sh -c 'test -s "$$1" && [ "$$(tail -c1 "$$1" | wc -l)" -eq 0 ] && echo >> "$$1"' _ {} \;
 	@echo "Done. Client written to src/api_client/"
 
 # Capture positional arguments for init-worktree
@@ -602,16 +602,10 @@ lint: ## Run linters and type checking (no file modifications)
 	uv run ruff format --check $(FORMAT_PATHS)
 	@echo "📝 Checking file formatting..."
 	uv run python tools/ci/check_file_formatting.py
-	@echo "📝 Checking YAML formatting..."
-	@if command -v podman >/dev/null 2>&1; then \
-		podman run --rm -v "$$(pwd):/project" --security-opt label=disable ghcr.io/google/yamlfmt:latest -lint -formatter include_document_start=true,retain_line_breaks=true,scan_folded_as_literal=true -gitignore_excludes -exclude '**/.venv/**' /project; \
-	else \
-		echo "⚠️  WARNING: podman not found, skipping yamlfmt check"; \
-	fi
 	@echo "📝 Running type checking..."
 	$(MAKE) typecheck
 	@echo "📝 Running pre-commit validation checks..."
-	SKIP=ruff-format,yamlfmt,trailing-whitespace,end-of-file-fixer,mixed-line-ending,pyrefly,check-path-sequence uv run pre-commit run --all-files
+	SKIP=ruff-format,trailing-whitespace,end-of-file-fixer,mixed-line-ending,pyrefly,check-path-sequence uv run pre-commit run --all-files
 	@echo "✅ All lint checks passed"
 
 .PHONY: typecheck

@@ -544,20 +544,22 @@ If `APP_BASE_URL` is not set, the target automatically starts the database and d
 
 ### Code Quality
 
-This project enforces strict code quality standards:
+This project enforces strict code quality standards. All formatting tools are pinned in `.pre-commit-config.yaml`, which is the single source of truth for tool versions. See [Formatting Standards](docs/standards/formatting.md) for details.
 
 ```bash
-# Format code
+# Format code (modifies files)
 make format
 
-# Check linting and types
+# Verify linting, formatting, and types (may update generated files on first run)
 make lint
 
 # Run only type checking
 make typecheck
 ```
 
-**Type checking is mandatory** - all code must pass mypy type checking.
+**Type checking is mandatory** — all code must pass mypy in strict mode.
+
+**Expected workflow:** `make format` then `make lint`. If lint fails due to generated file drift (OpenAPI spec, API client), run `make lint` again to confirm convergence.
 
 ### Commit Message Format
 
