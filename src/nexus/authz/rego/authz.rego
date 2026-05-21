@@ -70,6 +70,7 @@ _conditions_match(policy) if {
     _resource_labels_match(policy)
     _resource_labels_not_match(policy)
     _user_labels_match(policy)
+    _user_labels_not_match(policy)
     _resource_metadata_match(policy)
     _user_metadata_match(policy)
     _group_labels_match(policy)
@@ -103,6 +104,18 @@ _user_labels_match(policy) if {
     policy.conditions.user_labels
     every key, val in policy.conditions.user_labels {
         input.user.labels[key] == val
+    }
+}
+
+_user_labels_not_match(policy) if {
+    not policy.conditions.user_labels_not
+}
+# `not ... == val` (not `!=`): missing key → undefined → not true → passes.
+# Closed-world: users who can't prove they hold a label are denied.
+_user_labels_not_match(policy) if {
+    policy.conditions.user_labels_not
+    every key, val in policy.conditions.user_labels_not {
+        not input.user.labels[key] == val
     }
 }
 

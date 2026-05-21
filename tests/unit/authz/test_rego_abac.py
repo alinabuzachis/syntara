@@ -100,6 +100,152 @@ class TestUserLabelConditions:
         assert result["allow"] is False
 
 
+class TestUserLabelsNotCondition:
+    """Tests for the user_labels_not condition type — deny or allow when user lacks specified labels."""
+
+    _ALLOW_CRED = allow_policy("allow-cred-read", ["credential:read"])
+    _DENY_NOT_ENGINEERING = deny_policy(
+        "deny-not-engineering",
+        ["credential:read"],
+        conditions={"user_labels_not": {"department": "engineering"}},
+    )
+
+    def test_deny_fires_when_user_label_key_missing(self, opa_evaluate):
+        """User has no labels — deny fires because they can't prove they're in engineering."""
+        result = opa_evaluate(
+            build_opa_input(
+                action="read",
+                resource_type="credential",
+                user_labels={},
+                effective_policies=[self._ALLOW_CRED, self._DENY_NOT_ENGINEERING],
+            )
+        )
+        assert result["allow"] is False
+        assert result["deny"] is True
+
+    def test_deny_fires_when_user_label_value_differs(self, opa_evaluate):
+        result = opa_evaluate(
+            build_opa_input(
+                action="read",
+                resource_type="credential",
+                user_labels={"department": "contractors"},
+                effective_policies=[self._ALLOW_CRED, self._DENY_NOT_ENGINEERING],
+            )
+        )
+        assert result["allow"] is False
+        assert result["deny"] is True
+
+    def test_allow_when_user_label_matches_excluded_value(self, opa_evaluate):
+        result = opa_evaluate(
+            build_opa_input(
+                action="read",
+                resource_type="credential",
+                user_labels={"department": "engineering"},
+                effective_policies=[self._ALLOW_CRED, self._DENY_NOT_ENGINEERING],
+            )
+        )
+        assert result["allow"] is True
+        assert result["deny"] is False
+
+    def test_deny_fires_when_all_user_keys_differ_or_missing(self, opa_evaluate):
+        deny_multi = deny_policy(
+            "deny-not-eng-senior",
+            ["credential:read"],
+            conditions={"user_labels_not": {"department": "engineering", "level": "senior"}},
+        )
+        result = opa_evaluate(
+            build_opa_input(
+                action="read",
+                resource_type="credential",
+                user_labels={"department": "contractors"},
+                effective_policies=[self._ALLOW_CRED, deny_multi],
+            )
+        )
+        assert result["allow"] is False
+        assert result["deny"] is True
+
+    def test_allow_when_one_user_key_matches_excluded_value(self, opa_evaluate):
+        deny_multi = deny_policy(
+            "deny-not-eng-senior",
+            ["credential:read"],
+            conditions={"user_labels_not": {"department": "engineering", "level": "senior"}},
+        )
+        result = opa_evaluate(
+            build_opa_input(
+                action="read",
+                resource_type="credential",
+                user_labels={"department": "engineering"},
+                effective_policies=[self._ALLOW_CRED, deny_multi],
+            )
+        )
+        assert result["allow"] is True
+        assert result["deny"] is False
+
+    def test_allow_effect_with_user_labels_not_grants_when_label_absent(self, opa_evaluate):
+        """Allow-effect policy with user_labels_not grants access when user lacks the label."""
+        policy = allow_policy(
+            "allow-non-contractor",
+            ["credential:read"],
+            conditions={"user_labels_not": {"role": "contractor"}},
+        )
+        result = opa_evaluate(
+            build_opa_input(
+                action="read",
+                resource_type="credential",
+                user_labels={"role": "engineer"},
+                effective_policies=[policy],
+            )
+        )
+        assert result["allow"] is True
+
+    def test_allow_effect_with_user_labels_not_denies_when_label_matches(self, opa_evaluate):
+        """Allow-effect policy with user_labels_not does not grant when user has the label."""
+        policy = allow_policy(
+            "allow-non-contractor",
+            ["credential:read"],
+            conditions={"user_labels_not": {"role": "contractor"}},
+        )
+        result = opa_evaluate(
+            build_opa_input(
+                action="read",
+                resource_type="credential",
+                user_labels={"role": "contractor"},
+                effective_policies=[policy],
+            )
+        )
+        assert result["allow"] is False
+
+    def test_combined_user_labels_and_user_labels_not(self, opa_evaluate):
+        """Policy requiring user_labels AND user_labels_not — must be ops but not intern."""
+        policy = allow_policy(
+            "allow-ops-non-intern",
+            ["credential:read"],
+            conditions={
+                "user_labels": {"team": "ops"},
+                "user_labels_not": {"role": "intern"},
+            },
+        )
+        result = opa_evaluate(
+            build_opa_input(
+                action="read",
+                resource_type="credential",
+                user_labels={"team": "ops", "role": "senior"},
+                effective_policies=[policy],
+            )
+        )
+        assert result["allow"] is True
+
+        result = opa_evaluate(
+            build_opa_input(
+                action="read",
+                resource_type="credential",
+                user_labels={"team": "ops", "role": "intern"},
+                effective_policies=[policy],
+            )
+        )
+        assert result["allow"] is False
+
+
 class TestGroupLabelConditions:
     """Allow execution:run only when group tier=premium."""
 
