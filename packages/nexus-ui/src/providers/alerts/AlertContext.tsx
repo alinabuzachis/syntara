@@ -8,6 +8,7 @@ export type AlertConfig = {
   variant?: AlertVariant | 'error' // Accept 'error' and map to 'danger'
   title: string
   description?: string | ReactNode
+  actionLinks?: ReactNode
   autoDismiss?: boolean
   timeout?: number // milliseconds, defaults to 8000 if autoDismiss is true
 }

@@ -5,16 +5,45 @@ import { axe } from 'vitest-axe'
 
 import { ImportWorkflowDialog } from './ImportWorkflowDialog'
 
-const mockShowSuccess = vi.fn()
+const mockShowAlert = vi.fn()
 const mockShowError = vi.fn()
 const mockPost = vi.fn<(...args: unknown[]) => Promise<{ data?: unknown; error?: unknown }>>()
+const mockSetLocation = vi.fn()
 
 vi.mock('../../providers/alerts', () => ({
-  useAlerts: () => ({ showSuccess: mockShowSuccess, showError: mockShowError }),
+  useAlerts: () => ({ showAlert: mockShowAlert, showError: mockShowError }),
+}))
+
+vi.mock('wouter', () => ({
+  useLocation: () => ['/', mockSetLocation],
 }))
 
 vi.mock('../../client', () => ({
   workflowFetchClient: { POST: (...args: unknown[]) => mockPost(...args) },
+}))
+
+const defaultProjects = [
+  { id: 'p1', name: 'Project 1', description: 'First project' },
+  { id: 'p2', name: 'Project 2', description: 'Second project' },
+]
+let mockProjects = [...defaultProjects]
+let mockSelectedProjectId: string | null = 'p1'
+const mockOnProjectSelect = vi.fn()
+
+vi.mock('../../hooks/useProjectSelector', () => ({
+  useProjectSelector: (options?: { onProjectSelect?: (project: unknown) => void }) => {
+    if (options?.onProjectSelect) {
+      mockOnProjectSelect.mockImplementation(options.onProjectSelect)
+    }
+    return {
+      selectedProject: mockProjects.find((p) => p.id === mockSelectedProjectId) ?? null,
+      selectedProjectId: mockSelectedProjectId,
+      stableProjectId: mockSelectedProjectId ?? undefined,
+      isAllProjects: mockSelectedProjectId === null,
+      projects: mockProjects,
+      ProjectSelector: <div data-testid="project-selector">Project Selector</div>,
+    }
+  },
 }))
 
 describe('ImportWorkflowDialog', () => {
@@ -22,23 +51,27 @@ describe('ImportWorkflowDialog', () => {
     isOpen: true,
     onClose: vi.fn(),
     onSuccess: vi.fn(),
-    projects: [
-      { id: 'p1', name: 'Project 1' },
-      { id: 'p2', name: 'Project 2' },
-    ],
+  }
+
+  function getFileInput(): HTMLInputElement {
+    // eslint-disable-next-line testing-library/no-node-access -- PatternFly FileUpload renders a hidden file input; no accessible role or label is available by design
+    return document.querySelector('input[type="file"]') as HTMLInputElement
   }
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mockSelectedProjectId = 'p1'
+    mockProjects = [...defaultProjects]
   })
 
   it('renders the dialog with required fields', () => {
     render(<ImportWorkflowDialog {...defaultProps} />)
 
     expect(screen.getByText('Import workflow')).toBeInTheDocument()
-    expect(screen.getByLabelText(/Workflow file/i)).toBeInTheDocument()
+    expect(screen.getByText('Workflow file')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Upload/i })).toBeInTheDocument()
     expect(screen.getByLabelText(/Workflow name/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Project/i)).toBeInTheDocument()
+    expect(screen.getByTestId('project-selector')).toBeInTheDocument()
   })
 
   it('disables Import button when no file is selected', () => {
@@ -51,9 +84,8 @@ describe('ImportWorkflowDialog', () => {
     const user = userEvent.setup()
     render(<ImportWorkflowDialog {...defaultProps} />)
 
-    const fileInput = screen.getByLabelText(/Workflow file/i)
     const file = new File(['{}'], 'test.json', { type: 'application/json' })
-    await user.upload(fileInput, file)
+    await user.upload(getFileInput(), file)
     await user.click(screen.getByRole('button', { name: /^Import$/i }))
 
     await waitFor(() => {
@@ -65,9 +97,8 @@ describe('ImportWorkflowDialog', () => {
     const user = userEvent.setup()
     render(<ImportWorkflowDialog {...defaultProps} />)
 
-    const fileInput = screen.getByLabelText(/Workflow file/i)
     const file = new File(['{}'], 'test.json', { type: 'application/json' })
-    await user.upload(fileInput, file)
+    await user.upload(getFileInput(), file)
 
     expect(screen.getByRole('button', { name: /^Import$/i })).toBeEnabled()
   })
@@ -81,13 +112,6 @@ describe('ImportWorkflowDialog', () => {
     await user.click(screen.getByRole('button', { name: /Cancel/i }))
 
     expect(onClose).toHaveBeenCalledTimes(1)
-  })
-
-  it('renders project options', () => {
-    render(<ImportWorkflowDialog {...defaultProps} />)
-
-    expect(screen.getByText('Project 1')).toBeInTheDocument()
-    expect(screen.getByText('Project 2')).toBeInTheDocument()
   })
 
   it('submits successfully with valid file and name', async () => {
@@ -104,21 +128,49 @@ describe('ImportWorkflowDialog', () => {
 
     render(<ImportWorkflowDialog {...defaultProps} onSuccess={onSuccess} onClose={onClose} />)
 
-    const fileInput = screen.getByLabelText(/Workflow file/i)
     const file = new File([validContent], 'workflow.json', { type: 'application/json' })
-    await user.upload(fileInput, file)
+    await user.upload(getFileInput(), file)
     await user.type(screen.getByLabelText(/Workflow name/i), 'Imported WF')
     await user.click(screen.getByRole('button', { name: /^Import$/i }))
 
     await waitFor(() => {
       expect(mockPost).toHaveBeenCalled()
     })
-    expect(mockShowSuccess).toHaveBeenCalledWith({
-      title: 'Workflow imported',
-      description: 'Successfully imported "Imported WF"',
-    })
+    const callArgs = mockPost.mock.calls[0] as [string, { body: Record<string, unknown> }]
+    expect(callArgs[1].body).toEqual(expect.objectContaining({ project_id: 'p1' }))
+    expect(mockShowAlert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        variant: 'success',
+        title: 'Workflow imported',
+      })
+    )
     expect(onSuccess).toHaveBeenCalled()
     expect(onClose).toHaveBeenCalled()
+  })
+
+  it('shows error when no project is selected on submit', async () => {
+    mockSelectedProjectId = null
+    const user = userEvent.setup()
+
+    const validContent = JSON.stringify({
+      triggers: [],
+      nodes: [{ id: 'n1', type: 'action' }],
+      edges: [],
+    })
+
+    render(<ImportWorkflowDialog {...defaultProps} />)
+
+    await user.upload(getFileInput(), new File([validContent], 'wf.json'))
+    await user.type(screen.getByLabelText(/Workflow name/i), 'Test')
+    await user.click(screen.getByRole('button', { name: /^Import$/i }))
+
+    await waitFor(() => {
+      expect(mockShowError).toHaveBeenCalledWith({
+        title: 'Project required',
+        description: 'Please select a project to import this workflow.',
+      })
+    })
+    expect(mockPost).not.toHaveBeenCalled()
   })
 
   it('shows API error via alert', async () => {
@@ -133,9 +185,8 @@ describe('ImportWorkflowDialog', () => {
 
     render(<ImportWorkflowDialog {...defaultProps} />)
 
-    const fileInput = screen.getByLabelText(/Workflow file/i)
     const file = new File([validContent], 'wf.json', { type: 'application/json' })
-    await user.upload(fileInput, file)
+    await user.upload(getFileInput(), file)
     await user.type(screen.getByLabelText(/Workflow name/i), 'Test')
     await user.click(screen.getByRole('button', { name: /^Import$/i }))
 
@@ -152,9 +203,8 @@ describe('ImportWorkflowDialog', () => {
 
     render(<ImportWorkflowDialog {...defaultProps} />)
 
-    const fileInput = screen.getByLabelText(/Workflow file/i)
     const file = new File(['not valid json'], 'bad.json', { type: 'application/json' })
-    await user.upload(fileInput, file)
+    await user.upload(getFileInput(), file)
     await user.type(screen.getByLabelText(/Workflow name/i), 'Test')
     await user.click(screen.getByRole('button', { name: /^Import$/i }))
 
@@ -163,40 +213,19 @@ describe('ImportWorkflowDialog', () => {
     })
   })
 
-  it('passes project ID when selected', async () => {
-    const user = userEvent.setup()
-    mockPost.mockResolvedValue({ data: { id: 'new-wf' } })
+  describe('accessibility', () => {
+    it('has no accessibility violations', async () => {
+      const { container } = render(<ImportWorkflowDialog {...defaultProps} />)
 
-    const validContent = JSON.stringify({
-      triggers: [],
-      nodes: [{ id: 'n1', type: 'action' }],
-      edges: [],
+      // Wait for PF FileUpload (react-dropzone) to finish initializing
+      await screen.findByRole('button', { name: /Upload/i })
+      expect(await axe(container)).toHaveNoViolations()
     })
 
-    render(<ImportWorkflowDialog {...defaultProps} defaultProjectId="p1" />)
+    it('has no accessibility violations when closed', async () => {
+      const { container } = render(<ImportWorkflowDialog {...defaultProps} isOpen={false} />)
 
-    const fileInput = screen.getByLabelText(/Workflow file/i)
-    const file = new File([validContent], 'wf.json', { type: 'application/json' })
-    await user.upload(fileInput, file)
-    await user.type(screen.getByLabelText(/Workflow name/i), 'Test')
-    await user.click(screen.getByRole('button', { name: /^Import$/i }))
-
-    await waitFor(() => {
-      expect(mockPost).toHaveBeenCalled()
+      expect(await axe(container)).toHaveNoViolations()
     })
-    const callArgs = mockPost.mock.calls[0] as [string, { body: Record<string, unknown> }]
-    expect(callArgs[1].body).toEqual(expect.objectContaining({ project_id: 'p1' }))
-  })
-
-  it('has no accessibility violations', async () => {
-    const { container } = render(<ImportWorkflowDialog {...defaultProps} />)
-
-    expect(await axe(container)).toHaveNoViolations()
-  })
-
-  it('has no accessibility violations when closed', async () => {
-    const { container } = render(<ImportWorkflowDialog {...defaultProps} isOpen={false} />)
-
-    expect(await axe(container)).toHaveNoViolations()
   })
 })

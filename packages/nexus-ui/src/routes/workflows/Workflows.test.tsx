@@ -190,14 +190,14 @@ describe('Workflows Component', () => {
       expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
     })
 
-    it('renders Create workflow button before Import workflow in toolbar', () => {
+    it('renders Import workflow button before Create workflow in toolbar', () => {
       render(<Workflows />, { wrapper })
 
-      const createButton = screen.getByRole('button', { name: 'Create workflow' })
       const importButton = screen.getByRole('button', { name: 'Import workflow' })
+      const createButton = screen.getByRole('button', { name: 'Create workflow' })
 
-      // Create workflow (primary) must precede Import workflow (secondary) in the DOM per UX skill
-      expect(createButton.compareDocumentPosition(importButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      // Import workflow (secondary) must precede Create workflow (primary) in the DOM
+      expect(importButton.compareDocumentPosition(createButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     })
 
     it('renders workflows in the table', async () => {
@@ -1771,9 +1771,7 @@ describe('Workflows Component', () => {
         expect(screen.getByText('Workflow duplicated')).toBeInTheDocument()
       })
 
-      const editLink = screen.getByRole('button', { name: /- duplicate-/ })
-      expect(editLink).toBeInTheDocument()
-      expect(screen.getByText(/^Created /)).toBeInTheDocument()
+      expect(screen.getByText(/^Created ".+ - duplicate-/)).toBeInTheDocument()
     })
 
     it('shows error alert when fetching workflow fails', async () => {
@@ -1916,7 +1914,7 @@ describe('Workflows Component', () => {
       })
     })
 
-    it('shows plain text description when response has no id', async () => {
+    it('shows no action link when response has no id', async () => {
       const user = userEvent.setup()
       vi.mocked(workflowFetchClient.GET).mockResolvedValue({
         data: {
@@ -1948,8 +1946,9 @@ describe('Workflows Component', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Workflow duplicated')).toBeInTheDocument()
-        expect(screen.getByText(/^Created "/)).toBeInTheDocument()
+        expect(screen.getByText(/^Created ".+ - duplicate-/)).toBeInTheDocument()
       })
+      expect(screen.queryByRole('button', { name: 'Open workflow' })).not.toBeInTheDocument()
     })
 
     it('shows error when GET returns no data', async () => {

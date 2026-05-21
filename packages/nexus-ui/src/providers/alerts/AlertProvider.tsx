@@ -28,6 +28,7 @@ function ToastAlertItem({ alert, onDismiss }: ToastAlertItemProps) {
       timeout={alert.autoDismiss ? (alert.timeout ?? DEFAULT_TIMEOUT) : undefined}
       onTimeout={() => onDismiss(alert.instanceKey)}
       actionClose={<AlertActionCloseButton onClose={() => onDismiss(alert.instanceKey)} />}
+      actionLinks={alert.actionLinks}
     >
       {alert.description}
     </Alert>

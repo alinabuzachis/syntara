@@ -1,12 +1,12 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import type { V2WorkflowDefinition } from '@ansible/nexus-contracts'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
+  AlertActionLink,
   Button,
+  FileUpload,
   Form,
   FormGroup,
   FormHelperText,
-  FormSelect,
-  FormSelectOption,
   HelperText,
   HelperTextItem,
   Modal,
@@ -15,15 +15,17 @@ import {
   ModalHeader,
   TextInput,
 } from '@patternfly/react-core'
-import { useEffect, useState } from 'react'
+import type { DropEvent } from '@patternfly/react-core'
+import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
+import { useLocation } from 'wouter'
 
 import { workflowFetchClient } from '../../client'
+import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { useAlerts } from '../../providers/alerts'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { detachPromise } from '../../utils/detachPromise'
 import { parseWorkflowFile, validateFileSize } from '../../utils/downloadWorkflowExport'
-import type { ProjectRead } from '../access/types'
 
 import { importWorkflowSchema } from './importWorkflowSchema'
 import type { ImportWorkflowFormData } from './importWorkflowSchema'
@@ -32,55 +34,66 @@ type ImportWorkflowDialogProps = Readonly<{
   isOpen: boolean
   onClose: () => void
   onSuccess: () => void
-  defaultProjectId?: string | null
-  projects: ProjectRead[]
 }>
 
-export function ImportWorkflowDialog({
-  isOpen,
-  onClose,
-  onSuccess,
-  defaultProjectId,
-  projects,
-}: ImportWorkflowDialogProps) {
-  const { showSuccess, showError } = useAlerts()
+export function ImportWorkflowDialog({ isOpen, onClose, onSuccess }: ImportWorkflowDialogProps) {
+  const { showAlert, showError } = useAlerts()
+  const [, setLocation] = useLocation()
   const [file, setFile] = useState<File | null>(null)
+  const [filename, setFilename] = useState('')
   const [fileError, setFileError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [saveAttemptedWithoutProject, setSaveAttemptedWithoutProject] = useState(false)
+
+  const { selectedProjectId, ProjectSelector } = useProjectSelector({
+    requireProject: true,
+    hasValidationError: saveAttemptedWithoutProject,
+    onProjectSelect: () => setSaveAttemptedWithoutProject(false),
+  })
+
+  const formMethods = useForm<ImportWorkflowFormData>({
+    resolver: zodResolver(importWorkflowSchema, undefined, { mode: 'sync' }),
+    defaultValues: {
+      name: '',
+    },
+  })
 
   const {
     control,
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<ImportWorkflowFormData>({
-    resolver: zodResolver(importWorkflowSchema, undefined, { mode: 'sync' }),
-    defaultValues: {
-      name: '',
-      projectId: defaultProjectId ?? '',
-    },
-  })
-
-  useEffect(() => {
-    if (isOpen) {
-      reset({ name: '', projectId: defaultProjectId ?? '' })
-      setFile(null)
-      setFileError(null)
-    }
-  }, [isOpen, defaultProjectId, reset])
+  } = formMethods
 
   const handleClose = () => {
+    reset({ name: '' })
+    setFile(null)
+    setFilename('')
+    setFileError(null)
+    setSaveAttemptedWithoutProject(false)
     onClose()
   }
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileInputChange = (_event: DropEvent, inputFile: File) => {
     setFileError(null)
-    const selected = event.target.files?.[0] ?? null
-    setFile(selected)
+    setFile(inputFile)
+    setFilename(inputFile.name)
+  }
+
+  const handleFileClear = () => {
+    setFile(null)
+    setFilename('')
+    setFileError(null)
   }
 
   const onSubmit = async (data: ImportWorkflowFormData) => {
     if (!file) return
+
+    if (!selectedProjectId) {
+      setSaveAttemptedWithoutProject(true)
+      showError({ title: 'Project required', description: 'Please select a project to import this workflow.' })
+      return
+    }
 
     setIsSaving(true)
     setFileError(null)
@@ -88,27 +101,23 @@ export function ImportWorkflowDialog({
     try {
       validateFileSize(file)
       const content = await file.text()
+      // parseWorkflowFile runtime-validates triggers/nodes/edges arrays
       const definition = parseWorkflowFile(content, file.name)
 
-      type WorkflowDefinitionSchema = WorkflowAPI.components['schemas']['workflow_definition.schema']
-
-      const { triggers, nodes, edges } = definition as { triggers: unknown[]; nodes: unknown[]; edges: unknown[] }
       const fullDefinition = {
-        schema_version: '2.0.0',
+        schema_version: '2.0.0' as const,
         name: data.name,
         description: '',
-        triggers,
-        nodes,
-        edges,
+        triggers: definition.triggers,
+        nodes: definition.nodes,
+        edges: definition.edges,
       }
 
-      const effectiveProjectId = data.projectId || null
-
-      const { error } = await workflowFetchClient.POST('/workflows', {
+      const { data: result, error } = await workflowFetchClient.POST('/workflows', {
         body: {
           name: data.name,
-          workflow_definition: fullDefinition as unknown as WorkflowDefinitionSchema,
-          ...(effectiveProjectId ? { project_id: effectiveProjectId } : {}),
+          workflow_definition: fullDefinition as V2WorkflowDefinition,
+          project_id: selectedProjectId,
         },
       })
 
@@ -117,7 +126,16 @@ export function ImportWorkflowDialog({
         return
       }
 
-      showSuccess({ title: 'Workflow imported', description: `Successfully imported "${data.name}"` })
+      const createdId = result?.id
+      showAlert({
+        variant: 'success',
+        autoDismiss: true,
+        title: 'Workflow imported',
+        description: `Created "${data.name}"`,
+        actionLinks: createdId ? (
+          <AlertActionLink onClick={() => setLocation(`/workflow-builder/${createdId}`)}>Open workflow</AlertActionLink>
+        ) : undefined,
+      })
       handleClose()
       onSuccess()
     } catch (err: unknown) {
@@ -134,7 +152,18 @@ export function ImportWorkflowDialog({
       <ModalBody>
         <Form>
           <FormGroup label="Workflow file" fieldId="import-file" isRequired>
-            <input id="import-file" type="file" accept=".json" onChange={handleFileChange} />
+            <FileUpload
+              id="import-file"
+              value={file ?? undefined}
+              filename={filename}
+              filenamePlaceholder="Drag and drop a file or upload one"
+              onFileInputChange={handleFileInputChange}
+              onClearClick={handleFileClear}
+              browseButtonText="Upload"
+              dropzoneProps={{ accept: { 'application/json': ['.json'] } }}
+              validated={fileError ? 'error' : 'default'}
+              hideDefaultPreview
+            />
             {fileError && (
               <HelperText>
                 <HelperTextItem variant="error">{fileError}</HelperTextItem>
@@ -167,24 +196,8 @@ export function ImportWorkflowDialog({
             )}
           </FormGroup>
 
-          <FormGroup label="Project" fieldId="import-project">
-            <Controller
-              name="projectId"
-              control={control}
-              render={({ field }) => (
-                <FormSelect
-                  id="import-project"
-                  value={field.value ?? ''}
-                  onChange={(_event, value) => field.onChange(value)}
-                  aria-label="Select project"
-                >
-                  <FormSelectOption value="" label="No project" />
-                  {projects.map((p) => (
-                    <FormSelectOption key={p.id} value={p.id ?? ''} label={p.name ?? ''} />
-                  ))}
-                </FormSelect>
-              )}
-            />
+          <FormGroup label="Project" fieldId="import-project" isRequired>
+            {ProjectSelector}
           </FormGroup>
         </Form>
       </ModalBody>

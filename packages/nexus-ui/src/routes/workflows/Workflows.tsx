@@ -1,5 +1,5 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
-import { Button, List, ListItem, Stack, StackItem } from '@patternfly/react-core'
+import { AlertActionLink, Button, List, ListItem, Stack, StackItem } from '@patternfly/react-core'
 import {
   RhUiAddIcon,
   RhUiCheckCircleIcon,
@@ -7,6 +7,7 @@ import {
   RhUiEditFillIcon,
   RhUiExportIcon,
   RhUiHistoryIcon,
+  RhUiImportIcon,
   RhUiMinusCircleFillIcon,
   RhUiPlayIcon,
   RhUiTrashIcon,
@@ -33,7 +34,7 @@ import { useDialogState } from '../../hooks/useDialogState'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { useAlerts } from '../../providers/alerts'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
-import type { FilterFieldDefinition } from '../../types/filters'
+import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { detachPromise } from '../../utils/detachPromise'
 import { downloadWorkflowExportById } from '../../utils/downloadWorkflowExport'
@@ -46,6 +47,15 @@ import { FlatWorkflowsTableBody, GroupedWorkflowsTableBody } from './WorkflowsTa
 type Workflow = WorkflowAPI.components['schemas']['Workflow']
 type WorkflowDefinitionSchema = WorkflowAPI.components['schemas']['workflow_definition.schema']
 type WorkflowWithProject = Workflow & { project_id?: string }
+
+// Transform is_enabled string values to boolean for the API
+const transformIsEnabledFilter = (filters: FilterConfig[]): FilterConfig[] =>
+  filters.map((filter) => {
+    if (filter.key === 'is_enabled' && typeof filter.value === 'string') {
+      return { ...filter, value: filter.value === 'true' }
+    }
+    return filter
+  })
 
 // eslint-disable-next-line max-lines-per-function
 export default function Workflows() {
@@ -66,7 +76,7 @@ export default function Workflows() {
     handleFilterChange,
     handleClearAllFilters,
     getFooterProps,
-  } = useCursorPagination({ extraParams: projectExtraParams })
+  } = useCursorPagination({ transformFilters: transformIsEnabledFilter, extraParams: projectExtraParams })
 
   const runDialog = useDialogState<Workflow>()
   const deleteDialog = useDialogState<Workflow>()
@@ -84,6 +94,16 @@ export default function Workflows() {
         operators: [FilterOperatorEnum.CONTAINS],
         defaultOperator: FilterOperatorEnum.CONTAINS,
         placeholder: 'Filter by name',
+      },
+      {
+        key: 'is_enabled',
+        label: 'State',
+        type: FilterTypeEnum.SELECT,
+        options: [
+          { value: 'true', label: 'Enabled' },
+          { value: 'false', label: 'Disabled' },
+        ],
+        placeholder: 'Filter by state',
       },
     ],
     []
@@ -296,16 +316,12 @@ export default function Workflows() {
           variant: 'success',
           autoDismiss: true,
           title: 'Workflow duplicated',
-          description: createdWorkflow?.id ? (
-            <>
-              Created{' '}
-              <Button variant="link" isInline onClick={() => setLocation(`/workflow-builder/${createdWorkflow.id}`)}>
-                {duplicateName}
-              </Button>
-            </>
-          ) : (
-            `Created "${duplicateName}"`
-          ),
+          description: `Created "${duplicateName}"`,
+          actionLinks: createdWorkflow?.id ? (
+            <AlertActionLink onClick={() => setLocation(`/workflow-builder/${createdWorkflow.id}`)}>
+              Open workflow
+            </AlertActionLink>
+          ) : undefined,
         })
         detachPromise(workflowsQuery.refetch())
       } catch (err: unknown) {
@@ -373,138 +389,131 @@ export default function Workflows() {
     onRetry: () => detachPromise(workflowsQuery.refetch()),
   })
 
-  // Show loading/error state
-  if (queryState) {
-    return (
-      <NxPage>
-        <NxPageHeader title="Workflows" />
-        <NxPageBody>
-          <NxPanel isFullHeight>{queryState}</NxPanel>
-        </NxPageBody>
-      </NxPage>
-    )
-  }
-
   return (
-    <NxPage>
-      <NxPageHeader
-        title="Workflows"
-        projectSelector={ProjectSelector}
-        toolbar={
-          <>
-            <Button variant="primary" icon={<RhUiAddIcon />} onClick={() => setLocation('/workflow-builder/new')}>
-              Create workflow
-            </Button>
-            <Button variant="secondary" onClick={() => setImportDialogOpen(true)}>
-              Import workflow
-            </Button>
-          </>
-        }
-      />
-
-      <NxPageBody>
-        <NxPanel isFullHeight>
-          <NxPanelContentStack variant="inset">
-            <StackItem>
-              <FilterBar
-                fieldDefinitions={filterFieldDefinitions}
-                filters={filters}
-                onFilterChange={handleFilterChange}
-                showClearAll={true}
-              />
-            </StackItem>
-
-            {sortedWorkflows.length === 0 ? (
-              <NxPageBody isCentered>
-                {hasActiveFilters ? (
-                  <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
-                ) : (
-                  <EmptyStateNoData
-                    title="No workflows yet"
-                    description="Create your first workflow to get started."
-                    buttonText="Create workflow"
-                    addData={() => setLocation('/workflow-builder/new')}
-                  />
-                )}
-              </NxPageBody>
-            ) : (
-              <ScrollableTableContainer aria-label="Workflows table" footer={getFooterProps(workflowsQuery.data)}>
-                <Thead>
-                  <Tr>
-                    <Th>Name</Th>
-                    <Th>Created at</Th>
-                    <Th>Updated at</Th>
-                    <Th>Tags</Th>
-                    <Th>Status</Th>
-                    <Th screenReaderText="Actions" />
-                  </Tr>
-                </Thead>
-                {isAllProjects && groupedWorkflows ? (
-                  <GroupedWorkflowsTableBody
-                    groupedWorkflows={groupedWorkflows}
-                    collapsedProjects={collapsedProjects}
-                    onToggleProject={toggleProjectCollapsed}
-                    getRowActions={getRowActions}
-                  />
-                ) : (
-                  <FlatWorkflowsTableBody workflows={sortedWorkflows} getRowActions={getRowActions} />
-                )}
-              </ScrollableTableContainer>
-            )}
-          </NxPanelContentStack>
-        </NxPanel>
-      </NxPageBody>
-
-      <NxConfirmationDialog
-        isOpen={runDialog.isOpen}
-        onClose={runDialog.close}
-        onConfirm={() => {
-          if (runDialog.item) {
-            handleRunWorkflow(runDialog.item)
+    <>
+      <NxPage>
+        <NxPageHeader
+          title="Workflows"
+          projectSelector={queryState ? undefined : ProjectSelector}
+          toolbar={
+            queryState ? undefined : (
+              <>
+                <Button variant="secondary" icon={<RhUiImportIcon />} onClick={() => setImportDialogOpen(true)}>
+                  Import workflow
+                </Button>
+                <Button variant="primary" icon={<RhUiAddIcon />} onClick={() => setLocation('/workflow-builder/new')}>
+                  Create workflow
+                </Button>
+              </>
+            )
           }
-          runDialog.close()
-        }}
-        title={`Run ${runDialog.item?.name}?`}
-        confirmLabel="Run now"
-      >
-        You are about to manually run this workflow. This action will start the workflow immediately, bypassing its
-        normal trigger conditions.
-      </NxConfirmationDialog>
+        />
 
-      <NxConfirmationDialog
-        isOpen={deleteDialog.isOpen}
-        onClose={deleteDialog.close}
-        onConfirm={handleDeleteWorkflow}
-        title="Delete workflow?"
-        confirmLabel="Delete"
-        confirmVariant="danger"
-        titleIconVariant="warning"
-        confirmLoading={isDeleting}
-        destructiveAcknowledgement={{
-          checkboxId: 'delete-workflow-ack',
-          label: 'I understand this workflow and any dependent workflows will be affected by this deletion.',
-        }}
-      >
-        <Stack hasGutter>
-          <StackItem>
-            The workflow <strong>{deleteDialog.item?.name}</strong> will be deleted. This cannot be undone.
-          </StackItem>
-          <StackItem>
-            <List>
-              <ListItem>This workflow will stop running immediately.</ListItem>
-              <ListItem>
-                Any other workflows that use this one as a step will also become invalid and stop running.
-              </ListItem>
-            </List>
-          </StackItem>
-        </Stack>
-      </NxConfirmationDialog>
+        <NxPageBody>
+          <NxPanel isFullHeight>
+            {queryState ?? (
+              <NxPanelContentStack variant="inset">
+                <StackItem>
+                  <FilterBar
+                    fieldDefinitions={filterFieldDefinitions}
+                    filters={filters}
+                    onFilterChange={handleFilterChange}
+                    showClearAll={true}
+                  />
+                </StackItem>
+
+                {sortedWorkflows.length === 0 ? (
+                  <NxPageBody isCentered>
+                    {hasActiveFilters ? (
+                      <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
+                    ) : (
+                      <EmptyStateNoData
+                        title="No workflows yet"
+                        description="Create your first workflow to get started."
+                        buttonText="Create workflow"
+                        addData={() => setLocation('/workflow-builder/new')}
+                      />
+                    )}
+                  </NxPageBody>
+                ) : (
+                  <ScrollableTableContainer aria-label="Workflows table" footer={getFooterProps(workflowsQuery.data)}>
+                    <Thead>
+                      <Tr>
+                        <Th>Name</Th>
+                        <Th>Created at</Th>
+                        <Th>Updated at</Th>
+                        <Th>Tags</Th>
+                        <Th>State</Th>
+                        <Th screenReaderText="Actions" />
+                      </Tr>
+                    </Thead>
+                    {isAllProjects && groupedWorkflows ? (
+                      <GroupedWorkflowsTableBody
+                        groupedWorkflows={groupedWorkflows}
+                        collapsedProjects={collapsedProjects}
+                        onToggleProject={toggleProjectCollapsed}
+                        getRowActions={getRowActions}
+                      />
+                    ) : (
+                      <FlatWorkflowsTableBody workflows={sortedWorkflows} getRowActions={getRowActions} />
+                    )}
+                  </ScrollableTableContainer>
+                )}
+              </NxPanelContentStack>
+            )}
+          </NxPanel>
+        </NxPageBody>
+
+        <NxConfirmationDialog
+          isOpen={runDialog.isOpen}
+          onClose={runDialog.close}
+          onConfirm={() => {
+            if (runDialog.item) {
+              handleRunWorkflow(runDialog.item)
+            }
+            runDialog.close()
+          }}
+          title={`Run ${runDialog.item?.name}?`}
+          confirmLabel="Run now"
+        >
+          You are about to manually run this workflow. This action will start the workflow immediately, bypassing its
+          normal trigger conditions.
+        </NxConfirmationDialog>
+
+        <NxConfirmationDialog
+          isOpen={deleteDialog.isOpen}
+          onClose={deleteDialog.close}
+          onConfirm={handleDeleteWorkflow}
+          title="Delete workflow?"
+          confirmLabel="Delete"
+          confirmVariant="danger"
+          titleIconVariant="warning"
+          confirmLoading={isDeleting}
+          destructiveAcknowledgement={{
+            checkboxId: 'delete-workflow-ack',
+            label: 'I understand this workflow and any dependent workflows will be affected by this deletion.',
+          }}
+        >
+          <Stack hasGutter>
+            <StackItem>
+              The workflow <strong>{deleteDialog.item?.name}</strong> will be deleted. This cannot be undone.
+            </StackItem>
+            <StackItem>
+              <List>
+                <ListItem>This workflow will stop running immediately.</ListItem>
+                <ListItem>
+                  Any other workflows that use this one as a step will also become invalid and stop running.
+                </ListItem>
+              </List>
+            </StackItem>
+          </Stack>
+        </NxConfirmationDialog>
+      </NxPage>
+
       <ImportWorkflowDialog
         isOpen={importDialogOpen}
         onClose={() => setImportDialogOpen(false)}
         onSuccess={() => detachPromise(workflowsQuery.refetch())}
-        defaultProjectId={selectedProjectId}
-        projects={projects}
       />
       <PublishWorkflowDialog
         isOpen={publishDialog.isOpen}
@@ -524,6 +533,6 @@ export default function Workflows() {
         The workflow <strong>{unpublishDialog.item?.name}</strong> will be unpublished. It will no longer be available
         for execution until published again.
       </NxConfirmationDialog>
-    </NxPage>
+    </>
   )
 }
