@@ -8727,8 +8727,8 @@ paths:
       tags:
         - Invocation
       x-app-permission:
-        resource: null
-        action: null
+        resource: invocation
+        action: create
       requestBody:
         required: true
         content:
@@ -8851,8 +8851,8 @@ paths:
       tags:
         - Invocation
       x-app-permission:
-        resource: null
-        action: null
+        resource: invocation
+        action: read
       parameters:
         - name: limit
           in: query
@@ -9043,8 +9043,8 @@ paths:
       tags:
         - Invocation
       x-app-permission:
-        resource: null
-        action: null
+        resource: invocation
+        action: create
       requestBody:
         required: true
         content:
@@ -9154,8 +9154,8 @@ paths:
       tags:
         - Invocation
       x-app-permission:
-        resource: null
-        action: null
+        resource: invocation
+        action: read
       parameters:
         - name: invocation_id
           in: path
@@ -9270,13 +9270,13 @@ paths:
   /invocations/{invocation_id}/cancel:
     post:
       summary: Cancel Invocation
-      description: Cancel a running or pending invocation. Only the invocation owner can cancel it.
+      description: Cancel a running or pending invocation.
       operationId: cancel_invocation
       tags:
         - Invocation
       x-app-permission:
-        resource: null
-        action: null
+        resource: invocation
+        action: cancel
       parameters:
         - name: invocation_id
           in: path

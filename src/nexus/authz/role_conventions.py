@@ -153,6 +153,10 @@ BUILTIN_POLICIES: list[PolicyInfo] = [
     PolicyInfo("audit", "read", roles=("admin", "auditor")),
     # authz query
     PolicyInfo("authz", "query", roles=("admin",)),
+    # invocations
+    PolicyInfo("invocation", "create", roles=("admin",)),
+    PolicyInfo("invocation", "read", roles=("admin",)),
+    PolicyInfo("invocation", "cancel", roles=("admin",)),
     # -- project-scoped --
     PolicyInfo("workflow", "create", scope="project", roles=("project-admin", "project-user")),
     PolicyInfo("workflow", "read", scope="project", roles=("project-admin", "project-user", "project-auditor")),

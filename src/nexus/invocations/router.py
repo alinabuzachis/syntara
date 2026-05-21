@@ -29,15 +29,20 @@ from nexus.agent_orchestrator.models import (
 from nexus.agent_orchestrator.models.request import CancellationResult
 from nexus.agent_orchestrator.services import InvocationService
 from nexus.auth import get_current_user
+from nexus.authz.dependencies import PermissionChecker
 from nexus.core.database.session import get_db
 from nexus.core.models import User
-from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
+from nexus.core.nexus_router import NexusRouter
 from nexus.core.utils.session_factory import create_session_factory_from_request
 
 router = NexusRouter(prefix="/invocations", tags=["Invocation"])
 
 
 logger = structlog.stdlib.get_logger(__name__)
+
+_invocation_perm_create = PermissionChecker("invocation", "create")
+_invocation_perm_read = PermissionChecker("invocation", "read")
+_invocation_perm_cancel = PermissionChecker("invocation", "cancel")
 
 # ============================================================================
 # Dependency Injection Providers
@@ -114,7 +119,7 @@ def _validate_multipart_required_fields(prompt: str | None, session_id: str | No
     status_code=status.HTTP_202_ACCEPTED,
     summary="Create Invocation (Async)",
     description="Accept async agent invocation request and return invocation ID immediately.",
-    dependencies=[NO_PERMISSION],
+    dependencies=[Depends(_invocation_perm_create)],
     operation_id="create_invocation",
     response_description="Invocation accepted",
     openapi_extra={
@@ -184,7 +189,7 @@ async def create_invocation(
     status_code=status.HTTP_202_ACCEPTED,
     summary="Create Invocation with File Uploads (Async)",
     description="Accept async agent invocation request with optional file uploads via multipart/form-data.",
-    dependencies=[NO_PERMISSION],
+    dependencies=[Depends(_invocation_perm_create)],
     operation_id="create_invocation_chat",
     response_description="Invocation accepted",
 )
@@ -220,7 +225,7 @@ async def create_invocation_chat(
     "",
     summary="List Invocations",
     description="List invocations with cursor-based pagination and filtering",
-    dependencies=[NO_PERMISSION],
+    dependencies=[Depends(_invocation_perm_read)],
     operation_id="list_invocations",
     response_description="List of invocations",
     openapi_extra={
@@ -300,7 +305,7 @@ async def list_invocations(
     description="Retrieve full invocation details including the result. "
     "NOTE: This endpoint is for testing and debugging. "
     "Production systems should use WebSockets for real-time results.",
-    dependencies=[NO_PERMISSION],
+    dependencies=[Depends(_invocation_perm_read)],
     operation_id="get_invocation",
     response_description="Invocation details",
     openapi_extra={
@@ -381,8 +386,8 @@ async def get_invocation(
 @router.post(
     "/{invocation_id}/cancel",
     summary="Cancel Invocation",
-    description="Cancel a running or pending invocation. Only the invocation owner can cancel it.",
-    dependencies=[NO_PERMISSION],
+    description="Cancel a running or pending invocation.",
+    dependencies=[Depends(_invocation_perm_cancel)],
     operation_id="cancel_invocation",
     response_description="Cancellation result",
     openapi_extra={

@@ -41,8 +41,8 @@ paths:
       tags:
         - Invocation
       x-app-permission:
-        resource: null
-        action: null
+        resource: invocation
+        action: create
       requestBody:
         required: true
         content:
@@ -95,8 +95,8 @@ paths:
       tags:
         - Invocation
       x-app-permission:
-        resource: null
-        action: null
+        resource: invocation
+        action: read
       parameters:
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
@@ -182,8 +182,8 @@ paths:
       tags:
         - Invocation
       x-app-permission:
-        resource: null
-        action: null
+        resource: invocation
+        action: create
       requestBody:
         required: true
         content:
@@ -223,8 +223,8 @@ paths:
       tags:
         - Invocation
       x-app-permission:
-        resource: null
-        action: null
+        resource: invocation
+        action: read
       parameters:
         - name: invocation_id
           in: path
@@ -269,14 +269,14 @@ paths:
     post:
       summary: Cancel Invocation
       description: |-
-        Cancel a running or pending invocation. Only the invocation owner can cancel it.
+        Cancel a running or pending invocation.
 
       operationId: cancel_invocation
       tags:
         - Invocation
       x-app-permission:
-        resource: null
-        action: null
+        resource: invocation
+        action: cancel
       parameters:
         - name: invocation_id
           in: path

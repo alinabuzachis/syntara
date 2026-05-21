@@ -101,7 +101,7 @@ def sync_detailed(
 ) -> Response[ErrorData | InvocationCancelResponse]:
     """Cancel Invocation
 
-     Cancel a running or pending invocation. Only the invocation owner can cancel it.
+     Cancel a running or pending invocation.
 
     Args:
         invocation_id (str):
@@ -139,7 +139,7 @@ def sync(
 ) -> ErrorData | InvocationCancelResponse | None:
     """Cancel Invocation
 
-     Cancel a running or pending invocation. Only the invocation owner can cancel it.
+     Cancel a running or pending invocation.
 
     Args:
         invocation_id (str):
@@ -172,7 +172,7 @@ async def asyncio_detailed(
 ) -> Response[ErrorData | InvocationCancelResponse]:
     """Cancel Invocation
 
-     Cancel a running or pending invocation. Only the invocation owner can cancel it.
+     Cancel a running or pending invocation.
 
     Args:
         invocation_id (str):
@@ -208,7 +208,7 @@ async def asyncio(
 ) -> ErrorData | InvocationCancelResponse | None:
     """Cancel Invocation
 
-     Cancel a running or pending invocation. Only the invocation owner can cancel it.
+     Cancel a running or pending invocation.
 
     Args:
         invocation_id (str):
