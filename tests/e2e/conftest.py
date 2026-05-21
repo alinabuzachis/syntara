@@ -6,6 +6,7 @@ inherited automatically.  This file adds e2e-specific fixtures.
 """
 
 import os
+import time
 from collections.abc import Generator
 from http import HTTPStatus
 from pathlib import Path
@@ -39,6 +40,23 @@ def _admin_password() -> str:
         raise RuntimeError(msg)
 
     return password
+
+
+_TOKEN_REFRESH_INTERVAL = 300  # Re-authenticate after 5 minutes (token lifetime is 15 min)
+_last_token_time: float = 0.0
+
+
+def _refresh_token_if_needed(client: AuthenticatedClient, base_url: str) -> None:
+    """Re-authenticate the client if the access token is close to expiring."""
+    global _last_token_time  # noqa: PLW0603
+    now = time.monotonic()
+    if now - _last_token_time > _TOKEN_REFRESH_INTERVAL:
+        client.token = _generate_e2e_token(base_url)
+        client._headers[client.auth_header_name] = f"{client.prefix} {client.token}"
+        # Force httpx clients to be reconstructed with the new token
+        client._client = None
+        client._async_client = None
+        _last_token_time = now
 
 
 MCP_PROVIDER_NAME = "mcp"
@@ -98,7 +116,9 @@ def nexus_client(nexus_base_url: str) -> AuthenticatedClient:
             returncode=1,
         )
 
+    global _last_token_time  # noqa: PLW0603
     access_token = _generate_e2e_token(base_url)
+    _last_token_time = time.monotonic()
 
     return AuthenticatedClient(
         base_url=f"{base_url}/api/v1",
@@ -115,12 +135,14 @@ def nexus_api(nexus_client: AuthenticatedClient) -> NexusApiRegistry:
 
 
 @pytest.fixture(autouse=True)
-def reset_async_client(nexus_client: AuthenticatedClient) -> Generator[None, None, None]:
-    """Reset the cached async httpx client after each test.
+def reset_async_client(nexus_client: AuthenticatedClient, nexus_base_url: str) -> Generator[None, None, None]:
+    """Reset the cached async httpx client and refresh token if needed.
 
     nexus_client is session-scoped but async tests run with function-scoped event loops.
     Without this, the AsyncClient created in one test's loop becomes stale for the next.
+    Also re-authenticates when the access token is close to expiring (10 min threshold).
     """
+    _refresh_token_if_needed(nexus_client, nexus_base_url)
     yield
     nexus_client._async_client = None
 
