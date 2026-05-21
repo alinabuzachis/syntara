@@ -162,7 +162,7 @@ class InvocationContextData(BaseModel):
         Used when passing context_data into ``AgentState.metadata``
         (a LangGraph TypedDict that requires JSON-serializable values).
         """
-        d = self.model_dump()
+        d = self.model_dump(mode="json")
         if self.callback_url:
             d["callback_url"] = self.callback_url.get_secret_value()
         return d

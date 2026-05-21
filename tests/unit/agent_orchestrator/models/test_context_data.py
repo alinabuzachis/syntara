@@ -249,6 +249,22 @@ class TestInvocationContextData:
         assert state_dict["callback_url"] == "https://example.com/callback"
         assert isinstance(state_dict["callback_url"], str)
 
+    def test_to_state_dict_serializes_http_url_as_string(self) -> None:
+        """to_state_dict must produce JSON-primitive types for LangGraph/msgpack."""
+        ctx = InvocationContextData.model_validate(
+            {
+                "metadata": {
+                    "llm_base_url": "https://api.example.com",
+                    "llm_provider": "openrouter",
+                },
+            }
+        )
+        state_dict = ctx.to_state_dict()
+
+        url_value = state_dict["metadata"]["llm_base_url"]
+        assert isinstance(url_value, str)
+        assert url_value == "https://api.example.com/"
+
 
 class TestOpaqueResponseSchema:
     """Tests for OpaqueResponseSchema wrapper type."""
